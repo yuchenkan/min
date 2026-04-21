@@ -5,7 +5,7 @@ from core.lang import Var, In, Not, Implies, Forall, Formula
 
 def expand_all(formula):
     while hasattr(formula, 'expand'):
-        formula = formula.expand_all()
+        formula = formula.expand()
     match formula:
         case Not(operand):
             return Not(expand_all(operand))
@@ -24,10 +24,11 @@ class Sequent:
 
 
 class Proof:
-    def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None):
+    def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None, name: str = None):
         self.sequent = sequent
         self.rule = rule
         self.premises = premises or []
+        self.name = name
 
     def theorem(self) -> Formula:
         s = self.sequent

@@ -12,6 +12,14 @@ class Exists:
     def expand(self):
         return Not(Forall(self.var, Not(self.body)))
 
+    def subst(self, old: Var, new: Var):
+        if self.var is old:
+            return self
+        return Exists(self.var, self.body.subst(old, new))
+
+    def __str__(self):
+        return f'exists {self.var}. ({self.body})'
+
 
 class And:
     __match_args__ = ('left', 'right')
@@ -21,6 +29,12 @@ class And:
 
     def expand(self):
         return Not(Implies(self.left, Not(self.right)))
+
+    def subst(self, old: Var, new: Var):
+        return And(self.left.subst(old, new), self.right.subst(old, new))
+
+    def __str__(self):
+        return f'({self.left}) and ({self.right})'
 
 
 class Or:
@@ -32,6 +46,12 @@ class Or:
     def expand(self):
         return Implies(Not(self.left), self.right)
 
+    def subst(self, old: Var, new: Var):
+        return Or(self.left.subst(old, new), self.right.subst(old, new))
+
+    def __str__(self):
+        return f'({self.left}) or ({self.right})'
+
 
 class Iff:
     __match_args__ = ('left', 'right')
@@ -41,6 +61,12 @@ class Iff:
 
     def expand(self):
         return Not(Implies(Implies(self.left, self.right), Not(Implies(self.right, self.left))))
+
+    def subst(self, old: Var, new: Var):
+        return Iff(self.left.subst(old, new), self.right.subst(old, new))
+
+    def __str__(self):
+        return f'({self.left}) iff ({self.right})'
 
 
 class Eq:
@@ -55,4 +81,9 @@ class Eq:
         b = Implies(In(z, self.right), In(z, self.left))
         return Forall(z, Not(Implies(a, Not(b))))
 
+    def subst(self, old: Var, new: Var):
+        return Eq(new if self.left is old else self.left,
+                  new if self.right is old else self.right)
 
+    def __str__(self):
+        return f'{self.left} = {self.right}'
