@@ -2429,43 +2429,1029 @@ def pair_from_tuple(a=None, b=None, c=None, d=None):
     return case_b_result
 
 
+def _derive_or_membership(chars, char_t, eq_t, char_other, set_var, t_var, other_t, s_var, w):
+    """From chars + Eq(t1,t2) + char_t1/t2, derive Or(Eq(set_var, sc), Eq(set_var, pcd))
+    for a specific set_var that is known to be in t_var (via char_t + reflexivity)."""
+    # In(set_var, t_var) from char_t + Eq(set_var, set_var)
+    eq_self = Eq(set_var, set_var)
+    got_self = _instantiate(eq_reflexive(), [set_var])  # |- Eq(set_var, set_var)
+
+    # char_t: forall w. Iff(In(w, t_var), Or(Eq(w, ...), Eq(w, ...)))
+    # char_t inst with set_var: Iff(In(set_var, t_var), Or(Eq(set_var, ...), Eq(set_var, ...)))
+    ct_body = char_t.body.subst(char_t.var, set_var)
+    inst_ct = _forall_left(_axiom(ct_body), char_t, set_var)
+    # char_t |- ct_body = Iff(In(set_var, t_var), Or(...))
+
+    # The Or has Eq(set_var, set_var) as one disjunct. Use or_intro + iff backward.
+    or_members = ct_body.right  # Or(Eq(set_var, v1), Eq(set_var, v2))
+    in_st = In(set_var, t_var)
+
+    # Eq(set_var, set_var) matches one of the disjuncts → Or is true
+    # We need: got_self proves one disjunct, or_intro gives the Or, iff_elim_right gives In(set_var, t_var)
+    # The disjuncts are Eq(set_var, X) and Eq(set_var, Y) from char_t.
+    # set_var = X or set_var = Y? set_var IS one of them (by construction).
+    # For sa in char_t1: Or(Eq(sa, sa), Eq(sa, pab)). Eq(sa, sa) by refl.
+    # For pab in char_t1: Or(Eq(pab, sa), Eq(pab, pab)). Eq(pab, pab) by refl.
+    # So the second disjunct matches for pab, first for sa.
+    # Use or_intro_right for the second disjunct (Eq(set_var, set_var) matches).
+
+    # or_members.right is the second disjunct. If it's Eq(set_var, set_var), use or_intro_right.
+    # or_members.left is the first. If that matches, use or_intro_left.
+    # Since we pass set_var = one of the pair elements, the refl matches.
+    # For generality, try right first (Eq(set_var, set_var) via or_intro_right):
+    got_or = _cut(got_self, or_intro_right(or_members.left, eq_self),
+                  eq_self, [], [or_members])
+    # |- Or(...)
+
+    # Apply iff backward to get In(set_var, t_var):
+    got_in = _apply_imp(iff_elim_right(in_st, or_members),
+                        _axiom(or_members, left=[ct_body]),
+                        [ct_body, or_members])
+    got_in2 = _cut(_weaken_to(inst_ct, chars, [ct_body]),
+                   got_in, ct_body, chars + [or_members], [in_st])
+    got_in3 = _cut(got_or, got_in2, or_members, chars, [in_st])
+    # chars |- In(set_var, t_var)
+
+    # From eq_t: Eq(t_var, other_t) = forall z. Iff(In(z, t_var), In(z, other_t))
+    in_s_other = In(set_var, other_t)
+    eq_body = Iff(in_st, in_s_other)
+    inst_eq = _forall_left(_axiom(eq_body), eq_t, set_var)
+    got_in_other = _apply_imp(
+        iff_elim_left(in_st, in_s_other),
+        _axiom(in_st, left=[eq_body]),
+        [eq_body, in_st])
+    got_in_other2 = _cut(_weaken_to(inst_eq, chars, [eq_body]),
+                         got_in_other, eq_body, chars + [in_st], [in_s_other])
+    got_in_other3 = _cut(got_in3, got_in_other2, in_st, chars, [in_s_other])
+    # chars |- In(set_var, other_t)
+
+    # From char_other: forall w. Iff(In(w, other_t), Or(Eq(w, sc), Eq(w, pcd)))
+    co_body = char_other.body.subst(char_other.var, set_var)
+    inst_co = _forall_left(_axiom(co_body), char_other, set_var)
+    got_or_result = _apply_imp(
+        iff_elim_left(in_s_other, co_body.right),
+        _axiom(in_s_other, left=[co_body]),
+        [co_body, in_s_other])
+    got_or_result2 = _cut(_weaken_to(inst_co, chars, [co_body]),
+                          got_or_result, co_body, chars + [in_s_other], [co_body.right])
+    got_or_result3 = _cut(got_in_other3, got_or_result2, in_s_other, chars, [co_body.right])
+    # chars |- Or(Eq(set_var, sc), Eq(set_var, pcd))
+    return got_or_result3
+
+
 def kuratowski():
-    """Kuratowski tuple injection.
-    |- forall a b c d. H_tuple -> EX_sing -> H_pair -> And(Eq(a,c), Eq(b,d))
-    where H_tuple = outer pair membership equality,
-          EX_sing = singleton {a} exists,
-          H_pair = inner pair membership equality.
-    Full Tuple(DefSet) goal requires bridging via _char_bridge + or_iff_compat."""
+    """|- forall a b c d. Tuple(a,b, t1 => Tuple(c,d, t2 =>
+        Eq(t1,t2) implies And(Eq(a,c), Eq(b,d))))"""
+    from definitions import Tuple
     a, b, c, d = Var(), Var(), Var(), Var()
-    x, y, s, z = Var(), Var(), Var(), Var()
+    x, y, s, z, w = Var(), Var(), Var(), Var(), Var()
 
-    sing_a_s = Forall(z, Iff(In(z, s), Eq(z, a)))
-    H_sing = Forall(y, Iff(Eq(y, a), Eq(y, c)))
-    EX_sing = Not(Forall(s, Not(sing_a_s)))
+    eq_ac, eq_bd = Eq(a, c), Eq(b, d)
+    and_goal = And(eq_ac, eq_bd)
 
-    sft = singleton_from_tuple(a, b, c, d)
-    sft_inst = _instantiate(sft, [a, b, c, d])
-    H_tuple_mem = sft_inst.sequent.right[0].left
-    got_fa = _apply_imp(sft_inst, _axiom(H_tuple_mem), [H_tuple_mem])
+    goal = Forall(a, Forall(b, Forall(c, Forall(d,
+        Tuple(a, b, lambda t1:
+            Tuple(c, d, lambda t2:
+                Implies(Eq(t1, t2), and_goal)))))))
 
-    fie = forall_implies_exists(sing_a_s, H_sing, s)
-    got_hsing = _cut(got_fa, fie,
-                     Forall(s, Implies(sing_a_s, H_sing)),
-                     [H_tuple_mem, EX_sing], [H_sing])
+    sa, pab, t1v = Var('sa'), Var('pab'), Var('t1')
+    sc, pcd, t2v = Var('sc'), Var('pcd'), Var('t2')
 
-    H_pair = Forall(x, Iff(Or(Eq(x, a), Eq(x, b)), Or(Eq(x, c), Eq(x, d))))
+    char_sa = Forall(w, Iff(In(w, sa), Eq(w, a)))
+    char_pab = Forall(w, Iff(In(w, pab), Or(Eq(w, a), Eq(w, b))))
+    char_t1 = Forall(w, Iff(In(w, t1v), Or(Eq(w, sa), Eq(w, pab))))
+    char_sc = Forall(w, Iff(In(w, sc), Eq(w, c)))
+    char_pcd = Forall(w, Iff(In(w, pcd), Or(Eq(w, c), Eq(w, d))))
+    char_t2 = Forall(w, Iff(In(w, t2v), Or(Eq(w, sc), Eq(w, pcd))))
+    eq_t1t2 = Eq(t1v, t2v)
+
+    chars = [char_sa, char_pab, char_t1, char_sc, char_pcd, char_t2, eq_t1t2]
+
+    # --- Derive H_tuple ---
+    # singleton_from_tuple needs H_tuple in sing/pair form.
+    # Build it from chars using _char_bridge + or_iff_compat.
+    # Step: for any s, Or(Eq(s,sa),Eq(s,pab)) iff Or(Eq(s,sc),Eq(s,pcd))
+    # Then bridge Eq(s,v) to sing/pair via _char_bridge.
+
+    # Actually, singleton_from_tuple and tuple_injection_full work at the
+    # membership level. They take H_tuple as a membership-level formula.
+    # The bridge from chars to membership level IS the proof.
+    # Let me derive H_tuple_mem, EX_sing, H_pair from chars, then apply
+    # the existing theorems.
+
+    # H_tuple_mem: derive using iff_chain through t1,t2 + bridge
+    # For now, use _derive_or_membership for sa (to get EX_sing witness)
+    # and pab (to derive H_pair).
+
+    # Step 1: Or(Eq(sa, sc), Eq(sa, pcd)) from chars
+    got_sa_or = _derive_or_membership(chars, char_t1, eq_t1t2, char_t2, sa, t1v, t2v, s, w)
+    # chars |- Or(Eq(sa, sc), Eq(sa, pcd))
+
+    # Step 2: Case Eq(sa, sc) → sing_a = sing_c via _char_bridge → a=c via singleton_eq
+    #   Case Eq(sa, pcd) → degenerate case
+    # For Eq(sa, sc): _char_bridge gives sing_c(sa), and we have sing_a(sa) from char_sa.
+    # So forall z. Iff(Eq(z,a), Eq(z,c)) (from sing_a + sing_c via iff_chain).
+    # This is H_sing → singleton_eq gives a=c.
+
+    # Step 3: Or(Eq(pab, sc), Eq(pab, pcd)) from chars
+    got_pab_or = _derive_or_membership(chars, char_t1, eq_t1t2, char_t2, pab, t1v, t2v, s, w)
+    # chars |- Or(Eq(pab, sc), Eq(pab, pcd))
+
+    # Step 4: Case Eq(pab, pcd) → pair_from_tuple gives H_pair
+    #   Case Eq(pab, sc) → degenerate (a=b=c)
+
+    # For case Eq(pab, pcd): _char_bridge + pair_from_tuple
+    pair_ab_pab = Forall(z, Iff(In(z, pab), Or(Eq(z, a), Eq(z, b))))  # = char_pab with s=pab... wait
+    # char_pab already IS about pab. And char_pcd is about pcd.
+    # Eq(pab, pcd): forall z. Iff(In(z,pab), In(z,pcd))
+    # _char_bridge(char_pcd, Eq(pab, pcd), pab, pcd, z, chars): chars,Eq(pab,pcd) |- pair_cd(pab)
+    # pair_cd(pab) = Forall(z, Iff(In(z,pab), Or(Eq(z,c), Eq(z,d))))
+    # pair_from_tuple(a,b,c,d): [pair_ab(s), pair_cd(s)] |- H_pair
+    # With s=pab: [char_pab, pair_cd(pab)] |- H_pair
+
+    pair_cd_pab = Forall(z, Iff(In(z, pab), Or(Eq(z, c), Eq(z, d))))
+    br_pcd = _char_bridge(char_pcd, Eq(pab, pcd), pab, pcd, z, chars)
+    # chars, Eq(pab, pcd) |- pair_cd_pab
+
+    pft = pair_from_tuple(a, b, c, d)  # [pair_ab(s), pair_cd(s)] |- H_pair
+    H_pair = pft.sequent.right[0]
+    # Need to use pft with char_pab as pair_ab and pair_cd_pab as pair_cd.
+    # pft expects both to use the same s variable. char_pab uses pab. pair_cd_pab uses pab. Match!
+    # But pft creates its own internal vars. Alpha-equiv should handle it.
+
+    case_pcd_h_pair = _cut(
+        br_pcd,
+        _weaken_to(pft, chars + [Eq(pab, pcd), char_pab, pair_cd_pab], [H_pair]),
+        pair_cd_pab,
+        chars + [Eq(pab, pcd), char_pab], [H_pair])
+    # Hmm, pft has [pair_ab, pair_cd] on left (its own vars). _weaken_to needs to match.
+    # The pair_ab from pft uses its own s variable, which alpha-matches pab.
+    # Let me check if _weaken_to can find char_pab matching pft's pair_ab.
+    # pft's pair_ab = Forall(z, Iff(In(z, s_internal), Or(Eq(z, a), Eq(z, b))))
+    # char_pab = Forall(w, Iff(In(w, pab), Or(Eq(w, a), Eq(w, b))))
+    # Alpha-equivalent? Yes! Both bind a var and the free vars are a, b + the set var (s_internal vs pab).
+    # But they're different free vars (s_internal vs pab). NOT alpha-equivalent!
+    # Alpha-equiv only renames BOUND vars, not free vars.
+
+    # So I need to use pair_from_tuple with the SAME set variable pab.
+    pft2 = pair_from_tuple(a, b, c, d)
+    # pft2 creates its own s. Its left[0] = Forall(z, Iff(In(z, s_pft), ...))
+    # This s_pft is different from pab. Not alpha-equiv.
+
+    # Fix: pass pab as the shared set variable. But pair_from_tuple doesn't take s.
+    # I need to modify pair_from_tuple or build the proof inline.
+
+    # Inline: char_pab + pair_cd_pab share pab. iff_chain through In(z, pab):
+    # Or(Eq(z,a),Eq(z,b)) iff In(z,pab) iff Or(Eq(z,c),Eq(z,d))
+    # This IS what pair_from_tuple does, but with its own s.
+    # Let me just build it directly:
+
+    eq_za_or_b = Or(Eq(z, a), Eq(z, b))
+    eq_zc_or_d = Or(Eq(z, c), Eq(z, d))
+    in_z_pab = In(z, pab)
+
+    ctx_pcd = chars + [Eq(pab, pcd)]
+    inst_pab = _forall_left(_axiom(Iff(in_z_pab, eq_za_or_b)), char_pab, z)
+    flip_pab = _iff_sym(in_z_pab, eq_za_or_b)
+    got_flip_pab = _cut(inst_pab, flip_pab, Iff(in_z_pab, eq_za_or_b),
+                        ctx_pcd, [Iff(eq_za_or_b, in_z_pab)])
+
+    inst_pcd_br = _forall_left(_axiom(Iff(in_z_pab, eq_zc_or_d)), br_pcd.sequent.right[0], z)
+    # br_pcd: ctx_pcd |- pair_cd_pab. Instantiate:
+    got_pcd_body = _cut(br_pcd,
+                        _forall_left(_axiom(Iff(in_z_pab, eq_zc_or_d)), pair_cd_pab, z),
+                        pair_cd_pab, ctx_pcd, [Iff(in_z_pab, eq_zc_or_d)])
+
+    ch_pair = iff_chain(eq_za_or_b, in_z_pab, eq_zc_or_d)
+    ch_w = _weaken_to(ch_pair,
+                      ctx_pcd + [Iff(eq_za_or_b, in_z_pab), Iff(in_z_pab, eq_zc_or_d)],
+                      [Iff(eq_za_or_b, eq_zc_or_d)])
+    rp1 = _cut(got_flip_pab, ch_w, Iff(eq_za_or_b, in_z_pab),
+               ctx_pcd + [Iff(in_z_pab, eq_zc_or_d)], [Iff(eq_za_or_b, eq_zc_or_d)])
+    rp2 = _cut(got_pcd_body, rp1, Iff(in_z_pab, eq_zc_or_d),
+               ctx_pcd, [Iff(eq_za_or_b, eq_zc_or_d)])
+    case_pcd = _forall_right(rp2, z)
+    # chars, Eq(pab, pcd) |- H_pair
+    case_pcd_imp = _implies_right(case_pcd)
+    # chars |- Implies(Eq(pab, pcd), H_pair)
+
+    # Case Eq(pab, sc): degenerate. pab = {c}, so {a,b}={c}, a=c, b=c.
+    # Then from eq_transfer: H_pair where d doesn't matter because
+    # both sides have a=b=c as the only element.
+    # Actually: we need to show d=c too. This needs instantiating H_tuple with pcd.
+    # OR: since a=b=c, and the tuple has {a,b}={c} and {c,d} in it,
+    # {c,d} must also be in {{a},{a,b}}={{c}}, so {c,d}={c}, so d=c.
+    # This is the same _derive_or_membership pattern for pcd.
+
+    # For simplicity, use eq_bc_implies_bd which already handles this degenerate case!
+    # eq_bc_implies_bd(a,b,c,d): [H_pair_formula, Eq(a,c), Eq(b,c)] |- Eq(b,d)
+    # But we don't have H_pair yet in case A!
+
+    # Simpler approach for case A: from pab=sc (i.e. {a,b}={c}):
+    # char_pab + Eq(pab,sc) via _char_bridge: sing_c(pab) = Forall(z, Iff(In(z,pab), Eq(z,c)))
+    # Combined with char_pab: Or(Eq(z,a),Eq(z,b)) iff Eq(z,c) for all z.
+    # Instantiate z=c: Or(Eq(c,a),Eq(c,b)) iff Eq(c,c). True → Eq(c,a) or Eq(c,b). Either gives c=a or c=b.
+    # Instantiate z=d: we don't have d info here.
+    # But we CAN do: from a=c and b=c, use eq_transfer to show:
+    # Eq(x,a) iff Eq(x,c) (from a=c) and Eq(x,b) iff Eq(x,c) (from b=c).
+    # So Or(Eq(x,a),Eq(x,b)) iff Or(Eq(x,c),Eq(x,c)).
+    # And Or(Eq(x,c),Eq(x,c)) implies Or(Eq(x,c),Eq(x,d)) by weakening (wrong direction).
+    # We need the IFF, not just one direction.
+
+    # The issue: without d=c, we can't get the backward direction of H_pair.
+    # Need d=c. Derive: _derive_or_membership for pcd:
+    # Or(Eq(pcd, sa), Eq(pcd, pab)) from chars (pcd is in t2, and by eq backward, in t1).
+    # Need eq backward: t2=t1. Use eq_symmetric on eq_t1t2.
+    # eq_t1t2: Eq(t1v, t2v). Symmetric: Eq(t2v, t1v).
+
+    # _derive_or_membership for pcd through t2 → t1:
+    # In(pcd, t2) from char_t2 + refl. In(pcd, t1) from Eq(t2,t1). Then char_t1 gives Or.
+    eq_t2t1 = Eq(t2v, t1v)
+    # Derive Eq(t2v, t1v) from Eq(t1v, t2v):
+    sym_t = _instantiate(eq_symmetric(), [t1v, t2v])  # |- Eq(t1v,t2v) -> Eq(t2v,t1v)
+    got_t2t1 = _apply_imp(sym_t, _axiom(eq_t1t2), [eq_t1t2])
+    # [eq_t1t2] |- Eq(t2v, t1v)
+
+    # Temporarily add eq_t2t1 to chars for _derive_or_membership
+    # Actually, _derive_or_membership takes eq_t as argument.
+    # Use it with char_t2, eq_t2t1, char_t1:
+    chars_with_sym = list(chars)  # same chars, just use eq_t2t1 as the eq
+    got_pcd_or = _derive_or_membership(chars, char_t2, eq_t2t1, char_t1, pcd, t2v, t1v, s, w)
+    # Hmm, _derive_or_membership uses eq_t directly but eq_t2t1 is derived, not in chars.
+    # It tries _forall_left(_axiom(...), eq_t2t1, set_var) but eq_t2t1 is not in chars.
+    # Need to weaken got_t2t1 into the context.
+
+    # Let me modify: derive In(pcd, t1) manually.
+    # In(pcd, t2) from char_t2 + refl (same as _derive_or_membership step 1):
+    eq_pcd_self = Eq(pcd, pcd)
+    got_pcd_self = _instantiate(eq_reflexive(), [pcd])
+    ct2_body = char_t2.body.subst(char_t2.var, pcd)
+    inst_ct2 = _forall_left(_axiom(ct2_body), char_t2, pcd)
+    or_t2_members = ct2_body.right
+    got_or_pcd = _cut(got_pcd_self, or_intro_right(or_t2_members.left, eq_pcd_self),
+                      eq_pcd_self, [], [or_t2_members])
+    in_pcd_t2 = In(pcd, t2v)
+    got_in_pcd_t2 = _apply_imp(
+        iff_elim_right(in_pcd_t2, or_t2_members),
+        _axiom(or_t2_members, left=[ct2_body]),
+        [ct2_body, or_t2_members])
+    got_in_pcd_t2b = _cut(_weaken_to(inst_ct2, chars, [ct2_body]),
+                          got_in_pcd_t2, ct2_body, chars + [or_t2_members], [in_pcd_t2])
+    got_in_pcd_t2c = _cut(got_or_pcd, got_in_pcd_t2b, or_t2_members, chars, [in_pcd_t2])
+    # chars |- In(pcd, t2v)
+
+    # In(pcd, t1) from Eq(t2v, t1v):
+    in_pcd_t1 = In(pcd, t1v)
+    eq_t2t1_body = Iff(In(pcd, t2v), In(pcd, t1v))
+    # got_t2t1: [eq_t1t2] |- Eq(t2v, t1v). Instantiate:
+    inst_sym = _forall_left(_axiom(eq_t2t1_body), eq_t2t1, pcd)
+    got_in_pcd_t1 = _apply_imp(
+        iff_elim_left(in_pcd_t2, in_pcd_t1),
+        _axiom(in_pcd_t2, left=[eq_t2t1_body]),
+        [eq_t2t1_body, in_pcd_t2])
+    # Need eq_t2t1 in context. Derive it:
+    got_t2t1_w = _weaken_to(got_t2t1, chars, [eq_t2t1])
+    got_eq_body = _cut(got_t2t1_w,
+                       _forall_left(_axiom(eq_t2t1_body), eq_t2t1, pcd),
+                       eq_t2t1, chars, [eq_t2t1_body])
+    got_in_t1 = _cut(got_eq_body,
+                     got_in_pcd_t1, eq_t2t1_body, chars + [in_pcd_t2], [in_pcd_t1])
+    got_in_t1b = _cut(got_in_pcd_t2c, got_in_t1, in_pcd_t2, chars, [in_pcd_t1])
+    # chars |- In(pcd, t1v)
+
+    # From char_t1: Or(Eq(pcd, sa), Eq(pcd, pab))
+    ct1_body = char_t1.body.subst(char_t1.var, pcd)
+    inst_ct1 = _forall_left(_axiom(ct1_body), char_t1, pcd)
+    got_pcd_in_t1 = _apply_imp(
+        iff_elim_left(in_pcd_t1, ct1_body.right),
+        _axiom(in_pcd_t1, left=[ct1_body]),
+        [ct1_body, in_pcd_t1])
+    got_pcd_or_t1 = _cut(_weaken_to(inst_ct1, chars, [ct1_body]),
+                         got_pcd_in_t1, ct1_body, chars + [in_pcd_t1], [ct1_body.right])
+    got_pcd_or_t1b = _cut(got_in_t1b, got_pcd_or_t1, in_pcd_t1, chars, [ct1_body.right])
+    # chars |- Or(Eq(pcd, sa), Eq(pcd, pab))
+
+    # In case A (Eq(pab, sc)): if ALSO Eq(pcd, sa): pcd={a}, pab={c}.
+    #   char_pcd + Eq(pcd,sa) via _char_bridge: sing_a(pcd). Combined with char_pcd: Eq(z,c) or Eq(z,d) iff Eq(z,a).
+    #   Instantiate z=d: Eq(d,a). Since a=c (from pab=sc): d=c. Then H_pair from all equal.
+    # If Eq(pcd, pab): pcd=pab={a,b}={c} (from case A pab=sc). So {c,d}={c}. d=c. Same result.
+
+    # Both sub-cases of case A give d=c. Then a=c, b=c, d=c, H_pair from pair_eq_forward.
+    # This is ~50 more steps per sub-case. Let me use a simpler trick:
+    # In case A: Or(Eq(x,a),Eq(x,b)) iff Eq(x,c) for all x (from pab=sc + char combo).
+    # And Or(Eq(x,c),Eq(x,d)) iff ... we need the other pair.
+    # From Eq(pcd, sa) or Eq(pcd, pab):
+    #   Eq(pcd, sa): {c,d}={a}={c} (since a=c). So d=c.
+    #   Eq(pcd, pab): {c,d}={a,b}. Combined with {a,b}={c}: {c,d}={c}. So d=c.
+    # Either way d=c. Then Or(Eq(x,c),Eq(x,d)) = Or(Eq(x,c),Eq(x,c)).
+    # And Or(Eq(x,a),Eq(x,b)) = Or(Eq(x,c),Eq(x,c)) (since a=c, b=c).
+    # So Iff trivially.
+
+    # For now, both cases of the original or (Eq(pab,sc) and Eq(pab,pcd)) give H_pair.
+    # The Eq(pab,pcd) case is proved above (case_pcd_imp).
+    # The Eq(pab,sc) case: I'll prove it separately as case_sc.
+
+    # Case Eq(pab, sc): from _char_bridge, sing_c(pab).
+    # Combined with char_pab (pair_ab(pab)):
+    # forall z. Iff(Or(Eq(z,a),Eq(z,b)), Eq(z,c)) via iff_chain through In(z,pab).
+    # Instantiate z=a: Eq(a,c). z=b: Eq(b,c).
+    # Then need d=c from got_pcd_or_t1. Both sub-cases give d=c (shown above).
+    # Finally pair_eq_forward(a,b,c,d) with a=c, b=c:
+    # Wait, pair_eq_forward needs Eq(a,c) and Eq(b,d). We have Eq(b,c) and need Eq(b,d).
+    # Since d=c: Eq(b,d) by eq_transitive(b,c,d)... but d=c means Eq(c,d), not Eq(d,c).
+    # Actually Eq(d,c) from our derivation. Eq(b,c). Eq(c,d) by symmetric of Eq(d,c).
+    # Then Eq(b,d) by eq_transitive(b,c,d). With Eq(b,c) and Eq(c,d).
+
+    # This is getting very long. Let me just handle BOTH cases together using
+    # the existing theorems at the membership level.
+    # The key insight: from chars I can derive H_tuple_mem, EX_sing, and H_pair
+    # (with case analysis for H_pair). Then apply the existing composition.
+
+    # ACTUALLY — I realize I'm overcomplicating this. The simplest approach:
+    # From the two Or results (got_sa_or and got_pab_or), I can construct
+    # And(Or(Eq(sa,sc),Eq(sa,pcd)), Or(Eq(pab,sc),Eq(pab,pcd))).
+    # This is the FULL content of the tuple equality at the set variable level.
+    # Case analysis on all 4 combinations gives the result.
+    # But the OR-free case (Eq(sa,sc) and Eq(pab,pcd)) is the main one,
+    # and the other 3 are degenerate.
+
+    # For the main case: Eq(sa,sc) → H_sing. Eq(pab,pcd) → H_pair.
+    # Then singleton_from_tuple gives a=c. tuple_injection_full gives b=d.
+
+    # For degenerate cases: all variables collapse to the same value.
+    # And(Eq(a,c), Eq(b,d)) still holds because everything equals everything.
+
+    # Let me just handle the main case and the degenerate cases via or_elim.
+    # Use the existing theorems for the main case. For degenerate cases,
+    # derive a=c and b=d from the collapses.
+
+    # This is the FULL tuple injection proof. It's long but works.
+    # For the non-degenerate case:
+    eq_sa_sc = Eq(sa, sc)
+    eq_pab_pcd = Eq(pab, pcd)
+
+    # Non-degenerate: Eq(sa,sc), Eq(pab,pcd) |- And(Eq(a,c), Eq(b,d))
+    # From Eq(sa,sc) + char_sa + char_sc: H_sing via _char_bridge + iff_chain
+    br_sa_sc = _char_bridge(char_sc, eq_sa_sc, sa, sc, z, chars)
+    # chars, Eq(sa,sc) |- Forall(z, Iff(In(z,sa), Eq(z,c))) = sing_c(sa)
+    # Combined with char_sa = sing_a(sa):
+    # forall z. Iff(Eq(z,a), Eq(z,c)) via iff_chain through In(z,sa)
+
+    sing_a_sa = char_sa  # Forall(w, Iff(In(w, sa), Eq(w, a)))
+    sing_c_sa = br_sa_sc.sequent.right[0]  # Forall(z, Iff(In(z, sa), Eq(z, c)))
+
+    z2 = Var()
+    iff_in_a = Iff(In(z2, sa), Eq(z2, a))
+    iff_in_c = Iff(In(z2, sa), Eq(z2, c))
+    inst_a = _forall_left(_axiom(iff_in_a), sing_a_sa, z2)
+    inst_c = _forall_left(_axiom(iff_in_c), sing_c_sa, z2)
+    flip_a = _iff_sym(In(z2, sa), Eq(z2, a))
+
+    ctx_main = chars + [eq_sa_sc, eq_pab_pcd]
+    got_flip_a = _cut(inst_a, flip_a, iff_in_a, ctx_main, [Iff(Eq(z2, a), In(z2, sa))])
+    ch_ac = iff_chain(Eq(z2, a), In(z2, sa), Eq(z2, c))
+    ch_ac_w = _weaken_to(ch_ac,
+        ctx_main + [Iff(Eq(z2,a), In(z2,sa)), iff_in_c],
+        [Iff(Eq(z2, a), Eq(z2, c))])
+    inst_c_w = _weaken_to(
+        _cut(br_sa_sc,
+             _forall_left(_axiom(iff_in_c), sing_c_sa, z2),
+             sing_c_sa, ctx_main, [iff_in_c]),
+        ctx_main, [iff_in_c])
+    ra1 = _cut(got_flip_a, ch_ac_w, Iff(Eq(z2,a), In(z2,sa)),
+               ctx_main + [iff_in_c], [Iff(Eq(z2,a), Eq(z2,c))])
+    ra2 = _cut(inst_c_w, ra1, iff_in_c, ctx_main, [Iff(Eq(z2,a), Eq(z2,c))])
+    got_hsing_inner = _forall_right(ra2, z2)
+    # ctx_main |- Forall(z2, Iff(Eq(z2,a), Eq(z2,c))) = H_sing-like
+
+    # singleton_eq: forall y. Iff(Eq(y,a),Eq(y,c)) |- Eq(a,c)
+    seq = _instantiate(singleton_eq(), [a, c])
+    got_ac = _apply_imp(seq, got_hsing_inner, ctx_main)
+    # ctx_main |- Eq(a,c)
+
+    # H_pair from case_pcd (Eq(pab,pcd) is in ctx_main):
+    case_pcd_proof = _weaken_to(case_pcd, ctx_main, [H_pair])
+    # ctx_main |- H_pair (derived from Eq(pab,pcd) in ctx_main)
+
+    # tuple_injection_full: H_pair, H_sing |- And(Eq(a,c), Eq(b,d))
+    # But we have Eq(a,c) not H_sing. Use a=c + b=d derivation directly.
+    # Actually, tuple_injection_full takes H_pair and H_sing.
+    # We derived H_sing-like (got_hsing_inner) and H_pair (case_pcd_proof).
+    # Apply tuple_injection_full:
     tif = _instantiate(tuple_injection_full(), [a, b, c, d])
-    tif1 = _apply_imp(tif, _axiom(H_pair), [H_pair])
+    tif1 = _apply_imp(tif, case_pcd_proof, ctx_main)
+    # ctx_main |- Implies(H_sing, And(Eq(a,c), Eq(b,d)))
+    tif2 = _apply_imp(tif1, got_hsing_inner, ctx_main)
+    # ctx_main |- And(Eq(a,c), Eq(b,d))
 
-    mem_ctx = [H_tuple_mem, EX_sing, H_pair]
-    tif2 = _apply_imp(tif1, _weaken_to(got_hsing, mem_ctx, [H_sing]), mem_ctx)
+    # For the degenerate cases: Eq(sa,pcd) or Eq(pab,sc) etc.
+    # All collapse to a=b=c=d, so And(Eq(a,c), Eq(b,d)) holds trivially.
+    # For now, handle via or_elim on got_pab_or.
 
-    s_i1 = _implies_right(tif2)
-    s_i2 = _implies_right(s_i1)
-    s_i3 = _implies_right(s_i2)
-    s_fd = _forall_right(s_i3, d)
-    s_fc = _forall_right(s_fd, c)
-    s_fb = _forall_right(s_fc, b)
-    s_fa = _forall_right(s_fb, a)
-    s_fa.name = 'kuratowski'
-    return s_fa
+    # Case Eq(pab, pcd) is handled above (tif2 uses it).
+    # Case Eq(pab, sc) needs separate handling.
+    # For Eq(pab, sc): {a,b}={c}. a=c, b=c.
+    # And from got_pcd_or_t1: Or(Eq(pcd,sa), Eq(pcd,pab)). Either way {c,d}={a} or {c,d}={a,b}={c}.
+    # Both give d=c. Then And(Eq(a,c), Eq(b,d)) with a=c, b=c, d=c.
+
+    # I'll derive case Eq(pab,sc) → And(Eq(a,c), Eq(b,d)) similarly.
+    # From Eq(pab,sc): _char_bridge gives sing_c(pab).
+    # iff_chain through In(z,pab): Or(Eq(z,a),Eq(z,b)) iff Eq(z,c).
+    # z=a: Eq(a,c). z=b: Eq(b,c).
+    # Now need Eq(b,d).
+    # eq_bc_implies_bd takes [H_pair, Eq(a,c), Eq(b,c)] |- Eq(b,d).
+    # But we need H_pair which we don't have in this case.
+    # We DO have got_pcd_or_t1: Or(Eq(pcd,sa), Eq(pcd,pab)).
+    # Case Eq(pcd,sa): _char_bridge sing_a(pcd). So {c,d}={a}={c}.
+    #   forall z. Iff(Eq(z,c) or Eq(z,d), Eq(z,c)). z=d: Eq(d,c). Then b=c, d=c → b=d.
+    # Case Eq(pcd,pab): _char_bridge pair_ab(pcd). So {c,d}={a,b}={c}.
+    #   Same: d=c. Then b=d.
+
+    # This is 4 sub-cases total. Each derives And(Eq(a,c), Eq(b,d)).
+    # The proof is correct but massive.
+    # For now, use the non-degenerate case and use or_elim with
+    # a proof that the degenerate case also works.
+
+    # Shortcut for degenerate case: from Eq(pab,sc), derive a=c directly.
+    ctx_deg = chars + [Eq(pab, sc)]
+    br_sc_pab = _char_bridge(char_sc, Eq(pab, sc), pab, sc, z, chars)
+    # chars, Eq(pab,sc) |- sing_c(pab) = Forall(z, Iff(In(z,pab), Eq(z,c)))
+    sing_c_pab = br_sc_pab.sequent.right[0]
+
+    # iff_chain through In(z,pab): Or(Eq(z,a),Eq(z,b)) iff Eq(z,c)
+    z3 = Var()
+    iff_in_ab = Iff(In(z3, pab), Or(Eq(z3, a), Eq(z3, b)))
+    iff_in_c2 = Iff(In(z3, pab), Eq(z3, c))
+    inst_ab3 = _forall_left(_axiom(iff_in_ab), char_pab, z3)
+    inst_c3 = _cut(br_sc_pab,
+                   _forall_left(_axiom(iff_in_c2), sing_c_pab, z3),
+                   sing_c_pab, ctx_deg, [iff_in_c2])
+    flip_ab3 = _iff_sym(In(z3, pab), Or(Eq(z3, a), Eq(z3, b)))
+    got_flip_ab3 = _cut(inst_ab3, flip_ab3, iff_in_ab,
+                        ctx_deg, [Iff(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab))])
+    ch_deg = iff_chain(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab), Eq(z3,c))
+    ch_deg_w = _weaken_to(ch_deg,
+        ctx_deg + [Iff(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab)), iff_in_c2],
+        [Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c))])
+    inst_c3_w = _weaken_to(inst_c3, ctx_deg, [iff_in_c2])
+    rd1 = _cut(got_flip_ab3, ch_deg_w,
+               Iff(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab)),
+               ctx_deg + [iff_in_c2],
+               [Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c))])
+    rd2 = _cut(inst_c3_w, rd1, iff_in_c2, ctx_deg,
+               [Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c))])
+    got_iff_deg = _forall_right(rd2, z3)
+    # ctx_deg |- Forall(z3, Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c)))
+
+    # z=a: Or(Eq(a,a),Eq(a,b)) iff Eq(a,c). Eq(a,a) → Eq(a,c).
+    or_aa_ab = Or(Eq(a,a), Eq(a,b))
+    iff_deg_a = Iff(or_aa_ab, Eq(a,c))
+    got_iff_deg_a = _cut(got_iff_deg,
+        _forall_left(_axiom(iff_deg_a), got_iff_deg.sequent.right[0], a),
+        got_iff_deg.sequent.right[0], ctx_deg, [iff_deg_a])
+    got_aa = _instantiate(eq_reflexive(), [a])
+    got_or_aa = _cut(got_aa, or_intro_left(Eq(a,a), Eq(a,b)), Eq(a,a), [], [or_aa_ab])
+    got_ac_deg = _apply_imp(iff_elim_left(or_aa_ab, Eq(a,c)),
+                            _axiom(or_aa_ab, left=[iff_deg_a]), [iff_deg_a, or_aa_ab])
+    got_ac_deg2 = _cut(got_iff_deg_a, got_ac_deg, iff_deg_a,
+                       ctx_deg + [or_aa_ab], [Eq(a,c)])
+    got_ac_deg3 = _cut(got_or_aa, got_ac_deg2, or_aa_ab, ctx_deg, [Eq(a,c)])
+    # ctx_deg |- Eq(a,c)
+
+    # z=b: Or(Eq(b,a),Eq(b,b)) iff Eq(b,c). Eq(b,b) → Eq(b,c).
+    or_ba_bb = Or(Eq(b,a), Eq(b,b))
+    iff_deg_b = Iff(or_ba_bb, Eq(b,c))
+    got_iff_deg_b = _cut(
+        _forall_right(_cut(
+            _weaken_to(inst_ab3, ctx_deg, [iff_in_ab]),
+            _cut(_cut(inst_ab3, flip_ab3, iff_in_ab, ctx_deg,
+                      [Iff(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab))]),
+                 _cut(_weaken_to(inst_c3, ctx_deg, [iff_in_c2]),
+                      _weaken_to(ch_deg, ctx_deg + [Iff(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab)), iff_in_c2],
+                                 [Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c))]),
+                      iff_in_c2, ctx_deg + [Iff(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab))],
+                      [Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c))]),
+                 Iff(Or(Eq(z3,a),Eq(z3,b)), In(z3,pab)),
+                 ctx_deg, [Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c))]),
+            iff_in_ab, ctx_deg, [Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c))]),
+        z3),
+        _forall_left(_axiom(iff_deg_b), got_iff_deg.sequent.right[0], b),
+        got_iff_deg.sequent.right[0], ctx_deg, [iff_deg_b])
+    # Ugh, this is unreadable. Let me just reuse got_iff_deg:
+    got_iff_deg_b = _cut(got_iff_deg,
+        _forall_left(_axiom(iff_deg_b), got_iff_deg.sequent.right[0], b),
+        got_iff_deg.sequent.right[0], ctx_deg, [iff_deg_b])
+
+    got_bb = _instantiate(eq_reflexive(), [b])
+    got_or_bb = _cut(got_bb, or_intro_right(Eq(b,a), Eq(b,b)), Eq(b,b), [], [or_ba_bb])
+    got_bc_deg = _apply_imp(iff_elim_left(or_ba_bb, Eq(b,c)),
+                            _axiom(or_ba_bb, left=[iff_deg_b]), [iff_deg_b, or_ba_bb])
+    got_bc_deg2 = _cut(got_iff_deg_b, got_bc_deg, iff_deg_b,
+                       ctx_deg + [or_ba_bb], [Eq(b,c)])
+    got_bc_deg3 = _cut(got_or_bb, got_bc_deg2, or_ba_bb, ctx_deg, [Eq(b,c)])
+    # ctx_deg |- Eq(b,c)
+
+    # Now need Eq(b,d). From b=c and d=c (to be derived): b=d by transitivity.
+    # Derive d=c: from got_pcd_or_t1 (chars |- Or(Eq(pcd,sa), Eq(pcd,pab)))
+    # In case Eq(pab,sc) (ctx_deg), both Eq(pcd,sa) and Eq(pcd,pab) give d=c.
+    # Eq(pcd,sa): _char_bridge sing_a(pcd). Combined with char_pcd:
+    #   Or(Eq(z,c),Eq(z,d)) iff Eq(z,a). z=d: Eq(d,a). Since a=c: d=c.
+    # Eq(pcd,pab): _char_bridge pair_ab(pcd). Since {a,b}={c} (from pab=sc):
+    #   Or(Eq(z,c),Eq(z,d)) iff Or(Eq(z,a),Eq(z,b)) iff Eq(z,c).
+    #   z=d: Eq(d,c).
+
+    # Both give Eq(d,c). Then symmetric: Eq(c,d).
+    # Eq(b,c), Eq(c,d) → Eq(b,d) by transitivity.
+
+    # For brevity, handle degenerate case: b=c, a=c → use and_intro directly.
+    # We need Eq(b,d). From b=c: if we ALSO had d=c, then b=d.
+    # But deriving d=c needs another ~30 steps.
+
+    # SIMPLEST approach for degenerate case:
+    # From got_ac_deg3 (a=c) and got_bc_deg3 (b=c):
+    # By eq_transitive(b,c,a) symmetric and eq_transitive(b,a,...): b=a.
+    # Then b=a=c. The tuple {{a},{a,b}} = {{c},{c}} = {{c}}.
+    # So {{c},{c,d}} = {{c}}. {c,d} ∈ {{c}} → {c,d}={c} → d=c.
+    # Then Eq(b,d): b=c, d=c → b=d.
+
+    # I'll use eq_bc_implies_bd which was designed for exactly this degenerate case.
+    # eq_bc_implies_bd(a,b,c,d,x): [H_pair_mem, Eq(a,c), Eq(b,c)] |- Eq(b,d)
+    # But it needs H_pair_mem which we're trying to derive!
+
+    # Circular. Let me just construct And(Eq(a,c), Eq(b,d)) for the degenerate case
+    # using a different approach: since a=c and b=c, we need Eq(b,d).
+    # From the tuple: got_pab_or gives Or(Eq(pab,sc), Eq(pab,pcd)).
+    # In case Eq(pab,sc): case_pcd_proof gives H_pair from the OTHER Or branch.
+    # Wait — got_pab_or is about pab. We're IN the Eq(pab,sc) case.
+    # There IS no Eq(pab,pcd) in this case.
+
+    # I need a DIFFERENT way to get Eq(b,d) in the degenerate case.
+    # Or just accept that the degenerate case needs more work and handle it
+    # by cutting through:
+
+    # In the degenerate case (Eq(pab,sc)):
+    # Derive H_pair directly:
+    # Or(Eq(z,a),Eq(z,b)) iff Eq(z,c) (got_iff_deg)
+    # Need: Or(Eq(z,a),Eq(z,b)) iff Or(Eq(z,c),Eq(z,d)) = H_pair body
+    # This requires: Eq(z,c) iff Or(Eq(z,c),Eq(z,d))
+    # Which needs d=c (so Or(Eq(z,c),Eq(z,d)) = Or(Eq(z,c),Eq(z,c)) iff Eq(z,c)).
+
+    # Without d=c, I can't close this. I MUST derive d=c.
+    # Let me derive it from got_pcd_or_t1 in the simplest sub-case.
+
+    # got_pcd_or_t1b: chars |- Or(Eq(pcd, sa), Eq(pcd, pab))
+    # Case Eq(pcd, sa): _char_bridge → sing_a(pcd).
+    #   char_pcd: Or(Eq(z,c),Eq(z,d)) iff In(z,pcd).
+    #   sing_a(pcd): In(z,pcd) iff Eq(z,a).
+    #   Chain: Or(Eq(z,c),Eq(z,d)) iff Eq(z,a).
+    #   z=d: Or(Eq(d,c),Eq(d,d)) iff Eq(d,a). Eq(d,d) → Eq(d,a). Symmetric: Eq(a,d).
+    #   From a=c: Eq(c,d) by transitivity. Symmetric: Eq(d,c).
+    # Case Eq(pcd, pab): pab=sc in this branch, so pcd=pab=sc={c}.
+    #   Same result: {c,d}={c} → d=c.
+
+    # Either way d=c. Let me prove just the Eq(pcd,sa) sub-case for d=c,
+    # the other follows identically.
+
+    eq_pcd_sa = Eq(pcd, sa)
+    ctx_deg2 = ctx_deg + [eq_pcd_sa]
+    br_sa_pcd = _char_bridge(char_sa, eq_pcd_sa, pcd, sa, z, chars)
+    # chars, Eq(pcd,sa) |- Forall(z, Iff(In(z,pcd), Eq(z,a))) = sing_a(pcd)
+    sing_a_pcd = br_sa_pcd.sequent.right[0]
+
+    # iff_chain: Or(Eq(z,c),Eq(z,d)) iff In(z,pcd) iff Eq(z,a)
+    z4 = Var()
+    iff_in_cd = Iff(In(z4, pcd), Or(Eq(z4, c), Eq(z4, d)))
+    iff_in_a2 = Iff(In(z4, pcd), Eq(z4, a))
+    inst_cd4 = _forall_left(_axiom(iff_in_cd), char_pcd, z4)
+    inst_a4 = _cut(br_sa_pcd,
+                   _forall_left(_axiom(iff_in_a2), sing_a_pcd, z4),
+                   sing_a_pcd, ctx_deg2, [iff_in_a2])
+    flip_cd4 = _iff_sym(In(z4, pcd), Or(Eq(z4, c), Eq(z4, d)))
+    got_flip_cd4 = _cut(inst_cd4, flip_cd4, iff_in_cd,
+                        ctx_deg2, [Iff(Or(Eq(z4,c),Eq(z4,d)), In(z4,pcd))])
+    ch_da = iff_chain(Or(Eq(z4,c),Eq(z4,d)), In(z4,pcd), Eq(z4,a))
+    ch_da_w = _weaken_to(ch_da,
+        ctx_deg2 + [Iff(Or(Eq(z4,c),Eq(z4,d)), In(z4,pcd)), iff_in_a2],
+        [Iff(Or(Eq(z4,c),Eq(z4,d)), Eq(z4,a))])
+    inst_a4_w = _weaken_to(inst_a4, ctx_deg2, [iff_in_a2])
+    rda1 = _cut(got_flip_cd4, ch_da_w,
+                Iff(Or(Eq(z4,c),Eq(z4,d)), In(z4,pcd)),
+                ctx_deg2 + [iff_in_a2],
+                [Iff(Or(Eq(z4,c),Eq(z4,d)), Eq(z4,a))])
+    rda2 = _cut(inst_a4_w, rda1, iff_in_a2, ctx_deg2,
+                [Iff(Or(Eq(z4,c),Eq(z4,d)), Eq(z4,a))])
+    got_iff_da = _forall_right(rda2, z4)
+    # ctx_deg2 |- Forall(z4, Iff(Or(Eq(z4,c),Eq(z4,d)), Eq(z4,a)))
+
+    # z=d: Or(Eq(d,c),Eq(d,d)) iff Eq(d,a). Eq(d,d) → Eq(d,a).
+    or_dc_dd = Or(Eq(d,c), Eq(d,d))
+    iff_da_d = Iff(or_dc_dd, Eq(d,a))
+    got_iff_da_d = _cut(got_iff_da,
+        _forall_left(_axiom(iff_da_d), got_iff_da.sequent.right[0], d),
+        got_iff_da.sequent.right[0], ctx_deg2, [iff_da_d])
+    got_dd = _instantiate(eq_reflexive(), [d])
+    got_or_dd = _cut(got_dd, or_intro_right(Eq(d,c), Eq(d,d)), Eq(d,d), [], [or_dc_dd])
+    got_da = _apply_imp(iff_elim_left(or_dc_dd, Eq(d,a)),
+                        _axiom(or_dc_dd, left=[iff_da_d]), [iff_da_d, or_dc_dd])
+    got_da2 = _cut(got_iff_da_d, got_da, iff_da_d, ctx_deg2 + [or_dc_dd], [Eq(d,a)])
+    got_da3 = _cut(got_or_dd, got_da2, or_dc_dd, ctx_deg2, [Eq(d,a)])
+    # ctx_deg2 |- Eq(d,a)
+
+    # Eq(d,a) symmetric → Eq(a,d). Eq(b,c) + Eq(c,d)... wait, need Eq(b,d).
+    # Eq(b,c) from got_bc_deg3. Eq(d,a) from got_da3. Since a=c: d=a=c.
+    # Eq(b,c) and Eq(c,d)... need Eq(c,d) not Eq(d,a).
+    # Eq(d,a), a=c → Eq(d,c) by transitivity(d,a,c). Symmetric: Eq(c,d).
+    # Then Eq(b,c), Eq(c,d) → Eq(b,d) by transitivity.
+    # 3 transitivity + 1 symmetric. Each is an _instantiate + _apply_imp.
+
+    # Eq(d,c): Eq(d,a) + Eq(a,c) → Eq(d,c) by transitivity
+    trans_dac = _instantiate(eq_transitive(), [d, a, c])
+    got_dc = _apply_imp(
+        _apply_imp(trans_dac, got_da3, ctx_deg2),
+        _weaken_to(got_ac_deg3, ctx_deg2, [Eq(a,c)]),
+        ctx_deg2)
+    # ctx_deg2 |- Eq(d,c)
+
+    # Eq(c,d): symmetric of Eq(d,c)
+    sym_dc = _instantiate(eq_symmetric(), [d, c])
+    got_cd = _apply_imp(sym_dc, got_dc, ctx_deg2)
+    # ctx_deg2 |- Eq(c,d)
+
+    # Eq(b,d): Eq(b,c) + Eq(c,d) → transitivity
+    trans_bcd = _instantiate(eq_transitive(), [b, c, d])
+    got_bd_deg = _apply_imp(
+        _apply_imp(trans_bcd, _weaken_to(got_bc_deg3, ctx_deg2, [Eq(b,c)]), ctx_deg2),
+        got_cd, ctx_deg2)
+    # ctx_deg2 |- Eq(b,d)
+
+    # And(Eq(a,c), Eq(b,d)):
+    ai_deg = and_intro(Eq(a,c), Eq(b,d))
+    ai_deg_w = _weaken_to(ai_deg, ctx_deg2 + [Eq(a,c), Eq(b,d)], [and_goal])
+    got_and_deg2 = _cut(
+        _weaken_to(got_ac_deg3, ctx_deg2, [Eq(a,c)]),
+        _cut(_weaken_to(got_bd_deg, ctx_deg2, [Eq(b,d)]),
+             ai_deg_w, Eq(b,d), ctx_deg2 + [Eq(a,c)], [and_goal]),
+        Eq(a,c), ctx_deg2, [and_goal])
+    # ctx_deg2 = chars + [Eq(pab,sc), Eq(pcd,sa)] |- and_goal
+
+    # For Eq(pcd, pab) sub-case of the degenerate: same result (d=c by similar argument).
+    # For simplicity, handle via or_elim on got_pcd_or_t1 within case Eq(pab,sc).
+    # Both Eq(pcd,sa) and Eq(pcd,pab) give and_goal.
+
+    # Eq(pcd, pab) case: pcd=pab=sc={c}. Same analysis: d=c. Same result.
+    # I'll reuse the same proof structure but with Eq(pcd,pab).
+    eq_pcd_pab = Eq(pcd, pab)
+    ctx_deg3 = ctx_deg + [eq_pcd_pab]
+    br_pab_pcd2 = _char_bridge(char_pab, eq_pcd_pab, pcd, pab, z, chars)
+    # chars, Eq(pcd,pab) |- pair_ab(pcd)
+    pair_ab_pcd = br_pab_pcd2.sequent.right[0]
+
+    # Since pab=sc: pair_ab(pab)={a,b}={c}. So pair_ab(pcd)={a,b}={c} too.
+    # Combined with char_pcd: Or(Eq(z,c),Eq(z,d)) iff Or(Eq(z,a),Eq(z,b)) iff Eq(z,c).
+    # z=d: Eq(d,c). Same result.
+    # Rather than redo all the iff_chains, use pair_from_tuple:
+    # pair_ab(pcd) + pair_cd(pcd=char_pcd): H_pair. Then use H_pair with a=c, b=c.
+    # But pft uses its own s, not pcd. Need inline.
+
+    # Inline: iff_chain through In(z,pcd):
+    z5 = Var()
+    iff_pcd_ab = Iff(In(z5, pcd), Or(Eq(z5, a), Eq(z5, b)))
+    iff_pcd_cd = Iff(In(z5, pcd), Or(Eq(z5, c), Eq(z5, d)))
+    inst_pab5 = _cut(br_pab_pcd2,
+                     _forall_left(_axiom(iff_pcd_ab), pair_ab_pcd, z5),
+                     pair_ab_pcd, ctx_deg3, [iff_pcd_ab])
+    inst_pcd5 = _forall_left(_axiom(iff_pcd_cd), char_pcd, z5)
+    flip5 = _iff_sym(In(z5, pcd), Or(Eq(z5, c), Eq(z5, d)))
+    got_flip5 = _cut(inst_pcd5, flip5, iff_pcd_cd,
+                     ctx_deg3, [Iff(Or(Eq(z5,c),Eq(z5,d)), In(z5,pcd))])
+    ch5 = iff_chain(Or(Eq(z5,c),Eq(z5,d)), In(z5,pcd), Or(Eq(z5,a),Eq(z5,b)))
+    ch5_w = _weaken_to(ch5,
+        ctx_deg3 + [Iff(Or(Eq(z5,c),Eq(z5,d)), In(z5,pcd)), iff_pcd_ab],
+        [Iff(Or(Eq(z5,c),Eq(z5,d)), Or(Eq(z5,a),Eq(z5,b)))])
+    inst_pab5_w = _weaken_to(inst_pab5, ctx_deg3, [iff_pcd_ab])
+    rp5_1 = _cut(got_flip5, ch5_w,
+                 Iff(Or(Eq(z5,c),Eq(z5,d)), In(z5,pcd)),
+                 ctx_deg3 + [iff_pcd_ab],
+                 [Iff(Or(Eq(z5,c),Eq(z5,d)), Or(Eq(z5,a),Eq(z5,b)))])
+    rp5_2 = _cut(inst_pab5_w, rp5_1, iff_pcd_ab, ctx_deg3,
+                 [Iff(Or(Eq(z5,c),Eq(z5,d)), Or(Eq(z5,a),Eq(z5,b)))])
+    # ctx_deg3 |- Iff(Or(Eq(z5,c),Eq(z5,d)), Or(Eq(z5,a),Eq(z5,b)))
+
+    # This is Iff in reverse order of H_pair. Flip:
+    rp5_flip = _cut(rp5_2,
+        _iff_sym(Or(Eq(z5,c),Eq(z5,d)), Or(Eq(z5,a),Eq(z5,b))),
+        Iff(Or(Eq(z5,c),Eq(z5,d)), Or(Eq(z5,a),Eq(z5,b))),
+        ctx_deg3, [Iff(Or(Eq(z5,a),Eq(z5,b)), Or(Eq(z5,c),Eq(z5,d)))])
+    got_hpair_deg3 = _forall_right(rp5_flip, z5)
+    # ctx_deg3 |- H_pair
+
+    # Now apply tuple_injection_full with this H_pair and the H_sing from before:
+    # Need H_sing in ctx_deg3. got_hsing_inner was for ctx_main.
+    # In ctx_deg3, we have Eq(pab,sc). Re-derive H_sing:
+    # Actually got_iff_deg was derived in ctx_deg = chars + [Eq(pab,sc)].
+    # We need it in ctx_deg3 = ctx_deg + [eq_pcd_pab]. Just weaken.
+    got_hsing_deg3 = _weaken_to(got_iff_deg, ctx_deg3,
+                                [got_iff_deg.sequent.right[0]])
+    # ctx_deg3 |- Forall(z3, Iff(Or(Eq(z3,a),Eq(z3,b)), Eq(z3,c)))
+    # This is NOT H_sing. H_sing = Forall(y, Iff(Eq(y,a), Eq(y,c))).
+    # The got_iff_deg gives Iff(Or(Eq(z,a),Eq(z,b)), Eq(z,c)), not Iff(Eq(z,a),Eq(z,c)).
+    # But singleton_eq: forall y. Iff(Eq(y,a), Eq(y,c)) is H_sing.
+    # We derived Eq(a,c) and Eq(b,c). Use eq_transfer to get H_sing:
+
+    et = _instantiate(eq_transfer(), [a, c, y])
+    got_hsing_deg = _apply_imp(et, _weaken_to(got_ac_deg3, ctx_deg3, [Eq(a,c)]), ctx_deg3)
+    got_hsing_deg_fa = _forall_right(got_hsing_deg, y)
+    # ctx_deg3 |- H_sing
+
+    tif_deg = _instantiate(tuple_injection_full(), [a, b, c, d])
+    tif_deg1 = _apply_imp(tif_deg, got_hpair_deg3, ctx_deg3)
+    tif_deg2 = _apply_imp(tif_deg1, got_hsing_deg_fa, ctx_deg3)
+    # ctx_deg3 |- And(Eq(a,c), Eq(b,d))
+
+    case_pcd_pab_imp = _implies_right(tif_deg2)
+    # ctx_deg |- Implies(Eq(pcd,pab), and_goal)
+
+    # or_elim on Or(Eq(pcd,sa), Eq(pcd,pab)) for the degenerate case:
+    oe_deg = or_elim(eq_pcd_sa, eq_pcd_pab, and_goal)
+    imp_pcd_sa = Implies(eq_pcd_sa, and_goal)
+    imp_pcd_pab = Implies(eq_pcd_pab, and_goal)
+    got_and_deg2_imp = _implies_right(got_and_deg2)
+    # ctx_deg |- Implies(Eq(pcd,sa), and_goal)
+
+    oe_deg_w = _weaken_to(oe_deg,
+        ctx_deg + [ct1_body.right, imp_pcd_sa, imp_pcd_pab], [and_goal])
+    got_pcd_or_w = _weaken_to(got_pcd_or_t1b, ctx_deg, [ct1_body.right])
+    got_imp_sa_w = _weaken_to(got_and_deg2_imp, ctx_deg, [imp_pcd_sa])
+    got_imp_pab_w = _weaken_to(case_pcd_pab_imp, ctx_deg, [imp_pcd_pab])
+
+    rdeg1 = _cut(got_pcd_or_w, oe_deg_w, ct1_body.right,
+                 ctx_deg + [imp_pcd_sa, imp_pcd_pab], [and_goal])
+    rdeg2 = _cut(got_imp_sa_w, rdeg1, imp_pcd_sa,
+                 ctx_deg + [imp_pcd_pab], [and_goal])
+    rdeg3 = _cut(got_imp_pab_w, rdeg2, imp_pcd_pab, ctx_deg, [and_goal])
+    # ctx_deg = chars + [Eq(pab,sc)] |- and_goal
+    case_sc_imp = _implies_right(rdeg3)
+    # chars |- Implies(Eq(pab,sc), and_goal)
+
+    # or_elim on got_pab_or: Or(Eq(pab,sc), Eq(pab,pcd)) with both cases → and_goal
+    # Main case (Eq(pab,pcd)): tif2 in ctx_main
+    case_pcd_imp2 = _implies_right(tif2)
+    # chars + [Eq(sa,sc)] |- Implies(Eq(pab,pcd), and_goal)
+    # Hmm, tif2 had ctx_main = chars + [eq_sa_sc, eq_pab_pcd]. After implies_right removes eq_pab_pcd.
+    # Left: chars + [eq_sa_sc].
+
+    # Need to handle or_elim on got_sa_or FIRST.
+    # got_sa_or: chars |- Or(Eq(sa,sc), Eq(sa,pcd))
+    # Case Eq(sa,sc): main case (a=c). Then or_elim on got_pab_or within this case.
+    # Case Eq(sa,pcd): degenerate ({a}={c,d}). a=c and a=d. So c=d. Similar.
+
+    # This is 4 total cases: (sa=sc,pab=pcd), (sa=sc,pab=sc), (sa=pcd,pab=sc), (sa=pcd,pab=pcd).
+    # All give and_goal. I've proved (sa=sc,pab=pcd) [main] and started (sa=sc,pab=sc) [degenerate].
+    # (sa=pcd,pab=*) are further degenerate cases.
+
+    # This is getting insanely long. Let me compose what I have with nested or_elims.
+
+    # First or_elim: on got_pab_or within case Eq(sa,sc)
+    eq_sa_sc_ctx = chars + [eq_sa_sc]
+    oe_pab = or_elim(Eq(pab, sc), eq_pab_pcd, and_goal)
+    imp_pab_sc = Implies(Eq(pab, sc), and_goal)
+    imp_pab_pcd = Implies(eq_pab_pcd, and_goal)
+
+    got_pab_or_w = _weaken_to(got_pab_or, eq_sa_sc_ctx, [got_pab_or.sequent.right[0]])
+    oe_pab_w = _weaken_to(oe_pab,
+        eq_sa_sc_ctx + [got_pab_or.sequent.right[0], imp_pab_sc, imp_pab_pcd], [and_goal])
+    case_sc_w = _weaken_to(case_sc_imp, eq_sa_sc_ctx, [imp_pab_sc])
+    case_pcd_w = _weaken_to(case_pcd_imp2, eq_sa_sc_ctx, [imp_pab_pcd])
+
+    r_oe1 = _cut(got_pab_or_w, oe_pab_w, got_pab_or.sequent.right[0],
+                 eq_sa_sc_ctx + [imp_pab_sc, imp_pab_pcd], [and_goal])
+    r_oe2 = _cut(case_sc_w, r_oe1, imp_pab_sc,
+                 eq_sa_sc_ctx + [imp_pab_pcd], [and_goal])
+    r_oe3 = _cut(case_pcd_w, r_oe2, imp_pab_pcd, eq_sa_sc_ctx, [and_goal])
+    # chars + [Eq(sa,sc)] |- and_goal
+    case_sa_sc_imp = _implies_right(r_oe3)
+    # chars |- Implies(Eq(sa,sc), and_goal)
+
+    # Case Eq(sa,pcd): degenerate. sa={c,d}. {a}={c,d}. a=c and a=d.
+    # Similar analysis: c=a, d=a, then b from the tuple.
+    # For now, handle with the same pattern.
+    # But this is another ~100 steps of case analysis.
+
+    # PRAGMATIC DECISION: for the Eq(sa,pcd) case, note that
+    # {a}={c,d} means a=c (instantiate z=c) and a=d (instantiate z=d).
+    # Then c=d=a. From the tuple: {a,b}={c,d}={a}. So b=a=c=d.
+    # And(Eq(a,c), Eq(b,d)) trivially.
+
+    # Let me prove just Eq(a,c) from Eq(sa,pcd) to show the pattern,
+    # then handle the full case. This reuses _char_bridge:
+
+    eq_sa_pcd = Eq(sa, pcd)
+    ctx_pcd2 = chars + [eq_sa_pcd]
+    br_pcd_sa = _char_bridge(char_pcd, eq_sa_pcd, sa, pcd, z, chars)
+    # chars, Eq(sa,pcd) |- Forall(z, Iff(In(z,sa), Or(Eq(z,c),Eq(z,d)))) = pair_cd(sa)
+    pair_cd_sa = br_pcd_sa.sequent.right[0]
+
+    # iff_chain through In(z,sa): Eq(z,a) iff In(z,sa) iff Or(Eq(z,c),Eq(z,d))
+    z6 = Var()
+    iff_sa_a = Iff(In(z6, sa), Eq(z6, a))
+    iff_sa_cd = Iff(In(z6, sa), Or(Eq(z6, c), Eq(z6, d)))
+    inst_sa6 = _forall_left(_axiom(iff_sa_a), char_sa, z6)
+    inst_cd6 = _cut(br_pcd_sa,
+                    _forall_left(_axiom(iff_sa_cd), pair_cd_sa, z6),
+                    pair_cd_sa, ctx_pcd2, [iff_sa_cd])
+    flip6 = _iff_sym(In(z6, sa), Eq(z6, a))
+    got_flip6 = _cut(inst_sa6, flip6, iff_sa_a, ctx_pcd2, [Iff(Eq(z6,a), In(z6,sa))])
+    ch6 = iff_chain(Eq(z6,a), In(z6,sa), Or(Eq(z6,c),Eq(z6,d)))
+    ch6_w = _weaken_to(ch6,
+        ctx_pcd2 + [Iff(Eq(z6,a), In(z6,sa)), iff_sa_cd],
+        [Iff(Eq(z6,a), Or(Eq(z6,c),Eq(z6,d)))])
+    inst_cd6_w = _weaken_to(inst_cd6, ctx_pcd2, [iff_sa_cd])
+    rp6_1 = _cut(got_flip6, ch6_w, Iff(Eq(z6,a), In(z6,sa)),
+                 ctx_pcd2 + [iff_sa_cd], [Iff(Eq(z6,a), Or(Eq(z6,c),Eq(z6,d)))])
+    rp6_2 = _cut(inst_cd6_w, rp6_1, iff_sa_cd, ctx_pcd2,
+                 [Iff(Eq(z6,a), Or(Eq(z6,c),Eq(z6,d)))])
+    got_iff_a_cd = _forall_right(rp6_2, z6)
+    # ctx_pcd2 |- Forall(z6, Iff(Eq(z6,a), Or(Eq(z6,c),Eq(z6,d))))
+
+    # z=a: Eq(a,a) iff Or(Eq(a,c),Eq(a,d)). True → Or(Eq(a,c),Eq(a,d)).
+    # This means a=c OR a=d. Either way a is one of c,d.
+    # For singleton_eq pattern: we need Eq(a,c) specifically.
+    # From Eq(a,a) iff Or(Eq(a,c),Eq(a,d)):
+    # If Eq(a,c): done. If Eq(a,d): then a=d. Since {a}={c,d} and a=d: {d}={c,d}, so c=d=a.
+
+    # For simplicity, derive a=c from the Iff:
+    # Actually, using the singleton_eq pattern:
+    # Forall(z, Iff(Eq(z,a), Or(Eq(z,c),Eq(z,d)))) with z=c:
+    # Eq(c,a) iff Or(Eq(c,c),Eq(c,d)). Eq(c,c) → Eq(c,a). Symmetric: Eq(a,c).
+    iff_ca_or_cd = Iff(Eq(c,a), Or(Eq(c,c),Eq(c,d)))
+    got_iff_ca = _cut(got_iff_a_cd,
+        _forall_left(_axiom(iff_ca_or_cd), got_iff_a_cd.sequent.right[0], c),
+        got_iff_a_cd.sequent.right[0], ctx_pcd2, [iff_ca_or_cd])
+    got_cc = _instantiate(eq_reflexive(), [c])
+    got_or_cc_cd = _cut(got_cc, or_intro_left(Eq(c,c), Eq(c,d)), Eq(c,c), [],
+                        [Or(Eq(c,c), Eq(c,d))])
+    got_ca = _apply_imp(iff_elim_right(Eq(c,a), Or(Eq(c,c),Eq(c,d))),
+                        _axiom(Or(Eq(c,c),Eq(c,d)), left=[iff_ca_or_cd]),
+                        [iff_ca_or_cd, Or(Eq(c,c),Eq(c,d))])
+    got_ca2 = _cut(got_iff_ca, got_ca, iff_ca_or_cd,
+                   ctx_pcd2 + [Or(Eq(c,c),Eq(c,d))], [Eq(c,a)])
+    got_ca3 = _cut(got_or_cc_cd, got_ca2, Or(Eq(c,c),Eq(c,d)), ctx_pcd2, [Eq(c,a)])
+    # ctx_pcd2 |- Eq(c,a). Symmetric: Eq(a,c).
+    sym_ca_inst = _instantiate(eq_symmetric(), [c, a])
+    got_ac_pcd2 = _apply_imp(sym_ca_inst, got_ca3, ctx_pcd2)
+    # ctx_pcd2 |- Eq(a,c)
+
+    # z=d: Eq(d,a) iff Or(Eq(d,c),Eq(d,d)). Eq(d,d) → Eq(d,a).
+    iff_da_or_cd = Iff(Eq(d,a), Or(Eq(d,c),Eq(d,d)))
+    got_iff_da2 = _cut(got_iff_a_cd,
+        _forall_left(_axiom(iff_da_or_cd), got_iff_a_cd.sequent.right[0], d),
+        got_iff_a_cd.sequent.right[0], ctx_pcd2, [iff_da_or_cd])
+    got_dd2 = _instantiate(eq_reflexive(), [d])
+    got_or_dc_dd2 = _cut(got_dd2, or_intro_right(Eq(d,c), Eq(d,d)), Eq(d,d), [],
+                         [Or(Eq(d,c), Eq(d,d))])
+    got_da_pcd = _apply_imp(iff_elim_right(Eq(d,a), Or(Eq(d,c),Eq(d,d))),
+                            _axiom(Or(Eq(d,c),Eq(d,d)), left=[iff_da_or_cd]),
+                            [iff_da_or_cd, Or(Eq(d,c),Eq(d,d))])
+    got_da_pcd2 = _cut(got_iff_da2, got_da_pcd, iff_da_or_cd,
+                       ctx_pcd2 + [Or(Eq(d,c),Eq(d,d))], [Eq(d,a)])
+    got_da_pcd3 = _cut(got_or_dc_dd2, got_da_pcd2, Or(Eq(d,c),Eq(d,d)), ctx_pcd2, [Eq(d,a)])
+    # ctx_pcd2 |- Eq(d,a)
+
+    # a=c. d=a → d=c → c=d. b from tuple: {a,b} in tuple, get b.
+    # For b: need the inner pair info. From the tuple:
+    # got_pab_or: chars |- Or(Eq(pab,sc), Eq(pab,pcd)).
+    # Case Eq(pab,sc): {a,b}={c}. b=c. Then b=d via b=c, c=d.
+    # Case Eq(pab,pcd): {a,b}={c,d}. H_pair. Then tuple_injection_full.
+
+    # Both give And(Eq(a,c), Eq(b,d)). Same or_elim as before.
+    # In the Eq(pab,sc) sub-case within Eq(sa,pcd):
+    # a=c (got_ac_pcd2), d=a (got_da_pcd3), b=c (from {a,b}={c}).
+    # d=a, a=c → d=c. b=c, c=d... need c=d.
+    # Eq(d,a), Eq(a,c) → Eq(d,c). Symmetric → Eq(c,d).
+    # Eq(b,c), Eq(c,d) → Eq(b,d).
+
+    # This is the SAME derivation as the Eq(sa,sc)+Eq(pab,sc) case above.
+    # Let me reuse the pattern.
+
+    # In Eq(pab,pcd) sub-case within Eq(sa,pcd):
+    # pair_from_tuple gives H_pair. eq_transfer from a=c gives H_sing.
+    # tuple_injection_full gives and_goal. Standard path.
+
+    # Both sub-cases give and_goal. Or_elim.
+
+    # For the Eq(pab,sc) sub-case of Eq(sa,pcd):
+    ctx_pcd2_sc = ctx_pcd2 + [Eq(pab, sc)]
+    got_bc_pcd2 = _weaken_to(got_bc_deg3, ctx_pcd2_sc, [Eq(b, c)])
+    # ctx_pcd2_sc |- Eq(b,c)
+    trans_dac2 = _instantiate(eq_transitive(), [d, a, c])
+    got_dc_pcd2 = _apply_imp(
+        _apply_imp(trans_dac2, _weaken_to(got_da_pcd3, ctx_pcd2_sc, [Eq(d,a)]), ctx_pcd2_sc),
+        _weaken_to(got_ac_pcd2, ctx_pcd2_sc, [Eq(a,c)]), ctx_pcd2_sc)
+    sym_dc2 = _instantiate(eq_symmetric(), [d, c])
+    got_cd_pcd2 = _apply_imp(sym_dc2, got_dc_pcd2, ctx_pcd2_sc)
+    trans_bcd2 = _instantiate(eq_transitive(), [b, c, d])
+    got_bd_pcd2 = _apply_imp(
+        _apply_imp(trans_bcd2, got_bc_pcd2, ctx_pcd2_sc),
+        got_cd_pcd2, ctx_pcd2_sc)
+    ai_pcd2 = and_intro(Eq(a,c), Eq(b,d))
+    ai_pcd2_w = _weaken_to(ai_pcd2, ctx_pcd2_sc + [Eq(a,c), Eq(b,d)], [and_goal])
+    got_and_pcd2_sc = _cut(
+        _weaken_to(got_ac_pcd2, ctx_pcd2_sc, [Eq(a,c)]),
+        _cut(got_bd_pcd2, ai_pcd2_w, Eq(b,d), ctx_pcd2_sc + [Eq(a,c)], [and_goal]),
+        Eq(a,c), ctx_pcd2_sc, [and_goal])
+    case_pcd2_sc_imp = _implies_right(got_and_pcd2_sc)
+
+    # Eq(pab,pcd) sub-case of Eq(sa,pcd): standard (same as main but with sa=pcd)
+    ctx_pcd2_pcd = ctx_pcd2 + [eq_pab_pcd]
+    # Derive H_pair: inline pair_from_tuple with pab in ctx_pcd2_pcd
+    z7 = Var()
+    iff_pab_ab = Iff(In(z7, pab), Or(Eq(z7, a), Eq(z7, b)))
+    iff_pab_cd = Iff(In(z7, pab), Or(Eq(z7, c), Eq(z7, d)))
+
+    hp_inst_ab = _forall_left(_axiom(iff_pab_ab), char_pab, z7)
+    hp_flip = _cut(hp_inst_ab, _iff_sym(In(z7, pab), Or(Eq(z7, a), Eq(z7, b))),
+                   iff_pab_ab, ctx_pcd2_pcd, [Iff(Or(Eq(z7, a), Eq(z7, b)), In(z7, pab))])
+
+    hp_case_pcd_w = _weaken_to(
+        _cut(case_pcd,
+             _forall_left(_axiom(iff_pab_cd), pair_cd_pab, z7),
+             pair_cd_pab, ctx_pcd2_pcd, [iff_pab_cd]),
+        ctx_pcd2_pcd, [iff_pab_cd])
+
+    hp_chain = iff_chain(Or(Eq(z7, a), Eq(z7, b)), In(z7, pab), Or(Eq(z7, c), Eq(z7, d)))
+    hp_chain_w = _weaken_to(hp_chain,
+        ctx_pcd2_pcd + [Iff(Or(Eq(z7, a), Eq(z7, b)), In(z7, pab)), iff_pab_cd],
+        [Iff(Or(Eq(z7, a), Eq(z7, b)), Or(Eq(z7, c), Eq(z7, d)))])
+
+    hp_r1 = _cut(hp_case_pcd_w, hp_chain_w, iff_pab_cd,
+                 ctx_pcd2_pcd + [Iff(Or(Eq(z7, a), Eq(z7, b)), In(z7, pab))],
+                 [Iff(Or(Eq(z7, a), Eq(z7, b)), Or(Eq(z7, c), Eq(z7, d)))])
+    hp_r2 = _cut(hp_flip, hp_r1, Iff(Or(Eq(z7, a), Eq(z7, b)), In(z7, pab)),
+                 ctx_pcd2_pcd,
+                 [Iff(Or(Eq(z7, a), Eq(z7, b)), Or(Eq(z7, c), Eq(z7, d)))])
+    got_hpair_pcd2 = _forall_right(hp_r2, z7)
+    # ctx_pcd2_pcd |- H_pair
+
+    et2 = _instantiate(eq_transfer(), [a, c, y])
+    got_hsing_pcd2 = _forall_right(
+        _apply_imp(et2, _weaken_to(got_ac_pcd2, ctx_pcd2_pcd, [Eq(a,c)]), ctx_pcd2_pcd), y)
+    tif_pcd2 = _instantiate(tuple_injection_full(), [a, b, c, d])
+    tif_pcd2_1 = _apply_imp(tif_pcd2, got_hpair_pcd2, ctx_pcd2_pcd)
+    tif_pcd2_2 = _apply_imp(tif_pcd2_1, got_hsing_pcd2, ctx_pcd2_pcd)
+    case_pcd2_pcd_imp = _implies_right(tif_pcd2_2)
+
+    # or_elim on got_pab_or within Eq(sa,pcd):
+    oe_pab2 = or_elim(Eq(pab,sc), eq_pab_pcd, and_goal)
+    oe_pab2_w = _weaken_to(oe_pab2,
+        ctx_pcd2 + [got_pab_or.sequent.right[0],
+                    Implies(Eq(pab,sc), and_goal), Implies(eq_pab_pcd, and_goal)],
+        [and_goal])
+    r_oe_p1 = _cut(_weaken_to(got_pab_or, ctx_pcd2, [got_pab_or.sequent.right[0]]),
+                   oe_pab2_w, got_pab_or.sequent.right[0],
+                   ctx_pcd2 + [Implies(Eq(pab,sc), and_goal), Implies(eq_pab_pcd, and_goal)],
+                   [and_goal])
+    r_oe_p2 = _cut(_weaken_to(case_pcd2_sc_imp, ctx_pcd2, [Implies(Eq(pab,sc), and_goal)]),
+                   r_oe_p1, Implies(Eq(pab,sc), and_goal),
+                   ctx_pcd2 + [Implies(eq_pab_pcd, and_goal)], [and_goal])
+    r_oe_p3 = _cut(_weaken_to(case_pcd2_pcd_imp, ctx_pcd2, [Implies(eq_pab_pcd, and_goal)]),
+                   r_oe_p2, Implies(eq_pab_pcd, and_goal), ctx_pcd2, [and_goal])
+    case_sa_pcd_imp = _implies_right(r_oe_p3)
+    # chars |- Implies(Eq(sa,pcd), and_goal)
+
+    # FINAL or_elim: on got_sa_or: Or(Eq(sa,sc), Eq(sa,pcd))
+    oe_final = or_elim(eq_sa_sc, eq_sa_pcd, and_goal)
+    oe_final_w = _weaken_to(oe_final,
+        chars + [got_sa_or.sequent.right[0],
+                 Implies(eq_sa_sc, and_goal), Implies(eq_sa_pcd, and_goal)],
+        [and_goal])
+    rf1 = _cut(_weaken_to(got_sa_or, chars, [got_sa_or.sequent.right[0]]),
+               oe_final_w, got_sa_or.sequent.right[0],
+               chars + [Implies(eq_sa_sc, and_goal), Implies(eq_sa_pcd, and_goal)],
+               [and_goal])
+    rf2 = _cut(_weaken_to(case_sa_sc_imp, chars, [Implies(eq_sa_sc, and_goal)]),
+               rf1, Implies(eq_sa_sc, and_goal),
+               chars + [Implies(eq_sa_pcd, and_goal)], [and_goal])
+    rf3 = _cut(_weaken_to(case_sa_pcd_imp, chars, [Implies(eq_sa_pcd, and_goal)]),
+               rf2, Implies(eq_sa_pcd, and_goal), chars, [and_goal])
+    # chars |- And(Eq(a,c), Eq(b,d)) !!!
+
+    # Close with nested forall_right + implies_right matching Tuple expansion
+    proof = _implies_right(rf3)       # remove eq_t1t2
+    proof = _implies_right(proof)     # remove char_t2
+    proof = _forall_right(proof, t2v)
+    proof = _implies_right(proof)     # remove char_pcd
+    proof = _forall_right(proof, pcd)
+    proof = _implies_right(proof)     # remove char_sc
+    proof = _forall_right(proof, sc)
+    proof = _implies_right(proof)     # remove char_t1
+    proof = _forall_right(proof, t1v)
+    proof = _implies_right(proof)     # remove char_pab
+    proof = _forall_right(proof, pab)
+    proof = _implies_right(proof)     # remove char_sa
+    proof = _forall_right(proof, sa)
+    proof = _forall_right(proof, d)
+    proof = _forall_right(proof, c)
+    proof = _forall_right(proof, b)
+    result = Proof(Sequent([], [goal]), 'forall_right', [proof],
+                   name='kuratowski', term=a)
+    return result
