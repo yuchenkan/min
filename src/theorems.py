@@ -1,6 +1,6 @@
 """Basic theorems proved from the sequent calculus."""
 
-from core import Var, In, Not, Implies, Forall, Sequent, Proof, Eq, Iff, And, formula_eq, expand_all
+from core import Var, In, Not, Implies, Forall, Sequent, Proof, Eq, Iff, And, Or, formula_eq, expand_all
 from definitions import Empty
 
 
@@ -948,11 +948,147 @@ def tuple_injection():
     # Backward: symmetric.
     # Then iff_intro.
 
-    # This requires eq_transitive applied at the Eq level, which needs
-    # forall instantiation and many cuts. Still very long.
+    # Forward direction: Eq(a,c), Eq(b,d) |- forall x. Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d)))
+    # This shows equal components give equal pair sets.
 
-    # Let me just prove the simplest useful thing: the and_intro composition.
-    pass  # TODO
+    # From eq_transfer: Eq(a,c) |- forall x. Iff(Eq(x,a), Eq(x,c))
+    # From eq_transfer: Eq(b,d) |- forall x. Iff(Eq(x,b), Eq(x,d))
+    # We need: Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d)))
+    # If Eq(x,a) iff Eq(x,c) and Eq(x,b) iff Eq(x,d),
+    # then Or(Eq(x,a),Eq(x,b)) iff Or(Eq(x,c),Eq(x,d)).
+
+    # This requires or_iff_compat: Iff(A,C), Iff(B,D) |- Iff(Or(A,B), Or(C,D))
+    # Which is provable but long. Skipping full construction for now.
+    pass  # TODO: or_iff_compat then compose
+
+
+def or_iff_compat(A, B, C, D):
+    """Iff(A,C), Iff(B,D) |- Iff(Or(A,B), Or(C,D))
+    If A iff C and B iff D then (A or B) iff (C or D)."""
+    iff_ac = Iff(A, C)
+    iff_bd = Iff(B, D)
+    or_ab = Or(A, B)
+    or_cd = Or(C, D)
+
+    # Or(A,B) = Implies(Not(A), B)
+    # Or(C,D) = Implies(Not(C), D)
+
+    # Forward: Or(A,B) -> Or(C,D)
+    # Assume Not(C). Need D.
+    # From Iff(A,C): A->C and C->A. From Not(C) and C->A... wait, need Not(A)->Not(C) which is contrapositive.
+    # Actually: Assume Or(A,B) = Implies(Not(A), B) and Not(C).
+    # From Iff(A,C), get A->C. Contrapositive: Not(C)->Not(A).
+    # From Not(C) and Not(C)->Not(A), get Not(A).
+    # From Not(A) and Or(A,B)=Implies(Not(A),B), get B.
+    # From Iff(B,D), get B->D. From B, get D. ✓
+
+    # This requires contrapositive which we haven't proved.
+    # Easier in classical logic: use or_elim on Or(A,B).
+    # Case A: from Iff(A,C), get C. Or(C,D) holds.
+    # Case B: from Iff(B,D), get D. Or(C,D) holds.
+
+    # Build: iff_ac, iff_bd, or_ab |- or_cd
+    # Use or_elim: or_ab, A->or_cd, B->or_cd |- or_cd
+
+    # A->or_cd: from A, get C (via iff_ac), then Or(C,D).
+    # Or(C,D) = Implies(Not(C), D).
+    # From C, derive Or(C,D): need Implies(Not(C), D).
+    # Not(C) and C give contradiction, from which D follows.
+    # So: C |- Or(C,D). Proof: axiom C|-C, weaken right D:
+    # C |- C, D. not_left: C, Not(C) |- D. implies_right: C |- Implies(Not(C), D) = Or(C,D).
+    c_gives_or = _implies_right(_not_left(_axiom(C, right=[D])))
+    # C |- Or(C,D) ✓
+
+    # Similarly D |- Or(C,D)
+    d_gives_or = _axiom(D, right=[])
+    # D |- D. But Or(C,D) = Implies(Not(C), D). Need D |- Implies(Not(C), D).
+    # weaken left: D, Not(C) |- D... axiom with exchange.
+    d_gives_or = _implies_right(_axiom(D, left=[Not(C)]))
+    # [Not(C), D] |- [D]. implies_right: D last on left is D, first on right is D.
+    # Hmm, _implies_right takes last on left and first on right.
+    # [Not(C), D] |- [D]. Last on left = D, first on right = D.
+    # Result: [Not(C)] |- [Implies(D, D)]... that's wrong.
+    # I need Not(C) last on left.
+    d_ax = _exchange_left(_axiom(D, left=[Not(C)]), [D, Not(C)])
+    # [D, Not(C)] |- [D]. Last=Not(C), first right=D.
+    # implies_right: [D] |- [Implies(Not(C), D)] = [D] |- [Or(C,D)]
+    d_gives_or = _implies_right(d_ax)
+    # D |- Or(C,D) ✓
+
+    # iff_ac |- A -> C (iff_elim_left)
+    el_ac = iff_elim_left(A, C)
+
+    # iff_bd |- B -> D (iff_elim_left)
+    el_bd = iff_elim_left(B, D)
+
+    # A -> or_cd: compose iff_ac gives A->C, and C gives Or(C,D)
+    # iff_ac |- A -> C. C |- Or(C,D).
+    # iff_ac, A |- C (apply imp)
+    got_c = _apply_imp(el_ac, _axiom(A, left=[iff_ac]), [iff_ac, A])
+    # iff_ac, A |- Or(C,D) (cut on C)
+    got_or_from_a = _cut(got_c, c_gives_or, C, [iff_ac, A], [or_cd])
+    # iff_ac |- A -> Or(C,D)
+    a_to_or = _implies_right(got_or_from_a)
+
+    # B -> or_cd: compose iff_bd gives B->D, and D gives Or(C,D)
+    got_d = _apply_imp(el_bd, _axiom(B, left=[iff_bd]), [iff_bd, B])
+    got_or_from_b = _cut(got_d, d_gives_or, D, [iff_bd, B], [or_cd])
+    b_to_or = _implies_right(got_or_from_b)
+
+    # or_elim: or_ab, A->or_cd, B->or_cd |- or_cd
+    oe = or_elim(A, B, or_cd)
+
+    # Weaken and cut to get: iff_ac, iff_bd, or_ab |- or_cd
+    ctx = [iff_ac, iff_bd, or_ab]
+    oe_w = _weaken_to(oe, ctx + [Implies(A, or_cd), Implies(B, or_cd)], [or_cd])
+    a_to_or_w = _weaken_to(a_to_or, ctx, [Implies(A, or_cd)])
+    b_to_or_w = _weaken_to(b_to_or, ctx, [Implies(B, or_cd)])
+
+    step1 = _cut(a_to_or_w, oe_w, Implies(A, or_cd),
+                 ctx + [Implies(B, or_cd)], [or_cd])
+    step2 = _cut(b_to_or_w, step1, Implies(B, or_cd), ctx, [or_cd])
+    fwd = _implies_right(step2)
+    # [iff_ac, iff_bd] |- [Implies(or_ab, or_cd)]
+
+    # Backward: symmetric — Or(C,D) -> Or(A,B)
+    er_ac = iff_elim_right(A, C)  # iff_ac |- C -> A
+    er_bd = iff_elim_right(B, D)  # iff_bd |- D -> B
+
+    a_gives_or_ab = _implies_right(_not_left(_axiom(A, right=[B])))  # A |- Or(A,B)
+    b_ax = _exchange_left(_axiom(B, left=[Not(A)]), [B, Not(A)])
+    b_gives_or_ab = _implies_right(b_ax)  # B |- Or(A,B)
+
+    got_a = _apply_imp(er_ac, _axiom(C, left=[iff_ac]), [iff_ac, C])
+    got_or_ab_from_c = _cut(got_a, a_gives_or_ab, A, [iff_ac, C], [or_ab])
+    c_to_or_ab = _implies_right(got_or_ab_from_c)
+
+    got_b = _apply_imp(er_bd, _axiom(D, left=[iff_bd]), [iff_bd, D])
+    got_or_ab_from_d = _cut(got_b, b_gives_or_ab, B, [iff_bd, D], [or_ab])
+    d_to_or_ab = _implies_right(got_or_ab_from_d)
+
+    oe2 = or_elim(C, D, or_ab)
+    oe2_w = _weaken_to(oe2, ctx + [Implies(C, or_ab), Implies(D, or_ab)], [or_ab])
+    c_to_w = _weaken_to(c_to_or_ab, ctx, [Implies(C, or_ab)])
+    d_to_w = _weaken_to(d_to_or_ab, ctx, [Implies(D, or_ab)])
+
+    step3 = _cut(c_to_w, oe2_w, Implies(C, or_ab),
+                 ctx + [Implies(D, or_ab)], [or_ab])
+    step4 = _cut(d_to_w, step3, Implies(D, or_ab), ctx, [or_ab])
+    bwd = _implies_right(step4)
+    # [iff_ac, iff_bd] |- [Implies(or_cd, or_ab)]
+
+    # iff_intro
+    ii = iff_intro(or_ab, or_cd)
+    imp_fwd = Implies(or_ab, or_cd)
+    imp_bwd = Implies(or_cd, or_ab)
+    ctx2 = [iff_ac, iff_bd]
+    ii_w = _weaken_to(ii, ctx2 + [imp_fwd, imp_bwd], [Iff(or_ab, or_cd)])
+    s1 = _cut(fwd, ii_w, imp_fwd, ctx2 + [imp_bwd], [Iff(or_ab, or_cd)])
+    s2 = _cut(bwd, s1, imp_bwd, ctx2, [Iff(or_ab, or_cd)])
+
+    result = Proof(Sequent([iff_ac, iff_bd], [Iff(or_ab, or_cd)]),
+                   s2.rule, s2.premises, name='or_iff_compat')
+    return result
 
 
 def eq_transfer():
