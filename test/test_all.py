@@ -33,6 +33,10 @@ if __name__ == '__main__':
         ('singleton_eq', theorems.singleton_eq()),
         ('or_elim', theorems.or_elim(In(x, y), In(y, z), In(x, z))),
         ('eq_substitution', theorems.eq_substitution()),
+        ('and_intro', theorems.and_intro(In(x, y), In(y, z))),
+        ('and_elim_left', theorems.and_elim_left(In(x, y), In(y, z))),
+        ('and_elim_right', theorems.and_elim_right(In(x, y), In(y, z))),
+        ('eq_transfer', theorems.eq_transfer()),
     ]
 
     for name, proof in all_proofs:
