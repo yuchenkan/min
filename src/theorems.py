@@ -5,7 +5,7 @@ from definitions import Empty
 
 
 def _has(f, lst):
-    """Check if f is in lst, first by identity, then by alpha-equiv after expansion."""
+    """Check if f is in lst by identity or alpha-equiv after expansion."""
     if any(f is g for g in lst):
         return True
     ef = expand_all(f)
@@ -504,31 +504,40 @@ def eq_transitive():
     a, b, c, z = Var(), Var(), Var(), Var()
 
     Pa, Pb, Pc = In(z, a), In(z, b), In(z, c)
-    ab_lr, ab_rl = Implies(Pa, Pb), Implies(Pb, Pa)
-    bc_lr, bc_rl = Implies(Pb, Pc), Implies(Pc, Pb)
-    ac_lr, ac_rl = Implies(Pa, Pc), Implies(Pc, Pa)
-    iff_ab = Not(Implies(ab_lr, Not(ab_rl)))
-    iff_bc = Not(Implies(bc_lr, Not(bc_rl)))
-    iff_ac = Not(Implies(ac_lr, Not(ac_rl)))
+
+    # Build all sub-theorems first, extract formula objects for identity consistency
+    el_ab = iff_elim_left(Pa, Pb)
+    er_ab = iff_elim_right(Pa, Pb)
+    el_bc = iff_elim_left(Pb, Pc)
+    er_bc = iff_elim_right(Pb, Pc)
+    ii = iff_intro(Pa, Pc)
+
+    # Extract formula objects from sub-theorems
+    iff_ab = el_ab.sequent.left[0]
+    iff_bc = el_bc.sequent.left[0]
+    ab_lr = el_ab.sequent.right[0]   # Implies(Pa, Pb) from iff_elim_left
+    ab_rl = er_ab.sequent.right[0]   # Implies(Pb, Pa) from iff_elim_right
+    bc_lr = el_bc.sequent.right[0]   # Implies(Pb, Pc)
+    bc_rl = er_bc.sequent.right[0]   # Implies(Pc, Pb)
+    ac_lr = ii.sequent.left[0]       # Implies(Pa, Pc) from iff_intro
+    ac_rl = ii.sequent.left[1]       # Implies(Pc, Pa) from iff_intro
+    iff_ac = ii.sequent.right[0]     # Iff(Pa, Pc) from iff_intro
+
     eq_ab, eq_bc = Forall(z, iff_ab), Forall(z, iff_bc)
     G = [eq_ab, eq_bc]
 
     # Extract implications from eq_ab and eq_bc
-    get_ab = Proof(Sequent([eq_ab], [iff_ab]), 'forall_left',
-                   [Proof(Sequent([iff_ab], [iff_ab]), 'axiom')], term=z)
-    got_ab_lr = _cut(get_ab, iff_elim_left(Pa, Pb), iff_ab, [eq_ab], [ab_lr])
+    get_ab = _forall_left(_axiom(iff_ab), eq_ab, z)
+    got_ab_lr = _cut(get_ab, el_ab, iff_ab, [eq_ab], [ab_lr])
     got_ab_rl = _cut(
-        Proof(Sequent([eq_ab], [iff_ab]), 'forall_left',
-              [Proof(Sequent([iff_ab], [iff_ab]), 'axiom')], term=z),
-        iff_elim_right(Pa, Pb), iff_ab, [eq_ab], [ab_rl])
+        _forall_left(_axiom(iff_ab), eq_ab, z),
+        er_ab, iff_ab, [eq_ab], [ab_rl])
 
-    get_bc = Proof(Sequent([eq_bc], [iff_bc]), 'forall_left',
-                   [Proof(Sequent([iff_bc], [iff_bc]), 'axiom')], term=z)
-    got_bc_lr = _cut(get_bc, iff_elim_left(Pb, Pc), iff_bc, [eq_bc], [bc_lr])
+    get_bc = _forall_left(_axiom(iff_bc), eq_bc, z)
+    got_bc_lr = _cut(get_bc, el_bc, iff_bc, [eq_bc], [bc_lr])
     got_bc_rl = _cut(
-        Proof(Sequent([eq_bc], [iff_bc]), 'forall_left',
-              [Proof(Sequent([iff_bc], [iff_bc]), 'axiom')], term=z),
-        iff_elim_right(Pb, Pc), iff_bc, [eq_bc], [bc_rl])
+        _forall_left(_axiom(iff_bc), eq_bc, z),
+        er_bc, iff_bc, [eq_bc], [bc_rl])
 
     # Forward chain: eq_ab, eq_bc, Pa |- Pc
     # Step 1: apply ab_lr to get Pb
@@ -566,11 +575,7 @@ def eq_transitive():
     got_ac_rl = Proof(Sequent(G, [ac_rl]), 'implies_right', [chain_bwd])
 
     # Combine via iff_intro
-    ii = iff_intro(Pa, Pc)  # [ac_lr, ac_rl] |- [iff_ac]
-    step1 = _cut(got_ac_lr, _weaken_to(ii, G + [ac_lr, ac_rl], [iff_ac]),
-                 ac_lr, G, [iff_ac])  # wait, this won't work directly
-
-    # Need: cut ac_lr, then cut ac_rl
+    # ac_lr, ac_rl, iff_ac already extracted from ii above
     ii_w = _weaken_to(ii, G + [ac_lr, ac_rl], [iff_ac])
     cut1 = _cut(got_ac_lr, ii_w, ac_lr, G + [ac_rl], [iff_ac])
     cut2 = _cut(got_ac_rl, cut1, ac_rl, G, [iff_ac])
@@ -2088,7 +2093,9 @@ def _char_bridge(char_v, eq_sv, s_var, v_var, z_var, ctx):
     # [Iff(In(z,s), In(z,v)), Iff(In(z,v), cond_z)] |- Iff(In(z,s), cond_z)
 
     # Compose: ctx, eq_sv, char_v |- Iff(In(z,s), cond_z) for specific z
-    bridge_ctx = ctx + [eq_sv, char_v]
+    bridge_ctx = list(ctx) + [eq_sv]
+    if not any(char_v is g for g in ctx):
+        bridge_ctx.append(char_v)
     ic_w = _weaken_to(ic, bridge_ctx + [eq_body, char_body], [Iff(In(z, s_var), cond_z)])
     inst_eq_w = _weaken_to(inst_eq, bridge_ctx, [eq_body])
     inst_ch_w = _weaken_to(inst_ch, bridge_ctx, [char_body])
