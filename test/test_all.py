@@ -24,6 +24,12 @@ if __name__ == '__main__':
         ('double_negation', theorems.double_negation(In(x, y))),
         ('forall_instantiation', theorems.forall_instantiation(x, In(x, y), z)),
         ('unique_empty', theorems.unique_empty()),
+        ('eq_reflexive', theorems.eq_reflexive()),
+        ('iff_intro', theorems.iff_intro(In(x, y), In(y, z))),
+        ('iff_elim_left', theorems.iff_elim_left(In(x, y), In(y, z))),
+        ('iff_elim_right', theorems.iff_elim_right(In(x, y), In(y, z))),
+        ('eq_symmetric', theorems.eq_symmetric()),
+        ('eq_transitive', theorems.eq_transitive()),
     ]
 
     for name, proof in all_proofs:

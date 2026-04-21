@@ -104,7 +104,7 @@ def _check_rule(proof: Proof) -> bool:
 def _check_axiom(s: Sequent, ps: list[Sequent]) -> bool:
     if len(ps) != 0 or not s.left or not s.right:
         return False
-    return _eq(s.left[-1], s.right[0])
+    return formula_eq(s.left[-1], s.right[0])
 
 
 # --- Not ---
@@ -185,7 +185,7 @@ def _check_cut(s: Sequent, ps: list[Sequent]) -> bool:
             _eq_list(ps[0].right[1:], s.right) and
             _eq_list(ps[1].left[:-1], s.left) and
             _eq_list(ps[1].right, s.right) and
-            _eq(a, ps[1].left[-1]))
+            formula_eq(a, ps[1].left[-1]))
 
 
 # --- Structural ---
@@ -245,7 +245,7 @@ def _is_permutation(a: list[Formula], b: list[Formula]) -> bool:
     for f in a:
         found = False
         for j, g in enumerate(b):
-            if not used[j] and _eq(f, g):
+            if not used[j] and formula_eq(f, g):
                 used[j] = True
                 found = True
                 break
@@ -256,7 +256,7 @@ def _is_permutation(a: list[Formula], b: list[Formula]) -> bool:
 
 # --- Formula equality (alpha-equivalence) ---
 
-def _eq(a: Formula, b: Formula, env=None) -> bool:
+def formula_eq(a: Formula, b: Formula, env=None) -> bool:
     if env is None:
         env = []
     if type(a) is not type(b):
@@ -265,11 +265,11 @@ def _eq(a: Formula, b: Formula, env=None) -> bool:
         case In(l1, r1):
             return _eq_var(l1, b.left, env) and _eq_var(r1, b.right, env)
         case Not(o1):
-            return _eq(o1, b.operand, env)
+            return formula_eq(o1, b.operand, env)
         case Implies(l1, r1):
-            return _eq(l1, b.left, env) and _eq(r1, b.right, env)
+            return formula_eq(l1, b.left, env) and formula_eq(r1, b.right, env)
         case Forall(v1, b1):
-            return _eq(b1, b.body, env + [(v1, b.var)])
+            return formula_eq(b1, b.body, env + [(v1, b.var)])
     return False
 
 
@@ -285,7 +285,7 @@ def _eq_var(v1: Var, v2: Var, env: list) -> bool:
 def _eq_list(a: list[Formula], b: list[Formula]) -> bool:
     if len(a) != len(b):
         return False
-    return all(_eq(x, y) for x, y in zip(a, b))
+    return all(formula_eq(x, y) for x, y in zip(a, b))
 
 
 def _eq_sequent(a: Sequent, b: Sequent) -> bool:
@@ -295,7 +295,7 @@ def _eq_sequent(a: Sequent, b: Sequent) -> bool:
 def _is_sublist(small: list[Formula], big: list[Formula]) -> bool:
     j = 0
     for f in big:
-        if j < len(small) and _eq(f, small[j]):
+        if j < len(small) and formula_eq(f, small[j]):
             j += 1
     return j == len(small)
 
@@ -346,7 +346,7 @@ def _find_subst_term(body: Formula, var: Var, result: Formula, env=None):
             return tl or tr
         case Forall(v, b):
             if v is var:
-                if _eq(body, result, env):
+                if formula_eq(body, result, env):
                     return Var()  # shadowed, any term works
                 return None
             return _find_subst_term(b, var, result.body, env + [(v, result.var)])
