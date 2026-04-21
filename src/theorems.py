@@ -694,19 +694,37 @@ def or_elim(A, B, C):
     return result
 
 
-def tuple_injection():
-    """|- forall a b c d. Eq((a,b),(c,d)) implies And(Eq(a,c), Eq(b,d))
-    Kuratowski: (a,b) = {{a},{a,b}}.
-    If {{a},{a,b}} = {{c},{c,d}} then a=c and b=d.
+def eq_substitution():
+    """EXT |- forall a b. Eq(a,b) implies forall z. Iff(In(a,z), In(b,z))
+    Uses extensionality axiom as assumption."""
+    a, b, z = Var(), Var(), Var()
 
-    Key insight: {a} in {{a},{a,b}} and {a} in {{c},{c,d}},
-    so Eq({a},{c}) or Eq({a},{c,d}).
+    from core import zfc
+    EXT = zfc.extensionality.sequent.left[0]
 
-    Case 1: Eq({a},{c}) => a=c (singleton_eq). Then {a,b}={c,d}={a,d}, so b=d.
-    Case 2: Eq({a},{c,d}) => c=a and d=a => c=d.
-            Then {c}={c,d}, so {{c},{c,d}}={{c}} which means {a,b}={c}.
-            So a=b=c=d, hence a=c and b=d.
+    eq_ab = Eq(a, b)
+    subst_result = Forall(z, Iff(In(a, z), In(b, z)))
+    hyp_imp = Implies(eq_ab, subst_result)
+    inner_forall = Forall(b, hyp_imp)
 
-    This proof is very long in raw sequent calculus.
-    For now, we state it and leave the proof for later."""
-    pass  # TODO: ~200 proof steps
+    # EXT |- inner_forall (forall_left, term=a)
+    s1 = _forall_left(_axiom(inner_forall), EXT, a)
+
+    # inner_forall |- hyp_imp (forall_left, term=b)
+    s2 = _forall_left(_axiom(hyp_imp), inner_forall, b)
+
+    # EXT |- hyp_imp (cut)
+    got_imp = _cut(s1, s2, inner_forall, [EXT], [hyp_imp])
+
+    # EXT, eq_ab |- subst_result (modus ponens via implies_left)
+    app = _implies_left(
+        _axiom(eq_ab, left=[EXT], right=[subst_result]),
+        _axiom(subst_result, left=[EXT, eq_ab]))
+    got_sub = _cut(got_imp, app, hyp_imp, [EXT, eq_ab], [subst_result])
+
+    # Close: EXT stays as assumption
+    s_imp = _implies_right(got_sub)  # EXT |- Implies(eq_ab, subst_result)
+    s_fb = _forall_right(s_imp, b)
+    s_fa = _forall_right(s_fb, a)
+    s_fa.name = 'eq_substitution'
+    return s_fa

@@ -32,6 +32,7 @@ if __name__ == '__main__':
         ('eq_transitive', theorems.eq_transitive()),
         ('singleton_eq', theorems.singleton_eq()),
         ('or_elim', theorems.or_elim(In(x, y), In(y, z), In(x, z))),
+        ('eq_substitution', theorems.eq_substitution()),
     ]
 
     for name, proof in all_proofs:
