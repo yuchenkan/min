@@ -959,7 +959,46 @@ def tuple_injection():
 
     # This requires or_iff_compat: Iff(A,C), Iff(B,D) |- Iff(Or(A,B), Or(C,D))
     # Which is provable but long. Skipping full construction for now.
-    pass  # TODO: or_iff_compat then compose
+    # Use eq_transfer and or_iff_compat to show:
+    # Eq(a,c), Eq(b,d) |- forall x. Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d)))
+
+    # eq_transfer instantiated with a,c,x: |- Eq(a,c) -> Iff(Eq(x,a), Eq(x,c))
+    t1 = _instantiate(eq_transfer(), [a, c, x])
+    got_iff_ac = _apply_imp(t1, _axiom(eq_ac), [eq_ac])
+    # [eq_ac] |- Iff(Eq(x,a), Eq(x,c))
+
+    # eq_transfer instantiated with b,d,x: |- Eq(b,d) -> Iff(Eq(x,b), Eq(x,d))
+    t2 = _instantiate(eq_transfer(), [b, d, x])
+    got_iff_bd = _apply_imp(t2, _axiom(eq_bd), [eq_bd])
+    # [eq_bd] |- Iff(Eq(x,b), Eq(x,d))
+
+    # or_iff_compat: Iff(Eq(x,a),Eq(x,c)), Iff(Eq(x,b),Eq(x,d))
+    #   |- Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d)))
+    oic = or_iff_compat(eq_xa, eq_xb, eq_xc, eq_xd)
+    iff_xa_xc = Iff(eq_xa, eq_xc)
+    iff_xb_xd = Iff(eq_xb, eq_xd)
+
+    # Compose via cuts in context [eq_ac, eq_bd]
+    G = [eq_ac, eq_bd]
+    oic_w = _weaken_to(oic, G + [iff_xa_xc, iff_xb_xd], [iff_body])
+    t1_w = _weaken_to(got_iff_ac, G, [iff_xa_xc])
+    t2_w = _weaken_to(got_iff_bd, G, [iff_xb_xd])
+
+    s1 = _cut(t1_w, oic_w, iff_xa_xc, G + [iff_xb_xd], [iff_body])
+    s2 = _cut(t2_w, s1, iff_xb_xd, G, [iff_body])
+    # [eq_ac, eq_bd] |- iff_body
+
+    s3 = _forall_right(s2, x)
+    # [eq_ac, eq_bd] |- forall x. iff_body = conclusion
+
+    s_i1 = _implies_right(s3)
+    s_i2 = _implies_right(s_i1)
+    s_fd = _forall_right(s_i2, d)
+    s_fc = _forall_right(s_fd, c)
+    s_fb = _forall_right(s_fc, b)
+    s_fa = _forall_right(s_fb, a)
+    s_fa.name = 'pair_eq_forward'
+    return s_fa
 
 
 def or_iff_compat(A, B, C, D):
@@ -1050,7 +1089,7 @@ def or_iff_compat(A, B, C, D):
     fwd = _implies_right(step2)
     # [iff_ac, iff_bd] |- [Implies(or_ab, or_cd)]
 
-    # Backward: symmetric — Or(C,D) -> Or(A,B)
+    # Backward: Or(C,D) -> Or(A,B) in context [iff_ac, iff_bd]
     er_ac = iff_elim_right(A, C)  # iff_ac |- C -> A
     er_bd = iff_elim_right(B, D)  # iff_bd |- D -> B
 
@@ -1058,22 +1097,29 @@ def or_iff_compat(A, B, C, D):
     b_ax = _exchange_left(_axiom(B, left=[Not(A)]), [B, Not(A)])
     b_gives_or_ab = _implies_right(b_ax)  # B |- Or(A,B)
 
+    # iff_ac, C |- A -> or_ab
     got_a = _apply_imp(er_ac, _axiom(C, left=[iff_ac]), [iff_ac, C])
     got_or_ab_from_c = _cut(got_a, a_gives_or_ab, A, [iff_ac, C], [or_ab])
-    c_to_or_ab = _implies_right(got_or_ab_from_c)
+    c_to_or_ab = _implies_right(got_or_ab_from_c)  # iff_ac |- C -> or_ab
 
     got_b = _apply_imp(er_bd, _axiom(D, left=[iff_bd]), [iff_bd, D])
     got_or_ab_from_d = _cut(got_b, b_gives_or_ab, B, [iff_bd, D], [or_ab])
-    d_to_or_ab = _implies_right(got_or_ab_from_d)
+    d_to_or_ab = _implies_right(got_or_ab_from_d)  # iff_bd |- D -> or_ab
 
+    # or_elim: or_cd, C->or_ab, D->or_ab |- or_ab
     oe2 = or_elim(C, D, or_ab)
-    oe2_w = _weaken_to(oe2, ctx + [Implies(C, or_ab), Implies(D, or_ab)], [or_ab])
-    c_to_w = _weaken_to(c_to_or_ab, ctx, [Implies(C, or_ab)])
-    d_to_w = _weaken_to(d_to_or_ab, ctx, [Implies(D, or_ab)])
+    # Context for backward: [iff_ac, iff_bd, or_cd]
+    bwd_ctx = [iff_ac, iff_bd, or_cd]
+    imp_c = Implies(C, or_ab)
+    imp_d = Implies(D, or_ab)
 
-    step3 = _cut(c_to_w, oe2_w, Implies(C, or_ab),
-                 ctx + [Implies(D, or_ab)], [or_ab])
-    step4 = _cut(d_to_w, step3, Implies(D, or_ab), ctx, [or_ab])
+    oe2_w = _weaken_to(oe2, bwd_ctx + [imp_c, imp_d], [or_ab])
+    c_to_w = _weaken_to(c_to_or_ab, bwd_ctx, [imp_c])
+    d_to_w = _weaken_to(d_to_or_ab, bwd_ctx, [imp_d])
+
+    step3 = _cut(c_to_w, oe2_w, imp_c, bwd_ctx + [imp_d], [or_ab])
+    step4 = _cut(d_to_w, step3, imp_d, bwd_ctx, [or_ab])
+    # [iff_ac, iff_bd, or_cd] |- [or_ab]
     bwd = _implies_right(step4)
     # [iff_ac, iff_bd] |- [Implies(or_cd, or_ab)]
 

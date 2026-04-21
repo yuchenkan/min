@@ -37,6 +37,8 @@ if __name__ == '__main__':
         ('and_elim_left', theorems.and_elim_left(In(x, y), In(y, z))),
         ('and_elim_right', theorems.and_elim_right(In(x, y), In(y, z))),
         ('eq_transfer', theorems.eq_transfer()),
+        ('or_iff_compat', theorems.or_iff_compat(In(x, y), In(y, z), In(z, x), In(x, z))),
+        ('pair_eq_forward', theorems.tuple_injection()),
     ]
 
     for name, proof in all_proofs:
