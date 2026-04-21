@@ -633,3 +633,80 @@ def singleton_eq():
     s_fa = _forall_right(s_fb, a)
     s_fa.name = 'singleton_eq'
     return s_fa
+
+
+def or_elim(A, B, C):
+    """Or(A,B), A->C, B->C |- C
+    Or(A,B) = Implies(Not(A), B).
+    From Not(A)->B, A->C, B->C, derive C."""
+    OrAB = Implies(Not(A), B)
+    AC = Implies(A, C)
+    BC = Implies(B, C)
+
+    # Classical proof using right-side disjunction.
+    # [OrAB, AC, BC] |- [C]
+
+    # implies_left on BC (move to last):
+    #   p0: [OrAB, AC] |- [B, C]
+    #   p1: [OrAB, AC, C] |- [C]  -- axiom
+
+    # p1: axiom
+    p1 = _axiom(C, left=[OrAB, AC])
+
+    # p0: [OrAB, AC] |- [B, C]
+    # implies_left on OrAB... OrAB = Implies(Not(A), B)
+    # Move OrAB to last: [AC, OrAB] |- [B, C]
+    #   p0a: [AC] |- [Not(A), B, C]
+    #   p0b: [AC, B] |- [B, C]  -- axiom
+
+    p0b = _axiom(B, left=[AC], right=[C])
+
+    # p0a: [AC] |- [Not(A), B, C]
+    # not_right: [AC, A] |- [B, C]
+    # implies_left on AC (move to last): [A, AC] |- [B, C]
+    #   p0a0: [A] |- [A, B, C]  -- axiom
+    #   p0a1: [A, C] |- [B, C]  -- axiom (C last left, ... wait)
+
+    p0a0 = _axiom(A, right=[B, C])
+    p0a1 = _axiom(C, left=[A], right=[B])
+    # wait: _axiom puts C last on left, C first on right.
+    # [A, C] |- [C, B]. Need [A, C] |- [B, C].
+    p0a1 = Proof(Sequent([A, C], [B, C]), 'exchange_right',
+                 [_axiom(C, left=[A], right=[B])])
+
+    impl_ac = _implies_left(p0a0, p0a1)  # [A, AC] |- [B, C]
+    p0a_inner = _exchange_left(impl_ac, [AC, A])  # [AC, A] |- [B, C]
+    # not_right: A is last on left -> Not(A) first on right
+    p0a = _not_right(p0a_inner)  # [AC] |- [Not(A), B, C]
+
+    # implies_left on OrAB: [AC, OrAB] |- [B, C]
+    # p0a has A=Not(A) first on right? No:
+    # OrAB = Implies(Not(A), B). implies_left expects:
+    #   proof0: G |- Not(A), D  -> p0a: [AC] |- [Not(A), B, C]. Not(A) first ✓
+    #   proof1: G, B |- D -> p0b: [AC, B] |- [B, C]. B last ✓
+    impl_or = _implies_left(p0a, p0b)  # [AC, OrAB] |- [B, C]
+    p0 = _exchange_left(impl_or, [OrAB, AC])  # [OrAB, AC] |- [B, C]
+
+    # implies_left on BC: [OrAB, AC, BC] |- [C]
+    # B first on right of p0 ✓, C last on left of p1 ✓
+    result = _implies_left(p0, p1)  # [OrAB, AC, BC] |- [C]
+    result.name = 'or_elim'
+    return result
+
+
+def tuple_injection():
+    """|- forall a b c d. Eq((a,b),(c,d)) implies And(Eq(a,c), Eq(b,d))
+    Kuratowski: (a,b) = {{a},{a,b}}.
+    If {{a},{a,b}} = {{c},{c,d}} then a=c and b=d.
+
+    Key insight: {a} in {{a},{a,b}} and {a} in {{c},{c,d}},
+    so Eq({a},{c}) or Eq({a},{c,d}).
+
+    Case 1: Eq({a},{c}) => a=c (singleton_eq). Then {a,b}={c,d}={a,d}, so b=d.
+    Case 2: Eq({a},{c,d}) => c=a and d=a => c=d.
+            Then {c}={c,d}, so {{c},{c,d}}={{c}} which means {a,b}={c}.
+            So a=b=c=d, hence a=c and b=d.
+
+    This proof is very long in raw sequent calculus.
+    For now, we state it and leave the proof for later."""
+    pass  # TODO: ~200 proof steps
