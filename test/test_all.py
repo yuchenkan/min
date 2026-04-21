@@ -30,6 +30,7 @@ if __name__ == '__main__':
         ('iff_elim_right', theorems.iff_elim_right(In(x, y), In(y, z))),
         ('eq_symmetric', theorems.eq_symmetric()),
         ('eq_transitive', theorems.eq_transitive()),
+        ('singleton_eq', theorems.singleton_eq()),
     ]
 
     for name, proof in all_proofs:

@@ -582,3 +582,54 @@ def eq_transitive():
                  'forall_right', [s_fb], name='eq_transitive', term=a)
 
     return s_fa
+
+
+def singleton_eq():
+    """|- forall a. forall b. Eq({a},{b}) implies Eq(a,b)
+    If forall x. (Eq(x,a) iff Eq(x,b)) then Eq(a,b).
+    Instantiate x=a, get Eq(a,a) iff Eq(a,b). Eq(a,a) is true, so Eq(a,b)."""
+    a, b, x, z = Var(), Var(), Var(), Var()
+
+    eq_xa = Eq(x, a)
+    eq_xb = Eq(x, b)
+    iff_body = Iff(eq_xa, eq_xb)
+    hyp = Forall(x, iff_body)
+
+    eq_aa = Eq(a, a)
+    eq_ab = Eq(a, b)
+    iff_inst = Iff(eq_aa, eq_ab)
+    imp_aa_ab = Implies(eq_aa, eq_ab)
+
+    # hyp |- iff_inst (forall_left x=a)
+    s1 = _forall_left(_axiom(iff_inst), hyp, a)
+
+    # iff_inst |- eq_aa -> eq_ab (iff_elim_left)
+    el = iff_elim_left(eq_aa, eq_ab)
+
+    # hyp |- eq_aa -> eq_ab
+    got_imp = _cut(s1, el, iff_inst, [hyp], [imp_aa_ab])
+
+    # |- eq_aa (from eq_reflexive, instantiate)
+    refl = eq_reflexive()
+    refl_body = refl.sequent.right[0]  # Forall(v, Eq(v,v))
+    got_eq_aa = _cut(refl,
+                     _forall_left(_axiom(eq_aa), refl_body, a),
+                     refl_body, [], [eq_aa])
+
+    # hyp, eq_aa, imp_aa_ab |- eq_ab (modus ponens pattern)
+    app = _implies_left(
+        _axiom(eq_aa, left=[hyp], right=[eq_ab]),
+        _axiom(eq_ab, left=[hyp, eq_aa]))
+
+    # hyp, eq_aa |- eq_ab (cut away imp_aa_ab)
+    got_ab_with_aa = _cut(got_imp, app, imp_aa_ab, [hyp, eq_aa], [eq_ab])
+
+    # hyp |- eq_ab (cut away eq_aa)
+    got_ab = _cut(got_eq_aa, got_ab_with_aa, eq_aa, [hyp], [eq_ab])
+
+    # Close
+    s_imp = _implies_right(_weaken_to(got_ab, [hyp], [Eq(a, b)]))
+    s_fb = _forall_right(s_imp, b)
+    s_fa = _forall_right(s_fb, a)
+    s_fa.name = 'singleton_eq'
+    return s_fa
