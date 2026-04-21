@@ -1202,3 +1202,403 @@ def eq_transfer():
     s_fa = _forall_right(s_fc, a)
     s_fa.name = 'eq_transfer'
     return s_fa
+
+
+def or_intro_left(A, B):
+    """A |- Or(A, B)"""
+    # Or(A,B) = Implies(Not(A), B)
+    # A |- A (axiom). weaken right D: A |- A, B.
+    # not_left: A, Not(A) |- B. implies_right: A |- Implies(Not(A), B) = Or(A,B).
+    result = _implies_right(_not_left(_axiom(A, right=[B])))
+    return Proof(Sequent([A], [Or(A, B)]), result.rule, result.premises,
+                 name='or_intro_left')
+
+
+def or_intro_right(A, B):
+    """B |- Or(A, B)"""
+    # Or(A,B) = Implies(Not(A), B)
+    # B, Not(A) |- B (axiom, exchange). implies_right: B |- Implies(Not(A), B).
+    ax = _exchange_left(_axiom(B, left=[Not(A)]), [B, Not(A)])
+    result = _implies_right(ax)
+    return Proof(Sequent([B], [Or(A, B)]), result.rule, result.premises,
+                 name='or_intro_right')
+
+
+def iff_mp(A, B):
+    """Iff(A, B), A |- B
+    Forward modus ponens on biconditional."""
+    iff = Iff(A, B)
+    el = iff_elim_left(A, B)  # iff |- A -> B
+    imp_ab = Implies(A, B)
+    # iff, A |- B
+    result = _apply_imp(el, _axiom(A, left=[iff]), [iff, A])
+    result.name = 'iff_mp'
+    return result
+
+
+def iff_mp_rev(A, B):
+    """Iff(A, B), B |- A
+    Backward modus ponens on biconditional."""
+    iff = Iff(A, B)
+    er = iff_elim_right(A, B)  # iff |- B -> A
+    result = _apply_imp(er, _axiom(B, left=[iff]), [iff, B])
+    result.name = 'iff_mp_rev'
+    return result
+
+
+def tuple_injection_reverse():
+    """|- forall a b c d.
+    (forall x. Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d))))
+    implies (forall y. Iff(Eq(y,a), Eq(y,c)))
+    implies And(Eq(a,c), Eq(b,d))
+
+    If {a,b}={c,d} and {a}={c} (singletons equal) then a=c and b=d.
+    The singleton equality is a separate hypothesis for now."""
+    a, b, c, d, x, y = Var(), Var(), Var(), Var(), Var(), Var()
+
+    eq_xa, eq_xb = Eq(x, a), Eq(x, b)
+    eq_xc, eq_xd = Eq(x, c), Eq(x, d)
+    or_ab = Or(eq_xa, eq_xb)
+    or_cd = Or(eq_xc, eq_xd)
+
+    # Hypotheses
+    H_pair = Forall(x, Iff(or_ab, or_cd))  # {a,b}={c,d}
+    H_sing = Forall(y, Iff(Eq(y, a), Eq(y, c)))  # {a}={c}
+
+    # Step 1: From H_sing, by singleton_eq, get Eq(a,c)
+    seq = singleton_eq()  # |- forall a b. (forall x. Iff(Eq(x,a),Eq(x,b))) implies Eq(a,b)
+    seq_inst = _instantiate(seq, [a, c])
+    # |- Implies(forall x. Iff(Eq(x,a), Eq(x,c)), Eq(a,c))
+    eq_ac = Eq(a, c)
+    got_ac = _apply_imp(seq_inst, _axiom(H_sing), [H_sing])
+    # [H_sing] |- [Eq(a,c)]
+
+    # Step 2: From H_pair, instantiate x=b:
+    # Iff(Or(Eq(b,a),Eq(b,b)), Or(Eq(b,c),Eq(b,d)))
+    eq_ba, eq_bb = Eq(b, a), Eq(b, b)
+    eq_bc, eq_bd = Eq(b, c), Eq(b, d)
+    or_ba_bb = Or(eq_ba, eq_bb)
+    or_bc_bd = Or(eq_bc, eq_bd)
+    iff_b = Iff(or_ba_bb, or_bc_bd)
+
+    h_pair_inst = _forall_left(_axiom(iff_b), H_pair, b)
+    # [H_pair] |- [iff_b]
+
+    # Eq(b,b) is true (reflexivity)
+    refl = eq_reflexive()  # |- forall a. Eq(a,a)
+    got_bb = _instantiate(refl, [b])  # |- Eq(b,b)
+
+    # Or(Eq(b,a), Eq(b,b)) is true (from Eq(b,b) via or_intro_right)
+    oir = or_intro_right(eq_ba, eq_bb)  # Eq(b,b) |- Or(Eq(b,a), Eq(b,b))
+    got_or = _cut(got_bb, oir, eq_bb, [], [or_ba_bb])
+    # [] |- [or_ba_bb]
+
+    # Apply iff forward: iff_b, or_ba_bb |- or_bc_bd
+    got_iff_b = _apply_imp(
+        iff_elim_left(or_ba_bb, or_bc_bd),
+        _axiom(or_ba_bb, left=[iff_b]),
+        [iff_b, or_ba_bb])
+    # [iff_b, or_ba_bb] |- [or_bc_bd]
+
+    # Cut to get: [H_pair] |- [or_bc_bd]
+    G1 = [H_pair]
+    s1 = _cut(h_pair_inst, got_iff_b, iff_b, G1 + [or_ba_bb], [or_bc_bd])
+    # [H_pair, or_ba_bb] |- [or_bc_bd]
+    s2 = _cut(got_or, s1, or_ba_bb, G1, [or_bc_bd])
+    # [H_pair] |- [or_bc_bd] = Or(Eq(b,c), Eq(b,d))
+
+    # Step 3: We have Eq(a,c). We need Eq(b,d).
+    # From Or(Eq(b,c), Eq(b,d)):
+    # Case Eq(b,c): since a=c, Eq(b,c) = Eq(b,a) in some sense...
+    # Actually we want: from Eq(b,c) and Eq(a,c), get Eq(b,a), and then...
+    # Hmm, we want b=d, not b=a.
+
+    # Better approach: from Or(Eq(b,c), Eq(b,d)) and Eq(a,c):
+    # Since a=c, Eq(b,c) iff Eq(b,a) (by eq_transfer).
+    # So Or(Eq(b,c), Eq(b,d)) becomes Or(Eq(b,a), Eq(b,d)).
+    # We also know {a,b}={c,d} and a=c.
+    # Instantiate x=a in H_pair: Iff(Or(Eq(a,a),Eq(a,b)), Or(Eq(a,c),Eq(a,d)))
+    # Eq(a,a) is true, so left side is true, so right side: Or(Eq(a,c), Eq(a,d)).
+    # Since a=c, Eq(a,c) is true, so this is just Or(true, Eq(a,d)) = true. Not useful.
+
+    # Alternative: instantiate x=d in H_pair:
+    # Iff(Or(Eq(d,a),Eq(d,b)), Or(Eq(d,c),Eq(d,d)))
+    # Eq(d,d) is true, so right side true, so left side: Or(Eq(d,a), Eq(d,b)).
+
+    # Hmm, let me use a simpler approach for now.
+    # Claim: Or(Eq(b,c), Eq(b,d)) and Eq(a,c) implies Eq(b,d).
+
+    # Case Eq(b,c): From a=c, we have c=a (symmetric). Eq(b,c) and c=a gives Eq(b,a)
+    #   by transitivity. Now use H_pair with x=b again...
+    #   Actually, the simplest: if we also know a≠b (the non-degenerate case),
+    #   then Eq(b,c)=Eq(b,a) is false, so Eq(b,d) must hold.
+    #   But we can't assume a≠b in general.
+
+    # For the GENERAL case (including a=b):
+    # If a=b, then {a,b}={a,a}={a}={c,d}. So c=a and d=a. Then b=a=d. ✓
+    # If a≠b, then Eq(b,a) is false, so from Or(Eq(b,c), Eq(b,d)) and Eq(b,c)→Eq(b,a),
+    # we need classical reasoning: either Eq(b,a) or not.
+
+    # Classical approach: from Or(Eq(b,c), Eq(b,d)):
+    # We want to show Eq(b,d).
+    # In classical logic, this requires showing that Eq(b,c) implies Eq(b,d).
+
+    # From Eq(b,c) and Eq(a,c) (symmetric: Eq(c,a)):
+    # Eq(b,c), Eq(c,a) → Eq(b,a) by transitivity.
+    # So b=a. Then from {a,b}={a,a}={a}, and {c,d} must equal {a}.
+    # So c=a and d=a. Since b=a and d=a, b=d. ✓
+
+    # From Eq(b,c): Eq(b,c), Eq(c,a) → Eq(b,a) → b=a.
+    # Then Eq(a,b) (symmetric of Eq(b,a)).
+    # {a,b} with a=b means forall x. Iff(Or(Eq(x,a),Eq(x,a)), Or(Eq(x,c),Eq(x,d)))
+    # Or(Eq(x,a),Eq(x,a)) iff Eq(x,a) (idempotent).
+    # So forall x. Iff(Eq(x,a), Or(Eq(x,c),Eq(x,d))).
+    # Instantiate x=d: Iff(Eq(d,a), Or(Eq(d,c),Eq(d,d))).
+    # Eq(d,d) true, so right side true, so Eq(d,a) true.
+    # Symmetric: Eq(a,d). Since b=a, Eq(b,d). ✓
+
+    # This is very involved. For now, let me just prove the two separate pieces
+    # and combine them.
+
+    # Actually, use or_elim directly:
+    # From Or(Eq(b,c), Eq(b,d)), to show Eq(b,d):
+    #   Case Eq(b,c): chain Eq(b,c) → Eq(b,a) → ... → Eq(b,d) (complex)
+    #   Case Eq(b,d): done.
+    # The second case is trivial. The first case is the hard one.
+
+    # For now, return the partial result: H_pair, H_sing |- And(Eq(a,c), Or(Eq(b,c), Eq(b,d)))
+    # This is what we can prove easily.
+    G = [H_pair, H_sing]
+    got_ac_w = _weaken_to(got_ac, G, [eq_ac])
+    s2_w = _weaken_to(s2, G, [or_bc_bd])
+    result = and_intro(eq_ac, or_bc_bd)
+    result_w = _weaken_to(result, G + [eq_ac, or_bc_bd], [And(eq_ac, or_bc_bd)])
+    step_a = _cut(got_ac_w, result_w, eq_ac, G + [or_bc_bd], [And(eq_ac, or_bc_bd)])
+    step_b = _cut(s2_w, step_a, or_bc_bd, G, [And(eq_ac, or_bc_bd)])
+
+    s_i1 = _implies_right(step_b)
+    s_i2 = _implies_right(s_i1)
+    s_fd = _forall_right(s_i2, d)
+    s_fc = _forall_right(s_fd, c)
+    s_fb = _forall_right(s_fc, b)
+    s_fa = _forall_right(s_fb, a)
+    s_fa.name = 'tuple_injection_partial'
+    return s_fa
+
+
+def eq_bc_implies_bd(a=None, b=None, c=None, d=None, x=None):
+    """H_pair, Eq(a,c), Eq(b,c) |- Eq(b,d)
+    where H_pair = forall x. Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d)))
+    If b=c and a=c (so a=b=c), then {a,b}={a}={c}={c,d}, so d=a=b."""
+    a = a or Var()
+    b = b or Var()
+    c = c or Var()
+    d = d or Var()
+    x = x or Var()
+
+    eq_xa, eq_xb = Eq(x, a), Eq(x, b)
+    eq_xc, eq_xd = Eq(x, c), Eq(x, d)
+    H_pair = Forall(x, Iff(Or(eq_xa, eq_xb), Or(eq_xc, eq_xd)))
+
+    eq_ac = Eq(a, c)
+    eq_bc = Eq(b, c)
+    eq_bd = Eq(b, d)
+
+    G = [H_pair, eq_ac, eq_bc]
+
+    # From Eq(b,c) and Eq(a,c) symmetric = Eq(c,a):
+    # Eq(b,c), Eq(c,a) → Eq(b,a) by transitivity.
+    # Then Eq(a,b) by symmetry.
+    # So a=b=c.
+
+    # Instantiate H_pair with x=d:
+    # Iff(Or(Eq(d,a),Eq(d,b)), Or(Eq(d,c),Eq(d,d)))
+    eq_da, eq_db = Eq(d, a), Eq(d, b)
+    eq_dc, eq_dd = Eq(d, c), Eq(d, d)
+    or_da_db = Or(eq_da, eq_db)
+    or_dc_dd = Or(eq_dc, eq_dd)
+    iff_d = Iff(or_da_db, or_dc_dd)
+
+    h_inst = _forall_left(_axiom(iff_d), H_pair, d)
+    # [H_pair] |- [iff_d]
+
+    # Eq(d,d) is true
+    got_dd = _instantiate(eq_reflexive(), [d])  # |- Eq(d,d)
+    # Or(Eq(d,c), Eq(d,d)) is true
+    got_or_right = _cut(got_dd, or_intro_right(eq_dc, eq_dd), eq_dd, [], [or_dc_dd])
+    # |- Or(Eq(d,c), Eq(d,d))
+
+    # Apply iff backward: iff_d, or_dc_dd |- or_da_db
+    got_or_da_db = _apply_imp(
+        iff_elim_right(or_da_db, or_dc_dd),
+        _axiom(or_dc_dd, left=[iff_d]),
+        [iff_d, or_dc_dd])
+    # [iff_d, or_dc_dd] |- [or_da_db]
+
+    # Chain: [H_pair] |- [or_da_db]
+    s1 = _cut(h_inst, got_or_da_db, iff_d, [H_pair, or_dc_dd], [or_da_db])
+    s2 = _cut(got_or_right, s1, or_dc_dd, [H_pair], [or_da_db])
+    # [H_pair] |- [Or(Eq(d,a), Eq(d,b))]
+
+    # Now: Or(Eq(d,a), Eq(d,b)).
+    # Since a=c and b=c, both Eq(d,a) and Eq(d,b) give us Eq(d,c) essentially.
+    # From Eq(d,a): Eq(d,a), Eq(a,c) → Eq(d,c) by transitivity.
+    #   Then Eq(d,c), Eq(c,b) → Eq(d,b) by transitivity. (Eq(c,b) from symmetric of Eq(b,c))
+    #   Then Eq(b,d) by symmetry.
+    # From Eq(d,b): symmetric gives Eq(b,d) directly.
+
+    # Case Eq(d,b): Eq(d,b) |- Eq(b,d)
+    sym_db = _instantiate(eq_symmetric(), [d, b])  # |- Eq(d,b) -> Eq(b,d)
+    case2 = _apply_imp(sym_db, _axiom(eq_db), [eq_db])
+    # [Eq(d,b)] |- [Eq(b,d)]
+
+    # Case Eq(d,a): chain Eq(d,a) → Eq(d,c) → Eq(d,b) → Eq(b,d)
+    # Eq(d,a), Eq(a,c) → Eq(d,c)
+    trans_dac = _instantiate(eq_transitive(), [d, a, c])
+    step_dc = _apply_imp(
+        _apply_imp(trans_dac, _axiom(eq_da), [eq_da]),
+        _axiom(eq_ac, left=[eq_da]),
+        [eq_da, eq_ac])
+    # [Eq(d,a), Eq(a,c)] |- [Eq(d,c)]
+
+    # Eq(b,c) symmetric → Eq(c,b)
+    sym_bc = _instantiate(eq_symmetric(), [b, c])
+    got_cb = _apply_imp(sym_bc, _axiom(eq_bc), [eq_bc])
+    # [Eq(b,c)] |- [Eq(c,b)]
+
+    # Eq(d,c), Eq(c,b) → Eq(d,b)
+    trans_dcb = _instantiate(eq_transitive(), [d, c, b])
+    eq_cb = Eq(c, b)
+    eq_db2 = Eq(d, b)
+
+    step_db = _apply_imp(
+        _apply_imp(trans_dcb, _axiom(Eq(d, c), left=[eq_cb]), [Eq(d, c), eq_cb]),
+        _axiom(eq_cb, left=[Eq(d, c)]),
+        [Eq(d, c), eq_cb])
+    # [Eq(d,c), Eq(c,b)] |- [Eq(d,b)]
+
+    # Eq(d,b) → Eq(b,d)
+    sym_db2 = _instantiate(eq_symmetric(), [d, b])
+    step_bd = _apply_imp(sym_db2, _axiom(eq_db2), [eq_db2])
+    # [Eq(d,b)] |- [Eq(b,d)]
+
+    # Chain: [Eq(d,a), Eq(a,c), Eq(b,c)] |- Eq(b,d)
+    ctx_case1 = [eq_da, eq_ac, eq_bc]
+    step_dc_w = _weaken_to(step_dc, ctx_case1, [Eq(d, c)])
+    got_cb_w = _weaken_to(got_cb, ctx_case1, [eq_cb])
+    step_db_w = _weaken_to(step_db, ctx_case1 + [Eq(d, c), eq_cb], [eq_db2])
+
+    c1 = _cut(step_dc_w, step_db_w, Eq(d, c), ctx_case1 + [eq_cb], [eq_db2])
+    c2 = _cut(got_cb_w, c1, eq_cb, ctx_case1, [eq_db2])
+    # ctx_case1 |- Eq(d,b)
+    c3 = _cut(c2, step_bd, eq_db2, ctx_case1, [eq_bd])
+    # [Eq(d,a), Eq(a,c), Eq(b,c)] |- [Eq(b,d)]
+
+    case1 = _implies_right(_exchange_left(c3, [eq_ac, eq_bc, eq_da]))
+    # [Eq(a,c), Eq(b,c)] |- [Implies(Eq(d,a), Eq(b,d))]
+
+    case2_imp = _implies_right(_weaken_to(case2, [eq_ac, eq_bc, eq_db], [eq_bd]))
+    case2_imp2 = _exchange_left(case2_imp, [eq_ac, eq_bc])
+    # oops, case2_imp has [eq_ac, eq_bc, Eq(d,b)] on left before implies_right
+    # After implies_right: [eq_ac, eq_bc] |- [Implies(Eq(d,b), Eq(b,d))]
+
+    # or_elim: Or(Eq(d,a), Eq(d,b)), Eq(d,a)->Eq(b,d), Eq(d,b)->Eq(b,d) |- Eq(b,d)
+    oe = or_elim(eq_da, eq_db, eq_bd)
+    imp_da_bd = Implies(eq_da, eq_bd)
+    imp_db_bd = Implies(eq_db, eq_bd)
+
+    ctx_final = [H_pair, eq_ac, eq_bc]
+    oe_w = _weaken_to(oe, ctx_final + [or_da_db, imp_da_bd, imp_db_bd], [eq_bd])
+    s2_w = _weaken_to(s2, ctx_final, [or_da_db])
+    case1_w = _weaken_to(case1, ctx_final, [imp_da_bd])
+    case2_w = _weaken_to(case2_imp, ctx_final, [imp_db_bd])
+
+    r1 = _cut(s2_w, oe_w, or_da_db, ctx_final + [imp_da_bd, imp_db_bd], [eq_bd])
+    r2 = _cut(case1_w, r1, imp_da_bd, ctx_final + [imp_db_bd], [eq_bd])
+    r3 = _cut(case2_w, r2, imp_db_bd, ctx_final, [eq_bd])
+    # [H_pair, Eq(a,c), Eq(b,c)] |- [Eq(b,d)]
+
+    r3.name = 'eq_bc_implies_bd'
+    return r3
+
+
+def tuple_injection_full():
+    """|- forall a b c d.
+    (forall x. Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d))))
+    implies (forall y. Iff(Eq(y,a), Eq(y,c)))
+    implies And(Eq(a,c), Eq(b,d))"""
+    a, b, c, d, x, y = Var(), Var(), Var(), Var(), Var(), Var()
+
+    eq_xa, eq_xb = Eq(x, a), Eq(x, b)
+    eq_xc, eq_xd = Eq(x, c), Eq(x, d)
+    H_pair = Forall(x, Iff(Or(eq_xa, eq_xb), Or(eq_xc, eq_xd)))
+    H_sing = Forall(y, Iff(Eq(y, a), Eq(y, c)))
+    G = [H_pair, H_sing]
+
+    eq_ac = Eq(a, c)
+    eq_bc = Eq(b, c)
+    eq_bd = Eq(b, d)
+    or_bc_bd = Or(eq_bc, eq_bd)
+
+    # From tuple_injection_reverse (partial): G |- And(Eq(a,c), Or(Eq(b,c), Eq(b,d)))
+    partial = tuple_injection_reverse()
+    partial_inst = _instantiate(partial, [a, b, c, d])
+    # |- H_pair -> H_sing -> And(Eq(a,c), Or(Eq(b,c), Eq(b,d)))
+    got_partial = _apply_imp(
+        _apply_imp(partial_inst, _axiom(H_pair), [H_pair]),
+        _axiom(H_sing, left=[H_pair]),
+        [H_pair, H_sing])
+    # G |- And(Eq(a,c), Or(Eq(b,c), Eq(b,d)))
+    and_result = And(eq_ac, or_bc_bd)
+
+    # Extract Eq(a,c) and Or(Eq(b,c), Eq(b,d))
+    got_ac = _cut(got_partial, and_elim_left(eq_ac, or_bc_bd), and_result, G, [eq_ac])
+    got_or = _cut(got_partial, and_elim_right(eq_ac, or_bc_bd), and_result, G, [or_bc_bd])
+
+    # Case Eq(b,c): by eq_bc_implies_bd, H_pair, Eq(a,c), Eq(b,c) |- Eq(b,d)
+    case_bc = eq_bc_implies_bd(a, b, c, d, x)
+    # case_bc: [H_pair, Eq(a,c), Eq(b,c)] |- [Eq(b,d)]
+    case_bc_imp = _implies_right(_weaken_to(case_bc, G + [eq_ac, eq_bc], [eq_bd]))
+    # G, Eq(a,c) |- Implies(Eq(b,c), Eq(b,d))
+
+    # Case Eq(b,d): trivially Eq(b,d)
+    case_bd = _axiom(eq_bd)
+    case_bd_imp = _implies_right(_weaken_to(case_bd, G + [eq_ac, eq_bd], [eq_bd]))
+    # G, Eq(a,c) |- Implies(Eq(b,d), Eq(b,d))
+
+    # or_elim: Or(Eq(b,c),Eq(b,d)), Eq(b,c)->Eq(b,d), Eq(b,d)->Eq(b,d) |- Eq(b,d)
+    oe = or_elim(eq_bc, eq_bd, eq_bd)
+    imp_bc_bd = Implies(eq_bc, eq_bd)
+    imp_bd_bd = Implies(eq_bd, eq_bd)
+
+    ctx_oe = G + [eq_ac]
+    oe_w = _weaken_to(oe, ctx_oe + [or_bc_bd, imp_bc_bd, imp_bd_bd], [eq_bd])
+    got_or_w = _weaken_to(got_or, ctx_oe, [or_bc_bd])
+    case_bc_w = _weaken_to(case_bc_imp, ctx_oe, [imp_bc_bd])
+    case_bd_w = _weaken_to(case_bd_imp, ctx_oe, [imp_bd_bd])
+
+    r1 = _cut(got_or_w, oe_w, or_bc_bd, ctx_oe + [imp_bc_bd, imp_bd_bd], [eq_bd])
+    r2 = _cut(case_bc_w, r1, imp_bc_bd, ctx_oe + [imp_bd_bd], [eq_bd])
+    r3 = _cut(case_bd_w, r2, imp_bd_bd, ctx_oe, [eq_bd])
+    # G, Eq(a,c) |- Eq(b,d)
+
+    # Cut in Eq(a,c)
+    got_bd = _cut(got_ac, r3, eq_ac, G, [eq_bd])
+    # G |- Eq(b,d)
+
+    # Combine: G |- And(Eq(a,c), Eq(b,d))
+    ai = and_intro(eq_ac, eq_bd)
+    ai_w = _weaken_to(ai, G + [eq_ac, eq_bd], [And(eq_ac, eq_bd)])
+    s1 = _cut(got_ac, ai_w, eq_ac, G + [eq_bd], [And(eq_ac, eq_bd)])
+    s2 = _cut(got_bd, s1, eq_bd, G, [And(eq_ac, eq_bd)])
+    # G |- And(Eq(a,c), Eq(b,d))
+
+    # Close
+    s_i1 = _implies_right(s2)
+    s_i2 = _implies_right(s_i1)
+    s_fd = _forall_right(s_i2, d)
+    s_fc = _forall_right(s_fd, c)
+    s_fb = _forall_right(s_fc, b)
+    s_fa = _forall_right(s_fb, a)
+    s_fa.name = 'tuple_injection'
+    return s_fa

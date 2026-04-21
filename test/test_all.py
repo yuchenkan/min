@@ -39,6 +39,9 @@ if __name__ == '__main__':
         ('eq_transfer', theorems.eq_transfer()),
         ('or_iff_compat', theorems.or_iff_compat(In(x, y), In(y, z), In(z, x), In(x, z))),
         ('pair_eq_forward', theorems.tuple_injection()),
+        ('or_intro_left', theorems.or_intro_left(In(x, y), In(y, z))),
+        ('or_intro_right', theorems.or_intro_right(In(x, y), In(y, z))),
+        ('tuple_injection', theorems.tuple_injection_full()),
     ]
 
     for name, proof in all_proofs:
