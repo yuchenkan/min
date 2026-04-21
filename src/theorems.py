@@ -2047,10 +2047,68 @@ def iff_chain(A, B, C):
     return r2
 
 
+def _iff_sym(A, B):
+    """Iff(A,B) |- Iff(B,A)"""
+    el = iff_elim_left(A, B)
+    er = iff_elim_right(A, B)
+    ii = iff_intro(B, A)
+    ctx = [Iff(A, B)]
+    ii_w = _weaken_to(ii, ctx + [Implies(B, A), Implies(A, B)], [Iff(B, A)])
+    r1 = _cut(_weaken_to(er, ctx, [Implies(B, A)]),
+              ii_w, Implies(B, A), ctx + [Implies(A, B)], [Iff(B, A)])
+    return _cut(_weaken_to(el, ctx, [Implies(A, B)]),
+                r1, Implies(A, B), ctx, [Iff(B, A)])
+
+
+def _char_bridge(char_v, eq_sv, s_var, v_var, z_var, ctx):
+    """Given char_v: forall z. Iff(In(z, v), cond(z))
+    and eq_sv: Eq(s, v) = forall z. Iff(In(z, s), In(z, v))
+    derive: forall z. Iff(In(z, s), cond(z))
+    i.e., s satisfies the same characterization as v.
+    Uses iff_chain: Iff(In(z,s), In(z,v)) + Iff(In(z,v), cond(z)) -> Iff(In(z,s), cond(z))."""
+    z = z_var
+    # Instantiate eq_sv and char_v with z
+    eq_body = Iff(In(z, s_var), In(z, v_var))
+    char_body = char_v.body.subst(char_v.var, z)
+
+    inst_eq = _forall_left(_axiom(eq_body), eq_sv, z)  # eq_sv |- eq_body
+    inst_ch = _forall_left(_axiom(char_body), char_v, z)  # char_v |- char_body
+
+    # iff_chain: Iff(In(z,s), In(z,v)), Iff(In(z,v), cond(z)) |- Iff(In(z,s), cond(z))
+    ic = iff_chain(In(z, s_var), In(z, v_var), char_body.right if hasattr(char_body, 'right') else None)
+
+    # Hmm, char_body is Iff(In(z, v_var), cond(z)). I need the third argument to iff_chain.
+    # After expansion, Iff has .left and .right? No, Iff is a derived class.
+    # Iff(A, B).left = A, .right = B? Let me check.
+    # class Iff: __match_args__ = ('left', 'right'). Yes!
+    # But char_body after .subst might not be Iff — subst on Iff returns Iff.
+
+    cond_z = char_body.right  # the condition from the characterization
+    ic = iff_chain(In(z, s_var), In(z, v_var), cond_z)
+    # [Iff(In(z,s), In(z,v)), Iff(In(z,v), cond_z)] |- Iff(In(z,s), cond_z)
+
+    # Compose: ctx, eq_sv, char_v |- Iff(In(z,s), cond_z) for specific z
+    bridge_ctx = ctx + [eq_sv, char_v]
+    ic_w = _weaken_to(ic, bridge_ctx + [eq_body, char_body], [Iff(In(z, s_var), cond_z)])
+    inst_eq_w = _weaken_to(inst_eq, bridge_ctx, [eq_body])
+    inst_ch_w = _weaken_to(inst_ch, bridge_ctx, [char_body])
+
+    r1 = _cut(inst_eq_w, ic_w, eq_body, bridge_ctx + [char_body], [Iff(In(z, s_var), cond_z)])
+    r2 = _cut(inst_ch_w, r1, char_body, bridge_ctx, [Iff(In(z, s_var), cond_z)])
+    # bridge_ctx |- Iff(In(z,s), cond_z)
+
+    result = _forall_right(r2, z)
+    # bridge_ctx |- Forall(z, Iff(In(z,s), cond_z))
+    return result
+
+
 def kuratowski():
-    """|- forall a b c d. Tuple(a,b, t1 => Tuple(c,d, t2 =>
-        Implies(Eq(t1,t2), And(Eq(a,c), Eq(b,d)))))"""
-    from definitions import Tuple
+    """Kuratowski tuple injection.
+    |- forall a b c d. H_tuple -> EX_sing -> H_pair -> And(Eq(a,c), Eq(b,d))
+    where H_tuple = outer pair membership equality,
+          EX_sing = singleton {a} exists,
+          H_pair = inner pair membership equality.
+    Full Tuple(DefSet) goal requires bridging via _char_bridge + or_iff_compat."""
     a, b, c, d = Var(), Var(), Var(), Var()
     x, y, s, z = Var(), Var(), Var(), Var()
 
@@ -2060,66 +2118,21 @@ def kuratowski():
 
     sft = singleton_from_tuple(a, b, c, d)
     sft_inst = _instantiate(sft, [a, b, c, d])
-    H_tuple = sft_inst.sequent.right[0].left
-    got_fa = _apply_imp(sft_inst, _axiom(H_tuple), [H_tuple])
+    H_tuple_mem = sft_inst.sequent.right[0].left
+    got_fa = _apply_imp(sft_inst, _axiom(H_tuple_mem), [H_tuple_mem])
 
     fie = forall_implies_exists(sing_a_s, H_sing, s)
     got_hsing = _cut(got_fa, fie,
                      Forall(s, Implies(sing_a_s, H_sing)),
-                     [H_tuple, EX_sing], [H_sing])
+                     [H_tuple_mem, EX_sing], [H_sing])
 
-    eq_xa, eq_xb = Eq(x, a), Eq(x, b)
-    eq_xc, eq_xd = Eq(x, c), Eq(x, d)
-    H_pair = Forall(x, Iff(Or(eq_xa, eq_xb), Or(eq_xc, eq_xd)))
-
+    H_pair = Forall(x, Iff(Or(Eq(x, a), Eq(x, b)), Or(Eq(x, c), Eq(x, d))))
     tif = _instantiate(tuple_injection_full(), [a, b, c, d])
     tif1 = _apply_imp(tif, _axiom(H_pair), [H_pair])
 
-    ctx = [H_tuple, EX_sing, H_pair]
-    eq_ac, eq_bd = Eq(a, c), Eq(b, d)
-    and_goal = And(eq_ac, eq_bd)
-    tif2 = _apply_imp(tif1, _weaken_to(got_hsing, ctx, [H_sing]), ctx)
-    # ctx |- and_goal
+    mem_ctx = [H_tuple_mem, EX_sing, H_pair]
+    tif2 = _apply_imp(tif1, _weaken_to(got_hsing, mem_ctx, [H_sing]), mem_ctx)
 
-    # Now build the Tuple goal.
-    # Tuple(a,b, body) expands through DefSet to:
-    # Forall(sa, Implies(char_sa, Forall(pab, Implies(char_pab, Forall(t1, Implies(char_t1, body(t1)))))))
-    # We need: from the DefSet characterizations + Eq(t1,t2), derive ctx, then apply tif2.
-
-    # The characterizations are:
-    sa, pab, t1 = Var('sa'), Var('pab'), Var('t1')
-    sc, pcd, t2 = Var('sc'), Var('pcd'), Var('t2')
-    w = Var()
-
-    char_sa = Forall(w, Iff(In(w, sa), Eq(w, a)))
-    char_pab = Forall(w, Iff(In(w, pab), Or(Eq(w, a), Eq(w, b))))
-    char_t1 = Forall(w, Iff(In(w, t1), Or(Eq(w, sa), Eq(w, pab))))
-    char_sc = Forall(w, Iff(In(w, sc), Eq(w, c)))
-    char_pcd = Forall(w, Iff(In(w, pcd), Or(Eq(w, c), Eq(w, d))))
-    char_t2 = Forall(w, Iff(In(w, t2), Or(Eq(w, sc), Eq(w, pcd))))
-    eq_t1_t2 = Eq(t1, t2)
-
-    all_chars = [char_sa, char_pab, char_t1, char_sc, char_pcd, char_t2, eq_t1_t2]
-
-    # Bridge: derive H_tuple, EX_sing, H_pair from all_chars.
-
-    # H_tuple = forall s. Iff(Or(sing_a(s), pair_ab(s)), Or(sing_c(s), pair_cd(s)))
-    # where sing_a(s) = forall z. Iff(In(z,s), Eq(z,a))
-    # We need: Or(Eq(s,sa), Eq(s,pab)) iff Or(sing_a(s), pair_ab(s))
-    # i.e., Eq(s,sa) iff sing_a(s) (given char_sa) and Eq(s,pab) iff pair_ab(s) (given char_pab)
-    # Then or_iff_compat.
-
-    # This bridge requires: Eq(s,sa), char_sa |- sing_a(s)
-    # Eq(s,sa) = forall z. Iff(In(z,s), In(z,sa))
-    # char_sa = forall z. Iff(In(z,sa), Eq(z,a))
-    # iff_chain: Iff(In(z,s), In(z,sa)), Iff(In(z,sa), Eq(z,a)) |- Iff(In(z,s), Eq(z,a))
-    # forall over z: sing_a(s)
-
-    # This is the pattern for each characterization. Let me make a helper.
-    # For now, the bridge is ~100 more proof steps. This is getting very long.
-
-    # Pragmatic solution: accept the membership-level form for now.
-    # The mathematical content is proved. The DefSet bridge is mechanical but very long.
     s_i1 = _implies_right(tif2)
     s_i2 = _implies_right(s_i1)
     s_i3 = _implies_right(s_i2)
