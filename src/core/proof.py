@@ -1,6 +1,20 @@
 """Sequent calculus for first-order logic with set theory language."""
 
-from lang import Var, In, Not, Implies, Forall, Formula
+from core.lang import Var, In, Not, Implies, Forall, Formula
+
+
+def expand_all(formula):
+    while hasattr(formula, 'expand'):
+        formula = formula.expand_all()
+    match formula:
+        case Not(operand):
+            return Not(expand_all(operand))
+        case Implies(left, right):
+            return Implies(expand_all(left), expand_all(right))
+        case Forall(var, body):
+            return Forall(var, expand_all(body))
+        case _:
+            return formula
 
 
 class Sequent:
@@ -15,10 +29,32 @@ class Proof:
         self.rule = rule
         self.premises = premises or []
 
+    def theorem(self) -> Formula:
+        s = self.sequent
+        result = s.right[0] if len(s.right) == 1 else None
+        for f in reversed(s.left):
+            result = Implies(f, result)
+        return result
+
+
+def _expand_sequent(s: Sequent) -> Sequent:
+    return Sequent([expand_all(f) for f in s.left], [expand_all(f) for f in s.right])
+
+
+def _expand_proof(proof: Proof) -> Proof:
+    return Proof(
+        _expand_sequent(proof.sequent),
+        proof.rule,
+        [_expand_proof(p) for p in proof.premises])
+
 
 def verify(proof: Proof) -> bool:
+    return _verify(_expand_proof(proof))
+
+
+def _verify(proof: Proof) -> bool:
     for p in proof.premises:
-        if not verify(p):
+        if not _verify(p):
             return False
     return _check_rule(proof)
 

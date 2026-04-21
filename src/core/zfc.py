@@ -1,6 +1,6 @@
 """ZFC axioms in the first-order language of set theory."""
 
-from lang import Var, In, Not, Implies, Forall, Formula
+from core.lang import Var, In, Not, Implies, Forall, Formula
 
 
 # --- Derived connectives ---

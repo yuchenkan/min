@@ -3,8 +3,7 @@
 import sys
 sys.path.insert(0, 'src')
 
-from lang import Var, In, Not, Implies, Forall
-from proof import Sequent, Proof, verify
+from core import Var, In, Not, Implies, Forall, Sequent, Proof, verify
 
 
 def test_modus_ponens():
