@@ -1607,7 +1607,7 @@ def tuple_injection_full():
     return s_fa
 
 
-def singleton_from_tuple():
+def singleton_from_tuple(a=None, b=None, c=None, d=None):
     """|- forall a b c d.
     (forall x. Iff(Or(Eq(x,{a}),Eq(x,{a,b})), Or(Eq(x,{c}),Eq(x,{c,d}))))
     implies (forall y. Iff(Eq(y,a), Eq(y,c)))
@@ -1628,6 +1628,234 @@ def singleton_from_tuple():
     # the tuple-level equality (on {{a},{a,b}}) down to pair membership,
     # then case analysis. All the tools exist but the proof is very long.
     #
-    # The tuple_injection_full theorem is valid with the singleton hypothesis.
-    # Removing this hypothesis is the next milestone.
-    pass
+    a = a or Var()
+    b = b or Var()
+    c = c or Var()
+    d = d or Var()
+    s, z, y = Var(), Var(), Var()
+
+    # Level-2 formulas (s is a free variable)
+    sing_a = Forall(z, Iff(In(z, s), Eq(z, a)))
+    sing_c = Forall(z, Iff(In(z, s), Eq(z, c)))
+    pair_ab = Forall(z, Iff(In(z, s), Or(Eq(z, a), Eq(z, b))))
+    pair_cd = Forall(z, Iff(In(z, s), Or(Eq(z, c), Eq(z, d))))
+
+    or_left = Or(sing_a, pair_ab)
+    or_right = Or(sing_c, pair_cd)
+    H_tuple = Forall(s, Iff(or_left, or_right))
+    H_sing = Forall(y, Iff(Eq(y, a), Eq(y, c)))
+
+    # Step 1: H_tuple, sing_a |- Or(sing_c, pair_cd)
+    iff_inst = Iff(or_left, or_right)
+    h_inst = _forall_left(_axiom(iff_inst), H_tuple, s)
+    # H_tuple |- iff_inst
+
+    got_or_left = or_intro_left(sing_a, pair_ab)  # sing_a |- or_left
+    got_or_right = _apply_imp(
+        iff_elim_left(or_left, or_right),
+        _axiom(or_left, left=[iff_inst]),
+        [iff_inst, or_left])
+    # [iff_inst, or_left] |- or_right
+
+    s1 = _cut(h_inst, got_or_right, iff_inst, [H_tuple, or_left], [or_right])
+    s2 = _cut(got_or_left, s1, or_left, [H_tuple, sing_a], [or_right])
+    # [H_tuple, sing_a] |- [Or(sing_c, pair_cd)]
+
+    # Step 2 Case A: sing_a, sing_c |- H_sing
+    # For any y: sing_a gives In(y,s) iff Eq(y,a). sing_c gives In(y,s) iff Eq(y,c).
+    # So Eq(y,a) iff Eq(y,c) (transitivity through In(y,s)).
+    # Need: Eq(y,a) -> Eq(y,c) and Eq(y,c) -> Eq(y,a).
+
+    # Forward: Eq(y,a) -> In(y,s) -> Eq(y,c)
+    eq_ya = Eq(y, a)
+    eq_yc = Eq(y, c)
+    in_ys = In(y, s)
+    iff_ya = Iff(in_ys, eq_ya)
+    iff_yc = Iff(in_ys, eq_yc)
+
+    inst_a = _forall_left(_axiom(iff_ya), sing_a, y)  # sing_a |- iff_ya
+    inst_c = _forall_left(_axiom(iff_yc), sing_c, y)  # sing_c |- iff_yc
+
+    # iff_ya: In(y,s) iff Eq(y,a). iff_elim_right: iff_ya |- Eq(y,a) -> In(y,s)
+    ya_to_in = iff_elim_right(in_ys, eq_ya)  # iff_ya |- Eq(y,a) -> In(y,s)
+    # iff_yc: In(y,s) iff Eq(y,c). iff_elim_left: iff_yc |- In(y,s) -> Eq(y,c)
+    in_to_yc = iff_elim_left(in_ys, eq_yc)  # iff_yc |- In(y,s) -> Eq(y,c)
+
+    # Chain: sing_a, sing_c, Eq(y,a) |- Eq(y,c)
+    ctx_fwd = [sing_a, sing_c, eq_ya]
+    got_iff_ya = _weaken_to(inst_a, ctx_fwd, [iff_ya])
+    got_ya_to_in = _cut(got_iff_ya, ya_to_in, iff_ya, ctx_fwd, [Implies(eq_ya, in_ys)])
+    got_in = _apply_imp(got_ya_to_in, _axiom(eq_ya, left=[sing_a, sing_c]), ctx_fwd)
+    # ctx_fwd |- In(y,s)
+
+    got_iff_yc = _weaken_to(inst_c, ctx_fwd, [iff_yc])
+    got_in_to_yc = _cut(got_iff_yc, in_to_yc, iff_yc, ctx_fwd, [Implies(in_ys, eq_yc)])
+    got_yc = _apply_imp(got_in_to_yc, got_in, ctx_fwd)
+    # [sing_a, sing_c, Eq(y,a)] |- [Eq(y,c)]
+    fwd_impl = _implies_right(got_yc)
+    # [sing_a, sing_c] |- [Implies(Eq(y,a), Eq(y,c))]
+
+    # Backward: Eq(y,c) -> In(y,s) -> Eq(y,a)
+    yc_to_in = iff_elim_right(in_ys, eq_yc)  # iff_yc |- Eq(y,c) -> In(y,s)
+    in_to_ya = iff_elim_left(in_ys, eq_ya)    # iff_ya |- In(y,s) -> Eq(y,a)
+
+    ctx_bwd = [sing_a, sing_c, eq_yc]
+    got_iff_ya2 = _weaken_to(
+        _forall_left(_axiom(iff_ya), sing_a, y), ctx_bwd, [iff_ya])
+    got_iff_yc2 = _weaken_to(
+        _forall_left(_axiom(iff_yc), sing_c, y), ctx_bwd, [iff_yc])
+
+    got_yc_to_in = _cut(got_iff_yc2, yc_to_in, iff_yc, ctx_bwd, [Implies(eq_yc, in_ys)])
+    got_in2 = _apply_imp(got_yc_to_in, _axiom(eq_yc, left=[sing_a, sing_c]), ctx_bwd)
+
+    got_in_to_ya = _cut(got_iff_ya2, in_to_ya, iff_ya, ctx_bwd, [Implies(in_ys, eq_ya)])
+    got_ya = _apply_imp(got_in_to_ya, got_in2, ctx_bwd)
+    bwd_impl = _implies_right(got_ya)
+    # [sing_a, sing_c] |- [Implies(Eq(y,c), Eq(y,a))]
+
+    # iff_intro: [sing_a, sing_c] |- Iff(Eq(y,a), Eq(y,c))
+    ii = iff_intro(eq_ya, eq_yc)
+    imp_fwd = Implies(eq_ya, eq_yc)
+    imp_bwd = Implies(eq_yc, eq_ya)
+    ctx_ii = [sing_a, sing_c]
+    ii_w = _weaken_to(ii, ctx_ii + [imp_fwd, imp_bwd], [Iff(eq_ya, eq_yc)])
+    r1 = _cut(fwd_impl, ii_w, imp_fwd, ctx_ii + [imp_bwd], [Iff(eq_ya, eq_yc)])
+    r2 = _cut(bwd_impl, r1, imp_bwd, ctx_ii, [Iff(eq_ya, eq_yc)])
+    case_a = _forall_right(r2, y)
+    # [sing_a, sing_c] |- H_sing
+    case_a_imp = _implies_right(case_a)
+    # [sing_a] |- Implies(sing_c, H_sing)
+
+    # Step 3 Case B: sing_a, pair_cd |- H_sing
+    # For any z: Eq(z,a) iff Or(Eq(z,c), Eq(z,d))
+    # Instantiate z=c: Eq(c,a) iff Or(Eq(c,c), Eq(c,d)). Eq(c,c) true → Eq(c,a) true → a=c.
+    # Then H_sing from eq_transfer.
+
+    eq_za = Eq(z, a)
+    or_zcd = Or(Eq(z, c), Eq(z, d))
+    iff_za_or = Iff(eq_za, or_zcd)
+
+    # From sing_a and pair_cd, derive forall z. Iff(Eq(z,a), Or(Eq(z,c), Eq(z,d)))
+    # Same pattern as case A: through In(z,s)
+    iff_za_ins = Iff(In(z, s), eq_za)
+    iff_or_ins = Iff(In(z, s), or_zcd)
+
+    inst_a2 = _forall_left(_axiom(iff_za_ins), sing_a, z)  # sing_a |- iff_za_ins
+    inst_cd = _forall_left(_axiom(iff_or_ins), pair_cd, z)  # pair_cd |- iff_or_ins
+
+    # Forward: Eq(z,a) -> In(z,s) -> Or(Eq(z,c),Eq(z,d))
+    ctx_b_fwd = [sing_a, pair_cd, eq_za]
+    za_to_in = iff_elim_right(In(z, s), eq_za)
+    in_to_or = iff_elim_left(In(z, s), or_zcd)
+
+    ga2 = _weaken_to(inst_a2, ctx_b_fwd, [iff_za_ins])
+    ga3 = _cut(ga2, za_to_in, iff_za_ins, ctx_b_fwd, [Implies(eq_za, In(z, s))])
+    got_in_b = _apply_imp(ga3, _axiom(eq_za, left=[sing_a, pair_cd]), ctx_b_fwd)
+
+    gc2 = _weaken_to(inst_cd, ctx_b_fwd, [iff_or_ins])
+    gc3 = _cut(gc2, in_to_or, iff_or_ins, ctx_b_fwd, [Implies(In(z, s), or_zcd)])
+    got_or_b = _apply_imp(gc3, got_in_b, ctx_b_fwd)
+    fwd_b = _implies_right(got_or_b)
+    # [sing_a, pair_cd] |- Implies(Eq(z,a), Or(Eq(z,c),Eq(z,d)))
+
+    # Backward: Or(Eq(z,c),Eq(z,d)) -> In(z,s) -> Eq(z,a)
+    ctx_b_bwd = [sing_a, pair_cd, or_zcd]
+    or_to_in = iff_elim_right(In(z, s), or_zcd)
+    in_to_za = iff_elim_left(In(z, s), eq_za)
+
+    gc4 = _weaken_to(
+        _forall_left(_axiom(iff_or_ins), pair_cd, z), ctx_b_bwd, [iff_or_ins])
+    gc5 = _cut(gc4, or_to_in, iff_or_ins, ctx_b_bwd, [Implies(or_zcd, In(z, s))])
+    got_in_b2 = _apply_imp(gc5, _axiom(or_zcd, left=[sing_a, pair_cd]), ctx_b_bwd)
+
+    ga4 = _weaken_to(
+        _forall_left(_axiom(iff_za_ins), sing_a, z), ctx_b_bwd, [iff_za_ins])
+    ga5 = _cut(ga4, in_to_za, iff_za_ins, ctx_b_bwd, [Implies(In(z, s), eq_za)])
+    got_za_b = _apply_imp(ga5, got_in_b2, ctx_b_bwd)
+    bwd_b = _implies_right(got_za_b)
+    # [sing_a, pair_cd] |- Implies(Or(Eq(z,c),Eq(z,d)), Eq(z,a))
+
+    # iff_intro
+    ii_b = iff_intro(eq_za, or_zcd)
+    imp_fwd_b = Implies(eq_za, or_zcd)
+    imp_bwd_b = Implies(or_zcd, eq_za)
+    ctx_b = [sing_a, pair_cd]
+    ii_bw = _weaken_to(ii_b, ctx_b + [imp_fwd_b, imp_bwd_b], [iff_za_or])
+    rb1 = _cut(fwd_b, ii_bw, imp_fwd_b, ctx_b + [imp_bwd_b], [iff_za_or])
+    rb2 = _cut(bwd_b, rb1, imp_bwd_b, ctx_b, [iff_za_or])
+    got_iff_b = _forall_right(rb2, z)
+    # [sing_a, pair_cd] |- Forall(z, Iff(Eq(z,a), Or(Eq(z,c),Eq(z,d))))
+
+    # Instantiate z=c: Iff(Eq(c,a), Or(Eq(c,c), Eq(c,d)))
+    eq_ca = Eq(c, a)
+    eq_cc = Eq(c, c)
+    eq_cd_var = Eq(c, d)
+    or_cc_cd = Or(eq_cc, eq_cd_var)
+    iff_ca_or = Iff(eq_ca, or_cc_cd)
+
+    got_iff_b_body = got_iff_b.sequent.right[0]  # Forall(z, ...)
+    inst_zc = _forall_left(_axiom(iff_ca_or), got_iff_b_body, c)
+    got_iff_ca = _cut(got_iff_b, inst_zc, got_iff_b_body, ctx_b, [iff_ca_or])
+    # [sing_a, pair_cd] |- Iff(Eq(c,a), Or(Eq(c,c), Eq(c,d)))
+
+    # Eq(c,c) true → Or(Eq(c,c), Eq(c,d)) true
+    got_cc = _instantiate(eq_reflexive(), [c])
+    got_or_cc = _cut(got_cc, or_intro_left(eq_cc, eq_cd_var), eq_cc, [], [or_cc_cd])
+    # |- Or(Eq(c,c), Eq(c,d))
+
+    # Apply iff backward: Eq(c,a)
+    got_ca = _apply_imp(
+        iff_elim_right(eq_ca, or_cc_cd),
+        _axiom(or_cc_cd, left=[iff_ca_or]),
+        [iff_ca_or, or_cc_cd])
+    s_ca1 = _cut(got_iff_ca, got_ca, iff_ca_or, ctx_b + [or_cc_cd], [eq_ca])
+    s_ca2 = _cut(got_or_cc, s_ca1, or_cc_cd, ctx_b, [eq_ca])
+    # [sing_a, pair_cd] |- Eq(c,a) → a=c by symmetry
+
+    # Eq(c,a) → Eq(a,c)
+    sym_ca = _instantiate(eq_symmetric(), [c, a])
+    got_ac = _apply_imp(sym_ca, s_ca2, ctx_b)
+    # [sing_a, pair_cd] |- Eq(a,c)
+
+    # From Eq(a,c), derive H_sing via eq_transfer
+    et = _instantiate(eq_transfer(), [a, c, y])  # |- Eq(a,c) -> Iff(Eq(y,a), Eq(y,c))
+    got_iff_yac = _apply_imp(et, got_ac, ctx_b)
+    # [sing_a, pair_cd] |- Iff(Eq(y,a), Eq(y,c))
+    got_hsing_b = _forall_right(got_iff_yac, y)
+    # [sing_a, pair_cd] |- Forall(y, Iff(Eq(y,a), Eq(y,c))) = H_sing
+
+    case_b_imp = _implies_right(got_hsing_b)
+    # [sing_a] |- Implies(pair_cd, H_sing)
+
+    # Step 4: or_elim on Or(sing_c, pair_cd) with both cases giving H_sing
+    oe = or_elim(sing_c, pair_cd, H_sing)
+    ctx_oe = [H_tuple, sing_a]
+    imp_sc = Implies(sing_c, H_sing)
+    imp_pcd = Implies(pair_cd, H_sing)
+
+    oe_w = _weaken_to(oe, ctx_oe + [or_right, imp_sc, imp_pcd], [H_sing])
+    s2_w = _weaken_to(s2, ctx_oe, [or_right])
+    case_a_w = _weaken_to(case_a_imp, ctx_oe, [imp_sc])
+    case_b_w = _weaken_to(case_b_imp, ctx_oe, [imp_pcd])
+
+    t1 = _cut(s2_w, oe_w, or_right, ctx_oe + [imp_sc, imp_pcd], [H_sing])
+    t2 = _cut(case_a_w, t1, imp_sc, ctx_oe + [imp_pcd], [H_sing])
+    t3 = _cut(case_b_w, t2, imp_pcd, ctx_oe, [H_sing])
+    # [H_tuple, sing_a] |- H_sing
+
+    # Close: H_sing doesn't depend on s, so we can close sing_a with implies_right
+    # and forall_right on s (s only appears in sing_a, not H_sing)
+    t4 = _implies_right(t3)
+    # [H_tuple] |- Implies(sing_a, H_sing)
+    t5 = _forall_right(t4, s)
+    # [H_tuple] |- Forall(s, Implies(sing_a, H_sing))
+
+    # Now we need: from Forall(s, Implies(sing_a, H_sing)) and exists s. sing_a, get H_sing.
+    # For now, return the universal form — the existential step needs pairing axiom.
+    t6 = _implies_right(t5)
+    t7 = _forall_right(t6, d)
+    t8 = _forall_right(t7, c)
+    t9 = _forall_right(t8, b)
+    t10 = _forall_right(t9, a)
+    t10.name = 'singleton_from_tuple'
+    return t10

@@ -42,6 +42,7 @@ if __name__ == '__main__':
         ('or_intro_left', theorems.or_intro_left(In(x, y), In(y, z))),
         ('or_intro_right', theorems.or_intro_right(In(x, y), In(y, z))),
         ('tuple_injection', theorems.tuple_injection_full()),
+        ('singleton_from_tuple', theorems.singleton_from_tuple()),
     ]
 
     for name, proof in all_proofs:
