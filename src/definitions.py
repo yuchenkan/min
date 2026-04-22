@@ -134,15 +134,16 @@ class Inductive:
 # --- Compound definitions ---
 
 class OrdPair:
-    """OrdPair(t, a, b): t = (a, b) = {{a}, {a, b}}"""
+    """OrdPair(t, a, b): t = (a, b) = {{a}, {a, b}}.
+    Exists sa. Singleton(sa,a) and Exists pab. PairSet(pab,a,b) and PairSet(t,sa,pab)."""
     __match_args__ = ('set', 'left', 'right')
     def __init__(self, t, a, b):
         self.set = t; self.left = a; self.right = b
     def expand(self):
         sa = Var()
         pab = Var()
-        return Forall(sa, Implies(Singleton(sa, self.left),
-            Forall(pab, Implies(PairSet(pab, self.left, self.right),
+        return Exists(sa, And(Singleton(sa, self.left),
+            Exists(pab, And(PairSet(pab, self.left, self.right),
                 PairSet(self.set, sa, pab)))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f

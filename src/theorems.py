@@ -2834,9 +2834,10 @@ def tuple_injection():
 
 
 def kuratowski():
-    """|- forall a,b,c,d. OrdPair(a,b, λt1. OrdPair(c,d, λt2. Eq(t1,t2) → And(Eq(a,c),Eq(b,d))))
-    Kuratowski ordered pair injection in wrapped OrdPair form."""
+    """Pairing |- forall a,b,c,d,t1,t2.
+       OrdPair(t1,a,b) -> OrdPair(t2,c,d) -> Eq(t1,t2) -> And(Eq(a,c),Eq(b,d))"""
     from tactics import apply_thm, wl, wr, mp
+    from core import zfc
 
     a, b, c, d = Var(), Var(), Var(), Var()
     sa, pab, t1, sc, pcd, t2 = Var(), Var(), Var(), Var(), Var(), Var()
@@ -2919,68 +2920,68 @@ def kuratowski():
     step5 = mp(step4, got_outer_fa, char_outer, goal)
     # step5: [char_sa, char_pab, char_sc, char_pcd, char_t1, eq_t1_t2, char_t2] |- [goal]
 
-    # --- Close: discharge hypotheses and quantify ---
-    # Discharge in reverse order: eq_t1_t2, char_t2, char_pcd, char_sc, char_t1, char_pab, char_sa
-    # But we need to match the OrdPair expansion structure:
-    # OrdPair(a,b,λt1. ...) = Forall(sa, Implies(char_sa, Forall(pab, Implies(char_pab, Forall(t1, Implies(char_t1, ...))))))
-    # OrdPair(c,d,λt2. ...) = Forall(sc, Implies(char_sc, Forall(pcd, Implies(char_pcd, Forall(t2, Implies(char_t2, ...))))))
-    # Inner body: Implies(eq_t1_t2, goal)
-
+    # --- Close: package hyps into OrdPair (Exists/And) then discharge ---
     proof = step5
-    # Discharge eq_t1_t2
+
+    def _pack_and(proof, A, B):
+        ctx = [f for f in proof.sequent.left if f is not A and f is not B]
+        D = proof.sequent.right[0]
+        ab = And(A, B)
+        ax_ab = Proof(Sequent([ab], [ab]), "axiom", principal=ab)
+        got_a = apply_thm(and_elim_left(A, B, []), [], ab, A, ax_ab)
+        got_b = apply_thm(and_elim_right(A, B, []), [], ab, B,
+                          Proof(Sequent([ab], [ab]), "axiom", principal=ab))
+        p1 = Proof(Sequent([ab, B] + ctx, [D]), "cut",
+            [wr(wl(got_a, B, *ctx), D), wl(proof, ab)], principal=A)
+        return Proof(Sequent([ab] + ctx, [D]), "cut",
+            [wr(wl(got_b, *ctx), D), p1], principal=B)
+
+    def _pack_exists(proof, pred, var):
+        ctx = [f for f in proof.sequent.left if f is not pred]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), "not_right", [proof], principal=Not(pred))
+        fa_np = Forall(var, Not(pred))
+        p2 = Proof(Sequent(ctx, [fa_np, D]), "forall_right", [p1], principal=fa_np, term=var)
+        ex = Exists(var, pred)
+        return Proof(Sequent(ctx + [ex], [D]), "not_left", [p2], principal=ex)
+
+    # Package OrdPair(t2,c,d)
+    proof = _pack_and(proof, char_pcd, char_t2)
+    and_pcd_t2 = proof.sequent.left[0]  # the And just created
+    proof = _pack_exists(proof, and_pcd_t2, pcd)
+    ex_pcd = proof.sequent.left[-1]  # the Exists just created
+    proof = _pack_and(proof, char_sc, ex_pcd)
+    and_sc_ex = proof.sequent.left[0]
+    proof = _pack_exists(proof, and_sc_ex, sc)
+
+    # Package OrdPair(t1,a,b)
+    proof = _pack_and(proof, char_pab, char_t1)
+    and_pab_t1 = proof.sequent.left[0]
+    proof = _pack_exists(proof, and_pab_t1, pab)
+    ex_pab = proof.sequent.left[-1]
+    proof = _pack_and(proof, char_sa, ex_pab)
+    and_sa_ex = proof.sequent.left[0]
+    proof = _pack_exists(proof, and_sa_ex, sa)
+
+    # Discharge: Eq, OrdPair(t2), forall t2, OrdPair(t1), forall t1, forall d,c,b,a
+    ord2_f = Exists(sc, and_sc_ex)
+    ord1_f = Exists(sa, and_sa_ex)
+
     imp_eq = Implies(eq_t1_t2, goal)
-    remaining = [f for f in proof.sequent.left if f is not eq_t1_t2]
-    proof = Proof(Sequent(remaining, [imp_eq]), 'implies_right', [proof], principal=imp_eq)
-    # Discharge char_t2, forall t2
-    imp_t2 = Implies(char_t2, imp_eq)
-    remaining = [f for f in proof.sequent.left if f is not char_t2]
-    proof = Proof(Sequent(remaining, [imp_t2]), 'implies_right', [proof], principal=imp_t2)
-    fa_t2 = Forall(t2, imp_t2)
-    proof = Proof(Sequent(proof.sequent.left, [fa_t2]), 'forall_right', [proof], term=t2, principal=fa_t2)
-    # Discharge char_pcd, forall pcd
-    imp_pcd = Implies(char_pcd, fa_t2)
-    remaining = [f for f in proof.sequent.left if f is not char_pcd]
-    proof = Proof(Sequent(remaining, [imp_pcd]), 'implies_right', [proof], principal=imp_pcd)
-    fa_pcd = Forall(pcd, imp_pcd)
-    proof = Proof(Sequent(proof.sequent.left, [fa_pcd]), 'forall_right', [proof], term=pcd, principal=fa_pcd)
-    # Discharge char_sc, forall sc
-    imp_sc = Implies(char_sc, fa_pcd)
-    remaining = [f for f in proof.sequent.left if f is not char_sc]
-    proof = Proof(Sequent(remaining, [imp_sc]), 'implies_right', [proof], principal=imp_sc)
-    fa_sc = Forall(sc, imp_sc)
-    proof = Proof(Sequent(proof.sequent.left, [fa_sc]), 'forall_right', [proof], term=sc, principal=fa_sc)
-    # Now right side is OrdPair(c,d,...) expansion (alpha-equiv)
-    # Discharge char_t1, forall t1
-    imp_t1 = Implies(char_t1, fa_sc)
-    remaining = [f for f in proof.sequent.left if f is not char_t1]
-    proof = Proof(Sequent(remaining, [imp_t1]), 'implies_right', [proof], principal=imp_t1)
-    fa_t1 = Forall(t1, imp_t1)
-    proof = Proof(Sequent(proof.sequent.left, [fa_t1]), 'forall_right', [proof], term=t1, principal=fa_t1)
-    # Discharge char_pab, forall pab
-    imp_pab = Implies(char_pab, fa_t1)
-    remaining = [f for f in proof.sequent.left if f is not char_pab]
-    proof = Proof(Sequent(remaining, [imp_pab]), 'implies_right', [proof], principal=imp_pab)
-    fa_pab = Forall(pab, imp_pab)
-    proof = Proof(Sequent(proof.sequent.left, [fa_pab]), 'forall_right', [proof], term=pab, principal=fa_pab)
-    # Discharge char_sa, forall sa
-    imp_sa = Implies(char_sa, fa_pab)
-    remaining = [f for f in proof.sequent.left if f is not char_sa]
-    proof = Proof(Sequent(remaining, [imp_sa]), 'implies_right', [proof], principal=imp_sa)
-    fa_sa = Forall(sa, imp_sa)
-    proof = Proof(Sequent([], [fa_sa]), 'forall_right', [proof], term=sa, principal=fa_sa)
-    # Quantify d, c, b, a — and restate using OrdPair at the top
+    proof = Proof(Sequent([ord1_f, ord2_f], [imp_eq]), "implies_right", [proof], principal=imp_eq)
+    imp_ord2 = Implies(OrdPair(t2, c, d), imp_eq)
+    proof = Proof(Sequent([ord1_f], [imp_ord2]), "implies_right", [proof], principal=imp_ord2)
+    fa_t2 = Forall(t2, imp_ord2)
+    proof = Proof(Sequent([ord1_f], [fa_t2]), "forall_right", [proof], term=t2, principal=fa_t2)
+    imp_ord1 = Implies(OrdPair(t1, a, b), fa_t2)
+    proof = Proof(Sequent([], [imp_ord1]), "implies_right", [proof], principal=imp_ord1)
+    fa_t1 = Forall(t1, imp_ord1)
+    proof = Proof(Sequent([], [fa_t1]), "forall_right", [proof], term=t1, principal=fa_t1)
     for v in [d, c, b, a]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
-        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
-    # Restate with OrdPair predicate
-    wrapped = Forall(a, Forall(b, Forall(c, Forall(d,
-        Forall(t1, Implies(OrdPair(t1, a, b),
-            Forall(t2, Implies(OrdPair(t2, c, d),
-                Implies(Eq(t1, t2), goal)))))))))
-    proof = Proof(Sequent([], [wrapped]), proof.rule, proof.premises,
-                  term=proof.term, principal=wrapped)
-    proof.name = 'kuratowski'
+        proof = Proof(Sequent([], [fa]), "forall_right", [proof], term=v, principal=fa)
+    proof.name = "kuratowski"
     return proof
 
 
