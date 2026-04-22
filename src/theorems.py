@@ -334,3 +334,44 @@ def and_elim_right(A, B, vars: list[Var]):
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'and_elim_right'
     return proof
+
+
+def forall_instantiation(x: Var, body, t: Var, vars: list[Var]):
+    """|- forall vars. (forall x. body) implies body[t/x]"""
+    instance = body.subst(x, t)
+    fa = Forall(x, body)
+    ax = Proof(Sequent([instance], [instance]), 'axiom', principal=instance)
+    s1 = Proof(Sequent([fa], [instance]), 'forall_left', [ax],
+               principal=fa, term=t)
+    top = Implies(fa, instance)
+    s2 = Proof(Sequent([], [top]), 'implies_right', [s1], principal=top)
+    proof = s2
+    for v in vars:
+        body_r = proof.sequent.right[0]
+        fa_v = Forall(v, body_r)
+        proof = Proof(Sequent([], [fa_v]), 'forall_right', [proof], term=v, principal=fa_v)
+    proof.name = 'forall_instantiation'
+    return proof
+
+
+def eq_reflexive():
+    """|- forall a. Eq(a, a)"""
+    a, z = Var(), Var()
+    P = In(z, a)
+    PtoP = Implies(P, P)
+    NPtoP = Not(PtoP)
+    imp_main = Implies(PtoP, NPtoP)
+    iff_body = Not(imp_main)
+
+    ax = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    p0 = Proof(Sequent([], [PtoP]), 'implies_right', [ax], principal=PtoP)
+    p1_ax = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    p1_ir = Proof(Sequent([], [PtoP]), 'implies_right', [p1_ax], principal=PtoP)
+    p1 = Proof(Sequent([NPtoP], []), 'not_left', [p1_ir], principal=NPtoP)
+    s1 = Proof(Sequent([imp_main], []), 'implies_left', [p0, p1], principal=imp_main)
+    s2 = Proof(Sequent([], [iff_body]), 'not_right', [s1], principal=iff_body)
+    fz = Forall(z, iff_body)
+    s3 = Proof(Sequent([], [fz]), 'forall_right', [s2], term=z, principal=fz)
+    fa = Forall(a, Eq(a, a))
+    s4 = Proof(Sequent([], [fa]), 'forall_right', [s3], term=a, principal=fa, name='eq_reflexive')
+    return s4
