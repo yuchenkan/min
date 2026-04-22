@@ -2588,9 +2588,11 @@ def pair_injection():
     return s5
 
 
-def _tuple_injection_wip():
-    """Kuratowski ordered pair injection — WORK IN PROGRESS"""
-    # a, b, c, d = Var(), Var(), Var(), Var()
+def tuple_injection():
+    """Kuratowski ordered pair injection.
+    |- forall a,b,c,d,sa,pab,sc,pcd.
+       char_sa -> char_pab -> char_sc -> char_pcd -> char_outer -> And(Eq(a,c),Eq(b,d))"""
+    a, b, c, d = Var(), Var(), Var(), Var()
     sa, pab, sc, pcd = Var(), Var(), Var(), Var()
     x, z = Var(), Var()
 
