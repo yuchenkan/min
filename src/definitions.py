@@ -76,6 +76,38 @@ class Subset:
         return f'{self.left} sub {self.right}'
 
 
+def BinUnion(a, b, body):
+    """a union b: z in a|b iff z in a or z in b"""
+    return SetSpec(lambda z: Or(In(z, a), In(z, b)), body, f'{a}|{b}')
+
+
+def BigUnion(a, body):
+    """Union of family: z in U(a) iff exists y in a with z in y"""
+    y = Var()
+    return SetSpec(lambda z: Exists(y, And(In(y, a), In(z, y))), body, f'U({a})')
+
+
+def BinIntersect(a, b, body):
+    """a intersect b: z in a&b iff z in a and z in b"""
+    return SetSpec(lambda z: And(In(z, a), In(z, b)), body, f'{a}&{b}')
+
+
+def BigIntersect(a, body):
+    """Intersection of family: z in I(a) iff forall y in a, z in y"""
+    y = Var()
+    return SetSpec(lambda z: Forall(y, Implies(In(y, a), In(z, y))), body, f'I({a})')
+
+
+def PowerSet(a, body):
+    """Power set: z in P(a) iff z sub a"""
+    return SetSpec(lambda z: Subset(z, a), body, f'P({a})')
+
+
+def Diff(a, b, body):
+    """Set difference: z in a\\b iff z in a and not z in b"""
+    return SetSpec(lambda z: And(In(z, a), Not(In(z, b))), body, f'{a}\\{b}')
+
+
 # --- Section 4.2.1: Natural numbers ---
 
 def Successor(x, body):
