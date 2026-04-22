@@ -1604,3 +1604,149 @@ def singleton_injection():
     return s3
 
 
+def singleton_pair_eq():
+    """|- forall a,c,d. (forall z. Iff(Eq(z,a), Or(Eq(z,c),Eq(z,d)))) implies And(Eq(c,a),Eq(d,a))
+    If {a} has same elements as {c,d}, then c=a and d=a."""
+    a, c, d, z = Var(), Var(), Var(), Var()
+    z2, z3 = Var(), Var()
+
+    char = Forall(z, Iff(Eq(z, a), Or(Eq(z, c), Eq(z, d))))
+    eq_ca = Eq(c, a)
+    eq_da = Eq(d, a)
+    goal = And(eq_ca, eq_da)
+
+    # === z=c: derive Eq(c,a) ===
+    iff_c = Iff(Eq(c, a), Or(Eq(c, c), Eq(c, d)))
+    or_ccd = Or(Eq(c, c), Eq(c, d))
+    OC = Implies(or_ccd, eq_ca)
+    CO = Implies(eq_ca, or_ccd)
+    H_c = Implies(CO, Not(OC))
+
+    # Extract backward: iff_c |- OC
+    ec1 = Proof(Sequent([iff_c, CO, OC], [OC]), 'axiom', principal=OC)
+    ec2 = Proof(Sequent([iff_c, CO], [Not(OC), OC]), 'not_right', [ec1], principal=Not(OC))
+    ec3 = Proof(Sequent([iff_c], [H_c, OC]), 'implies_right', [ec2], principal=H_c)
+    ec4 = Proof(Sequent([H_c], [H_c, OC]), 'weakening_right',
+                [Proof(Sequent([H_c], [H_c]), 'axiom', principal=H_c)], principal=OC)
+    ec5 = Proof(Sequent([H_c, iff_c], [OC]), 'not_left', [ec4], principal=iff_c)
+    ext_oc = Proof(Sequent([iff_c], [OC]), 'cut', [ec3, ec5], principal=H_c)
+
+    # Inline Eq(c,c)
+    Pc = In(z2, c)
+    PcPc = Implies(Pc, Pc)
+    rc1 = Proof(Sequent([], [PcPc]), 'implies_right',
+                [Proof(Sequent([Pc], [Pc]), 'axiom', principal=Pc)], principal=PcPc)
+    rc2 = Proof(Sequent([], [PcPc]), 'implies_right',
+                [Proof(Sequent([Pc], [Pc]), 'axiom', principal=Pc)], principal=PcPc)
+    rc3 = Proof(Sequent([Not(PcPc)], []), 'not_left', [rc2], principal=Not(PcPc))
+    rc4 = Proof(Sequent([Implies(PcPc, Not(PcPc))], []), 'implies_left',
+                [rc1, rc3], principal=Implies(PcPc, Not(PcPc)))
+    rc5 = Proof(Sequent([], [Not(Implies(PcPc, Not(PcPc)))]), 'not_right',
+                [rc4], principal=Not(Implies(PcPc, Not(PcPc))))
+    eq_cc = Forall(z2, Not(Implies(PcPc, Not(PcPc))))
+    rc6 = Proof(Sequent([], [eq_cc]), 'forall_right', [rc5], term=z2, principal=eq_cc)
+
+    # Or_intro_left: Eq(c,c) |- Or(Eq(c,c), Eq(c,d))
+    eq_cc_v = Eq(c, c)
+    ol1 = Proof(Sequent([eq_cc_v], [eq_cc_v]), 'axiom', principal=eq_cc_v)
+    ol2 = Proof(Sequent([eq_cc_v, Not(eq_cc_v)], []), 'not_left', [ol1], principal=Not(eq_cc_v))
+    ol3 = Proof(Sequent([eq_cc_v, Not(eq_cc_v)], [Eq(c, d)]),
+                'weakening_right', [ol2], principal=Eq(c, d))
+    ol4 = Proof(Sequent([eq_cc_v], [or_ccd]), 'implies_right', [ol3], principal=or_ccd)
+
+    # MP: or_ccd, OC |- eq_ca
+    mc1 = Proof(Sequent([or_ccd], [or_ccd, eq_ca]), 'weakening_right',
+                [Proof(Sequent([or_ccd], [or_ccd]), 'axiom', principal=or_ccd)], principal=eq_ca)
+    mc2 = Proof(Sequent([or_ccd, eq_ca], [eq_ca]), 'axiom', principal=eq_ca)
+    mc = Proof(Sequent([or_ccd, OC], [eq_ca]), 'implies_left', [mc1, mc2], principal=OC)
+
+    # Cuts: iff_c |- eq_ca
+    ca1 = Proof(Sequent([iff_c], [OC, eq_ca]), 'weakening_right', [ext_oc], principal=eq_ca)
+    ca2 = Proof(Sequent([iff_c, or_ccd], [OC, eq_ca]), 'weakening_left', [ca1], principal=or_ccd)
+    ca3 = Proof(Sequent([iff_c, or_ccd, OC], [eq_ca]), 'weakening_left', [mc], principal=iff_c)
+    ca4 = Proof(Sequent([iff_c, or_ccd], [eq_ca]), 'cut', [ca2, ca3], principal=OC)
+    ca5 = Proof(Sequent([eq_cc_v], [or_ccd, eq_ca]), 'weakening_right', [ol4], principal=eq_ca)
+    ca6 = Proof(Sequent([iff_c, eq_cc_v], [or_ccd, eq_ca]), 'weakening_left', [ca5], principal=iff_c)
+    ca7 = Proof(Sequent([iff_c, eq_cc_v, or_ccd], [eq_ca]), 'weakening_left', [ca4], principal=eq_cc_v)
+    ca8 = Proof(Sequent([iff_c, eq_cc_v], [eq_ca]), 'cut', [ca6, ca7], principal=or_ccd)
+    ca9 = Proof(Sequent([], [eq_cc, eq_ca]), 'weakening_right', [rc6], principal=eq_ca)
+    ca10 = Proof(Sequent([iff_c], [eq_cc, eq_ca]), 'weakening_left', [ca9], principal=iff_c)
+    got_ca = Proof(Sequent([iff_c], [eq_ca]), 'cut', [ca10, ca8], principal=eq_cc_v)
+
+    # === z=d: derive Eq(d,a) ===
+    iff_d = Iff(Eq(d, a), Or(Eq(d, c), Eq(d, d)))
+    or_dcd = Or(Eq(d, c), Eq(d, d))
+    OD = Implies(or_dcd, eq_da)
+    DO = Implies(eq_da, or_dcd)
+    H_d = Implies(DO, Not(OD))
+
+    ed1 = Proof(Sequent([iff_d, DO, OD], [OD]), 'axiom', principal=OD)
+    ed2 = Proof(Sequent([iff_d, DO], [Not(OD), OD]), 'not_right', [ed1], principal=Not(OD))
+    ed3 = Proof(Sequent([iff_d], [H_d, OD]), 'implies_right', [ed2], principal=H_d)
+    ed4 = Proof(Sequent([H_d], [H_d, OD]), 'weakening_right',
+                [Proof(Sequent([H_d], [H_d]), 'axiom', principal=H_d)], principal=OD)
+    ed5 = Proof(Sequent([H_d, iff_d], [OD]), 'not_left', [ed4], principal=iff_d)
+    ext_od = Proof(Sequent([iff_d], [OD]), 'cut', [ed3, ed5], principal=H_d)
+
+    # Inline Eq(d,d)
+    Pd = In(z3, d)
+    PdPd = Implies(Pd, Pd)
+    rd1 = Proof(Sequent([], [PdPd]), 'implies_right',
+                [Proof(Sequent([Pd], [Pd]), 'axiom', principal=Pd)], principal=PdPd)
+    rd2 = Proof(Sequent([], [PdPd]), 'implies_right',
+                [Proof(Sequent([Pd], [Pd]), 'axiom', principal=Pd)], principal=PdPd)
+    rd3 = Proof(Sequent([Not(PdPd)], []), 'not_left', [rd2], principal=Not(PdPd))
+    rd4 = Proof(Sequent([Implies(PdPd, Not(PdPd))], []), 'implies_left',
+                [rd1, rd3], principal=Implies(PdPd, Not(PdPd)))
+    rd5 = Proof(Sequent([], [Not(Implies(PdPd, Not(PdPd)))]), 'not_right',
+                [rd4], principal=Not(Implies(PdPd, Not(PdPd))))
+    eq_dd = Forall(z3, Not(Implies(PdPd, Not(PdPd))))
+    rd6 = Proof(Sequent([], [eq_dd]), 'forall_right', [rd5], term=z3, principal=eq_dd)
+
+    # Or_intro_right: Eq(d,d) |- Or(Eq(d,c), Eq(d,d))
+    eq_dd_v = Eq(d, d)
+    or1 = Proof(Sequent([eq_dd_v, Not(Eq(d, c))], [eq_dd_v]), 'axiom', principal=eq_dd_v)
+    or2 = Proof(Sequent([eq_dd_v], [or_dcd]), 'implies_right', [or1], principal=or_dcd)
+
+    # MP: or_dcd, OD |- eq_da
+    md1 = Proof(Sequent([or_dcd], [or_dcd, eq_da]), 'weakening_right',
+                [Proof(Sequent([or_dcd], [or_dcd]), 'axiom', principal=or_dcd)], principal=eq_da)
+    md2 = Proof(Sequent([or_dcd, eq_da], [eq_da]), 'axiom', principal=eq_da)
+    md = Proof(Sequent([or_dcd, OD], [eq_da]), 'implies_left', [md1, md2], principal=OD)
+
+    # Cuts: iff_d |- eq_da
+    da1 = Proof(Sequent([iff_d], [OD, eq_da]), 'weakening_right', [ext_od], principal=eq_da)
+    da2 = Proof(Sequent([iff_d, or_dcd], [OD, eq_da]), 'weakening_left', [da1], principal=or_dcd)
+    da3 = Proof(Sequent([iff_d, or_dcd, OD], [eq_da]), 'weakening_left', [md], principal=iff_d)
+    da4 = Proof(Sequent([iff_d, or_dcd], [eq_da]), 'cut', [da2, da3], principal=OD)
+    da5 = Proof(Sequent([eq_dd_v], [or_dcd, eq_da]), 'weakening_right', [or2], principal=eq_da)
+    da6 = Proof(Sequent([iff_d, eq_dd_v], [or_dcd, eq_da]), 'weakening_left', [da5], principal=iff_d)
+    da7 = Proof(Sequent([iff_d, eq_dd_v, or_dcd], [eq_da]), 'weakening_left', [da4], principal=eq_dd_v)
+    da8 = Proof(Sequent([iff_d, eq_dd_v], [eq_da]), 'cut', [da6, da7], principal=or_dcd)
+    da9 = Proof(Sequent([], [eq_dd, eq_da]), 'weakening_right', [rd6], principal=eq_da)
+    da10 = Proof(Sequent([iff_d], [eq_dd, eq_da]), 'weakening_left', [da9], principal=iff_d)
+    got_da = Proof(Sequent([iff_d], [eq_da]), 'cut', [da10, da8], principal=eq_dd_v)
+
+    # === Instantiate char ===
+    step_ca = Proof(Sequent([char], [eq_ca]), 'forall_left', [got_ca], principal=char, term=c)
+    step_da = Proof(Sequent([char], [eq_da]), 'forall_left', [got_da], principal=char, term=d)
+
+    # === Build And(Eq(c,a), Eq(d,a)) ===
+    and1 = Proof(Sequent([char, Not(eq_da)], []), 'not_left', [step_da], principal=Not(eq_da))
+    and2 = Proof(Sequent([char, Implies(eq_ca, Not(eq_da))], []),
+                 'implies_left', [step_ca, and1], principal=Implies(eq_ca, Not(eq_da)))
+    and3 = Proof(Sequent([char], [goal]), 'not_right', [and2], principal=goal)
+
+    # === Close ===
+    imp = Implies(char, goal)
+    s1 = Proof(Sequent([], [imp]), 'implies_right', [and3], principal=imp)
+    fd = Forall(d, imp)
+    s2 = Proof(Sequent([], [fd]), 'forall_right', [s1], term=d, principal=fd)
+    fc = Forall(c, fd)
+    s3 = Proof(Sequent([], [fc]), 'forall_right', [s2], term=c, principal=fc)
+    fa = Forall(a, fc)
+    s4 = Proof(Sequent([], [fa]), 'forall_right', [s3], term=a, principal=fa)
+    s4.name = 'singleton_pair_eq'
+    return s4
+
+

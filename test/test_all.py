@@ -52,6 +52,7 @@ if __name__ == '__main__':
         # ('tuple_injection', theorems.tuple_injection()),
         ('forall_implies_exists', theorems.forall_implies_exists(In(x, y), In(y, z), x, [x, y, z])),
         # ('tuple_injection_full', theorems.tuple_injection_full()),
+        ('singleton_pair_eq', theorems.singleton_pair_eq()),
         # ('singleton_from_tuple', theorems.singleton_from_tuple()),
         # ('kuratowski', theorems.kuratowski()),
     ]
