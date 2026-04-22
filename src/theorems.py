@@ -2706,7 +2706,7 @@ def tuple_injection():
     or_full = wl(case1_or_full, char_sa, char_sc)
     # Cut or_pair
     c_or = Proof(Sequent([case1_and] + chars4 + [eq_ac], [eq_bd]), 'cut',
-        [wr(or_full, eq_bd), or_w], principal=or_pair)
+        [wr(wl(or_full, eq_ac), eq_bd), or_w], principal=or_pair)
     # Cut eq_ac
     c_ac = Proof(Sequent([case1_and] + chars4, [eq_bd]), 'cut',
         [wr(ac_w, eq_bd), c_or], principal=eq_ac)
@@ -2805,7 +2805,7 @@ def tuple_injection():
     ps_w = wl(case2_ps_full, char_sa, char_pcd)  # ctx2 |- and_ac_bc
     pre_w = wl(case2_pre, *ctx2)  # and_ca_da, and_ac_bc, ctx2... |- goal
     c_acbc = Proof(Sequent(ctx2 + [and_ca_da], [goal]), 'cut',
-        [wr(ps_w, goal), pre_w], principal=and_ac_bc)
+        [wr(wl(ps_w, and_ca_da), goal), pre_w], principal=and_ac_bc)
     case2 = Proof(Sequent(ctx2, [goal]), 'cut',
         [wr(sp_w, goal), c_acbc], principal=and_ca_da)
 
