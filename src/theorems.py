@@ -1,116 +1,93 @@
 """Basic theorems proved from the sequent calculus."""
 
-from core import Var, In, Not, Implies, Forall, Sequent, Proof, Eq, Iff, And, Or, formula_eq, expand_all
+from core import Var, In, Not, Implies, Forall, Sequent, Proof, Eq, Iff, And, Or
 from definitions import Empty
 
 
-def _has(f, lst):
-    """Check if f is in lst by identity or alpha-equiv after expansion."""
-    if any(f is g for g in lst):
-        return True
-    ef = expand_all(f)
-    return any(formula_eq(ef, expand_all(g)) for g in lst)
-
-
 def _weaken_to(proof, left, right):
-    """Weaken and exchange proof to have exactly the given left and right context."""
+    """Weaken proof to include all formulas in left and right."""
     s = proof.sequent
-    have_right = list(s.right)
-    have_left = list(s.left)
-
     for f in right:
-        if not _has(f, have_right):
-            have_right = [f] + have_right
-            proof = Proof(Sequent(list(have_left), list(have_right)),
-                          'weakening_right', [proof])
-
+        if not any(f is g for g in s.right):
+            proof = Proof(Sequent(s.left, s.right + [f]),
+                          'weakening_right', [proof], principal=f)
+            s = proof.sequent
     for f in left:
-        if not _has(f, have_left):
-            have_left = have_left + [f]
-            proof = Proof(Sequent(list(have_left), list(have_right)),
-                          'weakening_left', [proof])
-
-    s = proof.sequent
-    if len(s.left) == len(left):
-        proof = Proof(Sequent(list(left), list(s.right)), 'exchange_left', [proof])
-    s = proof.sequent
-    if len(s.right) == len(right):
-        proof = Proof(Sequent(list(s.left), list(right)), 'exchange_right', [proof])
-
+        if not any(f is g for g in s.left):
+            proof = Proof(Sequent(s.left + [f], s.right),
+                          'weakening_left', [proof], principal=f)
+            s = proof.sequent
     return proof
 
 
 def _cut(proof1, proof2, formula, context_left, context_right):
-    """Cut proof1 and proof2 on formula.
-    proof1 should prove G |- A, D (A = formula)
-    proof2 should prove G, A |- D
-    Weakens and exchanges both to match context_left (G) and context_right (D)."""
+    """G |- D from proof1: G |- A, D and proof2: G, A |- D."""
     p1 = _weaken_to(proof1, context_left, [formula] + context_right)
     p2 = _weaken_to(proof2, context_left + [formula], context_right)
-    return Proof(Sequent(list(context_left), list(context_right)), 'cut', [p1, p2])
+    return Proof(Sequent(context_left, context_right), 'cut', [p1, p2], principal=formula)
 
 
 # --- Rule wrappers ---
 
 def _axiom(A, left=None, right=None):
     """G, A |- A, D"""
-    return Proof(Sequent((left or []) + [A], [A] + (right or [])), 'axiom')
+    return Proof(Sequent((left or []) + [A], [A] + (right or [])), 'axiom', principal=A)
 
 
-def _not_left(proof):
-    """From G |- A, D derive G, ~A |- D. A must be first on right."""
+def _not_left(proof, A):
+    """G, Not(A) |- D  from  G |- A, D.
+    Removes A from right, adds Not(A) to left."""
     s = proof.sequent
-    return Proof(Sequent(s.left + [Not(s.right[0])], list(s.right[1:])), 'not_left', [proof])
+    na = Not(A)
+    return Proof(Sequent(s.left + [na], [f for f in s.right if f is not A]),
+                 'not_left', [proof], principal=na)
 
 
-def _not_right(proof):
-    """From G, A |- D derive G |- ~A, D. A must be last on left."""
+def _not_right(proof, A):
+    """G |- Not(A), D  from  G, A |- D.
+    Removes A from left, adds Not(A) to right."""
     s = proof.sequent
-    return Proof(Sequent(list(s.left[:-1]), [Not(s.left[-1])] + s.right), 'not_right', [proof])
+    na = Not(A)
+    return Proof(Sequent([f for f in s.left if f is not A], s.right + [na]),
+                 'not_right', [proof], principal=na)
 
 
-def _implies_left(proof0, proof1):
-    """From G |- A, D and G, B |- D derive G, A->B |- D.
-    A must be first on right of proof0. B must be last on left of proof1."""
-    s0, s1 = proof0.sequent, proof1.sequent
-    A, B = s0.right[0], s1.left[-1]
-    G, D = list(s0.left), list(s0.right[1:])
-    return Proof(Sequent(G + [Implies(A, B)], D), 'implies_left', [proof0, proof1])
+def _implies_left(proof0, proof1, imp):
+    """G, A->B |- D  from  proof0: G |- A, D  and  proof1: G, B |- D.
+    Removes A from proof0 right, removes B from proof1 left, adds A->B to left."""
+    s0 = proof0.sequent
+    return Proof(Sequent(s0.left + [imp],
+                         [f for f in s0.right if f is not imp.left]),
+                 'implies_left', [proof0, proof1], principal=imp)
 
 
-def _implies_right(proof):
-    """From G, A |- B, D derive G |- A->B, D.
-    A must be last on left, B must be first on right."""
+def _implies_right(proof, A, B):
+    """G |- A->B, D  from  G, A |- B, D.
+    Removes A from left, removes B from right, adds A->B to right."""
     s = proof.sequent
-    A, B = s.left[-1], s.right[0]
-    return Proof(Sequent(list(s.left[:-1]), [Implies(A, B)] + list(s.right[1:])),
-                 'implies_right', [proof])
+    imp = Implies(A, B)
+    return Proof(Sequent([f for f in s.left if f is not A],
+                         [f for f in s.right if f is not B] + [imp]),
+                 'implies_right', [proof], principal=imp)
 
 
 def _forall_left(proof, forall_formula, term):
-    """From G, A[t/x] |- D derive G, Ax.A |- D.
-    Replaces last on left with the forall."""
+    """G, Forall(x,A) |- D  from  G, A[t/x] |- D.
+    Removes A[t/x] from left, adds Forall(x,A) to left."""
     s = proof.sequent
-    return Proof(Sequent(list(s.left[:-1]) + [forall_formula], list(s.right)),
-                 'forall_left', [proof], term=term)
+    substituted = forall_formula.body.subst(forall_formula.var, term)
+    return Proof(Sequent([f for f in s.left if f is not substituted] + [forall_formula],
+                         s.right),
+                 'forall_left', [proof], term=term, principal=forall_formula)
 
 
-def _forall_right(proof, var):
-    """From G |- A, D derive G |- Ax.A, D.
-    Wraps first on right with forall over var."""
+def _forall_right(proof, var, body):
+    """G |- Forall(x,A), D  from  G |- A[y/x], D.
+    Removes A[y/x] from right, adds Forall(x,A) to right."""
     s = proof.sequent
-    return Proof(Sequent(list(s.left), [Forall(var, s.right[0])] + list(s.right[1:])),
-                 'forall_right', [proof], term=var)
-
-
-def _exchange_left(proof, new_left):
-    """Reorder left side."""
-    return Proof(Sequent(list(new_left), list(proof.sequent.right)), 'exchange_left', [proof])
-
-
-def _exchange_right(proof, new_right):
-    """Reorder right side."""
-    return Proof(Sequent(list(proof.sequent.left), list(new_right)), 'exchange_right', [proof])
+    fa = Forall(var, body)
+    return Proof(Sequent(s.left, [f for f in s.right if f is not body] + [fa]),
+                 'forall_right', [proof], term=var, principal=fa)
 
 
 def modus_ponens(A, B):

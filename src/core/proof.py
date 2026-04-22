@@ -3,16 +3,16 @@
 from core.lang import Var, In, Not, Implies, Forall, Formula
 
 
-def expand_all(formula):
+def _expand_all(formula):
     while hasattr(formula, 'expand'):
         formula = formula.expand()
     match formula:
         case Not(operand):
-            return Not(expand_all(operand))
+            return Not(_expand_all(operand))
         case Implies(left, right):
-            return Implies(expand_all(left), expand_all(right))
+            return Implies(_expand_all(left), _expand_all(right))
         case Forall(var, body):
-            return Forall(var, expand_all(body))
+            return Forall(var, _expand_all(body))
         case _:
             return formula
 
@@ -42,7 +42,7 @@ class Proof:
 
 
 def _expand_sequent(s: Sequent) -> Sequent:
-    return Sequent([expand_all(f) for f in s.left], [expand_all(f) for f in s.right])
+    return Sequent([_expand_all(f) for f in s.left], [_expand_all(f) for f in s.right])
 
 
 def _expand_proof(proof: Proof) -> Proof:
@@ -51,7 +51,7 @@ def _expand_proof(proof: Proof) -> Proof:
         proof.rule,
         [_expand_proof(p) for p in proof.premises],
         term=proof.term,
-        principal=expand_all(proof.principal) if proof.principal else None)
+        principal=_expand_all(proof.principal) if proof.principal else None)
 
 
 def verify(proof: Proof) -> bool:
@@ -207,7 +207,7 @@ def _check_weakening_right(s: Sequent, ps: list[Sequent], principal: Formula) ->
 
 # --- Formula equality (alpha-equivalence) ---
 
-def formula_eq(a, b, env=None):
+def _eq(a, b, env=None):
     if env is None:
         env = []
     if type(a) is not type(b):
@@ -216,11 +216,11 @@ def formula_eq(a, b, env=None):
         case In(l1, r1):
             return _eq_var(l1, b.left, env) and _eq_var(r1, b.right, env)
         case Not(o1):
-            return formula_eq(o1, b.operand, env)
+            return _eq(o1, b.operand, env)
         case Implies(l1, r1):
-            return formula_eq(l1, b.left, env) and formula_eq(r1, b.right, env)
+            return _eq(l1, b.left, env) and _eq(r1, b.right, env)
         case Forall(v1, b1):
-            return formula_eq(b1, b.body, env + [(v1, b.var)])
+            return _eq(b1, b.body, env + [(v1, b.var)])
     return False
 
 
@@ -235,16 +235,16 @@ def _eq_var(v1, v2, env):
 
 def _in(f, lst):
     """Check if f is in lst by alpha-equiv."""
-    return any(formula_eq(expand_all(f), expand_all(g)) for g in lst)
+    return any(_eq(_expand_all(f), _expand_all(g)) for g in lst)
 
 
 def _remove(lst, f):
     """Remove first occurrence of f from lst by alpha-equiv."""
-    ef = expand_all(f)
+    ef = _expand_all(f)
     result = []
     removed = False
     for g in lst:
-        if not removed and formula_eq(ef, expand_all(g)):
+        if not removed and _eq(ef, _expand_all(g)):
             removed = True
         else:
             result.append(g)
@@ -261,10 +261,10 @@ def _is_permutation(a, b):
         return False
     used = [False] * len(b)
     for f in a:
-        ef = expand_all(f)
+        ef = _expand_all(f)
         found = False
         for j, g in enumerate(b):
-            if not used[j] and formula_eq(ef, expand_all(g)):
+            if not used[j] and _eq(ef, _expand_all(g)):
                 used[j] = True
                 found = True
                 break
