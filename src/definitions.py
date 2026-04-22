@@ -57,3 +57,62 @@ def OrdPair(a, b, body):
         PairSet(a, b, lambda pab:
             PairSet(sa, pab, body, f'({a},{b})')))
 
+
+# --- Section 4.1.4: Basic operations ---
+
+class Subset:
+    """a sub b = forall x. x in a implies x in b"""
+    __match_args__ = ('left', 'right')
+    def __init__(self, a, b):
+        self.left = a
+        self.right = b
+    def expand(self):
+        x = Var()
+        return Forall(x, Implies(In(x, self.left), In(x, self.right)))
+    def subst(self, old, new):
+        return Subset(new if self.left is old else self.left,
+                      new if self.right is old else self.right)
+    def __str__(self):
+        return f'{self.left} sub {self.right}'
+
+
+# --- Section 4.2.1: Natural numbers ---
+
+def Successor(x, body):
+    """S(x) = x union {x}: z in S(x) iff z in x or z = x"""
+    return SetSpec(lambda z: Or(In(z, x), Eq(z, x)), body, f'S({x})')
+
+
+class IsInductive:
+    """isInductive(a) = empty in a and forall x in a, S(x) in a"""
+    __match_args__ = ('set',)
+    def __init__(self, a):
+        self.set = a
+    def expand(self):
+        x = Var()
+        return And(
+            EmptySet(lambda e: In(e, self.set)),
+            Forall(x, Implies(In(x, self.set),
+                Successor(x, lambda s: In(s, self.set)))))
+    def subst(self, old, new):
+        return IsInductive(new if self.set is old else self.set)
+    def __str__(self):
+        return f'Inductive({self.set})'
+
+
+class Omega:
+    """P(omega). omega = smallest inductive set.
+    forall b. isInductive(b) implies
+      forall a. (a = {x in b : x in every inductive set}) implies P(a)"""
+    def __init__(self, body):
+        self.body = body
+    def expand(self):
+        b, a, x, c = Var(), Var(), Var(), Var()
+        cond = And(In(x, b), Forall(c, Implies(IsInductive(c), In(x, c))))
+        char_a = Forall(x, Iff(In(x, a), cond))
+        return Forall(b, Implies(IsInductive(b),
+            Forall(a, Implies(char_a, self.body(a)))))
+    def __str__(self):
+        v = Var('omega')
+        return f'{self.body(v)}'
+

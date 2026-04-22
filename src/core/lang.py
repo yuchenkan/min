@@ -10,7 +10,7 @@ class Var:
         self._prefix = prefix
 
     def __str__(self):
-        return f'{self._prefix}{self._id:x}'
+        return f'{self._prefix}.{self._id:x}'
 
 
 class In:
