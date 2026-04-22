@@ -53,10 +53,8 @@ if __name__ == '__main__':
         ('pair_injection', theorems.pair_injection()),
         ('tuple_injection', theorems.tuple_injection()),
         ('forall_implies_exists', theorems.forall_implies_exists(In(x, y), In(y, z), x, [x, y, z])),
-        # ('tuple_injection_full', theorems.tuple_injection_full()),
         ('singleton_pair_eq', theorems.singleton_pair_eq()),
-        # ('singleton_from_tuple', theorems.singleton_from_tuple()),
-        # ('kuratowski', theorems.kuratowski()),
+        ('kuratowski', theorems.kuratowski()),
     ]
 
     for name, proof in all_proofs:

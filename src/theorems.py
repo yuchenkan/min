@@ -2832,3 +2832,148 @@ def tuple_injection():
     return proof
 
 
+def kuratowski():
+    """|- forall a,b,c,d. OrdPair(a,b, λt1. OrdPair(c,d, λt2. Eq(t1,t2) → And(Eq(a,c),Eq(b,d))))
+    Kuratowski ordered pair injection in wrapped OrdPair form."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import OrdPair
+
+    a, b, c, d = Var(), Var(), Var(), Var()
+    sa, pab, t1, sc, pcd, t2 = Var(), Var(), Var(), Var(), Var(), Var()
+    xv = Var()
+    eq_ac = Eq(a, c); eq_bd = Eq(b, d)
+    goal = And(eq_ac, eq_bd)
+
+    # Characterizations (hypotheses from OrdPair expansion)
+    char_sa = Forall(xv, Iff(In(xv, sa), Eq(xv, a)))
+    char_pab = Forall(xv, Iff(In(xv, pab), Or(Eq(xv, a), Eq(xv, b))))
+    char_t1 = Forall(xv, Iff(In(xv, t1), Or(Eq(xv, sa), Eq(xv, pab))))
+    char_sc = Forall(xv, Iff(In(xv, sc), Eq(xv, c)))
+    char_pcd = Forall(xv, Iff(In(xv, pcd), Or(Eq(xv, c), Eq(xv, d))))
+    char_t2 = Forall(xv, Iff(In(xv, t2), Or(Eq(xv, sc), Eq(xv, pcd))))
+    eq_t1_t2 = Eq(t1, t2)
+
+    all_hyps = [char_sa, char_pab, char_t1, char_sc, char_pcd, char_t2, eq_t1_t2]
+
+    # --- Derive char_outer from char_t1 + char_t2 + Eq(t1,t2) via _transfer ---
+    xv2 = Var()
+    or_sa_pab = Or(Eq(xv2, sa), Eq(xv2, pab))
+    or_sc_pcd = Or(Eq(xv2, sc), Eq(xv2, pcd))
+    char_outer_iff = Iff(or_sa_pab, or_sc_pcd)
+
+    # Reuse _transfer pattern: chain Iff(or_sa_pab, In(xv2,t1)), Iff(In(xv2,t1), In(xv2,t2)), Iff(In(xv2,t2), or_sc_pcd)
+    ct1_body = char_t1.body.subst(char_t1.var, xv2)  # Iff(In(xv2,t1), or_sa_pab)
+    ct2_body = char_t2.body.subst(char_t2.var, xv2)  # Iff(In(xv2,t2), or_sc_pcd)
+    In_t1 = In(xv2, t1); In_t2 = In(xv2, t2)
+    eq_body = Iff(In_t1, In_t2)
+
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    ic1 = _fl(char_t1, ct1_body, xv2)    # char_t1 |- ct1_body
+    ic2 = _fl(char_t2, ct2_body, xv2)    # char_t2 |- ct2_body
+    ieq = _fl(eq_t1_t2, eq_body, xv2)    # eq_t1_t2 |- eq_body
+
+    sym_pf = iff_sym(In_t1, or_sa_pab, [])
+    ch1 = char_transfer(or_sa_pab, In_t1, In_t2)
+    ch2 = char_transfer(or_sa_pab, In_t2, or_sc_pcd)
+
+    F_sym = Iff(or_sa_pab, In_t1)
+    F_mid = Iff(or_sa_pab, In_t2)
+
+    got_sym = mp(sym_pf, ic1, ct1_body, F_sym)
+    got_mid = mp(mp(ch1, got_sym, F_sym, Implies(eq_body, F_mid)), ieq, eq_body, F_mid)
+    got_outer = mp(mp(ch2, got_mid, F_mid, Implies(ct2_body, char_outer_iff)),
+                   ic2, ct2_body, char_outer_iff)
+
+    char_outer = Forall(xv2, char_outer_iff)
+    got_outer_fa = Proof(Sequent(got_outer.sequent.left, [char_outer]),
+                         'forall_right', [got_outer], principal=char_outer, term=xv2)
+    # got_outer_fa: [char_t1, eq_t1_t2, char_t2] |- [char_outer]
+
+    # --- Apply tuple_injection ---
+    ti = tuple_injection()
+    # tuple_injection: |- forall a..pcd. char_sa → char_pab → char_sc → char_pcd → char_outer → goal
+    # Instantiate with a,b,c,d,sa,pab,sc,pcd and apply char hypotheses one by one
+    ti_hyp = char_sa
+    ti_concl_inner = Implies(char_pab, Implies(char_sc, Implies(char_pcd,
+                        Implies(char_outer, goal))))
+    ax_sa = Proof(Sequent([char_sa], [char_sa]), 'axiom', principal=char_sa)
+    step1 = apply_thm(ti, [a, b, c, d, sa, pab, sc, pcd], char_sa, ti_concl_inner, ax_sa)
+    # step1: [char_sa] |- [char_pab → char_sc → char_pcd → char_outer → goal]
+
+    ax_pab = Proof(Sequent([char_pab], [char_pab]), 'axiom', principal=char_pab)
+    ti_c2 = Implies(char_sc, Implies(char_pcd, Implies(char_outer, goal)))
+    step2 = mp(step1, ax_pab, char_pab, ti_c2)
+
+    ax_sc = Proof(Sequent([char_sc], [char_sc]), 'axiom', principal=char_sc)
+    ti_c3 = Implies(char_pcd, Implies(char_outer, goal))
+    step3 = mp(step2, ax_sc, char_sc, ti_c3)
+
+    ax_pcd = Proof(Sequent([char_pcd], [char_pcd]), 'axiom', principal=char_pcd)
+    ti_c4 = Implies(char_outer, goal)
+    step4 = mp(step3, ax_pcd, char_pcd, ti_c4)
+
+    step5 = mp(step4, got_outer_fa, char_outer, goal)
+    # step5: [char_sa, char_pab, char_sc, char_pcd, char_t1, eq_t1_t2, char_t2] |- [goal]
+
+    # --- Close: discharge hypotheses and quantify ---
+    # Discharge in reverse order: eq_t1_t2, char_t2, char_pcd, char_sc, char_t1, char_pab, char_sa
+    # But we need to match the OrdPair expansion structure:
+    # OrdPair(a,b,λt1. ...) = Forall(sa, Implies(char_sa, Forall(pab, Implies(char_pab, Forall(t1, Implies(char_t1, ...))))))
+    # OrdPair(c,d,λt2. ...) = Forall(sc, Implies(char_sc, Forall(pcd, Implies(char_pcd, Forall(t2, Implies(char_t2, ...))))))
+    # Inner body: Implies(eq_t1_t2, goal)
+
+    proof = step5
+    # Discharge eq_t1_t2
+    imp_eq = Implies(eq_t1_t2, goal)
+    remaining = [f for f in proof.sequent.left if f is not eq_t1_t2]
+    proof = Proof(Sequent(remaining, [imp_eq]), 'implies_right', [proof], principal=imp_eq)
+    # Discharge char_t2, forall t2
+    imp_t2 = Implies(char_t2, imp_eq)
+    remaining = [f for f in proof.sequent.left if f is not char_t2]
+    proof = Proof(Sequent(remaining, [imp_t2]), 'implies_right', [proof], principal=imp_t2)
+    fa_t2 = Forall(t2, imp_t2)
+    proof = Proof(Sequent(proof.sequent.left, [fa_t2]), 'forall_right', [proof], term=t2, principal=fa_t2)
+    # Discharge char_pcd, forall pcd
+    imp_pcd = Implies(char_pcd, fa_t2)
+    remaining = [f for f in proof.sequent.left if f is not char_pcd]
+    proof = Proof(Sequent(remaining, [imp_pcd]), 'implies_right', [proof], principal=imp_pcd)
+    fa_pcd = Forall(pcd, imp_pcd)
+    proof = Proof(Sequent(proof.sequent.left, [fa_pcd]), 'forall_right', [proof], term=pcd, principal=fa_pcd)
+    # Discharge char_sc, forall sc
+    imp_sc = Implies(char_sc, fa_pcd)
+    remaining = [f for f in proof.sequent.left if f is not char_sc]
+    proof = Proof(Sequent(remaining, [imp_sc]), 'implies_right', [proof], principal=imp_sc)
+    fa_sc = Forall(sc, imp_sc)
+    proof = Proof(Sequent(proof.sequent.left, [fa_sc]), 'forall_right', [proof], term=sc, principal=fa_sc)
+    # Now right side is OrdPair(c,d,...) expansion (alpha-equiv)
+    # Discharge char_t1, forall t1
+    imp_t1 = Implies(char_t1, fa_sc)
+    remaining = [f for f in proof.sequent.left if f is not char_t1]
+    proof = Proof(Sequent(remaining, [imp_t1]), 'implies_right', [proof], principal=imp_t1)
+    fa_t1 = Forall(t1, imp_t1)
+    proof = Proof(Sequent(proof.sequent.left, [fa_t1]), 'forall_right', [proof], term=t1, principal=fa_t1)
+    # Discharge char_pab, forall pab
+    imp_pab = Implies(char_pab, fa_t1)
+    remaining = [f for f in proof.sequent.left if f is not char_pab]
+    proof = Proof(Sequent(remaining, [imp_pab]), 'implies_right', [proof], principal=imp_pab)
+    fa_pab = Forall(pab, imp_pab)
+    proof = Proof(Sequent(proof.sequent.left, [fa_pab]), 'forall_right', [proof], term=pab, principal=fa_pab)
+    # Discharge char_sa, forall sa
+    imp_sa = Implies(char_sa, fa_pab)
+    remaining = [f for f in proof.sequent.left if f is not char_sa]
+    proof = Proof(Sequent(remaining, [imp_sa]), 'implies_right', [proof], principal=imp_sa)
+    fa_sa = Forall(sa, imp_sa)
+    proof = Proof(Sequent([], [fa_sa]), 'forall_right', [proof], term=sa, principal=fa_sa)
+    # Quantify a, b, c, d
+    for v in [d, c, b, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'kuratowski'
+    return proof
+
+
