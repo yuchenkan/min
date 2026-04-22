@@ -1012,3 +1012,164 @@ def eq_substitution():
     return s11
 
 
+def or_iff_compat(P, Q, R, S, vars: list[Var]):
+    """|- forall vars. Iff(P,R) implies Iff(Q,S) implies Iff(Or(P,Q), Or(R,S))"""
+    PR = Implies(P, R)
+    RP = Implies(R, P)
+    QS = Implies(Q, S)
+    SQ = Implies(S, Q)
+    NP = Not(P)
+    NR = Not(R)
+    NRP = Not(RP)
+    NSQ = Not(SQ)
+    H_pr = Implies(PR, NRP)
+    H_qs = Implies(QS, NSQ)
+    iff_pr = Iff(P, R)
+    iff_qs = Iff(Q, S)
+    or_pq = Or(P, Q)
+    or_rs = Or(R, S)
+    or_fwd = Implies(or_pq, or_rs)
+    or_bwd = Implies(or_rs, or_pq)
+    H_or = Implies(or_fwd, Not(or_bwd))
+
+    # --- Extract PR from iff_pr ---
+    e1 = Proof(Sequent([iff_pr, PR], [PR]), 'axiom', principal=PR)
+    e2 = Proof(Sequent([iff_pr, PR], [NRP, PR]), 'weakening_right', [e1], principal=NRP)
+    e3 = Proof(Sequent([iff_pr], [H_pr, PR]), 'implies_right', [e2], principal=H_pr)
+    e4 = Proof(Sequent([H_pr], [H_pr, PR]), 'weakening_right',
+               [Proof(Sequent([H_pr], [H_pr]), 'axiom', principal=H_pr)], principal=PR)
+    e5 = Proof(Sequent([H_pr, iff_pr], [PR]), 'not_left', [e4], principal=iff_pr)
+    ext_pr = Proof(Sequent([iff_pr], [PR]), 'cut', [e3, e5], principal=H_pr)
+
+    # --- Extract RP from iff_pr ---
+    f1 = Proof(Sequent([iff_pr, PR, RP], [RP]), 'axiom', principal=RP)
+    f2 = Proof(Sequent([iff_pr, PR], [NRP, RP]), 'not_right', [f1], principal=NRP)
+    f3 = Proof(Sequent([iff_pr], [H_pr, RP]), 'implies_right', [f2], principal=H_pr)
+    f4 = Proof(Sequent([H_pr], [H_pr, RP]), 'weakening_right',
+               [Proof(Sequent([H_pr], [H_pr]), 'axiom', principal=H_pr)], principal=RP)
+    f5 = Proof(Sequent([H_pr, iff_pr], [RP]), 'not_left', [f4], principal=iff_pr)
+    ext_rp = Proof(Sequent([iff_pr], [RP]), 'cut', [f3, f5], principal=H_pr)
+
+    # --- Extract QS from iff_qs ---
+    g1 = Proof(Sequent([iff_qs, QS], [QS]), 'axiom', principal=QS)
+    g2 = Proof(Sequent([iff_qs, QS], [NSQ, QS]), 'weakening_right', [g1], principal=NSQ)
+    g3 = Proof(Sequent([iff_qs], [H_qs, QS]), 'implies_right', [g2], principal=H_qs)
+    g4 = Proof(Sequent([H_qs], [H_qs, QS]), 'weakening_right',
+               [Proof(Sequent([H_qs], [H_qs]), 'axiom', principal=H_qs)], principal=QS)
+    g5 = Proof(Sequent([H_qs, iff_qs], [QS]), 'not_left', [g4], principal=iff_qs)
+    ext_qs = Proof(Sequent([iff_qs], [QS]), 'cut', [g3, g5], principal=H_qs)
+
+    # --- Extract SQ from iff_qs ---
+    h1 = Proof(Sequent([iff_qs, QS, SQ], [SQ]), 'axiom', principal=SQ)
+    h2 = Proof(Sequent([iff_qs, QS], [NSQ, SQ]), 'not_right', [h1], principal=NSQ)
+    h3 = Proof(Sequent([iff_qs], [H_qs, SQ]), 'implies_right', [h2], principal=H_qs)
+    h4 = Proof(Sequent([H_qs], [H_qs, SQ]), 'weakening_right',
+               [Proof(Sequent([H_qs], [H_qs]), 'axiom', principal=H_qs)], principal=SQ)
+    h5 = Proof(Sequent([H_qs, iff_qs], [SQ]), 'not_left', [h4], principal=iff_qs)
+    ext_sq = Proof(Sequent([iff_qs], [SQ]), 'cut', [h3, h5], principal=H_qs)
+
+    # === Forward: PR, QS, or_pq, NR |- S ===
+    # implies_left on PR in context {QS, NR, P}:
+    #   premise 1a: QS, NR, P |- P, S
+    a1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    a2 = Proof(Sequent([P], [P, S]), 'weakening_right', [a1], principal=S)
+    a3 = Proof(Sequent([NR, P], [P, S]), 'weakening_left', [a2], principal=NR)
+    a4 = Proof(Sequent([QS, NR, P], [P, S]), 'weakening_left', [a3], principal=QS)
+    #   premise 1b: QS, NR, P, R |- S
+    b1 = Proof(Sequent([R], [R]), 'axiom', principal=R)
+    b2 = Proof(Sequent([R], [R, S]), 'weakening_right', [b1], principal=S)
+    b3 = Proof(Sequent([NR, R], [S]), 'not_left', [b2], principal=NR)
+    b4 = Proof(Sequent([QS, NR, R], [S]), 'weakening_left', [b3], principal=QS)
+    b5 = Proof(Sequent([QS, NR, P, R], [S]), 'weakening_left', [b4], principal=P)
+    fw_pr = Proof(Sequent([PR, QS, NR, P], [S]), 'implies_left', [a4, b5], principal=PR)
+    fw_np = Proof(Sequent([PR, QS, NR], [NP, S]), 'not_right', [fw_pr], principal=NP)
+    # implies_left on QS in context {PR, NR, Q}:
+    c1 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
+    c2 = Proof(Sequent([Q], [Q, S]), 'weakening_right', [c1], principal=S)
+    c3 = Proof(Sequent([NR, Q], [Q, S]), 'weakening_left', [c2], principal=NR)
+    c4 = Proof(Sequent([PR, NR, Q], [Q, S]), 'weakening_left', [c3], principal=PR)
+    d1 = Proof(Sequent([S], [S]), 'axiom', principal=S)
+    d2 = Proof(Sequent([Q, S], [S]), 'weakening_left', [d1], principal=Q)
+    d3 = Proof(Sequent([NR, Q, S], [S]), 'weakening_left', [d2], principal=NR)
+    d4 = Proof(Sequent([PR, NR, Q, S], [S]), 'weakening_left', [d3], principal=PR)
+    fw_qs = Proof(Sequent([PR, QS, NR, Q], [S]), 'implies_left', [c4, d4], principal=QS)
+    # implies_left on or_pq
+    fw_core = Proof(Sequent([PR, QS, or_pq, NR], [S]), 'implies_left', [fw_np, fw_qs], principal=or_pq)
+    fw_closed = Proof(Sequent([PR, QS, or_pq], [or_rs]), 'implies_right', [fw_core], principal=or_rs)
+
+    # Cut PR: iff_pr, QS, or_pq |- or_rs
+    fw_t1 = Proof(Sequent([iff_pr], [PR, or_rs]), 'weakening_right', [ext_pr], principal=or_rs)
+    fw_t2 = Proof(Sequent([iff_pr, QS], [PR, or_rs]), 'weakening_left', [fw_t1], principal=QS)
+    fw_t3 = Proof(Sequent([iff_pr, QS, or_pq], [PR, or_rs]), 'weakening_left', [fw_t2], principal=or_pq)
+    fw_t4 = Proof(Sequent([iff_pr, PR, QS, or_pq], [or_rs]), 'weakening_left', [fw_closed], principal=iff_pr)
+    fw_c1 = Proof(Sequent([iff_pr, QS, or_pq], [or_rs]), 'cut', [fw_t3, fw_t4], principal=PR)
+
+    # Cut QS: iff_pr, iff_qs, or_pq |- or_rs
+    fw_u1 = Proof(Sequent([iff_qs], [QS, or_rs]), 'weakening_right', [ext_qs], principal=or_rs)
+    fw_u2 = Proof(Sequent([iff_qs, iff_pr], [QS, or_rs]), 'weakening_left', [fw_u1], principal=iff_pr)
+    fw_u3 = Proof(Sequent([iff_qs, iff_pr, or_pq], [QS, or_rs]), 'weakening_left', [fw_u2], principal=or_pq)
+    fw_u4 = Proof(Sequent([iff_pr, iff_qs, QS, or_pq], [or_rs]), 'weakening_left', [fw_c1], principal=iff_qs)
+    fw_c2 = Proof(Sequent([iff_pr, iff_qs, or_pq], [or_rs]), 'cut', [fw_u3, fw_u4], principal=QS)
+    fwd = Proof(Sequent([iff_pr, iff_qs], [or_fwd]), 'implies_right', [fw_c2], principal=or_fwd)
+
+    # === Backward: RP, SQ, or_rs, NP |- Q ===
+    # implies_left on RP in context {SQ, NP, R}:
+    aa1 = Proof(Sequent([R], [R]), 'axiom', principal=R)
+    aa2 = Proof(Sequent([R], [R, Q]), 'weakening_right', [aa1], principal=Q)
+    aa3 = Proof(Sequent([NP, R], [R, Q]), 'weakening_left', [aa2], principal=NP)
+    aa4 = Proof(Sequent([SQ, NP, R], [R, Q]), 'weakening_left', [aa3], principal=SQ)
+    bb1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    bb2 = Proof(Sequent([P], [P, Q]), 'weakening_right', [bb1], principal=Q)
+    bb3 = Proof(Sequent([NP, P], [Q]), 'not_left', [bb2], principal=NP)
+    bb4 = Proof(Sequent([SQ, NP, P], [Q]), 'weakening_left', [bb3], principal=SQ)
+    bb5 = Proof(Sequent([SQ, NP, R, P], [Q]), 'weakening_left', [bb4], principal=R)
+    bw_rp = Proof(Sequent([RP, SQ, NP, R], [Q]), 'implies_left', [aa4, bb5], principal=RP)
+    bw_nr = Proof(Sequent([RP, SQ, NP], [NR, Q]), 'not_right', [bw_rp], principal=NR)
+    # implies_left on SQ in context {RP, NP, S}:
+    cc1 = Proof(Sequent([S], [S]), 'axiom', principal=S)
+    cc2 = Proof(Sequent([S], [S, Q]), 'weakening_right', [cc1], principal=Q)
+    cc3 = Proof(Sequent([NP, S], [S, Q]), 'weakening_left', [cc2], principal=NP)
+    cc4 = Proof(Sequent([RP, NP, S], [S, Q]), 'weakening_left', [cc3], principal=RP)
+    dd1 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
+    dd2 = Proof(Sequent([S, Q], [Q]), 'weakening_left', [dd1], principal=S)
+    dd3 = Proof(Sequent([NP, S, Q], [Q]), 'weakening_left', [dd2], principal=NP)
+    dd4 = Proof(Sequent([RP, NP, S, Q], [Q]), 'weakening_left', [dd3], principal=RP)
+    bw_sq = Proof(Sequent([RP, SQ, NP, S], [Q]), 'implies_left', [cc4, dd4], principal=SQ)
+    bw_core = Proof(Sequent([RP, SQ, or_rs, NP], [Q]), 'implies_left', [bw_nr, bw_sq], principal=or_rs)
+    bw_closed = Proof(Sequent([RP, SQ, or_rs], [or_pq]), 'implies_right', [bw_core], principal=or_pq)
+
+    # Cut RP: iff_pr, SQ, or_rs |- or_pq
+    bw_t1 = Proof(Sequent([iff_pr], [RP, or_pq]), 'weakening_right', [ext_rp], principal=or_pq)
+    bw_t2 = Proof(Sequent([iff_pr, SQ], [RP, or_pq]), 'weakening_left', [bw_t1], principal=SQ)
+    bw_t3 = Proof(Sequent([iff_pr, SQ, or_rs], [RP, or_pq]), 'weakening_left', [bw_t2], principal=or_rs)
+    bw_t4 = Proof(Sequent([iff_pr, RP, SQ, or_rs], [or_pq]), 'weakening_left', [bw_closed], principal=iff_pr)
+    bw_c1 = Proof(Sequent([iff_pr, SQ, or_rs], [or_pq]), 'cut', [bw_t3, bw_t4], principal=RP)
+
+    # Cut SQ: iff_pr, iff_qs, or_rs |- or_pq
+    bw_u1 = Proof(Sequent([iff_qs], [SQ, or_pq]), 'weakening_right', [ext_sq], principal=or_pq)
+    bw_u2 = Proof(Sequent([iff_qs, iff_pr], [SQ, or_pq]), 'weakening_left', [bw_u1], principal=iff_pr)
+    bw_u3 = Proof(Sequent([iff_qs, iff_pr, or_rs], [SQ, or_pq]), 'weakening_left', [bw_u2], principal=or_rs)
+    bw_u4 = Proof(Sequent([iff_pr, iff_qs, SQ, or_rs], [or_pq]), 'weakening_left', [bw_c1], principal=iff_qs)
+    bw_c2 = Proof(Sequent([iff_pr, iff_qs, or_rs], [or_pq]), 'cut', [bw_u3, bw_u4], principal=SQ)
+    bwd = Proof(Sequent([iff_pr, iff_qs], [or_bwd]), 'implies_right', [bw_c2], principal=or_bwd)
+
+    # === Build Iff(Or(P,Q), Or(R,S)) ===
+    nr = Proof(Sequent([iff_pr, iff_qs, Not(or_bwd)], []), 'not_left', [bwd], principal=Not(or_bwd))
+    il = Proof(Sequent([iff_pr, iff_qs, H_or], []), 'implies_left', [fwd, nr], principal=H_or)
+    core = Proof(Sequent([iff_pr, iff_qs], [Iff(or_pq, or_rs)]),
+                 'not_right', [il], principal=Iff(or_pq, or_rs))
+
+    # === Close ===
+    imp1 = Implies(iff_qs, Iff(or_pq, or_rs))
+    s1 = Proof(Sequent([iff_pr], [imp1]), 'implies_right', [core], principal=imp1)
+    imp2 = Implies(iff_pr, imp1)
+    s2 = Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+    proof = s2
+    for v in vars:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'or_iff_compat'
+    return proof
+
+
