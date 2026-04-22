@@ -1761,7 +1761,9 @@ def iff_chain(A, B, C):
         _weaken_to(fwd_ab, [iff_ab, iff_bc, A], [B]),
         _weaken_to(fwd_bc, [iff_ab, iff_bc, A, B], [C]),
         B, [iff_ab, iff_bc, A], [C])
-    imp_fwd = _implies_right(fwd)  # [iff_ab, iff_bc] |- A -> C
+    imp_ac = Implies(A, C)
+    imp_fwd = Proof(Sequent([iff_ab, iff_bc], [imp_ac]), 'implies_right',
+                    [fwd], principal=imp_ac)
 
     # C -> A: C -> B (from iff_bc) then B -> A (from iff_ab)
     er_bc = iff_elim_right(B, C)  # iff_bc |- C -> B
@@ -1772,13 +1774,13 @@ def iff_chain(A, B, C):
         _weaken_to(bwd_cb, [iff_ab, iff_bc, C], [B]),
         _weaken_to(bwd_ba, [iff_ab, iff_bc, C, B], [A]),
         B, [iff_ab, iff_bc, C], [A])
-    imp_bwd = _implies_right(bwd)  # [iff_ab, iff_bc] |- C -> A
+    imp_ca = Implies(C, A)
+    imp_bwd = Proof(Sequent([iff_ab, iff_bc], [imp_ca]), 'implies_right',
+                    [bwd], principal=imp_ca)
 
     # iff_intro
     ii = iff_intro(A, C)
     ctx = [iff_ab, iff_bc]
-    imp_ac = Implies(A, C)
-    imp_ca = Implies(C, A)
     ii_w = _weaken_to(ii, ctx + [imp_ac, imp_ca], [Iff(A, C)])
     r1 = _cut(imp_fwd, ii_w, imp_ac, ctx + [imp_ca], [Iff(A, C)])
     r2 = _cut(imp_bwd, r1, imp_ca, ctx, [Iff(A, C)])
@@ -1810,8 +1812,10 @@ def _char_bridge(char_v, eq_sv, s_var, v_var, z_var, ctx):
     eq_body = Iff(In(z, s_var), In(z, v_var))
     char_body = char_v.body.subst(char_v.var, z)
 
-    inst_eq = _forall_left(_axiom(eq_body), eq_sv, z)  # eq_sv |- eq_body
-    inst_ch = _forall_left(_axiom(char_body), char_v, z)  # char_v |- char_body
+    inst_eq = Proof(Sequent([eq_sv], [eq_body]), 'forall_left',
+                    [_axiom(eq_body)], term=z, principal=eq_sv)
+    inst_ch = Proof(Sequent([char_v], [char_body]), 'forall_left',
+                    [_axiom(char_body)], term=z, principal=char_v)
 
     # iff_chain: Iff(In(z,s), In(z,v)), Iff(In(z,v), cond(z)) |- Iff(In(z,s), cond(z))
     ic = iff_chain(In(z, s_var), In(z, v_var), char_body.right if hasattr(char_body, 'right') else None)
@@ -1838,8 +1842,9 @@ def _char_bridge(char_v, eq_sv, s_var, v_var, z_var, ctx):
     r2 = _cut(inst_ch_w, r1, char_body, bridge_ctx, [Iff(In(z, s_var), cond_z)])
     # bridge_ctx |- Iff(In(z,s), cond_z)
 
-    result = _forall_right(r2, z)
-    # bridge_ctx |- Forall(z, Iff(In(z,s), cond_z))
+    fa = Forall(z, Iff(In(z, s_var), cond_z))
+    result = Proof(Sequent(bridge_ctx, [fa]), 'forall_right', [r2],
+                   term=z, principal=fa)
     return result
 
 
