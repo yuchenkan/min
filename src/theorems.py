@@ -804,139 +804,82 @@ def tuple_injection():
 
 
 def or_iff_compat(A, B, C, D):
-    """Iff(A,C), Iff(B,D) |- Iff(Or(A,B), Or(C,D))
-    If A iff C and B iff D then (A or B) iff (C or D)."""
-    iff_ac = Iff(A, C)
-    iff_bd = Iff(B, D)
-    or_ab = Or(A, B)
-    or_cd = Or(C, D)
+    """Iff(A,C), Iff(B,D) |- Iff(Or(A,B), Or(C,D))"""
+    iff_ac, iff_bd = Iff(A, C), Iff(B, D)
+    or_ab, or_cd = Or(A, B), Or(C, D)
+    NC, NA = Not(C), Not(A)
 
-    # Or(A,B) = Implies(Not(A), B)
-    # Or(C,D) = Implies(Not(C), D)
+    # C |- Or(C,D) and D |- Or(C,D)
+    c_gives_or = or_intro_left(C, D)
+    d_gives_or = or_intro_right(C, D)
 
-    # Forward: Or(A,B) -> Or(C,D)
-    # Assume Not(C). Need D.
-    # From Iff(A,C): A->C and C->A. From Not(C) and C->A... wait, need Not(A)->Not(C) which is contrapositive.
-    # Actually: Assume Or(A,B) = Implies(Not(A), B) and Not(C).
-    # From Iff(A,C), get A->C. Contrapositive: Not(C)->Not(A).
-    # From Not(C) and Not(C)->Not(A), get Not(A).
-    # From Not(A) and Or(A,B)=Implies(Not(A),B), get B.
-    # From Iff(B,D), get B->D. From B, get D. ✓
+    # A |- Or(A,B) and B |- Or(A,B)
+    a_gives_or_ab = or_intro_left(A, B)
+    b_gives_or_ab = or_intro_right(A, B)
 
-    # This requires contrapositive which we haven't proved.
-    # Easier in classical logic: use or_elim on Or(A,B).
-    # Case A: from Iff(A,C), get C. Or(C,D) holds.
-    # Case B: from Iff(B,D), get D. Or(C,D) holds.
-
-    # Build: iff_ac, iff_bd, or_ab |- or_cd
-    # Use or_elim: or_ab, A->or_cd, B->or_cd |- or_cd
-
-    # A->or_cd: from A, get C (via iff_ac), then Or(C,D).
-    # Or(C,D) = Implies(Not(C), D).
-    # From C, derive Or(C,D): need Implies(Not(C), D).
-    # Not(C) and C give contradiction, from which D follows.
-    # So: C |- Or(C,D). Proof: axiom C|-C, weaken right D:
-    # C |- C, D. not_left: C, Not(C) |- D. implies_right: C |- Implies(Not(C), D) = Or(C,D).
-    c_gives_or = _implies_right(_not_left(_axiom(C, right=[D])))
-    # C |- Or(C,D) ✓
-
-    # Similarly D |- Or(C,D)
-    d_gives_or = _axiom(D, right=[])
-    # D |- D. But Or(C,D) = Implies(Not(C), D). Need D |- Implies(Not(C), D).
-    # weaken left: D, Not(C) |- D... axiom with exchange.
-    d_gives_or = _implies_right(_axiom(D, left=[Not(C)]))
-    # [Not(C), D] |- [D]. implies_right: D last on left is D, first on right is D.
-    # Hmm, _implies_right takes last on left and first on right.
-    # [Not(C), D] |- [D]. Last on left = D, first on right = D.
-    # Result: [Not(C)] |- [Implies(D, D)]... that's wrong.
-    # I need Not(C) last on left.
-    d_ax = _exchange_left(_axiom(D, left=[Not(C)]), [D, Not(C)])
-    # [D, Not(C)] |- [D]. Last=Not(C), first right=D.
-    # implies_right: [D] |- [Implies(Not(C), D)] = [D] |- [Or(C,D)]
-    d_gives_or = _implies_right(d_ax)
-    # D |- Or(C,D) ✓
-
-    # iff_ac |- A -> C (iff_elim_left)
+    # Forward: iff_ac, iff_bd, or_ab |- or_cd
     el_ac = iff_elim_left(A, C)
-
-    # iff_bd |- B -> D (iff_elim_left)
     el_bd = iff_elim_left(B, D)
 
-    # A -> or_cd: compose iff_ac gives A->C, and C gives Or(C,D)
-    # iff_ac |- A -> C. C |- Or(C,D).
-    # iff_ac, A |- C (apply imp)
     got_c = _apply_imp(el_ac, _axiom(A, left=[iff_ac]), [iff_ac, A])
-    # iff_ac, A |- Or(C,D) (cut on C)
     got_or_from_a = _cut(got_c, c_gives_or, C, [iff_ac, A], [or_cd])
-    # iff_ac |- A -> Or(C,D)
-    a_to_or = _implies_right(got_or_from_a)
+    imp_a_or = Implies(A, or_cd)
+    a_to_or = Proof(Sequent([iff_ac], [imp_a_or]), 'implies_right',
+                    [got_or_from_a], principal=imp_a_or)
 
-    # B -> or_cd: compose iff_bd gives B->D, and D gives Or(C,D)
     got_d = _apply_imp(el_bd, _axiom(B, left=[iff_bd]), [iff_bd, B])
     got_or_from_b = _cut(got_d, d_gives_or, D, [iff_bd, B], [or_cd])
-    b_to_or = _implies_right(got_or_from_b)
+    imp_b_or = Implies(B, or_cd)
+    b_to_or = Proof(Sequent([iff_bd], [imp_b_or]), 'implies_right',
+                    [got_or_from_b], principal=imp_b_or)
 
-    # or_elim: or_ab, A->or_cd, B->or_cd |- or_cd
     oe = or_elim(A, B, or_cd)
-
-    # Weaken and cut to get: iff_ac, iff_bd, or_ab |- or_cd
     ctx = [iff_ac, iff_bd, or_ab]
-    oe_w = _weaken_to(oe, ctx + [Implies(A, or_cd), Implies(B, or_cd)], [or_cd])
-    a_to_or_w = _weaken_to(a_to_or, ctx, [Implies(A, or_cd)])
-    b_to_or_w = _weaken_to(b_to_or, ctx, [Implies(B, or_cd)])
+    oe_w = _weaken_to(oe, ctx + [imp_a_or, imp_b_or], [or_cd])
+    step1 = _cut(_weaken_to(a_to_or, ctx, [imp_a_or]),
+                 oe_w, imp_a_or, ctx + [imp_b_or], [or_cd])
+    step2 = _cut(_weaken_to(b_to_or, ctx, [imp_b_or]),
+                 step1, imp_b_or, ctx, [or_cd])
+    imp_fwd = Implies(or_ab, or_cd)
+    fwd = Proof(Sequent([iff_ac, iff_bd], [imp_fwd]), 'implies_right',
+                [step2], principal=imp_fwd)
 
-    step1 = _cut(a_to_or_w, oe_w, Implies(A, or_cd),
-                 ctx + [Implies(B, or_cd)], [or_cd])
-    step2 = _cut(b_to_or_w, step1, Implies(B, or_cd), ctx, [or_cd])
-    fwd = _implies_right(step2)
-    # [iff_ac, iff_bd] |- [Implies(or_ab, or_cd)]
+    # Backward: iff_ac, iff_bd, or_cd |- or_ab
+    er_ac = iff_elim_right(A, C)
+    er_bd = iff_elim_right(B, D)
 
-    # Backward: Or(C,D) -> Or(A,B) in context [iff_ac, iff_bd]
-    er_ac = iff_elim_right(A, C)  # iff_ac |- C -> A
-    er_bd = iff_elim_right(B, D)  # iff_bd |- D -> B
-
-    a_gives_or_ab = _implies_right(_not_left(_axiom(A, right=[B])))  # A |- Or(A,B)
-    b_ax = _exchange_left(_axiom(B, left=[Not(A)]), [B, Not(A)])
-    b_gives_or_ab = _implies_right(b_ax)  # B |- Or(A,B)
-
-    # iff_ac, C |- A -> or_ab
     got_a = _apply_imp(er_ac, _axiom(C, left=[iff_ac]), [iff_ac, C])
-    got_or_ab_from_c = _cut(got_a, a_gives_or_ab, A, [iff_ac, C], [or_ab])
-    c_to_or_ab = _implies_right(got_or_ab_from_c)  # iff_ac |- C -> or_ab
+    got_or_ab_c = _cut(got_a, a_gives_or_ab, A, [iff_ac, C], [or_ab])
+    imp_c_or = Implies(C, or_ab)
+    c_to_or_ab = Proof(Sequent([iff_ac], [imp_c_or]), 'implies_right',
+                       [got_or_ab_c], principal=imp_c_or)
 
     got_b = _apply_imp(er_bd, _axiom(D, left=[iff_bd]), [iff_bd, D])
-    got_or_ab_from_d = _cut(got_b, b_gives_or_ab, B, [iff_bd, D], [or_ab])
-    d_to_or_ab = _implies_right(got_or_ab_from_d)  # iff_bd |- D -> or_ab
+    got_or_ab_d = _cut(got_b, b_gives_or_ab, B, [iff_bd, D], [or_ab])
+    imp_d_or = Implies(D, or_ab)
+    d_to_or_ab = Proof(Sequent([iff_bd], [imp_d_or]), 'implies_right',
+                       [got_or_ab_d], principal=imp_d_or)
 
-    # or_elim: or_cd, C->or_ab, D->or_ab |- or_ab
     oe2 = or_elim(C, D, or_ab)
-    # Context for backward: [iff_ac, iff_bd, or_cd]
     bwd_ctx = [iff_ac, iff_bd, or_cd]
-    imp_c = Implies(C, or_ab)
-    imp_d = Implies(D, or_ab)
-
-    oe2_w = _weaken_to(oe2, bwd_ctx + [imp_c, imp_d], [or_ab])
-    c_to_w = _weaken_to(c_to_or_ab, bwd_ctx, [imp_c])
-    d_to_w = _weaken_to(d_to_or_ab, bwd_ctx, [imp_d])
-
-    step3 = _cut(c_to_w, oe2_w, imp_c, bwd_ctx + [imp_d], [or_ab])
-    step4 = _cut(d_to_w, step3, imp_d, bwd_ctx, [or_ab])
-    # [iff_ac, iff_bd, or_cd] |- [or_ab]
-    bwd = _implies_right(step4)
-    # [iff_ac, iff_bd] |- [Implies(or_cd, or_ab)]
-
-    # iff_intro
-    ii = iff_intro(or_ab, or_cd)
-    imp_fwd = Implies(or_ab, or_cd)
+    oe2_w = _weaken_to(oe2, bwd_ctx + [imp_c_or, imp_d_or], [or_ab])
+    step3 = _cut(_weaken_to(c_to_or_ab, bwd_ctx, [imp_c_or]),
+                 oe2_w, imp_c_or, bwd_ctx + [imp_d_or], [or_ab])
+    step4 = _cut(_weaken_to(d_to_or_ab, bwd_ctx, [imp_d_or]),
+                 step3, imp_d_or, bwd_ctx, [or_ab])
     imp_bwd = Implies(or_cd, or_ab)
+    bwd = Proof(Sequent([iff_ac, iff_bd], [imp_bwd]), 'implies_right',
+                [step4], principal=imp_bwd)
+
+    # Combine via iff_intro
+    ii = iff_intro(or_ab, or_cd)
     ctx2 = [iff_ac, iff_bd]
     ii_w = _weaken_to(ii, ctx2 + [imp_fwd, imp_bwd], [Iff(or_ab, or_cd)])
     s1 = _cut(fwd, ii_w, imp_fwd, ctx2 + [imp_bwd], [Iff(or_ab, or_cd)])
     s2 = _cut(bwd, s1, imp_bwd, ctx2, [Iff(or_ab, or_cd)])
 
-    result = Proof(Sequent([iff_ac, iff_bd], [Iff(or_ab, or_cd)]),
-                   s2.rule, s2.premises, name='or_iff_compat')
-    return result
+    return Proof(Sequent(ctx2, [Iff(or_ab, or_cd)]),
+                 s2.rule, s2.premises, principal=s2.principal, name='or_iff_compat')
 
 
 def eq_transfer():
@@ -959,8 +902,8 @@ def eq_transfer():
     # [eq_xa] |- [Eq(a,c) -> Eq(x,c)]
     step2 = _apply_imp(step1, _axiom(eq_ac, left=[eq_xa]), [eq_xa, eq_ac])
     # [eq_xa, eq_ac] |- [eq_xc]
-    fwd = _implies_right(_exchange_left(step2, [eq_ac, eq_xa]))
-    # [eq_ac] |- [Implies(eq_xa, eq_xc)]
+    imp_fwd = Implies(eq_xa, eq_xc)
+    fwd = Proof(Sequent([eq_ac], [imp_fwd]), 'implies_right', [step2], principal=imp_fwd)
 
     # --- Backward: eq_ac, eq_xc |- eq_xa ---
     # eq_symmetric instantiated with a, c: |- Eq(a,c) -> Eq(c,a)
@@ -983,13 +926,11 @@ def eq_transfer():
     step4w = _weaken_to(step4, [eq_ac, eq_xc], [eq_ca])
     step5 = _apply_imp(step3w, step4w, [eq_ac, eq_xc])
     # [eq_ac, eq_xc] |- [eq_xa]
-    bwd = _implies_right(step5)
-    # [eq_ac] |- [Implies(eq_xc, eq_xa)]
+    imp_bwd = Implies(eq_xc, eq_xa)
+    bwd = Proof(Sequent([eq_ac], [imp_bwd]), 'implies_right', [step5], principal=imp_bwd)
 
     # --- Combine with iff_intro ---
-    ii = iff_intro(eq_xa, eq_xc)  # [Implies(eq_xa,eq_xc), Implies(eq_xc,eq_xa)] |- Iff(eq_xa, eq_xc)
-    imp_fwd = Implies(eq_xa, eq_xc)
-    imp_bwd = Implies(eq_xc, eq_xa)
+    ii = iff_intro(eq_xa, eq_xc)
     iff_result = Iff(eq_xa, eq_xc)
 
     ii_w = _weaken_to(ii, [eq_ac, imp_fwd, imp_bwd], [iff_result])
@@ -998,11 +939,15 @@ def eq_transfer():
     # [eq_ac] |- [Iff(eq_xa, eq_xc)]
 
     # Close
-    s_imp = _implies_right(step7)
-    s_fx = _forall_right(s_imp, x)
-    s_fc = _forall_right(s_fx, c)
-    s_fa = _forall_right(s_fc, a)
-    s_fa.name = 'eq_transfer'
+    imp_ac = Implies(eq_ac, iff_result)
+    s_imp = Proof(Sequent([], [imp_ac]), 'implies_right', [step7], principal=imp_ac)
+    fx = Forall(x, imp_ac)
+    s_fx = Proof(Sequent([], [fx]), 'forall_right', [s_imp], term=x, principal=fx)
+    fc = Forall(c, fx)
+    s_fc = Proof(Sequent([], [fc]), 'forall_right', [s_fx], term=c, principal=fc)
+    fa = Forall(a, fc)
+    s_fa = Proof(Sequent([], [fa]), 'forall_right', [s_fc],
+                 term=a, principal=fa, name='eq_transfer')
     return s_fa
 
 
