@@ -76,7 +76,7 @@ class Subset:
         return f'{self.left} sub {self.right}'
 
 
-def BinUnion(a, b, body):
+def Union(a, b, body):
     """a union b: z in a|b iff z in a or z in b"""
     return SetSpec(lambda z: Or(In(z, a), In(z, b)), body, f'{a}|{b}')
 
@@ -87,7 +87,7 @@ def BigUnion(a, body):
     return SetSpec(lambda z: Exists(y, And(In(y, a), In(z, y))), body, f'U({a})')
 
 
-def BinIntersect(a, b, body):
+def Intersect(a, b, body):
     """a intersect b: z in a&b iff z in a and z in b"""
     return SetSpec(lambda z: And(In(z, a), In(z, b)), body, f'{a}&{b}')
 
