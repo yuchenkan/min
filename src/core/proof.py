@@ -54,10 +54,14 @@ def _expand_proof(proof: Proof) -> Proof:
         principal=_expand_all(proof.principal) if proof.principal else None)
 
 
-def verify(proof: Proof) -> bool:
-    thm = proof.theorem()
-    if thm is None or _free_vars(thm):
+def verify(proof: Proof, axiom_checker) -> bool:
+    """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions."""
+    s = proof.sequent
+    if len(s.right) != 1 or _free_vars(s.right[0]):
         return False
+    for f in s.left:
+        if not axiom_checker(f):
+            return False
     return _verify(_expand_proof(proof))
 
 
