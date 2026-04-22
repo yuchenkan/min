@@ -4,7 +4,7 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import zfc
-from definitions import EmptySet
+from definitions import EmptySet, OrdPair
 
 
 # --- ZFC axioms as theorems (A |- A) ---
@@ -2836,7 +2836,6 @@ def kuratowski():
     """|- forall a,b,c,d. OrdPair(a,b, λt1. OrdPair(c,d, λt2. Eq(t1,t2) → And(Eq(a,c),Eq(b,d))))
     Kuratowski ordered pair injection in wrapped OrdPair form."""
     from tactics import apply_thm, wl, wr, mp
-    from definitions import OrdPair
 
     a, b, c, d = Var(), Var(), Var(), Var()
     sa, pab, t1, sc, pcd, t2 = Var(), Var(), Var(), Var(), Var(), Var()
@@ -2968,11 +2967,18 @@ def kuratowski():
     proof = Proof(Sequent(remaining, [imp_sa]), 'implies_right', [proof], principal=imp_sa)
     fa_sa = Forall(sa, imp_sa)
     proof = Proof(Sequent([], [fa_sa]), 'forall_right', [proof], term=sa, principal=fa_sa)
-    # Quantify a, b, c, d
+    # Quantify d, c, b, a — and restate using OrdPair at the top
     for v in [d, c, b, a]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    # Restate with OrdPair definition (alpha-equiv after expansion)
+    wrapped = Forall(a, Forall(b, Forall(c, Forall(d,
+        OrdPair(a, b, lambda t1:
+            OrdPair(c, d, lambda t2:
+                Implies(Eq(t1, t2), goal)))))))
+    proof = Proof(Sequent([], [wrapped]), proof.rule, proof.premises,
+                  term=proof.term, principal=wrapped)
     proof.name = 'kuratowski'
     return proof
 
