@@ -6,7 +6,7 @@ from core.derived import Exists, And, Or, Iff, Eq
 
 
 def _axiom(name: str, formula: Formula) -> Proof:
-    return Proof(Sequent([formula], [formula]), 'axiom', name=name)
+    return Proof(Sequent([formula], [formula]), 'axiom', name=name, principal=formula)
 
 
 # --- Axioms ---

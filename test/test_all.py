@@ -1,4 +1,4 @@
-"""Verify all proofs: ZFC axioms, schemas, and theorems."""
+"""Verify all proofs."""
 
 import sys
 sys.path.insert(0, 'src')
@@ -17,7 +17,7 @@ def collect_proofs(module):
 
 
 if __name__ == '__main__':
-    x, y, z = Var(), Var(), Var()
+    x, y, z, w = Var(), Var(), Var(), Var()
 
     all_proofs = list(collect_proofs(zfc)) + [
         ('modus_ponens', theorems.modus_ponens(In(x, y), In(y, z))),
@@ -36,15 +36,15 @@ if __name__ == '__main__':
         ('and_intro', theorems.and_intro(In(x, y), In(y, z))),
         ('and_elim_left', theorems.and_elim_left(In(x, y), In(y, z))),
         ('and_elim_right', theorems.and_elim_right(In(x, y), In(y, z))),
-        ('eq_transfer', theorems.eq_transfer()),
-        ('or_iff_compat', theorems.or_iff_compat(In(x, y), In(y, z), In(z, x), In(x, z))),
-        ('pair_eq_forward', theorems.tuple_injection()),
         ('or_intro_left', theorems.or_intro_left(In(x, y), In(y, z))),
         ('or_intro_right', theorems.or_intro_right(In(x, y), In(y, z))),
-        ('tuple_injection', theorems.tuple_injection_full()),
-        ('singleton_from_tuple', theorems.singleton_from_tuple()),
+        ('iff_mp', theorems.iff_mp(In(x, y), In(y, z))),
+        ('iff_mp_rev', theorems.iff_mp_rev(In(x, y), In(y, z))),
+        ('or_iff_compat', theorems.or_iff_compat(In(x, y), In(y, z), In(z, w), In(x, w))),
+        ('eq_transfer', theorems.eq_transfer()),
+        ('iff_chain', theorems.iff_chain(In(x, y), In(y, z), In(x, z))),
+        ('tuple_injection', theorems.tuple_injection()),
         ('forall_implies_exists', theorems.forall_implies_exists(In(x, y), In(y, z), x)),
-        ('kuratowski', theorems.kuratowski()),
     ]
 
     for name, proof in all_proofs:

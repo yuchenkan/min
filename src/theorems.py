@@ -1607,140 +1607,50 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
 
 def forall_implies_exists(P_body, Q, var):
     """Forall(var, Implies(P_body, Q)), Not(Forall(var, Not(P_body))) |- Q
-    From 'for all x, P(x) implies Q' and 'exists x with P(x)', derive Q.
-    Q must not contain var free. P_body has var free."""
-    # Exists(var, P_body) = Not(Forall(var, Not(P_body)))
+    From 'for all x, P(x) implies Q' and 'exists x with P(x)', derive Q."""
     FA_imp = Forall(var, Implies(P_body, Q))
     FA_not = Forall(var, Not(P_body))
-    EX = Not(FA_not)  # Exists(var, P_body)
-
-    # Classical proof:
-    # FA_imp, EX |- Q
-    # Assume not(Q), derive contradiction with EX.
-    # From not(Q) and FA_imp: for all x, P(x) implies Q, and not(Q),
-    # so for all x, not(P(x)). So Forall(var, Not(P_body)). Contradicts EX.
-
+    EX = Not(FA_not)
     NQ = Not(Q)
     NP = Not(P_body)
+    NNQ = Not(NQ)
     imp_PQ = Implies(P_body, Q)
 
-    # FA_imp |- imp_PQ (forall_left, term=var)
-    inst = _forall_left(_axiom(imp_PQ), FA_imp, var)
+    # FA_imp |- imp_PQ
+    inst = Proof(Sequent([FA_imp], [imp_PQ]), 'forall_left',
+                 [_axiom(imp_PQ)], term=var, principal=FA_imp)
 
-    # imp_PQ, NQ |- NP
-    # implies_left on imp_PQ: NQ |- P_body, NP and NQ, Q |- NP
-    #   p0: NQ |- P_body, NP... hmm, need P_body first on right.
-    #   Actually: imp_PQ = Implies(P_body, Q).
-    #   implies_left: from [NQ] |- [P_body, NP] and [NQ, Q] |- [NP]
-    #   result: [NQ, imp_PQ] |- [NP]
-
-    # [NQ] |- [P_body, NP]: we need P_body first. Just put NP as weakening.
-    # Actually we can't prove [NQ] |- [P_body] in general. Need classical reasoning.
-
-    # Better: [NQ, imp_PQ] |- [NP]
-    # not_right: [NQ, imp_PQ, P_body] |- []
-    # implies_left on imp_PQ: [NQ, P_body] |- [P_body] and [NQ, P_body, Q] |- []
-    #   p0: [NQ, P_body] |- [P_body]: axiom ✓
-    #   p1: [NQ, P_body, Q] |- []: exchange [NQ, Q, P_body]... wait.
-    #     not_left on NQ (last needs NQ last): exchange to [P_body, Q, NQ] |- []
-    #     premise: [P_body, Q] |- [Q]: axiom ✓
+    # NQ, imp_PQ, P_body |- [] (from which we get NQ, imp_PQ |- NP)
     p0 = _axiom(P_body, left=[NQ])
-    p1_ax = _axiom(Q, left=[P_body])
-    p1_nl = _not_left(p1_ax)  # [P_body, Q, NQ] |- []
-    p1 = _exchange_left(p1_nl, [NQ, P_body, Q])
-    impl = _implies_left(p0, p1)  # [NQ, P_body, imp_PQ] |- []
-    impl_x = _exchange_left(impl, [NQ, imp_PQ, P_body])
-    got_np = _not_right(impl_x)  # [NQ, imp_PQ] |- [NP]
+    p1 = Proof(Sequent([NQ, P_body, Q], []), 'not_left',
+               [_axiom(Q, left=[P_body])], principal=NQ)
+    s1 = Proof(Sequent([NQ, P_body, imp_PQ], []), 'implies_left',
+               [p0, p1], principal=imp_PQ)
+    got_np = Proof(Sequent([NQ, imp_PQ], [NP]), 'not_right', [s1], principal=NP)
 
-    # From FA_imp: forall_left gives imp_PQ. Cut:
-    # FA_imp, NQ |- NP
+    # FA_imp, NQ |- NP (cut on imp_PQ)
     got_np2 = _cut(inst, got_np, imp_PQ, [FA_imp, NQ], [NP])
 
-    # forall_right on var: FA_imp, NQ |- Forall(var, NP) = FA_not
-    got_fa_not = _forall_right(got_np2, var)
-    # FA_imp, NQ |- FA_not
+    # FA_imp, NQ |- FA_not (forall_right)
+    got_fa_not = Proof(Sequent([FA_imp, NQ], [FA_not]), 'forall_right',
+                       [got_np2], term=var, principal=FA_not)
 
-    # not_left on EX = Not(FA_not): from FA_imp, NQ |- FA_not derive FA_imp, NQ, EX |-
-    # not_left expects FA_not first on right ✓
-    got_contra = _not_left(got_fa_not)  # [FA_imp, NQ, EX] |- []
+    # FA_imp, NQ, EX |- [] (not_left on EX)
+    got_contra = Proof(Sequent([FA_imp, NQ, EX], []), 'not_left',
+                       [got_fa_not], principal=EX)
 
-    # not_right: [FA_imp, EX] |- [Not(NQ)] = [FA_imp, EX] |- [Not(Not(Q))]
-    got_contra_x = _exchange_left(got_contra, [FA_imp, EX, NQ])
-    got_nnq = _not_right(got_contra_x)  # [FA_imp, EX] |- [Not(NQ)]
+    # FA_imp, EX |- NNQ (not_right)
+    got_nnq = Proof(Sequent([FA_imp, EX], [NNQ]), 'not_right',
+                    [got_contra], principal=NNQ)
 
-    # Double negation elimination: Not(Not(Q)) |- Q (classical)
-    # not_left on Not(Q): from |- Q, ... derive Not(Q), ... |-
-    # Actually: Not(Not(Q)) |- Q in classical sequent calculus:
-    # not_left: from |- Not(Q) derive Not(Not(Q)) |-... no.
-    # Cut: |- Q, Not(Q) (axiom-like from not_right on [Q] |- [Q])
-    # and Not(Q), Not(Not(Q)) |- (not_left on Not(Not(Q)): from Not(Q) |- Not(Q))
+    # Double negation elimination: NNQ |- Q
+    # [] |- [NQ, Q] by not_right from axiom Q |- Q
+    p_lem = Proof(Sequent([], [NQ, Q]), 'not_right', [_axiom(Q)], principal=NQ)
+    # NNQ |- Q by not_left
+    dne = Proof(Sequent([NNQ], [Q]), 'not_left', [p_lem], principal=NNQ)
 
-    # Q |- Q (axiom). not_right: |- Not(Q), Q. exchange: |- Q, Not(Q).
-    ax_q = _axiom(Q)
-    dn_r = _not_right(ax_q)  # [] |- [Not(Q), Q]... wait
-    # _not_right: last on left is Q, first on right becomes Not(Q).
-    # [Q] |- [], not_right: [] |- [Not(Q)]... no, there's nothing on left after removing Q.
-    # Hmm, I need [] |- [Q, Not(Q)] for the cut.
-
-    # axiom: [Q] |- [Q]. not_left on Not(Q): from [Q] |- [Q] derive [Q, Not(Q)] |- []
-    # Hmm, that removes Q from right.
-
-    # Classical double negation: Not(Not(Q)) |- Q
-    # Proof: axiom Q |- Q. weaken right: Q |- Q, Not(Q).
-    # exchange right: Q |- Not(Q), Q... wait weakening adds first.
-    # Q |- Q (axiom). weakening_right: Q |- Not(Q), Q. (Not(Q) added first)
-    # not_left: Q, Not(Not(Q)) |- Q. (Not(Not(Q)) last, premise Q |- Not(Q), Q)
-    # exchange: Not(Not(Q)), Q |- Q... hmm.
-
-    # Actually: _not_left takes premise G |- A, D and makes G, Not(A) |- D.
-    # premise: [Q] |- [Not(Q), Q]... Not(Q) first on right ✓.
-    # result: [Q, Not(Not(Q))] |- [Q]. Not(Not(Q)) last ✓.
-
-    ax_q2 = _axiom(Q)  # [Q] |- [Q]
-    wk = Proof(Sequent([Q], [Not(Q), Q]), 'weakening_right', [ax_q2])
-    dn_step = _not_left(wk)  # [Q, Not(Not(Q))] |- [Q]
-    dn = _exchange_left(dn_step, [Not(Not(Q)), Q])
-    # [Not(Not(Q)), Q] |- [Q]... still has Q on left.
-
-    # I need Not(Not(Q)) |- Q without Q on left.
-    # Cut: Not(Not(Q)) |- Q, Not(Q) and Not(Not(Q)), Q |- Q => Not(Not(Q)) |- Q
-    # p0: Not(Not(Q)) |- Q, Not(Q)
-    #   not_right: Not(Not(Q)), Q |- Not(Q)... nope, Q not on right.
-    #   Hmm. Let me try:
-    #   axiom: [Not(Q)] |- [Not(Q)]. weakening_right: [Not(Q)] |- [Q, Not(Q)].
-    #   exchange: [Not(Q)] |- [Not(Q), Q].
-    #   not_left: [Not(Q), Not(Not(Q))] |- [Q].
-    #   exchange: [Not(Not(Q)), Not(Q)] |- [Q].
-    #   implies_right? No...
-
-    # Fresh approach for double negation elimination:
-    # [Not(Not(Q))] |- [Q]
-    # By not_right: [Not(Not(Q)), Not(Q)] |- [] ... wait, that gives |- Not(Not(Q)), but wrong direction.
-
-    # Classical: [Not(Not(Q))] |- [Q]
-    # not_left on Not(Not(Q)) (last): premise |- [Not(Q)]
-    # But we need |- [Not(Q), Q] for premise with D=[Q].
-    # premise: [] |- [Not(Q), Q]. This is provable:
-    # axiom [Q] |- [Q]. implies_right... no. weakening_right on empty?
-    # We need Q on right without it on left. Classical tautology.
-    # not_right: [Q] |- []. Then [] |- [Not(Q)].
-    # Hmm [Q] |- [] is not provable.
-
-    # [] |- [Not(Q), Q]: not_right from [Q] |- [Q] gives [] |- [Not(Q), Q]?
-    # _not_right: last on left is Q, first on right is Q. Result: [] |- [Not(Q), Q]... wait:
-    # [Q] |- [Q]. _not_right takes last on left (Q), wraps as Not(Q) first on right.
-    # Result: [] |- [Not(Q), Q]. Remaining right: original right = [Q], so [Not(Q)] + [Q] = [Not(Q), Q]. ✓!
-
-    p_lem = _not_right(_axiom(Q))  # [] |- [Not(Q), Q]  (excluded middle / law of excluded third)
-
-    # not_left: from [] |- [Not(Q), Q] derive [Not(Not(Q))] |- [Q]
-    # Not(Not(Q)) last on left ✓. Premise right: [Not(Q), Q]. Not(Q) first ✓.
-    dne = _not_left(p_lem)  # [Not(Not(Q))] |- [Q]
-
-    # Cut: [FA_imp, EX] |- [Q]
-    # got_nnq: [FA_imp, EX] |- [Not(Not(Q))]
-    result = _cut(got_nnq, dne, Not(Not(Q)), [FA_imp, EX], [Q])
-
+    # FA_imp, EX |- Q (cut on NNQ)
+    result = _cut(got_nnq, dne, NNQ, [FA_imp, EX], [Q])
     result.name = 'forall_implies_exists'
     return result
 
@@ -1952,8 +1862,12 @@ def pair_from_tuple(a=None, b=None, c=None, d=None):
     eq_zc_or_d = Or(Eq(z, c), Eq(z, d))
     in_zs = In(z, s)
 
-    inst_ab = _forall_left(_axiom(Iff(in_zs, eq_za_or_b)), pair_ab, z)
-    inst_cd = _forall_left(_axiom(Iff(in_zs, eq_zc_or_d)), pair_cd, z)
+    iff_ab_body = Iff(in_zs, eq_za_or_b)
+    iff_cd_body = Iff(in_zs, eq_zc_or_d)
+    inst_ab = Proof(Sequent([pair_ab], [iff_ab_body]), 'forall_left',
+                    [_axiom(iff_ab_body)], term=z, principal=pair_ab)
+    inst_cd = Proof(Sequent([pair_cd], [iff_cd_body]), 'forall_left',
+                    [_axiom(iff_cd_body)], term=z, principal=pair_cd)
     flip_ab = _iff_sym(in_zs, eq_za_or_b)
 
     got_flip = _cut(inst_ab, flip_ab, Iff(in_zs, eq_za_or_b), ctx_b, [Iff(eq_za_or_b, in_zs)])
@@ -1964,7 +1878,8 @@ def pair_from_tuple(a=None, b=None, c=None, d=None):
     r1 = _cut(got_flip, ch_w, Iff(eq_za_or_b, in_zs),
               ctx_b + [Iff(in_zs, eq_zc_or_d)], [Iff(eq_za_or_b, eq_zc_or_d)])
     r2 = _cut(inst_cd_w, r1, Iff(in_zs, eq_zc_or_d), ctx_b, [Iff(eq_za_or_b, eq_zc_or_d)])
-    case_b_result = _forall_right(r2, z)
+    case_b_result = Proof(Sequent(ctx_b, [H_pair]), 'forall_right',
+                          [r2], term=z, principal=H_pair)
     # [pair_ab, pair_cd] |- H_pair (alpha-equiv)
 
     # Case A: sing_c(s), pair_ab(s) |- H_pair
