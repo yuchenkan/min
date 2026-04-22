@@ -26,19 +26,29 @@ class SetSpec:
         return f'{self.body(self.var)}'
 
 
-class EmptySet:
-    """P(empty) = forall s. (forall x. not(x in s)) implies P(s)"""
+class Empty:
+    """Empty(s) = forall x. not(x in s). Predicate: s is empty."""
+    __match_args__ = ('set',)
+    def __init__(self, s):
+        self.set = s
+    def expand(self):
+        x = Var()
+        return Forall(x, Not(In(x, self.set)))
+    def subst(self, old, new):
+        return Empty(new if self.set is old else self.set)
+    def __str__(self):
+        return f'Empty({self.set})'
 
+
+class WithEmpty:
+    """forall s. Empty(s) implies P(s). Definite description for the empty set."""
     def __init__(self, body):
         self.var = Var('{}')
         self.body = body
-
     def expand(self):
-        x = Var()
-        return Forall(self.var, Implies(Forall(x, Not(In(x, self.var))), self.body(self.var)))
-
+        return Forall(self.var, Implies(Empty(self.var), self.body(self.var)))
     def __str__(self):
-        return f'{self.body(self.var)}'
+        return f'forall {self.var}. ({self.body(self.var)})'
 
 
 def Singleton(a, body, prefix=None):
@@ -123,7 +133,7 @@ class IsInductive:
     def expand(self):
         x = Var()
         return And(
-            EmptySet(lambda e: In(e, self.set)),
+            WithEmpty(lambda e: In(e, self.set)),
             Forall(x, Implies(In(x, self.set),
                 Successor(x, lambda s: In(s, self.set)))))
     def subst(self, old, new):

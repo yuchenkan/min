@@ -4,7 +4,7 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import zfc
-from definitions import EmptySet, OrdPair, Subset, IsInductive, Omega
+from definitions import WithEmpty, OrdPair, Subset, IsInductive, Omega
 
 
 # --- ZFC axioms as theorems (A |- A) ---
@@ -506,7 +506,7 @@ def unique_empty():
     s2 = Proof(Sequent([ea], [inner]), 'forall_right', [s1], term=b, principal=inner)
     imp2 = Implies(ea, inner)
     s3 = Proof(Sequent([], [imp2]), 'implies_right', [s2], principal=imp2)
-    goal = EmptySet(lambda a: EmptySet(lambda b: Eq(a, b)))
+    goal = WithEmpty(lambda a: WithEmpty(lambda b: Eq(a, b)))
     s4 = Proof(Sequent([], [goal]), 'forall_right', [s3], term=a, principal=goal)
     s4.name = 'unique_empty'
     return s4
