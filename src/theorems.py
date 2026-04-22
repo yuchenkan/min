@@ -4,6 +4,50 @@ from core import Var, In, Not, Implies, Forall, Sequent, Proof, Eq, Iff, And, Or
 from definitions import Empty
 
 
+def _close(proof, name=None):
+    """Close an open proof by converting left-side formulas to implications
+    and universally quantifying over all free variables."""
+    from core.proof import _free_vars
+    s = proof.sequent
+    while s.left:
+        last = s.left[-1]
+        imp = Implies(last, s.right[0])
+        proof = Proof(Sequent(list(s.left[:-1]), [imp] + list(s.right[1:])),
+                      'implies_right', [proof], principal=imp)
+        s = proof.sequent
+
+    # Now proof has [] |- [formula]. Find free vars and quantify.
+    formula = proof.sequent.right[0]
+    fvs = sorted(_free_vars(formula), key=lambda v: v._id)
+    for v in fvs:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof],
+                      term=v, principal=fa)
+
+    if name:
+        proof.name = name
+    proof._closed_vars = fvs  # store for _open
+    return proof
+
+
+def _open(closed_proof, *vars):
+    """Instantiate a closed theorem with specific vars.
+    vars must be in the same order as _close quantified (sorted by _id)."""
+    return _instantiate(closed_proof, list(vars))
+
+
+def _open_with(closed_proof, *formulas):
+    """Instantiate a closed theorem using vars found in the given formulas.
+    Matches the order _close used (sorted by _id ascending, outermost first)."""
+    from core.proof import _free_vars
+    all_vars = set()
+    for f in formulas:
+        all_vars |= _free_vars(f)
+    sorted_vars = sorted(all_vars, key=lambda v: v._id, reverse=True)
+    return _instantiate(closed_proof, sorted_vars)
+
+
 def _weaken_to(proof, left, right):
     """Weaken proof to include all formulas in left and right.
     Uses the engine's _in (alpha-equiv) to check what's already present."""
@@ -87,32 +131,34 @@ def _forall_right(proof, var, body):
 
 
 def modus_ponens(A, B):
-    """A, A->B |- B"""
+    """|- A implies (A->B) implies B. Closed."""
     imp = Implies(A, B)
     ax1 = _axiom(A)
     w1 = _weaken_to(ax1, [A], [A, B])
     ax2 = _axiom(B, left=[A])
-    return Proof(Sequent([A, imp], [B]), 'implies_left', [w1, ax2],
-                 principal=imp, name='modus_ponens')
+    proof = Proof(Sequent([A, imp], [B]), 'implies_left', [w1, ax2],
+                  principal=imp)
+    return _close(proof, 'modus_ponens')
 
 
 def double_negation(A):
-    """A |- ~~A"""
+    """|- A implies ~~A. Closed."""
     na = Not(A)
     nna = Not(na)
     ax = _axiom(A)
     nl = Proof(Sequent([A, na], []), 'not_left', [ax], principal=na)
-    return Proof(Sequent([A], [nna]), 'not_right', [nl],
-                 principal=nna, name='double_negation')
+    proof = Proof(Sequent([A], [nna]), 'not_right', [nl], principal=nna)
+    return _close(proof, 'double_negation')
 
 
 def forall_instantiation(x, body, t):
-    """forall x. body |- body[t/x]"""
+    """|- (forall x. body) implies body[t/x]. Closed."""
     instance = body.subst(x, t)
     fa = Forall(x, body)
     ax = _axiom(instance)
-    return Proof(Sequent([fa], [instance]), 'forall_left', [ax],
-                 principal=fa, term=t, name='forall_instantiation')
+    proof = Proof(Sequent([fa], [instance]), 'forall_left', [ax],
+                  principal=fa, term=t)
+    return _close(proof, 'forall_instantiation')
 
 
 def unique_empty():
@@ -199,7 +245,7 @@ def eq_reflexive():
 
 
 def iff_intro(P, Q):
-    """P->Q, Q->P |- Iff(P, Q)"""
+    """|- (P->Q) implies (Q->P) implies Iff(P, Q). Closed."""
     PQ = Implies(P, Q)
     QP = Implies(Q, P)
     NQP = Not(QP)
@@ -210,21 +256,18 @@ def iff_intro(P, Q):
     p1 = Proof(Sequent([PQ, QP, NQP], []), 'not_left',
                [_axiom(QP, left=[PQ])], principal=NQP)
     s1 = Proof(Sequent([PQ, QP, H], []), 'implies_left', [p0, p1], principal=H)
-    s2 = Proof(Sequent([PQ, QP], [iff]), 'not_right', [s1],
-               principal=iff, name='iff_intro')
-    return s2
+    s2 = Proof(Sequent([PQ, QP], [iff]), 'not_right', [s1], principal=iff)
+    return _close(s2, 'iff_intro')
 
 
 def iff_elim_left(P, Q):
-    """Iff(P, Q) |- P -> Q"""
+    """|- forall ...vars... Iff(P, Q) implies (P implies Q). Closed."""
     PQ = Implies(P, Q)
     QP = Implies(Q, P)
     NQP = Not(QP)
     H = Implies(PQ, NQP)
-    NH = Not(H)  # = Iff(P, Q) expanded
+    NH = Not(H)
 
-    # NH, P |- Q via cut on H
-    # p0: NH, P |- H, Q
     p0a = _axiom(P, left=[NH, QP], right=[Q])
     p0b = _axiom(Q, left=[NH, QP, P])
     s_impl = Proof(Sequent([NH, QP, P, PQ], [Q]), 'implies_left',
@@ -233,14 +276,12 @@ def iff_elim_left(P, Q):
                    [s_impl], principal=NQP)
     p0 = Proof(Sequent([NH, P], [H, Q]), 'implies_right',
                [s_notr], principal=H)
-
-    # p1: NH, P, H |- Q
     p1_ax = _axiom(H, left=[P], right=[Q])
     p1 = Proof(Sequent([P, H, NH], [Q]), 'not_left', [p1_ax], principal=NH)
-
     s_cut = Proof(Sequent([NH, P], [Q]), 'cut', [p0, p1], principal=H)
-    return Proof(Sequent([NH], [PQ]), 'implies_right', [s_cut],
-                 principal=PQ, name='iff_elim_left')
+    s_imp = Proof(Sequent([NH], [PQ]), 'implies_right', [s_cut], principal=PQ)
+
+    return _close(s_imp, 'iff_elim_left')
 
 
 def iff_elim_right(P, Q):
@@ -267,8 +308,8 @@ def iff_elim_right(P, Q):
     p1 = Proof(Sequent([Q, H, NH], [P]), 'not_left', [p1_ax], principal=NH)
 
     s_cut = Proof(Sequent([NH, Q], [P]), 'cut', [p0, p1], principal=H)
-    return Proof(Sequent([NH], [QP]), 'implies_right', [s_cut],
-                 principal=QP, name='iff_elim_right')
+    s_imp = Proof(Sequent([NH], [QP]), 'implies_right', [s_cut], principal=QP)
+    return _close(s_imp, 'iff_elim_right')
 
 
 def eq_symmetric():
@@ -276,28 +317,34 @@ def eq_symmetric():
     a, b, z = Var(), Var(), Var()
     P, Q = In(z, a), In(z, b)
 
-    el = iff_elim_left(P, Q)   # iff_PQ |- PQ
-    er = iff_elim_right(P, Q)  # iff_PQ |- QP
-    ii = iff_intro(Q, P)       # QP, PQ |- iff_QP
+    el = iff_elim_left(P, Q)   # closed: |- forall z b a. Iff(P,Q) -> (P -> Q)
+    er = iff_elim_right(P, Q)  # closed: |- forall z b a. Iff(P,Q) -> (Q -> P)
+    ii = iff_intro(Q, P)       # closed: |- forall z b a. (Q->P) -> (P->Q) -> Iff(Q,P)
 
-    iff_PQ = el.sequent.left[0]
-    PQ = el.sequent.right[0]
-    QP = er.sequent.right[0]
-    iff_QP = ii.sequent.right[0]
+    # _close sorts by _id ascending, outermost forall has highest _id.
+    # Instantiate in descending _id order: z, b, a
+    el_open = _instantiate(el, [z, b, a])
+    er_open = _instantiate(er, [z, b, a])
+    ii_open = _instantiate(ii, [z, b, a])
+
+    iff_PQ = Iff(P, Q)
+    iff_QP = Iff(Q, P)
+    PQ = Implies(P, Q)
+    QP = Implies(Q, P)
     eq_ab = Forall(z, iff_PQ)
 
     # eq_ab |- iff_PQ
     s1 = Proof(Sequent([eq_ab], [iff_PQ]), 'forall_left',
                [_axiom(iff_PQ)], term=z, principal=eq_ab)
-    # eq_ab |- PQ
-    c1 = _cut(s1, el, iff_PQ, [eq_ab], [PQ])
-    # eq_ab |- QP
+    # eq_ab |- PQ (apply el_open to iff_PQ)
+    c1 = _apply_imp(el_open, s1, [eq_ab])
+    # eq_ab |- QP (apply er_open to iff_PQ)
     s1b = Proof(Sequent([eq_ab], [iff_PQ]), 'forall_left',
                 [_axiom(iff_PQ)], term=z, principal=eq_ab)
-    c2 = _cut(s1b, er, iff_PQ, [eq_ab], [QP])
-    # eq_ab |- iff_QP (cut PQ and QP into iff_intro)
-    cut1 = _cut(c1, ii, PQ, [eq_ab, QP], [iff_QP])
-    cut2 = _cut(c2, cut1, QP, [eq_ab], [iff_QP])
+    c2 = _apply_imp(er_open, s1b, [eq_ab])
+    # eq_ab |- iff_QP (apply ii_open with QP and PQ)
+    c_qp = _apply_imp(ii_open, c2, [eq_ab])  # eq_ab |- PQ -> Iff(Q,P)
+    cut2 = _apply_imp(c_qp, c1, [eq_ab])     # eq_ab |- Iff(Q,P)
 
     # Close
     eq_ba = Forall(z, iff_QP)
@@ -386,44 +433,44 @@ def eq_transitive():
     a, b, c, z = Var(), Var(), Var(), Var()
 
     Pa, Pb, Pc = In(z, a), In(z, b), In(z, c)
+    ab_lr = Implies(Pa, Pb)
+    ab_rl = Implies(Pb, Pa)
+    bc_lr = Implies(Pb, Pc)
+    bc_rl = Implies(Pc, Pb)
+    ac_lr = Implies(Pa, Pc)
+    ac_rl = Implies(Pc, Pa)
+    iff_ab = Iff(Pa, Pb)
+    iff_bc = Iff(Pb, Pc)
+    iff_ac = Iff(Pa, Pc)
 
-    # Build all sub-theorems first, extract formula objects for identity consistency
-    el_ab = iff_elim_left(Pa, Pb)
-    er_ab = iff_elim_right(Pa, Pb)
-    el_bc = iff_elim_left(Pb, Pc)
-    er_bc = iff_elim_right(Pb, Pc)
-    ii = iff_intro(Pa, Pc)
+    # Instantiate closed sub-theorems (sorted desc by _id: z, c, b, a)
+    el_ab = _instantiate(iff_elim_left(Pa, Pb), [z, b, a])    # |- Iff(Pa,Pb) -> (Pa -> Pb)
+    er_ab = _instantiate(iff_elim_right(Pa, Pb), [z, b, a])   # |- Iff(Pa,Pb) -> (Pb -> Pa)
+    el_bc = _instantiate(iff_elim_left(Pb, Pc), [z, c, b])    # |- Iff(Pb,Pc) -> (Pb -> Pc)
+    er_bc = _instantiate(iff_elim_right(Pb, Pc), [z, c, b])   # |- Iff(Pb,Pc) -> (Pc -> Pb)
+    ii = _instantiate(iff_intro(Pa, Pc), [z, c, a])            # |- (Pa->Pc) -> (Pc->Pa) -> Iff(Pa,Pc)
 
-    # Extract formula objects from sub-theorems
-    iff_ab = el_ab.sequent.left[0]
-    iff_bc = el_bc.sequent.left[0]
-    ab_lr = el_ab.sequent.right[0]   # Implies(Pa, Pb) from iff_elim_left
-    ab_rl = er_ab.sequent.right[0]   # Implies(Pb, Pa) from iff_elim_right
-    bc_lr = el_bc.sequent.right[0]   # Implies(Pb, Pc)
-    bc_rl = er_bc.sequent.right[0]   # Implies(Pc, Pb)
-    ac_lr = ii.sequent.left[0]       # Implies(Pa, Pc) from iff_intro
-    ac_rl = ii.sequent.left[1]       # Implies(Pc, Pa) from iff_intro
-    iff_ac = ii.sequent.right[0]     # Iff(Pa, Pc) from iff_intro
-
-    eq_ab, eq_bc = Forall(z, iff_ab), Forall(z, iff_bc)
+    eq_ab = Forall(z, iff_ab)
+    eq_bc = Forall(z, iff_bc)
     G = [eq_ab, eq_bc]
 
-    # Extract implications from eq_ab and eq_bc
+    # eq_ab |- iff_ab
     get_ab = Proof(Sequent([eq_ab], [iff_ab]), 'forall_left',
                    [_axiom(iff_ab)], term=z, principal=eq_ab)
-    got_ab_lr = _cut(get_ab, el_ab, iff_ab, [eq_ab], [ab_lr])
-    got_ab_rl = _cut(
+    # eq_ab |- ab_lr and ab_rl via apply
+    got_ab_lr = _apply_imp(el_ab, get_ab, [eq_ab])
+    got_ab_rl = _apply_imp(er_ab,
         Proof(Sequent([eq_ab], [iff_ab]), 'forall_left',
               [_axiom(iff_ab)], term=z, principal=eq_ab),
-        er_ab, iff_ab, [eq_ab], [ab_rl])
+        [eq_ab])
 
     get_bc = Proof(Sequent([eq_bc], [iff_bc]), 'forall_left',
                    [_axiom(iff_bc)], term=z, principal=eq_bc)
-    got_bc_lr = _cut(get_bc, el_bc, iff_bc, [eq_bc], [bc_lr])
-    got_bc_rl = _cut(
+    got_bc_lr = _apply_imp(el_bc, get_bc, [eq_bc])
+    got_bc_rl = _apply_imp(er_bc,
         Proof(Sequent([eq_bc], [iff_bc]), 'forall_left',
               [_axiom(iff_bc)], term=z, principal=eq_bc),
-        er_bc, iff_bc, [eq_bc], [bc_rl])
+        [eq_bc])
 
     # Forward chain: eq_ab, eq_bc, Pa |- Pc
     g1 = _weaken_to(got_ab_lr, G + [Pa], [ab_lr])
@@ -461,10 +508,9 @@ def eq_transitive():
     chain_bwd = _cut(got_pb_back, got_pa_back, Pb, G + [Pc], [Pa])
     got_ac_rl = Proof(Sequent(G, [ac_rl]), 'implies_right', [chain_bwd], principal=ac_rl)
 
-    # Combine via iff_intro
-    ii_w = _weaken_to(ii, G + [ac_lr, ac_rl], [iff_ac])
-    cut1 = _cut(got_ac_lr, ii_w, ac_lr, G + [ac_rl], [iff_ac])
-    cut2 = _cut(got_ac_rl, cut1, ac_rl, G, [iff_ac])
+    # Combine via iff_intro: |- (Pa->Pc) -> (Pc->Pa) -> Iff(Pa,Pc)
+    step_ii1 = _apply_imp(ii, got_ac_lr, G)      # G |- (Pc->Pa) -> Iff(Pa,Pc)
+    cut2 = _apply_imp(step_ii1, got_ac_rl, G)     # G |- Iff(Pa,Pc)
 
     # Close
     fz = Forall(z, iff_ac)
@@ -543,7 +589,7 @@ def singleton_eq():
 
 
 def or_elim(A, B, C):
-    """Or(A,B), A->C, B->C |- C"""
+    """|- Or(A,B) implies (A implies C) implies (B implies C) implies C"""
     NA = Not(A)
     OrAB = Implies(NA, B)
     AC = Implies(A, C)
@@ -572,8 +618,8 @@ def or_elim(A, B, C):
 
     # implies_left on BC
     result = Proof(Sequent([OrAB, AC, BC], [C]), 'implies_left',
-                   [impl_or, p1], principal=BC, name='or_elim')
-    return result
+                   [impl_or, p1], principal=BC)
+    return _close(result, 'or_elim')
 
 
 def eq_substitution():
@@ -610,7 +656,7 @@ def eq_substitution():
 
 
 def and_intro(A, B):
-    """A, B |- And(A, B)"""
+    """|- A implies B implies And(A, B). Closed."""
     NB = Not(B)
     imp = Implies(A, NB)
     nand = Not(imp)
@@ -620,12 +666,12 @@ def and_intro(A, B):
                [_axiom(B, left=[A])], principal=NB)
     s1 = Proof(Sequent([A, B, imp], []), 'implies_left', [p0, p1], principal=imp)
     s2 = Proof(Sequent([A, B], [nand]), 'not_right', [s1], principal=nand)
-    return Proof(Sequent([A, B], [And(A, B)]), s2.rule, s2.premises,
-                 principal=s2.principal, name='and_intro')
+    return _close(Proof(Sequent([A, B], [And(A, B)]), s2.rule, s2.premises,
+                       principal=s2.principal), 'and_intro')
 
 
 def and_elim_left(A, B):
-    """And(A, B) |- A"""
+    """|- And(A, B) implies A. Closed."""
     NB = Not(B)
     imp = Implies(A, NB)
     nand = Not(imp)
@@ -640,12 +686,12 @@ def and_elim_left(A, B):
     p1 = Proof(Sequent([imp, nand], [A]), 'not_left', [p1_ax], principal=nand)
 
     result = _cut(p0, p1, imp, [nand], [A])
-    return Proof(Sequent([And(A, B)], [A]), result.rule, result.premises,
-                 principal=result.principal, name='and_elim_left')
+    return _close(Proof(Sequent([And(A, B)], [A]), result.rule, result.premises,
+                       principal=result.principal), 'and_elim_left')
 
 
 def and_elim_right(A, B):
-    """And(A, B) |- B"""
+    """|- And(A, B) implies B. Closed."""
     NB = Not(B)
     imp = Implies(A, NB)
     nand = Not(imp)
@@ -660,8 +706,8 @@ def and_elim_right(A, B):
     p1 = Proof(Sequent([imp, nand], [B]), 'not_left', [p1_ax], principal=nand)
 
     result = _cut(p0, p1, imp, [nand], [B])
-    return Proof(Sequent([And(A, B)], [B]), result.rule, result.premises,
-                 principal=result.principal, name='and_elim_right')
+    return _close(Proof(Sequent([And(A, B)], [B]), result.rule, result.premises,
+                       principal=result.principal), 'and_elim_right')
 
 
 def _instantiate(proof, terms):
@@ -798,7 +844,7 @@ def tuple_injection():
 
 
 def or_iff_compat(A, B, C, D):
-    """Iff(A,C), Iff(B,D) |- Iff(Or(A,B), Or(C,D))"""
+    """|- Iff(A,C) implies Iff(B,D) implies Iff(Or(A,B), Or(C,D)). Closed."""
     iff_ac, iff_bd = Iff(A, C), Iff(B, D)
     or_ab, or_cd = Or(A, B), Or(C, D)
     NC, NA = Not(C), Not(A)
@@ -952,8 +998,8 @@ def or_intro_left(A, B):
     ax = _axiom(A, right=[B])           # A |- A, B
     nl = Proof(Sequent([A, NA], [B]), 'not_left', [ax], principal=NA)
     result = Proof(Sequent([A], [orAB]), 'implies_right', [nl], principal=orAB)
-    return Proof(Sequent([A], [Or(A, B)]), result.rule, result.premises,
-                 principal=result.principal, name='or_intro_left')
+    return _close(Proof(Sequent([A], [Or(A, B)]), result.rule, result.premises,
+                       principal=result.principal), 'or_intro_left')
 
 
 def or_intro_right(A, B):
@@ -962,26 +1008,26 @@ def or_intro_right(A, B):
     orAB = Implies(NA, B)
     ax = _axiom(B, left=[NA])           # Not(A), B |- B
     result = Proof(Sequent([B], [orAB]), 'implies_right', [ax], principal=orAB)
-    return Proof(Sequent([B], [Or(A, B)]), result.rule, result.premises,
-                 principal=result.principal, name='or_intro_right')
+    return _close(Proof(Sequent([B], [Or(A, B)]), result.rule, result.premises,
+                       principal=result.principal), 'or_intro_right')
 
 
 def iff_mp(A, B):
-    """Iff(A, B), A |- B"""
+    """|- Iff(A, B) implies A implies B. Closed."""
     iff = Iff(A, B)
-    el = iff_elim_left(A, B)
-    result = _apply_imp(el, _axiom(A, left=[iff]), [iff, A])
-    result.name = 'iff_mp'
-    return result
+    el_open = _open_with(iff_elim_left(A, B), A, B)  # |- Iff(A,B) -> (A -> B)
+    step1 = _apply_imp(el_open, _axiom(iff), [iff])  # [iff] |- A -> B
+    step2 = _apply_imp(step1, _axiom(A, left=[iff]), [iff, A])  # [iff, A] |- B
+    return _close(step2, 'iff_mp')
 
 
 def iff_mp_rev(A, B):
-    """Iff(A, B), B |- A"""
+    """|- Iff(A, B) implies B implies A. Closed."""
     iff = Iff(A, B)
-    er = iff_elim_right(A, B)
-    result = _apply_imp(er, _axiom(B, left=[iff]), [iff, B])
-    result.name = 'iff_mp_rev'
-    return result
+    er_open = _open_with(iff_elim_right(A, B), A, B)  # |- Iff(A,B) -> (Q -> P)
+    step1 = _apply_imp(er_open, _axiom(iff), [iff])  # [iff] |- B -> A
+    step2 = _apply_imp(step1, _axiom(B, left=[iff]), [iff, B])  # [iff, B] |- A
+    return _close(step2, 'iff_mp_rev')
 
 
 def tuple_injection_reverse():

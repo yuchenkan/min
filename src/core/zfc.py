@@ -6,6 +6,10 @@ from core.derived import Exists, And, Or, Iff, Eq
 
 
 def _axiom(name: str, formula: Formula) -> Proof:
+    from core.proof import _free_vars
+    # Close over any free variables
+    for v in sorted(_free_vars(formula), key=lambda v: v._id):
+        formula = Forall(v, formula)
     return Proof(Sequent([formula], [formula]), 'axiom', name=name, principal=formula)
 
 

@@ -55,6 +55,9 @@ def _expand_proof(proof: Proof) -> Proof:
 
 
 def verify(proof: Proof) -> bool:
+    thm = proof.theorem()
+    if thm is None or _free_vars(thm):
+        return False
     return _verify(_expand_proof(proof))
 
 
