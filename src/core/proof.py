@@ -68,138 +68,141 @@ def _verify(proof: Proof) -> bool:
 def _check_rule(proof: Proof) -> bool:
     s = proof.sequent
     ps = [p.sequent for p in proof.premises]
-    A = proof.principal
+    principal = proof.principal
 
     match proof.rule:
         case "axiom":
-            return _check_axiom(s, ps, A)
+            return _check_axiom(s, ps, principal)
         case "not_left":
-            return _check_not_left(s, ps, A)
+            return _check_not_left(s, ps, principal)
         case "not_right":
-            return _check_not_right(s, ps, A)
+            return _check_not_right(s, ps, principal)
         case "implies_left":
-            return _check_implies_left(s, ps, A)
+            return _check_implies_left(s, ps, principal)
         case "implies_right":
-            return _check_implies_right(s, ps, A)
+            return _check_implies_right(s, ps, principal)
         case "forall_left":
-            return _check_forall_left(s, ps, A, proof.term)
+            return _check_forall_left(s, ps, principal, proof.term)
         case "forall_right":
-            return _check_forall_right(s, ps, A, proof.term)
+            return _check_forall_right(s, ps, principal, proof.term)
         case "cut":
-            return _check_cut(s, ps, A)
+            return _check_cut(s, ps, principal)
         case "weakening_left":
-            return _check_weakening_left(s, ps, A)
+            return _check_weakening_left(s, ps, principal)
         case "weakening_right":
-            return _check_weakening_right(s, ps, A)
+            return _check_weakening_right(s, ps, principal)
     return False
 
 
 # --- Identity ---
 
-# G, A |- A, D
-def _check_axiom(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 0 or A is None:
+# G, A |- A, D  (principal = A, no premises)
+def _check_axiom(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 0 or principal is None:
         return False
-    return _in(A, s.left) and _in(A, s.right)
+    return _in(principal, s.left) and _in(principal, s.right)
 
 
 # --- Not ---
 
-# from G |- A, D  derive  G, ~A |- D
-def _check_not_left(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 1 or not isinstance(A, Not):
+# G, Not(A) |- D  from  G |- A, D
+def _check_not_left(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 1 or not isinstance(principal, Not):
         return False
-    if not _in(A, s.left):
+    if not _in(principal, s.left):
         return False
-    return _eq_sequent(ps[0], Sequent(_remove(s.left, A), [A.operand] + s.right))
+    return _eq_sequent(ps[0], Sequent(
+        _remove(s.left, principal), [principal.operand] + s.right))
 
 
-# from G, A |- D  derive  G |- ~A, D
-def _check_not_right(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 1 or not isinstance(A, Not):
+# G |- Not(A), D  from  G, A |- D
+def _check_not_right(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 1 or not isinstance(principal, Not):
         return False
-    if not _in(A, s.right):
+    if not _in(principal, s.right):
         return False
-    return _eq_sequent(ps[0], Sequent(s.left + [A.operand], _remove(s.right, A)))
+    return _eq_sequent(ps[0], Sequent(
+        s.left + [principal.operand], _remove(s.right, principal)))
 
 
 # --- Implies ---
 
-# from G |- A, D  and  G, B |- D  derive  G, A->B |- D
-def _check_implies_left(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 2 or not isinstance(A, Implies):
+# G, A->B |- D  from  G |- A, D  and  G, B |- D
+def _check_implies_left(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 2 or not isinstance(principal, Implies):
         return False
-    if not _in(A, s.left):
+    if not _in(principal, s.left):
         return False
-    G = _remove(s.left, A)
-    return (_eq_sequent(ps[0], Sequent(G, [A.left] + s.right)) and
-            _eq_sequent(ps[1], Sequent(G + [A.right], s.right)))
+    G = _remove(s.left, principal)
+    return (_eq_sequent(ps[0], Sequent(G, [principal.left] + s.right)) and
+            _eq_sequent(ps[1], Sequent(G + [principal.right], s.right)))
 
 
-# from G, A |- B, D  derive  G |- A->B, D
-def _check_implies_right(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 1 or not isinstance(A, Implies):
+# G |- A->B, D  from  G, A |- B, D
+def _check_implies_right(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 1 or not isinstance(principal, Implies):
         return False
-    if not _in(A, s.right):
+    if not _in(principal, s.right):
         return False
-    D = _remove(s.right, A)
-    return _eq_sequent(ps[0], Sequent(s.left + [A.left], [A.right] + D))
+    D = _remove(s.right, principal)
+    return _eq_sequent(ps[0], Sequent(
+        s.left + [principal.left], [principal.right] + D))
 
 
 # --- Forall ---
 
-# from G, A[t/x] |- D  derive  G, Ax.A |- D
-def _check_forall_left(s: Sequent, ps: list[Sequent], A: Formula, t: Var) -> bool:
-    if len(ps) != 1 or t is None or not isinstance(A, Forall):
+# G, Forall(x,A) |- D  from  G, A[t/x] |- D
+def _check_forall_left(s: Sequent, ps: list[Sequent], principal: Formula, t: Var) -> bool:
+    if len(ps) != 1 or t is None or not isinstance(principal, Forall):
         return False
-    if not _in(A, s.left):
+    if not _in(principal, s.left):
         return False
-    G = _remove(s.left, A)
-    substituted = _subst(A.body, A.var, t)
+    G = _remove(s.left, principal)
+    substituted = _subst(principal.body, principal.var, t)
     return _eq_sequent(ps[0], Sequent(G + [substituted], s.right))
 
 
-# from G |- A[y/x], D  where y not in G, D  derive  G |- Ax.A, D
-def _check_forall_right(s: Sequent, ps: list[Sequent], A: Formula, y: Var) -> bool:
-    if len(ps) != 1 or y is None or not isinstance(A, Forall):
+# G |- Forall(x,A), D  from  G |- A[y/x], D  where y fresh
+def _check_forall_right(s: Sequent, ps: list[Sequent], principal: Formula, y: Var) -> bool:
+    if len(ps) != 1 or y is None or not isinstance(principal, Forall):
         return False
-    if not _in(A, s.right):
+    if not _in(principal, s.right):
         return False
-    D = _remove(s.right, A)
+    D = _remove(s.right, principal)
     if _var_free_in_sequent(y, Sequent(s.left, D)):
         return False
-    substituted = _subst(A.body, A.var, y)
+    substituted = _subst(principal.body, principal.var, y)
     return _eq_sequent(ps[0], Sequent(s.left, [substituted] + D))
 
 
 # --- Cut ---
 
-# from G |- A, D  and  G, A |- D  derive  G |- D
-def _check_cut(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 2 or A is None:
+# G |- D  from  G |- A, D  and  G, A |- D  (principal = cut formula A)
+def _check_cut(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 2 or principal is None:
         return False
-    return (_eq_sequent(ps[0], Sequent(s.left, [A] + s.right)) and
-            _eq_sequent(ps[1], Sequent(s.left + [A], s.right)))
+    return (_eq_sequent(ps[0], Sequent(s.left, [principal] + s.right)) and
+            _eq_sequent(ps[1], Sequent(s.left + [principal], s.right)))
 
 
 # --- Structural ---
 
-# from G |- D  derive  G, A |- D
-def _check_weakening_left(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 1 or A is None:
+# G, A |- D  from  G |- D  (principal = A, the added formula)
+def _check_weakening_left(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 1 or principal is None:
         return False
-    if not _in(A, s.left):
+    if not _in(principal, s.left):
         return False
-    return _eq_sequent(ps[0], Sequent(_remove(s.left, A), s.right))
+    return _eq_sequent(ps[0], Sequent(_remove(s.left, principal), s.right))
 
 
-# from G |- D  derive  G |- A, D
-def _check_weakening_right(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
-    if len(ps) != 1 or A is None:
+# G |- A, D  from  G |- D  (principal = A, the added formula)
+def _check_weakening_right(s: Sequent, ps: list[Sequent], principal: Formula) -> bool:
+    if len(ps) != 1 or principal is None:
         return False
-    if not _in(A, s.right):
+    if not _in(principal, s.right):
         return False
-    return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, A)))
+    return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, principal)))
 
 
 # --- Formula equality (alpha-equivalence) ---
