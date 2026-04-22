@@ -19,17 +19,19 @@ def expand_all(formula):
 
 class Sequent:
     def __init__(self, left: list[Formula], right: list[Formula]):
-        self.left = left
-        self.right = right
+        self.left = list(left)
+        self.right = list(right)
 
 
 class Proof:
-    def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None, name: str = None, term: Var = None):
+    def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None,
+                 name: str = None, term: Var = None, principal: Formula = None):
         self.sequent = sequent
         self.rule = rule
         self.premises = premises or []
         self.name = name
         self.term = term
+        self.principal = principal
 
     def theorem(self) -> Formula:
         s = self.sequent
@@ -48,7 +50,8 @@ def _expand_proof(proof: Proof) -> Proof:
         _expand_sequent(proof.sequent),
         proof.rule,
         [_expand_proof(p) for p in proof.premises],
-        term=proof.term)
+        term=proof.term,
+        principal=expand_all(proof.principal) if proof.principal else None)
 
 
 def verify(proof: Proof) -> bool:
@@ -65,198 +68,143 @@ def _verify(proof: Proof) -> bool:
 def _check_rule(proof: Proof) -> bool:
     s = proof.sequent
     ps = [p.sequent for p in proof.premises]
+    A = proof.principal
 
     match proof.rule:
         case "axiom":
-            return _check_axiom(s, ps)
+            return _check_axiom(s, ps, A)
         case "not_left":
-            return _check_not_left(s, ps)
+            return _check_not_left(s, ps, A)
         case "not_right":
-            return _check_not_right(s, ps)
+            return _check_not_right(s, ps, A)
         case "implies_left":
-            return _check_implies_left(s, ps)
+            return _check_implies_left(s, ps, A)
         case "implies_right":
-            return _check_implies_right(s, ps)
+            return _check_implies_right(s, ps, A)
         case "forall_left":
-            return _check_forall_left(s, ps, proof.term)
+            return _check_forall_left(s, ps, A, proof.term)
         case "forall_right":
-            return _check_forall_right(s, ps, proof.term)
+            return _check_forall_right(s, ps, A, proof.term)
         case "cut":
-            return _check_cut(s, ps)
+            return _check_cut(s, ps, A)
         case "weakening_left":
-            return _check_weakening_left(s, ps)
+            return _check_weakening_left(s, ps, A)
         case "weakening_right":
-            return _check_weakening_right(s, ps)
-        case "contraction_left":
-            return _check_contraction_left(s, ps)
-        case "contraction_right":
-            return _check_contraction_right(s, ps)
-        case "exchange_left":
-            return _check_exchange_left(s, ps)
-        case "exchange_right":
-            return _check_exchange_right(s, ps)
+            return _check_weakening_right(s, ps, A)
     return False
 
 
 # --- Identity ---
 
 # G, A |- A, D
-def _check_axiom(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 0 or not s.left or not s.right:
+def _check_axiom(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 0 or A is None:
         return False
-    return formula_eq(s.left[-1], s.right[0])
+    return _in(A, s.left) and _in(A, s.right)
 
 
 # --- Not ---
 
 # from G |- A, D  derive  G, ~A |- D
-def _check_not_left(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1 or not s.left or not isinstance(s.left[-1], Not):
+def _check_not_left(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 1 or not isinstance(A, Not):
         return False
-    f = s.left[-1]
-    return _eq_sequent(ps[0], Sequent(s.left[:-1], [f.operand] + s.right))
+    if not _in(A, s.left):
+        return False
+    return _eq_sequent(ps[0], Sequent(_remove(s.left, A), [A.operand] + s.right))
 
 
 # from G, A |- D  derive  G |- ~A, D
-def _check_not_right(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1 or not s.right or not isinstance(s.right[0], Not):
+def _check_not_right(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 1 or not isinstance(A, Not):
         return False
-    f = s.right[0]
-    return _eq_sequent(ps[0], Sequent(s.left + [f.operand], s.right[1:]))
+    if not _in(A, s.right):
+        return False
+    return _eq_sequent(ps[0], Sequent(s.left + [A.operand], _remove(s.right, A)))
 
 
 # --- Implies ---
 
 # from G |- A, D  and  G, B |- D  derive  G, A->B |- D
-def _check_implies_left(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 2 or not s.left or not isinstance(s.left[-1], Implies):
+def _check_implies_left(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 2 or not isinstance(A, Implies):
         return False
-    f = s.left[-1]
-    G = s.left[:-1]
-    return (_eq_sequent(ps[0], Sequent(G, [f.left] + s.right)) and
-            _eq_sequent(ps[1], Sequent(G + [f.right], s.right)))
+    if not _in(A, s.left):
+        return False
+    G = _remove(s.left, A)
+    return (_eq_sequent(ps[0], Sequent(G, [A.left] + s.right)) and
+            _eq_sequent(ps[1], Sequent(G + [A.right], s.right)))
 
 
 # from G, A |- B, D  derive  G |- A->B, D
-def _check_implies_right(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1 or not s.right or not isinstance(s.right[0], Implies):
+def _check_implies_right(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 1 or not isinstance(A, Implies):
         return False
-    f = s.right[0]
-    return _eq_sequent(ps[0], Sequent(s.left + [f.left], [f.right] + s.right[1:]))
+    if not _in(A, s.right):
+        return False
+    D = _remove(s.right, A)
+    return _eq_sequent(ps[0], Sequent(s.left + [A.left], [A.right] + D))
 
 
 # --- Forall ---
 
 # from G, A[t/x] |- D  derive  G, Ax.A |- D
-def _check_forall_left(s: Sequent, ps: list[Sequent], t: Var) -> bool:
-    if len(ps) != 1 or t is None:
+def _check_forall_left(s: Sequent, ps: list[Sequent], A: Formula, t: Var) -> bool:
+    if len(ps) != 1 or t is None or not isinstance(A, Forall):
         return False
-    if not s.left or not isinstance(s.left[-1], Forall):
+    if not _in(A, s.left):
         return False
-    f = s.left[-1]
-    expected = Sequent(s.left[:-1] + [_subst(f.body, f.var, t)], s.right)
-    return _eq_sequent(ps[0], expected)
+    G = _remove(s.left, A)
+    substituted = _subst(A.body, A.var, t)
+    return _eq_sequent(ps[0], Sequent(G + [substituted], s.right))
 
 
 # from G |- A[y/x], D  where y not in G, D  derive  G |- Ax.A, D
-def _check_forall_right(s: Sequent, ps: list[Sequent], y: Var) -> bool:
-    if len(ps) != 1 or y is None:
+def _check_forall_right(s: Sequent, ps: list[Sequent], A: Formula, y: Var) -> bool:
+    if len(ps) != 1 or y is None or not isinstance(A, Forall):
         return False
-    if not s.right or not isinstance(s.right[0], Forall):
+    if not _in(A, s.right):
         return False
-    f = s.right[0]
-    D = s.right[1:]
+    D = _remove(s.right, A)
     if _var_free_in_sequent(y, Sequent(s.left, D)):
         return False
-    expected = Sequent(s.left, [_subst(f.body, f.var, y)] + D)
-    return _eq_sequent(ps[0], expected)
+    substituted = _subst(A.body, A.var, y)
+    return _eq_sequent(ps[0], Sequent(s.left, [substituted] + D))
 
 
 # --- Cut ---
 
 # from G |- A, D  and  G, A |- D  derive  G |- D
-def _check_cut(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 2:
+def _check_cut(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 2 or A is None:
         return False
-    if not ps[0].right or not ps[1].left:
-        return False
-    a = ps[0].right[0]
-    return (_eq_list(ps[0].left, s.left) and
-            _eq_list(ps[0].right[1:], s.right) and
-            _eq_list(ps[1].left[:-1], s.left) and
-            _eq_list(ps[1].right, s.right) and
-            formula_eq(a, ps[1].left[-1]))
+    return (_eq_sequent(ps[0], Sequent(s.left, [A] + s.right)) and
+            _eq_sequent(ps[1], Sequent(s.left + [A], s.right)))
 
 
 # --- Structural ---
 
 # from G |- D  derive  G, A |- D
-def _check_weakening_left(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1 or not s.left:
+def _check_weakening_left(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 1 or A is None:
         return False
-    return _eq_sequent(ps[0], Sequent(s.left[:-1], s.right))
+    if not _in(A, s.left):
+        return False
+    return _eq_sequent(ps[0], Sequent(_remove(s.left, A), s.right))
 
 
 # from G |- D  derive  G |- A, D
-def _check_weakening_right(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1 or not s.right:
+def _check_weakening_right(s: Sequent, ps: list[Sequent], A: Formula) -> bool:
+    if len(ps) != 1 or A is None:
         return False
-    return _eq_sequent(ps[0], Sequent(s.left, s.right[1:]))
-
-
-# from G, A, A |- D  derive  G, A |- D
-def _check_contraction_left(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1 or not s.left:
+    if not _in(A, s.right):
         return False
-    return _eq_sequent(ps[0], Sequent(s.left + [s.left[-1]], s.right))
-
-
-# from G |- A, A, D  derive  G |- A, D
-def _check_contraction_right(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1 or not s.right:
-        return False
-    return _eq_sequent(ps[0], Sequent(s.left, [s.right[0]] + s.right))
-
-
-# --- Exchange ---
-
-# from G |- D  derive  G' |- D  where G' is a permutation of G
-def _check_exchange_left(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1:
-        return False
-    if not _eq_list(s.right, ps[0].right):
-        return False
-    return _is_permutation(s.left, ps[0].left)
-
-
-# from G |- D  derive  G |- D'  where D' is a permutation of D
-def _check_exchange_right(s: Sequent, ps: list[Sequent]) -> bool:
-    if len(ps) != 1:
-        return False
-    if not _eq_list(s.left, ps[0].left):
-        return False
-    return _is_permutation(s.right, ps[0].right)
-
-
-def _is_permutation(a: list[Formula], b: list[Formula]) -> bool:
-    if len(a) != len(b):
-        return False
-    used = [False] * len(b)
-    for f in a:
-        found = False
-        for j, g in enumerate(b):
-            if not used[j] and formula_eq(f, g):
-                used[j] = True
-                found = True
-                break
-        if not found:
-            return False
-    return True
+    return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, A)))
 
 
 # --- Formula equality (alpha-equivalence) ---
 
-def formula_eq(a: Formula, b: Formula, env=None) -> bool:
+def formula_eq(a, b, env=None):
     if env is None:
         env = []
     if type(a) is not type(b):
@@ -273,7 +221,7 @@ def formula_eq(a: Formula, b: Formula, env=None) -> bool:
     return False
 
 
-def _eq_var(v1: Var, v2: Var, env: list) -> bool:
+def _eq_var(v1, v2, env):
     for left, right in reversed(env):
         if v1 is left and v2 is right:
             return True
@@ -282,27 +230,49 @@ def _eq_var(v1: Var, v2: Var, env: list) -> bool:
     return v1 is v2
 
 
-def _eq_list(a: list[Formula], b: list[Formula]) -> bool:
+def _in(f, lst):
+    """Check if f is in lst by alpha-equiv."""
+    return any(formula_eq(expand_all(f), expand_all(g)) for g in lst)
+
+
+def _remove(lst, f):
+    """Remove first occurrence of f from lst by alpha-equiv."""
+    ef = expand_all(f)
+    result = []
+    removed = False
+    for g in lst:
+        if not removed and formula_eq(ef, expand_all(g)):
+            removed = True
+        else:
+            result.append(g)
+    return result
+
+
+def _eq_sequent(a, b):
+    """Sequents are equal as sets (multisets with alpha-equiv)."""
+    return _is_permutation(a.left, b.left) and _is_permutation(a.right, b.right)
+
+
+def _is_permutation(a, b):
     if len(a) != len(b):
         return False
-    return all(formula_eq(x, y) for x, y in zip(a, b))
-
-
-def _eq_sequent(a: Sequent, b: Sequent) -> bool:
-    return _eq_list(a.left, b.left) and _eq_list(a.right, b.right)
-
-
-def _is_sublist(small: list[Formula], big: list[Formula]) -> bool:
-    j = 0
-    for f in big:
-        if j < len(small) and formula_eq(f, small[j]):
-            j += 1
-    return j == len(small)
+    used = [False] * len(b)
+    for f in a:
+        ef = expand_all(f)
+        found = False
+        for j, g in enumerate(b):
+            if not used[j] and formula_eq(ef, expand_all(g)):
+                used[j] = True
+                found = True
+                break
+        if not found:
+            return False
+    return True
 
 
 # --- Substitution helpers ---
 
-def _subst(formula: Formula, old: Var, new: Var) -> Formula:
+def _subst(formula, old, new):
     match formula:
         case In(left, right):
             return In(new if left is old else left,
@@ -317,51 +287,7 @@ def _subst(formula: Formula, old: Var, new: Var) -> Formula:
             return Forall(var, _subst(body, old, new))
 
 
-def _find_subst_term(body: Formula, var: Var, result: Formula, env=None):
-    """Given body, var, result: find t such that body[t/var] = result.
-    env tracks bound variable pairs for alpha-equivalence."""
-    if env is None:
-        env = []
-    if type(body) is not type(result):
-        return None
-    match body:
-        case In(l, r):
-            tl = _match_var(l, var, result.left, env)
-            tr = _match_var(r, var, result.right, env)
-            if tl is None and tr is None:
-                if _eq_var(l, result.left, env) and _eq_var(r, result.right, env):
-                    return Var()  # dummy, var not used
-                return None
-            if tl is not None and tr is not None:
-                if tl is not tr:
-                    return None
-            return tl or tr
-        case Not(o):
-            return _find_subst_term(o, var, result.operand, env)
-        case Implies(l, r):
-            tl = _find_subst_term(l, var, result.left, env)
-            tr = _find_subst_term(r, var, result.right, env)
-            if tl is not None and tr is not None and tl is not tr:
-                return None
-            return tl or tr
-        case Forall(v, b):
-            if v is var:
-                if formula_eq(body, result, env):
-                    return Var()  # shadowed, any term works
-                return None
-            return _find_subst_term(b, var, result.body, env + [(v, result.var)])
-    return None
-
-
-def _match_var(orig: Var, var: Var, target: Var, env: list):
-    if orig is var:
-        return target
-    if _eq_var(orig, target, env):
-        return None  # no substitution needed
-    return None
-
-
-def _free_vars(formula: Formula, bound=None) -> set:
+def _free_vars(formula, bound=None):
     if bound is None:
         bound = set()
     match formula:
@@ -381,7 +307,7 @@ def _free_vars(formula: Formula, bound=None) -> set:
     return set()
 
 
-def _var_free_in(var: Var, formula: Formula) -> bool:
+def _var_free_in(var, formula):
     match formula:
         case In(left, right):
             return left is var or right is var
@@ -396,12 +322,5 @@ def _var_free_in(var: Var, formula: Formula) -> bool:
     return False
 
 
-def _var_free_in_sequent(var: Var, s: Sequent) -> bool:
+def _var_free_in_sequent(var, s):
     return any(_var_free_in(var, f) for f in s.left + s.right)
-
-
-def _all_subformulas(p0: Sequent, p1: Sequent):
-    formulas = []
-    for f in p0.right + p1.left:
-        formulas.append(f)
-    return formulas
