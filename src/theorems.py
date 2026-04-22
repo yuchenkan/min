@@ -1519,3 +1519,88 @@ def eq_transfer():
     return s6
 
 
+def iff_mp(P, Q, vars: list[Var]):
+    """|- forall vars. Iff(P,Q) implies P implies Q"""
+    proof = iff_elim_left(P, Q, vars)
+    proof.name = 'iff_mp'
+    return proof
+
+
+def iff_mp_rev(P, Q, vars: list[Var]):
+    """|- forall vars. Iff(P,Q) implies Q implies P"""
+    proof = iff_elim_right(P, Q, vars)
+    proof.name = 'iff_mp_rev'
+    return proof
+
+
+def singleton_injection():
+    """|- forall a, b. (forall z. Iff(Eq(z,a), Eq(z,b))) implies Eq(a,b)
+    If {a} and {b} have the same elements (z=a iff z=b for all z), then a=b."""
+    a, b, z = Var(), Var(), Var()
+    z2 = Var()
+
+    char = Forall(z, Iff(Eq(z, a), Eq(z, b)))
+    Y = Eq(a, a)
+    Z = Eq(a, b)
+    iff_yz = Iff(Y, Z)  # Iff(Eq(a,a), Eq(a,b)) — from instantiating char with z=a
+
+    YZ = Implies(Y, Z)
+    ZY = Implies(Z, Y)
+    H = Implies(YZ, Not(ZY))
+
+    # --- Extract YZ from iff_yz (forward: Eq(a,a) -> Eq(a,b)) ---
+    e1 = Proof(Sequent([iff_yz, YZ], [YZ]), 'axiom', principal=YZ)
+    e2 = Proof(Sequent([iff_yz, YZ], [Not(ZY), YZ]), 'weakening_right', [e1], principal=Not(ZY))
+    e3 = Proof(Sequent([iff_yz], [H, YZ]), 'implies_right', [e2], principal=H)
+    e4 = Proof(Sequent([H], [H, YZ]), 'weakening_right',
+               [Proof(Sequent([H], [H]), 'axiom', principal=H)], principal=YZ)
+    e5 = Proof(Sequent([H, iff_yz], [YZ]), 'not_left', [e4], principal=iff_yz)
+    ext_yz = Proof(Sequent([iff_yz], [YZ]), 'cut', [e3, e5], principal=H)
+
+    # --- Inline Eq(a,a) ---
+    P_r = In(z2, a)
+    PtoP = Implies(P_r, P_r)
+    NPtoP = Not(PtoP)
+    imp_main = Implies(PtoP, NPtoP)
+    iff_body = Not(imp_main)
+    r1 = Proof(Sequent([], [PtoP]), 'implies_right',
+               [Proof(Sequent([P_r], [P_r]), 'axiom', principal=P_r)], principal=PtoP)
+    r2 = Proof(Sequent([], [PtoP]), 'implies_right',
+               [Proof(Sequent([P_r], [P_r]), 'axiom', principal=P_r)], principal=PtoP)
+    r3 = Proof(Sequent([NPtoP], []), 'not_left', [r2], principal=NPtoP)
+    r4 = Proof(Sequent([imp_main], []), 'implies_left', [r1, r3], principal=imp_main)
+    r5 = Proof(Sequent([], [iff_body]), 'not_right', [r4], principal=iff_body)
+    eq_aa = Forall(z2, iff_body)
+    r6 = Proof(Sequent([], [eq_aa]), 'forall_right', [r5], term=z2, principal=eq_aa)
+
+    # --- Modus ponens: Y, YZ |- Z ---
+    mp1 = Proof(Sequent([Y], [Y]), 'axiom', principal=Y)
+    mp2 = Proof(Sequent([Y], [Y, Z]), 'weakening_right', [mp1], principal=Z)
+    mp3 = Proof(Sequent([Y, Z], [Z]), 'axiom', principal=Z)
+    mp4 = Proof(Sequent([Y, YZ], [Z]), 'implies_left', [mp2, mp3], principal=YZ)
+
+    # --- Combine: iff_yz |- Z via cuts ---
+    # Cut YZ
+    c1a = Proof(Sequent([iff_yz], [YZ, Z]), 'weakening_right', [ext_yz], principal=Z)
+    c1b = Proof(Sequent([iff_yz, Y], [YZ, Z]), 'weakening_left', [c1a], principal=Y)
+    c1c = Proof(Sequent([iff_yz, Y, YZ], [Z]), 'weakening_left', [mp4], principal=iff_yz)
+    c1 = Proof(Sequent([iff_yz, Y], [Z]), 'cut', [c1b, c1c], principal=YZ)
+    # Cut Y (eq_reflexive)
+    c2a = Proof(Sequent([], [eq_aa, Z]), 'weakening_right', [r6], principal=Z)
+    c2b = Proof(Sequent([iff_yz], [eq_aa, Z]), 'weakening_left', [c2a], principal=iff_yz)
+    c2 = Proof(Sequent([iff_yz], [Z]), 'cut', [c2b, c1], principal=Y)
+
+    # --- Instantiate char with z=a ---
+    d1 = Proof(Sequent([char], [Z]), 'forall_left', [c2], principal=char, term=a)
+
+    # --- Close ---
+    imp = Implies(char, Z)
+    s1 = Proof(Sequent([], [imp]), 'implies_right', [d1], principal=imp)
+    fb = Forall(b, imp)
+    s2 = Proof(Sequent([], [fb]), 'forall_right', [s1], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s3 = Proof(Sequent([], [fa]), 'forall_right', [s2], term=a, principal=fa)
+    s3.name = 'singleton_injection'
+    return s3
+
+
