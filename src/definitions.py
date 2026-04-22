@@ -1,13 +1,22 @@
-"""Database of formal definitions built on core."""
+"""Database of formal definitions built on core.
+
+Naming convention:
+- Predicates (Empty, Singleton, PairSet, Successor, IsInductive, Subset):
+  formula-level objects describing a property of sets.
+- Compound definitions (OrdPair, Omega):
+  build formulas using predicates + Forall/Implies.
+- SetSpec: generic definite description for unnamed set constructions
+  (Union, Intersect, PowerSet, Diff, BigUnion, BigIntersect).
+"""
 
 from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Exists, And, Or, Iff, Eq
 
 
-class SetSpec:
-    """P(S) = forall s. (forall x. x in s iff cond(x)) implies P(s)
-    cond: lambda x -> formula describing membership"""
+# --- Generic definite description (for unnamed sets) ---
 
+class SetSpec:
+    """forall s. (forall x. x in s iff cond(x)) implies body(s)"""
     def __init__(self, cond, body, prefix=None):
         self.cond = cond
         self.body = body
@@ -15,19 +24,19 @@ class SetSpec:
             x = Var()
             prefix = f'{{{x}|{cond(x)}}}'
         self.var = Var(prefix)
-
     def expand(self):
         x = Var()
         return Forall(self.var, Implies(
             Forall(x, Iff(In(x, self.var), self.cond(x))),
             self.body(self.var)))
-
     def __str__(self):
         return f'{self.body(self.var)}'
 
 
+# --- Predicates ---
+
 class Empty:
-    """Empty(s) = forall x. not(x in s). Predicate: s is empty."""
+    """Empty(s) = forall x. not(x in s)"""
     __match_args__ = ('set',)
     def __init__(self, s):
         self.set = s
@@ -40,38 +49,58 @@ class Empty:
         return f'Empty({self.set})'
 
 
-class WithEmpty:
-    """forall s. Empty(s) implies P(s). Definite description for the empty set."""
-    def __init__(self, body):
-        self.var = Var('{}')
-        self.body = body
+class Singleton:
+    """Singleton(s, a) = forall x. Iff(In(x, s), Eq(x, a)). s is {a}."""
+    __match_args__ = ('set', 'elem')
+    def __init__(self, s, a):
+        self.set = s
+        self.elem = a
     def expand(self):
-        return Forall(self.var, Implies(Empty(self.var), self.body(self.var)))
+        x = Var()
+        return Forall(x, Iff(In(x, self.set), Eq(x, self.elem)))
+    def subst(self, old, new):
+        return Singleton(new if self.set is old else self.set,
+                         new if self.elem is old else self.elem)
     def __str__(self):
-        return f'forall {self.var}. ({self.body(self.var)})'
+        return f'{self.set} = {{{self.elem}}}'
 
 
-def Singleton(a, body, prefix=None):
-    """{a}: x in {a} iff x = a"""
-    return SetSpec(lambda x: Eq(x, a), body, prefix or f'{{{a}}}')
+class PairSet:
+    """PairSet(s, a, b) = forall x. Iff(In(x, s), Or(Eq(x, a), Eq(x, b))). s is {a,b}."""
+    __match_args__ = ('set', 'left', 'right')
+    def __init__(self, s, a, b):
+        self.set = s
+        self.left = a
+        self.right = b
+    def expand(self):
+        x = Var()
+        return Forall(x, Iff(In(x, self.set), Or(Eq(x, self.left), Eq(x, self.right))))
+    def subst(self, old, new):
+        return PairSet(new if self.set is old else self.set,
+                       new if self.left is old else self.left,
+                       new if self.right is old else self.right)
+    def __str__(self):
+        return f'{self.set} = {{{self.left},{self.right}}}'
 
 
-def PairSet(a, b, body, prefix=None):
-    """{a, b}: x in {a,b} iff x = a or x = b"""
-    return SetSpec(lambda x: Or(Eq(x, a), Eq(x, b)), body, prefix or f'{{{a},{b}}}')
+class Successor:
+    """Successor(s, x) = forall z. Iff(In(z, s), Or(In(z, x), Eq(z, x))). s is S(x) = x union {x}."""
+    __match_args__ = ('set', 'of')
+    def __init__(self, s, x):
+        self.set = s
+        self.of = x
+    def expand(self):
+        z = Var()
+        return Forall(z, Iff(In(z, self.set), Or(In(z, self.of), Eq(z, self.of))))
+    def subst(self, old, new):
+        return Successor(new if self.set is old else self.set,
+                         new if self.of is old else self.of)
+    def __str__(self):
+        return f'{self.set} = S({self.of})'
 
-
-def OrdPair(a, b, body):
-    """(a, b) = {{a}, {a, b}}"""
-    return Singleton(a, lambda sa:
-        PairSet(a, b, lambda pab:
-            PairSet(sa, pab, body, f'({a},{b})')))
-
-
-# --- Section 4.1.4: Basic operations ---
 
 class Subset:
-    """a sub b = forall x. x in a implies x in b"""
+    """Subset(a, b) = forall x. In(x, a) implies In(x, b). a sub b."""
     __match_args__ = ('left', 'right')
     def __init__(self, a, b):
         self.left = a
@@ -85,6 +114,56 @@ class Subset:
     def __str__(self):
         return f'{self.left} sub {self.right}'
 
+
+class IsInductive:
+    """isInductive(a) = (forall e. Empty(e) implies e in a)
+                      and (forall x in a. forall s. Successor(s, x) implies s in a)"""
+    __match_args__ = ('set',)
+    def __init__(self, a):
+        self.set = a
+    def expand(self):
+        e, x, s = Var(), Var(), Var()
+        return And(
+            Forall(e, Implies(Empty(e), In(e, self.set))),
+            Forall(x, Implies(In(x, self.set),
+                Forall(s, Implies(Successor(s, x), In(s, self.set))))))
+    def subst(self, old, new):
+        return IsInductive(new if self.set is old else self.set)
+    def __str__(self):
+        return f'Inductive({self.set})'
+
+
+# --- Compound definitions ---
+
+def OrdPair(a, b, body):
+    """(a, b) = {{a}, {a, b}}. Kuratowski ordered pair."""
+    sa = Var(f'{{{a}}}')
+    pab = Var(f'{{{a},{b}}}')
+    t = Var(f'({a},{b})')
+    return Forall(sa, Implies(Singleton(sa, a),
+        Forall(pab, Implies(PairSet(pab, a, b),
+            Forall(t, Implies(PairSet(t, sa, pab), body(t)))))))
+
+
+class Omega:
+    """P(omega). omega = smallest inductive set.
+    forall b. isInductive(b) implies
+      forall a. (forall x. x in a iff (x in b and forall c. isInductive(c) implies x in c))
+        implies P(a)"""
+    def __init__(self, body):
+        self.body = body
+    def expand(self):
+        b, a, x, c = Var(), Var(), Var(), Var()
+        cond = And(In(x, b), Forall(c, Implies(IsInductive(c), In(x, c))))
+        char_a = Forall(x, Iff(In(x, a), cond))
+        return Forall(b, Implies(IsInductive(b),
+            Forall(a, Implies(char_a, self.body(a)))))
+    def __str__(self):
+        v = Var('omega')
+        return f'{self.body(v)}'
+
+
+# --- Set operations (use SetSpec for unnamed constructions) ---
 
 def Union(a, b, body):
     """a union b: z in a|b iff z in a or z in b"""
@@ -117,44 +196,4 @@ def Diff(a, b, body):
     """Set difference: z in a\\b iff z in a and not z in b"""
     return SetSpec(lambda z: And(In(z, a), Not(In(z, b))), body, f'{a}\\{b}')
 
-
-# --- Section 4.2.1: Natural numbers ---
-
-def Successor(x, body):
-    """S(x) = x union {x}: z in S(x) iff z in x or z = x"""
-    return SetSpec(lambda z: Or(In(z, x), Eq(z, x)), body, f'S({x})')
-
-
-class IsInductive:
-    """isInductive(a) = empty in a and forall x in a, S(x) in a"""
-    __match_args__ = ('set',)
-    def __init__(self, a):
-        self.set = a
-    def expand(self):
-        x = Var()
-        return And(
-            WithEmpty(lambda e: In(e, self.set)),
-            Forall(x, Implies(In(x, self.set),
-                Successor(x, lambda s: In(s, self.set)))))
-    def subst(self, old, new):
-        return IsInductive(new if self.set is old else self.set)
-    def __str__(self):
-        return f'Inductive({self.set})'
-
-
-class Omega:
-    """P(omega). omega = smallest inductive set.
-    forall b. isInductive(b) implies
-      forall a. (a = {x in b : x in every inductive set}) implies P(a)"""
-    def __init__(self, body):
-        self.body = body
-    def expand(self):
-        b, a, x, c = Var(), Var(), Var(), Var()
-        cond = And(In(x, b), Forall(c, Implies(IsInductive(c), In(x, c))))
-        char_a = Forall(x, Iff(In(x, a), cond))
-        return Forall(b, Implies(IsInductive(b),
-            Forall(a, Implies(char_a, self.body(a)))))
-    def __str__(self):
-        v = Var('omega')
-        return f'{self.body(v)}'
 
