@@ -208,17 +208,14 @@ def iff_intro(P, Q):
     QP = Implies(Q, P)
     NQP = Not(QP)
     H = Implies(PQ, NQP)
-    goal = Not(H)
+    iff = Iff(P, Q)
 
-    ax0 = Proof(Sequent([QP, PQ], [PQ]), 'axiom')
-    p0 = Proof(Sequent([PQ, QP], [PQ]), 'exchange_left', [ax0])
-
-    p1_ax = Proof(Sequent([PQ, QP], [QP]), 'axiom')
-    p1 = Proof(Sequent([PQ, QP, NQP], []), 'not_left', [p1_ax])
-
-    s1 = Proof(Sequent([PQ, QP, H], []), 'implies_left', [p0, p1])
-    s2 = Proof(Sequent([PQ, QP], [Iff(P, Q)]), 'not_right', [s1],
-               name='iff_intro')
+    p0 = _axiom(PQ, left=[QP])              # PQ, QP |- PQ
+    p1 = Proof(Sequent([PQ, QP, NQP], []), 'not_left',
+               [_axiom(QP, left=[PQ])], principal=NQP)
+    s1 = Proof(Sequent([PQ, QP, H], []), 'implies_left', [p0, p1], principal=H)
+    s2 = Proof(Sequent([PQ, QP], [iff]), 'not_right', [s1],
+               principal=iff, name='iff_intro')
     return s2
 
 
@@ -228,23 +225,26 @@ def iff_elim_left(P, Q):
     QP = Implies(Q, P)
     NQP = Not(QP)
     H = Implies(PQ, NQP)
-    NH = Not(H)
+    NH = Not(H)  # = Iff(P, Q) expanded
 
-    p0a = Proof(Sequent([NH, QP, P], [P, Q]), 'axiom')
-    p0b = Proof(Sequent([NH, QP, P, Q], [Q]), 'axiom')
-    s_impl = Proof(Sequent([NH, QP, P, PQ], [Q]), 'implies_left', [p0a, p0b])
-    s_exl = Proof(Sequent([NH, P, PQ, QP], [Q]), 'exchange_left', [s_impl])
-    s_notr = Proof(Sequent([NH, P, PQ], [NQP, Q]), 'not_right', [s_exl])
-    p0_cut = Proof(Sequent([NH, P], [H, Q]), 'implies_right', [s_notr])
+    # NH, P |- Q via cut on H
+    # p0: NH, P |- H, Q
+    p0a = _axiom(P, left=[NH, QP], right=[Q])
+    p0b = _axiom(Q, left=[NH, QP, P])
+    s_impl = Proof(Sequent([NH, QP, P, PQ], [Q]), 'implies_left',
+                   [p0a, p0b], principal=PQ)
+    s_notr = Proof(Sequent([NH, P, PQ], [NQP, Q]), 'not_right',
+                   [s_impl], principal=NQP)
+    p0 = Proof(Sequent([NH, P], [H, Q]), 'implies_right',
+               [s_notr], principal=H)
 
-    p1_ax = Proof(Sequent([P, H], [H, Q]), 'axiom')
-    p1_notl = Proof(Sequent([P, H, NH], [Q]), 'not_left', [p1_ax])
-    p1_cut = Proof(Sequent([NH, P, H], [Q]), 'exchange_left', [p1_notl])
+    # p1: NH, P, H |- Q
+    p1_ax = _axiom(H, left=[P], right=[Q])
+    p1 = Proof(Sequent([P, H, NH], [Q]), 'not_left', [p1_ax], principal=NH)
 
-    s_cut = Proof(Sequent([NH, P], [Q]), 'cut', [p0_cut, p1_cut])
-    s_final = Proof(Sequent([NH], [PQ]), 'implies_right', [s_cut],
-                    name='iff_elim_left')
-    return s_final
+    s_cut = Proof(Sequent([NH, P], [Q]), 'cut', [p0, p1], principal=H)
+    return Proof(Sequent([NH], [PQ]), 'implies_right', [s_cut],
+                 principal=PQ, name='iff_elim_left')
 
 
 def iff_elim_right(P, Q):
@@ -255,38 +255,24 @@ def iff_elim_right(P, Q):
     H = Implies(PQ, NQP)
     NH = Not(H)
 
-    # NH |- QP by: assume not, derive contradiction
-    # not_right: [NH, NQP] |- [] from [NH] |- [QP]
-    # But we need [NH] |- [QP] which is what we're proving... circular.
-    # Different approach: derive from NH that NQP is false, so QP holds.
+    # NH, Q |- P via cut on H
+    # p0: NH, Q |- H, P
+    p0a = _axiom(Q, left=[NH, PQ], right=[P])
+    p0b = _axiom(P, left=[NH, PQ, Q])
+    s_impl = Proof(Sequent([NH, PQ, Q, QP], [P]), 'implies_left',
+                   [p0a, p0b], principal=QP)
+    s_notr = Proof(Sequent([NH, Q, PQ], [NQP, P]), 'not_right',
+                   [s_impl], principal=NQP)
+    p0 = Proof(Sequent([NH, Q], [H, P]), 'implies_right',
+               [s_notr], principal=H)
 
-    # [NH, Q] |- [P]
-    # Cut with H:
-    #   p0: [NH, Q] |- [H, P]
-    #   p1: [NH, Q, H] |- [P]
+    # p1: NH, Q, H |- P
+    p1_ax = _axiom(H, left=[Q], right=[P])
+    p1 = Proof(Sequent([Q, H, NH], [P]), 'not_left', [p1_ax], principal=NH)
 
-    # p0: [NH, Q] |- [H, P]
-    # H = Implies(PQ, NQP). implies_right: [NH, Q, PQ] |- [NQP, P]
-    # NQP = Not(QP). not_right: [NH, Q, PQ, QP] |- [P]
-    # exchange QP last... no, PQ is the implies. Let me build:
-    # [NH, Q, PQ, QP] |- [P]
-    # exchange to put QP last: [NH, Q, PQ, QP] -> [NH, PQ, Q, QP]
-    # implies_left on QP (last): from [NH, PQ, Q] |- [Q, P] and [NH, PQ, Q, P] |- [P]
-    ax_a = Proof(Sequent([NH, PQ, Q], [Q, P]), 'axiom')
-    ax_b = Proof(Sequent([NH, PQ, Q, P], [P]), 'axiom')
-    s_impl2 = Proof(Sequent([NH, PQ, Q, QP], [P]), 'implies_left', [ax_a, ax_b])
-    s_exl2 = Proof(Sequent([NH, Q, PQ, QP], [P]), 'exchange_left', [s_impl2])
-    s_notr2 = Proof(Sequent([NH, Q, PQ], [NQP, P]), 'not_right', [s_exl2])
-    p0_cut2 = Proof(Sequent([NH, Q], [H, P]), 'implies_right', [s_notr2])
-
-    p1_ax2 = Proof(Sequent([Q, H], [H, P]), 'axiom')
-    p1_notl2 = Proof(Sequent([Q, H, NH], [P]), 'not_left', [p1_ax2])
-    p1_cut2 = Proof(Sequent([NH, Q, H], [P]), 'exchange_left', [p1_notl2])
-
-    s_cut2 = Proof(Sequent([NH, Q], [P]), 'cut', [p0_cut2, p1_cut2])
-    s_final2 = Proof(Sequent([NH], [QP]), 'implies_right', [s_cut2],
-                     name='iff_elim_right')
-    return s_final2
+    s_cut = Proof(Sequent([NH, Q], [P]), 'cut', [p0, p1], principal=H)
+    return Proof(Sequent([NH], [QP]), 'implies_right', [s_cut],
+                 principal=QP, name='iff_elim_right')
 
 
 def eq_symmetric():
