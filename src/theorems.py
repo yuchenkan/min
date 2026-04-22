@@ -37,8 +37,7 @@ def _axiom(A, left=None, right=None):
 
 
 def _not_left(proof, A):
-    """G, Not(A) |- D  from  G |- A, D.
-    Removes A from right, adds Not(A) to left."""
+    """G, Not(A) |- D  from  G |- A, D."""
     s = proof.sequent
     na = Not(A)
     return Proof(Sequent(s.left + [na], [f for f in s.right if f is not A]),
@@ -46,8 +45,7 @@ def _not_left(proof, A):
 
 
 def _not_right(proof, A):
-    """G |- Not(A), D  from  G, A |- D.
-    Removes A from left, adds Not(A) to right."""
+    """G |- Not(A), D  from  G, A |- D."""
     s = proof.sequent
     na = Not(A)
     return Proof(Sequent([f for f in s.left if f is not A], s.right + [na]),
@@ -55,8 +53,7 @@ def _not_right(proof, A):
 
 
 def _implies_left(proof0, proof1, imp):
-    """G, A->B |- D  from  proof0: G |- A, D  and  proof1: G, B |- D.
-    Removes A from proof0 right, removes B from proof1 left, adds A->B to left."""
+    """G, A->B |- D  from  proof0: G |- A, D  and  proof1: G, B |- D."""
     s0 = proof0.sequent
     return Proof(Sequent(s0.left + [imp],
                          [f for f in s0.right if f is not imp.left]),
@@ -64,8 +61,7 @@ def _implies_left(proof0, proof1, imp):
 
 
 def _implies_right(proof, A, B):
-    """G |- A->B, D  from  G, A |- B, D.
-    Removes A from left, removes B from right, adds A->B to right."""
+    """G |- A->B, D  from  G, A |- B, D."""
     s = proof.sequent
     imp = Implies(A, B)
     return Proof(Sequent([f for f in s.left if f is not A],
@@ -74,8 +70,7 @@ def _implies_right(proof, A, B):
 
 
 def _forall_left(proof, forall_formula, term):
-    """G, Forall(x,A) |- D  from  G, A[t/x] |- D.
-    Removes A[t/x] from left, adds Forall(x,A) to left."""
+    """G, Forall(x,A) |- D  from  G, A[t/x] |- D."""
     s = proof.sequent
     substituted = forall_formula.body.subst(forall_formula.var, term)
     return Proof(Sequent([f for f in s.left if f is not substituted] + [forall_formula],
@@ -84,8 +79,7 @@ def _forall_left(proof, forall_formula, term):
 
 
 def _forall_right(proof, var, body):
-    """G |- Forall(x,A), D  from  G |- A[y/x], D.
-    Removes A[y/x] from right, adds Forall(x,A) to right."""
+    """G |- Forall(x,A), D  from  G |- A[y/x], D."""
     s = proof.sequent
     fa = Forall(var, body)
     return Proof(Sequent(s.left, [f for f in s.right if f is not body] + [fa]),
@@ -1025,7 +1019,8 @@ def tuple_injection_reverse():
     or_bc_bd = Or(eq_bc, eq_bd)
     iff_b = Iff(or_ba_bb, or_bc_bd)
 
-    h_pair_inst = _forall_left(_axiom(iff_b), H_pair, b)
+    h_pair_inst = Proof(Sequent([H_pair], [iff_b]), 'forall_left',
+                        [_axiom(iff_b)], term=b, principal=H_pair)
     # [H_pair] |- [iff_b]
 
     # Eq(b,b) is true (reflexivity)
@@ -1120,13 +1115,20 @@ def tuple_injection_reverse():
     step_a = _cut(got_ac_w, result_w, eq_ac, G + [or_bc_bd], [And(eq_ac, or_bc_bd)])
     step_b = _cut(s2_w, step_a, or_bc_bd, G, [And(eq_ac, or_bc_bd)])
 
-    s_i1 = _implies_right(step_b)
-    s_i2 = _implies_right(s_i1)
-    s_fd = _forall_right(s_i2, d)
-    s_fc = _forall_right(s_fd, c)
-    s_fb = _forall_right(s_fc, b)
-    s_fa = _forall_right(s_fb, a)
-    s_fa.name = 'tuple_injection_partial'
+    and_result = And(eq_ac, or_bc_bd)
+    imp_sing = Implies(H_sing, and_result)
+    s_i1 = Proof(Sequent([H_pair], [imp_sing]), 'implies_right', [step_b], principal=imp_sing)
+    imp_pair = Implies(H_pair, imp_sing)
+    s_i2 = Proof(Sequent([], [imp_pair]), 'implies_right', [s_i1], principal=imp_pair)
+    fd = Forall(d, imp_pair)
+    s_fd = Proof(Sequent([], [fd]), 'forall_right', [s_i2], term=d, principal=fd)
+    fc = Forall(c, fd)
+    s_fc = Proof(Sequent([], [fc]), 'forall_right', [s_fd], term=c, principal=fc)
+    fb = Forall(b, fc)
+    s_fb = Proof(Sequent([], [fb]), 'forall_right', [s_fc], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s_fa = Proof(Sequent([], [fa]), 'forall_right', [s_fb],
+                 term=a, principal=fa, name='tuple_injection_partial')
     return s_fa
 
 
@@ -1163,7 +1165,8 @@ def eq_bc_implies_bd(a=None, b=None, c=None, d=None, x=None):
     or_dc_dd = Or(eq_dc, eq_dd)
     iff_d = Iff(or_da_db, or_dc_dd)
 
-    h_inst = _forall_left(_axiom(iff_d), H_pair, d)
+    h_inst = Proof(Sequent([H_pair], [iff_d]), 'forall_left',
+                   [_axiom(iff_d)], term=d, principal=H_pair)
     # [H_pair] |- [iff_d]
 
     # Eq(d,d) is true
@@ -1238,28 +1241,27 @@ def eq_bc_implies_bd(a=None, b=None, c=None, d=None, x=None):
     c3 = _cut(c2, step_bd, eq_db2, ctx_case1, [eq_bd])
     # [Eq(d,a), Eq(a,c), Eq(b,c)] |- [Eq(b,d)]
 
-    case1 = _implies_right(_exchange_left(c3, [eq_ac, eq_bc, eq_da]))
-    # [Eq(a,c), Eq(b,c)] |- [Implies(Eq(d,a), Eq(b,d))]
+    imp_da_bd = Implies(eq_da, eq_bd)
+    case1 = Proof(Sequent([eq_ac, eq_bc], [imp_da_bd]), 'implies_right',
+                  [c3], principal=imp_da_bd)
 
-    case2_imp = _implies_right(_weaken_to(case2, [eq_ac, eq_bc, eq_db], [eq_bd]))
-    case2_imp2 = _exchange_left(case2_imp, [eq_ac, eq_bc])
-    # oops, case2_imp has [eq_ac, eq_bc, Eq(d,b)] on left before implies_right
-    # After implies_right: [eq_ac, eq_bc] |- [Implies(Eq(d,b), Eq(b,d))]
+    imp_db_bd = Implies(eq_db, eq_bd)
+    case2_w = _weaken_to(case2, [eq_ac, eq_bc, eq_db], [eq_bd])
+    case2_imp2 = Proof(Sequent([eq_ac, eq_bc], [imp_db_bd]), 'implies_right',
+                       [case2_w], principal=imp_db_bd)
 
     # or_elim: Or(Eq(d,a), Eq(d,b)), Eq(d,a)->Eq(b,d), Eq(d,b)->Eq(b,d) |- Eq(b,d)
     oe = or_elim(eq_da, eq_db, eq_bd)
-    imp_da_bd = Implies(eq_da, eq_bd)
-    imp_db_bd = Implies(eq_db, eq_bd)
 
     ctx_final = [H_pair, eq_ac, eq_bc]
     oe_w = _weaken_to(oe, ctx_final + [or_da_db, imp_da_bd, imp_db_bd], [eq_bd])
     s2_w = _weaken_to(s2, ctx_final, [or_da_db])
     case1_w = _weaken_to(case1, ctx_final, [imp_da_bd])
-    case2_w = _weaken_to(case2_imp, ctx_final, [imp_db_bd])
+    case2_ww = _weaken_to(case2_imp2, ctx_final, [imp_db_bd])
 
     r1 = _cut(s2_w, oe_w, or_da_db, ctx_final + [imp_da_bd, imp_db_bd], [eq_bd])
     r2 = _cut(case1_w, r1, imp_da_bd, ctx_final + [imp_db_bd], [eq_bd])
-    r3 = _cut(case2_w, r2, imp_db_bd, ctx_final, [eq_bd])
+    r3 = _cut(case2_ww, r2, imp_db_bd, ctx_final, [eq_bd])
     # [H_pair, Eq(a,c), Eq(b,c)] |- [Eq(b,d)]
 
     r3.name = 'eq_bc_implies_bd'
@@ -1302,12 +1304,12 @@ def tuple_injection_full():
     # Case Eq(b,c): by eq_bc_implies_bd, H_pair, Eq(a,c), Eq(b,c) |- Eq(b,d)
     case_bc = eq_bc_implies_bd(a, b, c, d, x)
     # case_bc: [H_pair, Eq(a,c), Eq(b,c)] |- [Eq(b,d)]
-    case_bc_imp = _implies_right(_weaken_to(case_bc, G + [eq_ac, eq_bc], [eq_bd]))
+    case_bc_imp = _implies_right(_weaken_to(case_bc, G + [eq_ac, eq_bc], [eq_bd]), eq_bc, eq_bd)
     # G, Eq(a,c) |- Implies(Eq(b,c), Eq(b,d))
 
     # Case Eq(b,d): trivially Eq(b,d)
     case_bd = _axiom(eq_bd)
-    case_bd_imp = _implies_right(_weaken_to(case_bd, G + [eq_ac, eq_bd], [eq_bd]))
+    case_bd_imp = _implies_right(_weaken_to(case_bd, G + [eq_ac, eq_bd], [eq_bd]), eq_bd, eq_bd)
     # G, Eq(a,c) |- Implies(Eq(b,d), Eq(b,d))
 
     # or_elim: Or(Eq(b,c),Eq(b,d)), Eq(b,c)->Eq(b,d), Eq(b,d)->Eq(b,d) |- Eq(b,d)
@@ -1341,13 +1343,20 @@ def tuple_injection_full():
     # The hypothesis H_pair = forall x. Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d)))
     # is Eq({a,b},{c,d}) at the membership level.
     # H_sing = forall y. Iff(Eq(y,a), Eq(y,c)) is Eq({a},{c}).
-    s_i1 = _implies_right(s2)
-    s_i2 = _implies_right(s_i1)
-    s_fd = _forall_right(s_i2, d)
-    s_fc = _forall_right(s_fd, c)
-    s_fb = _forall_right(s_fc, b)
-    s_fa = _forall_right(s_fb, a)
-    s_fa.name = 'tuple_injection'
+    and_goal = And(eq_ac, eq_bd)
+    imp_sing = Implies(H_sing, and_goal)
+    s_i1 = Proof(Sequent([H_pair], [imp_sing]), 'implies_right', [s2], principal=imp_sing)
+    imp_pair = Implies(H_pair, imp_sing)
+    s_i2 = Proof(Sequent([], [imp_pair]), 'implies_right', [s_i1], principal=imp_pair)
+    fd = Forall(d, imp_pair)
+    s_fd = Proof(Sequent([], [fd]), 'forall_right', [s_i2], term=d, principal=fd)
+    fc = Forall(c, fd)
+    s_fc = Proof(Sequent([], [fc]), 'forall_right', [s_fd], term=c, principal=fc)
+    fb = Forall(b, fc)
+    s_fb = Proof(Sequent([], [fb]), 'forall_right', [s_fc], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s_fa = Proof(Sequent([], [fa]), 'forall_right', [s_fb],
+                 term=a, principal=fa, name='tuple_injection')
     return s_fa
 
 
@@ -1391,7 +1400,8 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
 
     # Step 1: H_tuple, sing_a |- Or(sing_c, pair_cd)
     iff_inst = Iff(or_left, or_right)
-    h_inst = _forall_left(_axiom(iff_inst), H_tuple, s)
+    h_inst = Proof(Sequent([H_tuple], [iff_inst]), 'forall_left',
+                   [_axiom(iff_inst)], term=s, principal=H_tuple)
     # H_tuple |- iff_inst
 
     got_or_left = or_intro_left(sing_a, pair_ab)  # sing_a |- or_left
@@ -1436,7 +1446,7 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
     got_in_to_yc = _cut(got_iff_yc, in_to_yc, iff_yc, ctx_fwd, [Implies(in_ys, eq_yc)])
     got_yc = _apply_imp(got_in_to_yc, got_in, ctx_fwd)
     # [sing_a, sing_c, Eq(y,a)] |- [Eq(y,c)]
-    fwd_impl = _implies_right(got_yc)
+    fwd_impl = _implies_right(got_yc, eq_ya, eq_yc)
     # [sing_a, sing_c] |- [Implies(Eq(y,a), Eq(y,c))]
 
     # Backward: Eq(y,c) -> In(y,s) -> Eq(y,a)
@@ -1454,7 +1464,7 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
 
     got_in_to_ya = _cut(got_iff_ya2, in_to_ya, iff_ya, ctx_bwd, [Implies(in_ys, eq_ya)])
     got_ya = _apply_imp(got_in_to_ya, got_in2, ctx_bwd)
-    bwd_impl = _implies_right(got_ya)
+    bwd_impl = _implies_right(got_ya, eq_yc, eq_ya)
     # [sing_a, sing_c] |- [Implies(Eq(y,c), Eq(y,a))]
 
     # iff_intro: [sing_a, sing_c] |- Iff(Eq(y,a), Eq(y,c))
@@ -1465,9 +1475,9 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
     ii_w = _weaken_to(ii, ctx_ii + [imp_fwd, imp_bwd], [Iff(eq_ya, eq_yc)])
     r1 = _cut(fwd_impl, ii_w, imp_fwd, ctx_ii + [imp_bwd], [Iff(eq_ya, eq_yc)])
     r2 = _cut(bwd_impl, r1, imp_bwd, ctx_ii, [Iff(eq_ya, eq_yc)])
-    case_a = _forall_right(r2, y)
+    case_a = _forall_right(r2, y, Iff(eq_ya, eq_yc))
     # [sing_a, sing_c] |- H_sing
-    case_a_imp = _implies_right(case_a)
+    case_a_imp = _implies_right(case_a, sing_c, H_sing)
     # [sing_a] |- Implies(sing_c, H_sing)
 
     # Step 3 Case B: sing_a, pair_cd |- H_sing
@@ -1499,7 +1509,7 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
     gc2 = _weaken_to(inst_cd, ctx_b_fwd, [iff_or_ins])
     gc3 = _cut(gc2, in_to_or, iff_or_ins, ctx_b_fwd, [Implies(In(z, s), or_zcd)])
     got_or_b = _apply_imp(gc3, got_in_b, ctx_b_fwd)
-    fwd_b = _implies_right(got_or_b)
+    fwd_b = _implies_right(got_or_b, eq_za, or_zcd)
     # [sing_a, pair_cd] |- Implies(Eq(z,a), Or(Eq(z,c),Eq(z,d)))
 
     # Backward: Or(Eq(z,c),Eq(z,d)) -> In(z,s) -> Eq(z,a)
@@ -1516,7 +1526,7 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
         _forall_left(_axiom(iff_za_ins), sing_a, z), ctx_b_bwd, [iff_za_ins])
     ga5 = _cut(ga4, in_to_za, iff_za_ins, ctx_b_bwd, [Implies(In(z, s), eq_za)])
     got_za_b = _apply_imp(ga5, got_in_b2, ctx_b_bwd)
-    bwd_b = _implies_right(got_za_b)
+    bwd_b = _implies_right(got_za_b, or_zcd, eq_za)
     # [sing_a, pair_cd] |- Implies(Or(Eq(z,c),Eq(z,d)), Eq(z,a))
 
     # iff_intro
@@ -1527,7 +1537,7 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
     ii_bw = _weaken_to(ii_b, ctx_b + [imp_fwd_b, imp_bwd_b], [iff_za_or])
     rb1 = _cut(fwd_b, ii_bw, imp_fwd_b, ctx_b + [imp_bwd_b], [iff_za_or])
     rb2 = _cut(bwd_b, rb1, imp_bwd_b, ctx_b, [iff_za_or])
-    got_iff_b = _forall_right(rb2, z)
+    got_iff_b = _forall_right(rb2, z, iff_za_or)
     # [sing_a, pair_cd] |- Forall(z, Iff(Eq(z,a), Or(Eq(z,c),Eq(z,d))))
 
     # Instantiate z=c: Iff(Eq(c,a), Or(Eq(c,c), Eq(c,d)))
@@ -1565,10 +1575,10 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
     et = _instantiate(eq_transfer(), [a, c, y])  # |- Eq(a,c) -> Iff(Eq(y,a), Eq(y,c))
     got_iff_yac = _apply_imp(et, got_ac, ctx_b)
     # [sing_a, pair_cd] |- Iff(Eq(y,a), Eq(y,c))
-    got_hsing_b = _forall_right(got_iff_yac, y)
-    # [sing_a, pair_cd] |- Forall(y, Iff(Eq(y,a), Eq(y,c))) = H_sing
+    got_hsing_b = _forall_right(got_iff_yac, y, Iff(Eq(y, a), Eq(y, c)))
+    # [sing_a, pair_cd] |- H_sing
 
-    case_b_imp = _implies_right(got_hsing_b)
+    case_b_imp = _implies_right(got_hsing_b, pair_cd, H_sing)
     # [sing_a] |- Implies(pair_cd, H_sing)
 
     # Step 4: or_elim on Or(sing_c, pair_cd) with both cases giving H_sing
@@ -1589,19 +1599,21 @@ def singleton_from_tuple(a=None, b=None, c=None, d=None):
 
     # Close: H_sing doesn't depend on s, so we can close sing_a with implies_right
     # and forall_right on s (s only appears in sing_a, not H_sing)
-    t4 = _implies_right(t3)
-    # [H_tuple] |- Implies(sing_a, H_sing)
-    t5 = _forall_right(t4, s)
-    # [H_tuple] |- Forall(s, Implies(sing_a, H_sing))
-
-    # Now we need: from Forall(s, Implies(sing_a, H_sing)) and exists s. sing_a, get H_sing.
-    # For now, return the universal form — the existential step needs pairing axiom.
-    t6 = _implies_right(t5)
-    t7 = _forall_right(t6, d)
-    t8 = _forall_right(t7, c)
-    t9 = _forall_right(t8, b)
-    t10 = _forall_right(t9, a)
-    t10.name = 'singleton_from_tuple'
+    imp_sa = Implies(sing_a, H_sing)
+    t4 = Proof(Sequent([H_tuple], [imp_sa]), 'implies_right', [t3], principal=imp_sa)
+    fa_s = Forall(s, imp_sa)
+    t5 = Proof(Sequent([H_tuple], [fa_s]), 'forall_right', [t4], term=s, principal=fa_s)
+    imp_ht = Implies(H_tuple, fa_s)
+    t6 = Proof(Sequent([], [imp_ht]), 'implies_right', [t5], principal=imp_ht)
+    fd = Forall(d, imp_ht)
+    t7 = Proof(Sequent([], [fd]), 'forall_right', [t6], term=d, principal=fd)
+    fc = Forall(c, fd)
+    t8 = Proof(Sequent([], [fc]), 'forall_right', [t7], term=c, principal=fc)
+    fb = Forall(b, fc)
+    t9 = Proof(Sequent([], [fb]), 'forall_right', [t8], term=b, principal=fb)
+    fa_top = Forall(a, fb)
+    t10 = Proof(Sequent([], [fa_top]), 'forall_right', [t9],
+                term=a, principal=fa_top, name='singleton_from_tuple')
     return t10
 
 
@@ -1780,7 +1792,8 @@ def pair_from_tuple(a=None, b=None, c=None, d=None):
 
     # H_tuple, pair_ab(s) |- Or(sing_c(s), pair_cd(s))
     iff_inst = Iff(or_left, or_right)
-    h_inst = _forall_left(_axiom(iff_inst), H_tuple, s)
+    h_inst = Proof(Sequent([H_tuple], [iff_inst]), 'forall_left',
+                   [_axiom(iff_inst)], term=s, principal=H_tuple)
     got_or_left = or_intro_right(sing_a, pair_ab)
     got_or_right = _apply_imp(
         iff_elim_left(or_left, or_right),
