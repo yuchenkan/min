@@ -152,21 +152,20 @@ class OrdPair:
 
 
 class Omega:
-    """P(omega). omega = smallest inductive set.
-    forall b. isInductive(b) implies
-      forall a. (forall x. x in a iff (x in b and forall c. isInductive(c) implies x in c))
-        implies P(a)"""
-    def __init__(self, body):
-        self.body = body
+    """Omega(w): w is the smallest inductive set.
+    forall b. isInductive(b) implies forall x. x in w iff (x in b and forall c. isInductive(c) implies x in c)"""
+    __match_args__ = ('set',)
+    def __init__(self, w):
+        self.set = w
     def expand(self):
-        b, a, x, c = Var(), Var(), Var(), Var()
+        b, x, c = Var(), Var(), Var()
         cond = And(In(x, b), Forall(c, Implies(IsInductive(c), In(x, c))))
-        char_a = Forall(x, Iff(In(x, a), cond))
         return Forall(b, Implies(IsInductive(b),
-            Forall(a, Implies(char_a, self.body(a)))))
+            Forall(x, Iff(In(x, self.set), cond))))
+    def subst(self, old, new):
+        return Omega(new if self.set is old else self.set)
     def __str__(self):
-        v = Var('omega')
-        return f'{self.body(v)}'
+        return f'{self.set} = omega'
 
 
 # --- Set operation predicates ---

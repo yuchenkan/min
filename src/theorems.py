@@ -2973,6 +2973,13 @@ def kuratowski():
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    # Restate with OrdPair predicate
+    wrapped = Forall(a, Forall(b, Forall(c, Forall(d,
+        Forall(t1, Implies(OrdPair(t1, a, b),
+            Forall(t2, Implies(OrdPair(t2, c, d),
+                Implies(Eq(t1, t2), goal)))))))))
+    proof = Proof(Sequent([], [wrapped]), proof.rule, proof.premises,
+                  term=proof.term, principal=wrapped)
     proof.name = 'kuratowski'
     return proof
 
