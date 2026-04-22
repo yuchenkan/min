@@ -1,7 +1,7 @@
 """Database of formal definitions built on core.
 
 Naming convention:
-- Predicates (Empty, Singleton, PairSet, Successor, IsInductive, Subset):
+- Predicates (Empty, Singleton, PairSet, Successor, Inductive, Subset):
   formula-level objects describing a property of sets.
 - Compound definitions (OrdPair, Omega):
   build formulas using predicates + Forall/Implies.
@@ -113,7 +113,7 @@ class Subset:
         return f'{self.left} sub {self.right}'
 
 
-class IsInductive:
+class Inductive:
     """isInductive(a) = (forall e. Empty(e) implies e in a)
                       and (forall x in a. forall s. Successor(s, x) implies s in a)"""
     __match_args__ = ('set',)
@@ -126,7 +126,7 @@ class IsInductive:
             Forall(x, Implies(In(x, self.set),
                 Forall(s, Implies(Successor(s, x), In(s, self.set))))))
     def subst(self, old, new):
-        return IsInductive(new if self.set is old else self.set)
+        return Inductive(new if self.set is old else self.set)
     def __str__(self):
         return f'Inductive({self.set})'
 
@@ -159,8 +159,8 @@ class Omega:
         self.set = w
     def expand(self):
         b, x, c = Var(), Var(), Var()
-        cond = And(In(x, b), Forall(c, Implies(IsInductive(c), In(x, c))))
-        return Forall(b, Implies(IsInductive(b),
+        cond = And(In(x, b), Forall(c, Implies(Inductive(c), In(x, c))))
+        return Forall(b, Implies(Inductive(b),
             Forall(x, Iff(In(x, self.set), cond))))
     def subst(self, old, new):
         return Omega(new if self.set is old else self.set)

@@ -55,7 +55,7 @@ if __name__ == '__main__':
         ('forall_implies_exists', theorems.forall_implies_exists(In(x, y), In(y, z), x, [x, y, z])),
         ('singleton_pair_eq', theorems.singleton_pair_eq()),
         # ('kuratowski', theorems.kuratowski()),  # OrdPair definition needs redesign
-        # ('omega_smallest_inductive', theorems.omega_smallest_inductive()),  # Omega redesign
+        ('omega_smallest_inductive', theorems.omega_smallest_inductive()),
     ]
 
     for name, proof in all_proofs:

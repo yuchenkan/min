@@ -4,7 +4,7 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import zfc
-from definitions import Empty, OrdPair, Subset, IsInductive, Omega
+from definitions import Empty, OrdPair, Subset, Inductive, Omega
 
 
 # --- ZFC axioms as theorems (A |- A) ---
@@ -2986,173 +2986,124 @@ def kuratowski():
 
 def omega_smallest_inductive():
     """Theorem 4.2.1: p sub omega and isInductive(p) implies p = omega.
-    |- forall p. Omega(lambda w: Implies(And(Subset(p, w), IsInductive(p)), Eq(p, w)))"""
+    |- forall p, w. Omega(w) -> Subset(p,w) and Inductive(p) -> Eq(p,w)"""
     from tactics import apply_thm, wl, wr, mp
 
-    p, b, a, zv, cv, xv = Var(), Var(), Var(), Var(), Var(), Var()
+    p, w, zv, cv = Var(), Var(), Var(), Var()
 
-    # Hypotheses (from Omega expansion + the implication)
-    ind_b = IsInductive(b)
-    char_ab = Forall(xv, Iff(In(xv, a), And(In(xv, b), Forall(cv, Implies(IsInductive(cv), In(xv, cv))))))
-    sub_pa = Subset(p, a)
-    ind_p = IsInductive(p)
-    hyps = [ind_b, char_ab, sub_pa, ind_p]
+    omega_w = Omega(w)
+    sub_pw = Subset(p, w)
+    ind_p = Inductive(p)
+    hyps = [omega_w, sub_pw, ind_p]
+    eq_pw = Eq(p, w)
 
-    eq_pa = Eq(p, a)
+    # === Forward: In(zv, p) -> In(zv, w) from Subset ===
+    fwd_imp = Implies(In(zv, p), In(zv, w))
+    fwd = Proof(Sequent([sub_pw], [fwd_imp]), 'forall_left',
+                [Proof(Sequent([fwd_imp], [fwd_imp]), 'axiom', principal=fwd_imp)],
+                principal=sub_pw, term=zv)
 
-    # === Forward: In(zv, p) -> In(zv, a) from Subset ===
-    # sub_pa = Forall(xv, Implies(In(xv, p), In(xv, a))) after expansion
-    # Instantiate with zv:
-    fwd_imp = Implies(In(zv, p), In(zv, a))
-    fwd_ax = Proof(Sequent([fwd_imp], [fwd_imp]), 'axiom', principal=fwd_imp)
-    fwd = Proof(Sequent([sub_pa], [fwd_imp]), 'forall_left', [fwd_ax], principal=sub_pa, term=zv)
-    # fwd: [sub_pa] |- [In(zv,p) -> In(zv,a)]
+    # === Backward: In(zv, w) -> In(zv, p) ===
+    # From Omega(w) with b=p: Inductive(p) -> forall x. x in w iff (x in p and ...)
+    and_cond = And(In(zv, p), Forall(cv, Implies(Inductive(cv), In(zv, cv))))
+    iff_zw = Iff(In(zv, w), and_cond)
+    fa_iff = Forall(zv, iff_zw)
+    imp_ind_fa = Implies(ind_p, fa_iff)
 
-    # === Backward: In(zv, a) -> In(zv, p) ===
-    # From char_ab instantiated with zv:
-    and_cond = And(In(zv, b), Forall(cv, Implies(IsInductive(cv), In(zv, cv))))
-    iff_z = Iff(In(zv, a), and_cond)
-    iff_z_ax = Proof(Sequent([iff_z], [iff_z]), 'axiom', principal=iff_z)
-    got_iff_z = Proof(Sequent([char_ab], [iff_z]), 'forall_left',
-                      [iff_z_ax], principal=char_ab, term=zv)
-    # got_iff_z: [char_ab] |- [iff_z]
+    # Instantiate Omega(w) with b=p
+    ax_imp = Proof(Sequent([imp_ind_fa], [imp_ind_fa]), 'axiom', principal=imp_ind_fa)
+    got_imp = Proof(Sequent([omega_w], [imp_ind_fa]), 'forall_left',
+                    [ax_imp], principal=omega_w, term=p)
+    # MP with ind_p: omega_w, ind_p |- fa_iff
+    got_fa = mp(got_imp,
+                Proof(Sequent([ind_p], [ind_p]), 'axiom', principal=ind_p),
+                ind_p, fa_iff)
+    # Instantiate with zv: omega_w, ind_p |- iff_zw
+    got_iff = Proof(Sequent(got_fa.sequent.left, [iff_zw]), 'forall_left',
+                    [Proof(Sequent([iff_zw], [iff_zw]), 'axiom', principal=iff_zw)],
+                    principal=fa_iff, term=zv)
+    # got_fa has fa_iff on right. Cut to instantiate with zv.
+    fl_iff = Proof(Sequent([fa_iff], [iff_zw]), 'forall_left',
+                   [Proof(Sequent([iff_zw], [iff_zw]), 'axiom', principal=iff_zw)],
+                   principal=fa_iff, term=zv)
+    got_iff = Proof(Sequent(got_fa.sequent.left, [iff_zw]), 'cut',
+        [wr(got_fa, iff_zw), wl(fl_iff, *got_fa.sequent.left)], principal=fa_iff)
+    # got_iff: [omega_w, ind_p] |- [iff_zw]
 
-    # Extract forward of iff_z: In(zv, a) -> and_cond
-    iff_fwd = Implies(In(zv, a), and_cond)
-    iff_bwd = Implies(and_cond, In(zv, a))
+    # Extract forward of iff_zw: In(zv,w) -> and_cond
+    iff_fwd = Implies(In(zv, w), and_cond)
+    iff_bwd = Implies(and_cond, In(zv, w))
     H_iff = Implies(iff_fwd, Not(iff_bwd))
-
-    e1 = Proof(Sequent([iff_z, iff_fwd], [iff_fwd]), 'axiom', principal=iff_fwd)
-    e2 = Proof(Sequent([iff_z, iff_fwd], [Not(iff_bwd), iff_fwd]),
+    e1 = Proof(Sequent([iff_zw, iff_fwd], [iff_fwd]), 'axiom', principal=iff_fwd)
+    e2 = Proof(Sequent([iff_zw, iff_fwd], [Not(iff_bwd), iff_fwd]),
                'weakening_right', [e1], principal=Not(iff_bwd))
-    e3 = Proof(Sequent([iff_z], [H_iff, iff_fwd]), 'implies_right', [e2], principal=H_iff)
+    e3 = Proof(Sequent([iff_zw], [H_iff, iff_fwd]), 'implies_right', [e2], principal=H_iff)
     e4 = Proof(Sequent([H_iff], [H_iff, iff_fwd]), 'weakening_right',
                [Proof(Sequent([H_iff], [H_iff]), 'axiom', principal=H_iff)], principal=iff_fwd)
-    e5 = Proof(Sequent([H_iff, iff_z], [iff_fwd]), 'not_left', [e4], principal=iff_z)
-    ext_fwd = Proof(Sequent([iff_z], [iff_fwd]), 'cut', [e3, e5], principal=H_iff)
-    # ext_fwd: [iff_z] |- [In(zv,a) -> and_cond]
+    e5 = Proof(Sequent([H_iff, iff_zw], [iff_fwd]), 'not_left', [e4], principal=iff_zw)
+    ext_fwd = Proof(Sequent([iff_zw], [iff_fwd]), 'cut', [e3, e5], principal=H_iff)
 
-    # Chain: char_ab |- In(zv,a) -> and_cond
-    got_fwd = Proof(Sequent([char_ab], [iff_fwd]), 'cut',
-        [wr(got_iff_z, iff_fwd), wl(ext_fwd, char_ab)], principal=iff_z)
+    # Chain: omega_w, ind_p |- In(zv,w) -> and_cond
+    got_fwd = Proof(Sequent(got_iff.sequent.left, [iff_fwd]), 'cut',
+        [wr(got_iff, iff_fwd), wl(ext_fwd, *got_iff.sequent.left)], principal=iff_zw)
 
-    # From and_cond, extract forall c part (and_elim_right)
-    fa_c = Forall(cv, Implies(IsInductive(cv), In(zv, cv)))
-    # and_cond = And(In(zv,b), fa_c) = Not(Implies(In(zv,b), Not(fa_c)))
-    # and_elim_right: and_cond |- fa_c
-    and_inner = Implies(In(zv, b), Not(fa_c))
-    # and_cond = Not(and_inner)
-    # Cut on and_inner to extract fa_c:
-    ax_ai = Proof(Sequent([and_inner], [and_inner]), 'axiom', principal=and_inner)
-    ax_ai_w = Proof(Sequent([and_inner], [and_inner, fa_c]), 'weakening_right', [ax_ai], principal=fa_c)
-    nl_ac = Proof(Sequent([and_inner, and_cond], [fa_c]), 'not_left', [ax_ai_w], principal=and_cond)
-    # Need and_cond |- and_inner, fa_c for cut
-    # by not_right from and_cond, In(zv,b) |- fa_c:
-    #   from and_cond, In(zv,b), Not(fa_c) |- (not_left from and_cond |- and_inner... hmm)
-    # Actually simpler: and_cond |- fa_c directly
-    # and_cond = Not(Implies(In(zv,b), Not(fa_c)))
-    # If and_cond holds, then In(zv,b) and fa_c both hold.
-    # To extract fa_c:
-    # not_right: and_cond, In(zv,b) |- fa_c ... no
-    # Let me use the and_elim_right theorem
-    aer = and_elim_right(In(zv, b), fa_c, [])
+    # From and_cond extract In(zv, p) (and_elim_left)
+    ael = and_elim_left(In(zv, p), Forall(cv, Implies(Inductive(cv), In(zv, cv))), [])
     ax_and = Proof(Sequent([and_cond], [and_cond]), 'axiom', principal=and_cond)
-    got_fa_c = apply_thm(aer, [], and_cond, fa_c, ax_and)
-    # got_fa_c: [and_cond] |- [fa_c]
+    got_in_p = apply_thm(ael, [], and_cond, In(zv, p), ax_and)
+    # got_in_p: [and_cond] |- [In(zv, p)]
 
-    # Instantiate fa_c with c = p: Implies(IsInductive(p), In(zv, p))
-    imp_ind_in = Implies(ind_p, In(zv, p))
-    ax_imp = Proof(Sequent([imp_ind_in], [imp_ind_in]), 'axiom', principal=imp_ind_in)
-    got_imp = Proof(Sequent([fa_c], [imp_ind_in]), 'forall_left', [ax_imp], principal=fa_c, term=p)
-    # got_imp: [fa_c] |- [ind_p -> In(zv, p)]
+    # Chain: omega_w, ind_p, In(zv,w) |- In(zv, p)
+    got_and = mp(got_fwd,
+                 Proof(Sequent([In(zv, w)], [In(zv, w)]), 'axiom', principal=In(zv, w)),
+                 In(zv, w), and_cond)
+    # got_and: [omega_w, ind_p, In(zv,w)] |- [and_cond]
+    bwd_core = Proof(Sequent(got_and.sequent.left, [In(zv, p)]), 'cut',
+        [wr(got_and, In(zv, p)), wl(got_in_p, *got_and.sequent.left)], principal=and_cond)
+    # bwd_core: [omega_w, ind_p, In(zv,w)] |- [In(zv,p)]
+    bwd = Proof(Sequent([omega_w, ind_p], [Implies(In(zv, w), In(zv, p))]),
+                'implies_right', [bwd_core], principal=Implies(In(zv, w), In(zv, p)))
 
-    # Chain: and_cond |- ind_p -> In(zv, p)
-    got_imp_from_and = Proof(Sequent([and_cond], [imp_ind_in]), 'cut',
-        [wr(got_fa_c, imp_ind_in), wl(got_imp, and_cond)], principal=fa_c)
-
-    # MP with ind_p: and_cond, ind_p |- In(zv, p)
-    got_in_p = mp(got_imp_from_and,
-                  Proof(Sequent([ind_p], [ind_p]), 'axiom', principal=ind_p),
-                  ind_p, In(zv, p))
-    # got_in_p: [and_cond, ind_p] |- [In(zv, p)]
-
-    # Chain from In(zv, a): char_ab, ind_p, In(zv, a) |- In(zv, p)
-    # got_fwd: [char_ab] |- [In(zv,a) -> and_cond]
-    # MP: char_ab, In(zv,a) |- and_cond
-    got_and_from_a = mp(got_fwd,
-                        Proof(Sequent([In(zv, a)], [In(zv, a)]), 'axiom', principal=In(zv, a)),
-                        In(zv, a), and_cond)
-    # got_and_from_a: [char_ab, In(zv,a)] |- [and_cond]
-
-    # Combine: char_ab, ind_p, In(zv, a) |- In(zv, p)
-    # Cut on and_cond
-    bwd_core = Proof(Sequent([char_ab, ind_p, In(zv, a)], [In(zv, p)]), 'cut',
-        [wr(wl(got_and_from_a, ind_p), In(zv, p)),
-         wl(got_in_p, char_ab, In(zv, a))],
-        principal=and_cond)
-
-    # Backward implication: char_ab, ind_p |- In(zv, a) -> In(zv, p)
-    bwd = Proof(Sequent([char_ab, ind_p], [Implies(In(zv, a), In(zv, p))]),
-                'implies_right', [bwd_core], principal=Implies(In(zv, a), In(zv, p)))
-
-    # === Build Iff(In(zv, p), In(zv, a)) ===
-    fwd_w = wl(fwd, ind_b, char_ab, ind_p)
-    bwd_w = wl(bwd, ind_b, sub_pa)
-
-    PA = Implies(In(zv, p), In(zv, a))
-    AP = Implies(In(zv, a), In(zv, p))
-    iff_pa = Iff(In(zv, p), In(zv, a))
-    H_pa = Implies(PA, Not(AP))
+    # === Build Iff(In(zv, p), In(zv, w)) ===
+    fwd_w = wl(fwd, omega_w, ind_p)
+    bwd_w = wl(bwd, sub_pw)
+    PA = Implies(In(zv, p), In(zv, w))
+    AP = Implies(In(zv, w), In(zv, p))
+    iff_pw = Iff(In(zv, p), In(zv, w))
+    H_pw = Implies(PA, Not(AP))
 
     nr = Proof(Sequent(hyps + [Not(AP)], []), 'not_left', [bwd_w], principal=Not(AP))
-    il = Proof(Sequent(hyps + [H_pa], []), 'implies_left', [fwd_w, nr], principal=H_pa)
-    core = Proof(Sequent(hyps, [iff_pa]), 'not_right', [il], principal=iff_pa)
+    il = Proof(Sequent(hyps + [H_pw], []), 'implies_left', [fwd_w, nr], principal=H_pw)
+    core = Proof(Sequent(hyps, [iff_pw]), 'not_right', [il], principal=iff_pw)
 
-    # forall_right zv: hyps |- Eq(p, a)
-    eq_body = Forall(zv, iff_pa)
+    # forall_right zv
+    eq_body = Forall(zv, iff_pw)
     core_fa = Proof(Sequent(hyps, [eq_body]), 'forall_right', [core], principal=eq_body, term=zv)
-    # eq_body is alpha-equiv to Eq(p, a) after expansion
 
     # === Close ===
-    # Discharge And(sub_pa, ind_p), then char_ab + forall a, then ind_b + forall b, then forall p
-    hyp_and = And(sub_pa, ind_p)
-    imp_and = Implies(hyp_and, eq_pa)
-
-    # Extract sub_pa and ind_p from And
-    ael = and_elim_left(sub_pa, ind_p, [])
-    aer = and_elim_right(sub_pa, ind_p, [])
+    hyp_and = And(sub_pw, ind_p)
+    ael2 = and_elim_left(sub_pw, ind_p, [])
+    aer2 = and_elim_right(sub_pw, ind_p, [])
     ax_ha = Proof(Sequent([hyp_and], [hyp_and]), 'axiom', principal=hyp_and)
-    got_sub = apply_thm(ael, [], hyp_and, sub_pa, ax_ha)
-    got_ind = apply_thm(aer, [], hyp_and, ind_p,
+    got_sub = apply_thm(ael2, [], hyp_and, sub_pw, ax_ha)
+    got_ind = apply_thm(aer2, [], hyp_and, ind_p,
                         Proof(Sequent([hyp_and], [hyp_and]), 'axiom', principal=hyp_and))
 
-    # hyp_and |- eq_pa via cuts on sub_pa and ind_p
-    core_w = wl(core_fa, hyp_and)  # [ind_b, char_ab, sub_pa, ind_p, hyp_and] |- [eq_body]
-    cut_sub = Proof(Sequent([ind_b, char_ab, ind_p, hyp_and], [eq_body]), 'cut',
-        [wr(wl(got_sub, ind_b, char_ab, ind_p), eq_body), core_w], principal=sub_pa)
-    cut_ind = Proof(Sequent([ind_b, char_ab, hyp_and], [eq_body]), 'cut',
-        [wr(wl(got_ind, ind_b, char_ab), eq_body), cut_sub], principal=ind_p)
+    core_w = wl(core_fa, hyp_and)
+    cut_sub = Proof(Sequent([omega_w, ind_p, hyp_and], [eq_body]), 'cut',
+        [wr(wl(got_sub, omega_w, ind_p), eq_body), core_w], principal=sub_pw)
+    cut_ind = Proof(Sequent([omega_w, hyp_and], [eq_body]), 'cut',
+        [wr(wl(got_ind, omega_w), eq_body), cut_sub], principal=ind_p)
 
-    # implies_right for And
-    s1 = Proof(Sequent([ind_b, char_ab], [imp_and]), 'implies_right', [cut_ind], principal=imp_and)
-    # forall a, implies char_ab
-    imp_char = Implies(char_ab, imp_and)
-    s2 = Proof(Sequent([ind_b], [imp_char]), 'implies_right', [s1], principal=imp_char)
-    fa_a = Forall(a, imp_char)
-    s3 = Proof(Sequent([ind_b], [fa_a]), 'forall_right', [s2], principal=fa_a, term=a)
-    # implies ind_b, forall b
-    imp_ind = Implies(ind_b, fa_a)
-    s4 = Proof(Sequent([], [imp_ind]), 'implies_right', [s3], principal=imp_ind)
-    fa_b = Forall(b, imp_ind)
-    s5 = Proof(Sequent([], [fa_b]), 'forall_right', [s4], principal=fa_b, term=b)
-    # forall p
-    fa_p = Forall(p, fa_b)
-    s6 = Proof(Sequent([], [fa_p]), 'forall_right', [s5], principal=fa_p, term=p)
-
-    # Restate with Omega
-    goal = Forall(p, Omega(lambda w: Implies(And(Subset(p, w), IsInductive(p)), Eq(p, w))))
-    proof = Proof(Sequent([], [goal]), s6.rule, s6.premises, term=s6.term, principal=goal)
-    proof.name = 'omega_smallest_inductive'
-    return proof
+    imp_and = Implies(hyp_and, eq_pw)
+    s1 = Proof(Sequent([omega_w], [imp_and]), 'implies_right', [cut_ind], principal=imp_and)
+    imp_omega = Implies(omega_w, imp_and)
+    s2 = Proof(Sequent([], [imp_omega]), 'implies_right', [s1], principal=imp_omega)
+    fw = Forall(w, imp_omega)
+    s3 = Proof(Sequent([], [fw]), 'forall_right', [s2], principal=fw, term=w)
+    fp = Forall(p, fw)
+    s4 = Proof(Sequent([], [fp]), 'forall_right', [s3], principal=fp, term=p)
+    s4.name = 'omega_smallest_inductive'
+    return s4
 
 
