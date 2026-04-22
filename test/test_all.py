@@ -49,6 +49,7 @@ if __name__ == '__main__':
         ('eq_transfer', theorems.eq_transfer()),
         ('iff_chain', theorems.iff_chain(In(x, y), In(y, z), In(x, z), [x, y, z])),
         ('singleton_injection', theorems.singleton_injection()),
+        ('pair_injection', theorems.pair_injection()),
         # ('tuple_injection', theorems.tuple_injection()),
         ('forall_implies_exists', theorems.forall_implies_exists(In(x, y), In(y, z), x, [x, y, z])),
         # ('tuple_injection_full', theorems.tuple_injection_full()),
