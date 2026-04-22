@@ -4,6 +4,7 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import zfc
+from definitions import EmptySet
 
 
 # --- ZFC axioms as theorems (A |- A) ---
@@ -375,3 +376,639 @@ def eq_reflexive():
     fa = Forall(a, Eq(a, a))
     s4 = Proof(Sequent([], [fa]), 'forall_right', [s3], term=a, principal=fa, name='eq_reflexive')
     return s4
+
+
+def eq_symmetric():
+    """|- forall a. forall b. Eq(a,b) implies Eq(b,a)"""
+    a, b, z = Var(), Var(), Var()
+
+    P = In(z, a)
+    Q = In(z, b)
+    PQ = Implies(P, Q)
+    QP = Implies(Q, P)
+    NPQ = Not(PQ)
+    NQP = Not(QP)
+    H1 = Implies(PQ, NQP)   # negated inside Iff(P,Q)
+    H2 = Implies(QP, NPQ)   # negated inside Iff(Q,P)
+    iff_pq = Not(H1)         # Iff(P,Q) expanded
+    iff_qp = Not(H2)         # Iff(Q,P) expanded
+    eq_ab = Forall(z, iff_pq)  # Eq(a,b) expanded
+    eq_ba = Forall(z, iff_qp)  # Eq(b,a) expanded
+
+    # --- Extract QP from Not(H1) via cut on H1 ---
+    # Not(H1), PQ, QP |- QP
+    a1 = Proof(Sequent([iff_pq, PQ, QP], [QP]), 'axiom', principal=QP)
+    # Not(H1), PQ |- NQP, QP
+    a2 = Proof(Sequent([iff_pq, PQ], [NQP, QP]), 'not_right', [a1], principal=NQP)
+    # Not(H1) |- H1, QP
+    a3 = Proof(Sequent([iff_pq], [H1, QP]), 'implies_right', [a2], principal=H1)
+    # H1 |- H1
+    a4 = Proof(Sequent([H1], [H1]), 'axiom', principal=H1)
+    # H1 |- H1, QP
+    a5 = Proof(Sequent([H1], [H1, QP]), 'weakening_right', [a4], principal=QP)
+    # H1, Not(H1) |- QP
+    a6 = Proof(Sequent([H1, iff_pq], [QP]), 'not_left', [a5], principal=iff_pq)
+    # Not(H1) |- QP
+    extract_qp = Proof(Sequent([iff_pq], [QP]), 'cut', [a3, a6], principal=H1)
+
+    # --- Extract PQ from Not(H1) via cut on H1 ---
+    # Not(H1), PQ |- PQ
+    b1 = Proof(Sequent([iff_pq, PQ], [PQ]), 'axiom', principal=PQ)
+    # Not(H1), PQ |- NQP, PQ
+    b2 = Proof(Sequent([iff_pq, PQ], [NQP, PQ]), 'weakening_right', [b1], principal=NQP)
+    # Not(H1) |- H1, PQ
+    b3 = Proof(Sequent([iff_pq], [H1, PQ]), 'implies_right', [b2], principal=H1)
+    # H1 |- H1
+    b4 = Proof(Sequent([H1], [H1]), 'axiom', principal=H1)
+    # H1 |- H1, PQ
+    b5 = Proof(Sequent([H1], [H1, PQ]), 'weakening_right', [b4], principal=PQ)
+    # H1, Not(H1) |- PQ
+    b6 = Proof(Sequent([H1, iff_pq], [PQ]), 'not_left', [b5], principal=iff_pq)
+    # Not(H1) |- PQ
+    extract_pq = Proof(Sequent([iff_pq], [PQ]), 'cut', [b3, b6], principal=H1)
+
+    # --- Combine: Not(H1) |- Not(H2) ---
+    # not_left: Not(H1), Not(PQ) |- from Not(H1) |- PQ
+    c1 = Proof(Sequent([iff_pq, NPQ], []), 'not_left', [extract_pq], principal=NPQ)
+    # implies_left on H2: Not(H1), H2 |- from extract_qp and c1
+    c2 = Proof(Sequent([iff_pq, H2], []), 'implies_left', [extract_qp, c1], principal=H2)
+    # not_right: Not(H1) |- Not(H2) = iff_pq |- iff_qp
+    core = Proof(Sequent([iff_pq], [iff_qp]), 'not_right', [c2], principal=iff_qp)
+
+    # --- Lift to Eq level ---
+    # forall_left: Eq(a,b) |- iff_qp
+    fl = Proof(Sequent([eq_ab], [iff_qp]), 'forall_left', [core], principal=eq_ab, term=z)
+    # forall_right: Eq(a,b) |- Eq(b,a)
+    fr = Proof(Sequent([eq_ab], [eq_ba]), 'forall_right', [fl], principal=eq_ba, term=z)
+
+    # --- Close ---
+    imp = Implies(Eq(a, b), Eq(b, a))
+    s1 = Proof(Sequent([], [imp]), 'implies_right', [fr], principal=imp)
+    fb = Forall(b, imp)
+    s2 = Proof(Sequent([], [fb]), 'forall_right', [s1], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s3 = Proof(Sequent([], [fa]), 'forall_right', [s2], term=a, principal=fa)
+    s3.name = 'eq_symmetric'
+    return s3
+
+
+def unique_empty():
+    """|- forall a. forall b. (forall x. Not(x in a)) implies (forall x. Not(x in b)) implies Eq(a,b)"""
+    a, b, z = Var(), Var(), Var()
+    x1, x2 = Var(), Var()
+
+    P = In(z, a)
+    Q = In(z, b)
+    NP = Not(P)
+    NQ = Not(Q)
+    PQ = Implies(P, Q)
+    QP = Implies(Q, P)
+    NQP = Not(QP)
+    H = Implies(PQ, NQP)
+    iff_pq = Not(H)
+
+    ea = Forall(x1, Not(In(x1, a)))
+    eb = Forall(x2, Not(In(x2, b)))
+
+    # NP |- PQ (vacuous implication from false antecedent)
+    p1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    p2 = Proof(Sequent([P], [P, Q]), 'weakening_right', [p1], principal=Q)
+    p3 = Proof(Sequent([P, NP], [Q]), 'not_left', [p2], principal=NP)
+    p4 = Proof(Sequent([NP], [PQ]), 'implies_right', [p3], principal=PQ)
+
+    # NQ |- QP
+    q1 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
+    q2 = Proof(Sequent([Q], [Q, P]), 'weakening_right', [q1], principal=P)
+    q3 = Proof(Sequent([Q, NQ], [P]), 'not_left', [q2], principal=NQ)
+    q4 = Proof(Sequent([NQ], [QP]), 'implies_right', [q3], principal=QP)
+
+    # weaken to common context NP, NQ
+    w1 = Proof(Sequent([NP, NQ], [PQ]), 'weakening_left', [p4], principal=NQ)
+    w2 = Proof(Sequent([NP, NQ], [QP]), 'weakening_left', [q4], principal=NP)
+
+    # NP, NQ |- Iff(P, Q)
+    c1 = Proof(Sequent([NP, NQ, NQP], []), 'not_left', [w2], principal=NQP)
+    c2 = Proof(Sequent([NP, NQ, H], []), 'implies_left', [w1, c1], principal=H)
+    core = Proof(Sequent([NP, NQ], [iff_pq]), 'not_right', [c2], principal=iff_pq)
+
+    # forall_left: instantiate ea and eb with z
+    fl1 = Proof(Sequent([ea, NQ], [iff_pq]), 'forall_left', [core], principal=ea, term=z)
+    fl2 = Proof(Sequent([ea, eb], [iff_pq]), 'forall_left', [fl1], principal=eb, term=z)
+
+    # forall_right z: ea, eb |- Eq(a, b)
+    eq_ab = Forall(z, iff_pq)
+    fr = Proof(Sequent([ea, eb], [eq_ab]), 'forall_right', [fl2], principal=eq_ab, term=z)
+
+    # close: discharge eb, forall b, then discharge ea, forall a
+    imp1 = Implies(eb, Eq(a, b))
+    s1 = Proof(Sequent([ea], [imp1]), 'implies_right', [fr], principal=imp1)
+    inner = Forall(b, imp1)
+    s2 = Proof(Sequent([ea], [inner]), 'forall_right', [s1], term=b, principal=inner)
+    imp2 = Implies(ea, inner)
+    s3 = Proof(Sequent([], [imp2]), 'implies_right', [s2], principal=imp2)
+    goal = EmptySet(lambda a: EmptySet(lambda b: Eq(a, b)))
+    s4 = Proof(Sequent([], [goal]), 'forall_right', [s3], term=a, principal=goal)
+    s4.name = 'unique_empty'
+    return s4
+
+
+def eq_transitive():
+    """|- forall a. forall b. forall c. Eq(a,b) implies Eq(b,c) implies Eq(a,c)"""
+    a, b, c, z = Var(), Var(), Var(), Var()
+
+    P = In(z, a)
+    Q = In(z, b)
+    R = In(z, c)
+    PQ = Implies(P, Q)
+    QP = Implies(Q, P)
+    QR = Implies(Q, R)
+    RQ = Implies(R, Q)
+    PR = Implies(P, R)
+    RP = Implies(R, P)
+    NQP = Not(QP)
+    NRQ = Not(RQ)
+    NRP = Not(RP)
+    H_pq = Implies(PQ, NQP)
+    H_qr = Implies(QR, NRQ)
+    H_pr = Implies(PR, NRP)
+    iff_pq = Not(H_pq)
+    iff_qr = Not(H_qr)
+    iff_pr = Not(H_pr)
+    eq_ab = Forall(z, iff_pq)
+    eq_bc = Forall(z, iff_qr)
+    eq_ac = Forall(z, iff_pr)
+
+    # --- Extract PQ from iff_pq ---
+    e1 = Proof(Sequent([iff_pq, PQ], [PQ]), 'axiom', principal=PQ)
+    e2 = Proof(Sequent([iff_pq, PQ], [NQP, PQ]), 'weakening_right', [e1], principal=NQP)
+    e3 = Proof(Sequent([iff_pq], [H_pq, PQ]), 'implies_right', [e2], principal=H_pq)
+    e4 = Proof(Sequent([H_pq], [H_pq]), 'axiom', principal=H_pq)
+    e5 = Proof(Sequent([H_pq], [H_pq, PQ]), 'weakening_right', [e4], principal=PQ)
+    e6 = Proof(Sequent([H_pq, iff_pq], [PQ]), 'not_left', [e5], principal=iff_pq)
+    ext_pq = Proof(Sequent([iff_pq], [PQ]), 'cut', [e3, e6], principal=H_pq)
+
+    # --- Extract QP from iff_pq ---
+    f1 = Proof(Sequent([iff_pq, PQ, QP], [QP]), 'axiom', principal=QP)
+    f2 = Proof(Sequent([iff_pq, PQ], [NQP, QP]), 'not_right', [f1], principal=NQP)
+    f3 = Proof(Sequent([iff_pq], [H_pq, QP]), 'implies_right', [f2], principal=H_pq)
+    f4 = Proof(Sequent([H_pq], [H_pq]), 'axiom', principal=H_pq)
+    f5 = Proof(Sequent([H_pq], [H_pq, QP]), 'weakening_right', [f4], principal=QP)
+    f6 = Proof(Sequent([H_pq, iff_pq], [QP]), 'not_left', [f5], principal=iff_pq)
+    ext_qp = Proof(Sequent([iff_pq], [QP]), 'cut', [f3, f6], principal=H_pq)
+
+    # --- Extract QR from iff_qr ---
+    g1 = Proof(Sequent([iff_qr, QR], [QR]), 'axiom', principal=QR)
+    g2 = Proof(Sequent([iff_qr, QR], [NRQ, QR]), 'weakening_right', [g1], principal=NRQ)
+    g3 = Proof(Sequent([iff_qr], [H_qr, QR]), 'implies_right', [g2], principal=H_qr)
+    g4 = Proof(Sequent([H_qr], [H_qr]), 'axiom', principal=H_qr)
+    g5 = Proof(Sequent([H_qr], [H_qr, QR]), 'weakening_right', [g4], principal=QR)
+    g6 = Proof(Sequent([H_qr, iff_qr], [QR]), 'not_left', [g5], principal=iff_qr)
+    ext_qr = Proof(Sequent([iff_qr], [QR]), 'cut', [g3, g6], principal=H_qr)
+
+    # --- Extract RQ from iff_qr ---
+    h1 = Proof(Sequent([iff_qr, QR, RQ], [RQ]), 'axiom', principal=RQ)
+    h2 = Proof(Sequent([iff_qr, QR], [NRQ, RQ]), 'not_right', [h1], principal=NRQ)
+    h3 = Proof(Sequent([iff_qr], [H_qr, RQ]), 'implies_right', [h2], principal=H_qr)
+    h4 = Proof(Sequent([H_qr], [H_qr]), 'axiom', principal=H_qr)
+    h5 = Proof(Sequent([H_qr], [H_qr, RQ]), 'weakening_right', [h4], principal=RQ)
+    h6 = Proof(Sequent([H_qr, iff_qr], [RQ]), 'not_left', [h5], principal=iff_qr)
+    ext_rq = Proof(Sequent([iff_qr], [RQ]), 'cut', [h3, h6], principal=H_qr)
+
+    # --- Forward composition: PQ, QR, P |- R ---
+    fw_1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    fw_2 = Proof(Sequent([P], [P, R]), 'weakening_right', [fw_1], principal=R)
+    fw_3 = Proof(Sequent([QR, P], [P, R]), 'weakening_left', [fw_2], principal=QR)
+    fw_4 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
+    fw_5 = Proof(Sequent([Q], [Q, R]), 'weakening_right', [fw_4], principal=R)
+    fw_6 = Proof(Sequent([P, Q], [Q, R]), 'weakening_left', [fw_5], principal=P)
+    fw_7 = Proof(Sequent([R], [R]), 'axiom', principal=R)
+    fw_8 = Proof(Sequent([Q, R], [R]), 'weakening_left', [fw_7], principal=Q)
+    fw_9 = Proof(Sequent([P, Q, R], [R]), 'weakening_left', [fw_8], principal=P)
+    fw_10 = Proof(Sequent([P, Q, QR], [R]), 'implies_left', [fw_6, fw_9], principal=QR)
+    fw = Proof(Sequent([PQ, QR, P], [R]), 'implies_left', [fw_3, fw_10], principal=PQ)
+
+    # --- Backward composition: RQ, QP, R |- P ---
+    bw_1 = Proof(Sequent([R], [R]), 'axiom', principal=R)
+    bw_2 = Proof(Sequent([R], [R, P]), 'weakening_right', [bw_1], principal=P)
+    bw_3 = Proof(Sequent([QP, R], [R, P]), 'weakening_left', [bw_2], principal=QP)
+    bw_4 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
+    bw_5 = Proof(Sequent([Q], [Q, P]), 'weakening_right', [bw_4], principal=P)
+    bw_6 = Proof(Sequent([R, Q], [Q, P]), 'weakening_left', [bw_5], principal=R)
+    bw_7 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    bw_8 = Proof(Sequent([Q, P], [P]), 'weakening_left', [bw_7], principal=Q)
+    bw_9 = Proof(Sequent([R, Q, P], [P]), 'weakening_left', [bw_8], principal=R)
+    bw_10 = Proof(Sequent([R, Q, QP], [P]), 'implies_left', [bw_6, bw_9], principal=QP)
+    bw = Proof(Sequent([RQ, QP, R], [P]), 'implies_left', [bw_3, bw_10], principal=RQ)
+
+    # --- iff_pq, iff_qr, P |- R via cuts ---
+    # cut on PQ
+    c1a = Proof(Sequent([iff_pq], [PQ, R]), 'weakening_right', [ext_pq], principal=R)
+    c1b = Proof(Sequent([iff_pq, iff_qr], [PQ, R]), 'weakening_left', [c1a], principal=iff_qr)
+    c1c = Proof(Sequent([iff_pq, iff_qr, P], [PQ, R]), 'weakening_left', [c1b], principal=P)
+    # cut on QR inside PQ branch
+    c2a = Proof(Sequent([iff_qr], [QR, R]), 'weakening_right', [ext_qr], principal=R)
+    c2b = Proof(Sequent([iff_qr, iff_pq], [QR, R]), 'weakening_left', [c2a], principal=iff_pq)
+    c2c = Proof(Sequent([iff_qr, iff_pq, P], [QR, R]), 'weakening_left', [c2b], principal=P)
+    c2d = Proof(Sequent([iff_qr, iff_pq, P, PQ], [QR, R]), 'weakening_left', [c2c], principal=PQ)
+    c2e = Proof(Sequent([iff_pq, PQ, QR, P], [R]), 'weakening_left', [fw], principal=iff_pq)
+    c2f = Proof(Sequent([iff_pq, iff_qr, PQ, QR, P], [R]), 'weakening_left', [c2e], principal=iff_qr)
+    c2g = Proof(Sequent([iff_pq, iff_qr, P, PQ], [R]), 'cut', [c2d, c2f], principal=QR)
+    fwd_result = Proof(Sequent([iff_pq, iff_qr, P], [R]), 'cut', [c1c, c2g], principal=PQ)
+    fwd_pr = Proof(Sequent([iff_pq, iff_qr], [PR]), 'implies_right', [fwd_result], principal=PR)
+
+    # --- iff_pq, iff_qr, R |- P via cuts ---
+    # cut on RQ
+    d1a = Proof(Sequent([iff_qr], [RQ, P]), 'weakening_right', [ext_rq], principal=P)
+    d1b = Proof(Sequent([iff_qr, iff_pq], [RQ, P]), 'weakening_left', [d1a], principal=iff_pq)
+    d1c = Proof(Sequent([iff_qr, iff_pq, R], [RQ, P]), 'weakening_left', [d1b], principal=R)
+    # cut on QP inside RQ branch
+    d2a = Proof(Sequent([iff_pq], [QP, P]), 'weakening_right', [ext_qp], principal=P)
+    d2b = Proof(Sequent([iff_pq, iff_qr], [QP, P]), 'weakening_left', [d2a], principal=iff_qr)
+    d2c = Proof(Sequent([iff_pq, iff_qr, R], [QP, P]), 'weakening_left', [d2b], principal=R)
+    d2d = Proof(Sequent([iff_pq, iff_qr, R, RQ], [QP, P]), 'weakening_left', [d2c], principal=RQ)
+    d2e = Proof(Sequent([iff_qr, RQ, QP, R], [P]), 'weakening_left', [bw], principal=iff_qr)
+    d2f = Proof(Sequent([iff_pq, iff_qr, RQ, QP, R], [P]), 'weakening_left', [d2e], principal=iff_pq)
+    d2g = Proof(Sequent([iff_pq, iff_qr, R, RQ], [P]), 'cut', [d2d, d2f], principal=QP)
+    bwd_result = Proof(Sequent([iff_pq, iff_qr, R], [P]), 'cut', [d1c, d2g], principal=RQ)
+    bwd_rp = Proof(Sequent([iff_pq, iff_qr], [RP]), 'implies_right', [bwd_result], principal=RP)
+
+    # --- iff_pq, iff_qr |- iff_pr ---
+    nr = Proof(Sequent([iff_pq, iff_qr, NRP], []), 'not_left', [bwd_rp], principal=NRP)
+    il = Proof(Sequent([iff_pq, iff_qr, H_pr], []), 'implies_left', [fwd_pr, nr], principal=H_pr)
+    core = Proof(Sequent([iff_pq, iff_qr], [iff_pr]), 'not_right', [il], principal=iff_pr)
+
+    # --- Lift to Eq ---
+    fl1 = Proof(Sequent([eq_ab, iff_qr], [iff_pr]), 'forall_left', [core], principal=eq_ab, term=z)
+    fl2 = Proof(Sequent([eq_ab, eq_bc], [iff_pr]), 'forall_left', [fl1], principal=eq_bc, term=z)
+    fr = Proof(Sequent([eq_ab, eq_bc], [eq_ac]), 'forall_right', [fl2], principal=eq_ac, term=z)
+
+    # --- Close ---
+    imp1 = Implies(Eq(b, c), Eq(a, c))
+    s1 = Proof(Sequent([eq_ab], [imp1]), 'implies_right', [fr], principal=imp1)
+    imp2 = Implies(Eq(a, b), imp1)
+    s2 = Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+    fc = Forall(c, imp2)
+    s3 = Proof(Sequent([], [fc]), 'forall_right', [s2], term=c, principal=fc)
+    fb = Forall(b, fc)
+    s4 = Proof(Sequent([], [fb]), 'forall_right', [s3], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s5 = Proof(Sequent([], [fa]), 'forall_right', [s4], term=a, principal=fa)
+    s5.name = 'eq_transitive'
+    return s5
+
+
+def singleton_exists():
+    """Pairing |- forall a. exists s. forall z. Iff(In(z,s), Eq(z,a))"""
+    a = Var()
+    xp, yp, zp, bp = Var(), Var(), Var(), Var()
+
+    pairing_ax = zfc.Pairing()
+
+    # Pairing expansion (alpha-equiv to pairing_ax.expand())
+    pairing_full = Forall(xp, Forall(yp,
+        Exists(bp, Forall(zp,
+            Iff(In(zp, bp), Or(Eq(zp, xp), Eq(zp, yp)))))))
+    pairing_inst_x = Forall(yp,
+        Exists(bp, Forall(zp,
+            Iff(In(zp, bp), Or(Eq(zp, a), Eq(zp, yp))))))
+
+    iff_or_zp = Iff(In(zp, bp), Or(Eq(zp, a), Eq(zp, a)))
+    iff_clean_zp = Iff(In(zp, bp), Eq(zp, a))
+    fa_or = Forall(zp, iff_or_zp)
+    fa_clean = Forall(zp, iff_clean_zp)
+    E_or = Exists(bp, fa_or)
+    E_clean = Exists(bp, fa_clean)
+
+    X = In(zp, bp)
+    Y = Eq(zp, a)
+    OrYY = Or(Y, Y)
+    XO = Implies(X, OrYY)
+    OX = Implies(OrYY, X)
+    XY = Implies(X, Y)
+    YX = Implies(Y, X)
+    H_or = Implies(XO, Not(OX))
+    H_clean = Implies(XY, Not(YX))
+
+    # === Core: iff_or_zp |- iff_clean_zp ===
+
+    # --- Extract XO from iff_or ---
+    e1 = Proof(Sequent([iff_or_zp, XO], [XO]), 'axiom', principal=XO)
+    e2 = Proof(Sequent([iff_or_zp, XO], [Not(OX), XO]), 'weakening_right', [e1], principal=Not(OX))
+    e3 = Proof(Sequent([iff_or_zp], [H_or, XO]), 'implies_right', [e2], principal=H_or)
+    e4 = Proof(Sequent([H_or], [H_or]), 'axiom', principal=H_or)
+    e5 = Proof(Sequent([H_or], [H_or, XO]), 'weakening_right', [e4], principal=XO)
+    e6 = Proof(Sequent([H_or, iff_or_zp], [XO]), 'not_left', [e5], principal=iff_or_zp)
+    ext_xo = Proof(Sequent([iff_or_zp], [XO]), 'cut', [e3, e6], principal=H_or)
+
+    # --- Extract OX from iff_or ---
+    f1 = Proof(Sequent([iff_or_zp, XO, OX], [OX]), 'axiom', principal=OX)
+    f2 = Proof(Sequent([iff_or_zp, XO], [Not(OX), OX]), 'not_right', [f1], principal=Not(OX))
+    f3 = Proof(Sequent([iff_or_zp], [H_or, OX]), 'implies_right', [f2], principal=H_or)
+    f4 = Proof(Sequent([H_or], [H_or]), 'axiom', principal=H_or)
+    f5 = Proof(Sequent([H_or], [H_or, OX]), 'weakening_right', [f4], principal=OX)
+    f6 = Proof(Sequent([H_or, iff_or_zp], [OX]), 'not_left', [f5], principal=iff_or_zp)
+    ext_ox = Proof(Sequent([iff_or_zp], [OX]), 'cut', [f3, f6], principal=H_or)
+
+    # --- Or(Y,Y) -> Y ---
+    g1 = Proof(Sequent([Y], [Y]), 'axiom', principal=Y)
+    g2 = Proof(Sequent([], [Not(Y), Y]), 'not_right', [g1], principal=Not(Y))
+    g3 = Proof(Sequent([Y], [Y]), 'axiom', principal=Y)
+    or_to_y = Proof(Sequent([OrYY], [Y]), 'implies_left', [g2, g3], principal=OrYY)
+
+    # --- Y -> Or(Y,Y) ---
+    h1 = Proof(Sequent([Y], [Y]), 'axiom', principal=Y)
+    h2 = Proof(Sequent([Y, Not(Y)], []), 'not_left', [h1], principal=Not(Y))
+    h3 = Proof(Sequent([Y, Not(Y)], [Y]), 'weakening_right', [h2], principal=Y)
+    y_to_or = Proof(Sequent([Y], [OrYY]), 'implies_right', [h3], principal=OrYY)
+
+    # --- Forward: iff_or |- X -> Y ---
+    i1 = Proof(Sequent([X], [X]), 'axiom', principal=X)
+    i2 = Proof(Sequent([X], [X, Y]), 'weakening_right', [i1], principal=Y)
+    i3 = Proof(Sequent([X, OrYY], [Y]), 'weakening_left', [or_to_y], principal=X)
+    i4 = Proof(Sequent([X, XO], [Y]), 'implies_left', [i2, i3], principal=XO)
+    i5 = Proof(Sequent([iff_or_zp], [XO, Y]), 'weakening_right', [ext_xo], principal=Y)
+    i6 = Proof(Sequent([iff_or_zp, X], [XO, Y]), 'weakening_left', [i5], principal=X)
+    i7 = Proof(Sequent([iff_or_zp, X, XO], [Y]), 'weakening_left', [i4], principal=iff_or_zp)
+    i8 = Proof(Sequent([iff_or_zp, X], [Y]), 'cut', [i6, i7], principal=XO)
+    fwd = Proof(Sequent([iff_or_zp], [XY]), 'implies_right', [i8], principal=XY)
+
+    # --- Backward: iff_or |- Y -> X ---
+    j1 = Proof(Sequent([Y], [OrYY, X]), 'weakening_right', [y_to_or], principal=X)
+    j2 = Proof(Sequent([X], [X]), 'axiom', principal=X)
+    j3 = Proof(Sequent([Y, X], [X]), 'weakening_left', [j2], principal=Y)
+    j4 = Proof(Sequent([Y, OX], [X]), 'implies_left', [j1, j3], principal=OX)
+    j5 = Proof(Sequent([iff_or_zp], [OX, X]), 'weakening_right', [ext_ox], principal=X)
+    j6 = Proof(Sequent([iff_or_zp, Y], [OX, X]), 'weakening_left', [j5], principal=Y)
+    j7 = Proof(Sequent([iff_or_zp, Y, OX], [X]), 'weakening_left', [j4], principal=iff_or_zp)
+    j8 = Proof(Sequent([iff_or_zp, Y], [X]), 'cut', [j6, j7], principal=OX)
+    bwd = Proof(Sequent([iff_or_zp], [YX]), 'implies_right', [j8], principal=YX)
+
+    # --- Build Iff(X, Y) ---
+    k1 = Proof(Sequent([iff_or_zp, Not(YX)], []), 'not_left', [bwd], principal=Not(YX))
+    k2 = Proof(Sequent([iff_or_zp, H_clean], []), 'implies_left', [fwd, k1], principal=H_clean)
+    core = Proof(Sequent([iff_or_zp], [iff_clean_zp]), 'not_right', [k2], principal=iff_clean_zp)
+
+    # === Lift to forall z ===
+    l1 = Proof(Sequent([fa_or], [iff_clean_zp]), 'forall_left', [core], principal=fa_or, term=zp)
+    l2 = Proof(Sequent([fa_or], [fa_clean]), 'forall_right', [l1], principal=fa_clean, term=zp)
+
+    # === Exists transformation: E_or |- E_clean ===
+    # Right: fa_or |- E_clean (existential intro with witness bp)
+    n1 = Proof(Sequent([fa_or, Not(fa_clean)], []), 'not_left', [l2], principal=Not(fa_clean))
+    n2 = Proof(Sequent([fa_or, Forall(bp, Not(fa_clean))], []),
+               'forall_left', [n1], principal=Forall(bp, Not(fa_clean)), term=bp)
+    n3 = Proof(Sequent([fa_or], [E_clean]), 'not_right', [n2], principal=E_clean)
+    # Left: E_or |- E_clean (existential elim with eigenvariable bp)
+    p1 = Proof(Sequent([], [Not(fa_or), E_clean]), 'not_right', [n3], principal=Not(fa_or))
+    p2 = Proof(Sequent([], [Forall(bp, Not(fa_or)), E_clean]),
+               'forall_right', [p1], principal=Forall(bp, Not(fa_or)), term=bp)
+    p3 = Proof(Sequent([E_or], [E_clean]), 'not_left', [p2], principal=E_or)
+
+    # === Pairing instantiation: pairing_ax |- E_or ===
+    q1 = Proof(Sequent([E_or], [E_or]), 'axiom', principal=E_or)
+    q2 = Proof(Sequent([pairing_inst_x], [E_or]),
+               'forall_left', [q1], principal=pairing_inst_x, term=a)
+    q3 = Proof(Sequent([pairing_ax], [E_or]),
+               'forall_left', [q2], principal=pairing_full, term=a)
+
+    # === Combine via cut ===
+    r1 = Proof(Sequent([pairing_ax], [E_or, E_clean]),
+               'weakening_right', [q3], principal=E_clean)
+    r2 = Proof(Sequent([pairing_ax, E_or], [E_clean]),
+               'weakening_left', [p3], principal=pairing_ax)
+    r3 = Proof(Sequent([pairing_ax], [E_clean]), 'cut', [r1, r2], principal=E_or)
+
+    # === Close ===
+    goal = Forall(a, E_clean)
+    s1 = Proof(Sequent([pairing_ax], [goal]),
+               'forall_right', [r3], principal=goal, term=a)
+    s1.name = 'singleton_exists'
+    return s1
+
+
+def iff_chain(P, Q, R, vars: list[Var]):
+    """|- forall vars. Iff(P,Q) implies Iff(Q,R) implies Iff(P,R)"""
+    PQ = Implies(P, Q)
+    QP = Implies(Q, P)
+    QR = Implies(Q, R)
+    RQ = Implies(R, Q)
+    PR = Implies(P, R)
+    RP = Implies(R, P)
+    NQP = Not(QP)
+    NRQ = Not(RQ)
+    NRP = Not(RP)
+    H_pq = Implies(PQ, NQP)
+    H_qr = Implies(QR, NRQ)
+    H_pr = Implies(PR, NRP)
+    iff_pq = Iff(P, Q)
+    iff_qr = Iff(Q, R)
+    iff_pr = Iff(P, R)
+
+    # --- Extract PQ from iff_pq ---
+    e1 = Proof(Sequent([iff_pq, PQ], [PQ]), 'axiom', principal=PQ)
+    e2 = Proof(Sequent([iff_pq, PQ], [NQP, PQ]), 'weakening_right', [e1], principal=NQP)
+    e3 = Proof(Sequent([iff_pq], [H_pq, PQ]), 'implies_right', [e2], principal=H_pq)
+    e4 = Proof(Sequent([H_pq], [H_pq]), 'axiom', principal=H_pq)
+    e5 = Proof(Sequent([H_pq], [H_pq, PQ]), 'weakening_right', [e4], principal=PQ)
+    e6 = Proof(Sequent([H_pq, iff_pq], [PQ]), 'not_left', [e5], principal=iff_pq)
+    ext_pq = Proof(Sequent([iff_pq], [PQ]), 'cut', [e3, e6], principal=H_pq)
+
+    # --- Extract QP from iff_pq ---
+    f1 = Proof(Sequent([iff_pq, PQ, QP], [QP]), 'axiom', principal=QP)
+    f2 = Proof(Sequent([iff_pq, PQ], [NQP, QP]), 'not_right', [f1], principal=NQP)
+    f3 = Proof(Sequent([iff_pq], [H_pq, QP]), 'implies_right', [f2], principal=H_pq)
+    f4 = Proof(Sequent([H_pq], [H_pq]), 'axiom', principal=H_pq)
+    f5 = Proof(Sequent([H_pq], [H_pq, QP]), 'weakening_right', [f4], principal=QP)
+    f6 = Proof(Sequent([H_pq, iff_pq], [QP]), 'not_left', [f5], principal=iff_pq)
+    ext_qp = Proof(Sequent([iff_pq], [QP]), 'cut', [f3, f6], principal=H_pq)
+
+    # --- Extract QR from iff_qr ---
+    g1 = Proof(Sequent([iff_qr, QR], [QR]), 'axiom', principal=QR)
+    g2 = Proof(Sequent([iff_qr, QR], [NRQ, QR]), 'weakening_right', [g1], principal=NRQ)
+    g3 = Proof(Sequent([iff_qr], [H_qr, QR]), 'implies_right', [g2], principal=H_qr)
+    g4 = Proof(Sequent([H_qr], [H_qr]), 'axiom', principal=H_qr)
+    g5 = Proof(Sequent([H_qr], [H_qr, QR]), 'weakening_right', [g4], principal=QR)
+    g6 = Proof(Sequent([H_qr, iff_qr], [QR]), 'not_left', [g5], principal=iff_qr)
+    ext_qr = Proof(Sequent([iff_qr], [QR]), 'cut', [g3, g6], principal=H_qr)
+
+    # --- Extract RQ from iff_qr ---
+    h1 = Proof(Sequent([iff_qr, QR, RQ], [RQ]), 'axiom', principal=RQ)
+    h2 = Proof(Sequent([iff_qr, QR], [NRQ, RQ]), 'not_right', [h1], principal=NRQ)
+    h3 = Proof(Sequent([iff_qr], [H_qr, RQ]), 'implies_right', [h2], principal=H_qr)
+    h4 = Proof(Sequent([H_qr], [H_qr]), 'axiom', principal=H_qr)
+    h5 = Proof(Sequent([H_qr], [H_qr, RQ]), 'weakening_right', [h4], principal=RQ)
+    h6 = Proof(Sequent([H_qr, iff_qr], [RQ]), 'not_left', [h5], principal=iff_qr)
+    ext_rq = Proof(Sequent([iff_qr], [RQ]), 'cut', [h3, h6], principal=H_qr)
+
+    # --- Forward: PQ, QR, P |- R ---
+    fw_1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    fw_2 = Proof(Sequent([P], [P, R]), 'weakening_right', [fw_1], principal=R)
+    fw_3 = Proof(Sequent([QR, P], [P, R]), 'weakening_left', [fw_2], principal=QR)
+    fw_4 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
+    fw_5 = Proof(Sequent([Q], [Q, R]), 'weakening_right', [fw_4], principal=R)
+    fw_6 = Proof(Sequent([P, Q], [Q, R]), 'weakening_left', [fw_5], principal=P)
+    fw_7 = Proof(Sequent([R], [R]), 'axiom', principal=R)
+    fw_8 = Proof(Sequent([Q, R], [R]), 'weakening_left', [fw_7], principal=Q)
+    fw_9 = Proof(Sequent([P, Q, R], [R]), 'weakening_left', [fw_8], principal=P)
+    fw_10 = Proof(Sequent([P, Q, QR], [R]), 'implies_left', [fw_6, fw_9], principal=QR)
+    fw = Proof(Sequent([PQ, QR, P], [R]), 'implies_left', [fw_3, fw_10], principal=PQ)
+
+    # --- Backward: RQ, QP, R |- P ---
+    bw_1 = Proof(Sequent([R], [R]), 'axiom', principal=R)
+    bw_2 = Proof(Sequent([R], [R, P]), 'weakening_right', [bw_1], principal=P)
+    bw_3 = Proof(Sequent([QP, R], [R, P]), 'weakening_left', [bw_2], principal=QP)
+    bw_4 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
+    bw_5 = Proof(Sequent([Q], [Q, P]), 'weakening_right', [bw_4], principal=P)
+    bw_6 = Proof(Sequent([R, Q], [Q, P]), 'weakening_left', [bw_5], principal=R)
+    bw_7 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    bw_8 = Proof(Sequent([Q, P], [P]), 'weakening_left', [bw_7], principal=Q)
+    bw_9 = Proof(Sequent([R, Q, P], [P]), 'weakening_left', [bw_8], principal=R)
+    bw_10 = Proof(Sequent([R, Q, QP], [P]), 'implies_left', [bw_6, bw_9], principal=QP)
+    bw = Proof(Sequent([RQ, QP, R], [P]), 'implies_left', [bw_3, bw_10], principal=RQ)
+
+    # --- iff_pq, iff_qr, P |- R via cuts ---
+    c1a = Proof(Sequent([iff_pq], [PQ, R]), 'weakening_right', [ext_pq], principal=R)
+    c1b = Proof(Sequent([iff_pq, iff_qr], [PQ, R]), 'weakening_left', [c1a], principal=iff_qr)
+    c1c = Proof(Sequent([iff_pq, iff_qr, P], [PQ, R]), 'weakening_left', [c1b], principal=P)
+    c2a = Proof(Sequent([iff_qr], [QR, R]), 'weakening_right', [ext_qr], principal=R)
+    c2b = Proof(Sequent([iff_qr, iff_pq], [QR, R]), 'weakening_left', [c2a], principal=iff_pq)
+    c2c = Proof(Sequent([iff_qr, iff_pq, P], [QR, R]), 'weakening_left', [c2b], principal=P)
+    c2d = Proof(Sequent([iff_qr, iff_pq, P, PQ], [QR, R]), 'weakening_left', [c2c], principal=PQ)
+    c2e = Proof(Sequent([iff_pq, PQ, QR, P], [R]), 'weakening_left', [fw], principal=iff_pq)
+    c2f = Proof(Sequent([iff_pq, iff_qr, PQ, QR, P], [R]), 'weakening_left', [c2e], principal=iff_qr)
+    c2g = Proof(Sequent([iff_pq, iff_qr, P, PQ], [R]), 'cut', [c2d, c2f], principal=QR)
+    fwd_result = Proof(Sequent([iff_pq, iff_qr, P], [R]), 'cut', [c1c, c2g], principal=PQ)
+    fwd_pr = Proof(Sequent([iff_pq, iff_qr], [PR]), 'implies_right', [fwd_result], principal=PR)
+
+    # --- iff_pq, iff_qr, R |- P via cuts ---
+    d1a = Proof(Sequent([iff_qr], [RQ, P]), 'weakening_right', [ext_rq], principal=P)
+    d1b = Proof(Sequent([iff_qr, iff_pq], [RQ, P]), 'weakening_left', [d1a], principal=iff_pq)
+    d1c = Proof(Sequent([iff_qr, iff_pq, R], [RQ, P]), 'weakening_left', [d1b], principal=R)
+    d2a = Proof(Sequent([iff_pq], [QP, P]), 'weakening_right', [ext_qp], principal=P)
+    d2b = Proof(Sequent([iff_pq, iff_qr], [QP, P]), 'weakening_left', [d2a], principal=iff_qr)
+    d2c = Proof(Sequent([iff_pq, iff_qr, R], [QP, P]), 'weakening_left', [d2b], principal=R)
+    d2d = Proof(Sequent([iff_pq, iff_qr, R, RQ], [QP, P]), 'weakening_left', [d2c], principal=RQ)
+    d2e = Proof(Sequent([iff_qr, RQ, QP, R], [P]), 'weakening_left', [bw], principal=iff_qr)
+    d2f = Proof(Sequent([iff_pq, iff_qr, RQ, QP, R], [P]), 'weakening_left', [d2e], principal=iff_pq)
+    d2g = Proof(Sequent([iff_pq, iff_qr, R, RQ], [P]), 'cut', [d2d, d2f], principal=QP)
+    bwd_result = Proof(Sequent([iff_pq, iff_qr, R], [P]), 'cut', [d1c, d2g], principal=RQ)
+    bwd_rp = Proof(Sequent([iff_pq, iff_qr], [RP]), 'implies_right', [bwd_result], principal=RP)
+
+    # --- Build Iff(P, R) ---
+    nr = Proof(Sequent([iff_pq, iff_qr, NRP], []), 'not_left', [bwd_rp], principal=NRP)
+    il = Proof(Sequent([iff_pq, iff_qr, H_pr], []), 'implies_left', [fwd_pr, nr], principal=H_pr)
+    core = Proof(Sequent([iff_pq, iff_qr], [iff_pr]), 'not_right', [il], principal=iff_pr)
+
+    # --- Close ---
+    imp1 = Implies(iff_qr, iff_pr)
+    s1 = Proof(Sequent([iff_pq], [imp1]), 'implies_right', [core], principal=imp1)
+    imp2 = Implies(iff_pq, imp1)
+    s2 = Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+    proof = s2
+    for v in vars:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'iff_chain'
+    return proof
+
+
+def forall_implies_exists(P, Q, x: Var, vars: list[Var]):
+    """|- forall vars. (forall x. P implies Q) implies (exists x. P) implies (exists x. Q)"""
+    PQ = Implies(P, Q)
+    faPQ = Forall(x, PQ)
+    exP = Exists(x, P)
+    exQ = Exists(x, Q)
+    NP = Not(P)
+    NQ = Not(Q)
+    faNP = Forall(x, NP)
+    faNQ = Forall(x, NQ)
+
+    # Core: faPQ, P |- Q (instantiate forall, apply modus ponens)
+    ax_p = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    ax_p2 = Proof(Sequent([P], [P, Q]), 'weakening_right', [ax_p], principal=Q)
+    ax_q = Proof(Sequent([P, Q], [Q]), 'axiom', principal=Q)
+    mp = Proof(Sequent([P, PQ], [Q]), 'implies_left', [ax_p2, ax_q], principal=PQ)
+    inst = Proof(Sequent([faPQ, P], [Q]), 'forall_left', [mp], principal=faPQ, term=x)
+
+    # faPQ, P |- exQ (existential intro with witness x)
+    # exQ = Not(Forall(x, Not(Q)))
+    nl1 = Proof(Sequent([faPQ, P, NQ], []), 'not_left', [inst], principal=NQ)
+    fl1 = Proof(Sequent([faPQ, P, faNQ], []),
+                'forall_left', [nl1], principal=faNQ, term=x)
+    nr1 = Proof(Sequent([faPQ, P], [exQ]), 'not_right', [fl1], principal=exQ)
+
+    # faPQ, exP |- exQ (existential elim on exP)
+    # from faPQ, P |- exQ, derive faPQ, Not(faNP) |- exQ
+    # step 1: not_right to get |- Not(P), exQ from P |- exQ context
+    nr2 = Proof(Sequent([faPQ], [NP, exQ]), 'not_right', [nr1], principal=NP)
+    # step 2: forall_right x for |- Forall(x, Not(P)), exQ
+    fr2 = Proof(Sequent([faPQ], [faNP, exQ]),
+                'forall_right', [nr2], principal=faNP, term=x)
+    # step 3: not_left to get Not(faNP) |- exQ
+    nl2 = Proof(Sequent([faPQ, exP], [exQ]), 'not_left', [fr2], principal=exP)
+
+    # Close: discharge exP, faPQ, then forall
+    imp1 = Implies(exP, exQ)
+    s1 = Proof(Sequent([faPQ], [imp1]), 'implies_right', [nl2], principal=imp1)
+    imp2 = Implies(faPQ, imp1)
+    s2 = Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+    proof = s2
+    for v in vars:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'forall_implies_exists'
+    return proof
+
+
+def eq_substitution():
+    """Extensionality |- forall a, b, z. Eq(a,b) implies Iff(In(a,z), In(b,z))"""
+    a, b, z = Var(), Var(), Var()
+    xp, yp, zp = Var(), Var(), Var()
+
+    ext_ax = zfc.Extensionality()
+    eq_ab = Eq(a, b)
+    iff_ab_z = Iff(In(a, z), In(b, z))
+
+    # Extensionality expanded form
+    ext_full = Forall(xp, Forall(yp,
+        Implies(Forall(zp, Iff(In(zp, xp), In(zp, yp))),
+                Forall(zp, Iff(In(xp, zp), In(yp, zp))))))
+    ext_inst_x = Forall(yp,
+        Implies(Forall(zp, Iff(In(zp, a), In(zp, yp))),
+                Forall(zp, Iff(In(a, zp), In(yp, zp)))))
+    eq_ab_exp = Forall(zp, Iff(In(zp, a), In(zp, b)))
+    fa_iff = Forall(zp, Iff(In(a, zp), In(b, zp)))
+    ext_inst_xy = Implies(eq_ab_exp, fa_iff)
+
+    # iff_ab_z |- iff_ab_z
+    s0 = Proof(Sequent([iff_ab_z], [iff_ab_z]), 'axiom', principal=iff_ab_z)
+    # fa_iff |- iff_ab_z (instantiate with z)
+    s1 = Proof(Sequent([fa_iff], [iff_ab_z]), 'forall_left', [s0], principal=fa_iff, term=z)
+    # Eq(a,b), fa_iff |- iff_ab_z
+    s2 = Proof(Sequent([eq_ab, fa_iff], [iff_ab_z]), 'weakening_left', [s1], principal=eq_ab)
+    # Eq(a,b) |- Eq(a,b), iff_ab_z
+    s3 = Proof(Sequent([eq_ab], [eq_ab]), 'axiom', principal=eq_ab)
+    s4 = Proof(Sequent([eq_ab], [eq_ab, iff_ab_z]), 'weakening_right', [s3], principal=iff_ab_z)
+    # Eq(a,b), ext_inst_xy |- iff_ab_z (implies_left)
+    s5 = Proof(Sequent([eq_ab, ext_inst_xy], [iff_ab_z]),
+               'implies_left', [s4, s2], principal=ext_inst_xy)
+    # ext_inst_xy |- Eq(a,b) -> iff_ab_z
+    imp = Implies(eq_ab, iff_ab_z)
+    s6 = Proof(Sequent([ext_inst_xy], [imp]), 'implies_right', [s5], principal=imp)
+    # Instantiate extensionality: forall_left twice
+    s7 = Proof(Sequent([ext_inst_x], [imp]), 'forall_left', [s6], principal=ext_inst_x, term=b)
+    s8 = Proof(Sequent([ext_ax], [imp]), 'forall_left', [s7], principal=ext_full, term=a)
+
+    # Close
+    fz = Forall(z, imp)
+    s9 = Proof(Sequent([ext_ax], [fz]), 'forall_right', [s8], principal=fz, term=z)
+    fb = Forall(b, fz)
+    s10 = Proof(Sequent([ext_ax], [fb]), 'forall_right', [s9], principal=fb, term=b)
+    fa = Forall(a, fb)
+    s11 = Proof(Sequent([ext_ax], [fa]), 'forall_right', [s10], principal=fa, term=a)
+    s11.name = 'eq_substitution'
+    return s11
+
+

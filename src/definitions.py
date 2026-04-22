@@ -4,14 +4,17 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Exists, And, Or, Iff, Eq
 
 
-class DefSet:
+class SetSpec:
     """P(S) = forall s. (forall x. x in s iff cond(x)) implies P(s)
     cond: lambda x -> formula describing membership"""
 
-    def __init__(self, cond, body, prefix='set'):
+    def __init__(self, cond, body, prefix=None):
         self.cond = cond
-        self.var = Var(prefix)
         self.body = body
+        if prefix is None:
+            x = Var()
+            prefix = f'{{{x}|{cond(x)}}}'
+        self.var = Var(prefix)
 
     def expand(self):
         x = Var()
@@ -23,11 +26,11 @@ class DefSet:
         return f'{self.body(self.var)}'
 
 
-class Empty:
+class EmptySet:
     """P(empty) = forall s. (forall x. not(x in s)) implies P(s)"""
 
     def __init__(self, body):
-        self.var = Var('empty')
+        self.var = Var('{}')
         self.body = body
 
     def expand(self):
@@ -38,20 +41,19 @@ class Empty:
         return f'{self.body(self.var)}'
 
 
-def Singleton(a, body):
+def Singleton(a, body, prefix=None):
     """{a}: x in {a} iff x = a"""
-    return DefSet(lambda x: Eq(x, a), body, 'sing')
+    return SetSpec(lambda x: Eq(x, a), body, prefix or f'{{{a}}}')
 
 
-def PairSet(a, b, body):
+def PairSet(a, b, body, prefix=None):
     """{a, b}: x in {a,b} iff x = a or x = b"""
-    return DefSet(lambda x: Or(Eq(x, a), Eq(x, b)), body, 'pair')
+    return SetSpec(lambda x: Or(Eq(x, a), Eq(x, b)), body, prefix or f'{{{a},{b}}}')
 
 
-def Tuple(a, b, body):
+def OrdPair(a, b, body):
     """(a, b) = {{a}, {a, b}}"""
     return Singleton(a, lambda sa:
         PairSet(a, b, lambda pab:
-            PairSet(sa, pab, body)))
-
+            PairSet(sa, pab, body, f'({a},{b})')))
 
