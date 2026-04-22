@@ -583,10 +583,8 @@ def or_elim(A, B, C):
 
 
 def eq_substitution():
-    """EXT |- forall a b. Eq(a,b) implies forall z. Iff(In(a,z), In(b,z))
-    Uses extensionality axiom as assumption."""
+    """EXT |- forall a b. Eq(a,b) implies forall z. Iff(In(a,z), In(b,z))"""
     a, b, z = Var(), Var(), Var()
-
     from core import zfc
     EXT = zfc.extensionality.sequent.left[0]
 
@@ -595,199 +593,109 @@ def eq_substitution():
     hyp_imp = Implies(eq_ab, subst_result)
     inner_forall = Forall(b, hyp_imp)
 
-    # EXT |- inner_forall (forall_left, term=a)
-    s1 = _forall_left(_axiom(inner_forall), EXT, a)
-
-    # inner_forall |- hyp_imp (forall_left, term=b)
-    s2 = _forall_left(_axiom(hyp_imp), inner_forall, b)
-
-    # EXT |- hyp_imp (cut)
+    s1 = Proof(Sequent([EXT], [inner_forall]), 'forall_left',
+               [_axiom(inner_forall)], term=a, principal=EXT)
+    s2 = Proof(Sequent([inner_forall], [hyp_imp]), 'forall_left',
+               [_axiom(hyp_imp)], term=b, principal=inner_forall)
     got_imp = _cut(s1, s2, inner_forall, [EXT], [hyp_imp])
 
-    # EXT, eq_ab |- subst_result (modus ponens via implies_left)
-    app = _implies_left(
-        _axiom(eq_ab, left=[EXT], right=[subst_result]),
-        _axiom(subst_result, left=[EXT, eq_ab]))
+    app = Proof(Sequent([EXT, eq_ab, hyp_imp], [subst_result]), 'implies_left',
+                [_axiom(eq_ab, left=[EXT], right=[subst_result]),
+                 _axiom(subst_result, left=[EXT, eq_ab])],
+                principal=hyp_imp)
     got_sub = _cut(got_imp, app, hyp_imp, [EXT, eq_ab], [subst_result])
 
-    # Close: EXT stays as assumption
-    s_imp = _implies_right(got_sub)  # EXT |- Implies(eq_ab, subst_result)
-    s_fb = _forall_right(s_imp, b)
-    s_fa = _forall_right(s_fb, a)
-    s_fa.name = 'eq_substitution'
+    imp_r = Implies(eq_ab, subst_result)
+    s_imp = Proof(Sequent([EXT], [imp_r]), 'implies_right', [got_sub], principal=imp_r)
+    fb = Forall(b, imp_r)
+    s_fb = Proof(Sequent([EXT], [fb]), 'forall_right', [s_imp], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s_fa = Proof(Sequent([EXT], [fa]), 'forall_right', [s_fb],
+                 term=a, principal=fa, name='eq_substitution')
     return s_fa
 
 
 def and_intro(A, B):
-    """A, B |- And(A, B)
-    And(A,B) = Not(Implies(A, Not(B)))"""
-    NB = Not(B)
-    imp = Implies(A, NB)
-
-    # Goal: [A, B] |- [Not(imp)]
-    # not_right: [A, B, imp] |- []
-    # implies_left on imp (last): [A, B] |- [A] and [A, B, NB] |- []
-    #   p0: [A, B] |- [A] -- axiom (exchange: [B, A] |- [A])
-    #   p1: [A, B, NB] |- [] -- not_left on NB: [A, B] |- [B] -- axiom
-
-    p0 = _exchange_left(_axiom(A, left=[B]), [A, B])
-    p1_inner = _axiom(B, left=[A])  # [A, B] |- [B]
-    p1 = _not_left(p1_inner)  # [A, B, NB] |- []
-
-    s1 = _implies_left(p0, p1)  # [A, B, imp] |- []
-    s2 = _not_right(s1)  # [A, B] |- [Not(imp)]
-
-    # Use derived And in conclusion
-    result = Proof(Sequent([A, B], [And(A, B)]), s2.rule, s2.premises,
-                   name='and_intro')
-    return result
-
-
-def and_elim_left(A, B):
-    """And(A, B) |- A
-    And(A,B) = Not(Implies(A, Not(B)))"""
-    NB = Not(B)
-    imp = Implies(A, NB)
-    nand = Not(imp)  # And(A,B) expanded
-
-    # Goal: [nand] |- [A]
-    # Classical proof: [nand] |- [A]
-    # Assume not(A), derive imp, contradict nand.
-    # not_right on [nand, imp] |- []: nand last, gives [nand] |- [Not(imp)]... circular.
-
-    # Use cut with imp:
-    # p0: [nand] |- [imp, A]
-    # p1: [nand, imp] |- [A]
-
-    # p1: [nand, imp] |- [A]
-    # Exchange: [imp, nand] |- [A]
-    # not_left on nand (last): [imp] |- [imp, A]
-    # axiom: [imp] |- [imp, A] -- imp last left, imp first right ✓
-    p1_inner = _axiom(imp, right=[A])  # [imp] |- [imp, A]
-    p1_notl = _not_left(p1_inner)  # [imp, nand] |- [A]
-    p1 = _exchange_left(p1_notl, [nand, imp])  # [nand, imp] |- [A]
-
-    # p0: [nand] |- [imp, A]
-    # imp = Implies(A, NB). implies_right: [nand, A] |- [NB, A]
-    # not_right on NB: [nand, A, B] |- [A]
-    # axiom: [nand, A, B] |- [A]... A not last. Exchange: [nand, B, A] |- [A]
-    ax_a = _exchange_left(_axiom(A, left=[nand, B]), [nand, A, B])
-    p0_notr = _not_right(ax_a)  # [nand, A] |- [NB, A]
-    # exchange right: [nand, A] |- [A, NB]... wait not_right puts Not first.
-    # _not_right: B last on left -> Not(B) first on right. So [nand, A, B] with B last:
-    # no, ax_a has [nand, A, B] |- [A]. _not_right: last on left is B, so Not(B) first on right.
-    # Result: [nand, A] |- [Not(B), A]
-    # exchange right: [nand, A] |- [A, Not(B)]... hmm
-
-    # Actually let me redo. implies_right expects A last on left, NB first on right.
-    # p0_notr: [nand, A] |- [NB, A]. NB first ✓. But implies_right needs A last on left.
-    # A is last ✓.
-    p0_impr = _implies_right(p0_notr)  # [nand] |- [imp, A]
-    # imp = Implies(A, NB). implies_right wraps A and NB into Implies(A, NB).
-    # Actually _implies_right takes last on left (A) and first on right (NB), makes Implies(A, NB) first on right.
-    # Result: [nand] |- [Implies(A, NB), A] = [nand] |- [imp, A] ✓
-
-    result = _cut(p0_impr, p1, imp, [nand], [A])
-    result = Proof(Sequent([And(A, B)], list(result.sequent.right)),
-                   result.rule, result.premises, name='and_elim_left')
-    return result
-
-
-def and_elim_right(A, B):
-    """And(A, B) |- B
-    And(A,B) = Not(Implies(A, Not(B)))"""
+    """A, B |- And(A, B)"""
     NB = Not(B)
     imp = Implies(A, NB)
     nand = Not(imp)
 
-    # [nand] |- [B]
-    # Cut with imp:
-    # p0: [nand] |- [imp, B]
-    # p1: [nand, imp] |- [B]
+    p0 = _axiom(A, left=[B])
+    p1 = Proof(Sequent([A, B, NB], []), 'not_left',
+               [_axiom(B, left=[A])], principal=NB)
+    s1 = Proof(Sequent([A, B, imp], []), 'implies_left', [p0, p1], principal=imp)
+    s2 = Proof(Sequent([A, B], [nand]), 'not_right', [s1], principal=nand)
+    return Proof(Sequent([A, B], [And(A, B)]), s2.rule, s2.premises,
+                 principal=s2.principal, name='and_intro')
 
-    # p1: not_left on nand: [imp] |- [imp, B]. axiom.
-    p1_inner = _axiom(imp, right=[B])
-    p1_notl = _not_left(p1_inner)
-    p1 = _exchange_left(p1_notl, [nand, imp])
 
-    # p0: [nand] |- [imp, B]
-    # imp = Implies(A, NB). implies_right: [nand, A] |- [NB, B]
-    # NB = Not(B). not_right: [nand, A, B] |- [B]
-    # axiom: B last left, B first right. [nand, A, B] |- [B] ✓
+def and_elim_left(A, B):
+    """And(A, B) |- A"""
+    NB = Not(B)
+    imp = Implies(A, NB)
+    nand = Not(imp)
+
+    # p0: nand |- imp, A
+    ax_a = _axiom(A, left=[nand, B])
+    s_notr = Proof(Sequent([nand, A], [NB, A]), 'not_right', [ax_a], principal=NB)
+    p0 = Proof(Sequent([nand], [imp, A]), 'implies_right', [s_notr], principal=imp)
+
+    # p1: nand, imp |- A
+    p1_ax = _axiom(imp, right=[A])
+    p1 = Proof(Sequent([imp, nand], [A]), 'not_left', [p1_ax], principal=nand)
+
+    result = _cut(p0, p1, imp, [nand], [A])
+    return Proof(Sequent([And(A, B)], [A]), result.rule, result.premises,
+                 principal=result.principal, name='and_elim_left')
+
+
+def and_elim_right(A, B):
+    """And(A, B) |- B"""
+    NB = Not(B)
+    imp = Implies(A, NB)
+    nand = Not(imp)
+
+    # p0: nand |- imp, B
     ax_b = _axiom(B, left=[nand, A])
-    p0_notr = _not_right(ax_b)  # [nand, A] |- [NB, B]
-    p0_impr = _implies_right(p0_notr)  # [nand] |- [imp, B]
+    s_notr = Proof(Sequent([nand, A], [NB, B]), 'not_right', [ax_b], principal=NB)
+    p0 = Proof(Sequent([nand], [imp, B]), 'implies_right', [s_notr], principal=imp)
 
-    result = _cut(p0_impr, p1, imp, [nand], [B])
-    result = Proof(Sequent([And(A, B)], list(result.sequent.right)),
-                   result.rule, result.premises, name='and_elim_right')
-    return result
+    # p1: nand, imp |- B
+    p1_ax = _axiom(imp, right=[B])
+    p1 = Proof(Sequent([imp, nand], [B]), 'not_left', [p1_ax], principal=nand)
+
+    result = _cut(p0, p1, imp, [nand], [B])
+    return Proof(Sequent([And(A, B)], [B]), result.rule, result.premises,
+                 principal=result.principal, name='and_elim_right')
 
 
 def _instantiate(proof, terms):
     """Given a proof of G |- Forall(x1, Forall(x2, ... body)),
-    instantiate with terms to get G |- body[terms/vars].
-    Repeatedly applies forall_left + cut."""
+    instantiate with terms to get G |- body[terms/vars]."""
     for t in terms:
         f = proof.sequent.right[0]  # must be Forall
         body_subst = f.body.subst(f.var, t)
-        body_inst = _forall_left(_axiom(body_subst), f, t)
-        proof = _cut(proof, body_inst, f, list(proof.sequent.left), [body_subst])
+        inst = Proof(Sequent([f], [body_subst]), 'forall_left',
+                     [_axiom(body_subst)], term=t, principal=f)
+        proof = _cut(proof, inst, f, list(proof.sequent.left), [body_subst])
     return proof
 
 
 def _apply_imp(proof, arg_proof, context):
     """Given proof of G1 |- A -> B and arg_proof of G2 |- A,
-    produce context |- B. context must cover G1 and G2."""
+    produce context |- B."""
     imp = proof.sequent.right[0]  # Implies(A, B)
     A, B = imp.left, imp.right
 
-    # implies_left: context |- A, B  and  context, B |- B  =>  context, imp |- B
-    app = _implies_left(
-        _axiom(A, left=list(context), right=[B]),
-        _axiom(B, left=list(context) + [A]))
-    # app: [context, A, imp] |- [B] — but we built it as [context, Implies(A,B)] |- [B]
-    # Actually _implies_left builds G, A->B |- D from G |- A, D and G, B |- D.
-    # So app = [context, imp] |- [B]... no:
-    # _axiom(A, left=context, right=[B]) = [context, A] |- [A, B]. A first on right.
-    # _axiom(B, left=context+[A]) = [context, A, B] |- [B]. B last on left.
-    # _implies_left: [context, A, Implies(A, B)] |- [B]
-    # Hmm, that has A in context too. That's wrong for our purpose.
-
-    # Let me just do it explicitly:
-    # Step 1: proof gives |- imp (in some context). Weaken to context |- imp, B.
+    # Weaken proof to context |- imp, B
     p1 = _weaken_to(proof, list(context), [imp, B])
-
-    # Step 2: context, imp |- B via implies_left
-    # need: context |- A, B (p0) and context, B |- B (p1_inner)
-    p0_inner = _axiom(A, left=list(context), right=[B])
-    # But A might not be in context... for implies_left we need A first on right.
-    # p0_inner: [context, A] |- [A, B]. But we want [context] |- [A, B].
-    # That needs A to come from somewhere. Actually in classical logic, A can just be on the right.
-    # We need: context |- A, B where A is first. But context doesn't prove A.
-    # This is the role of the arg_proof! But implies_left doesn't use arg_proof.
-
-    # OK let me think differently. The standard way to use A->B with argument A:
-    # 1. proof: G1 |- A->B
-    # 2. arg: G2 |- A
-    # 3. weaken both to context
-    # 4. implies_right inverse... no.
-    # Actually the cleanest: cut.
-    # proof: context |- A->B (weakened)
-    # implies_left: if we have A->B on the left, from G|-A,D and G,B|-D derive G,A->B|-D
-    # So: context, A->B |- B if we can show context |- A, B.
-    # But we don't have context |- A without arg_proof.
-
-    # Two cuts:
-    # Cut 1: arg gives A. proof gives A->B. Combine to get B.
-    # arg_proof (weakened): context |- A, B
+    # Weaken arg_proof to context |- A, B
     arg_w = _weaken_to(arg_proof, list(context), [A, B])
-    # axiom: context, B |- B
-    ax_b = _axiom(B, left=list(context))
-    # implies_left: context, A->B |- B (from arg_w and ax_b)
-    il = _implies_left(arg_w, ax_b)  # [context, Implies(A,B)] |- [B]
-
-    # Cut proof with il on imp:
+    # implies_left: context, imp |- B from arg_w (context |- A, B) and axiom (context, B |- B)
+    il = Proof(Sequent(list(context) + [imp], [B]), 'implies_left',
+               [arg_w, _axiom(B, left=list(context))], principal=imp)
+    # Cut proof with il on imp
     return _cut(p1, il, imp, list(context), [B])
 
 
@@ -876,16 +784,22 @@ def tuple_injection():
     s2 = _cut(t2_w, s1, iff_xb_xd, G, [iff_body])
     # [eq_ac, eq_bd] |- iff_body
 
-    s3 = _forall_right(s2, x)
-    # [eq_ac, eq_bd] |- forall x. iff_body = conclusion
+    fx = Forall(x, iff_body)
+    s3 = Proof(Sequent(G, [fx]), 'forall_right', [s2], term=x, principal=fx)
 
-    s_i1 = _implies_right(s3)
-    s_i2 = _implies_right(s_i1)
-    s_fd = _forall_right(s_i2, d)
-    s_fc = _forall_right(s_fd, c)
-    s_fb = _forall_right(s_fc, b)
-    s_fa = _forall_right(s_fb, a)
-    s_fa.name = 'pair_eq_forward'
+    imp_bd = Implies(eq_bd, fx)
+    s_i1 = Proof(Sequent([eq_ac], [imp_bd]), 'implies_right', [s3], principal=imp_bd)
+    imp_ac = Implies(eq_ac, imp_bd)
+    s_i2 = Proof(Sequent([], [imp_ac]), 'implies_right', [s_i1], principal=imp_ac)
+    fd = Forall(d, imp_ac)
+    s_fd = Proof(Sequent([], [fd]), 'forall_right', [s_i2], term=d, principal=fd)
+    fc = Forall(c, fd)
+    s_fc = Proof(Sequent([], [fc]), 'forall_right', [s_fd], term=c, principal=fc)
+    fb = Forall(b, fc)
+    s_fb = Proof(Sequent([], [fb]), 'forall_right', [s_fc], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s_fa = Proof(Sequent([], [fa]), 'forall_right', [s_fb],
+                 term=a, principal=fa, name='pair_eq_forward')
     return s_fa
 
 
@@ -1094,41 +1008,38 @@ def eq_transfer():
 
 def or_intro_left(A, B):
     """A |- Or(A, B)"""
-    # Or(A,B) = Implies(Not(A), B)
-    # A |- A (axiom). weaken right D: A |- A, B.
-    # not_left: A, Not(A) |- B. implies_right: A |- Implies(Not(A), B) = Or(A,B).
-    result = _implies_right(_not_left(_axiom(A, right=[B])))
+    NA = Not(A)
+    orAB = Implies(NA, B)
+    ax = _axiom(A, right=[B])           # A |- A, B
+    nl = Proof(Sequent([A, NA], [B]), 'not_left', [ax], principal=NA)
+    result = Proof(Sequent([A], [orAB]), 'implies_right', [nl], principal=orAB)
     return Proof(Sequent([A], [Or(A, B)]), result.rule, result.premises,
-                 name='or_intro_left')
+                 principal=result.principal, name='or_intro_left')
 
 
 def or_intro_right(A, B):
     """B |- Or(A, B)"""
-    # Or(A,B) = Implies(Not(A), B)
-    # B, Not(A) |- B (axiom, exchange). implies_right: B |- Implies(Not(A), B).
-    ax = _exchange_left(_axiom(B, left=[Not(A)]), [B, Not(A)])
-    result = _implies_right(ax)
+    NA = Not(A)
+    orAB = Implies(NA, B)
+    ax = _axiom(B, left=[NA])           # Not(A), B |- B
+    result = Proof(Sequent([B], [orAB]), 'implies_right', [ax], principal=orAB)
     return Proof(Sequent([B], [Or(A, B)]), result.rule, result.premises,
-                 name='or_intro_right')
+                 principal=result.principal, name='or_intro_right')
 
 
 def iff_mp(A, B):
-    """Iff(A, B), A |- B
-    Forward modus ponens on biconditional."""
+    """Iff(A, B), A |- B"""
     iff = Iff(A, B)
-    el = iff_elim_left(A, B)  # iff |- A -> B
-    imp_ab = Implies(A, B)
-    # iff, A |- B
+    el = iff_elim_left(A, B)
     result = _apply_imp(el, _axiom(A, left=[iff]), [iff, A])
     result.name = 'iff_mp'
     return result
 
 
 def iff_mp_rev(A, B):
-    """Iff(A, B), B |- A
-    Backward modus ponens on biconditional."""
+    """Iff(A, B), B |- A"""
     iff = Iff(A, B)
-    er = iff_elim_right(A, B)  # iff |- B -> A
+    er = iff_elim_right(A, B)
     result = _apply_imp(er, _axiom(B, left=[iff]), [iff, B])
     result.name = 'iff_mp_rev'
     return result
