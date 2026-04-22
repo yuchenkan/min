@@ -46,7 +46,7 @@ class Empty:
     def subst(self, old, new):
         return Empty(new if self.set is old else self.set)
     def __str__(self):
-        return f'Empty({self.set})'
+        return f'{self.set} = {{}}'
 
 
 class Singleton:
