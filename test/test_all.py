@@ -43,6 +43,7 @@ if __name__ == '__main__':
         ('and_elim_right', theorems.and_elim_right(In(x, y), In(y, z), [x, y, z])),
         ('or_intro_left', theorems.or_intro_left(In(x, y), In(y, z), [x, y, z])),
         ('or_intro_right', theorems.or_intro_right(In(x, y), In(y, z), [x, y, z])),
+        ('iff_sym', theorems.iff_sym(In(x, y), In(y, z), [x, y, z])),
         ('iff_mp', theorems.iff_mp(In(x, y), In(y, z), [x, y, z])),
         ('iff_mp_rev', theorems.iff_mp_rev(In(x, y), In(y, z), [x, y, z])),
         ('or_iff_compat', theorems.or_iff_compat(In(x, y), In(y, z), In(z, w), In(x, w), [x, y, z, w])),

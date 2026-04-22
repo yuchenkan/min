@@ -1533,6 +1533,210 @@ def iff_mp_rev(P, Q, vars: list[Var]):
     return proof
 
 
+def iff_sym(P, Q, vars: list[Var]):
+    """|- forall vars. Iff(P,Q) implies Iff(Q,P)"""
+    PQ = Implies(P, Q)
+    QP = Implies(Q, P)
+    NPQ = Not(PQ)
+    NQP = Not(QP)
+    H1 = Implies(PQ, NQP)
+    H2 = Implies(QP, NPQ)
+    iff_pq = Iff(P, Q)
+    iff_qp = Iff(Q, P)
+
+    # Extract QP from iff_pq
+    a1 = Proof(Sequent([iff_pq, PQ, QP], [QP]), 'axiom', principal=QP)
+    a2 = Proof(Sequent([iff_pq, PQ], [NQP, QP]), 'not_right', [a1], principal=NQP)
+    a3 = Proof(Sequent([iff_pq], [H1, QP]), 'implies_right', [a2], principal=H1)
+    a4 = Proof(Sequent([H1], [H1, QP]), 'weakening_right',
+               [Proof(Sequent([H1], [H1]), 'axiom', principal=H1)], principal=QP)
+    a5 = Proof(Sequent([H1, iff_pq], [QP]), 'not_left', [a4], principal=iff_pq)
+    ext_qp = Proof(Sequent([iff_pq], [QP]), 'cut', [a3, a5], principal=H1)
+
+    # Extract PQ from iff_pq
+    b1 = Proof(Sequent([iff_pq, PQ], [PQ]), 'axiom', principal=PQ)
+    b2 = Proof(Sequent([iff_pq, PQ], [NQP, PQ]), 'weakening_right', [b1], principal=NQP)
+    b3 = Proof(Sequent([iff_pq], [H1, PQ]), 'implies_right', [b2], principal=H1)
+    b4 = Proof(Sequent([H1], [H1, PQ]), 'weakening_right',
+               [Proof(Sequent([H1], [H1]), 'axiom', principal=H1)], principal=PQ)
+    b5 = Proof(Sequent([H1, iff_pq], [PQ]), 'not_left', [b4], principal=iff_pq)
+    ext_pq = Proof(Sequent([iff_pq], [PQ]), 'cut', [b3, b5], principal=H1)
+
+    # Build Iff(Q, P)
+    c1 = Proof(Sequent([iff_pq, NPQ], []), 'not_left', [ext_pq], principal=NPQ)
+    c2 = Proof(Sequent([iff_pq, H2], []), 'implies_left', [ext_qp, c1], principal=H2)
+    core = Proof(Sequent([iff_pq], [iff_qp]), 'not_right', [c2], principal=iff_qp)
+
+    # Close
+    imp = Implies(iff_pq, iff_qp)
+    s1 = Proof(Sequent([], [imp]), 'implies_right', [core], principal=imp)
+    proof = s1
+    for v in vars:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'iff_sym'
+    return proof
+
+
+def char_transfer(A, B, C):
+    """|- Iff(A,B) implies Iff(B,C) implies Iff(A,C)
+    No quantifiers — for inline composition. Same as iff_chain core."""
+    AB = Implies(A, B); BA = Implies(B, A)
+    BC = Implies(B, C); CB = Implies(C, B)
+    AC = Implies(A, C); CA = Implies(C, A)
+    NAC = Not(AC); NCA = Not(CA)
+    H_ab = Implies(AB, Not(BA)); H_bc = Implies(BC, Not(CB))
+    H_ac = Implies(AC, NCA)
+    iff_ab = Iff(A, B); iff_bc = Iff(B, C); iff_ac = Iff(A, C)
+
+    def _ext_fwd(iff_f, LR, RL, H):
+        e1 = Proof(Sequent([iff_f, LR], [LR]), 'axiom', principal=LR)
+        e2 = Proof(Sequent([iff_f, LR], [Not(RL), LR]), 'weakening_right', [e1], principal=Not(RL))
+        e3 = Proof(Sequent([iff_f], [H, LR]), 'implies_right', [e2], principal=H)
+        e4 = Proof(Sequent([H], [H, LR]), 'weakening_right',
+                   [Proof(Sequent([H], [H]), 'axiom', principal=H)], principal=LR)
+        e5 = Proof(Sequent([H, iff_f], [LR]), 'not_left', [e4], principal=iff_f)
+        return Proof(Sequent([iff_f], [LR]), 'cut', [e3, e5], principal=H)
+
+    def _ext_bwd(iff_f, LR, RL, H):
+        e1 = Proof(Sequent([iff_f, LR, RL], [RL]), 'axiom', principal=RL)
+        e2 = Proof(Sequent([iff_f, LR], [Not(RL), RL]), 'not_right', [e1], principal=Not(RL))
+        e3 = Proof(Sequent([iff_f], [H, RL]), 'implies_right', [e2], principal=H)
+        e4 = Proof(Sequent([H], [H, RL]), 'weakening_right',
+                   [Proof(Sequent([H], [H]), 'axiom', principal=H)], principal=RL)
+        e5 = Proof(Sequent([H, iff_f], [RL]), 'not_left', [e4], principal=iff_f)
+        return Proof(Sequent([iff_f], [RL]), 'cut', [e3, e5], principal=H)
+
+    ext_ab = _ext_fwd(iff_ab, AB, BA, H_ab)
+    ext_ba = _ext_bwd(iff_ab, AB, BA, H_ab)
+    ext_bc = _ext_fwd(iff_bc, BC, CB, H_bc)
+    ext_cb = _ext_bwd(iff_bc, BC, CB, H_bc)
+
+    # Forward: AB, BC, A |- C
+    fw1 = Proof(Sequent([A], [A, C]), 'weakening_right',
+                [Proof(Sequent([A], [A]), 'axiom', principal=A)], principal=C)
+    fw2 = Proof(Sequent([BC, A], [A, C]), 'weakening_left', [fw1], principal=BC)
+    fw3 = Proof(Sequent([B], [B, C]), 'weakening_right',
+                [Proof(Sequent([B], [B]), 'axiom', principal=B)], principal=C)
+    fw4 = Proof(Sequent([A, B], [B, C]), 'weakening_left', [fw3], principal=A)
+    fw5 = Proof(Sequent([C], [C]), 'axiom', principal=C)
+    fw6 = Proof(Sequent([A, C], [C]), 'weakening_left', [fw5], principal=A)
+    fw7 = Proof(Sequent([A, B, C], [C]), 'weakening_left', [fw6], principal=B)
+    fw8 = Proof(Sequent([A, B, BC], [C]), 'implies_left', [fw4, fw7], principal=BC)
+    fw = Proof(Sequent([AB, BC, A], [C]), 'implies_left', [fw2, fw8], principal=AB)
+
+    # Backward: BA, CB, C |- A
+    bw1 = Proof(Sequent([C], [C, A]), 'weakening_right',
+                [Proof(Sequent([C], [C]), 'axiom', principal=C)], principal=A)
+    bw2 = Proof(Sequent([BA, C], [C, A]), 'weakening_left', [bw1], principal=BA)
+    bw3 = Proof(Sequent([B], [B, A]), 'weakening_right',
+                [Proof(Sequent([B], [B]), 'axiom', principal=B)], principal=A)
+    bw4 = Proof(Sequent([C, B], [B, A]), 'weakening_left', [bw3], principal=C)
+    bw5 = Proof(Sequent([A], [A]), 'axiom', principal=A)
+    bw6 = Proof(Sequent([C, A], [A]), 'weakening_left', [bw5], principal=C)
+    bw7 = Proof(Sequent([C, B, A], [A]), 'weakening_left', [bw6], principal=B)
+    bw8 = Proof(Sequent([C, B, BA], [A]), 'implies_left', [bw4, bw7], principal=BA)
+    bw = Proof(Sequent([CB, BA, C], [A]), 'implies_left', [bw2, bw8], principal=CB)
+
+    # Compose forward: iff_ab, iff_bc, A |- C via cuts
+    c1a = Proof(Sequent([iff_ab], [AB, C]), 'weakening_right', [ext_ab], principal=C)
+    c1b = Proof(Sequent([iff_ab, iff_bc], [AB, C]), 'weakening_left', [c1a], principal=iff_bc)
+    c1c = Proof(Sequent([iff_ab, iff_bc, A], [AB, C]), 'weakening_left', [c1b], principal=A)
+    c1d = Proof(Sequent([iff_ab, iff_bc, A], [BC, C]),
+                'weakening_right',
+                [Proof(Sequent([iff_ab, iff_bc, A], [BC]),
+                       'weakening_left',
+                       [Proof(Sequent([iff_bc, A], [BC]),
+                              'weakening_left', [ext_bc], principal=A)],
+                       principal=iff_ab)],
+                principal=C)
+    # Cut AB
+    fw_w = Proof(Sequent([iff_ab, AB, BC, A], [C]), 'weakening_left', [fw], principal=iff_ab)
+    fw_w2 = Proof(Sequent([iff_ab, iff_bc, AB, BC, A], [C]), 'weakening_left', [fw_w], principal=iff_bc)
+    c1e = Proof(Sequent([iff_ab, iff_bc, A, AB], [BC, C]),
+                'weakening_left', [c1d], principal=AB)
+    # Hmm, this is getting tangled. Let me use a simpler approach.
+
+    # Just do two sequential cuts on AB and BC.
+    # Cut AB: from iff_ab, iff_bc, A |- AB, C and iff_ab, iff_bc, A, AB |- C
+    c_fw_ab1 = Proof(Sequent([iff_ab, iff_bc, A], [AB, C]),
+                     'weakening_left',
+                     [Proof(Sequent([iff_ab, A], [AB, C]),
+                            'weakening_left',
+                            [Proof(Sequent([iff_ab], [AB, C]),
+                                   'weakening_right', [ext_ab], principal=C)],
+                            principal=A)],
+                     principal=iff_bc)
+    # For the second branch, also cut BC inside:
+    # iff_ab, iff_bc, A, AB |- C needs BC too.
+    # Cut BC: from iff_ab, iff_bc, A, AB |- BC, C and iff_ab, iff_bc, A, AB, BC |- C
+    c_fw_bc1 = Proof(Sequent([iff_ab, iff_bc, A, AB], [BC, C]),
+                     'weakening_left',
+                     [Proof(Sequent([iff_bc, A, AB], [BC, C]),
+                            'weakening_left',
+                            [Proof(Sequent([iff_bc, AB], [BC, C]),
+                                   'weakening_left',
+                                   [Proof(Sequent([iff_bc], [BC, C]),
+                                          'weakening_right', [ext_bc], principal=C)],
+                                   principal=AB)],
+                            principal=A)],
+                     principal=iff_ab)
+    c_fw_bc2 = Proof(Sequent([iff_ab, iff_bc, AB, BC, A], [C]),
+                     'weakening_left',
+                     [Proof(Sequent([iff_bc, AB, BC, A], [C]),
+                            'weakening_left', [fw], principal=iff_bc)],
+                     principal=iff_ab)
+    c_fw_bc = Proof(Sequent([iff_ab, iff_bc, A, AB], [C]),
+                    'cut', [c_fw_bc1, c_fw_bc2], principal=BC)
+    fwd_result = Proof(Sequent([iff_ab, iff_bc, A], [C]),
+                       'cut', [c_fw_ab1, c_fw_bc], principal=AB)
+    fwd_ac = Proof(Sequent([iff_ab, iff_bc], [AC]),
+                   'implies_right', [fwd_result], principal=AC)
+
+    # Compose backward: iff_ab, iff_bc, C |- A via cuts
+    c_bw_cb1 = Proof(Sequent([iff_ab, iff_bc, C], [CB, A]),
+                     'weakening_left',
+                     [Proof(Sequent([iff_bc, C], [CB, A]),
+                            'weakening_left',
+                            [Proof(Sequent([iff_bc], [CB, A]),
+                                   'weakening_right', [ext_cb], principal=A)],
+                            principal=C)],
+                     principal=iff_ab)
+    c_bw_ba1 = Proof(Sequent([iff_ab, iff_bc, C, CB], [BA, A]),
+                     'weakening_left',
+                     [Proof(Sequent([iff_ab, C, CB], [BA, A]),
+                            'weakening_left',
+                            [Proof(Sequent([iff_ab, CB], [BA, A]),
+                                   'weakening_left',
+                                   [Proof(Sequent([iff_ab], [BA, A]),
+                                          'weakening_right', [ext_ba], principal=A)],
+                                   principal=CB)],
+                            principal=C)],
+                     principal=iff_bc)
+    c_bw_ba2 = Proof(Sequent([iff_ab, iff_bc, CB, BA, C], [A]),
+                     'weakening_left',
+                     [Proof(Sequent([iff_ab, CB, BA, C], [A]),
+                            'weakening_left', [bw], principal=iff_ab)],
+                     principal=iff_bc)
+    c_bw_ba = Proof(Sequent([iff_ab, iff_bc, C, CB], [A]),
+                    'cut', [c_bw_ba1, c_bw_ba2], principal=BA)
+    bwd_result = Proof(Sequent([iff_ab, iff_bc, C], [A]),
+                       'cut', [c_bw_cb1, c_bw_ba], principal=CB)
+    bwd_ca = Proof(Sequent([iff_ab, iff_bc], [CA]),
+                   'implies_right', [bwd_result], principal=CA)
+
+    # Build Iff(A, C)
+    nr = Proof(Sequent([iff_ab, iff_bc, NCA], []), 'not_left', [bwd_ca], principal=NCA)
+    il = Proof(Sequent([iff_ab, iff_bc, H_ac], []), 'implies_left', [fwd_ac, nr], principal=H_ac)
+    core = Proof(Sequent([iff_ab, iff_bc], [iff_ac]), 'not_right', [il], principal=iff_ac)
+
+    imp1 = Implies(iff_bc, iff_ac)
+    s1 = Proof(Sequent([iff_ab], [imp1]), 'implies_right', [core], principal=imp1)
+    imp2 = Implies(iff_ab, imp1)
+    return Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+
+
 def singleton_injection():
     """|- forall a, b. (forall z. Iff(Eq(z,a), Eq(z,b))) implies Eq(a,b)
     If {a} and {b} have the same elements (z=a iff z=b for all z), then a=b."""
@@ -2382,5 +2586,620 @@ def pair_injection():
     fa = Forall(a, fb); s5 = Proof(Sequent([], [fa]), 'forall_right', [s4], term=a, principal=fa)
     s5.name = 'pair_injection'
     return s5
+
+
+def _tuple_injection_wip():
+    """Kuratowski ordered pair injection — WORK IN PROGRESS"""
+    # a, b, c, d = Var(), Var(), Var(), Var()
+    sa, pab, sc, pcd = Var(), Var(), Var(), Var()
+    x, z = Var(), Var()
+
+    # Characterizations (hypotheses)
+    char_sa = Forall(x, Iff(In(x, sa), Eq(x, a)))
+    char_pab = Forall(x, Iff(In(x, pab), Or(Eq(x, a), Eq(x, b))))
+    char_sc = Forall(x, Iff(In(x, sc), Eq(x, c)))
+    char_pcd = Forall(x, Iff(In(x, pcd), Or(Eq(x, c), Eq(x, d))))
+    char_outer = Forall(z, Iff(Or(Eq(z, sa), Eq(z, pab)), Or(Eq(z, sc), Eq(z, pcd))))
+
+    eq_ac = Eq(a, c); eq_bd = Eq(b, d)
+    goal = And(eq_ac, eq_bd)
+    hyps = [char_sa, char_pab, char_sc, char_pcd, char_outer]
+
+    # ================================================================
+    # KEY TOOL: char_transfer gives unclosed Iff(A,B),Iff(B,C) |- Iff(A,C)
+    # We'll use it to convert set equality + characterizations into
+    # element-level equivalence.
+    # ================================================================
+
+    def _transfer(char1, char2, eq_sets, x_var, result_iff):
+        """From char1, char2 (forall characterizations), eq_sets (Eq of two sets),
+        derive forall x_var. result_iff.
+        char1 = Forall(x, Iff(In(x,s1), cond1(x)))
+        char2 = Forall(x, Iff(In(x,s2), cond2(x)))
+        eq_sets = Eq(s1, s2) = Forall(z, Iff(In(z,s1), In(z,s2)))
+        result_iff = Iff(cond1(x_var), cond2(x_var))
+        Returns: char1, char2, eq_sets |- Forall(x_var, result_iff)"""
+
+        # Instantiate all three with x_var
+        # char1 instantiated: Iff(In(x_var, s1), cond1(x_var))
+        # char2 instantiated: Iff(In(x_var, s2), cond2(x_var))
+        # eq_sets instantiated: Iff(In(x_var, s1), In(x_var, s2))
+        c1_inst = char1.body.subst(char1.var, x_var) if hasattr(char1, 'var') else char1
+        c2_inst = char2.body.subst(char2.var, x_var) if hasattr(char2, 'var') else char2
+
+        # Get the three Iffs
+        # Iff(In(x_var,s1), cond1) — from char1
+        # Iff(In(x_var,s2), cond2) — from char2
+        # Iff(In(x_var,s1), In(x_var,s2)) — from eq_sets
+
+        # We need: Iff(cond1, cond2)
+        # Chain: Iff(cond1, In(x_var,s1)) [sym of char1]
+        #      + Iff(In(x_var,s1), In(x_var,s2)) [from eq]
+        #      → Iff(cond1, In(x_var,s2))
+        # Then: Iff(cond1, In(x_var,s2))
+        #      + Iff(In(x_var,s2), cond2) [from char2]
+        #      → Iff(cond1, cond2)
+
+        # Use char_transfer for each chain step
+        # But char_transfer is unclosed (no quantifiers). We need the specific instances.
+
+        # Get the In formulas from the Iff structures
+        # c1_inst = Iff(In(x_var, s1), cond1(x_var))
+        A_in_s1 = c1_inst.left   # In(x_var, s1)
+        cond1 = c1_inst.right    # cond1(x_var)
+
+        c2_inst_body = char2.body.subst(char2.var, x_var)
+        A_in_s2 = c2_inst_body.left   # In(x_var, s2)
+        cond2_v = c2_inst_body.right   # cond2(x_var)
+
+        # eq_sets body instantiated with x_var
+        eq_inst = Iff(A_in_s1, A_in_s2)  # Iff(In(x_var,s1), In(x_var,s2))
+
+        # Chain 1: Iff(cond1, A_in_s1) + Iff(A_in_s1, A_in_s2) → Iff(cond1, A_in_s2)
+        # First need Iff(cond1, A_in_s1) = iff_sym of Iff(A_in_s1, cond1)
+        iff_sym_proof = iff_sym(A_in_s1, cond1, [])  # |- Iff(A_in_s1,cond1) → Iff(cond1,A_in_s1)
+        chain1 = char_transfer(cond1, A_in_s1, A_in_s2)  # Iff(cond1,A_in_s1),Iff(A_in_s1,A_in_s2) |- Iff(cond1,A_in_s2)
+        chain2 = char_transfer(cond1, A_in_s2, cond2_v)  # Iff(cond1,A_in_s2),Iff(A_in_s2,cond2) |- Iff(cond1,cond2)
+
+        # Now compose: char1, char2, eq_sets |- result_iff (for specific x_var)
+        # 1. Instantiate char1 with x_var: c1_inst = Iff(A_in_s1, cond1)
+        inst_c1 = Proof(Sequent([c1_inst], [c1_inst]), 'axiom', principal=c1_inst)
+        inst_c1_from_char = Proof(Sequent([char1], [c1_inst]), 'forall_left',
+                                  [inst_c1], principal=char1, term=x_var)
+
+        # 2. Apply iff_sym to get Iff(cond1, A_in_s1)
+        iff_sym_concl = iff_sym_proof.sequent.right[0]  # Implies(Iff(A_in_s1,cond1), Iff(cond1,A_in_s1))
+        iff_c1_ains1 = Iff(cond1, A_in_s1)
+        # MP: c1_inst, iff_sym_proof |- iff_c1_ains1
+        mp1a = Proof(Sequent([c1_inst], [c1_inst, iff_c1_ains1]),
+                     'weakening_right',
+                     [Proof(Sequent([c1_inst], [c1_inst]), 'axiom', principal=c1_inst)],
+                     principal=iff_c1_ains1)
+        mp1b = Proof(Sequent([c1_inst, iff_c1_ains1], [iff_c1_ains1]),
+                     'axiom', principal=iff_c1_ains1)
+        mp1 = Proof(Sequent([c1_inst, iff_sym_concl], [iff_c1_ains1]),
+                    'implies_left', [mp1a, mp1b], principal=iff_sym_concl)
+        # Cut iff_sym_proof into context
+        mp1_cut_a = Proof(Sequent([c1_inst], [iff_sym_concl, iff_c1_ains1]),
+                          'weakening_left',
+                          [Proof(Sequent([], [iff_sym_concl, iff_c1_ains1]),
+                                 'weakening_right', [iff_sym_proof], principal=iff_c1_ains1)],
+                          principal=c1_inst)
+        got_sym = Proof(Sequent([c1_inst], [iff_c1_ains1]),
+                        'cut', [mp1_cut_a, mp1], principal=iff_sym_concl)
+        # Replace c1_inst with char1 via cut
+        got_sym_from_char = Proof(Sequent([char1], [iff_c1_ains1]), 'cut',
+            [Proof(Sequent([char1], [c1_inst, iff_c1_ains1]),
+                   'weakening_right', [inst_c1_from_char], principal=iff_c1_ains1),
+             Proof(Sequent([char1, c1_inst], [iff_c1_ains1]),
+                   'weakening_left', [got_sym], principal=char1)],
+            principal=c1_inst)
+
+        # 3. Instantiate eq_sets with x_var: eq_inst = Iff(A_in_s1, A_in_s2)
+        inst_eq = Proof(Sequent([eq_sets], [eq_inst]), 'forall_left',
+                        [Proof(Sequent([eq_inst], [eq_inst]), 'axiom', principal=eq_inst)],
+                        principal=eq_sets, term=x_var)
+
+        # 4. Apply chain1: Iff(cond1,A_in_s1), Iff(A_in_s1,A_in_s2) |- Iff(cond1,A_in_s2)
+        chain1_concl = chain1.sequent.right[0]  # Implies(Iff(cond1,A_in_s1), Implies(Iff(A_in_s1,A_in_s2), Iff(cond1,A_in_s2)))
+        iff_c1_ains2 = Iff(cond1, A_in_s2)
+        # MP twice: got_sym_from_char gives Iff(cond1,A_in_s1), inst_eq gives Iff(A_in_s1,A_in_s2)
+        # chain1_concl = F1 → F2 → F3
+        F1 = Iff(cond1, A_in_s1)
+        F2 = Iff(A_in_s1, A_in_s2)
+        F3 = iff_c1_ains2
+        imp_f2_f3 = Implies(F2, F3)
+
+        # MP on F1: chain1_concl, F1 |- imp_f2_f3
+        mp2a = Proof(Sequent([F1], [F1, imp_f2_f3]),
+                     'weakening_right',
+                     [Proof(Sequent([F1], [F1]), 'axiom', principal=F1)], principal=imp_f2_f3)
+        mp2b = Proof(Sequent([F1, imp_f2_f3], [imp_f2_f3]), 'axiom', principal=imp_f2_f3)
+        mp2 = Proof(Sequent([F1, chain1_concl], [imp_f2_f3]),
+                    'implies_left', [mp2a, mp2b], principal=chain1_concl)
+        # Cut chain1_concl
+        mp2_cut = Proof(Sequent([F1], [imp_f2_f3]), 'cut',
+            [Proof(Sequent([F1], [chain1_concl, imp_f2_f3]),
+                   'weakening_left',
+                   [Proof(Sequent([], [chain1_concl, imp_f2_f3]),
+                          'weakening_right', [chain1], principal=imp_f2_f3)],
+                   principal=F1),
+             mp2],
+            principal=chain1_concl)
+        # MP on F2: F1, F2 |- F3
+        mp3a = Proof(Sequent([F1, F2], [F2, F3]),
+                     'weakening_left',
+                     [Proof(Sequent([F2], [F2, F3]),
+                            'weakening_right',
+                            [Proof(Sequent([F2], [F2]), 'axiom', principal=F2)], principal=F3)],
+                     principal=F1)
+        mp3b = Proof(Sequent([F1, F2, F3], [F3]),
+                     'weakening_left',
+                     [Proof(Sequent([F2, F3], [F3]),
+                            'weakening_left',
+                            [Proof(Sequent([F3], [F3]), 'axiom', principal=F3)], principal=F2)],
+                     principal=F1)
+        mp3 = Proof(Sequent([F1, F2, imp_f2_f3], [F3]),
+                    'implies_left', [mp3a, mp3b], principal=imp_f2_f3)
+        # Cut imp_f2_f3
+        chain1_result = Proof(Sequent([F1, F2], [F3]), 'cut',
+            [Proof(Sequent([F1, F2], [imp_f2_f3, F3]),
+                   'weakening_left',
+                   [Proof(Sequent([F1], [imp_f2_f3, F3]),
+                          'weakening_right', [mp2_cut], principal=F3)],
+                   principal=F2),
+             mp3],
+            principal=imp_f2_f3)
+
+        # 5. Instantiate char2 with x_var
+        c2_inst_v = c2_inst_body  # Iff(A_in_s2, cond2_v)
+        inst_c2_from_char = Proof(Sequent([char2], [c2_inst_v]), 'forall_left',
+            [Proof(Sequent([c2_inst_v], [c2_inst_v]), 'axiom', principal=c2_inst_v)],
+            principal=char2, term=x_var)
+
+        # 6. Apply chain2: Iff(cond1,A_in_s2), Iff(A_in_s2,cond2) |- Iff(cond1,cond2)
+        chain2_concl = chain2.sequent.right[0]
+        G1 = F3  # Iff(cond1, A_in_s2)
+        G2 = c2_inst_v  # Iff(A_in_s2, cond2_v)
+        G3 = result_iff  # Iff(cond1, cond2_v)
+        imp_g2_g3 = Implies(G2, G3)
+
+        mp4a = Proof(Sequent([G1], [G1, imp_g2_g3]),
+                     'weakening_right',
+                     [Proof(Sequent([G1], [G1]), 'axiom', principal=G1)], principal=imp_g2_g3)
+        mp4b = Proof(Sequent([G1, imp_g2_g3], [imp_g2_g3]), 'axiom', principal=imp_g2_g3)
+        mp4 = Proof(Sequent([G1, chain2_concl], [imp_g2_g3]),
+                    'implies_left', [mp4a, mp4b], principal=chain2_concl)
+        mp4_cut = Proof(Sequent([G1], [imp_g2_g3]), 'cut',
+            [Proof(Sequent([G1], [chain2_concl, imp_g2_g3]),
+                   'weakening_left',
+                   [Proof(Sequent([], [chain2_concl, imp_g2_g3]),
+                          'weakening_right', [chain2], principal=imp_g2_g3)],
+                   principal=G1),
+             mp4],
+            principal=chain2_concl)
+        mp5a = Proof(Sequent([G1, G2], [G2, G3]),
+                     'weakening_left',
+                     [Proof(Sequent([G2], [G2, G3]),
+                            'weakening_right',
+                            [Proof(Sequent([G2], [G2]), 'axiom', principal=G2)], principal=G3)],
+                     principal=G1)
+        mp5b = Proof(Sequent([G1, G2, G3], [G3]),
+                     'weakening_left',
+                     [Proof(Sequent([G2, G3], [G3]),
+                            'weakening_left',
+                            [Proof(Sequent([G3], [G3]), 'axiom', principal=G3)], principal=G2)],
+                     principal=G1)
+        mp5 = Proof(Sequent([G1, G2, imp_g2_g3], [G3]),
+                    'implies_left', [mp5a, mp5b], principal=imp_g2_g3)
+        chain2_result = Proof(Sequent([G1, G2], [G3]), 'cut',
+            [Proof(Sequent([G1, G2], [imp_g2_g3, G3]),
+                   'weakening_left',
+                   [Proof(Sequent([G1], [imp_g2_g3, G3]),
+                          'weakening_right', [mp4_cut], principal=G3)],
+                   principal=G2),
+             mp5],
+            principal=imp_g2_g3)
+
+        # 7. Compose: char1, char2, eq_sets |- result_iff (for specific x_var)
+        # chain1_result: F1, F2 |- F3 where F1=Iff(cond1,In_s1), F2=Iff(In_s1,In_s2)
+        # chain2_result: G1, G2 |- G3 where G1=F3=Iff(cond1,In_s2), G2=Iff(In_s2,cond2)
+        # Compose: F1, F2, G2 |- G3 via cut on F3
+        comp1 = Proof(Sequent([F1, F2], [F3, G3]),
+                      'weakening_right', [chain1_result], principal=G3)
+        comp2_w = Proof(Sequent([F1, F2, G1, G2], [G3]),
+                        'weakening_left',
+                        [Proof(Sequent([F1, G1, G2], [G3]),
+                               'weakening_left', [chain2_result], principal=F1)],
+                        principal=F2)
+        comp2 = Proof(Sequent([F1, F2, G2], [G3]), 'cut',
+                      [Proof(Sequent([F1, F2, G2], [F3, G3]),
+                             'weakening_left', [comp1], principal=G2),
+                       comp2_w], principal=F3)
+
+        # Now replace F1 with char1 (via got_sym_from_char), F2 with eq_sets, G2 with char2
+        # Cut F1: char1, F2, G2 |- G3
+        r1 = Proof(Sequent([char1, F2, G2], [F1, G3]),
+                   'weakening_left',
+                   [Proof(Sequent([char1, G2], [F1, G3]),
+                          'weakening_left',
+                          [Proof(Sequent([char1], [F1, G3]),
+                                 'weakening_right', [got_sym_from_char], principal=G3)],
+                          principal=G2)],
+                   principal=F2)
+        r2 = Proof(Sequent([char1, F1, F2, G2], [G3]),
+                   'weakening_left', [comp2], principal=char1)
+        r3 = Proof(Sequent([char1, F2, G2], [G3]), 'cut', [r1, r2], principal=F1)
+
+        # Cut F2 (= eq_inst = Iff(In_s1, In_s2)): char1, eq_sets, G2 |- G3
+        r4 = Proof(Sequent([eq_sets, char1, G2], [F2, G3]),
+                   'weakening_left',
+                   [Proof(Sequent([eq_sets, G2], [F2, G3]),
+                          'weakening_left',
+                          [Proof(Sequent([eq_sets], [F2, G3]),
+                                 'weakening_right', [inst_eq], principal=G3)],
+                          principal=G2)],
+                   principal=char1)
+        r5 = Proof(Sequent([char1, eq_sets, F2, G2], [G3]),
+                   'weakening_left', [r3], principal=eq_sets)
+        r6 = Proof(Sequent([char1, eq_sets, G2], [G3]), 'cut', [r4, r5], principal=F2)
+
+        # Cut G2 (= c2_inst_v): char1, eq_sets, char2 |- G3
+        r7 = Proof(Sequent([char2, char1, eq_sets], [G2, G3]),
+                   'weakening_left',
+                   [Proof(Sequent([char2, eq_sets], [G2, G3]),
+                          'weakening_left',
+                          [Proof(Sequent([char2], [G2, G3]),
+                                 'weakening_right', [inst_c2_from_char], principal=G3)],
+                          principal=eq_sets)],
+                   principal=char1)
+        r8 = Proof(Sequent([char1, eq_sets, char2, G2], [G3]),
+                   'weakening_left', [r6], principal=char2)
+        pointwise = Proof(Sequent([char1, eq_sets, char2], [G3]), 'cut', [r7, r8], principal=G2)
+
+        # forall_right x_var: char1, eq_sets, char2 |- Forall(x_var, G3)
+        result_fa = Forall(x_var, G3)
+        return Proof(Sequent([char1, eq_sets, char2], [result_fa]),
+                     'forall_right', [pointwise], principal=result_fa, term=x_var)
+
+    # ================================================================
+    # STEP 1: pair_injection on outer characterization
+    # ================================================================
+    # From char_outer, derive:
+    # Or(And(Eq(sa,sc),Eq(pab,pcd)), And(Eq(sa,pcd),Eq(pab,sc)))
+    pi_outer = pair_injection()  # closed theorem
+    # Instantiate: sa, pab, sc, pcd as the 4 elements
+    # pi_outer is: |- forall a,b,c,d. (forall z. Iff(Or(z=a,z=b),Or(z=c,z=d))) → Or(And(a=c,b=d),And(a=d,b=c))
+    # We need it with a→sa, b→pab, c→sc, d→pcd
+    # But pi_outer uses its own internal vars. The closed form has 4 forall quantifiers.
+    # We peel them with forall_left.
+    pi_body = pi_outer
+    # Actually, pi_outer.sequent.right[0] is the full forall formula.
+    # I need to construct a proof that has char_outer on the left and the Or(And,And) on the right.
+    # This means: instantiate pair_injection's forall with sa,pab,sc,pcd, then modus ponens with char_outer.
+
+    # The pair_injection result when called with sa,pab,sc,pcd would give the right thing.
+    # But pair_injection() uses its own vars. Let me use char_transfer approach:
+    # Call pair_injection to get a closed proof, then peel foralls.
+
+    # Actually it's easier to just call pair_injection's inner logic directly.
+    # But that would require reimplementing it. Instead, let me construct a fresh instance.
+
+    # Simpler: the pair_injection function already handles this.
+    # I just need to use the proof object as a sub-proof via cut.
+
+    # pair_injection result: |- Forall(a', Forall(b', Forall(c', Forall(d', Implies(char', Or(And,And))))))
+    # To use: forall_left × 4 with sa, pab, sc, pcd, then implies_left with char_outer.
+
+    or_goal = Or(And(Eq(sa, sc), Eq(pab, pcd)), And(Eq(sa, pcd), Eq(pab, sc)))
+
+    # Instead of peeling pi_outer's foralls (which use different vars),
+    # let me construct the specific instance directly.
+    # pair_injection's _internal_ proof for sa,pab,sc,pcd would work, but the function
+    # only works with its own internally created vars.
+    #
+    # Easiest approach: call the _and_or, _eq_refl etc closures from pair_injection.
+    # But they're not accessible. Let me just prove the specific instance I need.
+    #
+    # Actually, the pair_injection function is generic — it works for ANY formulas z=a, z=b etc.
+    # But it uses Eq(z, var) specifically. My outer characterization uses Eq(z, sa), Eq(z, pab) etc.
+    # So I can't directly reuse pair_injection.
+    #
+    # The simplest approach: prove char_outer |- or_goal using the same technique as pair_injection
+    # but with sa, pab, sc, pcd instead of a, b, c, d.
+
+    # Hmm, this would duplicate 600 lines. Not practical.
+
+    # Alternative: use pair_injection's closed proof via cut + forall instantiation.
+    # pair_injection gives: |- Forall(v1, Forall(v2, Forall(v3, Forall(v4, Implies(Forall(v5, Iff(Or(Eq(v5,v1),Eq(v5,v2)),Or(Eq(v5,v3),Eq(v5,v4)))), Or(And(Eq(v1,v3),Eq(v2,v4)),And(Eq(v1,v4),Eq(v2,v3))))))))
+    # I instantiate v1→sa, v2→pab, v3→sc, v4→pcd.
+
+    pi = pi_outer  # |- Forall(...)
+    # The pi proof's conclusion is Sequent([], [Forall(a', ...)])
+    # where a', b', c', d' are pair_injection's internal vars.
+    # I need to peel 4 foralls with forall_left using sa, pab, sc, pcd as terms.
+
+    # The formula after peeling all foralls would be:
+    # Implies(Forall(z', Iff(Or(Eq(z',sa),Eq(z',pab)),Or(Eq(z',sc),Eq(z',pcd)))), Or(And(Eq(sa,sc),Eq(pab,pcd)),And(Eq(sa,pcd),Eq(pab,sc))))
+    # which is alpha-equiv to Implies(char_outer, or_goal).
+
+    imp_pi = Implies(char_outer, or_goal)
+
+    # To instantiate: I need the pi proof on the left (via axiom), then peel foralls.
+    # pi_formula = pi.sequent.right[0]
+    # axiom: pi_formula |- pi_formula
+    # forall_left × 4 with terms sa, pab, sc, pcd
+    # This gives: imp_pi |- imp_pi (alpha-equiv after expansion)
+
+    # Wait, forall_left peels the outermost forall from the LEFT side.
+    # So: axiom → forall_left(sa) → forall_left(pab) → forall_left(sc) → forall_left(pcd) → imp_pi on left
+
+    pi_formula = pi.sequent.right[0]
+    pi_ax = Proof(Sequent([pi_formula], [pi_formula]), 'axiom', principal=pi_formula)
+
+    # The pi_formula has 4 nested Foralls. The internal vars of pair_injection are opaque.
+    # But the engine handles this via alpha-equiv. I need to construct the intermediate
+    # Forall formulas for the principal argument.
+
+    # After peeling first forall (a→sa): body has 3 more Foralls
+    # I'll construct the intermediate formulas using the structure of pi_formula.
+    # Actually, I can just construct what the formula SHOULD be after each instantiation,
+    # and the engine's alpha-equiv will match.
+
+    # After all 4 instantiations, the result is imp_pi.
+    # Let me construct the intermediate formulas:
+    zv = Var()  # internal z for the char
+    inner_iff = Iff(Or(Eq(zv, sa), Eq(zv, pab)), Or(Eq(zv, sc), Eq(zv, pcd)))
+    inner_char = Forall(zv, inner_iff)
+    or_g = Or(And(Eq(sa, sc), Eq(pab, pcd)), And(Eq(sa, pcd), Eq(pab, sc)))
+    imp_inner = Implies(inner_char, or_g)
+
+    # Build the 4-deep Forall for the principal:
+    f4 = imp_inner
+    f3 = Forall(pcd, f4)
+    f2 = Forall(sc, f3)
+    f1 = Forall(pab, f2)
+    f0 = Forall(sa, f1)
+
+    # Now peel:
+    pi_s0 = Proof(Sequent([f0], [f0]), 'axiom', principal=f0)
+    pi_s1 = Proof(Sequent([f0], [f0]),  # same, since f0 ~ pi_formula
+                  'axiom', principal=f0)
+    # Actually, I should construct it as:
+    # imp_inner |- imp_inner
+    ax_imp = Proof(Sequent([imp_inner], [imp_inner]), 'axiom', principal=imp_inner)
+    fl4 = Proof(Sequent([f3], [imp_inner]), 'forall_left', [ax_imp], principal=f3, term=pcd)
+    fl3 = Proof(Sequent([f2], [imp_inner]), 'forall_left', [fl4], principal=f2, term=sc)
+    fl2 = Proof(Sequent([f1], [imp_inner]), 'forall_left', [fl3], principal=f1, term=pab)
+    fl1 = Proof(Sequent([f0], [imp_inner]), 'forall_left', [fl2], principal=f0, term=sa)
+
+    # f0 is alpha-equiv to pi_formula (both are Forall with 4 levels).
+    # So fl1: [f0] |- [imp_inner] works. But I need pi_formula on the left, not f0.
+    # Actually, f0 and pi_formula will be alpha-equiv after expansion. The engine
+    # handles this. But the left side of fl1 has f0, while pi (the pair_injection proof)
+    # proves |- pi_formula. These are different Python objects but alpha-equiv.
+
+    # char_outer, imp_inner |- or_goal via implies_left
+    ax_co = Proof(Sequent([char_outer], [char_outer, or_goal]),
+                  'weakening_right',
+                  [Proof(Sequent([char_outer], [char_outer]), 'axiom', principal=char_outer)],
+                  principal=or_goal)
+    ax_og = Proof(Sequent([char_outer, or_goal], [or_goal]), 'axiom', principal=or_goal)
+    mp_pi = Proof(Sequent([char_outer, imp_inner], [or_goal]),
+                  'implies_left', [ax_co, ax_og], principal=imp_inner)
+
+    # Cut imp_inner: f0, char_outer |- or_goal
+    cut_pi_1 = Proof(Sequent([f0, char_outer], [imp_inner, or_goal]),
+                     'weakening_left', [
+                         Proof(Sequent([f0], [imp_inner, or_goal]),
+                               'weakening_right', [fl1], principal=or_goal)
+                     ], principal=char_outer)
+    cut_pi_2 = Proof(Sequent([f0, char_outer, imp_inner], [or_goal]),
+                     'weakening_left', [mp_pi], principal=f0)
+    pi_applied = Proof(Sequent([f0, char_outer], [or_goal]),
+                       'cut', [cut_pi_1, cut_pi_2], principal=imp_inner)
+
+    # Cut f0: using pi (the pair_injection proof), get char_outer |- or_goal
+    cut_f0_1 = Proof(Sequent([char_outer], [f0, or_goal]),
+                     'weakening_left',
+                     [Proof(Sequent([], [f0, or_goal]),
+                            'weakening_right', [pi], principal=or_goal)],
+                     principal=char_outer)
+    cut_f0_2 = Proof(Sequent([f0, char_outer], [or_goal]),
+                     'weakening_left', [pi_applied], principal=char_outer)
+    # Hmm pi_applied already has char_outer. This is [f0, char_outer] |- [or_goal].
+    outer_applied = Proof(Sequent([char_outer], [or_goal]),
+                          'cut', [cut_f0_1, pi_applied], principal=f0)
+
+    # ================================================================
+    # STEP 2: Case analysis on or_goal
+    # ================================================================
+    # Case 1: And(Eq(sa,sc), Eq(pab,pcd)) → derive And(Eq(a,c), Eq(b,d))
+    # Case 2: And(Eq(sa,pcd), Eq(pab,sc)) → derive And(Eq(a,c), Eq(b,d))
+
+    eq_sa_sc = Eq(sa, sc); eq_pab_pcd = Eq(pab, pcd)
+    eq_sa_pcd = Eq(sa, pcd); eq_pab_sc = Eq(pab, sc)
+
+    # For Case 1: from Eq(sa,sc) + char_sa + char_sc, get forall x. Iff(Eq(x,a), Eq(x,c))
+    # Then singleton_injection → Eq(a,c)
+    # From Eq(pab,pcd) + char_pab + char_pcd, get forall x. Iff(Or(Eq(x,a),Eq(x,b)), Or(Eq(x,c),Eq(x,d)))
+    # Then pair_injection → Or(And(Eq(a,c),Eq(b,d)), And(Eq(a,d),Eq(b,c)))
+    # Since Eq(a,c), both sub-cases give Eq(b,d).
+
+    # This is still extremely complex. Given the code volume, let me implement a simplified
+    # version that handles just Case 1 for now, or find an even shorter path.
+
+    # Actually, let me just handle both cases but use _transfer for the heavy lifting.
+
+    xv = Var()  # eigenvariable for _transfer
+
+    # Case 1: eq_sa_sc, eq_pab_pcd, char_sa, char_pab, char_sc, char_pcd |- goal
+    # Step 1a: singleton transfer
+    t1 = _transfer(char_sa, char_sc, eq_sa_sc, xv, Iff(Eq(xv, a), Eq(xv, c)))
+    # t1: char_sa, eq_sa_sc, char_sc |- Forall(xv, Iff(Eq(xv,a), Eq(xv,c)))
+    # Apply singleton_injection (call it with specific vars)
+    si = singleton_injection()  # |- Forall(a', Forall(b', (forall z. Iff(z=a',z=b')) → a'=b'))
+    # Instantiate with a, c
+    si_formula = si.sequent.right[0]
+    # Construct the specific instance
+    fa_iff_ac = Forall(xv, Iff(Eq(xv, a), Eq(xv, c)))
+    si_inst = Implies(fa_iff_ac, eq_ac)
+    si_f1 = Forall(c, si_inst)
+    si_f0 = Forall(a, si_f1)
+    si_ax = Proof(Sequent([si_inst], [si_inst]), 'axiom', principal=si_inst)
+    si_fl1 = Proof(Sequent([si_f1], [si_inst]), 'forall_left', [si_ax], principal=si_f1, term=c)
+    si_fl0 = Proof(Sequent([si_f0], [si_inst]), 'forall_left', [si_fl1], principal=si_f0, term=a)
+
+    # MP: fa_iff_ac, si_inst |- eq_ac
+    si_mp1 = Proof(Sequent([fa_iff_ac], [fa_iff_ac, eq_ac]),
+                   'weakening_right',
+                   [Proof(Sequent([fa_iff_ac], [fa_iff_ac]), 'axiom', principal=fa_iff_ac)],
+                   principal=eq_ac)
+    si_mp2 = Proof(Sequent([fa_iff_ac, eq_ac], [eq_ac]), 'axiom', principal=eq_ac)
+    si_mp = Proof(Sequent([fa_iff_ac, si_inst], [eq_ac]),
+                  'implies_left', [si_mp1, si_mp2], principal=si_inst)
+    # Cut si_inst from si
+    si_cut1 = Proof(Sequent([fa_iff_ac], [si_inst, eq_ac]),
+                    'weakening_left',
+                    [Proof(Sequent([], [si_inst, eq_ac]),
+                           'weakening_right',
+                           [Proof(Sequent([], [si_f0, eq_ac]),
+                                  'weakening_right', [si], principal=eq_ac)],
+                           principal=eq_ac)],
+                    principal=fa_iff_ac)
+    # Hmm, I need |- si_inst, not |- si_f0. Let me use si_fl0.
+    # si_fl0: [si_f0] |- [si_inst]
+    # Cut si_f0: |- si_inst from |- si_f0 and si_f0 |- si_inst
+    si_inst_proof = Proof(Sequent([], [si_inst]), 'cut',
+        [Proof(Sequent([], [si_f0, si_inst]),
+               'weakening_right', [si], principal=si_inst),
+         si_fl0], principal=si_f0)
+    # Now: fa_iff_ac |- eq_ac via cut on si_inst
+    si_cut_a = Proof(Sequent([fa_iff_ac], [si_inst, eq_ac]),
+                     'weakening_left',
+                     [Proof(Sequent([], [si_inst, eq_ac]),
+                            'weakening_right', [si_inst_proof], principal=eq_ac)],
+                     principal=fa_iff_ac)
+    si_cut_b = Proof(Sequent([fa_iff_ac, si_inst], [eq_ac]),
+                     'weakening_left', [si_mp], principal=fa_iff_ac)
+    # Hmm si_mp already has fa_iff_ac on left
+    got_ac_from_fa = Proof(Sequent([fa_iff_ac], [eq_ac]),
+                           'cut', [si_cut_a, si_mp], principal=si_inst)
+
+    # Now chain: char_sa, eq_sa_sc, char_sc |- eq_ac via cut on fa_iff_ac
+    t1_w = Proof(Sequent([char_sa, eq_sa_sc, char_sc], [fa_iff_ac, eq_ac]),
+                 'weakening_right', [t1], principal=eq_ac)
+    got_ac_w = Proof(Sequent([char_sa, eq_sa_sc, char_sc, fa_iff_ac], [eq_ac]),
+                     'weakening_left',
+                     [Proof(Sequent([eq_sa_sc, char_sc, fa_iff_ac], [eq_ac]),
+                            'weakening_left',
+                            [Proof(Sequent([char_sc, fa_iff_ac], [eq_ac]),
+                                   'weakening_left', [got_ac_from_fa], principal=char_sc)],
+                            principal=eq_sa_sc)],
+                     principal=char_sa)
+    case1_ac = Proof(Sequent([char_sa, eq_sa_sc, char_sc], [eq_ac]),
+                     'cut', [t1_w, got_ac_w], principal=fa_iff_ac)
+
+    # Step 1b: pair transfer → Eq(b,d)
+    # From Eq(pab,pcd) + char_pab + char_pcd:
+    xv2 = Var()
+    t2 = _transfer(char_pab, char_pcd, eq_pab_pcd, xv2,
+                   Iff(Or(Eq(xv2, a), Eq(xv2, b)), Or(Eq(xv2, c), Eq(xv2, d))))
+    # t2: char_pab, eq_pab_pcd, char_pcd |- Forall(xv2, Iff(Or(...), Or(...)))
+    # This is the hypothesis of pair_injection. Apply it.
+
+    fa_iff_pair = Forall(xv2, Iff(Or(Eq(xv2, a), Eq(xv2, b)), Or(Eq(xv2, c), Eq(xv2, d))))
+    or_pair = Or(And(eq_ac, eq_bd), And(Eq(a, d), Eq(b, c)))
+
+    # Get pair_injection instance for a,b,c,d
+    pi2 = pair_injection()
+    pi2_inst = Implies(fa_iff_pair, or_pair)
+    pi2_f3 = Forall(d, pi2_inst)
+    pi2_f2 = Forall(c, pi2_f3)
+    pi2_f1 = Forall(b, pi2_f2)
+    pi2_f0 = Forall(a, pi2_f1)
+
+    pi2_ax = Proof(Sequent([pi2_inst], [pi2_inst]), 'axiom', principal=pi2_inst)
+    pi2_fl3 = Proof(Sequent([pi2_f3], [pi2_inst]), 'forall_left', [pi2_ax], principal=pi2_f3, term=d)
+    pi2_fl2 = Proof(Sequent([pi2_f2], [pi2_inst]), 'forall_left', [pi2_fl3], principal=pi2_f2, term=c)
+    pi2_fl1 = Proof(Sequent([pi2_f1], [pi2_inst]), 'forall_left', [pi2_fl2], principal=pi2_f1, term=b)
+    pi2_fl0 = Proof(Sequent([pi2_f0], [pi2_inst]), 'forall_left', [pi2_fl1], principal=pi2_f0, term=a)
+
+    pi2_inst_proof = Proof(Sequent([], [pi2_inst]), 'cut',
+        [Proof(Sequent([], [pi2_f0, pi2_inst]),
+               'weakening_right', [pi2], principal=pi2_inst),
+         pi2_fl0], principal=pi2_f0)
+
+    # fa_iff_pair, pi2_inst |- or_pair
+    pi2_mp1 = Proof(Sequent([fa_iff_pair], [fa_iff_pair, or_pair]),
+                    'weakening_right',
+                    [Proof(Sequent([fa_iff_pair], [fa_iff_pair]), 'axiom', principal=fa_iff_pair)],
+                    principal=or_pair)
+    pi2_mp2 = Proof(Sequent([fa_iff_pair, or_pair], [or_pair]), 'axiom', principal=or_pair)
+    pi2_mp = Proof(Sequent([fa_iff_pair, pi2_inst], [or_pair]),
+                   'implies_left', [pi2_mp1, pi2_mp2], principal=pi2_inst)
+    got_or_pair = Proof(Sequent([fa_iff_pair], [or_pair]), 'cut',
+        [Proof(Sequent([fa_iff_pair], [pi2_inst, or_pair]),
+               'weakening_left',
+               [Proof(Sequent([], [pi2_inst, or_pair]),
+                      'weakening_right', [pi2_inst_proof], principal=or_pair)],
+               principal=fa_iff_pair),
+         pi2_mp], principal=pi2_inst)
+
+    # Chain: char_pab, eq_pab_pcd, char_pcd |- or_pair via cut on fa_iff_pair
+    t2_w = Proof(Sequent([char_pab, eq_pab_pcd, char_pcd], [fa_iff_pair, or_pair]),
+                 'weakening_right', [t2], principal=or_pair)
+    got_or_w = Proof(Sequent([char_pab, eq_pab_pcd, char_pcd, fa_iff_pair], [or_pair]),
+                     'weakening_left',
+                     [Proof(Sequent([eq_pab_pcd, char_pcd, fa_iff_pair], [or_pair]),
+                            'weakening_left',
+                            [Proof(Sequent([char_pcd, fa_iff_pair], [or_pair]),
+                                   'weakening_left', [got_or_pair], principal=char_pcd)],
+                            principal=eq_pab_pcd)],
+                     principal=char_pab)
+    case1_or_pair = Proof(Sequent([char_pab, eq_pab_pcd, char_pcd], [or_pair]),
+                          'cut', [t2_w, got_or_w], principal=fa_iff_pair)
+
+    # From or_pair and eq_ac, derive eq_bd.
+    # or_pair = Or(And(eq_ac, eq_bd), And(Eq(a,d), Eq(b,c)))
+    # Case And(eq_ac, eq_bd): extract eq_bd. Done.
+    # Case And(Eq(a,d), Eq(b,c)): have eq_ac and Eq(a,d). By eq_transitive chain: c=d... then b=c=d. Done.
+    #
+    # This sub-case analysis is complex. For now, let me handle it with a simpler approach:
+    # From eq_ac and or_pair, derive eq_bd.
+    # In both cases of or_pair, combined with eq_ac, we get eq_bd.
+
+    # Actually: the goal is And(eq_ac, eq_bd). We already have eq_ac from case1_ac.
+    # We need eq_bd from or_pair.
+    # From or_pair:
+    #   left: And(eq_ac, eq_bd) — extract eq_bd
+    #   right: And(Eq(a,d), Eq(b,c)) — need to derive eq_bd from eq_ac + Eq(a,d) + Eq(b,c)
+    #     eq_ac and Eq(a,d): a=c, a=d → by eq_sym: c=a, then eq_trans c=a, a=d → c=d → eq_sym: d=c
+    #     Eq(b,c) and c=d: b=c, c=d → eq_trans b=c,c=d → b=d
+
+    # This is getting extremely complex for a single function. Let me just prove Case 1
+    # gives the goal (And(eq_ac, eq_bd)) and Case 2 gives the goal, then Or-elim.
+    #
+    # For Case 1: I have case1_ac (eq_ac) and case1_or_pair (or_pair).
+    # I need goal = And(eq_ac, eq_bd).
+    # From or_pair, both branches give eq_bd (given eq_ac).
+    # Branch 1: And(eq_ac, eq_bd) → eq_bd directly (and_elim_right).
+    # Branch 2: And(Eq(a,d), Eq(b,c)) → eq_bd via eq_transitive chain with eq_ac.
+    #
+    # Even branch 2 requires eq_symmetric + eq_transitive inline (~100 nodes).
+    # And then building the And + Or-elim adds more.
+    #
+    # This is going to make the function 2000+ lines.
+    # Let me take a step back and just build what I can, then commit.
+
+    # SIMPLIFIED: For now, just prove Case 1 (sa=sc, pab=pcd) leads to goal.
+    # Skip Case 2 for this iteration.
+    # Actually no, both cases need to be handled for the theorem to be valid.
+
+    # Let me just commit what we have (iff_sym, char_transfer, the building blocks)
+    # and note that tuple_injection is in progress.
+    # The incremental progress is valuable.
+
+    pass  # PLACEHOLDER — tuple_injection is work in progress
 
 
