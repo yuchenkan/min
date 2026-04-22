@@ -46,7 +46,7 @@ if __name__ == '__main__':
         # ('iff_mp', theorems.iff_mp(In(x, y), In(y, z), [x, y, z])),
         # ('iff_mp_rev', theorems.iff_mp_rev(In(x, y), In(y, z), [x, y, z])),
         ('or_iff_compat', theorems.or_iff_compat(In(x, y), In(y, z), In(z, w), In(x, w), [x, y, z, w])),
-        # ('eq_transfer', theorems.eq_transfer()),
+        ('eq_transfer', theorems.eq_transfer()),
         ('iff_chain', theorems.iff_chain(In(x, y), In(y, z), In(x, z), [x, y, z])),
         # ('tuple_injection', theorems.tuple_injection()),
         ('forall_implies_exists', theorems.forall_implies_exists(In(x, y), In(y, z), x, [x, y, z])),
