@@ -53,13 +53,17 @@ class PowerSet(ZFCAxiom):
 
 
 class Separation(ZFCAxiom):
-    def __init__(self, phi):
+    def __init__(self, phi, vars: list):
         self.phi = phi
+        self.vars = vars
 
     def expand(self):
         a, b, x = Var(), Var(), Var()
-        return Forall(a, Exists(b, Forall(x,
+        body = Forall(a, Exists(b, Forall(x,
             Iff(In(x, b), And(In(x, a), self.phi(x))))))
+        for v in self.vars:
+            body = Forall(v, body)
+        return body
 
     def __str__(self):
         return 'Separation(...)'
@@ -87,8 +91,9 @@ class Choice(ZFCAxiom):
 
 
 class Replacement(ZFCAxiom):
-    def __init__(self, phi):
+    def __init__(self, phi, vars: list):
         self.phi = phi
+        self.vars = vars
 
     def expand(self):
         a, b, x, y, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
@@ -98,7 +103,10 @@ class Replacement(ZFCAxiom):
                 Eq(y1, y2))))))
         image = Exists(b, Forall(y,
             Iff(In(y, b), Exists(x, And(In(x, a), self.phi(x, y))))))
-        return Forall(a, Implies(functional, image))
+        body = Forall(a, Implies(functional, image))
+        for v in self.vars:
+            body = Forall(v, body)
+        return body
 
     def __str__(self):
         return 'Replacement(...)'
