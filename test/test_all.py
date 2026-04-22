@@ -35,7 +35,7 @@ if __name__ == '__main__':
         ('eq_symmetric', theorems.eq_symmetric()),
         ('eq_transitive', theorems.eq_transitive()),
         ('singleton_exists', theorems.singleton_exists()),
-        # ('singleton_eq', theorems.singleton_eq()),
+        ('singleton_eq', theorems.singleton_eq()),
         ('or_elim', theorems.or_elim(In(x, y), In(y, z), In(x, z), [x, y, z])),
         ('eq_substitution', theorems.eq_substitution()),
         ('and_intro', theorems.and_intro(In(x, y), In(y, z), [x, y, z])),

@@ -1173,3 +1173,109 @@ def or_iff_compat(P, Q, R, S, vars: list[Var]):
     return proof
 
 
+def singleton_eq():
+    """|- forall a, b, s. (forall z. Iff(In(z,s), Eq(z,a))) implies
+                          (forall z. Iff(In(z,s), Eq(z,b))) implies Eq(a,b)"""
+    a, b, s = Var(), Var(), Var()
+    z_inner, z2 = Var(), Var()
+
+    X = In(a, s)
+    Y = Eq(a, a)
+    Z = Eq(a, b)
+    XY = Implies(X, Y)
+    YX = Implies(Y, X)
+    XZ = Implies(X, Z)
+    ZX = Implies(Z, X)
+    H_xy = Implies(XY, Not(YX))
+    H_xz = Implies(XZ, Not(ZX))
+    iff_xy = Iff(X, Y)
+    iff_xz = Iff(X, Z)
+    char_a = Forall(z_inner, Iff(In(z_inner, s), Eq(z_inner, a)))
+    char_b = Forall(z_inner, Iff(In(z_inner, s), Eq(z_inner, b)))
+
+    # --- Extract YX from iff_xy (reverse: Eq(a,a) -> In(a,s)) ---
+    e1 = Proof(Sequent([iff_xy, XY, YX], [YX]), 'axiom', principal=YX)
+    e2 = Proof(Sequent([iff_xy, XY], [Not(YX), YX]), 'not_right', [e1], principal=Not(YX))
+    e3 = Proof(Sequent([iff_xy], [H_xy, YX]), 'implies_right', [e2], principal=H_xy)
+    e4 = Proof(Sequent([H_xy], [H_xy, YX]), 'weakening_right',
+               [Proof(Sequent([H_xy], [H_xy]), 'axiom', principal=H_xy)], principal=YX)
+    e5 = Proof(Sequent([H_xy, iff_xy], [YX]), 'not_left', [e4], principal=iff_xy)
+    ext_yx = Proof(Sequent([iff_xy], [YX]), 'cut', [e3, e5], principal=H_xy)
+
+    # --- Extract XZ from iff_xz (forward: In(a,s) -> Eq(a,b)) ---
+    f1 = Proof(Sequent([iff_xz, XZ], [XZ]), 'axiom', principal=XZ)
+    f2 = Proof(Sequent([iff_xz, XZ], [Not(ZX), XZ]), 'weakening_right', [f1], principal=Not(ZX))
+    f3 = Proof(Sequent([iff_xz], [H_xz, XZ]), 'implies_right', [f2], principal=H_xz)
+    f4 = Proof(Sequent([H_xz], [H_xz, XZ]), 'weakening_right',
+               [Proof(Sequent([H_xz], [H_xz]), 'axiom', principal=H_xz)], principal=XZ)
+    f5 = Proof(Sequent([H_xz, iff_xz], [XZ]), 'not_left', [f4], principal=iff_xz)
+    ext_xz = Proof(Sequent([iff_xz], [XZ]), 'cut', [f3, f5], principal=H_xz)
+
+    # --- Direct: YX, XZ, Y |- Z (hypothetical syllogism + modus ponens) ---
+    g1 = Proof(Sequent([Y], [Y]), 'axiom', principal=Y)
+    g2 = Proof(Sequent([Y], [Y, Z]), 'weakening_right', [g1], principal=Z)
+    g3 = Proof(Sequent([XZ, Y], [Y, Z]), 'weakening_left', [g2], principal=XZ)
+    g4 = Proof(Sequent([X], [X]), 'axiom', principal=X)
+    g5 = Proof(Sequent([X], [X, Z]), 'weakening_right', [g4], principal=Z)
+    g6 = Proof(Sequent([Y, X], [X, Z]), 'weakening_left', [g5], principal=Y)
+    g7 = Proof(Sequent([Z], [Z]), 'axiom', principal=Z)
+    g8 = Proof(Sequent([X, Z], [Z]), 'weakening_left', [g7], principal=X)
+    g9 = Proof(Sequent([Y, X, Z], [Z]), 'weakening_left', [g8], principal=Y)
+    g10 = Proof(Sequent([XZ, Y, X], [Z]), 'implies_left', [g6, g9], principal=XZ)
+    direct = Proof(Sequent([YX, XZ, Y], [Z]), 'implies_left', [g3, g10], principal=YX)
+
+    # --- Cut XZ: iff_xz, YX, Y |- Z ---
+    c1a = Proof(Sequent([iff_xz], [XZ, Z]), 'weakening_right', [ext_xz], principal=Z)
+    c1b = Proof(Sequent([iff_xz, YX], [XZ, Z]), 'weakening_left', [c1a], principal=YX)
+    c1c = Proof(Sequent([iff_xz, YX, Y], [XZ, Z]), 'weakening_left', [c1b], principal=Y)
+    c1d = Proof(Sequent([iff_xz, YX, XZ, Y], [Z]), 'weakening_left', [direct], principal=iff_xz)
+    c1 = Proof(Sequent([iff_xz, YX, Y], [Z]), 'cut', [c1c, c1d], principal=XZ)
+
+    # --- Cut YX: iff_xy, iff_xz, Y |- Z ---
+    c2a = Proof(Sequent([iff_xy], [YX, Z]), 'weakening_right', [ext_yx], principal=Z)
+    c2b = Proof(Sequent([iff_xy, iff_xz], [YX, Z]), 'weakening_left', [c2a], principal=iff_xz)
+    c2c = Proof(Sequent([iff_xy, iff_xz, Y], [YX, Z]), 'weakening_left', [c2b], principal=Y)
+    c2d = Proof(Sequent([iff_xy, iff_xz, YX, Y], [Z]), 'weakening_left', [c1], principal=iff_xy)
+    c2 = Proof(Sequent([iff_xy, iff_xz, Y], [Z]), 'cut', [c2c, c2d], principal=YX)
+
+    # --- Inline Eq(a,a): |- Y ---
+    P_r = In(z2, a)
+    PtoP = Implies(P_r, P_r)
+    NPtoP = Not(PtoP)
+    imp_main = Implies(PtoP, NPtoP)
+    iff_body = Not(imp_main)
+    r1 = Proof(Sequent([P_r], [P_r]), 'axiom', principal=P_r)
+    r2 = Proof(Sequent([], [PtoP]), 'implies_right', [r1], principal=PtoP)
+    r3 = Proof(Sequent([], [PtoP]), 'implies_right',
+               [Proof(Sequent([P_r], [P_r]), 'axiom', principal=P_r)], principal=PtoP)
+    r4 = Proof(Sequent([NPtoP], []), 'not_left', [r3], principal=NPtoP)
+    r5 = Proof(Sequent([imp_main], []), 'implies_left', [r2, r4], principal=imp_main)
+    r6 = Proof(Sequent([], [iff_body]), 'not_right', [r5], principal=iff_body)
+    eq_aa = Forall(z2, iff_body)
+    r7 = Proof(Sequent([], [eq_aa]), 'forall_right', [r6], term=z2, principal=eq_aa)
+
+    # --- Cut Y: iff_xy, iff_xz |- Z ---
+    c3a = Proof(Sequent([], [eq_aa, Z]), 'weakening_right', [r7], principal=Z)
+    c3b = Proof(Sequent([iff_xy], [eq_aa, Z]), 'weakening_left', [c3a], principal=iff_xy)
+    c3c = Proof(Sequent([iff_xy, iff_xz], [eq_aa, Z]), 'weakening_left', [c3b], principal=iff_xz)
+    c3 = Proof(Sequent([iff_xy, iff_xz], [Z]), 'cut', [c3c, c2], principal=Y)
+
+    # --- Instantiate char_a (z=a) and char_b (z=a) ---
+    d1 = Proof(Sequent([char_a, iff_xz], [Z]), 'forall_left', [c3], principal=char_a, term=a)
+    d2 = Proof(Sequent([char_a, char_b], [Z]), 'forall_left', [d1], principal=char_b, term=a)
+
+    # --- Close ---
+    imp1 = Implies(char_b, Z)
+    s1 = Proof(Sequent([char_a], [imp1]), 'implies_right', [d2], principal=imp1)
+    imp2 = Implies(char_a, imp1)
+    s2 = Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+    fs = Forall(s, imp2)
+    s3 = Proof(Sequent([], [fs]), 'forall_right', [s2], term=s, principal=fs)
+    fb = Forall(b, fs)
+    s4 = Proof(Sequent([], [fb]), 'forall_right', [s3], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s5 = Proof(Sequent([], [fa]), 'forall_right', [s4], term=a, principal=fa)
+    s5.name = 'singleton_eq'
+    return s5
+
+
