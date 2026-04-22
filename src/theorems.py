@@ -5,15 +5,17 @@ from definitions import Empty
 
 
 def _weaken_to(proof, left, right):
-    """Weaken proof to include all formulas in left and right."""
+    """Weaken proof to include all formulas in left and right.
+    Uses the engine's _in (alpha-equiv) to check what's already present."""
+    from core.proof import _in
     s = proof.sequent
     for f in right:
-        if not any(f is g for g in s.right):
+        if not _in(f, s.right):
             proof = Proof(Sequent(s.left, s.right + [f]),
                           'weakening_right', [proof], principal=f)
             s = proof.sequent
     for f in left:
-        if not any(f is g for g in s.left):
+        if not _in(f, s.left):
             proof = Proof(Sequent(s.left + [f], s.right),
                           'weakening_left', [proof], principal=f)
             s = proof.sequent
@@ -276,90 +278,45 @@ def iff_elim_right(P, Q):
 
 
 def eq_symmetric():
-    """|- forall a. forall b. Eq(a,b) implies Eq(b,a)
-    i.e. forall z.(z in a iff z in b) implies forall z.(z in b iff z in a)"""
+    """|- forall a. forall b. Eq(a,b) implies Eq(b,a)"""
     a, b, z = Var(), Var(), Var()
-    P = In(z, a)
-    Q = In(z, b)
-    PQ = Implies(P, Q)
-    QP = Implies(Q, P)
-    iff_PQ = Not(Implies(PQ, Not(QP)))  # z in a iff z in b
-    iff_QP = Not(Implies(QP, Not(PQ)))  # z in b iff z in a
+    P, Q = In(z, a), In(z, b)
 
-    eq_ab = Forall(z, iff_PQ)  # Eq(a,b)
-    eq_ba = Forall(z, iff_QP)  # Eq(b,a)
+    el = iff_elim_left(P, Q)   # iff_PQ |- PQ
+    er = iff_elim_right(P, Q)  # iff_PQ |- QP
+    ii = iff_intro(Q, P)       # QP, PQ |- iff_QP
 
-    # Goal: eq_ab |- eq_ba
-    # forall_right z: eq_ab |- iff_QP
-    # Need: from eq_ab, extract PQ and QP, then build iff_QP
+    iff_PQ = el.sequent.left[0]
+    PQ = el.sequent.right[0]
+    QP = er.sequent.right[0]
+    iff_QP = ii.sequent.right[0]
+    eq_ab = Forall(z, iff_PQ)
 
-    # forall_left on eq_ab with z: iff_PQ |- ... (then exchange back)
-    # iff_elim_left gives: iff_PQ |- PQ
-    # iff_elim_right gives: iff_PQ |- QP
-    # iff_intro gives: QP, PQ |- iff_QP
-
-    # Build: eq_ab |- iff_QP using cut
-
-    # Step 1: eq_ab |- iff_PQ (forall instantiation)
-    ax_iff = Proof(Sequent([iff_PQ], [iff_PQ]), 'axiom')
-    s1 = Proof(Sequent([eq_ab], [iff_PQ]), 'forall_left', [ax_iff], term=z)
-
-    # Step 2: iff_PQ |- PQ (iff_elim_left inlined)
-    el = iff_elim_left(P, Q)  # [iff_PQ] |- [PQ]
-
-    # Step 3: iff_PQ |- QP (iff_elim_right inlined)
-    er = iff_elim_right(P, Q)  # [iff_PQ] |- [QP]
-
-    # Step 4: PQ, QP |- iff_QP (iff_intro with swapped args)
-    ii = iff_intro(Q, P)  # [QP, PQ] |- [iff_QP]
-
-    # Now compose via cuts:
-    # From s1: eq_ab |- iff_PQ
-    # From el: iff_PQ |- PQ
-    # Cut(s1, el) on iff_PQ: eq_ab |- PQ
-
-    # Cut s1 with el on iff_PQ: eq_ab |- PQ
-    # s1: eq_ab |- iff_PQ. Need iff_PQ first on right, PQ after.
-    s1w = Proof(Sequent([eq_ab], [PQ, iff_PQ]), 'weakening_right', [s1])
-    s1wx = Proof(Sequent([eq_ab], [iff_PQ, PQ]), 'exchange_right', [s1w])
-    # el: iff_PQ |- PQ. Need eq_ab on left too.
-    elw = Proof(Sequent([iff_PQ, eq_ab], [PQ]), 'weakening_left', [el])
-    elwx = Proof(Sequent([eq_ab, iff_PQ], [PQ]), 'exchange_left', [elw])
-    c1 = Proof(Sequent([eq_ab], [PQ]), 'cut', [s1wx, elwx])
-
-    # Cut s1b with er on iff_PQ: eq_ab |- QP
+    # eq_ab |- iff_PQ
+    s1 = Proof(Sequent([eq_ab], [iff_PQ]), 'forall_left',
+               [_axiom(iff_PQ)], term=z, principal=eq_ab)
+    # eq_ab |- PQ
+    c1 = _cut(s1, el, iff_PQ, [eq_ab], [PQ])
+    # eq_ab |- QP
     s1b = Proof(Sequent([eq_ab], [iff_PQ]), 'forall_left',
-                [Proof(Sequent([iff_PQ], [iff_PQ]), 'axiom')], term=z)
-    s1bw = Proof(Sequent([eq_ab], [QP, iff_PQ]), 'weakening_right', [s1b])
-    s1bwx = Proof(Sequent([eq_ab], [iff_PQ, QP]), 'exchange_right', [s1bw])
-    erw = Proof(Sequent([iff_PQ, eq_ab], [QP]), 'weakening_left', [er])
-    erwx = Proof(Sequent([eq_ab, iff_PQ], [QP]), 'exchange_left', [erw])
-    c2 = Proof(Sequent([eq_ab], [QP]), 'cut', [s1bwx, erwx])
+                [_axiom(iff_PQ)], term=z, principal=eq_ab)
+    c2 = _cut(s1b, er, iff_PQ, [eq_ab], [QP])
+    # eq_ab |- iff_QP (cut PQ and QP into iff_intro)
+    cut1 = _cut(c1, ii, PQ, [eq_ab, QP], [iff_QP])
+    cut2 = _cut(c2, cut1, QP, [eq_ab], [iff_QP])
 
-    # Cut c1 into ii on PQ: need [eq_ab, QP] |- iff_QP
-    # Weaken c1 left with QP, weaken ii left with eq_ab
-    c1w = Proof(Sequent([eq_ab, QP], [PQ]), 'weakening_left', [c1])
-    c1ww = Proof(Sequent([eq_ab, QP], [iff_QP, PQ]), 'weakening_right', [c1w])
-    c1wwx = Proof(Sequent([eq_ab, QP], [PQ, iff_QP]), 'exchange_right', [c1ww])
-    ii_w = Proof(Sequent([QP, PQ, eq_ab], [iff_QP]), 'weakening_left', [ii])
-    ii_wx = Proof(Sequent([eq_ab, QP, PQ], [iff_QP]), 'exchange_left', [ii_w])
-    cut_pq = Proof(Sequent([eq_ab, QP], [iff_QP]), 'cut', [c1wwx, ii_wx])
-
-    # Cut c2 with cut_pq on QP: eq_ab |- iff_QP
-    c2w = Proof(Sequent([eq_ab], [iff_QP, QP]), 'weakening_right', [c2])
-    c2wx = Proof(Sequent([eq_ab], [QP, iff_QP]), 'exchange_right', [c2w])
-    cut_qp = Proof(Sequent([eq_ab], [iff_QP]), 'cut', [c2wx, cut_pq])
-
-    # forall_right: eq_ab |- Forall(z, iff_QP) = eq_ba
-    s_forall = Proof(Sequent([eq_ab], [eq_ba]), 'forall_right', [cut_qp], term=z)
-
-    # Close with implies_right and forall_rights
-    s_imp = Proof(Sequent([], [Implies(Eq(a, b), Eq(b, a))]), 'implies_right', [s_forall])
-    s_fb = Proof(Sequent([], [Forall(b, Implies(Eq(a, b), Eq(b, a)))]), 'forall_right', [s_imp], term=b)
-    s_fa = Proof(Sequent([], [Forall(a, Forall(b, Implies(Eq(a, b), Eq(b, a))))]),
-                 'forall_right', [s_fb], name='eq_symmetric', term=a)
-
-    return s_fa
+    # Close
+    eq_ba = Forall(z, iff_QP)
+    s_fa = Proof(Sequent([eq_ab], [eq_ba]), 'forall_right', [cut2],
+                 term=z, principal=eq_ba)
+    imp = Implies(Eq(a, b), Eq(b, a))
+    s_imp = Proof(Sequent([], [imp]), 'implies_right', [s_fa], principal=imp)
+    fb = Forall(b, imp)
+    s_fb = Proof(Sequent([], [fb]), 'forall_right', [s_imp], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s_final = Proof(Sequent([], [fa]), 'forall_right', [s_fb],
+                    term=a, principal=fa, name='eq_symmetric')
+    return s_final
 
 
 def singletonformula_eq():
@@ -458,70 +415,77 @@ def eq_transitive():
     G = [eq_ab, eq_bc]
 
     # Extract implications from eq_ab and eq_bc
-    get_ab = _forall_left(_axiom(iff_ab), eq_ab, z)
+    get_ab = Proof(Sequent([eq_ab], [iff_ab]), 'forall_left',
+                   [_axiom(iff_ab)], term=z, principal=eq_ab)
     got_ab_lr = _cut(get_ab, el_ab, iff_ab, [eq_ab], [ab_lr])
     got_ab_rl = _cut(
-        _forall_left(_axiom(iff_ab), eq_ab, z),
+        Proof(Sequent([eq_ab], [iff_ab]), 'forall_left',
+              [_axiom(iff_ab)], term=z, principal=eq_ab),
         er_ab, iff_ab, [eq_ab], [ab_rl])
 
-    get_bc = _forall_left(_axiom(iff_bc), eq_bc, z)
+    get_bc = Proof(Sequent([eq_bc], [iff_bc]), 'forall_left',
+                   [_axiom(iff_bc)], term=z, principal=eq_bc)
     got_bc_lr = _cut(get_bc, el_bc, iff_bc, [eq_bc], [bc_lr])
     got_bc_rl = _cut(
-        _forall_left(_axiom(iff_bc), eq_bc, z),
+        Proof(Sequent([eq_bc], [iff_bc]), 'forall_left',
+              [_axiom(iff_bc)], term=z, principal=eq_bc),
         er_bc, iff_bc, [eq_bc], [bc_rl])
 
     # Forward chain: eq_ab, eq_bc, Pa |- Pc
-    # Step 1: apply ab_lr to get Pb
     g1 = _weaken_to(got_ab_lr, G + [Pa], [ab_lr])
-    ax_pa = Proof(Sequent(G + [Pa], [Pa, Pb]), 'axiom')
-    ax_pb = Proof(Sequent(G + [Pa, Pb], [Pb]), 'axiom')
-    app_ab = Proof(Sequent(G + [Pa, ab_lr], [Pb]), 'implies_left', [ax_pa, ax_pb])
+    app_ab = Proof(Sequent(G + [Pa, ab_lr], [Pb]), 'implies_left',
+                   [_axiom(Pa, left=G, right=[Pb]),
+                    _axiom(Pb, left=G + [Pa])],
+                   principal=ab_lr)
     got_pb = _cut(g1, app_ab, ab_lr, G + [Pa], [Pb])
 
-    # Step 2: apply bc_lr to get Pc
     g2 = _weaken_to(got_bc_lr, G + [Pb], [bc_lr])
-    ax_pb2 = Proof(Sequent(G + [Pb], [Pb, Pc]), 'axiom')
-    ax_pc = Proof(Sequent(G + [Pb, Pc], [Pc]), 'axiom')
-    app_bc = Proof(Sequent(G + [Pb, bc_lr], [Pc]), 'implies_left', [ax_pb2, ax_pc])
+    app_bc = Proof(Sequent(G + [Pb, bc_lr], [Pc]), 'implies_left',
+                   [_axiom(Pb, left=G, right=[Pc]),
+                    _axiom(Pc, left=G + [Pb])],
+                   principal=bc_lr)
     got_pc = _cut(g2, app_bc, bc_lr, G + [Pb], [Pc])
 
-    # Chain via Pb
     chain_fwd = _cut(got_pb, got_pc, Pb, G + [Pa], [Pc])
-    got_ac_lr = Proof(Sequent(G, [ac_lr]), 'implies_right', [chain_fwd])
+    got_ac_lr = Proof(Sequent(G, [ac_lr]), 'implies_right', [chain_fwd], principal=ac_lr)
 
     # Backward chain: eq_ab, eq_bc, Pc |- Pa
     g3 = _weaken_to(got_bc_rl, G + [Pc], [bc_rl])
-    ax_pc2 = Proof(Sequent(G + [Pc], [Pc, Pb]), 'axiom')
-    ax_pb3 = Proof(Sequent(G + [Pc, Pb], [Pb]), 'axiom')
-    app_cb = Proof(Sequent(G + [Pc, bc_rl], [Pb]), 'implies_left', [ax_pc2, ax_pb3])
+    app_cb = Proof(Sequent(G + [Pc, bc_rl], [Pb]), 'implies_left',
+                   [_axiom(Pc, left=G, right=[Pb]),
+                    _axiom(Pb, left=G + [Pc])],
+                   principal=bc_rl)
     got_pb_back = _cut(g3, app_cb, bc_rl, G + [Pc], [Pb])
 
     g4 = _weaken_to(got_ab_rl, G + [Pb], [ab_rl])
-    ax_pb4 = Proof(Sequent(G + [Pb], [Pb, Pa]), 'axiom')
-    ax_pa2 = Proof(Sequent(G + [Pb, Pa], [Pa]), 'axiom')
-    app_ba = Proof(Sequent(G + [Pb, ab_rl], [Pa]), 'implies_left', [ax_pb4, ax_pa2])
+    app_ba = Proof(Sequent(G + [Pb, ab_rl], [Pa]), 'implies_left',
+                   [_axiom(Pb, left=G, right=[Pa]),
+                    _axiom(Pa, left=G + [Pb])],
+                   principal=ab_rl)
     got_pa_back = _cut(g4, app_ba, ab_rl, G + [Pb], [Pa])
 
     chain_bwd = _cut(got_pb_back, got_pa_back, Pb, G + [Pc], [Pa])
-    got_ac_rl = Proof(Sequent(G, [ac_rl]), 'implies_right', [chain_bwd])
+    got_ac_rl = Proof(Sequent(G, [ac_rl]), 'implies_right', [chain_bwd], principal=ac_rl)
 
     # Combine via iff_intro
-    # ac_lr, ac_rl, iff_ac already extracted from ii above
     ii_w = _weaken_to(ii, G + [ac_lr, ac_rl], [iff_ac])
     cut1 = _cut(got_ac_lr, ii_w, ac_lr, G + [ac_rl], [iff_ac])
     cut2 = _cut(got_ac_rl, cut1, ac_rl, G, [iff_ac])
 
     # Close
-    s_forall = Proof(Sequent(G, [Forall(z, iff_ac)]), 'forall_right', [cut2], term=z)
-    s_i1 = Proof(Sequent([eq_ab], [Implies(eq_bc, Eq(a, c))]), 'implies_right', [s_forall])
-    s_i2 = Proof(Sequent([], [Implies(eq_ab, Implies(eq_bc, Eq(a, c)))]), 'implies_right', [s_i1])
-    s_fc = Proof(Sequent([], [Forall(c, Implies(eq_ab, Implies(eq_bc, Eq(a, c))))]),
-                 'forall_right', [s_i2], term=c)
-    s_fb = Proof(Sequent([], [Forall(b, Forall(c, Implies(eq_ab, Implies(eq_bc, Eq(a, c)))))]),
-                 'forall_right', [s_fc], term=b)
-    s_fa = Proof(Sequent([], [Forall(a, Forall(b, Forall(c, Implies(eq_ab, Implies(eq_bc, Eq(a, c))))))]),
-                 'forall_right', [s_fb], name='eq_transitive', term=a)
-
+    fz = Forall(z, iff_ac)
+    s_forall = Proof(Sequent(G, [fz]), 'forall_right', [cut2], term=z, principal=fz)
+    imp_bc = Implies(eq_bc, Eq(a, c))
+    s_i1 = Proof(Sequent([eq_ab], [imp_bc]), 'implies_right', [s_forall], principal=imp_bc)
+    imp_ab = Implies(eq_ab, imp_bc)
+    s_i2 = Proof(Sequent([], [imp_ab]), 'implies_right', [s_i1], principal=imp_ab)
+    fc = Forall(c, imp_ab)
+    s_fc = Proof(Sequent([], [fc]), 'forall_right', [s_i2], term=c, principal=fc)
+    fb = Forall(b, fc)
+    s_fb = Proof(Sequent([], [fb]), 'forall_right', [s_fc], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s_fa = Proof(Sequent([], [fa]), 'forall_right', [s_fb],
+                 name='eq_transitive', term=a, principal=fa)
     return s_fa
 
 
@@ -542,25 +506,29 @@ def singleton_eq():
     imp_aa_ab = Implies(eq_aa, eq_ab)
 
     # hyp |- iff_inst (forall_left x=a)
-    s1 = _forall_left(_axiom(iff_inst), hyp, a)
+    s1 = Proof(Sequent([hyp], [iff_inst]), 'forall_left',
+               [_axiom(iff_inst)], term=a, principal=hyp)
 
-    # iff_inst |- eq_aa -> eq_ab (iff_elim_left)
+    # iff_inst |- eq_aa -> eq_ab
     el = iff_elim_left(eq_aa, eq_ab)
+    imp_aa_ab = el.sequent.right[0]
 
-    # hyp |- eq_aa -> eq_ab
+    # hyp |- imp_aa_ab
     got_imp = _cut(s1, el, iff_inst, [hyp], [imp_aa_ab])
 
     # |- eq_aa (from eq_reflexive, instantiate)
     refl = eq_reflexive()
-    refl_body = refl.sequent.right[0]  # Forall(v, Eq(v,v))
+    refl_body = refl.sequent.right[0]
     got_eq_aa = _cut(refl,
-                     _forall_left(_axiom(eq_aa), refl_body, a),
+                     Proof(Sequent([refl_body], [eq_aa]), 'forall_left',
+                           [_axiom(eq_aa)], term=a, principal=refl_body),
                      refl_body, [], [eq_aa])
 
-    # hyp, eq_aa, imp_aa_ab |- eq_ab (modus ponens pattern)
-    app = _implies_left(
-        _axiom(eq_aa, left=[hyp], right=[eq_ab]),
-        _axiom(eq_ab, left=[hyp, eq_aa]))
+    # hyp, eq_aa, imp_aa_ab |- eq_ab (modus ponens)
+    app = Proof(Sequent([hyp, eq_aa, imp_aa_ab], [eq_ab]), 'implies_left',
+                [_axiom(eq_aa, left=[hyp], right=[eq_ab]),
+                 _axiom(eq_ab, left=[hyp, eq_aa])],
+                principal=imp_aa_ab)
 
     # hyp, eq_aa |- eq_ab (cut away imp_aa_ab)
     got_ab_with_aa = _cut(got_imp, app, imp_aa_ab, [hyp, eq_aa], [eq_ab])
@@ -569,69 +537,48 @@ def singleton_eq():
     got_ab = _cut(got_eq_aa, got_ab_with_aa, eq_aa, [hyp], [eq_ab])
 
     # Close
-    s_imp = _implies_right(_weaken_to(got_ab, [hyp], [Eq(a, b)]))
-    s_fb = _forall_right(s_imp, b)
-    s_fa = _forall_right(s_fb, a)
-    s_fa.name = 'singleton_eq'
+    got_ab_w = _weaken_to(got_ab, [hyp], [Eq(a, b)])
+    imp_h = Implies(hyp, Eq(a, b))
+    s_imp = Proof(Sequent([], [imp_h]), 'implies_right', [got_ab_w], principal=imp_h)
+    fb = Forall(b, imp_h)
+    s_fb = Proof(Sequent([], [fb]), 'forall_right', [s_imp], term=b, principal=fb)
+    fa = Forall(a, fb)
+    s_fa = Proof(Sequent([], [fa]), 'forall_right', [s_fb],
+                 term=a, principal=fa, name='singleton_eq')
     return s_fa
 
 
 def or_elim(A, B, C):
-    """Or(A,B), A->C, B->C |- C
-    Or(A,B) = Implies(Not(A), B).
-    From Not(A)->B, A->C, B->C, derive C."""
-    OrAB = Implies(Not(A), B)
+    """Or(A,B), A->C, B->C |- C"""
+    NA = Not(A)
+    OrAB = Implies(NA, B)
     AC = Implies(A, C)
     BC = Implies(B, C)
 
-    # Classical proof using right-side disjunction.
-    # [OrAB, AC, BC] |- [C]
-
-    # implies_left on BC (move to last):
-    #   p0: [OrAB, AC] |- [B, C]
-    #   p1: [OrAB, AC, C] |- [C]  -- axiom
-
-    # p1: axiom
+    # Build: OrAB, AC, BC |- C
+    # implies_left on BC: need [OrAB, AC] |- [B, C] and [OrAB, AC, C] |- [C]
     p1 = _axiom(C, left=[OrAB, AC])
 
-    # p0: [OrAB, AC] |- [B, C]
-    # implies_left on OrAB... OrAB = Implies(Not(A), B)
-    # Move OrAB to last: [AC, OrAB] |- [B, C]
-    #   p0a: [AC] |- [Not(A), B, C]
-    #   p0b: [AC, B] |- [B, C]  -- axiom
-
+    # [OrAB, AC] |- [B, C]
+    # implies_left on OrAB: need [AC] |- [Not(A), B, C] and [AC, B] |- [B, C]
     p0b = _axiom(B, left=[AC], right=[C])
 
-    # p0a: [AC] |- [Not(A), B, C]
-    # not_right: [AC, A] |- [B, C]
-    # implies_left on AC (move to last): [A, AC] |- [B, C]
-    #   p0a0: [A] |- [A, B, C]  -- axiom
-    #   p0a1: [A, C] |- [B, C]  -- axiom (C last left, ... wait)
-
+    # [AC] |- [Not(A), B, C]
+    # not_right on A: from [AC, A] |- [B, C]
+    # implies_left on AC: need [A] |- [A, B, C] and [A, C] |- [B, C]
     p0a0 = _axiom(A, right=[B, C])
     p0a1 = _axiom(C, left=[A], right=[B])
-    # wait: _axiom puts C last on left, C first on right.
-    # [A, C] |- [C, B]. Need [A, C] |- [B, C].
-    p0a1 = Proof(Sequent([A, C], [B, C]), 'exchange_right',
-                 [_axiom(C, left=[A], right=[B])])
+    impl_ac = Proof(Sequent([A, AC], [B, C]), 'implies_left',
+                    [p0a0, p0a1], principal=AC)
+    p0a = Proof(Sequent([AC], [NA, B, C]), 'not_right', [impl_ac], principal=NA)
 
-    impl_ac = _implies_left(p0a0, p0a1)  # [A, AC] |- [B, C]
-    p0a_inner = _exchange_left(impl_ac, [AC, A])  # [AC, A] |- [B, C]
-    # not_right: A is last on left -> Not(A) first on right
-    p0a = _not_right(p0a_inner)  # [AC] |- [Not(A), B, C]
+    # implies_left on OrAB
+    impl_or = Proof(Sequent([AC, OrAB], [B, C]), 'implies_left',
+                    [p0a, p0b], principal=OrAB)
 
-    # implies_left on OrAB: [AC, OrAB] |- [B, C]
-    # p0a has A=Not(A) first on right? No:
-    # OrAB = Implies(Not(A), B). implies_left expects:
-    #   proof0: G |- Not(A), D  -> p0a: [AC] |- [Not(A), B, C]. Not(A) first ✓
-    #   proof1: G, B |- D -> p0b: [AC, B] |- [B, C]. B last ✓
-    impl_or = _implies_left(p0a, p0b)  # [AC, OrAB] |- [B, C]
-    p0 = _exchange_left(impl_or, [OrAB, AC])  # [OrAB, AC] |- [B, C]
-
-    # implies_left on BC: [OrAB, AC, BC] |- [C]
-    # B first on right of p0 ✓, C last on left of p1 ✓
-    result = _implies_left(p0, p1)  # [OrAB, AC, BC] |- [C]
-    result.name = 'or_elim'
+    # implies_left on BC
+    result = Proof(Sequent([OrAB, AC, BC], [C]), 'implies_left',
+                   [impl_or, p1], principal=BC, name='or_elim')
     return result
 
 
