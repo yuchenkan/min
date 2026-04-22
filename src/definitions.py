@@ -13,24 +13,22 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Exists, And, Or, Iff, Eq
 
 
-# --- Generic definite description (for unnamed sets) ---
+# --- Generic set characterization predicate ---
 
 class SetSpec:
-    """forall s. (forall x. x in s iff cond(x)) implies body(s)"""
-    def __init__(self, cond, body, prefix=None):
+    """SetSpec(s, cond) = forall x. Iff(In(x, s), cond(x)). s has membership cond."""
+    def __init__(self, s, cond):
+        self.set = s
         self.cond = cond
-        self.body = body
-        if prefix is None:
-            x = Var()
-            prefix = f'{{{x}|{cond(x)}}}'
-        self.var = Var(prefix)
     def expand(self):
         x = Var()
-        return Forall(self.var, Implies(
-            Forall(x, Iff(In(x, self.var), self.cond(x))),
-            self.body(self.var)))
+        return Forall(x, Iff(In(x, self.set), self.cond(x)))
+    def subst(self, old, new):
+        return SetSpec(new if self.set is old else self.set,
+                       lambda x: self.cond(x).subst(old, new))
     def __str__(self):
-        return f'{self.body(self.var)}'
+        x = Var()
+        return f'{self.set} = {{ {x} | {self.cond(x)} }}'
 
 
 # --- Predicates ---
@@ -135,14 +133,22 @@ class IsInductive:
 
 # --- Compound definitions ---
 
-def OrdPair(a, b, body):
-    """(a, b) = {{a}, {a, b}}. Kuratowski ordered pair."""
-    sa = Var(f'{{{a}}}')
-    pab = Var(f'{{{a},{b}}}')
-    t = Var(f'({a},{b})')
-    return Forall(sa, Implies(Singleton(sa, a),
-        Forall(pab, Implies(PairSet(pab, a, b),
-            Forall(t, Implies(PairSet(t, sa, pab), body(t)))))))
+class OrdPair:
+    """OrdPair(t, a, b): t = (a, b) = {{a}, {a, b}}"""
+    __match_args__ = ('set', 'left', 'right')
+    def __init__(self, t, a, b):
+        self.set = t; self.left = a; self.right = b
+    def expand(self):
+        sa = Var()
+        pab = Var()
+        return Forall(sa, Implies(Singleton(sa, self.left),
+            Forall(pab, Implies(PairSet(pab, self.left, self.right),
+                PairSet(self.set, sa, pab)))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return OrdPair(r(self.set), r(self.left), r(self.right))
+    def __str__(self):
+        return f'{self.set} = ({self.left},{self.right})'
 
 
 class Omega:
@@ -163,37 +169,86 @@ class Omega:
         return f'{self.body(v)}'
 
 
-# --- Set operations (use SetSpec for unnamed constructions) ---
+# --- Set operation predicates ---
 
-def Union(a, b, body):
-    """a union b: z in a|b iff z in a or z in b"""
-    return SetSpec(lambda z: Or(In(z, a), In(z, b)), body, f'{a}|{b}')
+class Union:
+    """s = a | b"""
+    __match_args__ = ('set', 'left', 'right')
+    def __init__(self, s, a, b):
+        self.set = s; self.left = a; self.right = b
+    def expand(self):
+        return SetSpec(self.set, lambda z: Or(In(z, self.left), In(z, self.right)))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Union(r(self.set), r(self.left), r(self.right))
+    def __str__(self):
+        return f'{self.set} = {self.left} | {self.right}'
 
+class BigUnion:
+    """s = U(a)"""
+    __match_args__ = ('set', 'family')
+    def __init__(self, s, a):
+        self.set = s; self.family = a
+    def expand(self):
+        y = Var()
+        return SetSpec(self.set, lambda z: Exists(y, And(In(y, self.family), In(z, y))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return BigUnion(r(self.set), r(self.family))
+    def __str__(self):
+        return f'{self.set} = U({self.family})'
 
-def BigUnion(a, body):
-    """Union of family: z in U(a) iff exists y in a with z in y"""
-    y = Var()
-    return SetSpec(lambda z: Exists(y, And(In(y, a), In(z, y))), body, f'U({a})')
+class Intersect:
+    """s = a & b"""
+    __match_args__ = ('set', 'left', 'right')
+    def __init__(self, s, a, b):
+        self.set = s; self.left = a; self.right = b
+    def expand(self):
+        return SetSpec(self.set, lambda z: And(In(z, self.left), In(z, self.right)))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Intersect(r(self.set), r(self.left), r(self.right))
+    def __str__(self):
+        return f'{self.set} = {self.left} & {self.right}'
 
+class BigIntersect:
+    """s = I(a)"""
+    __match_args__ = ('set', 'family')
+    def __init__(self, s, a):
+        self.set = s; self.family = a
+    def expand(self):
+        y = Var()
+        return SetSpec(self.set, lambda z: Forall(y, Implies(In(y, self.family), In(z, y))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return BigIntersect(r(self.set), r(self.family))
+    def __str__(self):
+        return f'{self.set} = I({self.family})'
 
-def Intersect(a, b, body):
-    """a intersect b: z in a&b iff z in a and z in b"""
-    return SetSpec(lambda z: And(In(z, a), In(z, b)), body, f'{a}&{b}')
+class PowerSet:
+    """s = P(a)"""
+    __match_args__ = ('set', 'of')
+    def __init__(self, s, a):
+        self.set = s; self.of = a
+    def expand(self):
+        return SetSpec(self.set, lambda z: Subset(z, self.of))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return PowerSet(r(self.set), r(self.of))
+    def __str__(self):
+        return f'{self.set} = P({self.of})'
 
-
-def BigIntersect(a, body):
-    """Intersection of family: z in I(a) iff forall y in a, z in y"""
-    y = Var()
-    return SetSpec(lambda z: Forall(y, Implies(In(y, a), In(z, y))), body, f'I({a})')
-
-
-def PowerSet(a, body):
-    """Power set: z in P(a) iff z sub a"""
-    return SetSpec(lambda z: Subset(z, a), body, f'P({a})')
-
-
-def Diff(a, b, body):
-    """Set difference: z in a\\b iff z in a and not z in b"""
-    return SetSpec(lambda z: And(In(z, a), Not(In(z, b))), body, f'{a}\\{b}')
+class Diff:
+    """s = a \\ b"""
+    __match_args__ = ('set', 'left', 'right')
+    def __init__(self, s, a, b):
+        self.set = s; self.left = a; self.right = b
+    def expand(self):
+        return SetSpec(self.set, lambda z: And(In(z, self.left), Not(In(z, self.right))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Diff(r(self.set), r(self.left), r(self.right))
+    def __str__(self):
+        return f'{self.set} = {self.left} \\ {self.right}'
 
 
