@@ -149,7 +149,7 @@ class OrdPair:
         r = lambda f: new if f is old else f
         return OrdPair(r(self.set), r(self.left), r(self.right))
     def __str__(self):
-        return f'{self.set} = ({self.left},{self.right})'
+        return f'{self.set} = <{self.left},{self.right}>'
 
 
 class Omega:
