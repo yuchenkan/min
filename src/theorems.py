@@ -4,7 +4,7 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import zfc
-from definitions import EmptySet, OrdPair
+from definitions import EmptySet, OrdPair, Subset, IsInductive, Omega
 
 
 # --- ZFC axioms as theorems (A |- A) ---
@@ -2981,5 +2981,13 @@ def kuratowski():
                   term=proof.term, principal=wrapped)
     proof.name = 'kuratowski'
     return proof
+
+
+def omega_smallest_inductive():
+    """Theorem 4.2.1: p sub omega and isInductive(p) implies p = omega.
+    |- forall p. Omega(lambda w: Implies(And(Subset(p, w), IsInductive(p)), Eq(p, w)))"""
+    p = Var()
+    goal = Omega(lambda w: Implies(And(Subset(p, w), IsInductive(p)), Eq(p, w)))
+    pass
 
 
