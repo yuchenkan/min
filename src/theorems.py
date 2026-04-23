@@ -4248,15 +4248,27 @@ def omega_is_inductive():
     return s2
 
 
+def initial_segments_agree():
+    """Initial segments of a recursion agree wherever both defined.
+    |- forall a, f, v1, v2, n, y1, y2, w.
+       Omega(w) -> n in w ->
+       Function(f) -> InitialSegment(v1,a,f) -> InitialSegment(v2,a,f) ->
+       Apply(v1,n,y1) -> Apply(v2,n,y2) -> Eq(y1,y2)
+
+    Proved by induction on n using Separation + omega_smallest_inductive.
+    This is the first induction in the recursion theorem (4.2.14)."""
+    # TODO: ~200 nodes. Uses Separation to form t = {n in w : agreement at n},
+    # shows Inductive(t), applies omega_smallest_inductive.
+    pass
+
+
 def recursion_theorem():
     """Theorem 4.2.14: the recursion theorem.
     Given Function(f) with {a} union ran(f) sub dom(f),
     exists unique h with Recursive(h, a, f) and Domain(h, omega).
 
-    This is the foundation for defining recursive functions on omega,
-    including addition, multiplication, etc."""
-    # This theorem requires ~500 proof nodes with two nested inductions.
-    # Deferred to dedicated implementation.
+    Uses initial_segments_agree (induction #1) and
+    initial_segments_extend (induction #2)."""
     pass
 
 
