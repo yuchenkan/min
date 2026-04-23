@@ -281,25 +281,21 @@ class Plus:
 class InitialSegment:
     """InitialSegment(v, a, f): v is a partial recursive function.
     Function(v) and
-    (forall e. Empty(e) -> (forall d. Domain(v,d) -> In(e,d) -> Apply(v, e, a))) and
+    (forall e. Empty(e) -> Apply(v, e, a)) and
     forall n, val. Apply(v, n, val) ->
       forall sn. Successor(sn, n) ->
-        forall d. Domain(v,d) -> In(sn, d) ->
-          forall fval. Apply(f, val, fval) -> Apply(v, sn, fval)"""
+        forall fval. Apply(f, val, fval) -> Apply(v, sn, fval)"""
     __match_args__ = ('func', 'init', 'step')
     def __init__(self, v, a, f):
         self.func = v; self.init = a; self.step = f
     def expand(self):
-        e, n, val, sn, d, fval = Var(), Var(), Var(), Var(), Var(), Var()
+        e, n, val, sn, fval = Var(), Var(), Var(), Var(), Var()
         return And(Function(self.func),
-               And(Forall(e, Implies(Empty(e),
-                       Forall(d, Implies(Domain(self.func, d), Implies(In(e, d),
-                           Apply(self.func, e, self.init)))))),
+               And(Forall(e, Implies(Empty(e), Apply(self.func, e, self.init))),
                    Forall(n, Forall(val, Implies(Apply(self.func, n, val),
                        Forall(sn, Implies(Successor(sn, n),
-                           Forall(d, Implies(Domain(self.func, d), Implies(In(sn, d),
-                               Forall(fval, Implies(Apply(self.step, val, fval),
-                                   Apply(self.func, sn, fval)))))))))))))
+                           Forall(fval, Implies(Apply(self.step, val, fval),
+                               Apply(self.func, sn, fval))))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return InitialSegment(r(self.func), r(self.init), r(self.step))
