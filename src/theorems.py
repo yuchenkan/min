@@ -6095,15 +6095,16 @@ def init_seg_agree():
         # br2 = proof_step weakened to conclusion.left + [ex_val] |- D
         # Use proof_step.left (minus ex_val) as base, add new from ist4
         pstep_no_ex = [f_ for f_ in proof_step.sequent.left if f_ is not ex_val]
-        # Weaken br1 to have pstep_no_ex on its left
+        # Build union context: pstep_no_ex + extras from got_ist4
+        cut_left = list(pstep_no_ex)
+        for f_ in got_ist4.sequent.left:
+            if not any(f_ is g for g in cut_left):
+                cut_left.append(f_)
+        # Weaken both to cut_left
         br1 = got_ist4
-        for f_ in pstep_no_ex:
+        for f_ in cut_left:
             if not any(f_ is g for g in br1.sequent.left):
                 br1 = wl(br1, f_)
-        # br1.left is now: got_ist4.left + new_from_pstep
-        # Use br1.left as the cut conclusion left (it has everything)
-        cut_left = list(br1.sequent.left)
-        # Weaken br2 (proof_step) to have cut_left + [ex_val]
         br2 = proof_step
         for f_ in cut_left:
             if not any(f_ is g for g in proof_step.sequent.left):
