@@ -5571,7 +5571,7 @@ def init_seg_total():
     # Backward: And(In(s,w), P(s)) -> In(s,t)
     char_s = _char_at(sv2)
     bwd_s = _iff_bwd(char_s, in_s_t, and_in_p_s)
-    got_in_s_t = mp(bwd_s, got_and_step, and_in_p_s, in_s_t, [], [])
+    got_in_s_t = mp(bwd_s, got_and_step, and_in_p_s, in_s_t, [fa_char], [fa_char])
     # got_in_s_t: [fa_char, ext, inf, omega_w, f_total, is_v, In(x,t), succ_s_x] |- In(s,t)
 
     # Discharge succ_s_x, forall sv2:
@@ -5667,7 +5667,7 @@ def init_seg_total():
     eq_tw = Eq(t, w)
     got_eq = apply_thm(osi, [t, w], omega_w, Implies(and_sub_ind, eq_tw),
         Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w), [], [])
-    got_eq2 = mp(got_eq, got_and_si, and_sub_ind, eq_tw, [], [])
+    got_eq2 = mp(got_eq, got_and_si, and_sub_ind, eq_tw, [omega_w], [omega_w])
     # got_eq2: [fa_char, ext, inf, omega_w, f_total, is_v] |- Eq(t, w)
 
     # --- From Eq(t,w): In(n,w) -> In(n,t) -> P(n) ---
@@ -5693,7 +5693,7 @@ def init_seg_total():
     # Forward through characterization: In(n,t) -> And(In(n,w), P(n))
     char_n = _char_at(n)
     fwd_n = _iff_fwd(char_n, In(n, t), And(In(n, w), P(n)))
-    got_and_n = mp(fwd_n, got_in_t, In(n, t), And(In(n, w), P(n)), [], [])
+    got_and_n = mp(fwd_n, got_in_t, In(n, t), And(In(n, w), P(n)), [fa_char], [fa_char])
     # got_and_n: [...] |- And(In(n,w), P(n))
 
     # Extract P(n):
