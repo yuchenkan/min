@@ -5812,7 +5812,7 @@ def init_seg_agree():
         Proof(Sequent([is2], [is2]), 'axiom', principal=is2), [], [])
     got_app2e = mp(got_app2,
         Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev),
-        empty_ev, Apply(v2, ev, a), [empty_ev], [empty_ev])
+        empty_ev, Apply(v2, ev, a), [], [])
 
     # func_unique: Function(v1) -> Apply(v1,ev,a) -> Apply(v1,ev,y1) -> Eq(a,y1)
     isf = init_seg_func()
@@ -6140,12 +6140,14 @@ def init_seg_agree():
     ex_t = Exists(t, fa_char)
     fa_a_body = Forall(w, ex_t)
 
-    fl_af = _fl(sep, Forall(f, fa_a_body), a)
-    fl_af2 = Proof(Sequent([sep], [fa_a_body]), 'cut',
-        [wr(fl_af, fa_a_body), wl(_fl(Forall(f, fa_a_body), fa_a_body, f), sep)],
-        principal=Forall(f, fa_a_body))
+    # Separation(Q,[a,f]).expand() = Forall(f, Forall(a, Forall(w_internal, Exists(t, ...))))
+    # Peel: f first, then a, then w_internal->w
+    fa_a_w = Forall(a, fa_a_body)
+    fl_f = _fl(sep, fa_a_w, f)
+    fl_a = Proof(Sequent([sep], [fa_a_body]), 'cut',
+        [wr(fl_f, fa_a_body), wl(_fl(fa_a_w, fa_a_body, a), sep)], principal=fa_a_w)
     fl_w = Proof(Sequent([sep], [ex_t]), 'cut',
-        [wr(fl_af2, ex_t), wl(_fl(fa_a_body, ex_t, w), sep)], principal=fa_a_body)
+        [wr(fl_a, ex_t), wl(_fl(fa_a_body, ex_t, w), sep)], principal=fa_a_body)
 
     def _char_at(z):
         iff_z = Iff(In(z, t), And(In(z, w), Q(z)))
