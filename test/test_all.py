@@ -59,10 +59,20 @@ if __name__ == '__main__':
         ('union_exists', theorems.union_exists()),
         ('intersect_exists', theorems.intersect_exists()),
         ('big_union_exists', theorems.big_union_exists()),
+        ('eq_in_eq', theorems.eq_in_eq()),
         ('unique_successor', theorems.unique_successor()),
         ('infinity_gives_inductive', theorems.infinity_gives_inductive()),
         ('omega_is_inductive', theorems.omega_is_inductive()),
         ('omega_smallest_inductive', theorems.omega_smallest_inductive()),
+        ('func_preserves_eq', theorems.func_preserves_eq()),
+        ('func_unique', theorems.func_unique_thm()),
+        ('plus_zero', theorems.plus_zero()),
+        ('init_seg_func', theorems.init_seg_func()),
+        ('init_seg_base', theorems.init_seg_base()),
+        ('init_seg_step', theorems.init_seg_step()),
+        ('omega_contains_empty', theorems.omega_contains_empty()),
+        ('omega_succ_closed', theorems.omega_succ_closed()),
+        ('init_seg_total', theorems.init_seg_total()),
     ]
 
     for name, proof in all_proofs:

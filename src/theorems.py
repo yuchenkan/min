@@ -1582,7 +1582,7 @@ def iff_sym(P, Q, vars: list[Var]):
 
 def char_transfer(A, B, C):
     """|- Iff(A,B) implies Iff(B,C) implies Iff(A,C)
-    No quantifiers — for inline composition. Same as iff_chain core."""
+    No quantifiers -- for inline composition. Same as iff_chain core."""
     AB = Implies(A, B); BA = Implies(B, A)
     BC = Implies(B, C); CB = Implies(C, B)
     AC = Implies(A, C); CA = Implies(C, A)
@@ -1747,7 +1747,7 @@ def singleton_injection():
     char = Forall(z, Iff(Eq(z, a), Eq(z, b)))
     Y = Eq(a, a)
     Z = Eq(a, b)
-    iff_yz = Iff(Y, Z)  # Iff(Eq(a,a), Eq(a,b)) — from instantiating char with z=a
+    iff_yz = Iff(Y, Z)  # Iff(Eq(a,a), Eq(a,b)) -- from instantiating char with z=a
 
     YZ = Implies(Y, Z)
     ZY = Implies(Z, Y)
@@ -2250,7 +2250,7 @@ def pair_injection():
     sym_cb = _eq_sym(c, b)  # eq_cb |- eq_bc
 
     # ================================================================
-    # STEP 3: Leaf cases — each produces ctx |- G
+    # STEP 3: Leaf cases -- each produces ctx |- G
     # ================================================================
 
     def _and_or(p, q, side):
@@ -2341,7 +2341,7 @@ def pair_injection():
         or_formula = Or(A, B), a_formula = A (left of Or).
         Uses cut on A."""
         # Or(A, B) = Implies(Not(A), B). implies_left:
-        # Branch 1: ctx |- Not(A), G — from ctx, A |- G via not_right
+        # Branch 1: ctx |- Not(A), G -- from ctx, A |- G via not_right
         # Actually use cut on A approach:
         # Branch 1: ctx, Or(A,B) |- A, G
         not_a = Not(a_formula)
@@ -2373,7 +2373,7 @@ def pair_injection():
         # Result: ctx, Or(A,B) |- G
         or_elim_step = Proof(Sequent(ctx + [or_formula], [G]), 'implies_left',
                              [p1, p2], principal=or_formula)
-        # Cut on Or(A,B): from ctx |- Or(A,B), G and ctx, Or(A,B) |- G → ctx |- G
+        # Cut on Or(A,B): from ctx |- Or(A,B), G and ctx, Or(A,B) |- G -> ctx |- G
         or_with_g = Proof(Sequent(ctx, [or_formula, G]),
                           'weakening_right', [or_proof], principal=G)
         return Proof(Sequent(ctx, [G]), 'cut', [or_with_g, or_elim_step], principal=or_formula)
@@ -2395,7 +2395,7 @@ def pair_injection():
     # For branch 1 (ctx, Or(A,B) |- A, G):
     # implies_left on Or: ctx |- Not(A), A, G and ctx, B |- A, G
     #   premise 1: |- Not(A), A is tautological, weaken with ctx and G
-    #   premise 2: ctx, B |- A, G — weaken case_b from ctx, B |- G
+    #   premise 2: ctx, B |- A, G -- weaken case_b from ctx, B |- G
     #
     # For branch 2 (ctx, Or(A,B), A |- G):
     # weaken case_a from ctx, A |- G
@@ -2403,7 +2403,7 @@ def pair_injection():
     # Let me implement this properly without the closure.
 
     # --- Inner Or-elim: eq_ac, eq_bc, Or(eq_da, eq_db) |- G ---
-    # case eq_da → leaf2, case eq_db → leaf3
+    # case eq_da -> leaf2, case eq_db -> leaf3
     inner1_ctx = [eq_ac, eq_bc]
     # |- Not(eq_da), eq_da
     ax_da = Proof(Sequent([eq_da], [eq_da]), 'axiom', principal=eq_da)
@@ -2429,7 +2429,7 @@ def pair_injection():
                    'cut', [inner1_il, leaf2_w], principal=eq_da)
 
     # --- Inner Or-elim: eq_ad, eq_bd, Or(eq_ca, eq_cb) |- G ---
-    # case eq_ca → leaf5, case eq_cb → leaf6
+    # case eq_ca -> leaf5, case eq_cb -> leaf6
     inner2_ctx = [eq_ad, eq_bd]
     ax_ca = Proof(Sequent([eq_ca], [eq_ca]), 'axiom', principal=eq_ca)
     nr_ca = Proof(Sequent([], [Not(eq_ca), eq_ca]), 'not_right', [ax_ca], principal=Not(eq_ca))
@@ -2451,7 +2451,7 @@ def pair_injection():
                    'cut', [inner2_il, leaf5_w], principal=eq_ca)
 
     # --- Middle: eq_ac, Or(eq_bc, eq_bd) |- G ---
-    # case eq_bd → leaf1, case eq_bc → need inner1 (with char for or_da_db)
+    # case eq_bd -> leaf1, case eq_bc -> need inner1 (with char for or_da_db)
     mid1_ctx = [eq_ac]
     # For case eq_bc: need char, eq_ac, eq_bc |- G.
     # Get or_da_db from char, then use inner1.
@@ -2495,7 +2495,7 @@ def pair_injection():
                  'cut', [mid1_il, mid1_hard_w], principal=eq_bc)
 
     # --- Middle: eq_ad, Or(eq_bc, eq_bd) |- G ---
-    # case eq_bc → leaf4, case eq_bd → need inner2 (with char for or_ca_cb)
+    # case eq_bc -> leaf4, case eq_bd -> need inner2 (with char for or_ca_cb)
     mid2_hard_1 = Proof(Sequent([char, eq_ad, eq_bd], [or_ca_cb, G]),
                         'weakening_right',
                         [Proof(Sequent([char, eq_ad, eq_bd], [or_ca_cb]),
@@ -2532,7 +2532,7 @@ def pair_injection():
 
     # --- Outer: char, Or(eq_ac, eq_ad) |- G ---
     # First get or_bc_bd into context via cut
-    # case eq_ac → mid1, case eq_ad → mid2
+    # case eq_ac -> mid1, case eq_ad -> mid2
     # Both mid1 and mid2 need char and or_bc_bd.
     # So: char, Or(eq_ac, eq_ad), or_bc_bd |- G
     ax_ac = Proof(Sequent([eq_ac], [eq_ac]), 'axiom', principal=eq_ac)
@@ -2573,7 +2573,7 @@ def pair_injection():
     final_2 = Proof(Sequent([char, or_ac_ad], [G]), 'weakening_left',
                     [outer_no_or], principal=char)
     # Hmm, outer_no_or already has char on left. Let me check.
-    # outer_no_or = [char, or_ac_ad] |- [G]. ✓
+    # outer_no_or = [char, or_ac_ad] |- [G]. (ok)
     final = Proof(Sequent([char], [G]), 'cut', [final_1, outer_no_or], principal=or_ac_ad)
 
     # ================================================================
@@ -2633,7 +2633,7 @@ def tuple_injection():
     ax_co = Proof(Sequent([char_outer], [char_outer]), 'axiom', principal=char_outer)
     outer_applied = apply_thm(pair_injection(), [sa, pab, sc, pcd], char_outer, or_outer, ax_co)
 
-    # --- Step 2a: Case 1 singleton transfer → Eq(a,c) ---
+    # --- Step 2a: Case 1 singleton transfer -> Eq(a,c) ---
     xv2 = Var()
     t1 = _transfer(char_sa, char_sc, Eq(sa, sc), xv2)
     fa_iff_ac = t1.sequent.right[0]
@@ -2641,7 +2641,7 @@ def tuple_injection():
                   term=t1.term, principal=t1.principal)
     case1_ac = apply_thm(singleton_injection(), [a, c], fa_iff_ac, eq_ac, ax_fa)
 
-    # --- Step 2b: Case 1 pair transfer → Or(And(ac,bd), And(ad,bc)) ---
+    # --- Step 2b: Case 1 pair transfer -> Or(And(ac,bd), And(ad,bc)) ---
     xv3 = Var()
     t2 = _transfer(char_pab, char_pcd, Eq(pab, pcd), xv3)
     fa_iff_pair = t2.sequent.right[0]
@@ -2650,13 +2650,13 @@ def tuple_injection():
                   term=t2.term, principal=t2.principal)
     case1_or = apply_thm(pair_injection(), [a, b, c, d], fa_iff_pair, or_pair, ax_fp)
 
-    # --- Step 2c: or_pair + eq_ac → eq_bd ---
-    # Sub-case 1: And(eq_ac, eq_bd) → eq_bd
+    # --- Step 2c: or_pair + eq_ac -> eq_bd ---
+    # Sub-case 1: And(eq_ac, eq_bd) -> eq_bd
     and_ac_bd = And(eq_ac, eq_bd)
     ax_and1 = Proof(Sequent([and_ac_bd], [and_ac_bd]), 'axiom', principal=and_ac_bd)
     sub1 = apply_thm(and_elim_right(eq_ac, eq_bd, []), [], and_ac_bd, eq_bd, ax_and1)
 
-    # Sub-case 2: And(eq_ad, eq_bc) + eq_ac → eq_bd via chain b=c, c=a, a=d
+    # Sub-case 2: And(eq_ad, eq_bc) + eq_ac -> eq_bd via chain b=c, c=a, a=d
     and_ad_bc = And(eq_ad, eq_bc)
     ax_and2 = Proof(Sequent([and_ad_bc], [and_ad_bc]), 'axiom', principal=and_ad_bc)
     got_ad = apply_thm(and_elim_left(eq_ad, eq_bc, []), [], and_ad_bc, eq_ad, ax_and2)
@@ -2671,7 +2671,7 @@ def tuple_injection():
     got_bd_sub2 = apply_thm(eq_transitive(), [b, a, d], eq_ba, Implies(eq_ad, eq_bd),
                             got_ba2)
     sub2_pre = mp(got_bd_sub2, got_ad, eq_ad, eq_bd)
-    # sub2_pre ctx has [and_ad_bc, eq_ac, ...] — weaken eq_ac into sub2 if needed
+    # sub2_pre ctx has [and_ad_bc, eq_ac, ...] -- weaken eq_ac into sub2 if needed
     # Actually mp merges contexts automatically
 
     # Or-elim on or_pair: from sub1 (and_ac_bd |- eq_bd) and sub2_pre (and_ad_bc, eq_ac |- eq_bd)
@@ -2718,18 +2718,18 @@ def tuple_injection():
                  'implies_left', [ac_w, and1], principal=Implies(eq_ac, nbd))
     case1 = Proof(Sequent([case1_and] + chars4, [goal]), 'not_right', [and2], principal=goal)
 
-    # --- Step 3: Case 2 — And(Eq(sa,pcd), Eq(pab,sc)) → goal ---
+    # --- Step 3: Case 2 -- And(Eq(sa,pcd), Eq(pab,sc)) -> goal ---
     case2_and = And(Eq(sa, pcd), Eq(pab, sc))
     xv4 = Var(); xv5 = Var()
 
-    # 3a: sa=pcd → forall x. Iff(Eq(x,a), Or(Eq(x,c),Eq(x,d))) → And(Eq(c,a),Eq(d,a))
+    # 3a: sa=pcd -> forall x. Iff(Eq(x,a), Or(Eq(x,c),Eq(x,d))) -> And(Eq(c,a),Eq(d,a))
     t3 = _transfer(char_sa, char_pcd, Eq(sa, pcd), xv4)
     and_ca_da = And(Eq(c, a), Eq(d, a))
     case2_sp = apply_thm(singleton_pair_eq(), [a, c, d], t3.sequent.right[0], and_ca_da,
                          Proof(Sequent(t3.sequent.left, t3.sequent.right), t3.rule, t3.premises,
                                term=t3.term, principal=t3.principal))
 
-    # 3b: pab=sc → forall x. Iff(Or(Eq(x,a),Eq(x,b)), Eq(x,c)) → iff_sym → singleton_pair_eq → And(Eq(a,c),Eq(b,c))
+    # 3b: pab=sc -> forall x. Iff(Or(Eq(x,a),Eq(x,b)), Eq(x,c)) -> iff_sym -> singleton_pair_eq -> And(Eq(a,c),Eq(b,c))
     t4 = _transfer(char_pab, char_sc, Eq(pab, sc), xv5)
     fa_iff_ps = t4.sequent.right[0]
     # iff_sym each element: get Forall(xv5, Iff(Eq(xv5,c), Or(Eq(xv5,a),Eq(xv5,b))))
@@ -2750,12 +2750,12 @@ def tuple_injection():
                   term=t4.term, principal=t4.principal)
     got_fa_eo_full = Proof(Sequent(t4.sequent.left, [fa_eo]), 'cut',
         [wr(t4_pf, fa_eo), wl(got_fa_eo, *t4.sequent.left)], principal=iff_or_eq)
-    # singleton_pair_eq: Iff(Eq(x,c), Or(Eq(x,a),Eq(x,b))) → And(Eq(a,c), Eq(b,c))
+    # singleton_pair_eq: Iff(Eq(x,c), Or(Eq(x,a),Eq(x,b))) -> And(Eq(a,c), Eq(b,c))
     and_ac_bc = And(eq_ac, eq_bc)
     case2_ps = apply_thm(singleton_pair_eq(), [c, a, b], fa_eo, and_ac_bc,
                          got_fa_eo_full)
 
-    # 3c: extract and chain → goal
+    # 3c: extract and chain -> goal
     ax_ca_da = Proof(Sequent([and_ca_da], [and_ca_da]), 'axiom', principal=and_ca_da)
     got_da = apply_thm(and_elim_right(Eq(c,a), Eq(d,a), []), [], and_ca_da, Eq(d,a), ax_ca_da)
     ax_ac_bc = Proof(Sequent([and_ac_bc], [and_ac_bc]), 'axiom', principal=and_ac_bc)
@@ -2896,14 +2896,14 @@ def kuratowski():
 
     # --- Apply tuple_injection ---
     ti = tuple_injection()
-    # tuple_injection: |- forall a..pcd. char_sa → char_pab → char_sc → char_pcd → char_outer → goal
+    # tuple_injection: |- forall a..pcd. char_sa -> char_pab -> char_sc -> char_pcd -> char_outer -> goal
     # Instantiate with a,b,c,d,sa,pab,sc,pcd and apply char hypotheses one by one
     ti_hyp = char_sa
     ti_concl_inner = Implies(char_pab, Implies(char_sc, Implies(char_pcd,
                         Implies(char_outer, goal))))
     ax_sa = Proof(Sequent([char_sa], [char_sa]), 'axiom', principal=char_sa)
     step1 = apply_thm(ti, [a, b, c, d, sa, pab, sc, pcd], char_sa, ti_concl_inner, ax_sa)
-    # step1: [char_sa] |- [char_pab → char_sc → char_pcd → char_outer → goal]
+    # step1: [char_sa] |- [char_pab -> char_sc -> char_pcd -> char_outer -> goal]
 
     ax_pab = Proof(Sequent([char_pab], [char_pab]), 'axiom', principal=char_pab)
     ti_c2 = Implies(char_sc, Implies(char_pcd, Implies(char_outer, goal)))
@@ -2995,7 +2995,7 @@ def union_exists():
     pairing_ax = zfc.Pairing()
     union_ax = zfc.Union()
 
-    # PairSet(p,a,b) and BigUnion(s,p) characterize s = a∪b.
+    # PairSet(p,a,b) and BigUnion(s,p) characterize s = a|b.
     ps = PairSet(p, a, b)
     bu = BigUnion(s, p)
     union_sab = UnionDef(s, a, b)
@@ -3014,7 +3014,7 @@ def union_exists():
 
     bu_inst = _inst_fl(bu, bu_body, xv)  # bu |- bu_body
 
-    # Extract forward: In(xv,s) → ex_y from bu_body
+    # Extract forward: In(xv,s) -> ex_y from bu_body
     bu_fwd = Implies(in_xs, ex_y)
     bu_bwd = Implies(ex_y, in_xs)
     H_bu = Implies(bu_fwd, Not(bu_bwd))
@@ -3026,7 +3026,7 @@ def union_exists():
                [Proof(Sequent([H_bu], [H_bu]), 'axiom', principal=H_bu)], principal=bu_fwd)
     e5 = Proof(Sequent([H_bu, bu_body], [bu_fwd]), 'not_left', [e4], principal=bu_body)
     ext_bu_fwd = Proof(Sequent([bu_body], [bu_fwd]), 'cut', [e3, e5], principal=H_bu)
-    # Extract backward: ex_y → In(xv,s)
+    # Extract backward: ex_y -> In(xv,s)
     f1 = Proof(Sequent([bu_body, bu_fwd, bu_bwd], [bu_bwd]), 'axiom', principal=bu_bwd)
     f2 = Proof(Sequent([bu_body, bu_fwd], [Not(bu_bwd), bu_bwd]), 'not_right', [f1], principal=Not(bu_bwd))
     f3 = Proof(Sequent([bu_body], [H_bu, bu_bwd]), 'implies_right', [f2], principal=H_bu)
@@ -3038,7 +3038,7 @@ def union_exists():
     # From PairSet, instantiate with yv: Iff(In(yv,p), Or(Eq(yv,a), Eq(yv,b)))
     ps_body_y = Iff(In(yv, p), Or(Eq(yv, a), Eq(yv, b)))
     ps_inst_y = _inst_fl(ps, ps_body_y, yv)
-    # Extract forward: In(yv,p) → Or(Eq(yv,a), Eq(yv,b))
+    # Extract forward: In(yv,p) -> Or(Eq(yv,a), Eq(yv,b))
     ps_fwd_y = Implies(In(yv, p), Or(Eq(yv, a), Eq(yv, b)))
     ps_bwd_y = Implies(Or(Eq(yv, a), Eq(yv, b)), In(yv, p))
     H_ps = Implies(ps_fwd_y, Not(ps_bwd_y))
@@ -3060,14 +3060,14 @@ def union_exists():
         [wr(ps_inst_y, ps_fwd_y), wl(ext_ps_fwd_y, ps)], principal=ps_body_y)
 
     # === Forward: ps, bu, In(xv,s) |- Or(In(xv,a), In(xv,b)) ===
-    # Step 1: In(xv,s) → ex_y (from bu_fwd). MP: bu, In(xv,s) |- ex_y
+    # Step 1: In(xv,s) -> ex_y (from bu_fwd). MP: bu, In(xv,s) |- ex_y
     got_ex = mp(got_bu_fwd,
                 Proof(Sequent([in_xs], [in_xs]), 'axiom', principal=in_xs),
                 in_xs, ex_y)
-    # Step 2: From ex_y, existential elim: introduce yv with In(yv,p) ∧ In(xv,yv)
+    # Step 2: From ex_y, existential elim: introduce yv with In(yv,p)  and  In(xv,yv)
     # From And, get In(yv,p) and In(xv,yv)
-    # From ps_fwd_y: In(yv,p) → Or(Eq(yv,a), Eq(yv,b)). MP: Or(Eq(yv,a), Eq(yv,b))
-    # Or elim: case Eq(yv,a) → x∈a; case Eq(yv,b) → x∈b
+    # From ps_fwd_y: In(yv,p) -> Or(Eq(yv,a), Eq(yv,b)). MP: Or(Eq(yv,a), Eq(yv,b))
+    # Or elim: case Eq(yv,a) -> x in a; case Eq(yv,b) -> x in b
 
     # This is the hard part. For now, let me build:
     # In(yv,p), In(xv,yv), ps |- or_ab
@@ -3078,20 +3078,20 @@ def union_exists():
     got_xy = apply_thm(and_elim_right(In(yv,p), In(xv,yv), []), [], and_yp_xy, In(xv,yv),
                        Proof(Sequent([and_yp_xy], [and_yp_xy]), 'axiom', principal=and_yp_xy))
 
-    # From ps: In(yv,p) → Or(Eq(yv,a), Eq(yv,b)). MP with got_yp:
+    # From ps: In(yv,p) -> Or(Eq(yv,a), Eq(yv,b)). MP with got_yp:
     got_or_eq = mp(got_ps_fwd_y, got_yp, In(yv, p), Or(Eq(yv, a), Eq(yv, b)))
     # got_or_eq: [ps, and_yp_xy] |- [Or(Eq(yv,a), Eq(yv,b))]
 
     # Or elim on Or(Eq(yv,a), Eq(yv,b)):
     # Case Eq(yv,a): from Eq(yv,a) and In(xv,yv), derive In(xv,a)
     # Eq(yv,a) = Forall(zv, Iff(In(zv,yv), In(zv,a))). Instantiate zv=xv: Iff(In(xv,yv), In(xv,a)).
-    # Forward: In(xv,yv) → In(xv,a). MP with In(xv,yv): In(xv,a).
+    # Forward: In(xv,yv) -> In(xv,a). MP with In(xv,yv): In(xv,a).
     eq_ya = Eq(yv, a)
     iff_xy_xa = Iff(In(xv, yv), In(xv, a))
     eq_inst_a = _inst_fl(eq_ya, iff_xy_xa, xv)  # Eq(yv,a) |- Iff(In(xv,yv), In(xv,a))
     fwd_xy_xa = Implies(In(xv, yv), In(xv, a))
     ext_fwd_a = Proof(Sequent([iff_xy_xa], [fwd_xy_xa]), 'cut',
-        *[None, None], principal=None)  # placeholder — need to extract forward from Iff
+        *[None, None], principal=None)  # placeholder -- need to extract forward from Iff
 
     # This is getting very long. Let me use a helper for Iff forward extraction.
     def _ext_fwd(iff_f):
@@ -3106,7 +3106,7 @@ def union_exists():
         return Proof(Sequent([iff_f], [LR]), 'cut', [e3, e5], principal=H)
 
     # Case y=a: Eq(yv,a), In(xv,yv) |- In(xv,a) then Or_intro_left
-    ext_a = _ext_fwd(iff_xy_xa)  # iff_xy_xa |- In(xv,yv) → In(xv,a)
+    ext_a = _ext_fwd(iff_xy_xa)  # iff_xy_xa |- In(xv,yv) -> In(xv,a)
     got_fwd_a = Proof(Sequent([eq_ya], [fwd_xy_xa]), 'cut',
         [wr(eq_inst_a, fwd_xy_xa), wl(ext_a, eq_ya)], principal=iff_xy_xa)
     # MP: Eq(yv,a), In(xv,yv) |- In(xv,a)
@@ -3169,9 +3169,9 @@ def union_exists():
         [wr(wl(got_ex, ps), or_ab), wl(fwd_from_ex, bu, in_xs)], principal=ex_y)
 
     # === Backward: ps, bu, Or(In(xv,a), In(xv,b)) |- In(xv,s) ===
-    # Case x∈a: witness y=a. Need a∈p ∧ x∈a, then ∃y intro, then bu_bwd.
-    # a∈p from PairSet: instantiate with a. Iff(In(a,p), Or(Eq(a,a), Eq(a,b))).
-    # Backward: Or(Eq(a,a), Eq(a,b)) → In(a,p). Need Eq(a,a) (eq_reflexive) + or_intro.
+    # Case x in a: witness y=a. Need a in p  and  x in a, then exists y intro, then bu_bwd.
+    # a in p from PairSet: instantiate with a. Iff(In(a,p), Or(Eq(a,a), Eq(a,b))).
+    # Backward: Or(Eq(a,a), Eq(a,b)) -> In(a,p). Need Eq(a,a) (eq_reflexive) + or_intro.
     ps_body_a = Iff(In(a, p), Or(Eq(a, a), Eq(a, b)))
     ps_inst_a = _inst_fl(ps, ps_body_a, a)
 
@@ -3186,7 +3186,7 @@ def union_exists():
         e5 = Proof(Sequent([H, iff_f], [RL]), 'not_left', [e4], principal=iff_f)
         return Proof(Sequent([iff_f], [RL]), 'cut', [e3, e5], principal=H)
 
-    ext_ps_bwd_a = _ext_bwd(ps_body_a)  # ps_body_a |- Or(Eq(a,a), Eq(a,b)) → In(a,p)
+    ext_ps_bwd_a = _ext_bwd(ps_body_a)  # ps_body_a |- Or(Eq(a,a), Eq(a,b)) -> In(a,p)
     got_ps_bwd_a = Proof(Sequent([ps], [Implies(Or(Eq(a,a), Eq(a,b)), In(a, p))]), 'cut',
         [wr(ps_inst_a, Implies(Or(Eq(a,a), Eq(a,b)), In(a,p))),
          wl(ext_ps_bwd_a, ps)], principal=ps_body_a)
@@ -3223,7 +3223,7 @@ def union_exists():
     got_a_in_p = mp(got_ps_bwd_a, got_or_eq_a, or_eq_a, In(a, p))
     # got_a_in_p: [ps] |- [In(a, p)]
 
-    # Build And(In(a,p), In(xv,a)) then ∃y intro with witness a
+    # Build And(In(a,p), In(xv,a)) then exists y intro with witness a
     # In(xv,a) is given. In(a,p) from got_a_in_p.
     # And intro: ps, In(xv,a) |- And(In(a,p), In(xv,a))
     and_ap_xa = And(In(a, p), In(xv, a))
@@ -3236,10 +3236,10 @@ def union_exists():
     got_and_a = Proof(Sequent([ps, in_xa], [and_ap_xa]), 'not_right',
                       [and_i2], principal=and_ap_xa)
 
-    # ∃y intro with witness a: ps, In(xv,a) |- ∃y.(In(y,p) ∧ In(xv,y))
-    # and_ap_xa = And(In(a,p), In(xv,a)). After substituting y→a in And(In(y,p), In(xv,y)),
+    # exists y intro with witness a: ps, In(xv,a) |- exists y.(In(y,p)  and  In(xv,y))
+    # and_ap_xa = And(In(a,p), In(xv,a)). After substituting y->a in And(In(y,p), In(xv,y)),
     # we get And(In(a,p), In(xv,a)) = and_ap_xa. Alpha-equiv to ex_y body with y=a.
-    # Existential intro: from P(a) derive ∃y. P(y)
+    # Existential intro: from P(a) derive exists y. P(y)
     and_body = And(In(yv, p), In(xv, yv))  # P(y) - the body of ex_y
     # not_left + forall_left + not_right to introduce Exists
     nl1 = Proof(Sequent([got_and_a.sequent.left[0], got_and_a.sequent.left[1], Not(and_ap_xa)], []),
@@ -3248,10 +3248,10 @@ def union_exists():
                 'forall_left', [nl1], principal=Forall(yv, Not(and_body)), term=a)
     got_ex_a = Proof(Sequent([ps, in_xa], [ex_y]), 'not_right', [fl1], principal=ex_y)
 
-    # bu_bwd: ex_y → In(xv,s). MP: ps, bu, In(xv,a) |- In(xv,s)
+    # bu_bwd: ex_y -> In(xv,s). MP: ps, bu, In(xv,a) |- In(xv,s)
     bwd_case_a = mp(got_bu_bwd, got_ex_a, ex_y, in_xs)
 
-    # Case x∈b: similar, witness y=b
+    # Case x in b: similar, witness y=b
     ps_body_b = Iff(In(b, p), Or(Eq(b, a), Eq(b, b)))
     ps_inst_b = _inst_fl(ps, ps_body_b, b)
     ext_ps_bwd_b = _ext_bwd(ps_body_b)
@@ -3304,7 +3304,7 @@ def union_exists():
     br1_bwd = Proof(Sequent([ps, bu], [Not(in_xa), in_xs]), 'not_right',
                     [wl(bwd_case_a, or_ab)], principal=Not(in_xa))
     # Hmm, bwd_case_a has [ps, bu, in_xa] on left. I need [ps, bu] |- [Not(in_xa), in_xs].
-    # not_right from [ps, bu, in_xa] |- [in_xs]: gives [ps, bu] |- [Not(in_xa), in_xs]. ✓
+    # not_right from [ps, bu, in_xa] |- [in_xs]: gives [ps, bu] |- [Not(in_xa), in_xs]. (ok)
     br1_bwd = Proof(Sequent([ps, bu], [Not(in_xa), in_xs]), 'not_right',
                     [bwd_case_a], principal=Not(in_xa))
     bwd_or_elim = Proof(Sequent([ps, bu, or_ab], [in_xs]), 'implies_left',
@@ -3327,14 +3327,14 @@ def union_exists():
     core_fa = Proof(Sequent([ps, bu], [fa_union]), 'forall_right', [core_iff], principal=fa_union, term=xv)
 
     # === Package existentials ===
-    # ps, bu |- Union(s,a,b). Need ∃s. Union(s,a,b).
+    # ps, bu |- Union(s,a,b). Need exists s. Union(s,a,b).
     # Package s into Exists, then package p into Exists.
     # Then discharge PairSet and BigUnion from axioms.
 
-    # For now, package into: ∃s. Union(s,a,b) ∧ ... hmm, we just need ∃s. Union(s,a,b).
-    # From ps, bu |- Union(s,a,b), existential intro on s: ps, bu |- ∃s. Union(s,a,b)
+    # For now, package into: exists s. Union(s,a,b)  and  ... hmm, we just need exists s. Union(s,a,b).
+    # From ps, bu |- Union(s,a,b), existential intro on s: ps, bu |- exists s. Union(s,a,b)
     ex_union = Exists(s, UnionDef(s, a, b))
-    # Existential intro on right: from |- P(t), derive |- ∃x. P(x) with witness t.
+    # Existential intro on right: from |- P(t), derive |- exists x. P(x) with witness t.
     # not_right: from Forall(s, Not(Union(s,a,b))), P(s) |- to get |- Not(Forall(s, Not(P(s)))), ...
     # Actually simpler: P(s) on right. not_left with Not(P(s)). forall_left with s. not_right.
     n_union = Not(UnionDef(s, a, b))
@@ -3345,21 +3345,21 @@ def union_exists():
     got_ex_union = Proof(Sequent([ps, bu], [ex_union]), 'not_right', [fl_eu], principal=ex_union)
 
     # Now need to handle p: ps and bu both mention p.
-    # bu = BigUnion(s, p). We derived ∃s from above. But p is still free.
-    # From Union axiom instantiated with p: ∃s. BigUnion(s, p)
-    # We need: ps |- ∃s. Union(s, a, b)
-    # From ps, bu |- ∃s. Union(s,a,b) and Union_ax |- ∃s. BigUnion(s,p)
-    # Use existential elim on ∃s.BigUnion(s,p): introduce s with BigUnion(s,p) on left
-    # Then from ps, BigUnion(s,p) |- ∃s'. Union(s',a,b)... hmm s is used for both.
+    # bu = BigUnion(s, p). We derived exists s from above. But p is still free.
+    # From Union axiom instantiated with p: exists s. BigUnion(s, p)
+    # We need: ps |- exists s. Union(s, a, b)
+    # From ps, bu |- exists s. Union(s,a,b) and Union_ax |- exists s. BigUnion(s,p)
+    # Use existential elim on exists s.BigUnion(s,p): introduce s with BigUnion(s,p) on left
+    # Then from ps, BigUnion(s,p) |- exists s'. Union(s',a,b)... hmm s is used for both.
 
     # Actually, s in BigUnion and s in Union are the SAME s. The BigUnion(s,p) gives the
-    # characterization of s, and we derived Union(s,a,b) for that same s. So ∃s. Union(s,a,b)
+    # characterization of s, and we derived Union(s,a,b) for that same s. So exists s. Union(s,a,b)
     # follows from the specific s from BigUnion.
 
-    # From Union_ax with a=p: ∃s. BigUnion(s, p)
+    # From Union_ax with a=p: exists s. BigUnion(s, p)
     ex_bu = Exists(s, bu)
-    bu_from_ax = _inst_fl(union_ax, ex_bu, p)  # union_ax |- ∃s. BigUnion(s, p)
-    # Wait, union_ax = ∀a. ∃b. BigUnion(b, a). After expansion, the internal ∃b and BigUnion
+    bu_from_ax = _inst_fl(union_ax, ex_bu, p)  # union_ax |- exists s. BigUnion(s, p)
+    # Wait, union_ax = forall a. exists b. BigUnion(b, a). After expansion, the internal exists b and BigUnion
     # should match. Actually, union_ax |- Exists(s, BigUnion(s, p)) after forall_left with p.
     # But the internal vars might differ. Let me just try it.
 
@@ -3372,13 +3372,13 @@ def union_exists():
     got_from_axs = Proof(Sequent([ps, union_ax], [ex_union]), 'cut',
         [wr(wl(bu_from_ax, ps), ex_union), wl(got_ex_from_bu, union_ax)], principal=ex_bu)
 
-    # Now handle p: from Pairing |- ∃p. PairSet(p, a, b)
-    # Pairing axiom = ∀x ∀y. ∃b. PairSet(b, x, y) (alpha-equiv)
+    # Now handle p: from Pairing |- exists p. PairSet(p, a, b)
+    # Pairing axiom = forall x forall y. exists b. PairSet(b, x, y) (alpha-equiv)
     ex_ps = Exists(p, ps)
     pair_body_b = Exists(p, ps)
     pair_body_a = Forall(b, pair_body_b)
-    # Actually Pairing = ∀x ∀y ∃b ∀z. Iff(In(z,b), Or(Eq(z,x), Eq(z,y)))
-    # = ∀x ∀y ∃b. PairSet(b, x, y) after alpha-equiv
+    # Actually Pairing = forall x forall y exists b forall z. Iff(In(z,b), Or(Eq(z,x), Eq(z,y)))
+    # = forall x forall y exists b. PairSet(b, x, y) after alpha-equiv
     pair_inst_b = _inst_fl(Forall(b, ex_ps), ex_ps, b)
     pair_inst_a = Proof(Sequent([Forall(a, Forall(b, ex_ps))], [ex_ps]), 'forall_left',
         [pair_inst_b], principal=Forall(a, Forall(b, ex_ps)), term=a)
@@ -3425,7 +3425,7 @@ def successor_exists():
     union_ax = zfc.Union()
 
     # S(x) = x | {x}. Need: {x} exists (Pairing), x | {x} exists (union_exists).
-    # Singleton(sa, x) and Union(s, x, sa) → Successor(s, x)
+    # Singleton(sa, x) and Union(s, x, sa) -> Successor(s, x)
     # Because: z in S(x) iff z in x or z = x
     #        = z in x or z in {x}  (since z in {x} iff z = x)
     #        = z in (x | {x})
@@ -3433,7 +3433,7 @@ def successor_exists():
     # Successor(s, x) = forall z. z in s iff (z in x or z = x)
     # Union(s, x, sa) = forall z. z in s iff (z in x or z in sa)
     # Singleton(sa, x) = forall z. z in sa iff z = x
-    # From Union + Singleton: z in s iff z in x or z in sa iff z in x or z = x. ✓
+    # From Union + Singleton: z in s iff z in x or z in sa iff z in x or z = x. (ok)
 
     sing = Singleton(sa, x)
     union_s = UnionDef(s, x, sa)
@@ -3449,7 +3449,7 @@ def successor_exists():
     # Simpler: use char_transfer to chain
     # Iff(In(xv,s), Or(In(xv,x), In(xv,sa))) [from Union]
     # Iff(Or(In(xv,x), In(xv,sa)), Or(In(xv,x), Eq(xv,x))) [from or_iff_compat + Singleton]
-    # → Iff(In(xv,s), Or(In(xv,x), Eq(xv,x))) = Successor body
+    # -> Iff(In(xv,s), Or(In(xv,x), Eq(xv,x))) = Successor body
 
     union_body = Iff(In(xv, s), Or(In(xv, x), In(xv, sa)))
     sing_body = Iff(In(xv, sa), Eq(xv, x))
@@ -3464,7 +3464,7 @@ def successor_exists():
     got_union = _inst_fl(union_s, union_body, xv)  # union_s |- union_body
     got_sing = _inst_fl(sing, sing_body, xv)  # sing |- sing_body
 
-    # Iff(In(xv,x), In(xv,x)) — reflexive Iff, trivially true
+    # Iff(In(xv,x), In(xv,x)) -- reflexive Iff, trivially true
     iff_refl = Iff(In(xv, x), In(xv, x))
     P_xx = In(xv, x)
     PQ = Implies(P_xx, P_xx)
@@ -3479,7 +3479,7 @@ def successor_exists():
     got_iff_refl = Proof(Sequent([], [iff_refl]), 'not_right', [il_r], principal=iff_refl)
 
     # Apply or_iff_compat: Iff(In(xv,x), In(xv,x)), Iff(In(xv,sa), Eq(xv,x))
-    #   → Iff(Or(In(xv,x), In(xv,sa)), Or(In(xv,x), Eq(xv,x)))
+    #   -> Iff(Or(In(xv,x), In(xv,sa)), Or(In(xv,x), Eq(xv,x)))
     oic = or_iff_compat(In(xv, x), In(xv, sa), In(xv, x), Eq(xv, x), [])
     or_old = Or(In(xv, x), In(xv, sa))
     or_new = Or(In(xv, x), Eq(xv, x))
@@ -3490,7 +3490,7 @@ def successor_exists():
     got_iff_or = mp(got_imp, got_sing, sing_body, iff_or)
     # got_iff_or: [sing] |- [iff_or]
 
-    # Chain: Iff(In(xv,s), or_old) and Iff(or_old, or_new) → Iff(In(xv,s), or_new)
+    # Chain: Iff(In(xv,s), or_old) and Iff(or_old, or_new) -> Iff(In(xv,s), or_new)
     ct = char_transfer(In(xv, s), or_old, or_new)
     got_chain = mp(mp(ct, got_union, union_body, Implies(iff_or, succ_body)),
                    got_iff_or, iff_or, succ_body)
@@ -3501,7 +3501,7 @@ def successor_exists():
     got_succ = Proof(Sequent(got_chain.sequent.left, [fa_succ]),
                      'forall_right', [got_chain], principal=fa_succ, term=xv)
 
-    # Package into ∃s. Successor(s, x)
+    # Package into exists s. Successor(s, x)
     # From sing, union_s |- Successor(s, x)
     # Need to package s existentially, then handle sa existentially.
 
@@ -3514,7 +3514,7 @@ def successor_exists():
         ex = Exists(var, pred)
         return Proof(Sequent(ctx + [ex], [D]), 'not_left', [p2], principal=ex)
 
-    # ∃s. Union(s, x, sa) from union_exists
+    # exists s. Union(s, x, sa) from union_exists
     ue = union_exists()
     ue_formula = ue.sequent.right[0]
     inner = Exists(s, union_s)
@@ -3528,10 +3528,10 @@ def successor_exists():
         [wr(ue, inner), wl(fl2, pairing_ax, union_ax)], principal=ue_formula)
 
     # Existential elim on s: from [sing, union_s] |- [fa_succ] derive [sing, Exists(s, union_s)] |- [fa_succ]
-    # Then [sing, ∃s.Union(s,x,sa)] |- [∃s.Successor(s,x)]... hmm, same s in both?
+    # Then [sing, exists s.Union(s,x,sa)] |- [exists s.Successor(s,x)]... hmm, same s in both?
 
-    # Actually, I need ∃s. Successor(s, x). And I have sing, union_s |- Successor(s, x) for a specific s.
-    # Existential intro on right: from P(t) on right, derive ∃x.P(x) on right.
+    # Actually, I need exists s. Successor(s, x). And I have sing, union_s |- Successor(s, x) for a specific s.
+    # Existential intro on right: from P(t) on right, derive exists x.P(x) on right.
     ex_succ = Exists(s, SuccDef(s, x))
     n_succ = Not(SuccDef(s, x))
     fa_n_succ = Forall(s, n_succ)
@@ -3540,9 +3540,9 @@ def successor_exists():
                  [nl_s], principal=fa_n_succ, term=s)
     got_ex_succ = Proof(Sequent(got_succ.sequent.left, [ex_succ]), 'not_right',
                         [fl_s], principal=ex_succ)
-    # got_ex_succ: [union_s, sing] |- [∃s. Successor(s, x)]... wait, s is used in union_s too.
+    # got_ex_succ: [union_s, sing] |- [exists s. Successor(s, x)]... wait, s is used in union_s too.
 
-    # Hmm, the s in ∃s.Successor(s,x) is quantified. The s in union_s is free. Different roles.
+    # Hmm, the s in exists s.Successor(s,x) is quantified. The s in union_s is free. Different roles.
     # The existential says "there exists SOME s". The union_s characterizes a SPECIFIC s.
     # After _pack_exists or existential intro, the specific s gets bound.
 
@@ -3560,7 +3560,7 @@ def successor_exists():
     # And fa_succ = Forall(xv, succ_body) which is the same thing.
     # So SuccDef(s,x) and fa_succ are alpha-equiv after expansion.
 
-    # Existential intro with witness s: from |- Successor(s,x), derive |- ∃s2. Successor(s2,x)
+    # Existential intro with witness s: from |- Successor(s,x), derive |- exists s2. Successor(s2,x)
     nl_s3 = Proof(Sequent(got_succ.sequent.left + [Not(SuccDef(s, x))], []),
                   'not_left', [got_succ], principal=Not(SuccDef(s, x)))
     fl_s3 = Proof(Sequent(got_succ.sequent.left + [Forall(s, Not(SuccDef(s, x)))], []),
@@ -3568,24 +3568,24 @@ def successor_exists():
     ex_succ_f = Exists(s, SuccDef(s, x))
     got_ex_succ_f = Proof(Sequent(got_succ.sequent.left, [ex_succ_f]),
                           'not_right', [fl_s3], principal=ex_succ_f)
-    # got_ex_succ_f: [union_s, sing] |- [∃s. Successor(s, x)]
+    # got_ex_succ_f: [union_s, sing] |- [exists s. Successor(s, x)]
 
-    # Existential elim on union_s (variable s): [sing, ∃s.Union(s,x,sa)] |- [∃s.Succ(s,x)]
+    # Existential elim on union_s (variable s): [sing, exists s.Union(s,x,sa)] |- [exists s.Succ(s,x)]
     got_from_ex_u = _pack_exists(got_ex_succ_f, union_s, s)
-    # got_from_ex_u: [sing, Exists(s, union_s)] |- [∃s.Succ(s,x)]
+    # got_from_ex_u: [sing, Exists(s, union_s)] |- [exists s.Succ(s,x)]
 
-    # Cut ∃s.Union(s,x,sa) from got_ex_u: [Pairing, Union, sing] |- [∃s.Succ(s,x)]
+    # Cut exists s.Union(s,x,sa) from got_ex_u: [Pairing, Union, sing] |- [exists s.Succ(s,x)]
     got_with_sing = Proof(Sequent([pairing_ax, union_ax, sing], [ex_succ_f]), 'cut',
         [wr(wl(got_ex_u, sing), ex_succ_f),
          wl(got_from_ex_u, pairing_ax, union_ax)],
         principal=Exists(s, union_s))
 
-    # Now handle sa: from Pairing, ∃sa. Singleton(sa, x) exists (singleton_exists).
+    # Now handle sa: from Pairing, exists sa. Singleton(sa, x) exists (singleton_exists).
     # Existential elim on sing (variable sa):
     got_from_ex_sing = _pack_exists(got_with_sing, sing, sa)
-    # got_from_ex_sing: [Pairing, Union, Exists(sa, sing)] |- [∃s.Succ(s,x)]
+    # got_from_ex_sing: [Pairing, Union, Exists(sa, sing)] |- [exists s.Succ(s,x)]
 
-    # singleton_exists: [Pairing] |- [∀a. ∃sa. Singleton(sa, a)]
+    # singleton_exists: [Pairing] |- [forall a. exists sa. Singleton(sa, a)]
     se = singleton_exists()
     se_formula = se.sequent.right[0]
     ex_sing = Exists(sa, sing)
@@ -3594,9 +3594,9 @@ def successor_exists():
     fl_se = Proof(Sequent([fa_ex_sing], [ex_sing]), 'forall_left', [ax_ex], principal=fa_ex_sing, term=x)
     got_ex_sing = Proof(Sequent([pairing_ax], [ex_sing]), 'cut',
         [wr(se, ex_sing), wl(fl_se, pairing_ax)], principal=se_formula)
-    # got_ex_sing: [Pairing] |- [∃sa. Singleton(sa, x)]
+    # got_ex_sing: [Pairing] |- [exists sa. Singleton(sa, x)]
 
-    # Cut: [Pairing, Union] |- [∃s. Succ(s, x)]
+    # Cut: [Pairing, Union] |- [exists s. Succ(s, x)]
     final = Proof(Sequent([pairing_ax, union_ax], [ex_succ_f]), 'cut',
         [wr(wl(got_ex_sing, union_ax), ex_succ_f),
          got_from_ex_sing],
@@ -3700,16 +3700,16 @@ def infinity_gives_inductive():
     from tactics import apply_thm, wl, wr, mp
     from definitions import Inductive, Empty, Successor
 
-    # Infinity gives: ∃b. (∃e.e∈b ∧ Empty(e)) ∧ (∀y∈b.∃s.s∈b ∧ Successor(s,y))
-    # Need: ∃b. Inductive(b) = ∃b. (∀e.Empty(e)→e∈b) ∧ (∀x∈b.∀s.Succ(s,x)→s∈b)
+    # Infinity gives: exists b. (exists e.e in b  and  Empty(e))  and  (forall y in b.exists s.s in b  and  Successor(s,y))
+    # Need: exists b. Inductive(b) = exists b. (forall e.Empty(e)->e in b)  and  (forall x in b.forall s.Succ(s,x)->s in b)
     #
-    # The conversion ∃→∀ uses:
-    # - unique_empty: Empty(e1) ∧ Empty(e2) → Eq(e1,e2)
-    # - unique_successor: Succ(s1,x) ∧ Succ(s2,x) → Eq(s1,s2)
-    # - Extensionality: Eq(a,b) → (a∈c ↔ b∈c)
+    # The conversion exists ->forall  uses:
+    # - unique_empty: Empty(e1)  and  Empty(e2) -> Eq(e1,e2)
+    # - unique_successor: Succ(s1,x)  and  Succ(s2,x) -> Eq(s1,s2)
+    # - Extensionality: Eq(a,b) -> (a in c <-> b in c)
     #
-    # From ∃e.e∈b ∧ Empty(e): exists e0 with e0∈b, Empty(e0).
-    # For any e with Empty(e): Eq(e,e0) (unique_empty). Ext: e∈b. Hence ∀e.Empty(e)→e∈b.
+    # From exists e.e in b  and  Empty(e): exists e0 with e0 in b, Empty(e0).
+    # For any e with Empty(e): Eq(e,e0) (unique_empty). Ext: e in b. Hence forall e.Empty(e)->e in b.
     # Similarly for successors.
     #
     from tactics import wl, wr
@@ -3725,7 +3725,7 @@ def infinity_gives_inductive():
     ue = unique_empty()
     ue_f = ue.sequent.right[0]  # the actual formula
     eq_e0_e = Eq(e0, e)
-    # Peel: forall_left(e0) → Implies(Empty(e0), Forall(e, Implies(Empty(e), Eq(e0,e))))
+    # Peel: forall_left(e0) -> Implies(Empty(e0), Forall(e, Implies(Empty(e), Eq(e0,e))))
     # But we use the ACTUAL body from ue_f to avoid structure mismatch.
     ue_body = ue_f.body  # Implies(Empty(v1), Forall(v2, Implies(Empty(v2), Eq(v1,v2))))
     imp_e_eq = Implies(Empty(e), eq_e0_e)
@@ -3946,12 +3946,12 @@ def omega_is_inductive():
     omega_w = Omega(w)
     ind_w = Inductive(w)
 
-    # Step 1: From infinity_gives_inductive: ∃b. Inductive(b)
-    igi = infinity_gives_inductive()  # [ext, inf] |- [∃b. Inductive(b)]
+    # Step 1: From infinity_gives_inductive: exists b. Inductive(b)
+    igi = infinity_gives_inductive()  # [ext, inf] |- [exists b. Inductive(b)]
     ind_b0 = Inductive(b0)
     ex_ind = Exists(b0, ind_b0)
 
-    # Step 2: From Omega(w) with b=b0: Inductive(b0) → ∀x. x∈w ↔ cond(x)
+    # Step 2: From Omega(w) with b=b0: Inductive(b0) -> forall x. x in w <-> cond(x)
     cond_xv = And(In(xv, b0), Forall(cv, Implies(Inductive(cv), In(xv, cv))))
     iff_w = Iff(In(xv, w), cond_xv)
     fa_iff = Forall(xv, iff_w)
@@ -3980,7 +3980,7 @@ def omega_is_inductive():
         return Proof(Sequent(got_fa.sequent.left, [iff_xvar]), 'cut',
             [wr(got_fa, iff_xvar), wl(fl_x, *got_fa.sequent.left)], principal=fa_iff)
 
-    # === Extract Iff backward: cond → In(xvar, w) ===
+    # === Extract Iff backward: cond -> In(xvar, w) ===
     def _ext_bwd(iff_f):
         L = iff_f.left; R = iff_f.right
         LR = Implies(L, R); RL = Implies(R, L); H = Implies(LR, Not(RL))
@@ -4001,21 +4001,21 @@ def omega_is_inductive():
         e5 = Proof(Sequent([H, iff_f], [LR]), 'not_left', [e4], principal=iff_f)
         return Proof(Sequent([iff_f], [LR]), 'cut', [e3, e5], principal=H)
 
-    # === Part 1: ∀e. Empty(e) → e∈w ===
+    # === Part 1: forall e. Empty(e) -> e in w ===
     # For ev with Empty(ev):
-    # Need cond(ev) = In(ev, b0) ∧ ∀c. Ind(c) → In(ev, c)
-    # From Ind(b0): Empty(ev) → In(ev, b0) [first part of Inductive]
-    # From Ind(c) for any c: Empty(ev) → In(ev, c) [first part of Inductive(c)]
-    # So ∀c. Ind(c) → In(ev, c) follows from Empty(ev).
+    # Need cond(ev) = In(ev, b0)  and  forall c. Ind(c) -> In(ev, c)
+    # From Ind(b0): Empty(ev) -> In(ev, b0) [first part of Inductive]
+    # From Ind(c) for any c: Empty(ev) -> In(ev, c) [first part of Inductive(c)]
+    # So forall c. Ind(c) -> In(ev, c) follows from Empty(ev).
 
-    # Unpack Ind(b0): And(∀e.Empty(e)→In(e,b0), ∀x.In(x,b0)→∀s.Succ(s,x)→In(s,b0))
+    # Unpack Ind(b0): And(forall e.Empty(e)->In(e,b0), forall x.In(x,b0)->forall s.Succ(s,x)->In(s,b0))
     ind_empty = Forall(ev, Implies(Empty(ev), In(ev, b0)))  # first part
     ind_closure_b0 = Forall(xv, Implies(In(xv, b0), Forall(sv, Implies(Successor(sv, xv), In(sv, b0)))))
 
     ax_ind = Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0)
     got_empty_b0 = apply_thm(and_elim_left(ind_empty, ind_closure_b0, []), [],
                               ind_b0, ind_empty, ax_ind)
-    # got_empty_b0: [ind_b0] |- [∀e. Empty(e) → In(e, b0)]
+    # got_empty_b0: [ind_b0] |- [forall e. Empty(e) -> In(e, b0)]
 
     # For In(ev, b0): ind_b0, Empty(ev) |- In(ev, b0)
     imp_emp_in = Implies(Empty(ev), In(ev, b0))
@@ -4026,8 +4026,8 @@ def omega_is_inductive():
                    Empty(ev), In(ev, b0))
     # got_ev_b0: [ind_b0, Empty(ev)] |- [In(ev, b0)]
 
-    # For ∀c. Ind(c) → In(ev, c):
-    # From Ind(c): ∀e. Empty(e) → In(e, c). Instantiate e=ev: Empty(ev) → In(ev, c).
+    # For forall c. Ind(c) -> In(ev, c):
+    # From Ind(c): forall e. Empty(e) -> In(e, c). Instantiate e=ev: Empty(ev) -> In(ev, c).
     ind_c = Inductive(cv)
     ind_empty_c = Forall(ev, Implies(Empty(ev), In(ev, cv)))
     ind_closure_c = Forall(xv, Implies(In(xv, cv), Forall(sv, Implies(Successor(sv, xv), In(sv, cv)))))
@@ -4042,14 +4042,14 @@ def omega_is_inductive():
                   Empty(ev), In(ev, cv))
     # got_ev_c: [ind_c, Empty(ev)] |- [In(ev, cv)]
 
-    # ∀c. Ind(c) → In(ev, c): discharge Ind(c), forall c
+    # forall c. Ind(c) -> In(ev, c): discharge Ind(c), forall c
     imp_ind_in = Implies(ind_c, In(ev, cv))
     d_c = Proof(Sequent([Empty(ev)], [imp_ind_in]), 'implies_right', [got_ev_c], principal=imp_ind_in)
     fa_c = Forall(cv, imp_ind_in)
     d_c2 = Proof(Sequent([Empty(ev)], [fa_c]), 'forall_right', [d_c], principal=fa_c, term=cv)
-    # d_c2: [Empty(ev)] |- [∀c. Ind(c) → In(ev, c)]
+    # d_c2: [Empty(ev)] |- [forall c. Ind(c) -> In(ev, c)]
 
-    # Build cond(ev) = And(In(ev, b0), ∀c. Ind(c) → In(ev, c))
+    # Build cond(ev) = And(In(ev, b0), forall c. Ind(c) -> In(ev, c))
     cond_ev = And(In(ev, b0), fa_c)
     n_fc = Not(fa_c)
     and_c1 = Proof(Sequent([ind_b0, Empty(ev), n_fc], []),
@@ -4060,10 +4060,10 @@ def omega_is_inductive():
                         'not_right', [and_c2], principal=cond_ev)
     # got_cond_ev: [ind_b0, Empty(ev)] |- [cond_ev]
 
-    # Apply Iff backward: cond_ev → In(ev, w)
+    # Apply Iff backward: cond_ev -> In(ev, w)
     iff_ev = Iff(In(ev, w), cond_ev)
     got_iff_ev = _get_iff(ev)  # omega_w, ind_b0 |- iff_ev
-    bwd_ev = _ext_bwd(iff_ev)  # iff_ev |- cond_ev → In(ev, w)
+    bwd_ev = _ext_bwd(iff_ev)  # iff_ev |- cond_ev -> In(ev, w)
     got_bwd_ev = Proof(Sequent(got_iff_ev.sequent.left, [Implies(cond_ev, In(ev, w))]), 'cut',
         [wr(got_iff_ev, Implies(cond_ev, In(ev, w))),
          wl(bwd_ev, *got_iff_ev.sequent.left)], principal=iff_ev)
@@ -4079,17 +4079,17 @@ def omega_is_inductive():
     p1f = Proof(Sequent([omega_w, ind_b0], [fa_ev]),
                 'forall_right', [p1], principal=fa_ev, term=ev)
 
-    # === Part 2: ∀x∈w. ∀s. Succ(s,x) → s∈w ===
-    # For xv∈w with Succ(sv, xv):
-    # Iff forward at xv: In(xv,w) → cond(xv). Extract In(xv,b0) and ∀c.Ind(c)→In(xv,c).
+    # === Part 2: forall x in w. forall s. Succ(s,x) -> s in w ===
+    # For xv in w with Succ(sv, xv):
+    # Iff forward at xv: In(xv,w) -> cond(xv). Extract In(xv,b0) and forall c.Ind(c)->In(xv,c).
     # From Ind(b0) closure + In(xv,b0) + Succ(sv,xv): In(sv,b0).
-    # From Ind(c) closure + In(xv,c) + Succ(sv,xv): In(sv,c). So ∀c.Ind(c)→In(sv,c).
-    # Build cond(sv). Iff backward: In(sv,w). ✓
+    # From Ind(c) closure + In(xv,c) + Succ(sv,xv): In(sv,c). So forall c.Ind(c)->In(sv,c).
+    # Build cond(sv). Iff backward: In(sv,w). (ok)
 
     got_iff_xv = _get_iff(xv)  # omega_w, ind_b0 |- Iff(In(xv,w), cond(xv))
     cond_xv_full = And(In(xv, b0), Forall(cv, Implies(Inductive(cv), In(xv, cv))))
     iff_xv = Iff(In(xv, w), cond_xv_full)
-    fwd_xv = _ext_fwd(iff_xv)  # iff_xv |- In(xv,w) → cond(xv)
+    fwd_xv = _ext_fwd(iff_xv)  # iff_xv |- In(xv,w) -> cond(xv)
     got_fwd_xv = Proof(Sequent(got_iff_xv.sequent.left, [Implies(In(xv, w), cond_xv_full)]), 'cut',
         [wr(got_iff_xv, Implies(In(xv, w), cond_xv_full)),
          wl(fwd_xv, *got_iff_xv.sequent.left)], principal=iff_xv)
@@ -4099,7 +4099,7 @@ def omega_is_inductive():
                      In(xv, w), cond_xv_full)
     # got_cond_xv: [omega_w, ind_b0, In(xv,w)] |- [cond_xv_full]
 
-    # Extract In(xv, b0) and ∀c.Ind(c)→In(xv,c) from cond
+    # Extract In(xv, b0) and forall c.Ind(c)->In(xv,c) from cond
     fa_c_xv = Forall(cv, Implies(Inductive(cv), In(xv, cv)))
     ax_cond = Proof(Sequent([cond_xv_full], [cond_xv_full]), 'axiom', principal=cond_xv_full)
     got_xv_b0 = apply_thm(and_elim_left(In(xv, b0), fa_c_xv, []), [],
@@ -4112,14 +4112,14 @@ def omega_is_inductive():
     got_closure_b0 = apply_thm(and_elim_right(ind_empty, ind_closure_b0, []), [],
                                 ind_b0, ind_closure_b0,
                                 Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0))
-    # got_closure_b0: [ind_b0] |- [∀x.In(x,b0)→∀s.Succ(s,x)→In(s,b0)]
+    # got_closure_b0: [ind_b0] |- [forall x.In(x,b0)->forall s.Succ(s,x)->In(s,b0)]
     imp_xv_cl = Implies(In(xv, b0), Forall(sv, Implies(Successor(sv, xv), In(sv, b0))))
     fl_cl = _fl(ind_closure_b0, imp_xv_cl, xv)
     fa_sv_imp = Forall(sv, Implies(Successor(sv, xv), In(sv, b0)))
     got_fa_sv = mp(Proof(Sequent([ind_b0], [imp_xv_cl]), 'cut',
                     [wr(got_closure_b0, imp_xv_cl), wl(fl_cl, ind_b0)], principal=ind_closure_b0),
                    got_xv_b0, In(xv, b0), fa_sv_imp)
-    # got_fa_sv: [ind_b0, cond_xv_full] |- [∀s.Succ(s,xv)→In(s,b0)]
+    # got_fa_sv: [ind_b0, cond_xv_full] |- [forall s.Succ(s,xv)->In(s,b0)]
     imp_sv_in = Implies(Successor(sv, xv), In(sv, b0))
     fl_sv = _fl(fa_sv_imp, imp_sv_in, sv)
     got_sv_b0 = mp(Proof(Sequent(got_fa_sv.sequent.left, [imp_sv_in]), 'cut',
@@ -4128,13 +4128,13 @@ def omega_is_inductive():
                    Successor(sv, xv), In(sv, b0))
     # got_sv_b0: [ind_b0, cond_xv_full, Succ(sv,xv)] |- [In(sv,b0)]
 
-    # For ∀c. Ind(c) → In(sv, c): from Ind(c), In(xv,c), Succ(sv,xv) → In(sv,c)
+    # For forall c. Ind(c) -> In(sv, c): from Ind(c), In(xv,c), Succ(sv,xv) -> In(sv,c)
     got_closure_c = apply_thm(and_elim_right(ind_empty_c, ind_closure_c, []), [],
                                ind_c, ind_closure_c,
                                Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c))
     imp_xv_cl_c = Implies(In(xv, cv), Forall(sv, Implies(Successor(sv, xv), In(sv, cv))))
     fl_cl_c = _fl(ind_closure_c, imp_xv_cl_c, xv)
-    # From ∀c.Ind(c)→In(xv,c), instantiate c=cv: Ind(cv) → In(xv, cv)
+    # From forall c.Ind(c)->In(xv,c), instantiate c=cv: Ind(cv) -> In(xv, cv)
     imp_ind_xv = Implies(Inductive(cv), In(xv, cv))
     fl_c_xv = _fl(fa_c_xv, imp_ind_xv, cv)
     got_xv_cv = mp(wl(fl_c_xv, ind_c),
@@ -4154,14 +4154,14 @@ def omega_is_inductive():
                    Successor(sv, xv), In(sv, cv))
     # got_sv_cv: [fa_c_xv, ind_c, Succ(sv,xv)] |- [In(sv, cv)]
 
-    # ∀c. Ind(c) → In(sv, c): discharge ind_c, forall cv
+    # forall c. Ind(c) -> In(sv, c): discharge ind_c, forall cv
     imp_ind_sv = Implies(ind_c, In(sv, cv))
     d_sv_c = Proof(Sequent([fa_c_xv, Successor(sv, xv)], [imp_ind_sv]),
                    'implies_right', [got_sv_cv], principal=imp_ind_sv)
     fa_c_sv = Forall(cv, imp_ind_sv)
     d_sv_c2 = Proof(Sequent([fa_c_xv, Successor(sv, xv)], [fa_c_sv]),
                     'forall_right', [d_sv_c], principal=fa_c_sv, term=cv)
-    # d_sv_c2: [fa_c_xv, Succ(sv,xv)] |- [∀c. Ind(c) → In(sv, c)]
+    # d_sv_c2: [fa_c_xv, Succ(sv,xv)] |- [forall c. Ind(c) -> In(sv, c)]
 
     # Build cond(sv): And(In(sv,b0), fa_c_sv)
     cond_sv = And(In(sv, b0), fa_c_sv)
@@ -4192,7 +4192,7 @@ def omega_is_inductive():
          wl(got_cond_sv, omega_w, In(xv, w))], principal=cond_xv_full)
 
     # Apply Iff backward for sv:
-    cond_sv_full = cond_sv  # And(In(sv, b0), ∀c. Ind(c) → In(sv, c))
+    cond_sv_full = cond_sv  # And(In(sv, b0), forall c. Ind(c) -> In(sv, c))
     iff_sv = Iff(In(sv, w), cond_sv_full)
     got_iff_sv = _get_iff(sv)
     bwd_sv = _ext_bwd(iff_sv)
@@ -4246,6 +4246,1514 @@ def omega_is_inductive():
     s2 = Proof(Sequent([ext_ax, inf_ax], [fa_w]), 'forall_right', [s1], principal=fa_w, term=w)
     s2.name = 'omega_is_inductive'
     return s2
+
+
+def eq_in_eq():
+    """|- forall x1, x2, z. Eq(x1, x2) -> Iff(Eq(z, x1), Eq(z, x2))
+    Equality substitution inside Eq: if x1=x2 then (z=x1 iff z=x2)."""
+    from tactics import wl, wr, mp
+
+    x1, x2, z, wv = Var(), Var(), Var(), Var()
+    eq_x = Eq(x1, x2)  # forall w. Iff(In(w, x1), In(w, x2))
+    eq_zx1 = Eq(z, x1)  # forall w. Iff(In(w, z), In(w, x1))
+    eq_zx2 = Eq(z, x2)  # forall w. Iff(In(w, z), In(w, x2))
+
+    # For each w: from Iff(In(w,z), In(w,x1)) and Iff(In(w,x1), In(w,x2))
+    # derive Iff(In(w,z), In(w,x2)) by iff_chain.
+    # Then forall w: Eq(z, x2).
+
+    iff_wz_wx1 = Iff(In(wv, z), In(wv, x1))
+    iff_wx1_wx2 = Iff(In(wv, x1), In(wv, x2))
+    iff_wz_wx2 = Iff(In(wv, z), In(wv, x2))
+
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    # eq_zx1 instantiated at w: iff_wz_wx1
+    got_iff1 = _fl(eq_zx1, iff_wz_wx1, wv)
+    # eq_x instantiated at w: iff_wx1_wx2
+    got_iff2 = _fl(eq_x, iff_wx1_wx2, wv)
+
+    # iff_chain: Iff(In(w,z), In(w,x1)), Iff(In(w,x1), In(w,x2)) -> Iff(In(w,z), In(w,x2))
+    ct = char_transfer(In(wv, z), In(wv, x1), In(wv, x2))
+    got_result = mp(mp(ct, got_iff1, iff_wz_wx1, Implies(iff_wx1_wx2, iff_wz_wx2)),
+                    got_iff2, iff_wx1_wx2, iff_wz_wx2)
+    # got_result: [eq_zx1, eq_x] |- [iff_wz_wx2]
+
+    # forall w: eq_zx1, eq_x |- Eq(z, x2) = Forall(wv, iff_wz_wx2)
+    fa_w = Forall(wv, iff_wz_wx2)
+    got_fa = Proof(Sequent([eq_zx1, eq_x], [fa_w]),
+                   'forall_right', [got_result], principal=fa_w, term=wv)
+    # fa_w is alpha-equiv to Eq(z, x2) after expansion
+
+    # This gives: eq_zx1, eq_x |- eq_zx2 (the FORWARD direction)
+    # For backward: eq_zx2, eq_x |- eq_zx1. Same proof with x1/x2 swapped.
+    iff_wx2_wx1 = Iff(In(wv, x2), In(wv, x1))
+    got_iff2_sym = mp(iff_sym(In(wv, x1), In(wv, x2), []), got_iff2, iff_wx1_wx2, iff_wx2_wx1)
+    got_iff_zx2 = _fl(eq_zx2, Iff(In(wv, z), In(wv, x2)), wv)
+    ct2 = char_transfer(In(wv, z), In(wv, x2), In(wv, x1))
+    got_result2 = mp(mp(ct2, got_iff_zx2, Iff(In(wv, z), In(wv, x2)), Implies(iff_wx2_wx1, iff_wz_wx1)),
+                     got_iff2_sym, iff_wx2_wx1, iff_wz_wx1)
+    fa_w2 = Forall(wv, iff_wz_wx1)
+    got_fa2 = Proof(Sequent([eq_zx2, eq_x], [fa_w2]),
+                    'forall_right', [got_result2], principal=fa_w2, term=wv)
+    # got_fa2: eq_zx2, eq_x |- eq_zx1
+
+    # Build Iff(eq_zx1, eq_zx2) from forward and backward
+    fwd = Implies(eq_zx1, eq_zx2)
+    bwd = Implies(eq_zx2, eq_zx1)
+    H = Implies(fwd, Not(bwd))
+    iff_result = Iff(eq_zx1, eq_zx2)
+
+    fwd_pf = Proof(Sequent([eq_x], [fwd]), 'implies_right', [got_fa], principal=fwd)
+    bwd_pf = Proof(Sequent([eq_x], [bwd]), 'implies_right', [got_fa2], principal=bwd)
+
+    nr = Proof(Sequent([eq_x, Not(bwd)], []), 'not_left', [bwd_pf], principal=Not(bwd))
+    il = Proof(Sequent([eq_x, H], []), 'implies_left', [fwd_pf, nr], principal=H)
+    core = Proof(Sequent([eq_x], [iff_result]), 'not_right', [il], principal=iff_result)
+
+    # Close: eq_x -> forall z. Iff(eq_zx1, eq_zx2)
+    imp = Implies(eq_x, Forall(z, iff_result))
+    s1 = Proof(Sequent([], [Forall(z, iff_result)]),
+               'forall_right',
+               [Proof(Sequent([eq_x], [iff_result]), core.rule, core.premises, principal=core.principal)],
+               principal=Forall(z, iff_result), term=z)
+    # Hmm, need to discharge eq_x first, then forall z
+    d1 = Proof(Sequent([], [Implies(eq_x, iff_result)]), 'implies_right', [core], principal=Implies(eq_x, iff_result))
+    # But I want forall z INSIDE the implies. Let me restructure:
+    # eq_x |- forall z. iff_result
+    fa_z = Forall(z, iff_result)
+    core_fa = Proof(Sequent([eq_x], [fa_z]), 'forall_right', [core], principal=fa_z, term=z)
+    # |- eq_x -> forall z. iff_result
+    imp_top = Implies(eq_x, fa_z)
+    s1 = Proof(Sequent([], [imp_top]), 'implies_right', [core_fa], principal=imp_top)
+    for v in [x2, x1]:
+        body = s1.sequent.right[0]
+        fa = Forall(v, body)
+        s1 = Proof(Sequent([], [fa]), 'forall_right', [s1], term=v, principal=fa)
+    s1.name = 'eq_in_eq'
+    return s1
+
+
+def func_preserves_eq():
+    """Extensionality |- forall f,x1,x2,y1,y2.
+       Function(f) -> Eq(x1,x2) -> Apply(f,x1,y1) -> Apply(f,x2,y2) -> Eq(y1,y2)
+    Functions map equal inputs to equal outputs."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, Singleton, PairSet, OrdPair
+
+    f, x1, x2, y1, y2 = Var(), Var(), Var(), Var(), Var()
+    ext_ax = zfc.Extensionality()
+    func_f = FuncDef(f)
+    eq_x = Eq(x1, x2)
+    app1 = Apply(f, x1, y1)
+    app2 = Apply(f, x2, y2)
+    goal = Eq(y1, y2)
+
+    # Strategy: from Eq(x1,x2) + Apply(f,x2,y2), derive Apply(f,x1,y2).
+    # Then Function(f) + Apply(f,x1,y1) + Apply(f,x1,y2) -> Eq(y1,y2).
+    #
+    # Apply(f,x,y) = exists p. OrdPair(p,x,y)  and  In(p,f)
+    # OrdPair(p,x,y) = exists sa. Singleton(sa,x)  and  exists pab. PairSet(pab,x,y)  and  PairSet(p,sa,pab)
+    #
+    # From Eq(x1,x2): Singleton(sa,x1) <-> Singleton(sa,x2) and PairSet(pab,x1,y) <-> PairSet(pab,x2,y).
+    # So OrdPair(p,x1,y2) <-> OrdPair(p,x2,y2). So Apply(f,x1,y2) <-> Apply(f,x2,y2).
+    #
+    # Singleton(sa,x) = forall z. Iff(In(z,sa), Eq(z,x)).
+    # From eq_in_eq: Eq(x1,x2) -> Eq(z,x1) <-> Eq(z,x2).
+    # By iff_chain: Iff(In(z,sa), Eq(z,x1)) + Iff(Eq(z,x1), Eq(z,x2)) -> Iff(In(z,sa), Eq(z,x2)).
+    # So Singleton(sa,x1) -> Singleton(sa,x2). (ok)
+    #
+    # PairSet(pab,x,y) = forall z. Iff(In(z,pab), Or(Eq(z,x), Eq(z,y))).
+    # From eq_in_eq: Eq(z,x1) <-> Eq(z,x2). And Eq(z,y) <-> Eq(z,y) (refl iff).
+    # By or_iff_compat: Or(Eq(z,x1),Eq(z,y)) <-> Or(Eq(z,x2),Eq(z,y)).
+    # By iff_chain: Iff(In(z,pab), Or(Eq(z,x1),Eq(z,y))) -> Iff(In(z,pab), Or(Eq(z,x2),Eq(z,y))).
+    # So PairSet(pab,x1,y2) -> PairSet(pab,x2,y2). (ok)
+    #
+    # Step 1: Eq(x1,x2), Singleton(sa,x2) |- Singleton(sa,x1)
+    # Singleton(sa,x) = forall z. Iff(In(z,sa), Eq(z,x))
+    # From eq_in_eq: Eq(x1,x2) -> Iff(Eq(z,x1), Eq(z,x2))
+    # iff_sym: Iff(Eq(z,x2), Eq(z,x1))
+    # iff_chain: Iff(In(z,sa), Eq(z,x2)) + Iff(Eq(z,x2), Eq(z,x1)) -> Iff(In(z,sa), Eq(z,x1))
+    sa, pab, p, zv = Var(), Var(), Var(), Var()
+    sing_x2 = Singleton(sa, x2)
+    sing_x1 = Singleton(sa, x1)
+
+    eie = eq_in_eq()  # |- forall x1 forall x2. Eq(x1,x2) -> forall z. Iff(Eq(z,x1), Eq(z,x2))
+    iff_eq_z = Iff(Eq(zv, x1), Eq(zv, x2))
+
+    # Instantiate eq_in_eq with x1, x2, z:
+    fa_z_iff = Forall(zv, iff_eq_z)
+    ax_eq = Proof(Sequent([eq_x], [eq_x]), 'axiom', principal=eq_x)
+    got_fa_iff = apply_thm(eie, [x1, x2], eq_x, fa_z_iff, ax_eq)
+    # got_fa_iff: [eq_x] |- [forall z. Iff(Eq(z,x1), Eq(z,x2))]
+
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    # Instantiate at zv:
+    fl_z = _fl(fa_z_iff, iff_eq_z, zv)
+    got_iff_eq = Proof(Sequent([eq_x], [iff_eq_z]), 'cut',
+        [wr(got_fa_iff, iff_eq_z), wl(fl_z, eq_x)], principal=fa_z_iff)
+    # got_iff_eq: [eq_x] |- [Iff(Eq(z,x1), Eq(z,x2))]
+
+    # iff_sym: Iff(Eq(z,x2), Eq(z,x1))
+    iff_eq_z_rev = Iff(Eq(zv, x2), Eq(zv, x1))
+    got_iff_rev = mp(iff_sym(Eq(zv, x1), Eq(zv, x2), []), got_iff_eq, iff_eq_z, iff_eq_z_rev)
+    # got_iff_rev: [eq_x] |- [Iff(Eq(z,x2), Eq(z,x1))]
+
+    # Singleton(sa, x2) instantiated at zv: Iff(In(zv, sa), Eq(zv, x2))
+    iff_in_eq = Iff(In(zv, sa), Eq(zv, x2))
+    got_sing_inst = _fl(sing_x2, iff_in_eq, zv)
+    # got_sing_inst: [sing_x2] |- [Iff(In(zv,sa), Eq(zv,x2))]
+
+    # iff_chain: Iff(In(zv,sa), Eq(zv,x2)) + Iff(Eq(zv,x2), Eq(zv,x1)) -> Iff(In(zv,sa), Eq(zv,x1))
+    iff_in_eq1 = Iff(In(zv, sa), Eq(zv, x1))
+    ct = char_transfer(In(zv, sa), Eq(zv, x2), Eq(zv, x1))
+    got_sing_z = mp(mp(ct, got_sing_inst, iff_in_eq, Implies(iff_eq_z_rev, iff_in_eq1)),
+                    got_iff_rev, iff_eq_z_rev, iff_in_eq1)
+    # got_sing_z: [sing_x2, eq_x] |- [Iff(In(zv,sa), Eq(zv,x1))]
+
+    # forall z: sing_x2, eq_x |- Singleton(sa, x1)
+    fa_sing = Forall(zv, iff_in_eq1)
+    got_sing_x1 = Proof(Sequent([sing_x2, eq_x], [fa_sing]),
+                        'forall_right', [got_sing_z], principal=fa_sing, term=zv)
+    # fa_sing is alpha-equiv to Singleton(sa, x1) after expansion
+
+    # Step 2: Similarly PairSet(pab, x2, y2) + Eq(x1,x2) |- PairSet(pab, x1, y2)
+    # PairSet(pab, x, y) = forall z. Iff(In(z,pab), Or(Eq(z,x), Eq(z,y)))
+    # From Iff(Eq(z,x1),Eq(z,x2)) and Iff(Eq(z,y2),Eq(z,y2)) [refl]:
+    # or_iff_compat: Or(Eq(z,x1),Eq(z,y2)) <-> Or(Eq(z,x2),Eq(z,y2))
+    # iff_sym: Or(Eq(z,x2),Eq(z,y2)) <-> Or(Eq(z,x1),Eq(z,y2))
+    # iff_chain: Iff(In(z,pab), Or(Eq(z,x2),Eq(z,y2))) -> Iff(In(z,pab), Or(Eq(z,x1),Eq(z,y2)))
+
+    pair_x2_y2 = PairSet(pab, x2, y2)
+    pair_x1_y2 = PairSet(pab, x1, y2)
+    or_x2 = Or(Eq(zv, x2), Eq(zv, y2))
+    or_x1 = Or(Eq(zv, x1), Eq(zv, y2))
+    iff_in_or2 = Iff(In(zv, pab), or_x2)
+    iff_in_or1 = Iff(In(zv, pab), or_x1)
+    iff_or = Iff(or_x2, or_x1)
+
+    got_pair_inst = _fl(pair_x2_y2, iff_in_or2, zv)
+
+    # Iff(Eq(zv,y2), Eq(zv,y2)) -- reflexive iff
+    iff_refl_y = Iff(Eq(zv, y2), Eq(zv, y2))
+    P_y = In(zv, y2)
+    PP = Implies(P_y, P_y)
+    # Build iff_refl for Eq(zv,y2): this is a complex formula. Let me use eq_reflexive-style.
+    # Actually, Iff(A, A) is provable for any A. Let me build a quick one.
+    A = Eq(zv, y2)
+    AB = Implies(A, A)
+    NAB = Not(AB)
+    ax_a = Proof(Sequent([A], [A]), 'axiom', principal=A)
+    ir_a = Proof(Sequent([], [AB]), 'implies_right', [ax_a], principal=AB)
+    ir_a2 = Proof(Sequent([], [AB]), 'implies_right',
+                  [Proof(Sequent([A], [A]), 'axiom', principal=A)], principal=AB)
+    nl_a = Proof(Sequent([NAB], []), 'not_left', [ir_a2], principal=NAB)
+    il_a = Proof(Sequent([Implies(AB, NAB)], []), 'implies_left', [ir_a, nl_a], principal=Implies(AB, NAB))
+    got_iff_refl = Proof(Sequent([], [iff_refl_y]), 'not_right', [il_a], principal=iff_refl_y)
+
+    # or_iff_compat: Iff(Eq(z,x1),Eq(z,x2)) + Iff(Eq(z,y2),Eq(z,y2)) -> Iff(Or(Eq(z,x1),Eq(z,y2)), Or(Eq(z,x2),Eq(z,y2)))
+    oic = or_iff_compat(Eq(zv, x1), Eq(zv, y2), Eq(zv, x2), Eq(zv, y2), [])
+    iff_or_fwd = Iff(or_x1, or_x2)
+    got_iff_or = mp(mp(oic, got_iff_eq, iff_eq_z, Implies(iff_refl_y, iff_or_fwd)),
+                    got_iff_refl, iff_refl_y, iff_or_fwd)
+    # got_iff_or: [eq_x] |- [Iff(Or(Eq(z,x1),Eq(z,y2)), Or(Eq(z,x2),Eq(z,y2)))]
+
+    # iff_sym to get Iff(or_x2, or_x1):
+    got_iff_or_rev = mp(iff_sym(or_x1, or_x2, []), got_iff_or, iff_or_fwd, iff_or)
+
+    # iff_chain: Iff(In(z,pab), or_x2) + Iff(or_x2, or_x1) -> Iff(In(z,pab), or_x1)
+    ct2 = char_transfer(In(zv, pab), or_x2, or_x1)
+    got_pair_z = mp(mp(ct2, got_pair_inst, iff_in_or2, Implies(iff_or, iff_in_or1)),
+                    got_iff_or_rev, iff_or, iff_in_or1)
+    # got_pair_z: [pair_x2_y2, eq_x] |- [Iff(In(z,pab), Or(Eq(z,x1),Eq(z,y2)))]
+
+    fa_pair = Forall(zv, iff_in_or1)
+    got_pair_x1 = Proof(Sequent([pair_x2_y2, eq_x], [fa_pair]),
+                        'forall_right', [got_pair_z], principal=fa_pair, term=zv)
+    # got_pair_x1: [pair_x2_y2, eq_x] |- [PairSet(pab, x1, y2)] (alpha-equiv)
+
+    # Step 3: OrdPair(p, x2, y2) + Eq(x1,x2) |- OrdPair(p, x1, y2)
+    # OrdPair(p,x,y) = exists sa. Singleton(sa,x)  and  exists pab. PairSet(pab,x,y)  and  PairSet(p,sa,pab)
+    # From OrdPair(p,x2,y2): get sa with Singleton(sa,x2) and pab with PairSet(pab,x2,y2) and PairSet(p,sa,pab).
+    # Transform: Singleton(sa,x1) from Singleton(sa,x2)+Eq. PairSet(pab,x1,y2) from PairSet(pab,x2,y2)+Eq.
+    # Re-pack with same sa, pab, PairSet(p,sa,pab) unchanged.
+    # Result: OrdPair(p, x1, y2).
+
+    ord_x2 = OrdPair(p, x2, y2)
+    ord_x1 = OrdPair(p, x1, y2)
+    pair_p = PairSet(p, sa, pab)
+
+    # From ord_x2: exists sa. And(Singleton(sa,x2), exists pab. And(PairSet(pab,x2,y2), PairSet(p,sa,pab)))
+    # Existential elim on sa: Singleton(sa,x2)  and  exists pab. And(PairSet(pab,x2,y2), PairSet(p,sa,pab))
+    # And_elim: Singleton(sa,x2) and exists pab. ...
+    # Existential elim on pab: PairSet(pab,x2,y2)  and  PairSet(p,sa,pab)
+    # And_elim: PairSet(pab,x2,y2) and PairSet(p,sa,pab)
+
+    # Transform: Singleton(sa,x1) and PairSet(pab,x1,y2) (using got_sing_x1 and got_pair_x1)
+
+    # Re-pack: And(PairSet(pab,x1,y2), PairSet(p,sa,pab))
+    # exists pab. And(PairSet(pab,x1,y2), PairSet(p,sa,pab))
+    # And(Singleton(sa,x1), exists pab. ...)
+    # exists sa. And(Singleton(sa,x1), exists pab. ...)
+    # = OrdPair(p, x1, y2)
+
+    # This is the existential re-packing pattern from kuratowski.
+    # From [sing_x2, pair_x2_y2, pair_p, eq_x] |- [sing_x1] (got_sing_x1)
+    # and [pair_x2_y2, eq_x] |- [pair_x1_y2] (got_pair_x1)
+    # Need to build: [sing_x2, pair_x2_y2, pair_p, eq_x] |- OrdPair(p, x1, y2)
+
+    # Build And(PairSet(pab,x1,y2), pair_p):
+    and_pair = And(fa_pair, pair_p)  # Using fa_pair as alpha-equiv to PairSet(pab,x1,y2)
+    # From pair_x1 (got_pair_x1) and pair_p (axiom):
+    ax_pp = Proof(Sequent([pair_p], [pair_p]), 'axiom', principal=pair_p)
+    n_pp = Not(pair_p)
+    and_pp1 = Proof(Sequent([pair_x2_y2, eq_x, pair_p, n_pp], []), 'not_left',
+                    [wl(ax_pp, pair_x2_y2, eq_x)], principal=n_pp)
+    and_pp2 = Proof(Sequent([pair_x2_y2, eq_x, pair_p, Implies(fa_pair, n_pp)], []),
+                    'implies_left', [wl(got_pair_x1, pair_p), and_pp1],
+                    principal=Implies(fa_pair, n_pp))
+    got_and_pair = Proof(Sequent([pair_x2_y2, eq_x, pair_p], [and_pair]),
+                         'not_right', [and_pp2], principal=and_pair)
+
+    # exists pab. And(PairSet(pab,x1,y2), pair_p):
+    def _exist_intro_right(proof, body_formula, var, witness):
+        """From ctx |- body_formula[witness/var], derive ctx |- exists var. body_formula."""
+        n_body = Not(body_formula)
+        fa_n = Forall(var, n_body)
+        ctx = proof.sequent.left
+        nl = Proof(Sequent(ctx + [n_body], []), 'not_left', [proof], principal=n_body)
+        fl = Proof(Sequent(ctx + [fa_n], []), 'forall_left', [nl], principal=fa_n, term=witness)
+        ex = Exists(var, body_formula)
+        return Proof(Sequent(ctx, [ex]), 'not_right', [fl], principal=ex)
+
+    # Hmm, body_formula has pab as a free var. I need exists pab. And(PairSet(pab,x1,y2), PairSet(p,sa,pab)).
+    # The body is And(fa_pair, pair_p) where both mention pab.
+    # Witness is pab itself.
+    # But _exist_intro_right expects body_formula to have var free, and proof to prove body[witness/var].
+    # Since witness = var = pab, body[pab/pab] = body. So proof = got_and_pair. (ok)
+
+    # Actually, the and_pair formula uses fa_pair = Forall(zv, iff_in_or1) which doesn't directly
+    # mention pab -- wait, pab IS in iff_in_or1 through In(zv, pab). So pab is free in fa_pair.
+    # And pair_p = PairSet(p, sa, pab) also has pab free. (ok)
+
+    ex_pab_body = And(fa_pair, pair_p)
+    ex_pab = Exists(pab, ex_pab_body)
+    got_ex_pab = _exist_intro_right(got_and_pair, ex_pab_body, pab, pab)
+
+    # And(Singleton(sa,x1), ex_pab):
+    and_sing = And(fa_sing, ex_pab)
+    n_ex = Not(ex_pab)
+    and_s1 = Proof(Sequent([pair_x2_y2, eq_x, pair_p, n_ex], []), 'not_left',
+                   [wl(got_ex_pab, )], principal=n_ex)
+    # Hmm, got_ex_pab has [pair_x2_y2, eq_x, pair_p] on left. If I add n_ex, it becomes
+    # [pair_x2_y2, eq_x, pair_p, n_ex] |- [ex_pab]. Then not_left: [pair_x2_y2, eq_x, pair_p, n_ex] |- [].
+    # But not_left needs the NOT on the left: from ctx |- A, we get ctx, Not(A) |- .
+    # So: not_left on n_ex: from [pair_x2_y2, eq_x, pair_p] |- [ex_pab] (got_ex_pab),
+    # get [pair_x2_y2, eq_x, pair_p, Not(ex_pab)] |- [].
+    and_s1 = Proof(Sequent([pair_x2_y2, eq_x, pair_p, n_ex], []), 'not_left', [got_ex_pab], principal=n_ex)
+    # Need: [sing_x2, pair_x2_y2, eq_x, pair_p] |- [fa_sing]
+    # got_sing_x1: [sing_x2, eq_x] |- [fa_sing]. Weaken with pair_x2_y2, pair_p.
+    got_sing_w = wl(got_sing_x1, pair_x2_y2, pair_p)
+    and_s2 = Proof(Sequent([sing_x2, pair_x2_y2, eq_x, pair_p, Implies(fa_sing, n_ex)], []),
+                   'implies_left', [got_sing_w, wl(and_s1, sing_x2)],
+                   principal=Implies(fa_sing, n_ex))
+    got_and_sing = Proof(Sequent([sing_x2, pair_x2_y2, eq_x, pair_p], [and_sing]),
+                         'not_right', [and_s2], principal=and_sing)
+
+    # exists sa. And(Singleton(sa,x1), ex_pab) = OrdPair(p, x1, y2) (alpha-equiv after expansion)
+    ex_sa_body = and_sing
+    got_ex_sa = _exist_intro_right(got_and_sing, ex_sa_body, sa, sa)
+
+    # Now: [sing_x2, pair_x2_y2, eq_x, pair_p] |- [exists sa. And(Singleton(sa,x1), exists pab. ...)]
+    # This is OrdPair(p, x1, y2).
+
+    # Step 4: From OrdPair(p,x1,y2)  and  In(p,f): Apply(f, x1, y2)
+    # Apply(f,x1,y2) = exists p. And(OrdPair(p,x1,y2), In(p,f))
+    in_pf = In(p, f)
+    ord_x1_formula = Exists(sa, and_sing)  # the exists sa formula
+    and_ord_in = And(ord_x1_formula, in_pf)
+    n_in = Not(in_pf)
+    and_o1 = Proof(Sequent([sing_x2, pair_x2_y2, eq_x, pair_p, in_pf, n_in], []), 'not_left',
+                   [wl(Proof(Sequent([in_pf], [in_pf]), 'axiom', principal=in_pf),
+                       sing_x2, pair_x2_y2, eq_x, pair_p)], principal=n_in)
+    and_o2 = Proof(Sequent([sing_x2, pair_x2_y2, eq_x, pair_p, in_pf, Implies(ord_x1_formula, n_in)], []),
+                   'implies_left', [wl(got_ex_sa, in_pf), and_o1],
+                   principal=Implies(ord_x1_formula, n_in))
+    got_and_ord = Proof(Sequent([sing_x2, pair_x2_y2, eq_x, pair_p, in_pf], [and_ord_in]),
+                        'not_right', [and_o2], principal=and_ord_in)
+
+    # exists p. And(OrdPair(p,x1,y2), In(p,f)) = Apply(f, x1, y2)
+    app_x1_y2 = Apply(f, x1, y2)
+    got_app_x1 = _exist_intro_right(got_and_ord, and_ord_in, p, p)
+    # got_app_x1: [sing_x2, pair_x2_y2, eq_x, pair_p, in_pf] |- [Apply(f, x1, y2)]
+
+    # Step 5: Unpack Apply(f,x2,y2) = exists p. And(OrdPair(p,x2,y2), In(p,f))
+    # OrdPair(p,x2,y2) = exists sa. And(Singleton(sa,x2), exists pab. And(PairSet(pab,x2,y2), PairSet(p,sa,pab)))
+    # Existential elim chain: p -> (OrdPair+In) -> sa -> (Sing+exists pab) -> pab -> (PairSet+PairSet)
+
+    # Need to eliminate existentials to get sing_x2, pair_x2_y2, pair_p, in_pf on the left.
+    # Then got_app_x1 gives Apply(f,x1,y2).
+    # Then Function(f) uniqueness: Apply(f,x1,y1)  and  Apply(f,x1,y2) -> Eq(y1,y2).
+
+    # The existential unpacking of Apply(f,x2,y2) is complex. Let me use _eel pattern.
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if f_ is not pred]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left', [p2], principal=Exists(var, pred))
+
+    # Unpack And(PairSet(pab,x2,y2), PairSet(p,sa,pab)):
+    and_inner2 = And(pair_x2_y2, pair_p)
+    ax_and2 = Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2)
+    got_px2 = apply_thm(and_elim_left(pair_x2_y2, pair_p, []), [], and_inner2, pair_x2_y2, ax_and2)
+    got_pp = apply_thm(and_elim_right(pair_x2_y2, pair_p, []), [], and_inner2, pair_p,
+                       Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2))
+
+    # got_app_x1 needs [sing_x2, pair_x2_y2, eq_x, pair_p, in_pf] on left.
+    # Cut pair_x2_y2 and pair_p from and_inner2:
+    got_app_from_and2 = Proof(Sequent([sing_x2, and_inner2, eq_x, in_pf], [app_x1_y2]), 'cut',
+        [wr(wl(got_px2, sing_x2, eq_x, in_pf), app_x1_y2),
+         Proof(Sequent([sing_x2, and_inner2, pair_x2_y2, eq_x, in_pf], [app_x1_y2]), 'cut',
+             [wr(wl(got_pp, sing_x2, pair_x2_y2, eq_x, in_pf), app_x1_y2),
+              wl(got_app_x1, and_inner2)],
+             principal=pair_p)],
+        principal=pair_x2_y2)
+
+    # Exist elim on pab: [sing_x2, exists pab.and_inner2, eq_x, in_pf] |- [app_x1_y2]
+    got_app_from_ex_pab = _eel(got_app_from_and2, and_inner2, pab)
+
+    # Unpack And(Singleton(sa,x2), exists pab.and_inner2):
+    ex_pab_inner = Exists(pab, and_inner2)
+    and_outer2 = And(sing_x2, ex_pab_inner)
+    ax_ao = Proof(Sequent([and_outer2], [and_outer2]), 'axiom', principal=and_outer2)
+    got_sx2 = apply_thm(and_elim_left(sing_x2, ex_pab_inner, []), [], and_outer2, sing_x2, ax_ao)
+    got_ex_pab2 = apply_thm(and_elim_right(sing_x2, ex_pab_inner, []), [], and_outer2, ex_pab_inner,
+                             Proof(Sequent([and_outer2], [and_outer2]), 'axiom', principal=and_outer2))
+
+    got_app_from_ao = Proof(Sequent([and_outer2, eq_x, in_pf], [app_x1_y2]), 'cut',
+        [wr(wl(got_sx2, eq_x, in_pf), app_x1_y2),
+         Proof(Sequent([and_outer2, sing_x2, eq_x, in_pf], [app_x1_y2]), 'cut',
+             [wr(wl(got_ex_pab2, sing_x2, eq_x, in_pf), app_x1_y2),
+              wl(got_app_from_ex_pab, and_outer2)],
+             principal=ex_pab_inner)],
+        principal=sing_x2)
+
+    # Exist elim on sa: [exists sa.and_outer2, eq_x, in_pf] |- [app_x1_y2]
+    got_app_from_ex_sa = _eel(got_app_from_ao, and_outer2, sa)
+
+    # Unpack And(OrdPair(p,x2,y2), In(p,f)): but OrdPair IS exists sa.and_outer2 (alpha-equiv)
+    and_ordp_in = And(ord_x2, in_pf)
+    ax_aoi = Proof(Sequent([and_ordp_in], [and_ordp_in]), 'axiom', principal=and_ordp_in)
+    got_ord2 = apply_thm(and_elim_left(ord_x2, in_pf, []), [], and_ordp_in, ord_x2, ax_aoi)
+    got_inf = apply_thm(and_elim_right(ord_x2, in_pf, []), [], and_ordp_in, in_pf,
+                        Proof(Sequent([and_ordp_in], [and_ordp_in]), 'axiom', principal=and_ordp_in))
+
+    got_app_from_aoi = Proof(Sequent([and_ordp_in, eq_x], [app_x1_y2]), 'cut',
+        [wr(wl(got_ord2, eq_x), app_x1_y2),
+         Proof(Sequent([and_ordp_in, ord_x2, eq_x], [app_x1_y2]), 'cut',
+             [wr(wl(got_inf, ord_x2, eq_x), app_x1_y2),
+              wl(got_app_from_ex_sa, and_ordp_in)],
+             principal=in_pf)],
+        principal=ord_x2)
+
+    # Exist elim on p: [exists p.And(OrdPair,In), eq_x] |- [app_x1_y2]
+    got_app_from_ex_p = _eel(got_app_from_aoi, and_ordp_in, p)
+    # exists p.And(OrdPair(p,x2,y2), In(p,f)) = Apply(f, x2, y2) (alpha-equiv)
+    # got_app_from_ex_p: [Apply(f,x2,y2), eq_x] |- [Apply(f,x1,y2)]
+
+    # Step 6: Function(f) + Apply(f,x1,y1) + Apply(f,x1,y2) -> Eq(y1,y2)
+    # Use _func_unique pattern from initial_segments_agree (but defined locally here)
+    func_body = Forall(Var(), Forall(Var(), Forall(Var(),
+        Implies(And(Apply(f, Var(), Var()), Apply(f, Var(), Var())), Eq(Var(), Var())))))
+    # Hmm, can't use anonymous Vars like this. Let me just use Function(f) directly.
+    # Function(f) |- Apply(f,x1,y1)  and  Apply(f,x1,y2) -> Eq(y1,y2)
+    # This is the standard uniqueness from Function definition.
+
+    xf, ya, yb = Var(), Var(), Var()
+    func_fa = FuncDef(f)
+    and_apps = And(app1, app_x1_y2)
+    eq_y = Eq(y1, y2)
+
+    # Peel Function(f): forall x forall y1 forall y2. And(Apply(f,x,y1), Apply(f,x,y2)) -> Eq(y1,y2)
+    imp_and_eq = Implies(and_apps, eq_y)
+    fa3 = Forall(yb, Implies(And(Apply(f, x1, y1), Apply(f, x1, yb)), Eq(y1, yb)))
+    fa2 = Forall(ya, Forall(yb, Implies(And(Apply(f, x1, ya), Apply(f, x1, yb)), Eq(ya, yb))))
+    fa1 = Forall(xf, Forall(ya, Forall(yb, Implies(And(Apply(f, xf, ya), Apply(f, xf, yb)), Eq(ya, yb)))))
+
+    ax_eq_y = Proof(Sequent([eq_y], [eq_y]), 'axiom', principal=eq_y)
+    ax_and_a = wr(Proof(Sequent([and_apps], [and_apps]), 'axiom', principal=and_apps), eq_y)
+    il_and = Proof(Sequent([imp_and_eq, and_apps], [eq_y]),
+                   'implies_left', [ax_and_a, wl(ax_eq_y, and_apps)], principal=imp_and_eq)
+    fl3 = Proof(Sequent([fa3, and_apps], [eq_y]), 'forall_left', [il_and], principal=fa3, term=y2)
+    fl2 = Proof(Sequent([fa2, and_apps], [eq_y]), 'forall_left', [fl3], principal=fa2, term=y1)
+    fl1 = Proof(Sequent([fa1, and_apps], [eq_y]), 'forall_left', [fl2], principal=fa1, term=x1)
+    # Cut with func_f:
+    got_eq_from_func = Proof(Sequent([func_f, and_apps], [eq_y]), 'cut',
+        [wr(wl(Proof(Sequent([func_f], [func_f]), 'axiom', principal=func_f), and_apps), eq_y),
+         wl(fl1, func_f)], principal=fa1)
+
+    # Build And(app1, app_x1_y2):
+    n_app_x1 = Not(app_x1_y2)
+    and_a1 = Proof(Sequent(got_app_from_ex_p.sequent.left + [app1, n_app_x1], []),
+                   'not_left', [wl(got_app_from_ex_p, app1)], principal=n_app_x1)
+    and_a2 = Proof(Sequent(got_app_from_ex_p.sequent.left + [app1, Implies(app1, n_app_x1)], []),
+                   'implies_left',
+                   [wl(Proof(Sequent([app1], [app1]), 'axiom', principal=app1),
+                       *got_app_from_ex_p.sequent.left),
+                    and_a1],
+                   principal=Implies(app1, n_app_x1))
+    got_and_apps = Proof(Sequent(got_app_from_ex_p.sequent.left + [app1], [and_apps]),
+                         'not_right', [and_a2], principal=and_apps)
+    # got_and_apps: [app2, eq_x, app1] |- [And(app1, app_x1_y2)]
+
+    # Final: func_f, app2, eq_x, app1 |- Eq(y1, y2)
+    final = Proof(Sequent([func_f] + got_and_apps.sequent.left, [eq_y]), 'cut',
+        [wr(wl(got_and_apps, func_f), eq_y), wl(got_eq_from_func, *got_and_apps.sequent.left)],
+        principal=and_apps)
+
+    # Close: discharge all, forall all
+    # Note: _eel replaced app2 with Exists(p, and_ordp_in) (alpha-equiv but different object)
+    app2_actual = got_app_from_ex_p.sequent.left[-1]  # Exists(p, and_ordp_in) == app2
+    proof = final
+    for h in [app2_actual, app1, eq_x, func_f]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for v in [y2, y1, x2, x1, f]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'func_preserves_eq'
+    return proof
+
+
+def func_unique_thm():
+    """|- forall f, x, y1, y2. Function(f) -> Apply(f,x,y1) -> Apply(f,x,y2) -> Eq(y1,y2)
+    Basic function uniqueness: same input implies same output."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply
+
+    f, x, y1, y2 = Var(), Var(), Var(), Var()
+    func_f = FuncDef(f)
+    app1 = Apply(f, x, y1)
+    app2 = Apply(f, x, y2)
+    eq_y = Eq(y1, y2)
+
+    # Function(f) = forall x' forall y1' forall y2'. And(Apply(f,x',y1'), Apply(f,x',y2')) -> Eq(y1',y2')
+    xv, ya, yb = Var(), Var(), Var()
+    and_apps = And(app1, app2)
+    imp = Implies(and_apps, eq_y)
+    fa3 = Forall(yb, Implies(And(Apply(f, x, y1), Apply(f, x, yb)), Eq(y1, yb)))
+    fa2 = Forall(ya, Forall(yb, Implies(And(Apply(f, x, ya), Apply(f, x, yb)), Eq(ya, yb))))
+    fa1 = Forall(xv, Forall(ya, Forall(yb,
+        Implies(And(Apply(f, xv, ya), Apply(f, xv, yb)), Eq(ya, yb)))))
+    # fa1 is alpha-equiv to Function(f)
+
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    # Peel 3 foralls: fa1 -> fa2 -> fa3 -> imp
+    fl1 = _fl(fa1, fa2, x)
+    fl2 = Proof(Sequent([fa1], [fa3]), 'cut',
+        [wr(fl1, fa3), wl(_fl(fa2, fa3, y1), fa1)], principal=fa2)
+    fl3 = Proof(Sequent([fa1], [imp]), 'cut',
+        [wr(fl2, imp), wl(_fl(fa3, imp, y2), fa1)], principal=fa3)
+    # fl3: [Function(f)] |- [And(app1,app2) -> Eq(y1,y2)]
+
+    # Build And(app1, app2)
+    n_app2 = Not(app2)
+    br1 = wr(Proof(Sequent([app1], [app1]), 'axiom', principal=app1), eq_y)
+    br2 = Proof(Sequent([app2, n_app2], []), 'not_left',
+               [Proof(Sequent([app2], [app2]), 'axiom', principal=app2)], principal=n_app2)
+    il = Proof(Sequent([app1, app2, Implies(app1, n_app2)], []),
+               'implies_left', [wl(br1, app2), wl(br2, app1)], principal=Implies(app1, n_app2))
+
+    # Wait, br1 needs right = [app1] not [app1, eq_y]. For implies_left:
+    # Branch 1: G |- app1, D (D = conclusion.right = [])
+    # So branch 1 should be: [app1, app2] |- [app1]
+    br1_fix = wl(Proof(Sequent([app1], [app1]), 'axiom', principal=app1), app2)
+    il = Proof(Sequent([app1, app2, Implies(app1, n_app2)], []),
+               'implies_left', [br1_fix, wl(br2, app1)], principal=Implies(app1, n_app2))
+    got_and = Proof(Sequent([app1, app2], [and_apps]), 'not_right', [il], principal=and_apps)
+
+    # MP: imp, and_apps |- eq_y
+    ax_eq = Proof(Sequent([eq_y], [eq_y]), 'axiom', principal=eq_y)
+    ax_and = wr(got_and, eq_y)
+    il_mp = Proof(Sequent([app1, app2, imp], [eq_y]),
+                  'implies_left', [ax_and, wl(ax_eq, app1, app2)], principal=imp)
+    # Cut on imp: fl3 gives [fa1] |- [imp], il_mp gives [app1, app2, imp] |- [eq_y]
+    got_eq = Proof(Sequent([func_f, app1, app2], [eq_y]), 'cut',
+        [wr(wl(fl3, app1, app2), eq_y), wl(il_mp, func_f)], principal=imp)
+
+    # Discharge and close
+    proof = got_eq
+    for h in [app2, app1, func_f]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for v in [y2, y1, x, f]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'func_unique'
+    return proof
+
+
+def plus_zero():
+    """|- forall m, n, p. Empty(n) -> Plus(m, n, p) -> Eq(m, p)
+    If n is empty, then m + n = p implies p = m."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import (Function as FuncDef, Apply, Recursive, Plus as PlusDef,
+                             Empty, Successor)
+
+    m, nv, p = Var(), Var(), Var()
+    h, sf = Var(), Var()
+    ev = Var()
+    empty_n = Empty(nv)
+    eq_mp = Eq(m, p)
+
+    # Build Plus(m, nv, p) expansion manually with our own vars
+    xv, yv = Var(), Var()
+    succ_char = Forall(xv, Forall(yv, Iff(Apply(sf, xv, yv), Successor(yv, xv))))
+    rec_h = Recursive(h, m, sf)
+    app_h_n_p = Apply(h, nv, p)
+    and_rec_app = And(rec_h, app_h_n_p)
+    full_and = And(succ_char, and_rec_app)
+
+    # Recursive(h, m, sf) expands to And(Function(h), And(base, step))
+    func_h = FuncDef(h)
+    base_clause = Forall(ev, Implies(Empty(ev), Apply(h, ev, m)))
+    nv2, val, snv, fval = Var(), Var(), Var(), Var()
+    step_clause = Forall(nv2, Forall(val, Implies(Apply(h, nv2, val),
+        Forall(snv, Implies(Successor(snv, nv2),
+            Forall(fval, Implies(Apply(sf, val, fval),
+                Apply(h, snv, fval))))))))
+    and_base_step = And(base_clause, step_clause)
+
+    # === Core proof: [empty_n, func_h, base_clause, app_h_n_p] |- [eq_mp] ===
+
+    # Step 1: From base_clause, instantiate with nv: Empty(nv) -> Apply(h, nv, m)
+    imp_emp_app = Implies(empty_n, Apply(h, nv, m))
+    app_h_n_m = Apply(h, nv, m)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    fl_base = _fl(base_clause, imp_emp_app, nv)
+    got_app_m = mp(fl_base,
+        Proof(Sequent([empty_n], [empty_n]), 'axiom', principal=empty_n),
+        empty_n, app_h_n_m)
+    # got_app_m: [base_clause, empty_n] |- [Apply(h, nv, m)]
+
+    # Step 2: func_unique gives Apply(h,nv,m) + Apply(h,nv,p) + Function(h) -> Eq(m,p)
+    fu = func_unique_thm()
+    # fu: [] |- forall f forall x forall y1 forall y2. Function(f) -> Apply(f,x,y1) -> Apply(f,x,y2) -> Eq(y1,y2)
+    # Instantiate: f=h, x=nv, y1=m, y2=p, hyp=Function(h)
+    imp_rest = Implies(app_h_n_m, Implies(app_h_n_p, eq_mp))
+    got_fu1 = apply_thm(fu, [h, nv, m, p], func_h, imp_rest,
+        Proof(Sequent([func_h], [func_h]), 'axiom', principal=func_h))
+    # got_fu1: [func_h] |- [Apply(h,nv,m) -> Apply(h,nv,p) -> Eq(m,p)]
+
+    # MP with got_app_m: Apply(h,nv,m)
+    got_fu2 = mp(got_fu1, got_app_m, app_h_n_m, Implies(app_h_n_p, eq_mp))
+    # got_fu2: [func_h, base_clause, empty_n] |- [Apply(h,nv,p) -> Eq(m,p)]
+
+    # MP with Apply(h,nv,p)
+    core = mp(got_fu2,
+        Proof(Sequent([app_h_n_p], [app_h_n_p]), 'axiom', principal=app_h_n_p),
+        app_h_n_p, eq_mp)
+    # core: [func_h, base_clause, empty_n, app_h_n_p] |- [Eq(m,p)]
+
+    # === Unpack Recursive: And(func_h, And(base, step)) ===
+    # and_elim_left to get func_h from rec_h
+    ax_rec = Proof(Sequent([rec_h], [rec_h]), 'axiom', principal=rec_h)
+    got_func = apply_thm(and_elim_left(func_h, and_base_step, []), [], rec_h, func_h, ax_rec)
+    # got_func: [rec_h] |- [func_h]
+
+    # and_elim_right to get And(base, step), then and_elim_left to get base
+    got_bs = apply_thm(and_elim_right(func_h, and_base_step, []), [], rec_h, and_base_step,
+        Proof(Sequent([rec_h], [rec_h]), 'axiom', principal=rec_h))
+    got_base = apply_thm(and_elim_left(base_clause, step_clause, []), [],
+        and_base_step, base_clause,
+        Proof(Sequent([and_base_step], [and_base_step]), 'axiom', principal=and_base_step))
+    # Chain: rec_h |- base_clause
+    got_base_full = Proof(Sequent([rec_h], [base_clause]), 'cut',
+        [wr(got_bs, base_clause), wl(got_base, rec_h)], principal=and_base_step)
+
+    # Replace func_h and base_clause in core with rec_h:
+    # core has [func_h, base_clause, empty_n, app_h_n_p] |- [eq_mp]
+    # Cut func_h: [rec_h, base_clause, empty_n, app_h_n_p] |- [eq_mp]
+    c1 = Proof(Sequent([rec_h, base_clause, empty_n, app_h_n_p], [eq_mp]), 'cut',
+        [wr(wl(got_func, base_clause, empty_n, app_h_n_p), eq_mp),
+         wl(core, rec_h)], principal=func_h)
+    # Cut base_clause: [rec_h, empty_n, app_h_n_p] |- [eq_mp]
+    c2 = Proof(Sequent([rec_h, empty_n, app_h_n_p], [eq_mp]), 'cut',
+        [wr(wl(got_base_full, empty_n, app_h_n_p), eq_mp),
+         c1], principal=base_clause)
+
+    # === Unpack full_and: And(succ_char, And(rec_h, app_h_n_p)) ===
+    # and_elim_right to get And(rec_h, app_h_n_p)
+    got_ra = apply_thm(and_elim_right(succ_char, and_rec_app, []), [],
+        full_and, and_rec_app,
+        Proof(Sequent([full_and], [full_and]), 'axiom', principal=full_and))
+    # and_elim_left/right to split rec_h and app_h_n_p
+    got_rec = apply_thm(and_elim_left(rec_h, app_h_n_p, []), [],
+        and_rec_app, rec_h,
+        Proof(Sequent([and_rec_app], [and_rec_app]), 'axiom', principal=and_rec_app))
+    got_app = apply_thm(and_elim_right(rec_h, app_h_n_p, []), [],
+        and_rec_app, app_h_n_p,
+        Proof(Sequent([and_rec_app], [and_rec_app]), 'axiom', principal=and_rec_app))
+
+    # Chain: full_and |- rec_h and full_and |- app_h_n_p
+    got_rec_full = Proof(Sequent([full_and], [rec_h]), 'cut',
+        [wr(got_ra, rec_h), wl(got_rec, full_and)], principal=and_rec_app)
+    got_app_full = Proof(Sequent([full_and], [app_h_n_p]), 'cut',
+        [wr(got_ra, app_h_n_p), wl(got_app, full_and)], principal=and_rec_app)
+
+    # Replace rec_h and app_h_n_p in c2 with full_and:
+    c3 = Proof(Sequent([full_and, empty_n, app_h_n_p], [eq_mp]), 'cut',
+        [wr(wl(got_rec_full, empty_n, app_h_n_p), eq_mp),
+         wl(c2, full_and)], principal=rec_h)
+    c4 = Proof(Sequent([full_and, empty_n], [eq_mp]), 'cut',
+        [wr(wl(got_app_full, empty_n), eq_mp),
+         c3], principal=app_h_n_p)
+
+    # === Existential elimination: exists sf. full_and, then exists h. exists sf. full_and ===
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if f_ is not pred]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # c4: [full_and, empty_n] |- [eq_mp]. Eliminate sf from full_and.
+    c5 = _eel(c4, full_and, sf)
+    # c5: [empty_n, exists sf. full_and] |- [eq_mp]
+
+    # Eliminate h from exists sf. full_and (use actual object from sequent)
+    ex_sf_actual = c5.sequent.left[-1]
+    c6 = _eel(c5, ex_sf_actual, h)
+    # c6: [empty_n, exists h. exists sf. full_and] |- [eq_mp]
+
+    # === Discharge and close ===
+    plus_on_left = c6.sequent.left[-1]  # the exists h. exists sf formula
+    proof = c6
+    for hyp in [plus_on_left, empty_n]:
+        imp_h = Implies(hyp, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if f_ is not hyp]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for v in [p, nv, m]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = 'plus_zero'
+    return proof
+
+
+def init_seg_func():
+    """|- forall v, a, f. InitSeg(v,a,f) -> Function(v)"""
+    from tactics import apply_thm
+    from definitions import Function as FuncDef, Apply, InitialSegment, Successor
+
+    v, a, f = Var(), Var(), Var()
+    is_f = InitialSegment(v, a, f)
+    func_v = FuncDef(v)
+
+    ev, nv, val, sn, fval = Var(), Var(), Var(), Var(), Var()
+    base = Forall(ev, Implies(Empty(ev), Apply(v, ev, a)))
+    step = Forall(nv, Forall(val, Implies(Apply(v, nv, val),
+        Forall(sn, Implies(Successor(sn, nv),
+            Forall(fval, Implies(Apply(f, val, fval), Apply(v, sn, fval))))))))
+    rest = And(base, step)
+
+    ax = Proof(Sequent([is_f], [is_f]), 'axiom', principal=is_f)
+    got = apply_thm(and_elim_left(func_v, rest, []), [], is_f, func_v, ax)
+
+    proof = Proof(Sequent([], [Implies(is_f, func_v)]),
+                  'implies_right', [got], principal=Implies(is_f, func_v))
+    for var in [f, a, v]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'init_seg_func'
+    return proof
+
+
+def init_seg_base():
+    """|- forall v, a, f, e. InitSeg(v,a,f) -> Empty(e) -> Apply(v,e,a)"""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, InitialSegment, Successor
+
+    v, a, f, e = Var(), Var(), Var(), Var()
+    is_f = InitialSegment(v, a, f)
+    func_v = FuncDef(v)
+    empty_e = Empty(e)
+    app_v_e_a = Apply(v, e, a)
+
+    ev, nv, val, sn, fval = Var(), Var(), Var(), Var(), Var()
+    base = Forall(ev, Implies(Empty(ev), Apply(v, ev, a)))
+    step = Forall(nv, Forall(val, Implies(Apply(v, nv, val),
+        Forall(sn, Implies(Successor(sn, nv),
+            Forall(fval, Implies(Apply(f, val, fval), Apply(v, sn, fval))))))))
+    rest = And(base, step)
+
+    # Extract base from InitSeg: is_f |- base
+    ax = Proof(Sequent([is_f], [is_f]), 'axiom', principal=is_f)
+    got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_f, rest, ax)
+    got_base = apply_thm(and_elim_left(base, step, []), [], rest, base,
+        Proof(Sequent([rest], [rest]), 'axiom', principal=rest))
+    got_base_full = Proof(Sequent([is_f], [base]), 'cut',
+        [wr(got_rest, base), wl(got_base, is_f)], principal=rest)
+
+    # Instantiate base with e: Empty(e) -> Apply(v,e,a)
+    imp_emp = Implies(empty_e, app_v_e_a)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    got_imp = Proof(Sequent([is_f], [imp_emp]), 'cut',
+        [wr(got_base_full, imp_emp), wl(_fl(base, imp_emp, e), is_f)], principal=base)
+
+    # MP with Empty(e)
+    got = mp(got_imp,
+        Proof(Sequent([empty_e], [empty_e]), 'axiom', principal=empty_e),
+        empty_e, app_v_e_a)
+
+    # Close
+    proof = got
+    for h in [empty_e, is_f]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [e, f, a, v]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'init_seg_base'
+    return proof
+
+
+def init_seg_step():
+    """|- forall v,a,f,n,val,sn,fv. InitSeg(v,a,f) -> Apply(v,n,val) ->
+       Succ(sn,n) -> Apply(f,val,fv) -> Apply(v,sn,fv)"""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, InitialSegment, Successor
+
+    v, a, f, n, val, sn, fv = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    is_f = InitialSegment(v, a, f)
+    func_v = FuncDef(v)
+    app_v_n = Apply(v, n, val)
+    succ_sn = Successor(sn, n)
+    app_f_val = Apply(f, val, fv)
+    app_v_sn = Apply(v, sn, fv)
+
+    ev, nv, valv, snv, fvalv = Var(), Var(), Var(), Var(), Var()
+    base = Forall(ev, Implies(Empty(ev), Apply(v, ev, a)))
+    step = Forall(nv, Forall(valv, Implies(Apply(v, nv, valv),
+        Forall(snv, Implies(Successor(snv, nv),
+            Forall(fvalv, Implies(Apply(f, valv, fvalv), Apply(v, snv, fvalv))))))))
+    rest = And(base, step)
+
+    # Extract step from InitSeg
+    ax = Proof(Sequent([is_f], [is_f]), 'axiom', principal=is_f)
+    got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_f, rest, ax)
+    got_step = apply_thm(and_elim_right(base, step, []), [], rest, step,
+        Proof(Sequent([rest], [rest]), 'axiom', principal=rest))
+    got_step_full = Proof(Sequent([is_f], [step]), 'cut',
+        [wr(got_rest, step), wl(got_step, is_f)], principal=rest)
+
+    # Peel step: forall n forall val. Apply(v,n,val) -> forall sn. Succ(sn,n) -> forall fv. Apply(f,val,fv) -> Apply(v,sn,fv)
+    # Instantiate n, val, sn, fv and discharge 3 implies
+    imp3 = Implies(app_f_val, app_v_sn)
+    imp2 = Implies(succ_sn, Forall(fv, imp3))
+    imp1 = Implies(app_v_n, Forall(sn, imp2))
+    fa_val = Forall(val, imp1)
+    fa_n = Forall(n, fa_val)
+
+    # Use apply_thm chain: is_f |- step. step == fa_n.
+    # apply_thm(got_step_full_as_thm, [n, val], app_v_n, Forall(sn, imp2), app_v_n_proof)
+    # Then apply_thm(..., [sn], succ_sn, Forall(fv, imp3), succ_proof)
+    # Then apply_thm(..., [fv], app_f_val, app_v_sn, app_f_val_proof)
+
+    # Step 1: peel forall n, instantiate with n
+    got1 = apply_thm(got_step_full, [n, val], app_v_n, Forall(sn, imp2),
+        Proof(Sequent([app_v_n], [app_v_n]), 'axiom', principal=app_v_n))
+    # got1: [is_f, app_v_n] |- [forall sn. imp2]
+
+    # Step 2: peel forall sn
+    got2 = apply_thm(got1, [sn], succ_sn, Forall(fv, imp3),
+        Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn))
+
+    # Step 3: peel forall fv
+    got3 = apply_thm(got2, [fv], app_f_val, app_v_sn,
+        Proof(Sequent([app_f_val], [app_f_val]), 'axiom', principal=app_f_val))
+
+    # Close
+    proof = got3
+    for h in [app_f_val, succ_sn, app_v_n, is_f]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [fv, sn, val, n, f, a, v]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'init_seg_step'
+    return proof
+
+
+def omega_contains_empty():
+    """Ext, Inf |- forall w. Omega(w) -> forall e. Empty(e) -> In(e, w)
+    Every empty set is in omega."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Successor
+
+    w, ev = Var(), Var()
+    omega_w = Omega(w)
+    ind_w = Inductive(w)
+    empty_e = Empty(ev)
+    in_e_w = In(ev, w)
+
+    # Inductive(w) = And(forall e. Empty(e) -> In(e,w), forall x. In(x,w) -> forall s. Succ(s,x) -> In(s,w))
+    sv, xv = Var(), Var()
+    base_w = Forall(ev, Implies(empty_e, in_e_w))
+    step_w = Forall(xv, Implies(In(xv, w), Forall(sv, Implies(Successor(sv, xv), In(sv, w)))))
+
+    # omega_is_inductive: Ext, Inf |- Omega(w) -> Inductive(w)
+    oii = omega_is_inductive()
+    ext_ax = zfc.Extensionality()
+    inf_ax = zfc.Infinity()
+    got_ind = apply_thm(oii, [w], omega_w, ind_w,
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+    # got_ind: [ext_ax, inf_ax, omega_w] |- [Inductive(w)]
+
+    # and_elim_left to get base_w
+    got_base_w = apply_thm(and_elim_left(base_w, step_w, []), [], ind_w, base_w,
+        Proof(Sequent([ind_w], [ind_w]), 'axiom', principal=ind_w))
+    # Chain: ext, inf, omega |- base_w
+    got = Proof(Sequent(got_ind.sequent.left, [base_w]), 'cut',
+        [wr(got_ind, base_w), wl(got_base_w, *got_ind.sequent.left)], principal=ind_w)
+
+    # Close: discharge omega, forall w
+    proof = Proof(Sequent(got_ind.sequent.left[:2], [Implies(omega_w, base_w)]),
+                  'implies_right', [got], principal=Implies(omega_w, base_w))
+    fa = Forall(w, proof.sequent.right[0])
+    proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=w, principal=fa)
+    proof.name = 'omega_contains_empty'
+    return proof
+
+
+def omega_succ_closed():
+    """Ext, Inf |- forall w. Omega(w) -> forall x. In(x,w) -> forall s. Succ(s,x) -> In(s,w)
+    Omega is closed under successor."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Successor
+
+    w, xv, sv, ev = Var(), Var(), Var(), Var()
+    omega_w = Omega(w)
+    ind_w = Inductive(w)
+
+    base_w = Forall(ev, Implies(Empty(ev), In(ev, w)))
+    step_w = Forall(xv, Implies(In(xv, w), Forall(sv, Implies(Successor(sv, xv), In(sv, w)))))
+
+    oii = omega_is_inductive()
+    got_ind = apply_thm(oii, [w], omega_w, ind_w,
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+
+    got_step_w = apply_thm(and_elim_right(base_w, step_w, []), [], ind_w, step_w,
+        Proof(Sequent([ind_w], [ind_w]), 'axiom', principal=ind_w))
+    got = Proof(Sequent(got_ind.sequent.left, [step_w]), 'cut',
+        [wr(got_ind, step_w), wl(got_step_w, *got_ind.sequent.left)], principal=ind_w)
+
+    proof = Proof(Sequent(got_ind.sequent.left[:2], [Implies(omega_w, step_w)]),
+                  'implies_right', [got], principal=Implies(omega_w, step_w))
+    fa = Forall(w, proof.sequent.right[0])
+    proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=w, principal=fa)
+    proof.name = 'omega_succ_closed'
+    return proof
+
+
+def init_seg_total():
+    """Ext, Inf, Separation |- forall a, f, v, w.
+       (forall x. exists y. Apply(f,x,y)) ->
+       InitSeg(v,a,f) -> Omega(w) -> forall n. n in w -> exists y. Apply(v,n,y)
+
+    Every initial segment is total on omega, given f is total.
+    Proved by induction: Separation forms t = {n in w : exists y. Apply(v,n,y)},
+    show Inductive(t), omega_smallest_inductive gives t = w."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import (Function as FuncDef, Apply, InitialSegment, Successor,
+                             Singleton, PairSet)
+
+    a, f, v, w, n = Var(), Var(), Var(), Var(), Var()
+    yv = Var()
+    is_v = InitialSegment(v, a, f)
+    omega_w = Omega(w)
+
+    # f-total: forall x. exists y. Apply(f,x,y)
+    xv, yfv = Var(), Var()
+    f_total = Forall(xv, Exists(yfv, Apply(f, xv, yfv)))
+
+    # P(n) = exists y. Apply(v, n, y)
+    def P(x):
+        return Exists(yv, Apply(v, x, yv))
+
+    # === Base case: P(e) when Empty(e) ===
+    # From init_seg_base: InitSeg(v,a,f) -> Empty(e) -> Apply(v,e,a)
+    ev = Var()
+    empty_ev = Empty(ev)  # create ONCE, reuse everywhere
+    isb = init_seg_base()
+    got_app_base = apply_thm(isb, [v, a, f, ev], is_v,
+        Implies(empty_ev, Apply(v, ev, a)),
+        Proof(Sequent([is_v], [is_v]), 'axiom', principal=is_v))
+    # got_app_base: [is_v] |- [Empty(ev) -> Apply(v, ev, a)]
+    # MP with Empty(ev):
+    got_app_e = mp(got_app_base,
+        Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev),
+        empty_ev, Apply(v, ev, a))
+    # got_app_e: [is_v, empty_ev] |- [Apply(v, ev, a)]
+
+    # Existential intro: from ctx |- body[witness/var], get ctx |- exists var. body
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]  # body[witness/var] -- the actual formula
+        n_body_inst = Not(body_inst)
+        fa_n = Forall(var, Not(body))
+        nl = Proof(Sequent(ctx + [n_body_inst], []), 'not_left', [proof], principal=n_body_inst)
+        fl = Proof(Sequent(ctx + [fa_n], []), 'forall_left', [nl], principal=fa_n, term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+
+    p_ev = Exists(yv, Apply(v, ev, yv))
+    got_base = _eir(got_app_e, Apply(v, ev, yv), yv, a)
+    # got_base: [is_v, Empty(ev)] |- [exists y. Apply(v, ev, y)] = P(ev)
+
+    # === Step case: P(n) -> forall sn. Succ(sn,n) -> P(sn) ===
+    # Given exists y. Apply(v,n,y) -- call it val.
+    # From f_total at val: exists fv. Apply(f,val,fv).
+    # From init_seg_step: Apply(v,n,val) -> Succ(sn,n) -> Apply(f,val,fv) -> Apply(v,sn,fv).
+    # So Apply(v, sn, fv). Therefore exists y. Apply(v, sn, y).
+    #
+    # Need to eliminate existentials on val and fv.
+
+    nv, val, fv, snv = Var(), Var(), Var(), Var()
+    app_v_n_val = Apply(v, nv, val)
+    succ_sn = Successor(snv, nv)
+    app_f_val_fv = Apply(f, val, fv)
+    app_v_sn_fv = Apply(v, snv, fv)
+    p_nv = P(nv)
+    p_snv = P(snv)
+
+    # From init_seg_step: is_v, Apply(v,n,val), Succ(sn,n), Apply(f,val,fv) |- Apply(v,sn,fv)
+    iss = init_seg_step()
+    got_step_app = apply_thm(iss, [v, a, f, nv, val, snv, fv], is_v,
+        Implies(app_v_n_val, Implies(succ_sn, Implies(app_f_val_fv, app_v_sn_fv))),
+        Proof(Sequent([is_v], [is_v]), 'axiom', principal=is_v))
+    # Peel the 3 implies:
+    got_s1 = mp(got_step_app,
+        Proof(Sequent([app_v_n_val], [app_v_n_val]), 'axiom', principal=app_v_n_val),
+        app_v_n_val, Implies(succ_sn, Implies(app_f_val_fv, app_v_sn_fv)))
+    got_s2 = mp(got_s1,
+        Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn),
+        succ_sn, Implies(app_f_val_fv, app_v_sn_fv))
+    got_s3 = mp(got_s2,
+        Proof(Sequent([app_f_val_fv], [app_f_val_fv]), 'axiom', principal=app_f_val_fv),
+        app_f_val_fv, app_v_sn_fv)
+    # got_s3: [is_v, app_v_n_val, succ_sn, app_f_val_fv] |- [Apply(v, sn, fv)]
+
+    # Existential intro: exists y. Apply(v, sn, y) with witness fv
+    yv2 = Var()
+    got_ex_sn = _eir(got_s3, Apply(v, snv, yv2), yv2, fv)
+    # got_ex_sn: [is_v, app_v_n_val, succ_sn, app_f_val_fv] |- [exists y. Apply(v, sn, y)]
+
+    # Existential elim on fv from f_total:
+    # f_total instantiated at val: exists fv. Apply(f, val, fv)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    ex_fv = Exists(yfv, Apply(f, val, yfv))
+    got_ft_val = _fl(f_total, ex_fv, val)
+    # got_ft_val: [f_total] |- [exists fv. Apply(f, val, fv)]
+    # But yfv vs fv: ex_fv uses yfv as the bound var.
+    # got_ex_sn has app_f_val_fv = Apply(f, val, fv) on the left.
+    # Need to elim exists yfv from ex_fv where body = Apply(f, val, yfv).
+    # The body instantiated with fv gives Apply(f, val, fv) = app_f_val_fv.
+
+    # Hmm, I need _eel: from [is_v, app_v_n_val, succ_sn, app_f_val_fv] |- P(sn),
+    # eliminate app_f_val_fv and replace with exists fv. Apply(f,val,fv).
+    # But _eel eliminates a formula from the LEFT by introducing Exists.
+    # _eel(got_ex_sn, app_f_val_fv, fv) would give:
+    #   [is_v, app_v_n_val, succ_sn, exists fv. app_f_val_fv] |- P(sn)
+    # But exists fv. Apply(f,val,fv) uses fv as bound var. The ex_fv uses yfv. They're alpha-equiv.
+
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if f_ is not pred]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    got_ex_sn2 = _eel(got_ex_sn, app_f_val_fv, fv)
+    # got_ex_sn2: [is_v, app_v_n_val, succ_sn, exists fv.Apply(f,val,fv)] |- [P(sn)]
+
+    # Cut exists fv from f_total:
+    ex_fv_actual = got_ex_sn2.sequent.left[-1]  # the Exists object from _eel
+    got_ex_sn3 = Proof(Sequent([f_total, is_v, app_v_n_val, succ_sn], [p_snv]), 'cut',
+        [wr(wl(got_ft_val, is_v, app_v_n_val, succ_sn), p_snv),
+         wl(got_ex_sn2, f_total)], principal=ex_fv_actual)
+    # got_ex_sn3: [f_total, is_v, app_v_n_val, succ_sn] |- [P(sn)]
+
+    # Existential elim on val from P(n):
+    # P(n) = exists y. Apply(v, n, y). After _eel on app_v_n_val with var val:
+    got_ex_sn4 = _eel(got_ex_sn3, app_v_n_val, val)
+    # got_ex_sn4: [f_total, is_v, succ_sn, exists val.Apply(v,nv,val)] |- [P(sn)]
+    # exists val.Apply(v,nv,val) is alpha-equiv to P(nv) (but with val instead of yv as bound var)
+
+    # Discharge Succ: P(nv), is_v, f_total |- Succ(sn,n) -> P(sn)
+    p_nv_actual = got_ex_sn4.sequent.left[-1]
+    imp_succ = Implies(succ_sn, p_snv)
+    got_step_imp = Proof(Sequent([f_ for f_ in got_ex_sn4.sequent.left if f_ is not succ_sn],
+                                  [imp_succ]),
+                         'implies_right', [got_ex_sn4], principal=imp_succ)
+    # got_step_imp: [f_total, is_v, P(nv)] |- [Succ(sn,n) -> P(sn)]
+
+    # Forall sn: P(nv), is_v, f_total |- forall sn. Succ(sn,n) -> P(sn)
+    fa_sn = Forall(snv, imp_succ)
+    got_step_fa = Proof(Sequent(got_step_imp.sequent.left, [fa_sn]),
+                        'forall_right', [got_step_imp], principal=fa_sn, term=snv)
+
+    # Discharge P(nv):
+    imp_pn = Implies(p_nv_actual, fa_sn)
+    got_step_closed = Proof(
+        Sequent([f_ for f_ in got_step_fa.sequent.left if f_ is not p_nv_actual], [imp_pn]),
+        'implies_right', [got_step_fa], principal=imp_pn)
+    # got_step_closed: [f_total, is_v] |- [P(nv) -> forall sn. Succ(sn,n) -> P(sn)]
+
+    # === Induction via Separation + Inductive + omega_smallest_inductive ===
+    sep = zfc.Separation(P, [v])
+    ext_ax = zfc.Extensionality()
+    inf_ax = zfc.Infinity()
+    t = Var()
+    zv = Var()
+
+    # --- Separation characterization ---
+    # sep: forall v forall a exists b forall x. Iff(In(x,b), And(In(x,a), P(x)))
+    # Instantiate v->v, a->w to get: exists t. forall x. Iff(In(x,t), And(In(x,w), P(x)))
+    and_in_p = And(In(zv, w), P(zv))
+    iff_char = Iff(In(zv, t), and_in_p)
+    fa_char = Forall(zv, iff_char)
+    ex_t = Exists(t, fa_char)
+    fa_w = Forall(w, ex_t)
+
+    ax_sep = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    # Peel forall v -> v:
+    got_sep1 = _fl(sep, Forall(w, ex_t), v)
+    # actually sep = forall v forall a exists b forall x ... but when I expand, 'a' is the set parameter.
+    # Let me just peel with forall_left twice.
+    # sep after expand: forall v. forall a. exists b. forall x. Iff(In(x,b), And(In(x,a), P(x)))
+    # First forall_left v->v, then a->w
+    inner = Forall(w, ex_t)  # After peeling forall v, remaining is forall a. exists b. ...
+    # Actually the structure after sep.expand() is Forall(v_param, Forall(a_param, ...))
+    # where v_param is v (from vars list) and a_param is a fresh Var.
+    # I need to match the expansion structure. Let me use apply_thm approach instead.
+
+    # Simpler: treat sep as axiom, peel with forall_left for v, then w.
+    # sep |- forall a. exists b. forall x. Iff(In(x,b), And(In(x,a), P(x)))  [after peeling forall v]
+    fa_a_body = Forall(w, Exists(t, Forall(zv, Iff(In(zv, t), And(In(zv, w), P(zv))))))
+    fl_v = _fl(sep, fa_a_body, v)
+    fl_w = Proof(Sequent([sep], [ex_t]), 'cut',
+        [wr(fl_v, ex_t), wl(_fl(fa_a_body, ex_t, w), sep)], principal=fa_a_body)
+    # fl_w: [sep] |- [exists t. forall x. Iff(In(x,t), And(In(x,w), P(x)))]
+
+    # --- Work inside exists t (existential elim at the end) ---
+    # Assume fa_char on the left: forall x. Iff(In(x,t), And(In(x,w), P(x)))
+
+    # Helper: from fa_char, instantiate at term z
+    def _char_at(z):
+        """fa_char |- Iff(In(z,t), And(In(z,w), P(z)))"""
+        iff_z = Iff(In(z, t), And(In(z, w), P(z)))
+        return _fl(fa_char, iff_z, z)
+
+    # Helper: from Iff(A,B) extract A->B (forward)
+    def _iff_fwd(iff_proof, A, B):
+        """ctx |- Iff(A,B) gives ctx |- A->B"""
+        return mp(iff_mp(A, B, []), iff_proof, Iff(A, B), Implies(A, B))
+
+    # Helper: from Iff(A,B) extract B->A (backward)
+    def _iff_bwd(iff_proof, A, B):
+        """ctx |- Iff(A,B) gives ctx |- B->A"""
+        return mp(iff_mp_rev(A, B, []), iff_proof, Iff(A, B), Implies(B, A))
+
+    # --- Build Inductive(t) base: forall e. Empty(e) -> In(e, t) ---
+    # From omega_contains_empty: Ext, Inf, Omega(w) |- forall e. Empty(e) -> In(e, w)
+    oce = omega_contains_empty()
+    got_oce = apply_thm(oce, [w], omega_w, Forall(ev, Implies(empty_ev, In(ev, w))),
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+    # got_oce: [ext, inf, omega_w] |- forall e. Empty(e) -> In(e, w)
+    # Instantiate at ev:
+    got_in_w = apply_thm(got_oce, [ev], empty_ev, In(ev, w),
+        Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev))
+    # got_in_w: [ext, inf, omega_w, empty_ev] |- In(ev, w)
+
+    # got_base: [is_v, empty_ev] |- P(ev)
+    # Build And(In(ev,w), P(ev)):
+    and_in_p_ev = And(In(ev, w), P(ev))
+
+    base_ctx = [ext_ax, inf_ax, omega_w, is_v, empty_ev]
+    got_base_w = wl(got_base, ext_ax, inf_ax, omega_w)  # add axioms
+    got_in_w2 = wl(got_in_w, is_v)  # add is_v
+
+    n_pev = Not(P(ev))
+    br_b1 = got_in_w2  # base_ctx |- In(ev, w)
+    br_b2 = Proof(Sequent(base_ctx + [n_pev], []), 'not_left', [got_base_w], principal=n_pev)
+    il_b = Proof(Sequent(base_ctx + [Implies(In(ev, w), n_pev)], []),
+                 'implies_left', [br_b1, br_b2], principal=Implies(In(ev, w), n_pev))
+    got_and_base = Proof(Sequent(base_ctx, [and_in_p_ev]),
+                         'not_right', [il_b], principal=and_in_p_ev)
+    # got_and_base: [ext, inf, omega_w, is_v, empty_ev] |- [And(In(ev,w), P(ev))]
+
+    # Backward through characterization: And(In(ev,w), P(ev)) -> In(ev, t)
+    char_ev = _char_at(ev)  # [fa_char] |- Iff(In(ev,t), And(In(ev,w), P(ev)))
+    bwd_ev = _iff_bwd(char_ev, In(ev, t), and_in_p_ev)
+    # bwd_ev: [fa_char] |- And(In(ev,w),P(ev)) -> In(ev,t)
+    got_in_t_base = mp(bwd_ev, got_and_base, and_in_p_ev, In(ev, t))
+    # got_in_t_base: [fa_char, ext, inf, omega_w, is_v, Empty(ev)] |- In(ev, t)
+
+    # Discharge empty_ev, forall ev:
+    imp_emp_t = Implies(empty_ev, In(ev, t))
+    base_hyps = [f_ for f_ in got_in_t_base.sequent.left if f_ is not empty_ev]
+    ind_base = Proof(Sequent(base_hyps, [imp_emp_t]),
+                     'implies_right', [got_in_t_base], principal=imp_emp_t)
+    ind_base_fa = Proof(Sequent(base_hyps, [Forall(ev, imp_emp_t)]),
+                        'forall_right', [ind_base], principal=Forall(ev, imp_emp_t), term=ev)
+    # ind_base_fa: [fa_char, ext, inf, omega_w, is_v] |- forall e. Empty(e) -> In(e, t)
+
+    # --- Build Inductive(t) step: forall x. In(x,t) -> forall s. Succ(s,x) -> In(s,t) ---
+    xv2, sv2 = Var(), Var()
+    in_x_t = In(xv2, t)
+    in_x_w = In(xv2, w)
+    p_x = P(xv2)
+    and_in_p_x = And(in_x_w, p_x)
+    succ_s_x = Successor(sv2, xv2)
+    in_s_t = In(sv2, t)
+    in_s_w = In(sv2, w)
+    p_s = P(sv2)
+    and_in_p_s = And(in_s_w, p_s)
+
+    # From In(x,t): extract In(x,w) and P(x) via forward direction
+    char_x = _char_at(xv2)  # [fa_char] |- Iff(In(x,t), And(In(x,w), P(x)))
+    fwd_x = _iff_fwd(char_x, in_x_t, and_in_p_x)
+    # fwd_x: [fa_char] |- In(x,t) -> And(In(x,w), P(x))
+    got_and_x = mp(fwd_x,
+        Proof(Sequent([in_x_t], [in_x_t]), 'axiom', principal=in_x_t),
+        in_x_t, and_in_p_x)
+    # got_and_x: [fa_char, In(x,t)] |- And(In(x,w), P(x))
+
+    # Extract In(x,w) and P(x):
+    got_in_x_w = apply_thm(and_elim_left(in_x_w, p_x, []), [], and_in_p_x, in_x_w,
+        Proof(Sequent([and_in_p_x], [and_in_p_x]), 'axiom', principal=and_in_p_x))
+    got_p_x = apply_thm(and_elim_right(in_x_w, p_x, []), [], and_in_p_x, p_x,
+        Proof(Sequent([and_in_p_x], [and_in_p_x]), 'axiom', principal=and_in_p_x))
+
+    # Chain through got_and_x:
+    got_in_x_w2 = Proof(Sequent(got_and_x.sequent.left, [in_x_w]), 'cut',
+        [wr(got_and_x, in_x_w), wl(got_in_x_w, *got_and_x.sequent.left)], principal=and_in_p_x)
+    got_p_x2 = Proof(Sequent(got_and_x.sequent.left, [p_x]), 'cut',
+        [wr(got_and_x, p_x), wl(got_p_x, *got_and_x.sequent.left)], principal=and_in_p_x)
+    # got_in_x_w2: [fa_char, In(x,t)] |- In(x,w)
+    # got_p_x2: [fa_char, In(x,t)] |- P(x)
+
+    # From omega_succ_closed: In(x,w) -> Succ(s,x) -> In(s,w)
+    osc = omega_succ_closed()
+    got_osc = apply_thm(osc, [w], omega_w, Forall(xv2, Implies(In(xv2, w),
+        Forall(sv2, Implies(succ_s_x, in_s_w)))),
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+    got_osc2 = apply_thm(got_osc, [xv2], in_x_w, Forall(sv2, Implies(succ_s_x, in_s_w)),
+        got_in_x_w2)
+    got_osc3 = apply_thm(got_osc2, [sv2], succ_s_x, in_s_w,
+        Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x))
+    # got_osc3: [ext, inf, omega_w, fa_char, In(x,t), succ_s_x] |- In(s,w)
+
+    # From step case: P(x) -> Succ(s,x) -> P(s)
+    # got_step_closed: [f_total, is_v] |- P(nv) -> forall sn. Succ(sn,nv) -> P(sn)
+    # Instantiate nv->xv2 in the step: we need a fresh instance.
+    # Actually got_step_closed has nv, snv as its vars. Let me use apply_thm.
+    # The theorem body after peeling foralls would give us what we need.
+    # But got_step_closed is not a forall -- it's an implication with specific vars.
+    # The vars nv and snv are free in got_step_closed's right side.
+    # I need to substitute xv2 for nv and sv2 for snv... but we can't substitute in proofs.
+
+    # The issue: got_step_closed uses nv and snv as free vars, but I need xv2 and sv2.
+    # Solution: close got_step_closed with forall over nv, snv, then instantiate.
+
+    # Actually, I should rebuild the step case with xv2 and sv2 directly.
+    # Or better: close the step case with foralls in init_seg_total and use apply_thm.
+
+    # Let me close got_step_closed with forall nv forall snv:
+    fa_snv = Forall(snv, Implies(Successor(snv, nv), p_snv))
+    got_step_fa_nv = Proof(Sequent(got_step_closed.sequent.left,
+                                    [Forall(nv, Implies(p_nv_actual, fa_snv))]),
+                           'forall_right', [got_step_closed],
+                           principal=Forall(nv, Implies(p_nv_actual, fa_snv)), term=nv)
+    # Hmm wait, got_step_closed has p_nv_actual as a formula that might use specific vars.
+    # Let me check: p_nv_actual = got_ex_sn4.sequent.left[-1] = Exists(val, Apply(v, nv, val))
+    # This has nv free. After forall_right over nv, nv becomes bound. (ok)
+
+    # But snv is also free in fa_sn = Forall(snv, imp_succ). Wait, snv is already bound in fa_sn.
+    # got_step_closed right = [P(nv) -> forall snv. Succ(snv,nv) -> P(snv)]
+    # This has nv free. After forall_right over nv, we get:
+    # forall nv. P(nv) -> forall snv. Succ(snv,nv) -> P(snv)
+
+    # This is a universal statement. I can then apply_thm to instantiate with xv2.
+    step_thm = got_step_fa_nv
+    # step_thm: [f_total, is_v] |- forall nv. P(nv) -> forall snv. Succ(snv,nv) -> P(snv)
+
+    # Instantiate nv->xv2, then MP with P(xv2), then instantiate snv->sv2, then MP with Succ
+    p_xv2 = P(xv2)
+    fa_sv2 = Forall(sv2, Implies(Successor(sv2, xv2), P(sv2)))
+    got_step2 = apply_thm(step_thm, [xv2], p_xv2, fa_sv2, got_p_x2)
+    # Wait, p_xv2 = P(xv2) = Exists(yv, Apply(v, xv2, yv))
+    # got_p_x2: [fa_char, In(x,t)] |- P(xv2)
+    # But p_nv_actual (the P used in step_thm) was Exists(val, Apply(v, nv, val)) not Exists(yv, ...)
+    # After forall over nv and instantiation with xv2:
+    # P(xv2) in the theorem = Exists(val, Apply(v, xv2, val))
+    # P(xv2) from P() = Exists(yv, Apply(v, xv2, yv))
+    # These are alpha-equivalent (val vs yv bound vars). (ok)
+
+    got_step3 = apply_thm(got_step2, [sv2], succ_s_x, p_s,
+        Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x))
+    # got_step3: [f_total, is_v, fa_char, In(x,t), succ_s_x] |- P(sv2)
+
+    # Build And(In(s,w), P(s)):
+    n_ps = Not(p_s)
+    step_ctx = list(set(got_osc3.sequent.left) | set(got_step3.sequent.left))
+    # Hmm, set doesn't work with formula objects (no __hash__). Let me merge manually.
+    step_ctx_all = list(got_osc3.sequent.left)
+    for f_ in got_step3.sequent.left:
+        if not any(f_ is g for g in step_ctx_all):
+            step_ctx_all.append(f_)
+
+    got_osc3_w = got_osc3
+    for f_ in got_step3.sequent.left:
+        if not any(f_ is g for g in got_osc3.sequent.left):
+            got_osc3_w = wl(got_osc3_w, f_)
+    got_step3_w = got_step3
+    for f_ in got_osc3.sequent.left:
+        if not any(f_ is g for g in got_step3.sequent.left):
+            got_step3_w = wl(got_step3_w, f_)
+
+    br_s1 = got_osc3_w  # step_ctx_all |- In(s,w)
+    br_s2 = Proof(Sequent(step_ctx_all + [n_ps], []), 'not_left', [got_step3_w], principal=n_ps)
+    il_s = Proof(Sequent(step_ctx_all + [Implies(in_s_w, n_ps)], []),
+                 'implies_left', [br_s1, br_s2], principal=Implies(in_s_w, n_ps))
+    got_and_step = Proof(Sequent(step_ctx_all, [and_in_p_s]),
+                         'not_right', [il_s], principal=and_in_p_s)
+    # got_and_step: [ext, inf, omega_w, f_total, is_v, fa_char, In(x,t), succ_s_x] |- And(In(s,w), P(s))
+
+    # Backward: And(In(s,w), P(s)) -> In(s,t)
+    char_s = _char_at(sv2)
+    bwd_s = _iff_bwd(char_s, in_s_t, and_in_p_s)
+    got_in_s_t = mp(bwd_s, got_and_step, and_in_p_s, in_s_t)
+    # got_in_s_t: [fa_char, ext, inf, omega_w, f_total, is_v, In(x,t), succ_s_x] |- In(s,t)
+
+    # Discharge succ_s_x, forall sv2:
+    imp_succ_s = Implies(succ_s_x, in_s_t)
+    step_left = [f_ for f_ in got_in_s_t.sequent.left if f_ is not succ_s_x]
+    ind_step1 = Proof(Sequent(step_left, [imp_succ_s]),
+                      'implies_right', [got_in_s_t], principal=imp_succ_s)
+    fa_sv = Forall(sv2, imp_succ_s)
+    ind_step2 = Proof(Sequent(step_left, [fa_sv]),
+                      'forall_right', [ind_step1], principal=fa_sv, term=sv2)
+
+    # Discharge In(x,t), forall xv2:
+    imp_in_t = Implies(in_x_t, fa_sv)
+    step_left2 = [f_ for f_ in ind_step2.sequent.left if f_ is not in_x_t]
+    ind_step3 = Proof(Sequent(step_left2, [imp_in_t]),
+                      'implies_right', [ind_step2], principal=imp_in_t)
+    fa_xv = Forall(xv2, imp_in_t)
+    ind_step4 = Proof(Sequent(step_left2, [fa_xv]),
+                      'forall_right', [ind_step3], principal=fa_xv, term=xv2)
+    # ind_step4: [fa_char, ext, inf, omega_w, f_total, is_v] |- forall x. In(x,t) -> forall s. Succ(s,x) -> In(s,t)
+
+    # --- Build Inductive(t) = And(base_part, step_part) ---
+    ind_t = Inductive(t)
+    base_part = Forall(ev, imp_emp_t)
+    step_part = fa_xv
+
+    n_step = Not(step_part)
+    ind_ctx = list(ind_step4.sequent.left)  # should be same as ind_base_fa.sequent.left
+    br_ind1 = ind_base_fa
+    for f_ in ind_ctx:
+        if not any(f_ is g for g in br_ind1.sequent.left):
+            br_ind1 = wl(br_ind1, f_)
+    br_ind2 = Proof(Sequent(ind_ctx + [n_step], []), 'not_left', [ind_step4], principal=n_step)
+    for f_ in br_ind1.sequent.left:
+        if not any(f_ is g for g in ind_ctx):
+            br_ind2 = wl(br_ind2, f_)
+            ind_ctx.append(f_)
+    il_ind = Proof(Sequent(ind_ctx + [Implies(base_part, n_step)], []),
+                   'implies_left', [br_ind1, br_ind2], principal=Implies(base_part, n_step))
+    got_ind_t = Proof(Sequent(ind_ctx, [ind_t]),
+                      'not_right', [il_ind], principal=ind_t)
+    # got_ind_t: [fa_char, ext, inf, omega_w, f_total, is_v] |- Inductive(t)
+
+    # --- Build Subset(t, w) ---
+    # forall z. In(z,t) -> In(z,w) from forward direction + and_elim_left
+    zv2 = Var()
+    char_z = _char_at(zv2)
+    fwd_z = _iff_fwd(char_z, In(zv2, t), And(In(zv2, w), P(zv2)))
+    # fwd_z: [fa_char] |- In(z,t) -> And(In(z,w), P(z))
+    got_and_z = mp(fwd_z,
+        Proof(Sequent([In(zv2, t)], [In(zv2, t)]), 'axiom', principal=In(zv2, t)),
+        In(zv2, t), And(In(zv2, w), P(zv2)))
+    got_in_z_w = apply_thm(and_elim_left(In(zv2, w), P(zv2), []), [],
+        And(In(zv2, w), P(zv2)), In(zv2, w),
+        Proof(Sequent([And(In(zv2, w), P(zv2))], [And(In(zv2, w), P(zv2))]),
+              'axiom', principal=And(In(zv2, w), P(zv2))))
+    got_sub_core = Proof(Sequent(got_and_z.sequent.left, [In(zv2, w)]), 'cut',
+        [wr(got_and_z, In(zv2, w)), wl(got_in_z_w, *got_and_z.sequent.left)],
+        principal=And(In(zv2, w), P(zv2)))
+    # got_sub_core: [fa_char, In(z,t)] |- In(z,w)
+    imp_sub = Implies(In(zv2, t), In(zv2, w))
+    sub_proof = Proof(Sequent([fa_char], [imp_sub]),
+                      'implies_right', [got_sub_core], principal=imp_sub)
+    sub_fa = Forall(zv2, imp_sub)
+    got_sub_t = Proof(Sequent([fa_char], [sub_fa]),
+                      'forall_right', [sub_proof], principal=sub_fa, term=zv2)
+    # got_sub_t: [fa_char] |- Subset(t, w) (= forall z. In(z,t) -> In(z,w))
+
+    # --- Apply omega_smallest_inductive ---
+    # forall p forall w. Omega(w) -> (Subset(p,w)  and  Inductive(p)) -> Eq(p,w)
+    osi = omega_smallest_inductive()
+    sub_t_w = Subset(t, w)
+    and_sub_ind = And(sub_t_w, ind_t)
+
+    # Build And(Subset(t,w), Inductive(t)):
+    n_ind_t = Not(ind_t)
+    got_sub_t_w = wl(got_sub_t, *[f_ for f_ in got_ind_t.sequent.left
+                                    if not any(f_ is g for g in got_sub_t.sequent.left)])
+    got_ind_t_w = got_ind_t
+    for f_ in got_sub_t.sequent.left:
+        if not any(f_ is g for g in got_ind_t.sequent.left):
+            got_ind_t_w = wl(got_ind_t_w, f_)
+    osi_ctx = list(got_ind_t_w.sequent.left)
+    br_osi1 = got_sub_t_w  # osi_ctx |- Subset(t,w)
+    br_osi2 = Proof(Sequent(osi_ctx + [n_ind_t], []), 'not_left', [got_ind_t_w], principal=n_ind_t)
+    il_osi = Proof(Sequent(osi_ctx + [Implies(sub_t_w, n_ind_t)], []),
+                   'implies_left', [br_osi1, br_osi2], principal=Implies(sub_t_w, n_ind_t))
+    got_and_si = Proof(Sequent(osi_ctx, [and_sub_ind]),
+                       'not_right', [il_osi], principal=and_sub_ind)
+    # got_and_si: [fa_char, ext, inf, omega_w, f_total, is_v] |- And(Subset(t,w), Inductive(t))
+
+    # omega_smallest_inductive: Omega(w) -> And(sub,ind) -> Eq(t,w)
+    eq_tw = Eq(t, w)
+    got_eq = apply_thm(osi, [t, w], omega_w, Implies(and_sub_ind, eq_tw),
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+    got_eq2 = mp(got_eq, got_and_si, and_sub_ind, eq_tw)
+    # got_eq2: [fa_char, ext, inf, omega_w, f_total, is_v] |- Eq(t, w)
+
+    # --- From Eq(t,w): In(n,w) -> In(n,t) -> P(n) ---
+    # eq_in_eq gives: Eq(t,w) -> forall z. Iff(In(z,t), In(z,w))
+    # So In(n,w) -> In(n,t) (backward via iff)
+    # Then from characterization forward: In(n,t) -> And(In(n,w), P(n)) -> P(n)
+
+    # Eq(t,w) = forall z. Iff(In(z,t), In(z,w)) by definition. Just peel the forall.
+    iff_n = Iff(In(n, t), In(n, w))
+    fl_eq = _fl(eq_tw, iff_n, n)
+    got_iff_n = Proof(Sequent(got_eq2.sequent.left, [iff_n]), 'cut',
+        [wr(got_eq2, iff_n), wl(fl_eq, *got_eq2.sequent.left)], principal=eq_tw)
+    # got_iff_n: [fa_char, ext, inf, omega_w, f_total, is_v] |- Iff(In(n,t), In(n,w))
+
+    # iff_mp_rev: Iff(In(n,t), In(n,w)) -> In(n,w) -> In(n,t)
+    got_w_to_t = _iff_bwd(got_iff_n, In(n, t), In(n, w))
+    # got_w_to_t: [fa_char, ext, inf, omega_w, f_total, is_v] |- In(n,w) -> In(n,t)
+    got_in_t = mp(got_w_to_t,
+        Proof(Sequent([In(n, w)], [In(n, w)]), 'axiom', principal=In(n, w)),
+        In(n, w), In(n, t))
+    # got_in_t: [fa_char, ext, inf, omega_w, f_total, is_v, In(n,w)] |- In(n,t)
+
+    # Forward through characterization: In(n,t) -> And(In(n,w), P(n))
+    char_n = _char_at(n)
+    fwd_n = _iff_fwd(char_n, In(n, t), And(In(n, w), P(n)))
+    got_and_n = mp(fwd_n, got_in_t, In(n, t), And(In(n, w), P(n)))
+    # got_and_n: [...] |- And(In(n,w), P(n))
+
+    # Extract P(n):
+    got_pn = apply_thm(and_elim_right(In(n, w), P(n), []), [],
+        And(In(n, w), P(n)), P(n),
+        Proof(Sequent([And(In(n, w), P(n))], [And(In(n, w), P(n))]),
+              'axiom', principal=And(In(n, w), P(n))))
+    got_pn2 = Proof(Sequent(got_and_n.sequent.left, [P(n)]), 'cut',
+        [wr(got_and_n, P(n)), wl(got_pn, *got_and_n.sequent.left)],
+        principal=And(In(n, w), P(n)))
+    # got_pn2: [fa_char, ext, inf, omega_w, f_total, is_v, In(n,w)] |- P(n)
+
+    # --- Existential elimination on t (from Separation) ---
+    got_pn3 = _eel(got_pn2, fa_char, t)
+    # got_pn3: [..., exists t.fa_char] |- P(n)
+    ex_t_actual = got_pn3.sequent.left[-1]
+
+    # Cut with fl_w: [sep] |- exists t.fa_char
+    # Build cut from actual contexts (avoids duplicate axiom issues)
+    pn3_ctx = [f_ for f_ in got_pn3.sequent.left if f_ is not ex_t_actual]
+    shared = pn3_ctx + [sep]
+
+    br1 = fl_w  # [sep] |- [exists t.fa_char]
+    for f_ in pn3_ctx:
+        br1 = wl(br1, f_)
+    br1 = wr(br1, P(n))
+    br2 = wl(got_pn3, sep)
+    got_pn4 = Proof(Sequent(shared, [P(n)]), 'cut', [br1, br2], principal=ex_t_actual)
+
+    # --- Close: discharge hypotheses, forall ---
+    # Find actual formula objects from the sequent for discharge
+    proof = got_pn4
+    # Discharge: In(n,w), omega_w, is_v, f_total -- find them by identity in the left
+    for h in [omega_w, is_v, f_total]:
+        # h should be in proof.sequent.left by identity since we created them
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+
+    # In(n,w) might not match by identity -- find it in the remaining left
+    in_n_w_actual = None
+    for f_ in proof.sequent.left:
+        if isinstance(f_, In) and f_.left is n:
+            in_n_w_actual = f_
+            break
+    if in_n_w_actual is None:
+        # fallback: last non-axiom formula
+        in_n_w_actual = [f_ for f_ in proof.sequent.left
+                         if not isinstance(f_, (zfc.ZFCAxiom,))
+                         and f_ is not sep][-1]
+    imp_h = Implies(in_n_w_actual, proof.sequent.right[0])
+    remaining = [f_ for f_ in proof.sequent.left if f_ is not in_n_w_actual]
+    proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+
+    for var in [n, w, v, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'init_seg_total'
+    return proof
 
 
 def initial_segments_agree():
@@ -4330,17 +5838,17 @@ def initial_segments_agree():
 
     # From InitSeg(v1): base gives Apply(v1, e_var, a_init) for any Empty(e_var)
     # But we need it for the SPECIFIC n (which is empty in the base case).
-    # P(n) with Empty(n): need Apply(v1,n,y1) ∧ Apply(v1,n,a_init) → Eq(y1, a_init).
+    # P(n) with Empty(n): need Apply(v1,n,y1)  and  Apply(v1,n,a_init) -> Eq(y1, a_init).
 
     # Build: InitSeg(v1), Empty(n), Apply(v1,n,y1) |- Eq(y1, ai)
     # Step 1: from InitSeg, get base clause: forall e. Empty(e) -> Apply(v1, e, ai)
     # Step 2: instantiate with n: Empty(n) -> Apply(v1, n, ai)
     # Step 3: MP with Empty(n): Apply(v1, n, ai)
-    # Step 4: Function(v1) from InitSeg: Apply(v1,n,y1) ∧ Apply(v1,n,ai) → Eq(y1, ai)
+    # Step 4: Function(v1) from InitSeg: Apply(v1,n,y1)  and  Apply(v1,n,ai) -> Eq(y1, ai)
     # Step 5: from Function(v1): y1 = ai
 
-    # For step 4, Function says: ∀x,y1,y2. Apply(v1,x,y1) ∧ Apply(v1,x,y2) → Eq(y1,y2)
-    # Instantiate x=n, y1=y1, y2=ai: Apply(v1,n,y1) ∧ Apply(v1,n,ai) → Eq(y1,ai)
+    # For step 4, Function says: forall x,y1,y2. Apply(v1,x,y1)  and  Apply(v1,x,y2) -> Eq(y1,y2)
+    # Instantiate x=n, y1=y1, y2=ai: Apply(v1,n,y1)  and  Apply(v1,n,ai) -> Eq(y1,ai)
 
     # This requires unpacking Function's foralls. Let me use a helper.
     def _func_unique(func_pf, func_f, x_term, y1_term, y2_term, app1_pf, app2_pf):
@@ -4442,7 +5950,7 @@ def initial_segments_agree():
                      Proof(Sequent([Empty(n_var)], [Empty(n_var)]), 'axiom', principal=Empty(n_var)),
                      Empty(n_var), Apply(v1, n_var, ai))
 
-    # Function uniqueness: Apply(v1,n_var,y1) ∧ Apply(v1,n_var,ai) → Eq(y1,ai)
+    # Function uniqueness: Apply(v1,n_var,y1)  and  Apply(v1,n_var,ai) -> Eq(y1,ai)
     app_v1_n_y1 = Apply(v1, n_var, y1)
     ax_app1 = Proof(Sequent([app_v1_n_y1], [app_v1_n_y1]), 'axiom', principal=app_v1_n_y1)
     got_y1_eq_ai = _func_unique(got_func1, v1, n_var, y1, ai, ax_app1, got_app1_ai)
@@ -4476,8 +5984,8 @@ def initial_segments_agree():
     got_y2_eq_ai = _func_unique(got_func2, v2, n_var, y2, ai, ax_app2, got_app2_ai)
     # got_y2_eq_ai: [is2_f, app_v2_n_y2, Empty(n_var)] |- [Eq(y2, ai)]
 
-    # Chain: Eq(y1, ai) and Eq(y2, ai) → Eq(y1, y2)
-    # eq_symmetric on Eq(y2, ai) → Eq(ai, y2). Then eq_transitive Eq(y1,ai),Eq(ai,y2) → Eq(y1,y2).
+    # Chain: Eq(y1, ai) and Eq(y2, ai) -> Eq(y1, y2)
+    # eq_symmetric on Eq(y2, ai) -> Eq(ai, y2). Then eq_transitive Eq(y1,ai),Eq(ai,y2) -> Eq(y1,y2).
     es_thm = eq_symmetric()
     et_thm = eq_transitive()
     eq_ai_y2 = Eq(ai, y2)
@@ -4488,7 +5996,7 @@ def initial_segments_agree():
     # base_result: [is1_f, app_v1_n_y1, Empty(n_var), is2_f, app_v2_n_y2] |- [Eq(y1, y2)]
 
     # Discharge to build P(n_var) when Empty(n_var):
-    # P(n_var) = ∀v1 ∀v2 ∀y1 ∀y2. is1 → is2 → app1 → app2 → Eq(y1,y2)
+    # P(n_var) = forall v1 forall v2 forall y1 forall y2. is1 -> is2 -> app1 -> app2 -> Eq(y1,y2)
     proof_base = base_result
     for h in [app_v2_n_y2, is2_f, app_v1_n_y1, is1_f]:
         imp_h = Implies(h, proof_base.sequent.right[0])
@@ -4501,7 +6009,7 @@ def initial_segments_agree():
     # proof_base: [Empty(n_var)] |- [P(n_var)]
     # This is the base case! P holds at any empty n_var.
 
-    # === Step case: P(n_var) ∧ Successor(sn_var, n_var) → P(sn_var) ===
+    # === Step case: P(n_var)  and  Successor(sn_var, n_var) -> P(sn_var) ===
     # From P(n_var): for any v1,v2,y1,y2 with InitSeg and Apply at n_var: Eq(y1,y2)
     # From InitSeg step clause + Apply(v1,n_var,val1) + Succ(sn_var,n_var) + Apply(fi,val1,fv1):
     #   Apply(v1, sn_var, fv1)
@@ -4510,7 +6018,7 @@ def initial_segments_agree():
     # From Function(fi): fi(val1) = fi(val2), i.e., fv1 = fv2
     # From Function(v1): y1 = fv1 (from Apply(v1,sn_var,y1) and Apply(v1,sn_var,fv1))
     # From Function(v2): y2 = fv2
-    # So y1 = fv1 = fv2 = y2. ✓
+    # So y1 = fv1 = fv2 = y2. (ok)
 
     sn_var = Var()
     val1, val2, fv1, fv2 = Var(), Var(), Var(), Var()
@@ -4534,16 +6042,16 @@ def initial_segments_agree():
     app_v2_sn_fv2 = Apply(v2, sn_var, fv2)
 
     # Step 1: From InitSeg(v1) step clause + Apply(v1,n_var,val1) + Succ(sn,n) + Apply(fi,val1,fv1):
-    #   → Apply(v1, sn_var, fv1)
-    # InitSeg step: ∀n,val. Apply(v1,n,val) → ∀sn. Succ(sn,n) → ∀fv. Apply(fi,val,fv) → Apply(v1,sn,fv)
+    #   -> Apply(v1, sn_var, fv1)
+    # InitSeg step: forall n,val. Apply(v1,n,val) -> forall sn. Succ(sn,n) -> forall fv. Apply(fi,val,fv) -> Apply(v1,sn,fv)
     got_step1 = apply_thm(and_elim_right(func_v1, rest_v1, []), [], is1_f, rest_v1,
                            Proof(Sequent([is1_f], [is1_f]), 'axiom', principal=is1_f))
     got_step1b = apply_thm(and_elim_right(base_v1, step_v1, []), [], rest_v1, step_v1,
                             Proof(Sequent([rest_v1], [rest_v1]), 'axiom', principal=rest_v1))
     got_step1_full = Proof(Sequent([is1_f], [step_v1]), 'cut',
         [wr(got_step1, step_v1), wl(got_step1b, is1_f)], principal=rest_v1)
-    # Peel: step_v1 = ∀n ∀val. Apply(v1,n,val) → ∀sn. Succ(sn,n) → ∀fv. Apply(fi,val,fv) → Apply(v1,sn,fv)
-    # Instantiate n→n_var, val→val1, sn→sn_var, fv→fv1. Apply all implies_left.
+    # Peel: step_v1 = forall n forall val. Apply(v1,n,val) -> forall sn. Succ(sn,n) -> forall fv. Apply(fi,val,fv) -> Apply(v1,sn,fv)
+    # Instantiate n->n_var, val->val1, sn->sn_var, fv->fv1. Apply all implies_left.
     # The result after all peeling: is1_f, Apply(v1,n_var,val1), Succ(sn_var,n_var), Apply(fi,val1,fv1) |- Apply(v1,sn_var,fv1)
 
     # This is 4 forall_left + 3 implies_left. Let me use apply_thm chain.
@@ -4593,7 +6101,7 @@ def initial_segments_agree():
         [wr(wl(got_step1_full, app_v1_n_val1, succ_sn, app_f_val1_fv1), app_v1_sn_fv1),
          wl(fl_n, is1_f)], principal=fa_n_val1)
 
-    # Step 2: y1 = fv1 (Function(v1) uniqueness: Apply(v1,sn,y1) ∧ Apply(v1,sn,fv1))
+    # Step 2: y1 = fv1 (Function(v1) uniqueness: Apply(v1,sn,y1)  and  Apply(v1,sn,fv1))
     got_y1_eq_fv1 = _func_unique(got_func1, v1, sn_var, y1, fv1,
                                   Proof(Sequent([app_v1_sn_y1], [app_v1_sn_y1]), 'axiom', principal=app_v1_sn_y1),
                                   got_app_v1_sn)
@@ -4653,11 +6161,11 @@ def initial_segments_agree():
                                   got_app_v2_sn)
 
     # Step 4: IH gives val1 = val2. Then Function(fi) gives fv1 = fv2.
-    # P(n_var) instantiated with v1,v2,val1,val2: InitSeg → InitSeg → Apply(v1,n,val1) → Apply(v2,n,val2) → Eq(val1,val2)
+    # P(n_var) instantiated with v1,v2,val1,val2: InitSeg -> InitSeg -> Apply(v1,n,val1) -> Apply(v2,n,val2) -> Eq(val1,val2)
     p_n_inst = Implies(is1_f, Implies(is2_f, Implies(app_v1_n_val1, Implies(app_v2_n_val2, Eq(val1, val2)))))
     # Peel P(n_var)'s foralls with v1,v2,val1,val2:
-    p_body = P(n_var)  # ∀v1 ∀v2 ∀y1 ∀y2. ...
-    # After peeling ∀v1→v1, ∀v2→v2, ∀y1→val1, ∀y2→val2: p_n_inst
+    p_body = P(n_var)  # forall v1 forall v2 forall y1 forall y2. ...
+    # After peeling forall v1->v1, forall v2->v2, forall y1->val1, forall y2->val2: p_n_inst
     ax_pn = Proof(Sequent([p_n_inst], [p_n_inst]), 'axiom', principal=p_n_inst)
     # Peel from p_body:
     p1 = _fl(p_body, Forall(v2, Forall(y1, Forall(y2,
@@ -4669,10 +6177,10 @@ def initial_segments_agree():
                 Forall(y1, Forall(y2, Implies(is1_f, Implies(is2_f, Implies(Apply(v1, n_var, y1), Implies(Apply(v2, n_var, y2), Eq(y1, y2))))))), v2),
              p_body)],
         principal=Forall(v2, Forall(y1, Forall(y2, Implies(is1_f, Implies(is2_f, Implies(Apply(v1, n_var, y1), Implies(Apply(v2, n_var, y2), Eq(y1, y2)))))))))
-    # This is getting very nested. Let me use a simpler approach — just peel all 4 foralls manually.
+    # This is getting very nested. Let me use a simpler approach -- just peel all 4 foralls manually.
 
     # Actually, easier: use apply_thm on P(n_var) treated as a "theorem"
-    # P(n_var) = ∀v1 ∀v2 ∀y1 ∀y2. is1 → is2 → app1 → app2 → Eq(y1,y2)
+    # P(n_var) = forall v1 forall v2 forall y1 forall y2. is1 -> is2 -> app1 -> app2 -> Eq(y1,y2)
     # Treat as: thm with right = P(n_var), left = [p_n].
     # apply_thm expects thm to have the foralls on right. But p_n is a hypothesis on left.
     # Use implies_left approach: put P on left, peel foralls, apply.
@@ -4684,8 +6192,8 @@ def initial_segments_agree():
     eq_val = Eq(val1, val2)
     # Peel all 4 foralls and apply all 4 implies:
     inner_imp = Implies(is1_f, Implies(is2_f, Implies(app_v1_n_val1, Implies(app_v2_n_val2, eq_val))))
-    # From P(n_var), peel ∀v1→v1: ...∀v2∀y1∀y2. is1→is2→...
-    # Then ∀v2→v2, ∀y1→val1, ∀y2→val2: inner_imp
+    # From P(n_var), peel forall v1->v1: ...forall v2forall y1forall y2. is1->is2->...
+    # Then forall v2->v2, forall y1->val1, forall y2->val2: inner_imp
 
     # Build axiom + 4 forall_left + 4 implies_left
     ax_eq_val = Proof(Sequent([eq_val], [eq_val]), 'axiom', principal=eq_val)
@@ -4715,7 +6223,7 @@ def initial_segments_agree():
     # 4 forall_left to peel P(n_var):
     fa4 = Forall(y2, inner_imp)
     fa3 = Forall(val1, fa4)  # using val1 for y1's position
-    # Wait, P(n_var) uses y1, y2 as bound vars. I'm instantiating y1→val1, y2→val2.
+    # Wait, P(n_var) uses y1, y2 as bound vars. I'm instantiating y1->val1, y2->val2.
     fa34 = Forall(y1, Forall(y2, inner_imp))
     fa234 = Forall(v2, fa34)
     fa1234 = Forall(v1, fa234)  # = P(n_var)
@@ -4738,22 +6246,22 @@ def initial_segments_agree():
                               Proof(Sequent([app_f_val2_fv2], [app_f_val2_fv2]), 'axiom', principal=app_f_val2_fv2))
     # Hmm, this gives func_fi, Apply(fi,val1,fv1), Apply(fi,val2,fv2) |- Eq(fv1, fv2)
     # But Apply(fi,val1,fv1) and Apply(fi,val2,fv2) use different first args (val1 vs val2).
-    # Function says: same input → same output. But val1 and val2 are different vars.
+    # Function says: same input -> same output. But val1 and val2 are different vars.
     # I need val1 = val2 FIRST, then use eq_substitution or eq_transfer to get
     # Apply(fi, val1, fv2) from Apply(fi, val2, fv2), then Function uniqueness.
 
     # Actually, the approach should be:
     # From Eq(val1, val2) and Apply(fi, val2, fv2):
-    #   eq_transfer: Eq(val1,val2) → Iff(In(val1,z), In(val2,z)) for any z
+    #   eq_transfer: Eq(val1,val2) -> Iff(In(val1,z), In(val2,z)) for any z
     #   But Apply is about ordered pairs, not just In.
     # Hmm, this requires more machinery.
 
     # Simpler: from Eq(val1, val2), we know val1 and val2 have the same members.
-    # Apply(fi, val2, fv2) = ∃p. OrdPair(p, val2, fv2) ∧ In(p, fi).
-    # From Eq(val1, val2): OrdPair(p, val1, fv2) ↔ OrdPair(p, val2, fv2)
+    # Apply(fi, val2, fv2) = exists p. OrdPair(p, val2, fv2)  and  In(p, fi).
+    # From Eq(val1, val2): OrdPair(p, val1, fv2) <-> OrdPair(p, val2, fv2)
     #   (because OrdPair depends on set membership, and Eq means same members).
     # So Apply(fi, val1, fv2) follows from Apply(fi, val2, fv2) + Eq(val1, val2).
-    # Then Function(fi): Apply(fi, val1, fv1) ∧ Apply(fi, val1, fv2) → Eq(fv1, fv2). ✓
+    # Then Function(fi): Apply(fi, val1, fv1)  and  Apply(fi, val1, fv2) -> Eq(fv1, fv2). (ok)
 
     # But proving Apply(fi,val1,fv2) from Apply(fi,val2,fv2) + Eq(val1,val2) requires
     # eq_transfer inside the OrdPair. This is deep work.
@@ -4764,21 +6272,21 @@ def initial_segments_agree():
 
     # Step 6: Chain: y1 = fv1 = fv2 = y2
     # Eq(y1, fv1), Eq(fv1, fv2), Eq(fv2, y2) [from eq_symmetric on Eq(y2, fv2)]
-    # → Eq(y1, y2) by two eq_transitive applications.
+    # -> Eq(y1, y2) by two eq_transitive applications.
 
     # This is getting very long. Let me leave the step case incomplete for now
     # and note what remains.
 
     # The step case STRUCTURE is clear:
-    # 1. From InitSeg step clause: v1(S(n)) = f(v1(n)) ✓ (built above)
-    # 2. From IH: v1(n) = v2(n) ✓ (fl1_p above)
+    # 1. From InitSeg step clause: v1(S(n)) = f(v1(n)) (ok) (built above)
+    # 2. From IH: v1(n) = v2(n) (ok) (fl1_p above)
     # 3. From Eq(val1,val2) + Function(fi): f(val1) = f(val2) [needs eq_transfer inside Apply]
-    # 4. From Function(v1/v2) uniqueness: y1 = fv1, y2 = fv2 ✓ (built above)
+    # 4. From Function(v1/v2) uniqueness: y1 = fv1, y2 = fv2 (ok) (built above)
     # 5. Chain equalities: y1 = fv1 = fv2 = y2
 
     # The missing piece is step 3: proving f preserves equality.
     # This needs a sub-theorem: "functions preserve equality"
-    # func_preserves_eq: Function(f) ∧ Eq(x1,x2) ∧ Apply(f,x1,y1) ∧ Apply(f,x2,y2) → Eq(y1,y2)
+    # func_preserves_eq: Function(f)  and  Eq(x1,x2)  and  Apply(f,x1,y1)  and  Apply(f,x2,y2) -> Eq(y1,y2)
     # This requires eq_transfer + OrdPair reasoning. A standalone theorem.
 
     pass
