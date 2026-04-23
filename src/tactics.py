@@ -5,13 +5,13 @@ from core.lang import Implies, Forall
 
 
 def apply_thm(thm, terms, hyp, concl, hyp_proof):
-    """Compose a closed theorem with a hypothesis proof.
-    thm: proof of |- Forall(x1, ..., Forall(xn, Implies(hyp', concl')))
+    """Compose a theorem with a hypothesis proof.
+    thm: proof of thm_ctx |- Forall(x1, ..., Forall(xn, Implies(hyp', concl')))
     terms: [t1, ..., tn] instantiation for the foralls
     hyp: the hypothesis after instantiation
     concl: the conclusion after instantiation
-    hyp_proof: proof of ctx |- hyp
-    Returns: proof of ctx |- concl"""
+    hyp_proof: proof of hyp_ctx |- hyp
+    Returns: proof of thm_ctx + hyp_ctx |- concl"""
     imp = Implies(hyp, concl)
     layers = [imp]
     for t in reversed(terms):
@@ -20,22 +20,30 @@ def apply_thm(thm, terms, hyp, concl, hyp_proof):
     for i in range(len(terms)):
         cur = Proof(Sequent([layers[i + 1]], [imp]), 'forall_left',
                     [cur], principal=layers[i + 1], term=terms[len(terms) - 1 - i])
-    inst = Proof(Sequent([], [imp]), 'cut',
-        [Proof(Sequent([], [layers[-1], imp]), 'weakening_right', [thm], principal=imp),
-         cur], principal=layers[-1])
-    ctx = list(hyp_proof.sequent.left)
-    mp1 = Proof(Sequent(ctx, [hyp, concl]), 'weakening_right', [hyp_proof], principal=concl)
-    mp2 = Proof(Sequent([concl], [concl]), 'axiom', principal=concl)
-    for f in ctx:
-        mp2 = Proof(Sequent(mp2.sequent.left + [f], [concl]), 'weakening_left', [mp2], principal=f)
-    mp3 = Proof(Sequent(ctx + [imp], [concl]), 'implies_left', [mp1, mp2], principal=imp)
+    thm_ctx = list(thm.sequent.left)
+    inst = Proof(Sequent(thm_ctx, [imp]), 'cut',
+        [Proof(Sequent(thm_ctx, [layers[-1], imp]), 'weakening_right', [thm], principal=imp),
+         wl(cur, *thm_ctx)], principal=layers[-1])
+    hyp_ctx = list(hyp_proof.sequent.left)
+    all_ctx = thm_ctx + [f for f in hyp_ctx if not any(f is g for g in thm_ctx)]
     inst_w = inst
-    for f in ctx:
-        inst_w = Proof(Sequent(inst_w.sequent.left + [f], inst_w.sequent.right),
-                       'weakening_left', [inst_w], principal=f)
+    for f in hyp_ctx:
+        if not any(f is g for g in thm_ctx):
+            inst_w = Proof(Sequent(inst_w.sequent.left + [f], inst_w.sequent.right),
+                           'weakening_left', [inst_w], principal=f)
     inst_w = Proof(Sequent(inst_w.sequent.left, [imp, concl]),
                    'weakening_right', [inst_w], principal=concl)
-    return Proof(Sequent(ctx, [concl]), 'cut', [inst_w, mp3], principal=imp)
+    hp_w = hyp_proof
+    for f in thm_ctx:
+        if not any(f is g for g in hyp_ctx):
+            hp_w = Proof(Sequent(hp_w.sequent.left + [f], hp_w.sequent.right),
+                         'weakening_left', [hp_w], principal=f)
+    mp1 = Proof(Sequent(all_ctx, [hyp, concl]), 'weakening_right', [hp_w], principal=concl)
+    mp2 = Proof(Sequent([concl], [concl]), 'axiom', principal=concl)
+    for f in all_ctx:
+        mp2 = Proof(Sequent(mp2.sequent.left + [f], [concl]), 'weakening_left', [mp2], principal=f)
+    mp3 = Proof(Sequent(all_ctx + [imp], [concl]), 'implies_left', [mp1, mp2], principal=imp)
+    return Proof(Sequent(all_ctx, [concl]), 'cut', [inst_w, mp3], principal=imp)
 
 
 def wl(proof, *formulas):
