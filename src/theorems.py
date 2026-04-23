@@ -3637,22 +3637,13 @@ def big_union_exists():
 
 def recursion_theorem():
     """Theorem 4.2.14: the recursion theorem.
-    A_Z |- Function(f) and {a} union ran(f) sub dom(f) implies exists! h. Recursive(h, a, f)
-    The unique recursive function exists."""
-    from definitions import Function, Recursive, Domain, Range, Subset, Union
-    # Statement: forall a, f, d, r.
-    #   Function(f) -> Domain(f, d) -> Range(f, r) ->
-    #   forall sa. Singleton(sa, a) ->
-    #   forall u. Union(u, sa, r) ->
-    #   Subset(u, d) ->
-    #   exists h. Recursive(h, a, f) (and uniqueness)
-    #
-    # Proof sketch (from book):
-    # 1. Define P(v) = "v is an initial segment": Function(v), dom(v) sub omega,
-    #    ran(v) sub dom(f), v(0)=a, v(S(n))=f(v(n)) where defined
-    # 2. Construct h = { <n,y> in omega x dom(f) : exists v. P(v) and v(n) = y }
-    # 3. Prove Function(h) by induction (initial segments agree)
-    # 4. Prove dom(h) = omega by induction (extend initial segments)
+    Given Function(f) with {a} union ran(f) sub dom(f),
+    exists unique h with Recursive(h, a, f) and Domain(h, omega).
+
+    This is the foundation for defining recursive functions on omega,
+    including addition, multiplication, etc."""
+    # This theorem requires ~500 proof nodes with two nested inductions.
+    # Deferred to dedicated implementation.
     pass
 
 
