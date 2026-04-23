@@ -2985,6 +2985,460 @@ def kuratowski():
     return proof
 
 
+def union_exists():
+    """Pairing, Union_ax |- forall a, b. exists s. Union(s, a, b)
+    Binary union exists from Pairing + Union axiom."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Union as UnionDef, PairSet, BigUnion
+
+    a, b, s, p, xv, yv, zv = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    pairing_ax = zfc.Pairing()
+    union_ax = zfc.Union()
+
+    # PairSet(p,a,b) and BigUnion(s,p) characterize s = a∪b.
+    ps = PairSet(p, a, b)
+    bu = BigUnion(s, p)
+    union_sab = UnionDef(s, a, b)
+    in_xs = In(xv, s)
+    in_xa = In(xv, a)
+    in_xb = In(xv, b)
+    or_ab = Or(in_xa, in_xb)
+    ex_y = Exists(yv, And(In(yv, p), In(xv, yv)))
+
+    # From BigUnion, instantiate with xv: Iff(In(xv,s), ex_y)
+    bu_body = Iff(in_xs, ex_y)
+    def _inst_fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    bu_inst = _inst_fl(bu, bu_body, xv)  # bu |- bu_body
+
+    # Extract forward: In(xv,s) → ex_y from bu_body
+    bu_fwd = Implies(in_xs, ex_y)
+    bu_bwd = Implies(ex_y, in_xs)
+    H_bu = Implies(bu_fwd, Not(bu_bwd))
+    e1 = Proof(Sequent([bu_body, bu_fwd], [bu_fwd]), 'axiom', principal=bu_fwd)
+    e2 = Proof(Sequent([bu_body, bu_fwd], [Not(bu_bwd), bu_fwd]),
+               'weakening_right', [e1], principal=Not(bu_bwd))
+    e3 = Proof(Sequent([bu_body], [H_bu, bu_fwd]), 'implies_right', [e2], principal=H_bu)
+    e4 = Proof(Sequent([H_bu], [H_bu, bu_fwd]), 'weakening_right',
+               [Proof(Sequent([H_bu], [H_bu]), 'axiom', principal=H_bu)], principal=bu_fwd)
+    e5 = Proof(Sequent([H_bu, bu_body], [bu_fwd]), 'not_left', [e4], principal=bu_body)
+    ext_bu_fwd = Proof(Sequent([bu_body], [bu_fwd]), 'cut', [e3, e5], principal=H_bu)
+    # Extract backward: ex_y → In(xv,s)
+    f1 = Proof(Sequent([bu_body, bu_fwd, bu_bwd], [bu_bwd]), 'axiom', principal=bu_bwd)
+    f2 = Proof(Sequent([bu_body, bu_fwd], [Not(bu_bwd), bu_bwd]), 'not_right', [f1], principal=Not(bu_bwd))
+    f3 = Proof(Sequent([bu_body], [H_bu, bu_bwd]), 'implies_right', [f2], principal=H_bu)
+    f4 = Proof(Sequent([H_bu], [H_bu, bu_bwd]), 'weakening_right',
+               [Proof(Sequent([H_bu], [H_bu]), 'axiom', principal=H_bu)], principal=bu_bwd)
+    f5 = Proof(Sequent([H_bu, bu_body], [bu_bwd]), 'not_left', [f4], principal=bu_body)
+    ext_bu_bwd = Proof(Sequent([bu_body], [bu_bwd]), 'cut', [f3, f5], principal=H_bu)
+
+    # From PairSet, instantiate with yv: Iff(In(yv,p), Or(Eq(yv,a), Eq(yv,b)))
+    ps_body_y = Iff(In(yv, p), Or(Eq(yv, a), Eq(yv, b)))
+    ps_inst_y = _inst_fl(ps, ps_body_y, yv)
+    # Extract forward: In(yv,p) → Or(Eq(yv,a), Eq(yv,b))
+    ps_fwd_y = Implies(In(yv, p), Or(Eq(yv, a), Eq(yv, b)))
+    ps_bwd_y = Implies(Or(Eq(yv, a), Eq(yv, b)), In(yv, p))
+    H_ps = Implies(ps_fwd_y, Not(ps_bwd_y))
+    g1 = Proof(Sequent([ps_body_y, ps_fwd_y], [ps_fwd_y]), 'axiom', principal=ps_fwd_y)
+    g2 = Proof(Sequent([ps_body_y, ps_fwd_y], [Not(ps_bwd_y), ps_fwd_y]),
+               'weakening_right', [g1], principal=Not(ps_bwd_y))
+    g3 = Proof(Sequent([ps_body_y], [H_ps, ps_fwd_y]), 'implies_right', [g2], principal=H_ps)
+    g4 = Proof(Sequent([H_ps], [H_ps, ps_fwd_y]), 'weakening_right',
+               [Proof(Sequent([H_ps], [H_ps]), 'axiom', principal=H_ps)], principal=ps_fwd_y)
+    g5 = Proof(Sequent([H_ps, ps_body_y], [ps_fwd_y]), 'not_left', [g4], principal=ps_body_y)
+    ext_ps_fwd_y = Proof(Sequent([ps_body_y], [ps_fwd_y]), 'cut', [g3, g5], principal=H_ps)
+
+    # Chain: bu |- bu_fwd, ps |- ps_fwd_y (via cut on bu_body, ps_body)
+    got_bu_fwd = Proof(Sequent([bu], [bu_fwd]), 'cut',
+        [wr(bu_inst, bu_fwd), wl(ext_bu_fwd, bu)], principal=bu_body)
+    got_bu_bwd = Proof(Sequent([bu], [bu_bwd]), 'cut',
+        [wr(bu_inst, bu_bwd), wl(ext_bu_bwd, bu)], principal=bu_body)
+    got_ps_fwd_y = Proof(Sequent([ps], [ps_fwd_y]), 'cut',
+        [wr(ps_inst_y, ps_fwd_y), wl(ext_ps_fwd_y, ps)], principal=ps_body_y)
+
+    # === Forward: ps, bu, In(xv,s) |- Or(In(xv,a), In(xv,b)) ===
+    # Step 1: In(xv,s) → ex_y (from bu_fwd). MP: bu, In(xv,s) |- ex_y
+    got_ex = mp(got_bu_fwd,
+                Proof(Sequent([in_xs], [in_xs]), 'axiom', principal=in_xs),
+                in_xs, ex_y)
+    # Step 2: From ex_y, existential elim: introduce yv with In(yv,p) ∧ In(xv,yv)
+    # From And, get In(yv,p) and In(xv,yv)
+    # From ps_fwd_y: In(yv,p) → Or(Eq(yv,a), Eq(yv,b)). MP: Or(Eq(yv,a), Eq(yv,b))
+    # Or elim: case Eq(yv,a) → x∈a; case Eq(yv,b) → x∈b
+
+    # This is the hard part. For now, let me build:
+    # In(yv,p), In(xv,yv), ps |- or_ab
+
+    and_yp_xy = And(In(yv, p), In(xv, yv))
+    ax_and = Proof(Sequent([and_yp_xy], [and_yp_xy]), 'axiom', principal=and_yp_xy)
+    got_yp = apply_thm(and_elim_left(In(yv,p), In(xv,yv), []), [], and_yp_xy, In(yv,p), ax_and)
+    got_xy = apply_thm(and_elim_right(In(yv,p), In(xv,yv), []), [], and_yp_xy, In(xv,yv),
+                       Proof(Sequent([and_yp_xy], [and_yp_xy]), 'axiom', principal=and_yp_xy))
+
+    # From ps: In(yv,p) → Or(Eq(yv,a), Eq(yv,b)). MP with got_yp:
+    got_or_eq = mp(got_ps_fwd_y, got_yp, In(yv, p), Or(Eq(yv, a), Eq(yv, b)))
+    # got_or_eq: [ps, and_yp_xy] |- [Or(Eq(yv,a), Eq(yv,b))]
+
+    # Or elim on Or(Eq(yv,a), Eq(yv,b)):
+    # Case Eq(yv,a): from Eq(yv,a) and In(xv,yv), derive In(xv,a)
+    # Eq(yv,a) = Forall(zv, Iff(In(zv,yv), In(zv,a))). Instantiate zv=xv: Iff(In(xv,yv), In(xv,a)).
+    # Forward: In(xv,yv) → In(xv,a). MP with In(xv,yv): In(xv,a).
+    eq_ya = Eq(yv, a)
+    iff_xy_xa = Iff(In(xv, yv), In(xv, a))
+    eq_inst_a = _inst_fl(eq_ya, iff_xy_xa, xv)  # Eq(yv,a) |- Iff(In(xv,yv), In(xv,a))
+    fwd_xy_xa = Implies(In(xv, yv), In(xv, a))
+    ext_fwd_a = Proof(Sequent([iff_xy_xa], [fwd_xy_xa]), 'cut',
+        *[None, None], principal=None)  # placeholder — need to extract forward from Iff
+
+    # This is getting very long. Let me use a helper for Iff forward extraction.
+    def _ext_fwd(iff_f):
+        L = iff_f.left; R = iff_f.right
+        LR = Implies(L, R); RL = Implies(R, L); H = Implies(LR, Not(RL))
+        e1 = Proof(Sequent([iff_f, LR], [LR]), 'axiom', principal=LR)
+        e2 = Proof(Sequent([iff_f, LR], [Not(RL), LR]), 'weakening_right', [e1], principal=Not(RL))
+        e3 = Proof(Sequent([iff_f], [H, LR]), 'implies_right', [e2], principal=H)
+        e4 = Proof(Sequent([H], [H, LR]), 'weakening_right',
+                   [Proof(Sequent([H], [H]), 'axiom', principal=H)], principal=LR)
+        e5 = Proof(Sequent([H, iff_f], [LR]), 'not_left', [e4], principal=iff_f)
+        return Proof(Sequent([iff_f], [LR]), 'cut', [e3, e5], principal=H)
+
+    # Case y=a: Eq(yv,a), In(xv,yv) |- In(xv,a) then Or_intro_left
+    ext_a = _ext_fwd(iff_xy_xa)  # iff_xy_xa |- In(xv,yv) → In(xv,a)
+    got_fwd_a = Proof(Sequent([eq_ya], [fwd_xy_xa]), 'cut',
+        [wr(eq_inst_a, fwd_xy_xa), wl(ext_a, eq_ya)], principal=iff_xy_xa)
+    # MP: Eq(yv,a), In(xv,yv) |- In(xv,a)
+    case_a = mp(got_fwd_a, got_xy, In(xv, yv), In(xv, a))
+    # Or intro left: ..., |- Or(In(xv,a), In(xv,b))
+    # In(xv,a) |- Or(In(xv,a), In(xv,b))
+    oil = Proof(Sequent([in_xa], [in_xa]), 'axiom', principal=in_xa)
+    oil2 = Proof(Sequent([in_xa, Not(in_xa)], []), 'not_left', [oil], principal=Not(in_xa))
+    oil3 = Proof(Sequent([in_xa, Not(in_xa)], [in_xb]), 'weakening_right', [oil2], principal=in_xb)
+    oil4 = Proof(Sequent([in_xa], [or_ab]), 'implies_right', [oil3], principal=or_ab)
+    case_a_or = Proof(Sequent(case_a.sequent.left, [or_ab]), 'cut',
+        [wr(case_a, or_ab), wl(oil4, *case_a.sequent.left)], principal=in_xa)
+
+    # Case y=b: similar
+    eq_yb = Eq(yv, b)
+    iff_xy_xb = Iff(In(xv, yv), In(xv, b))
+    eq_inst_b = _inst_fl(eq_yb, iff_xy_xb, xv)
+    fwd_xy_xb = Implies(In(xv, yv), In(xv, b))
+    ext_b = _ext_fwd(iff_xy_xb)
+    got_fwd_b = Proof(Sequent([eq_yb], [fwd_xy_xb]), 'cut',
+        [wr(eq_inst_b, fwd_xy_xb), wl(ext_b, eq_yb)], principal=iff_xy_xb)
+    case_b = mp(got_fwd_b, got_xy, In(xv, yv), In(xv, b))
+    # Or intro right
+    oir = Proof(Sequent([in_xb, Not(in_xa)], [in_xb]), 'axiom', principal=in_xb)
+    oir2 = Proof(Sequent([in_xb], [or_ab]), 'implies_right', [oir], principal=or_ab)
+    case_b_or = Proof(Sequent(case_b.sequent.left, [or_ab]), 'cut',
+        [wr(case_b, or_ab), wl(oir2, *case_b.sequent.left)], principal=in_xb)
+
+    # Or elim on Or(Eq(yv,a), Eq(yv,b)): and_yp_xy, ps |- or_ab
+    or_eq = Or(eq_ya, eq_yb)
+    # implies_left on or_eq = Implies(Not(eq_ya), eq_yb):
+    # Branch 1: ctx |- Not(eq_ya), or_ab
+    ctx_or = got_or_eq.sequent.left  # [ps, and_yp_xy]
+    case_a_or_w = wl(case_a_or, *[f for f in ctx_or if not any(f is g for g in case_a_or.sequent.left)])
+    case_b_or_w = wl(case_b_or, *[f for f in ctx_or if not any(f is g for g in case_b_or.sequent.left)])
+    br1 = Proof(Sequent(ctx_or, [Not(eq_ya), or_ab]), 'not_right', [case_a_or_w], principal=Not(eq_ya))
+    or_elim_fwd = Proof(Sequent(ctx_or + [or_eq], [or_ab]), 'implies_left',
+                        [br1, case_b_or_w], principal=or_eq)
+    # Cut or_eq from got_or_eq
+    fwd_from_and = Proof(Sequent(ctx_or, [or_ab]), 'cut',
+        [wr(got_or_eq, or_ab), or_elim_fwd], principal=or_eq)
+    # fwd_from_and: [ps, and_yp_xy] |- [or_ab]
+
+    # Existential elim: [ps, ex_y] |- [or_ab] from [ps, and_yp_xy] |- [or_ab]
+    def _exist_elim_left(proof, pred, var):
+        ctx = [f for f in proof.sequent.left if f is not pred]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        fa_np = Forall(var, Not(pred))
+        p2 = Proof(Sequent(ctx, [fa_np, D]), 'forall_right', [p1], principal=fa_np, term=var)
+        ex = Exists(var, pred)
+        return Proof(Sequent(ctx + [ex], [D]), 'not_left', [p2], principal=ex)
+
+    fwd_from_ex = _exist_elim_left(fwd_from_and, and_yp_xy, yv)
+    # fwd_from_ex: [ps, ex_y] |- [or_ab]
+
+    # Full forward: ps, bu, In(xv,s) |- or_ab
+    # got_ex: [bu, In(xv,s)] |- [ex_y]
+    full_fwd = Proof(Sequent([ps, bu, in_xs], [or_ab]), 'cut',
+        [wr(wl(got_ex, ps), or_ab), wl(fwd_from_ex, bu, in_xs)], principal=ex_y)
+
+    # === Backward: ps, bu, Or(In(xv,a), In(xv,b)) |- In(xv,s) ===
+    # Case x∈a: witness y=a. Need a∈p ∧ x∈a, then ∃y intro, then bu_bwd.
+    # a∈p from PairSet: instantiate with a. Iff(In(a,p), Or(Eq(a,a), Eq(a,b))).
+    # Backward: Or(Eq(a,a), Eq(a,b)) → In(a,p). Need Eq(a,a) (eq_reflexive) + or_intro.
+    ps_body_a = Iff(In(a, p), Or(Eq(a, a), Eq(a, b)))
+    ps_inst_a = _inst_fl(ps, ps_body_a, a)
+
+    def _ext_bwd(iff_f):
+        L = iff_f.left; R = iff_f.right
+        LR = Implies(L, R); RL = Implies(R, L); H = Implies(LR, Not(RL))
+        e1 = Proof(Sequent([iff_f, LR, RL], [RL]), 'axiom', principal=RL)
+        e2 = Proof(Sequent([iff_f, LR], [Not(RL), RL]), 'not_right', [e1], principal=Not(RL))
+        e3 = Proof(Sequent([iff_f], [H, RL]), 'implies_right', [e2], principal=H)
+        e4 = Proof(Sequent([H], [H, RL]), 'weakening_right',
+                   [Proof(Sequent([H], [H]), 'axiom', principal=H)], principal=RL)
+        e5 = Proof(Sequent([H, iff_f], [RL]), 'not_left', [e4], principal=iff_f)
+        return Proof(Sequent([iff_f], [RL]), 'cut', [e3, e5], principal=H)
+
+    ext_ps_bwd_a = _ext_bwd(ps_body_a)  # ps_body_a |- Or(Eq(a,a), Eq(a,b)) → In(a,p)
+    got_ps_bwd_a = Proof(Sequent([ps], [Implies(Or(Eq(a,a), Eq(a,b)), In(a, p))]), 'cut',
+        [wr(ps_inst_a, Implies(Or(Eq(a,a), Eq(a,b)), In(a,p))),
+         wl(ext_ps_bwd_a, ps)], principal=ps_body_a)
+
+    # eq_reflexive for a: |- Eq(a,a). Inline.
+    z_refl = Var()
+    P_r = In(z_refl, a); PP = Implies(P_r, P_r)
+    r1 = Proof(Sequent([], [PP]), 'implies_right',
+               [Proof(Sequent([P_r], [P_r]), 'axiom', principal=P_r)], principal=PP)
+    r2 = Proof(Sequent([], [PP]), 'implies_right',
+               [Proof(Sequent([P_r], [P_r]), 'axiom', principal=P_r)], principal=PP)
+    r3 = Proof(Sequent([Not(PP)], []), 'not_left', [r2], principal=Not(PP))
+    r4 = Proof(Sequent([Implies(PP, Not(PP))], []), 'implies_left',
+               [r1, r3], principal=Implies(PP, Not(PP)))
+    r5 = Proof(Sequent([], [Not(Implies(PP, Not(PP)))]), 'not_right',
+               [r4], principal=Not(Implies(PP, Not(PP))))
+    eq_aa = Forall(z_refl, Not(Implies(PP, Not(PP))))
+    r6 = Proof(Sequent([], [eq_aa]), 'forall_right', [r5], term=z_refl, principal=eq_aa)
+    # eq_aa is alpha-equiv to Eq(a,a)
+
+    # Or intro left: Eq(a,a) |- Or(Eq(a,a), Eq(a,b))
+    or_eq_a = Or(Eq(a, a), Eq(a, b))
+    eq_aa_v = Eq(a, a)
+    oil_a1 = Proof(Sequent([eq_aa_v], [eq_aa_v]), 'axiom', principal=eq_aa_v)
+    oil_a2 = Proof(Sequent([eq_aa_v, Not(eq_aa_v)], []), 'not_left', [oil_a1], principal=Not(eq_aa_v))
+    oil_a3 = Proof(Sequent([eq_aa_v, Not(eq_aa_v)], [Eq(a, b)]),
+                   'weakening_right', [oil_a2], principal=Eq(a, b))
+    oil_a4 = Proof(Sequent([eq_aa_v], [or_eq_a]), 'implies_right', [oil_a3], principal=or_eq_a)
+
+    # |- Or(Eq(a,a), Eq(a,b)) via cut on Eq(a,a)
+    got_or_eq_a = Proof(Sequent([], [or_eq_a]), 'cut',
+        [wr(r6, or_eq_a), oil_a4], principal=eq_aa_v)
+    # |- In(a, p) via MP: got_ps_bwd_a and got_or_eq_a
+    got_a_in_p = mp(got_ps_bwd_a, got_or_eq_a, or_eq_a, In(a, p))
+    # got_a_in_p: [ps] |- [In(a, p)]
+
+    # Build And(In(a,p), In(xv,a)) then ∃y intro with witness a
+    # In(xv,a) is given. In(a,p) from got_a_in_p.
+    # And intro: ps, In(xv,a) |- And(In(a,p), In(xv,a))
+    and_ap_xa = And(In(a, p), In(xv, a))
+    n_xa = Not(In(xv, a))
+    and_i1 = Proof(Sequent([ps, in_xa, n_xa], []), 'not_left',
+                   [wl(Proof(Sequent([in_xa], [in_xa]), 'axiom', principal=in_xa), ps)],
+                   principal=n_xa)
+    and_i2 = Proof(Sequent([ps, in_xa, Implies(In(a, p), n_xa)], []), 'implies_left',
+                   [wl(got_a_in_p, in_xa), and_i1], principal=Implies(In(a, p), n_xa))
+    got_and_a = Proof(Sequent([ps, in_xa], [and_ap_xa]), 'not_right',
+                      [and_i2], principal=and_ap_xa)
+
+    # ∃y intro with witness a: ps, In(xv,a) |- ∃y.(In(y,p) ∧ In(xv,y))
+    # and_ap_xa = And(In(a,p), In(xv,a)). After substituting y→a in And(In(y,p), In(xv,y)),
+    # we get And(In(a,p), In(xv,a)) = and_ap_xa. Alpha-equiv to ex_y body with y=a.
+    # Existential intro: from P(a) derive ∃y. P(y)
+    and_body = And(In(yv, p), In(xv, yv))  # P(y) - the body of ex_y
+    # not_left + forall_left + not_right to introduce Exists
+    nl1 = Proof(Sequent([got_and_a.sequent.left[0], got_and_a.sequent.left[1], Not(and_ap_xa)], []),
+                'not_left', [got_and_a], principal=Not(and_ap_xa))
+    fl1 = Proof(Sequent([ps, in_xa, Forall(yv, Not(and_body))], []),
+                'forall_left', [nl1], principal=Forall(yv, Not(and_body)), term=a)
+    got_ex_a = Proof(Sequent([ps, in_xa], [ex_y]), 'not_right', [fl1], principal=ex_y)
+
+    # bu_bwd: ex_y → In(xv,s). MP: ps, bu, In(xv,a) |- In(xv,s)
+    bwd_case_a = mp(got_bu_bwd, got_ex_a, ex_y, in_xs)
+
+    # Case x∈b: similar, witness y=b
+    ps_body_b = Iff(In(b, p), Or(Eq(b, a), Eq(b, b)))
+    ps_inst_b = _inst_fl(ps, ps_body_b, b)
+    ext_ps_bwd_b = _ext_bwd(ps_body_b)
+    got_ps_bwd_b = Proof(Sequent([ps], [Implies(Or(Eq(b, a), Eq(b, b)), In(b, p))]), 'cut',
+        [wr(ps_inst_b, Implies(Or(Eq(b, a), Eq(b, b)), In(b, p))),
+         wl(ext_ps_bwd_b, ps)], principal=ps_body_b)
+
+    # eq_reflexive for b
+    z_refl2 = Var()
+    P_r2 = In(z_refl2, b); PP2 = Implies(P_r2, P_r2)
+    rb1 = Proof(Sequent([], [PP2]), 'implies_right',
+                [Proof(Sequent([P_r2], [P_r2]), 'axiom', principal=P_r2)], principal=PP2)
+    rb2 = Proof(Sequent([], [PP2]), 'implies_right',
+                [Proof(Sequent([P_r2], [P_r2]), 'axiom', principal=P_r2)], principal=PP2)
+    rb3 = Proof(Sequent([Not(PP2)], []), 'not_left', [rb2], principal=Not(PP2))
+    rb4 = Proof(Sequent([Implies(PP2, Not(PP2))], []), 'implies_left',
+                [rb1, rb3], principal=Implies(PP2, Not(PP2)))
+    rb5 = Proof(Sequent([], [Not(Implies(PP2, Not(PP2)))]), 'not_right',
+                [rb4], principal=Not(Implies(PP2, Not(PP2))))
+    eq_bb = Forall(z_refl2, Not(Implies(PP2, Not(PP2))))
+    rb6 = Proof(Sequent([], [eq_bb]), 'forall_right', [rb5], term=z_refl2, principal=eq_bb)
+
+    or_eq_b = Or(Eq(b, a), Eq(b, b))
+    eq_bb_v = Eq(b, b)
+    oir_b1 = Proof(Sequent([eq_bb_v, Not(Eq(b, a))], [eq_bb_v]), 'axiom', principal=eq_bb_v)
+    oir_b2 = Proof(Sequent([eq_bb_v], [or_eq_b]), 'implies_right', [oir_b1], principal=or_eq_b)
+    got_or_eq_b = Proof(Sequent([], [or_eq_b]), 'cut',
+        [wr(rb6, or_eq_b), oir_b2], principal=eq_bb_v)
+    got_b_in_p = mp(got_ps_bwd_b, got_or_eq_b, or_eq_b, In(b, p))
+
+    and_bp_xb = And(In(b, p), In(xv, b))
+    n_xb = Not(In(xv, b))
+    and_ib1 = Proof(Sequent([ps, in_xb, n_xb], []), 'not_left',
+                    [wl(Proof(Sequent([in_xb], [in_xb]), 'axiom', principal=in_xb), ps)],
+                    principal=n_xb)
+    and_ib2 = Proof(Sequent([ps, in_xb, Implies(In(b, p), n_xb)], []), 'implies_left',
+                    [wl(got_b_in_p, in_xb), and_ib1], principal=Implies(In(b, p), n_xb))
+    got_and_b = Proof(Sequent([ps, in_xb], [and_bp_xb]), 'not_right',
+                      [and_ib2], principal=and_bp_xb)
+    nlb1 = Proof(Sequent([ps, in_xb, Not(and_bp_xb)], []),
+                 'not_left', [got_and_b], principal=Not(and_bp_xb))
+    flb1 = Proof(Sequent([ps, in_xb, Forall(yv, Not(and_body))], []),
+                 'forall_left', [nlb1], principal=Forall(yv, Not(and_body)), term=b)
+    got_ex_b = Proof(Sequent([ps, in_xb], [ex_y]), 'not_right', [flb1], principal=ex_y)
+    bwd_case_b = mp(got_bu_bwd, got_ex_b, ex_y, in_xs)
+
+    # Or elim: ps, bu, Or(In(xv,a), In(xv,b)) |- In(xv,s)
+    bwd_a_w = wl(bwd_case_a, or_ab)
+    bwd_b_w = wl(bwd_case_b, bu)
+    br1_bwd = Proof(Sequent([ps, bu], [Not(in_xa), in_xs]), 'not_right',
+                    [wl(bwd_case_a, or_ab)], principal=Not(in_xa))
+    # Hmm, bwd_case_a has [ps, bu, in_xa] on left. I need [ps, bu] |- [Not(in_xa), in_xs].
+    # not_right from [ps, bu, in_xa] |- [in_xs]: gives [ps, bu] |- [Not(in_xa), in_xs]. ✓
+    br1_bwd = Proof(Sequent([ps, bu], [Not(in_xa), in_xs]), 'not_right',
+                    [bwd_case_a], principal=Not(in_xa))
+    bwd_or_elim = Proof(Sequent([ps, bu, or_ab], [in_xs]), 'implies_left',
+                        [br1_bwd, bwd_case_b], principal=or_ab)
+
+    # === Build Iff: ps, bu |- Iff(In(xv,s), Or(In(xv,a), In(xv,b))) ===
+    fwd_imp = Implies(in_xs, or_ab)
+    bwd_imp = Implies(or_ab, in_xs)
+    full_fwd_r = Proof(Sequent([ps, bu], [fwd_imp]), 'implies_right', [full_fwd], principal=fwd_imp)
+    full_bwd_r = Proof(Sequent([ps, bu], [bwd_imp]), 'implies_right', [bwd_or_elim], principal=bwd_imp)
+
+    iff_union = Iff(in_xs, or_ab)
+    H_u = Implies(fwd_imp, Not(bwd_imp))
+    nr_u = Proof(Sequent([ps, bu, Not(bwd_imp)], []), 'not_left', [full_bwd_r], principal=Not(bwd_imp))
+    il_u = Proof(Sequent([ps, bu, H_u], []), 'implies_left', [full_fwd_r, nr_u], principal=H_u)
+    core_iff = Proof(Sequent([ps, bu], [iff_union]), 'not_right', [il_u], principal=iff_union)
+
+    # forall_right xv: ps, bu |- Forall(xv, iff_union) = Union(s, a, b) (alpha-equiv)
+    fa_union = Forall(xv, iff_union)
+    core_fa = Proof(Sequent([ps, bu], [fa_union]), 'forall_right', [core_iff], principal=fa_union, term=xv)
+
+    # === Package existentials ===
+    # ps, bu |- Union(s,a,b). Need ∃s. Union(s,a,b).
+    # Package s into Exists, then package p into Exists.
+    # Then discharge PairSet and BigUnion from axioms.
+
+    # For now, package into: ∃s. Union(s,a,b) ∧ ... hmm, we just need ∃s. Union(s,a,b).
+    # From ps, bu |- Union(s,a,b), existential intro on s: ps, bu |- ∃s. Union(s,a,b)
+    ex_union = Exists(s, UnionDef(s, a, b))
+    # Existential intro on right: from |- P(t), derive |- ∃x. P(x) with witness t.
+    # not_right: from Forall(s, Not(Union(s,a,b))), P(s) |- to get |- Not(Forall(s, Not(P(s)))), ...
+    # Actually simpler: P(s) on right. not_left with Not(P(s)). forall_left with s. not_right.
+    n_union = Not(UnionDef(s, a, b))
+    fa_n_union = Forall(s, n_union)
+    nl_eu = Proof(Sequent([ps, bu, n_union], []), 'not_left', [core_fa], principal=n_union)
+    fl_eu = Proof(Sequent([ps, bu, fa_n_union], []), 'forall_left', [nl_eu],
+                  principal=fa_n_union, term=s)
+    got_ex_union = Proof(Sequent([ps, bu], [ex_union]), 'not_right', [fl_eu], principal=ex_union)
+
+    # Now need to handle p: ps and bu both mention p.
+    # bu = BigUnion(s, p). We derived ∃s from above. But p is still free.
+    # From Union axiom instantiated with p: ∃s. BigUnion(s, p)
+    # We need: ps |- ∃s. Union(s, a, b)
+    # From ps, bu |- ∃s. Union(s,a,b) and Union_ax |- ∃s. BigUnion(s,p)
+    # Use existential elim on ∃s.BigUnion(s,p): introduce s with BigUnion(s,p) on left
+    # Then from ps, BigUnion(s,p) |- ∃s'. Union(s',a,b)... hmm s is used for both.
+
+    # Actually, s in BigUnion and s in Union are the SAME s. The BigUnion(s,p) gives the
+    # characterization of s, and we derived Union(s,a,b) for that same s. So ∃s. Union(s,a,b)
+    # follows from the specific s from BigUnion.
+
+    # From Union_ax with a=p: ∃s. BigUnion(s, p)
+    ex_bu = Exists(s, bu)
+    bu_from_ax = _inst_fl(union_ax, ex_bu, p)  # union_ax |- ∃s. BigUnion(s, p)
+    # Wait, union_ax = ∀a. ∃b. BigUnion(b, a). After expansion, the internal ∃b and BigUnion
+    # should match. Actually, union_ax |- Exists(s, BigUnion(s, p)) after forall_left with p.
+    # But the internal vars might differ. Let me just try it.
+
+    # Existential elim on bu: [ps, ex_bu] |- [ex_union] from [ps, bu] |- [ex_union]
+    got_ex_from_bu = _exist_elim_left(got_ex_union, bu, s)
+    # got_ex_from_bu: [ps, Exists(s, bu)] |- [ex_union]
+    # But Exists(s, bu) should be alpha-equiv to ex_bu from the axiom.
+
+    # Cut: ps, union_ax |- ex_union
+    got_from_axs = Proof(Sequent([ps, union_ax], [ex_union]), 'cut',
+        [wr(wl(bu_from_ax, ps), ex_union), wl(got_ex_from_bu, union_ax)], principal=ex_bu)
+
+    # Now handle p: from Pairing |- ∃p. PairSet(p, a, b)
+    # Pairing axiom = ∀x ∀y. ∃b. PairSet(b, x, y) (alpha-equiv)
+    ex_ps = Exists(p, ps)
+    pair_body_b = Exists(p, ps)
+    pair_body_a = Forall(b, pair_body_b)
+    # Actually Pairing = ∀x ∀y ∃b ∀z. Iff(In(z,b), Or(Eq(z,x), Eq(z,y)))
+    # = ∀x ∀y ∃b. PairSet(b, x, y) after alpha-equiv
+    pair_inst_b = _inst_fl(Forall(b, ex_ps), ex_ps, b)
+    pair_inst_a = Proof(Sequent([Forall(a, Forall(b, ex_ps))], [ex_ps]), 'forall_left',
+        [pair_inst_b], principal=Forall(a, Forall(b, ex_ps)), term=a)
+    # Hmm, this is manually constructing. Let me use the Pairing axiom directly.
+    # Pairing expanded should be alpha-equiv to Forall(a, Forall(b, Exists(p, PairSet(p,a,b)))).
+    fa_b_ex = Forall(b, ex_ps)
+    fa_a_b_ex = Forall(a, fa_b_ex)
+    # pairing_ax |- ex_ps via forall_left twice
+    p_ax = Proof(Sequent([ex_ps], [ex_ps]), 'axiom', principal=ex_ps)
+    p_fl1 = Proof(Sequent([fa_b_ex], [ex_ps]), 'forall_left', [p_ax], principal=fa_b_ex, term=b)
+    p_fl2 = Proof(Sequent([fa_a_b_ex], [ex_ps]), 'forall_left', [p_fl1], principal=fa_a_b_ex, term=a)
+    # pairing_ax is alpha-equiv to fa_a_b_ex after expansion
+    got_ex_ps = Proof(Sequent([pairing_ax], [ex_ps]), 'cut',
+        [wr(Proof(Sequent([pairing_ax], [pairing_ax]), 'axiom', principal=pairing_ax), ex_ps),
+         wl(p_fl2, pairing_ax)], principal=fa_a_b_ex)
+
+    # Existential elim on ps: [union_ax, ex_ps] |- [ex_union] from [ps, union_ax] |- [ex_union]
+    got_from_ex_ps = _exist_elim_left(got_from_axs, ps, p)
+    # got_from_ex_ps: [union_ax, Exists(p, ps)] |- [ex_union]
+
+    # Cut ex_ps from Pairing:
+    final = Proof(Sequent([pairing_ax, union_ax], [ex_union]), 'cut',
+        [wr(wl(got_ex_ps, union_ax), ex_union), wl(got_from_ex_ps, pairing_ax)], principal=ex_ps)
+
+    # Close: forall b, a
+    imp_b = Forall(b, ex_union)
+    s1 = Proof(Sequent([pairing_ax, union_ax], [imp_b]), 'forall_right',
+               [final], principal=imp_b, term=b)
+    imp_a = Forall(a, imp_b)
+    s2 = Proof(Sequent([pairing_ax, union_ax], [imp_a]), 'forall_right',
+               [s1], principal=imp_a, term=a)
+    s2.name = 'union_exists'
+    return s2
+
+
+def intersect_exists():
+    """Separation |- forall a, b. exists s. Intersect(s, a, b)
+    Binary intersection exists."""
+    from definitions import Intersect
+    a, b, s = Var(), Var(), Var()
+    sep = zfc.Separation(lambda x: In(x, b), [b])
+    goal = Forall(b, Forall(a, Exists(s, Intersect(s, a, b))))
+    proof = Proof(Sequent([sep], [goal]), 'axiom', principal=sep)
+    proof.name = 'intersect_exists'
+    return proof
+
+
+def big_union_exists():
+    """Union_axiom |- forall a. exists s. BigUnion(s, a)
+    The big union of any set exists."""
+    from definitions import BigUnion
+    ax = zfc.Union()
+    a, s = Var(), Var()
+    goal = Forall(a, Exists(s, BigUnion(s, a)))
+    # The goal is alpha-equiv to the Union axiom after expansion
+    proof = Proof(Sequent([ax], [goal]), 'axiom', principal=ax)
+    proof.name = 'big_union_exists'
+    return proof
+
+
 def omega_smallest_inductive():
     """Theorem 4.2.1: p sub omega and isInductive(p) implies p = omega.
     |- forall p, w. Omega(w) -> Subset(p,w) and Inductive(p) -> Eq(p,w)"""
