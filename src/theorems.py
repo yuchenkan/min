@@ -3934,6 +3934,320 @@ def infinity_gives_inductive():
     return proof
 
 
+def omega_is_inductive():
+    """Infinity, Extensionality |- forall w. Omega(w) -> Inductive(w)
+    omega is itself an inductive set."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Inductive, Omega, Empty, Successor
+
+    w, b0, xv, cv, ev, sv = Var(), Var(), Var(), Var(), Var(), Var()
+    inf_ax = zfc.Infinity()
+    ext_ax = zfc.Extensionality()
+    omega_w = Omega(w)
+    ind_w = Inductive(w)
+
+    # Step 1: From infinity_gives_inductive: ∃b. Inductive(b)
+    igi = infinity_gives_inductive()  # [ext, inf] |- [∃b. Inductive(b)]
+    ind_b0 = Inductive(b0)
+    ex_ind = Exists(b0, ind_b0)
+
+    # Step 2: From Omega(w) with b=b0: Inductive(b0) → ∀x. x∈w ↔ cond(x)
+    cond_xv = And(In(xv, b0), Forall(cv, Implies(Inductive(cv), In(xv, cv))))
+    iff_w = Iff(In(xv, w), cond_xv)
+    fa_iff = Forall(xv, iff_w)
+    imp_ind_fa = Implies(ind_b0, fa_iff)
+
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    # omega_w |- Implies(Inductive(b0), fa_iff)
+    got_imp = _fl(omega_w, imp_ind_fa, b0)
+    # MP with Inductive(b0): omega_w, Inductive(b0) |- fa_iff
+    got_fa = mp(got_imp,
+                Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0),
+                ind_b0, fa_iff)
+
+    # Instantiate fa_iff with xv=ev (for empty part) and xv (for closure part)
+    # via cut on fa_iff
+    fl_iff = _fl(fa_iff, iff_w, xv)  # fa_iff |- iff_w
+    def _get_iff(xvar):
+        """From got_fa, instantiate and get: omega_w, ind_b0 |- Iff(In(xvar,w), cond(xvar))"""
+        c_xvar = And(In(xvar, b0), Forall(cv, Implies(Inductive(cv), In(xvar, cv))))
+        iff_xvar = Iff(In(xvar, w), c_xvar)
+        fl_x = _fl(fa_iff, iff_xvar, xvar)
+        return Proof(Sequent(got_fa.sequent.left, [iff_xvar]), 'cut',
+            [wr(got_fa, iff_xvar), wl(fl_x, *got_fa.sequent.left)], principal=fa_iff)
+
+    # === Extract Iff backward: cond → In(xvar, w) ===
+    def _ext_bwd(iff_f):
+        L = iff_f.left; R = iff_f.right
+        LR = Implies(L, R); RL = Implies(R, L); H = Implies(LR, Not(RL))
+        e1 = Proof(Sequent([iff_f, LR, RL], [RL]), 'axiom', principal=RL)
+        e2 = Proof(Sequent([iff_f, LR], [Not(RL), RL]), 'not_right', [e1], principal=Not(RL))
+        e3 = Proof(Sequent([iff_f], [H, RL]), 'implies_right', [e2], principal=H)
+        e4 = wr(Proof(Sequent([H], [H]), 'axiom', principal=H), RL)
+        e5 = Proof(Sequent([H, iff_f], [RL]), 'not_left', [e4], principal=iff_f)
+        return Proof(Sequent([iff_f], [RL]), 'cut', [e3, e5], principal=H)
+
+    def _ext_fwd(iff_f):
+        L = iff_f.left; R = iff_f.right
+        LR = Implies(L, R); RL = Implies(R, L); H = Implies(LR, Not(RL))
+        e1 = Proof(Sequent([iff_f, LR], [LR]), 'axiom', principal=LR)
+        e2 = Proof(Sequent([iff_f, LR], [Not(RL), LR]), 'weakening_right', [e1], principal=Not(RL))
+        e3 = Proof(Sequent([iff_f], [H, LR]), 'implies_right', [e2], principal=H)
+        e4 = wr(Proof(Sequent([H], [H]), 'axiom', principal=H), LR)
+        e5 = Proof(Sequent([H, iff_f], [LR]), 'not_left', [e4], principal=iff_f)
+        return Proof(Sequent([iff_f], [LR]), 'cut', [e3, e5], principal=H)
+
+    # === Part 1: ∀e. Empty(e) → e∈w ===
+    # For ev with Empty(ev):
+    # Need cond(ev) = In(ev, b0) ∧ ∀c. Ind(c) → In(ev, c)
+    # From Ind(b0): Empty(ev) → In(ev, b0) [first part of Inductive]
+    # From Ind(c) for any c: Empty(ev) → In(ev, c) [first part of Inductive(c)]
+    # So ∀c. Ind(c) → In(ev, c) follows from Empty(ev).
+
+    # Unpack Ind(b0): And(∀e.Empty(e)→In(e,b0), ∀x.In(x,b0)→∀s.Succ(s,x)→In(s,b0))
+    ind_empty = Forall(ev, Implies(Empty(ev), In(ev, b0)))  # first part
+    ind_closure_b0 = Forall(xv, Implies(In(xv, b0), Forall(sv, Implies(Successor(sv, xv), In(sv, b0)))))
+
+    ax_ind = Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0)
+    got_empty_b0 = apply_thm(and_elim_left(ind_empty, ind_closure_b0, []), [],
+                              ind_b0, ind_empty, ax_ind)
+    # got_empty_b0: [ind_b0] |- [∀e. Empty(e) → In(e, b0)]
+
+    # For In(ev, b0): ind_b0, Empty(ev) |- In(ev, b0)
+    imp_emp_in = Implies(Empty(ev), In(ev, b0))
+    fl_emp = _fl(ind_empty, imp_emp_in, ev)
+    got_ev_b0 = mp(Proof(Sequent([ind_b0], [imp_emp_in]), 'cut',
+                    [wr(got_empty_b0, imp_emp_in), wl(fl_emp, ind_b0)], principal=ind_empty),
+                   Proof(Sequent([Empty(ev)], [Empty(ev)]), 'axiom', principal=Empty(ev)),
+                   Empty(ev), In(ev, b0))
+    # got_ev_b0: [ind_b0, Empty(ev)] |- [In(ev, b0)]
+
+    # For ∀c. Ind(c) → In(ev, c):
+    # From Ind(c): ∀e. Empty(e) → In(e, c). Instantiate e=ev: Empty(ev) → In(ev, c).
+    ind_c = Inductive(cv)
+    ind_empty_c = Forall(ev, Implies(Empty(ev), In(ev, cv)))
+    ind_closure_c = Forall(xv, Implies(In(xv, cv), Forall(sv, Implies(Successor(sv, xv), In(sv, cv)))))
+    ax_ind_c = Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c)
+    got_empty_c = apply_thm(and_elim_left(ind_empty_c, ind_closure_c, []), [],
+                             ind_c, ind_empty_c, ax_ind_c)
+    fl_emp_c = _fl(ind_empty_c, Implies(Empty(ev), In(ev, cv)), ev)
+    got_ev_c = mp(Proof(Sequent([ind_c], [Implies(Empty(ev), In(ev, cv))]), 'cut',
+                   [wr(got_empty_c, Implies(Empty(ev), In(ev, cv))),
+                    wl(fl_emp_c, ind_c)], principal=ind_empty_c),
+                  Proof(Sequent([Empty(ev)], [Empty(ev)]), 'axiom', principal=Empty(ev)),
+                  Empty(ev), In(ev, cv))
+    # got_ev_c: [ind_c, Empty(ev)] |- [In(ev, cv)]
+
+    # ∀c. Ind(c) → In(ev, c): discharge Ind(c), forall c
+    imp_ind_in = Implies(ind_c, In(ev, cv))
+    d_c = Proof(Sequent([Empty(ev)], [imp_ind_in]), 'implies_right', [got_ev_c], principal=imp_ind_in)
+    fa_c = Forall(cv, imp_ind_in)
+    d_c2 = Proof(Sequent([Empty(ev)], [fa_c]), 'forall_right', [d_c], principal=fa_c, term=cv)
+    # d_c2: [Empty(ev)] |- [∀c. Ind(c) → In(ev, c)]
+
+    # Build cond(ev) = And(In(ev, b0), ∀c. Ind(c) → In(ev, c))
+    cond_ev = And(In(ev, b0), fa_c)
+    n_fc = Not(fa_c)
+    and_c1 = Proof(Sequent([ind_b0, Empty(ev), n_fc], []),
+                   'not_left', [wl(d_c2, ind_b0)], principal=n_fc)
+    and_c2 = Proof(Sequent([ind_b0, Empty(ev), Implies(In(ev, b0), n_fc)], []),
+                   'implies_left', [got_ev_b0, and_c1], principal=Implies(In(ev, b0), n_fc))
+    got_cond_ev = Proof(Sequent([ind_b0, Empty(ev)], [cond_ev]),
+                        'not_right', [and_c2], principal=cond_ev)
+    # got_cond_ev: [ind_b0, Empty(ev)] |- [cond_ev]
+
+    # Apply Iff backward: cond_ev → In(ev, w)
+    iff_ev = Iff(In(ev, w), cond_ev)
+    got_iff_ev = _get_iff(ev)  # omega_w, ind_b0 |- iff_ev
+    bwd_ev = _ext_bwd(iff_ev)  # iff_ev |- cond_ev → In(ev, w)
+    got_bwd_ev = Proof(Sequent(got_iff_ev.sequent.left, [Implies(cond_ev, In(ev, w))]), 'cut',
+        [wr(got_iff_ev, Implies(cond_ev, In(ev, w))),
+         wl(bwd_ev, *got_iff_ev.sequent.left)], principal=iff_ev)
+    # MP: omega_w, ind_b0, cond_ev |- In(ev, w)
+    got_ev_w = mp(got_bwd_ev, got_cond_ev, cond_ev, In(ev, w))
+    # got_ev_w: [omega_w, ind_b0, Empty(ev)] |- [In(ev, w)]
+
+    # Part 1 done: discharge Empty(ev), forall ev
+    imp_emp_w = Implies(Empty(ev), In(ev, w))
+    p1 = Proof(Sequent([omega_w, ind_b0], [imp_emp_w]),
+               'implies_right', [got_ev_w], principal=imp_emp_w)
+    fa_ev = Forall(ev, imp_emp_w)
+    p1f = Proof(Sequent([omega_w, ind_b0], [fa_ev]),
+                'forall_right', [p1], principal=fa_ev, term=ev)
+
+    # === Part 2: ∀x∈w. ∀s. Succ(s,x) → s∈w ===
+    # For xv∈w with Succ(sv, xv):
+    # Iff forward at xv: In(xv,w) → cond(xv). Extract In(xv,b0) and ∀c.Ind(c)→In(xv,c).
+    # From Ind(b0) closure + In(xv,b0) + Succ(sv,xv): In(sv,b0).
+    # From Ind(c) closure + In(xv,c) + Succ(sv,xv): In(sv,c). So ∀c.Ind(c)→In(sv,c).
+    # Build cond(sv). Iff backward: In(sv,w). ✓
+
+    got_iff_xv = _get_iff(xv)  # omega_w, ind_b0 |- Iff(In(xv,w), cond(xv))
+    cond_xv_full = And(In(xv, b0), Forall(cv, Implies(Inductive(cv), In(xv, cv))))
+    iff_xv = Iff(In(xv, w), cond_xv_full)
+    fwd_xv = _ext_fwd(iff_xv)  # iff_xv |- In(xv,w) → cond(xv)
+    got_fwd_xv = Proof(Sequent(got_iff_xv.sequent.left, [Implies(In(xv, w), cond_xv_full)]), 'cut',
+        [wr(got_iff_xv, Implies(In(xv, w), cond_xv_full)),
+         wl(fwd_xv, *got_iff_xv.sequent.left)], principal=iff_xv)
+    # MP with In(xv, w):
+    got_cond_xv = mp(got_fwd_xv,
+                     Proof(Sequent([In(xv, w)], [In(xv, w)]), 'axiom', principal=In(xv, w)),
+                     In(xv, w), cond_xv_full)
+    # got_cond_xv: [omega_w, ind_b0, In(xv,w)] |- [cond_xv_full]
+
+    # Extract In(xv, b0) and ∀c.Ind(c)→In(xv,c) from cond
+    fa_c_xv = Forall(cv, Implies(Inductive(cv), In(xv, cv)))
+    ax_cond = Proof(Sequent([cond_xv_full], [cond_xv_full]), 'axiom', principal=cond_xv_full)
+    got_xv_b0 = apply_thm(and_elim_left(In(xv, b0), fa_c_xv, []), [],
+                            cond_xv_full, In(xv, b0), ax_cond)
+    got_fa_c_xv = apply_thm(and_elim_right(In(xv, b0), fa_c_xv, []), [],
+                              cond_xv_full, fa_c_xv,
+                              Proof(Sequent([cond_xv_full], [cond_xv_full]), 'axiom', principal=cond_xv_full))
+
+    # From Ind(b0) closure + In(xv,b0) + Succ(sv,xv): In(sv,b0)
+    got_closure_b0 = apply_thm(and_elim_right(ind_empty, ind_closure_b0, []), [],
+                                ind_b0, ind_closure_b0,
+                                Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0))
+    # got_closure_b0: [ind_b0] |- [∀x.In(x,b0)→∀s.Succ(s,x)→In(s,b0)]
+    imp_xv_cl = Implies(In(xv, b0), Forall(sv, Implies(Successor(sv, xv), In(sv, b0))))
+    fl_cl = _fl(ind_closure_b0, imp_xv_cl, xv)
+    fa_sv_imp = Forall(sv, Implies(Successor(sv, xv), In(sv, b0)))
+    got_fa_sv = mp(Proof(Sequent([ind_b0], [imp_xv_cl]), 'cut',
+                    [wr(got_closure_b0, imp_xv_cl), wl(fl_cl, ind_b0)], principal=ind_closure_b0),
+                   got_xv_b0, In(xv, b0), fa_sv_imp)
+    # got_fa_sv: [ind_b0, cond_xv_full] |- [∀s.Succ(s,xv)→In(s,b0)]
+    imp_sv_in = Implies(Successor(sv, xv), In(sv, b0))
+    fl_sv = _fl(fa_sv_imp, imp_sv_in, sv)
+    got_sv_b0 = mp(Proof(Sequent(got_fa_sv.sequent.left, [imp_sv_in]), 'cut',
+                    [wr(got_fa_sv, imp_sv_in), wl(fl_sv, *got_fa_sv.sequent.left)], principal=fa_sv_imp),
+                   Proof(Sequent([Successor(sv, xv)], [Successor(sv, xv)]), 'axiom', principal=Successor(sv, xv)),
+                   Successor(sv, xv), In(sv, b0))
+    # got_sv_b0: [ind_b0, cond_xv_full, Succ(sv,xv)] |- [In(sv,b0)]
+
+    # For ∀c. Ind(c) → In(sv, c): from Ind(c), In(xv,c), Succ(sv,xv) → In(sv,c)
+    got_closure_c = apply_thm(and_elim_right(ind_empty_c, ind_closure_c, []), [],
+                               ind_c, ind_closure_c,
+                               Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c))
+    imp_xv_cl_c = Implies(In(xv, cv), Forall(sv, Implies(Successor(sv, xv), In(sv, cv))))
+    fl_cl_c = _fl(ind_closure_c, imp_xv_cl_c, xv)
+    # From ∀c.Ind(c)→In(xv,c), instantiate c=cv: Ind(cv) → In(xv, cv)
+    imp_ind_xv = Implies(Inductive(cv), In(xv, cv))
+    fl_c_xv = _fl(fa_c_xv, imp_ind_xv, cv)
+    got_xv_cv = mp(wl(fl_c_xv, ind_c),
+                   Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c),
+                   ind_c, In(xv, cv))
+    # got_xv_cv: [fa_c_xv, ind_c] |- [In(xv, cv)]
+
+    fa_sv_imp_c = Forall(sv, Implies(Successor(sv, xv), In(sv, cv)))
+    got_fa_sv_c = mp(Proof(Sequent([ind_c], [imp_xv_cl_c]), 'cut',
+                      [wr(got_closure_c, imp_xv_cl_c), wl(fl_cl_c, ind_c)], principal=ind_closure_c),
+                     got_xv_cv, In(xv, cv), fa_sv_imp_c)
+    imp_sv_in_c = Implies(Successor(sv, xv), In(sv, cv))
+    fl_sv_c = _fl(fa_sv_imp_c, imp_sv_in_c, sv)
+    got_sv_cv = mp(Proof(Sequent(got_fa_sv_c.sequent.left, [imp_sv_in_c]), 'cut',
+                    [wr(got_fa_sv_c, imp_sv_in_c), wl(fl_sv_c, *got_fa_sv_c.sequent.left)], principal=fa_sv_imp_c),
+                   Proof(Sequent([Successor(sv, xv)], [Successor(sv, xv)]), 'axiom', principal=Successor(sv, xv)),
+                   Successor(sv, xv), In(sv, cv))
+    # got_sv_cv: [fa_c_xv, ind_c, Succ(sv,xv)] |- [In(sv, cv)]
+
+    # ∀c. Ind(c) → In(sv, c): discharge ind_c, forall cv
+    imp_ind_sv = Implies(ind_c, In(sv, cv))
+    d_sv_c = Proof(Sequent([fa_c_xv, Successor(sv, xv)], [imp_ind_sv]),
+                   'implies_right', [got_sv_cv], principal=imp_ind_sv)
+    fa_c_sv = Forall(cv, imp_ind_sv)
+    d_sv_c2 = Proof(Sequent([fa_c_xv, Successor(sv, xv)], [fa_c_sv]),
+                    'forall_right', [d_sv_c], principal=fa_c_sv, term=cv)
+    # d_sv_c2: [fa_c_xv, Succ(sv,xv)] |- [∀c. Ind(c) → In(sv, c)]
+
+    # Build cond(sv): And(In(sv,b0), fa_c_sv)
+    cond_sv = And(In(sv, b0), fa_c_sv)
+    n_fcsv = Not(fa_c_sv)
+    and_sv1 = Proof(Sequent([ind_b0, cond_xv_full, Successor(sv, xv), fa_c_xv, n_fcsv], []),
+                    'not_left', [wl(d_sv_c2, ind_b0, cond_xv_full)], principal=n_fcsv)
+    # Hmm, got_sv_b0 has [ind_b0, cond_xv_full, Succ] and d_sv_c2 has [fa_c_xv, Succ].
+    # Need to merge: [ind_b0, cond_xv_full, fa_c_xv, Succ(sv,xv)]
+    # But fa_c_xv comes from cond_xv_full (it's the second component of And).
+    # So we need to extract fa_c_xv from cond_xv_full via and_elim_right, then cut.
+
+    # Actually, got_fa_c_xv: [cond_xv_full] |- [fa_c_xv]
+    # Cut fa_c_xv: replace fa_c_xv with cond_xv_full
+    d_sv_c2_from_cond = Proof(Sequent([cond_xv_full, Successor(sv, xv)], [fa_c_sv]), 'cut',
+        [wr(wl(got_fa_c_xv, Successor(sv, xv)), fa_c_sv),
+         wl(d_sv_c2, cond_xv_full)], principal=fa_c_xv)
+
+    and_sv1b = Proof(Sequent([ind_b0, cond_xv_full, Successor(sv, xv), n_fcsv], []),
+                     'not_left', [wl(d_sv_c2_from_cond, ind_b0)], principal=n_fcsv)
+    and_sv2 = Proof(Sequent([ind_b0, cond_xv_full, Successor(sv, xv), Implies(In(sv, b0), n_fcsv)], []),
+                    'implies_left', [got_sv_b0, and_sv1b], principal=Implies(In(sv, b0), n_fcsv))
+    got_cond_sv = Proof(Sequent([ind_b0, cond_xv_full, Successor(sv, xv)], [cond_sv]),
+                        'not_right', [and_sv2], principal=cond_sv)
+
+    # Cut cond_xv_full from In(xv, w):
+    got_cond_sv2 = Proof(Sequent([omega_w, ind_b0, In(xv, w), Successor(sv, xv)], [cond_sv]), 'cut',
+        [wr(wl(got_cond_xv, Successor(sv, xv)), cond_sv),
+         wl(got_cond_sv, omega_w, In(xv, w))], principal=cond_xv_full)
+
+    # Apply Iff backward for sv:
+    cond_sv_full = cond_sv  # And(In(sv, b0), ∀c. Ind(c) → In(sv, c))
+    iff_sv = Iff(In(sv, w), cond_sv_full)
+    got_iff_sv = _get_iff(sv)
+    bwd_sv = _ext_bwd(iff_sv)
+    got_bwd_sv = Proof(Sequent(got_iff_sv.sequent.left, [Implies(cond_sv_full, In(sv, w))]), 'cut',
+        [wr(got_iff_sv, Implies(cond_sv_full, In(sv, w))),
+         wl(bwd_sv, *got_iff_sv.sequent.left)], principal=iff_sv)
+    got_sv_w = mp(got_bwd_sv, got_cond_sv2, cond_sv_full, In(sv, w))
+    # got_sv_w: [omega_w, ind_b0, In(xv,w), Succ(sv,xv)] |- [In(sv,w)]
+
+    # Part 2: discharge Succ, forall sv, discharge In(xv,w), forall xv
+    imp_succ_w = Implies(Successor(sv, xv), In(sv, w))
+    p2a = Proof(Sequent([omega_w, ind_b0, In(xv, w)], [imp_succ_w]),
+                'implies_right', [got_sv_w], principal=imp_succ_w)
+    fa_sv_w = Forall(sv, imp_succ_w)
+    p2b = Proof(Sequent([omega_w, ind_b0, In(xv, w)], [fa_sv_w]),
+                'forall_right', [p2a], principal=fa_sv_w, term=sv)
+    imp_xv_w = Implies(In(xv, w), fa_sv_w)
+    p2c = Proof(Sequent([omega_w, ind_b0], [imp_xv_w]),
+                'implies_right', [p2b], principal=imp_xv_w)
+    fa_xv_w = Forall(xv, imp_xv_w)
+    p2f = Proof(Sequent([omega_w, ind_b0], [fa_xv_w]),
+                'forall_right', [p2c], principal=fa_xv_w, term=xv)
+
+    # === Build Inductive(w) = And(fa_ev, fa_xv_w) ===
+    n_p2 = Not(fa_xv_w)
+    a1 = Proof(Sequent([omega_w, ind_b0, n_p2], []), 'not_left', [p2f], principal=n_p2)
+    a2 = Proof(Sequent([omega_w, ind_b0, Implies(fa_ev, n_p2)], []),
+               'implies_left', [p1f, a1], principal=Implies(fa_ev, n_p2))
+    got_ind_w = Proof(Sequent([omega_w, ind_b0], [ind_w]), 'not_right', [a2], principal=ind_w)
+
+    # === Existential elimination on b0 ===
+    def _eel(proof, pred, var):
+        ctx = [f for f in proof.sequent.left if f is not pred]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left', [p2], principal=Exists(var, pred))
+
+    got_ind_w2 = _eel(got_ind_w, ind_b0, b0)
+    # got_ind_w2: [omega_w, Exists(b0, Inductive(b0))] |- [Inductive(w)]
+
+    # Cut with infinity_gives_inductive:
+    got_ind_w3 = Proof(Sequent([omega_w, ext_ax, inf_ax], [ind_w]), 'cut',
+        [wr(wl(igi, omega_w), ind_w), wl(got_ind_w2, ext_ax, inf_ax)], principal=ex_ind)
+
+    # Close: discharge omega_w, forall w
+    imp_omega = Implies(omega_w, ind_w)
+    s1 = Proof(Sequent([ext_ax, inf_ax], [imp_omega]), 'implies_right', [got_ind_w3], principal=imp_omega)
+    fa_w = Forall(w, imp_omega)
+    s2 = Proof(Sequent([ext_ax, inf_ax], [fa_w]), 'forall_right', [s1], principal=fa_w, term=w)
+    s2.name = 'omega_is_inductive'
+    return s2
+
+
 def recursion_theorem():
     """Theorem 4.2.14: the recursion theorem.
     Given Function(f) with {a} union ran(f) sub dom(f),

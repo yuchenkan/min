@@ -61,6 +61,7 @@ if __name__ == '__main__':
         ('big_union_exists', theorems.big_union_exists()),
         ('unique_successor', theorems.unique_successor()),
         ('infinity_gives_inductive', theorems.infinity_gives_inductive()),
+        ('omega_is_inductive', theorems.omega_is_inductive()),
         ('omega_smallest_inductive', theorems.omega_smallest_inductive()),
     ]
 
