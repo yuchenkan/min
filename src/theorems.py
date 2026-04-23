@@ -3937,7 +3937,7 @@ def infinity_gives_inductive():
 
 def omega_is_inductive():
     """Infinity, Extensionality |- forall w. Omega(w) -> Inductive(w)
-    same(omega, itself) an inductive set."""
+    omega is itself an inductive set."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import Inductive, Omega, Empty, Successor
 
@@ -4813,7 +4813,7 @@ def func_unique_thm():
 
 def plus_zero():
     """|- forall m, n, p. Empty(n) -> Plus(m, n, p) -> Eq(m, p)
-    If same(n, empty), then m + n = p implies p = m."""
+    If n is empty, then m + n = p implies p = m."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import (Function as FuncDef, Apply, Recursive, Plus as PlusDef,
                              Empty, Successor)
@@ -5119,7 +5119,7 @@ def init_seg_step():
 
 def omega_contains_empty():
     """Ext, Inf |- forall w. Omega(w) -> forall e. Empty(e) -> In(e, w)
-    Every empty same(set, in) omega."""
+    Every empty set is in omega."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import Successor
 
@@ -5160,7 +5160,7 @@ def omega_contains_empty():
 
 def omega_succ_closed():
     """Ext, Inf |- forall w. Omega(w) -> forall x. In(x,w) -> forall s. Succ(s,x) -> In(s,w)
-    same(Omega, closed) under successor."""
+    Omega is closed under successor."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import Successor
 
@@ -5193,7 +5193,7 @@ def init_seg_total():
        (forall x. exists y. Apply(f,x,y)) ->
        InitSeg(v,a,f) -> Omega(w) -> forall n. n in w -> exists y. Apply(v,n,y)
 
-    Every initial same(segment, total) on omega, given same(f, total).
+    Every initial segment is total on omega, given f is total.
     Proved by induction: Separation forms t = {n in w : exists y. Apply(v,n,y)},
     show Inductive(t), omega_smallest_inductive gives t = w."""
     from tactics import apply_thm, wl, wr, mp
