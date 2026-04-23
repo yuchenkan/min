@@ -3712,331 +3712,217 @@ def infinity_gives_inductive():
     # For any e with Empty(e): Eq(e,e0) (unique_empty). Ext: e∈b. Hence ∀e.Empty(e)→e∈b.
     # Similarly for successors.
     #
-    b, e0, e, x, s0, s, zv = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    from tactics import wl, wr
+    b, e0, e, x, s0, s = Var(), Var(), Var(), Var(), Var(), Var()
     inf_ax = zfc.Infinity()
     ext_ax = zfc.Extensionality()
 
-    # The Infinity axiom after expansion gives ∃b with:
-    # (∃e. e∈b ∧ Empty(e)) ∧ (∀y. y∈b → ∃s. s∈b ∧ Successor(s,y))
-    # We need: ∃b. Inductive(b)
-    # Inductive(b) = (∀e.Empty(e)→e∈b) ∧ (∀x.x∈b→∀s.Succ(s,x)→s∈b)
+    # Prove: Ext, Inf |- exists b. Inductive(b)
+    # Using unique_empty + unique_successor + eq_substitution via raw forall_left + implies_left.
 
-    # Strategy: the Infinity set b works, but we need to convert ∃→∀ using
-    # uniqueness (unique_empty, unique_successor) + Extensionality (eq_substitution).
-
-    # For any e0∈b with Empty(e0), and any e with Empty(e):
-    # unique_empty: Eq(e0, e). eq_substitution: In(e0,b) → In(e,b). Done.
-    # For any s0∈b with Succ(s0,x), and any s with Succ(s,x):
-    # unique_successor: Eq(s0, s). eq_substitution: In(s0,b) → In(s,b). Done.
-
-    # Build: Inductive(b) |- Inductive(b) is trivial.
-    # The hard part: converting the Infinity axiom's ∃ form to our Inductive ∀ form.
-    # For now, assume Inductive(b) is the CONCLUSION and prove ∃b.Inductive(b).
-
-    # Actually, the simplest approach: Inductive(b) IS what Infinity gives,
-    # modulo the ∃→∀ conversion. The conversion uses eq_substitution.
-
-    # Let me just prove: Empty(e0) ∧ In(e0,b) ∧ Empty(e) → In(e,b)
-    # using unique_empty + eq_substitution.
-
-    # Step 1: unique_empty gives Empty(e0) → Empty(e) → Eq(e0, e)
-    ue = unique_empty()  # |- ∀e1 ∀e2. Empty(e1) → Empty(e2) → Eq(e1,e2)
-    # Instantiate: Empty(e0) → Empty(e) → Eq(e0, e)
+    # Step 1: unique_empty gives Eq(e0,e) from Empty(e0), Empty(e)
+    ue = unique_empty()
     eq_e0_e = Eq(e0, e)
-    imp_ee = Implies(Empty(e), eq_e0_e)
-    ax_e0 = Proof(Sequent([Empty(e0)], [Empty(e0)]), 'axiom', principal=Empty(e0))
-    got_imp_ee = apply_thm(ue, [e0, e], Empty(e0), imp_ee, ax_e0)
-    # got_imp_ee: [Empty(e0)] |- [Empty(e) → Eq(e0, e)]
-    ax_e = Proof(Sequent([Empty(e)], [Empty(e)]), 'axiom', principal=Empty(e))
-    got_eq = mp(got_imp_ee, ax_e, Empty(e), eq_e0_e)
-    # got_eq: [Empty(e0), Empty(e)] |- [Eq(e0, e)]
+    imp_e_eq = Implies(Empty(e), eq_e0_e)
+    imp_e0_rest = Implies(Empty(e0), imp_e_eq)
+    fa_e_imp = Forall(e, imp_e0_rest)
+    fa_e0_e_imp = Forall(e0, fa_e_imp)
+    # Peel ue from left: ue_formula, Empty(e0), Empty(e) |- Eq(e0,e)
+    ax_eq = Proof(Sequent([eq_e0_e], [eq_e0_e]), 'axiom', principal=eq_e0_e)
+    ax_ee = Proof(Sequent([Empty(e), Empty(e0)], [Empty(e), eq_e0_e]),
+                  'weakening_left',
+                  [wr(Proof(Sequent([Empty(e)], [Empty(e)]), 'axiom', principal=Empty(e)), eq_e0_e)],
+                  principal=Empty(e0))
+    il_e = Proof(Sequent([imp_e_eq, Empty(e), Empty(e0)], [eq_e0_e]),
+                 'implies_left', [ax_ee, wl(ax_eq, Empty(e), Empty(e0))], principal=imp_e_eq)
+    ax_e0e = Proof(Sequent([Empty(e0), Empty(e)], [Empty(e0), eq_e0_e]),
+                   'weakening_left',
+                   [wr(Proof(Sequent([Empty(e0)], [Empty(e0)]), 'axiom', principal=Empty(e0)), eq_e0_e)],
+                   principal=Empty(e))
+    il_e0 = Proof(Sequent([imp_e0_rest, Empty(e0), Empty(e)], [eq_e0_e]),
+                  'implies_left', [ax_e0e, il_e], principal=imp_e0_rest)
+    fl_e = Proof(Sequent([fa_e_imp, Empty(e0), Empty(e)], [eq_e0_e]),
+                 'forall_left', [il_e0], principal=fa_e_imp, term=e)
+    fl_e0 = Proof(Sequent([fa_e0_e_imp, Empty(e0), Empty(e)], [eq_e0_e]),
+                  'forall_left', [fl_e], principal=fa_e0_e_imp, term=e0)
+    got_eq = Proof(Sequent([Empty(e0), Empty(e)], [eq_e0_e]), 'cut',
+        [wr(wl(ue, Empty(e0), Empty(e)), eq_e0_e), wl(fl_e0, Empty(e0), Empty(e))],
+        principal=fa_e0_e_imp)
 
-    # Step 2: eq_substitution gives Eq(e0, e) → Iff(In(e0, b), In(e, b))
-    es = eq_substitution()  # Ext |- ∀a,b,z. Eq(a,b) → Iff(In(a,z), In(b,z))
+    # Step 2: eq_substitution gives Iff(In(e0,b), In(e,b)) from Eq(e0,e)
+    es = eq_substitution()
     iff_eb = Iff(In(e0, b), In(e, b))
-    got_iff = apply_thm(es, [e0, e, b], eq_e0_e, iff_eb,
-                         Proof(Sequent([eq_e0_e], [eq_e0_e]), 'axiom', principal=eq_e0_e))
-    # got_iff: [eq_e0_e, ext_ax] |- [Iff(In(e0,b), In(e,b))]
-    # Wait, es has ext_ax on the left. apply_thm peels foralls from es.
-    # es.sequent = [ext_ax] |- [Forall(...)]. apply_thm instantiates and MP.
-    # Hmm, apply_thm expects a closed theorem (no left). But es has ext_ax on left.
-    # Need to handle this differently.
+    imp_eq_iff = Implies(eq_e0_e, iff_eb)
+    fa_z = Forall(b, imp_eq_iff)
+    fa_ez = Forall(e, fa_z)
+    fa_e0ez = Forall(e0, fa_ez)
+    ax_iff = Proof(Sequent([iff_eb], [iff_eb]), 'axiom', principal=iff_eb)
+    ax_eq2 = wr(Proof(Sequent([eq_e0_e], [eq_e0_e]), 'axiom', principal=eq_e0_e), iff_eb)
+    il_eq = Proof(Sequent([imp_eq_iff, eq_e0_e], [iff_eb]),
+                  'implies_left', [ax_eq2, wl(ax_iff, eq_e0_e)], principal=imp_eq_iff)
+    fl_z = Proof(Sequent([fa_z, eq_e0_e], [iff_eb]), 'forall_left', [il_eq], principal=fa_z, term=b)
+    fl_ez = Proof(Sequent([fa_ez, eq_e0_e], [iff_eb]), 'forall_left', [fl_z], principal=fa_ez, term=e)
+    fl_e0ez = Proof(Sequent([fa_e0ez, eq_e0_e], [iff_eb]), 'forall_left', [fl_ez], principal=fa_e0ez, term=e0)
+    got_iff = Proof(Sequent([ext_ax, eq_e0_e], [iff_eb]), 'cut',
+        [wr(wl(es, eq_e0_e), iff_eb), wl(fl_e0ez, ext_ax)], principal=fa_e0ez)
 
-    # Actually, apply_thm peels foralls from thm.sequent.right[0]. If thm has axioms
-    # on the left, they stay. The result has those axioms on the left too.
-    # Let me check: apply_thm(es, [e0,e,b], eq_e0_e, iff_eb, hyp_proof)
-    # es.sequent = [ext_ax] |- [Forall(a, Forall(b, Forall(z, Implies(Eq(a,b), Iff(In(a,z),In(b,z))))))]
-    # After peeling: [ext_ax] |- [Implies(eq_e0_e, iff_eb)]
-    # MP with hyp_proof: [ext_ax, ...] |- [iff_eb]
-    # But apply_thm constructs the peeling from thm which has ext_ax on left.
-    # The peeled proof has ext_ax on left. Then cut with hyp_proof.
-    # Result: [ext_ax, hyp_proof.left] |- [iff_eb]
-    # So: [ext_ax, eq_e0_e] |- [iff_eb]. That's correct!
-
-    # Let me retry:
-    got_iff = apply_thm(es, [e0, e, b], eq_e0_e, iff_eb,
-                         Proof(Sequent([eq_e0_e], [eq_e0_e]), 'axiom', principal=eq_e0_e))
-    # got_iff: [ext_ax, eq_e0_e] |- [iff_eb]
-
-    # Hmm but apply_thm expects thm to be |- Forall(...). es is [ext_ax] |- Forall(...).
-    # apply_thm internally does:
-    # 1. Build Forall stack and peel: [outermost_forall] |- [inner_implies]
-    # 2. Cut with thm: [] |- [inner_implies] ... but thm has ext_ax on left!
-    # So the cut gives: [ext_ax] |- [inner_implies]
-    # 3. MP with hyp_proof: [ext_ax, hyp_ctx] |- [concl]
-
-    # This should work. The ext_ax stays on the left throughout.
-
-    # Step 3: extract forward from Iff: In(e0, b) → In(e, b)
+    # Step 3: extract forward In(e0,b)->In(e,b) from Iff
     fwd_eb = Implies(In(e0, b), In(e, b))
-    ext_fwd_pf = apply_thm(iff_elim_left(In(e0, b), In(e, b), []), [], iff_eb, fwd_eb,
-                             Proof(Sequent([iff_eb], [iff_eb]), 'axiom', principal=iff_eb))
-    # ext_fwd_pf: [iff_eb] |- [fwd_eb]
-
-    # Chain: Empty(e0), Empty(e), ext_ax |- In(e0,b) → In(e,b)
-    got_fwd = Proof(Sequent(got_iff.sequent.left, [fwd_eb]), 'cut',
-        [wr(got_iff, fwd_eb), wl(ext_fwd_pf, *got_iff.sequent.left)], principal=iff_eb)
-    # Replace eq_e0_e with Empty(e0), Empty(e) via cut
+    bwd_eb = Implies(In(e, b), In(e0, b))
+    H_iff = Implies(fwd_eb, Not(bwd_eb))
+    ef1 = Proof(Sequent([iff_eb, fwd_eb], [fwd_eb]), 'axiom', principal=fwd_eb)
+    ef2 = Proof(Sequent([iff_eb, fwd_eb], [Not(bwd_eb), fwd_eb]), 'weakening_right', [ef1], principal=Not(bwd_eb))
+    ef3 = Proof(Sequent([iff_eb], [H_iff, fwd_eb]), 'implies_right', [ef2], principal=H_iff)
+    ef4 = wr(Proof(Sequent([H_iff], [H_iff]), 'axiom', principal=H_iff), fwd_eb)
+    ef5 = Proof(Sequent([H_iff, iff_eb], [fwd_eb]), 'not_left', [ef4], principal=iff_eb)
+    got_fwd_iff = Proof(Sequent([iff_eb], [fwd_eb]), 'cut', [ef3, ef5], principal=H_iff)
+    got_fwd = Proof(Sequent([ext_ax, eq_e0_e], [fwd_eb]), 'cut',
+        [wr(got_iff, fwd_eb), wl(got_fwd_iff, ext_ax, eq_e0_e)], principal=iff_eb)
     got_fwd2 = Proof(Sequent([ext_ax, Empty(e0), Empty(e)], [fwd_eb]), 'cut',
-        [wr(wl(got_eq, ext_ax), fwd_eb), wl(got_fwd, Empty(e0), Empty(e))],
-        principal=eq_e0_e)
-    # got_fwd2: [ext_ax, Empty(e0), Empty(e)] |- [In(e0,b) → In(e,b)]
+        [wr(wl(got_eq, ext_ax), fwd_eb), wl(got_fwd, Empty(e0), Empty(e))], principal=eq_e0_e)
 
-    # MP with In(e0, b): ext_ax, Empty(e0), Empty(e), In(e0, b) |- In(e, b)
-    got_in_e = mp(got_fwd2,
-                  Proof(Sequent([In(e0, b)], [In(e0, b)]), 'axiom', principal=In(e0, b)),
+    # MP: ext_ax, Empty(e0), Empty(e), In(e0,b) |- In(e,b)
+    got_in_e = mp(got_fwd2, Proof(Sequent([In(e0, b)], [In(e0, b)]), 'axiom', principal=In(e0, b)),
                   In(e0, b), In(e, b))
-    # got_in_e: [ext_ax, Empty(e0), Empty(e), In(e0,b)] |- [In(e,b)]
 
-    # Discharge Empty(e) → In(e,b): ext_ax, Empty(e0), In(e0,b) |- ∀e. Empty(e) → In(e,b)
+    # Part 1: forall e. Empty(e) -> In(e, b)
     imp_e_in = Implies(Empty(e), In(e, b))
-    d1 = Proof(Sequent([ext_ax, Empty(e0), In(e0, b)], [imp_e_in]),
-               'implies_right', [got_in_e], principal=imp_e_in)
-    fa_e = Forall(e, imp_e_in)
-    d2 = Proof(Sequent([ext_ax, Empty(e0), In(e0, b)], [fa_e]),
-               'forall_right', [d1], principal=fa_e, term=e)
-    # d2: [ext_ax, Empty(e0), In(e0,b)] |- [∀e. Empty(e)→In(e,b)]
-    # This is the first part of Inductive(b)!
+    d1 = Proof(Sequent([ext_ax, Empty(e0), In(e0, b)], [imp_e_in]), 'implies_right', [got_in_e], principal=imp_e_in)
+    fa_e_part1 = Forall(e, imp_e_in)
+    d2 = Proof(Sequent([ext_ax, Empty(e0), In(e0, b)], [fa_e_part1]), 'forall_right', [d1], principal=fa_e_part1, term=e)
 
-    # === Similar for successor closure ===
-    # For any s0∈b with Succ(s0,x), and any s with Succ(s,x):
-    # unique_successor: Eq(s0, s). eq_substitution: In(s0,b)→In(s,b).
-    # So: x∈b → ∃s0.Succ(s0,x)∧s0∈b → ∀s.Succ(s,x)→s∈b
-
-    us = unique_successor()  # |- ∀x,s1,s2. Succ(s1,x)→Succ(s2,x)→Eq(s1,s2)
-    succ_s0 = Successor(s0, x)
-    succ_s = Successor(s, x)
+    # === Part 2: successor closure (same pattern with unique_successor) ===
+    us = unique_successor()
+    succ_s0 = Successor(s0, x); succ_s = Successor(s, x)
     eq_s0_s = Eq(s0, s)
-    imp_ss = Implies(succ_s, eq_s0_s)
-    ax_s0 = Proof(Sequent([succ_s0], [succ_s0]), 'axiom', principal=succ_s0)
-    got_imp_ss = apply_thm(us, [x, s0, s], succ_s0, imp_ss, ax_s0)
-    ax_s = Proof(Sequent([succ_s], [succ_s]), 'axiom', principal=succ_s)
-    got_eq_s = mp(got_imp_ss, ax_s, succ_s, eq_s0_s)
-    # got_eq_s: [succ_s0, succ_s] |- [Eq(s0, s)]
+    imp_s_eqs = Implies(succ_s, eq_s0_s)
+    imp_s0_rest_s = Implies(succ_s0, imp_s_eqs)
+    fa_s2 = Forall(s, imp_s0_rest_s)
+    fa_s1s2 = Forall(s0, fa_s2)
+    fa_xs1s2 = Forall(x, fa_s1s2)
+    ax_eqs = Proof(Sequent([eq_s0_s], [eq_s0_s]), 'axiom', principal=eq_s0_s)
+    ax_ss = wr(Proof(Sequent([succ_s, succ_s0], [succ_s]),
+                     'weakening_left',
+                     [Proof(Sequent([succ_s], [succ_s]), 'axiom', principal=succ_s)], principal=succ_s0),
+               eq_s0_s)
+    il_ss = Proof(Sequent([imp_s_eqs, succ_s, succ_s0], [eq_s0_s]),
+                  'implies_left', [ax_ss, wl(ax_eqs, succ_s, succ_s0)], principal=imp_s_eqs)
+    ax_s0s = wr(Proof(Sequent([succ_s0, succ_s], [succ_s0]),
+                      'weakening_left',
+                      [Proof(Sequent([succ_s0], [succ_s0]), 'axiom', principal=succ_s0)], principal=succ_s),
+                eq_s0_s)
+    il_s0s = Proof(Sequent([imp_s0_rest_s, succ_s0, succ_s], [eq_s0_s]),
+                   'implies_left', [ax_s0s, il_ss], principal=imp_s0_rest_s)
+    fl_ss = Proof(Sequent([fa_s2, succ_s0, succ_s], [eq_s0_s]), 'forall_left', [il_s0s], principal=fa_s2, term=s)
+    fl_s1s = Proof(Sequent([fa_s1s2, succ_s0, succ_s], [eq_s0_s]), 'forall_left', [fl_ss], principal=fa_s1s2, term=s0)
+    fl_xs = Proof(Sequent([fa_xs1s2, succ_s0, succ_s], [eq_s0_s]), 'forall_left', [fl_s1s], principal=fa_xs1s2, term=x)
+    got_eq_s = Proof(Sequent([succ_s0, succ_s], [eq_s0_s]), 'cut',
+        [wr(wl(us, succ_s0, succ_s), eq_s0_s), wl(fl_xs, succ_s0, succ_s)], principal=fa_xs1s2)
 
     iff_sb = Iff(In(s0, b), In(s, b))
-    got_iff_s = apply_thm(es, [s0, s, b], eq_s0_s, iff_sb,
-                           Proof(Sequent([eq_s0_s], [eq_s0_s]), 'axiom', principal=eq_s0_s))
-    fwd_sb = Implies(In(s0, b), In(s, b))
-    ext_fwd_s = apply_thm(iff_elim_left(In(s0, b), In(s, b), []), [], iff_sb, fwd_sb,
-                            Proof(Sequent([iff_sb], [iff_sb]), 'axiom', principal=iff_sb))
-    got_fwd_s = Proof(Sequent(got_iff_s.sequent.left, [fwd_sb]), 'cut',
-        [wr(got_iff_s, fwd_sb), wl(ext_fwd_s, *got_iff_s.sequent.left)], principal=iff_sb)
-    got_fwd_s2 = Proof(Sequent([ext_ax, succ_s0, succ_s], [fwd_sb]), 'cut',
-        [wr(wl(got_eq_s, ext_ax), fwd_sb), wl(got_fwd_s, succ_s0, succ_s)],
-        principal=eq_s0_s)
-    got_in_s = mp(got_fwd_s2,
-                  Proof(Sequent([In(s0, b)], [In(s0, b)]), 'axiom', principal=In(s0, b)),
+    imp_eq_iffs = Implies(eq_s0_s, iff_sb)
+    fa_zs = Forall(b, imp_eq_iffs); fa_szs = Forall(s, fa_zs); fa_s0szs = Forall(s0, fa_szs)
+    ax_iffs = Proof(Sequent([iff_sb], [iff_sb]), 'axiom', principal=iff_sb)
+    ax_eqs2 = wr(Proof(Sequent([eq_s0_s], [eq_s0_s]), 'axiom', principal=eq_s0_s), iff_sb)
+    il_eqs = Proof(Sequent([imp_eq_iffs, eq_s0_s], [iff_sb]), 'implies_left', [ax_eqs2, wl(ax_iffs, eq_s0_s)], principal=imp_eq_iffs)
+    fl_zs = Proof(Sequent([fa_zs, eq_s0_s], [iff_sb]), 'forall_left', [il_eqs], principal=fa_zs, term=b)
+    fl_szs = Proof(Sequent([fa_szs, eq_s0_s], [iff_sb]), 'forall_left', [fl_zs], principal=fa_szs, term=s)
+    fl_s0szs = Proof(Sequent([fa_s0szs, eq_s0_s], [iff_sb]), 'forall_left', [fl_szs], principal=fa_s0szs, term=s0)
+    got_iff_s = Proof(Sequent([ext_ax, eq_s0_s], [iff_sb]), 'cut',
+        [wr(wl(es, eq_s0_s), iff_sb), wl(fl_s0szs, ext_ax)], principal=fa_s0szs)
+    fwd_sb = Implies(In(s0, b), In(s, b)); bwd_sb = Implies(In(s, b), In(s0, b))
+    H_s = Implies(fwd_sb, Not(bwd_sb))
+    sf1 = Proof(Sequent([iff_sb, fwd_sb], [fwd_sb]), 'axiom', principal=fwd_sb)
+    sf2 = Proof(Sequent([iff_sb, fwd_sb], [Not(bwd_sb), fwd_sb]), 'weakening_right', [sf1], principal=Not(bwd_sb))
+    sf3 = Proof(Sequent([iff_sb], [H_s, fwd_sb]), 'implies_right', [sf2], principal=H_s)
+    sf4 = wr(Proof(Sequent([H_s], [H_s]), 'axiom', principal=H_s), fwd_sb)
+    sf5 = Proof(Sequent([H_s, iff_sb], [fwd_sb]), 'not_left', [sf4], principal=iff_sb)
+    got_fwd_s = Proof(Sequent([iff_sb], [fwd_sb]), 'cut', [sf3, sf5], principal=H_s)
+    got_fwd_s2 = Proof(Sequent([ext_ax, eq_s0_s], [fwd_sb]), 'cut',
+        [wr(got_iff_s, fwd_sb), wl(got_fwd_s, ext_ax, eq_s0_s)], principal=iff_sb)
+    got_fwd_s3 = Proof(Sequent([ext_ax, succ_s0, succ_s], [fwd_sb]), 'cut',
+        [wr(wl(got_eq_s, ext_ax), fwd_sb), wl(got_fwd_s2, succ_s0, succ_s)], principal=eq_s0_s)
+    got_in_s = mp(got_fwd_s3, Proof(Sequent([In(s0, b)], [In(s0, b)]), 'axiom', principal=In(s0, b)),
                   In(s0, b), In(s, b))
-    # got_in_s: [ext_ax, succ_s0, succ_s, In(s0,b)] |- [In(s,b)]
-
-    # Discharge succ_s: ext_ax, succ_s0, In(s0,b) |- ∀s. Succ(s,x) → In(s,b)
     imp_s_in = Implies(succ_s, In(s, b))
-    d3 = Proof(Sequent([ext_ax, succ_s0, In(s0, b)], [imp_s_in]),
-               'implies_right', [got_in_s], principal=imp_s_in)
-    fa_s = Forall(s, imp_s_in)
-    d4 = Proof(Sequent([ext_ax, succ_s0, In(s0, b)], [fa_s]),
-               'forall_right', [d3], principal=fa_s, term=s)
-    # d4: [ext_ax, succ_s0, In(s0,b)] |- [∀s. Succ(s,x)→In(s,b)]
+    d3 = Proof(Sequent([ext_ax, succ_s0, In(s0, b)], [imp_s_in]), 'implies_right', [got_in_s], principal=imp_s_in)
+    fa_s_part2 = Forall(s, imp_s_in)
+    d4 = Proof(Sequent([ext_ax, succ_s0, In(s0, b)], [fa_s_part2]), 'forall_right', [d3], principal=fa_s_part2, term=s)
 
-    # Now: from Infinity's closure (∀y∈b.∃s.s∈b∧Succ(s,y)), derive ∀x∈b.∀s.Succ(s,x)→s∈b
-    # For x∈b: Infinity gives ∃s0.In(s0,b)∧Succ(s0,x). Existential elim: s0 with In(s0,b)∧Succ(s0,x).
-    # From d4: ∀s.Succ(s,x)→In(s,b). ✓
-
-    # Package: existential elim on s0 (from And(In(s0,b), succ_s0)):
+    # Package And(In(s0,b), succ_s0) -> existential elim
     and_s0 = And(In(s0, b), succ_s0)
-    ael_s0 = apply_thm(and_elim_left(In(s0, b), succ_s0, []), [], and_s0, In(s0, b),
-                        Proof(Sequent([and_s0], [and_s0]), 'axiom', principal=and_s0))
-    aer_s0 = apply_thm(and_elim_right(In(s0, b), succ_s0, []), [], and_s0, succ_s0,
-                        Proof(Sequent([and_s0], [and_s0]), 'axiom', principal=and_s0))
-    # and_s0 |- In(s0,b) and and_s0 |- succ_s0
-    d4_from_and = Proof(Sequent([ext_ax, and_s0], [fa_s]), 'cut',
-        [wr(wl(aer_s0, ext_ax), fa_s),
-         Proof(Sequent([ext_ax, and_s0, succ_s0], [fa_s]), 'cut',
-             [wr(wl(ael_s0, ext_ax, succ_s0), fa_s), wl(d4, and_s0)],
-             principal=In(s0, b))],
+    ax_as = Proof(Sequent([and_s0], [and_s0]), 'axiom', principal=and_s0)
+    got_ins0 = apply_thm(and_elim_left(In(s0, b), succ_s0, []), [], and_s0, In(s0, b), ax_as)
+    got_succ0 = apply_thm(and_elim_right(In(s0, b), succ_s0, []), [], and_s0, succ_s0,
+                           Proof(Sequent([and_s0], [and_s0]), 'axiom', principal=and_s0))
+    d4a = Proof(Sequent([ext_ax, and_s0], [fa_s_part2]), 'cut',
+        [wr(wl(got_succ0, ext_ax), fa_s_part2),
+         Proof(Sequent([ext_ax, and_s0, succ_s0], [fa_s_part2]), 'cut',
+             [wr(wl(got_ins0, ext_ax, succ_s0), fa_s_part2), wl(d4, and_s0)], principal=In(s0, b))],
         principal=succ_s0)
-    # d4_from_and: [ext_ax, And(In(s0,b), succ_s0)] |- [fa_s]
-
-    # Existential elim on s0:
-    def _exist_elim_left(proof, pred, var):
+    def _eel(proof, pred, var):
         ctx = [f for f in proof.sequent.left if f is not pred]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
-        fa_np = Forall(var, Not(pred))
-        p2 = Proof(Sequent(ctx, [fa_np, D]), 'forall_right', [p1], principal=fa_np, term=var)
-        ex = Exists(var, pred)
-        return Proof(Sequent(ctx + [ex], [D]), 'not_left', [p2], principal=ex)
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]), 'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left', [p2], principal=Exists(var, pred))
+    d5 = _eel(d4a, and_s0, s0)
+    ex_s0 = Exists(s0, and_s0)
 
-    d5 = _exist_elim_left(d4_from_and, and_s0, s0)
-    # d5: [ext_ax, Exists(s0, And(In(s0,b), succ_s0))] |- [fa_s]
-    # Exists(s0, And(In(s0,b), Succ(s0,x))) is what Infinity gives for each x∈b.
-
-    # === Now build Inductive(b) ===
-    # Part 1 (d2): [ext_ax, Empty(e0), In(e0,b)] |- [∀e. Empty(e)→In(e,b)]
-    # Part 2 (d5): [ext_ax, ∃s0.And(In(s0,b),Succ(s0,x))] |- [∀s.Succ(s,x)→In(s,b)]
-
-    # For part 2, need: ∀x. In(x,b) → ∀s. Succ(s,x) → In(s,b)
-    # From Infinity closure: ∀y. In(y,b) → ∃s0. In(s0,b) ∧ Succ(s0,y)
-    # Combined with d5: ∀x. In(x,b) → ∀s. Succ(s,x) → In(s,b)
-
-    # This composition needs:
-    # 1. Infinity closure for x: In(x,b) → ∃s0.And(In(s0,b),Succ(s0,x))
-    # 2. Cut with d5: In(x,b) → ∀s.Succ(s,x)→In(s,b)
-    # 3. Forall x, implies_right
-
-    # Infinity closure is part of the Infinity axiom. After existential elim on b:
-    # we have (∃e.e∈b∧Empty(e)) ∧ (∀y.y∈b→∃s.s∈b∧Succ(s,y)) on the left.
-
-    # This is getting very involved. Let me assemble the final structure.
-    # The proof assumes: ext_ax, the Infinity set b with its properties.
-    # It proves Inductive(b).
-
-    # For now, let me build the Inductive And from parts 1 and 2, assuming
-    # the Infinity properties are available as hypotheses.
-
-    # Hypotheses from Infinity (after existential elim on b):
-    inf_empty = Exists(e0, And(In(e0, b), Empty(e0)))  # ∃e.e∈b∧Empty(e)
-    inf_closure = Forall(x, Implies(In(x, b), Exists(s0, And(In(s0, b), Successor(s0, x)))))
-
-    # From inf_closure + d5: ext_ax, inf_closure |- ∀x.In(x,b)→∀s.Succ(s,x)→In(s,b)
-    ex_s0 = Exists(s0, And(In(s0, b), Successor(s0, x)))
+    # Closure from Infinity
+    inf_closure = Forall(x, Implies(In(x, b), ex_s0))
     imp_x_ex = Implies(In(x, b), ex_s0)
-    fl_closure = Proof(Sequent([inf_closure], [imp_x_ex]), 'forall_left',
-        [Proof(Sequent([imp_x_ex], [imp_x_ex]), 'axiom', principal=imp_x_ex)],
-        principal=inf_closure, term=x)
-    # fl_closure: [inf_closure] |- [In(x,b) → ∃s0.And(...)]
-    got_ex_s0 = mp(fl_closure,
-                    Proof(Sequent([In(x, b)], [In(x, b)]), 'axiom', principal=In(x, b)),
-                    In(x, b), ex_s0)
-    # got_ex_s0: [inf_closure, In(x,b)] |- [∃s0.And(In(s0,b), Succ(s0,x))]
+    fl_cl = Proof(Sequent([inf_closure], [imp_x_ex]), 'forall_left',
+        [Proof(Sequent([imp_x_ex], [imp_x_ex]), 'axiom', principal=imp_x_ex)], principal=inf_closure, term=x)
+    got_ex_s0 = mp(fl_cl, Proof(Sequent([In(x, b)], [In(x, b)]), 'axiom', principal=In(x, b)), In(x, b), ex_s0)
+    got_cl = Proof(Sequent([ext_ax, inf_closure, In(x, b)], [fa_s_part2]), 'cut',
+        [wr(wl(got_ex_s0, ext_ax), fa_s_part2), wl(d5, inf_closure, In(x, b))], principal=ex_s0)
+    imp_x_fa = Implies(In(x, b), fa_s_part2)
+    dc1 = Proof(Sequent([ext_ax, inf_closure], [imp_x_fa]), 'implies_right', [got_cl], principal=imp_x_fa)
+    fa_x_part2 = Forall(x, imp_x_fa)
+    dc2 = Proof(Sequent([ext_ax, inf_closure], [fa_x_part2]), 'forall_right', [dc1], principal=fa_x_part2, term=x)
 
-    # Cut ∃s0: [ext_ax, inf_closure, In(x,b)] |- [∀s.Succ(s,x)→In(s,b)]
-    d5_w = wl(d5, inf_closure, In(x, b))
-    got_closure = Proof(Sequent([ext_ax, inf_closure, In(x, b)], [fa_s]), 'cut',
-        [wr(wl(got_ex_s0, ext_ax), fa_s), d5_w], principal=ex_s0)
-
-    # Forall x, implies In(x,b):
-    imp_x_fa_s = Implies(In(x, b), fa_s)
-    dc1 = Proof(Sequent([ext_ax, inf_closure], [imp_x_fa_s]),
-                'implies_right', [got_closure], principal=imp_x_fa_s)
-    fa_x_closure = Forall(x, imp_x_fa_s)
-    dc2 = Proof(Sequent([ext_ax, inf_closure], [fa_x_closure]),
-                'forall_right', [dc1], principal=fa_x_closure, term=x)
-    # dc2: [ext_ax, inf_closure] |- [∀x.In(x,b)→∀s.Succ(s,x)→In(s,b)]
-    # This is the second part of Inductive(b)!
-
-    # For part 1: from inf_empty, derive ∀e.Empty(e)→In(e,b)
-    # d2: [ext_ax, Empty(e0), In(e0,b)] |- [∀e.Empty(e)→In(e,b)]
-    # From inf_empty = ∃e0.And(In(e0,b), Empty(e0)):
-    and_e0 = And(In(e0, b), Empty(e0))
-    ael_e0 = apply_thm(and_elim_left(In(e0, b), Empty(e0), []), [], and_e0, In(e0, b),
-                        Proof(Sequent([and_e0], [and_e0]), 'axiom', principal=and_e0))
-    aer_e0 = apply_thm(and_elim_right(In(e0, b), Empty(e0), []), [], and_e0, Empty(e0),
-                        Proof(Sequent([and_e0], [and_e0]), 'axiom', principal=and_e0))
-    d2_from_and = Proof(Sequent([ext_ax, and_e0], [fa_e]), 'cut',
-        [wr(wl(aer_e0, ext_ax), fa_e),
-         Proof(Sequent([ext_ax, and_e0, Empty(e0)], [fa_e]), 'cut',
-             [wr(wl(ael_e0, ext_ax, Empty(e0)), fa_e), wl(d2, and_e0)],
-             principal=In(e0, b))],
-        principal=Empty(e0))
-    d2_from_ex = _exist_elim_left(d2_from_and, and_e0, e0)
-    # d2_from_ex: [ext_ax, inf_empty] |- [fa_e]
-
-    # Build Inductive(b) = And(fa_e, fa_x_closure)
+    # Build Inductive(b) from parts
     ind_b = Inductive(b)
-    n_closure = Not(fa_x_closure)
-    and_1 = Proof(Sequent([ext_ax, inf_empty, inf_closure, n_closure], []),
-                  'not_left', [dc2], principal=n_closure)
-    and_2 = Proof(Sequent([ext_ax, inf_empty, inf_closure, Implies(fa_e, n_closure)], []),
-                  'implies_left', [d2_from_ex, and_1], principal=Implies(fa_e, n_closure))
-    got_ind = Proof(Sequent([ext_ax, inf_empty, inf_closure], [ind_b]),
-                    'not_right', [and_2], principal=ind_b)
-    # got_ind: [ext_ax, inf_empty, inf_closure] |- [Inductive(b)]
+    ncl = Not(fa_x_part2)
+    a1 = Proof(Sequent([ext_ax, Empty(e0), In(e0, b), inf_closure, ncl], []), 'not_left', [wl(dc2, Empty(e0), In(e0, b))], principal=ncl)
+    a2 = Proof(Sequent([ext_ax, Empty(e0), In(e0, b), inf_closure, Implies(fa_e_part1, ncl)], []),
+               'implies_left', [wl(d2, inf_closure), a1], principal=Implies(fa_e_part1, ncl))
+    got_ind = Proof(Sequent([ext_ax, Empty(e0), In(e0, b), inf_closure], [ind_b]), 'not_right', [a2], principal=ind_b)
 
-    # Package inf_empty ∧ inf_closure from Infinity
+    # Package from inf_empty
+    inf_empty = Exists(e0, And(In(e0, b), Empty(e0)))
+    and_e0 = And(In(e0, b), Empty(e0))
+    ax_ae = Proof(Sequent([and_e0], [and_e0]), 'axiom', principal=and_e0)
+    got_ine0 = apply_thm(and_elim_left(In(e0, b), Empty(e0), []), [], and_e0, In(e0, b), ax_ae)
+    got_empe0 = apply_thm(and_elim_right(In(e0, b), Empty(e0), []), [], and_e0, Empty(e0),
+                           Proof(Sequent([and_e0], [and_e0]), 'axiom', principal=and_e0))
+    gi2 = Proof(Sequent([ext_ax, and_e0, inf_closure], [ind_b]), 'cut',
+        [wr(wl(got_empe0, ext_ax, inf_closure), ind_b),
+         Proof(Sequent([ext_ax, and_e0, Empty(e0), inf_closure], [ind_b]), 'cut',
+             [wr(wl(got_ine0, ext_ax, Empty(e0), inf_closure), ind_b), wl(got_ind, and_e0)], principal=In(e0, b))],
+        principal=Empty(e0))
+    gi3 = _eel(gi2, and_e0, e0)
+
+    # Package inf_and
     inf_and = And(inf_empty, inf_closure)
-    ael_inf = apply_thm(and_elim_left(inf_empty, inf_closure, []), [], inf_and, inf_empty,
-                         Proof(Sequent([inf_and], [inf_and]), 'axiom', principal=inf_and))
-    aer_inf = apply_thm(and_elim_right(inf_empty, inf_closure, []), [], inf_and, inf_closure,
-                         Proof(Sequent([inf_and], [inf_and]), 'axiom', principal=inf_and))
-    got_ind2 = Proof(Sequent([ext_ax, inf_and], [ind_b]), 'cut',
-        [wr(wl(ael_inf, ext_ax), ind_b),
+    ax_ia = Proof(Sequent([inf_and], [inf_and]), 'axiom', principal=inf_and)
+    got_ie = apply_thm(and_elim_left(inf_empty, inf_closure, []), [], inf_and, inf_empty, ax_ia)
+    got_ic = apply_thm(and_elim_right(inf_empty, inf_closure, []), [], inf_and, inf_closure,
+                        Proof(Sequent([inf_and], [inf_and]), 'axiom', principal=inf_and))
+    gi4 = Proof(Sequent([ext_ax, inf_and], [ind_b]), 'cut',
+        [wr(wl(got_ie, ext_ax), ind_b),
          Proof(Sequent([ext_ax, inf_and, inf_empty], [ind_b]), 'cut',
-             [wr(wl(aer_inf, ext_ax, inf_empty), ind_b), wl(got_ind, inf_and)],
-             principal=inf_closure)],
+             [wr(wl(got_ic, ext_ax, inf_empty), ind_b), wl(gi3, inf_and)], principal=inf_closure)],
         principal=inf_empty)
-    # got_ind2: [ext_ax, inf_and] |- [Inductive(b)]
 
-    # Existential intro on b: [ext_ax, Exists(b, inf_and)] |- [Exists(b, Inductive(b))]
-    # First: got_ind2 |- Inductive(b). Existential intro on right with witness b:
+    # Exist intro + elim
     ex_ind = Exists(b, ind_b)
-    n_ind = Not(ind_b)
-    fa_n_ind = Forall(b, n_ind)
-    nl_b = Proof(Sequent(got_ind2.sequent.left + [n_ind], []), 'not_left', [got_ind2], principal=n_ind)
-    fl_b = Proof(Sequent(got_ind2.sequent.left + [fa_n_ind], []), 'forall_left',
-                 [nl_b], principal=fa_n_ind, term=b)
-    got_ex_ind = Proof(Sequent(got_ind2.sequent.left, [ex_ind]),
-                       'not_right', [fl_b], principal=ex_ind)
-    # got_ex_ind: [ext_ax, inf_and] |- [∃b. Inductive(b)]
-
-    # Existential elim on b (from Infinity which gives ∃b. inf_and):
-    got_from_ex_b = _exist_elim_left(got_ex_ind, inf_and, b)
-    # got_from_ex_b: [ext_ax, Exists(b, inf_and)] |- [∃b. Inductive(b)]
-
-    # Infinity axiom IS ∃b. inf_and (alpha-equiv after expansion)
-    # Cut: [ext_ax, inf_ax] |- [∃b. Inductive(b)]
-    # inf_ax ~ Exists(b, inf_and) after expansion
-    proof = Proof(Sequent([ext_ax, inf_ax], [ex_ind]), 'cut',
-        [wr(Proof(Sequent([inf_ax], [inf_ax, ex_ind]), 'weakening_right',
-                  [Proof(Sequent([inf_ax], [inf_ax]), 'axiom', principal=inf_ax)],
-                  principal=ex_ind),
-            ex_ind),  # hmm, already has ex_ind
-         wl(got_from_ex_b, inf_ax)],
-        # Actually inf_ax IS Exists(b, inf_and) after expansion. So:
-        # [inf_ax] |- [inf_ax] is axiom. inf_ax ~ Exists(b, inf_and).
-        # got_from_ex_b: [ext_ax, Exists(b, inf_and)] |- [ex_ind]
-        # These match via alpha-equiv.
-        principal=inf_ax)
-    # Hmm, the cut principal should be the formula to cut on.
-    # Branch 1: [ext_ax, inf_ax] |- [inf_ax, ex_ind] — axiom on inf_ax + weaken
-    # Branch 2: [ext_ax, inf_ax, inf_ax] |- [ex_ind] — from got_from_ex_b + weaken
-
-    # Actually simpler: inf_ax and Exists(b, inf_and) are alpha-equiv.
-    # got_from_ex_b has Exists(b, inf_and) on left. inf_ax is alpha-equiv.
-    # So: [ext_ax, inf_ax] should work directly.
-    # Let me just weaken got_from_ex_b to have inf_ax instead of Exists(b, inf_and).
-    # But they're different Python objects. The engine uses alpha-equiv, so it should work.
-
-    # Actually, got_from_ex_b has [ext_ax, Exists(b, inf_and)] on left.
-    # I want [ext_ax, inf_ax] on left.
-    # inf_ax and Exists(b, inf_and) are alpha-equiv after expansion.
-    # The engine's set-based comparison will match them.
-    # So I can just declare the sequent with inf_ax:
-    proof = Proof(Sequent([ext_ax, inf_ax], [ex_ind]),
-                  got_from_ex_b.rule, got_from_ex_b.premises,
-                  term=got_from_ex_b.term, principal=got_from_ex_b.principal)
-
+    nl = Proof(Sequent(gi4.sequent.left + [Not(ind_b)], []), 'not_left', [gi4], principal=Not(ind_b))
+    fl = Proof(Sequent(gi4.sequent.left + [Forall(b, Not(ind_b))], []), 'forall_left', [nl], principal=Forall(b, Not(ind_b)), term=b)
+    gex = Proof(Sequent(gi4.sequent.left, [ex_ind]), 'not_right', [fl], principal=ex_ind)
+    gfex = _eel(gex, inf_and, b)
+    proof = Proof(Sequent([ext_ax, inf_ax], [ex_ind]), gfex.rule, gfex.premises, term=gfex.term, principal=gfex.principal)
     proof.name = 'infinity_gives_inductive'
     return proof
 

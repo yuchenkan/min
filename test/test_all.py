@@ -60,7 +60,7 @@ if __name__ == '__main__':
         ('intersect_exists', theorems.intersect_exists()),
         ('big_union_exists', theorems.big_union_exists()),
         ('unique_successor', theorems.unique_successor()),
-        # ('infinity_gives_inductive', theorems.infinity_gives_inductive()),  # WIP: apply_thm context bug
+        ('infinity_gives_inductive', theorems.infinity_gives_inductive()),
         ('omega_smallest_inductive', theorems.omega_smallest_inductive()),
     ]
 
