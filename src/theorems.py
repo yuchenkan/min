@@ -6037,20 +6037,35 @@ def init_seg_agree():
     proof_step = _eel(proof_step, app_f_2, fv2)
     ex_f2 = proof_step.sequent.left[-1]
     got_ft2 = _fl(f_total, Exists(yfv, Apply(f, val2, yfv)), val2)
+    pstep_no_f2 = [f_ for f_ in proof_step.sequent.left if not same(f_, ex_f2)]
+    # Weaken got_ft2 with formulas from pstep_no_f2 not already in got_ft2
+    br1_f2 = got_ft2
+    for f_ in pstep_no_f2:
+        if not any(same(f_, g) for g in br1_f2.sequent.left):
+            br1_f2 = wl(br1_f2, f_)
+    # Conclusion left = union of both
+    cut_left_f2 = list(br1_f2.sequent.left)
+    br2_f2 = proof_step
+    for f_ in cut_left_f2:
+        if not any(same(f_, g) for g in proof_step.sequent.left):
+            br2_f2 = wl(br2_f2, f_)
     proof_step = Proof(
-        Sequent([f_ for f_ in proof_step.sequent.left if not same(f_, ex_f2)] + [f_total],
-                proof_step.sequent.right), 'cut',
-        [wr(wl(got_ft2, *[f_ for f_ in proof_step.sequent.left if not same(f_, ex_f2)]),
-            proof_step.sequent.right[0]),
-         wl(proof_step, f_total)], principal=ex_f2)
+        Sequent(cut_left_f2, proof_step.sequent.right), 'cut',
+        [wr(br1_f2, proof_step.sequent.right[0]),
+         br2_f2], principal=ex_f2)
 
     proof_step = _eel(proof_step, app_f_1, fv1)
     ex_f1 = proof_step.sequent.left[-1]
     got_ft1 = _fl(f_total, Exists(yfv, Apply(f, val1, yfv)), val1)
     pstep_no_ex = [f_ for f_ in proof_step.sequent.left if not same(f_, ex_f1)]
+    # Weaken got_ft1 with formulas from pstep_no_ex not already in got_ft1
+    br1_f1 = got_ft1
+    for f_ in pstep_no_ex:
+        if not any(same(f_, g) for g in br1_f1.sequent.left):
+            br1_f1 = wl(br1_f1, f_)
     proof_step = Proof(
         Sequent(pstep_no_ex, proof_step.sequent.right), 'cut',
-        [wr(wl(got_ft1, *pstep_no_ex), proof_step.sequent.right[0]),
+        [wr(br1_f1, proof_step.sequent.right[0]),
          proof_step], principal=ex_f1)
 
     # Elim val1, val2 (from init_seg_total)
