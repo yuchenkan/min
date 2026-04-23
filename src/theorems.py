@@ -6120,7 +6120,9 @@ def init_seg_agree():
     step_no_q = [f_ for f_ in proof_step.sequent.left if not same(f_, q_nv_actual)]
     proof_step = Proof(Sequent(step_no_q, [imp_qn]),
                        'implies_right', [proof_step], principal=imp_qn)
-    # proof_step: [f_total, func_f, omega_w, in_nv_w, ist_axioms...] |- Q(nv) -> forall sn. Succ -> Q(sn)
+
+    # proof_step: [context with f_total, func_f, omega_w, in_nv_w, etc.] |- Q(nv) -> forall sn. Succ -> Q(sn)
+    # The induction wrapping will handle these context formulas.
 
     # === Induction wrapping (same as init_seg_total) ===
     ext_ax = zfc.Extensionality()
@@ -6212,13 +6214,27 @@ def init_seg_agree():
     got_osc3 = apply_thm(got_osc2, [sv2], succ_s_x, in_s_w,
         Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x))
 
+    # Discharge in_nv_w before closing forall over nv (eigenvariable requirement)
+    if any(same(in_nv_w, g) for g in proof_step.sequent.left):
+        imp_inw = Implies(in_nv_w, proof_step.sequent.right[0])
+        remaining_inw = [f_ for f_ in proof_step.sequent.left if not same(f_, in_nv_w)]
+        proof_step = Proof(Sequent(remaining_inw, [imp_inw]),
+                           'implies_right', [proof_step], principal=imp_inw)
+
     # Step Q: close proof_step over nv, instantiate with xv2
     proof_step_fa = Proof(Sequent(proof_step.sequent.left, [Forall(nv, proof_step.sequent.right[0])]),
                           'forall_right', [proof_step],
                           principal=Forall(nv, proof_step.sequent.right[0]), term=nv)
-    got_q_step = apply_thm(proof_step_fa, [xv2], Q(xv2),
-        Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))),
-        got_q_x2)
+    # After discharging in_nv_w, the step body is:
+    # In(nv,w) -> Q(nv) -> forall sn. Succ(sn,nv) -> Q(sn)
+    # After forall nv and instantiation xv2:
+    # In(xv2,w) -> Q(xv2) -> forall sn. Succ(sn,xv2) -> Q(sn)
+    in_xv2_w = In(xv2, w)
+    step_after_inw = Implies(Q(xv2), Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
+    got_q_step_0 = apply_thm(proof_step_fa, [xv2], in_xv2_w, step_after_inw,
+        got_in_x_w2)  # got_in_x_w2: [fa_char, In(x,t)] |- In(xv2, w)
+    got_q_step = mp(got_q_step_0, got_q_x2, Q(xv2),
+        Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
     got_q_step2 = apply_thm(got_q_step, [sv2], succ_s_x, q_s,
         Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x))
 
