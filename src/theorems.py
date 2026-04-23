@@ -5887,8 +5887,15 @@ def init_seg_agree():
     app2_sn_fv2 = Apply(v2, snv, fv2)
 
     # --- IH: Q(nv) peeled with v1,v2,val1,val2 gives val1=val2 ---
+    # Q(nv) = Forall(v1, Forall(v2, Forall(y1, Forall(y2, is1->is2->app(v1,nv,y1)->app(v2,nv,y2)->Eq(y1,y2)))))
+    # After forall_left v1->v1, v2->v2, y1->val1, y2->val2:
+    # is1->is2->app(v1,nv,val1)->app(v2,nv,val2)->Eq(val1,val2)
     q_nv = Q(nv)
     eq_val = Eq(val1, val2)
+    # inner_imp uses y1, y2 (the bound vars of Q) — forall_left substitutes them
+    inner_imp_y = Implies(is1, Implies(is2, Implies(Apply(v1, nv, y1),
+        Implies(Apply(v2, nv, y2), Eq(y1, y2)))))
+    # After substitution y1->val1, y2->val2:
     inner_imp = Implies(is1, Implies(is2, Implies(app1_nv, Implies(app2_nv, eq_val))))
 
     def _fl(parent, body, term):
@@ -5896,35 +5903,24 @@ def init_seg_agree():
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
             principal=parent, term=term)
 
-    # Peel Q(nv) with 4 forall_left + 4 implies_left
-    ax_eq = Proof(Sequent([eq_val], [eq_val]), 'axiom', principal=eq_val)
-    ax_a2 = wr(Proof(Sequent([app2_nv], [app2_nv]), 'axiom', principal=app2_nv), eq_val)
-    il4 = Proof(Sequent([Implies(app2_nv, eq_val), app2_nv], [eq_val]),
-                'implies_left', [ax_a2, wl(ax_eq, app2_nv)], principal=Implies(app2_nv, eq_val))
-    ax_a1 = wr(wl(Proof(Sequent([app1_nv], [app1_nv]), 'axiom', principal=app1_nv), app2_nv), eq_val)
-    il3 = Proof(Sequent([Implies(app1_nv, Implies(app2_nv, eq_val)), app1_nv, app2_nv], [eq_val]),
-                'implies_left', [ax_a1, il4], principal=Implies(app1_nv, Implies(app2_nv, eq_val)))
-    ax_i2 = wr(wl(Proof(Sequent([is2], [is2]), 'axiom', principal=is2), app1_nv, app2_nv), eq_val)
-    il2 = Proof(Sequent([Implies(is2, Implies(app1_nv, Implies(app2_nv, eq_val))), is2, app1_nv, app2_nv], [eq_val]),
-                'implies_left', [ax_i2, il3], principal=Implies(is2, Implies(app1_nv, Implies(app2_nv, eq_val))))
-    ax_i1 = wr(wl(Proof(Sequent([is1], [is1]), 'axiom', principal=is1), is2, app1_nv, app2_nv), eq_val)
-    il1 = Proof(Sequent([inner_imp, is1, is2, app1_nv, app2_nv], [eq_val]),
-                'implies_left', [ax_i1, il2], principal=inner_imp)
-
-    fa4 = Forall(y2, inner_imp)
-    fa34 = Forall(y1, fa4)
-    fa234 = Forall(v2, fa34)
-    fa1234 = Forall(v1, fa234)
-
-    fl4 = Proof(Sequent([fa4, is1, is2, app1_nv, app2_nv], [eq_val]),
-                'forall_left', [il1], principal=fa4, term=val2)
-    fl3 = Proof(Sequent([fa34, is1, is2, app1_nv, app2_nv], [eq_val]),
-                'forall_left', [fl4], principal=fa34, term=val1)
-    fl2 = Proof(Sequent([fa234, is1, is2, app1_nv, app2_nv], [eq_val]),
-                'forall_left', [fl3], principal=fa234, term=v2)
-    fl_ih = Proof(Sequent([fa1234, is1, is2, app1_nv, app2_nv], [eq_val]),
-                'forall_left', [fl2], principal=fa1234, term=v1)
+    # Peel Q(nv) using apply_thm chain:
+    # Q(nv) = forall v1 v2 y1 y2. is1->is2->app(v1,nv,y1)->app(v2,nv,y2)->Eq(y1,y2)
+    # Instantiate v1,v2,y1,y2 -> v1,v2,val1,val2 and apply is1:
+    q_nv_proof = Proof(Sequent([q_nv], [q_nv]), 'axiom', principal=q_nv)
+    rest_after_is1 = Implies(is2, Implies(app1_nv, Implies(app2_nv, eq_val)))
+    got_ih1 = apply_thm(q_nv_proof, [v1, v2, val1, val2], is1, rest_after_is1,
+        Proof(Sequent([is1], [is1]), 'axiom', principal=is1), [], [])
+    got_ih2 = mp(got_ih1,
+        Proof(Sequent([is2], [is2]), 'axiom', principal=is2),
+        is2, Implies(app1_nv, Implies(app2_nv, eq_val)), [], [])
+    got_ih3 = mp(got_ih2,
+        Proof(Sequent([app1_nv], [app1_nv]), 'axiom', principal=app1_nv),
+        app1_nv, Implies(app2_nv, eq_val), [], [])
+    fl_ih = mp(got_ih3,
+        Proof(Sequent([app2_nv], [app2_nv]), 'axiom', principal=app2_nv),
+        app2_nv, eq_val, [], [])
     # fl_ih: [Q(nv), is1, is2, app1_nv, app2_nv] |- Eq(val1, val2)
+    fa1234 = q_nv  # reference for later use
 
     # --- func_preserves_eq: Eq(val1,val2) + Function(f) + app_f_1 + app_f_2 -> Eq(fv1,fv2) ---
     fpe = func_preserves_eq()
