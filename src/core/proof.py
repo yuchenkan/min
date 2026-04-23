@@ -225,8 +225,10 @@ def _eq(a, b, env=None):
     if type(a) is not type(b):
         return False
     match a:
+        case Var():
+            return _eq_var(a, b, env)
         case In(l1, r1):
-            return _eq_var(l1, b.left, env) and _eq_var(r1, b.right, env)
+            return _eq(l1, b.left, env) and _eq(r1, b.right, env)
         case Not(o1):
             return _eq(o1, b.operand, env)
         case Implies(l1, r1):
