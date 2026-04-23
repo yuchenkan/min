@@ -3414,6 +3414,202 @@ def union_exists():
     return s2
 
 
+def successor_exists():
+    """Pairing, Union |- forall x. exists s. Successor(s, x)
+    S(x) = x union {x} exists."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Successor as SuccDef, Singleton, Union as UnionDef
+
+    x, s, sa, u, xv = Var(), Var(), Var(), Var(), Var()
+    pairing_ax = zfc.Pairing()
+    union_ax = zfc.Union()
+
+    # S(x) = x | {x}. Need: {x} exists (Pairing), x | {x} exists (union_exists).
+    # Singleton(sa, x) and Union(s, x, sa) → Successor(s, x)
+    # Because: z in S(x) iff z in x or z = x
+    #        = z in x or z in {x}  (since z in {x} iff z = x)
+    #        = z in (x | {x})
+
+    # Successor(s, x) = forall z. z in s iff (z in x or z = x)
+    # Union(s, x, sa) = forall z. z in s iff (z in x or z in sa)
+    # Singleton(sa, x) = forall z. z in sa iff z = x
+    # From Union + Singleton: z in s iff z in x or z in sa iff z in x or z = x. ✓
+
+    sing = Singleton(sa, x)
+    union_s = UnionDef(s, x, sa)
+    succ_s = SuccDef(s, x)
+
+    # For eigenvariable xv:
+    # From Union: Iff(In(xv, s), Or(In(xv, x), In(xv, sa)))
+    # From Singleton: Iff(In(xv, sa), Eq(xv, x))
+    # By or_iff_compat with Iff(In(xv,x), In(xv,x)) [reflexive] and Iff(In(xv,sa), Eq(xv,x)):
+    # Iff(Or(In(xv,x), In(xv,sa)), Or(In(xv,x), Eq(xv,x)))
+    # Chain with Union's Iff: Iff(In(xv,s), Or(In(xv,x), Eq(xv,x))) = Successor
+
+    # Simpler: use char_transfer to chain
+    # Iff(In(xv,s), Or(In(xv,x), In(xv,sa))) [from Union]
+    # Iff(Or(In(xv,x), In(xv,sa)), Or(In(xv,x), Eq(xv,x))) [from or_iff_compat + Singleton]
+    # → Iff(In(xv,s), Or(In(xv,x), Eq(xv,x))) = Successor body
+
+    union_body = Iff(In(xv, s), Or(In(xv, x), In(xv, sa)))
+    sing_body = Iff(In(xv, sa), Eq(xv, x))
+    succ_body = Iff(In(xv, s), Or(In(xv, x), Eq(xv, x)))
+
+    def _inst_fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    # Instantiate Union and Singleton with xv
+    got_union = _inst_fl(union_s, union_body, xv)  # union_s |- union_body
+    got_sing = _inst_fl(sing, sing_body, xv)  # sing |- sing_body
+
+    # Iff(In(xv,x), In(xv,x)) — reflexive Iff, trivially true
+    iff_refl = Iff(In(xv, x), In(xv, x))
+    P_xx = In(xv, x)
+    PQ = Implies(P_xx, P_xx)
+    NPQ = Not(PQ)
+    H_refl = Implies(PQ, NPQ)
+    ax_p = Proof(Sequent([P_xx], [P_xx]), 'axiom', principal=P_xx)
+    ir1 = Proof(Sequent([], [PQ]), 'implies_right', [ax_p], principal=PQ)
+    ir2 = Proof(Sequent([], [PQ]), 'implies_right',
+                [Proof(Sequent([P_xx], [P_xx]), 'axiom', principal=P_xx)], principal=PQ)
+    nl_r = Proof(Sequent([NPQ], []), 'not_left', [ir2], principal=NPQ)
+    il_r = Proof(Sequent([H_refl], []), 'implies_left', [ir1, nl_r], principal=H_refl)
+    got_iff_refl = Proof(Sequent([], [iff_refl]), 'not_right', [il_r], principal=iff_refl)
+
+    # Apply or_iff_compat: Iff(In(xv,x), In(xv,x)), Iff(In(xv,sa), Eq(xv,x))
+    #   → Iff(Or(In(xv,x), In(xv,sa)), Or(In(xv,x), Eq(xv,x)))
+    oic = or_iff_compat(In(xv, x), In(xv, sa), In(xv, x), Eq(xv, x), [])
+    or_old = Or(In(xv, x), In(xv, sa))
+    or_new = Or(In(xv, x), Eq(xv, x))
+    iff_or = Iff(or_old, or_new)
+    imp_inner = Implies(sing_body, iff_or)
+    got_imp = apply_thm(oic, [], iff_refl, imp_inner, got_iff_refl)
+    # got_imp: [] |- Implies(sing_body, iff_or)
+    got_iff_or = mp(got_imp, got_sing, sing_body, iff_or)
+    # got_iff_or: [sing] |- [iff_or]
+
+    # Chain: Iff(In(xv,s), or_old) and Iff(or_old, or_new) → Iff(In(xv,s), or_new)
+    ct = char_transfer(In(xv, s), or_old, or_new)
+    got_chain = mp(mp(ct, got_union, union_body, Implies(iff_or, succ_body)),
+                   got_iff_or, iff_or, succ_body)
+    # got_chain: [union_s, sing] |- [succ_body]
+
+    # forall_right xv: union_s, sing |- Forall(xv, succ_body) = Successor(s, x)
+    fa_succ = Forall(xv, succ_body)
+    got_succ = Proof(Sequent(got_chain.sequent.left, [fa_succ]),
+                     'forall_right', [got_chain], principal=fa_succ, term=xv)
+
+    # Package into ∃s. Successor(s, x)
+    # From sing, union_s |- Successor(s, x)
+    # Need to package s existentially, then handle sa existentially.
+
+    def _pack_exists(proof, pred, var):
+        ctx = [f for f in proof.sequent.left if f is not pred]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        fa_np = Forall(var, Not(pred))
+        p2 = Proof(Sequent(ctx, [fa_np, D]), 'forall_right', [p1], principal=fa_np, term=var)
+        ex = Exists(var, pred)
+        return Proof(Sequent(ctx + [ex], [D]), 'not_left', [p2], principal=ex)
+
+    # ∃s. Union(s, x, sa) from union_exists
+    ue = union_exists()
+    ue_formula = ue.sequent.right[0]
+    inner = Exists(s, union_s)
+    fa_b = Forall(sa, inner)
+    fa_a_b = Forall(x, fa_b)
+    ax_inner = Proof(Sequent([inner], [inner]), 'axiom', principal=inner)
+    fl1 = Proof(Sequent([fa_b], [inner]), 'forall_left', [ax_inner], principal=fa_b, term=sa)
+    fl2 = Proof(Sequent([fa_a_b], [inner]), 'forall_left', [fl1], principal=fa_a_b, term=x)
+    # Cut with ue: [Pairing, Union] |- [inner]
+    got_ex_u = Proof(Sequent([pairing_ax, union_ax], [inner]), 'cut',
+        [wr(ue, inner), wl(fl2, pairing_ax, union_ax)], principal=ue_formula)
+
+    # Existential elim on s: from [sing, union_s] |- [fa_succ] derive [sing, Exists(s, union_s)] |- [fa_succ]
+    # Then [sing, ∃s.Union(s,x,sa)] |- [∃s.Successor(s,x)]... hmm, same s in both?
+
+    # Actually, I need ∃s. Successor(s, x). And I have sing, union_s |- Successor(s, x) for a specific s.
+    # Existential intro on right: from P(t) on right, derive ∃x.P(x) on right.
+    ex_succ = Exists(s, SuccDef(s, x))
+    n_succ = Not(SuccDef(s, x))
+    fa_n_succ = Forall(s, n_succ)
+    nl_s = Proof(Sequent(got_succ.sequent.left + [n_succ], []), 'not_left', [got_succ], principal=n_succ)
+    fl_s = Proof(Sequent(got_succ.sequent.left + [fa_n_succ], []), 'forall_left',
+                 [nl_s], principal=fa_n_succ, term=s)
+    got_ex_succ = Proof(Sequent(got_succ.sequent.left, [ex_succ]), 'not_right',
+                        [fl_s], principal=ex_succ)
+    # got_ex_succ: [union_s, sing] |- [∃s. Successor(s, x)]... wait, s is used in union_s too.
+
+    # Hmm, the s in ∃s.Successor(s,x) is quantified. The s in union_s is free. Different roles.
+    # The existential says "there exists SOME s". The union_s characterizes a SPECIFIC s.
+    # After _pack_exists or existential intro, the specific s gets bound.
+
+    # Let me use a different variable for the existential to avoid confusion.
+    s2 = Var()
+    ex_succ2 = Exists(s2, SuccDef(s2, x))
+    n_succ2 = Not(SuccDef(s2, x))
+    fa_n_succ2 = Forall(s2, n_succ2)
+    # SuccDef(s, x) on right (from got_succ). Witness s.
+    # not_left: got_succ.left + [Not(SuccDef(s,x))] |- []
+    nl_s2 = Proof(Sequent(got_succ.sequent.left + [Not(fa_succ)], []),
+                  'not_left', [got_succ], principal=Not(fa_succ))
+    # Hmm, fa_succ is the Forall version. Let me use the SetSpec-expanded version.
+    # Actually Successor(s,x) expands to Forall(xv, Iff(In(xv,s), Or(In(xv,x), Eq(xv,x)))).
+    # And fa_succ = Forall(xv, succ_body) which is the same thing.
+    # So SuccDef(s,x) and fa_succ are alpha-equiv after expansion.
+
+    # Existential intro with witness s: from |- Successor(s,x), derive |- ∃s2. Successor(s2,x)
+    nl_s3 = Proof(Sequent(got_succ.sequent.left + [Not(SuccDef(s, x))], []),
+                  'not_left', [got_succ], principal=Not(SuccDef(s, x)))
+    fl_s3 = Proof(Sequent(got_succ.sequent.left + [Forall(s, Not(SuccDef(s, x)))], []),
+                  'forall_left', [nl_s3], principal=Forall(s, Not(SuccDef(s, x))), term=s)
+    ex_succ_f = Exists(s, SuccDef(s, x))
+    got_ex_succ_f = Proof(Sequent(got_succ.sequent.left, [ex_succ_f]),
+                          'not_right', [fl_s3], principal=ex_succ_f)
+    # got_ex_succ_f: [union_s, sing] |- [∃s. Successor(s, x)]
+
+    # Existential elim on union_s (variable s): [sing, ∃s.Union(s,x,sa)] |- [∃s.Succ(s,x)]
+    got_from_ex_u = _pack_exists(got_ex_succ_f, union_s, s)
+    # got_from_ex_u: [sing, Exists(s, union_s)] |- [∃s.Succ(s,x)]
+
+    # Cut ∃s.Union(s,x,sa) from got_ex_u: [Pairing, Union, sing] |- [∃s.Succ(s,x)]
+    got_with_sing = Proof(Sequent([pairing_ax, union_ax, sing], [ex_succ_f]), 'cut',
+        [wr(wl(got_ex_u, sing), ex_succ_f),
+         wl(got_from_ex_u, pairing_ax, union_ax)],
+        principal=Exists(s, union_s))
+
+    # Now handle sa: from Pairing, ∃sa. Singleton(sa, x) exists (singleton_exists).
+    # Existential elim on sing (variable sa):
+    got_from_ex_sing = _pack_exists(got_with_sing, sing, sa)
+    # got_from_ex_sing: [Pairing, Union, Exists(sa, sing)] |- [∃s.Succ(s,x)]
+
+    # singleton_exists: [Pairing] |- [∀a. ∃sa. Singleton(sa, a)]
+    se = singleton_exists()
+    se_formula = se.sequent.right[0]
+    ex_sing = Exists(sa, sing)
+    fa_ex_sing = Forall(x, ex_sing)
+    ax_ex = Proof(Sequent([ex_sing], [ex_sing]), 'axiom', principal=ex_sing)
+    fl_se = Proof(Sequent([fa_ex_sing], [ex_sing]), 'forall_left', [ax_ex], principal=fa_ex_sing, term=x)
+    got_ex_sing = Proof(Sequent([pairing_ax], [ex_sing]), 'cut',
+        [wr(se, ex_sing), wl(fl_se, pairing_ax)], principal=se_formula)
+    # got_ex_sing: [Pairing] |- [∃sa. Singleton(sa, x)]
+
+    # Cut: [Pairing, Union] |- [∃s. Succ(s, x)]
+    final = Proof(Sequent([pairing_ax, union_ax], [ex_succ_f]), 'cut',
+        [wr(wl(got_ex_sing, union_ax), ex_succ_f),
+         got_from_ex_sing],
+        principal=Exists(sa, sing))
+
+    # Close: forall x
+    fa_x = Forall(x, ex_succ_f)
+    proof = Proof(Sequent([pairing_ax, union_ax], [fa_x]),
+                  'forall_right', [final], principal=fa_x, term=x)
+    proof.name = 'successor_exists'
+    return proof
+
+
 def intersect_exists():
     """Separation |- forall a, b. exists s. Intersect(s, a, b)
     Binary intersection exists."""
