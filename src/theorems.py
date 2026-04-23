@@ -4257,8 +4257,46 @@ def initial_segments_agree():
 
     Proved by induction on n using Separation + omega_smallest_inductive.
     This is the first induction in the recursion theorem (4.2.14)."""
-    # TODO: ~200 nodes. Uses Separation to form t = {n in w : agreement at n},
-    # shows Inductive(t), applies omega_smallest_inductive.
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import (Inductive, Omega, Empty, Successor, Function as FuncDef,
+                             Apply, InitialSegment, Subset, Domain)
+
+    ai, fi, v1, v2, n, y1, y2, w = Var(), Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    ev, sn, d, val, fval = Var(), Var(), Var(), Var(), Var()
+
+    omega_w = Omega(w)
+    func_f = FuncDef(fi)
+    is1 = InitialSegment(v1, ai, fi)
+    is2 = InitialSegment(v2, ai, fi)
+    app1 = Apply(v1, n, y1)
+    app2 = Apply(v2, n, y2)
+    goal = Eq(y1, y2)
+
+    # The agreement property P(n):
+    # forall v1 v2 y1 y2. InitSeg(v1,a,f) -> InitSeg(v2,a,f) ->
+    #   Apply(v1,n,y1) -> Apply(v2,n,y2) -> Eq(y1,y2)
+    def P(x):
+        return Forall(v1, Forall(v2, Forall(y1, Forall(y2,
+            Implies(InitialSegment(v1, ai, fi),
+            Implies(InitialSegment(v2, ai, fi),
+            Implies(Apply(v1, x, y1),
+            Implies(Apply(v2, x, y2),
+            Eq(y1, y2)))))))))
+
+    # Separation: forall a f omega_set. exists t. forall x. x in t iff (x in omega_set and P(x))
+    sep = zfc.Separation(P, [ai, fi])
+
+    # The core induction:
+    # 1. From Separation with omega_set = w: exists t with the characterization
+    # 2. Show Inductive(t): base case P(0) and step P(n)->P(S(n))
+    # 3. omega_smallest_inductive: t sub w and Inductive(t) -> t = w
+    # 4. So forall n in w: P(n)
+    #
+    # Both base and step require unpacking InitialSegment + Function.
+    # This is a ~200 node proof. Each step uses patterns already established.
+    #
+    # For now, the theorem statement and Separation instance are defined.
+    # Full proof construction is the next milestone.
     pass
 
 
