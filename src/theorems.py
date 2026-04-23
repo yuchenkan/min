@@ -2621,9 +2621,9 @@ def tuple_injection():
             return Proof(Sequent([parent], [body]), 'forall_left',
                 [Proof(Sequent([body], [body]), 'axiom', principal=body)], principal=parent, term=term)
         ic1 = _fl(c1, c1b, xvar); ieq = _fl(eq_s, eq_body, xvar); ic2 = _fl(c2, c2b, xvar)
-        got_sym = mp(sym_pf, ic1, c1b, F_sym)
-        got_mid = mp(mp(ch1, got_sym, F_sym, Implies(eq_body, F_mid)), ieq, eq_body, F_mid)
-        got_res = mp(mp(ch2, got_mid, F_mid, Implies(c2b, result)), ic2, c2b, result)
+        got_sym = mp(sym_pf, ic1, c1b, F_sym, [], [])
+        got_mid = mp(mp(ch1, got_sym, F_sym, Implies(eq_body, F_mid), [], []), ieq, eq_body, F_mid, [], [])
+        got_res = mp(mp(ch2, got_mid, F_mid, Implies(c2b, result), [], []), ic2, c2b, result, [], [])
         fa_res = Forall(xvar, result)
         return Proof(Sequent(got_res.sequent.left, [fa_res]),
                      'forall_right', [got_res], principal=fa_res, term=xvar)
@@ -2631,7 +2631,7 @@ def tuple_injection():
     # --- Step 1: outer pair_injection ---
     or_outer = Or(And(Eq(sa, sc), Eq(pab, pcd)), And(Eq(sa, pcd), Eq(pab, sc)))
     ax_co = Proof(Sequent([char_outer], [char_outer]), 'axiom', principal=char_outer)
-    outer_applied = apply_thm(pair_injection(), [sa, pab, sc, pcd], char_outer, or_outer, ax_co)
+    outer_applied = apply_thm(pair_injection(), [sa, pab, sc, pcd], char_outer, or_outer, ax_co, [], [])
 
     # --- Step 2a: Case 1 singleton transfer -> Eq(a,c) ---
     xv2 = Var()
@@ -2639,7 +2639,7 @@ def tuple_injection():
     fa_iff_ac = t1.sequent.right[0]
     ax_fa = Proof(Sequent(t1.sequent.left, [fa_iff_ac]), t1.rule, t1.premises,
                   term=t1.term, principal=t1.principal)
-    case1_ac = apply_thm(singleton_injection(), [a, c], fa_iff_ac, eq_ac, ax_fa)
+    case1_ac = apply_thm(singleton_injection(), [a, c], fa_iff_ac, eq_ac, ax_fa, [], [])
 
     # --- Step 2b: Case 1 pair transfer -> Or(And(ac,bd), And(ad,bc)) ---
     xv3 = Var()
@@ -2648,29 +2648,29 @@ def tuple_injection():
     or_pair = Or(And(eq_ac, eq_bd), And(eq_ad, eq_bc))
     ax_fp = Proof(Sequent(t2.sequent.left, [fa_iff_pair]), t2.rule, t2.premises,
                   term=t2.term, principal=t2.principal)
-    case1_or = apply_thm(pair_injection(), [a, b, c, d], fa_iff_pair, or_pair, ax_fp)
+    case1_or = apply_thm(pair_injection(), [a, b, c, d], fa_iff_pair, or_pair, ax_fp, [], [])
 
     # --- Step 2c: or_pair + eq_ac -> eq_bd ---
     # Sub-case 1: And(eq_ac, eq_bd) -> eq_bd
     and_ac_bd = And(eq_ac, eq_bd)
     ax_and1 = Proof(Sequent([and_ac_bd], [and_ac_bd]), 'axiom', principal=and_ac_bd)
-    sub1 = apply_thm(and_elim_right(eq_ac, eq_bd, []), [], and_ac_bd, eq_bd, ax_and1)
+    sub1 = apply_thm(and_elim_right(eq_ac, eq_bd, []), [], and_ac_bd, eq_bd, ax_and1, [], [])
 
     # Sub-case 2: And(eq_ad, eq_bc) + eq_ac -> eq_bd via chain b=c, c=a, a=d
     and_ad_bc = And(eq_ad, eq_bc)
     ax_and2 = Proof(Sequent([and_ad_bc], [and_ad_bc]), 'axiom', principal=and_ad_bc)
-    got_ad = apply_thm(and_elim_left(eq_ad, eq_bc, []), [], and_ad_bc, eq_ad, ax_and2)
+    got_ad = apply_thm(and_elim_left(eq_ad, eq_bc, []), [], and_ad_bc, eq_ad, ax_and2, [], [])
     got_bc = apply_thm(and_elim_right(eq_ad, eq_bc, []), [], and_ad_bc, eq_bc,
-                       Proof(Sequent([and_ad_bc], [and_ad_bc]), 'axiom', principal=and_ad_bc))
+                       Proof(Sequent([and_ad_bc], [and_ad_bc]), 'axiom', principal=and_ad_bc), [], [])
     eq_ca = Eq(c, a); eq_ba = Eq(b, a)
     ax_ac = Proof(Sequent([eq_ac], [eq_ac]), 'axiom', principal=eq_ac)
-    got_ca = apply_thm(eq_symmetric(), [a, c], eq_ac, eq_ca, ax_ac)
+    got_ca = apply_thm(eq_symmetric(), [a, c], eq_ac, eq_ca, ax_ac, [], [])
     got_ba = apply_thm(eq_transitive(), [b, c, a], eq_bc, Implies(eq_ca, eq_ba),
-                       got_bc)
-    got_ba2 = mp(got_ba, got_ca, eq_ca, eq_ba)
+                       got_bc, [], [])
+    got_ba2 = mp(got_ba, got_ca, eq_ca, eq_ba, [], [])
     got_bd_sub2 = apply_thm(eq_transitive(), [b, a, d], eq_ba, Implies(eq_ad, eq_bd),
-                            got_ba2)
-    sub2_pre = mp(got_bd_sub2, got_ad, eq_ad, eq_bd)
+                            got_ba2, [], [])
+    sub2_pre = mp(got_bd_sub2, got_ad, eq_ad, eq_bd, [and_ad_bc], [and_ad_bc])
     # sub2_pre ctx has [and_ad_bc, eq_ac, ...] -- weaken eq_ac into sub2 if needed
     # Actually mp merges contexts automatically
 
@@ -2685,10 +2685,10 @@ def tuple_injection():
     # --- Step 2d: Case 1 full: And(Eq(sa,sc),Eq(pab,pcd)), all chars |- goal ---
     case1_and = And(Eq(sa, sc), Eq(pab, pcd))
     ax_c1 = Proof(Sequent([case1_and], [case1_and]), 'axiom', principal=case1_and)
-    got_ss = apply_thm(and_elim_left(Eq(sa,sc), Eq(pab,pcd), []), [], case1_and, Eq(sa,sc), ax_c1)
+    got_ss = apply_thm(and_elim_left(Eq(sa,sc), Eq(pab,pcd), []), [], case1_and, Eq(sa,sc), ax_c1, [], [])
     got_pp = apply_thm(and_elim_right(Eq(sa,sc), Eq(pab,pcd), []), [],
                        case1_and, Eq(pab,pcd),
-                       Proof(Sequent([case1_and], [case1_and]), 'axiom', principal=case1_and))
+                       Proof(Sequent([case1_and], [case1_and]), 'axiom', principal=case1_and), [], [])
 
     # Replace Eq(sa,sc) in case1_ac with case1_and
     case1_ac_ctx = list(case1_ac.sequent.left)  # [char_sa, Eq(sa,sc), char_sc]
@@ -2727,7 +2727,7 @@ def tuple_injection():
     and_ca_da = And(Eq(c, a), Eq(d, a))
     case2_sp = apply_thm(singleton_pair_eq(), [a, c, d], t3.sequent.right[0], and_ca_da,
                          Proof(Sequent(t3.sequent.left, t3.sequent.right), t3.rule, t3.premises,
-                               term=t3.term, principal=t3.principal))
+                               term=t3.term, principal=t3.principal), [], [])
 
     # 3b: pab=sc -> forall x. Iff(Or(Eq(x,a),Eq(x,b)), Eq(x,c)) -> iff_sym -> singleton_pair_eq -> And(Eq(a,c),Eq(b,c))
     t4 = _transfer(char_pab, char_sc, Eq(pab, sc), xv5)
@@ -2741,7 +2741,7 @@ def tuple_injection():
                   [Proof(Sequent([oe_body], [oe_body]), 'axiom', principal=oe_body)],
                   principal=iff_or_eq, term=xv5)
     sym_pf = iff_sym(oe_body.left, oe_body.right, [])
-    got_eo = mp(sym_pf, fl_oe, oe_body, eo_body)
+    got_eo = mp(sym_pf, fl_oe, oe_body, eo_body, [], [])
     fa_eo = Forall(xv5, eo_body)
     got_fa_eo = Proof(Sequent(got_eo.sequent.left, [fa_eo]),
                       'forall_right', [got_eo], principal=fa_eo, term=xv5)
@@ -2753,24 +2753,24 @@ def tuple_injection():
     # singleton_pair_eq: Iff(Eq(x,c), Or(Eq(x,a),Eq(x,b))) -> And(Eq(a,c), Eq(b,c))
     and_ac_bc = And(eq_ac, eq_bc)
     case2_ps = apply_thm(singleton_pair_eq(), [c, a, b], fa_eo, and_ac_bc,
-                         got_fa_eo_full)
+                         got_fa_eo_full, [], [])
 
     # 3c: extract and chain -> goal
     ax_ca_da = Proof(Sequent([and_ca_da], [and_ca_da]), 'axiom', principal=and_ca_da)
-    got_da = apply_thm(and_elim_right(Eq(c,a), Eq(d,a), []), [], and_ca_da, Eq(d,a), ax_ca_da)
+    got_da = apply_thm(and_elim_right(Eq(c,a), Eq(d,a), []), [], and_ca_da, Eq(d,a), ax_ca_da, [], [])
     ax_ac_bc = Proof(Sequent([and_ac_bc], [and_ac_bc]), 'axiom', principal=and_ac_bc)
-    got_ac_c2 = apply_thm(and_elim_left(eq_ac, eq_bc, []), [], and_ac_bc, eq_ac, ax_ac_bc)
+    got_ac_c2 = apply_thm(and_elim_left(eq_ac, eq_bc, []), [], and_ac_bc, eq_ac, ax_ac_bc, [], [])
     got_bc_c2 = apply_thm(and_elim_right(eq_ac, eq_bc, []), [],
                           and_ac_bc, eq_bc,
-                          Proof(Sequent([and_ac_bc], [and_ac_bc]), 'axiom', principal=and_ac_bc))
+                          Proof(Sequent([and_ac_bc], [and_ac_bc]), 'axiom', principal=and_ac_bc), [], [])
     # b=d: chain b=c, sym(a=c)=c=a, trans(b,c,a)=b=a, sym(d=a)=a=d, trans(b,a,d)=b=d
-    got_ca_c2 = apply_thm(eq_symmetric(), [a, c], eq_ac, Eq(c, a), got_ac_c2)
-    got_ba_c2 = mp(apply_thm(eq_transitive(), [b, c, a], eq_bc, Implies(Eq(c,a), Eq(b,a)), got_bc_c2),
-                   got_ca_c2, Eq(c, a), Eq(b, a))
+    got_ca_c2 = apply_thm(eq_symmetric(), [a, c], eq_ac, Eq(c, a), got_ac_c2, [], [])
+    got_ba_c2 = mp(apply_thm(eq_transitive(), [b, c, a], eq_bc, Implies(Eq(c,a), Eq(b,a)), got_bc_c2, [], []),
+                   got_ca_c2, Eq(c, a), Eq(b, a), [and_ac_bc], [and_ac_bc])
     got_ad_c2 = apply_thm(eq_symmetric(), [d, a], Eq(d,a), eq_ad,
-                           got_da)
-    got_bd_c2 = mp(apply_thm(eq_transitive(), [b, a, d], Eq(b,a), Implies(eq_ad, eq_bd), got_ba_c2),
-                   got_ad_c2, eq_ad, eq_bd)
+                           got_da, [], [])
+    got_bd_c2 = mp(apply_thm(eq_transitive(), [b, a, d], Eq(b,a), Implies(eq_ad, eq_bd), got_ba_c2, [], []),
+                   got_ad_c2, eq_ad, eq_bd, [], [])
     # got_bd_c2 ctx has and_ca_da + and_ac_bc. Build goal from eq_ac + eq_bd.
     nbd2 = Not(eq_bd)
     and_c2_1 = Proof(Sequent(got_bd_c2.sequent.left + [nbd2], []), 'not_left',
@@ -2788,10 +2788,10 @@ def tuple_injection():
 
     # Wire in case2_and + chars
     ax_c2 = Proof(Sequent([case2_and], [case2_and]), 'axiom', principal=case2_and)
-    got_sp2 = apply_thm(and_elim_left(Eq(sa,pcd), Eq(pab,sc), []), [], case2_and, Eq(sa,pcd), ax_c2)
+    got_sp2 = apply_thm(and_elim_left(Eq(sa,pcd), Eq(pab,sc), []), [], case2_and, Eq(sa,pcd), ax_c2, [], [])
     got_ps2 = apply_thm(and_elim_right(Eq(sa,pcd), Eq(pab,sc), []), [],
                         case2_and, Eq(pab,sc),
-                        Proof(Sequent([case2_and], [case2_and]), 'axiom', principal=case2_and))
+                        Proof(Sequent([case2_and], [case2_and]), 'axiom', principal=case2_and), [], [])
     # case2_sp: [char_sa, Eq(sa,pcd), char_pcd] |- [and_ca_da]
     case2_sp_full = Proof(Sequent([case2_and, char_sa, char_pcd], [and_ca_da]), 'cut',
         [wr(wl(got_sp2, char_sa, char_pcd), and_ca_da),
@@ -2884,10 +2884,10 @@ def kuratowski():
     F_sym = Iff(or_sa_pab, In_t1)
     F_mid = Iff(or_sa_pab, In_t2)
 
-    got_sym = mp(sym_pf, ic1, ct1_body, F_sym)
-    got_mid = mp(mp(ch1, got_sym, F_sym, Implies(eq_body, F_mid)), ieq, eq_body, F_mid)
-    got_outer = mp(mp(ch2, got_mid, F_mid, Implies(ct2_body, char_outer_iff)),
-                   ic2, ct2_body, char_outer_iff)
+    got_sym = mp(sym_pf, ic1, ct1_body, F_sym, [], [])
+    got_mid = mp(mp(ch1, got_sym, F_sym, Implies(eq_body, F_mid), [], []), ieq, eq_body, F_mid, [], [])
+    got_outer = mp(mp(ch2, got_mid, F_mid, Implies(ct2_body, char_outer_iff), [], []),
+                   ic2, ct2_body, char_outer_iff, [], [])
 
     char_outer = Forall(xv2, char_outer_iff)
     got_outer_fa = Proof(Sequent(got_outer.sequent.left, [char_outer]),
@@ -2902,22 +2902,22 @@ def kuratowski():
     ti_concl_inner = Implies(char_pab, Implies(char_sc, Implies(char_pcd,
                         Implies(char_outer, goal))))
     ax_sa = Proof(Sequent([char_sa], [char_sa]), 'axiom', principal=char_sa)
-    step1 = apply_thm(ti, [a, b, c, d, sa, pab, sc, pcd], char_sa, ti_concl_inner, ax_sa)
+    step1 = apply_thm(ti, [a, b, c, d, sa, pab, sc, pcd], char_sa, ti_concl_inner, ax_sa, [], [])
     # step1: [char_sa] |- [char_pab -> char_sc -> char_pcd -> char_outer -> goal]
 
     ax_pab = Proof(Sequent([char_pab], [char_pab]), 'axiom', principal=char_pab)
     ti_c2 = Implies(char_sc, Implies(char_pcd, Implies(char_outer, goal)))
-    step2 = mp(step1, ax_pab, char_pab, ti_c2)
+    step2 = mp(step1, ax_pab, char_pab, ti_c2, [], [])
 
     ax_sc = Proof(Sequent([char_sc], [char_sc]), 'axiom', principal=char_sc)
     ti_c3 = Implies(char_pcd, Implies(char_outer, goal))
-    step3 = mp(step2, ax_sc, char_sc, ti_c3)
+    step3 = mp(step2, ax_sc, char_sc, ti_c3, [], [])
 
     ax_pcd = Proof(Sequent([char_pcd], [char_pcd]), 'axiom', principal=char_pcd)
     ti_c4 = Implies(char_outer, goal)
-    step4 = mp(step3, ax_pcd, char_pcd, ti_c4)
+    step4 = mp(step3, ax_pcd, char_pcd, ti_c4, [], [])
 
-    step5 = mp(step4, got_outer_fa, char_outer, goal)
+    step5 = mp(step4, got_outer_fa, char_outer, goal, [], [])
     # step5: [char_sa, char_pab, char_sc, char_pcd, char_t1, eq_t1_t2, char_t2] |- [goal]
 
     # --- Close: package hyps into OrdPair (Exists/And) then discharge ---
@@ -2928,9 +2928,9 @@ def kuratowski():
         D = proof.sequent.right[0]
         ab = And(A, B)
         ax_ab = Proof(Sequent([ab], [ab]), "axiom", principal=ab)
-        got_a = apply_thm(and_elim_left(A, B, []), [], ab, A, ax_ab)
+        got_a = apply_thm(and_elim_left(A, B, []), [], ab, A, ax_ab, [], [])
         got_b = apply_thm(and_elim_right(A, B, []), [], ab, B,
-                          Proof(Sequent([ab], [ab]), "axiom", principal=ab))
+                          Proof(Sequent([ab], [ab]), "axiom", principal=ab), [], [])
         p1 = Proof(Sequent([ab, B] + ctx, [D]), "cut",
             [wr(wl(got_a, B, *ctx), D), wl(proof, ab)], principal=A)
         return Proof(Sequent([ab] + ctx, [D]), "cut",
@@ -3063,7 +3063,7 @@ def union_exists():
     # Step 1: In(xv,s) -> ex_y (from bu_fwd). MP: bu, In(xv,s) |- ex_y
     got_ex = mp(got_bu_fwd,
                 Proof(Sequent([in_xs], [in_xs]), 'axiom', principal=in_xs),
-                in_xs, ex_y)
+                in_xs, ex_y, [], [])
     # Step 2: From ex_y, existential elim: introduce yv with In(yv,p)  and  In(xv,yv)
     # From And, get In(yv,p) and In(xv,yv)
     # From ps_fwd_y: In(yv,p) -> Or(Eq(yv,a), Eq(yv,b)). MP: Or(Eq(yv,a), Eq(yv,b))
@@ -3074,12 +3074,12 @@ def union_exists():
 
     and_yp_xy = And(In(yv, p), In(xv, yv))
     ax_and = Proof(Sequent([and_yp_xy], [and_yp_xy]), 'axiom', principal=and_yp_xy)
-    got_yp = apply_thm(and_elim_left(In(yv,p), In(xv,yv), []), [], and_yp_xy, In(yv,p), ax_and)
+    got_yp = apply_thm(and_elim_left(In(yv,p), In(xv,yv), []), [], and_yp_xy, In(yv,p), ax_and, [], [])
     got_xy = apply_thm(and_elim_right(In(yv,p), In(xv,yv), []), [], and_yp_xy, In(xv,yv),
-                       Proof(Sequent([and_yp_xy], [and_yp_xy]), 'axiom', principal=and_yp_xy))
+                       Proof(Sequent([and_yp_xy], [and_yp_xy]), 'axiom', principal=and_yp_xy), [], [])
 
     # From ps: In(yv,p) -> Or(Eq(yv,a), Eq(yv,b)). MP with got_yp:
-    got_or_eq = mp(got_ps_fwd_y, got_yp, In(yv, p), Or(Eq(yv, a), Eq(yv, b)))
+    got_or_eq = mp(got_ps_fwd_y, got_yp, In(yv, p), Or(Eq(yv, a), Eq(yv, b)), [], [])
     # got_or_eq: [ps, and_yp_xy] |- [Or(Eq(yv,a), Eq(yv,b))]
 
     # Or elim on Or(Eq(yv,a), Eq(yv,b)):
@@ -3110,7 +3110,7 @@ def union_exists():
     got_fwd_a = Proof(Sequent([eq_ya], [fwd_xy_xa]), 'cut',
         [wr(eq_inst_a, fwd_xy_xa), wl(ext_a, eq_ya)], principal=iff_xy_xa)
     # MP: Eq(yv,a), In(xv,yv) |- In(xv,a)
-    case_a = mp(got_fwd_a, got_xy, In(xv, yv), In(xv, a))
+    case_a = mp(got_fwd_a, got_xy, In(xv, yv), In(xv, a), [], [])
     # Or intro left: ..., |- Or(In(xv,a), In(xv,b))
     # In(xv,a) |- Or(In(xv,a), In(xv,b))
     oil = Proof(Sequent([in_xa], [in_xa]), 'axiom', principal=in_xa)
@@ -3128,7 +3128,7 @@ def union_exists():
     ext_b = _ext_fwd(iff_xy_xb)
     got_fwd_b = Proof(Sequent([eq_yb], [fwd_xy_xb]), 'cut',
         [wr(eq_inst_b, fwd_xy_xb), wl(ext_b, eq_yb)], principal=iff_xy_xb)
-    case_b = mp(got_fwd_b, got_xy, In(xv, yv), In(xv, b))
+    case_b = mp(got_fwd_b, got_xy, In(xv, yv), In(xv, b), [], [])
     # Or intro right
     oir = Proof(Sequent([in_xb, Not(in_xa)], [in_xb]), 'axiom', principal=in_xb)
     oir2 = Proof(Sequent([in_xb], [or_ab]), 'implies_right', [oir], principal=or_ab)
@@ -3220,7 +3220,7 @@ def union_exists():
     got_or_eq_a = Proof(Sequent([], [or_eq_a]), 'cut',
         [wr(r6, or_eq_a), oil_a4], principal=eq_aa_v)
     # |- In(a, p) via MP: got_ps_bwd_a and got_or_eq_a
-    got_a_in_p = mp(got_ps_bwd_a, got_or_eq_a, or_eq_a, In(a, p))
+    got_a_in_p = mp(got_ps_bwd_a, got_or_eq_a, or_eq_a, In(a, p), [], [])
     # got_a_in_p: [ps] |- [In(a, p)]
 
     # Build And(In(a,p), In(xv,a)) then exists y intro with witness a
@@ -3249,7 +3249,7 @@ def union_exists():
     got_ex_a = Proof(Sequent([ps, in_xa], [ex_y]), 'not_right', [fl1], principal=ex_y)
 
     # bu_bwd: ex_y -> In(xv,s). MP: ps, bu, In(xv,a) |- In(xv,s)
-    bwd_case_a = mp(got_bu_bwd, got_ex_a, ex_y, in_xs)
+    bwd_case_a = mp(got_bu_bwd, got_ex_a, ex_y, in_xs, [], [])
 
     # Case x in b: similar, witness y=b
     ps_body_b = Iff(In(b, p), Or(Eq(b, a), Eq(b, b)))
@@ -3280,7 +3280,7 @@ def union_exists():
     oir_b2 = Proof(Sequent([eq_bb_v], [or_eq_b]), 'implies_right', [oir_b1], principal=or_eq_b)
     got_or_eq_b = Proof(Sequent([], [or_eq_b]), 'cut',
         [wr(rb6, or_eq_b), oir_b2], principal=eq_bb_v)
-    got_b_in_p = mp(got_ps_bwd_b, got_or_eq_b, or_eq_b, In(b, p))
+    got_b_in_p = mp(got_ps_bwd_b, got_or_eq_b, or_eq_b, In(b, p), [], [])
 
     and_bp_xb = And(In(b, p), In(xv, b))
     n_xb = Not(In(xv, b))
@@ -3296,7 +3296,7 @@ def union_exists():
     flb1 = Proof(Sequent([ps, in_xb, Forall(yv, Not(and_body))], []),
                  'forall_left', [nlb1], principal=Forall(yv, Not(and_body)), term=b)
     got_ex_b = Proof(Sequent([ps, in_xb], [ex_y]), 'not_right', [flb1], principal=ex_y)
-    bwd_case_b = mp(got_bu_bwd, got_ex_b, ex_y, in_xs)
+    bwd_case_b = mp(got_bu_bwd, got_ex_b, ex_y, in_xs, [], [])
 
     # Or elim: ps, bu, Or(In(xv,a), In(xv,b)) |- In(xv,s)
     bwd_a_w = wl(bwd_case_a, or_ab)
@@ -3485,15 +3485,15 @@ def successor_exists():
     or_new = Or(In(xv, x), Eq(xv, x))
     iff_or = Iff(or_old, or_new)
     imp_inner = Implies(sing_body, iff_or)
-    got_imp = apply_thm(oic, [], iff_refl, imp_inner, got_iff_refl)
+    got_imp = apply_thm(oic, [], iff_refl, imp_inner, got_iff_refl, [], [])
     # got_imp: [] |- Implies(sing_body, iff_or)
-    got_iff_or = mp(got_imp, got_sing, sing_body, iff_or)
+    got_iff_or = mp(got_imp, got_sing, sing_body, iff_or, [], [])
     # got_iff_or: [sing] |- [iff_or]
 
     # Chain: Iff(In(xv,s), or_old) and Iff(or_old, or_new) -> Iff(In(xv,s), or_new)
     ct = char_transfer(In(xv, s), or_old, or_new)
-    got_chain = mp(mp(ct, got_union, union_body, Implies(iff_or, succ_body)),
-                   got_iff_or, iff_or, succ_body)
+    got_chain = mp(mp(ct, got_union, union_body, Implies(iff_or, succ_body), [], []),
+                   got_iff_or, iff_or, succ_body, [], [])
     # got_chain: [union_s, sing] |- [succ_body]
 
     # forall_right xv: union_s, sing |- Forall(xv, succ_body) = Successor(s, x)
@@ -3667,12 +3667,12 @@ def unique_successor():
     # iff_sym on iff2: succ2 |- Iff(mid, In(zv, s2))
     iff2_sym = Iff(mid, In(zv, s2))
     sym = iff_sym(In(zv, s2), mid, [])
-    got_iff2_sym = mp(sym, got_iff2, iff2, iff2_sym)
+    got_iff2_sym = mp(sym, got_iff2, iff2, iff2_sym, [], [])
 
     # iff_chain: Iff(In(zv,s1), mid), Iff(mid, In(zv,s2)) -> Iff(In(zv,s1), In(zv,s2))
     ct = char_transfer(In(zv, s1), mid, In(zv, s2))
-    got_result = mp(mp(ct, got_iff1, iff1, Implies(iff2_sym, iff_result)),
-                    got_iff2_sym, iff2_sym, iff_result)
+    got_result = mp(mp(ct, got_iff1, iff1, Implies(iff2_sym, iff_result), [], []),
+                    got_iff2_sym, iff2_sym, iff_result, [], [])
     # got_result: [succ1, succ2] |- [iff_result]
 
     # forall z: succ1, succ2 |- Eq(s1, s2)
@@ -3790,7 +3790,7 @@ def infinity_gives_inductive():
 
     # MP: ext_ax, Empty(e0), Empty(e), In(e0,b) |- In(e,b)
     got_in_e = mp(got_fwd2, Proof(Sequent([In(e0, b)], [In(e0, b)]), 'axiom', principal=In(e0, b)),
-                  In(e0, b), In(e, b))
+                  In(e0, b), In(e, b), [], [])
 
     # Part 1: forall e. Empty(e) -> In(e, b)
     imp_e_in = Implies(Empty(e), In(e, b))
@@ -3850,7 +3850,7 @@ def infinity_gives_inductive():
     got_fwd_s3 = Proof(Sequent([ext_ax, succ_s0, succ_s], [fwd_sb]), 'cut',
         [wr(wl(got_eq_s, ext_ax), fwd_sb), wl(got_fwd_s2, succ_s0, succ_s)], principal=eq_s0_s)
     got_in_s = mp(got_fwd_s3, Proof(Sequent([In(s0, b)], [In(s0, b)]), 'axiom', principal=In(s0, b)),
-                  In(s0, b), In(s, b))
+                  In(s0, b), In(s, b), [], [])
     imp_s_in = Implies(succ_s, In(s, b))
     d3 = Proof(Sequent([ext_ax, succ_s0, In(s0, b)], [imp_s_in]), 'implies_right', [got_in_s], principal=imp_s_in)
     fa_s_part2 = Forall(s, imp_s_in)
@@ -3859,9 +3859,9 @@ def infinity_gives_inductive():
     # Package And(In(s0,b), succ_s0) -> existential elim
     and_s0 = And(In(s0, b), succ_s0)
     ax_as = Proof(Sequent([and_s0], [and_s0]), 'axiom', principal=and_s0)
-    got_ins0 = apply_thm(and_elim_left(In(s0, b), succ_s0, []), [], and_s0, In(s0, b), ax_as)
+    got_ins0 = apply_thm(and_elim_left(In(s0, b), succ_s0, []), [], and_s0, In(s0, b), ax_as, [], [])
     got_succ0 = apply_thm(and_elim_right(In(s0, b), succ_s0, []), [], and_s0, succ_s0,
-                           Proof(Sequent([and_s0], [and_s0]), 'axiom', principal=and_s0))
+                           Proof(Sequent([and_s0], [and_s0]), 'axiom', principal=and_s0), [], [])
     d4a = Proof(Sequent([ext_ax, and_s0], [fa_s_part2]), 'cut',
         [wr(wl(got_succ0, ext_ax), fa_s_part2),
          Proof(Sequent([ext_ax, and_s0, succ_s0], [fa_s_part2]), 'cut',
@@ -3881,7 +3881,7 @@ def infinity_gives_inductive():
     imp_x_ex = Implies(In(x, b), ex_s0)
     fl_cl = Proof(Sequent([inf_closure], [imp_x_ex]), 'forall_left',
         [Proof(Sequent([imp_x_ex], [imp_x_ex]), 'axiom', principal=imp_x_ex)], principal=inf_closure, term=x)
-    got_ex_s0 = mp(fl_cl, Proof(Sequent([In(x, b)], [In(x, b)]), 'axiom', principal=In(x, b)), In(x, b), ex_s0)
+    got_ex_s0 = mp(fl_cl, Proof(Sequent([In(x, b)], [In(x, b)]), 'axiom', principal=In(x, b)), In(x, b), ex_s0, [], [])
     got_cl = Proof(Sequent([ext_ax, inf_closure, In(x, b)], [fa_s_part2]), 'cut',
         [wr(wl(got_ex_s0, ext_ax), fa_s_part2), wl(d5, inf_closure, In(x, b))], principal=ex_s0)
     imp_x_fa = Implies(In(x, b), fa_s_part2)
@@ -3901,9 +3901,9 @@ def infinity_gives_inductive():
     inf_empty = Exists(e0, And(In(e0, b), Empty(e0)))
     and_e0 = And(In(e0, b), Empty(e0))
     ax_ae = Proof(Sequent([and_e0], [and_e0]), 'axiom', principal=and_e0)
-    got_ine0 = apply_thm(and_elim_left(In(e0, b), Empty(e0), []), [], and_e0, In(e0, b), ax_ae)
+    got_ine0 = apply_thm(and_elim_left(In(e0, b), Empty(e0), []), [], and_e0, In(e0, b), ax_ae, [], [])
     got_empe0 = apply_thm(and_elim_right(In(e0, b), Empty(e0), []), [], and_e0, Empty(e0),
-                           Proof(Sequent([and_e0], [and_e0]), 'axiom', principal=and_e0))
+                           Proof(Sequent([and_e0], [and_e0]), 'axiom', principal=and_e0), [], [])
     gi2 = Proof(Sequent([ext_ax, and_e0, inf_closure], [ind_b]), 'cut',
         [wr(wl(got_empe0, ext_ax, inf_closure), ind_b),
          Proof(Sequent([ext_ax, and_e0, Empty(e0), inf_closure], [ind_b]), 'cut',
@@ -3914,9 +3914,9 @@ def infinity_gives_inductive():
     # Package inf_and
     inf_and = And(inf_empty, inf_closure)
     ax_ia = Proof(Sequent([inf_and], [inf_and]), 'axiom', principal=inf_and)
-    got_ie = apply_thm(and_elim_left(inf_empty, inf_closure, []), [], inf_and, inf_empty, ax_ia)
+    got_ie = apply_thm(and_elim_left(inf_empty, inf_closure, []), [], inf_and, inf_empty, ax_ia, [], [])
     got_ic = apply_thm(and_elim_right(inf_empty, inf_closure, []), [], inf_and, inf_closure,
-                        Proof(Sequent([inf_and], [inf_and]), 'axiom', principal=inf_and))
+                        Proof(Sequent([inf_and], [inf_and]), 'axiom', principal=inf_and), [], [])
     gi4 = Proof(Sequent([ext_ax, inf_and], [ind_b]), 'cut',
         [wr(wl(got_ie, ext_ax), ind_b),
          Proof(Sequent([ext_ax, inf_and, inf_empty], [ind_b]), 'cut',
@@ -3967,7 +3967,7 @@ def omega_is_inductive():
     # MP with Inductive(b0): omega_w, Inductive(b0) |- fa_iff
     got_fa = mp(got_imp,
                 Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0),
-                ind_b0, fa_iff)
+                ind_b0, fa_iff, [], [])
 
     # Instantiate fa_iff with xv=ev (for empty part) and xv (for closure part)
     # via cut on fa_iff
@@ -4014,7 +4014,7 @@ def omega_is_inductive():
 
     ax_ind = Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0)
     got_empty_b0 = apply_thm(and_elim_left(ind_empty, ind_closure_b0, []), [],
-                              ind_b0, ind_empty, ax_ind)
+                              ind_b0, ind_empty, ax_ind, [], [])
     # got_empty_b0: [ind_b0] |- [forall e. Empty(e) -> In(e, b0)]
 
     # For In(ev, b0): ind_b0, Empty(ev) |- In(ev, b0)
@@ -4023,7 +4023,7 @@ def omega_is_inductive():
     got_ev_b0 = mp(Proof(Sequent([ind_b0], [imp_emp_in]), 'cut',
                     [wr(got_empty_b0, imp_emp_in), wl(fl_emp, ind_b0)], principal=ind_empty),
                    Proof(Sequent([Empty(ev)], [Empty(ev)]), 'axiom', principal=Empty(ev)),
-                   Empty(ev), In(ev, b0))
+                   Empty(ev), In(ev, b0), [], [])
     # got_ev_b0: [ind_b0, Empty(ev)] |- [In(ev, b0)]
 
     # For forall c. Ind(c) -> In(ev, c):
@@ -4033,13 +4033,13 @@ def omega_is_inductive():
     ind_closure_c = Forall(xv, Implies(In(xv, cv), Forall(sv, Implies(Successor(sv, xv), In(sv, cv)))))
     ax_ind_c = Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c)
     got_empty_c = apply_thm(and_elim_left(ind_empty_c, ind_closure_c, []), [],
-                             ind_c, ind_empty_c, ax_ind_c)
+                             ind_c, ind_empty_c, ax_ind_c, [], [])
     fl_emp_c = _fl(ind_empty_c, Implies(Empty(ev), In(ev, cv)), ev)
     got_ev_c = mp(Proof(Sequent([ind_c], [Implies(Empty(ev), In(ev, cv))]), 'cut',
                    [wr(got_empty_c, Implies(Empty(ev), In(ev, cv))),
                     wl(fl_emp_c, ind_c)], principal=ind_empty_c),
                   Proof(Sequent([Empty(ev)], [Empty(ev)]), 'axiom', principal=Empty(ev)),
-                  Empty(ev), In(ev, cv))
+                  Empty(ev), In(ev, cv), [], [])
     # got_ev_c: [ind_c, Empty(ev)] |- [In(ev, cv)]
 
     # forall c. Ind(c) -> In(ev, c): discharge Ind(c), forall c
@@ -4068,7 +4068,7 @@ def omega_is_inductive():
         [wr(got_iff_ev, Implies(cond_ev, In(ev, w))),
          wl(bwd_ev, *got_iff_ev.sequent.left)], principal=iff_ev)
     # MP: omega_w, ind_b0, cond_ev |- In(ev, w)
-    got_ev_w = mp(got_bwd_ev, got_cond_ev, cond_ev, In(ev, w))
+    got_ev_w = mp(got_bwd_ev, got_cond_ev, cond_ev, In(ev, w), [ind_b0], [ind_b0])
     # got_ev_w: [omega_w, ind_b0, Empty(ev)] |- [In(ev, w)]
 
     # Part 1 done: discharge Empty(ev), forall ev
@@ -4096,42 +4096,42 @@ def omega_is_inductive():
     # MP with In(xv, w):
     got_cond_xv = mp(got_fwd_xv,
                      Proof(Sequent([In(xv, w)], [In(xv, w)]), 'axiom', principal=In(xv, w)),
-                     In(xv, w), cond_xv_full)
+                     In(xv, w), cond_xv_full, [], [])
     # got_cond_xv: [omega_w, ind_b0, In(xv,w)] |- [cond_xv_full]
 
     # Extract In(xv, b0) and forall c.Ind(c)->In(xv,c) from cond
     fa_c_xv = Forall(cv, Implies(Inductive(cv), In(xv, cv)))
     ax_cond = Proof(Sequent([cond_xv_full], [cond_xv_full]), 'axiom', principal=cond_xv_full)
     got_xv_b0 = apply_thm(and_elim_left(In(xv, b0), fa_c_xv, []), [],
-                            cond_xv_full, In(xv, b0), ax_cond)
+                            cond_xv_full, In(xv, b0), ax_cond, [], [])
     got_fa_c_xv = apply_thm(and_elim_right(In(xv, b0), fa_c_xv, []), [],
                               cond_xv_full, fa_c_xv,
-                              Proof(Sequent([cond_xv_full], [cond_xv_full]), 'axiom', principal=cond_xv_full))
+                              Proof(Sequent([cond_xv_full], [cond_xv_full]), 'axiom', principal=cond_xv_full), [], [])
 
     # From Ind(b0) closure + In(xv,b0) + Succ(sv,xv): In(sv,b0)
     got_closure_b0 = apply_thm(and_elim_right(ind_empty, ind_closure_b0, []), [],
                                 ind_b0, ind_closure_b0,
-                                Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0))
+                                Proof(Sequent([ind_b0], [ind_b0]), 'axiom', principal=ind_b0), [], [])
     # got_closure_b0: [ind_b0] |- [forall x.In(x,b0)->forall s.Succ(s,x)->In(s,b0)]
     imp_xv_cl = Implies(In(xv, b0), Forall(sv, Implies(Successor(sv, xv), In(sv, b0))))
     fl_cl = _fl(ind_closure_b0, imp_xv_cl, xv)
     fa_sv_imp = Forall(sv, Implies(Successor(sv, xv), In(sv, b0)))
     got_fa_sv = mp(Proof(Sequent([ind_b0], [imp_xv_cl]), 'cut',
                     [wr(got_closure_b0, imp_xv_cl), wl(fl_cl, ind_b0)], principal=ind_closure_b0),
-                   got_xv_b0, In(xv, b0), fa_sv_imp)
+                   got_xv_b0, In(xv, b0), fa_sv_imp, [], [])
     # got_fa_sv: [ind_b0, cond_xv_full] |- [forall s.Succ(s,xv)->In(s,b0)]
     imp_sv_in = Implies(Successor(sv, xv), In(sv, b0))
     fl_sv = _fl(fa_sv_imp, imp_sv_in, sv)
     got_sv_b0 = mp(Proof(Sequent(got_fa_sv.sequent.left, [imp_sv_in]), 'cut',
                     [wr(got_fa_sv, imp_sv_in), wl(fl_sv, *got_fa_sv.sequent.left)], principal=fa_sv_imp),
                    Proof(Sequent([Successor(sv, xv)], [Successor(sv, xv)]), 'axiom', principal=Successor(sv, xv)),
-                   Successor(sv, xv), In(sv, b0))
+                   Successor(sv, xv), In(sv, b0), [], [])
     # got_sv_b0: [ind_b0, cond_xv_full, Succ(sv,xv)] |- [In(sv,b0)]
 
     # For forall c. Ind(c) -> In(sv, c): from Ind(c), In(xv,c), Succ(sv,xv) -> In(sv,c)
     got_closure_c = apply_thm(and_elim_right(ind_empty_c, ind_closure_c, []), [],
                                ind_c, ind_closure_c,
-                               Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c))
+                               Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c), [], [])
     imp_xv_cl_c = Implies(In(xv, cv), Forall(sv, Implies(Successor(sv, xv), In(sv, cv))))
     fl_cl_c = _fl(ind_closure_c, imp_xv_cl_c, xv)
     # From forall c.Ind(c)->In(xv,c), instantiate c=cv: Ind(cv) -> In(xv, cv)
@@ -4139,19 +4139,19 @@ def omega_is_inductive():
     fl_c_xv = _fl(fa_c_xv, imp_ind_xv, cv)
     got_xv_cv = mp(wl(fl_c_xv, ind_c),
                    Proof(Sequent([ind_c], [ind_c]), 'axiom', principal=ind_c),
-                   ind_c, In(xv, cv))
+                   ind_c, In(xv, cv), [ind_c], [ind_c])
     # got_xv_cv: [fa_c_xv, ind_c] |- [In(xv, cv)]
 
     fa_sv_imp_c = Forall(sv, Implies(Successor(sv, xv), In(sv, cv)))
     got_fa_sv_c = mp(Proof(Sequent([ind_c], [imp_xv_cl_c]), 'cut',
                       [wr(got_closure_c, imp_xv_cl_c), wl(fl_cl_c, ind_c)], principal=ind_closure_c),
-                     got_xv_cv, In(xv, cv), fa_sv_imp_c)
+                     got_xv_cv, In(xv, cv), fa_sv_imp_c, [ind_c], [ind_c])
     imp_sv_in_c = Implies(Successor(sv, xv), In(sv, cv))
     fl_sv_c = _fl(fa_sv_imp_c, imp_sv_in_c, sv)
     got_sv_cv = mp(Proof(Sequent(got_fa_sv_c.sequent.left, [imp_sv_in_c]), 'cut',
                     [wr(got_fa_sv_c, imp_sv_in_c), wl(fl_sv_c, *got_fa_sv_c.sequent.left)], principal=fa_sv_imp_c),
                    Proof(Sequent([Successor(sv, xv)], [Successor(sv, xv)]), 'axiom', principal=Successor(sv, xv)),
-                   Successor(sv, xv), In(sv, cv))
+                   Successor(sv, xv), In(sv, cv), [], [])
     # got_sv_cv: [fa_c_xv, ind_c, Succ(sv,xv)] |- [In(sv, cv)]
 
     # forall c. Ind(c) -> In(sv, c): discharge ind_c, forall cv
@@ -4199,7 +4199,7 @@ def omega_is_inductive():
     got_bwd_sv = Proof(Sequent(got_iff_sv.sequent.left, [Implies(cond_sv_full, In(sv, w))]), 'cut',
         [wr(got_iff_sv, Implies(cond_sv_full, In(sv, w))),
          wl(bwd_sv, *got_iff_sv.sequent.left)], principal=iff_sv)
-    got_sv_w = mp(got_bwd_sv, got_cond_sv2, cond_sv_full, In(sv, w))
+    got_sv_w = mp(got_bwd_sv, got_cond_sv2, cond_sv_full, In(sv, w), [omega_w, ind_b0], [omega_w, ind_b0])
     # got_sv_w: [omega_w, ind_b0, In(xv,w), Succ(sv,xv)] |- [In(sv,w)]
 
     # Part 2: discharge Succ, forall sv, discharge In(xv,w), forall xv
@@ -4278,8 +4278,8 @@ def eq_in_eq():
 
     # iff_chain: Iff(In(w,z), In(w,x1)), Iff(In(w,x1), In(w,x2)) -> Iff(In(w,z), In(w,x2))
     ct = char_transfer(In(wv, z), In(wv, x1), In(wv, x2))
-    got_result = mp(mp(ct, got_iff1, iff_wz_wx1, Implies(iff_wx1_wx2, iff_wz_wx2)),
-                    got_iff2, iff_wx1_wx2, iff_wz_wx2)
+    got_result = mp(mp(ct, got_iff1, iff_wz_wx1, Implies(iff_wx1_wx2, iff_wz_wx2), [], []),
+                    got_iff2, iff_wx1_wx2, iff_wz_wx2, [], [])
     # got_result: [eq_zx1, eq_x] |- [iff_wz_wx2]
 
     # forall w: eq_zx1, eq_x |- Eq(z, x2) = Forall(wv, iff_wz_wx2)
@@ -4291,11 +4291,11 @@ def eq_in_eq():
     # This gives: eq_zx1, eq_x |- eq_zx2 (the FORWARD direction)
     # For backward: eq_zx2, eq_x |- eq_zx1. Same proof with x1/x2 swapped.
     iff_wx2_wx1 = Iff(In(wv, x2), In(wv, x1))
-    got_iff2_sym = mp(iff_sym(In(wv, x1), In(wv, x2), []), got_iff2, iff_wx1_wx2, iff_wx2_wx1)
+    got_iff2_sym = mp(iff_sym(In(wv, x1), In(wv, x2), []), got_iff2, iff_wx1_wx2, iff_wx2_wx1, [], [])
     got_iff_zx2 = _fl(eq_zx2, Iff(In(wv, z), In(wv, x2)), wv)
     ct2 = char_transfer(In(wv, z), In(wv, x2), In(wv, x1))
-    got_result2 = mp(mp(ct2, got_iff_zx2, Iff(In(wv, z), In(wv, x2)), Implies(iff_wx2_wx1, iff_wz_wx1)),
-                     got_iff2_sym, iff_wx2_wx1, iff_wz_wx1)
+    got_result2 = mp(mp(ct2, got_iff_zx2, Iff(In(wv, z), In(wv, x2)), Implies(iff_wx2_wx1, iff_wz_wx1), [], []),
+                     got_iff2_sym, iff_wx2_wx1, iff_wz_wx1, [], [])
     fa_w2 = Forall(wv, iff_wz_wx1)
     got_fa2 = Proof(Sequent([eq_zx2, eq_x], [fa_w2]),
                     'forall_right', [got_result2], principal=fa_w2, term=wv)
@@ -4387,7 +4387,7 @@ def func_preserves_eq():
     # Instantiate eq_in_eq with x1, x2, z:
     fa_z_iff = Forall(zv, iff_eq_z)
     ax_eq = Proof(Sequent([eq_x], [eq_x]), 'axiom', principal=eq_x)
-    got_fa_iff = apply_thm(eie, [x1, x2], eq_x, fa_z_iff, ax_eq)
+    got_fa_iff = apply_thm(eie, [x1, x2], eq_x, fa_z_iff, ax_eq, [], [])
     # got_fa_iff: [eq_x] |- [forall z. Iff(Eq(z,x1), Eq(z,x2))]
 
     def _fl(parent, body, term):
@@ -4403,7 +4403,7 @@ def func_preserves_eq():
 
     # iff_sym: Iff(Eq(z,x2), Eq(z,x1))
     iff_eq_z_rev = Iff(Eq(zv, x2), Eq(zv, x1))
-    got_iff_rev = mp(iff_sym(Eq(zv, x1), Eq(zv, x2), []), got_iff_eq, iff_eq_z, iff_eq_z_rev)
+    got_iff_rev = mp(iff_sym(Eq(zv, x1), Eq(zv, x2), []), got_iff_eq, iff_eq_z, iff_eq_z_rev, [], [])
     # got_iff_rev: [eq_x] |- [Iff(Eq(z,x2), Eq(z,x1))]
 
     # Singleton(sa, x2) instantiated at zv: Iff(In(zv, sa), Eq(zv, x2))
@@ -4414,8 +4414,8 @@ def func_preserves_eq():
     # iff_chain: Iff(In(zv,sa), Eq(zv,x2)) + Iff(Eq(zv,x2), Eq(zv,x1)) -> Iff(In(zv,sa), Eq(zv,x1))
     iff_in_eq1 = Iff(In(zv, sa), Eq(zv, x1))
     ct = char_transfer(In(zv, sa), Eq(zv, x2), Eq(zv, x1))
-    got_sing_z = mp(mp(ct, got_sing_inst, iff_in_eq, Implies(iff_eq_z_rev, iff_in_eq1)),
-                    got_iff_rev, iff_eq_z_rev, iff_in_eq1)
+    got_sing_z = mp(mp(ct, got_sing_inst, iff_in_eq, Implies(iff_eq_z_rev, iff_in_eq1), [], []),
+                    got_iff_rev, iff_eq_z_rev, iff_in_eq1, [], [])
     # got_sing_z: [sing_x2, eq_x] |- [Iff(In(zv,sa), Eq(zv,x1))]
 
     # forall z: sing_x2, eq_x |- Singleton(sa, x1)
@@ -4461,17 +4461,17 @@ def func_preserves_eq():
     # or_iff_compat: Iff(Eq(z,x1),Eq(z,x2)) + Iff(Eq(z,y2),Eq(z,y2)) -> Iff(Or(Eq(z,x1),Eq(z,y2)), Or(Eq(z,x2),Eq(z,y2)))
     oic = or_iff_compat(Eq(zv, x1), Eq(zv, y2), Eq(zv, x2), Eq(zv, y2), [])
     iff_or_fwd = Iff(or_x1, or_x2)
-    got_iff_or = mp(mp(oic, got_iff_eq, iff_eq_z, Implies(iff_refl_y, iff_or_fwd)),
-                    got_iff_refl, iff_refl_y, iff_or_fwd)
+    got_iff_or = mp(mp(oic, got_iff_eq, iff_eq_z, Implies(iff_refl_y, iff_or_fwd), [], []),
+                    got_iff_refl, iff_refl_y, iff_or_fwd, [], [])
     # got_iff_or: [eq_x] |- [Iff(Or(Eq(z,x1),Eq(z,y2)), Or(Eq(z,x2),Eq(z,y2)))]
 
     # iff_sym to get Iff(or_x2, or_x1):
-    got_iff_or_rev = mp(iff_sym(or_x1, or_x2, []), got_iff_or, iff_or_fwd, iff_or)
+    got_iff_or_rev = mp(iff_sym(or_x1, or_x2, []), got_iff_or, iff_or_fwd, iff_or, [], [])
 
     # iff_chain: Iff(In(z,pab), or_x2) + Iff(or_x2, or_x1) -> Iff(In(z,pab), or_x1)
     ct2 = char_transfer(In(zv, pab), or_x2, or_x1)
-    got_pair_z = mp(mp(ct2, got_pair_inst, iff_in_or2, Implies(iff_or, iff_in_or1)),
-                    got_iff_or_rev, iff_or, iff_in_or1)
+    got_pair_z = mp(mp(ct2, got_pair_inst, iff_in_or2, Implies(iff_or, iff_in_or1), [], []),
+                    got_iff_or_rev, iff_or, iff_in_or1, [], [])
     # got_pair_z: [pair_x2_y2, eq_x] |- [Iff(In(z,pab), Or(Eq(z,x1),Eq(z,y2)))]
 
     fa_pair = Forall(zv, iff_in_or1)
@@ -4614,9 +4614,9 @@ def func_preserves_eq():
     # Unpack And(PairSet(pab,x2,y2), PairSet(p,sa,pab)):
     and_inner2 = And(pair_x2_y2, pair_p)
     ax_and2 = Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2)
-    got_px2 = apply_thm(and_elim_left(pair_x2_y2, pair_p, []), [], and_inner2, pair_x2_y2, ax_and2)
+    got_px2 = apply_thm(and_elim_left(pair_x2_y2, pair_p, []), [], and_inner2, pair_x2_y2, ax_and2, [], [])
     got_pp = apply_thm(and_elim_right(pair_x2_y2, pair_p, []), [], and_inner2, pair_p,
-                       Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2))
+                       Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2), [], [])
 
     # got_app_x1 needs [sing_x2, pair_x2_y2, eq_x, pair_p, in_pf] on left.
     # Cut pair_x2_y2 and pair_p from and_inner2:
@@ -4635,9 +4635,9 @@ def func_preserves_eq():
     ex_pab_inner = Exists(pab, and_inner2)
     and_outer2 = And(sing_x2, ex_pab_inner)
     ax_ao = Proof(Sequent([and_outer2], [and_outer2]), 'axiom', principal=and_outer2)
-    got_sx2 = apply_thm(and_elim_left(sing_x2, ex_pab_inner, []), [], and_outer2, sing_x2, ax_ao)
+    got_sx2 = apply_thm(and_elim_left(sing_x2, ex_pab_inner, []), [], and_outer2, sing_x2, ax_ao, [], [])
     got_ex_pab2 = apply_thm(and_elim_right(sing_x2, ex_pab_inner, []), [], and_outer2, ex_pab_inner,
-                             Proof(Sequent([and_outer2], [and_outer2]), 'axiom', principal=and_outer2))
+                             Proof(Sequent([and_outer2], [and_outer2]), 'axiom', principal=and_outer2), [], [])
 
     got_app_from_ao = Proof(Sequent([and_outer2, eq_x, in_pf], [app_x1_y2]), 'cut',
         [wr(wl(got_sx2, eq_x, in_pf), app_x1_y2),
@@ -4653,9 +4653,9 @@ def func_preserves_eq():
     # Unpack And(OrdPair(p,x2,y2), In(p,f)): but OrdPair IS exists sa.and_outer2 (alpha-equiv)
     and_ordp_in = And(ord_x2, in_pf)
     ax_aoi = Proof(Sequent([and_ordp_in], [and_ordp_in]), 'axiom', principal=and_ordp_in)
-    got_ord2 = apply_thm(and_elim_left(ord_x2, in_pf, []), [], and_ordp_in, ord_x2, ax_aoi)
+    got_ord2 = apply_thm(and_elim_left(ord_x2, in_pf, []), [], and_ordp_in, ord_x2, ax_aoi, [], [])
     got_inf = apply_thm(and_elim_right(ord_x2, in_pf, []), [], and_ordp_in, in_pf,
-                        Proof(Sequent([and_ordp_in], [and_ordp_in]), 'axiom', principal=and_ordp_in))
+                        Proof(Sequent([and_ordp_in], [and_ordp_in]), 'axiom', principal=and_ordp_in), [], [])
 
     got_app_from_aoi = Proof(Sequent([and_ordp_in, eq_x], [app_x1_y2]), 'cut',
         [wr(wl(got_ord2, eq_x), app_x1_y2),
@@ -4854,7 +4854,7 @@ def plus_zero():
     fl_base = _fl(base_clause, imp_emp_app, nv)
     got_app_m = mp(fl_base,
         Proof(Sequent([empty_n], [empty_n]), 'axiom', principal=empty_n),
-        empty_n, app_h_n_m)
+        empty_n, app_h_n_m, [], [])
     # got_app_m: [base_clause, empty_n] |- [Apply(h, nv, m)]
 
     # Step 2: func_unique gives Apply(h,nv,m) + Apply(h,nv,p) + Function(h) -> Eq(m,p)
@@ -4863,31 +4863,31 @@ def plus_zero():
     # Instantiate: f=h, x=nv, y1=m, y2=p, hyp=Function(h)
     imp_rest = Implies(app_h_n_m, Implies(app_h_n_p, eq_mp))
     got_fu1 = apply_thm(fu, [h, nv, m, p], func_h, imp_rest,
-        Proof(Sequent([func_h], [func_h]), 'axiom', principal=func_h))
+        Proof(Sequent([func_h], [func_h]), 'axiom', principal=func_h), [], [])
     # got_fu1: [func_h] |- [Apply(h,nv,m) -> Apply(h,nv,p) -> Eq(m,p)]
 
     # MP with got_app_m: Apply(h,nv,m)
-    got_fu2 = mp(got_fu1, got_app_m, app_h_n_m, Implies(app_h_n_p, eq_mp))
+    got_fu2 = mp(got_fu1, got_app_m, app_h_n_m, Implies(app_h_n_p, eq_mp), [], [])
     # got_fu2: [func_h, base_clause, empty_n] |- [Apply(h,nv,p) -> Eq(m,p)]
 
     # MP with Apply(h,nv,p)
     core = mp(got_fu2,
         Proof(Sequent([app_h_n_p], [app_h_n_p]), 'axiom', principal=app_h_n_p),
-        app_h_n_p, eq_mp)
+        app_h_n_p, eq_mp, [], [])
     # core: [func_h, base_clause, empty_n, app_h_n_p] |- [Eq(m,p)]
 
     # === Unpack Recursive: And(func_h, And(base, step)) ===
     # and_elim_left to get func_h from rec_h
     ax_rec = Proof(Sequent([rec_h], [rec_h]), 'axiom', principal=rec_h)
-    got_func = apply_thm(and_elim_left(func_h, and_base_step, []), [], rec_h, func_h, ax_rec)
+    got_func = apply_thm(and_elim_left(func_h, and_base_step, []), [], rec_h, func_h, ax_rec, [], [])
     # got_func: [rec_h] |- [func_h]
 
     # and_elim_right to get And(base, step), then and_elim_left to get base
     got_bs = apply_thm(and_elim_right(func_h, and_base_step, []), [], rec_h, and_base_step,
-        Proof(Sequent([rec_h], [rec_h]), 'axiom', principal=rec_h))
+        Proof(Sequent([rec_h], [rec_h]), 'axiom', principal=rec_h), [], [])
     got_base = apply_thm(and_elim_left(base_clause, step_clause, []), [],
         and_base_step, base_clause,
-        Proof(Sequent([and_base_step], [and_base_step]), 'axiom', principal=and_base_step))
+        Proof(Sequent([and_base_step], [and_base_step]), 'axiom', principal=and_base_step), [], [])
     # Chain: rec_h |- base_clause
     got_base_full = Proof(Sequent([rec_h], [base_clause]), 'cut',
         [wr(got_bs, base_clause), wl(got_base, rec_h)], principal=and_base_step)
@@ -4907,14 +4907,14 @@ def plus_zero():
     # and_elim_right to get And(rec_h, app_h_n_p)
     got_ra = apply_thm(and_elim_right(succ_char, and_rec_app, []), [],
         full_and, and_rec_app,
-        Proof(Sequent([full_and], [full_and]), 'axiom', principal=full_and))
+        Proof(Sequent([full_and], [full_and]), 'axiom', principal=full_and), [], [])
     # and_elim_left/right to split rec_h and app_h_n_p
     got_rec = apply_thm(and_elim_left(rec_h, app_h_n_p, []), [],
         and_rec_app, rec_h,
-        Proof(Sequent([and_rec_app], [and_rec_app]), 'axiom', principal=and_rec_app))
+        Proof(Sequent([and_rec_app], [and_rec_app]), 'axiom', principal=and_rec_app), [], [])
     got_app = apply_thm(and_elim_right(rec_h, app_h_n_p, []), [],
         and_rec_app, app_h_n_p,
-        Proof(Sequent([and_rec_app], [and_rec_app]), 'axiom', principal=and_rec_app))
+        Proof(Sequent([and_rec_app], [and_rec_app]), 'axiom', principal=and_rec_app), [], [])
 
     # Chain: full_and |- rec_h and full_and |- app_h_n_p
     got_rec_full = Proof(Sequent([full_and], [rec_h]), 'cut',
@@ -4981,7 +4981,7 @@ def init_seg_func():
     rest = And(base, step)
 
     ax = Proof(Sequent([is_f], [is_f]), 'axiom', principal=is_f)
-    got = apply_thm(and_elim_left(func_v, rest, []), [], is_f, func_v, ax)
+    got = apply_thm(and_elim_left(func_v, rest, []), [], is_f, func_v, ax, [], [])
 
     proof = Proof(Sequent([], [Implies(is_f, func_v)]),
                   'implies_right', [got], principal=Implies(is_f, func_v))
@@ -5013,9 +5013,9 @@ def init_seg_base():
 
     # Extract base from InitSeg: is_f |- base
     ax = Proof(Sequent([is_f], [is_f]), 'axiom', principal=is_f)
-    got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_f, rest, ax)
+    got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_f, rest, ax, [], [])
     got_base = apply_thm(and_elim_left(base, step, []), [], rest, base,
-        Proof(Sequent([rest], [rest]), 'axiom', principal=rest))
+        Proof(Sequent([rest], [rest]), 'axiom', principal=rest), [], [])
     got_base_full = Proof(Sequent([is_f], [base]), 'cut',
         [wr(got_rest, base), wl(got_base, is_f)], principal=rest)
 
@@ -5031,7 +5031,7 @@ def init_seg_base():
     # MP with Empty(e)
     got = mp(got_imp,
         Proof(Sequent([empty_e], [empty_e]), 'axiom', principal=empty_e),
-        empty_e, app_v_e_a)
+        empty_e, app_v_e_a, [], [])
 
     # Close
     proof = got
@@ -5070,9 +5070,9 @@ def init_seg_step():
 
     # Extract step from InitSeg
     ax = Proof(Sequent([is_f], [is_f]), 'axiom', principal=is_f)
-    got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_f, rest, ax)
+    got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_f, rest, ax, [], [])
     got_step = apply_thm(and_elim_right(base, step, []), [], rest, step,
-        Proof(Sequent([rest], [rest]), 'axiom', principal=rest))
+        Proof(Sequent([rest], [rest]), 'axiom', principal=rest), [], [])
     got_step_full = Proof(Sequent([is_f], [step]), 'cut',
         [wr(got_rest, step), wl(got_step, is_f)], principal=rest)
 
@@ -5091,16 +5091,16 @@ def init_seg_step():
 
     # Step 1: peel forall n, instantiate with n
     got1 = apply_thm(got_step_full, [n, val], app_v_n, Forall(sn, imp2),
-        Proof(Sequent([app_v_n], [app_v_n]), 'axiom', principal=app_v_n))
+        Proof(Sequent([app_v_n], [app_v_n]), 'axiom', principal=app_v_n), [], [])
     # got1: [is_f, app_v_n] |- [forall sn. imp2]
 
     # Step 2: peel forall sn
     got2 = apply_thm(got1, [sn], succ_sn, Forall(fv, imp3),
-        Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn))
+        Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn), [], [])
 
     # Step 3: peel forall fv
     got3 = apply_thm(got2, [fv], app_f_val, app_v_sn,
-        Proof(Sequent([app_f_val], [app_f_val]), 'axiom', principal=app_f_val))
+        Proof(Sequent([app_f_val], [app_f_val]), 'axiom', principal=app_f_val), [], [])
 
     # Close
     proof = got3
@@ -5138,12 +5138,12 @@ def omega_contains_empty():
     ext_ax = zfc.Extensionality()
     inf_ax = zfc.Infinity()
     got_ind = apply_thm(oii, [w], omega_w, ind_w,
-        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w), [], [])
     # got_ind: [ext_ax, inf_ax, omega_w] |- [Inductive(w)]
 
     # and_elim_left to get base_w
     got_base_w = apply_thm(and_elim_left(base_w, step_w, []), [], ind_w, base_w,
-        Proof(Sequent([ind_w], [ind_w]), 'axiom', principal=ind_w))
+        Proof(Sequent([ind_w], [ind_w]), 'axiom', principal=ind_w), [], [])
     # Chain: ext, inf, omega |- base_w
     got = Proof(Sequent(got_ind.sequent.left, [base_w]), 'cut',
         [wr(got_ind, base_w), wl(got_base_w, *got_ind.sequent.left)], principal=ind_w)
@@ -5172,10 +5172,10 @@ def omega_succ_closed():
 
     oii = omega_is_inductive()
     got_ind = apply_thm(oii, [w], omega_w, ind_w,
-        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w), [], [])
 
     got_step_w = apply_thm(and_elim_right(base_w, step_w, []), [], ind_w, step_w,
-        Proof(Sequent([ind_w], [ind_w]), 'axiom', principal=ind_w))
+        Proof(Sequent([ind_w], [ind_w]), 'axiom', principal=ind_w), [], [])
     got = Proof(Sequent(got_ind.sequent.left, [step_w]), 'cut',
         [wr(got_ind, step_w), wl(got_step_w, *got_ind.sequent.left)], principal=ind_w)
 
@@ -5219,12 +5219,12 @@ def init_seg_total():
     isb = init_seg_base()
     got_app_base = apply_thm(isb, [v, a, f, ev], is_v,
         Implies(empty_ev, Apply(v, ev, a)),
-        Proof(Sequent([is_v], [is_v]), 'axiom', principal=is_v))
+        Proof(Sequent([is_v], [is_v]), 'axiom', principal=is_v), [], [])
     # got_app_base: [is_v] |- [Empty(ev) -> Apply(v, ev, a)]
     # MP with Empty(ev):
     got_app_e = mp(got_app_base,
         Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev),
-        empty_ev, Apply(v, ev, a))
+        empty_ev, Apply(v, ev, a), [], [])
     # got_app_e: [is_v, empty_ev] |- [Apply(v, ev, a)]
 
     # Existential intro: from ctx |- body[witness/var], get ctx |- exists var. body
@@ -5262,17 +5262,17 @@ def init_seg_total():
     iss = init_seg_step()
     got_step_app = apply_thm(iss, [v, a, f, nv, val, snv, fv], is_v,
         Implies(app_v_n_val, Implies(succ_sn, Implies(app_f_val_fv, app_v_sn_fv))),
-        Proof(Sequent([is_v], [is_v]), 'axiom', principal=is_v))
+        Proof(Sequent([is_v], [is_v]), 'axiom', principal=is_v), [], [])
     # Peel the 3 implies:
     got_s1 = mp(got_step_app,
         Proof(Sequent([app_v_n_val], [app_v_n_val]), 'axiom', principal=app_v_n_val),
-        app_v_n_val, Implies(succ_sn, Implies(app_f_val_fv, app_v_sn_fv)))
+        app_v_n_val, Implies(succ_sn, Implies(app_f_val_fv, app_v_sn_fv)), [], [])
     got_s2 = mp(got_s1,
         Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn),
-        succ_sn, Implies(app_f_val_fv, app_v_sn_fv))
+        succ_sn, Implies(app_f_val_fv, app_v_sn_fv), [], [])
     got_s3 = mp(got_s2,
         Proof(Sequent([app_f_val_fv], [app_f_val_fv]), 'axiom', principal=app_f_val_fv),
-        app_f_val_fv, app_v_sn_fv)
+        app_f_val_fv, app_v_sn_fv, [], [])
     # got_s3: [is_v, app_v_n_val, succ_sn, app_f_val_fv] |- [Apply(v, sn, fv)]
 
     # Existential intro: exists y. Apply(v, sn, y) with witness fv
@@ -5395,22 +5395,22 @@ def init_seg_total():
     # Helper: from Iff(A,B) extract A->B (forward)
     def _iff_fwd(iff_proof, A, B):
         """ctx |- Iff(A,B) gives ctx |- A->B"""
-        return mp(iff_mp(A, B, []), iff_proof, Iff(A, B), Implies(A, B))
+        return mp(iff_mp(A, B, []), iff_proof, Iff(A, B), Implies(A, B), [], [])
 
     # Helper: from Iff(A,B) extract B->A (backward)
     def _iff_bwd(iff_proof, A, B):
         """ctx |- Iff(A,B) gives ctx |- B->A"""
-        return mp(iff_mp_rev(A, B, []), iff_proof, Iff(A, B), Implies(B, A))
+        return mp(iff_mp_rev(A, B, []), iff_proof, Iff(A, B), Implies(B, A), [], [])
 
     # --- Build Inductive(t) base: forall e. Empty(e) -> In(e, t) ---
     # From omega_contains_empty: Ext, Inf, Omega(w) |- forall e. Empty(e) -> In(e, w)
     oce = omega_contains_empty()
     got_oce = apply_thm(oce, [w], omega_w, Forall(ev, Implies(empty_ev, In(ev, w))),
-        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w), [], [])
     # got_oce: [ext, inf, omega_w] |- forall e. Empty(e) -> In(e, w)
     # Instantiate at ev:
     got_in_w = apply_thm(got_oce, [ev], empty_ev, In(ev, w),
-        Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev))
+        Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev), [], [])
     # got_in_w: [ext, inf, omega_w, empty_ev] |- In(ev, w)
 
     # got_base: [is_v, empty_ev] |- P(ev)
@@ -5434,7 +5434,7 @@ def init_seg_total():
     char_ev = _char_at(ev)  # [fa_char] |- Iff(In(ev,t), And(In(ev,w), P(ev)))
     bwd_ev = _iff_bwd(char_ev, In(ev, t), and_in_p_ev)
     # bwd_ev: [fa_char] |- And(In(ev,w),P(ev)) -> In(ev,t)
-    got_in_t_base = mp(bwd_ev, got_and_base, and_in_p_ev, In(ev, t))
+    got_in_t_base = mp(bwd_ev, got_and_base, and_in_p_ev, In(ev, t), [], [])
     # got_in_t_base: [fa_char, ext, inf, omega_w, is_v, Empty(ev)] |- In(ev, t)
 
     # Discharge empty_ev, forall ev:
@@ -5464,14 +5464,14 @@ def init_seg_total():
     # fwd_x: [fa_char] |- In(x,t) -> And(In(x,w), P(x))
     got_and_x = mp(fwd_x,
         Proof(Sequent([in_x_t], [in_x_t]), 'axiom', principal=in_x_t),
-        in_x_t, and_in_p_x)
+        in_x_t, and_in_p_x, [], [])
     # got_and_x: [fa_char, In(x,t)] |- And(In(x,w), P(x))
 
     # Extract In(x,w) and P(x):
     got_in_x_w = apply_thm(and_elim_left(in_x_w, p_x, []), [], and_in_p_x, in_x_w,
-        Proof(Sequent([and_in_p_x], [and_in_p_x]), 'axiom', principal=and_in_p_x))
+        Proof(Sequent([and_in_p_x], [and_in_p_x]), 'axiom', principal=and_in_p_x), [], [])
     got_p_x = apply_thm(and_elim_right(in_x_w, p_x, []), [], and_in_p_x, p_x,
-        Proof(Sequent([and_in_p_x], [and_in_p_x]), 'axiom', principal=and_in_p_x))
+        Proof(Sequent([and_in_p_x], [and_in_p_x]), 'axiom', principal=and_in_p_x), [], [])
 
     # Chain through got_and_x:
     got_in_x_w2 = Proof(Sequent(got_and_x.sequent.left, [in_x_w]), 'cut',
@@ -5485,11 +5485,11 @@ def init_seg_total():
     osc = omega_succ_closed()
     got_osc = apply_thm(osc, [w], omega_w, Forall(xv2, Implies(In(xv2, w),
         Forall(sv2, Implies(succ_s_x, in_s_w)))),
-        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w), [], [])
     got_osc2 = apply_thm(got_osc, [xv2], in_x_w, Forall(sv2, Implies(succ_s_x, in_s_w)),
-        got_in_x_w2)
+        got_in_x_w2, [], [])
     got_osc3 = apply_thm(got_osc2, [sv2], succ_s_x, in_s_w,
-        Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x))
+        Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x), [], [])
     # got_osc3: [ext, inf, omega_w, fa_char, In(x,t), succ_s_x] |- In(s,w)
 
     # From step case: P(x) -> Succ(s,x) -> P(s)
@@ -5529,7 +5529,7 @@ def init_seg_total():
     # Instantiate nv->xv2, then MP with P(xv2), then instantiate snv->sv2, then MP with Succ
     p_xv2 = P(xv2)
     fa_sv2 = Forall(sv2, Implies(Successor(sv2, xv2), P(sv2)))
-    got_step2 = apply_thm(step_thm, [xv2], p_xv2, fa_sv2, got_p_x2)
+    got_step2 = apply_thm(step_thm, [xv2], p_xv2, fa_sv2, got_p_x2, [], [])
     # Wait, p_xv2 = P(xv2) = Exists(yv, Apply(v, xv2, yv))
     # got_p_x2: [fa_char, In(x,t)] |- P(xv2)
     # But p_nv_actual (the P used in step_thm) was Exists(val, Apply(v, nv, val)) not Exists(yv, ...)
@@ -5539,7 +5539,7 @@ def init_seg_total():
     # These are alpha-equivalent (val vs yv bound vars). (ok)
 
     got_step3 = apply_thm(got_step2, [sv2], succ_s_x, p_s,
-        Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x))
+        Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x), [], [])
     # got_step3: [f_total, is_v, fa_char, In(x,t), succ_s_x] |- P(sv2)
 
     # Build And(In(s,w), P(s)):
@@ -5571,7 +5571,7 @@ def init_seg_total():
     # Backward: And(In(s,w), P(s)) -> In(s,t)
     char_s = _char_at(sv2)
     bwd_s = _iff_bwd(char_s, in_s_t, and_in_p_s)
-    got_in_s_t = mp(bwd_s, got_and_step, and_in_p_s, in_s_t)
+    got_in_s_t = mp(bwd_s, got_and_step, and_in_p_s, in_s_t, [], [])
     # got_in_s_t: [fa_char, ext, inf, omega_w, f_total, is_v, In(x,t), succ_s_x] |- In(s,t)
 
     # Discharge succ_s_x, forall sv2:
@@ -5623,11 +5623,11 @@ def init_seg_total():
     # fwd_z: [fa_char] |- In(z,t) -> And(In(z,w), P(z))
     got_and_z = mp(fwd_z,
         Proof(Sequent([In(zv2, t)], [In(zv2, t)]), 'axiom', principal=In(zv2, t)),
-        In(zv2, t), And(In(zv2, w), P(zv2)))
+        In(zv2, t), And(In(zv2, w), P(zv2)), [], [])
     got_in_z_w = apply_thm(and_elim_left(In(zv2, w), P(zv2), []), [],
         And(In(zv2, w), P(zv2)), In(zv2, w),
         Proof(Sequent([And(In(zv2, w), P(zv2))], [And(In(zv2, w), P(zv2))]),
-              'axiom', principal=And(In(zv2, w), P(zv2))))
+              'axiom', principal=And(In(zv2, w), P(zv2))), [], [])
     got_sub_core = Proof(Sequent(got_and_z.sequent.left, [In(zv2, w)]), 'cut',
         [wr(got_and_z, In(zv2, w)), wl(got_in_z_w, *got_and_z.sequent.left)],
         principal=And(In(zv2, w), P(zv2)))
@@ -5666,8 +5666,8 @@ def init_seg_total():
     # omega_smallest_inductive: Omega(w) -> And(sub,ind) -> Eq(t,w)
     eq_tw = Eq(t, w)
     got_eq = apply_thm(osi, [t, w], omega_w, Implies(and_sub_ind, eq_tw),
-        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w))
-    got_eq2 = mp(got_eq, got_and_si, and_sub_ind, eq_tw)
+        Proof(Sequent([omega_w], [omega_w]), 'axiom', principal=omega_w), [], [])
+    got_eq2 = mp(got_eq, got_and_si, and_sub_ind, eq_tw, [], [])
     # got_eq2: [fa_char, ext, inf, omega_w, f_total, is_v] |- Eq(t, w)
 
     # --- From Eq(t,w): In(n,w) -> In(n,t) -> P(n) ---
@@ -5687,20 +5687,20 @@ def init_seg_total():
     # got_w_to_t: [fa_char, ext, inf, omega_w, f_total, is_v] |- In(n,w) -> In(n,t)
     got_in_t = mp(got_w_to_t,
         Proof(Sequent([In(n, w)], [In(n, w)]), 'axiom', principal=In(n, w)),
-        In(n, w), In(n, t))
+        In(n, w), In(n, t), [], [])
     # got_in_t: [fa_char, ext, inf, omega_w, f_total, is_v, In(n,w)] |- In(n,t)
 
     # Forward through characterization: In(n,t) -> And(In(n,w), P(n))
     char_n = _char_at(n)
     fwd_n = _iff_fwd(char_n, In(n, t), And(In(n, w), P(n)))
-    got_and_n = mp(fwd_n, got_in_t, In(n, t), And(In(n, w), P(n)))
+    got_and_n = mp(fwd_n, got_in_t, In(n, t), And(In(n, w), P(n)), [], [])
     # got_and_n: [...] |- And(In(n,w), P(n))
 
     # Extract P(n):
     got_pn = apply_thm(and_elim_right(In(n, w), P(n), []), [],
         And(In(n, w), P(n)), P(n),
         Proof(Sequent([And(In(n, w), P(n))], [And(In(n, w), P(n))]),
-              'axiom', principal=And(In(n, w), P(n))))
+              'axiom', principal=And(In(n, w), P(n))), [], [])
     got_pn2 = Proof(Sequent(got_and_n.sequent.left, [P(n)]), 'cut',
         [wr(got_and_n, P(n)), wl(got_pn, *got_and_n.sequent.left)],
         principal=And(In(n, w), P(n)))
@@ -5812,7 +5812,7 @@ def initial_segments_agree():
                            Forall(fval, Implies(Apply(is_f.step, val, fval),
                                Apply(is_f.func, sn, fval)))))))))
         return apply_thm(and_elim_left(func_v, rest, []), [], is_formula, func_v,
-                         Proof(Sequent([is_formula], [is_formula]), 'axiom', principal=is_formula))
+                         Proof(Sequent([is_formula], [is_formula]), 'axiom', principal=is_formula), [], [])
 
     def _is_base(is_proof, is_formula):
         """From InitSeg(v,a,f) |- forall e. Empty(e) -> Apply(v, e, a)."""
@@ -5826,9 +5826,9 @@ def initial_segments_agree():
         rest = And(base, step_f)
         # And_elim_right(func, rest) then and_elim_left(base, step)
         ax = Proof(Sequent([is_formula], [is_formula]), 'axiom', principal=is_formula)
-        got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_formula, rest, ax)
+        got_rest = apply_thm(and_elim_right(func_v, rest, []), [], is_formula, rest, ax, [], [])
         return apply_thm(and_elim_left(base, step_f, []), [], rest, base,
-                         Proof(Sequent([rest], [rest]), 'axiom', principal=rest))
+                         Proof(Sequent([rest], [rest]), 'axiom', principal=rest), [], [])
 
     # === Base case: P(e) when Empty(e) ===
     # From InitSeg(v1): Apply(v1, e, a_init) [base clause with e]
@@ -5897,7 +5897,7 @@ def initial_segments_agree():
                         'not_right', [a2], principal=and_apps)
 
         # MP: and_apps, imp_and_eq |- eq_y1y2
-        return mp(got_imp, got_and, and_apps, eq_y1y2)
+        return mp(got_imp, got_and, and_apps, eq_y1y2, [], [])
 
     # === Build the base case proof ===
     # Context: InitSeg(v1,ai,fi), InitSeg(v2,ai,fi), Empty(n_var), Apply(v1,n_var,y1), Apply(v2,n_var,y2)
@@ -5927,11 +5927,11 @@ def initial_segments_agree():
     rest_v1 = And(base_v1, step_v1)
 
     ax1 = Proof(Sequent([is1_f], [is1_f]), 'axiom', principal=is1_f)
-    got_func1 = apply_thm(and_elim_left(func_v1, rest_v1, []), [], is1_f, func_v1, ax1)
+    got_func1 = apply_thm(and_elim_left(func_v1, rest_v1, []), [], is1_f, func_v1, ax1, [], [])
     got_rest1 = apply_thm(and_elim_right(func_v1, rest_v1, []), [], is1_f, rest_v1,
-                          Proof(Sequent([is1_f], [is1_f]), 'axiom', principal=is1_f))
+                          Proof(Sequent([is1_f], [is1_f]), 'axiom', principal=is1_f), [], [])
     got_base1 = apply_thm(and_elim_left(base_v1, step_v1, []), [], rest_v1, base_v1,
-                          Proof(Sequent([rest_v1], [rest_v1]), 'axiom', principal=rest_v1))
+                          Proof(Sequent([rest_v1], [rest_v1]), 'axiom', principal=rest_v1), [], [])
     # Chain: is1_f |- base_v1
     got_base1_full = Proof(Sequent([is1_f], [base_v1]), 'cut',
         [wr(got_rest1, base_v1), wl(got_base1, is1_f)], principal=rest_v1)
@@ -5948,7 +5948,7 @@ def initial_segments_agree():
     # MP with Empty(n_var): is1_f, Empty(n_var) |- Apply(v1, n_var, ai)
     got_app1_ai = mp(got_imp_app1,
                      Proof(Sequent([Empty(n_var)], [Empty(n_var)]), 'axiom', principal=Empty(n_var)),
-                     Empty(n_var), Apply(v1, n_var, ai))
+                     Empty(n_var), Apply(v1, n_var, ai), [], [])
 
     # Function uniqueness: Apply(v1,n_var,y1)  and  Apply(v1,n_var,ai) -> Eq(y1,ai)
     app_v1_n_y1 = Apply(v1, n_var, y1)
@@ -5965,11 +5965,11 @@ def initial_segments_agree():
                           Apply(v2, sn, fval))))))))
     rest_v2 = And(base_v2, step_v2)
     ax2 = Proof(Sequent([is2_f], [is2_f]), 'axiom', principal=is2_f)
-    got_func2 = apply_thm(and_elim_left(func_v2, rest_v2, []), [], is2_f, func_v2, ax2)
+    got_func2 = apply_thm(and_elim_left(func_v2, rest_v2, []), [], is2_f, func_v2, ax2, [], [])
     got_rest2 = apply_thm(and_elim_right(func_v2, rest_v2, []), [], is2_f, rest_v2,
-                          Proof(Sequent([is2_f], [is2_f]), 'axiom', principal=is2_f))
+                          Proof(Sequent([is2_f], [is2_f]), 'axiom', principal=is2_f), [], [])
     got_base2 = apply_thm(and_elim_left(base_v2, step_v2, []), [], rest_v2, base_v2,
-                          Proof(Sequent([rest_v2], [rest_v2]), 'axiom', principal=rest_v2))
+                          Proof(Sequent([rest_v2], [rest_v2]), 'axiom', principal=rest_v2), [], [])
     got_base2_full = Proof(Sequent([is2_f], [base_v2]), 'cut',
         [wr(got_rest2, base_v2), wl(got_base2, is2_f)], principal=rest_v2)
     imp_emp_app2 = Implies(Empty(n_var), Apply(v2, n_var, ai))
@@ -5978,7 +5978,7 @@ def initial_segments_agree():
         [wr(got_base2_full, imp_emp_app2), wl(fl_base2, is2_f)], principal=base_v2)
     got_app2_ai = mp(got_imp_app2,
                      Proof(Sequent([Empty(n_var)], [Empty(n_var)]), 'axiom', principal=Empty(n_var)),
-                     Empty(n_var), Apply(v2, n_var, ai))
+                     Empty(n_var), Apply(v2, n_var, ai), [], [])
     app_v2_n_y2 = Apply(v2, n_var, y2)
     ax_app2 = Proof(Sequent([app_v2_n_y2], [app_v2_n_y2]), 'axiom', principal=app_v2_n_y2)
     got_y2_eq_ai = _func_unique(got_func2, v2, n_var, y2, ai, ax_app2, got_app2_ai)
@@ -5989,10 +5989,10 @@ def initial_segments_agree():
     es_thm = eq_symmetric()
     et_thm = eq_transitive()
     eq_ai_y2 = Eq(ai, y2)
-    got_ai_y2 = apply_thm(es_thm, [y2, ai], Eq(y2, ai), eq_ai_y2, got_y2_eq_ai)
+    got_ai_y2 = apply_thm(es_thm, [y2, ai], Eq(y2, ai), eq_ai_y2, got_y2_eq_ai, [], [])
     imp_ai_y2 = Implies(eq_ai_y2, Eq(y1, y2))
-    got_imp_trans = apply_thm(et_thm, [y1, ai, y2], Eq(y1, ai), imp_ai_y2, got_y1_eq_ai)
-    base_result = mp(got_imp_trans, got_ai_y2, eq_ai_y2, Eq(y1, y2))
+    got_imp_trans = apply_thm(et_thm, [y1, ai, y2], Eq(y1, ai), imp_ai_y2, got_y1_eq_ai, [], [])
+    base_result = mp(got_imp_trans, got_ai_y2, eq_ai_y2, Eq(y1, y2), [], [])
     # base_result: [is1_f, app_v1_n_y1, Empty(n_var), is2_f, app_v2_n_y2] |- [Eq(y1, y2)]
 
     # Discharge to build P(n_var) when Empty(n_var):
@@ -6045,9 +6045,9 @@ def initial_segments_agree():
     #   -> Apply(v1, sn_var, fv1)
     # InitSeg step: forall n,val. Apply(v1,n,val) -> forall sn. Succ(sn,n) -> forall fv. Apply(fi,val,fv) -> Apply(v1,sn,fv)
     got_step1 = apply_thm(and_elim_right(func_v1, rest_v1, []), [], is1_f, rest_v1,
-                           Proof(Sequent([is1_f], [is1_f]), 'axiom', principal=is1_f))
+                           Proof(Sequent([is1_f], [is1_f]), 'axiom', principal=is1_f), [], [])
     got_step1b = apply_thm(and_elim_right(base_v1, step_v1, []), [], rest_v1, step_v1,
-                            Proof(Sequent([rest_v1], [rest_v1]), 'axiom', principal=rest_v1))
+                            Proof(Sequent([rest_v1], [rest_v1]), 'axiom', principal=rest_v1), [], [])
     got_step1_full = Proof(Sequent([is1_f], [step_v1]), 'cut',
         [wr(got_step1, step_v1), wl(got_step1b, is1_f)], principal=rest_v1)
     # Peel: step_v1 = forall n forall val. Apply(v1,n,val) -> forall sn. Succ(sn,n) -> forall fv. Apply(fi,val,fv) -> Apply(v1,sn,fv)
@@ -6109,9 +6109,9 @@ def initial_segments_agree():
     # Step 3: Similarly for v2: Apply(v2, sn_var, fv2) and y2 = fv2
     got_step2_full = Proof(Sequent([is2_f], [step_v2]), 'cut',
         [wr(apply_thm(and_elim_right(func_v2, rest_v2, []), [], is2_f, rest_v2,
-                      Proof(Sequent([is2_f], [is2_f]), 'axiom', principal=is2_f)), step_v2),
+                      Proof(Sequent([is2_f], [is2_f]), 'axiom', principal=is2_f), [], []), step_v2),
          wl(apply_thm(and_elim_right(base_v2, step_v2, []), [], rest_v2, step_v2,
-                      Proof(Sequent([rest_v2], [rest_v2]), 'axiom', principal=rest_v2)), is2_f)],
+                      Proof(Sequent([rest_v2], [rest_v2]), 'axiom', principal=rest_v2), [], []), is2_f)],
         principal=rest_v2)
 
     fa_n_val2 = Forall(n_var, Forall(val2, Implies(Apply(v2, n_var, val2),
@@ -6335,7 +6335,7 @@ def omega_smallest_inductive():
     # MP with ind_p: omega_w, ind_p |- fa_iff
     got_fa = mp(got_imp,
                 Proof(Sequent([ind_p], [ind_p]), 'axiom', principal=ind_p),
-                ind_p, fa_iff)
+                ind_p, fa_iff, [], [])
     # Instantiate with zv: omega_w, ind_p |- iff_zw
     got_iff = Proof(Sequent(got_fa.sequent.left, [iff_zw]), 'forall_left',
                     [Proof(Sequent([iff_zw], [iff_zw]), 'axiom', principal=iff_zw)],
@@ -6368,13 +6368,13 @@ def omega_smallest_inductive():
     # From and_cond extract In(zv, p) (and_elim_left)
     ael = and_elim_left(In(zv, p), Forall(cv, Implies(Inductive(cv), In(zv, cv))), [])
     ax_and = Proof(Sequent([and_cond], [and_cond]), 'axiom', principal=and_cond)
-    got_in_p = apply_thm(ael, [], and_cond, In(zv, p), ax_and)
+    got_in_p = apply_thm(ael, [], and_cond, In(zv, p), ax_and, [], [])
     # got_in_p: [and_cond] |- [In(zv, p)]
 
     # Chain: omega_w, ind_p, In(zv,w) |- In(zv, p)
     got_and = mp(got_fwd,
                  Proof(Sequent([In(zv, w)], [In(zv, w)]), 'axiom', principal=In(zv, w)),
-                 In(zv, w), and_cond)
+                 In(zv, w), and_cond, [], [])
     # got_and: [omega_w, ind_p, In(zv,w)] |- [and_cond]
     bwd_core = Proof(Sequent(got_and.sequent.left, [In(zv, p)]), 'cut',
         [wr(got_and, In(zv, p)), wl(got_in_p, *got_and.sequent.left)], principal=and_cond)
@@ -6403,9 +6403,9 @@ def omega_smallest_inductive():
     ael2 = and_elim_left(sub_pw, ind_p, [])
     aer2 = and_elim_right(sub_pw, ind_p, [])
     ax_ha = Proof(Sequent([hyp_and], [hyp_and]), 'axiom', principal=hyp_and)
-    got_sub = apply_thm(ael2, [], hyp_and, sub_pw, ax_ha)
+    got_sub = apply_thm(ael2, [], hyp_and, sub_pw, ax_ha, [], [])
     got_ind = apply_thm(aer2, [], hyp_and, ind_p,
-                        Proof(Sequent([hyp_and], [hyp_and]), 'axiom', principal=hyp_and))
+                        Proof(Sequent([hyp_and], [hyp_and]), 'axiom', principal=hyp_and), [], [])
 
     core_w = wl(core_fa, hyp_and)
     cut_sub = Proof(Sequent([omega_w, ind_p, hyp_and], [eq_body]), 'cut',
