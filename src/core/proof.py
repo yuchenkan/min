@@ -25,13 +25,15 @@ class Sequent:
 
 class Proof:
     def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None,
-                 name: str = None, term: Var = None, principal: Formula = None):
+                 name: str = None, term: Var = None, principal: Formula = None,
+                 trusted: bool = False):
         self.sequent = sequent
         self.rule = rule
         self.premises = premises or []
         self.name = name
         self.term = term
         self.principal = principal
+        self.trusted = trusted
 
     def theorem(self) -> Formula:
         s = self.sequent
@@ -54,20 +56,23 @@ def _expand_proof(proof: Proof) -> Proof:
         principal=_expand_all(proof.principal) if proof.principal else None)
 
 
-def verify(proof: Proof, axiom_checker) -> bool:
-    """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions."""
+def verify(proof: Proof, axiom_checker, trust=False) -> bool:
+    """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions.
+    trust: if True, skip subtrees marked with trusted=True."""
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(s.right[0]):
         return False
     for f in s.left:
         if not axiom_checker(f):
             return False
-    return _verify(_expand_proof(proof))
+    return _verify(_expand_proof(proof), trust)
 
 
-def _verify(proof: Proof) -> bool:
+def _verify(proof: Proof, trust: bool) -> bool:
+    if trust and proof.trusted:
+        return True
     for p in proof.premises:
-        if not _verify(p):
+        if not _verify(p, trust):
             return False
     return _check_rule(proof)
 
