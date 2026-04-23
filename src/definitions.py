@@ -169,6 +169,115 @@ class Omega:
         return f'{self.set} = omega'
 
 
+# --- Relations and functions (Section 4.1.6) ---
+
+class Apply:
+    """Apply(f, x, y): f(x) = y, i.e. <x,y> in f."""
+    __match_args__ = ('func', 'arg', 'val')
+    def __init__(self, f, x, y):
+        self.func = f; self.arg = x; self.val = y
+    def expand(self):
+        p = Var()
+        return Exists(p, And(OrdPair(p, self.arg, self.val), In(p, self.func)))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Apply(r(self.func), r(self.arg), r(self.val))
+    def __str__(self):
+        return f'{self.func}({self.arg}) = {self.val}'
+
+
+
+class Domain:
+    """Domain(f, d): d = dom(f). forall x. x in d iff exists y. Apply(f, x, y)."""
+    __match_args__ = ('func', 'set')
+    def __init__(self, f, d):
+        self.func = f; self.set = d
+    def expand(self):
+        x, y = Var(), Var()
+        return Forall(x, Iff(In(x, self.set), Exists(y, Apply(self.func, x, y))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Domain(r(self.func), r(self.set))
+    def __str__(self):
+        return f'{self.set} = dom({self.func})'
+
+
+class Range:
+    """Range(f, r): r = ran(f). forall y. y in r iff exists x. Apply(f, x, y)."""
+    __match_args__ = ('func', 'set')
+    def __init__(self, f, r):
+        self.func = f; self.set = r
+    def expand(self):
+        x, y = Var(), Var()
+        return Forall(y, Iff(In(y, self.set), Exists(x, Apply(self.func, x, y))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Range(r(self.func), r(self.set))
+    def __str__(self):
+        return f'{self.set} = ran({self.func})'
+
+
+class Function:
+    """Function(f): f is single-valued.
+    forall x, y1, y2. Apply(f,x,y1) and Apply(f,x,y2) implies y1 = y2."""
+    __match_args__ = ('set',)
+    def __init__(self, f):
+        self.set = f
+    def expand(self):
+        x, y1, y2 = Var(), Var(), Var()
+        return Forall(x, Forall(y1, Forall(y2,
+            Implies(And(Apply(self.set, x, y1), Apply(self.set, x, y2)),
+                    Eq(y1, y2)))))
+    def subst(self, old, new):
+        return Function(new if self.set is old else self.set)
+    def __str__(self):
+        return f'Function({self.set})'
+
+
+class Recursive:
+    """Recursive(h, a, f): h(0) = a, h(S(n)) = f(h(n)).
+    Function(h) and (forall e. Empty(e) implies Apply(h, e, a)) and
+    forall n, v. Apply(h, n, v) implies
+      forall sn. Successor(sn, n) implies
+        forall fv. Apply(f, v, fv) implies Apply(h, sn, fv)."""
+    __match_args__ = ('func', 'init', 'step')
+    def __init__(self, h, a, f):
+        self.func = h; self.init = a; self.step = f
+    def expand(self):
+        n, v, sn, fv, e = Var(), Var(), Var(), Var(), Var()
+        return And(Function(self.func),
+               And(Forall(e, Implies(Empty(e), Apply(self.func, e, self.init))),
+                   Forall(n, Forall(v, Implies(Apply(self.func, n, v),
+                       Forall(sn, Implies(Successor(sn, n),
+                           Forall(fv, Implies(Apply(self.step, v, fv),
+                               Apply(self.func, sn, fv))))))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Recursive(r(self.func), r(self.init), r(self.step))
+    def __str__(self):
+        return f'Recursive({self.func}, {self.init}, {self.step})'
+
+
+class Plus:
+    """Plus(m, n, p): m + n = p.
+    Exists h, sf. sf is the successor function, Recursive(h, m, sf), Apply(h, n, p)."""
+    __match_args__ = ('left', 'right', 'result')
+    def __init__(self, m, n, p):
+        self.left = m; self.right = n; self.result = p
+    def expand(self):
+        h, sf, x, y = Var(), Var(), Var(), Var()
+        succ_char = Forall(x, Forall(y, Iff(Apply(sf, x, y), Successor(y, x))))
+        return Exists(h, Exists(sf,
+            And(succ_char,
+            And(Recursive(h, self.left, sf),
+                Apply(h, self.right, self.result)))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Plus(r(self.left), r(self.right), r(self.result))
+    def __str__(self):
+        return f'{self.left} + {self.right} = {self.result}'
+
+
 # --- Set operation predicates ---
 
 class Union:
