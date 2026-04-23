@@ -6008,20 +6008,10 @@ def init_seg_agree():
     #           func_f, Q(nv), is2, app2_nv, app_f_2, app2_sn_y2] |- Eq(y1, y2)
 
     # --- Discharge to Q(snv), then existential elim on val1,val2,fv1,fv2 ---
-    # Discharge app2_sn_y2, app1_sn_y1 into implications (but keep is1, is2 for now —
-    # they'll be re-added by init_seg_total. Discharge + forall close over v1,v2,y1,y2
-    # happens AFTER all existential eliminations.)
+    # Do existential eliminations FIRST while is1, is2 are still on the left.
+    # init_seg_total's copies of is1/is2 get deduped by same() in mp.
+    # Then discharge all hypotheses and close forall.
     proof_step = step_eq
-    for h in [app2_sn_y2, app1_sn_y1]:
-        imp_h = Implies(h, proof_step.sequent.right[0])
-        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, h)]
-        proof_step = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_step], principal=imp_h)
-    for var in [y2, y1]:
-        body = proof_step.sequent.right[0]
-        fa = Forall(var, body)
-        proof_step = Proof(Sequent(proof_step.sequent.left, [fa]), 'forall_right',
-                           [proof_step], term=var, principal=fa)
-    # proof_step has is1, is2, app1_nv, app2_nv, etc. on left, partial Q on right
 
     # Existential elim on fv2 (from f_total at val2)
     def _eel(proof, pred, var):
@@ -6108,14 +6098,13 @@ def init_seg_agree():
         proof_step = Proof(Sequent(cut_left, proof_step.sequent.right), 'cut',
             [wr(br1, proof_step.sequent.right[0]), br2], principal=ex_val)
 
-    # Now discharge is1, is2 (they may have been re-added by init_seg_total)
-    # and close forall v2, v1
-    for h in [is2, is1]:
-        if any(same(h, g) for g in proof_step.sequent.left):
-            imp_h = Implies(h, proof_step.sequent.right[0])
-            remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, h)]
-            proof_step = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_step], principal=imp_h)
-    for var in [v2, v1]:
+    # Now discharge all Q hypotheses and close forall to build Q(snv).
+    # Q order: is1->is2->app1->app2->Eq. Discharge reverse: app2, app1, is2, is1.
+    for h in [app2_sn_y2, app1_sn_y1, is2, is1]:
+        imp_h = Implies(h, proof_step.sequent.right[0])
+        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, h)]
+        proof_step = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_step], principal=imp_h)
+    for var in [y2, y1, v2, v1]:
         body = proof_step.sequent.right[0]
         fa = Forall(var, body)
         proof_step = Proof(Sequent(proof_step.sequent.left, [fa]), 'forall_right',
