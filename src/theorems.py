@@ -3,6 +3,7 @@
 from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
+from core import same
 from core import zfc
 from definitions import Empty, OrdPair, Subset, Inductive, Omega
 
@@ -2039,14 +2040,14 @@ def pair_injection():
         # Cut imp
         p1 = impl_proof
         for f in ctx2:
-            if not any(f is g for g in ctx1):
+            if not any(same(f, g) for g in ctx1):
                 p1 = Proof(Sequent(p1.sequent.left + [f], p1.sequent.right),
                            'weakening_left', [p1], principal=f)
         p1 = Proof(Sequent(p1.sequent.left, [imp, cons]),
                    'weakening_right', [p1], principal=cons)
         p2 = mp
         for f in ctx1 + ctx2:
-            if not any(f is g for g in p2.sequent.left):
+            if not any(same(f, g) for g in p2.sequent.left):
                 p2 = Proof(Sequent(p2.sequent.left + [f], p2.sequent.right),
                            'weakening_left', [p2], principal=f)
         all_ctx = list(set(id(f) for f in ctx1 + ctx2))
@@ -2055,7 +2056,7 @@ def pair_injection():
         # Cut ante
         p3 = ante_proof
         for f in ctx1:
-            if not any(f is g for g in ctx2):
+            if not any(same(f, g) for g in ctx2):
                 p3 = Proof(Sequent(p3.sequent.left + [f], p3.sequent.right),
                            'weakening_left', [p3], principal=f)
         p3 = Proof(Sequent(p3.sequent.left, [ante, cons]),
@@ -2355,12 +2356,12 @@ def pair_injection():
         p1 = Proof(Sequent(p1.sequent.left, p1.sequent.right + [G]),
                    'weakening_right', [p1], principal=G)
         # B case proof needs B on left (B = or_formula.right after Or expansion)
-        # But Or(A,B) = Implies(Not(A), B). B here is the second component of Iff.
+        # But Or(A,B) = Implies(Not(A), B). B same(here, the) second component of Iff.
         # Actually for or_elim with Or = Implies(Not(A), B):
         # implies_left: ctx, Implies(Not(A), B) |- G from ctx |- Not(A), G and ctx, B |- G
         #
         # But case_b_proof has Or's B (= the right component of Or) on left.
-        # Or(A, B).expand() = Implies(Not(A), B). So B in Or is the second arg.
+        # Or(A, B).expand() = Implies(Not(A), B). So B in same(Or, the) second arg.
         b_formula = or_formula.right if hasattr(or_formula, 'right') else None
         # Hmm, Or doesn't directly have .right. Or(A, B).left = A, Or(A, B).right = B.
         # But Or expands to Implies(Not(A), B). So from the Or object: .left = A, .right = B.
@@ -2381,7 +2382,7 @@ def pair_injection():
     # Hmm, this _or_elim helper doesn't account for the A case. Let me redo.
     #
     # Actually, implies_left for Or(A,B) = Implies(Not(A), B):
-    # premise 1: ctx |- Not(A), G  [handles the "A is false" case]
+    # premise 1: ctx |- Not(A), G  [handles the "same(A, false)" case]
     # premise 2: ctx, B |- G  [handles the "B holds" case]
     #
     # But what about the "A holds" case? It's hidden! When A holds, Not(A) fails,
@@ -2394,7 +2395,7 @@ def pair_injection():
     #
     # For branch 1 (ctx, Or(A,B) |- A, G):
     # implies_left on Or: ctx |- Not(A), A, G and ctx, B |- A, G
-    #   premise 1: |- Not(A), A is tautological, weaken with ctx and G
+    #   premise 1: |- Not(A), same(A, tautological), weaken with ctx and G
     #   premise 2: ctx, B |- A, G -- weaken case_b from ctx, B |- G
     #
     # For branch 2 (ctx, Or(A,B), A |- G):
@@ -2823,7 +2824,7 @@ def tuple_injection():
     proof = final
     for h in reversed(hyps):
         imp_h = Implies(h, proof.sequent.right[0])
-        remaining = [f for f in proof.sequent.left if f is not h]
+        remaining = [f for f in proof.sequent.left if not same(f, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
     for v in [pcd, sc, pab, sa, d, c, b, a]:
         body = proof.sequent.right[0]
@@ -2924,7 +2925,7 @@ def kuratowski():
     proof = step5
 
     def _pack_and(proof, A, B):
-        ctx = [f for f in proof.sequent.left if f is not A and f is not B]
+        ctx = [f for f in proof.sequent.left if not same(f, A) and not same(f, B)]
         D = proof.sequent.right[0]
         ab = And(A, B)
         ax_ab = Proof(Sequent([ab], [ab]), "axiom", principal=ab)
@@ -2937,7 +2938,7 @@ def kuratowski():
             [wr(wl(got_b, *ctx), D), p1], principal=B)
 
     def _pack_exists(proof, pred, var):
-        ctx = [f for f in proof.sequent.left if f is not pred]
+        ctx = [f for f in proof.sequent.left if not same(f, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), "not_right", [proof], principal=Not(pred))
         fa_np = Forall(var, Not(pred))
@@ -3140,8 +3141,8 @@ def union_exists():
     # implies_left on or_eq = Implies(Not(eq_ya), eq_yb):
     # Branch 1: ctx |- Not(eq_ya), or_ab
     ctx_or = got_or_eq.sequent.left  # [ps, and_yp_xy]
-    case_a_or_w = wl(case_a_or, *[f for f in ctx_or if not any(f is g for g in case_a_or.sequent.left)])
-    case_b_or_w = wl(case_b_or, *[f for f in ctx_or if not any(f is g for g in case_b_or.sequent.left)])
+    case_a_or_w = wl(case_a_or, *[f for f in ctx_or if not any(same(f, g) for g in case_a_or.sequent.left)])
+    case_b_or_w = wl(case_b_or, *[f for f in ctx_or if not any(same(f, g) for g in case_b_or.sequent.left)])
     br1 = Proof(Sequent(ctx_or, [Not(eq_ya), or_ab]), 'not_right', [case_a_or_w], principal=Not(eq_ya))
     or_elim_fwd = Proof(Sequent(ctx_or + [or_eq], [or_ab]), 'implies_left',
                         [br1, case_b_or_w], principal=or_eq)
@@ -3152,7 +3153,7 @@ def union_exists():
 
     # Existential elim: [ps, ex_y] |- [or_ab] from [ps, and_yp_xy] |- [or_ab]
     def _exist_elim_left(proof, pred, var):
-        ctx = [f for f in proof.sequent.left if f is not pred]
+        ctx = [f for f in proof.sequent.left if not same(f, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         fa_np = Forall(var, Not(pred))
@@ -3205,7 +3206,7 @@ def union_exists():
                [r4], principal=Not(Implies(PP, Not(PP))))
     eq_aa = Forall(z_refl, Not(Implies(PP, Not(PP))))
     r6 = Proof(Sequent([], [eq_aa]), 'forall_right', [r5], term=z_refl, principal=eq_aa)
-    # eq_aa is alpha-equiv to Eq(a,a)
+    # same(eq_aa, alpha)-equiv to Eq(a,a)
 
     # Or intro left: Eq(a,a) |- Or(Eq(a,a), Eq(a,b))
     or_eq_a = Or(Eq(a, a), Eq(a, b))
@@ -3345,12 +3346,12 @@ def union_exists():
     got_ex_union = Proof(Sequent([ps, bu], [ex_union]), 'not_right', [fl_eu], principal=ex_union)
 
     # Now need to handle p: ps and bu both mention p.
-    # bu = BigUnion(s, p). We derived exists s from above. But p is still free.
+    # bu = BigUnion(s, p). We derived exists s from above. But same(p, still) free.
     # From Union axiom instantiated with p: exists s. BigUnion(s, p)
     # We need: ps |- exists s. Union(s, a, b)
     # From ps, bu |- exists s. Union(s,a,b) and Union_ax |- exists s. BigUnion(s,p)
     # Use existential elim on exists s.BigUnion(s,p): introduce s with BigUnion(s,p) on left
-    # Then from ps, BigUnion(s,p) |- exists s'. Union(s',a,b)... hmm s is used for both.
+    # Then from ps, BigUnion(s,p) |- exists s'. Union(s',a,b)... hmm same(s, used) for both.
 
     # Actually, s in BigUnion and s in Union are the SAME s. The BigUnion(s,p) gives the
     # characterization of s, and we derived Union(s,a,b) for that same s. So exists s. Union(s,a,b)
@@ -3390,7 +3391,7 @@ def union_exists():
     p_ax = Proof(Sequent([ex_ps], [ex_ps]), 'axiom', principal=ex_ps)
     p_fl1 = Proof(Sequent([fa_b_ex], [ex_ps]), 'forall_left', [p_ax], principal=fa_b_ex, term=b)
     p_fl2 = Proof(Sequent([fa_a_b_ex], [ex_ps]), 'forall_left', [p_fl1], principal=fa_a_b_ex, term=a)
-    # pairing_ax is alpha-equiv to fa_a_b_ex after expansion
+    # same(pairing_ax, alpha)-equiv to fa_a_b_ex after expansion
     got_ex_ps = Proof(Sequent([pairing_ax], [ex_ps]), 'cut',
         [wr(Proof(Sequent([pairing_ax], [pairing_ax]), 'axiom', principal=pairing_ax), ex_ps),
          wl(p_fl2, pairing_ax)], principal=fa_a_b_ex)
@@ -3506,7 +3507,7 @@ def successor_exists():
     # Need to package s existentially, then handle sa existentially.
 
     def _pack_exists(proof, pred, var):
-        ctx = [f for f in proof.sequent.left if f is not pred]
+        ctx = [f for f in proof.sequent.left if not same(f, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         fa_np = Forall(var, Not(pred))
@@ -3540,9 +3541,9 @@ def successor_exists():
                  [nl_s], principal=fa_n_succ, term=s)
     got_ex_succ = Proof(Sequent(got_succ.sequent.left, [ex_succ]), 'not_right',
                         [fl_s], principal=ex_succ)
-    # got_ex_succ: [union_s, sing] |- [exists s. Successor(s, x)]... wait, s is used in union_s too.
+    # got_ex_succ: [union_s, sing] |- [exists s. Successor(s, x)]... wait, same(s, used) in union_s too.
 
-    # Hmm, the s in exists s.Successor(s,x) is quantified. The s in union_s is free. Different roles.
+    # Hmm, the s in exists s.Successor(s,x) is quantified. The s in same(union_s, free). Different roles.
     # The existential says "there exists SOME s". The union_s characterizes a SPECIFIC s.
     # After _pack_exists or existential intro, the specific s gets bound.
 
@@ -3555,9 +3556,9 @@ def successor_exists():
     # not_left: got_succ.left + [Not(SuccDef(s,x))] |- []
     nl_s2 = Proof(Sequent(got_succ.sequent.left + [Not(fa_succ)], []),
                   'not_left', [got_succ], principal=Not(fa_succ))
-    # Hmm, fa_succ is the Forall version. Let me use the SetSpec-expanded version.
+    # Hmm, same(fa_succ, the) Forall version. Let me use the SetSpec-expanded version.
     # Actually Successor(s,x) expands to Forall(xv, Iff(In(xv,s), Or(In(xv,x), Eq(xv,x)))).
-    # And fa_succ = Forall(xv, succ_body) which is the same thing.
+    # And fa_succ = Forall(xv, succ_body) same(which, the) same thing.
     # So SuccDef(s,x) and fa_succ are alpha-equiv after expansion.
 
     # Existential intro with witness s: from |- Successor(s,x), derive |- exists s2. Successor(s2,x)
@@ -3629,7 +3630,7 @@ def big_union_exists():
     ax = zfc.Union()
     a, s = Var(), Var()
     goal = Forall(a, Exists(s, BigUnion(s, a)))
-    # The goal is alpha-equiv to the Union axiom after expansion
+    # The same(goal, alpha)-equiv to the Union axiom after expansion
     proof = Proof(Sequent([ax], [goal]), 'axiom', principal=ax)
     proof.name = 'big_union_exists'
     return proof
@@ -3868,7 +3869,7 @@ def infinity_gives_inductive():
              [wr(wl(got_ins0, ext_ax, succ_s0), fa_s_part2), wl(d4, and_s0)], principal=In(s0, b))],
         principal=succ_s0)
     def _eel(proof, pred, var):
-        ctx = [f for f in proof.sequent.left if f is not pred]
+        ctx = [f for f in proof.sequent.left if not same(f, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]), 'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
@@ -3936,7 +3937,7 @@ def infinity_gives_inductive():
 
 def omega_is_inductive():
     """Infinity, Extensionality |- forall w. Omega(w) -> Inductive(w)
-    omega is itself an inductive set."""
+    same(omega, itself) an inductive set."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import Inductive, Omega, Empty, Successor
 
@@ -4225,7 +4226,7 @@ def omega_is_inductive():
 
     # === Existential elimination on b0 ===
     def _eel(proof, pred, var):
-        ctx = [f for f in proof.sequent.left if f is not pred]
+        ctx = [f for f in proof.sequent.left if not same(f, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
@@ -4286,7 +4287,7 @@ def eq_in_eq():
     fa_w = Forall(wv, iff_wz_wx2)
     got_fa = Proof(Sequent([eq_zx1, eq_x], [fa_w]),
                    'forall_right', [got_result], principal=fa_w, term=wv)
-    # fa_w is alpha-equiv to Eq(z, x2) after expansion
+    # same(fa_w, alpha)-equiv to Eq(z, x2) after expansion
 
     # This gives: eq_zx1, eq_x |- eq_zx2 (the FORWARD direction)
     # For backward: eq_zx2, eq_x |- eq_zx1. Same proof with x1/x2 swapped.
@@ -4422,7 +4423,7 @@ def func_preserves_eq():
     fa_sing = Forall(zv, iff_in_eq1)
     got_sing_x1 = Proof(Sequent([sing_x2, eq_x], [fa_sing]),
                         'forall_right', [got_sing_z], principal=fa_sing, term=zv)
-    # fa_sing is alpha-equiv to Singleton(sa, x1) after expansion
+    # same(fa_sing, alpha)-equiv to Singleton(sa, x1) after expansion
 
     # Step 2: Similarly PairSet(pab, x2, y2) + Eq(x1,x2) |- PairSet(pab, x1, y2)
     # PairSet(pab, x, y) = forall z. Iff(In(z,pab), Or(Eq(z,x), Eq(z,y)))
@@ -4534,13 +4535,13 @@ def func_preserves_eq():
         return Proof(Sequent(ctx, [ex]), 'not_right', [fl], principal=ex)
 
     # Hmm, body_formula has pab as a free var. I need exists pab. And(PairSet(pab,x1,y2), PairSet(p,sa,pab)).
-    # The body is And(fa_pair, pair_p) where both mention pab.
-    # Witness is pab itself.
+    # The same(body, And)(fa_pair, pair_p) where both mention pab.
+    # same(Witness, pab) itself.
     # But _exist_intro_right expects body_formula to have var free, and proof to prove body[witness/var].
     # Since witness = var = pab, body[pab/pab] = body. So proof = got_and_pair. (ok)
 
     # Actually, the and_pair formula uses fa_pair = Forall(zv, iff_in_or1) which doesn't directly
-    # mention pab -- wait, pab IS in iff_in_or1 through In(zv, pab). So pab is free in fa_pair.
+    # mention pab -- wait, pab IS in iff_in_or1 through In(zv, pab). So same(pab, free) in fa_pair.
     # And pair_p = PairSet(p, sa, pab) also has pab free. (ok)
 
     ex_pab_body = And(fa_pair, pair_p)
@@ -4604,7 +4605,7 @@ def func_preserves_eq():
 
     # The existential unpacking of Apply(f,x2,y2) is complex. Let me use _eel pattern.
     def _eel(proof, pred, var):
-        ctx = [f_ for f_ in proof.sequent.left if f_ is not pred]
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
@@ -4726,7 +4727,7 @@ def func_preserves_eq():
     proof = final
     for h in [app2_actual, app1, eq_x, func_f]:
         imp_h = Implies(h, proof.sequent.right[0])
-        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
     for v in [y2, y1, x2, x1, f]:
         body = proof.sequent.right[0]
@@ -4756,7 +4757,7 @@ def func_unique_thm():
     fa2 = Forall(ya, Forall(yb, Implies(And(Apply(f, x, ya), Apply(f, x, yb)), Eq(ya, yb))))
     fa1 = Forall(xv, Forall(ya, Forall(yb,
         Implies(And(Apply(f, xv, ya), Apply(f, xv, yb)), Eq(ya, yb)))))
-    # fa1 is alpha-equiv to Function(f)
+    # same(fa1, alpha)-equiv to Function(f)
 
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
@@ -4800,7 +4801,7 @@ def func_unique_thm():
     proof = got_eq
     for h in [app2, app1, func_f]:
         imp_h = Implies(h, proof.sequent.right[0])
-        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
     for v in [y2, y1, x, f]:
         body = proof.sequent.right[0]
@@ -4812,7 +4813,7 @@ def func_unique_thm():
 
 def plus_zero():
     """|- forall m, n, p. Empty(n) -> Plus(m, n, p) -> Eq(m, p)
-    If n is empty, then m + n = p implies p = m."""
+    If same(n, empty), then m + n = p implies p = m."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import (Function as FuncDef, Apply, Recursive, Plus as PlusDef,
                              Empty, Successor)
@@ -4932,7 +4933,7 @@ def plus_zero():
 
     # === Existential elimination: exists sf. full_and, then exists h. exists sf. full_and ===
     def _eel(proof, pred, var):
-        ctx = [f_ for f_ in proof.sequent.left if f_ is not pred]
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
@@ -4954,7 +4955,7 @@ def plus_zero():
     proof = c6
     for hyp in [plus_on_left, empty_n]:
         imp_h = Implies(hyp, proof.sequent.right[0])
-        remaining = [f_ for f_ in proof.sequent.left if f_ is not hyp]
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, hyp)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
     for v in [p, nv, m]:
         body = proof.sequent.right[0]
@@ -5037,7 +5038,7 @@ def init_seg_base():
     proof = got
     for h in [empty_e, is_f]:
         imp_h = Implies(h, proof.sequent.right[0])
-        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
     for var in [e, f, a, v]:
         body = proof.sequent.right[0]
@@ -5106,7 +5107,7 @@ def init_seg_step():
     proof = got3
     for h in [app_f_val, succ_sn, app_v_n, is_f]:
         imp_h = Implies(h, proof.sequent.right[0])
-        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
     for var in [fv, sn, val, n, f, a, v]:
         body = proof.sequent.right[0]
@@ -5118,7 +5119,7 @@ def init_seg_step():
 
 def omega_contains_empty():
     """Ext, Inf |- forall w. Omega(w) -> forall e. Empty(e) -> In(e, w)
-    Every empty set is in omega."""
+    Every empty same(set, in) omega."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import Successor
 
@@ -5159,7 +5160,7 @@ def omega_contains_empty():
 
 def omega_succ_closed():
     """Ext, Inf |- forall w. Omega(w) -> forall x. In(x,w) -> forall s. Succ(s,x) -> In(s,w)
-    Omega is closed under successor."""
+    same(Omega, closed) under successor."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import Successor
 
@@ -5192,7 +5193,7 @@ def init_seg_total():
        (forall x. exists y. Apply(f,x,y)) ->
        InitSeg(v,a,f) -> Omega(w) -> forall n. n in w -> exists y. Apply(v,n,y)
 
-    Every initial segment is total on omega, given f is total.
+    Every initial same(segment, total) on omega, given same(f, total).
     Proved by induction: Separation forms t = {n in w : exists y. Apply(v,n,y)},
     show Inductive(t), omega_smallest_inductive gives t = w."""
     from tactics import apply_thm, wl, wr, mp
@@ -5303,7 +5304,7 @@ def init_seg_total():
     # But exists fv. Apply(f,val,fv) uses fv as bound var. The ex_fv uses yfv. They're alpha-equiv.
 
     def _eel(proof, pred, var):
-        ctx = [f_ for f_ in proof.sequent.left if f_ is not pred]
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
@@ -5330,7 +5331,7 @@ def init_seg_total():
     # Discharge Succ: P(nv), is_v, f_total |- Succ(sn,n) -> P(sn)
     p_nv_actual = got_ex_sn4.sequent.left[-1]
     imp_succ = Implies(succ_sn, p_snv)
-    got_step_imp = Proof(Sequent([f_ for f_ in got_ex_sn4.sequent.left if f_ is not succ_sn],
+    got_step_imp = Proof(Sequent([f_ for f_ in got_ex_sn4.sequent.left if not same(f_, succ_sn)],
                                   [imp_succ]),
                          'implies_right', [got_ex_sn4], principal=imp_succ)
     # got_step_imp: [f_total, is_v, P(nv)] |- [Succ(sn,n) -> P(sn)]
@@ -5343,7 +5344,7 @@ def init_seg_total():
     # Discharge P(nv):
     imp_pn = Implies(p_nv_actual, fa_sn)
     got_step_closed = Proof(
-        Sequent([f_ for f_ in got_step_fa.sequent.left if f_ is not p_nv_actual], [imp_pn]),
+        Sequent([f_ for f_ in got_step_fa.sequent.left if not same(f_, p_nv_actual)], [imp_pn]),
         'implies_right', [got_step_fa], principal=imp_pn)
     # got_step_closed: [f_total, is_v] |- [P(nv) -> forall sn. Succ(sn,n) -> P(sn)]
 
@@ -5370,9 +5371,9 @@ def init_seg_total():
     # Let me just peel with forall_left twice.
     # sep after expand: forall v. forall a. exists b. forall x. Iff(In(x,b), And(In(x,a), P(x)))
     # First forall_left v->v, then a->w
-    inner = Forall(w, ex_t)  # After peeling forall v, remaining is forall a. exists b. ...
+    inner = Forall(w, ex_t)  # After peeling forall v, same(remaining, forall) a. exists b. ...
     # Actually the structure after sep.expand() is Forall(v_param, Forall(a_param, ...))
-    # where v_param is v (from vars list) and a_param is a fresh Var.
+    # where same(v_param, v) (from vars list) and same(a_param, a) fresh Var.
     # I need to match the expansion structure. Let me use apply_thm approach instead.
 
     # Simpler: treat sep as axiom, peel with forall_left for v, then w.
@@ -5439,7 +5440,7 @@ def init_seg_total():
 
     # Discharge empty_ev, forall ev:
     imp_emp_t = Implies(empty_ev, In(ev, t))
-    base_hyps = [f_ for f_ in got_in_t_base.sequent.left if f_ is not empty_ev]
+    base_hyps = [f_ for f_ in got_in_t_base.sequent.left if not same(f_, empty_ev)]
     ind_base = Proof(Sequent(base_hyps, [imp_emp_t]),
                      'implies_right', [got_in_t_base], principal=imp_emp_t)
     ind_base_fa = Proof(Sequent(base_hyps, [Forall(ev, imp_emp_t)]),
@@ -5497,7 +5498,7 @@ def init_seg_total():
     # Instantiate nv->xv2 in the step: we need a fresh instance.
     # Actually got_step_closed has nv, snv as its vars. Let me use apply_thm.
     # The theorem body after peeling foralls would give us what we need.
-    # But got_step_closed is not a forall -- it's an implication with specific vars.
+    # But not same(got_step_closed, a) forall -- it's an implication with specific vars.
     # The vars nv and snv are free in got_step_closed's right side.
     # I need to substitute xv2 for nv and sv2 for snv... but we can't substitute in proofs.
 
@@ -5517,7 +5518,7 @@ def init_seg_total():
     # Let me check: p_nv_actual = got_ex_sn4.sequent.left[-1] = Exists(val, Apply(v, nv, val))
     # This has nv free. After forall_right over nv, nv becomes bound. (ok)
 
-    # But snv is also free in fa_sn = Forall(snv, imp_succ). Wait, snv is already bound in fa_sn.
+    # But same(snv, also) free in fa_sn = Forall(snv, imp_succ). Wait, same(snv, already) bound in fa_sn.
     # got_step_closed right = [P(nv) -> forall snv. Succ(snv,nv) -> P(snv)]
     # This has nv free. After forall_right over nv, we get:
     # forall nv. P(nv) -> forall snv. Succ(snv,nv) -> P(snv)
@@ -5548,16 +5549,16 @@ def init_seg_total():
     # Hmm, set doesn't work with formula objects (no __hash__). Let me merge manually.
     step_ctx_all = list(got_osc3.sequent.left)
     for f_ in got_step3.sequent.left:
-        if not any(f_ is g for g in step_ctx_all):
+        if not any(same(f_, g) for g in step_ctx_all):
             step_ctx_all.append(f_)
 
     got_osc3_w = got_osc3
     for f_ in got_step3.sequent.left:
-        if not any(f_ is g for g in got_osc3.sequent.left):
+        if not any(same(f_, g) for g in got_osc3.sequent.left):
             got_osc3_w = wl(got_osc3_w, f_)
     got_step3_w = got_step3
     for f_ in got_osc3.sequent.left:
-        if not any(f_ is g for g in got_step3.sequent.left):
+        if not any(same(f_, g) for g in got_step3.sequent.left):
             got_step3_w = wl(got_step3_w, f_)
 
     br_s1 = got_osc3_w  # step_ctx_all |- In(s,w)
@@ -5576,7 +5577,7 @@ def init_seg_total():
 
     # Discharge succ_s_x, forall sv2:
     imp_succ_s = Implies(succ_s_x, in_s_t)
-    step_left = [f_ for f_ in got_in_s_t.sequent.left if f_ is not succ_s_x]
+    step_left = [f_ for f_ in got_in_s_t.sequent.left if not same(f_, succ_s_x)]
     ind_step1 = Proof(Sequent(step_left, [imp_succ_s]),
                       'implies_right', [got_in_s_t], principal=imp_succ_s)
     fa_sv = Forall(sv2, imp_succ_s)
@@ -5585,7 +5586,7 @@ def init_seg_total():
 
     # Discharge In(x,t), forall xv2:
     imp_in_t = Implies(in_x_t, fa_sv)
-    step_left2 = [f_ for f_ in ind_step2.sequent.left if f_ is not in_x_t]
+    step_left2 = [f_ for f_ in ind_step2.sequent.left if not same(f_, in_x_t)]
     ind_step3 = Proof(Sequent(step_left2, [imp_in_t]),
                       'implies_right', [ind_step2], principal=imp_in_t)
     fa_xv = Forall(xv2, imp_in_t)
@@ -5602,11 +5603,11 @@ def init_seg_total():
     ind_ctx = list(ind_step4.sequent.left)  # should be same as ind_base_fa.sequent.left
     br_ind1 = ind_base_fa
     for f_ in ind_ctx:
-        if not any(f_ is g for g in br_ind1.sequent.left):
+        if not any(same(f_, g) for g in br_ind1.sequent.left):
             br_ind1 = wl(br_ind1, f_)
     br_ind2 = Proof(Sequent(ind_ctx + [n_step], []), 'not_left', [ind_step4], principal=n_step)
     for f_ in br_ind1.sequent.left:
-        if not any(f_ is g for g in ind_ctx):
+        if not any(same(f_, g) for g in ind_ctx):
             br_ind2 = wl(br_ind2, f_)
             ind_ctx.append(f_)
     il_ind = Proof(Sequent(ind_ctx + [Implies(base_part, n_step)], []),
@@ -5649,10 +5650,10 @@ def init_seg_total():
     # Build And(Subset(t,w), Inductive(t)):
     n_ind_t = Not(ind_t)
     got_sub_t_w = wl(got_sub_t, *[f_ for f_ in got_ind_t.sequent.left
-                                    if not any(f_ is g for g in got_sub_t.sequent.left)])
+                                    if not any(same(f_, g) for g in got_sub_t.sequent.left)])
     got_ind_t_w = got_ind_t
     for f_ in got_sub_t.sequent.left:
-        if not any(f_ is g for g in got_ind_t.sequent.left):
+        if not any(same(f_, g) for g in got_ind_t.sequent.left):
             got_ind_t_w = wl(got_ind_t_w, f_)
     osi_ctx = list(got_ind_t_w.sequent.left)
     br_osi1 = got_sub_t_w  # osi_ctx |- Subset(t,w)
@@ -5713,7 +5714,7 @@ def init_seg_total():
 
     # Cut with fl_w: [sep] |- exists t.fa_char
     # Build cut from actual contexts (avoids duplicate axiom issues)
-    pn3_ctx = [f_ for f_ in got_pn3.sequent.left if f_ is not ex_t_actual]
+    pn3_ctx = [f_ for f_ in got_pn3.sequent.left if not same(f_, ex_t_actual)]
     shared = pn3_ctx + [sep]
 
     br1 = fl_w  # [sep] |- [exists t.fa_char]
@@ -5730,22 +5731,22 @@ def init_seg_total():
     for h in [omega_w, is_v, f_total]:
         # h should be in proof.sequent.left by identity since we created them
         imp_h = Implies(h, proof.sequent.right[0])
-        remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
 
     # In(n,w) might not match by identity -- find it in the remaining left
     in_n_w_actual = None
     for f_ in proof.sequent.left:
-        if isinstance(f_, In) and f_.left is n:
+        if isinstance(f_, In) and same(f_.left, n):
             in_n_w_actual = f_
             break
     if in_n_w_actual is None:
         # fallback: last non-axiom formula
         in_n_w_actual = [f_ for f_ in proof.sequent.left
                          if not isinstance(f_, (zfc.ZFCAxiom,))
-                         and f_ is not sep][-1]
+                         and not same(f_, sep)][-1]
     imp_h = Implies(in_n_w_actual, proof.sequent.right[0])
-    remaining = [f_ for f_ in proof.sequent.left if f_ is not in_n_w_actual]
+    remaining = [f_ for f_ in proof.sequent.left if not same(f_, in_n_w_actual)]
     proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
 
     for var in [n, w, v, f, a]:
@@ -5858,7 +5859,7 @@ def init_seg_agree():
     proof_base = base_eq
     for h in [app2_ev, app1_ev, is2, is1]:  # order matches Q: is1->is2->app1->app2
         imp_h = Implies(h, proof_base.sequent.right[0])
-        remaining = [f_ for f_ in proof_base.sequent.left if f_ is not h]
+        remaining = [f_ for f_ in proof_base.sequent.left if not same(f_, h)]
         proof_base = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_base], principal=imp_h)
     for var in [y2, y1, v2, v1]:
         body = proof_base.sequent.right[0]
@@ -5892,7 +5893,7 @@ def init_seg_agree():
     # is1->is2->app(v1,nv,val1)->app(v2,nv,val2)->Eq(val1,val2)
     q_nv = Q(nv)
     eq_val = Eq(val1, val2)
-    # inner_imp uses y1, y2 (the bound vars of Q) — forall_left substitutes them
+    # inner_imp uses y1, y2 (the bound vars of Q) -- forall_left substitutes them
     inner_imp_y = Implies(is1, Implies(is2, Implies(Apply(v1, nv, y1),
         Implies(Apply(v2, nv, y2), Eq(y1, y2)))))
     # After substitution y1->val1, y2->val2:
@@ -6018,7 +6019,7 @@ def init_seg_agree():
     proof_step = step_eq
     for h in [app2_sn_y2, app1_sn_y1, is2, is1]:  # order matches Q: is1->is2->app1->app2
         imp_h = Implies(h, proof_step.sequent.right[0])
-        remaining = [f_ for f_ in proof_step.sequent.left if f_ is not h]
+        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, h)]
         proof_step = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_step], principal=imp_h)
     for var in [y2, y1, v2, v1]:
         body = proof_step.sequent.right[0]
@@ -6029,7 +6030,7 @@ def init_seg_agree():
 
     # Existential elim on fv2 (from f_total at val2)
     def _eel(proof, pred, var):
-        ctx = [f_ for f_ in proof.sequent.left if f_ is not pred]
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
         D = proof.sequent.right[0]
         p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
         p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
@@ -6052,16 +6053,16 @@ def init_seg_agree():
     ex_f2 = proof_step.sequent.left[-1]
     got_ft2 = _fl(f_total, Exists(yfv, Apply(f, val2, yfv)), val2)
     proof_step = Proof(
-        Sequent([f_ for f_ in proof_step.sequent.left if f_ is not ex_f2] + [f_total],
+        Sequent([f_ for f_ in proof_step.sequent.left if not same(f_, ex_f2)] + [f_total],
                 proof_step.sequent.right), 'cut',
-        [wr(wl(got_ft2, *[f_ for f_ in proof_step.sequent.left if f_ is not ex_f2]),
+        [wr(wl(got_ft2, *[f_ for f_ in proof_step.sequent.left if not same(f_, ex_f2)]),
             proof_step.sequent.right[0]),
          wl(proof_step, f_total)], principal=ex_f2)
 
     proof_step = _eel(proof_step, app_f_1, fv1)
     ex_f1 = proof_step.sequent.left[-1]
     got_ft1 = _fl(f_total, Exists(yfv, Apply(f, val1, yfv)), val1)
-    pstep_no_ex = [f_ for f_ in proof_step.sequent.left if f_ is not ex_f1]
+    pstep_no_ex = [f_ for f_ in proof_step.sequent.left if not same(f_, ex_f1)]
     proof_step = Proof(
         Sequent(pstep_no_ex, proof_step.sequent.right), 'cut',
         [wr(wl(got_ft1, *pstep_no_ex), proof_step.sequent.right[0]),
@@ -6094,27 +6095,27 @@ def init_seg_agree():
         # br1 = got_ist4 weakened to conclusion.left |- [ex_val, D]
         # br2 = proof_step weakened to conclusion.left + [ex_val] |- D
         # Use proof_step.left (minus ex_val) as base, add new from ist4
-        pstep_no_ex = [f_ for f_ in proof_step.sequent.left if f_ is not ex_val]
+        pstep_no_ex = [f_ for f_ in proof_step.sequent.left if not same(f_, ex_val)]
         # Build union context: pstep_no_ex + extras from got_ist4
         cut_left = list(pstep_no_ex)
         for f_ in got_ist4.sequent.left:
-            if not any(f_ is g for g in cut_left):
+            if not any(same(f_, g) for g in cut_left):
                 cut_left.append(f_)
         # Weaken both to cut_left
         br1 = got_ist4
         for f_ in cut_left:
-            if not any(f_ is g for g in br1.sequent.left):
+            if not any(same(f_, g) for g in br1.sequent.left):
                 br1 = wl(br1, f_)
         br2 = proof_step
         for f_ in cut_left:
-            if not any(f_ is g for g in proof_step.sequent.left):
+            if not any(same(f_, g) for g in proof_step.sequent.left):
                 br2 = wl(br2, f_)
         proof_step = Proof(Sequent(cut_left, proof_step.sequent.right), 'cut',
             [wr(br1, proof_step.sequent.right[0]), br2], principal=ex_val)
 
     # Discharge succ_sn, Q(nv)
     imp_succ = Implies(succ_sn, proof_step.sequent.right[0])
-    step_no_succ = [f_ for f_ in proof_step.sequent.left if f_ is not succ_sn]
+    step_no_succ = [f_ for f_ in proof_step.sequent.left if not same(f_, succ_sn)]
     proof_step = Proof(Sequent(step_no_succ, [imp_succ]),
                        'implies_right', [proof_step], principal=imp_succ)
     fa_sn = Forall(snv, imp_succ)
@@ -6123,7 +6124,7 @@ def init_seg_agree():
 
     q_nv_actual = fa1234  # Q(nv) = the forall chain we used in fl_ih
     imp_qn = Implies(q_nv_actual, fa_sn)
-    step_no_q = [f_ for f_ in proof_step.sequent.left if f_ is not q_nv_actual]
+    step_no_q = [f_ for f_ in proof_step.sequent.left if not same(f_, q_nv_actual)]
     proof_step = Proof(Sequent(step_no_q, [imp_qn]),
                        'implies_right', [proof_step], principal=imp_qn)
     # proof_step: [f_total, func_f, omega_w, in_nv_w, ist_axioms...] |- Q(nv) -> forall sn. Succ -> Q(sn)
@@ -6168,34 +6169,17 @@ def init_seg_agree():
         Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev), [], [])
 
     and_in_q_ev = And(In(ev, w), Q(ev))
-    # Merge got_in_w [ext,inf,omega_w,empty_ev] and proof_base [empty_ev]
-    # Shared: empty_ev
-    got_in_w_b = got_in_w
-    for f_ in proof_base.sequent.left:
-        if not any(f_ is g for g in got_in_w.sequent.left):
-            got_in_w_b = wl(got_in_w_b, f_)
-    got_base_b = proof_base
-    for f_ in got_in_w.sequent.left:
-        if not any(f_ is g for g in proof_base.sequent.left):
-            got_base_b = wl(got_base_b, f_)
-
-    base_ctx = list(got_in_w.sequent.left)
-    for f_ in proof_base.sequent.left:
-        if not any(f_ is g for g in base_ctx):
-            base_ctx.append(f_)
-
-    n_qev = Not(Q(ev))
-    br_b2 = Proof(Sequent(base_ctx + [n_qev], []), 'not_left', [got_base_b], principal=n_qev)
-    il_b = Proof(Sequent(base_ctx + [Implies(In(ev, w), n_qev)], []),
-                 'implies_left', [got_in_w_b, br_b2], principal=Implies(In(ev, w), n_qev))
-    got_and_base = Proof(Sequent(base_ctx, [and_in_q_ev]),
-                         'not_right', [il_b], principal=and_in_q_ev)
+    # And(In(ev,w), Q(ev)) via and_intro + apply_thm + mp
+    ai_b = and_intro(In(ev, w), Q(ev), [])
+    got_and_imp_b = apply_thm(ai_b, [], In(ev, w), Implies(Q(ev), and_in_q_ev), got_in_w, [], [])
+    got_and_base = mp(got_and_imp_b, proof_base, Q(ev), and_in_q_ev,
+        [empty_ev], [empty_ev])
 
     char_ev = _char_at(ev)
     bwd_ev = _iff_bwd(char_ev, In(ev, t), and_in_q_ev)
     got_in_t_base = mp(bwd_ev, got_and_base, and_in_q_ev, In(ev, t), [], [])
     imp_emp_t = Implies(empty_ev, In(ev, t))
-    base_hyps = [f_ for f_ in got_in_t_base.sequent.left if f_ is not empty_ev]
+    base_hyps = [f_ for f_ in got_in_t_base.sequent.left if not same(f_, empty_ev)]
     ind_base = Proof(Sequent(base_hyps, [imp_emp_t]),
                      'implies_right', [got_in_t_base], principal=imp_emp_t)
     ind_base_fa = Proof(Sequent(base_hyps, [Forall(ev, imp_emp_t)]),
@@ -6246,40 +6230,26 @@ def init_seg_agree():
     got_q_step2 = apply_thm(got_q_step, [sv2], succ_s_x, q_s,
         Proof(Sequent([succ_s_x], [succ_s_x]), 'axiom', principal=succ_s_x), [], [])
 
-    # Merge got_osc3 and got_q_step2 for And(in_s_w, q_s)
-    step_ctx_all = list(got_osc3.sequent.left)
-    for f_ in got_q_step2.sequent.left:
-        if not any(f_ is g for g in step_ctx_all):
-            step_ctx_all.append(f_)
-    got_osc3_w = got_osc3
-    for f_ in got_q_step2.sequent.left:
-        if not any(f_ is g for g in got_osc3.sequent.left):
-            got_osc3_w = wl(got_osc3_w, f_)
-    got_q_step2_w = got_q_step2
-    for f_ in got_osc3.sequent.left:
-        if not any(f_ is g for g in got_q_step2.sequent.left):
-            got_q_step2_w = wl(got_q_step2_w, f_)
-
-    n_qs = Not(q_s)
-    br_s2 = Proof(Sequent(step_ctx_all + [n_qs], []), 'not_left', [got_q_step2_w], principal=n_qs)
-    il_s = Proof(Sequent(step_ctx_all + [Implies(in_s_w, n_qs)], []),
-                 'implies_left', [got_osc3_w, br_s2], principal=Implies(in_s_w, n_qs))
-    got_and_step = Proof(Sequent(step_ctx_all, [and_in_q_s]),
-                         'not_right', [il_s], principal=and_in_q_s)
+    # And(in_s_w, q_s) via and_intro + apply_thm + mp
+    ai_s = and_intro(in_s_w, q_s, [])
+    got_and_imp = apply_thm(ai_s, [], in_s_w, Implies(q_s, and_in_q_s), got_osc3, [], [])
+    # shared between got_and_imp and got_q_step2: fa_char, succ_s_x, in_x_t + possibly axioms
+    # Use fa_char which both definitely have
+    got_and_step = mp(got_and_imp, got_q_step2, q_s, and_in_q_s, [fa_char], [fa_char])
 
     char_s = _char_at(sv2)
     bwd_s = _iff_bwd(char_s, in_s_t, and_in_q_s)
     got_in_s_t = mp(bwd_s, got_and_step, and_in_q_s, in_s_t, [fa_char], [fa_char])
 
     imp_succ_s = Implies(succ_s_x, in_s_t)
-    step_left = [f_ for f_ in got_in_s_t.sequent.left if f_ is not succ_s_x]
+    step_left = [f_ for f_ in got_in_s_t.sequent.left if not same(f_, succ_s_x)]
     ind_step1 = Proof(Sequent(step_left, [imp_succ_s]),
                       'implies_right', [got_in_s_t], principal=imp_succ_s)
     fa_sv = Forall(sv2, imp_succ_s)
     ind_step2 = Proof(Sequent(step_left, [fa_sv]),
                       'forall_right', [ind_step1], principal=fa_sv, term=sv2)
     imp_in_t = Implies(in_x_t, fa_sv)
-    step_left2 = [f_ for f_ in ind_step2.sequent.left if f_ is not in_x_t]
+    step_left2 = [f_ for f_ in ind_step2.sequent.left if not same(f_, in_x_t)]
     ind_step3 = Proof(Sequent(step_left2, [imp_in_t]),
                       'implies_right', [ind_step2], principal=imp_in_t)
     fa_xv = Forall(xv2, imp_in_t)
@@ -6291,23 +6261,11 @@ def init_seg_agree():
     base_part = Forall(ev, imp_emp_t)
     step_part = fa_xv
 
-    ind_ctx = list(ind_step4.sequent.left)
-    for f_ in ind_base_fa.sequent.left:
-        if not any(f_ is g for g in ind_ctx):
-            ind_ctx.append(f_)
-    br_ind1 = ind_base_fa
-    for f_ in ind_ctx:
-        if not any(f_ is g for g in br_ind1.sequent.left):
-            br_ind1 = wl(br_ind1, f_)
-    n_step = Not(step_part)
-    br_ind2 = Proof(Sequent(ind_ctx + [n_step], []), 'not_left', [ind_step4], principal=n_step)
-    for f_ in ind_base_fa.sequent.left:
-        if not any(f_ is g for g in ind_ctx):
-            br_ind2 = wl(br_ind2, f_)
-    il_ind = Proof(Sequent(ind_ctx + [Implies(base_part, n_step)], []),
-                   'implies_left', [br_ind1, br_ind2], principal=Implies(base_part, n_step))
-    got_ind_t = Proof(Sequent(ind_ctx, [ind_t]),
-                      'not_right', [il_ind], principal=ind_t)
+    # Inductive(t) = And(base_part, step_part) via and_intro
+    ai_ind = and_intro(base_part, step_part, [])
+    got_ind_imp = apply_thm(ai_ind, [], base_part, Implies(step_part, ind_t),
+        ind_base_fa, [], [])
+    got_ind_t = mp(got_ind_imp, ind_step4, step_part, ind_t, [fa_char], [fa_char])
 
     # --- Subset(t, w) ---
     zv2 = Var()
@@ -6336,20 +6294,10 @@ def init_seg_agree():
     and_sub_ind = And(sub_t_w, ind_t)
 
     got_sub_t_w = got_sub_t
-    for f_ in got_ind_t.sequent.left:
-        if not any(f_ is g for g in got_sub_t.sequent.left):
-            got_sub_t_w = wl(got_sub_t_w, f_)
-    got_ind_t_w = got_ind_t
-    for f_ in got_sub_t.sequent.left:
-        if not any(f_ is g for g in got_ind_t.sequent.left):
-            got_ind_t_w = wl(got_ind_t_w, f_)
-    osi_ctx = list(got_ind_t_w.sequent.left)
-    n_ind_t = Not(ind_t)
-    br_osi2 = Proof(Sequent(osi_ctx + [n_ind_t], []), 'not_left', [got_ind_t_w], principal=n_ind_t)
-    il_osi = Proof(Sequent(osi_ctx + [Implies(sub_t_w, n_ind_t)], []),
-                   'implies_left', [got_sub_t_w, br_osi2], principal=Implies(sub_t_w, n_ind_t))
-    got_and_si = Proof(Sequent(osi_ctx, [and_sub_ind]),
-                       'not_right', [il_osi], principal=and_sub_ind)
+    # And(Subset(t,w), Inductive(t)) via and_intro
+    ai_si = and_intro(sub_t_w, ind_t, [])
+    got_si_imp = apply_thm(ai_si, [], sub_t_w, Implies(ind_t, and_sub_ind), got_sub_t, [], [])
+    got_and_si = mp(got_si_imp, got_ind_t, ind_t, and_sub_ind, [fa_char], [fa_char])
 
     eq_tw = Eq(t, w)
     got_eq = apply_thm(osi, [t, w], omega_w, Implies(and_sub_ind, eq_tw),
@@ -6381,7 +6329,7 @@ def init_seg_agree():
     # Existential elimination on t
     got_qn3 = _eel(got_qn2, fa_char, t)
     ex_t_actual = got_qn3.sequent.left[-1]
-    pn3_ctx = [f_ for f_ in got_qn3.sequent.left if f_ is not ex_t_actual]
+    pn3_ctx = [f_ for f_ in got_qn3.sequent.left if not same(f_, ex_t_actual)]
     shared_ctx = pn3_ctx + [sep]
     br1 = fl_w
     for f_ in pn3_ctx:
@@ -6397,16 +6345,16 @@ def init_seg_agree():
     while done:
         done = False
         for h in [omega_w, func_f, f_total, is1, is2]:
-            if any(h is g for g in proof.sequent.left):
+            if any(same(h, g) for g in proof.sequent.left):
                 imp_h = Implies(h, proof.sequent.right[0])
-                remaining = [f_ for f_ in proof.sequent.left if f_ is not h]
+                remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
                 proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
                 done = True
         # Discharge any In(_, w) formulas (from init_seg_total calls)
         for f_ in list(proof.sequent.left):
-            if isinstance(f_, In) and f_.right is w:
+            if isinstance(f_, In) and same(f_.right, w):
                 imp_h = Implies(f_, proof.sequent.right[0])
-                remaining = [g for g in proof.sequent.left if g is not f_]
+                remaining = [g for g in proof.sequent.left if not same(g, f_)]
                 proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
                 done = True
                 break
