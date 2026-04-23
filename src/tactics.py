@@ -2,12 +2,17 @@
 
 from core.proof import Sequent, Proof
 from core.lang import Implies, Forall
+from core import same
 
 
-def apply_thm(thm, terms, hyp, concl, hyp_proof, thm_shared, hyp_shared):
+def apply_thm(thm, terms, hyp, concl, hyp_proof):
     """Compose a theorem with a hypothesis proof.
-    thm_shared: formulas in thm_ctx to skip when weakening hyp_proof.
-    hyp_shared: formulas in hyp_ctx to skip when building output."""
+    thm: proof of thm_ctx |- Forall(x1, ..., Forall(xn, Implies(hyp', concl')))
+    terms: [t1, ..., tn] instantiation for the foralls
+    hyp: the hypothesis after instantiation
+    concl: the conclusion after instantiation
+    hyp_proof: proof of hyp_ctx |- hyp
+    Returns: proof of thm_ctx + (hyp_ctx - shared) |- concl"""
     imp = Implies(hyp, concl)
     layers = [imp]
     for t in reversed(terms):
@@ -21,8 +26,8 @@ def apply_thm(thm, terms, hyp, concl, hyp_proof, thm_shared, hyp_shared):
         [Proof(Sequent(thm_ctx, [layers[-1], imp]), 'weakening_right', [thm], principal=imp),
          wl(cur, *thm_ctx)], principal=layers[-1])
     hyp_ctx = list(hyp_proof.sequent.left)
-    new_from_hyp = [f for f in hyp_ctx if not any(f is g for g in hyp_shared)]
-    new_from_thm = [f for f in thm_ctx if not any(f is g for g in thm_shared)]
+    new_from_hyp = [f for f in hyp_ctx if not any(same(f, g) for g in thm_ctx)]
+    new_from_thm = [f for f in thm_ctx if not any(same(f, g) for g in hyp_ctx)]
     all_ctx = thm_ctx + new_from_hyp
     inst_w = wl(inst, *new_from_hyp)
     inst_w = Proof(Sequent(inst_w.sequent.left, [imp, concl]),
@@ -51,15 +56,13 @@ def wr(proof, formula):
                  'weakening_right', [proof], principal=formula)
 
 
-def mp(impl_proof, arg_proof, P, Q, impl_shared, arg_shared):
-    """Modus ponens: from ctx1 |- Implies(P, Q) and ctx2 |- P, get merged |- Q.
-    impl_shared: formulas in ctx1 to skip when weakening arg_proof.
-    arg_shared: formulas in ctx2 to skip when building output."""
+def mp(impl_proof, arg_proof, P, Q):
+    """Modus ponens: from ctx1 |- Implies(P, Q) and ctx2 |- P, get merged |- Q."""
     imp = Implies(P, Q)
     ctx_i = list(impl_proof.sequent.left)
     ctx_a = list(arg_proof.sequent.left)
-    new_from_arg = [f for f in ctx_a if not any(f is g for g in arg_shared)]
-    new_from_impl = [f for f in ctx_i if not any(f is g for g in impl_shared)]
+    new_from_arg = [f for f in ctx_a if not any(same(f, g) for g in ctx_i)]
+    new_from_impl = [f for f in ctx_i if not any(same(f, g) for g in ctx_a)]
     all_ctx = ctx_i + new_from_arg
     wp1 = wl(impl_proof, *new_from_arg)
     wp2 = wl(arg_proof, *new_from_impl)
