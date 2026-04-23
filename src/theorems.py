@@ -3721,33 +3721,40 @@ def infinity_gives_inductive():
     # Using unique_empty + unique_successor + eq_substitution via raw forall_left + implies_left.
 
     # Step 1: unique_empty gives Eq(e0,e) from Empty(e0), Empty(e)
+    # ue structure: Forall(v1, Implies(Empty(v1), Forall(v2, Implies(Empty(v2), Eq(v1,v2)))))
     ue = unique_empty()
+    ue_f = ue.sequent.right[0]  # the actual formula
     eq_e0_e = Eq(e0, e)
+    # Peel: forall_left(e0) → Implies(Empty(e0), Forall(e, Implies(Empty(e), Eq(e0,e))))
+    # But we use the ACTUAL body from ue_f to avoid structure mismatch.
+    ue_body = ue_f.body  # Implies(Empty(v1), Forall(v2, Implies(Empty(v2), Eq(v1,v2))))
     imp_e_eq = Implies(Empty(e), eq_e0_e)
-    imp_e0_rest = Implies(Empty(e0), imp_e_eq)
-    fa_e_imp = Forall(e, imp_e0_rest)
-    fa_e0_e_imp = Forall(e0, fa_e_imp)
-    # Peel ue from left: ue_formula, Empty(e0), Empty(e) |- Eq(e0,e)
+    fa_e_imp = Forall(e, imp_e_eq)
+    imp_e0_rest = Implies(Empty(e0), fa_e_imp)
+    # Now peel from inside out, matching ue's actual structure:
+    # innermost: Eq(e0,e) |- Eq(e0,e)
     ax_eq = Proof(Sequent([eq_e0_e], [eq_e0_e]), 'axiom', principal=eq_e0_e)
-    ax_ee = Proof(Sequent([Empty(e), Empty(e0)], [Empty(e), eq_e0_e]),
-                  'weakening_left',
-                  [wr(Proof(Sequent([Empty(e)], [Empty(e)]), 'axiom', principal=Empty(e)), eq_e0_e)],
-                  principal=Empty(e0))
-    il_e = Proof(Sequent([imp_e_eq, Empty(e), Empty(e0)], [eq_e0_e]),
-                 'implies_left', [ax_ee, wl(ax_eq, Empty(e), Empty(e0))], principal=imp_e_eq)
-    ax_e0e = Proof(Sequent([Empty(e0), Empty(e)], [Empty(e0), eq_e0_e]),
-                   'weakening_left',
-                   [wr(Proof(Sequent([Empty(e0)], [Empty(e0)]), 'axiom', principal=Empty(e0)), eq_e0_e)],
-                   principal=Empty(e))
+    # implies_left on Empty(e): need Empty(e) on both sides
+    ax_ee = wr(Proof(Sequent([Empty(e)], [Empty(e)]), 'axiom', principal=Empty(e)), eq_e0_e)
+    il_e = Proof(Sequent([imp_e_eq, Empty(e)], [eq_e0_e]),
+                 'implies_left', [ax_ee, wl(ax_eq, Empty(e))], principal=imp_e_eq)
+    # forall_left(e): Forall(e, imp_e_eq), Empty(e) |- Eq(e0,e)
+    fl_e = Proof(Sequent([fa_e_imp, Empty(e)], [eq_e0_e]),
+                 'forall_left', [il_e], principal=fa_e_imp, term=e)
+    # implies_left on Empty(e0): need Empty(e0) on both sides
+    ax_e0 = wr(Proof(Sequent([Empty(e0), Empty(e)], [Empty(e0)]),
+                     'weakening_left',
+                     [Proof(Sequent([Empty(e0)], [Empty(e0)]), 'axiom', principal=Empty(e0))],
+                     principal=Empty(e)), eq_e0_e)
     il_e0 = Proof(Sequent([imp_e0_rest, Empty(e0), Empty(e)], [eq_e0_e]),
-                  'implies_left', [ax_e0e, il_e], principal=imp_e0_rest)
-    fl_e = Proof(Sequent([fa_e_imp, Empty(e0), Empty(e)], [eq_e0_e]),
-                 'forall_left', [il_e0], principal=fa_e_imp, term=e)
-    fl_e0 = Proof(Sequent([fa_e0_e_imp, Empty(e0), Empty(e)], [eq_e0_e]),
-                  'forall_left', [fl_e], principal=fa_e0_e_imp, term=e0)
+                  'implies_left', [ax_e0, wl(fl_e, Empty(e0))], principal=imp_e0_rest)
+    # forall_left(e0): ue_f, Empty(e0), Empty(e) |- Eq(e0,e)
+    fl_e0 = Proof(Sequent([ue_f, Empty(e0), Empty(e)], [eq_e0_e]),
+                  'forall_left', [il_e0], principal=ue_f, term=e0)
+    # Cut with ue: Empty(e0), Empty(e) |- Eq(e0,e)
     got_eq = Proof(Sequent([Empty(e0), Empty(e)], [eq_e0_e]), 'cut',
-        [wr(wl(ue, Empty(e0), Empty(e)), eq_e0_e), wl(fl_e0, Empty(e0), Empty(e))],
-        principal=fa_e0_e_imp)
+        [wr(wl(ue, Empty(e0), Empty(e)), eq_e0_e), fl_e0],
+        principal=ue_f)
 
     # Step 2: eq_substitution gives Iff(In(e0,b), In(e,b)) from Eq(e0,e)
     es = eq_substitution()
@@ -3817,7 +3824,7 @@ def infinity_gives_inductive():
     fl_s1s = Proof(Sequent([fa_s1s2, succ_s0, succ_s], [eq_s0_s]), 'forall_left', [fl_ss], principal=fa_s1s2, term=s0)
     fl_xs = Proof(Sequent([fa_xs1s2, succ_s0, succ_s], [eq_s0_s]), 'forall_left', [fl_s1s], principal=fa_xs1s2, term=x)
     got_eq_s = Proof(Sequent([succ_s0, succ_s], [eq_s0_s]), 'cut',
-        [wr(wl(us, succ_s0, succ_s), eq_s0_s), wl(fl_xs, succ_s0, succ_s)], principal=fa_xs1s2)
+        [wr(wl(us, succ_s0, succ_s), eq_s0_s), fl_xs], principal=fa_xs1s2)
 
     iff_sb = Iff(In(s0, b), In(s, b))
     imp_eq_iffs = Implies(eq_s0_s, iff_sb)
