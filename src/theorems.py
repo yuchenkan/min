@@ -5856,7 +5856,7 @@ def init_seg_agree():
 
     # Discharge to Q(ev)
     proof_base = base_eq
-    for h in [app2_ev, is2, app1_ev, is1]:
+    for h in [app2_ev, app1_ev, is2, is1]:  # order matches Q: is1->is2->app1->app2
         imp_h = Implies(h, proof_base.sequent.right[0])
         remaining = [f_ for f_ in proof_base.sequent.left if f_ is not h]
         proof_base = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_base], principal=imp_h)
@@ -6016,7 +6016,7 @@ def init_seg_agree():
     # --- Discharge to Q(snv), then existential elim on val1,val2,fv1,fv2 ---
     # Discharge: app2_sn_y2, is2, app1_sn_y1, is1 into Q implications
     proof_step = step_eq
-    for h in [app2_sn_y2, is2, app1_sn_y1, is1]:
+    for h in [app2_sn_y2, app1_sn_y1, is2, is1]:  # order matches Q: is1->is2->app1->app2
         imp_h = Implies(h, proof_step.sequent.right[0])
         remaining = [f_ for f_ in proof_step.sequent.left if f_ is not h]
         proof_step = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_step], principal=imp_h)
@@ -6090,21 +6090,25 @@ def init_seg_agree():
             omega_w, ex_app, [], [])
         # got_ist4: [ist_axioms, in_nv_w, f_total, is_hyp, omega_w] |- ex_app
 
+        # Build cut: conclusion.left = proof_step.left minus ex_val, plus new from ist4
+        # br1 = got_ist4 weakened to conclusion.left |- [ex_val, D]
+        # br2 = proof_step weakened to conclusion.left + [ex_val] |- D
+        # Use proof_step.left (minus ex_val) as base, add new from ist4
         pstep_no_ex = [f_ for f_ in proof_step.sequent.left if f_ is not ex_val]
+        # Weaken br1 to have pstep_no_ex on its left
         br1 = got_ist4
         for f_ in pstep_no_ex:
             if not any(f_ is g for g in br1.sequent.left):
                 br1 = wl(br1, f_)
+        # br1.left is now: got_ist4.left + new_from_pstep
+        # Use br1.left as the cut conclusion left (it has everything)
+        cut_left = list(br1.sequent.left)
+        # Weaken br2 (proof_step) to have cut_left + [ex_val]
         br2 = proof_step
-        for f_ in got_ist4.sequent.left:
+        for f_ in cut_left:
             if not any(f_ is g for g in proof_step.sequent.left):
                 br2 = wl(br2, f_)
-        all_left = list(proof_step.sequent.left)
-        for f_ in got_ist4.sequent.left:
-            if not any(f_ is g for g in all_left):
-                all_left.append(f_)
-        all_left = [f_ for f_ in all_left if f_ is not ex_val]
-        proof_step = Proof(Sequent(all_left, proof_step.sequent.right), 'cut',
+        proof_step = Proof(Sequent(cut_left, proof_step.sequent.right), 'cut',
             [wr(br1, proof_step.sequent.right[0]), br2], principal=ex_val)
 
     # Discharge succ_sn, Q(nv)
