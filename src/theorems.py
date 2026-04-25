@@ -6161,7 +6161,7 @@ def init_seg_agree():
     # === Induction wrapping (same as init_seg_total) ===
     ext_ax = zfc.Extensionality()
     inf_ax = zfc.Infinity()
-    sep = zfc.Separation(Q, [a, f])
+    sep = zfc.Separation(Q, [a, f, w])
     t = Var()
     zv = Var()
 
@@ -6725,6 +6725,756 @@ def rec_approx_zero():
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
     proof.name = 'rec_approx_zero'
+    return proof
+
+
+def rec_agree():
+    """Any two recursive approximations agree on their common domain.
+    Ext, Inf, Sep |- forall a,f,w,n.
+      Function(f) -> Omega(w) -> In(n,w) ->
+      forall v1,v2,y1,y2. RecApprox(v1,a,f,w) -> RecApprox(v2,a,f,w) ->
+      Apply(v1,n,y1) -> Apply(v2,n,y2) -> Eq(y1,y2)
+
+    Proved by induction on n. Step case uses RecApprox's backward condition
+    (S(n) in dom v -> n in dom v) and ran clause (f defined at v(n))."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, RecApprox, Relation, Successor
+
+    a, f, w, n = Var(), Var(), Var(), Var()
+    v1, v2, y1, y2 = Var(), Var(), Var(), Var()
+    func_f = FuncDef(f)
+    omega_w = Omega(w)
+    ra1 = RecApprox(v1, a, f, w)
+    ra2 = RecApprox(v2, a, f, w)
+
+    # Q(n) = forall v1,v2,y1,y2. RA(v1)->RA(v2)->App(v1,n,y1)->App(v2,n,y2)->Eq(y1,y2)
+    def Q(x):
+        return Forall(v1, Forall(v2, Forall(y1, Forall(y2,
+            Implies(RecApprox(v1, a, f, w), Implies(RecApprox(v2, a, f, w),
+            Implies(Apply(v1, x, y1), Implies(Apply(v2, x, y2),
+            Eq(y1, y2)))))))))
+
+    # === Base case: Q(e) when Empty(e) ===
+    # From rec_approx_zero: RA(v1),Empty(e),Apply(v1,e,y1) -> Eq(y1,a)
+    # Similarly for v2. Then y1=a=y2.
+    ev = Var()
+    empty_ev = Empty(ev)
+    app1_ev = Apply(v1, ev, y1)
+    app2_ev = Apply(v2, ev, y2)
+
+    raz = rec_approx_zero()
+    raz.trusted = True
+    got_y1a = apply_thm(raz, [v1, a, f, w, ev, y1], ra1,
+        Implies(empty_ev, Implies(app1_ev, Eq(y1, a))),
+        Proof(Sequent([ra1], [ra1]), 'axiom', principal=ra1))
+    got_y1a2 = mp(got_y1a,
+        Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev),
+        empty_ev, Implies(app1_ev, Eq(y1, a)))
+    got_y1a3 = mp(got_y1a2,
+        Proof(Sequent([app1_ev], [app1_ev]), 'axiom', principal=app1_ev),
+        app1_ev, Eq(y1, a))
+    # got_y1a3: [ra1, empty_ev, app1_ev] |- Eq(y1, a)
+
+    got_y2a = apply_thm(raz, [v2, a, f, w, ev, y2], ra2,
+        Implies(empty_ev, Implies(app2_ev, Eq(y2, a))),
+        Proof(Sequent([ra2], [ra2]), 'axiom', principal=ra2))
+    got_y2a2 = mp(got_y2a,
+        Proof(Sequent([empty_ev], [empty_ev]), 'axiom', principal=empty_ev),
+        empty_ev, Implies(app2_ev, Eq(y2, a)))
+    got_y2a3 = mp(got_y2a2,
+        Proof(Sequent([app2_ev], [app2_ev]), 'axiom', principal=app2_ev),
+        app2_ev, Eq(y2, a))
+
+    es = eq_symmetric()
+    es.trusted = True
+    et = eq_transitive()
+    et.trusted = True
+    got_y1a_sym = apply_thm(es, [y1, a], Eq(y1, a), Eq(a, y1), got_y1a3)
+    # Hmm, need Eq(y1,a) -> Eq(a,y1)? No, eq_symmetric gives Eq(a,b)->Eq(b,a).
+    # got_y1a3 gives Eq(y1,a). Apply es with [y1,a]: Eq(y1,a)->Eq(a,y1).
+    # Then et with [a,y1,...] doesn't help.
+    # Actually: Eq(y1,a) and Eq(y2,a) -> Eq(y1,y2).
+    # Chain: Eq(y1,a), Eq(a,y2) [from sym of Eq(y2,a)] -> Eq(y1,y2) [transitive]
+    got_a_y2 = apply_thm(es, [y2, a], Eq(y2, a), Eq(a, y2), got_y2a3)
+    got_y1y2 = apply_thm(et, [y1, a, y2], Eq(y1, a),
+        Implies(Eq(a, y2), Eq(y1, y2)), got_y1a3)
+    base_eq = mp(got_y1y2, got_a_y2, Eq(a, y2), Eq(y1, y2))
+    # base_eq: [ra1, empty_ev, app1_ev, ra2, app2_ev] |- Eq(y1, y2)
+
+    # Discharge to Q(ev): ra2->ra1->app2->app1->Eq
+    # Q order: ra1->ra2->app1->app2->Eq. Discharge reverse: app2, app1, ra2, ra1
+    proof_base = base_eq
+    for h in [app2_ev, app1_ev, ra2, ra1]:
+        imp_h = Implies(h, proof_base.sequent.right[0])
+        remaining = [f_ for f_ in proof_base.sequent.left if not same(f_, h)]
+        proof_base = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_base], principal=imp_h)
+    for var in [y2, y1, v2, v1]:
+        body = proof_base.sequent.right[0]
+        fa = Forall(var, body)
+        proof_base = Proof(Sequent(proof_base.sequent.left, [fa]), 'forall_right',
+                           [proof_base], term=var, principal=fa)
+    # proof_base: [empty_ev] |- Q(ev)
+
+    # === Step case: Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv) ===
+    # From RecApprox step (backward): Apply(v1,S(n),y1) + n in w -> Apply(v1,n,val1) exists
+    # Similarly for v2. By IH: val1 = val2.
+    # From ran clause: f defined at val1. func_preserves_eq: f(val1)=f(val2).
+    # From step: v1(S(n))=f(v1(n)), v2(S(n))=f(v2(n)). func_unique: y1=f(val1), y2=f(val2).
+    # Chain: y1=f(val1)=f(val2)=y2.
+
+    nv, snv = Var(), Var()
+    val1, val2, fv1, fv2 = Var(), Var(), Var(), Var()
+    succ_sn = Successor(snv, nv)
+    app1_sn = Apply(v1, snv, y1)
+    app2_sn = Apply(v2, snv, y2)
+    in_nv_w = In(nv, w)
+
+    # Extract step from RecApprox(v1)
+    ra1_exp = ra1.expand()
+    # Navigate to step: And(A, And(B, And(C, And(D, E)))) -> E is step
+    def _extract(ra_formula, ra_proof, idx):
+        """Extract idx-th component from RecApprox's And chain."""
+        exp = ra_formula.expand()
+        cur_proof = ra_proof
+        cur_formula = exp
+        for i in range(idx):
+            right = cur_formula.right
+            got_right = apply_thm(and_elim_right(cur_formula.left, right, []), [],
+                cur_formula, right,
+                Proof(Sequent([cur_formula], [cur_formula]), 'axiom', principal=cur_formula))
+            cur_proof = Proof(Sequent(ra_proof.sequent.left, [right]), 'cut',
+                [wr(cur_proof, right), wl(got_right, *ra_proof.sequent.left)], principal=cur_formula)
+            cur_formula = right
+        if idx < 4:
+            left = cur_formula.left
+            got_left = apply_thm(and_elim_left(left, cur_formula.right, []), [],
+                cur_formula, left,
+                Proof(Sequent([cur_formula], [cur_formula]), 'axiom', principal=cur_formula))
+            cur_proof = Proof(Sequent(ra_proof.sequent.left, [left]), 'cut',
+                [wr(cur_proof, left), wl(got_left, *ra_proof.sequent.left)], principal=cur_formula)
+            return cur_proof, left
+        return cur_proof, cur_formula
+
+    ax_ra1 = Proof(Sequent([ra1], [ra1]), 'axiom', principal=ra1)
+    ax_ra2 = Proof(Sequent([ra2], [ra2]), 'axiom', principal=ra2)
+
+    # Extract Function(v1): idx=0
+    got_func1, _ = _extract(ra1, ax_ra1, 0)
+    got_func2, _ = _extract(ra2, ax_ra2, 0)
+
+    # Extract ran clause from ra1: idx=2
+    got_ran1, ran1_formula = _extract(ra1, ax_ra1, 2)
+    # ran1_formula: forall x,y. Apply(v1,x,y) -> exists z. Apply(f,y,z)
+
+    # Extract step from ra1: idx=4
+    got_step1, step1_formula = _extract(ra1, ax_ra1, 4)
+    got_step2, step2_formula = _extract(ra2, ax_ra2, 4)
+    # step_formula: forall n. n in w -> forall sn. Succ(sn,n) ->
+    #   (exists y. Apply(v,sn,y)) -> And(exists y. Apply(v,n,y), forall val...)
+
+    # Step case proof:
+    # Given: ra1, ra2, Q(nv), succ_sn, in_nv_w, app1_sn, app2_sn
+    # 1. From step1 + in_nv_w + succ_sn + exists y.Apply(v1,snv,y):
+    #    -> And(exists y.Apply(v1,nv,y), forall val.Apply(v1,nv,val)->forall fv.Apply(f,val,fv)->Apply(v1,snv,fv))
+    # 2. Extract exists val1.Apply(v1,nv,val1) and the step rule
+    # 3. Similarly for v2
+    # 4. IH: val1 = val2
+    # 5. ran clause: f defined at val1
+    # 6. func_preserves_eq: f(val1) = f(val2)
+    # 7. Step rule + func_unique: y1=f(val1), y2=f(val2)
+    # 8. Chain
+
+    # This is getting very long. Let me use apply_thm chains.
+
+    # Instantiate step1 with nv, apply in_nv_w:
+    # step1 = forall n. In(n,w) -> forall sn. Succ(sn,n) -> (exists y.App(v1,sn,y)) -> And(...)
+    yy = Var()
+    ex_app1_sn = Exists(yy, Apply(v1, snv, yy))
+    ex_app1_nv = Exists(yy, Apply(v1, nv, yy))
+    and_step1_result = step1_formula.body.right  # after peeling forall n
+    # Actually, step1_formula is complex. Let me just use apply_thm to peel.
+
+    # step1_formula after peeling: In(nv,w) -> forall sn. Succ(sn,nv) -> ...
+    step1_after_n = step1_formula.body  # Implies(In(n, w), ...)
+    # I need the full formula after instantiation. Let me use apply_thm.
+
+    # Instantiate step1's forall n with nv:
+    inner_after_n = Implies(in_nv_w, Forall(snv, Implies(succ_sn,
+        Implies(Exists(yy, Apply(v1, snv, yy)),
+            And(Exists(yy, Apply(v1, nv, yy)),
+                Forall(val1, Implies(Apply(v1, nv, val1),
+                    Forall(fv1, Implies(Apply(f, val1, fv1),
+                        Apply(v1, snv, fv1))))))))))
+
+    # Hmm, building these formulas by hand is error-prone. Let me construct them
+    # from RecApprox's step body by substitution.
+    # The step clause in RecApprox uses internal vars. Let me get them from expand().
+
+    # Actually, the cleanest approach: use apply_thm to peel step1 foralls and apply hypotheses.
+    # step1: [ra1] |- step1_formula
+    # step1_formula = Forall(n_var, Implies(In(n_var, w), Forall(sn_var, ...)))
+    # After apply_thm([nv], in_nv_w, rest, in_nv_w_proof):
+    #   [ra1, in_nv_w] |- Forall(sn_var, Implies(succ_sn_var, ...))
+
+    # But the internal vars of step1_formula are from RecApprox.expand(), not my nv, snv.
+    # apply_thm handles the substitution via forall_left.
+
+    # Let me just peel step by step using the formula structure.
+    n_var = step1_formula.var  # the forall n variable
+    step1_body = step1_formula.body  # Implies(In(n_var, w), ...)
+
+    # After instantiation n_var -> nv: the body becomes step1_body[nv/n_var]
+    # apply_thm does this.
+    from core.proof import _subst
+    step1_inst = _subst(step1_body.right, n_var, nv)  # forall sn. Succ(sn,nv) -> ...
+
+    got_s1_1 = apply_thm(got_step1, [nv], in_nv_w, step1_inst,
+        Proof(Sequent([in_nv_w], [in_nv_w]), 'axiom', principal=in_nv_w))
+    # got_s1_1: [ra1, in_nv_w] |- forall sn. Succ(sn,nv) -> ...
+
+    # Peel forall sn with snv:
+    sn_var = step1_inst.var
+    step1_inst2 = _subst(step1_inst.body, sn_var, snv)  # Succ(snv,nv) -> ...
+    got_s1_2 = apply_thm(got_s1_1, [snv], succ_sn, _subst(step1_inst2.right, sn_var, snv) if isinstance(step1_inst2, Implies) else step1_inst2,
+        Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn))
+
+    # Hmm this is getting fragile. Let me use a simpler approach:
+    # Build the existential intro for Apply(v1, snv, y1) and mp with the step.
+
+    # Actually, the issue is I don't know the exact formula structure after substitution.
+    # Let me construct it from scratch, matching RecApprox's step pattern.
+
+    # RecApprox step for v1, instantiated at n=nv, sn=snv:
+    # Succ(snv, nv) -> (exists y. Apply(v1, snv, y)) ->
+    #   And(exists y. Apply(v1, nv, y),
+    #       forall val. Apply(v1, nv, val) -> forall fv. Apply(f, val, fv) -> Apply(v1, snv, fv))
+
+    and_result1 = And(Exists(yy, Apply(v1, nv, yy)),
+                      Forall(val1, Implies(Apply(v1, nv, val1),
+                          Forall(fv1, Implies(Apply(f, val1, fv1),
+                              Apply(v1, snv, fv1))))))
+
+    step1_concl = Implies(Exists(yy, Apply(v1, snv, yy)), and_result1)
+    step1_concl2 = Implies(succ_sn, step1_concl)
+
+    # Use apply_thm: step1_formula is Forall(n_var, Implies(In(n_var, w), Forall(sn_var, ...)))
+    # Peel with [nv] and apply In(nv,w):
+    fa_sn_part = Forall(snv, step1_concl2)  # what we expect after peeling n and applying In(nv,w)
+    # Actually, let me just use apply_thm with the full expected formula.
+
+    got_s1 = apply_thm(got_step1, [nv], in_nv_w, fa_sn_part,
+        Proof(Sequent([in_nv_w], [in_nv_w]), 'axiom', principal=in_nv_w))
+    got_s1b = apply_thm(got_s1, [snv], succ_sn, step1_concl,
+        Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn))
+
+    # Build exists y. Apply(v1, snv, y) from Apply(v1, snv, y1)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        n_body_inst = Not(body_inst)
+        fa_n = Forall(var, Not(body))
+        nl = Proof(Sequent(ctx + [n_body_inst], []), 'not_left', [proof], principal=n_body_inst)
+        fl = Proof(Sequent(ctx + [fa_n], []), 'forall_left', [nl], principal=fa_n, term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+
+    got_ex1_sn = _eir(Proof(Sequent([app1_sn], [app1_sn]), 'axiom', principal=app1_sn),
+                       Apply(v1, snv, yy), yy, y1)
+    # got_ex1_sn: [app1_sn] |- exists y. Apply(v1, snv, y)
+
+    got_s1c = mp(got_s1b, got_ex1_sn, Exists(yy, Apply(v1, snv, yy)), and_result1)
+    # got_s1c: [ra1, in_nv_w, succ_sn, app1_sn] |- And(exists val1, step_rule1)
+
+    # Extract exists val1. Apply(v1, nv, val1) from and_result1
+    ex_val1 = Exists(yy, Apply(v1, nv, yy))
+    step_rule1 = Forall(val1, Implies(Apply(v1, nv, val1),
+                     Forall(fv1, Implies(Apply(f, val1, fv1), Apply(v1, snv, fv1)))))
+    got_ex_val1 = apply_thm(and_elim_left(ex_val1, step_rule1, []), [],
+        and_result1, ex_val1,
+        Proof(Sequent([and_result1], [and_result1]), 'axiom', principal=and_result1))
+    got_rule1 = apply_thm(and_elim_right(ex_val1, step_rule1, []), [],
+        and_result1, step_rule1,
+        Proof(Sequent([and_result1], [and_result1]), 'axiom', principal=and_result1))
+    # Chain through got_s1c:
+    got_ex_val1_full = Proof(Sequent(got_s1c.sequent.left, [ex_val1]), 'cut',
+        [wr(got_s1c, ex_val1), wl(got_ex_val1, *got_s1c.sequent.left)], principal=and_result1)
+    got_rule1_full = Proof(Sequent(got_s1c.sequent.left, [step_rule1]), 'cut',
+        [wr(got_s1c, step_rule1), wl(got_rule1, *got_s1c.sequent.left)], principal=and_result1)
+
+    # Similarly for v2:
+    and_result2 = And(Exists(yy, Apply(v2, nv, yy)),
+                      Forall(val2, Implies(Apply(v2, nv, val2),
+                          Forall(fv2, Implies(Apply(f, val2, fv2), Apply(v2, snv, fv2))))))
+    step2_concl = Implies(Exists(yy, Apply(v2, snv, yy)), and_result2)
+    step2_concl2 = Implies(succ_sn, step2_concl)
+    fa_sn_part2 = Forall(snv, step2_concl2)
+
+    got_s2 = apply_thm(got_step2, [nv], in_nv_w, fa_sn_part2,
+        Proof(Sequent([in_nv_w], [in_nv_w]), 'axiom', principal=in_nv_w))
+    got_s2b = apply_thm(got_s2, [snv], succ_sn, step2_concl,
+        Proof(Sequent([succ_sn], [succ_sn]), 'axiom', principal=succ_sn))
+    got_ex2_sn = _eir(Proof(Sequent([app2_sn], [app2_sn]), 'axiom', principal=app2_sn),
+                       Apply(v2, snv, yy), yy, y2)
+    got_s2c = mp(got_s2b, got_ex2_sn, Exists(yy, Apply(v2, snv, yy)), and_result2)
+
+    ex_val2 = Exists(yy, Apply(v2, nv, yy))
+    step_rule2 = Forall(val2, Implies(Apply(v2, nv, val2),
+                     Forall(fv2, Implies(Apply(f, val2, fv2), Apply(v2, snv, fv2)))))
+    got_ex_val2_full = Proof(Sequent(got_s2c.sequent.left, [ex_val2]), 'cut',
+        [wr(got_s2c, ex_val2), wl(apply_thm(and_elim_left(ex_val2, step_rule2, []), [],
+            and_result2, ex_val2,
+            Proof(Sequent([and_result2], [and_result2]), 'axiom', principal=and_result2)),
+            *got_s2c.sequent.left)], principal=and_result2)
+    got_rule2_full = Proof(Sequent(got_s2c.sequent.left, [step_rule2]), 'cut',
+        [wr(got_s2c, step_rule2), wl(apply_thm(and_elim_right(ex_val2, step_rule2, []), [],
+            and_result2, step_rule2,
+            Proof(Sequent([and_result2], [and_result2]), 'axiom', principal=and_result2)),
+            *got_s2c.sequent.left)], principal=and_result2)
+
+    # Now I have:
+    # got_ex_val1_full: [ra1, in_nv_w, succ_sn, app1_sn] |- exists val1. Apply(v1,nv,val1)
+    # got_rule1_full:   [ra1, in_nv_w, succ_sn, app1_sn] |- forall val1. App(v1,nv,val1)->forall fv1. App(f,val1,fv1)->App(v1,snv,fv1)
+    # got_ex_val2_full: [ra2, in_nv_w, succ_sn, app2_sn] |- exists val2. Apply(v2,nv,val2)
+    # got_rule2_full:   [ra2, in_nv_w, succ_sn, app2_sn] |- forall val2. ...
+
+    # IH: Q(nv) instantiated with v1,v2,val1,val2 gives Eq(val1,val2)
+    q_nv = Q(nv)
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    app1_nv = Apply(v1, nv, val1)
+    app2_nv = Apply(v2, nv, val2)
+    eq_val = Eq(val1, val2)
+
+    imp_after_ra1 = Implies(ra2, Implies(app1_nv, Implies(app2_nv, eq_val)))
+    got_ih = apply_thm(ax(q_nv), [v1, v2, val1, val2], ra1, imp_after_ra1, ax(ra1))
+    got_ih2 = mp(got_ih, ax(ra2), ra2, Implies(app1_nv, Implies(app2_nv, eq_val)))
+    got_ih3 = mp(got_ih2, ax(app1_nv), app1_nv, Implies(app2_nv, eq_val))
+    got_ih4 = mp(got_ih3, ax(app2_nv), app2_nv, eq_val)
+    # got_ih4: [Q(nv), ra1, ra2, app1_nv, app2_nv] |- Eq(val1, val2)
+
+    # ran clause from ra1: Apply(v1,nv,val1) -> exists z. Apply(f,val1,z)
+    got_ran1_full, _ = _extract(ra1, ax_ra1, 2)
+    # got_ran1_full: [ra1] |- forall x,y. Apply(v1,x,y) -> exists z. Apply(f,y,z)
+    zz = Var()
+    got_f_at_val1 = apply_thm(got_ran1_full, [nv, val1], app1_nv,
+        Exists(zz, Apply(f, val1, zz)), ax(app1_nv))
+    # got_f_at_val1: [ra1, app1_nv] |- exists z. Apply(f, val1, z)
+
+    # Step rule: Apply(v1,nv,val1) -> Apply(f,val1,fv1) -> Apply(v1,snv,fv1)
+    app_f_val1_fv1 = Apply(f, val1, fv1)
+    got_step_app1 = apply_thm(got_rule1_full, [val1], app1_nv,
+        Forall(fv1, Implies(app_f_val1_fv1, Apply(v1, snv, fv1))), ax(app1_nv))
+    got_step_app1b = apply_thm(got_step_app1, [fv1], app_f_val1_fv1, Apply(v1, snv, fv1),
+        ax(app_f_val1_fv1))
+    # got_step_app1b: [ra1, in_nv_w, succ_sn, app1_sn, app1_nv, app_f_val1_fv1] |- Apply(v1, snv, fv1)
+
+    # func_unique: Function(v1), Apply(v1,snv,fv1), Apply(v1,snv,y1) -> Eq(fv1,y1)
+    fu = func_unique_thm()
+    fu.trusted = True
+    got_fv1_y1 = apply_thm(fu, [v1, snv, fv1, y1], FuncDef(v1),
+        Implies(Apply(v1, snv, fv1), Implies(app1_sn, Eq(fv1, y1))), got_func1)
+    got_fv1_y1b = mp(got_fv1_y1, got_step_app1b, Apply(v1, snv, fv1), Implies(app1_sn, Eq(fv1, y1)))
+    got_fv1_y1c = mp(got_fv1_y1b, ax(app1_sn), app1_sn, Eq(fv1, y1))
+    # got_fv1_y1c: [ra1, in_nv_w, succ_sn, app1_sn, app1_nv, app_f_val1_fv1] |- Eq(fv1, y1)
+
+    # Similarly for v2:
+    app_f_val2_fv2 = Apply(f, val2, fv2)
+    got_step_app2 = apply_thm(got_rule2_full, [val2], app2_nv,
+        Forall(fv2, Implies(app_f_val2_fv2, Apply(v2, snv, fv2))), ax(app2_nv))
+    got_step_app2b = apply_thm(got_step_app2, [fv2], app_f_val2_fv2, Apply(v2, snv, fv2),
+        ax(app_f_val2_fv2))
+    got_fv2_y2 = apply_thm(fu, [v2, snv, fv2, y2], FuncDef(v2),
+        Implies(Apply(v2, snv, fv2), Implies(app2_sn, Eq(fv2, y2))), got_func2)
+    got_fv2_y2b = mp(got_fv2_y2, got_step_app2b, Apply(v2, snv, fv2), Implies(app2_sn, Eq(fv2, y2)))
+    got_fv2_y2c = mp(got_fv2_y2b, ax(app2_sn), app2_sn, Eq(fv2, y2))
+
+    # func_preserves_eq: Function(f), Eq(val1,val2), Apply(f,val1,fv1), Apply(f,val2,fv2) -> Eq(fv1,fv2)
+    fpe = func_preserves_eq()
+    fpe.trusted = True
+    got_fv_eq = apply_thm(fpe, [f, val1, val2, fv1, fv2], func_f,
+        Implies(eq_val, Implies(app_f_val1_fv1, Implies(app_f_val2_fv2, Eq(fv1, fv2)))),
+        ax(func_f))
+    got_fv_eq2 = mp(got_fv_eq, got_ih4, eq_val,
+        Implies(app_f_val1_fv1, Implies(app_f_val2_fv2, Eq(fv1, fv2))))
+    got_fv_eq3 = mp(got_fv_eq2, ax(app_f_val1_fv1), app_f_val1_fv1,
+        Implies(app_f_val2_fv2, Eq(fv1, fv2)))
+    got_fv_eq4 = mp(got_fv_eq3, ax(app_f_val2_fv2), app_f_val2_fv2, Eq(fv1, fv2))
+
+    # Chain: y1=fv1 [sym], fv1=fv2, fv2=y2 -> y1=y2
+    got_y1_fv1 = apply_thm(es, [fv1, y1], Eq(fv1, y1), Eq(y1, fv1), got_fv1_y1c)
+    got_y1_fv2 = apply_thm(et, [y1, fv1, fv2], Eq(y1, fv1),
+        Implies(Eq(fv1, fv2), Eq(y1, fv2)), got_y1_fv1)
+    got_y1_fv2b = mp(got_y1_fv2, got_fv_eq4, Eq(fv1, fv2), Eq(y1, fv2))
+    got_y1_y2_imp = apply_thm(et, [y1, fv2, y2], Eq(y1, fv2),
+        Implies(Eq(fv2, y2), Eq(y1, y2)), got_y1_fv2b)
+    step_eq = mp(got_y1_y2_imp, got_fv2_y2c, Eq(fv2, y2), Eq(y1, y2))
+    # step_eq: [big context] |- Eq(y1, y2)
+
+    # Existential elim on fv1, fv2 (from ran clause)
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # Elim fv2: from ran clause on v2
+    step_eq = _eel(step_eq, app_f_val2_fv2, fv2)
+    ex_fv2 = step_eq.sequent.left[-1]
+    # Need: exists fv2. Apply(f, val2, fv2). Get from ran clause of ra2.
+    got_ran2_full, _ = _extract(ra2, ax_ra2, 2)
+    got_f_at_val2 = apply_thm(got_ran2_full, [nv, val2], app2_nv,
+        Exists(zz, Apply(f, val2, zz)), ax(app2_nv))
+    # Cut:
+    pstep_no_ex = [f_ for f_ in step_eq.sequent.left if not same(f_, ex_fv2)]
+    br1_fv2 = got_f_at_val2
+    for f_ in pstep_no_ex:
+        if not any(same(f_, g) for g in br1_fv2.sequent.left):
+            br1_fv2 = wl(br1_fv2, f_)
+    br2_fv2 = step_eq
+    for f_ in br1_fv2.sequent.left:
+        if not any(same(f_, g) for g in step_eq.sequent.left):
+            br2_fv2 = wl(br2_fv2, f_)
+    cut_left_fv2 = list(br1_fv2.sequent.left)
+    step_eq = Proof(Sequent(cut_left_fv2, step_eq.sequent.right), 'cut',
+        [wr(br1_fv2, step_eq.sequent.right[0]), br2_fv2], principal=ex_fv2)
+
+    # Elim fv1: similarly
+    step_eq = _eel(step_eq, app_f_val1_fv1, fv1)
+    ex_fv1 = step_eq.sequent.left[-1]
+    got_f_at_val1_cut = got_f_at_val1  # [ra1, app1_nv] |- exists z. Apply(f,val1,z)
+    pstep_no_ex2 = [f_ for f_ in step_eq.sequent.left if not same(f_, ex_fv1)]
+    br1_fv1 = got_f_at_val1_cut
+    for f_ in pstep_no_ex2:
+        if not any(same(f_, g) for g in br1_fv1.sequent.left):
+            br1_fv1 = wl(br1_fv1, f_)
+    br2_fv1 = step_eq
+    for f_ in br1_fv1.sequent.left:
+        if not any(same(f_, g) for g in step_eq.sequent.left):
+            br2_fv1 = wl(br2_fv1, f_)
+    step_eq = Proof(Sequent(list(br1_fv1.sequent.left), step_eq.sequent.right), 'cut',
+        [wr(br1_fv1, step_eq.sequent.right[0]), br2_fv1], principal=ex_fv1)
+
+    # Elim val1, val2 from exists (from RecApprox backward step)
+    step_eq = _eel(step_eq, app2_nv, val2)
+    ex_val2_actual = step_eq.sequent.left[-1]
+    # got_ex_val2_full: [ra2, in_nv_w, succ_sn, app2_sn] |- exists val2
+    pstep3 = [f_ for f_ in step_eq.sequent.left if not same(f_, ex_val2_actual)]
+    br1_v2 = got_ex_val2_full
+    for f_ in pstep3:
+        if not any(same(f_, g) for g in br1_v2.sequent.left):
+            br1_v2 = wl(br1_v2, f_)
+    br2_v2 = step_eq
+    for f_ in br1_v2.sequent.left:
+        if not any(same(f_, g) for g in step_eq.sequent.left):
+            br2_v2 = wl(br2_v2, f_)
+    step_eq = Proof(Sequent(list(br1_v2.sequent.left), step_eq.sequent.right), 'cut',
+        [wr(br1_v2, step_eq.sequent.right[0]), br2_v2], principal=ex_val2_actual)
+
+    step_eq = _eel(step_eq, app1_nv, val1)
+    ex_val1_actual = step_eq.sequent.left[-1]
+    pstep4 = [f_ for f_ in step_eq.sequent.left if not same(f_, ex_val1_actual)]
+    br1_v1 = got_ex_val1_full
+    for f_ in pstep4:
+        if not any(same(f_, g) for g in br1_v1.sequent.left):
+            br1_v1 = wl(br1_v1, f_)
+    br2_v1 = step_eq
+    for f_ in br1_v1.sequent.left:
+        if not any(same(f_, g) for g in step_eq.sequent.left):
+            br2_v1 = wl(br2_v1, f_)
+    step_eq = Proof(Sequent(list(br1_v1.sequent.left), step_eq.sequent.right), 'cut',
+        [wr(br1_v1, step_eq.sequent.right[0]), br2_v1], principal=ex_val1_actual)
+
+    # Discharge to Q(snv): app2_sn, app1_sn, ra2, ra1 -> implies, forall y2,y1,v2,v1
+    proof_step = step_eq
+    for h in [app2_sn, app1_sn, ra2, ra1]:
+        imp_h = Implies(h, proof_step.sequent.right[0])
+        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, h)]
+        proof_step = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof_step], principal=imp_h)
+    for var in [y2, y1, v2, v1]:
+        body = proof_step.sequent.right[0]
+        fa = Forall(var, body)
+        proof_step = Proof(Sequent(proof_step.sequent.left, [fa]), 'forall_right',
+                           [proof_step], term=var, principal=fa)
+    # proof_step: [Q(nv), func_f, in_nv_w, succ_sn, ...] |- Q(snv)
+
+    # Discharge succ_sn, forall snv
+    imp_succ = Implies(succ_sn, proof_step.sequent.right[0])
+    step_no_succ = [f_ for f_ in proof_step.sequent.left if not same(f_, succ_sn)]
+    proof_step = Proof(Sequent(step_no_succ, [imp_succ]),
+                       'implies_right', [proof_step], principal=imp_succ)
+    fa_sn = Forall(snv, imp_succ)
+    proof_step = Proof(Sequent(step_no_succ, [fa_sn]),
+                       'forall_right', [proof_step], principal=fa_sn, term=snv)
+
+    # Discharge in_nv_w
+    if any(same(in_nv_w, g) for g in proof_step.sequent.left):
+        imp_inw = Implies(in_nv_w, proof_step.sequent.right[0])
+        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, in_nv_w)]
+        proof_step = Proof(Sequent(remaining, [imp_inw]),
+                           'implies_right', [proof_step], principal=imp_inw)
+
+    # Discharge Q(nv)
+    q_nv_on_left = None
+    for f_ in proof_step.sequent.left:
+        if same(f_, q_nv):
+            q_nv_on_left = f_
+            break
+    if q_nv_on_left:
+        imp_qn = Implies(q_nv_on_left, proof_step.sequent.right[0])
+        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, q_nv_on_left)]
+        proof_step = Proof(Sequent(remaining, [imp_qn]),
+                           'implies_right', [proof_step], principal=imp_qn)
+
+    # Close over nv
+    fa_nv = Forall(nv, proof_step.sequent.right[0])
+    proof_step = Proof(Sequent(proof_step.sequent.left, [fa_nv]),
+                       'forall_right', [proof_step], principal=fa_nv, term=nv)
+
+    # === Induction wrapping ===
+    sep = zfc.Separation(Q, [a, f, w])
+    ext_ax = zfc.Extensionality()
+    inf_ax = zfc.Infinity()
+    t = Var()
+    zv = Var()
+
+    # Peel Separation: sep.expand() = Forall(w, Forall(f, Forall(a, Forall(w_int, Exists(...)))))
+    # Peel w, f, a, then w_int -> w (set param)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    from core.proof import _subst
+    sep_body = sep.expand()
+    # Peel each forall from outside in, using the actual formula structure
+    cur = _fl(sep, sep_body.body, w)
+    for term in [f, a]:
+        prev = cur.sequent.right[0]
+        next_body = prev.body
+        next_fl = _fl(prev, next_body, term)
+        cur = Proof(Sequent([sep], [next_body]), 'cut',
+            [wr(cur, next_body), wl(next_fl, sep)], principal=prev)
+    # Now cur: [sep] |- Forall(w_int, Exists(t_int, ...))
+    # Peel w_int -> w (the set parameter from Separation)
+    sep_after_afw = cur.sequent.right[0]
+    sep_after_afw_body_at_w = _subst(sep_after_afw.body, sep_after_afw.var, w)
+    fl_w = Proof(Sequent([sep], [sep_after_afw_body_at_w]), 'cut',
+        [wr(cur, sep_after_afw_body_at_w),
+         wl(_fl(sep_after_afw, sep_after_afw_body_at_w, w), sep)],
+        principal=sep_after_afw)
+    ex_t = fl_w.sequent.right[0]
+    t_var = ex_t.operand.var
+    fa_char = ex_t.operand.body.operand
+    t = t_var
+
+    def _char_at(z):
+        iff_z = Iff(In(z, t), And(In(z, w), Q(z)))
+        return _fl(fa_char, iff_z, z)
+
+    def _iff_fwd(iff_proof, A, B):
+        return mp(iff_mp(A, B, []), iff_proof, Iff(A, B), Implies(A, B))
+
+    def _iff_bwd(iff_proof, A, B):
+        return mp(iff_mp_rev(A, B, []), iff_proof, Iff(A, B), Implies(B, A))
+
+    # --- Inductive(t) base ---
+    oce = omega_contains_empty()
+    oce.trusted = True
+    got_oce = apply_thm(oce, [w], omega_w, Forall(ev, Implies(empty_ev, In(ev, w))),
+        ax(omega_w))
+    got_in_w = apply_thm(got_oce, [ev], empty_ev, In(ev, w), ax(empty_ev))
+
+    and_in_q_ev = And(In(ev, w), Q(ev))
+    ai_b = and_intro(In(ev, w), Q(ev), [])
+    got_and_imp_b = apply_thm(ai_b, [], In(ev, w), Implies(Q(ev), and_in_q_ev), got_in_w)
+    got_and_base = mp(got_and_imp_b, proof_base, Q(ev), and_in_q_ev)
+
+    char_ev = _char_at(ev)
+    bwd_ev = _iff_bwd(char_ev, In(ev, t), and_in_q_ev)
+    got_in_t_base = mp(bwd_ev, got_and_base, and_in_q_ev, In(ev, t))
+    imp_emp_t = Implies(empty_ev, In(ev, t))
+    base_hyps = [f_ for f_ in got_in_t_base.sequent.left if not same(f_, empty_ev)]
+    ind_base = Proof(Sequent(base_hyps, [imp_emp_t]),
+                     'implies_right', [got_in_t_base], principal=imp_emp_t)
+    ind_base_fa = Proof(Sequent(base_hyps, [Forall(ev, imp_emp_t)]),
+                        'forall_right', [ind_base], principal=Forall(ev, imp_emp_t), term=ev)
+
+    # --- Inductive(t) step ---
+    xv2, sv2 = Var(), Var()
+    in_x_t = In(xv2, t)
+    in_x_w = In(xv2, w)
+    q_x = Q(xv2)
+    and_in_q_x = And(in_x_w, q_x)
+    succ_s_x = Successor(sv2, xv2)
+    in_s_t = In(sv2, t)
+    in_s_w = In(sv2, w)
+    q_s = Q(sv2)
+    and_in_q_s = And(in_s_w, q_s)
+
+    char_x = _char_at(xv2)
+    fwd_x = _iff_fwd(char_x, in_x_t, and_in_q_x)
+    got_and_x = mp(fwd_x, ax(in_x_t), in_x_t, and_in_q_x)
+    got_in_x_w = apply_thm(and_elim_left(in_x_w, q_x, []), [], and_in_q_x, in_x_w,
+        Proof(Sequent([and_in_q_x], [and_in_q_x]), 'axiom', principal=and_in_q_x))
+    got_q_x = apply_thm(and_elim_right(in_x_w, q_x, []), [], and_in_q_x, q_x,
+        Proof(Sequent([and_in_q_x], [and_in_q_x]), 'axiom', principal=and_in_q_x))
+    got_in_x_w2 = Proof(Sequent(got_and_x.sequent.left, [in_x_w]), 'cut',
+        [wr(got_and_x, in_x_w), wl(got_in_x_w, *got_and_x.sequent.left)], principal=and_in_q_x)
+    got_q_x2 = Proof(Sequent(got_and_x.sequent.left, [q_x]), 'cut',
+        [wr(got_and_x, q_x), wl(got_q_x, *got_and_x.sequent.left)], principal=and_in_q_x)
+
+    osc = omega_succ_closed()
+    osc.trusted = True
+    got_osc = apply_thm(osc, [w], omega_w, Forall(xv2, Implies(In(xv2, w),
+        Forall(sv2, Implies(succ_s_x, in_s_w)))), ax(omega_w))
+    got_osc2 = apply_thm(got_osc, [xv2], in_x_w, Forall(sv2, Implies(succ_s_x, in_s_w)),
+        got_in_x_w2)
+    got_osc3 = apply_thm(got_osc2, [sv2], succ_s_x, in_s_w, ax(succ_s_x))
+
+    # Step Q: close proof_step over nv, instantiate with xv2
+    # proof_step has In(nv,w) discharged, Q(nv) discharged.
+    # Right side: forall nv. Q(nv) -> forall snv. Succ -> Q(snv) [or In(nv,w) -> Q(nv) -> ...]
+    # Need to match the structure. Let me check what proof_step has.
+    # After all discharges, proof_step: [func_f, ...axioms...] |- forall nv. ...
+
+    # Instantiate with xv2:
+    got_q_step = apply_thm(proof_step, [xv2], Q(xv2),
+        Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))),
+        got_q_x2)
+
+    # Wait, proof_step might have In(nv,w) discharged into the body.
+    # Let me check: after discharging in_nv_w and Q(nv), the body is:
+    # In(nv,w) -> Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv)
+    # Or just: Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv)
+    # Depends on whether in_nv_w was discharged.
+
+    # If in_nv_w was discharged, the body starts with In(nv,w) ->
+    # After forall nv and instantiation xv2: In(xv2,w) -> Q(xv2) -> forall sv2. Succ -> Q(sv2)
+    # Apply In(xv2,w):
+    in_xv2_w = In(xv2, w)
+    step_after_in = Implies(Q(xv2), Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
+
+    got_q_step = apply_thm(proof_step, [xv2], in_xv2_w, step_after_in, got_in_x_w2)
+    got_q_step2 = mp(got_q_step, got_q_x2, Q(xv2),
+        Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
+    got_q_step3 = apply_thm(got_q_step2, [sv2], succ_s_x, q_s, ax(succ_s_x))
+
+    # And(in_s_w, q_s) via and_intro
+    ai_s = and_intro(in_s_w, q_s, [])
+    got_and_imp_s = apply_thm(ai_s, [], in_s_w, Implies(q_s, and_in_q_s), got_osc3)
+    got_and_step = mp(got_and_imp_s, got_q_step3, q_s, and_in_q_s)
+
+    char_s = _char_at(sv2)
+    bwd_s = _iff_bwd(char_s, in_s_t, and_in_q_s)
+    got_in_s_t = mp(bwd_s, got_and_step, and_in_q_s, in_s_t)
+
+    imp_succ_s = Implies(succ_s_x, in_s_t)
+    step_left = [f_ for f_ in got_in_s_t.sequent.left if not same(f_, succ_s_x)]
+    ind_step1 = Proof(Sequent(step_left, [imp_succ_s]),
+                      'implies_right', [got_in_s_t], principal=imp_succ_s)
+    fa_sv = Forall(sv2, imp_succ_s)
+    ind_step2 = Proof(Sequent(step_left, [fa_sv]),
+                      'forall_right', [ind_step1], principal=fa_sv, term=sv2)
+    imp_in_t = Implies(in_x_t, fa_sv)
+    step_left2 = [f_ for f_ in ind_step2.sequent.left if not same(f_, in_x_t)]
+    ind_step3 = Proof(Sequent(step_left2, [imp_in_t]),
+                      'implies_right', [ind_step2], principal=imp_in_t)
+    fa_xv = Forall(xv2, imp_in_t)
+    ind_step4 = Proof(Sequent(step_left2, [fa_xv]),
+                      'forall_right', [ind_step3], principal=fa_xv, term=xv2)
+
+    # --- Inductive(t) = And(base, step) ---
+    ind_t = Inductive(t)
+    base_part = Forall(ev, imp_emp_t)
+    step_part = fa_xv
+    ai_ind = and_intro(base_part, step_part, [])
+    got_ind_imp = apply_thm(ai_ind, [], base_part, Implies(step_part, ind_t), ind_base_fa)
+    got_ind_t = mp(got_ind_imp, ind_step4, step_part, ind_t)
+
+    # --- Subset(t, w) ---
+    zv2 = Var()
+    char_z = _char_at(zv2)
+    fwd_z = _iff_fwd(char_z, In(zv2, t), And(In(zv2, w), Q(zv2)))
+    got_and_z = mp(fwd_z, ax(In(zv2, t)), In(zv2, t), And(In(zv2, w), Q(zv2)))
+    got_in_z_w = apply_thm(and_elim_left(In(zv2, w), Q(zv2), []), [],
+        And(In(zv2, w), Q(zv2)), In(zv2, w),
+        Proof(Sequent([And(In(zv2, w), Q(zv2))], [And(In(zv2, w), Q(zv2))]),
+              'axiom', principal=And(In(zv2, w), Q(zv2))))
+    got_sub_core = Proof(Sequent(got_and_z.sequent.left, [In(zv2, w)]), 'cut',
+        [wr(got_and_z, In(zv2, w)), wl(got_in_z_w, *got_and_z.sequent.left)],
+        principal=And(In(zv2, w), Q(zv2)))
+    imp_sub = Implies(In(zv2, t), In(zv2, w))
+    sub_proof = Proof(Sequent([fa_char], [imp_sub]),
+                      'implies_right', [got_sub_core], principal=imp_sub)
+    sub_fa = Forall(zv2, imp_sub)
+    got_sub_t = Proof(Sequent([fa_char], [sub_fa]),
+                      'forall_right', [sub_proof], principal=sub_fa, term=zv2)
+
+    # --- omega_smallest_inductive ---
+    osi = omega_smallest_inductive()
+    osi.trusted = True
+    sub_t_w = Subset(t, w)
+    and_sub_ind = And(sub_t_w, ind_t)
+    ai_si = and_intro(sub_t_w, ind_t, [])
+    got_si_imp = apply_thm(ai_si, [], sub_t_w, Implies(ind_t, and_sub_ind), got_sub_t)
+    got_and_si = mp(got_si_imp, got_ind_t, ind_t, and_sub_ind)
+
+    eq_tw = Eq(t, w)
+    got_eq = apply_thm(osi, [t, w], omega_w, Implies(and_sub_ind, eq_tw), ax(omega_w))
+    got_eq2 = mp(got_eq, got_and_si, and_sub_ind, eq_tw)
+
+    # Eq(t,w) -> In(n,w) -> Q(n)
+    iff_n_val = Iff(In(n, t), In(n, w))
+    fl_eq = _fl(eq_tw, iff_n_val, n)
+    got_iff_n = Proof(Sequent(got_eq2.sequent.left, [iff_n_val]), 'cut',
+        [wr(got_eq2, iff_n_val), wl(fl_eq, *got_eq2.sequent.left)], principal=eq_tw)
+    got_w_to_t = _iff_bwd(got_iff_n, In(n, t), In(n, w))
+    in_n_w = In(n, w)
+    got_in_t_n = mp(got_w_to_t, ax(in_n_w), in_n_w, In(n, t))
+    char_n_val = _char_at(n)
+    fwd_n_val = _iff_fwd(char_n_val, In(n, t), And(In(n, w), Q(n)))
+    got_and_n = mp(fwd_n_val, got_in_t_n, In(n, t), And(In(n, w), Q(n)))
+    got_qn = apply_thm(and_elim_right(In(n, w), Q(n), []), [],
+        And(In(n, w), Q(n)), Q(n),
+        Proof(Sequent([And(In(n, w), Q(n))], [And(In(n, w), Q(n))]),
+              'axiom', principal=And(In(n, w), Q(n))))
+    got_qn2 = Proof(Sequent(got_and_n.sequent.left, [Q(n)]), 'cut',
+        [wr(got_and_n, Q(n)), wl(got_qn, *got_and_n.sequent.left)],
+        principal=And(In(n, w), Q(n)))
+
+    # Existential elimination on t
+    got_qn3 = _eel(got_qn2, fa_char, t)
+    ex_t_actual = got_qn3.sequent.left[-1]
+    pn3_ctx = [f_ for f_ in got_qn3.sequent.left if not same(f_, ex_t_actual)]
+    shared_ctx = pn3_ctx + [sep]
+    br1 = fl_w
+    for f_ in pn3_ctx:
+        br1 = wl(br1, f_)
+    br1 = wr(br1, Q(n))
+    br2 = wl(got_qn3, sep)
+    got_qn4 = Proof(Sequent(shared_ctx, [Q(n)]), 'cut', [br1, br2], principal=ex_t_actual)
+
+    # --- Close ---
+    proof = got_qn4
+    for h in [omega_w, func_f]:
+        if any(same(h, g) for g in proof.sequent.left):
+            imp_h = Implies(h, proof.sequent.right[0])
+            remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    # Discharge In(n,w)
+    for f_ in list(proof.sequent.left):
+        if isinstance(f_, In) and same(f_.right, w):
+            imp_h = Implies(f_, proof.sequent.right[0])
+            remaining = [g for g in proof.sequent.left if not same(g, f_)]
+            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+            break
+    for var in [n, w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'rec_agree'
     return proof
 
 
