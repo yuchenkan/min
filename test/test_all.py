@@ -75,6 +75,7 @@ if __name__ == '__main__':
         ('apply_singleton', theorems.apply_singleton()),
         ('singleton_apply_eq', theorems.singleton_apply_eq()),
         ('eq_apply_transfer', theorems.eq_apply_transfer()),
+        ('singleton_is_recapprox', theorems.singleton_is_recapprox()),
     ]
 
     for name, proof in all_proofs:

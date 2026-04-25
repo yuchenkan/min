@@ -6622,20 +6622,20 @@ def singleton_is_recapprox():
                      [p2], principal=Exists(var, pred))
 
     # Key tools
-    sae = singleton_apply_eq()   # OrdPair(p,e,a)->Singleton(v,p)->Apply(v,x,y)->And(Eq(x,e),Eq(y,a))
+    sae = singleton_apply_eq()   # OrdPair(p,e,a)->Singleton(v,p)->Apply(v,x,y)->And(Eq(e,x),Eq(a,y))
     eat = eq_apply_transfer()    # Eq(x1,x2)->Apply(v,x1,y)->Apply(v,x2,y)
     asn = apply_singleton()      # OrdPair(p,e,a)->Singleton(v,p)->Apply(v,e,a)
     sne = succ_not_empty()       # Succ(sn,n)->not Empty(sn)
     es = eq_symmetric()
     et = eq_transitive()
 
-    # Helper: from Apply(v,xx,yy) get Eq(xx,ev) and Eq(yy,a)
+    # Helper: from Apply(v,xx,yy) get And(Eq(ev,xx), Eq(a,yy))
     def get_eqs(x_var, y_var):
         g = apply_thm(sae, [ev, a, p, v, x_var, y_var], ordp,
-            Implies(sing_v, Implies(Apply(v, x_var, y_var), And(Eq(x_var, ev), Eq(y_var, a)))),
+            Implies(sing_v, Implies(Apply(v, x_var, y_var), And(Eq(ev, x_var), Eq(a, y_var)))),
             ax(ordp))
-        g2 = mp(g, ax(sing_v), sing_v, Implies(Apply(v, x_var, y_var), And(Eq(x_var, ev), Eq(y_var, a))))
-        return mp(g2, ax(Apply(v, x_var, y_var)), Apply(v, x_var, y_var), And(Eq(x_var, ev), Eq(y_var, a)))
+        g2 = mp(g, ax(sing_v), sing_v, Implies(Apply(v, x_var, y_var), And(Eq(ev, x_var), Eq(a, y_var))))
+        return mp(g2, ax(Apply(v, x_var, y_var)), Apply(v, x_var, y_var), And(Eq(ev, x_var), Eq(a, y_var)))
 
     # Helper: extract left/right from And
     def get_left(and_formula, proof):
@@ -6669,12 +6669,14 @@ def singleton_is_recapprox():
     # Same as before: Succ(sn,n) + Apply(v,sn,y) -> sn=ev -> Empty(sn) -> contradiction
     succ_sn = Successor(snv, nv)
     got_eqs_sn = get_eqs(snv, yy)
-    # got_eqs_sn: [ordp, sing_v, Apply(v,snv,yy)] |- And(Eq(snv,ev), Eq(yy,a))
-    and_eq_sn = And(Eq(snv, ev), Eq(yy, a))
+    # got_eqs_sn: [ordp, sing_v, Apply(v,snv,yy)] |- And(Eq(ev,snv), Eq(a,yy))
+    and_eq_sn = And(Eq(ev, snv), Eq(a, yy))
     got_eq_sn = get_left(and_eq_sn, got_eqs_sn)
-    got_eq_sn2 = Proof(Sequent(got_eqs_sn.sequent.left, [Eq(snv, ev)]), 'cut',
-        [wr(got_eqs_sn, Eq(snv, ev)), wl(got_eq_sn, *got_eqs_sn.sequent.left)],
+    got_eq_sn_raw = Proof(Sequent(got_eqs_sn.sequent.left, [Eq(ev, snv)]), 'cut',
+        [wr(got_eqs_sn, Eq(ev, snv)), wl(got_eq_sn, *got_eqs_sn.sequent.left)],
         principal=and_eq_sn)
+    # Flip Eq(ev,snv) -> Eq(snv,ev) for downstream use
+    got_eq_sn2 = apply_thm(es, [ev, snv], Eq(ev, snv), Eq(snv, ev), got_eq_sn_raw)
 
     # Eq(snv,ev) + Empty(ev) -> Empty(snv) via membership transfer
     iff_in = Iff(In(uv, snv), In(uv, ev))
@@ -6684,7 +6686,7 @@ def singleton_is_recapprox():
     fl_empty = _fl(empty_e, Not(In(uv, ev)), uv)
     got_in_ev = mp(got_fwd, ax(In(uv, snv)), In(uv, snv), In(uv, ev))
     got_contra = Proof(Sequent([Eq(snv, ev), In(uv, snv), Not(In(uv, ev))], []), 'not_left',
-        [wl(got_in_ev, Not(In(uv, ev)))], principal=Not(In(uv, ev)))
+        [got_in_ev], principal=Not(In(uv, ev)))
     got_contra2 = Proof(Sequent([Eq(snv, ev), In(uv, snv), empty_e], []), 'cut',
         [wl(fl_empty, Eq(snv, ev), In(uv, snv)), wl(got_contra, empty_e)],
         principal=Not(In(uv, ev)))
@@ -6701,7 +6703,7 @@ def singleton_is_recapprox():
 
     # Chain through sae to get full false from [ordp, sing_v, Apply(v,snv,yy), empty_e, succ_sn]
     full_false = Proof(Sequent(got_eq_sn2.sequent.left + [empty_e, succ_sn], []), 'cut',
-        [wr(wl(got_eq_sn2, empty_e, succ_sn), Eq(snv, ev)),
+        [wl(got_eq_sn2, empty_e, succ_sn),
          wl(step_false, *got_eq_sn2.sequent.left)], principal=Eq(snv, ev))
 
     # Build step condition from false + discharge
@@ -6728,6 +6730,8 @@ def singleton_is_recapprox():
     proof_step = Proof(Sequent(proof_step.sequent.left, [fa_snv]), 'forall_right',
         [proof_step], principal=fa_snv, term=snv)
     in_nv_w = In(nv, w)
+    if not any(same(in_nv_w, f_) for f_ in proof_step.sequent.left):
+        proof_step = wl(proof_step, in_nv_w)
     imp_in = Implies(in_nv_w, fa_snv)
     remaining_in = [f_ for f_ in proof_step.sequent.left if not same(f_, in_nv_w)]
     proof_step = Proof(Sequent(remaining_in, [imp_in]), 'implies_right', [proof_step], principal=imp_in)
@@ -6742,18 +6746,15 @@ def singleton_is_recapprox():
     # eq_symmetric: Eq(e2,ev) -> Eq(ev,e2). eq_apply_transfer: Apply(v,ev,a) -> Apply(v,e2,a).
     e2, y2 = Var(), Var()
     got_eqs_e2 = get_eqs(e2, y2)
-    and_eq_e2 = And(Eq(e2, ev), Eq(y2, a))
-    got_eq_e2_ev = Proof(Sequent(got_eqs_e2.sequent.left, [Eq(e2, ev)]), 'cut',
-        [wr(got_eqs_e2, Eq(e2, ev)),
+    and_eq_e2 = And(Eq(ev, e2), Eq(a, y2))
+    got_eq_ev_e2 = Proof(Sequent(got_eqs_e2.sequent.left, [Eq(ev, e2)]), 'cut',
+        [wr(got_eqs_e2, Eq(ev, e2)),
          wl(get_left(and_eq_e2, got_eqs_e2), *got_eqs_e2.sequent.left)],
         principal=and_eq_e2)
-    # got_eq_e2_ev: [ordp, sing_v, Apply(v,e2,y2)] |- Eq(e2, ev)
-
-    got_ev_e2 = apply_thm(es, [e2, ev], Eq(e2, ev), Eq(ev, e2), got_eq_e2_ev)
-    # got_ev_e2: [ordp, sing_v, Apply(v,e2,y2)] |- Eq(ev, e2)
+    # got_eq_ev_e2: [ordp, sing_v, Apply(v,e2,y2)] |- Eq(ev, e2)
 
     got_app_e2_a = apply_thm(eat, [v, ev, e2, a], Eq(ev, e2),
-        Implies(Apply(v, ev, a), Apply(v, e2, a)), got_ev_e2)
+        Implies(Apply(v, ev, a), Apply(v, e2, a)), got_eq_ev_e2)
     got_app_e2_a2 = mp(got_app_e2_a, got_apply2, Apply(v, ev, a), Apply(v, e2, a))
     # got_app_e2_a2: [ordp, sing_v, Apply(v,e2,y2)] |- Apply(v, e2, a)
 
@@ -6781,12 +6782,11 @@ def singleton_is_recapprox():
     # eq_symmetric: Eq(y,a)->Eq(a,y). eq_apply_transfer on f: Apply(f,a,z)->Apply(f,y,z).
     x3, y3, z3 = Var(), Var(), Var()
     got_eqs_3 = get_eqs(x3, y3)
-    and_eq_3 = And(Eq(x3, ev), Eq(y3, a))
-    got_eq_y3_a = Proof(Sequent(got_eqs_3.sequent.left, [Eq(y3, a)]), 'cut',
-        [wr(got_eqs_3, Eq(y3, a)),
+    and_eq_3 = And(Eq(ev, x3), Eq(a, y3))
+    got_a_y3 = Proof(Sequent(got_eqs_3.sequent.left, [Eq(a, y3)]), 'cut',
+        [wr(got_eqs_3, Eq(a, y3)),
          wl(get_right(and_eq_3, got_eqs_3), *got_eqs_3.sequent.left)],
         principal=and_eq_3)
-    got_a_y3 = apply_thm(es, [y3, a], Eq(y3, a), Eq(a, y3), got_eq_y3_a)
     # got_a_y3: [ordp, sing_v, Apply(v,x3,y3)] |- Eq(a, y3)
 
     # From f_at_a: exists z. Apply(f,a,z). Eel z3: Apply(f,a,z3).
@@ -6833,11 +6833,13 @@ def singleton_is_recapprox():
     # got_ev_in_w: [Ext, Inf, omega_w, empty_e] |- In(ev, w)
 
     got_eqs_4 = get_eqs(x4, y4)
-    and_eq_4 = And(Eq(x4, ev), Eq(y4, a))
-    got_eq_x4_ev = Proof(Sequent(got_eqs_4.sequent.left, [Eq(x4, ev)]), 'cut',
-        [wr(got_eqs_4, Eq(x4, ev)),
+    and_eq_4 = And(Eq(ev, x4), Eq(a, y4))
+    got_eq_ev_x4 = Proof(Sequent(got_eqs_4.sequent.left, [Eq(ev, x4)]), 'cut',
+        [wr(got_eqs_4, Eq(ev, x4)),
          wl(get_left(and_eq_4, got_eqs_4), *got_eqs_4.sequent.left)],
         principal=and_eq_4)
+    # Flip Eq(ev,x4) -> Eq(x4,ev) for eq_substitution
+    got_eq_x4_ev = apply_thm(es, [ev, x4], Eq(ev, x4), Eq(x4, ev), got_eq_ev_x4)
     # got_eq_x4_ev: [ordp, sing_v, Apply(v,x4,y4)] |- Eq(x4, ev)
 
     # Eq(x4,ev) -> forall z. In(z,x4) iff In(z,ev). Instantiate z=x4... no.
@@ -6886,15 +6888,16 @@ def singleton_is_recapprox():
     x5, y5, y6 = Var(), Var(), Var()
     got_eqs_5 = get_eqs(x5, y5)
     got_eqs_6 = get_eqs(x5, y6)
-    and_eq_5 = And(Eq(x5, ev), Eq(y5, a))
-    and_eq_6 = And(Eq(x5, ev), Eq(y6, a))
-    got_y5_a = Proof(Sequent(got_eqs_5.sequent.left, [Eq(y5, a)]), 'cut',
-        [wr(got_eqs_5, Eq(y5, a)), wl(get_right(and_eq_5, got_eqs_5), *got_eqs_5.sequent.left)],
+    and_eq_5 = And(Eq(ev, x5), Eq(a, y5))
+    and_eq_6 = And(Eq(ev, x5), Eq(a, y6))
+    got_a_y5 = Proof(Sequent(got_eqs_5.sequent.left, [Eq(a, y5)]), 'cut',
+        [wr(got_eqs_5, Eq(a, y5)), wl(get_right(and_eq_5, got_eqs_5), *got_eqs_5.sequent.left)],
         principal=and_eq_5)
-    got_y6_a = Proof(Sequent(got_eqs_6.sequent.left, [Eq(y6, a)]), 'cut',
-        [wr(got_eqs_6, Eq(y6, a)), wl(get_right(and_eq_6, got_eqs_6), *got_eqs_6.sequent.left)],
+    got_a_y6 = Proof(Sequent(got_eqs_6.sequent.left, [Eq(a, y6)]), 'cut',
+        [wr(got_eqs_6, Eq(a, y6)), wl(get_right(and_eq_6, got_eqs_6), *got_eqs_6.sequent.left)],
         principal=and_eq_6)
-    got_a_y6 = apply_thm(es, [y6, a], Eq(y6, a), Eq(a, y6), got_y6_a)
+    # Flip Eq(a,y5) -> Eq(y5,a) for transitivity chain: Eq(y5,a) + Eq(a,y6) -> Eq(y5,y6)
+    got_y5_a = apply_thm(es, [a, y5], Eq(a, y5), Eq(y5, a), got_a_y5)
     got_y5_y6 = apply_thm(et, [y5, a, y6], Eq(y5, a), Implies(Eq(a, y6), Eq(y5, y6)), got_y5_a)
     got_sv = mp(got_y5_y6, got_a_y6, Eq(a, y6), Eq(y5, y6))
     # got_sv: [ordp, sing_v, Apply(v,x5,y5), ordp, sing_v, Apply(v,x5,y6)] |- Eq(y5,y6)
