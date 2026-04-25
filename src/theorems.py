@@ -4684,11 +4684,18 @@ def func_preserves_eq():
     and_apps = And(app1, app_x1_y2)
     eq_y = Eq(y1, y2)
 
-    # Peel Function(f): forall x forall y1 forall y2. And(Apply(f,x,y1), Apply(f,x,y2)) -> Eq(y1,y2)
+    # Function(f) = And(Relation(f), single_valued).
+    # Extract single_valued part, then peel its foralls.
+    from definitions import Relation
+    sv = Forall(xf, Forall(ya, Forall(yb, Implies(And(Apply(f, xf, ya), Apply(f, xf, yb)), Eq(ya, yb)))))
+    rel_f = Relation(f)
+    got_sv = apply_thm(and_elim_right(rel_f, sv, []), [], func_f, sv,
+        Proof(Sequent([func_f], [func_f]), 'axiom', principal=func_f))
+    # got_sv: [func_f] |- sv (single-valued)
+
     imp_and_eq = Implies(and_apps, eq_y)
     fa3 = Forall(yb, Implies(And(Apply(f, x1, y1), Apply(f, x1, yb)), Eq(y1, yb)))
     fa2 = Forall(ya, Forall(yb, Implies(And(Apply(f, x1, ya), Apply(f, x1, yb)), Eq(ya, yb))))
-    fa1 = Forall(xf, Forall(ya, Forall(yb, Implies(And(Apply(f, xf, ya), Apply(f, xf, yb)), Eq(ya, yb)))))
 
     ax_eq_y = Proof(Sequent([eq_y], [eq_y]), 'axiom', principal=eq_y)
     ax_and_a = wr(Proof(Sequent([and_apps], [and_apps]), 'axiom', principal=and_apps), eq_y)
@@ -4696,11 +4703,11 @@ def func_preserves_eq():
                    'implies_left', [ax_and_a, wl(ax_eq_y, and_apps)], principal=imp_and_eq)
     fl3 = Proof(Sequent([fa3, and_apps], [eq_y]), 'forall_left', [il_and], principal=fa3, term=y2)
     fl2 = Proof(Sequent([fa2, and_apps], [eq_y]), 'forall_left', [fl3], principal=fa2, term=y1)
-    fl1 = Proof(Sequent([fa1, and_apps], [eq_y]), 'forall_left', [fl2], principal=fa1, term=x1)
-    # Cut with func_f:
+    fl1 = Proof(Sequent([sv, and_apps], [eq_y]), 'forall_left', [fl2], principal=sv, term=x1)
+    # Cut with got_sv:
     got_eq_from_func = Proof(Sequent([func_f, and_apps], [eq_y]), 'cut',
-        [wr(wl(Proof(Sequent([func_f], [func_f]), 'axiom', principal=func_f), and_apps), eq_y),
-         wl(fl1, func_f)], principal=fa1)
+        [wr(wl(got_sv, and_apps), eq_y),
+         wl(fl1, func_f)], principal=sv)
 
     # Build And(app1, app_x1_y2):
     n_app_x1 = Not(app_x1_y2)
@@ -4749,28 +4756,36 @@ def func_unique_thm():
     app2 = Apply(f, x, y2)
     eq_y = Eq(y1, y2)
 
-    # Function(f) = forall x' forall y1' forall y2'. And(Apply(f,x',y1'), Apply(f,x',y2')) -> Eq(y1',y2')
+    # Function(f) = And(Relation(f), single_valued). Extract single_valued.
+    from definitions import Relation
     xv, ya, yb = Var(), Var(), Var()
     and_apps = And(app1, app2)
     imp = Implies(and_apps, eq_y)
+    sv = Forall(xv, Forall(ya, Forall(yb,
+        Implies(And(Apply(f, xv, ya), Apply(f, xv, yb)), Eq(ya, yb)))))
+    rel_f = Relation(f)
+    got_sv = apply_thm(and_elim_right(rel_f, sv, []), [], func_f, sv,
+        Proof(Sequent([func_f], [func_f]), 'axiom', principal=func_f))
+    # got_sv: [func_f] |- sv
+
     fa3 = Forall(yb, Implies(And(Apply(f, x, y1), Apply(f, x, yb)), Eq(y1, yb)))
     fa2 = Forall(ya, Forall(yb, Implies(And(Apply(f, x, ya), Apply(f, x, yb)), Eq(ya, yb))))
-    fa1 = Forall(xv, Forall(ya, Forall(yb,
-        Implies(And(Apply(f, xv, ya), Apply(f, xv, yb)), Eq(ya, yb)))))
-    # same(fa1, alpha)-equiv to Function(f)
 
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
             principal=parent, term=term)
 
-    # Peel 3 foralls: fa1 -> fa2 -> fa3 -> imp
-    fl1 = _fl(fa1, fa2, x)
-    fl2 = Proof(Sequent([fa1], [fa3]), 'cut',
-        [wr(fl1, fa3), wl(_fl(fa2, fa3, y1), fa1)], principal=fa2)
-    fl3 = Proof(Sequent([fa1], [imp]), 'cut',
-        [wr(fl2, imp), wl(_fl(fa3, imp, y2), fa1)], principal=fa3)
-    # fl3: [Function(f)] |- [And(app1,app2) -> Eq(y1,y2)]
+    # Peel 3 foralls from sv
+    fl1 = _fl(sv, fa2, x)
+    fl2 = Proof(Sequent([sv], [fa3]), 'cut',
+        [wr(fl1, fa3), wl(_fl(fa2, fa3, y1), sv)], principal=fa2)
+    fl3 = Proof(Sequent([sv], [imp]), 'cut',
+        [wr(fl2, imp), wl(_fl(fa3, imp, y2), sv)], principal=fa3)
+    # Chain: func_f |- sv |- imp
+    fl3 = Proof(Sequent([func_f], [imp]), 'cut',
+        [wr(got_sv, imp), wl(fl3, func_f)], principal=sv)
+    # fl3: [func_f] |- [And(app1,app2) -> Eq(y1,y2)]
 
     # Build And(app1, app2)
     n_app2 = Not(app2)
