@@ -6023,6 +6023,114 @@ def ordpair_exists():
     return proof
 
 
+def succ_not_empty():
+    """|- forall n, sn. Succ(sn, n) -> not Empty(sn)
+    No successor is empty. If sn = n union {n}, then n in sn, so sn is not empty."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Successor, Apply
+
+    n, sn, zv = Var(), Var(), Var()
+    succ_sn = Successor(sn, n)
+    empty_sn = Empty(sn)
+
+    # Succ(sn, n) = forall z. z in sn iff (z in n or z = n)
+    # Instantiate z = n: n in sn iff (n in n or n = n)
+    # eq_reflexive: n = n
+    # Or intro right: n in n or n = n
+    # Iff backward: n in sn
+    # Empty(sn): forall z. not (z in sn). Instantiate z = n: not (n in sn)
+    # Contradiction: n in sn and not (n in sn)
+
+    in_n_sn = In(n, sn)
+    in_n_n = In(n, n)
+    eq_nn = Eq(n, n)
+    or_in_eq = Or(in_n_n, eq_nn)
+    iff_body = Iff(in_n_sn, or_in_eq)
+
+    # Peel Succ: forall z. z in sn iff (z in n or z = n). Instantiate z = n.
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    fl_succ = _fl(succ_sn, iff_body, n)
+    # fl_succ: [succ_sn] |- iff_body
+
+    # Extract backward: or_in_eq -> in_n_sn
+    got_bwd = mp(iff_mp_rev(in_n_sn, or_in_eq, []), fl_succ, iff_body, Implies(or_in_eq, in_n_sn))
+    # got_bwd: [succ_sn] |- or_in_eq -> in_n_sn
+
+    # Build or_in_eq from eq_nn (eq_reflexive)
+    er = eq_reflexive()
+    er.trusted = True
+    got_eq_nn = apply_thm(er, [n], In(n, n), Implies(In(n, n), eq_nn),
+        Proof(Sequent([in_n_n], [in_n_n]), 'axiom', principal=in_n_n))
+    # Hmm, eq_reflexive gives |- forall x. Eq(x, x). Instantiate with n.
+    got_eq_nn = apply_thm(er, [n], in_n_n, eq_nn,
+        Proof(Sequent([in_n_n], [in_n_n]), 'axiom', principal=in_n_n))
+    # Wait, eq_reflexive has form: forall x1 x2 x3. In(x1,x2) -> ... -> Eq(x1,x1)?
+    # No, eq_reflexive: |- forall x. Eq(x, x). No hypothesis.
+    # Let me just peel it.
+    er_body = er.sequent.right[0]  # forall x. Eq(x, x)
+    from core.proof import _subst
+    got_eq = Proof(Sequent([], [Eq(n, n)]), 'cut',
+        [wr(er, Eq(n, n)), wl(_fl(er_body, _subst(er_body.body, er_body.var, n), n))],
+        principal=er_body)
+    # got_eq: [] |- Eq(n, n)
+
+    # Or intro right: Eq(n, n) -> Or(In(n,n), Eq(n,n))
+    oir = or_intro_right(in_n_n, eq_nn, [])
+    oir.trusted = True
+    got_or = apply_thm(oir, [], eq_nn, or_in_eq, got_eq)
+    # got_or: [] |- Or(In(n,n), Eq(n,n))
+
+    # MP: or_in_eq -> in_n_sn with or_in_eq
+    got_in = mp(got_bwd, got_or, or_in_eq, in_n_sn)
+    # got_in: [succ_sn] |- In(n, sn)
+
+    # Empty(sn): forall z. not (z in sn). Instantiate z = n: not (n in sn)
+    not_in = Not(in_n_sn)
+    fl_empty = _fl(empty_sn, not_in, n)
+    # fl_empty: [empty_sn] |- Not(In(n, sn))
+
+    # Contradiction: In(n, sn) and Not(In(n, sn)) -> false
+    got_contra = Proof(Sequent([succ_sn, empty_sn], []), 'not_left',
+        [wl(got_in, empty_sn)], principal=not_in)
+    # Wait, not_left: from G |- A, D derive G, Not(A) |- D
+    # I have got_in: [succ_sn] |- In(n,sn) and fl_empty: [empty_sn] |- Not(In(n,sn))
+    # Cut: [succ_sn, empty_sn] |- false (empty right)
+    # not_left on Not(In(n,sn)): from [succ_sn] |- [In(n,sn)], get [succ_sn, Not(In(n,sn))] |- []
+    got_contra = Proof(Sequent([succ_sn, not_in], []), 'not_left',
+        [got_in], principal=not_in)
+    # Cut with fl_empty to replace not_in with empty_sn:
+    got_contra2 = Proof(Sequent([succ_sn, empty_sn], []), 'cut',
+        [wr(wl(fl_empty, succ_sn), Not(in_n_sn)),  # Hmm, fl_empty already has Not on right
+         got_contra], principal=not_in)
+    # Wait: fl_empty: [empty_sn] |- [Not(In(n,sn))]
+    # got_contra: [succ_sn, Not(In(n,sn))] |- []
+    # Cut on Not(In(n,sn)): [succ_sn, empty_sn] |- []
+    # Branch 1: [succ_sn, empty_sn] |- [Not(In(n,sn))] = wl(fl_empty, succ_sn)
+    # Branch 2: [succ_sn, empty_sn, Not(In(n,sn))] |- [] = wl(got_contra, empty_sn)
+    got_false = Proof(Sequent([succ_sn, empty_sn], []), 'cut',
+        [wl(fl_empty, succ_sn), wl(got_contra, empty_sn)], principal=not_in)
+
+    # not_right: [succ_sn] |- Not(Empty(sn))
+    not_empty = Not(empty_sn)
+    got_not_empty = Proof(Sequent([succ_sn], [not_empty]), 'not_right',
+        [got_false], principal=not_empty)
+
+    # Discharge and close
+    proof = got_not_empty
+    imp = Implies(succ_sn, not_empty)
+    proof = Proof(Sequent([], [imp]), 'implies_right', [proof], principal=imp)
+    for var in [sn, n]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'succ_not_empty'
+    return proof
+
+
 def rec_exists():
     """For each n in omega, there exists a RecApprox defined at n.
     Ext, Inf, Sep, Pairing, Union |- forall a, f, w, n.

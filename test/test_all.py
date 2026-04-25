@@ -71,6 +71,7 @@ if __name__ == '__main__':
         ('rec_approx_zero', theorems.rec_approx_zero()),
         ('rec_agree', theorems.rec_agree()),
         ('ordpair_exists', theorems.ordpair_exists()),
+        ('succ_not_empty', theorems.succ_not_empty()),
     ]
 
     for name, proof in all_proofs:
