@@ -6131,19 +6131,86 @@ def succ_not_empty():
     return proof
 
 
+def apply_singleton():
+    """Pairing |- forall x, y, p, v.
+       OrdPair(p, x, y) -> Singleton(v, p) -> Apply(v, x, y)
+    If v = {p} and p = <x,y>, then v(x) = y."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Singleton, PairSet, Apply
+
+    x, y, p, v = Var(), Var(), Var(), Var()
+    ordp = OrdPair(p, x, y)
+    sing_v = Singleton(v, p)
+    app_v = Apply(v, x, y)
+
+    # From Singleton(v, p): forall z. z in v iff z = p
+    # Instantiate z = p: p in v iff p = p
+    # eq_reflexive: p = p
+    # Iff backward: p in v
+    zv = Var()
+    iff_body = Iff(In(zv, v), Eq(zv, p))
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    fl_sing = _fl(sing_v, Iff(In(p, v), Eq(p, p)), p)
+    # fl_sing: [sing_v] |- Iff(In(p,v), Eq(p,p))
+
+    # Eq(p, p) from eq_reflexive
+    er = eq_reflexive()
+    er.trusted = True
+    er_body = er.sequent.right[0]
+    from core.proof import _subst
+    got_eq_pp = Proof(Sequent([], [Eq(p, p)]), 'cut',
+        [wr(er, Eq(p, p)), wl(_fl(er_body, _subst(er_body.body, er_body.var, p), p))],
+        principal=er_body)
+
+    # Iff backward: Eq(p,p) -> In(p,v)
+    got_bwd = mp(iff_mp_rev(In(p, v), Eq(p, p), []), fl_sing,
+        Iff(In(p, v), Eq(p, p)), Implies(Eq(p, p), In(p, v)))
+    got_in_pv = mp(got_bwd, got_eq_pp, Eq(p, p), In(p, v))
+    # got_in_pv: [sing_v] |- In(p, v)
+
+    # And(OrdPair(p,x,y), In(p,v))
+    and_body = And(ordp, In(p, v))
+    ai = and_intro(ordp, In(p, v), [])
+    got_and_imp = apply_thm(ai, [], ordp, Implies(In(p, v), and_body),
+        Proof(Sequent([ordp], [ordp]), 'axiom', principal=ordp))
+    got_and = mp(got_and_imp, got_in_pv, In(p, v), and_body)
+    # got_and: [ordp, sing_v] |- And(OrdPair(p,x,y), In(p,v))
+
+    # Exists q. And(OrdPair(q,x,y), In(q,v)) = Apply(v,x,y)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        n_body_inst = Not(body_inst)
+        fa_n = Forall(var, Not(body))
+        nl = Proof(Sequent(ctx + [n_body_inst], []), 'not_left', [proof], principal=n_body_inst)
+        fl = Proof(Sequent(ctx + [fa_n], []), 'forall_left', [nl], principal=fa_n, term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+
+    qv = Var()
+    got_app = _eir(got_and, And(OrdPair(qv, x, y), In(qv, v)), qv, p)
+    # got_app: [ordp, sing_v] |- Apply(v, x, y)
+
+    # Discharge and close
+    proof = got_app
+    for h in [sing_v, ordp]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [v, p, y, x]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'apply_singleton'
+    return proof
+
+
 def rec_exists():
     """For each n in omega, there exists a RecApprox defined at n.
-    Ext, Inf, Sep, Pairing, Union |- forall a, f, w, n.
-      Function(f) -> (exists y. Apply(f,a,y)) ->
-      (forall x, y. Apply(f,x,y) -> exists z. Apply(f,y,z)) ->
-      Omega(w) -> In(n, w) ->
-      exists v, y. RecApprox(v, a, f, w) and Apply(v, n, y)
-
-    Proved by induction on n.
-    Base: v = {<0,a>} is a RecApprox with Apply(v,0,a).
-    Step: extend v with <S(n), f(v(n))>."""
-    # TODO: complex construction proof — needs building sets from axioms
-    # and verifying all 5 RecApprox conditions
+    TODO: complex construction proof."""
     pass
 
 
