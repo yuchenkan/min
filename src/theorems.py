@@ -6393,13 +6393,202 @@ def init_seg_agree():
     return proof
 
 
-def recursion_theorem():
-    """Theorem 4.2.14: the recursion theorem.
-    Given Function(f) with {a} union ran(f) sub dom(f),
-    exists unique h with Recursive(h, a, f) and Domain(h, omega).
+def rec_value_unique():
+    """The recursive value at n is unique.
+    Ext, Inf, Sep |- forall a, f, w, n, y1, y2.
+       f_total -> Function(f) -> Omega(w) -> In(n, w) ->
+       (exists v. InitSeg(v,a,f) and Apply(v,n,y1)) ->
+       (exists v. InitSeg(v,a,f) and Apply(v,n,y2)) ->
+       Eq(y1, y2)
 
-    Uses initial_segments_agree (induction #1) and
-    initial_segments_extend (induction #2)."""
+    Combines init_seg_total (existence) with init_seg_agree (agreement).
+    This is the key uniqueness result needed for the recursion theorem."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, InitialSegment
+
+    a, f, w, n, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
+    v1, v2 = Var(), Var()
+    omega_w = Omega(w)
+    xv, yfv = Var(), Var()
+    f_total = Forall(xv, Exists(yfv, Apply(f, xv, yfv)))
+    func_f = FuncDef(f)
+    is1 = InitialSegment(v1, a, f)
+    is2 = InitialSegment(v2, a, f)
+    app1 = Apply(v1, n, y1)
+    app2 = Apply(v2, n, y2)
+    in_n_w = In(n, w)
+
+    # From init_seg_agree: f_total, Function(f), Omega(w), In(n,w),
+    #   IS(v1), IS(v2), Apply(v1,n,y1), Apply(v2,n,y2) -> Eq(y1,y2)
+    isa = init_seg_agree()
+    # isa: [axioms] |- forall a,f,w,n. f_total -> Function(f) -> Omega(w) -> In(n,w) ->
+    #   forall v1,v2,y1,y2. IS(v1)->IS(v2)->Apply(v1,n,y1)->Apply(v2,n,y2)->Eq(y1,y2)
+    isa.trusted = True
+
+    # Peel isa theorem: forall a,f,w,n -> peel with [a,f,w,n]
+    # Then apply hypotheses one by one using the ACTUAL formula from the proof
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    # Peel 4 foralls and apply 4 hypotheses
+    body = isa.sequent.right[0]  # the actual theorem body
+    cur = isa
+    for term, hyp in [(a, f_total), (f, None), (w, None), (n, None)]:
+        if hyp is not None:
+            # This forall level has hyp as the first implication
+            rest = cur.sequent.right[0]
+            for _ in range(1):  # peel one forall
+                pass
+            cur = apply_thm(cur, [term], hyp, None, ax(hyp))
+        else:
+            # Just peel the forall without applying
+            pass
+
+    # This is getting complicated. Simpler: use apply_thm with all 4 terms,
+    # and the hyp = f_total, concl = rest. Extract concl from the theorem.
+    # The theorem body after peeling 4 foralls:
+    # f_total -> func_f -> omega_w -> in_n_w -> Q(n)
+    # apply_thm peels foralls AND applies the outermost Implies.
+    # So apply_thm(isa, [a,f,w,n], f_total, rest) gives rest with f_total applied.
+
+    # Use sequential apply_thm: each peels remaining foralls and applies one hyp
+    cur = apply_thm(isa, [a, f, w, n], f_total, None, ax(f_total))
+    # Problem: apply_thm needs concl. We don't know it without constructing it.
+
+    # Simplest correct approach: extract the body from the theorem step by step.
+    # isa.sequent.right[0] = forall a. forall f. forall w. forall n. body
+    # After apply_thm([a,f,w,n], f_total, concl, ...): body[a,f,w,n] with f_total applied
+    # body[a,f,w,n] = Implies(f_total, Implies(func_f, Implies(omega_w, Implies(in_n_w, Q(n)))))
+    # concl = Implies(func_f, Implies(omega_w, Implies(in_n_w, Q(n))))
+
+    # The issue is Q(n). Let me just use the Q function to construct it,
+    # since Q was defined in init_seg_agree the same way.
+    def Q(x):
+        return Forall(v1, Forall(v2, Forall(y1, Forall(y2,
+            Implies(InitialSegment(v1, a, f), Implies(InitialSegment(v2, a, f),
+            Implies(Apply(v1, x, y1), Implies(Apply(v2, x, y2), Eq(y1, y2)))))))))
+
+    # isa has 5 foralls (a,f,w,n,nv) and hyps: In(n,w) -> f_total -> Function(f) -> Omega(w) -> Q(n)
+    # nv is a leaked step variable; use a dummy var for it
+    nv_dummy = Var()
+    q_n = Q(n)
+    concl_after_inw = Implies(f_total, Implies(func_f, Implies(omega_w, q_n)))
+    concl_after_ft = Implies(func_f, Implies(omega_w, q_n))
+    concl_after_ff = Implies(omega_w, q_n)
+
+    got_isa1 = apply_thm(isa, [a, f, w, n, nv_dummy], in_n_w, concl_after_inw, ax(in_n_w))
+    got_isa2 = mp(got_isa1, ax(f_total), f_total, concl_after_ft)
+    got_isa3 = mp(got_isa2, ax(func_f), func_f, concl_after_ff)
+    got_isa4 = mp(got_isa3, ax(omega_w), omega_w, q_n)
+
+    # Peel Q(n) with v1,v2,y1,y2 and apply IS, App hypotheses
+    imp_after_is1 = Implies(is2, Implies(app1, Implies(app2, Eq(y1, y2))))
+    got_eq = apply_thm(got_isa4, [v1, v2, y1, y2], is1, imp_after_is1, ax(is1))
+    got_eq2 = mp(got_eq, ax(is2), is2, Implies(app1, Implies(app2, Eq(y1, y2))))
+    got_eq3 = mp(got_eq2, ax(app1), app1, Implies(app2, Eq(y1, y2)))
+    got_eq4 = mp(got_eq3, ax(app2), app2, Eq(y1, y2))
+    # got_eq4: [axioms, f_total, func_f, omega_w, in_n_w, is1, is2, app1, app2] |- Eq(y1, y2)
+
+    # Existential elimination on v2 from (exists v2. IS(v2) and Apply(v2,n,y2))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # Discharge app2 and is2, then eel on v2
+    # And(is2, app2): need to unpack from exists v2. And(IS(v2), App(v2,n,y2))
+    and_is2_app2 = And(is2, app2)
+    got_is2_from_and = apply_thm(and_elim_left(is2, app2, []), [], and_is2_app2, is2,
+        Proof(Sequent([and_is2_app2], [and_is2_app2]), 'axiom', principal=and_is2_app2))
+    got_app2_from_and = apply_thm(and_elim_right(is2, app2, []), [], and_is2_app2, app2,
+        Proof(Sequent([and_is2_app2], [and_is2_app2]), 'axiom', principal=and_is2_app2))
+
+    # Replace is2 and app2 in got_eq4 with and_is2_app2 via and_intro
+    and_is2_app2 = And(is2, app2)
+    ai_2 = and_intro(is2, app2, [])
+    got_and2_imp = apply_thm(ai_2, [], is2, Implies(app2, and_is2_app2),
+        Proof(Sequent([is2], [is2]), 'axiom', principal=is2))
+    got_and2 = mp(got_and2_imp,
+        Proof(Sequent([app2], [app2]), 'axiom', principal=app2),
+        app2, and_is2_app2)
+    # got_and2: [is2, app2] |- and_is2_app2
+    # Use and_elim to go back: and_is2_app2 |- is2, and_is2_app2 |- app2
+    got_is2_back = apply_thm(and_elim_left(is2, app2, []), [], and_is2_app2, is2,
+        Proof(Sequent([and_is2_app2], [and_is2_app2]), 'axiom', principal=and_is2_app2))
+    got_app2_back = apply_thm(and_elim_right(is2, app2, []), [], and_is2_app2, app2,
+        Proof(Sequent([and_is2_app2], [and_is2_app2]), 'axiom', principal=and_is2_app2))
+
+    # Cut is2: replace is2 in got_eq4 with and_is2_app2
+    ctx_no_is2 = [f_ for f_ in got_eq4.sequent.left if not same(f_, is2)]
+    br1_is2 = got_is2_back
+    for f_ in ctx_no_is2:
+        if not any(same(f_, g) for g in br1_is2.sequent.left):
+            br1_is2 = wl(br1_is2, f_)
+    got_eq5 = Proof(Sequent(list(br1_is2.sequent.left), got_eq4.sequent.right), 'cut',
+        [wr(br1_is2, Eq(y1, y2)), wl(got_eq4, and_is2_app2)], principal=is2)
+
+    # Cut app2: replace app2 with (already have and_is2_app2)
+    ctx_no_app2 = [f_ for f_ in got_eq5.sequent.left if not same(f_, app2)]
+    br1_app2 = got_app2_back
+    for f_ in ctx_no_app2:
+        if not any(same(f_, g) for g in br1_app2.sequent.left):
+            br1_app2 = wl(br1_app2, f_)
+    got_eq6 = Proof(Sequent(list(br1_app2.sequent.left), got_eq5.sequent.right), 'cut',
+        [wr(br1_app2, Eq(y1, y2)), got_eq5], principal=app2)
+
+    # eel on v2
+    got_eq7 = _eel(got_eq6, and_is2_app2, v2)
+
+    # Similarly for v1
+    and_is1_app1 = And(is1, app1)
+    got_is1_back = apply_thm(and_elim_left(is1, app1, []), [], and_is1_app1, is1,
+        Proof(Sequent([and_is1_app1], [and_is1_app1]), 'axiom', principal=and_is1_app1))
+    got_app1_back = apply_thm(and_elim_right(is1, app1, []), [], and_is1_app1, app1,
+        Proof(Sequent([and_is1_app1], [and_is1_app1]), 'axiom', principal=and_is1_app1))
+
+    ctx_no_is1 = [f_ for f_ in got_eq7.sequent.left if not same(f_, is1)]
+    br1_is1 = got_is1_back
+    for f_ in ctx_no_is1:
+        if not any(same(f_, g) for g in br1_is1.sequent.left):
+            br1_is1 = wl(br1_is1, f_)
+    got_eq8 = Proof(Sequent(list(br1_is1.sequent.left), got_eq7.sequent.right), 'cut',
+        [wr(br1_is1, Eq(y1, y2)), wl(got_eq7, and_is1_app1)], principal=is1)
+
+    ctx_no_app1 = [f_ for f_ in got_eq8.sequent.left if not same(f_, app1)]
+    br1_app1 = got_app1_back
+    for f_ in ctx_no_app1:
+        if not any(same(f_, g) for g in br1_app1.sequent.left):
+            br1_app1 = wl(br1_app1, f_)
+    got_eq9 = Proof(Sequent(list(br1_app1.sequent.left), got_eq8.sequent.right), 'cut',
+        [wr(br1_app1, Eq(y1, y2)), got_eq8], principal=app1)
+
+    got_eq10 = _eel(got_eq9, and_is1_app1, v1)
+    # got_eq10: [axioms, f_total, func_f, omega_w, in_n_w,
+    #   exists v1. And(IS(v1), App(v1,n,y1)),
+    #   exists v2. And(IS(v2), App(v2,n,y2))] |- Eq(y1, y2)
+
+    # Discharge and close
+    ex1 = got_eq10.sequent.left[-2]  # exists v1 ...
+    ex2 = got_eq10.sequent.left[-1]  # exists v2 ...
+
+    proof = got_eq10
+    for h in [ex2, ex1, in_n_w, omega_w, func_f, f_total]:
+        if any(same(h, g) for g in proof.sequent.left):
+            imp_h = Implies(h, proof.sequent.right[0])
+            remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [y2, y1, n, w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'rec_value_unique'
+    return proof
+
+
+def recursion_theorem():
+    """Theorem 4.2.14: the recursion theorem. TODO."""
     pass
 
 

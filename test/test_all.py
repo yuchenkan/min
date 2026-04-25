@@ -74,6 +74,7 @@ if __name__ == '__main__':
         ('omega_succ_closed', theorems.omega_succ_closed()),
         ('init_seg_total', theorems.init_seg_total()),
         ('init_seg_agree', theorems.init_seg_agree()),
+        ('rec_value_unique', theorems.rec_value_unique()),
     ]
 
     for name, proof in all_proofs:
