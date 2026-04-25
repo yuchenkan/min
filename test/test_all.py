@@ -70,6 +70,7 @@ if __name__ == '__main__':
         ('omega_succ_closed', theorems.omega_succ_closed()),
         ('rec_approx_zero', theorems.rec_approx_zero()),
         ('rec_agree', theorems.rec_agree()),
+        ('ordpair_exists', theorems.ordpair_exists()),
     ]
 
     for name, proof in all_proofs:

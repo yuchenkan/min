@@ -5762,8 +5762,289 @@ def rec_agree():
     return proof
 
 
+def ordpair_exists():
+    """Pairing |- forall x, y. exists p. OrdPair(p, x, y)
+    Every ordered pair exists as a set."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Singleton, PairSet
+
+    x, y, p, sa, pab = Var(), Var(), Var(), Var(), Var()
+
+    # OrdPair(p, x, y) = exists sa. Singleton(sa,x) and exists pab. PairSet(pab,x,y) and PairSet(p,sa,pab)
+    # Need: Singleton(sa, x) exists (from singleton_exists)
+    #        PairSet(pab, x, y) exists (from Pairing)
+    #        PairSet(p, sa, pab) exists (from Pairing)
+
+    pairing = zfc.Pairing()
+
+    # singleton_exists: Pairing |- forall a. exists s. Singleton(s, a)
+    se = singleton_exists()
+    se.trusted = True
+    # Instantiate with x: exists sa. Singleton(sa, x)
+    got_sing = apply_thm(se, [x], zfc.Pairing(),
+        Forall(x, Exists(sa, Singleton(sa, x))),
+        Proof(Sequent([pairing], [pairing]), 'axiom', principal=pairing))
+    # Hmm, singleton_exists has Pairing on the left. Let me just use it directly.
+    # se: [Pairing] |- forall a. exists s. Singleton(s, a)
+    # Instantiate a -> x:
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+
+    ex_sing = Exists(sa, Singleton(sa, x))
+    got_ex_sing = apply_thm(se, [x], pairing, ex_sing,
+        Proof(Sequent([pairing], [pairing]), 'axiom', principal=pairing))
+    # Hmm, se already has Pairing on left. apply_thm peels foralls and applies hyp.
+    # se.sequent.right = forall a. exists s. Singleton(s, a)
+    # apply_thm(se, [x], Pairing, exists s. Singleton(s, x), Pairing_proof)
+    # But Pairing is the hyp being peeled... no. apply_thm peels foralls first.
+    # se has no forall params in vars - it already has forall a inside.
+    # Let me just use the simpler approach: se is [Pairing] |- forall a. ...
+    # Peel forall a with x:
+    se_body = se.sequent.right[0]  # forall a. exists s. Singleton(s, a)
+    from core.proof import _subst
+    se_at_x = _subst(se_body.body, se_body.var, x)
+    fl_se = _fl(se_body, se_at_x, x)
+    got_ex_sing = Proof(Sequent(se.sequent.left, [se_at_x]), 'cut',
+        [wr(se, se_at_x), wl(fl_se, *se.sequent.left)], principal=se_body)
+    # got_ex_sing: [Pairing] |- exists sa. Singleton(sa, x)
+
+    # Similarly: PairSet(pab, x, y) exists from Pairing
+    # Pairing axiom: forall x, y. exists b. PairSet(b, x, y)
+    # (after expansion, Pairing = forall x forall y exists b forall z. Iff(In(z,b), Or(Eq(z,x), Eq(z,y))))
+    pair_ax = pairing.expand()
+    # Peel forall x, forall y:
+    pair_after_x = _subst(pair_ax.body, pair_ax.var, x)
+    pair_after_xy = _subst(pair_after_x.body, pair_after_x.var, y)
+    # pair_after_xy = exists b. forall z. Iff(In(z,b), Or(Eq(z,x), Eq(z,y))) = exists b. PairSet(b,x,y)
+    fl_px = _fl(pair_ax, pair_after_x, x)
+    fl_pxy = _fl(pair_after_x, pair_after_xy, y)
+    got_ex_pair_xy = Proof(Sequent([pairing], [pair_after_xy]), 'cut',
+        [wr(Proof(Sequent([pairing], [pair_after_x]), 'cut',
+            [wr(Proof(Sequent([pairing], [pairing]), 'axiom', principal=pairing), pair_after_x),
+             wl(fl_px, pairing)], principal=pair_ax), pair_after_xy),
+         wl(fl_pxy, pairing)], principal=pair_after_x)
+    # got_ex_pair_xy: [Pairing] |- exists pab. PairSet(pab, x, y)
+
+    # Similarly: PairSet(p, sa, pab) exists
+    # But this needs sa and pab as specific sets, not universally quantified.
+    # This gets complex. Let me just show the ordered pair exists by
+    # existential intro after constructing all parts.
+
+    # Actually, the simplest approach: OrdPair(p,x,y) = exists sa. Singleton(sa,x) and
+    # exists pab. PairSet(pab,x,y) and PairSet(p,sa,pab).
+    # For exists p. OrdPair(p,x,y), we need sa, pab, p to exist.
+    # sa = {x} from singleton_exists
+    # pab = {x,y} from Pairing
+    # p = {sa, pab} from Pairing
+
+    # So: exists p. OrdPair(p,x,y) requires 3 existentials:
+    # Given sa with Singleton(sa,x), pab with PairSet(pab,x,y),
+    # exists p with PairSet(p,sa,pab) (from Pairing instantiated with sa,pab).
+    # Then OrdPair(p,x,y) = exists sa. Sing(sa,x) and exists pab. PS(pab,x,y) and PS(p,sa,pab).
+    # With witnesses sa, pab, this is: Sing(sa,x) and PS(pab,x,y) and PS(p,sa,pab).
+    # All three exist from Pairing.
+    # Then exists p. OrdPair(p,x,y) follows.
+
+    # Build: PairSet(p, sa, pab) from Pairing(sa, pab)
+    pair_after_sa = _subst(pair_ax.body, pair_ax.var, sa)
+    pair_after_sa_pab = _subst(pair_after_sa.body, pair_after_sa.var, pab)
+    # pair_after_sa_pab = exists p. PairSet(p, sa, pab)
+    fl_psa = _fl(pair_ax, pair_after_sa, sa)
+    fl_psa_pab = _fl(pair_after_sa, pair_after_sa_pab, pab)
+    got_ex_p = Proof(Sequent([pairing], [pair_after_sa_pab]), 'cut',
+        [wr(Proof(Sequent([pairing], [pair_after_sa]), 'cut',
+            [wr(Proof(Sequent([pairing], [pairing]), 'axiom', principal=pairing), pair_after_sa),
+             wl(fl_psa, pairing)], principal=pair_ax), pair_after_sa_pab),
+         wl(fl_psa_pab, pairing)], principal=pair_after_sa)
+    # got_ex_p: [Pairing] |- exists p. PairSet(p, sa, pab)
+
+    # Now build OrdPair(p, x, y) = exists sa. Sing(sa,x) and exists pab. PS(pab,x,y) and PS(p,sa,pab)
+    # We have: Sing(sa,x), PS(pab,x,y), PS(p,sa,pab) on left (after existential elims)
+    # Build And chain, then existential intros for sa, pab, p
+
+    sing_sa = Singleton(sa, x)
+    ps_pab = PairSet(pab, x, y)
+    ps_p = PairSet(p, sa, pab)
+    ordpair = OrdPair(p, x, y)
+
+    # And(PS(pab,x,y), PS(p,sa,pab))
+    ai1 = and_intro(ps_pab, ps_p, [])
+    got_and1_imp = apply_thm(ai1, [], ps_pab, Implies(ps_p, And(ps_pab, ps_p)),
+        Proof(Sequent([ps_pab], [ps_pab]), 'axiom', principal=ps_pab))
+    got_and1 = mp(got_and1_imp,
+        Proof(Sequent([ps_p], [ps_p]), 'axiom', principal=ps_p),
+        ps_p, And(ps_pab, ps_p))
+    # got_and1: [ps_pab, ps_p] |- And(PS(pab,x,y), PS(p,sa,pab))
+
+    # exists pab. And(PS(pab,x,y), PS(p,sa,pab))
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        n_body_inst = Not(body_inst)
+        fa_n = Forall(var, Not(body))
+        nl = Proof(Sequent(ctx + [n_body_inst], []), 'not_left', [proof], principal=n_body_inst)
+        fl = Proof(Sequent(ctx + [fa_n], []), 'forall_left', [nl], principal=fa_n, term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+
+    and1_body = And(PairSet(pab, x, y), PairSet(p, sa, pab))
+    got_ex_pab = _eir(got_and1, and1_body, pab, pab)
+    # got_ex_pab: [ps_pab, ps_p] |- exists pab. And(...)
+    # Hmm, pab is free in ps_pab. The eir uses witness=pab. body has pab free.
+    # After eir: [ps_p] |- exists pab. And(PS(pab,x,y), PS(p,sa,pab))
+    # Wait, _eir removes ps_pab from ctx? No, it keeps the whole ctx.
+    # ps_pab has pab free. After _eir, pab is bound by exists. But ps_pab still has pab free on the left.
+    # This is wrong for existential intro. We need pab to NOT be free on the left.
+
+    # Actually, _eir's forall_right requires the eigenvariable (pab) to not be free in the left.
+    # ps_pab has pab free. So the eigenvariable check fails.
+
+    # Fix: existential intro doesn't need eigenvariable freshness — that's for forall_right.
+    # For existential intro on the RIGHT: from |- P(t), derive |- exists x. P(x).
+    # This is: not_left(forall_left(not_right(proof))). No eigenvariable check.
+    # The _eir function uses forall_right internally — that's wrong for this case!
+
+    # _eir pattern:
+    # 1. proof: ctx |- P(t)
+    # 2. not_left on Not(P(t)): ctx, Not(P(t)) |- []
+    # 3. forall_left on Forall(x, Not(P(x))) with term=t: ctx, Forall(x, Not(P(x))) |- []
+    # 4. not_right: ctx |- Not(Forall(x, Not(P(x)))) = Exists(x, P(x))
+
+    # Wait, step 3 is forall_LEFT, not forall_right. No eigenvariable check for forall_left.
+    # So _eir SHOULD work. Let me re-check the _eir implementation.
+
+    # _eir does:
+    # nl = not_left(proof): ctx + [Not(body_inst)] |- []
+    # fl = forall_left(nl): ctx + [Forall(var, Not(body))] |- []
+    # not_right: ctx |- Exists(var, body)
+
+    # The issue: body_inst = proof.sequent.right[0] = And(PS(pab,x,y), PS(p,sa,pab))
+    # Not(body_inst) = Not(And(PS(pab,x,y), PS(p,sa,pab)))
+    # Forall(pab, Not(And(PS(pab,x,y), PS(p,sa,pab)))) — this uses forall_left with term=pab
+    # forall_left is fine (no eigenvariable check).
+    # not_right: ctx |- Not(Forall(pab, Not(body))) = Exists(pab, body)
+    # But not_right requires the eigenvariable... no, not_right has no eigenvariable.
+
+    # Wait, not_right: from ctx, A |- D, derive ctx |- Not(A), D.
+    # The premise is: ctx + [Forall(pab, Not(body))] |- []
+    # The conclusion is: ctx |- Not(Forall(pab, Not(body))), [] = ctx |- Exists(pab, body)
+    # No eigenvariable issue. ✓
+
+    # So _eir should work. The ctx keeps ps_pab and ps_p. Let me re-check.
+    # Actually, the _eir removes nothing from ctx. It adds Not(body_inst) then Forall then removes both via not_right.
+    # The result ctx is the same as the input ctx.
+
+    # So got_ex_pab: [ps_pab, ps_p] |- exists pab. And(PS(pab,x,y), PS(p,sa,pab))
+    # This is correct! pab is free in ps_pab on the left, but that's OK for existential intro on the right.
+
+    # And(Sing(sa,x), exists pab. ...)
+    ex_pab_body = Exists(pab, and1_body)
+    ai2 = and_intro(sing_sa, ex_pab_body, [])
+    got_and2_imp = apply_thm(ai2, [], sing_sa, Implies(ex_pab_body, And(sing_sa, ex_pab_body)),
+        Proof(Sequent([sing_sa], [sing_sa]), 'axiom', principal=sing_sa))
+    got_and2 = mp(got_and2_imp, got_ex_pab, ex_pab_body, And(sing_sa, ex_pab_body))
+    # got_and2: [sing_sa, ps_pab, ps_p] |- And(Sing(sa,x), exists pab. ...)
+
+    # exists sa. And(Sing(sa,x), exists pab. ...) = OrdPair(p, x, y)
+    and2_body = And(Singleton(sa, x), Exists(pab, and1_body))
+    got_ex_sa = _eir(got_and2, and2_body, sa, sa)
+    # got_ex_sa: [sing_sa, ps_pab, ps_p] |- exists sa. And(...) = OrdPair(p, x, y)
+
+    # exists p. OrdPair(p, x, y)
+    got_ex_ordpair = _eir(got_ex_sa, OrdPair(p, x, y), p, p)
+    # got_ex_ordpair: [sing_sa, ps_pab, ps_p] |- exists p. OrdPair(p, x, y)
+
+    # Now existential elim on sa, pab, p (from singleton_exists and Pairing)
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # Elim p from Pairing (exists p. PairSet(p, sa, pab))
+    got_no_p = _eel(got_ex_ordpair, ps_p, p)
+    ex_p_actual = got_no_p.sequent.left[-1]
+    # Cut with got_ex_p: [Pairing] |- exists p. PairSet(p, sa, pab)
+    pstep = [f_ for f_ in got_no_p.sequent.left if not same(f_, ex_p_actual)]
+    br1_p = got_ex_p
+    for f_ in pstep:
+        if not any(same(f_, g) for g in br1_p.sequent.left):
+            br1_p = wl(br1_p, f_)
+    br2_p = got_no_p
+    for f_ in br1_p.sequent.left:
+        if not any(same(f_, g) for g in got_no_p.sequent.left):
+            br2_p = wl(br2_p, f_)
+    got_step1 = Proof(Sequent(list(br1_p.sequent.left), got_no_p.sequent.right), 'cut',
+        [wr(br1_p, got_no_p.sequent.right[0]), br2_p], principal=ex_p_actual)
+
+    # Elim pab from Pairing (exists pab. PairSet(pab, x, y))
+    got_no_pab = _eel(got_step1, ps_pab, pab)
+    ex_pab_actual = got_no_pab.sequent.left[-1]
+    pstep2 = [f_ for f_ in got_no_pab.sequent.left if not same(f_, ex_pab_actual)]
+    br1_pab = got_ex_pair_xy
+    for f_ in pstep2:
+        if not any(same(f_, g) for g in br1_pab.sequent.left):
+            br1_pab = wl(br1_pab, f_)
+    br2_pab = got_no_pab
+    for f_ in br1_pab.sequent.left:
+        if not any(same(f_, g) for g in got_no_pab.sequent.left):
+            br2_pab = wl(br2_pab, f_)
+    got_step2 = Proof(Sequent(list(br1_pab.sequent.left), got_no_pab.sequent.right), 'cut',
+        [wr(br1_pab, got_no_pab.sequent.right[0]), br2_pab], principal=ex_pab_actual)
+
+    # Elim sa from singleton_exists (exists sa. Singleton(sa, x))
+    got_no_sa = _eel(got_step2, sing_sa, sa)
+    ex_sa_actual = got_no_sa.sequent.left[-1]
+    pstep3 = [f_ for f_ in got_no_sa.sequent.left if not same(f_, ex_sa_actual)]
+    br1_sa = got_ex_sing
+    for f_ in pstep3:
+        if not any(same(f_, g) for g in br1_sa.sequent.left):
+            br1_sa = wl(br1_sa, f_)
+    br2_sa = got_no_sa
+    for f_ in br1_sa.sequent.left:
+        if not any(same(f_, g) for g in got_no_sa.sequent.left):
+            br2_sa = wl(br2_sa, f_)
+    got_final = Proof(Sequent(list(br1_sa.sequent.left), got_no_sa.sequent.right), 'cut',
+        [wr(br1_sa, got_no_sa.sequent.right[0]), br2_sa], principal=ex_sa_actual)
+    # got_final: [Pairing] |- exists p. OrdPair(p, x, y)
+
+    # Discharge and close
+    proof = got_final
+    for var in [y, x]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'ordpair_exists'
+    return proof
+
+
+def rec_exists():
+    """For each n in omega, there exists a RecApprox defined at n.
+    Ext, Inf, Sep, Pairing, Union |- forall a, f, w, n.
+      Function(f) -> (exists y. Apply(f,a,y)) ->
+      (forall x, y. Apply(f,x,y) -> exists z. Apply(f,y,z)) ->
+      Omega(w) -> In(n, w) ->
+      exists v, y. RecApprox(v, a, f, w) and Apply(v, n, y)
+
+    Proved by induction on n.
+    Base: v = {<0,a>} is a RecApprox with Apply(v,0,a).
+    Step: extend v with <S(n), f(v(n))>."""
+    # TODO: this is a complex construction proof
+    pass
+
+
 def recursion_theorem():
-    """Theorem 4.2.14: the recursion theorem. TODO."""
+    """Theorem 4.2.14: the recursion theorem.
+    Ext, Inf, Sep, Pairing, Union, Rep |- forall a, f, w.
+      Function(f) -> {a} union ran f sub dom f -> Omega(w) ->
+      exists! h. Recursive(h, a, f, w) and dom h = w
+
+    Uses rec_agree (agreement) and rec_exists (existence)."""
     pass
 
 
