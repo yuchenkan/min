@@ -5000,7 +5000,6 @@ def rec_approx_zero():
 
     # func_unique: Function(v), Apply(v,e,a), Apply(v,e,y) -> Eq(a,y)
     fu = func_unique_thm()
-    fu.trusted = True
     got_eq_ay = apply_thm(fu, [v, e, a, y], FuncDef(v),
         Implies(app_v_e_a, Implies(app_v_e_y, Eq(a, y))),
         got_func)
@@ -5012,7 +5011,6 @@ def rec_approx_zero():
 
     # Eq(a,y) -> Eq(y,a) via eq_symmetric
     es = eq_symmetric()
-    es.trusted = True
     got_eq_ya = apply_thm(es, [a, y], Eq(a, y), eq_ya, got_eq_ay3)
     # got_eq_ya: [ra, empty_e, app_v_e_y] |- Eq(y, a)
 
@@ -5065,7 +5063,6 @@ def rec_agree():
     app2_ev = Apply(v2, ev, y2)
 
     raz = rec_approx_zero()
-    raz.trusted = True
     got_y1a = apply_thm(raz, [v1, a, f, w, ev, y1], ra1,
         Implies(empty_ev, Implies(app1_ev, Eq(y1, a))),
         Proof(Sequent([ra1], [ra1]), 'axiom', principal=ra1))
@@ -5088,9 +5085,7 @@ def rec_agree():
         app2_ev, Eq(y2, a))
 
     es = eq_symmetric()
-    es.trusted = True
     et = eq_transitive()
-    et.trusted = True
     got_y1a_sym = apply_thm(es, [y1, a], Eq(y1, a), Eq(a, y1), got_y1a3)
     # Hmm, need Eq(y1,a) -> Eq(a,y1)? No, eq_symmetric gives Eq(a,b)->Eq(b,a).
     # got_y1a3 gives Eq(y1,a). Apply es with [y1,a]: Eq(y1,a)->Eq(a,y1).
@@ -5371,7 +5366,6 @@ def rec_agree():
 
     # func_unique: Function(v1), Apply(v1,snv,fv1), Apply(v1,snv,y1) -> Eq(fv1,y1)
     fu = func_unique_thm()
-    fu.trusted = True
     got_fv1_y1 = apply_thm(fu, [v1, snv, fv1, y1], FuncDef(v1),
         Implies(Apply(v1, snv, fv1), Implies(app1_sn, Eq(fv1, y1))), got_func1)
     got_fv1_y1b = mp(got_fv1_y1, got_step_app1b, Apply(v1, snv, fv1), Implies(app1_sn, Eq(fv1, y1)))
@@ -5391,7 +5385,6 @@ def rec_agree():
 
     # func_preserves_eq: Function(f), Eq(val1,val2), Apply(f,val1,fv1), Apply(f,val2,fv2) -> Eq(fv1,fv2)
     fpe = func_preserves_eq()
-    fpe.trusted = True
     got_fv_eq = apply_thm(fpe, [f, val1, val2, fv1, fv2], func_f,
         Implies(eq_val, Implies(app_f_val1_fv1, Implies(app_f_val2_fv2, Eq(fv1, fv2)))),
         ax(func_f))
@@ -5583,7 +5576,6 @@ def rec_agree():
 
     # --- Inductive(t) base ---
     oce = omega_contains_empty()
-    oce.trusted = True
     got_oce = apply_thm(oce, [w], omega_w, Forall(ev, Implies(empty_ev, In(ev, w))),
         ax(omega_w))
     got_in_w = apply_thm(got_oce, [ev], empty_ev, In(ev, w), ax(empty_ev))
@@ -5628,7 +5620,6 @@ def rec_agree():
         [wr(got_and_x, q_x), wl(got_q_x, *got_and_x.sequent.left)], principal=and_in_q_x)
 
     osc = omega_succ_closed()
-    osc.trusted = True
     got_osc = apply_thm(osc, [w], omega_w, Forall(xv2, Implies(In(xv2, w),
         Forall(sv2, Implies(succ_s_x, in_s_w)))), ax(omega_w))
     got_osc2 = apply_thm(got_osc, [xv2], in_x_w, Forall(sv2, Implies(succ_s_x, in_s_w)),
@@ -5698,7 +5689,6 @@ def rec_agree():
 
     # --- omega_smallest_inductive ---
     osi = omega_smallest_inductive()
-    osi.trusted = True
     sub_t_w = Subset(t, w)
     and_sub_ind = And(sub_t_w, ind_t)
     ai_si = and_intro(sub_t_w, ind_t, [])
@@ -5779,7 +5769,6 @@ def ordpair_exists():
 
     # singleton_exists: Pairing |- forall a. exists s. Singleton(s, a)
     se = singleton_exists()
-    se.trusted = True
     # Instantiate with x: exists sa. Singleton(sa, x)
     got_sing = apply_thm(se, [x], zfc.Pairing(),
         Forall(x, Exists(sa, Singleton(sa, x))),
@@ -6062,7 +6051,6 @@ def succ_not_empty():
 
     # Build or_in_eq from eq_nn (eq_reflexive)
     er = eq_reflexive()
-    er.trusted = True
     got_eq_nn = apply_thm(er, [n], In(n, n), Implies(In(n, n), eq_nn),
         Proof(Sequent([in_n_n], [in_n_n]), 'axiom', principal=in_n_n))
     # Hmm, eq_reflexive gives |- forall x. Eq(x, x). Instantiate with n.
@@ -6080,7 +6068,6 @@ def succ_not_empty():
 
     # Or intro right: Eq(n, n) -> Or(In(n,n), Eq(n,n))
     oir = or_intro_right(in_n_n, eq_nn, [])
-    oir.trusted = True
     got_or = apply_thm(oir, [], eq_nn, or_in_eq, got_eq)
     # got_or: [] |- Or(In(n,n), Eq(n,n))
 
@@ -6158,7 +6145,6 @@ def apply_singleton():
 
     # Eq(p, p) from eq_reflexive
     er = eq_reflexive()
-    er.trusted = True
     er_body = er.sequent.right[0]
     from core.proof import _subst
     got_eq_pp = Proof(Sequent([], [Eq(p, p)]), 'cut',
@@ -6205,6 +6191,121 @@ def apply_singleton():
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
     proof.name = 'apply_singleton'
+    return proof
+
+
+def singleton_apply_eq():
+    """Ext |- forall e, a, p, v, x, y.
+       OrdPair(p,e,a) -> Singleton(v,p) -> Apply(v,x,y) ->
+       Eq(x,e) and Eq(y,a)
+    If v = {<e,a>} and Apply(v,x,y), then x=e and y=a."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Singleton, PairSet, Apply
+
+    e, a_var, p, v, x, y = Var(), Var(), Var(), Var(), Var(), Var()
+    ordp = OrdPair(p, e, a_var)
+    sing_v = Singleton(v, p)
+    app_v = Apply(v, x, y)
+    goal = And(Eq(x, e), Eq(y, a_var))
+
+    # Apply(v,x,y) = exists q. OrdPair(q,x,y) and In(q,v)
+    # From Singleton(v,p): In(q,v) -> q=p (from Singleton forward)
+    # From q=p: OrdPair(p,x,y)
+    # From OrdPair(p,e,a) and OrdPair(p,x,y): Kuratowski -> e=x and a=y
+
+    # This requires eq_substitution + Kuratowski. The Kuratowski theorem gives:
+    # OrdPair(s1,a,b) -> OrdPair(s2,c,d) -> Eq(s1,s2) -> Eq(a,c) and Eq(b,d)
+    # We need: OrdPair(p,e,a) and OrdPair(q,x,y) and q=p -> e=x and a=y
+
+    # Use kuratowski theorem
+    ku = kuratowski()
+    # ku: forall a,b,c,d,s1. OrdPair(s1,a,b) -> forall s2. OrdPair(s2,c,d) -> Eq(s1,s2) -> And(Eq(a,c),Eq(b,d))
+
+    # We need to unpack Apply, get OrdPair(q,x,y) and In(q,v), then Singleton gives q=p,
+    # then kuratowski gives x=e and y=a.
+
+    # This is getting complex. Let me use a higher-level approach:
+    # apply_thm with kuratowski to get the conclusion directly.
+
+    # Actually, kuratowski takes specific form. Let me check.
+    # ku: forall a,b,c,d. forall s1. OrdPair(s1,a,b) -> forall s2. OrdPair(s2,c,d) -> Eq(s1,s2) -> And(Eq(a,c),Eq(b,d))
+    # Instantiate a=e, b=a_var, c=x, d=y, s1=p:
+    # OrdPair(p,e,a_var) -> forall s2. OrdPair(s2,x,y) -> Eq(p,s2) -> And(Eq(e,x),Eq(a_var,y))
+
+    qv = Var()
+    eq_goal = And(Eq(e, x), Eq(a_var, y))
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+
+    # From kuratowski instantiated:
+    got_ku = apply_thm(ku, [e, a_var, x, y, p], ordp,
+        Forall(qv, Implies(OrdPair(qv, x, y), Implies(Eq(p, qv), eq_goal))),
+        ax(ordp))
+
+    # Now need to unpack Apply(v,x,y) to get OrdPair(q,x,y) and In(q,v)
+    # Then Singleton gives Eq(q,p), then kuratowski gives eq_goal.
+
+    # Apply(v,x,y) = exists q. And(OrdPair(q,x,y), In(q,v))
+    ordq = OrdPair(qv, x, y)
+    in_qv = In(qv, v)
+    and_app = And(ordq, in_qv)
+
+    # From and_app: extract OrdPair(q,x,y) and In(q,v)
+    got_ordq = apply_thm(and_elim_left(ordq, in_qv, []), [], and_app, ordq, ax(and_app))
+    got_inqv = apply_thm(and_elim_right(ordq, in_qv, []), [], and_app, in_qv,
+        Proof(Sequent([and_app], [and_app]), 'axiom', principal=and_app))
+
+    # From Singleton(v,p): In(q,v) -> Eq(q,p)
+    # Singleton(v,p) = forall z. Iff(In(z,v), Eq(z,p))
+    # Instantiate z=q: Iff(In(q,v), Eq(q,p))
+    # Iff forward: In(q,v) -> Eq(q,p)
+    zv = Var()
+    iff_sing = Iff(In(qv, v), Eq(qv, p))
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    fl_sing = _fl(sing_v, iff_sing, qv)
+    got_eq_qp_imp = mp(iff_mp(In(qv, v), Eq(qv, p), []), fl_sing,
+        iff_sing, Implies(In(qv, v), Eq(qv, p)))
+    got_eq_qp = mp(got_eq_qp_imp, got_inqv, In(qv, v), Eq(qv, p))
+    # got_eq_qp: [and_app, sing_v] |- Eq(q, p)
+
+    # eq_symmetric: Eq(q,p) -> Eq(p,q)
+    es = eq_symmetric()
+    got_eq_pq = apply_thm(es, [qv, p], Eq(qv, p), Eq(p, qv), got_eq_qp)
+
+    # kuratowski: OrdPair(p,e,a) -> OrdPair(q,x,y) -> Eq(p,q) -> And(Eq(e,x), Eq(a,y))
+    got_ku2 = apply_thm(got_ku, [qv], ordq,
+        Implies(Eq(p, qv), eq_goal), got_ordq)
+    got_eq_result = mp(got_ku2, got_eq_pq, Eq(p, qv), eq_goal)
+    # got_eq_result: [ordp, and_app, sing_v] |- And(Eq(e,x), Eq(a_var,y))
+
+    # Existential elim on q (from Apply)
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    got_eel = _eel(got_eq_result, and_app, qv)
+    # got_eel: [ordp, sing_v, exists q. And(OrdPair(q,x,y), In(q,v))] |- And(Eq(e,x), Eq(a_var,y))
+    # exists q. And(OrdPair(q,x,y), In(q,v)) = Apply(v, x, y)
+
+    # Discharge and close
+    proof = got_eel
+    app_actual = proof.sequent.left[-1]  # the Exists formula = Apply(v,x,y)
+    for h in [app_actual, sing_v, ordp]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [y, x, v, p, a_var, e]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'singleton_apply_eq'
     return proof
 
 

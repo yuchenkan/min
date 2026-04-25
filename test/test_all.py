@@ -73,6 +73,7 @@ if __name__ == '__main__':
         ('ordpair_exists', theorems.ordpair_exists()),
         ('succ_not_empty', theorems.succ_not_empty()),
         ('apply_singleton', theorems.apply_singleton()),
+        ('singleton_apply_eq', theorems.singleton_apply_eq()),
     ]
 
     for name, proof in all_proofs:
