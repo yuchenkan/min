@@ -267,72 +267,96 @@ class Total:
 
 
 class Recursive:
-    """Recursive(h, a, f): h(0) = a, h(S(n)) = f(h(n)).
-    Function(h) and (forall e. Empty(e) implies Apply(h, e, a)) and
-    forall n, v. Apply(h, n, v) implies
-      forall sn. Successor(sn, n) implies
-        forall fv. Apply(f, v, fv) implies Apply(h, sn, fv)."""
-    __match_args__ = ('func', 'init', 'step')
-    def __init__(self, h, a, f):
-        self.func = h; self.init = a; self.step = f
+    """Recursive(h, a, f, w): isRecursive per book Thm 4.2.14.
+    isFunction(h) and h(0) = a and forall n in w. h(n+) = f(h(n)).
+    w is omega."""
+    __match_args__ = ('func', 'init', 'step', 'omega')
+    def __init__(self, h, a, f, w):
+        self.func = h; self.init = a; self.step = f; self.omega = w
     def expand(self):
-        n, v, sn, fv, e = Var(), Var(), Var(), Var(), Var()
+        e, n, val, sn, fval = Var(), Var(), Var(), Var(), Var()
         return And(Function(self.func),
                And(Forall(e, Implies(Empty(e), Apply(self.func, e, self.init))),
-                   Forall(n, Forall(v, Implies(Apply(self.func, n, v),
-                       Forall(sn, Implies(Successor(sn, n),
-                           Forall(fv, Implies(Apply(self.step, v, fv),
-                               Apply(self.func, sn, fv))))))))))
+                   Forall(n, Implies(In(n, self.omega),
+                       Forall(val, Implies(Apply(self.func, n, val),
+                           Forall(sn, Implies(Successor(sn, n),
+                               Forall(fval, Implies(Apply(self.step, val, fval),
+                                   Apply(self.func, sn, fval)))))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Recursive(r(self.func), r(self.init), r(self.step))
+        return Recursive(r(self.func), r(self.init), r(self.step), r(self.omega))
     def __str__(self):
         return f'Recursive({self.func}, {self.init}, {self.step})'
 
 
 class Plus:
-    """Plus(m, n, p): m + n = p.
-    Exists h, sf. sf is the successor function, Recursive(h, m, sf), Apply(h, n, p)."""
-    __match_args__ = ('left', 'right', 'result')
-    def __init__(self, m, n, p):
-        self.left = m; self.right = n; self.result = p
+    """Plus(m, n, p, w): m + n = p, with w = omega.
+    Exists h, sf. sf is the successor function, Recursive(h, m, sf, w), Apply(h, n, p)."""
+    __match_args__ = ('left', 'right', 'result', 'omega')
+    def __init__(self, m, n, p, w):
+        self.left = m; self.right = n; self.result = p; self.omega = w
     def expand(self):
         h, sf, x, y = Var(), Var(), Var(), Var()
         succ_char = Forall(x, Forall(y, Iff(Apply(sf, x, y), Successor(y, x))))
         return Exists(h, Exists(sf,
             And(succ_char,
-            And(Recursive(h, self.left, sf),
+            And(Recursive(h, self.left, sf, self.omega),
                 Apply(h, self.right, self.result)))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Plus(r(self.left), r(self.right), r(self.result))
+        return Plus(r(self.left), r(self.right), r(self.result), r(self.omega))
     def __str__(self):
         return f'{self.left} + {self.right} = {self.result}'
 
 
-class InitialSegment:
-    """InitialSegment(v, a, f): v is a partial recursive function.
-    Function(v) and
-    (forall e. Empty(e) -> Apply(v, e, a)) and
-    forall n, val. Apply(v, n, val) ->
-      forall sn. Successor(sn, n) ->
-        forall fval. Apply(f, val, fval) -> Apply(v, sn, fval)"""
-    __match_args__ = ('func', 'init', 'step')
-    def __init__(self, v, a, f):
-        self.func = v; self.init = a; self.step = f
+# InitialSegment: DEPRECATED, replaced by RecApprox (book Thm 4.2.14)
+# Old theorems using it (init_seg_total, init_seg_agree, etc.) need rewriting.
+
+
+class RecApprox:
+    """RecApprox(v, a, f, w): v is a recursive approximation (book P(v), Thm 4.2.14).
+    Function(v)
+    and Subset(dom v, w)                       -- dom v sub omega
+    and (forall y. Apply(v,_,y) -> Total(f,y)) -- ran v sub dom f (pointwise)
+    and (forall e. Empty(e) -> e in dom v -> Apply(v, e, a))
+    and forall n in w. Succ(sn, n) -> sn in dom v -> n in dom v and Apply(v, sn, f(v(n)))"""
+    __match_args__ = ('func', 'init', 'step', 'omega')
+    def __init__(self, v, a, f, w):
+        self.func = v; self.init = a; self.step = f; self.omega = w
     def expand(self):
-        e, n, val, sn, fval = Var(), Var(), Var(), Var(), Var()
-        return And(Function(self.func),
-               And(Forall(e, Implies(Empty(e), Apply(self.func, e, self.init))),
-                   Forall(n, Forall(val, Implies(Apply(self.func, n, val),
-                       Forall(sn, Implies(Successor(sn, n),
-                           Forall(fval, Implies(Apply(self.step, val, fval),
-                               Apply(self.func, sn, fval))))))))))
+        e, n, sn, val, fval, y, x = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+        # Following book page 142 exactly:
+        # isFunction(v)
+        func_v = Function(self.func)
+        # dom v sub omega: forall x. (exists y. Apply(v,x,y)) -> x in w
+        dom_sub_w = Forall(x, Implies(Exists(y, Apply(self.func, x, y)),
+                                       In(x, self.omega)))
+        # ran v sub dom f: forall x,y. Apply(v,x,y) -> exists z. Apply(f,y,z)
+        z = Var()
+        ran_sub_dom = Forall(x, Forall(y, Implies(Apply(self.func, x, y),
+                                                    Exists(z, Apply(self.step, y, z)))))
+        # base: forall e. Empty(e) -> (exists y. Apply(v,e,y)) -> Apply(v, e, a)
+        # (if 0 in dom v then v(0) = a)
+        base = Forall(e, Implies(Empty(e),
+                   Implies(Exists(y, Apply(self.func, e, y)),
+                           Apply(self.func, e, self.init))))
+        # step: forall n. n in w -> forall sn. Succ(sn,n) ->
+        #   (exists y. Apply(v,sn,y)) -> (exists y. Apply(v,n,y))
+        #   and forall val. Apply(v,n,val) -> forall fval. Apply(f,val,fval) -> Apply(v,sn,fval)
+        # Simplified: if sn in dom v, then n in dom v and v(sn) = f(v(n))
+        step = Forall(n, Implies(In(n, self.omega),
+                   Forall(sn, Implies(Successor(sn, n),
+                       Implies(Exists(y, Apply(self.func, sn, y)),
+                           And(Exists(y, Apply(self.func, n, y)),
+                               Forall(val, Implies(Apply(self.func, n, val),
+                                   Forall(fval, Implies(Apply(self.step, val, fval),
+                                       Apply(self.func, sn, fval)))))))))))
+        return And(func_v, And(dom_sub_w, And(ran_sub_dom, And(base, step))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return InitialSegment(r(self.func), r(self.init), r(self.step))
+        return RecApprox(r(self.func), r(self.init), r(self.step), r(self.omega))
     def __str__(self):
-        return f'InitSeg({self.func}, {self.init}, {self.step})'
+        return f'RecApprox({self.func}, {self.init}, {self.step}, {self.omega})'
 
 
 # --- Set operation predicates ---
