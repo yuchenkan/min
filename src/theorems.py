@@ -7333,38 +7333,20 @@ def rec_agree():
         got_in_x_w2)
     got_osc3 = apply_thm(got_osc2, [sv2], succ_s_x, in_s_w, ax(succ_s_x))
 
-    # Step Q: close proof_step over nv, instantiate with xv2
-    # proof_step has In(nv,w) discharged, Q(nv) discharged.
-    # Right side: forall nv. Q(nv) -> forall snv. Succ -> Q(snv) [or In(nv,w) -> Q(nv) -> ...]
-    # Need to match the structure. Let me check what proof_step has.
-    # After all discharges, proof_step: [func_f, ...axioms...] |- forall nv. ...
-
-    # Instantiate with xv2:
-    got_q_step = apply_thm(proof_step, [xv2], Q(xv2),
-        Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))),
-        got_q_x2)
-
-    # Wait, proof_step might have In(nv,w) discharged into the body.
-    # Let me check: after discharging in_nv_w and Q(nv), the body is:
-    # In(nv,w) -> Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv)
-    # Or just: Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv)
-    # Depends on whether in_nv_w was discharged.
-
-    # If in_nv_w was discharged, the body starts with In(nv,w) ->
-    # After forall nv and instantiation xv2: In(xv2,w) -> Q(xv2) -> forall sv2. Succ -> Q(sv2)
-    # Apply In(xv2,w):
+    # proof_step body: forall nv. In(nv,w) -> Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv)
     in_xv2_w = In(xv2, w)
     step_after_in = Implies(Q(xv2), Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
-
     got_q_step = apply_thm(proof_step, [xv2], in_xv2_w, step_after_in, got_in_x_w2)
     got_q_step2 = mp(got_q_step, got_q_x2, Q(xv2),
         Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
     got_q_step3 = apply_thm(got_q_step2, [sv2], succ_s_x, q_s, ax(succ_s_x))
 
-    # And(in_s_w, q_s) via and_intro
-    ai_s = and_intro(in_s_w, q_s, [])
-    got_and_imp_s = apply_thm(ai_s, [], in_s_w, Implies(q_s, and_in_q_s), got_osc3)
-    got_and_step = mp(got_and_imp_s, got_q_step3, q_s, and_in_q_s)
+    # Use the ACTUAL q_s from the proof, not a fresh Q(sv2) call
+    q_s_actual = got_q_step3.sequent.right[0]
+    and_in_q_s_actual = And(in_s_w, q_s_actual)
+    ai_s = and_intro(in_s_w, q_s_actual, [])
+    got_and_imp_s = apply_thm(ai_s, [], in_s_w, Implies(q_s_actual, and_in_q_s_actual), got_osc3)
+    got_and_step = mp(got_and_imp_s, got_q_step3, q_s_actual, and_in_q_s_actual)
 
     char_s = _char_at(sv2)
     bwd_s = _iff_bwd(char_s, in_s_t, and_in_q_s)
