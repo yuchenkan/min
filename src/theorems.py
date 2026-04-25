@@ -6034,7 +6034,8 @@ def rec_exists():
     Proved by induction on n.
     Base: v = {<0,a>} is a RecApprox with Apply(v,0,a).
     Step: extend v with <S(n), f(v(n))>."""
-    # TODO: this is a complex construction proof
+    # TODO: complex construction proof — needs building sets from axioms
+    # and verifying all 5 RecApprox conditions
     pass
 
 
