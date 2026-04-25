@@ -360,6 +360,24 @@ class RecApprox:
         return f'RecApprox({self.func}, {self.init}, {self.step}, {self.omega})'
 
 
+class Product:
+    """Product(s, a, b): s = a x b (cartesian product).
+    forall z. z in s iff exists x, y. x in a and y in b and OrdPair(z, x, y)."""
+    __match_args__ = ('set', 'left', 'right')
+    def __init__(self, s, a, b):
+        self.set = s; self.left = a; self.right = b
+    def expand(self):
+        z, x, y = Var(), Var(), Var()
+        return Forall(z, Iff(In(z, self.set),
+            Exists(x, Exists(y, And(In(x, self.left),
+                And(In(y, self.right), OrdPair(z, x, y)))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Product(r(self.set), r(self.left), r(self.right))
+    def __str__(self):
+        return f'{self.set} = {self.left} x {self.right}'
+
+
 # --- Set operation predicates ---
 
 class Union:
