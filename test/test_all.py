@@ -74,6 +74,7 @@ if __name__ == '__main__':
         ('omega_contains_empty', theorems.omega_contains_empty()),
         ('omega_succ_closed', theorems.omega_succ_closed()),
         ('rec_approx_zero', theorems.rec_approx_zero()),
+        ('rec_agree', theorems.rec_agree()),
         # ('init_seg_total', theorems.init_seg_total()),
         # ('init_seg_agree', theorems.init_seg_agree()),
         # ('rec_value_unique', theorems.rec_value_unique()),

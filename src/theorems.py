@@ -7208,14 +7208,8 @@ def rec_agree():
     proof_step = Proof(Sequent(step_no_succ, [fa_sn]),
                        'forall_right', [proof_step], principal=fa_sn, term=snv)
 
-    # Discharge in_nv_w
-    if any(same(in_nv_w, g) for g in proof_step.sequent.left):
-        imp_inw = Implies(in_nv_w, proof_step.sequent.right[0])
-        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, in_nv_w)]
-        proof_step = Proof(Sequent(remaining, [imp_inw]),
-                           'implies_right', [proof_step], principal=imp_inw)
-
-    # Discharge Q(nv)
+    # Discharge Q(nv) first, then In(nv,w)
+    # Result: forall nv. In(nv,w) -> Q(nv) -> forall snv. Succ -> Q(snv)
     q_nv_on_left = None
     for f_ in proof_step.sequent.left:
         if same(f_, q_nv):
@@ -7226,6 +7220,12 @@ def rec_agree():
         remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, q_nv_on_left)]
         proof_step = Proof(Sequent(remaining, [imp_qn]),
                            'implies_right', [proof_step], principal=imp_qn)
+
+    if any(same(in_nv_w, g) for g in proof_step.sequent.left):
+        imp_inw = Implies(in_nv_w, proof_step.sequent.right[0])
+        remaining = [f_ for f_ in proof_step.sequent.left if not same(f_, in_nv_w)]
+        proof_step = Proof(Sequent(remaining, [imp_inw]),
+                           'implies_right', [proof_step], principal=imp_inw)
 
     # Close over nv
     fa_nv = Forall(nv, proof_step.sequent.right[0])
