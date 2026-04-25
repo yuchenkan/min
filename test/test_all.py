@@ -74,6 +74,7 @@ if __name__ == '__main__':
         ('succ_not_empty', theorems.succ_not_empty()),
         ('apply_singleton', theorems.apply_singleton()),
         ('singleton_apply_eq', theorems.singleton_apply_eq()),
+        ('eq_apply_transfer', theorems.eq_apply_transfer()),
     ]
 
     for name, proof in all_proofs:
