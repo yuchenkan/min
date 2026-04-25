@@ -290,21 +290,22 @@ class Recursive:
 
 
 class Plus:
-    """Plus(m, n, p, w): m + n = p, with w = omega.
-    Exists h, sf. sf is the successor function, Recursive(h, m, sf, w), Apply(h, n, p)."""
-    __match_args__ = ('left', 'right', 'result', 'omega')
-    def __init__(self, m, n, p, w):
-        self.left = m; self.right = n; self.result = p; self.omega = w
+    """Plus(m, n, p): m + n = p.
+    Exists w, h, sf. Omega(w) and succ_char(sf) and Recursive(h, m, sf, w) and Apply(h, n, p)."""
+    __match_args__ = ('left', 'right', 'result')
+    def __init__(self, m, n, p):
+        self.left = m; self.right = n; self.result = p
     def expand(self):
-        h, sf, x, y = Var(), Var(), Var(), Var()
+        w, h, sf, x, y = Var(), Var(), Var(), Var(), Var()
         succ_char = Forall(x, Forall(y, Iff(Apply(sf, x, y), Successor(y, x))))
-        return Exists(h, Exists(sf,
-            And(succ_char,
-            And(Recursive(h, self.left, sf, self.omega),
-                Apply(h, self.right, self.result)))))
+        return Exists(w, And(Omega(w),
+            Exists(h, Exists(sf,
+                And(succ_char,
+                And(Recursive(h, self.left, sf, w),
+                    Apply(h, self.right, self.result)))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Plus(r(self.left), r(self.right), r(self.result), r(self.omega))
+        return Plus(r(self.left), r(self.right), r(self.result))
     def __str__(self):
         return f'{self.left} + {self.right} = {self.result}'
 
