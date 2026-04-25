@@ -6602,6 +6602,132 @@ def rec_value_unique():
     return proof
 
 
+def rec_approx_zero():
+    """|- forall v, a, f, w, e, y.
+       RecApprox(v,a,f,w) -> Empty(e) -> Apply(v,e,y) -> Eq(y,a)
+    Any RecApprox maps 0 to a."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, RecApprox, Relation
+
+    v, a, f, w, e, y = Var(), Var(), Var(), Var(), Var(), Var()
+    ra = RecApprox(v, a, f, w)
+    empty_e = Empty(e)
+    app_v_e_y = Apply(v, e, y)
+    app_v_e_a = Apply(v, e, a)
+    eq_ya = Eq(y, a)
+
+    # RecApprox = And(func_v, And(dom_sub_w, And(ran_sub_dom, And(base, step))))
+    # Extract Function(v) and base clause
+    yy, xx, zz = Var(), Var(), Var()
+    func_v = FuncDef(v)
+    dom_sub_w = Forall(xx, Implies(Exists(yy, Apply(v, xx, yy)), In(xx, w)))
+    ran_sub_dom = Forall(xx, Forall(yy, Implies(Apply(v, xx, yy),
+                    Exists(zz, Apply(f, yy, zz)))))
+    base = Forall(e, Implies(empty_e,
+               Implies(Exists(yy, Apply(v, e, yy)), app_v_e_a)))
+    ax_ra = Proof(Sequent([ra], [ra]), 'axiom', principal=ra)
+
+    # Extract Function(v): first And component
+    # RecApprox.expand() = And(func_v, rest)
+    # and_elim_left(func_v, rest) needs rest. But rest is complex.
+    # Instead, use the fact that same() handles expansion.
+    # Build: And(func_v, rest) where rest matches RecApprox's expansion.
+
+    # Simpler: construct rest from RecApprox's expand() minus func_v.
+    # RecApprox.expand() returns And(A, And(B, And(C, And(D, E))))
+    # A = func_v, B = dom_sub_w, C = ran_sub_dom, D = base, E = step
+    ra_expanded = ra.expand()
+    # ra_expanded is And(A, rest_1) where A = func_v, rest_1 = And(B, And(C, And(D, E)))
+    A = ra_expanded.left   # should be func_v (a FuncDef)
+    rest_1 = ra_expanded.right  # And(dom, And(ran, And(base, step)))
+
+    # Extract A = func_v
+    got_func = apply_thm(and_elim_left(A, rest_1, []), [], ra, A, ax_ra)
+    # got_func: [ra] |- Function(v)
+
+    # Extract rest_1
+    got_rest1 = apply_thm(and_elim_right(A, rest_1, []), [], ra, rest_1,
+        Proof(Sequent([ra], [ra]), 'axiom', principal=ra))
+
+    # Extract base from rest_1 = And(B, And(C, And(D, E)))
+    B = rest_1.left   # dom_sub_w
+    rest_2 = rest_1.right  # And(C, And(D, E))
+    got_rest2 = apply_thm(and_elim_right(B, rest_2, []), [], rest_1, rest_2,
+        Proof(Sequent([rest_1], [rest_1]), 'axiom', principal=rest_1))
+    # Chain: ra |- rest_1 |- rest_2
+    got_rest2_full = Proof(Sequent([ra], [rest_2]), 'cut',
+        [wr(got_rest1, rest_2), wl(got_rest2, ra)], principal=rest_1)
+
+    C = rest_2.left   # ran_sub_dom
+    rest_3 = rest_2.right  # And(D, E)
+    got_rest3 = apply_thm(and_elim_right(C, rest_3, []), [], rest_2, rest_3,
+        Proof(Sequent([rest_2], [rest_2]), 'axiom', principal=rest_2))
+    got_rest3_full = Proof(Sequent([ra], [rest_3]), 'cut',
+        [wr(got_rest2_full, rest_3), wl(got_rest3, ra)], principal=rest_2)
+
+    D = rest_3.left   # base
+    got_base = apply_thm(and_elim_left(D, rest_3.right, []), [], rest_3, D,
+        Proof(Sequent([rest_3], [rest_3]), 'axiom', principal=rest_3))
+    got_base_full = Proof(Sequent([ra], [D]), 'cut',
+        [wr(got_rest3_full, D), wl(got_base, ra)], principal=rest_3)
+    # got_base_full: [ra] |- base = forall e. Empty(e) -> (exists y. Apply(v,e,y)) -> Apply(v,e,a)
+
+    # Instantiate base with e, apply Empty(e), apply exists y. Apply(v,e,y)
+    imp_base = Implies(empty_e, Implies(Exists(yy, Apply(v, e, yy)), app_v_e_a))
+    got_base_e = apply_thm(got_base_full, [e], empty_e, Implies(Exists(yy, Apply(v, e, yy)), app_v_e_a),
+        Proof(Sequent([empty_e], [empty_e]), 'axiom', principal=empty_e))
+
+    # Build exists y. Apply(v, e, y) from Apply(v, e, y) via existential intro
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        n_body_inst = Not(body_inst)
+        fa_n = Forall(var, Not(body))
+        nl = Proof(Sequent(ctx + [n_body_inst], []), 'not_left', [proof], principal=n_body_inst)
+        fl = Proof(Sequent(ctx + [fa_n], []), 'forall_left', [nl], principal=fa_n, term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+
+    got_ex = _eir(Proof(Sequent([app_v_e_y], [app_v_e_y]), 'axiom', principal=app_v_e_y),
+                  Apply(v, e, yy), yy, y)
+    # got_ex: [app_v_e_y] |- exists yy. Apply(v,e,yy)
+
+    ex_app = Exists(yy, Apply(v, e, yy))
+    got_app_a = mp(got_base_e, got_ex, ex_app, app_v_e_a)
+    # got_app_a: [ra, empty_e, app_v_e_y] |- Apply(v, e, a)
+
+    # func_unique: Function(v), Apply(v,e,a), Apply(v,e,y) -> Eq(a,y)
+    fu = func_unique_thm()
+    fu.trusted = True
+    got_eq_ay = apply_thm(fu, [v, e, a, y], FuncDef(v),
+        Implies(app_v_e_a, Implies(app_v_e_y, Eq(a, y))),
+        got_func)
+    got_eq_ay2 = mp(got_eq_ay, got_app_a, app_v_e_a, Implies(app_v_e_y, Eq(a, y)))
+    got_eq_ay3 = mp(got_eq_ay2,
+        Proof(Sequent([app_v_e_y], [app_v_e_y]), 'axiom', principal=app_v_e_y),
+        app_v_e_y, Eq(a, y))
+    # got_eq_ay3: [ra, empty_e, app_v_e_y] |- Eq(a, y)
+
+    # Eq(a,y) -> Eq(y,a) via eq_symmetric
+    es = eq_symmetric()
+    es.trusted = True
+    got_eq_ya = apply_thm(es, [a, y], Eq(a, y), eq_ya, got_eq_ay3)
+    # got_eq_ya: [ra, empty_e, app_v_e_y] |- Eq(y, a)
+
+    # Discharge and close
+    proof = got_eq_ya
+    for h in [app_v_e_y, empty_e, ra]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [y, e, w, f, a, v]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'rec_approx_zero'
+    return proof
+
+
 def recursion_theorem():
     """Theorem 4.2.14: the recursion theorem. TODO."""
     pass
