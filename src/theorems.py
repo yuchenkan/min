@@ -6761,6 +6761,9 @@ def singleton_is_recapprox():
     got_base_eel = _eel(got_app_e2_a2, Apply(v, e2, y2), y2)
     ex_y2 = got_base_eel.sequent.left[-1]
     empty_e2 = Empty(e2)
+    # Weaken with empty_e2 (proof doesn't use it but implies_right needs it)
+    got_base_eel = wl(got_base_eel, empty_e2)
+    ex_y2 = [f_ for f_ in got_base_eel.sequent.left if same(f_, Exists(y2, Apply(v, e2, y2)))][0] if any(same(f_, Exists(y2, Apply(v, e2, y2))) for f_ in got_base_eel.sequent.left) else got_base_eel.sequent.left[-2]
     # Discharge exists y2 and Empty(e2)
     imp_ex = Implies(ex_y2, Apply(v, e2, a))
     rem = [f_ for f_ in got_base_eel.sequent.left if not same(f_, ex_y2)]
