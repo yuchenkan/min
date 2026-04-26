@@ -10402,26 +10402,15 @@ def rec_value():
     # got_ra: [in_n_w, func_f, omega_w, ra1, ra2, app1, app2, Ext, Inf, Sep] |- Eq(y1, y2)
 
     # Discharge all RecApprox hyps and universally close:
-    # Order: app2, ra2, y2, v2, app1, ra1, y1, v1 (inner first)
+    # Order: app2, ra2, y2, v2 (inner), then app1, ra1 (outer implies only, NOT forall v1,y1)
     cur = got_ra
-    for h in [app2, ra2]:
+    for h in [app2, ra2, app1, ra1]:
         imp_h = Implies(h, cur.sequent.right[0])
         rem = [f_ for f_ in cur.sequent.left if not same(f_, h)]
         cur = Proof(Sequent(rem, [imp_h]), 'implies_right', [cur], principal=imp_h)
-    for var in [y2, v2]:
-        body = cur.sequent.right[0]
-        fa = Forall(var, body)
-        cur = Proof(Sequent(cur.sequent.left, [fa]), 'forall_right', [cur], principal=fa, term=var)
-    for h in [app1, ra1]:
-        imp_h = Implies(h, cur.sequent.right[0])
-        rem = [f_ for f_ in cur.sequent.left if not same(f_, h)]
-        cur = Proof(Sequent(rem, [imp_h]), 'implies_right', [cur], principal=imp_h)
-    for var in [y1, v1]:
-        body = cur.sequent.right[0]
-        fa = Forall(var, body)
-        cur = Proof(Sequent(cur.sequent.left, [fa]), 'forall_right', [cur], principal=fa, term=var)
+    # All forall_rights happen at the outer level — no inner foralls
 
-    # Discharge remaining hyps and close outer vars
+    # Discharge remaining hyps and close outer vars (including v1, y1)
     proof = cur
     for h in [omega_w, func_f]:
         if any(same(h, g) for g in proof.sequent.left):
@@ -10435,7 +10424,7 @@ def rec_value():
             remaining = [g for g in proof.sequent.left if not same(g, f_)]
             proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
             break
-    for var in [y2, y1, n, w, f, a]:
+    for var in [y2, v2, y1, v1, n, w, f, a]:
         body = proof.sequent.right[0]
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
@@ -10948,145 +10937,34 @@ def rec_func_exists():
 
     # rec_value: peel and instantiate
     rv = rec_value()
-    # Actual structure (from tracing):
-    # Forall(a, Forall(f, Forall(w, Forall(n, Forall(v1, Forall(y1,
+    # After fix: rec_value has 8 outer foralls (a,f,w,n,v1,y1,v2,y2),
+    # then Implies(In(n,w), Func(f), Omega(w), ra1, app1,
+    #   Forall(v2, Forall(y2, Implies(ra2, Implies(app2, Eq(y1,y2))))))
+    # Actually the structure is now:
+    # Forall(a,f,w,n,v1,y1,v2,y2,
     #   Implies(In(n,w), Implies(Func(f), Implies(Omega(w),
-    #     Forall(v2, Forall(y2,
-    #       Implies(ra1, Implies(app1,
-    #         Forall(v2', Forall(y2',
-    #           Implies(ra2, Implies(app2, Eq(y1,y2)))))))))))))))))))
-    # Note: 6 outer foralls (a,f,w,n,v1,y1), then implies, then 4 inner foralls
+    #     Implies(ra1, Implies(app1,
+    #       Forall(v2', Forall(y2', Implies(ra2, Implies(app2, Eq))))))))))
+    # Wait, v2,y2 are outer AND there are inner v2',y2' from rec_agree?
+    # No - after the fix, there are NO inner foralls for v1,y1. And v2,y2 are
+    # closed via forall_right after app2,ra2 discharge. So the structure is:
+    # Forall(a,f,w,n,v1,y1,v2,y2,
+    #   In(n,w) -> Func(f) -> Omega(w) -> ra1 -> app1 -> ra2 -> app2 -> Eq(y1,y2))
+    # All 8 foralls consecutive, then 7 implies.
 
-    # Build matching formula layers
     eq_y = Eq(y1f, y2f)
-    rv_innermost = Implies(ra2f, Implies(app2f, eq_y))
-    rv_fa_y2 = Forall(y2f, rv_innermost)
-    rv_fa_v2 = Forall(v2f, rv_fa_y2)
-    rv_after_app1 = rv_fa_v2
-    rv_after_ra1 = Implies(app1f, rv_after_app1)
-    rv_after_implies = Implies(ra1f, rv_after_ra1)
-    rv_fa_inner_y2 = Forall(y2f, rv_after_implies)  # wait, this isn't right
-    # Actually the inner structure is: Forall(v2, Forall(y2, Implies(ra2, Implies(app2, Eq))))
-    # Let me redo:
-    rv_inner_body = Implies(ra2f, Implies(app2f, eq_y))
-    rv_inner_fa_y2 = Forall(y2f, rv_inner_body)
-    rv_inner_fa_v2 = Forall(v2f, rv_inner_fa_y2)
-    rv_after_app1f = rv_inner_fa_v2
-    rv_after_ra1f = Implies(app1f, rv_after_app1f)
-    rv_implies_ra1 = Implies(ra1f, rv_after_ra1f)
-    # After omega_w:
-    rv_after_omega = rv_implies_ra1  # no, there are inner foralls v2,y2 between omega and ra1
-    # Wait, the trace shows:
-    # 8: Implies(Omega(w))
-    # 9: Forall(v2)  -- this is AFTER omega, not ra1
-    # 10: Forall(y1) -- reuse of y1?!
-    # This is confusing. Let me re-read the trace more carefully.
-
-    # Trace output:
-    # 0-5: Forall(a,f,w,n,v1,y1) - 6 outer foralls
-    # 6: Implies(In(n,w))
-    # 7: Implies(Func(f))
-    # 8: Implies(Omega(w))
-    # 9: Forall(v2) -- inner v2
-    # 10: Forall(v1) -- SAME VAR as outer v1! This is the shadowing issue
-    # Actually v.5 at pos 4 = v1, v.5 at pos 10 = also v1?
-    # No wait, v.5 and v.6 at outer positions are y1 and y2 from rec_value's
-    # variable creation, not v1,v2. Let me check rec_value's variable creation order.
-
-    # In rec_value: a,f,w,n,y1,y2 = Var()x6, then v1,v2 = Var()x2
-    # The forall close order: y2,v2,y1,v1 then omega_w,func_f then In(n,w) then n,w,f,a
-    # So outer foralls are: a,f,w,n,v1,y1 (since v1,y1 are forall'd AFTER the implies)
-    # Wait no: the forall_right for v1,y1 happens BEFORE implies_right for omega,func.
-    # So the formula built from inside-out:
-    # Eq(y1,y2) -- start
-    # Implies(app2, ...) Implies(ra2, ...) -- discharge app2, ra2
-    # Forall(y2, ...) Forall(v2, ...) -- close y2, v2
-    # Implies(app1, ...) Implies(ra1, ...) -- discharge app1, ra1
-    # Forall(y1, ...) Forall(v1, ...) -- close y1, v1
-    # Implies(omega_w, ...) Implies(func_f, ...) -- discharge omega, func
-    # Implies(In(n,w), ...) -- discharge In
-    # Forall(n,...) Forall(w,...) Forall(f,...) Forall(a,...) -- close n,w,f,a
-
-    # So structure: Forall(a, Forall(f, Forall(w, Forall(n,
-    #   Implies(In(n,w), Implies(func_f, Implies(omega_w,
-    #     Forall(v1, Forall(y1,
-    #       Implies(ra1, Implies(app1,
-    #         Forall(v2, Forall(y2,
-    #           Implies(ra2, Implies(app2, Eq(y1,y2)))))))))))))))
-
-    # This IS what I originally had. But the trace shows v.5 appearing at both
-    # position 4 and position 10. v.5 = y1f in rec_value (5th Var created).
-    # Position 4 is Forall(v.5) = Forall(y1). Position 10 is Forall(v.5) again.
-    # This means y1 appears as a Forall binding TWICE - once at outer level and
-    # once inside. This is because rec_value's v1,y1 variables are used in both
-    # the outer forall_right AND inside the formula body.
-
-    # Actually that's expected! Forall(y1, ...) at position 4 binds y1.
-    # Inside the body, y1 appears in Apply(v1,n,y1). There's no second Forall(y1).
-    # The trace must be wrong. Let me re-examine.
-
-    # Position 10 shows Forall(v.5). But looking at the rec_value code:
-    # The inner foralls close v2,y2. v2 and y2 are separate variables from v1,y1.
-    # Unless rec_value's v2 has the same ID as y1... no, Var IDs are unique.
-
-    # I think the trace showing v.5 at position 10 might be because v.5 is
-    # rec_value's y1, and it appears in a Forall as part of the inner quantification
-    # over rec_agree's variables. This is a deeper issue.
-
-    # For now, let me just match the actual formula structure exactly.
-    # Peel all 6 outer foralls, then the 3 implies, then the inner foralls.
-
-    rv_implies_body = Implies(ra1f, Implies(app1f,
-        Forall(v2f, Forall(y2f, Implies(ra2f, Implies(app2f, eq_y))))))
-    rv_omega_body = Implies(omega_w,
-        Forall(v1f, Forall(y1f, rv_implies_body)))
-    rv_func_body = Implies(func_f, rv_omega_body)
-    rv_in_body = Implies(in_nf_w, rv_func_body)
-    rv_fa_y1 = Forall(y1f, rv_in_body)  # NO! y1 is outer, BEFORE In(n,w)
-
-    # I'm going in circles. Let me just peel using the ACTUAL formula from rv.
-    # Use _fl on rv's right-side formula directly, not on my reconstructed formula.
-
-    got_rv = rv
-    rv_cur = rv.sequent.right[0]  # the actual formula
-    # Peel 6 foralls:
-    for (var, label) in [(a, 'a'), (f, 'f'), (w, 'w'), (nf, 'n'), (v1f, 'v1'), (y1f, 'y1')]:
-        inner = Forall(var, rv_cur)  # WRONG: rv_cur IS the forall, not the body
-        # Actually rv_cur is Forall(some_var, body). I need body after substituting.
-        # Use _fl(rv_cur, body_with_var, var):
-        # But I don't know body_with_var without expanding.
-        pass
-    # This manual approach is broken. Let me use a different strategy:
-    # Just use apply_thm with all 6 outer terms at once (since they're consecutive foralls).
-
-    rv_concl = Implies(in_nf_w, Implies(func_f, Implies(omega_w,
+    concl = Implies(func_f, Implies(omega_w,
         Implies(ra1f, Implies(app1f,
-            Forall(v2f, Forall(y2f, Implies(ra2f, Implies(app2f, eq_y)))))))))
-    got_rv = apply_thm(rv, [a, f, w, nf, v1f, y1f], in_nf_w, Implies(func_f, Implies(omega_w,
-        Implies(ra1f, Implies(app1f,
-            Forall(v2f, Forall(y2f, Implies(ra2f, Implies(app2f, eq_y)))))))),
-        ax(in_nf_w))
+            Implies(ra2f, Implies(app2f, eq_y))))))
+
+    got_rv = apply_thm(rv, [a, f, w, nf, v1f, y1f, v2f, y2f], in_nf_w, concl, ax(in_nf_w))
     got_rv = mp(got_rv, ax(func_f), func_f, Implies(omega_w,
-        Implies(ra1f, Implies(app1f,
-            Forall(v2f, Forall(y2f, Implies(ra2f, Implies(app2f, eq_y))))))))
+        Implies(ra1f, Implies(app1f, Implies(ra2f, Implies(app2f, eq_y))))))
     got_rv = mp(got_rv, ax(omega_w), omega_w,
-        Implies(ra1f, Implies(app1f,
-            Forall(v2f, Forall(y2f, Implies(ra2f, Implies(app2f, eq_y)))))))
-    got_rv = mp(got_rv, ax(ra1f), ra1f, Implies(app1f,
-        Forall(v2f, Forall(y2f, Implies(ra2f, Implies(app2f, eq_y))))))
-    got_rv = mp(got_rv, ax(app1f), app1f,
-        Forall(v2f, Forall(y2f, Implies(ra2f, Implies(app2f, eq_y)))))
-    # Peel v2f, y2f:
-    rv_after_v2 = Forall(y2f, Implies(ra2f, Implies(app2f, eq_y)))
-    fl_v2 = _fl(Forall(v2f, rv_after_v2), rv_after_v2, v2f)
-    got_rv = Proof(Sequent(got_rv.sequent.left, [rv_after_v2]), 'cut',
-        [wr(got_rv, rv_after_v2), wl(fl_v2, *got_rv.sequent.left)],
-        principal=Forall(v2f, rv_after_v2))
-    rv_after_y2 = Implies(ra2f, Implies(app2f, eq_y))
-    fl_y2 = _fl(rv_after_v2, rv_after_y2, y2f)
-    got_rv = Proof(Sequent(got_rv.sequent.left, [rv_after_y2]), 'cut',
-        [wr(got_rv, rv_after_y2), wl(fl_y2, *got_rv.sequent.left)],
-        principal=rv_after_v2)
+        Implies(ra1f, Implies(app1f, Implies(ra2f, Implies(app2f, eq_y)))))
+    got_rv = mp(got_rv, ax(ra1f), ra1f,
+        Implies(app1f, Implies(ra2f, Implies(app2f, eq_y))))
+    got_rv = mp(got_rv, ax(app1f), app1f, Implies(ra2f, Implies(app2f, eq_y)))
     got_eq_y = mp(mp(got_rv, ax(ra2f), ra2f, Implies(app2f, eq_y)),
         ax(app2f), app2f, eq_y)
     # got_eq_y: [in_nf_w, func_f, omega_w, ra1f, app1f, ra2f, app2f, + axioms] |- Eq(y1f, y2f)
