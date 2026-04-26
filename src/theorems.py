@@ -13027,30 +13027,97 @@ def recursion_theorem():
         [wr(br1, app_h_ea), br2], principal=ex_v_actual)
     # got_base_final: [char_h, empty_ev, omega_w, func_f, f_at_a, ran_f_closed, axioms] |- Apply(h,e,a)
 
-    # === Combine base + bridge into And, wrap in Exists(h) ===
-    # Bridge: char_h |- forall n,y,v. In(n,w)->RA(v)->App(v,n,y)->App(h,n,y)
-    # Close bridge with forall n,v,y:
-    bridge_body = Implies(in_nv_w, Implies(ra_vv, Implies(app_v_ny, app_h_ny)))
-    proof_bridge_closed = got_rha
-    for var in [vv, yv, nv]:
-        body = proof_bridge_closed.sequent.right[0]
-        fa = Forall(var, body)
-        proof_bridge_closed = Proof(Sequent(proof_bridge_closed.sequent.left, [fa]),
-            'forall_right', [proof_bridge_closed], principal=fa, term=var)
-    # proof_bridge_closed: [char_h] |- forall n,y,v. bridge
+    # === Combine Function(h) + base + step into Recursive(h,a,f,w) ===
+    from definitions import Function as FuncDef, Recursive, Successor
 
-    bridge_formula = proof_bridge_closed.sequent.right[0]
-    and_result = And(app_h_ea, bridge_formula)
-    ai = and_intro(app_h_ea, bridge_formula, [])
-    got_and = mp(apply_thm(ai, [], app_h_ea, Implies(bridge_formula, and_result), got_base_final),
-        proof_bridge_closed, bridge_formula, and_result)
-    # got_and: [char_h, ...] |- And(Apply(h,e,a), bridge)
+    # Get Function(h) from rec_h_function — just use apply_thm with the right form:
+    # rec_h_function has 4 consecutive foralls (h,a,f,w) then char_h→Func(f)→Omega(w)→Function(h).
+    # This is NOT interleaved — just Forall^4 then Implies^3 then Function(h).
+    # apply_thm with 4 terms and hyp=char_h should work.
+    rhf = rec_h_function()
+    func_h = FuncDef(hv)
+    got_func = apply_thm(rhf, [hv, a, f, w], char_h,
+        Implies(func_f, Implies(omega_w, func_h)), ax(char_h))
+    got_func = mp(got_func, ax(func_f), func_f, Implies(omega_w, func_h))
+    got_func = mp(got_func, ax(omega_w), omega_w, func_h)
+
+    # Get step from rec_h_step:
+    rhs = rec_h_step()
+    # rec_h_step: forall h,a,f,w,n,val,sn,fval. char_h -> Func(f) -> Omega(w) ->
+    #   f_at_a -> ran_f_closed -> In(n,w) -> Apply(h,n,val) -> Succ(sn,n) -> Apply(f,val,fval) -> Apply(h,sn,fval)
+    # Peel [hv,a,f,w]:
+    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
+    step_concl = Implies(in_ev_w, Implies(func_f, Implies(omega_w, Implies(f_at_a, Implies(ran_f_closed,
+        Implies(In(nst, w), Implies(Apply(hv, nst, valst),
+            Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
+                Apply(hv, snst, fvalst))))))))))
+    # Actually step has 8+1 foralls. Let me just use apply_thm to peel 4 (h,a,f,w) + char_h:
+    step_inner = Implies(func_f, Implies(omega_w, Implies(f_at_a, Implies(ran_f_closed,
+        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
+            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
+                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
+                    Apply(hv, snst, fvalst)))))))))))))
+    # Peel rec_h_step using actual formula (4 foralls + char_h hyp):
+    rhs_body = Implies(char_h, step_inner)
+    rhs_layers = [rhs_body]
+    for var in reversed([hv, a, f, w]):
+        rhs_layers.append(Forall(var, rhs_layers[-1]))
+    got_step = rhs
+    for i in range(4):
+        actual_outer = got_step.sequent.right[0]
+        inner = rhs_layers[3 - i]
+        fl_v = _fl(actual_outer, inner, [hv, a, f, w][i])
+        got_step = Proof(Sequent(got_step.sequent.left, [inner]), 'cut',
+            [wr(got_step, inner), wl(fl_v, *got_step.sequent.left)], principal=actual_outer)
+    got_step = mp(got_step, ax(char_h), char_h, step_inner)
+    got_step = mp(got_step, ax(func_f), func_f, Implies(omega_w, Implies(f_at_a, Implies(ran_f_closed,
+        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
+            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
+                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
+                    Apply(hv, snst, fvalst)))))))))))))
+    got_step = mp(got_step, ax(omega_w), omega_w, Implies(f_at_a, Implies(ran_f_closed,
+        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
+            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
+                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
+                    Apply(hv, snst, fvalst))))))))))))
+    got_step = mp(got_step, ax(f_at_a), f_at_a, Implies(ran_f_closed,
+        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
+            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
+                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
+                    Apply(hv, snst, fvalst)))))))))))
+    got_step = mp(got_step, ax(ran_f_closed), ran_f_closed,
+        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
+            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
+                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
+                    Apply(hv, snst, fvalst))))))))))
+    step_formula = got_step.sequent.right[0]
+    # got_step: [char_h, func_f, omega_w, f_at_a, ran_f_closed, axioms] |- step
+
+    # Base: got_base_final already gives Apply(hv, ev, a)
+    # Build base_formula: forall e. Empty(e) -> Apply(hv, e, a)
+    base_formula = Forall(ev, Implies(empty_ev, app_h_ea))
+    imp_empty = Implies(empty_ev, app_h_ea)
+    rem_empty = [f_ for f_ in got_base_final.sequent.left if not same(f_, empty_ev)]
+    proof_base_closed = Proof(Sequent(rem_empty, [imp_empty]), 'implies_right',
+        [got_base_final], principal=imp_empty)
+    proof_base_closed = Proof(Sequent(rem_empty, [base_formula]), 'forall_right',
+        [proof_base_closed], principal=base_formula, term=ev)
+
+    # And(base, step):
+    and_bs = And(base_formula, step_formula)
+    ai_bs = and_intro(base_formula, step_formula, [])
+    got_bs = mp(apply_thm(ai_bs, [], base_formula, Implies(step_formula, and_bs), proof_base_closed),
+        got_step, step_formula, and_bs)
+
+    # And(Function(h), And(base, step)) = Recursive(h,a,f,w):
+    recursive_h = Recursive(hv, a, f, w)
+    ai_rec = and_intro(func_h, and_bs, [])
+    got_recursive = mp(apply_thm(ai_rec, [], func_h, Implies(and_bs, recursive_h), got_func),
+        got_bs, and_bs, recursive_h)
+    # got_recursive: [char_h, ...] |- Recursive(hv, a, f, w)
 
     # Exists intro hv FIRST (so hv is bound before _eel):
-    got_and = _eir(got_and, And(Apply(hv, ev, a),
-        Forall(nv, Forall(yv, Forall(vv,
-            Implies(In(nv, w), Implies(RecApprox(vv, a, f, w),
-                Implies(Apply(vv, nv, yv), Apply(hv, nv, yv)))))))), hv, hv)
+    got_and = _eir(got_recursive, Recursive(hv, a, f, w), hv, hv)
     # got_and: [char_h, ...] |- Exists(hv, And(Apply(hv,e,a), bridge))
 
     # _eel hv from char_h (now hv is bound in right, so eigenvariable check passes):
