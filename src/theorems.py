@@ -12153,14 +12153,44 @@ def rec_h_step():
     cur = Proof(Sequent(list(br1.sequent.left), [app_h_sn_fv]), 'cut',
         [wr(br1, app_h_sn_fv), br2], principal=ex_vv)
 
-    # Discharge and close
+    # Discharge and close in INTERLEAVED order matching Recursive's step structure:
+    # Forall(n, Implies(In, Forall(val, Implies(App_h, Forall(sn, Implies(Succ, Forall(fval, Implies(App_f, App_h))))))))
     proof = cur
-    for hh in [app_f_vfv, succ_sn, app_h_nv, in_n_w, ran_f_closed, f_at_a, omega_w, func_f, char_h]:
+    # Inner first: discharge Apply(f,val,fval), close fval:
+    for hh in [app_f_vfv]:
+        imp = Implies(hh, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(fval, proof.sequent.right[0])]),
+        'forall_right', [proof], principal=Forall(fval, proof.sequent.right[0]), term=fval)
+    # Discharge Succ(sn,n), close sn:
+    for hh in [succ_sn]:
+        imp = Implies(hh, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(sn, proof.sequent.right[0])]),
+        'forall_right', [proof], principal=Forall(sn, proof.sequent.right[0]), term=sn)
+    # Discharge Apply(h,n,val), close val:
+    for hh in [app_h_nv]:
+        imp = Implies(hh, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(val, proof.sequent.right[0])]),
+        'forall_right', [proof], principal=Forall(val, proof.sequent.right[0]), term=val)
+    # Discharge In(n,w), close n:
+    for hh in [in_n_w]:
+        imp = Implies(hh, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(n, proof.sequent.right[0])]),
+        'forall_right', [proof], principal=Forall(n, proof.sequent.right[0]), term=n)
+    # Outer: discharge ran_f_closed, f_at_a, omega_w, func_f, char_h:
+    for hh in [ran_f_closed, f_at_a, omega_w, func_f, char_h]:
         if any(same(hh, g) for g in proof.sequent.left):
             imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
             proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [fval, sn, val, n, w, f, a, h]:
+    for var in [w, f, a, h]:
         body = proof.sequent.right[0]
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
@@ -13034,8 +13064,8 @@ def recursion_theorem():
     # Peel 4 foralls using actual formula, then mp char_h, func_f, omega_w.
     rhf = rec_h_function()
     func_h = FuncDef(hv)
-    concl_after_char = Implies(func_f, Implies(omega_w, func_h))
-    concl_with_char = Implies(char_h, concl_after_char)
+    concl_after_char = Implies(func_f, Implies(omega_w, func_h, postfix='imp_omega_func'), postfix='imp_func')
+    concl_with_char = Implies(char_h, concl_after_char, postfix='imp_char')
     # Build layers using MY formulas but peel using ACTUAL formula from rhf:
     layers = [concl_with_char,
               Forall(w, concl_with_char), Forall(f, Forall(w, concl_with_char)),
@@ -13063,11 +13093,13 @@ def recursion_theorem():
             Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
                 Apply(hv, snst, fvalst))))))))))
     # Actually step has 8+1 foralls. Let me just use apply_thm to peel 4 (h,a,f,w) + char_h:
+    # Build step_inner matching Recursive's INTERLEAVED forall/implies structure:
     step_inner = Implies(func_f, Implies(omega_w, Implies(f_at_a, Implies(ran_f_closed,
-        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
-            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
-                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
-                    Apply(hv, snst, fvalst)))))))))))))
+        Forall(nst, Implies(In(nst, w),
+            Forall(valst, Implies(Apply(hv, nst, valst),
+                Forall(snst, Implies(Successor(snst, nst),
+                    Forall(fvalst, Implies(Apply(f, valst, fvalst),
+                        Apply(hv, snst, fvalst)))))))))))))
     # Peel rec_h_step using actual formula (4 foralls + char_h hyp):
     rhs_body = Implies(char_h, step_inner)
     rhs_layers = [rhs_body]
@@ -13081,27 +13113,34 @@ def recursion_theorem():
         got_step = Proof(Sequent(got_step.sequent.left, [inner]), 'cut',
             [wr(got_step, inner), wl(fl_v, *got_step.sequent.left)], principal=actual_outer)
     got_step = mp(got_step, ax(char_h), char_h, step_inner)
-    got_step = mp(got_step, ax(func_f), func_f, Implies(omega_w, Implies(f_at_a, Implies(ran_f_closed,
-        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
-            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
-                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
-                    Apply(hv, snst, fvalst)))))))))))))
-    got_step = mp(got_step, ax(omega_w), omega_w, Implies(f_at_a, Implies(ran_f_closed,
-        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
-            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
-                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
-                    Apply(hv, snst, fvalst))))))))))))
-    got_step = mp(got_step, ax(f_at_a), f_at_a, Implies(ran_f_closed,
-        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
-            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
-                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
-                    Apply(hv, snst, fvalst)))))))))))
-    got_step = mp(got_step, ax(ran_f_closed), ran_f_closed,
-        Forall(nst, Forall(valst, Forall(snst, Forall(fvalst,
-            Implies(In(nst, w), Implies(Apply(hv, nst, valst),
-                Implies(Successor(snst, nst), Implies(Apply(f, valst, fvalst),
-                    Apply(hv, snst, fvalst))))))))))
-    step_formula = got_step.sequent.right[0]
+    step_after_func = Implies(omega_w, Implies(f_at_a, Implies(ran_f_closed,
+        Forall(nst, Implies(In(nst, w),
+            Forall(valst, Implies(Apply(hv, nst, valst),
+                Forall(snst, Implies(Successor(snst, nst),
+                    Forall(fvalst, Implies(Apply(f, valst, fvalst),
+                        Apply(hv, snst, fvalst))))))))))))
+    got_step = mp(got_step, ax(func_f), func_f, step_after_func)
+    step_after_omega = Implies(f_at_a, Implies(ran_f_closed,
+        Forall(nst, Implies(In(nst, w),
+            Forall(valst, Implies(Apply(hv, nst, valst),
+                Forall(snst, Implies(Successor(snst, nst),
+                    Forall(fvalst, Implies(Apply(f, valst, fvalst),
+                        Apply(hv, snst, fvalst)))))))))))
+    got_step = mp(got_step, ax(omega_w), omega_w, step_after_omega)
+    step_after_fat = Implies(ran_f_closed,
+        Forall(nst, Implies(In(nst, w),
+            Forall(valst, Implies(Apply(hv, nst, valst),
+                Forall(snst, Implies(Successor(snst, nst),
+                    Forall(fvalst, Implies(Apply(f, valst, fvalst),
+                        Apply(hv, snst, fvalst))))))))))
+    got_step = mp(got_step, ax(f_at_a), f_at_a, step_after_fat)
+    step_formula = Forall(nst, Implies(In(nst, w),
+        Forall(valst, Implies(Apply(hv, nst, valst),
+            Forall(snst, Implies(Successor(snst, nst),
+                Forall(fvalst, Implies(Apply(f, valst, fvalst),
+                    Apply(hv, snst, fvalst)))))))))
+    got_step = mp(got_step, ax(ran_f_closed), ran_f_closed, step_formula)
+    # step_formula matches Recursive's interleaved structure
     # got_step: [char_h, func_f, omega_w, f_at_a, ran_f_closed, axioms] |- step
 
     # Base: got_base_final already gives Apply(hv, ev, a)
