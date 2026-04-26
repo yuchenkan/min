@@ -11534,8 +11534,271 @@ def rec_h_apply():
     return proof
 
 
+def rec_h_apply_fwd():
+    """Forward bridge: Apply(h,n,y) implies some RecApprox maps n to y.
+    |- forall h, a, f, w, n, y.
+       (forall p. Iff(In(p, h), exists m. And(In(m, w), phi(m, p)))) ->
+       Apply(h, n, y) -> In(n, w) -> exists v. And(RecApprox(v,a,f,w), Apply(v,n,y))
+    where phi is the RecApprox graph relation.
+    From Apply(h,n,y): unpack OrdPair(q,n,y) and In(q,h).
+    From char_h forward: In(q,h) -> exists m,v',y'. RA(v')∧App(v',m,y')∧OrdPair(q,m,y').
+    From tuple_injection: OrdPair(q,n,y)∧OrdPair(q,m,y') -> n=m, y=y'.
+    Transfer: App(v',m,y') -> App(v',n,y)."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, RecApprox
+
+    h, a, f, w, n, y = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='N'), Var(postfix='Y')
+    vr, yr = Var(), Var()
+    def phi(m, p):
+        return Exists(vr, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, m, yr)),
+                                         OrdPair(p, m, yr))))
+    pp, mm = Var(), Var()
+    char_h = Forall(pp, Iff(In(pp, h), Exists(mm, And(In(mm, w), phi(mm, pp)))))
+    app_h = Apply(h, n, y)
+    in_n_w = In(n, w)
+    vv = Var(postfix='V')
+    ra_vv = RecApprox(vv, a, f, w)
+    app_vv = Apply(vv, n, y)
+    goal = Exists(vv, And(ra_vv, app_vv))
+
+    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    qv = Var(postfix='q')
+    ordp_q = OrdPair(qv, n, y)
+    in_q_h = In(qv, h)
+    and_ord_in = And(ordp_q, in_q_h)
+
+    # From char_h forward: In(q,h) -> Exists(m, And(In(m,w), phi(m,q)))
+    iff_q = Iff(In(qv, h), Exists(mm, And(In(mm, w), phi(mm, qv))))
+    fl_char = _fl(char_h, iff_q, qv)
+    got_fwd = mp(iff_mp(In(qv, h), Exists(mm, And(In(mm, w), phi(mm, qv))), []),
+        fl_char, iff_q, Implies(In(qv, h), Exists(mm, And(In(mm, w), phi(mm, qv)))))
+    got_ex_m = mp(got_fwd, ax(in_q_h), in_q_h, Exists(mm, And(In(mm, w), phi(mm, qv))))
+    # got_ex_m: [char_h, In(q,h)] |- Exists(m, And(In(m,w), phi(m,q)))
+
+    # Unpack: _eel m, then And to get In(m,w) and phi(m,q)
+    # phi(m,q) = Exists(vr, Exists(yr, And(And(RA(vr),App(vr,m,yr)), OrdPair(q,m,yr))))
+    # _eel vr, yr to get And(And(RA(vr),App(vr,m,yr)), OrdPair(q,m,yr))
+    in_mm_w = In(mm, w)
+    phi_mq = phi(mm, qv)
+    and_in_phi = And(in_mm_w, phi_mq)
+    got_phi = apply_thm(and_elim_right(in_mm_w, phi_mq, []), [],
+        and_in_phi, phi_mq, Proof(Sequent([and_in_phi], [and_in_phi]), 'axiom', principal=and_in_phi))
+    # Cut with got_ex_m via _eel:
+    got_ex_m2 = _eel(got_ex_m, and_in_phi, mm)  # wait, need to unpack Exists(m,...) first
+    # Actually: _eel removes and_in_phi from left, adds Exists(mm, and_in_phi).
+    # But and_in_phi isn't on the left yet. got_ex_m has Exists(mm, and_in_phi) on the RIGHT.
+    # I need to move it to the left. Use cut:
+    # From got_ex_m: [char_h, in_q_h] |- Exists(mm, and_in_phi)
+    # I want to USE this Exists on the left of a proof that derives the goal.
+
+    # Better approach: work from the INSIDE. Assume the unpacked components, derive the goal,
+    # then _eel to close.
+
+    # Assume: [char_h, in_q_h, RA(vr), App(vr,mm,yr), OrdPair(qv,mm,yr)] on left.
+    ra_vr = RecApprox(vr, a, f, w)
+    app_vr = Apply(vr, mm, yr)
+    ordp_qmy = OrdPair(qv, mm, yr)
+    and_ra_app = And(ra_vr, app_vr)
+    and_inner = And(and_ra_app, ordp_qmy)
+
+    # tuple_injection: OrdPair(q,n,y) ∧ OrdPair(q,m,y') ∧ Eq(q,q) -> And(Eq(n,m), Eq(y,y'))
+    ti = tuple_injection()
+    er = eq_reflexive()
+    got_eq_qq = apply_thm(er, [qv], concl=Eq(qv, qv))
+    got_ti = apply_thm(ti, [n, y, mm, yr, qv], ordp_q,
+        Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr)))),
+        ax(ordp_q))
+    got_ti = mp(got_ti, ax(ordp_qmy), ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
+    got_ti = mp(got_ti, got_eq_qq, Eq(qv, qv), And(Eq(n, mm), Eq(y, yr)))
+    # got_ti: [ordp_q, ordp_qmy] |- And(Eq(n,m), Eq(y,y'))
+
+    # Extract Eq(n,m) and Eq(y,y'):
+    got_eq_nm = apply_thm(and_elim_left(Eq(n, mm), Eq(y, yr), []), [],
+        And(Eq(n, mm), Eq(y, yr)), Eq(n, mm), ax(And(Eq(n, mm), Eq(y, yr))))
+    got_eq_nm = Proof(Sequent(got_ti.sequent.left, [Eq(n, mm)]), 'cut',
+        [wr(got_ti, Eq(n, mm)), wl(got_eq_nm, *got_ti.sequent.left)],
+        principal=And(Eq(n, mm), Eq(y, yr)))
+    got_eq_yy = apply_thm(and_elim_right(Eq(n, mm), Eq(y, yr), []), [],
+        And(Eq(n, mm), Eq(y, yr)), Eq(y, yr),
+        Proof(Sequent([And(Eq(n, mm), Eq(y, yr))], [And(Eq(n, mm), Eq(y, yr))]),
+              'axiom', principal=And(Eq(n, mm), Eq(y, yr))))
+    got_eq_yy = Proof(Sequent(got_ti.sequent.left, [Eq(y, yr)]), 'cut',
+        [wr(got_ti, Eq(y, yr)), wl(got_eq_yy, *got_ti.sequent.left)],
+        principal=And(Eq(n, mm), Eq(y, yr)))
+
+    # Transfer: App(vr, mm, yr) -> App(vr, n, yr) via eq_symmetric + eq_apply_transfer
+    # Eq(n,mm) -> eq_sym -> Eq(mm,n). eq_apply_transfer: Eq(mm,n) -> App(vr,mm,yr) -> App(vr,n,yr)
+    es = eq_symmetric()
+    eat = eq_apply_transfer()
+    eavt = eq_apply_val_transfer()
+    got_eq_mn = apply_thm(es, [n, mm], Eq(n, mm), Eq(mm, n), got_eq_nm)
+    got_app_n = apply_thm(eat, [vr, mm, n, yr], Eq(mm, n),
+        Implies(app_vr, Apply(vr, n, yr)), got_eq_mn)
+    got_app_n = mp(got_app_n, ax(app_vr), app_vr, Apply(vr, n, yr))
+
+    # Transfer: App(vr, n, yr) -> App(vr, n, y) via Eq(yr,y)
+    # Eq(y,yr) -> eq_sym -> Eq(yr,y). eq_apply_val_transfer: Eq(yr,y) -> App(vr,n,yr) -> App(vr,n,y)
+    got_eq_ry = apply_thm(es, [y, yr], Eq(y, yr), Eq(yr, y), got_eq_yy)
+    got_app_ny = apply_thm(eavt, [vr, n, yr, y], Eq(yr, y),
+        Implies(Apply(vr, n, yr), app_vv), got_eq_ry)
+    # Wait, app_vv = Apply(vv, n, y) uses vv, not vr. I need Apply(vr, n, y).
+    app_vr_ny = Apply(vr, n, y)
+    got_app_ny = apply_thm(eavt, [vr, n, yr, y], Eq(yr, y),
+        Implies(Apply(vr, n, yr), app_vr_ny), got_eq_ry)
+    got_app_ny = mp(got_app_ny, got_app_n, Apply(vr, n, yr), app_vr_ny)
+    # got_app_ny: [ordp_q, ordp_qmy, app_vr] |- Apply(vr, n, y)
+
+    # Package: And(RA(vr), Apply(vr,n,y)) -> Exists(vv, And(RA(vv), Apply(vv,n,y)))
+    and_result = And(ra_vr, app_vr_ny)
+    ai = and_intro(ra_vr, app_vr_ny, [])
+    got_and = mp(apply_thm(ai, [], ra_vr, Implies(app_vr_ny, and_result), ax(ra_vr)),
+        got_app_ny, app_vr_ny, and_result)
+    got_goal = _eir(got_and, And(RecApprox(vv, a, f, w), Apply(vv, n, y)), vv, vr)
+    # got_goal: [ordp_q, ordp_qmy, app_vr, ra_vr] |- goal
+
+    # Package ordp_qmy, app_vr, ra_vr back into and_inner, _eel yr, vr, then and_in_phi, _eel mm
+    got_ra_app_from = apply_thm(and_elim_left(and_ra_app, ordp_qmy, []), [], and_inner, and_ra_app, ax(and_inner))
+    got_ra_from = apply_thm(and_elim_left(ra_vr, app_vr, []), [], and_ra_app, ra_vr, ax(and_ra_app))
+    got_app_from = apply_thm(and_elim_right(ra_vr, app_vr, []), [], and_ra_app, app_vr,
+        Proof(Sequent([and_ra_app], [and_ra_app]), 'axiom', principal=and_ra_app))
+    got_ordp_from = apply_thm(and_elim_right(and_ra_app, ordp_qmy, []), [], and_inner, ordp_qmy,
+        Proof(Sequent([and_inner], [and_inner]), 'axiom', principal=and_inner))
+    # Chain all from and_inner:
+    got_ra_full = Proof(Sequent([and_inner], [ra_vr]), 'cut',
+        [wr(got_ra_app_from, ra_vr), wl(got_ra_from, and_inner)], principal=and_ra_app)
+    got_app_full = Proof(Sequent([and_inner], [app_vr]), 'cut',
+        [wr(got_ra_app_from, app_vr), wl(got_app_from, and_inner)], principal=and_ra_app)
+
+    cur = got_goal
+    for (pred, got_pred) in [(ra_vr, got_ra_full), (app_vr, got_app_full), (ordp_qmy, got_ordp_from)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_inner, g) for g in c_left):
+            c_left = c_left + [and_inner]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, [goal]), 'cut', [wr(br1, goal), br2], principal=pred)
+
+    # _eel yr, vr from and_inner:
+    cur = _eel(cur, and_inner, yr)
+    ex_yr = cur.sequent.left[-1]
+    cur = _eel(cur, ex_yr, vr)
+    # Now phi(mm, qv) is on the left
+
+    # Package with In(mm,w) into and_in_phi, _eel mm:
+    phi_actual = cur.sequent.left[-1]
+    got_in_from = apply_thm(and_elim_left(in_mm_w, phi_mq, []), [], and_in_phi, in_mm_w, ax(and_in_phi))
+    got_phi_from = apply_thm(and_elim_right(in_mm_w, phi_mq, []), [], and_in_phi, phi_mq,
+        Proof(Sequent([and_in_phi], [and_in_phi]), 'axiom', principal=and_in_phi))
+    # We don't need in_mm_w (it's not used in our proof). Just need phi from and_in_phi.
+    # But we have phi on the left already. We need to replace it with and_in_phi then _eel mm.
+    # Actually, In(mm,w) IS used... no, our proof doesn't use it.
+    # We have phi_actual on the left. We need Exists(mm, and_in_phi) which = Exists(mm, And(In(mm,w), phi)).
+    # Since we have phi and not and_in_phi, we need to weaken with In(mm,w) somehow.
+    # Actually, the _eel chain put Exists(vr, Exists(yr, and_inner)) = phi(mm,qv) on left.
+    # We need And(In(mm,w), phi(mm,qv)) on left for _eel mm.
+    # But In(mm,w) isn't on our left! It was lost in the unpacking.
+
+    # Fix: keep In(mm,w) from the And(In(mm,w), phi(mm,qv)) structure.
+    # Better: replace phi_actual with and_in_phi, then _eel mm.
+    # and_in_phi = And(in_mm_w, phi_mq). got_phi_from: [and_in_phi] |- phi_mq.
+    # Cut phi_actual (= phi_mq) with and_in_phi:
+    c_left = [f_ for f_ in cur.sequent.left if f_ is not phi_actual]
+    c_left = c_left + [and_in_phi]
+    br1 = got_phi_from
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(c_left, [goal]), 'cut', [wr(br1, goal), br2], principal=phi_actual)
+
+    cur = _eel(cur, and_in_phi, mm)
+    # Now Exists(mm, and_in_phi) is on the left. Cut with got_ex_m:
+    ex_m_actual = cur.sequent.left[-1]
+    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_m_actual)]
+    br1 = got_ex_m
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(list(br1.sequent.left), [goal]), 'cut',
+        [wr(br1, goal), br2], principal=ex_m_actual)
+
+    # Now replace ordp_q and in_q_h with and_ord_in from Apply(h,n,y):
+    got_ordp_h = apply_thm(and_elim_left(ordp_q, in_q_h, []), [], and_ord_in, ordp_q, ax(and_ord_in))
+    got_in_h = apply_thm(and_elim_right(ordp_q, in_q_h, []), [], and_ord_in, in_q_h,
+        Proof(Sequent([and_ord_in], [and_ord_in]), 'axiom', principal=and_ord_in))
+    for (pred, got_pred) in [(ordp_q, got_ordp_h), (in_q_h, got_in_h)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_ord_in, g) for g in c_left):
+            c_left = c_left + [and_ord_in]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, [goal]), 'cut', [wr(br1, goal), br2], principal=pred)
+    cur = _eel(cur, and_ord_in, qv)
+    # Exists(qv, And(OrdPair(qv,n,y), In(qv,h))) = Apply(h,n,y) is on the left
+
+    # Remove duplicate Apply(h,n,y) if any (same pattern as rec_h_apply):
+    app_h_eel = cur.sequent.left[-1]
+    # Only one copy should exist since we didn't use ax(app_h)
+
+    # Discharge and close
+    proof = cur
+    for hh in [app_h_eel, in_n_w, char_h]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [y, n, w, f, a, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'rec_h_apply_fwd'
+    return proof
+
+
 def recursion_theorem():
-    """Theorem 4.2.14 (existence part): the recursive function exists.
+    """Theorem 4.2.14 (PARTIAL - not the book's full version).
+    Missing: Function(h), step condition h(S(n))=f(h(n)), uniqueness.
+    Currently only proves existence with base h(0)=a + backward bridge.
     Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w, e.
       Function(f) -> (exists z. Apply(f,a,z)) ->
       (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
