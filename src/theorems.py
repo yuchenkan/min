@@ -10299,6 +10299,192 @@ def rec_exists():
     return proof
 
 
+def rec_value():
+    """For each n in omega, there exists a unique RecApprox value.
+    Ext, Inf, Sep, Pairing, Union, Reg |- forall a, f, w, n, y1, y2.
+      Function(f) -> (exists z. Apply(f,a,z)) ->
+      (forall y,z. Apply(f,y,z) -> exists w. Apply(f,z,w)) ->
+      Omega(w) -> In(n,w) ->
+      (exists v. And(RecApprox(v,a,f,w), Apply(v,n,y1))) ->
+      (exists v. And(RecApprox(v,a,f,w), Apply(v,n,y2))) ->
+      Eq(y1,y2)
+    Combines rec_exists (existence) and rec_agree (agreement)."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, RecApprox
+
+    a, f, w, n, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
+    v1, v2 = Var(), Var()
+    func_f = FuncDef(f)
+    omega_w = Omega(w)
+    in_n_w = In(n, w)
+    zfa = Var()
+    f_at_a = Exists(zfa, Apply(f, a, zfa))
+    yrf, zrf, wrf = Var(), Var(), Var()
+    ran_f_closed = Forall(yrf, Forall(zrf,
+        Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
+
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # rec_agree: Function(f) -> Omega(w) -> In(n,w) ->
+    #   RecApprox(v1,...) -> RecApprox(v2,...) -> Apply(v1,n,y1) -> Apply(v2,n,y2) -> Eq(y1,y2)
+    ra = rec_agree()
+    ra1 = RecApprox(v1, a, f, w)
+    ra2 = RecApprox(v2, a, f, w)
+    app1 = Apply(v1, n, y1)
+    app2 = Apply(v2, n, y2)
+
+    # Peel rec_agree completely manually: _fl + cut for foralls, mp for implies
+    body4 = Implies(ra1, Implies(ra2, Implies(app1, Implies(app2, Eq(y1, y2)))))
+    body_q = Forall(v1, Forall(v2, Forall(y1, Forall(y2, body4))))
+    body_omega = Implies(omega_w, body_q)
+    body_func = Implies(func_f, body_omega)
+    body_in = Implies(in_n_w, body_func)
+    fa_n = Forall(n, body_in)
+    fa_w = Forall(w, fa_n)
+    fa_f = Forall(f, fa_w)
+    fa_a = Forall(a, fa_f)
+
+    # Peel outer foralls one at a time using the ACTUAL rec_agree formula
+    ra_f = ra.sequent.right[0]
+    ra_ctx = list(ra.sequent.left)
+    # _fl on ra_f (the actual formula) to get fa_f body
+    fl_a = _fl(ra_f, fa_f, a)
+    got_ra_cur = Proof(Sequent(ra_ctx, [fa_f]), 'cut',
+        [wr(ra, fa_f), wl(fl_a, *ra_ctx)], principal=ra_f)
+    fl_f = _fl(fa_f, fa_w, f)
+    got_ra_cur = Proof(Sequent(ra_ctx, [fa_w]), 'cut',
+        [wr(got_ra_cur, fa_w), wl(fl_f, *ra_ctx)], principal=fa_f)
+    fl_w = _fl(fa_w, fa_n, w)
+    got_ra_cur = Proof(Sequent(ra_ctx, [fa_n]), 'cut',
+        [wr(got_ra_cur, fa_n), wl(fl_w, *ra_ctx)], principal=fa_w)
+    fl_n = _fl(fa_n, body_in, n)
+    got_ra_cur = Proof(Sequent(ra_ctx, [body_in]), 'cut',
+        [wr(got_ra_cur, body_in), wl(fl_n, *ra_ctx)], principal=fa_n)
+    # MP with In(n,w), func_f, omega_w:
+    got_ra_cur = mp(got_ra_cur, ax(in_n_w), in_n_w, body_func)
+    got_ra_cur = mp(got_ra_cur, ax(func_f), func_f, body_omega)
+    got_ra_cur = mp(got_ra_cur, ax(omega_w), omega_w, body_q)
+    # Peel inner foralls:
+    body3 = Forall(y2, body4)
+    body2 = Forall(y1, body3)
+    body1 = Forall(v2, body2)
+    fl_v1 = _fl(body_q, body1, v1)
+    got_ra_cur = Proof(Sequent(got_ra_cur.sequent.left, [body1]), 'cut',
+        [wr(got_ra_cur, body1), wl(fl_v1, *got_ra_cur.sequent.left)], principal=body_q)
+    fl_v2 = _fl(body1, body2, v2)
+    got_ra_cur = Proof(Sequent(got_ra_cur.sequent.left, [body2]), 'cut',
+        [wr(got_ra_cur, body2), wl(fl_v2, *got_ra_cur.sequent.left)], principal=body1)
+    fl_y1 = _fl(body2, body3, y1)
+    got_ra_cur = Proof(Sequent(got_ra_cur.sequent.left, [body3]), 'cut',
+        [wr(got_ra_cur, body3), wl(fl_y1, *got_ra_cur.sequent.left)], principal=body2)
+    fl_y2 = _fl(body3, body4, y2)
+    got_ra_cur = Proof(Sequent(got_ra_cur.sequent.left, [body4]), 'cut',
+        [wr(got_ra_cur, body4), wl(fl_y2, *got_ra_cur.sequent.left)], principal=body3)
+    got_ra = got_ra_cur
+    # Hmm, the peeling doesn't work like this because inner_body uses specific var names.
+    # Let me do it differently: peel all at once since they're consecutive foralls.
+
+    # Actually, the peeling works because after peeling v1, the body still has Forall(v2,...).
+    # Let me redo:
+    body4 = Implies(ra1, Implies(ra2, Implies(app1, Implies(app2, Eq(y1, y2)))))
+    body3 = Forall(y2, body4)
+    body2 = Forall(y1, body3)
+    body1 = Forall(v2, body2)
+    body0 = Forall(v1, body1)
+    # got_ra has body0 on the right. Peel to body4:
+    for (outer, inner, var) in [(body0, body1, v1), (body1, body2, v2), (body2, body3, y1), (body3, body4, y2)]:
+        fl_var = _fl(outer, inner, var)
+        got_ra = Proof(Sequent(got_ra.sequent.left, [inner]), 'cut',
+            [wr(got_ra, inner), wl(fl_var, *got_ra.sequent.left)], principal=outer)
+
+    # MP with ra1, ra2, app1, app2:
+    got_ra = mp(got_ra, ax(ra1), ra1, Implies(ra2, Implies(app1, Implies(app2, Eq(y1, y2)))))
+    got_ra = mp(got_ra, ax(ra2), ra2, Implies(app1, Implies(app2, Eq(y1, y2))))
+    got_ra = mp(got_ra, ax(app1), app1, Implies(app2, Eq(y1, y2)))
+    got_ra = mp(got_ra, ax(app2), app2, Eq(y1, y2))
+    # got_ra: [in_n_w, func_f, omega_w, ra1, ra2, app1, app2, Ext, Inf, Sep] |- Eq(y1, y2)
+
+    # Combine ra1 + app1 into And, eel v1:
+    and_ra1 = And(ra1, app1)
+    got_ra1_from_and = apply_thm(and_elim_left(ra1, app1, []), [], and_ra1, ra1, ax(and_ra1))
+    got_app1_from_and = apply_thm(and_elim_right(ra1, app1, []), [], and_ra1, app1,
+        Proof(Sequent([and_ra1], [and_ra1]), 'axiom', principal=and_ra1))
+    cur = got_ra
+    for (pred, got) in [(ra1, got_ra1_from_and), (app1, got_app1_from_and)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_ra1, g) for g in c_left):
+            c_left = c_left + [and_ra1]
+        br1 = got
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
+            [wr(br1, Eq(y1, y2)), br2], principal=pred)
+    cur = _eel(cur, and_ra1, v1)
+    ex_v1 = cur.sequent.left[-1]  # Exists(v1, And(RA1, App1))
+
+    # Similarly for ra2 + app2 into And, eel v2:
+    and_ra2 = And(ra2, app2)
+    got_ra2_from_and = apply_thm(and_elim_left(ra2, app2, []), [], and_ra2, ra2, ax(and_ra2))
+    got_app2_from_and = apply_thm(and_elim_right(ra2, app2, []), [], and_ra2, app2,
+        Proof(Sequent([and_ra2], [and_ra2]), 'axiom', principal=and_ra2))
+    for (pred, got) in [(ra2, got_ra2_from_and), (app2, got_app2_from_and)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_ra2, g) for g in c_left):
+            c_left = c_left + [and_ra2]
+        br1 = got
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
+            [wr(br1, Eq(y1, y2)), br2], principal=pred)
+    cur = _eel(cur, and_ra2, v2)
+    # cur: [in_n_w, func_f, omega_w, Exists(v1,...), Exists(v2,...), Ext, Inf, Sep] |- Eq(y1,y2)
+
+    # Discharge and close
+    proof = cur
+    ex_v2 = cur.sequent.left[-1]
+    ex_v1_actual = [f_ for f_ in cur.sequent.left if same(f_, ex_v1)][0]
+    for h in [ex_v2, ex_v1_actual, omega_w, ran_f_closed, f_at_a, func_f]:
+        if any(same(h, g) for g in proof.sequent.left):
+            imp_h = Implies(h, proof.sequent.right[0])
+            remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    # Discharge In(n,w)
+    for f_ in list(proof.sequent.left):
+        if isinstance(f_, In) and same(f_.right, w):
+            imp_h = Implies(f_, proof.sequent.right[0])
+            remaining = [g for g in proof.sequent.left if not same(g, f_)]
+            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+            break
+    for var in [y2, y1, n, w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'rec_value'
+    return proof
+
+
 def recursion_theorem():
     """Theorem 4.2.14: the recursion theorem.
     Ext, Inf, Sep, Pairing, Union, Rep |- forall a, f, w.
