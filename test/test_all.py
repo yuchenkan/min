@@ -84,6 +84,7 @@ if __name__ == '__main__':
         ('apply_union_elim', theorems.apply_union_elim()),
         ('rec_exists_step', theorems.rec_exists_step()),
         ('rec_exists', theorems.rec_exists()),
+        ('ordpair_unique', theorems.ordpair_unique()),
         ('rec_value', theorems.rec_value()),
         ('singleton_is_recapprox', theorems.singleton_is_recapprox()),
     ]
