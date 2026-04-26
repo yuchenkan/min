@@ -6578,6 +6578,488 @@ def eq_apply_transfer():
     return proof
 
 
+def extend_function():
+    """|- forall v, s, p, x0, y0, u.
+       Function(v) -> OrdPair(p, x0, y0) -> Singleton(s, p) -> Union(u, v, s) ->
+       (forall z. Apply(v, x0, z) -> Eq(y0, z)) -> Function(u)
+    Extending a function with a consistent singleton preserves Function."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import (Function as FuncDef, Apply, Singleton, PairSet,
+                             Relation, Union as UnionDef)
+
+    v, s, p, x0, y0, u = Var(), Var(), Var(), Var(), Var(), Var()
+    func_v = FuncDef(v)
+    ordp = OrdPair(p, x0, y0)
+    sing_s = Singleton(s, p)
+    union_u = UnionDef(u, v, s)
+    zz = Var()
+    consistency = Forall(zz, Implies(Apply(v, x0, zz), Eq(y0, zz)))
+    goal = FuncDef(u)
+
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+    hyps = [func_v, ordp, sing_s, union_u, consistency]
+
+    # === RELATION(u) ===
+    # forall z. In(z,u) -> exists x,y. OrdPair(z,x,y)
+    # In(z,u) -> Or(In(z,v), In(z,s)) via Union.
+    # Case In(z,v): Relation(v) gives exists x,y. OrdPair(z,x,y)
+    # Case In(z,s): Singleton -> Eq(z,p). ordpair_eq_transfer: OrdPair(z,x0,y0). Exists intro.
+    zr, xr, yr = Var(), Var(), Var()
+    rel_goal = Exists(xr, Exists(yr, OrdPair(zr, xr, yr)))
+
+    # Extract Relation(v) from Function(v)
+    rel_v = Relation(v)
+    xv_sv, ya_sv, yb_sv = Var(), Var(), Var()
+    sv_v = Forall(xv_sv, Forall(ya_sv, Forall(yb_sv,
+        Implies(And(Apply(v, xv_sv, ya_sv), Apply(v, xv_sv, yb_sv)), Eq(ya_sv, yb_sv)))))
+    got_rel_v = apply_thm(and_elim_left(rel_v, sv_v, []), [], func_v, rel_v, ax(func_v))
+    # got_rel_v: [func_v] |- Relation(v)
+
+    # Case In(zr, v): Relation(v) -> In(zr,v) -> exists x,y. OrdPair(zr,x,y)
+    rel_body = Implies(In(zr, v), Exists(xr, Exists(yr, OrdPair(zr, xr, yr))))
+    got_rel_inst = Proof(Sequent(got_rel_v.sequent.left, [rel_body]), 'cut',
+        [wr(got_rel_v, rel_body), wl(_fl(rel_v, rel_body, zr), *got_rel_v.sequent.left)],
+        principal=rel_v)
+    got_case_v = mp(got_rel_inst, ax(In(zr, v)), In(zr, v), rel_goal)
+    # got_case_v: [func_v, In(zr, v)] |- rel_goal
+
+    # Case In(zr, s): Singleton -> Eq(zr,p), ordpair_eq_transfer -> OrdPair(zr,x0,y0)
+    iff_sing = Iff(In(zr, s), Eq(zr, p))
+    fl_sing = _fl(sing_s, iff_sing, zr)
+    got_eq_zr_p = mp(iff_mp(In(zr, s), Eq(zr, p), []), fl_sing, iff_sing,
+        Implies(In(zr, s), Eq(zr, p)))
+    got_eq = mp(got_eq_zr_p, ax(In(zr, s)), In(zr, s), Eq(zr, p))
+    # got_eq: [sing_s, In(zr,s)] |- Eq(zr, p)
+
+    oet = ordpair_eq_transfer()
+    got_ordz = apply_thm(oet, [p, zr, x0, y0], Eq(zr, p),
+        Implies(ordp, OrdPair(zr, x0, y0)), got_eq)
+    got_ordz2 = mp(got_ordz, ax(ordp), ordp, OrdPair(zr, x0, y0))
+    # got_ordz2: [sing_s, In(zr,s), ordp] |- OrdPair(zr, x0, y0)
+
+    got_ex_yr = _eir(got_ordz2, OrdPair(zr, x0, yr), yr, y0)
+    got_ex_xr = _eir(got_ex_yr, Exists(yr, OrdPair(zr, xr, yr)), xr, x0)
+    # got_case_s: [sing_s, In(zr,s), ordp] |- rel_goal
+
+    # Or_elim: Or(In(zr,v), In(zr,s)) -> rel_goal
+    in_zr_v = In(zr, v)
+    in_zr_s = In(zr, s)
+    or_in = Or(in_zr_v, in_zr_s)
+    iff_u = Iff(In(zr, u), or_in)
+    fl_u = _fl(union_u, iff_u, zr)
+    got_or = mp(iff_mp(In(zr, u), or_in, []), fl_u, iff_u, Implies(In(zr, u), or_in))
+    got_or2 = mp(got_or, ax(In(zr, u)), In(zr, u), or_in)
+    # got_or2: [union_u, In(zr,u)] |- Or(In(zr,v), In(zr,s))
+
+    oe = or_elim(in_zr_v, in_zr_s, rel_goal, [])
+    imp_v = Implies(in_zr_v, rel_goal)
+    imp_s = Implies(in_zr_s, rel_goal)
+    rem_v = [f_ for f_ in got_case_v.sequent.left if not same(f_, in_zr_v)]
+    got_imp_v = Proof(Sequent(rem_v, [imp_v]), 'implies_right', [got_case_v], principal=imp_v)
+    rem_s = [f_ for f_ in got_ex_xr.sequent.left if not same(f_, in_zr_s)]
+    got_imp_s = Proof(Sequent(rem_s, [imp_s]), 'implies_right', [got_ex_xr], principal=imp_s)
+
+    got_oe = mp(oe, got_or2, or_in, Implies(imp_v, Implies(imp_s, rel_goal)))
+    got_oe2 = mp(got_oe, got_imp_v, imp_v, Implies(imp_s, rel_goal))
+    got_rel_u = mp(got_oe2, got_imp_s, imp_s, rel_goal)
+    # got_rel_u: [union_u, In(zr,u), func_v, sing_s, ordp] |- rel_goal
+
+    imp_in_u = Implies(In(zr, u), rel_goal)
+    rem_inu = [f_ for f_ in got_rel_u.sequent.left if not same(f_, In(zr, u))]
+    proof_rel = Proof(Sequent(rem_inu, [imp_in_u]), 'implies_right', [got_rel_u], principal=imp_in_u)
+    fa_rel = Forall(zr, imp_in_u)
+    proof_rel = Proof(Sequent(rem_inu, [fa_rel]), 'forall_right', [proof_rel], principal=fa_rel, term=zr)
+    # proof_rel: [union_u, func_v, sing_s, ordp] |- Relation(u)
+
+    # === SINGLE-VALUED(u) ===
+    # forall x,y1,y2. And(Apply(u,x,y1), Apply(u,x,y2)) -> Eq(y1,y2)
+    # From apply_union_elim: Apply(u,x,yi) -> Or(Apply(v,x,yi), Apply(s,x,yi))
+    # 4 cases via nested or_elim.
+    xsv, y1, y2 = Var(), Var(), Var()
+    app_u1 = Apply(u, xsv, y1)
+    app_u2 = Apply(u, xsv, y2)
+    app_v1 = Apply(v, xsv, y1)
+    app_v2 = Apply(v, xsv, y2)
+    app_s1 = Apply(s, xsv, y1)
+    app_s2 = Apply(s, xsv, y2)
+    eq_goal = Eq(y1, y2)
+
+    es = eq_symmetric()
+    et = eq_transitive()
+    fu = func_unique_thm()
+    sae = singleton_apply_eq()
+    eat = eq_apply_transfer()
+    auel = apply_union_elim()
+
+    # Get Or cases from Apply(u,x,y1) and Apply(u,x,y2)
+    got_or1 = apply_thm(auel, [u, v, s, xsv, y1], union_u,
+        Implies(app_u1, Or(app_v1, app_s1)), ax(union_u))
+    got_or1b = mp(got_or1, ax(app_u1), app_u1, Or(app_v1, app_s1))
+    got_or2 = apply_thm(auel, [u, v, s, xsv, y2], union_u,
+        Implies(app_u2, Or(app_v2, app_s2)), ax(union_u))
+    got_or2b = mp(got_or2, ax(app_u2), app_u2, Or(app_v2, app_s2))
+    # got_or1b: [union_u, app_u1] |- Or(app_v1, app_s1)
+    # got_or2b: [union_u, app_u2] |- Or(app_v2, app_s2)
+
+    # --- Case (a): app_v1, app_v2 -> Eq(y1,y2) via func_unique ---
+    got_a = apply_thm(fu, [v, xsv, y1, y2], func_v,
+        Implies(app_v1, Implies(app_v2, eq_goal)), ax(func_v))
+    got_a2 = mp(mp(got_a, ax(app_v1), app_v1, Implies(app_v2, eq_goal)),
+        ax(app_v2), app_v2, eq_goal)
+    # got_a2: [func_v, app_v1, app_v2] |- Eq(y1,y2)
+
+    # --- Helper: from Apply(s,x,yi) get Eq(x0,x) and Eq(y0,yi) ---
+    def get_sae_eqs(yi):
+        app_si = Apply(s, xsv, yi)
+        and_eq = And(Eq(x0, xsv), Eq(y0, yi))
+        g = apply_thm(sae, [x0, y0, p, s, xsv, yi], ordp,
+            Implies(sing_s, Implies(app_si, and_eq)), ax(ordp))
+        g2 = mp(g, ax(sing_s), sing_s, Implies(app_si, and_eq))
+        return mp(g2, ax(app_si), app_si, and_eq)
+    # Returns: [ordp, sing_s, Apply(s,x,yi)] |- And(Eq(x0,x), Eq(y0,yi))
+
+    # --- Case (b): app_s1, app_s2 -> Eq(y1,y2) ---
+    # Eq(y0,y1) and Eq(y0,y2). eq_sym + eq_trans -> Eq(y1,y2)
+    got_eqs1 = get_sae_eqs(y1)
+    got_eqs2 = get_sae_eqs(y2)
+    and1 = And(Eq(x0, xsv), Eq(y0, y1))
+    and2 = And(Eq(x0, xsv), Eq(y0, y2))
+    got_y0_y1 = apply_thm(and_elim_right(Eq(x0, xsv), Eq(y0, y1), []), [],
+        and1, Eq(y0, y1), ax(and1))
+    got_y0_y2 = apply_thm(and_elim_right(Eq(x0, xsv), Eq(y0, y2), []), [],
+        and2, Eq(y0, y2), ax(and2))
+    # Cut: replace and1 with got_eqs1
+    got_y0_y1b = Proof(Sequent(got_eqs1.sequent.left, [Eq(y0, y1)]), 'cut',
+        [wr(got_eqs1, Eq(y0, y1)), wl(got_y0_y1, *got_eqs1.sequent.left)], principal=and1)
+    got_y0_y2b = Proof(Sequent(got_eqs2.sequent.left, [Eq(y0, y2)]), 'cut',
+        [wr(got_eqs2, Eq(y0, y2)), wl(got_y0_y2, *got_eqs2.sequent.left)], principal=and2)
+    got_y1_y0 = apply_thm(es, [y0, y1], Eq(y0, y1), Eq(y1, y0), got_y0_y1b)
+    got_b = apply_thm(et, [y1, y0, y2], Eq(y1, y0), Implies(Eq(y0, y2), eq_goal), got_y1_y0)
+    got_b2 = mp(got_b, got_y0_y2b, Eq(y0, y2), eq_goal)
+    # got_b2: [ordp, sing_s, app_s1, ordp, sing_s, app_s2] |- Eq(y1,y2)
+
+    # --- Case (c): app_v1, app_s2 -> Eq(y1,y2) ---
+    # From sae on app_s2: Eq(x0,x) and Eq(y0,y2).
+    # eq_sym: Eq(x0,x)->Eq(x,x0). eq_apply_transfer: Apply(v,x,y1)->Apply(v,x0,y1).
+    # consistency: Apply(v,x0,y1)->Eq(y0,y1). eq_sym: Eq(y0,y1)->Eq(y1,y0).
+    # eq_trans: Eq(y1,y0)+Eq(y0,y2)->Eq(y1,y2).
+    got_eqs_c = get_sae_eqs(y2)
+    and_c = And(Eq(x0, xsv), Eq(y0, y2))
+    got_x0_x = apply_thm(and_elim_left(Eq(x0, xsv), Eq(y0, y2), []), [],
+        and_c, Eq(x0, xsv), ax(and_c))
+    got_y0_y2c = apply_thm(and_elim_right(Eq(x0, xsv), Eq(y0, y2), []), [],
+        and_c, Eq(y0, y2), Proof(Sequent([and_c], [and_c]), 'axiom', principal=and_c))
+    # Cut and_c with got_eqs_c
+    got_x0_xb = Proof(Sequent(got_eqs_c.sequent.left, [Eq(x0, xsv)]), 'cut',
+        [wr(got_eqs_c, Eq(x0, xsv)), wl(got_x0_x, *got_eqs_c.sequent.left)], principal=and_c)
+    got_y0_y2cb = Proof(Sequent(got_eqs_c.sequent.left, [Eq(y0, y2)]), 'cut',
+        [wr(got_eqs_c, Eq(y0, y2)), wl(got_y0_y2c, *got_eqs_c.sequent.left)], principal=and_c)
+    got_x_x0 = apply_thm(es, [x0, xsv], Eq(x0, xsv), Eq(xsv, x0), got_x0_xb)
+    got_app_v_x0 = apply_thm(eat, [v, xsv, x0, y1], Eq(xsv, x0),
+        Implies(app_v1, Apply(v, x0, y1)), got_x_x0)
+    got_app_v_x0b = mp(got_app_v_x0, ax(app_v1), app_v1, Apply(v, x0, y1))
+    # Apply consistency
+    cons_inst = Implies(Apply(v, x0, y1), Eq(y0, y1))
+    got_cons = _fl(consistency, cons_inst, y1)
+    got_y0_y1c = mp(got_cons, got_app_v_x0b, Apply(v, x0, y1), Eq(y0, y1))
+    got_y1_y0c = apply_thm(es, [y0, y1], Eq(y0, y1), Eq(y1, y0), got_y0_y1c)
+    got_c = apply_thm(et, [y1, y0, y2], Eq(y1, y0), Implies(Eq(y0, y2), eq_goal), got_y1_y0c)
+    got_c2 = mp(got_c, got_y0_y2cb, Eq(y0, y2), eq_goal)
+    # got_c2: [ordp, sing_s, app_s2, app_v1, consistency] |- Eq(y1,y2)
+
+    # --- Case (d): app_s1, app_v2 -> Eq(y1,y2) ---
+    # Similar: from sae on app_s1: Eq(x0,x) and Eq(y0,y1).
+    got_eqs_d = get_sae_eqs(y1)
+    and_d = And(Eq(x0, xsv), Eq(y0, y1))
+    got_x0_xd = apply_thm(and_elim_left(Eq(x0, xsv), Eq(y0, y1), []), [],
+        and_d, Eq(x0, xsv), ax(and_d))
+    got_y0_y1d = apply_thm(and_elim_right(Eq(x0, xsv), Eq(y0, y1), []), [],
+        and_d, Eq(y0, y1), Proof(Sequent([and_d], [and_d]), 'axiom', principal=and_d))
+    got_x0_xdb = Proof(Sequent(got_eqs_d.sequent.left, [Eq(x0, xsv)]), 'cut',
+        [wr(got_eqs_d, Eq(x0, xsv)), wl(got_x0_xd, *got_eqs_d.sequent.left)], principal=and_d)
+    got_y0_y1db = Proof(Sequent(got_eqs_d.sequent.left, [Eq(y0, y1)]), 'cut',
+        [wr(got_eqs_d, Eq(y0, y1)), wl(got_y0_y1d, *got_eqs_d.sequent.left)], principal=and_d)
+    got_x_x0d = apply_thm(es, [x0, xsv], Eq(x0, xsv), Eq(xsv, x0), got_x0_xdb)
+    got_app_v_x0d = apply_thm(eat, [v, xsv, x0, y2], Eq(xsv, x0),
+        Implies(app_v2, Apply(v, x0, y2)), got_x_x0d)
+    got_app_v_x0db = mp(got_app_v_x0d, ax(app_v2), app_v2, Apply(v, x0, y2))
+    cons_inst_d = Implies(Apply(v, x0, y2), Eq(y0, y2))
+    got_cons_d = _fl(consistency, cons_inst_d, y2)
+    got_y0_y2d = mp(got_cons_d, got_app_v_x0db, Apply(v, x0, y2), Eq(y0, y2))
+    # Eq(y0,y1) and Eq(y0,y2) -> Eq(y1,y2) via sym+trans
+    got_y1_y0d = apply_thm(es, [y0, y1], Eq(y0, y1), Eq(y1, y0), got_y0_y1db)
+    got_d = apply_thm(et, [y1, y0, y2], Eq(y1, y0), Implies(Eq(y0, y2), eq_goal), got_y1_y0d)
+    got_d2 = mp(got_d, got_y0_y2d, Eq(y0, y2), eq_goal)
+    # got_d2: [ordp, sing_s, app_s1, app_v2, consistency] |- Eq(y1,y2)
+
+    # === Combine 4 cases via nested or_elim ===
+    # Inner or_elim on Or(app_v2, app_s2) for each outer case:
+    or2 = Or(app_v2, app_s2)
+    oe_inner = or_elim(app_v2, app_s2, eq_goal, [])
+
+    # Case app_v1: or_elim on Or(app_v2, app_s2) with cases (a) and (c)
+    imp_a = Implies(app_v2, eq_goal)
+    rem_a = [f_ for f_ in got_a2.sequent.left if not same(f_, app_v2)]
+    got_imp_a = Proof(Sequent(rem_a, [imp_a]), 'implies_right', [got_a2], principal=imp_a)
+    imp_c = Implies(app_s2, eq_goal)
+    rem_c = [f_ for f_ in got_c2.sequent.left if not same(f_, app_s2)]
+    got_imp_c = Proof(Sequent(rem_c, [imp_c]), 'implies_right', [got_c2], principal=imp_c)
+    got_ac1 = mp(oe_inner, wl(got_or2b, app_v1, func_v, ordp, sing_s, consistency),
+        or2, Implies(imp_a, Implies(imp_c, eq_goal)))
+    got_ac2 = mp(got_ac1, got_imp_a, imp_a, Implies(imp_c, eq_goal))
+    got_inner_v1 = mp(got_ac2, got_imp_c, imp_c, eq_goal)
+    # got_inner_v1: [union_u, app_u2, app_v1, func_v, ordp, sing_s, consistency, ...] |- eq_goal
+
+    # Case app_s1: or_elim on Or(app_v2, app_s2) with cases (d) and (b)
+    imp_d = Implies(app_v2, eq_goal)
+    rem_d = [f_ for f_ in got_d2.sequent.left if not same(f_, app_v2)]
+    got_imp_d = Proof(Sequent(rem_d, [imp_d]), 'implies_right', [got_d2], principal=imp_d)
+    imp_b = Implies(app_s2, eq_goal)
+    rem_b = [f_ for f_ in got_b2.sequent.left if not same(f_, app_s2)]
+    got_imp_b = Proof(Sequent(rem_b, [imp_b]), 'implies_right', [got_b2], principal=imp_b)
+    got_db1 = mp(oe_inner, wl(got_or2b, app_s1, ordp, sing_s, consistency),
+        or2, Implies(imp_d, Implies(imp_b, eq_goal)))
+    got_db2 = mp(got_db1, got_imp_d, imp_d, Implies(imp_b, eq_goal))
+    got_inner_s1 = mp(got_db2, got_imp_b, imp_b, eq_goal)
+    # got_inner_s1: [union_u, app_u2, app_s1, ordp, sing_s, consistency, ...] |- eq_goal
+
+    # Outer or_elim on Or(app_v1, app_s1)
+    or1 = Or(app_v1, app_s1)
+    oe_outer = or_elim(app_v1, app_s1, eq_goal, [])
+    imp_v1 = Implies(app_v1, eq_goal)
+    rem_v1 = [f_ for f_ in got_inner_v1.sequent.left if not same(f_, app_v1)]
+    got_imp_v1 = Proof(Sequent(rem_v1, [imp_v1]), 'implies_right', [got_inner_v1], principal=imp_v1)
+    imp_s1 = Implies(app_s1, eq_goal)
+    rem_s1 = [f_ for f_ in got_inner_s1.sequent.left if not same(f_, app_s1)]
+    got_imp_s1 = Proof(Sequent(rem_s1, [imp_s1]), 'implies_right', [got_inner_s1], principal=imp_s1)
+
+    got_outer1 = mp(oe_outer, wl(got_or1b, app_u2, func_v, ordp, sing_s, consistency),
+        or1, Implies(imp_v1, Implies(imp_s1, eq_goal)))
+    got_outer2 = mp(got_outer1, got_imp_v1, imp_v1, Implies(imp_s1, eq_goal))
+    got_sv_result = mp(got_outer2, got_imp_s1, imp_s1, eq_goal)
+    # got_sv_result: [union_u, app_u1, app_u2, func_v, ordp, sing_s, consistency, ...] |- Eq(y1,y2)
+
+    # Build And(app_u1, app_u2) -> Eq(y1,y2)
+    and_apps = And(app_u1, app_u2)
+    got_au1 = apply_thm(and_elim_left(app_u1, app_u2, []), [], and_apps, app_u1, ax(and_apps))
+    got_au2 = apply_thm(and_elim_right(app_u1, app_u2, []), [], and_apps, app_u2,
+        Proof(Sequent([and_apps], [and_apps]), 'axiom', principal=and_apps))
+
+    cur = got_sv_result
+    for (pred, got_pred) in [(app_u1, got_au1), (app_u2, got_au2)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_apps, g) for g in c_left):
+            c_left = c_left + [and_apps]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
+            [wr(br1, eq_goal), br2], principal=pred)
+
+    # Discharge And(app_u1,app_u2), forall close for single-valued
+    imp_sv = Implies(and_apps, eq_goal)
+    rem_sv = [f_ for f_ in cur.sequent.left if not same(f_, and_apps)]
+    proof_sv = Proof(Sequent(rem_sv, [imp_sv]), 'implies_right', [cur], principal=imp_sv)
+    for var in [y2, y1, xsv]:
+        body = proof_sv.sequent.right[0]
+        fa = Forall(var, body)
+        proof_sv = Proof(Sequent(proof_sv.sequent.left, [fa]), 'forall_right', [proof_sv], principal=fa, term=var)
+    # proof_sv: [union_u, func_v, ordp, sing_s, consistency, ...] |- single_valued(u)
+
+    # === And(Relation(u), single_valued(u)) = Function(u) ===
+    rel_formula = proof_rel.sequent.right[0]
+    sv_formula = proof_sv.sequent.right[0]
+    ai_func = and_intro(rel_formula, sv_formula, [])
+    got_func_imp = apply_thm(ai_func, [], rel_formula, Implies(sv_formula, goal), proof_rel)
+    proof_func = mp(got_func_imp, proof_sv, sv_formula, goal)
+    # proof_func: [hyps + axioms] |- Function(u)
+
+    # Discharge hypotheses, forall close
+    proof = proof_func
+    for h in [consistency, union_u, sing_s, ordp, func_v]:
+        if any(same(h, g) for g in proof.sequent.left):
+            imp_h = Implies(h, proof.sequent.right[0])
+            remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [u, y0, x0, p, s, v]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'extend_function'
+    return proof
+
+
+def ordpair_eq_transfer():
+    """|- forall p, z, x, y. Eq(z, p) -> OrdPair(p, x, y) -> OrdPair(z, x, y)
+    If z=p and p is an ordered pair <x,y>, then z is the same ordered pair."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Singleton, PairSet
+
+    p, z, x, y = Var(), Var(), Var(), Var()
+    sa, pab, wv = Var(), Var(), Var()
+    eq_zp = Eq(z, p)
+    ordp = OrdPair(p, x, y)
+    ordz = OrdPair(z, x, y)
+
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # PairSet transfer: Eq(z,p) + PS(p,sa,pab) -> PS(z,sa,pab)
+    # PS(p,...) = forall w. In(w,p) iff Or(Eq(w,sa),Eq(w,pab))
+    # Eq(z,p) = forall w. In(w,z) iff In(w,p)
+    # iff_chain: In(w,z) iff In(w,p), In(w,p) iff Or(...) -> In(w,z) iff Or(...)
+    ps_p = PairSet(p, sa, pab)
+    ps_z = PairSet(z, sa, pab)
+    or_eq = Or(Eq(wv, sa), Eq(wv, pab))
+    iff_zp = Iff(In(wv, z), In(wv, p))
+    iff_p_or = Iff(In(wv, p), or_eq)
+    iff_z_or = Iff(In(wv, z), or_eq)
+
+    fl_eq_zp = _fl(eq_zp, iff_zp, wv)
+    ct = char_transfer(In(wv, z), In(wv, p), or_eq)
+    got_ps_z_w = mp(mp(ct, fl_eq_zp, iff_zp, Implies(iff_p_or, iff_z_or)),
+        _fl(ps_p, iff_p_or, wv), iff_p_or, iff_z_or)
+    fa_ps_z = Forall(wv, iff_z_or)
+    got_ps_z = Proof(Sequent(got_ps_z_w.sequent.left, [fa_ps_z]), 'forall_right',
+        [got_ps_z_w], principal=fa_ps_z, term=wv)
+    # got_ps_z: [eq_zp, ps_p] |- PS(z, sa, pab)
+
+    # From OrdPair(p,x,y): unpack existentials to get Sing(sa,x), PS(pab,x,y), PS(p,sa,pab)
+    # Replace PS(p,...) with PS(z,...), repack to OrdPair(z,x,y)
+    sing_sa_x = Singleton(sa, x)
+    ps_pab_xy = PairSet(pab, x, y)
+    and_inner = And(ps_pab_xy, PairSet(p, sa, pab))
+    ps_z_sa_pab = PairSet(z, sa, pab)
+    and_new_inner = And(ps_pab_xy, ps_z_sa_pab)
+
+    # Build And(ps_pab_xy, ps_z_sa_pab) from ps_pab_xy + got_ps_z
+    ai_inner = and_intro(ps_pab_xy, ps_z_sa_pab, [])
+    got_ai_inner = apply_thm(ai_inner, [], ps_pab_xy, Implies(ps_z_sa_pab, and_new_inner),
+        ax(ps_pab_xy))
+    got_and_new = mp(got_ai_inner, got_ps_z, ps_z_sa_pab, and_new_inner)
+    # [ps_pab_xy, eq_zp, ps_p] |- And(ps_pab_xy, ps_z_sa_pab)
+
+    got_ex_pab = _eir(got_and_new, And(PairSet(pab, x, y), PairSet(z, sa, pab)), pab, pab)
+    ex_pab_formula = got_ex_pab.sequent.right[0]
+    and_with_sing = And(sing_sa_x, ex_pab_formula)
+    ai_outer = and_intro(sing_sa_x, ex_pab_formula, [])
+    got_ai_outer = apply_thm(ai_outer, [], sing_sa_x, Implies(ex_pab_formula, and_with_sing),
+        ax(sing_sa_x))
+    got_ord_z = mp(got_ai_outer, got_ex_pab, ex_pab_formula, and_with_sing)
+    got_ex_sa = _eir(got_ord_z, And(Singleton(sa, x), Exists(pab,
+        And(PairSet(pab, x, y), PairSet(z, sa, pab)))), sa, sa)
+    # got_ex_sa: [sing_sa_x, ps_pab_xy, eq_zp, ps_p] |- OrdPair(z, x, y)
+
+    # Replace individual components with And structure from OrdPair(p,x,y)
+    and_inner_hyp = And(ps_pab_xy, PairSet(p, sa, pab))
+    got_px_from_and = apply_thm(and_elim_left(ps_pab_xy, PairSet(p, sa, pab), []), [],
+        and_inner_hyp, ps_pab_xy, ax(and_inner_hyp))
+    got_pp_from_and = apply_thm(and_elim_right(ps_pab_xy, PairSet(p, sa, pab), []), [],
+        and_inner_hyp, PairSet(p, sa, pab),
+        Proof(Sequent([and_inner_hyp], [and_inner_hyp]), 'axiom', principal=and_inner_hyp))
+
+    cur = got_ex_sa
+    for (pred, got_pred) in [(ps_pab_xy, got_px_from_and), (PairSet(p, sa, pab), got_pp_from_and)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_inner_hyp, g) for g in c_left):
+            c_left = c_left + [and_inner_hyp]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
+            [wr(br1, cur.sequent.right[0]), br2], principal=pred)
+
+    cur = _eel(cur, and_inner_hyp, pab)
+    ex_pab_hyp = cur.sequent.left[-1]
+    and_outer_hyp = And(sing_sa_x, ex_pab_hyp)
+    got_s_from_ao = apply_thm(and_elim_left(sing_sa_x, ex_pab_hyp, []), [],
+        and_outer_hyp, sing_sa_x, ax(and_outer_hyp))
+    got_ep_from_ao = apply_thm(and_elim_right(sing_sa_x, ex_pab_hyp, []), [],
+        and_outer_hyp, ex_pab_hyp,
+        Proof(Sequent([and_outer_hyp], [and_outer_hyp]), 'axiom', principal=and_outer_hyp))
+
+    for (pred, got_pred) in [(sing_sa_x, got_s_from_ao), (ex_pab_hyp, got_ep_from_ao)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_outer_hyp, g) for g in c_left):
+            c_left = c_left + [and_outer_hyp]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
+            [wr(br1, cur.sequent.right[0]), br2], principal=pred)
+
+    cur = _eel(cur, and_outer_hyp, sa)
+    # cur: [eq_zp, OrdPair(p,x,y)] |- OrdPair(z,x,y) (alpha-equiv via exists)
+
+    # Discharge and close
+    ordp_actual = cur.sequent.left[-1]
+    proof = cur
+    for h in [ordp_actual, eq_zp]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [y, x, z, p]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'ordpair_eq_transfer'
+    return proof
+
+
 def apply_union_intro_left():
     """|- forall u, v1, v2, x, y.
        Apply(v1, x, y) -> Union(u, v1, v2) -> Apply(u, x, y)
