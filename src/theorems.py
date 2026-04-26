@@ -11535,9 +11535,278 @@ def rec_h_apply():
 
 
 def recursion_theorem():
-    """Theorem 4.2.14: the recursion theorem.
-    TODO: implement using rec_graph_exists + rec_h_apply + Recursive verification."""
-    pass
+    """Theorem 4.2.14 (existence part): the recursive function exists.
+    Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w, e.
+      Function(f) -> (exists z. Apply(f,a,z)) ->
+      (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
+      Omega(w) -> Empty(e) ->
+      exists h. And(Apply(h, e, a),
+        forall n. In(n,w) -> forall v. RecApprox(v,a,f,w) -> Apply(v,n,y) -> Apply(h,n,y))
+    The recursive function h exists and contains all RecApprox values,
+    including the base value h(0)=a."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, RecApprox
+
+    a, f, w = Var(), Var(), Var()
+    ev = Var()
+    func_f = FuncDef(f)
+    omega_w = Omega(w)
+    empty_ev = Empty(ev)
+    zfa = Var()
+    f_at_a = Exists(zfa, Apply(f, a, zfa))
+    yrf, zrf, wrf = Var(), Var(), Var()
+    ran_f_closed = Forall(yrf, Forall(zrf,
+        Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
+
+    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # === Get h from rec_graph_exists ===
+    rge = rec_graph_exists()
+    # rge: [axioms] |- forall a,f,w. Func(f)->Omega(w)->exists h. char(h)
+    # Peel a,f,w, mp Func, Omega:
+    hv = Var()
+    vr, yr, pp, mm = Var(), Var(), Var(), Var()
+    def phi(m, p):
+        return Exists(vr, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, m, yr)),
+                                         OrdPair(p, m, yr))))
+    char_h = Forall(pp, Iff(In(pp, hv), Exists(mm, And(In(mm, w), phi(mm, pp)))))
+    ex_h = Exists(hv, char_h)
+
+    got_rge = apply_thm(rge, [a, f, w], func_f, Implies(omega_w, ex_h), ax(func_f))
+    got_rge = mp(got_rge, ax(omega_w), omega_w, ex_h)
+    # got_rge: [func_f, omega_w, axioms] |- Exists(hv, char_h)
+
+    # === Get rec_h_apply ===
+    rha = rec_h_apply()
+    # rha: |- forall h,a,f,w,n,y,v. char_h -> In(n,w) -> RA(v) -> App(v,n,y) -> App(h,n,y)
+    nv, yv, vv = Var(), Var(), Var()
+    app_h_ny = Apply(hv, nv, yv)
+    app_v_ny = Apply(vv, nv, yv)
+    ra_vv = RecApprox(vv, a, f, w)
+    in_nv_w = In(nv, w)
+
+    got_rha = apply_thm(rha, [hv, a, f, w, nv, yv, vv], char_h,
+        Implies(in_nv_w, Implies(ra_vv, Implies(app_v_ny, app_h_ny))),
+        ax(char_h))
+    # got_rha: [char_h] |- In(nv,w) -> RA(vv) -> App(vv,nv,yv) -> App(hv,nv,yv)
+
+    # Discharge and close to get the "forall n,y,v" bridge:
+    proof_bridge = got_rha
+    for var in [vv, yv, nv]:
+        imp = Implies(proof_bridge.sequent.right[0].left if hasattr(proof_bridge.sequent.right[0], 'left') else None, None)
+        # Actually just close the foralls after all the implies are already there:
+        pass
+    # got_rha already has the right structure: char_h |- forall... via apply_thm.
+    # It's: [char_h] |- Implies(in_nv_w, Implies(ra_vv, Implies(app_v_ny, app_h_ny)))
+
+    # === Base: Apply(h, e, a) ===
+    # From rec_exists at e: exists v. RA(v) and Apply(v,e,y) for some y
+    # From rec_approx_zero: RA(v) and Empty(e) and Apply(v,e,y) -> Eq(y,a)
+    # So Apply(v,e,a). Then rec_h_apply: Apply(h,e,a).
+
+    re = rec_exists()
+    # re: [axioms] |- forall a,f,w,n. Func->f_at_a->ran_closed->Omega->In(n,w)->
+    #   exists v. And(RA(v), exists y. Apply(v,n,y))
+    v_base, y_base = Var(), Var()
+    ra_vb = RecApprox(v_base, a, f, w)
+    app_vb_e = Apply(v_base, ev, y_base)
+    ex_app_vb = Exists(y_base, Apply(v_base, ev, y_base))
+    and_ra_ex = And(ra_vb, ex_app_vb)
+    ex_v_base = Exists(v_base, and_ra_ex)
+
+    # Peel rec_exists: a,f,w,n=ev
+    in_ev_w = In(ev, w)
+    got_re = apply_thm(re, [a, f, w, ev], in_ev_w,
+        Implies(func_f, Implies(f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v_base)))),
+        ax(in_ev_w))
+    # Hmm, rec_exists has a different discharge order. Let me check.
+    # rec_exists: for var in [n, w, f, a] forall_right. Discharge: omega_w, ran_f_closed, f_at_a, func_f, In(n,w).
+    # Structure: Forall(a, Forall(f, Forall(w, Forall(n,
+    #   Implies(In(n,w), Implies(Func, Implies(f_at_a, Implies(ran_closed, Implies(Omega, ex_v)))))))))
+
+    # Actually I need to check rec_exists's actual formula structure. Let me just use
+    # apply_thm with 4 terms and the correct hyp/concl:
+    re_concl = Implies(func_f, Implies(f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v_base))))
+    got_re = apply_thm(re, [a, f, w, ev], in_ev_w, re_concl, ax(in_ev_w))
+    got_re = mp(got_re, ax(func_f), func_f, Implies(f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v_base))))
+    got_re = mp(got_re, ax(f_at_a), f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v_base)))
+    got_re = mp(got_re, ax(ran_f_closed), ran_f_closed, Implies(omega_w, ex_v_base))
+    got_re = mp(got_re, ax(omega_w), omega_w, ex_v_base)
+    # got_re: [in_ev_w, func_f, f_at_a, ran_f_closed, omega_w, axioms] |- Exists(v_base, And(RA, Exists(y, App)))
+
+    # Unpack: get RA(v_base) and Apply(v_base, e, y_base) on the left
+    got_ra_from = apply_thm(and_elim_left(ra_vb, ex_app_vb, []), [], and_ra_ex, ra_vb, ax(and_ra_ex))
+    got_ex_from = apply_thm(and_elim_right(ra_vb, ex_app_vb, []), [], and_ra_ex, ex_app_vb,
+        Proof(Sequent([and_ra_ex], [and_ra_ex]), 'axiom', principal=and_ra_ex))
+
+    # rec_approx_zero: RA(v) -> Empty(e) -> Apply(v,e,y) -> Eq(y,a)
+    raz = rec_approx_zero()
+    got_raz = apply_thm(raz, [v_base, a, f, w, ev, y_base], ra_vb,
+        Implies(empty_ev, Implies(app_vb_e, Eq(y_base, a))), ax(ra_vb))
+    got_raz = mp(got_raz, ax(empty_ev), empty_ev, Implies(app_vb_e, Eq(y_base, a)))
+    got_raz = mp(got_raz, ax(app_vb_e), app_vb_e, Eq(y_base, a))
+    # got_raz: [ra_vb, empty_ev, app_vb_e] |- Eq(y_base, a)
+
+    # eq_apply_val_transfer: Eq(y_base, a) -> Apply(v_base, e, y_base) -> Apply(v_base, e, a)
+    eavt = eq_apply_val_transfer()
+    got_app_ea = apply_thm(eavt, [v_base, ev, y_base, a], Eq(y_base, a),
+        Implies(app_vb_e, Apply(v_base, ev, a)), got_raz)
+    got_app_ea = mp(got_app_ea, ax(app_vb_e), app_vb_e, Apply(v_base, ev, a))
+    # got_app_ea: [ra_vb, empty_ev, app_vb_e] |- Apply(v_base, e, a)
+
+    # rec_h_apply: char_h -> In(e,w) -> RA(v_base) -> Apply(v_base,e,a) -> Apply(h,e,a)
+    app_h_ea = Apply(hv, ev, a)
+    got_rha_base = apply_thm(rha, [hv, a, f, w, ev, a, v_base], char_h,
+        Implies(in_ev_w, Implies(ra_vb, Implies(Apply(v_base, ev, a), app_h_ea))),
+        ax(char_h))
+    got_rha_base = mp(got_rha_base, ax(in_ev_w), in_ev_w,
+        Implies(ra_vb, Implies(Apply(v_base, ev, a), app_h_ea)))
+    got_rha_base = mp(got_rha_base, ax(ra_vb), ra_vb, Implies(Apply(v_base, ev, a), app_h_ea))
+    got_base = mp(got_rha_base, got_app_ea, Apply(v_base, ev, a), app_h_ea)
+    # got_base: [char_h, in_ev_w, ra_vb, empty_ev, app_vb_e] |- Apply(h, e, a)
+
+    # We need In(e,w) from omega_contains_empty:
+    oce = omega_contains_empty()
+    fa_oce = Forall(ev, Implies(empty_ev, in_ev_w))
+    got_oce = apply_thm(oce, [w], omega_w, fa_oce, ax(omega_w))
+    got_oce = apply_thm(got_oce, [ev], empty_ev, in_ev_w, ax(empty_ev))
+    # got_oce: [omega_w, empty_ev, Ext, Inf] |- In(e, w)
+
+    # Cut in_ev_w from got_oce into got_base:
+    c_left = [f_ for f_ in got_base.sequent.left if not same(f_, in_ev_w)]
+    br1 = got_oce
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_base
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_base.sequent.left):
+            br2 = wl(br2, f_)
+    got_base2 = Proof(Sequent(list(br1.sequent.left), [app_h_ea]), 'cut',
+        [wr(br1, app_h_ea), br2], principal=in_ev_w)
+
+    # _eel y_base from app_vb_e, then v_base from and_ra_ex:
+    got_base2 = _eel(got_base2, app_vb_e, y_base)
+    # Cut Exists(y_base, app_vb_e) with got_ex_from:
+    ex_y_actual = got_base2.sequent.left[-1]
+    c_left = [f_ for f_ in got_base2.sequent.left if not same(f_, ex_y_actual)]
+    if not any(same(and_ra_ex, g) for g in c_left):
+        c_left = c_left + [and_ra_ex]
+    br1 = got_ex_from
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_base2
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_base2.sequent.left):
+            br2 = wl(br2, f_)
+    got_base2 = Proof(Sequent(c_left, [app_h_ea]), 'cut',
+        [wr(br1, app_h_ea), br2], principal=ex_y_actual)
+    # Cut ra_vb with and_ra_ex:
+    c_left = [f_ for f_ in got_base2.sequent.left if not same(f_, ra_vb)]
+    if not any(same(and_ra_ex, g) for g in c_left):
+        c_left = c_left + [and_ra_ex]
+    br1 = got_ra_from
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_base2
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_base2.sequent.left):
+            br2 = wl(br2, f_)
+    got_base2 = Proof(Sequent(c_left, [app_h_ea]), 'cut',
+        [wr(br1, app_h_ea), br2], principal=ra_vb)
+    # _eel v_base from and_ra_ex:
+    got_base2 = _eel(got_base2, and_ra_ex, v_base)
+    # Cut Exists(v_base, and_ra_ex) with got_re:
+    ex_v_actual = got_base2.sequent.left[-1]
+    c_left = [f_ for f_ in got_base2.sequent.left if not same(f_, ex_v_actual)]
+    br1 = got_re
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_base2
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_base2.sequent.left):
+            br2 = wl(br2, f_)
+    got_base_final = Proof(Sequent(list(br1.sequent.left), [app_h_ea]), 'cut',
+        [wr(br1, app_h_ea), br2], principal=ex_v_actual)
+    # got_base_final: [char_h, empty_ev, omega_w, func_f, f_at_a, ran_f_closed, axioms] |- Apply(h,e,a)
+
+    # === Combine base + bridge into And, wrap in Exists(h) ===
+    # Bridge: char_h |- forall n,y,v. In(n,w)->RA(v)->App(v,n,y)->App(h,n,y)
+    # Close bridge with forall n,v,y:
+    bridge_body = Implies(in_nv_w, Implies(ra_vv, Implies(app_v_ny, app_h_ny)))
+    proof_bridge_closed = got_rha
+    for var in [vv, yv, nv]:
+        body = proof_bridge_closed.sequent.right[0]
+        fa = Forall(var, body)
+        proof_bridge_closed = Proof(Sequent(proof_bridge_closed.sequent.left, [fa]),
+            'forall_right', [proof_bridge_closed], principal=fa, term=var)
+    # proof_bridge_closed: [char_h] |- forall n,y,v. bridge
+
+    bridge_formula = proof_bridge_closed.sequent.right[0]
+    and_result = And(app_h_ea, bridge_formula)
+    ai = and_intro(app_h_ea, bridge_formula, [])
+    got_and = mp(apply_thm(ai, [], app_h_ea, Implies(bridge_formula, and_result), got_base_final),
+        proof_bridge_closed, bridge_formula, and_result)
+    # got_and: [char_h, ...] |- And(Apply(h,e,a), bridge)
+
+    # _eel hv from char_h:
+    got_and = _eel(got_and, char_h, hv)
+    # Cut Exists(hv, char_h) with got_rge:
+    ex_h_actual = got_and.sequent.left[-1]
+    c_left = [f_ for f_ in got_and.sequent.left if not same(f_, ex_h_actual)]
+    br1 = got_rge
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_and
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_and.sequent.left):
+            br2 = wl(br2, f_)
+    got_result = Proof(Sequent(list(br1.sequent.left), got_and.sequent.right), 'cut',
+        [wr(br1, got_and.sequent.right[0]), br2], principal=ex_h_actual)
+
+    # Exists intro hv:
+    got_result = _eir(got_result, And(Apply(hv, ev, a),
+        Forall(nv, Forall(yv, Forall(vv,
+            Implies(In(nv, w), Implies(RecApprox(vv, a, f, w),
+                Implies(Apply(vv, nv, yv), Apply(hv, nv, yv)))))))), hv, hv)
+
+    # Discharge and close
+    proof = got_result
+    for hh in [empty_ev, omega_w, ran_f_closed, f_at_a, func_f]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [ev, w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'recursion_theorem'
+    return proof
 
 
 def omega_smallest_inductive():
