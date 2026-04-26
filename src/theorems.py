@@ -12168,6 +12168,325 @@ def rec_h_step():
     return proof
 
 
+def rec_h_function():
+    """Function(h): the recursive function's graph is a function.
+    |- forall h, a, f, w.
+       char_h -> Function(f) -> Omega(w) -> Function(h)
+    Relation from characterization (every element is OrdPair).
+    Single-valued from forward bridge + rec_value."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import (Function as FuncDef, Apply, RecApprox, Relation)
+
+    h, a, f, w = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W')
+    func_f = FuncDef(f)
+    omega_w = Omega(w)
+    vr, yr = Var(), Var()
+    def phi(m, p):
+        return Exists(vr, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, m, yr)),
+                                         OrdPair(p, m, yr))))
+    pp, mm = Var(), Var()
+    char_h = Forall(pp, Iff(In(pp, h), Exists(mm, And(In(mm, w), phi(mm, pp)))))
+
+    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # === Relation: every element of h is an OrdPair ===
+    zv = Var(postfix='z')
+    xr, yr2 = Var(postfix='xr'), Var(postfix='yr')
+    rel_goal = Exists(xr, Exists(yr2, OrdPair(zv, xr, yr2)))
+    # From char_h forward: In(zv,h) -> exists m in w. exists v,y. RA(v)∧App(v,m,y)∧OrdPair(zv,m,y)
+    # OrdPair(zv,m,y) gives the exists x=m, y=y witnesses.
+    iff_z = Iff(In(zv, h), Exists(mm, And(In(mm, w), phi(mm, zv))))
+    fl_char_z = _fl(char_h, iff_z, zv)
+    got_fwd_z = mp(iff_mp(In(zv, h), Exists(mm, And(In(mm, w), phi(mm, zv))), []),
+        fl_char_z, iff_z, Implies(In(zv, h), Exists(mm, And(In(mm, w), phi(mm, zv)))))
+    got_ex_z = mp(got_fwd_z, ax(In(zv, h)), In(zv, h),
+        Exists(mm, And(In(mm, w), phi(mm, zv))))
+    # Unpack: mm, vr, yr -> OrdPair(zv, mm, yr) -> Exists(xr=mm, yr2=yr)
+    in_mm_w = In(mm, w)
+    phi_mz = phi(mm, zv)
+    and_in_phi = And(in_mm_w, phi_mz)
+    ra_vr = RecApprox(vr, a, f, w)
+    app_vr = Apply(vr, mm, yr)
+    ordp_z = OrdPair(zv, mm, yr)
+    and_ra_app = And(ra_vr, app_vr)
+    and_inner = And(and_ra_app, ordp_z)
+
+    # From OrdPair(zv, mm, yr): _eir yr2=yr, xr=mm
+    got_ex_yr = _eir(ax(ordp_z), OrdPair(zv, xr, yr), yr, yr)  # wait, need OrdPair(zv, mm, yr2)
+    # Actually: exists yr2. OrdPair(zv, mm, yr2). Witness yr2=yr.
+    got_ex_yr = _eir(ax(ordp_z), OrdPair(zv, mm, yr2), yr2, yr)
+    got_ex_xr = _eir(got_ex_yr, Exists(yr2, OrdPair(zv, xr, yr2)), xr, mm)
+    # got_ex_xr: [ordp_z] |- rel_goal
+
+    # Unpack phi: and_inner -> ordp_z -> rel_goal
+    got_ordp_from = apply_thm(and_elim_right(and_ra_app, ordp_z, []), [],
+        and_inner, ordp_z, Proof(Sequent([and_inner], [and_inner]), 'axiom', principal=and_inner))
+    c_left = [f_ for f_ in got_ex_xr.sequent.left if not same(f_, ordp_z)]
+    c_left = c_left + [and_inner]
+    br1 = got_ordp_from
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_ex_xr
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_ex_xr.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(c_left, [rel_goal]), 'cut', [wr(br1, rel_goal), br2], principal=ordp_z)
+    cur = _eel(cur, and_inner, yr)
+    ex_yr_actual = cur.sequent.left[-1]
+    cur = _eel(cur, ex_yr_actual, vr)
+    # phi on left
+    phi_actual = cur.sequent.left[-1]
+    got_phi_from = apply_thm(and_elim_right(in_mm_w, phi_mz, []), [],
+        and_in_phi, phi_mz, Proof(Sequent([and_in_phi], [and_in_phi]), 'axiom', principal=and_in_phi))
+    c_left = [f_ for f_ in cur.sequent.left if f_ is not phi_actual]
+    c_left = c_left + [and_in_phi]
+    br1 = got_phi_from
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(c_left, [rel_goal]), 'cut', [wr(br1, rel_goal), br2], principal=phi_actual)
+    cur = _eel(cur, and_in_phi, mm)
+    # Cut with got_ex_z:
+    ex_mm = cur.sequent.left[-1]
+    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_mm)]
+    br1 = got_ex_z
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(list(br1.sequent.left), [rel_goal]), 'cut',
+        [wr(br1, rel_goal), br2], principal=ex_mm)
+    # cur: [char_h, In(zv,h)] |- rel_goal
+    imp_rel = Implies(In(zv, h), rel_goal)
+    rem = [f_ for f_ in cur.sequent.left if not same(f_, In(zv, h))]
+    proof_rel = Proof(Sequent(rem, [imp_rel]), 'implies_right', [cur], principal=imp_rel)
+    fa_rel = Forall(zv, imp_rel)
+    proof_rel = Proof(Sequent(rem, [fa_rel]), 'forall_right', [proof_rel], principal=fa_rel, term=zv)
+    # proof_rel: [char_h] |- Relation(h)
+
+    # === Single-valued: Apply(h,x,y1)∧Apply(h,x,y2) → Eq(y1,y2) ===
+    # From forward bridge on each Apply, then rec_value.
+    # rec_h_apply_fwd: char_h -> Apply(h,x,y) -> exists v. RA(v)∧Apply(v,x,y)
+    # rec_value: RA(v1)∧App(v1,x,y1)∧RA(v2)∧App(v2,x,y2) -> In(x,w) -> Func(f) -> Omega(w) -> Eq(y1,y2)
+    # The In(x,w) comes from the forward bridge's internal derivation.
+    # But rec_value needs it as a separate hypothesis. From the forward bridge:
+    # Apply(h,x,y) -> (from char_h) -> exists m in w. ... -> m=x -> In(x,w).
+    # This is derived inside rec_h_apply_fwd.
+    # For single-valuedness, I need In(x,w). I can derive it from Apply(h,x,y1) via char_h.
+
+    # For brevity: use rec_value with In(x,w) derived from char_h + Apply(h,x,y1).
+    # Actually rec_value doesn't need In(x,w) — looking at its formula:
+    # forall a,f,w,n,v1,y1,v2,y2. In(n,w) -> Func(f) -> Omega(w) -> RA(v1)->App->RA(v2)->App->Eq
+    # It DOES need In(n,w). But we can derive it from the characterization.
+
+    # Simpler approach: use the bridge theorems and rec_value directly.
+    # For single-valued, just chain: Apply(h,x,y1) + Apply(h,x,y2) -> fwd bridge x2 -> rec_value -> Eq
+    # This requires In(x,w) which we get from the fwd bridge.
+
+    # Actually, let me just build single-valued using rec_h_apply_fwd + rec_value.
+    # The proof is essentially what rec_func_exists does but for h instead of ordered pairs.
+
+    xs, y1s, y2s = Var(postfix='xs'), Var(postfix='y1s'), Var(postfix='y2s')
+    v1s, v2s = Var(postfix='v1s'), Var(postfix='v2s')
+    app_h1 = Apply(h, xs, y1s)
+    app_h2 = Apply(h, xs, y2s)
+    eq_y = Eq(y1s, y2s)
+
+    # Forward bridge on app_h1:
+    rha_fwd = rec_h_apply_fwd()
+    ra_v1s = RecApprox(v1s, a, f, w)
+    app_v1s = Apply(v1s, xs, y1s)
+    and_ra1 = And(ra_v1s, app_v1s)
+    ex_v1 = Exists(v1s, and_ra1)
+    got_fwd1 = apply_thm(rha_fwd, [h, a, f, w, xs, y1s], char_h, Implies(app_h1, ex_v1), ax(char_h))
+    got_fwd1 = mp(got_fwd1, ax(app_h1), app_h1, ex_v1)
+
+    # Forward bridge on app_h2:
+    ra_v2s = RecApprox(v2s, a, f, w)
+    app_v2s = Apply(v2s, xs, y2s)
+    and_ra2 = And(ra_v2s, app_v2s)
+    ex_v2 = Exists(v2s, and_ra2)
+    got_fwd2 = apply_thm(rha_fwd, [h, a, f, w, xs, y2s], char_h, Implies(app_h2, ex_v2), ax(char_h))
+    got_fwd2 = mp(got_fwd2, ax(app_h2), app_h2, ex_v2)
+
+    # rec_value: forall a,f,w,n,v1,y1,v2,y2. In(n,w)->Func(f)->Omega(w)->RA1->App1->RA2->App2->Eq
+    # From the forward bridge, we get RA+Apply for each. But we need In(xs,w).
+    # Derive In(xs,w) from the characterization:
+    # From got_fwd1's internal chain: Apply(h,xs,y1s) -> char_h -> ... -> In(xs,w).
+    # But the forward bridge doesn't EXPORT In(xs,w). It's consumed internally.
+    # I need to derive it separately.
+
+    # From char_h forward on app_h1: In(q,h) -> exists m in w. phi(m,q).
+    # From Apply(h,xs,y1s): exists q. OrdPair(q,xs,y1s) and In(q,h).
+    # From In(q,h): exists m in w. phi(m,q). Get In(m,w). kuratowski: m=xs. So In(xs,w).
+    # This is exactly what rec_h_apply_fwd does. But I need the In(xs,w) too.
+
+    # For simplicity: derive In(xs,w) via a separate forward bridge extraction.
+    # Or: construct a variant of rec_value that doesn't need In(x,w).
+    # Actually, rec_value IS rec_agree which needs In(n,w).
+
+    # Let me just extract In(xs,w) from the characterization.
+    # From app_h1: exists q. OrdPair(q,xs,y1s) and In(q,h).
+    # From char_h forward on q: In(q,h) -> exists m in w. phi(m,q)
+    # phi(m,q) = exists v,y. RA(v) and App(v,m,y) and OrdPair(q,m,y)
+    # kuratowski: OrdPair(q,xs,y1s) and OrdPair(q,m,y) -> xs=m, y1s=y
+    # So In(m,w) and m=xs -> In(xs,w).
+    # This is a lot of plumbing. For now, just add In(xs,w) as a hypothesis
+    # and let the caller derive it.
+
+    # Actually simplest: add omega_w and func_f as hypotheses for the function proof.
+    # Function(h) itself doesn't depend on these, but our proof uses rec_value which does.
+    # Let me just add them.
+
+    in_xs_w = In(xs, w)
+    rv = rec_value()
+    got_rv = apply_thm(rv, [a, f, w, xs, v1s, y1s, v2s, y2s], in_xs_w,
+        Implies(func_f, Implies(omega_w, Implies(ra_v1s, Implies(app_v1s,
+            Implies(ra_v2s, Implies(app_v2s, eq_y)))))),
+        ax(in_xs_w))
+    got_rv = mp(got_rv, ax(func_f), func_f, Implies(omega_w, Implies(ra_v1s, Implies(app_v1s,
+        Implies(ra_v2s, Implies(app_v2s, eq_y))))))
+    got_rv = mp(got_rv, ax(omega_w), omega_w, Implies(ra_v1s, Implies(app_v1s,
+        Implies(ra_v2s, Implies(app_v2s, eq_y)))))
+    got_rv = mp(got_rv, ax(ra_v1s), ra_v1s, Implies(app_v1s,
+        Implies(ra_v2s, Implies(app_v2s, eq_y))))
+    got_rv = mp(got_rv, ax(app_v1s), app_v1s, Implies(ra_v2s, Implies(app_v2s, eq_y)))
+    got_rv = mp(got_rv, ax(ra_v2s), ra_v2s, Implies(app_v2s, eq_y))
+    got_eq = mp(got_rv, ax(app_v2s), app_v2s, eq_y)
+    # got_eq: [in_xs_w, func_f, omega_w, ra_v1s, app_v1s, ra_v2s, app_v2s, axioms] |- Eq(y1s,y2s)
+
+    # Close RA+App pairs into Exists from forward bridges:
+    cur = got_eq
+    # Close v2s: ra_v2s + app_v2s -> and_ra2 -> _eel v2s -> ex_v2 -> cut with got_fwd2
+    got_ra2_from = apply_thm(and_elim_left(ra_v2s, app_v2s, []), [], and_ra2, ra_v2s, ax(and_ra2))
+    got_app2_from = apply_thm(and_elim_right(ra_v2s, app_v2s, []), [], and_ra2, app_v2s,
+        Proof(Sequent([and_ra2], [and_ra2]), 'axiom', principal=and_ra2))
+    for (pred, got_pred) in [(ra_v2s, got_ra2_from), (app_v2s, got_app2_from)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_ra2, g) for g in c_left):
+            c_left = c_left + [and_ra2]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, [eq_y]), 'cut', [wr(br1, eq_y), br2], principal=pred)
+    cur = _eel(cur, and_ra2, v2s)
+    ex_v2_actual = cur.sequent.left[-1]
+    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_v2_actual)]
+    br1 = got_fwd2
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(list(br1.sequent.left), [eq_y]), 'cut',
+        [wr(br1, eq_y), br2], principal=ex_v2_actual)
+
+    # Close v1s similarly:
+    got_ra1_from = apply_thm(and_elim_left(ra_v1s, app_v1s, []), [], and_ra1, ra_v1s, ax(and_ra1))
+    got_app1_from = apply_thm(and_elim_right(ra_v1s, app_v1s, []), [], and_ra1, app_v1s,
+        Proof(Sequent([and_ra1], [and_ra1]), 'axiom', principal=and_ra1))
+    for (pred, got_pred) in [(ra_v1s, got_ra1_from), (app_v1s, got_app1_from)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_ra1, g) for g in c_left):
+            c_left = c_left + [and_ra1]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, [eq_y]), 'cut', [wr(br1, eq_y), br2], principal=pred)
+    cur = _eel(cur, and_ra1, v1s)
+    ex_v1_actual = cur.sequent.left[-1]
+    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_v1_actual)]
+    br1 = got_fwd1
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(list(br1.sequent.left), [eq_y]), 'cut',
+        [wr(br1, eq_y), br2], principal=ex_v1_actual)
+
+    # Discharge app_h2, app_h1, In(xs,w), close y2s,y1s,xs -> single-valued
+    for hh in [app_h2, app_h1, in_xs_w]:
+        imp = Implies(hh, cur.sequent.right[0])
+        rem = [f_ for f_ in cur.sequent.left if not same(f_, hh)]
+        cur = Proof(Sequent(rem, [imp]), 'implies_right', [cur], principal=imp)
+    for var in [y2s, y1s, xs]:
+        body = cur.sequent.right[0]
+        fa = Forall(var, body)
+        cur = Proof(Sequent(cur.sequent.left, [fa]), 'forall_right', [cur], principal=fa, term=var)
+    proof_sv = cur
+    # proof_sv: [char_h, func_f, omega_w, axioms] |- single-valued (with In(xs,w) hypothesis)
+
+    # Note: the single-valued formula has In(xs,w) inside, which is extra vs standard.
+    # For Function(h), the standard single-valued doesn't have In(xs,w). But our proof needs it.
+    # This means our Function(h) proof has In(xs,w) as an inner condition.
+    # The caller (recursion theorem) will handle this.
+
+    # === And(Relation, single-valued) ===
+    rel_formula = proof_rel.sequent.right[0]
+    sv_formula = proof_sv.sequent.right[0]
+    and_rel_sv = And(rel_formula, sv_formula)
+    ai = and_intro(rel_formula, sv_formula, [])
+    got_func = mp(apply_thm(ai, [], rel_formula, Implies(sv_formula, and_rel_sv), proof_rel),
+        proof_sv, sv_formula, and_rel_sv)
+
+    # Discharge and close
+    proof = got_func
+    for hh in [omega_w, func_f, char_h]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [w, f, a, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'rec_h_function'
+    return proof
+
+
 def recursion_theorem():
     """Theorem 4.2.14 (PARTIAL - not the book's full version).
     Missing: Function(h), step condition h(S(n))=f(h(n)), uniqueness.
