@@ -11368,33 +11368,144 @@ def rec_graph_exists():
     return proof
 
 
-def rec_h_base():
-    """The recursive function's graph contains the base value.
-    Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w, h, e.
-      Function(f) -> (exists z. Apply(f,a,z)) ->
-      (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
-      Omega(w) ->
-      (forall p. Iff(In(p, h), exists n. And(In(n, w), phi(n, p)))) ->
-      Empty(e) -> Apply(h, e, a)
-    where phi is the RecApprox graph relation.
-    From rec_exists: a RecApprox v exists with 0 in dom.
-    From rec_approx_zero: v(0) = a.
-    From h's characterization: <0,a> in h, so Apply(h,0,a)."""
-    # TODO: implement
-    pass
+def rec_h_apply():
+    """Bridge: RecApprox value at n implies Apply(h, n, y) via h's characterization.
+    |- forall h, a, f, w, n, y, v.
+       (forall p. Iff(In(p, h), exists m. And(In(m, w), phi(m, p)))) ->
+       In(n, w) -> RecApprox(v, a, f, w) -> Apply(v, n, y) -> Apply(h, n, y)
+    where phi(m, p) = exists v', y'. And(And(RecApprox(v',a,f,w), Apply(v',m,y')), OrdPair(p,m,y')).
+    If a RecApprox maps n to y, and h has the graph characterization, then h(n)=y."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Function as FuncDef, Apply, RecApprox
+
+    h, a, f, w, n, y, v = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    vr, yr = Var(), Var()
+    def phi(m, p):
+        return Exists(vr, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, m, yr)),
+                                         OrdPair(p, m, yr))))
+    pp, mm = Var(), Var()
+    char_h = Forall(pp, Iff(In(pp, h), Exists(mm, And(In(mm, w), phi(mm, pp)))))
+    in_n_w = In(n, w)
+    ra_v = RecApprox(v, a, f, w)
+    app_v = Apply(v, n, y)
+    app_h = Apply(h, n, y)
+
+    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+
+    # Apply(v,n,y) = exists q. OrdPair(q,n,y) and In(q,v)
+    # From this: build OrdPair(q,n,y), RA(v), App(v,n,y) -> phi(n,q) -> In(n,w) and phi(n,q)
+    # -> by char_h backward: In(q,h) -> Apply(h,n,y)
+    qv = Var()
+    ordp_q = OrdPair(qv, n, y)
+    in_q_v = In(qv, v)
+    and_ord_in = And(ordp_q, in_q_v)
+
+    # Build And(And(RA(v),App(v,n,y)), OrdPair(q,n,y)) = phi body with v,y as witnesses
+    and_ra_app = And(ra_v, app_v)
+    and_full = And(and_ra_app, ordp_q)
+    ai1 = and_intro(ra_v, app_v, [])
+    got_ra_app = mp(apply_thm(ai1, [], ra_v, Implies(app_v, and_ra_app), ax(ra_v)),
+        ax(app_v), app_v, and_ra_app)
+    ai2 = and_intro(and_ra_app, ordp_q, [])
+    got_full = mp(apply_thm(ai2, [], and_ra_app, Implies(ordp_q, and_full), got_ra_app),
+        ax(ordp_q), ordp_q, and_full)
+    # got_full: [ra_v, app_v, ordp_q] |- And(And(RA,App), OrdPair)
+
+    # Exists intro y, v -> phi(n, q)
+    got_ex_y = _eir(got_full, And(And(RecApprox(vr, a, f, w), Apply(vr, n, yr)),
+                                  OrdPair(qv, n, yr)), yr, y)
+    got_phi = _eir(got_ex_y, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, n, yr)),
+                                            OrdPair(qv, n, yr))), vr, v)
+    # got_phi: [ra_v, app_v, ordp_q] |- phi(n, q)
+
+    # And(In(n,w), phi(n,q))
+    and_in_phi = And(in_n_w, phi(n, qv))
+    ai3 = and_intro(in_n_w, phi(n, qv), [])
+    got_and = mp(apply_thm(ai3, [], in_n_w, Implies(phi(n, qv), and_in_phi), ax(in_n_w)),
+        got_phi, phi(n, qv), and_in_phi)
+    # got_and: [ra_v, app_v, ordp_q, in_n_w] |- And(In(n,w), phi(n,q))
+
+    # Exists intro m=n -> Exists(m, And(In(m,w), phi(m,q)))
+    got_ex_m = _eir(got_and, And(In(mm, w), phi(mm, qv)), mm, n)
+    # got_ex_m: [...] |- Exists(m, And(In(m,w), phi(m,q)))
+
+    # char_h backward: Iff(In(q,h), Exists(m,...)) -> Exists(m,...) -> In(q,h)
+    iff_q = Iff(In(qv, h), Exists(mm, And(In(mm, w), phi(mm, qv))))
+    fl_char = _fl(char_h, iff_q, qv)
+    got_bwd = mp(iff_mp_rev(In(qv, h), Exists(mm, And(In(mm, w), phi(mm, qv))), []),
+        fl_char, iff_q, Implies(Exists(mm, And(In(mm, w), phi(mm, qv))), In(qv, h)))
+    got_in_h = mp(got_bwd, got_ex_m, Exists(mm, And(In(mm, w), phi(mm, qv))), In(qv, h))
+    # got_in_h: [ra_v, app_v, ordp_q, in_n_w, char_h] |- In(q, h)
+
+    # And(OrdPair(q,n,y), In(q,h)) -> Apply(h,n,y)
+    and_app_h = And(ordp_q, In(qv, h))
+    ai4 = and_intro(ordp_q, In(qv, h), [])
+    got_and_app = mp(apply_thm(ai4, [], ordp_q, Implies(In(qv, h), and_app_h), ax(ordp_q)),
+        got_in_h, In(qv, h), and_app_h)
+    got_ex_q = _eir(got_and_app, And(OrdPair(qv, n, y), In(qv, h)), qv, qv)
+    # got_ex_q: [...] |- Apply(h, n, y)
+
+    # Now replace ordp_q and in_q_v with and_ord_in from Apply(v,n,y):
+    got_ordp = apply_thm(and_elim_left(ordp_q, in_q_v, []), [], and_ord_in, ordp_q, ax(and_ord_in))
+    # Don't need in_q_v for our proof (we only used ordp_q). But ordp_q came from and_ord_in.
+    # Cut ordp_q with and_ord_in:
+    from tactics import wl, wr
+    c_left = [f_ for f_ in got_ex_q.sequent.left if not same(f_, ordp_q)]
+    if not any(same(and_ord_in, g) for g in c_left):
+        c_left = c_left + [and_ord_in]
+    br1 = got_ordp
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_ex_q
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_ex_q.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(c_left, [app_h]), 'cut', [wr(br1, app_h), br2], principal=ordp_q)
+
+    # _eel q from and_ord_in:
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+    cur = _eel(cur, and_ord_in, qv)
+    # Exists(q, And(OrdPair(q,n,y), In(q,v))) = Apply(v,n,y) is on the left
+
+    # Discharge and close
+    app_v_actual = cur.sequent.left[-1]
+    proof = cur
+    for hh in [app_v_actual, ra_v, in_n_w, char_h]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [v, y, n, w, f, a, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'rec_h_apply'
+    return proof
 
 
 def recursion_theorem():
     """Theorem 4.2.14: the recursion theorem.
-    Ext, Inf, Sep, Pairing, Union, Rep, Reg |- forall a, f, w.
-      Function(f) -> (exists z. Apply(f,a,z)) ->
-      (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
-      Omega(w) ->
-      exists h. Recursive(h, a, f, w)
-
-    Uses rec_graph_exists (construction via Replacement) +
-    rec_h_base (base) + Function(h) + step condition."""
-    # TODO
+    TODO: implement using rec_graph_exists + rec_h_apply + Recursive verification."""
     pass
 
 

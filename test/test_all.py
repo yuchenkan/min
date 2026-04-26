@@ -87,6 +87,7 @@ if __name__ == '__main__':
         ('ordpair_val_transfer', theorems.ordpair_val_transfer()),
         ('rec_func_exists', theorems.rec_func_exists()),
         ('rec_graph_exists', theorems.rec_graph_exists()),
+        ('rec_h_apply', theorems.rec_h_apply()),
         ('ordpair_unique', theorems.ordpair_unique()),
         ('rec_value', theorems.rec_value()),
         ('singleton_is_recapprox', theorems.singleton_is_recapprox()),
