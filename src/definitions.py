@@ -13,6 +13,35 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Exists, And, Or, Iff, Eq
 
 
+class ExistsUnique:
+    """ExistsUnique(var, body): exists unique var satisfying body.
+    exists var. body and forall var'. body[var:=var'] -> Eq(var, var')"""
+    __match_args__ = ('var', 'body')
+    def __init__(self, var, body, postfix=None):
+        self.var = var
+        self.body = body
+        self._postfix = postfix
+
+    def expand(self):
+        p = self._postfix
+        v2 = Var(postfix=f'{p}.v2' if p else None)
+        body_v2 = self.body.subst(self.var, v2)
+        unique = Forall(v2, Implies(body_v2, Eq(self.var, v2),
+                                    postfix=f'{p}.imp' if p else None),
+                        postfix=f'{p}.fa' if p else None)
+        return Exists(self.var, And(self.body, unique, postfix=f'{p}.and' if p else None),
+                      postfix=f'{p}.ex' if p else None)
+
+    def subst(self, old, new):
+        if self.var is old:
+            return self
+        return ExistsUnique(self.var, self.body.subst(old, new))
+
+    def __str__(self):
+        s = f'exists! {self.var}. ({self.body})'
+        return f'{s}/*{self._postfix}*/' if self._postfix else s
+
+
 # --- Generic set characterization predicate ---
 
 class SetSpec:
