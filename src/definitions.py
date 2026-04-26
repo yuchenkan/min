@@ -79,35 +79,41 @@ class Empty:
 class Singleton:
     """Singleton(s, a) = forall x. Iff(In(x, s), Eq(x, a)). s is {a}."""
     __match_args__ = ('set', 'elem')
-    def __init__(self, s, a):
-        self.set = s
-        self.elem = a
+    def __init__(self, s, a, postfix=None):
+        self.set = s; self.elem = a; self._postfix = postfix
     def expand(self):
-        x = Var()
-        return Forall(x, Iff(In(x, self.set), Eq(x, self.elem)))
+        p = self._postfix
+        x = Var(postfix=f'{p}.x' if p else None)
+        return Forall(x, Iff(In(x, self.set), Eq(x, self.elem),
+                             postfix=f'{p}.iff' if p else None),
+                      postfix=f'{p}.fa' if p else None)
     def subst(self, old, new):
         return Singleton(new if self.set is old else self.set,
                          new if self.elem is old else self.elem)
     def __str__(self):
-        return f'{self.set} = {{{self.elem}}}'
+        s = f'{self.set} = {{{self.elem}}}'
+        return f'{s}/*{self._postfix}*/' if self._postfix else s
 
 
 class PairSet:
     """PairSet(s, a, b) = forall x. Iff(In(x, s), Or(Eq(x, a), Eq(x, b))). s is {a,b}."""
     __match_args__ = ('set', 'left', 'right')
-    def __init__(self, s, a, b):
-        self.set = s
-        self.left = a
-        self.right = b
+    def __init__(self, s, a, b, postfix=None):
+        self.set = s; self.left = a; self.right = b; self._postfix = postfix
     def expand(self):
-        x = Var()
-        return Forall(x, Iff(In(x, self.set), Or(Eq(x, self.left), Eq(x, self.right))))
+        p = self._postfix
+        x = Var(postfix=f'{p}.x' if p else None)
+        return Forall(x, Iff(In(x, self.set), Or(Eq(x, self.left), Eq(x, self.right),
+                                                  postfix=f'{p}.or' if p else None),
+                             postfix=f'{p}.iff' if p else None),
+                      postfix=f'{p}.fa' if p else None)
     def subst(self, old, new):
         return PairSet(new if self.set is old else self.set,
                        new if self.left is old else self.left,
                        new if self.right is old else self.right)
     def __str__(self):
-        return f'{self.set} = {{{self.left},{self.right}}}'
+        s = f'{self.set} = {{{self.left},{self.right}}}'
+        return f'{s}/*{self._postfix}*/' if self._postfix else s
 
 
 class Successor:
@@ -166,19 +172,25 @@ class OrdPair:
     """OrdPair(t, a, b): t = (a, b) = {{a}, {a, b}}.
     Exists sa. Singleton(sa,a) and Exists pab. PairSet(pab,a,b) and PairSet(t,sa,pab)."""
     __match_args__ = ('set', 'left', 'right')
-    def __init__(self, t, a, b):
-        self.set = t; self.left = a; self.right = b
+    def __init__(self, t, a, b, postfix=None):
+        self.set = t; self.left = a; self.right = b; self._postfix = postfix
     def expand(self):
-        sa = Var()
-        pab = Var()
-        return Exists(sa, And(Singleton(sa, self.left),
-            Exists(pab, And(PairSet(pab, self.left, self.right),
-                PairSet(self.set, sa, pab)))))
+        p = self._postfix
+        sa = Var(postfix=f'{p}.sa' if p else None)
+        pab = Var(postfix=f'{p}.pab' if p else None)
+        return Exists(sa, And(Singleton(sa, self.left, postfix=f'{p}.sing' if p else None),
+            Exists(pab, And(PairSet(pab, self.left, self.right, postfix=f'{p}.ps_ab' if p else None),
+                PairSet(self.set, sa, pab, postfix=f'{p}.ps_t' if p else None),
+                postfix=f'{p}.and_inner' if p else None),
+            postfix=f'{p}.ex_pab' if p else None),
+            postfix=f'{p}.and_outer' if p else None),
+            postfix=f'{p}.ex_sa' if p else None)
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return OrdPair(r(self.set), r(self.left), r(self.right))
     def __str__(self):
-        return f'{self.set} = <{self.left},{self.right}>'
+        s = f'{self.set} = <{self.left},{self.right}>'
+        return f'{s}/*{self._postfix}*/' if self._postfix else s
 
 
 class Omega:

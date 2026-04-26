@@ -11633,32 +11633,14 @@ def rec_h_apply_fwd():
     ku = kuratowski()
     fa_s2_body = Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
     fa_s2 = Forall(qv, fa_s2_body)
-    # Peel kuratowski fully manually:
-    # Structure: Forall(a,b,c,d, Forall(s1, Implies(OrdPair(s1,a,b), Forall(s2, ...))))
+    # Use kuratowski via apply_thm in two stages (interleaved forall/implies):
+    # Stage 1: peel 4 outer foralls + OrdPair hyp
     ku = kuratowski()
-    fa_s1_body = Implies(ordp_q, fa_s2)
-    fa_s1 = Forall(qv, fa_s1_body)
-    fa_yr = Forall(yr, fa_s1)
-    fa_mm = Forall(mm, fa_yr)
-    fa_y = Forall(y, fa_mm)
-    fa_n = Forall(n, fa_y)
-    ku_f = ku.sequent.right[0]
-    ku_ctx = list(ku.sequent.left)
-    got_ti = ku
-    for (outer, inner, var) in [(ku_f, fa_y, n), (fa_y, fa_mm, y), (fa_mm, fa_yr, mm), (fa_yr, fa_s1, yr)]:
-        fl_v = _fl(outer, inner, var)
-        got_ti = Proof(Sequent(got_ti.sequent.left, [inner]), 'cut',
-            [wr(got_ti, inner), wl(fl_v, *got_ti.sequent.left)], principal=outer)
-    # Peel s1=qv:
-    fl_s1 = _fl(fa_s1, fa_s1_body, qv)
-    got_ti = Proof(Sequent(got_ti.sequent.left, [fa_s1_body]), 'cut',
-        [wr(got_ti, fa_s1_body), wl(fl_s1, *got_ti.sequent.left)], principal=fa_s1)
-    got_ti = mp(got_ti, ax(ordp_q), ordp_q, fa_s2)
-    # Peel s2=qv:
-    fl_s2 = _fl(fa_s2, fa_s2_body, qv)
-    got_ti = Proof(Sequent(got_ti.sequent.left, [fa_s2_body]), 'cut',
-        [wr(got_ti, fa_s2_body), wl(fl_s2, *got_ti.sequent.left)], principal=fa_s2)
-    got_ti = mp(got_ti, ax(ordp_qmy), ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
+    fa_s2 = Forall(qv, Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr)))))
+    got_ti = apply_thm(ku, [n, y, mm, yr, qv], ordp_q, fa_s2, ax(ordp_q))
+    # Stage 2: peel s2=qv + OrdPair hyp
+    fa_s2_body = Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
+    got_ti = apply_thm(got_ti, [qv], ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))), ax(ordp_qmy))
     got_ti = mp(got_ti, got_eq_qq, Eq(qv, qv), And(Eq(n, mm), Eq(y, yr)))
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(n,m), Eq(y,y'))
 
