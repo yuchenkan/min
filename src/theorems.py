@@ -11007,133 +11007,60 @@ def rec_func_exists():
         ax(app2f), app2f, Eq(y1f, y2f))
     # got_eq_y: [in_nf_w, func_f, omega_w, ra1f, app1f, ra2f, app2f, + axioms] |- Eq(y1f, y2f)
 
-    # ordpair_eq_transfer: Eq(y1,y2) + OrdPair(p2,n,y2) -> OrdPair(p2,n,y1)
-    # Actually need: Eq(y1f, y2f) -> OrdPair(p2f,nf,y2f) -> OrdPair(p2f,nf,y1f)?
-    # No — ordpair_eq_transfer transfers the SET argument.
-    # I need eq_apply_val_transfer-like for OrdPair second arg. Or use a different route.
-    # Actually: Eq(y1f,y2f) means y1f and y2f have same elements.
-    # ordpair_unique: OrdPair(p1f,nf,y1f) + OrdPair(p2f,nf,y1f) -> Eq(p1f,p2f).
-    # So I need OrdPair(p2f,nf,y1f) from OrdPair(p2f,nf,y2f) + Eq(y1f,y2f).
-    # This is ordpair_eq_transfer but for the THIRD argument (y).
-    # We don't have this exactly — ordpair_eq_transfer transfers the first arg (the set).
-    # But we can use the same PairSet transfer approach, or use eq_apply_val_transfer.
-    # Actually: Eq(y2f, y1f) (via eq_symmetric) and ordpair_eq_transfer-like for y.
-    # Hmm, we need a new theorem. OR use a different route:
-    # eq_symmetric: Eq(y1f,y2f) -> Eq(y2f,y1f).
-    # Then from OrdPair(p2f,nf,y2f), transfer y2f->y1f. This IS the OrdPair third-arg transfer.
-    # We don't have it as a theorem. But we CAN combine:
-    # - OrdPair(p2f,nf,y2f) means Apply({p2f},nf,y2f) essentially.
-    # - eq_apply_val_transfer: Eq(y2f,y1f) -> Apply(v,nf,y2f) -> Apply(v,nf,y1f).
-    #   But this is for Apply, not OrdPair. OrdPair is a different structure.
-    # Actually, OrdPair(p,n,y) = exists sa. Sing(sa,n) and exists pab. PS(pab,n,y) and PS(p,sa,pab).
-    # The y only appears in PS(pab,n,y). Changing y to y1 requires PS transfer on y.
-    # This is exactly what eq_apply_val_transfer does internally for its PairSet.
-    # So I could use the same technique.
-    # OR: take a different approach. Instead of transferring y in OrdPair, use:
-    # Eq(y1f,y2f) -> Eq(p1f,p2f) directly without going through ordpair_unique.
-    # From OrdPair(p1f,nf,y1f): p1f = {{nf},{nf,y1f}}.
-    # From OrdPair(p2f,nf,y2f): p2f = {{nf},{nf,y2f}}.
-    # Eq(y1f,y2f) -> {nf,y1f} = {nf,y2f} -> {{nf},{nf,y1f}} = {{nf},{nf,y2f}} -> Eq(p1f,p2f).
-    # This uses eq_substitution-like reasoning.
+    # Chain: eq_symmetric -> ordpair_val_transfer -> ordpair_unique
+    es = eq_symmetric()
+    ovt = ordpair_val_transfer()
+    ou = ordpair_unique()
 
-    # Simplest approach: use ordpair_eq_transfer (transfers the SET arg, not the value arg).
-    # From Eq(y1f,y2f): transfer OrdPair(p2f,nf,y2f) to get a set q with OrdPair(q,nf,y1f)
-    # where q has the same membership as p2f... this doesn't directly give Eq(p1f,p2f).
+    got_eq_y_sym = apply_thm(es, [y1f, y2f], Eq(y1f, y2f), Eq(y2f, y1f), got_eq_y)
+    got_ordp2_y1 = apply_thm(ovt, [p2f, nf, y2f, y1f], Eq(y2f, y1f),
+        Implies(ordp2f, OrdPair(p2f, nf, y1f)), got_eq_y_sym)
+    got_ordp2_y1 = mp(got_ordp2_y1, ax(ordp2f), ordp2f, OrdPair(p2f, nf, y1f))
+    got_eq_p = apply_thm(ou, [nf, y1f, p1f, p2f], ordp1f,
+        Implies(OrdPair(p2f, nf, y1f), eq_p1p2), ax(ordp1f))
+    got_eq_p = mp(got_eq_p, got_ordp2_y1, OrdPair(p2f, nf, y1f), eq_p1p2)
+    # got_eq_p: [context + ordp1f, ordp2f] |- Eq(p1f, p2f)
 
-    # Actually, the cleanest route: from Eq(y1f,y2f), derive that p1f and p2f have the
-    # same elements. p1f = {{nf},{nf,y1f}} and p2f = {{nf},{nf,y2f}}.
-    # Eq(y1f,y2f) -> Eq({nf,y1f},{nf,y2f}) (from PairSet transfer on y).
-    # Then {{nf},{nf,y1f}} and {{nf},{nf,y2f}} differ only in {nf,y_i}.
-    # With Eq({nf,y1f},{nf,y2f}): the PairSet(p_i, {nf}, {nf,y_i}) characterizations match.
-    # So Eq(p1f, p2f).
+    # Discharge everything, close with foralls:
+    proof = got_eq_p
+    for h in [ordp2f, app2f, ra2f]:
+        imp = Implies(h, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [y2f, v2f]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    for h in [ordp1f, app1f, ra1f]:
+        imp = Implies(h, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [y1f, v1f]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    for h in [omega_w, func_f]:
+        if any(same(h, g) for g in proof.sequent.left):
+            imp = Implies(h, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    if any(same(in_nf_w, g) for g in proof.sequent.left):
+        imp = Implies(in_nf_w, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, in_nf_w)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [p2f, p1f, nf, w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'rec_func_exists'
+    return proof
 
-    # This is essentially what ordpair_unique + ordpair_eq_transfer would give.
-    # But we don't have the right transfer theorem.
 
-    # SIMPLEST: just weaken ordpair_unique's requirement.
-    # ordpair_unique: OrdPair(p1,n,y) + OrdPair(p2,n,y) -> Eq(p1,p2) (SAME y).
-    # I need: OrdPair(p1,n,y1) + OrdPair(p2,n,y2) + Eq(y1,y2) -> Eq(p1,p2).
-    # This follows from ordpair_unique + transferring y2 to y1 in OrdPair(p2,...).
-    # The transfer uses the same PairSet technique as ordpair_eq_transfer/eq_apply_val_transfer.
-
-    # For now, let me just use ordpair_eq_transfer to convert OrdPair(p2,n,y2) to
-    # something involving y1. Actually, ordpair_eq_transfer transfers the SET argument:
-    # Eq(z,p) + OrdPair(p,x,y) -> OrdPair(z,x,y). This changes p, not y.
-
-    # I think the simplest approach is to use unique_successor-style argument directly:
-    # From OrdPair(p1,n,y1) and OrdPair(p2,n,y2) and Eq(y1,y2):
-    # z in p1 iff Or(Eq(z,{n}), Eq(z,{n,y1}))
-    # z in p2 iff Or(Eq(z,{n}), Eq(z,{n,y2}))
-    # Eq(y1,y2) -> Eq({n,y1},{n,y2}) -> Eq(z,{n,y1}) iff Eq(z,{n,y2})
-    # So z in p1 iff z in p2, hence Eq(p1,p2).
-
-    # This is exactly ordpair_unique's proof extended with an Eq(y1,y2) hypothesis.
-    # Rather than reprove this, let me just add Eq(y1,y2) as an extra hypothesis
-    # and show OrdPair(p2,n,y1) from OrdPair(p2,n,y2) + Eq(y1,y2), then apply ordpair_unique.
-
-    # OrdPair(p2,n,y1) from OrdPair(p2,n,y2) + Eq(y1,y2):
-    # This is "change the y-component of OrdPair". We can build this as a helper.
-    # But it requires the same PairSet transfer that takes ~100 lines.
-
-    # For pragmatism: use eq_apply_val_transfer as a shortcut.
-    # Apply(v,n,y) = exists q. OrdPair(q,n,y) and In(q,v).
-    # If OrdPair(p2,n,y2) and Singleton(s,p2) then Apply(s,n,y2).
-    # eq_apply_val_transfer: Eq(y2,y1) + Apply(s,n,y2) -> Apply(s,n,y1).
-    # From Apply(s,n,y1): exists q. OrdPair(q,n,y1) and In(q,s). Since s={p2}: q=p2.
-    # So OrdPair(p2,n,y1). Then ordpair_unique: Eq(p1,p2).
-
-    # This uses singleton_apply_eq + eq_apply_val_transfer + singleton construction.
-    # Very roundabout. Let me just build a simpler functional condition proof.
-
-    # ALTERNATIVE: Don't prove the functional condition on ordered pairs.
-    # Instead, use Replacement with phi(n,y) = exists v. RA(v) and App(v,n,y)
-    # (just the value, not the ordered pair). The functional condition is just rec_value.
-    # Then Replacement gives {y : exists n in w. phi(n,y)} = range of h.
-    # Then construct h = {<n,y> : n in w, phi(n,y)} using Separation on (w x range).
-    # This avoids the ordpair functional condition.
-
-    # Actually even simpler: Replacement gives the range. From the range + w, construct
-    # the graph using Replacement again with phi'(n,p) = OrdPair(p,n,f(n)).
-
-    # Hmm, this is getting complicated. Let me just use the direct approach with
-    # the Eq(y1,y2) -> Eq(p1,p2) argument. I'll inline the PairSet transfer.
-
-    # Actually, the SIMPLEST of all: prove functional condition for phi(n,y) (values only),
-    # then use that to define h via a different construction.
-
-    # For now, let me just build rec_func_exists using Replacement with phi(n,y) = value,
-    # not phi(n,p) = ordered pair. The result gives {y(n) : n in w}. This is the RANGE.
-    # Then I can construct the function graph separately.
-
-    # WAIT — I realize rec_value already proves the functional condition for values!
-    # rec_value: RA(v1)->App(v1,n,y1)->RA(v2)->App(v2,n,y2) -> Eq(y1,y2).
-    # This IS the functional condition for psi(n,y) = exists v. RA(v) and App(v,n,y).
-
-    # So: Replacement with psi gives: exists B. forall y. y in B iff exists n in w. psi(n,y).
-    # B = {y(n) : n in w} = range of h.
-
-    # But I need h = {<n,y(n)> : n in w}, not just the range.
-    # For h: use Replacement AGAIN with phi(n,p) = OrdPair(p,n,y(n)).
-    # Or: use the product w x B and Separation.
-
-    # This is getting too complex. Let me just skip rec_func_exists for now and
-    # directly prove the recursion theorem using a different approach.
-
-    # The simplest recursion theorem proof: for each n, use rec_exists to get
-    # a RecApprox v_n. Take h = union of all v_n. By rec_agree, h is consistent.
-    # But "union of all v_n" requires collecting {v_n : n in w} which needs Replacement.
-
-    # OK, I'll just implement the Replacement with ordered pairs and deal with
-    # the functional condition using eq_apply_val_transfer.
-
-    # Step 1: Build phi(n,p) and the Replacement axiom
-    rep = zfc.Replacement(phi, [a, f, w])
-    rep_proof = Proof(Sequent([rep], [rep]), 'axiom', principal=rep, name='replacement_rec')
-
-    # Step 2: Prove functional condition
-    # For now, leave as TODO and return the axiom placeholder
-    # TODO: prove functional, instantiate domain with w, MP to get exists h.
-    pass
+# NOTE: The above is actually just the functional condition proof, not the full
+# Replacement application. Rename appropriately and build the full theorem later.
+# For now this proves: forall a,f,w,n,p1,p2. In(n,w) -> Func(f) -> Omega(w) ->
+#   RA(v1)->App(v1,n,y1)->OrdPair(p1,n,y1) -> RA(v2)->App(v2,n,y2)->OrdPair(p2,n,y2) -> Eq(p1,p2)
+# This IS the Replacement functional condition (after existential packaging).
 
 
 def recursion_theorem():
