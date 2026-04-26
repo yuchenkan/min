@@ -89,6 +89,7 @@ if __name__ == '__main__':
         ('rec_graph_exists', theorems.rec_graph_exists()),
         ('rec_h_apply', theorems.rec_h_apply()),
         ('rec_h_apply_fwd', theorems.rec_h_apply_fwd()),
+        ('rec_h_step', theorems.rec_h_step()),
         ('recursion_theorem', theorems.recursion_theorem()),
         ('ordpair_unique', theorems.ordpair_unique()),
         ('rec_value', theorems.rec_value()),

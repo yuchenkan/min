@@ -11809,6 +11809,365 @@ def rec_h_apply_fwd():
     return proof
 
 
+def rec_h_step():
+    """Step condition for h: h(S(n)) = f(h(n)).
+    Ext, Inf, Sep, Pairing, Union, Reg |- forall h, a, f, w, n, val, sn, fval.
+       char_h -> Function(f) -> Omega(w) ->
+       (exists z. Apply(f,a,z)) -> ran_f_closed ->
+       In(n,w) -> Apply(h,n,val) -> Successor(sn,n) -> Apply(f,val,fval) ->
+       Apply(h,sn,fval)"""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import (Function as FuncDef, Apply, RecApprox, Successor,
+                             Singleton, Union as UnionDef)
+
+    h, a, f, w = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W')
+    n, val, sn, fval = Var(postfix='N'), Var(postfix='val'), Var(postfix='SN'), Var(postfix='fval')
+    func_f = FuncDef(f)
+    omega_w = Omega(w)
+    in_n_w = In(n, w)
+    app_h_nv = Apply(h, n, val)
+    succ_sn = Successor(sn, n)
+    app_f_vfv = Apply(f, val, fval)
+    app_h_sn_fv = Apply(h, sn, fval)
+    zfa = Var()
+    f_at_a = Exists(zfa, Apply(f, a, zfa))
+    yrf, zrf, wrf = Var(), Var(), Var()
+    ran_f_closed = Forall(yrf, Forall(zrf,
+        Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
+
+    vr, yr = Var(), Var()
+    def phi(m, p):
+        return Exists(vr, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, m, yr)),
+                                         OrdPair(p, m, yr))))
+    pp, mm = Var(), Var()
+    char_h = Forall(pp, Iff(In(pp, h), Exists(mm, And(In(mm, w), phi(mm, pp)))))
+
+    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    hyps = [char_h, func_f, omega_w, f_at_a, ran_f_closed, in_n_w, app_h_nv, succ_sn, app_f_vfv]
+
+    # === Step 1: forward bridge on Apply(h,n,val) ===
+    # rec_h_apply_fwd: char_h -> Apply(h,n,val) -> exists v. And(RA(v), Apply(v,n,val))
+    rha_fwd = rec_h_apply_fwd()
+    vv = Var(postfix='v0')
+    ra_vv = RecApprox(vv, a, f, w)
+    app_vv_nv = Apply(vv, n, val)
+    and_ra_app = And(ra_vv, app_vv_nv)
+    ex_v = Exists(vv, and_ra_app)
+    # Peel rha_fwd: forall h,a,f,w,n,y. char_h -> Apply(h,n,y) -> exists v. ...
+    got_fwd = apply_thm(rha_fwd, [h, a, f, w, n, val], char_h,
+        Implies(app_h_nv, ex_v), ax(char_h))
+    got_fwd = mp(got_fwd, ax(app_h_nv), app_h_nv, ex_v)
+    # got_fwd: [char_h, app_h_nv, axioms?] |- Exists(vv, And(RA(vv), Apply(vv,n,val)))
+
+    # === Step 2: In(sn, w) from omega_succ_closed ===
+    osc = omega_succ_closed()
+    in_sn_w = In(sn, w)
+    fa_osc_n = Forall(n, Implies(in_n_w, Forall(sn, Implies(succ_sn, in_sn_w))))
+    got_osc = apply_thm(osc, [w], omega_w, fa_osc_n, ax(omega_w))
+    got_osc = apply_thm(got_osc, [n], in_n_w,
+        Forall(sn, Implies(succ_sn, in_sn_w)), ax(in_n_w))
+    got_osc = apply_thm(got_osc, [sn], succ_sn, in_sn_w, ax(succ_sn))
+    # got_osc: [omega_w, in_n_w, succ_sn, Ext, Inf] |- In(sn, w)
+
+    # === Step 3: rec_exists at sn ===
+    re = rec_exists()
+    vv2 = Var(postfix='v1')
+    yy2 = Var(postfix='y1')
+    ra_vv2 = RecApprox(vv2, a, f, w)
+    app_vv2_sn = Apply(vv2, sn, yy2)
+    ex_app_vv2 = Exists(yy2, app_vv2_sn)
+    and_ra_ex2 = And(ra_vv2, ex_app_vv2)
+    ex_v2 = Exists(vv2, and_ra_ex2)
+    re_concl = Implies(func_f, Implies(f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v2))))
+    got_re = apply_thm(re, [a, f, w, sn], in_sn_w, re_concl, got_osc)
+    got_re = mp(got_re, ax(func_f), func_f, Implies(f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v2))))
+    got_re = mp(got_re, ax(f_at_a), f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v2)))
+    got_re = mp(got_re, ax(ran_f_closed), ran_f_closed, Implies(omega_w, ex_v2))
+    got_re = mp(got_re, ax(omega_w), omega_w, ex_v2)
+    # got_re: [context] |- Exists(vv2, And(RA(vv2), Exists(yy2, Apply(vv2,sn,yy2))))
+
+    # === Step 4: Extract RecApprox step from vv2, get Apply(vv2,sn,fval) ===
+    # From RA(vv2): extract step condition
+    # From Apply(vv2,sn,yy2): trigger step with n, sn
+    # Get: forall val'. Apply(vv2,n,val') -> forall fv'. Apply(f,val',fv') -> Apply(vv2,sn,fv')
+    # From rec_value: val' = val. Transfer: Apply(f,val,fval) -> Apply(f,val',fval)
+    # Step: Apply(vv2,sn,fval). Backward bridge: Apply(h,sn,fval).
+
+    # This requires extracting the step condition from RA(vv2). Same pattern as rec_exists_step.
+    # Build definition-level step condition formulas:
+    valc, fvalc, yc = Var(), Var(), Var()
+    ex_app_vv2_sn = Exists(yc, Apply(vv2, sn, yc))
+    step_inner = Forall(valc, Implies(Apply(vv2, n, valc),
+        Forall(fvalc, Implies(Apply(f, valc, fvalc), Apply(vv2, sn, fvalc)))))
+    ex_app_vv2_n = Exists(yc, Apply(vv2, n, yc))
+    step_and = And(ex_app_vv2_n, step_inner)
+    step_trigger = Implies(ex_app_vv2_sn, step_and)
+    step_succ_body = Implies(succ_sn, step_trigger)
+    step_in_body = Implies(in_n_w, Forall(sn, step_succ_body))
+
+    # Extract step from RA(vv2):
+    ra_exp = ra_vv2.expand()
+    step_formula = ra_exp.right.right.right.right  # the step condition from RecApprox
+    got_step_v = apply_thm(and_elim_right(ra_exp.left, ra_exp.right, []), [],
+        ra_vv2, ra_exp.right, Proof(Sequent([ra_vv2], [ra_vv2]), 'axiom', principal=ra_vv2))
+    rest2 = ra_exp.right.right
+    got_rest2 = apply_thm(and_elim_right(ra_exp.right.left, rest2, []), [],
+        ra_exp.right, rest2, Proof(Sequent([ra_exp.right], [ra_exp.right]), 'axiom', principal=ra_exp.right))
+    got_rest2 = Proof(Sequent([ra_vv2], [rest2]), 'cut',
+        [wr(got_step_v, rest2), wl(got_rest2, ra_vv2)], principal=ra_exp.right)
+    rest3 = rest2.right
+    got_rest3 = apply_thm(and_elim_right(rest2.left, rest3, []), [],
+        rest2, rest3, Proof(Sequent([rest2], [rest2]), 'axiom', principal=rest2))
+    got_rest3 = Proof(Sequent([ra_vv2], [rest3]), 'cut',
+        [wr(got_rest2, rest3), wl(got_rest3, ra_vv2)], principal=rest2)
+    got_step_raw = apply_thm(and_elim_right(rest3.left, step_formula, []), [],
+        rest3, step_formula, Proof(Sequent([rest3], [rest3]), 'axiom', principal=rest3))
+    got_step_raw = Proof(Sequent([ra_vv2], [step_formula]), 'cut',
+        [wr(got_rest3, step_formula), wl(got_step_raw, ra_vv2)], principal=rest3)
+    # got_step_raw: [ra_vv2] |- step_formula
+
+    # Peel step_formula: forall n'. In(n',w) -> forall sn'. Succ(sn',n') -> ...
+    fl_n = _fl(step_formula, step_in_body, n)
+    got_step = Proof(Sequent([ra_vv2], [step_in_body]), 'cut',
+        [wr(got_step_raw, step_in_body), wl(fl_n, ra_vv2)], principal=step_formula)
+    got_step = mp(got_step, ax(in_n_w), in_n_w, Forall(sn, step_succ_body))
+    fl_sn = _fl(Forall(sn, step_succ_body), step_succ_body, sn)
+    got_step = Proof(Sequent(got_step.sequent.left, [step_succ_body]), 'cut',
+        [wr(got_step, step_succ_body), wl(fl_sn, *got_step.sequent.left)],
+        principal=Forall(sn, step_succ_body))
+    got_step = mp(got_step, ax(succ_sn), succ_sn, step_trigger)
+    # Trigger with Exists(y, Apply(vv2,sn,y)):
+    got_ex_sn = _eir(ax(app_vv2_sn), Apply(vv2, sn, yc), yc, yy2)
+    got_step = mp(got_step, got_ex_sn, ex_app_vv2_sn, step_and)
+    # got_step: [ra_vv2, in_n_w, succ_sn, app_vv2_sn] |- And(ex_app_vv2_n, step_inner)
+
+    # Extract step_inner (forall val'. Apply(vv2,n,val') -> ...)
+    got_step_fa = apply_thm(and_elim_right(ex_app_vv2_n, step_inner, []), [],
+        step_and, step_inner, Proof(Sequent([step_and], [step_and]), 'axiom', principal=step_and))
+    got_step_fa = Proof(Sequent(got_step.sequent.left, [step_inner]), 'cut',
+        [wr(got_step, step_inner), wl(got_step_fa, *got_step.sequent.left)], principal=step_and)
+
+    # Instantiate with val (from rec_value, val' = val):
+    # First get Apply(vv2,n,val') from RA(vv2) step extraction part1:
+    got_step_part1 = apply_thm(and_elim_left(ex_app_vv2_n, step_inner, []), [],
+        step_and, ex_app_vv2_n, ax(step_and))
+    got_step_part1 = Proof(Sequent(got_step.sequent.left, [ex_app_vv2_n]), 'cut',
+        [wr(got_step, ex_app_vv2_n), wl(got_step_part1, *got_step.sequent.left)], principal=step_and)
+    # got_step_part1: [ra_vv2, in_n_w, succ_sn, app_vv2_sn] |- Exists(yc, Apply(vv2,n,yc))
+
+    # rec_value: RA(vv)∧Apply(vv,n,val) ∧ RA(vv2)∧Apply(vv2,n,val') → Eq(val,val')
+    # Instantiate step_inner with val: Apply(vv2,n,val) -> forall fv. Apply(f,val,fv) -> Apply(vv2,sn,fv)
+    step_val_body = Implies(Apply(vv2, n, val),
+        Forall(fvalc, Implies(Apply(f, val, fvalc), Apply(vv2, sn, fvalc))))
+    fl_val = _fl(step_inner, step_val_body, val)
+    got_step_val = Proof(Sequent(got_step_fa.sequent.left, [step_val_body]), 'cut',
+        [wr(got_step_fa, step_val_body), wl(fl_val, *got_step_fa.sequent.left)],
+        principal=step_inner)
+
+    # Need Apply(vv2,n,val). From rec_value: val'=val. From step_part1: exists val' with Apply(vv2,n,val').
+    # But I need Apply(vv2,n,val) specifically. From rec_value + eq_apply_val_transfer.
+    # For now, assume we can get it via the _eel+rec_value chain.
+    # Actually simpler: instantiate step_inner with val directly, then mp with Apply(vv2,n,val).
+    # But we don't have Apply(vv2,n,val) — we have Apply(vv,n,val) (from the forward bridge).
+    # We need: RA(vv)∧App(vv,n,val) ∧ RA(vv2)∧App(vv2,n,val') → val=val'.
+    # Then eq_apply_val_transfer: App(vv2,n,val') + Eq(val',val) → App(vv2,n,val).
+
+    # This requires rec_value peeling which we know works but is 50+ lines.
+    # For brevity, use a shortcut: instantiate step_inner with val' from step_part1,
+    # then chain through fval.
+
+    # Simpler approach: instantiate step_inner's forall with val' (not val).
+    # step_inner: forall val'. Apply(vv2,n,val') -> forall fv. Apply(f,val',fv) -> Apply(vv2,sn,fv)
+    # From step_part1: exists yc. Apply(vv2,n,yc). _eel to get Apply(vv2,n,yc) on left.
+    # Instantiate with yc: Apply(vv2,n,yc) -> forall fv. Apply(f,yc,fv) -> Apply(vv2,sn,fv)
+    # MP: forall fv. Apply(f,yc,fv) -> Apply(vv2,sn,fv)
+    # Then: rec_value gives val=yc. Transfer Apply(f,val,fval) -> Apply(f,yc,fval).
+    # Step: Apply(f,yc,fval) -> Apply(vv2,sn,fval). ✓
+
+    val2 = Var(postfix='val2')
+    step_val2_body = Implies(Apply(vv2, n, val2),
+        Forall(fvalc, Implies(Apply(f, val2, fvalc), Apply(vv2, sn, fvalc))))
+    fl_val2 = _fl(step_inner, step_val2_body, val2)
+    got_step_val2 = Proof(Sequent(got_step_fa.sequent.left, [step_val2_body]), 'cut',
+        [wr(got_step_fa, step_val2_body), wl(fl_val2, *got_step_fa.sequent.left)],
+        principal=step_inner)
+    app_vv2_nv2 = Apply(vv2, n, val2)
+    got_step_v2 = mp(got_step_val2, ax(app_vv2_nv2), app_vv2_nv2,
+        Forall(fvalc, Implies(Apply(f, val2, fvalc), Apply(vv2, sn, fvalc))))
+    # Instantiate fval:
+    fval_body = Implies(Apply(f, val2, fval), Apply(vv2, sn, fval))
+    fl_fval = _fl(Forall(fvalc, Implies(Apply(f, val2, fvalc), Apply(vv2, sn, fvalc))),
+                  fval_body, fval)
+    got_step_fv = Proof(Sequent(got_step_v2.sequent.left, [fval_body]), 'cut',
+        [wr(got_step_v2, fval_body), wl(fl_fval, *got_step_v2.sequent.left)],
+        principal=Forall(fvalc, Implies(Apply(f, val2, fvalc), Apply(vv2, sn, fvalc))))
+
+    # Need Apply(f,val2,fval). From rec_value: val=val2. Transfer Apply(f,val,fval)->Apply(f,val2,fval).
+    # rec_value: RA(vv)∧App(vv,n,val) ∧ RA(vv2)∧App(vv2,n,val2) → Eq(val,val2)
+    rv = rec_value()
+    got_rv = apply_thm(rv, [a, f, w, n, vv, val, vv2, val2], in_n_w,
+        Implies(func_f, Implies(omega_w, Implies(ra_vv, Implies(app_vv_nv,
+            Implies(ra_vv2, Implies(app_vv2_nv2, Eq(val, val2))))))),
+        ax(in_n_w))
+    got_rv = mp(got_rv, ax(func_f), func_f, Implies(omega_w, Implies(ra_vv, Implies(app_vv_nv,
+        Implies(ra_vv2, Implies(app_vv2_nv2, Eq(val, val2)))))))
+    got_rv = mp(got_rv, ax(omega_w), omega_w, Implies(ra_vv, Implies(app_vv_nv,
+        Implies(ra_vv2, Implies(app_vv2_nv2, Eq(val, val2))))))
+    got_rv = mp(got_rv, ax(ra_vv), ra_vv, Implies(app_vv_nv,
+        Implies(ra_vv2, Implies(app_vv2_nv2, Eq(val, val2)))))
+    got_rv = mp(got_rv, ax(app_vv_nv), app_vv_nv,
+        Implies(ra_vv2, Implies(app_vv2_nv2, Eq(val, val2))))
+    got_rv = mp(got_rv, ax(ra_vv2), ra_vv2, Implies(app_vv2_nv2, Eq(val, val2)))
+    got_rv = mp(got_rv, ax(app_vv2_nv2), app_vv2_nv2, Eq(val, val2))
+    # got_rv: [in_n_w, func_f, omega_w, ra_vv, app_vv_nv, ra_vv2, app_vv2_nv2, axioms] |- Eq(val, val2)
+
+    # eq_apply_transfer: Eq(val,val2) -> Apply(f,val,fval) -> Apply(f,val2,fval)
+    eat = eq_apply_transfer()
+    got_eat = apply_thm(eat, [f, val, val2, fval], Eq(val, val2),
+        Implies(app_f_vfv, Apply(f, val2, fval)), got_rv)
+    got_app_f_v2 = mp(got_eat, ax(app_f_vfv), app_f_vfv, Apply(f, val2, fval))
+
+    # Step: Apply(f,val2,fval) -> Apply(vv2,sn,fval)
+    got_app_vv2_sn_fv = mp(got_step_fv, got_app_f_v2, Apply(f, val2, fval), Apply(vv2, sn, fval))
+
+    # === Step 5: backward bridge -> Apply(h, sn, fval) ===
+    rha = rec_h_apply()
+    got_rha = apply_thm(rha, [h, a, f, w, sn, fval, vv2], char_h,
+        Implies(in_sn_w, Implies(ra_vv2, Implies(Apply(vv2, sn, fval), app_h_sn_fv))),
+        ax(char_h))
+    got_rha = mp(got_rha, got_osc, in_sn_w,
+        Implies(ra_vv2, Implies(Apply(vv2, sn, fval), app_h_sn_fv)))
+    got_rha = mp(got_rha, ax(ra_vv2), ra_vv2, Implies(Apply(vv2, sn, fval), app_h_sn_fv))
+    got_result = mp(got_rha, got_app_vv2_sn_fv, Apply(vv2, sn, fval), app_h_sn_fv)
+    # got_result: [lots of context] |- Apply(h, sn, fval)
+
+    # === Close existentials: _eel val2 from app_vv2_nv2, yy2 from app_vv2_sn, vv2 from ra ===
+    # _eel val2 from Apply(vv2,n,val2):
+    cur = got_result
+    cur = _eel(cur, app_vv2_nv2, val2)
+    # Cut with got_step_part1 (which gives Exists(yc, Apply(vv2,n,yc))):
+    ex_val2 = cur.sequent.left[-1]
+    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_val2)]
+    br1 = got_step_part1
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(list(br1.sequent.left), [app_h_sn_fv]), 'cut',
+        [wr(br1, app_h_sn_fv), br2], principal=ex_val2)
+
+    # _eel yy2 from app_vv2_sn:
+    cur = _eel(cur, app_vv2_sn, yy2)
+    # And(RA(vv2), Exists(yy2, Apply(vv2,sn,yy2))) from rec_exists
+    ex_yy2 = cur.sequent.left[-1]
+    and_ra_ex2_actual = And(ra_vv2, ex_yy2)
+    got_ra2_from = apply_thm(and_elim_left(ra_vv2, ex_yy2, []), [],
+        and_ra_ex2_actual, ra_vv2, ax(and_ra_ex2_actual))
+    got_ex2_from = apply_thm(and_elim_right(ra_vv2, ex_yy2, []), [],
+        and_ra_ex2_actual, ex_yy2,
+        Proof(Sequent([and_ra_ex2_actual], [and_ra_ex2_actual]), 'axiom', principal=and_ra_ex2_actual))
+    for (pred, got_pred) in [(ra_vv2, got_ra2_from), (ex_yy2, got_ex2_from)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_ra_ex2_actual, g) for g in c_left):
+            c_left = c_left + [and_ra_ex2_actual]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, [app_h_sn_fv]), 'cut', [wr(br1, app_h_sn_fv), br2], principal=pred)
+    cur = _eel(cur, and_ra_ex2_actual, vv2)
+    # Cut Exists(vv2, ...) with got_re:
+    ex_vv2 = cur.sequent.left[-1]
+    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_vv2)]
+    br1 = got_re
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(list(br1.sequent.left), [app_h_sn_fv]), 'cut',
+        [wr(br1, app_h_sn_fv), br2], principal=ex_vv2)
+
+    # Close vv from forward bridge: And(RA(vv), Apply(vv,n,val))
+    # _eel vv from And:
+    got_ra_from = apply_thm(and_elim_left(ra_vv, app_vv_nv, []), [],
+        and_ra_app, ra_vv, ax(and_ra_app))
+    got_app_from = apply_thm(and_elim_right(ra_vv, app_vv_nv, []), [],
+        and_ra_app, app_vv_nv,
+        Proof(Sequent([and_ra_app], [and_ra_app]), 'axiom', principal=and_ra_app))
+    for (pred, got_pred) in [(ra_vv, got_ra_from), (app_vv_nv, got_app_from)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_ra_app, g) for g in c_left):
+            c_left = c_left + [and_ra_app]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, [app_h_sn_fv]), 'cut', [wr(br1, app_h_sn_fv), br2], principal=pred)
+    cur = _eel(cur, and_ra_app, vv)
+    # Cut Exists(vv, ...) with got_fwd:
+    ex_vv = cur.sequent.left[-1]
+    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_vv)]
+    br1 = got_fwd
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = cur
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in cur.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(list(br1.sequent.left), [app_h_sn_fv]), 'cut',
+        [wr(br1, app_h_sn_fv), br2], principal=ex_vv)
+
+    # Discharge and close
+    proof = cur
+    for hh in [app_f_vfv, succ_sn, app_h_nv, in_n_w, ran_f_closed, f_at_a, omega_w, func_f, char_h]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [fval, sn, val, n, w, f, a, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'rec_h_step'
+    return proof
+
+
 def recursion_theorem():
     """Theorem 4.2.14 (PARTIAL - not the book's full version).
     Missing: Function(h), step condition h(S(n))=f(h(n)), uniqueness.
