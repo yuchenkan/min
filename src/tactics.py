@@ -5,26 +5,29 @@ from core.lang import Implies, Forall
 from core import same
 
 
-def apply_thm(thm, terms, hyp, concl, hyp_proof):
-    """Compose a theorem with a hypothesis proof.
-    thm: proof of thm_ctx |- Forall(x1, ..., Forall(xn, Implies(hyp', concl')))
+def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
+    """Instantiate a theorem's foralls and optionally compose with a hypothesis proof.
+    thm: proof of thm_ctx |- Forall(x1, ..., Forall(xn, body))
     terms: [t1, ..., tn] instantiation for the foralls
-    hyp: the hypothesis after instantiation
-    concl: the conclusion after instantiation
-    hyp_proof: proof of hyp_ctx |- hyp
-    Returns: proof of thm_ctx + (hyp_ctx - shared) |- concl"""
-    imp = Implies(hyp, concl)
-    layers = [imp]
+    hyp: the hypothesis after instantiation (None for pure facts)
+    concl: the conclusion after instantiation (= body when hyp is None)
+    hyp_proof: proof of hyp_ctx |- hyp (None when hyp is None)
+    Returns: proof of thm_ctx |- concl (pure) or thm_ctx + hyp_ctx |- concl (with hyp)"""
+    body = Implies(hyp, concl) if hyp is not None else concl
+    layers = [body]
     for t in reversed(terms):
         layers.append(Forall(t, layers[-1]))
-    cur = Proof(Sequent([imp], [imp]), 'axiom', principal=imp)
+    cur = Proof(Sequent([body], [body]), 'axiom', principal=body)
     for i in range(len(terms)):
-        cur = Proof(Sequent([layers[i + 1]], [imp]), 'forall_left',
+        cur = Proof(Sequent([layers[i + 1]], [body]), 'forall_left',
                     [cur], principal=layers[i + 1], term=terms[len(terms) - 1 - i])
     thm_ctx = list(thm.sequent.left)
-    inst = Proof(Sequent(thm_ctx, [imp]), 'cut',
-        [Proof(Sequent(thm_ctx, [layers[-1], imp]), 'weakening_right', [thm], principal=imp),
+    inst = Proof(Sequent(thm_ctx, [body]), 'cut',
+        [Proof(Sequent(thm_ctx, [layers[-1], body]), 'weakening_right', [thm], principal=body),
          wl(cur, *thm_ctx)], principal=layers[-1])
+    if hyp is None:
+        return inst
+    imp = body
     hyp_ctx = list(hyp_proof.sequent.left)
     new_from_hyp = [f for f in hyp_ctx if not any(same(f, g) for g in thm_ctx)]
     new_from_thm = [f for f in thm_ctx if not any(same(f, g) for g in hyp_ctx)]
