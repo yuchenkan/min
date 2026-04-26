@@ -85,9 +85,12 @@ if __name__ == '__main__':
         ('singleton_is_recapprox', theorems.singleton_is_recapprox()),
     ]
 
+    failed = []
     for name, proof in all_proofs:
         ok = verify(proof, is_axiom)
         print(f'{name}: {"ok" if ok else "FAILED"}  {proof.theorem()}')
-        assert ok, f'{name} failed'
+        if not ok:
+            failed.append(name)
 
-    print(f'\n{len(all_proofs)} proofs verified.')
+    print(f'\n{len(all_proofs) - len(failed)}/{len(all_proofs)} proofs verified.')
+    assert not failed, f'failed: {failed}'
