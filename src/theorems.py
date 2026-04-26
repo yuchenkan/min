@@ -11547,8 +11547,8 @@ def recursion_theorem():
     from tactics import apply_thm, wl, wr, mp
     from definitions import Function as FuncDef, Apply, RecApprox
 
-    a, f, w = Var(), Var(), Var()
-    ev = Var()
+    a, f, w = Var(postfix='a'), Var(postfix='f'), Var(postfix='w')
+    ev = Var(postfix='e')
     func_f = FuncDef(f)
     omega_w = Omega(w)
     empty_ev = Empty(ev)
@@ -11605,9 +11605,21 @@ def recursion_theorem():
     ra_vv = RecApprox(vv, a, f, w)
     in_nv_w = In(nv, w)
 
-    got_rha = apply_thm(rha, [hv, a, f, w, nv, yv, vv], char_h,
-        Implies(in_nv_w, Implies(ra_vv, Implies(app_v_ny, app_h_ny))),
-        ax(char_h))
+    # Peel rec_h_apply manually (7 foralls then Implies(char_h, ...)):
+    rha_concl = Implies(in_nv_w, Implies(ra_vv, Implies(app_v_ny, app_h_ny)))
+    rha_body = Implies(char_h, rha_concl)
+    rha_layers = [rha_body]
+    for var in reversed([hv, a, f, w, nv, yv, vv]):
+        rha_layers.append(Forall(var, rha_layers[-1]))
+    rha_f = rha.sequent.right[0]
+    got_rha = rha
+    for i in range(7):
+        outer = rha_layers[7 - i]
+        inner = rha_layers[6 - i]
+        fl_v = _fl(outer, inner, [hv, a, f, w, nv, yv, vv][i])
+        got_rha = Proof(Sequent(got_rha.sequent.left, [inner]), 'cut',
+            [wr(got_rha, inner), wl(fl_v, *got_rha.sequent.left)], principal=outer)
+    got_rha = mp(got_rha, ax(char_h), char_h, rha_concl)
     # got_rha: [char_h] |- In(nv,w) -> RA(vv) -> App(vv,nv,yv) -> App(hv,nv,yv)
 
     # Discharge and close to get the "forall n,y,v" bridge:
@@ -11646,8 +11658,15 @@ def recursion_theorem():
 
     # Actually I need to check rec_exists's actual formula structure. Let me just use
     # apply_thm with 4 terms and the correct hyp/concl:
+    # Get In(ev, w) from omega_contains_empty (don't use ax(in_ev_w) to avoid leak)
+    oce = omega_contains_empty()
+    fa_oce = Forall(ev, Implies(empty_ev, in_ev_w))
+    got_oce = apply_thm(oce, [w], omega_w, fa_oce, ax(omega_w))
+    got_in_ev = apply_thm(got_oce, [ev], empty_ev, in_ev_w, ax(empty_ev))
+    # got_in_ev: [omega_w, empty_ev, Ext, Inf] |- In(ev, w)
+
     re_concl = Implies(func_f, Implies(f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v_base))))
-    got_re = apply_thm(re, [a, f, w, ev], in_ev_w, re_concl, ax(in_ev_w))
+    got_re = apply_thm(re, [a, f, w, ev], in_ev_w, re_concl, got_in_ev)
     got_re = mp(got_re, ax(func_f), func_f, Implies(f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v_base))))
     got_re = mp(got_re, ax(f_at_a), f_at_a, Implies(ran_f_closed, Implies(omega_w, ex_v_base)))
     got_re = mp(got_re, ax(ran_f_closed), ran_f_closed, Implies(omega_w, ex_v_base))
@@ -11676,34 +11695,52 @@ def recursion_theorem():
 
     # rec_h_apply: char_h -> In(e,w) -> RA(v_base) -> Apply(v_base,e,a) -> Apply(h,e,a)
     app_h_ea = Apply(hv, ev, a)
-    got_rha_base = apply_thm(rha, [hv, a, f, w, ev, a, v_base], char_h,
-        Implies(in_ev_w, Implies(ra_vb, Implies(Apply(v_base, ev, a), app_h_ea))),
-        ax(char_h))
-    got_rha_base = mp(got_rha_base, ax(in_ev_w), in_ev_w,
+    # Peel rec_h_apply for base case: peel 5 foralls (h,a,f,w,n=ev),
+    # then forall_left y=a and v=v_base separately to avoid a-shadow.
+    yb = Var(postfix='yb')
+    vb2 = Var(postfix='vb2')
+    rha_base_inner = Implies(char_h,
+        Implies(in_ev_w, Implies(RecApprox(vb2, a, f, w),
+            Implies(Apply(vb2, ev, yb), Apply(hv, ev, yb)))))
+    rha_base_fa_vb = Forall(vb2, rha_base_inner)
+    rha_base_fa_yb = Forall(yb, rha_base_fa_vb)
+    # After peeling 5 foralls, right = Forall(yb, Forall(vb2, Implies(char,...)))
+    rha_b_layers = [rha_base_fa_yb]
+    for var in reversed([hv, a, f, w, ev]):
+        rha_b_layers.append(Forall(var, rha_b_layers[-1]))
+    got_rha_base = rha
+    for i in range(5):
+        outer = rha_b_layers[5 - i]
+        inner = rha_b_layers[4 - i]
+        fl_v = _fl(outer, inner, [hv, a, f, w, ev][i])
+        got_rha_base = Proof(Sequent(got_rha_base.sequent.left, [inner]), 'cut',
+            [wr(got_rha_base, inner), wl(fl_v, *got_rha_base.sequent.left)], principal=outer)
+    # Peel yb=a:
+    fl_yb = _fl(rha_base_fa_yb, Forall(vb2, Implies(char_h,
+        Implies(in_ev_w, Implies(RecApprox(vb2, a, f, w),
+            Implies(Apply(vb2, ev, a), Apply(hv, ev, a)))))), a)
+    rha_after_yb = fl_yb.sequent.right[0]
+    got_rha_base = Proof(Sequent(got_rha_base.sequent.left, [rha_after_yb]), 'cut',
+        [wr(got_rha_base, rha_after_yb), wl(fl_yb, *got_rha_base.sequent.left)],
+        principal=rha_base_fa_yb)
+    # Peel vb2=v_base:
+    fl_vb = _fl(rha_after_yb, Implies(char_h,
+        Implies(in_ev_w, Implies(ra_vb,
+            Implies(Apply(v_base, ev, a), app_h_ea)))), v_base)
+    rha_after_vb = fl_vb.sequent.right[0]
+    got_rha_base = Proof(Sequent(got_rha_base.sequent.left, [rha_after_vb]), 'cut',
+        [wr(got_rha_base, rha_after_vb), wl(fl_vb, *got_rha_base.sequent.left)],
+        principal=rha_after_yb)
+    # MP chain:
+    got_rha_base = mp(got_rha_base, ax(char_h), char_h,
+        Implies(in_ev_w, Implies(ra_vb, Implies(Apply(v_base, ev, a), app_h_ea))))
+    got_rha_base = mp(got_rha_base, got_in_ev, in_ev_w,
         Implies(ra_vb, Implies(Apply(v_base, ev, a), app_h_ea)))
     got_rha_base = mp(got_rha_base, ax(ra_vb), ra_vb, Implies(Apply(v_base, ev, a), app_h_ea))
     got_base = mp(got_rha_base, got_app_ea, Apply(v_base, ev, a), app_h_ea)
     # got_base: [char_h, in_ev_w, ra_vb, empty_ev, app_vb_e] |- Apply(h, e, a)
 
-    # We need In(e,w) from omega_contains_empty:
-    oce = omega_contains_empty()
-    fa_oce = Forall(ev, Implies(empty_ev, in_ev_w))
-    got_oce = apply_thm(oce, [w], omega_w, fa_oce, ax(omega_w))
-    got_oce = apply_thm(got_oce, [ev], empty_ev, in_ev_w, ax(empty_ev))
-    # got_oce: [omega_w, empty_ev, Ext, Inf] |- In(e, w)
-
-    # Cut in_ev_w from got_oce into got_base:
-    c_left = [f_ for f_ in got_base.sequent.left if not same(f_, in_ev_w)]
-    br1 = got_oce
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = got_base
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in got_base.sequent.left):
-            br2 = wl(br2, f_)
-    got_base2 = Proof(Sequent(list(br1.sequent.left), [app_h_ea]), 'cut',
-        [wr(br1, app_h_ea), br2], principal=in_ev_w)
+    got_base2 = got_base
 
     # _eel y_base from app_vb_e, then v_base from and_ra_ex:
     got_base2 = _eel(got_base2, app_vb_e, y_base)
@@ -11772,7 +11809,14 @@ def recursion_theorem():
         proof_bridge_closed, bridge_formula, and_result)
     # got_and: [char_h, ...] |- And(Apply(h,e,a), bridge)
 
-    # _eel hv from char_h:
+    # Exists intro hv FIRST (so hv is bound before _eel):
+    got_and = _eir(got_and, And(Apply(hv, ev, a),
+        Forall(nv, Forall(yv, Forall(vv,
+            Implies(In(nv, w), Implies(RecApprox(vv, a, f, w),
+                Implies(Apply(vv, nv, yv), Apply(hv, nv, yv)))))))), hv, hv)
+    # got_and: [char_h, ...] |- Exists(hv, And(Apply(hv,e,a), bridge))
+
+    # _eel hv from char_h (now hv is bound in right, so eigenvariable check passes):
     got_and = _eel(got_and, char_h, hv)
     # Cut Exists(hv, char_h) with got_rge:
     ex_h_actual = got_and.sequent.left[-1]
@@ -11787,12 +11831,6 @@ def recursion_theorem():
             br2 = wl(br2, f_)
     got_result = Proof(Sequent(list(br1.sequent.left), got_and.sequent.right), 'cut',
         [wr(br1, got_and.sequent.right[0]), br2], principal=ex_h_actual)
-
-    # Exists intro hv:
-    got_result = _eir(got_result, And(Apply(hv, ev, a),
-        Forall(nv, Forall(yv, Forall(vv,
-            Implies(In(nv, w), Implies(RecApprox(vv, a, f, w),
-                Implies(Apply(vv, nv, yv), Apply(hv, nv, yv)))))))), hv, hv)
 
     # Discharge and close
     proof = got_result
