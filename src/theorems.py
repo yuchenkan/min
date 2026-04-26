@@ -10393,21 +10393,6 @@ def rec_value():
     got_ra_cur = Proof(Sequent(got_ra_cur.sequent.left, [body4]), 'cut',
         [wr(got_ra_cur, body4), wl(fl_y2, *got_ra_cur.sequent.left)], principal=body3)
     got_ra = got_ra_cur
-    # Hmm, the peeling doesn't work like this because inner_body uses specific var names.
-    # Let me do it differently: peel all at once since they're consecutive foralls.
-
-    # Actually, the peeling works because after peeling v1, the body still has Forall(v2,...).
-    # Let me redo:
-    body4 = Implies(ra1, Implies(ra2, Implies(app1, Implies(app2, Eq(y1, y2)))))
-    body3 = Forall(y2, body4)
-    body2 = Forall(y1, body3)
-    body1 = Forall(v2, body2)
-    body0 = Forall(v1, body1)
-    # got_ra has body0 on the right. Peel to body4:
-    for (outer, inner, var) in [(body0, body1, v1), (body1, body2, v2), (body2, body3, y1), (body3, body4, y2)]:
-        fl_var = _fl(outer, inner, var)
-        got_ra = Proof(Sequent(got_ra.sequent.left, [inner]), 'cut',
-            [wr(got_ra, inner), wl(fl_var, *got_ra.sequent.left)], principal=outer)
 
     # MP with ra1, ra2, app1, app2:
     got_ra = mp(got_ra, ax(ra1), ra1, Implies(ra2, Implies(app1, Implies(app2, Eq(y1, y2)))))
