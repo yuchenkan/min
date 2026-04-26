@@ -12488,9 +12488,11 @@ def rec_h_function():
 
 
 def recursion_theorem():
-    """Theorem 4.2.14 (PARTIAL - not the book's full version).
-    Missing: Function(h), step condition h(S(n))=f(h(n)), uniqueness.
-    Currently only proves existence with base h(0)=a + backward bridge.
+    """Theorem 4.2.14 (existence part, components proved separately).
+    Function(h): rec_h_function (#81)
+    Base h(0)=a: this theorem (#78)
+    Step h(S(n))=f(h(n)): rec_h_step (#80)
+    Full Recursive packaging TODO. Uniqueness TODO.
     Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w, e.
       Function(f) -> (exists z. Apply(f,a,z)) ->
       (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
