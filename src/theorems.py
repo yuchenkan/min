@@ -10416,56 +10416,29 @@ def rec_value():
     got_ra = mp(got_ra, ax(app2), app2, Eq(y1, y2))
     # got_ra: [in_n_w, func_f, omega_w, ra1, ra2, app1, app2, Ext, Inf, Sep] |- Eq(y1, y2)
 
-    # Combine ra1 + app1 into And, eel v1:
-    and_ra1 = And(ra1, app1)
-    got_ra1_from_and = apply_thm(and_elim_left(ra1, app1, []), [], and_ra1, ra1, ax(and_ra1))
-    got_app1_from_and = apply_thm(and_elim_right(ra1, app1, []), [], and_ra1, app1,
-        Proof(Sequent([and_ra1], [and_ra1]), 'axiom', principal=and_ra1))
+    # Discharge all RecApprox hyps and universally close:
+    # Order: app2, ra2, y2, v2, app1, ra1, y1, v1 (inner first)
     cur = got_ra
-    for (pred, got) in [(ra1, got_ra1_from_and), (app1, got_app1_from_and)]:
-        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
-        if not any(same(and_ra1, g) for g in c_left):
-            c_left = c_left + [and_ra1]
-        br1 = got
-        for f_ in c_left:
-            if not any(same(f_, g) for g in br1.sequent.left):
-                br1 = wl(br1, f_)
-        br2 = cur
-        for f_ in br1.sequent.left:
-            if not any(same(f_, g) for g in cur.sequent.left):
-                br2 = wl(br2, f_)
-        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
-            [wr(br1, Eq(y1, y2)), br2], principal=pred)
-    cur = _eel(cur, and_ra1, v1)
-    ex_v1 = cur.sequent.left[-1]  # Exists(v1, And(RA1, App1))
+    for h in [app2, ra2]:
+        imp_h = Implies(h, cur.sequent.right[0])
+        rem = [f_ for f_ in cur.sequent.left if not same(f_, h)]
+        cur = Proof(Sequent(rem, [imp_h]), 'implies_right', [cur], principal=imp_h)
+    for var in [y2, v2]:
+        body = cur.sequent.right[0]
+        fa = Forall(var, body)
+        cur = Proof(Sequent(cur.sequent.left, [fa]), 'forall_right', [cur], principal=fa, term=var)
+    for h in [app1, ra1]:
+        imp_h = Implies(h, cur.sequent.right[0])
+        rem = [f_ for f_ in cur.sequent.left if not same(f_, h)]
+        cur = Proof(Sequent(rem, [imp_h]), 'implies_right', [cur], principal=imp_h)
+    for var in [y1, v1]:
+        body = cur.sequent.right[0]
+        fa = Forall(var, body)
+        cur = Proof(Sequent(cur.sequent.left, [fa]), 'forall_right', [cur], principal=fa, term=var)
 
-    # Similarly for ra2 + app2 into And, eel v2:
-    and_ra2 = And(ra2, app2)
-    got_ra2_from_and = apply_thm(and_elim_left(ra2, app2, []), [], and_ra2, ra2, ax(and_ra2))
-    got_app2_from_and = apply_thm(and_elim_right(ra2, app2, []), [], and_ra2, app2,
-        Proof(Sequent([and_ra2], [and_ra2]), 'axiom', principal=and_ra2))
-    for (pred, got) in [(ra2, got_ra2_from_and), (app2, got_app2_from_and)]:
-        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
-        if not any(same(and_ra2, g) for g in c_left):
-            c_left = c_left + [and_ra2]
-        br1 = got
-        for f_ in c_left:
-            if not any(same(f_, g) for g in br1.sequent.left):
-                br1 = wl(br1, f_)
-        br2 = cur
-        for f_ in br1.sequent.left:
-            if not any(same(f_, g) for g in cur.sequent.left):
-                br2 = wl(br2, f_)
-        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
-            [wr(br1, Eq(y1, y2)), br2], principal=pred)
-    cur = _eel(cur, and_ra2, v2)
-    # cur: [in_n_w, func_f, omega_w, Exists(v1,...), Exists(v2,...), Ext, Inf, Sep] |- Eq(y1,y2)
-
-    # Discharge and close
+    # Discharge remaining hyps and close outer vars
     proof = cur
-    ex_v2 = cur.sequent.left[-1]
-    ex_v1_actual = [f_ for f_ in cur.sequent.left if same(f_, ex_v1)][0]
-    for h in [ex_v2, ex_v1_actual, omega_w, ran_f_closed, f_at_a, func_f]:
+    for h in [omega_w, func_f]:
         if any(same(h, g) for g in proof.sequent.left):
             imp_h = Implies(h, proof.sequent.right[0])
             remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
