@@ -91,6 +91,7 @@ if __name__ == '__main__':
         ('rec_h_apply_fwd', theorems.rec_h_apply_fwd()),
         ('rec_h_step', theorems.rec_h_step()),
         ('rec_h_function', theorems.rec_h_function()),
+        ('succ_func_exists', theorems.succ_func_exists()),
         ('recursion_theorem', theorems.recursion_theorem()),
         ('ordpair_unique', theorems.ordpair_unique()),
         ('rec_value', theorems.rec_value()),

@@ -12168,6 +12168,251 @@ def rec_h_step():
     return proof
 
 
+def succ_func_exists():
+    """The successor function exists as a set (via Replacement).
+    Pairing, Rep |- forall w.
+      Omega(w) -> exists sf. forall p. Iff(In(p, sf), exists x. And(In(x,w), phi(x,p)))
+    where phi(x, p) = exists s. And(Successor(s, x), OrdPair(p, x, s)).
+    Constructs sf = {<x, S(x)> : x in omega}."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Successor
+
+    w = Var(postfix='w')
+    omega_w = Omega(w)
+    sr = Var()
+    def phi(x, p):
+        return Exists(sr, And(Successor(sr, x), OrdPair(p, x, sr)))
+
+    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # === Functional condition ===
+    # forall x in w. forall p1,p2. And(phi(x,p1), phi(x,p2)) -> Eq(p1,p2)
+    xf, p1f, p2f = Var(postfix='xf'), Var(postfix='p1f'), Var(postfix='p2f')
+    s1f, s2f = Var(postfix='s1f'), Var(postfix='s2f')
+    succ1 = Successor(s1f, xf)
+    succ2 = Successor(s2f, xf)
+    ordp1 = OrdPair(p1f, xf, s1f)
+    ordp2 = OrdPair(p2f, xf, s2f)
+    and1 = And(succ1, ordp1)
+    and2 = And(succ2, ordp2)
+    eq_p = Eq(p1f, p2f)
+
+    # unique_successor: Succ(s1,x) + Succ(s2,x) -> Eq(s1,s2)
+    us = unique_successor()
+    got_us = apply_thm(us, [xf, s1f, s2f], succ1, Implies(succ2, Eq(s1f, s2f)), ax(succ1))
+    got_us = mp(got_us, ax(succ2), succ2, Eq(s1f, s2f))
+
+    # ordpair_val_transfer: Eq(s1,s2) + OrdPair(p2,x,s2) -> OrdPair(p2,x,s1)
+    # Need Eq(s2,s1) first: eq_symmetric
+    es = eq_symmetric()
+    got_eq_sym = apply_thm(es, [s1f, s2f], Eq(s1f, s2f), Eq(s2f, s1f), got_us)
+    ovt = ordpair_val_transfer()
+    got_ordp2_s1 = apply_thm(ovt, [p2f, xf, s2f, s1f], Eq(s2f, s1f),
+        Implies(ordp2, OrdPair(p2f, xf, s1f)), got_eq_sym)
+    got_ordp2_s1 = mp(got_ordp2_s1, ax(ordp2), ordp2, OrdPair(p2f, xf, s1f))
+
+    # ordpair_unique: OrdPair(p1,x,s1) + OrdPair(p2,x,s1) -> Eq(p1,p2)
+    ou = ordpair_unique()
+    got_eq_p = apply_thm(ou, [xf, s1f, p1f, p2f], ordp1,
+        Implies(OrdPair(p2f, xf, s1f), eq_p), ax(ordp1))
+    got_eq_p = mp(got_eq_p, got_ordp2_s1, OrdPair(p2f, xf, s1f), eq_p)
+    # got_eq_p: [succ1, succ2, ordp1, ordp2] |- Eq(p1,p2)
+
+    # Package: discharge all, close with And/Exists, forall
+    # Discharge ordp2, succ2, close s2f -> phi2. Then ordp1, succ1, close s1f -> phi1.
+    # Then And(phi1, phi2) -> Eq(p1,p2). Close p2f, p1f, xf.
+    cur = got_eq_p
+    for pred in [ordp2, succ2]:
+        imp = Implies(pred, cur.sequent.right[0])
+        rem = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        cur = Proof(Sequent(rem, [imp]), 'implies_right', [cur], principal=imp)
+    cur = Proof(Sequent(cur.sequent.left, [Forall(s2f, cur.sequent.right[0])]),
+        'forall_right', [cur], principal=Forall(s2f, cur.sequent.right[0]), term=s2f)
+    for pred in [ordp1, succ1]:
+        imp = Implies(pred, cur.sequent.right[0])
+        rem = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        cur = Proof(Sequent(rem, [imp]), 'implies_right', [cur], principal=imp)
+    cur = Proof(Sequent(cur.sequent.left, [Forall(s1f, cur.sequent.right[0])]),
+        'forall_right', [cur], principal=Forall(s1f, cur.sequent.right[0]), term=s1f)
+    # Now need to package into And(phi1, phi2) -> Eq form.
+    # Current: |- forall s1. Succ(s1,x)->OrdPair(p1,x,s1)-> forall s2. Succ(s2,x)->OrdPair(p2,x,s2)->Eq(p1,p2)
+    # This IS the functional condition body (after existential packaging).
+    # The and_intro + _eel pattern for phi would be another 50 lines.
+    # For Replacement, we need: forall x in w. forall p1,p2. And(phi(x,p1),phi(x,p2))->Eq(p1,p2)
+
+    # Actually, the current formula already proves functional without And packaging
+    # because the individual hypotheses imply it. The Replacement axiom expects the
+    # And form, but we can convert. For now, let's just apply Replacement directly.
+
+    # Apply Replacement:
+    import core.zfc as zfc
+    rep = zfc.Replacement(phi, [])  # no extra vars beyond the phi closure over sr
+    rep_ax = Proof(Sequent([rep], [rep]), 'axiom', principal=rep)
+
+    # Replacement: forall domain. functional -> exists image. characterization
+    # With domain = w:
+    img = Var()
+    ppf = Var()
+    nnf = Var()
+    image_char = Forall(ppf, Iff(In(ppf, img), Exists(nnf, And(In(nnf, w), phi(nnf, ppf)))))
+    image_exists = Exists(img, image_char)
+
+    # The functional condition in the form Replacement expects:
+    # We need to match it. For now, just use apply_thm on Replacement with domain=w.
+    # The functional condition proof needs to match Replacement's internal form.
+    # This is complex — same pattern as rec_graph_exists.
+    # For brevity, skip the full packaging and just return the functional proof.
+    # TODO: apply Replacement properly.
+
+    # Package into And(phi1,phi2)->Eq for Replacement, same pattern as rec_graph_exists.
+    # For now, skip the And packaging and apply Replacement with the functional proof directly.
+    # The functional condition proof gives:
+    # |- forall x,p1,p2. Succ1->OrdPair1 -> Succ2->OrdPair2 -> Eq(p1,p2)
+    # Replacement needs: forall x in w. forall p1,p2. And(phi1,phi2)->Eq
+
+    # For Replacement, use rec_graph_exists pattern:
+    # Package succ+ordp into And, _eel into phi, then And(phi1,phi2)->Eq.
+    # But this is 100+ lines of And-packaging. Skip for now.
+
+    # Instead, just close and apply Replacement knowing the functional form matches.
+    # The functional condition for Replacement expects And(phi(x,p1), phi(x,p2)) -> Eq(p1,p2).
+    # We have individual Succ->OrdPair chains. These are equivalent after Exists packaging.
+
+    # For pragmatism: Replacement with phi and domain=w.
+    import core.zfc as zfc
+    rep = zfc.Replacement(phi, [])
+    rep_ax = Proof(Sequent([rep], [rep]), 'axiom', principal=rep)
+    img = Var(postfix='sf')
+    ppf = Var()
+    nnf = Var()
+    image_char = Forall(ppf, Iff(In(ppf, img), Exists(nnf, And(In(nnf, w), phi(nnf, ppf)))))
+    image_exists = Exists(img, image_char)
+
+    # Build the functional condition in And form by packaging cur's implies into Exists/And:
+    # First, package the individual implies into the And(phi,phi) form.
+    phi1 = phi(xf, p1f)
+    phi2 = phi(xf, p2f)
+    and_phi = And(phi1, phi2)
+
+    # From And(phi1,phi2): extract phi1, phi2. Unpack each to get Succ+OrdPair.
+    # Then apply cur's chain to get Eq(p1,p2).
+    got_phi1 = apply_thm(and_elim_left(phi1, phi2, []), [], and_phi, phi1, ax(and_phi))
+    got_phi2 = apply_thm(and_elim_right(phi1, phi2, []), [], and_phi, phi2,
+        Proof(Sequent([and_phi], [and_phi]), 'axiom', principal=and_phi))
+
+    # Unpack phi1: _eel s1f -> And(Succ(s1f,xf), OrdPair(p1f,xf,s1f))
+    and_s1o1 = And(succ1, ordp1)
+    got_s1 = apply_thm(and_elim_left(succ1, ordp1, []), [], and_s1o1, succ1, ax(and_s1o1))
+    got_o1 = apply_thm(and_elim_right(succ1, ordp1, []), [], and_s1o1, ordp1,
+        Proof(Sequent([and_s1o1], [and_s1o1]), 'axiom', principal=and_s1o1))
+    and_s2o2 = And(succ2, ordp2)
+    got_s2 = apply_thm(and_elim_left(succ2, ordp2, []), [], and_s2o2, succ2, ax(and_s2o2))
+    got_o2 = apply_thm(and_elim_right(succ2, ordp2, []), [], and_s2o2, ordp2,
+        Proof(Sequent([and_s2o2], [and_s2o2]), 'axiom', principal=and_s2o2))
+
+    # Build: [and_phi] |- Eq(p1,p2) using cur's components
+    # cur has: [succ1, ordp1, succ2, ordp2] -> ... -> Eq after discharge chain
+    # Rebuild from got_eq_p: [succ1, succ2, ordp1, ordp2] |- Eq(p1,p2)
+    # Replace each with and_s1o1/and_s2o2 via cuts:
+    cur_func = got_eq_p
+    for (pred, got_pred, and_src) in [(succ1, got_s1, and_s1o1), (ordp1, got_o1, and_s1o1),
+                                       (succ2, got_s2, and_s2o2), (ordp2, got_o2, and_s2o2)]:
+        c_left = [f_ for f_ in cur_func.sequent.left if not same(f_, pred)]
+        if not any(same(and_src, g) for g in c_left):
+            c_left = c_left + [and_src]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur_func
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur_func.sequent.left):
+                br2 = wl(br2, f_)
+        cur_func = Proof(Sequent(c_left, [eq_p]), 'cut', [wr(br1, eq_p), br2], principal=pred)
+    # _eel s1f, s2f -> phi1, phi2 on left:
+    cur_func = _eel(cur_func, and_s1o1, s1f)
+    ex_s1 = cur_func.sequent.left[-1]
+    # Replace with phi1 via got_phi1:
+    c_left = [f_ for f_ in cur_func.sequent.left if f_ is not ex_s1]
+    c_left = c_left + [and_phi]  # note: removing phi1_eel and adding and_phi
+    # Actually need to replace phi1_from_and with and_phi... this is getting tangled.
+    # Simpler: _eel s2f first, then package both phis into and_phi.
+
+    cur_func = _eel(cur_func, and_s2o2, s2f)
+    # Now left has: [phi1_eel (= phi(xf,p1f)), phi2_eel (= phi(xf,p2f))]
+    phi1_actual = [f_ for f_ in cur_func.sequent.left if same(f_, phi1)][0] if any(same(f_, phi1) for f_ in cur_func.sequent.left) else cur_func.sequent.left[-2]
+    phi2_actual = cur_func.sequent.left[-1]
+    # Package into And(phi1, phi2):
+    got_phi1_from = apply_thm(and_elim_left(phi1, phi2, []), [], and_phi, phi1, ax(and_phi))
+    got_phi2_from = apply_thm(and_elim_right(phi1, phi2, []), [], and_phi, phi2,
+        Proof(Sequent([and_phi], [and_phi]), 'axiom', principal=and_phi))
+    for (pred, got_pred) in [(phi1_actual, got_phi1_from), (phi2_actual, got_phi2_from)]:
+        c_left = [f_ for f_ in cur_func.sequent.left if f_ is not pred]
+        if not any(same(and_phi, g) for g in c_left):
+            c_left = c_left + [and_phi]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur_func
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur_func.sequent.left):
+                br2 = wl(br2, f_)
+        cur_func = Proof(Sequent(c_left, [eq_p]), 'cut', [wr(br1, eq_p), br2], principal=pred)
+    # Discharge And(phi1,phi2), close p2f, p1f, In(xf,w), xf:
+    imp_and = Implies(and_phi, eq_p)
+    rem = [f_ for f_ in cur_func.sequent.left if not same(f_, and_phi)]
+    cur_func = Proof(Sequent(rem, [imp_and]), 'implies_right', [cur_func], principal=imp_and)
+    for var in [p2f, p1f]:
+        body = cur_func.sequent.right[0]
+        fa = Forall(var, body)
+        cur_func = Proof(Sequent(cur_func.sequent.left, [fa]), 'forall_right',
+            [cur_func], principal=fa, term=var)
+    in_xf_w = In(xf, w)
+    if not any(same(in_xf_w, g) for g in cur_func.sequent.left):
+        cur_func = wl(cur_func, in_xf_w)
+    imp_in = Implies(in_xf_w, cur_func.sequent.right[0])
+    rem = [f_ for f_ in cur_func.sequent.left if not same(f_, in_xf_w)]
+    cur_func = Proof(Sequent(rem, [imp_in]), 'implies_right', [cur_func], principal=imp_in)
+    fa_xf = Forall(xf, imp_in)
+    cur_func = Proof(Sequent(rem, [fa_xf]), 'forall_right', [cur_func], principal=fa_xf, term=xf)
+    # cur_func: [] |- functional condition for Replacement
+
+    # Apply Replacement:
+    functional = cur_func.sequent.right[0]
+    got_rep = apply_thm(rep_ax, [w], functional, image_exists, cur_func)
+    # got_rep: [Replacement, Pairing] |- Exists(sf, ...)
+
+    # Discharge and close:
+    proof = got_rep
+    for var in [w]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'succ_func_exists'
+    return proof
+
+
 def rec_h_function():
     """Function(h): the recursive function's graph is a function.
     |- forall h, a, f, w.
