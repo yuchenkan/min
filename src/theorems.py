@@ -11368,15 +11368,33 @@ def rec_graph_exists():
     return proof
 
 
+def rec_h_base():
+    """The recursive function's graph contains the base value.
+    Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w, h, e.
+      Function(f) -> (exists z. Apply(f,a,z)) ->
+      (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
+      Omega(w) ->
+      (forall p. Iff(In(p, h), exists n. And(In(n, w), phi(n, p)))) ->
+      Empty(e) -> Apply(h, e, a)
+    where phi is the RecApprox graph relation.
+    From rec_exists: a RecApprox v exists with 0 in dom.
+    From rec_approx_zero: v(0) = a.
+    From h's characterization: <0,a> in h, so Apply(h,0,a)."""
+    # TODO: implement
+    pass
+
+
 def recursion_theorem():
     """Theorem 4.2.14: the recursion theorem.
     Ext, Inf, Sep, Pairing, Union, Rep, Reg |- forall a, f, w.
-      Function(f) -> {a} union ran f sub dom f -> Omega(w) ->
+      Function(f) -> (exists z. Apply(f,a,z)) ->
+      (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
+      Omega(w) ->
       exists h. Recursive(h, a, f, w)
 
-    Uses rec_graph_exists (Replacement) + rec_approx_zero (base) +
-    RecApprox step condition (step)."""
-    # TODO: apply Replacement with rec_graph_exists, show h is Recursive
+    Uses rec_graph_exists (construction via Replacement) +
+    rec_h_base (base) + Function(h) + step condition."""
+    # TODO
     pass
 
 
