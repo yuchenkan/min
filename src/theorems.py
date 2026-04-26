@@ -11319,12 +11319,42 @@ def rec_graph_exists():
     # Actually this is complex. Let me just peel manually.
 
     # The key result we need: [rep, functional_cond] |- Exists(image, characterization)
-    # After peeling 4 foralls and MP with functional_cond.
-    # For now, just return the functional condition proof — it's the hard part.
-    # The Replacement application is mechanical but requires matching the exact formula.
+    # cur: [func_f, omega_w, axioms] |- functional_condition
+    # functional_condition = Forall(nf, Implies(In(nf,w), Forall(p1f, Forall(p2f, ...))))
+
+    # === Apply Replacement axiom ===
+    rep = zfc.Replacement(phi, [a, f, w])
+    rep_ax = Proof(Sequent([rep], [rep]), 'axiom', principal=rep)
+
+    # Replacement expands to: Forall(w, Forall(f, Forall(a, Forall(dom,
+    #   Implies(functional, Exists(img, Forall(p, Iff(In(p,img), Exists(n, And(In(n,dom), phi(n,p)))))))))))
+    # Peel w,f,a (extra_vars in reverse), then dom=w:
+    rep_exp = rep.expand()
+    # Build the expected body after peeling 4 foralls:
+    img = Var()
+    pp = Var()
+    nn = Var()
+    image_char = Forall(pp, Iff(In(pp, img), Exists(nn, And(In(nn, w), phi(nn, pp)))))
+    image_exists = Exists(img, image_char)
+    rep_body = Implies(functional, image_exists)
+
+    # Peel 4 foralls from rep_ax:
+    rep_fa_a = Forall(a, rep_body)
+    rep_fa_f = Forall(f, rep_fa_a)
+    rep_fa_w = Forall(w, rep_fa_f)
+    # But Replacement wraps: for v in [a,f,w]: body = Forall(v, body)
+    # So outermost is Forall(w, Forall(f, Forall(a, Forall(dom, ...))))
+    # where dom is Replacement's internal variable.
+    # After peeling w,f,a with our w,f,a: we get Forall(dom, Implies(functional_dom, image_dom))
+    # Then peel dom with w (domain = omega).
+
+    # Use apply_thm to peel all 4 at once (w,f,a are extra_vars, dom is the domain):
+    # The 4 foralls are consecutive, then Implies(functional, image).
+    got_rep = apply_thm(rep_ax, [w, f, a, w], functional, image_exists, cur)
+    # got_rep: [func_f, omega_w, axioms, Replacement] |- Exists(img, ...)
 
     # Discharge remaining hyps and close:
-    proof = cur
+    proof = got_rep
     for h in [omega_w, func_f]:
         if any(same(h, g) for g in proof.sequent.left):
             imp_h = Implies(h, proof.sequent.right[0])
