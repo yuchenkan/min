@@ -8054,7 +8054,7 @@ def rec_exists_step():
        Successor(sn,n) -> OrdPair(p_new,sn,fval) -> Singleton(s_new,p_new) ->
        Union(u,v,s_new) ->
        (forall y,z. Apply(f,y,z) -> exists w. Apply(f,z,w)) ->
-       And(RecApprox(u,a,f,w), Apply(u,sn,fval))
+       Omega(w) -> And(RecApprox(u,a,f,w), Apply(u,sn,fval))
     Extending a RecApprox by one successor step preserves RecApprox."""
     from tactics import apply_thm, wl, wr, mp
     from definitions import (Function as FuncDef, Apply, RecApprox,
@@ -8104,7 +8104,8 @@ def rec_exists_step():
         return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
                      [p2], principal=Exists(var, pred))
 
-    hyps = [ra_v, func_f, in_n_w, app_v_n, app_f_val, succ_sn, ordp_new, sing_new, union_u, ran_f_closed]
+    omega_w = Omega(w)
+    hyps = [ra_v, func_f, in_n_w, app_v_n, app_f_val, succ_sn, ordp_new, sing_new, union_u, ran_f_closed, omega_w]
 
     # === Extract RecApprox conditions from ra_v ===
     ra_exp = ra_v.expand()
@@ -8309,11 +8310,13 @@ def rec_exists_step():
 
     # omega_succ_closed: In(n,w) -> Succ(sn,n) -> In(sn,w)
     osc = omega_succ_closed()
-    got_sn_in_w = apply_thm(osc, [w, n, sn], Omega(w),
-        Implies(In(n, w), Implies(Successor(sn, n), In(sn, w))), ax(Omega(w)))
-    got_sn_in_w = mp(mp(got_sn_in_w, ax(in_n_w), in_n_w, Implies(succ_sn, In(sn, w))),
-        ax(succ_sn), succ_sn, In(sn, w))
-    # got_sn_in_w: [Omega(w), in_n_w, succ_sn, Ext, Inf] |- In(sn, w)
+    # Peel omega_succ_closed one layer at a time (interleaved forall/implies)
+    fa_n_body = Forall(n, Implies(in_n_w, Forall(sn, Implies(succ_sn, In(sn, w)))))
+    got_osc_w = apply_thm(osc, [w], omega_w, fa_n_body, ax(omega_w))
+    fa_sn_body_osc = Forall(sn, Implies(succ_sn, In(sn, w)))
+    got_osc_n = apply_thm(got_osc_w, [n], in_n_w, fa_sn_body_osc, ax(in_n_w))
+    got_sn_in_w = apply_thm(got_osc_n, [sn], succ_sn, In(sn, w), ax(succ_sn))
+    # got_sn_in_w: [omega_w, in_n_w, succ_sn, Ext, Inf] |- In(sn, w)
 
     # eq_substitution: Eq(sn,x2) -> Iff(In(sn,w), In(x2,w))
     eqs = eq_substitution()
@@ -8781,7 +8784,7 @@ def rec_exists_step():
     app_u_m_val5 = Apply(u, m5, val5)
     app_u_m_valv = Apply(u, m5, val_v)
     got_fu = apply_thm(fu, [u, m5, val5, val_v], FuncDef(u),
-        Implies(app_u_m_val5, Implies(app_u_m_valv, Eq(val5, val_v))), ax(FuncDef(u)))
+        Implies(app_u_m_val5, Implies(app_u_m_valv, Eq(val5, val_v))), proof_cond1)
     # Lift Apply(v,m,val_v) to Apply(u,m,val_v)
     got_u_m_valv = apply_thm(auil, [u, v, s_new, m5, val_v], union_u,
         Implies(Apply(v, m5, val_v), app_u_m_valv), ax(union_u))
@@ -8937,7 +8940,7 @@ def rec_exists_step():
     # func_unique(u): Apply(u,m5,val5) + Apply(u,m5,val) -> Eq(val5, val)
     app_u_m_val = Apply(u, m5, val)
     got_fu_s = apply_thm(fu, [u, m5, val5, val], FuncDef(u),
-        Implies(Apply(u, m5, val5), Implies(app_u_m_val, Eq(val5, val))), ax(FuncDef(u)))
+        Implies(Apply(u, m5, val5), Implies(app_u_m_val, Eq(val5, val))), proof_cond1)
     got_eq_val5_val = mp(mp(got_fu_s, ax(Apply(u, m5, val5)), Apply(u, m5, val5),
         Implies(app_u_m_val, Eq(val5, val))),
         got_app_u_m5, app_u_m_val, Eq(val5, val))
