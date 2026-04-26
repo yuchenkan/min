@@ -13030,14 +13030,25 @@ def recursion_theorem():
     # === Combine Function(h) + base + step into Recursive(h,a,f,w) ===
     from definitions import Function as FuncDef, Recursive, Successor
 
-    # Get Function(h) from rec_h_function — just use apply_thm with the right form:
-    # rec_h_function has 4 consecutive foralls (h,a,f,w) then char_h→Func(f)→Omega(w)→Function(h).
-    # This is NOT interleaved — just Forall^4 then Implies^3 then Function(h).
-    # apply_thm with 4 terms and hyp=char_h should work.
+    # Get Function(h) from rec_h_function:
+    # Peel 4 foralls using actual formula, then mp char_h, func_f, omega_w.
     rhf = rec_h_function()
     func_h = FuncDef(hv)
-    got_func = apply_thm(rhf, [hv, a, f, w], char_h,
-        Implies(func_f, Implies(omega_w, func_h)), ax(char_h))
+    concl_after_char = Implies(func_f, Implies(omega_w, func_h))
+    concl_with_char = Implies(char_h, concl_after_char)
+    # Build layers using MY formulas but peel using ACTUAL formula from rhf:
+    layers = [concl_with_char,
+              Forall(w, concl_with_char), Forall(f, Forall(w, concl_with_char)),
+              Forall(a, Forall(f, Forall(w, concl_with_char))),
+              Forall(hv, Forall(a, Forall(f, Forall(w, concl_with_char))))]
+    got_func = rhf
+    for i, var in enumerate([hv, a, f, w]):
+        actual = got_func.sequent.right[0]
+        inner = layers[3 - i]
+        fl_v = _fl(actual, inner, var)
+        got_func = Proof(Sequent(got_func.sequent.left, [inner]), 'cut',
+            [wr(got_func, inner), wl(fl_v, *got_func.sequent.left)], principal=actual)
+    got_func = mp(got_func, ax(char_h), char_h, concl_after_char)
     got_func = mp(got_func, ax(func_f), func_f, Implies(omega_w, func_h))
     got_func = mp(got_func, ax(omega_w), omega_w, func_h)
 
