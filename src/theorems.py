@@ -10040,28 +10040,36 @@ def rec_exists():
     got_q_snv = _eel(got_q_snv, and_ra_ex, v0)
     # The Exists(v0, And(RecApprox(v0,...), Exists(y0,...))) on left = Q(nv)
 
-    # Discharge Q(nv) and build step proof
-    q_nv_actual = got_q_snv.sequent.left[-1]  # should be Q(nv) alpha-equiv
-    imp_q = Implies(q_nv_actual, Q(snv))
-    rem_q = [f_ for f_ in got_q_snv.sequent.left if not same(f_, q_nv_actual)]
-    proof_step_inner = Proof(Sequent(rem_q, [imp_q]), 'implies_right', [got_q_snv], principal=imp_q)
+    # Discharge in correct order: succ_snv first, forall snv, then Q(nv), then In(nv,w)
+    q_nv_actual = got_q_snv.sequent.left[-1]  # Q(nv) alpha-equiv
 
-    # Discharge succ_snv, forall snv:
-    imp_succ = Implies(succ_snv, imp_q)
-    rem_succ = [f_ for f_ in proof_step_inner.sequent.left if not same(f_, succ_snv)]
+    # 1. Discharge succ_snv:
+    imp_succ = Implies(succ_snv, Q(snv))
+    rem_succ = [f_ for f_ in got_q_snv.sequent.left if not same(f_, succ_snv)]
     proof_step_inner = Proof(Sequent(rem_succ, [imp_succ]), 'implies_right',
-        [proof_step_inner], principal=imp_succ)
+        [got_q_snv], principal=imp_succ)
+
+    # 2. Forall snv:
     fa_snv = Forall(snv, imp_succ)
     proof_step_inner = Proof(Sequent(rem_succ, [fa_snv]), 'forall_right',
         [proof_step_inner], principal=fa_snv, term=snv)
 
-    # proof_step: In(nv,w) -> Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv)
-    step_concl = Implies(Q(nv), fa_snv)
-    imp_in = Implies(in_nv_w, step_concl)
+    # 3. Discharge Q(nv):
+    imp_q = Implies(q_nv_actual, fa_snv)
+    rem_q = [f_ for f_ in proof_step_inner.sequent.left if not same(f_, q_nv_actual)]
+    proof_step_inner = Proof(Sequent(rem_q, [imp_q]), 'implies_right',
+        [proof_step_inner], principal=imp_q)
+
+    # 4. Discharge In(nv,w):
+    imp_in = Implies(in_nv_w, imp_q)
     rem_in = [f_ for f_ in proof_step_inner.sequent.left if not same(f_, in_nv_w)]
+    if not any(same(in_nv_w, g) for g in proof_step_inner.sequent.left):
+        proof_step_inner = wl(proof_step_inner, in_nv_w)
+        rem_in = [f_ for f_ in proof_step_inner.sequent.left if not same(f_, in_nv_w)]
     proof_step = Proof(Sequent(rem_in, [imp_in]), 'implies_right',
-        [wl(proof_step_inner, in_nv_w) if not any(same(in_nv_w, g) for g in proof_step_inner.sequent.left) else proof_step_inner],
-        principal=imp_in)
+        [proof_step_inner], principal=imp_in)
+
+    # 5. Forall nv:
     fa_nv = Forall(nv, imp_in)
     proof_step = Proof(Sequent(proof_step.sequent.left, [fa_nv]), 'forall_right',
         [proof_step], principal=fa_nv, term=nv)
@@ -10157,12 +10165,22 @@ def rec_exists():
     got_osc3 = apply_thm(got_osc2, [sv2], succ_s_x, in_s_w, ax(succ_s_x))
 
     # proof_step: forall nv. In(nv,w) -> Q(nv) -> forall snv. Succ(snv,nv) -> Q(snv)
-    in_xv2_w = In(xv2, w)
-    step_after_in = Implies(Q(xv2), Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
-    got_q_step = apply_thm(proof_step, [xv2], in_xv2_w, step_after_in, got_in_x_w2)
+    # Peel manually: _fl + cut to instantiate, then mp to discharge
+    ps_formula = proof_step.sequent.right[0]  # the actual Forall(nv, ...)
+    ps_body = Implies(In(xv2, w), Implies(Q(xv2), Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2)))))
+    fl_ps = _fl(ps_formula, ps_body, xv2)
+    got_ps_inst = Proof(Sequent(proof_step.sequent.left, [ps_body]), 'cut',
+        [wr(proof_step, ps_body), wl(fl_ps, *proof_step.sequent.left)], principal=ps_formula)
+    got_q_step = mp(got_ps_inst, got_in_x_w2, In(xv2, w),
+        Implies(Q(xv2), Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2)))))
     got_q_step2 = mp(got_q_step, got_q_x2, Q(xv2),
         Forall(sv2, Implies(Successor(sv2, xv2), Q(sv2))))
-    got_q_step3 = apply_thm(got_q_step2, [sv2], succ_s_x, q_s, ax(succ_s_x))
+    q_s_body = Implies(succ_s_x, Q(sv2))
+    fl_q_s = _fl(Forall(sv2, q_s_body), q_s_body, sv2)
+    got_q_step3_pre = Proof(Sequent(got_q_step2.sequent.left, [q_s_body]), 'cut',
+        [wr(got_q_step2, q_s_body), wl(fl_q_s, *got_q_step2.sequent.left)],
+        principal=Forall(sv2, q_s_body))
+    got_q_step3 = mp(got_q_step3_pre, ax(succ_s_x), succ_s_x, Q(sv2))
 
     q_s_actual = got_q_step3.sequent.right[0]
     and_in_q_s_actual = And(in_s_w, q_s_actual)
