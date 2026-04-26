@@ -12611,12 +12611,33 @@ def rec_h_function():
     # Function(h) itself doesn't depend on these, but our proof uses rec_value which does.
     # Let me just add them.
 
+    # Derive In(xs,w) from RA(v1s)+Apply(v1s,xs,y1s) via RecApprox dom_sub:
+    # dom_sub: forall x. (exists y. Apply(v,x,y)) -> In(x,w)
     in_xs_w = In(xs, w)
+    ra_exp_v1 = ra_v1s.expand()
+    dom_sub_v1 = ra_exp_v1.right.left  # dom_sub condition
+    got_rest1 = apply_thm(and_elim_right(ra_exp_v1.left, ra_exp_v1.right, []), [],
+        ra_v1s, ra_exp_v1.right, Proof(Sequent([ra_v1s], [ra_v1s]), 'axiom', principal=ra_v1s))
+    got_dom = apply_thm(and_elim_left(dom_sub_v1, ra_exp_v1.right.right, []), [],
+        ra_exp_v1.right, dom_sub_v1, ax(ra_exp_v1.right))
+    got_dom = Proof(Sequent([ra_v1s], [dom_sub_v1]), 'cut',
+        [wr(got_rest1, dom_sub_v1), wl(got_dom, ra_v1s)], principal=ra_exp_v1.right)
+    # Instantiate dom_sub with xs:
+    ys_temp = Var()
+    dom_inst = Implies(Exists(ys_temp, Apply(v1s, xs, ys_temp)), in_xs_w)
+    fl_dom = _fl(dom_sub_v1, dom_inst, xs)
+    got_dom_inst = Proof(Sequent([ra_v1s], [dom_inst]), 'cut',
+        [wr(got_dom, dom_inst), wl(fl_dom, ra_v1s)], principal=dom_sub_v1)
+    # From Apply(v1s, xs, y1s): Exists intro
+    got_ex_app = _eir(ax(app_v1s), Apply(v1s, xs, ys_temp), ys_temp, y1s)
+    got_in_xs = mp(got_dom_inst, got_ex_app, Exists(ys_temp, Apply(v1s, xs, ys_temp)), in_xs_w)
+    # got_in_xs: [ra_v1s, app_v1s] |- In(xs, w)
+
     rv = rec_value()
     got_rv = apply_thm(rv, [a, f, w, xs, v1s, y1s, v2s, y2s], in_xs_w,
         Implies(func_f, Implies(omega_w, Implies(ra_v1s, Implies(app_v1s,
             Implies(ra_v2s, Implies(app_v2s, eq_y)))))),
-        ax(in_xs_w))
+        got_in_xs)
     got_rv = mp(got_rv, ax(func_f), func_f, Implies(omega_w, Implies(ra_v1s, Implies(app_v1s,
         Implies(ra_v2s, Implies(app_v2s, eq_y))))))
     got_rv = mp(got_rv, ax(omega_w), omega_w, Implies(ra_v1s, Implies(app_v1s,
@@ -12692,30 +12713,44 @@ def rec_h_function():
     cur = Proof(Sequent(list(br1.sequent.left), [eq_y]), 'cut',
         [wr(br1, eq_y), br2], principal=ex_v1_actual)
 
-    # Discharge app_h2, app_h1, In(xs,w), close y2s,y1s,xs -> single-valued
-    for hh in [app_h2, app_h1, in_xs_w]:
-        imp = Implies(hh, cur.sequent.right[0])
-        rem = [f_ for f_ in cur.sequent.left if not same(f_, hh)]
-        cur = Proof(Sequent(rem, [imp]), 'implies_right', [cur], principal=imp)
+    # Build And(app_h1, app_h2) from individual hyps, discharge as And:
+    and_apps = And(app_h1, app_h2)
+    got_h1_from = apply_thm(and_elim_left(app_h1, app_h2, []), [], and_apps, app_h1, ax(and_apps))
+    got_h2_from = apply_thm(and_elim_right(app_h1, app_h2, []), [], and_apps, app_h2,
+        Proof(Sequent([and_apps], [and_apps]), 'axiom', principal=and_apps))
+    for (pred, got_pred) in [(app_h1, got_h1_from), (app_h2, got_h2_from)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_apps, g) for g in c_left):
+            c_left = c_left + [and_apps]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, [eq_y]), 'cut', [wr(br1, eq_y), br2], principal=pred)
+    # Discharge And(app_h1, app_h2):
+    imp_and = Implies(and_apps, eq_y)
+    rem = [f_ for f_ in cur.sequent.left if not same(f_, and_apps)]
+    cur = Proof(Sequent(rem, [imp_and]), 'implies_right', [cur], principal=imp_and)
     for var in [y2s, y1s, xs]:
         body = cur.sequent.right[0]
         fa = Forall(var, body)
         cur = Proof(Sequent(cur.sequent.left, [fa]), 'forall_right', [cur], principal=fa, term=var)
     proof_sv = cur
-    # proof_sv: [char_h, func_f, omega_w, axioms] |- single-valued (with In(xs,w) hypothesis)
-
-    # Note: the single-valued formula has In(xs,w) inside, which is extra vs standard.
     # For Function(h), the standard single-valued doesn't have In(xs,w). But our proof needs it.
     # This means our Function(h) proof has In(xs,w) as an inner condition.
     # The caller (recursion theorem) will handle this.
 
-    # === And(Relation, single-valued) ===
+    # === And(Relation, single-valued) = Function(h) ===
     rel_formula = proof_rel.sequent.right[0]
     sv_formula = proof_sv.sequent.right[0]
-    and_rel_sv = And(rel_formula, sv_formula)
+    func_h = FuncDef(h)
     ai = and_intro(rel_formula, sv_formula, [])
-    got_func = mp(apply_thm(ai, [], rel_formula, Implies(sv_formula, and_rel_sv), proof_rel),
-        proof_sv, sv_formula, and_rel_sv)
+    got_func = mp(apply_thm(ai, [], rel_formula, Implies(sv_formula, func_h), proof_rel),
+        proof_sv, sv_formula, func_h)
 
     # Discharge and close
     proof = got_func
