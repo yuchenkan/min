@@ -4,13 +4,12 @@
 class Var:
     _counter = 0
 
-    def __init__(self, prefix='v'):
+    def __init__(self):
         Var._counter += 1
         self._id = Var._counter
-        self._prefix = prefix
 
     def __str__(self):
-        return f'{self._prefix}.{self._id:x}'
+        return f'v.{self._id:x}'
 
 
 class In:
