@@ -6578,6 +6578,322 @@ def eq_apply_transfer():
     return proof
 
 
+def apply_union_intro_left():
+    """|- forall u, v1, v2, x, y.
+       Apply(v1, x, y) -> Union(u, v1, v2) -> Apply(u, x, y)
+    If <x,y> in v1 and u = v1|v2, then <x,y> in u."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Apply, Union as UnionDef
+
+    u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
+    pv = Var()
+    app1 = Apply(v1, x, y)
+    app_u = Apply(u, x, y)
+    union_u = UnionDef(u, v1, v2)
+
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    # Unpack Apply(v1,x,y): exists p. And(OrdPair(p,x,y), In(p,v1))
+    ordp = OrdPair(pv, x, y)
+    in_pv1 = In(pv, v1)
+    in_pu = In(pv, u)
+    and_app1 = And(ordp, in_pv1)
+
+    # From Union(u,v1,v2), instantiate z=pv: Iff(In(pv,u), Or(In(pv,v1), In(pv,v2)))
+    or_in = Or(in_pv1, In(pv, v2))
+    iff_union = Iff(in_pu, or_in)
+    fl_union = _fl(union_u, iff_union, pv)
+
+    # or_intro_left: In(pv,v1) -> Or(In(pv,v1), In(pv,v2))
+    oil = or_intro_left(in_pv1, In(pv, v2), [])
+    got_or = mp(oil, ax(in_pv1), in_pv1, or_in)
+    # got_or: [In(pv,v1)] |- Or(In(pv,v1), In(pv,v2))
+
+    # iff_mp_rev: Or -> In(pv,u)
+    got_bwd = mp(iff_mp_rev(in_pu, or_in, []), fl_union, iff_union,
+        Implies(or_in, in_pu))
+    got_in_u = mp(got_bwd, got_or, or_in, in_pu)
+    # got_in_u: [union_u, In(pv,v1)] |- In(pv, u)
+
+    # And(OrdPair(pv,x,y), In(pv,u))
+    and_app_u = And(ordp, in_pu)
+    ai = and_intro(ordp, in_pu, [])
+    got_and_u = mp(apply_thm(ai, [], ordp, Implies(in_pu, and_app_u), ax(ordp)),
+        got_in_u, in_pu, and_app_u)
+    # got_and_u: [union_u, In(pv,v1), ordp] |- And(OrdPair(pv,x,y), In(pv,u))
+
+    # Existential intro over pv:
+    got_ex = _eir(got_and_u, And(OrdPair(pv, x, y), In(pv, u)), pv, pv)
+    # got_ex: [union_u, In(pv,v1), ordp] |- Apply(u, x, y)
+
+    # Replace In(pv,v1) and ordp with And(ordp, In(pv,v1)):
+    got_ordp_from_and = apply_thm(and_elim_left(ordp, in_pv1, []), [],
+        and_app1, ordp, ax(and_app1))
+    got_in_from_and = apply_thm(and_elim_right(ordp, in_pv1, []), [],
+        and_app1, in_pv1, Proof(Sequent([and_app1], [and_app1]), 'axiom', principal=and_app1))
+
+    cur = got_ex
+    for (pred, got_pred) in [(ordp, got_ordp_from_and), (in_pv1, got_in_from_and)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_app1, g) for g in c_left):
+            c_left = c_left + [and_app1]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
+            [wr(br1, cur.sequent.right[0]), br2], principal=pred)
+
+    # Eel pv from and_app1:
+    cur = _eel(cur, and_app1, pv)
+    # cur: [union_u, Exists(pv, And(OrdPair(pv,x,y), In(pv,v1)))] |- Apply(u,x,y)
+    # Exists(...) = Apply(v1, x, y)
+
+    # Discharge and close
+    app1_actual = cur.sequent.left[-1]
+    proof = cur
+    for h in [app1_actual, union_u]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [y, x, v2, v1, u]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'apply_union_intro_left'
+    return proof
+
+
+def apply_union_intro_right():
+    """|- forall u, v1, v2, x, y.
+       Apply(v2, x, y) -> Union(u, v1, v2) -> Apply(u, x, y)
+    If <x,y> in v2 and u = v1|v2, then <x,y> in u."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Apply, Union as UnionDef
+
+    u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
+    pv = Var()
+    app2 = Apply(v2, x, y)
+    app_u = Apply(u, x, y)
+    union_u = UnionDef(u, v1, v2)
+
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    ordp = OrdPair(pv, x, y)
+    in_pv2 = In(pv, v2)
+    in_pu = In(pv, u)
+    and_app2 = And(ordp, in_pv2)
+
+    or_in = Or(In(pv, v1), in_pv2)
+    iff_union = Iff(in_pu, or_in)
+    fl_union = _fl(union_u, iff_union, pv)
+
+    # or_intro_right: In(pv,v2) -> Or(In(pv,v1), In(pv,v2))
+    oir = or_intro_right(In(pv, v1), in_pv2, [])
+    got_or = mp(oir, ax(in_pv2), in_pv2, or_in)
+
+    got_bwd = mp(iff_mp_rev(in_pu, or_in, []), fl_union, iff_union,
+        Implies(or_in, in_pu))
+    got_in_u = mp(got_bwd, got_or, or_in, in_pu)
+
+    and_app_u = And(ordp, in_pu)
+    ai = and_intro(ordp, in_pu, [])
+    got_and_u = mp(apply_thm(ai, [], ordp, Implies(in_pu, and_app_u), ax(ordp)),
+        got_in_u, in_pu, and_app_u)
+
+    got_ex = _eir(got_and_u, And(OrdPair(pv, x, y), In(pv, u)), pv, pv)
+
+    got_ordp_from_and = apply_thm(and_elim_left(ordp, in_pv2, []), [],
+        and_app2, ordp, ax(and_app2))
+    got_in_from_and = apply_thm(and_elim_right(ordp, in_pv2, []), [],
+        and_app2, in_pv2, Proof(Sequent([and_app2], [and_app2]), 'axiom', principal=and_app2))
+
+    cur = got_ex
+    for (pred, got_pred) in [(ordp, got_ordp_from_and), (in_pv2, got_in_from_and)]:
+        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
+        if not any(same(and_app2, g) for g in c_left):
+            c_left = c_left + [and_app2]
+        br1 = got_pred
+        for f_ in c_left:
+            if not any(same(f_, g) for g in br1.sequent.left):
+                br1 = wl(br1, f_)
+        br2 = cur
+        for f_ in br1.sequent.left:
+            if not any(same(f_, g) for g in cur.sequent.left):
+                br2 = wl(br2, f_)
+        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
+            [wr(br1, cur.sequent.right[0]), br2], principal=pred)
+
+    cur = _eel(cur, and_app2, pv)
+
+    app2_actual = cur.sequent.left[-1]
+    proof = cur
+    for h in [app2_actual, union_u]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [y, x, v2, v1, u]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'apply_union_intro_right'
+    return proof
+
+
+def apply_union_elim():
+    """|- forall u, v1, v2, x, y.
+       Apply(u, x, y) -> Union(u, v1, v2) -> Or(Apply(v1,x,y), Apply(v2,x,y))
+    If <x,y> in u = v1|v2, then <x,y> in v1 or <x,y> in v2."""
+    from tactics import apply_thm, wl, wr, mp
+    from definitions import Apply, Union as UnionDef
+
+    u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
+    pv = Var()
+    app_u = Apply(u, x, y)
+    app1 = Apply(v1, x, y)
+    app2 = Apply(v2, x, y)
+    union_u = UnionDef(u, v1, v2)
+
+    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
+    def _fl(parent, body, term):
+        return Proof(Sequent([parent], [body]), 'forall_left',
+            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+            principal=parent, term=term)
+    def _eir(proof, body, var, witness):
+        ctx = list(proof.sequent.left)
+        body_inst = proof.sequent.right[0]
+        nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+        fl = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+                   principal=Forall(var, Not(body)), term=witness)
+        return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [fl],
+                     principal=Exists(var, body))
+    def _eel(proof, pred, var):
+        ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
+        D = proof.sequent.right[0]
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+                   'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+        return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                     [p2], principal=Exists(var, pred))
+
+    ordp = OrdPair(pv, x, y)
+    in_pu = In(pv, u)
+    in_pv1 = In(pv, v1)
+    in_pv2 = In(pv, v2)
+    and_app_u = And(ordp, in_pu)
+    or_in = Or(in_pv1, in_pv2)
+    goal = Or(app1, app2)
+
+    # From And(ordp, in_pu): extract ordp and in_pu
+    got_ordp = apply_thm(and_elim_left(ordp, in_pu, []), [], and_app_u, ordp, ax(and_app_u))
+    got_in_u = apply_thm(and_elim_right(ordp, in_pu, []), [], and_app_u, in_pu,
+        Proof(Sequent([and_app_u], [and_app_u]), 'axiom', principal=and_app_u))
+
+    # From Union, instantiate z=pv: Iff(In(pv,u), Or(In(pv,v1), In(pv,v2)))
+    iff_union = Iff(in_pu, or_in)
+    fl_union = _fl(union_u, iff_union, pv)
+    got_fwd = mp(iff_mp(in_pu, or_in, []), fl_union, iff_union,
+        Implies(in_pu, or_in))
+    got_or_in = mp(got_fwd, got_in_u, in_pu, or_in)
+    # got_or_in: [and_app_u, union_u] |- Or(In(pv,v1), In(pv,v2))
+
+    # Case In(pv,v1): And(ordp, In(pv,v1)) -> Apply(v1,x,y) -> Or(app1, app2)
+    and_app1 = And(ordp, in_pv1)
+    got_and1 = mp(apply_thm(and_intro(ordp, in_pv1, []), [], ordp,
+        Implies(in_pv1, and_app1), got_ordp), ax(in_pv1), in_pv1, and_app1)
+    got_ex1 = _eir(got_and1, And(OrdPair(pv, x, y), In(pv, v1)), pv, pv)
+    # got_ex1: [and_app_u, In(pv,v1)] |- Apply(v1,x,y)
+    oil = or_intro_left(app1, app2, [])
+    got_case1 = mp(oil, got_ex1, app1, goal)
+    # got_case1: [and_app_u, In(pv,v1)] |- Or(app1, app2)
+
+    # Case In(pv,v2): And(ordp, In(pv,v2)) -> Apply(v2,x,y) -> Or(app1, app2)
+    and_app2 = And(ordp, in_pv2)
+    got_and2 = mp(apply_thm(and_intro(ordp, in_pv2, []), [], ordp,
+        Implies(in_pv2, and_app2), got_ordp), ax(in_pv2), in_pv2, and_app2)
+    got_ex2 = _eir(got_and2, And(OrdPair(pv, x, y), In(pv, v2)), pv, pv)
+    oir = or_intro_right(app1, app2, [])
+    got_case2 = mp(oir, got_ex2, app2, goal)
+    # got_case2: [and_app_u, In(pv,v2)] |- Or(app1, app2)
+
+    # or_elim on Or(In(pv,v1), In(pv,v2)):
+    oe = or_elim(in_pv1, in_pv2, goal, [])
+    got_oe1 = mp(oe, got_or_in, or_in, Implies(Implies(in_pv1, goal), Implies(Implies(in_pv2, goal), goal)))
+    # Discharge In(pv,v1) from got_case1:
+    imp_case1 = Implies(in_pv1, goal)
+    rem1 = [f_ for f_ in got_case1.sequent.left if not same(f_, in_pv1)]
+    got_imp1 = Proof(Sequent(rem1, [imp_case1]), 'implies_right', [got_case1], principal=imp_case1)
+    got_oe2 = mp(got_oe1, got_imp1, imp_case1, Implies(Implies(in_pv2, goal), goal))
+    # Discharge In(pv,v2) from got_case2:
+    imp_case2 = Implies(in_pv2, goal)
+    rem2 = [f_ for f_ in got_case2.sequent.left if not same(f_, in_pv2)]
+    got_imp2 = Proof(Sequent(rem2, [imp_case2]), 'implies_right', [got_case2], principal=imp_case2)
+    got_result = mp(got_oe2, got_imp2, imp_case2, goal)
+    # got_result: [and_app_u, union_u] |- Or(Apply(v1,x,y), Apply(v2,x,y))
+
+    # Eel pv from and_app_u:
+    cur = _eel(got_result, and_app_u, pv)
+    # cur: [union_u, Exists(pv, And(OrdPair(pv,x,y), In(pv,u)))] |- Or(app1, app2)
+
+    # Discharge and close
+    app_u_actual = cur.sequent.left[-1]
+    proof = cur
+    for h in [app_u_actual, union_u]:
+        imp_h = Implies(h, proof.sequent.right[0])
+        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [y, x, v2, v1, u]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    proof.name = 'apply_union_elim'
+    return proof
+
+
 def singleton_is_recapprox():
     """The singleton {<e,a>} is a RecApprox when Empty(e) and f defined at a.
     Ext, Pairing |- forall a, f, w, e, p, v.
