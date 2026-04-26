@@ -11623,23 +11623,26 @@ def rec_h_apply_fwd():
     and_inner = And(and_ra_app, ordp_qmy)
 
     # tuple_injection: OrdPair(q,n,y) ∧ OrdPair(q,m,y') ∧ Eq(q,q) -> And(Eq(n,m), Eq(y,y'))
-    ti = tuple_injection()
+    # kuratowski: forall a,b,c,d,t1. OrdPair(t1,a,b) ->
+    #   forall t2. OrdPair(t2,c,d) -> Eq(t1,t2) -> And(Eq(a,c),Eq(b,d))
+    # Need TWO different vars for t1 and t2 to match kuratowski's structure.
+    # qv = t1 (from Apply(h,n,y) expansion), qv2 = t2 (from characterization).
+    # In the actual proof, qv and qv2 refer to the same set, so Eq(qv,qv2) via eq_reflexive
+    # after identifying them. But formally we need it from the proof context.
+    # Since both OrdPair(qv,n,y) and OrdPair(qv2,mm,yr) come from the SAME q in the _eel,
+    # we'll get Eq(qv,qv2) by making qv2 = qv via the _eel witness identification.
+    # For now, use qv for both in the actual proof (they ARE the same witness) but build
+    # the kuratowski formula with different vars, then instantiate both with qv.
+    qv2 = Var(postfix='q2')
+    ordp_q2my = OrdPair(qv2, mm, yr)
+    ku = kuratowski()
     er = eq_reflexive()
     got_eq_qq = apply_thm(er, [qv], concl=Eq(qv, qv))
-    # kuratowski: forall a,b,c,d,s1. OrdPair(s1,a,b) ->
-    #   forall s2. OrdPair(s2,c,d) -> Eq(s1,s2) -> And(Eq(a,c),Eq(b,d))
-    # Peel [n,y,mm,yr] (4 outer foralls), then s1=qv + OrdPair hyp,
-    # then s2=qv + OrdPair hyp, then Eq.
-    ku = kuratowski()
-    fa_s2_body = Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
-    fa_s2 = Forall(qv, fa_s2_body)
-    # Use kuratowski via apply_thm in two stages (interleaved forall/implies):
-    # Stage 1: peel 4 outer foralls + OrdPair hyp
-    ku = kuratowski()
-    fa_s2 = Forall(qv, Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr)))))
+    # Stage 1: peel [n,y,mm,yr,qv] + OrdPair(qv,n,y) hyp
+    fa_s2 = Forall(qv2, Implies(ordp_q2my, Implies(Eq(qv, qv2), And(Eq(n, mm), Eq(y, yr)))))
     got_ti = apply_thm(ku, [n, y, mm, yr, qv], ordp_q, fa_s2, ax(ordp_q))
-    # Stage 2: peel s2=qv + OrdPair hyp
-    fa_s2_body = Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
+    # Stage 2: peel [qv2=qv] + OrdPair(qv,mm,yr) hyp (instantiate qv2 with qv)
+    fa_s2_inst = Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
     got_ti = apply_thm(got_ti, [qv], ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))), ax(ordp_qmy))
     got_ti = mp(got_ti, got_eq_qq, Eq(qv, qv), And(Eq(n, mm), Eq(y, yr)))
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(n,m), Eq(y,y'))
