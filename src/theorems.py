@@ -11378,7 +11378,7 @@ def rec_h_apply():
     from tactics import apply_thm, wl, wr, mp
     from definitions import Function as FuncDef, Apply, RecApprox
 
-    h, a, f, w, n, y, v = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    h, a, f, w, n, y, v = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='N'), Var(postfix='Y'), Var(postfix='V')
     vr, yr = Var(), Var()
     def phi(m, p):
         return Exists(vr, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, m, yr)),
@@ -11423,8 +11423,9 @@ def rec_h_apply():
         ax(ordp_q), ordp_q, and_full)
     # got_full: [ra_v, app_v, ordp_q] |- And(And(RA,App), OrdPair)
 
-    # Exists intro y, v -> phi(n, q)
-    got_ex_y = _eir(got_full, And(And(RecApprox(vr, a, f, w), Apply(vr, n, yr)),
+    # Exists intro yr=y, vr=v -> phi(n, q)
+    # First _eir body uses v (actual witness), second uses vr (existential var)
+    got_ex_y = _eir(got_full, And(And(RecApprox(v, a, f, w), Apply(v, n, yr)),
                                   OrdPair(qv, n, yr)), yr, y)
     got_phi = _eir(got_ex_y, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, n, yr)),
                                             OrdPair(qv, n, yr))), vr, v)
@@ -11457,25 +11458,9 @@ def rec_h_apply():
     got_ex_q = _eir(got_and_app, And(OrdPair(qv, n, y), In(qv, h)), qv, qv)
     # got_ex_q: [...] |- Apply(h, n, y)
 
-    # Now replace ordp_q and in_q_v with and_ord_in from Apply(v,n,y):
-    got_ordp = apply_thm(and_elim_left(ordp_q, in_q_v, []), [], and_ord_in, ordp_q, ax(and_ord_in))
-    # Don't need in_q_v for our proof (we only used ordp_q). But ordp_q came from and_ord_in.
-    # Cut ordp_q with and_ord_in:
+    # got_ex_q: [ra_v, app_v, ordp_q, in_n_w, char_h] |- Apply(h, n, y)
+    # Discharge ordp_q, forall_right qv, then use app_v to instantiate:
     from tactics import wl, wr
-    c_left = [f_ for f_ in got_ex_q.sequent.left if not same(f_, ordp_q)]
-    if not any(same(and_ord_in, g) for g in c_left):
-        c_left = c_left + [and_ord_in]
-    br1 = got_ordp
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = got_ex_q
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in got_ex_q.sequent.left):
-            br2 = wl(br2, f_)
-    cur = Proof(Sequent(c_left, [app_h]), 'cut', [wr(br1, app_h), br2], principal=ordp_q)
-
-    # _eel q from and_ord_in:
     def _eel(proof, pred, var):
         ctx = [f_ for f_ in proof.sequent.left if not same(f_, pred)]
         D = proof.sequent.right[0]
@@ -11484,13 +11469,59 @@ def rec_h_apply():
                    'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
         return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
                      [p2], principal=Exists(var, pred))
-    cur = _eel(cur, and_ord_in, qv)
-    # Exists(q, And(OrdPair(q,n,y), In(q,v))) = Apply(v,n,y) is on the left
 
-    # Discharge and close
-    app_v_actual = cur.sequent.left[-1]
+    # Discharge ordp_q:
+    imp_ordp = Implies(ordp_q, app_h)
+    rem_ordp = [f_ for f_ in got_ex_q.sequent.left if not same(f_, ordp_q)]
+    cur = Proof(Sequent(rem_ordp, [imp_ordp]), 'implies_right', [got_ex_q], principal=imp_ordp)
+    # Forall qv (qv only in ordp_q which is discharged):
+    fa_qv = Forall(qv, imp_ordp)
+    cur = Proof(Sequent(rem_ordp, [fa_qv]), 'forall_right', [cur], principal=fa_qv, term=qv)
+    # cur: [ra_v, app_v, in_n_w, char_h] |- Forall(qv, OrdPair(qv,n,y) -> Apply(h,n,y))
+
+    # From app_v = Exists(qv, And(OrdPair(qv,n,y), In(qv,v))):
+    # _eel to get And(OrdPair(qv,n,y), In(qv,v)) on left, and_elim to get ordp_q.
+    # Forall_left + mp with ordp_q -> Apply(h,n,y).
+    # Then _eel closes the qv.
+
+    # Instantiate the Forall with qv:
+    fl_qv = _fl(fa_qv, imp_ordp, qv)
+    got_inst = Proof(Sequent(cur.sequent.left, [imp_ordp]), 'cut',
+        [wr(cur, imp_ordp), wl(fl_qv, *cur.sequent.left)], principal=fa_qv)
+    # MP with ordp_q:
+    got_app_h = mp(got_inst, ax(ordp_q), ordp_q, app_h)
+    # got_app_h: [ra_v, app_v, in_n_w, char_h, ordp_q] |- Apply(h,n,y)
+
+    # Now replace ordp_q with and_ord_in via and_elim + cut:
+    got_ordp_from = apply_thm(and_elim_left(ordp_q, in_q_v, []), [], and_ord_in, ordp_q, ax(and_ord_in))
+    c_left = [f_ for f_ in got_app_h.sequent.left if not same(f_, ordp_q)]
+    if not any(same(and_ord_in, g) for g in c_left):
+        c_left = c_left + [and_ord_in]
+    br1 = got_ordp_from
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    br2 = got_app_h
+    for f_ in br1.sequent.left:
+        if not any(same(f_, g) for g in got_app_h.sequent.left):
+            br2 = wl(br2, f_)
+    cur = Proof(Sequent(c_left, [app_h]), 'cut', [wr(br1, app_h), br2], principal=ordp_q)
+    # _eel qv from and_ord_in -> Apply(v,n,y):
+    cur = _eel(cur, and_ord_in, qv)
+    # Now left has: [ra_v, app_v, in_n_w, char_h, Apply(v,n,y)_from_eel]
+    # app_v and the _eel Exists are same(). Remove the _eel duplicate only.
+    # Remove last element (the _eel one) by identity, keeping app_v:
+    c_left = [f_ for f_ in cur.sequent.left if f_ is not cur.sequent.left[-1]]
+    # c_left = [ra_v, app_v, in_n_w, char_h]
+    app_v_eel = cur.sequent.left[-1]
+    br1 = wr(ax(app_v), app_h)  # [app_v] |- [app_v, app_h]; app_v same as app_v_eel
+    for f_ in c_left:
+        if not any(same(f_, g) for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    cur = Proof(Sequent(c_left, [app_h]), 'cut', [br1, cur], principal=app_v_eel)
+
     proof = cur
-    for hh in [app_v_actual, ra_v, in_n_w, char_h]:
+    for hh in [app_v, ra_v, in_n_w, char_h]:
         if any(same(hh, g) for g in proof.sequent.left):
             imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
