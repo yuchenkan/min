@@ -162,6 +162,8 @@ def _check_forall_right(s, ps, principal, y):
     D = _remove(s.right, principal)
     if _var_free_in_sequent(y, Sequent(s.left, D)):
         return False
+    if _var_bound_in(y, principal.body):
+        return False
     substituted = _subst(principal.body, principal.var, y)
     return _eq_sequent(ps[0], Sequent(s.left, [substituted] + D))
 
@@ -299,6 +301,23 @@ def _free_vars(formula, bound=None):
         case Forall(var, body):
             return _free_vars(body, bound | {var})
     return set()
+
+
+def _var_bound_in(var, formula):
+    """Check if var appears as a binding variable in any Forall inside formula."""
+    formula = _expand(formula)
+    match formula:
+        case In():
+            return False
+        case Not(operand):
+            return _var_bound_in(var, operand)
+        case Implies(left, right):
+            return _var_bound_in(var, left) or _var_bound_in(var, right)
+        case Forall(v, body):
+            if v is var:
+                return True
+            return _var_bound_in(var, body)
+    return False
 
 
 def _var_free_in_sequent(var, s):
