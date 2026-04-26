@@ -309,20 +309,23 @@ class Total:
 
 class Recursive:
     """Recursive(h, a, f, w): isRecursive per book Thm 4.2.14.
-    isFunction(h) and h(0) = a and forall n in w. h(n+) = f(h(n)).
-    w is omega."""
+    Function(h) /\\ dom(h) <= w /\\ h(0) = a /\\
+    forall n in w. h(S(n)) = f(h(n)). w is omega."""
     __match_args__ = ('func', 'init', 'step', 'omega')
     def __init__(self, h, a, f, w):
         self.func = h; self.init = a; self.step = f; self.omega = w
     def expand(self):
-        e, n, val, sn, fval = Var(), Var(), Var(), Var(), Var()
+        e, n, val, sn, fval, xd, yd = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+        dom_sub = Forall(xd, Implies(Exists(yd, Apply(self.func, xd, yd)),
+                                     In(xd, self.omega)))
         return And(Function(self.func),
+               And(dom_sub,
                And(Forall(e, Implies(Empty(e), Apply(self.func, e, self.init))),
                    Forall(n, Implies(In(n, self.omega),
                        Forall(val, Implies(Apply(self.func, n, val),
                            Forall(sn, Implies(Successor(sn, n),
                                Forall(fval, Implies(Apply(self.step, val, fval),
-                                   Apply(self.func, sn, fval)))))))))))
+                                   Apply(self.func, sn, fval))))))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return Recursive(r(self.func), r(self.init), r(self.step), r(self.omega))

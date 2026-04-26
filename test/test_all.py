@@ -89,6 +89,7 @@ if __name__ == '__main__':
         ('rec_graph_exists', theorems.rec_graph_exists()),
         ('rec_h_apply', theorems.rec_h_apply()),
         ('rec_h_apply_fwd', theorems.rec_h_apply_fwd()),
+        ('rec_h_dom_sub', theorems.rec_h_dom_sub()),
         ('rec_h_step', theorems.rec_h_step()),
         ('rec_h_function', theorems.rec_h_function()),
         ('succ_func_exists', theorems.succ_func_exists()),
@@ -96,6 +97,7 @@ if __name__ == '__main__':
         ('ordpair_unique', theorems.ordpair_unique()),
         ('rec_value', theorems.rec_value()),
         ('singleton_is_recapprox', theorems.singleton_is_recapprox()),
+        ('rec_values_agree', theorems.rec_values_agree()),
     ]
 
     failed = []
