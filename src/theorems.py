@@ -11201,19 +11201,20 @@ def rec_graph_exists():
     and_ra_app1 = And(ra1f, app1f)
     and_inner1 = And(and_ra_app1, ordp1f)
 
-    got_ra1 = apply_thm(and_elim_left(and_ra_app1, ordp1f, []), [], and_inner1, and_ra_app1, ax(and_inner1))
-    got_ra1b = apply_thm(and_elim_left(ra1f, app1f, []), [], and_ra_app1, ra1f, ax(and_ra_app1))
-    got_app1b = apply_thm(and_elim_right(ra1f, app1f, []), [], and_ra_app1, app1f,
+    # Extract all 3 components from and_inner1 = And(And(ra1f,app1f), ordp1f)
+    got_ra_app1 = apply_thm(and_elim_left(and_ra_app1, ordp1f, []), [], and_inner1, and_ra_app1, ax(and_inner1))
+    got_ra1_from = apply_thm(and_elim_left(ra1f, app1f, []), [], and_ra_app1, ra1f, ax(and_ra_app1))
+    got_ra1_full = Proof(Sequent([and_inner1], [ra1f]), 'cut',
+        [wr(got_ra_app1, ra1f), wl(got_ra1_from, and_inner1)], principal=and_ra_app1)
+    got_app1_from = apply_thm(and_elim_right(ra1f, app1f, []), [], and_ra_app1, app1f,
         Proof(Sequent([and_ra_app1], [and_ra_app1]), 'axiom', principal=and_ra_app1))
-    got_ordp1b = apply_thm(and_elim_right(and_ra_app1, ordp1f, []), [], and_inner1, ordp1f,
+    got_app1_full = Proof(Sequent([and_inner1], [app1f]), 'cut',
+        [wr(got_ra_app1, app1f), wl(got_app1_from, and_inner1)], principal=and_ra_app1)
+    got_ordp1_full = apply_thm(and_elim_right(and_ra_app1, ordp1f, []), [], and_inner1, ordp1f,
         Proof(Sequent([and_inner1], [and_inner1]), 'axiom', principal=and_inner1))
 
-    # Cut: replace ra1f with and_inner1 (via and_ra_app1 -> ra1f chain)
     cur = got_eq
-    # Replace ra1f:
-    got_ra1_full = Proof(Sequent([and_inner1], [ra1f]), 'cut',
-        [wr(got_ra1, ra1f), wl(got_ra1b, and_inner1)], principal=and_ra_app1)
-    for pred, got_pred in [(ra1f, got_ra1_full), (app1f, got_app1b), (ordp1f, got_ordp1b)]:
+    for pred, got_pred in [(ra1f, got_ra1_full), (app1f, got_app1_full), (ordp1f, got_ordp1_full)]:
         c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
         if not any(same(and_inner1, g) for g in c_left):
             c_left = c_left + [and_inner1]
@@ -11235,15 +11236,17 @@ def rec_graph_exists():
     # Group 2: ra2f, app2f, ordp2f → phi2, same pattern
     and_ra_app2 = And(ra2f, app2f)
     and_inner2 = And(and_ra_app2, ordp2f)
-    got_ra2 = apply_thm(and_elim_left(and_ra_app2, ordp2f, []), [], and_inner2, and_ra_app2, ax(and_inner2))
-    got_ra2b = apply_thm(and_elim_left(ra2f, app2f, []), [], and_ra_app2, ra2f, ax(and_ra_app2))
-    got_app2b = apply_thm(and_elim_right(ra2f, app2f, []), [], and_ra_app2, app2f,
-        Proof(Sequent([and_ra_app2], [and_ra_app2]), 'axiom', principal=and_ra_app2))
-    got_ordp2b = apply_thm(and_elim_right(and_ra_app2, ordp2f, []), [], and_inner2, ordp2f,
-        Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2))
+    got_ra_app2 = apply_thm(and_elim_left(and_ra_app2, ordp2f, []), [], and_inner2, and_ra_app2, ax(and_inner2))
+    got_ra2_from = apply_thm(and_elim_left(ra2f, app2f, []), [], and_ra_app2, ra2f, ax(and_ra_app2))
     got_ra2_full = Proof(Sequent([and_inner2], [ra2f]), 'cut',
-        [wr(got_ra2, ra2f), wl(got_ra2b, and_inner2)], principal=and_ra_app2)
-    for pred, got_pred in [(ra2f, got_ra2_full), (app2f, got_app2b), (ordp2f, got_ordp2b)]:
+        [wr(got_ra_app2, ra2f), wl(got_ra2_from, and_inner2)], principal=and_ra_app2)
+    got_app2_from = apply_thm(and_elim_right(ra2f, app2f, []), [], and_ra_app2, app2f,
+        Proof(Sequent([and_ra_app2], [and_ra_app2]), 'axiom', principal=and_ra_app2))
+    got_app2_full = Proof(Sequent([and_inner2], [app2f]), 'cut',
+        [wr(got_ra_app2, app2f), wl(got_app2_from, and_inner2)], principal=and_ra_app2)
+    got_ordp2_full = apply_thm(and_elim_right(and_ra_app2, ordp2f, []), [], and_inner2, ordp2f,
+        Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2))
+    for pred, got_pred in [(ra2f, got_ra2_full), (app2f, got_app2_full), (ordp2f, got_ordp2_full)]:
         c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
         if not any(same(and_inner2, g) for g in c_left):
             c_left = c_left + [and_inner2]
