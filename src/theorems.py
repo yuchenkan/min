@@ -11033,6 +11033,7 @@ def recursion_theorem():
 
     Uses rec_func_exists (construction) + rec_approx_zero (base) +
     RecApprox step condition (step)."""
+    # TODO: apply Replacement with rec_func_exists, show h is Recursive
     pass
 
 
