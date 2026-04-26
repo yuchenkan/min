@@ -82,6 +82,7 @@ if __name__ == '__main__':
         ('apply_union_intro_left', theorems.apply_union_intro_left()),
         ('apply_union_intro_right', theorems.apply_union_intro_right()),
         ('apply_union_elim', theorems.apply_union_elim()),
+        ('rec_exists_step', theorems.rec_exists_step()),
         ('singleton_is_recapprox', theorems.singleton_is_recapprox()),
     ]
 
