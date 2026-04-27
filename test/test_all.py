@@ -99,6 +99,7 @@ if __name__ == '__main__':
         ('singleton_is_recapprox', theorems.singleton_is_recapprox()),
         ('rec_values_agree', theorems.rec_values_agree()),
         ('rec_unique', theorems.rec_unique()),
+        ('eq_successor_transfer', theorems.eq_successor_transfer()),
     ]
 
     failed = []

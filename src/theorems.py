@@ -13894,13 +13894,258 @@ def rec_unique():
     return proof
 
 
+def eq_successor_transfer():
+    """Transfer Successor through equalities.
+    |- forall a, b, c, d.
+         Eq(a, c) -> Eq(b, d) -> Successor(c, d) -> Successor(a, b)
+    From Eq(a,c): In(z,a) iff In(z,c). From Eq(b,d): In(z,b) iff In(z,d), Eq(z,b) iff Eq(z,d).
+    Chain through Successor(c,d) = forall z. In(z,c) iff Or(In(z,d), Eq(z,d))."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import Successor as SuccDef
+
+    a, b, c, d = Var(postfix='a'), Var(postfix='b'), Var(postfix='c'), Var(postfix='d')
+    zv = Var(postfix='z')
+    eq_ac = Eq(a, c)
+    eq_bd = Eq(b, d)
+    succ_cd = SuccDef(c, d)
+    succ_ab = SuccDef(a, b)
+
+    # Successor(c,d) = forall z. Iff(In(z,c), Or(In(z,d), Eq(z,d)))
+    in_za = In(zv, a); in_zb = In(zv, b); in_zc = In(zv, c); in_zd = In(zv, d)
+    eq_zb = Eq(zv, b); eq_zd = Eq(zv, d)
+    or_db = Or(in_zb, eq_zb)
+    or_dd = Or(in_zd, eq_zd)
+
+    # Step 1: Iff(In(z,a), In(z,c)) from Eq(a,c)
+    # Eq(a,c) = forall z. Iff(In(z,a), In(z,c)). Just instantiate.
+    iff_ac = Iff(in_za, in_zc)
+    got_iff_ac = fl(eq_ac, iff_ac, zv)
+    # [Eq(a,c)] |- Iff(In(z,a), In(z,c))
+
+    # Step 2: Iff(In(z,d), In(z,b)) from Eq(b,d) + iff_sym
+    iff_bd = Iff(in_zb, in_zd)
+    got_iff_bd = fl(eq_bd, iff_bd, zv)
+    iff_db = Iff(in_zd, in_zb)
+    got_iff_db = mp(iff_sym(in_zb, in_zd, []), got_iff_bd, iff_bd, iff_db)
+    # [Eq(b,d)] |- Iff(In(z,d), In(z,b))
+
+    # Step 3: Iff(Eq(z,d), Eq(z,b)) from Eq(b,d) via eq_in_eq
+    # eq_in_eq: Eq(x,y) -> forall z. Iff(Eq(z,x), Eq(z,y))
+    eie = eq_in_eq()
+    iff_eq_bd = Iff(eq_zb, eq_zd)
+    got_iff_eq_bd = apply_thm(eie, [b, d], eq_bd,
+        Forall(zv, iff_eq_bd), ax(eq_bd))
+    got_iff_eq_bd = apply_thm(got_iff_eq_bd, [zv], concl=iff_eq_bd)
+    # [eq_bd] |- Iff(Eq(z,b), Eq(z,d))
+    iff_eq_db = Iff(eq_zd, eq_zb)
+    got_iff_eq = mp(iff_sym(eq_zb, eq_zd, []), got_iff_eq_bd, iff_eq_bd, iff_eq_db)
+    # [eq_bd] |- Iff(Eq(z,d), Eq(z,b))
+
+    # Step 4: or_iff_compat: Iff(In(z,d),In(z,b)) -> Iff(Eq(z,d),Eq(z,b)) -> Iff(Or(...),Or(...))
+    # or_iff_compat(A, B, C, D): Iff(A,C) -> Iff(B,D) -> Iff(Or(A,B), Or(C,D))
+    oic = or_iff_compat(in_zd, eq_zd, in_zb, eq_zb, [])
+    all_or_left = list(got_iff_db.sequent.left)
+    for f_ in got_iff_eq.sequent.left:
+        if not any(same(f_, g) for g in all_or_left):
+            all_or_left.append(f_)
+    iff_or = Iff(or_dd, or_db)
+    got_iff_or = mp(apply_thm(oic, [], iff_db, Implies(iff_eq_db, iff_or),
+        weaken_to(got_iff_db, all_or_left)),
+        weaken_to(got_iff_eq, all_or_left), iff_eq_db, iff_or)
+    # [eq_bd] |- Iff(Or(In(z,d),Eq(z,d)), Or(In(z,b),Eq(z,b)))
+
+    # Step 5: From Successor(c,d), instantiate at z: Iff(In(z,c), Or(In(z,d),Eq(z,d)))
+    iff_succ = Iff(in_zc, or_dd)
+    got_iff_succ = fl(succ_cd, iff_succ, zv)
+    # [Successor(c,d)] |- Iff(In(z,c), Or(In(z,d), Eq(z,d)))
+
+    # Step 6: Chain iffs:
+    # Iff(In(z,a), In(z,c)) + Iff(In(z,c), Or(In(z,d),Eq(z,d))) -> Iff(In(z,a), Or(In(z,d),Eq(z,d)))
+    ic1 = iff_chain(in_za, in_zc, or_dd, [])
+    all_c1 = list(got_iff_ac.sequent.left)
+    for f_ in got_iff_succ.sequent.left:
+        if not any(same(f_, g) for g in all_c1):
+            all_c1.append(f_)
+    iff_a_or_dd = Iff(in_za, or_dd)
+    got_iff_a_dd = mp(apply_thm(ic1, [], iff_ac, Implies(iff_succ, iff_a_or_dd),
+        weaken_to(got_iff_ac, all_c1)),
+        weaken_to(got_iff_succ, all_c1), iff_succ, iff_a_or_dd)
+
+    # Iff(In(z,a), Or(In(z,d),Eq(z,d))) + Iff(Or(...d...),Or(...b...)) -> Iff(In(z,a), Or(In(z,b),Eq(z,b)))
+    ic2 = iff_chain(in_za, or_dd, or_db, [])
+    all_c2 = list(got_iff_a_dd.sequent.left)
+    for f_ in got_iff_or.sequent.left:
+        if not any(same(f_, g) for g in all_c2):
+            all_c2.append(f_)
+    iff_a_or_db = Iff(in_za, or_db)
+    got_iff_final = mp(apply_thm(ic2, [], iff_a_or_dd, Implies(iff_or, iff_a_or_db),
+        weaken_to(got_iff_a_dd, all_c2)),
+        weaken_to(got_iff_or, all_c2), iff_or, iff_a_or_db)
+    # [eq_ac, eq_bd, succ_cd] |- Iff(In(z,a), Or(In(z,b), Eq(z,b)))
+
+    # Step 7: forall_right z -> Successor(a,b)
+    proof = Proof(Sequent(got_iff_final.sequent.left, [succ_ab]),
+        'forall_right', [got_iff_final], principal=succ_ab, term=zv)
+
+    # Discharge and close:
+    for hh in [succ_cd, eq_bd, eq_ac]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [d, c, b, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+
+    proof.name = 'eq_successor_transfer'
+    return proof
+
+
+def plus_zero_right():
+    """m + 0 = m: the base case of addition.
+    |- forall w, m, e.
+         Omega(w) -> In(m, w) -> Empty(e) -> Plus(m, e, m)
+    Construct sf via succ_func_exists, apply recursion_theorem,
+    extract Recursive base h(0) = m, package into Plus."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import (Function as FuncDef, Apply, Recursive,
+        Successor as SuccDef, Plus as PlusDef)
+
+    w = Var(postfix='w')
+    m = Var(postfix='m')
+    ev = Var(postfix='e')
+    omega_w = Omega(w)
+    in_m_w = In(m, w)
+    empty_ev = Empty(ev)
+    plus_goal = PlusDef(m, ev, m)
+
+    goal = Forall(w, Forall(m, Forall(ev,
+        Implies(omega_w, Implies(in_m_w, Implies(empty_ev, plus_goal))))))
+
+    # === Get sf from succ_func_exists ===
+    sfv = Var(postfix='sf')
+    hv = Var(postfix='h')
+    sfe = succ_func_exists()
+    # sfe: [Rep] |- forall w. exists sf. forall p. p in sf iff (exists x in w. exists s. Succ(s,x) and p=<x,s>)
+    pv = Var()
+    xsf, ssf = Var(), Var()
+    sf_body = Iff(In(pv, sfv), Exists(xsf, And(In(xsf, w),
+        Exists(ssf, And(SuccDef(ssf, xsf), OrdPair(pv, xsf, ssf))))))
+    sf_char = Forall(pv, sf_body)
+    ex_sf = Exists(sfv, sf_char)
+    got_sfe = apply_thm(sfe, [w], concl=ex_sf)
+    # got_sfe: [Rep] |- Exists(sfv, sf_char)
+
+    # === Build succ_char from sf_char ===
+    # succ_char = forall x. In(x,w) -> forall y. Iff(Apply(sf,x,y), Successor(y,x))
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+
+    # Forward: Apply(sf,x,y) -> Successor(y,x) (given x in w)
+    # From Apply(sf,x,y) = exists p. OrdPair(p,x,y) and p in sf
+    # From p in sf (sf_char fwd): exists x' in w. exists s. Succ(s,x') and OrdPair(p,x',s)
+    # pair_injection: OrdPair(p,x,y) and OrdPair(p,x',s) -> x=x', y=s
+    # So Successor(y,x) = Successor(s,x') = Successor(y,x). Done.
+
+    # Backward: Successor(y,x) -> Apply(sf,x,y) (given x in w)
+    # From Successor(y,x) and x in w: construct p = <x,y> (ordpair_exists)
+    # Then p in sf (sf_char bwd): x in w and Succ(y,x) and OrdPair(p,x,y). Done.
+    # Apply(sf,x,y) = exists p. OrdPair(p,x,y) and p in sf. exists-intro p. Done.
+
+    # This derivation is ~200 lines of ordpair plumbing.
+    # For now, build succ_char derivation as a sub-proof.
+
+    # --- Forward direction: [sf_char, In(xsc,w), Apply(sf,xsc,ysc)] |- Successor(ysc,xsc) ---
+    app_sf = Apply(sfv, xsc, ysc)
+    succ_yx = SuccDef(ysc, xsc)
+    # Apply = Exists(qv, And(OrdPair(qv,xsc,ysc), In(qv,sfv)))
+    qv = Var(postfix='qf')
+    ordp_q = OrdPair(qv, xsc, ysc)
+    in_q_sf = In(qv, sfv)
+    and_oq_iq = And(ordp_q, in_q_sf)
+
+    # sf_char at qv: In(qv,sfv) iff Exists(xsf, And(In(xsf,w), Exists(ssf, And(Succ(ssf,xsf), OrdPair(qv,xsf,ssf)))))
+    sf_inst = Iff(In(qv, sfv), Exists(xsf, And(In(xsf, w),
+        Exists(ssf, And(SuccDef(ssf, xsf), OrdPair(qv, xsf, ssf))))))
+    got_sf_inst = fl(sf_char, sf_inst, qv)
+    # [sf_char] |- sf_inst
+
+    # Forward iff: In(qv,sfv) -> Exists(xsf, ...)
+    ex_xsf = Exists(xsf, And(In(xsf, w), Exists(ssf, And(SuccDef(ssf, xsf), OrdPair(qv, xsf, ssf)))))
+    got_sf_fwd = mp(iff_mp(In(qv, sfv), ex_xsf, []), got_sf_inst, sf_inst,
+        Implies(In(qv, sfv), ex_xsf))
+    got_ex_xsf = mp(got_sf_fwd, ax(in_q_sf), in_q_sf, ex_xsf)
+    # [sf_char, In(qv,sfv)] |- Exists(xsf, ...)
+
+    # Open xsf, ssf: get In(xsf,w), Succ(ssf,xsf), OrdPair(qv,xsf,ssf)
+    ordp_q_xs = OrdPair(qv, xsf, ssf)
+    succ_sx = SuccDef(ssf, xsf)
+
+    # pair_injection: OrdPair(qv,xsc,ysc) and OrdPair(qv,xsf,ssf) -> Eq(xsc,xsf) and Eq(ysc,ssf)
+    qv2 = Var(postfix='q2')
+    ku = kuratowski()
+    er = eq_reflexive()
+    got_eq_qq = apply_thm(er, [qv], concl=Eq(qv, qv))
+    got_ti = apply_thm(ku, [xsc, ysc, xsf, ssf, qv], ordp_q,
+        Forall(qv2, Implies(OrdPair(qv2, xsf, ssf), Implies(Eq(qv, qv2),
+            And(Eq(xsc, xsf), Eq(ysc, ssf))))), ax(ordp_q))
+    got_ti = apply_thm(got_ti, [qv], ordp_q_xs,
+        Implies(Eq(qv, qv), And(Eq(xsc, xsf), Eq(ysc, ssf))), ax(ordp_q_xs))
+    got_ti = mp(got_ti, got_eq_qq, Eq(qv, qv), And(Eq(xsc, xsf), Eq(ysc, ssf)))
+    # [ordp_q, ordp_q_xs] |- And(Eq(xsc,xsf), Eq(ysc,ssf))
+
+    # Extract Eq(ysc,ssf):
+    got_eq_ys = apply_thm(and_elim_right(Eq(xsc, xsf), Eq(ysc, ssf), []), [],
+        And(Eq(xsc, xsf), Eq(ysc, ssf)), Eq(ysc, ssf), got_ti)
+
+    # Transfer: Succ(ssf,xsf) + Eq(ysc,ssf) + Eq(xsc,xsf) -> Succ(ysc,xsc)
+    # Successor is a definition: Succ(s,x) = forall z. Iff(In(z,s), Or(In(z,x), Eq(z,x)))
+    # We need: Succ(ssf,xsf) -> Succ(ysc,xsc) given ysc=ssf and xsc=xsf
+    # Since same() handles alpha-equiv after expansion, and Eq gives extensional equality,
+    # we can use eq_in_eq to transfer membership.
+    # Actually: Succ(ysc,xsc) and Succ(ssf,xsf) are different formulas.
+    # We need: from Eq(ysc,ssf) and Eq(xsc,xsf), show Succ(ysc,xsc) iff Succ(ssf,xsf).
+    # This requires substitution under Successor, which is complex.
+    # Simpler: since Successor expands to a formula about In, we can use eq_substitution.
+
+    # Actually, for now let me take a shortcut. Instead of transferring Successor,
+    # I can use the fact that Successor is defined via Forall/Iff/In/Eq.
+    # Eq(ysc,ssf) means ysc and ssf have the same elements.
+    # Eq(xsc,xsf) means xsc and xsf have the same elements.
+    # Succ(ssf,xsf) = forall z. z in ssf iff (z in xsf or z = xsf)
+    # Succ(ysc,xsc) = forall z. z in ysc iff (z in xsc or z = xsc)
+    # From Eq(ysc,ssf): z in ysc iff z in ssf. From Eq(xsc,xsf): z in xsc iff z in xsf, xsc=xsf -> z=xsc iff z=xsf.
+    # So z in ysc iff z in ssf iff (z in xsf or z=xsf) iff (z in xsc or z=xsc).
+    # This is doable but involves chaining multiple iffs through the Successor structure.
+
+    # This is getting very long. Let me take a step back and think about a simpler approach.
+
+    # SIMPLER APPROACH: avoid building succ_char entirely.
+    # Instead, build Plus(m,e,m) by directly constructing the existential witnesses
+    # and proving each conjunct from sf_char, not from succ_char.
+    # But Plus requires succ_char as a conjunct, so I must prove it.
+
+    # Let me try yet another approach: prove succ_char via a lemma that
+    # transfers Successor through Eq. I need:
+    # eq_successor_transfer: Eq(a,b) -> Eq(c,d) -> Successor(a,c) -> Successor(b,d)
+
+    # This itself is a non-trivial theorem but reusable.
+    # For now, let me just assert the forward direction and come back to fill in.
+
+    # Actually, I realize the real issue is that I'm trying to do too much in one theorem.
+    # Let me commit what I have and continue in the next step.
+    raise NotImplementedError('plus_zero_right: succ_char derivation in progress')
+
+
 def plus_comm():
     """Commutativity of addition: m + n = n + m.
     |- forall w, m, n, p.
          Omega(w) -> In(m, w) -> In(n, w) ->
          Plus(m, n, p) -> Plus(n, m, p)
     where Plus(m, n, p) = exists w. Omega(w) /\\ exists h, sf.
-         succ_char(sf) /\\ Recursive(h, m, sf, w) /\\ Apply(h, n, p)
+         succ_char(sf, w) /\\ Recursive(h, m, sf, w) /\\ Apply(h, n, p)
     Requires sub-theorems:
       plus_zero_right:  m + 0 = m   (Recursive base)
       plus_succ_right:  m + S(n) = S(m + n)  (Recursive step)
