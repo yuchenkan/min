@@ -2159,8 +2159,10 @@ def sf_apply_transfer():
 
 def prove_addition(m_val, n_val):
     """Construct a verified proof that m + n = m+n for specific Python ints.
-    |- forall m, n, p. Num(m, m_val) -> Num(n, n_val) -> Num(p, p_val) -> Plus(m, n, p)
-    Uses plus_zero_right pattern (sf_props + recursion_theorem + rec_step_succ chain)."""
+    |- forall w, m, n. Omega(w) -> Num(m, m_val) -> Num(n, n_val) ->
+         exists p. Num(p, p_val) /\ Plus(m, n, p)
+    Uses sf_props + recursion_theorem + rec_step_succ chain.
+    Right side uses Num/Plus definition objects for clean display."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, Plus as PlusDef, Num as NumDef, ExistsUnique)
@@ -2168,6 +2170,7 @@ def prove_addition(m_val, n_val):
     from theorems.sets import successor_exists
     from theorems.omega import omega_succ_closed, omega_contains_empty
     from core.proof import _expand, _subst
+    from core.zfc import is_axiom as _is_ax
 
     p_val = m_val + n_val
     w = Var(postfix='w')
@@ -2257,7 +2260,7 @@ def prove_addition(m_val, n_val):
         weaken_to(cur_rfc, all_dc), ran_f_closed, dom_closed)
     got_dc = cut(got_dc, succ_char, got_sc)
 
-    # === recursion_theorem → h ===
+    # === recursion_theorem -> h ===
     rt = recursion_theorem()
     rec_h = RecDef(hv, mv, sfv, w)
     exu_h = ExistsUnique(hv, rec_h)
@@ -2292,45 +2295,31 @@ def prove_addition(m_val, n_val):
     got_base = apply_thm(and_elim_left(base_h, step_h, []), [], and_bs, base_h, got_bs)
 
     # === Chain: compute h(0)=mv, h(1)=S(mv), ..., h(n_val)=mv+n_val ===
-    # We need concrete set variables for each intermediate value.
-    # val[k] represents the value m+k, in_val[k] proves In(val[k], w)
-    # app[k] proves Apply(hv, num_k, val[k])
+    vals = [Var(postfix=f'v{k}') for k in range(n_val + 1)]
+    nums_n = [Var(postfix=f'k{k}') for k in range(n_val + 1)]
 
-    vals = [Var(postfix=f'v{k}') for k in range(n_val + 1)]  # val[0]=mv, val[k]=m+k
-    nums_n = [Var(postfix=f'k{k}') for k in range(n_val + 1)]  # num[k] = the k-th natural number
-
-    # Base: Apply(hv, nums_n[0], vals[0]) where nums_n[0]=0, vals[0]=mv
-    # From Recursive base: Empty(nums_n[0]) -> Apply(hv, nums_n[0], mv)
+    # Base: Apply(hv, nums_n[0], mv) from Recursive base + Empty(nums_n[0])
     got_app_0 = apply_thm(got_base, [nums_n[0]], Empty(nums_n[0]), Apply(hv, nums_n[0], mv), ax(Empty(nums_n[0])))
-    # [and_rec_uniq, Empty(nums_n[0])] |- Apply(hv, nums_n[0], mv)
 
-    # For the chain, we use rec_step_succ: needs In(k,w), In(val[k],w), Succ(S(k),k), Succ(S(val[k]),val[k])
-    # We also need omega_contains_empty for In(0,w) and omega_succ_closed for In(k+1,w)
     oce = omega_contains_empty()
-
-    # Start building the chain
-    # cur_app: proof of Apply(hv, cur_n, cur_val) with hypotheses on left
     cur_app = got_app_0
-    cur_n = nums_n[0]  # the "n" argument, currently 0
-    cur_val = mv       # the value, currently mv (= m)
+    cur_n = nums_n[0]
+    cur_val = mv
 
-    # We need In(cur_n, w) and In(cur_val, w) at each step
     # In(nums_n[0], w) from omega_contains_empty:
     got_in_0 = apply_thm(oce, [w], omega_w, Forall(nums_n[0], Implies(Empty(nums_n[0]), In(nums_n[0], w))), ax(omega_w))
     got_in_0 = apply_thm(got_in_0, [nums_n[0]], Empty(nums_n[0]), In(nums_n[0], w), ax(Empty(nums_n[0])))
-    cur_in_n = got_in_0  # In(nums_n[0], w)
-    cur_in_val = ax(In(mv, w))  # In(mv, w) as hypothesis
+    cur_in_n = got_in_0
+    cur_in_val = ax(In(mv, w))
 
-    # rec_step_succ theorem:
     rst = rec_step_succ()
 
     for k in range(n_val):
         next_n = nums_n[k + 1]
         next_val = vals[k + 1] if k + 1 < n_val else vals[n_val]
-        succ_nn = SuccDef(next_n, cur_n)    # next_n = S(cur_n)
-        succ_vv = SuccDef(next_val, cur_val) # next_val = S(cur_val)
+        succ_nn = SuccDef(next_n, cur_n)
+        succ_vv = SuccDef(next_val, cur_val)
 
-        # Peel rec_step_succ: 4 non-clashing foralls + manual fl for the rest
         nv2, pv2, snv2, spv2 = Var(), Var(), Var(), Var()
         inner_rst = Forall(nv2, Forall(pv2, Forall(snv2, Forall(spv2,
             Implies(omega_w, Implies(In(nv2, w), Implies(In(pv2, w), Implies(succ_char,
@@ -2338,7 +2327,6 @@ def prove_addition(m_val, n_val):
                     Implies(SuccDef(snv2, nv2), Implies(SuccDef(spv2, pv2),
                         Apply(hv, snv2, spv2)))))))))))))
         got_rst_k = apply_thm(rst, [w, mv, sfv, hv], concl=inner_rst)
-        # Manual fl for n=cur_n, p=cur_val, sn=next_n, sp=next_val:
         cur_f = inner_rst
         for term in [cur_n, cur_val, next_n, next_val]:
             exp_f = _expand(cur_f)
@@ -2358,14 +2346,13 @@ def prove_addition(m_val, n_val):
             if not any(same(f_, g) for g in all_k): all_k.append(f_)
         got_rst_k = mp(weaken_to(got_rst_k, all_k), weaken_to(cur_in_n, all_k), In(cur_n, w), cur_f.right); cur_f = cur_f.right
         got_rst_k = mp(got_rst_k, weaken_to(cur_in_val, all_k), In(cur_val, w), cur_f.right); cur_f = cur_f.right
-        got_rst_k = mp(got_rst_k, ax(succ_char), succ_char, cur_f.right); cur_f = cur_f.right
+        # Use got_sc (derived from and_sc_fd) instead of ax(succ_char):
+        got_rst_k = mp(got_rst_k, weaken_to(got_sc, all_k), succ_char, cur_f.right); cur_f = cur_f.right
         got_rst_k = mp(got_rst_k, weaken_to(got_rec, all_k), rec_h, cur_f.right); cur_f = cur_f.right
         got_rst_k = mp(got_rst_k, weaken_to(cur_app, all_k), Apply(hv, cur_n, cur_val), cur_f.right); cur_f = cur_f.right
         got_rst_k = mp(got_rst_k, ax(succ_nn), succ_nn, cur_f.right); cur_f = cur_f.right
         got_rst_k = mp(got_rst_k, ax(succ_vv), succ_vv, Apply(hv, next_n, next_val))
-        # got_rst_k: [..., Succ(next_n,cur_n), Succ(next_val,cur_val)] |- Apply(hv, next_n, next_val)
 
-        # Update In proofs for next iteration:
         got_in_next_n = apply_thm(osc, [w], omega_w,
             Forall(cur_n, Implies(In(cur_n, w), Forall(next_n, Implies(succ_nn, In(next_n, w))))), ax(omega_w))
         got_in_next_n = apply_thm(got_in_next_n, [cur_n], In(cur_n, w),
@@ -2384,14 +2371,11 @@ def prove_addition(m_val, n_val):
         cur_in_n = got_in_next_n
         cur_in_val = got_in_next_val
 
-    # cur_app: [...] |- Apply(hv, nums_n[n_val], vals[n_val])
-    # This is Apply(hv, n, m+n) with various Num/Succ hypotheses on the left.
-    # Package into Plus(mv, nums_n[n_val], vals[n_val]):
-    nv_final = cur_n       # the n variable
-    pv_final = cur_val     # the p variable (= m + n)
+    nv_final = cur_n
+    pv_final = cur_val
     app_final = Apply(hv, nv_final, pv_final)
 
-    # Build Plus: And(sf_all, And(Recursive, Apply)), eir sf/h/w, And(Omega, ...)
+    # === Build Plus(mv, nv_final, pv_final) ===
     and_rec_app = And(rec_h, app_final)
     got_ra = mp(apply_thm(and_intro(rec_h, app_final, []), [], rec_h,
         Implies(app_final, and_rec_app), weaken_to(got_rec, cur_app.sequent.left)),
@@ -2418,56 +2402,250 @@ def prove_addition(m_val, n_val):
     inner_w = And(Omega(w_var), Exists(h_var, Exists(sf_var,
         And(sf_all_w, And(RecDef(h_var, mv, sf_var, w_var), Apply(h_var, nv_final, pv_final))))))
     got_plus = eir(got_omega_ex, inner_w, w_var, w)
-    # got_plus: [...] |- Exists(w', And(Omega(w'), ...)) which alpha-matches PlusDef(mv, nv_final, pv_final)
+    # got_plus: [...] |- PlusDef(mv, nv_final, pv_final)
 
-    # === Goal and discharge ===
-    plus_result = PlusDef(mv, nv_final, pv_final)
+    # === Step A: Close existentials for structural hypotheses ===
+    # Following plus_zero_right pattern: eel hv from and_rec_uniq, cut with got_rt;
+    # eel sfv from and_sc_fd, cut with got_sp.
+    cur = got_plus
+    cur = eel(cur, and_rec_uniq, hv)
+    cur = cut(cur, cur.sequent.left[-1], got_rt)
+    cur = eel(cur, and_sc_fd, sfv)
+    cur = cut(cur, cur.sequent.left[-1], got_sp)
+    # Now structural hypotheses (and_rec_uniq, and_sc_fd) are eliminated.
+    # Left has: [axioms, omega_w, Empty(nums_n[0]), Succ(nums_n[k+1],nums_n[k])...,
+    #            In(mv,w), Succ(vals[k+1],vals[k])...]
+
+    # === Step B: Close n-chain into Num(nv_final, n_val) ===
+    # n-chain: Empty(nums_n[0]), Succ(nums_n[1],nums_n[0]), ..., Succ(nv_final,nums_n[n_val-1])
+    # Close from bottom up: combine Empty+Succ into And, eel to get Num.
+    if n_val == 0:
+        # nv_final = nums_n[0], Num(nv_final, 0) = Empty(nv_final) already on left
+        pass
+    else:
+        for j in range(1, n_val + 1):
+            # At this point, Num(nums_n[j-1], j-1) and Succ(nums_n[j], nums_n[j-1]) are on left
+            # (For j=1: Num(nums_n[0],0) = Empty(nums_n[0]) and Succ(nums_n[1],nums_n[0]))
+            prev_var = nums_n[j - 1]
+            cur_var = nums_n[j]
+            num_prev = NumDef(prev_var, j - 1)
+            succ_cur = SuccDef(cur_var, prev_var)
+            and_np_sc = And(num_prev, succ_cur)
+
+            # Replace num_prev on left with and_np_sc via cut:
+            # Need: [and_np_sc] |- num_prev
+            got_np = apply_thm(and_elim_left(num_prev, succ_cur, []), [],
+                and_np_sc, num_prev, ax(and_np_sc))
+            cur = cut(cur, num_prev, got_np)
+
+            # Replace succ_cur on left with and_np_sc via cut:
+            # Need: [and_np_sc] |- succ_cur
+            got_sc_j = apply_thm(and_elim_right(num_prev, succ_cur, []), [],
+                and_np_sc, succ_cur, ax(and_np_sc))
+            cur = cut(cur, succ_cur, got_sc_j)
+
+            # eel prev_var: And(num_prev, succ_cur) -> Exists(prev_var, And(...)) = Num(cur_var, j)
+            cur = eel(cur, and_np_sc, prev_var)
+    # Now the n-chain is closed: Num(nv_final, n_val) is on the left.
+
+    # === Step C: Derive In(mv, w) from Num(mv, m_val) + Omega(w) ===
+    # Build proof: [Num(mv, m_val), Omega(w), axioms] |- In(mv, w)
+    # Then cut In(mv, w) on cur's left.
+    def _num_in_omega(var, k):
+        """Build proof: [Num(var, k), Omega(w), axioms] |- In(var, w)"""
+        if k == 0:
+            # Num(var, 0) = Empty(var)
+            got = apply_thm(oce, [w], omega_w,
+                Forall(var, Implies(Empty(var), In(var, w))), ax(omega_w))
+            got = apply_thm(got, [var], Empty(var), In(var, w), ax(NumDef(var, 0)))
+            return got
+        else:
+            prev = Var(postfix=f'np{k}')
+            num_prev = NumDef(prev, k - 1)
+            succ_v_prev = SuccDef(var, prev)
+            and_form = And(num_prev, succ_v_prev)
+
+            # Recursively get In(prev, w) from Num(prev, k-1)
+            got_in_prev = _num_in_omega(prev, k - 1)
+            # [Num(prev, k-1), Omega(w), axioms] |- In(prev, w)
+
+            # Get Num(prev, k-1) from And(Num(prev,k-1), Succ(var,prev)):
+            got_np = apply_thm(and_elim_left(num_prev, succ_v_prev, []), [],
+                and_form, num_prev, ax(and_form))
+            # Replace Num(prev, k-1) on left of got_in_prev with and_form:
+            got_in_prev = cut(got_in_prev, num_prev, got_np)
+            # [and_form, Omega(w), axioms] |- In(prev, w)
+
+            # Get Succ(var, prev) from and_form:
+            got_succ = apply_thm(and_elim_right(num_prev, succ_v_prev, []), [],
+                and_form, succ_v_prev, ax(and_form))
+
+            # omega_succ_closed: Omega(w) -> In(prev, w) -> Succ(var, prev) -> In(var, w)
+            got_in_var = apply_thm(osc, [w], omega_w,
+                Forall(prev, Implies(In(prev, w), Forall(var, Implies(succ_v_prev, In(var, w))))),
+                ax(omega_w))
+            got_in_var = apply_thm(got_in_var, [prev], In(prev, w),
+                Forall(var, Implies(succ_v_prev, In(var, w))), got_in_prev)
+            got_in_var = apply_thm(got_in_var, [var], succ_v_prev, In(var, w), got_succ)
+            # [and_form, Omega(w), axioms] |- In(var, w)
+
+            # eel prev to get Exists(prev, and_form) = Num(var, k) on left:
+            got_in_var = eel(got_in_var, and_form, prev)
+            # [Num(var, k), Omega(w), axioms] |- In(var, w)
+            return got_in_var
+
+    got_in_mv = _num_in_omega(mv, m_val)
+    # [Num(mv, m_val), Omega(w), axioms] |- In(mv, w)
     num_m = NumDef(mv, m_val)
-    num_n = NumDef(nv_final, n_val)
+    cur = cut(cur, In(mv, w), got_in_mv)
+    # In(mv, w) is replaced by Num(mv, m_val) + Omega(w) on the left.
+
+    # === Step D: Eliminate val-chain Succ hypotheses ===
+    # Val-chain: Succ(vals[1], mv), Succ(vals[2], vals[1]), ..., Succ(pv_final, vals[n_val-1])
+    # These are on the left from ax(succ_vv) calls.
+    # After building Num(pv_final, p_val) on the right and eir'ing pv_final,
+    # we can eel each val var and cut with successor_exists.
+    # But first we need to build Num(pv_final, p_val) on the right BEFORE eir'ing.
+
+    # === Step E: Build Num(pv_final, p_val) on the right ===
+    # Num(pv_final, p_val) is built from:
+    #   Num(mv, m_val) (on left) + Succ(vals[1], mv), ..., Succ(pv_final, vals[n_val-1]) (on left)
+    # Strategy: prove Num(pv_final, p_val) on the right using these left hypotheses.
+    # Num(vals[0], m_val) = Num(mv, m_val) -- ax from left
+    # Num(vals[1], m_val+1) = Exists(prev, And(Num(prev, m_val), Succ(vals[1], prev)))
+    #   with prev=mv as witness: And(Num(mv, m_val), Succ(vals[1], mv))
+    #   then eir mv -> Num(vals[1], m_val+1)
+    # ... continue for each val
+
+    # Build Num(pv_final, p_val) on the right side of cur.
+    # We'll build a separate proof of Num(pv_final, p_val) and combine with Plus via and_intro.
+
+    # Build right-side Num proof incrementally:
+    if n_val == 0:
+        # pv_final = mv (or vals[0]... but vals[0] is unused, pv_final = mv)
+        # Num(pv_final, p_val) = Num(mv, m_val) = num_m, which is on the left
+        got_num_p = ax(num_m)
+        # [Num(mv, m_val)] |- Num(mv, m_val)
+        got_num_p = weaken_to(got_num_p, cur.sequent.left)
+    else:
+        # Start with Num(mv, m_val) from left
+        # For each k from 0 to n_val-1:
+        #   have Num(vals[k] or mv, m_val+k) on right
+        #   have Succ(vals[k+1], vals[k] or mv) on left
+        #   build And(Num(..., m_val+k), Succ(vals[k+1], ...)) on right
+        #   eir the previous var -> Num(vals[k+1], m_val+k+1) on right
+
+        # Proof of Num(mv, m_val) on right (from left hypothesis):
+        cur_num_proof = weaken_to(ax(num_m), cur.sequent.left)
+        cur_num_var = mv
+        cur_num_val = m_val
+
+        for k in range(n_val):
+            next_v = vals[k + 1] if k + 1 < n_val else pv_final
+            succ_next = SuccDef(next_v, cur_num_var)
+            num_cur = NumDef(cur_num_var, cur_num_val)
+            and_num_succ = And(num_cur, succ_next)
+
+            # Build And(Num(cur_num_var, cur_num_val), Succ(next_v, cur_num_var)) on right:
+            got_succ_r = weaken_to(ax(succ_next), cur.sequent.left)
+            got_and = mp(apply_thm(and_intro(num_cur, succ_next, []), [],
+                num_cur, Implies(succ_next, and_num_succ), cur_num_proof),
+                got_succ_r, succ_next, and_num_succ)
+
+            # eir cur_num_var -> Exists(prev, And(Num(prev, cur_num_val), Succ(next_v, prev)))
+            ex_var = Var()
+            ex_body = And(NumDef(ex_var, cur_num_val), SuccDef(next_v, ex_var))
+            got_ex = eir(got_and, ex_body, ex_var, cur_num_var)
+            # got_ex: [...] |- Exists(ex_var, And(Num(ex_var, cur_num_val), Succ(next_v, ex_var)))
+            # This is same as Num(next_v, cur_num_val + 1)
+
+            cur_num_proof = got_ex
+            cur_num_var = next_v
+            cur_num_val = cur_num_val + 1
+
+        got_num_p = cur_num_proof
+    # got_num_p: [left hyps] |- Num(pv_final, p_val)
+
+    # === Step F: Combine Num(pv_final, p_val) and Plus(mv, nv_final, pv_final) ===
+    plus_result = PlusDef(mv, nv_final, pv_final)
     num_p = NumDef(pv_final, p_val)
-    goal = Forall(mv, Forall(nv_final, Forall(pv_final,
-        Implies(num_m, Implies(num_n, Implies(num_p, plus_result))))))
+    and_num_plus = And(num_p, plus_result)
 
-    # The left has non-axiom hypotheses that characterize the numbers.
-    # Num(mv, m_val) = Empty(mv) [if m_val=0] or ∃prev. Num(prev,m_val-1) ∧ Succ(mv,prev) [if m_val>0]
-    # The Succ/Empty hypotheses on the left ARE the Num expansions.
-    # Discharge: collect all non-axiom hypotheses, group by which Num they belong to.
-    # Simpler: discharge using goal sub-formulas directly.
+    # cur has: [left] |- plus_result (same as Plus(mv, nv_final, pv_final))
+    # got_num_p has: [left'] |- num_p
+    # Merge and build And:
+    all_left = list(cur.sequent.left)
+    for f_ in got_num_p.sequent.left:
+        if not any(same(f_, g) for g in all_left):
+            all_left.append(f_)
+    got_combined = mp(apply_thm(and_intro(num_p, plus_result, []), [],
+        num_p, Implies(plus_result, and_num_plus), weaken_to(got_num_p, all_left)),
+        weaken_to(cur, all_left), plus_result, and_num_plus)
+    # got_combined: [all_left] |- And(Num(pv_final, p_val), Plus(mv, nv_final, pv_final))
 
-    proof = got_plus
-    g_p = goal.body.body  # Forall(pv_final, Implies(num_m, ...))
-    g_num_m = g_p.body     # Implies(num_m, Implies(num_n, Implies(num_p, plus_result)))
-    g_num_n = g_num_m.right # Implies(num_n, Implies(num_p, plus_result))
-    g_num_p = g_num_n.right # Implies(num_p, plus_result)
+    # === Step G: Exists intro for pv_final ===
+    pv_result = Var(postfix='pv')
+    ex_body = And(NumDef(pv_result, p_val), PlusDef(mv, nv_final, pv_result))
+    got_ex_p = eir(got_combined, ex_body, pv_result, pv_final)
+    # got_ex_p: [all_left] |- Exists(pv_result, And(Num(pv_result, p_val), Plus(mv, nv_final, pv_result)))
 
-    # Discharge non-axiom hypotheses as Num implications:
-    # The left has: Empty(k0), Succ(k1,k0), ..., In(mv,w), Succ(v1,mv), ..., omega_w, succ_char, ...
-    # These collectively prove Num(mv, m_val), Num(nv, n_val), Num(pv, p_val).
-    # But they're individual formulas, not Num definitions.
-    # To discharge as Implies(Num(m,m_val), ...), I need to show Num(m,m_val) implies
-    # all the individual hypotheses. This requires opening Num(m,m_val).
-    # Simpler: discharge each non-axiom hypothesis individually, then close foralls.
-    from core.zfc import is_axiom as _is_ax
+    # === Step H: Eliminate val-chain Succs via eel + cut with successor_exists ===
+    # After eir'ing pv_final, it's no longer free in the right.
+    # Val-chain Succs: Succ(vals[k+1], vals[k]) for k=0..n_val-1 where vals[0]=mv.
+    # But vals[k+1] for k < n_val-1 are intermediate vars only in these Succ formulas.
+    # pv_final = vals[n_val] was just eir'd.
+    # We eel in reverse order: vals[n_val], vals[n_val-1], ..., vals[1]
+    # (vals[0] = mv is in the goal, so we don't eel it.)
+    proof = got_ex_p
+    for k in range(n_val - 1, -1, -1):
+        prev_v = vals[k] if k > 0 else mv
+        next_v = vals[k + 1] if k + 1 < n_val else pv_final
+        succ_form = SuccDef(next_v, prev_v)
+        if any(same(succ_form, f_) for f_ in proof.sequent.left):
+            # eel next_v from succ_form (if next_v not free in right or other left)
+            proof = eel(proof, succ_form, next_v)
+            # Now left has Exists(next_v, Succ(next_v, prev_v))
+            # Cut with successor_exists:
+            got_se_k = apply_thm(se, [prev_v], concl=Exists(next_v, SuccDef(next_v, prev_v)))
+            proof = cut(proof, proof.sequent.left[-1], got_se_k)
+
+    # === Step I: Eliminate n-chain Empty (for n_val=0, nums_n[0] Empty is still there) ===
+    # After Step B, if n_val > 0, n-chain is closed into Num(nv_final, n_val).
+    # If n_val = 0, nv_final = nums_n[0] and Empty(nv_final) = Num(nv_final, 0) is on left.
+    # In either case, Num(nv_final, n_val) should be on the left.
+
+    # === Step J: Discharge hypotheses and close with forall ===
+    # Define goal using the exact formula objects, so right side IS goal.
+    num_n = NumDef(nv_final, n_val)
+    ex_goal = Exists(pv_result, And(NumDef(pv_result, p_val), PlusDef(mv, nv_final, pv_result)))
+    imp_num_n = Implies(num_n, ex_goal)
+    imp_num_m = Implies(num_m, imp_num_n)
+    imp_omega = Implies(omega_w, imp_num_m)
+    fa_nv = Forall(nv_final, imp_omega)
+    fa_mv = Forall(mv, fa_nv)
+    fa_w = Forall(w, fa_mv)
+    goal = fa_w
+
+    # Discharge in order: num_n, num_m, omega_w (innermost first)
+    # Use goal sub-formulas as principal to ensure right[0] IS goal.
+    for hh, imp in [(num_n, imp_num_n), (num_m, imp_num_m), (omega_w, imp_omega)]:
+        if any(same(hh, f_) for f_ in proof.sequent.left):
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+
+    # Discharge any remaining non-axiom hypotheses:
     non_ax = [f_ for f_ in proof.sequent.left if not _is_ax(f_)]
     for hh in non_ax:
         imp = Implies(hh, proof.sequent.right[0])
         rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
         proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    # Close all free variables:
-    from core.proof import _free_vars
-    fv = list(_free_vars(proof.sequent.right[0]))
-    for var in fv:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+
+    # Close foralls using goal sub-formulas:
+    for var, fa in [(nv_final, fa_nv), (mv, fa_mv), (w, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
 
-    # The result has axioms on left and a big forall/implies on right.
-    # The right is NOT goal (it has individual hypotheses, not Num).
-    # But same(right, goal) might hold if the individual hypotheses alpha-match Num expansions.
-    # Actually they won't — the hypotheses are scattered Succ/Empty/In formulas, not nested Num.
-    # To get goal exactly: we'd need to derive each individual hypothesis FROM the Num definition.
-    # This requires opening Num(m,m_val) into its chain of Succ/Empty.
-    # For now, the proof is correct but the right side isn't exactly goal.
+    assert proof.sequent.right[0] is goal, \
+        f"Goal mismatch: got {proof.sequent.right[0]}"
     proof.name = f'plus_{m_val}_{n_val}'
     return proof
 
