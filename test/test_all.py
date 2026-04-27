@@ -103,6 +103,7 @@ if __name__ == '__main__':
         ('sf_props', theorems.sf_props()),
         ('plus_zero_right', theorems.plus_zero_right()),
         ('rec_step_succ', theorems.rec_step_succ()),
+        ('rec_h_zero_identity', theorems.rec_h_zero_identity()),
     ]
 
     failed = []

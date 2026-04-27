@@ -847,13 +847,16 @@ def rec_h_zero_identity():
         actual = got_sep.sequent.right[0]
         exp = _expand(actual)
         inst = exp.body
+        fl_t = fl(actual, inst, term)
+        # wl (not weaken_to): actual may same() match sep axiom, need both copies for cut
         got_sep = Proof(Sequent(got_sep.sequent.left, [inst]), 'cut',
-            [wr(got_sep, inst), weaken_to(fl(actual, inst, term), got_sep.sequent.left)],
+            [wr(got_sep, inst), wl(fl_t, *got_sep.sequent.left)],
             principal=actual)
     # Peel forall a_set = w:
     actual = got_sep.sequent.right[0]
+    fl_w = fl(actual, Exists(pv, char_p), w)
     got_sep = Proof(Sequent(got_sep.sequent.left, [Exists(pv, char_p)]), 'cut',
-        [wr(got_sep, Exists(pv, char_p)), weaken_to(fl(actual, Exists(pv, char_p), w), got_sep.sequent.left)],
+        [wr(got_sep, Exists(pv, char_p)), wl(fl_w, *got_sep.sequent.left)],
         principal=actual)
     # got_sep: [Sep] |- Exists(pv, char_p)
 
@@ -906,12 +909,14 @@ def rec_h_zero_identity():
     got_app_eb_ev = apply_thm(got_base_h, [ev_base], empty_eb, Apply(hv, ev_base, ev), ax(empty_eb))
     # [rec_h, Empty(ev_base)] |- Apply(hv, ev_base, ev)
 
-    # unique_empty: Empty(ev) -> Empty(ev_base) -> Eq(ev, ev_base)
+    # unique_empty: forall e1. Empty(e1) -> forall e2. Empty(e2) -> Eq(e1,e2)
+    # Interleaved forall/implies — peel manually
     from theorems.logic import unique_empty
     ue = unique_empty()
-    got_eq_eeb = apply_thm(ue, [ev, ev_base], empty_ev,
-        Implies(empty_eb, Eq(ev, ev_base)), ax(empty_ev))
-    got_eq_eeb = mp(got_eq_eeb, ax(empty_eb), empty_eb, Eq(ev, ev_base))
+    got_eq_eeb = apply_thm(ue, [ev], empty_ev,
+        Forall(ev_base, Implies(empty_eb, Eq(ev, ev_base))), ax(empty_ev))
+    got_eq_eeb = apply_thm(got_eq_eeb, [ev_base], empty_eb,
+        Eq(ev, ev_base), ax(empty_eb))
     # [Empty(ev), Empty(ev_base)] |- Eq(ev, ev_base)
 
     # eq_apply_val_transfer: peel 3 foralls (f,x,y), then fl z=ev_base manually
@@ -997,25 +1002,48 @@ def rec_h_zero_identity():
     # Apply(h,smv,smv) = rec_step_succ result. ✓
     rst = rec_step_succ()
     # rst: |- forall w,m,sf,h,n,p,sn,sp. Omega->In(n,w)->In(p,w)->sc->Rec->App(h,n,p)->Succ(sn,n)->Succ(sp,p)->App(h,sn,sp)
-    # Instantiate: w=w, m=ev (initial value!), sf=sfv, h=hv, n=mv, p=mv, sn=smv, sp=smv
+    # rec_step_succ: 8 foralls (w,m,sf,h,n,p,sn,sp) then 8 implies.
+    # n=mv, p=mv (same) and sn=smv, sp=smv (same) cause shadow in apply_thm.
+    # Peel first 4 (w,m,sf,h) with apply_thm, then fl the rest manually.
     app_h_sm_sm = Apply(hv, smv, smv)
-    got_rst = apply_thm(rst, [w, ev, sfv, hv, mv, mv, smv, smv],
-        omega_w, Implies(In(mv, w), Implies(In(mv, w), Implies(succ_char,
-            Implies(rec_h, Implies(P(mv), Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))))))),
-        ax(omega_w))
-    got_rst = mp(got_rst, got_in_mw, In(mv, w),
-        Implies(In(mv, w), Implies(succ_char, Implies(rec_h, Implies(P(mv),
-            Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm)))))))
-    got_rst = mp(got_rst, got_in_mw, In(mv, w),
-        Implies(succ_char, Implies(rec_h, Implies(P(mv),
-            Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))))))
-    got_rst = mp(got_rst, ax(succ_char), succ_char,
-        Implies(rec_h, Implies(P(mv), Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm)))))
-    got_rst = mp(got_rst, ax(rec_h), rec_h,
-        Implies(P(mv), Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))))
-    got_rst = mp(got_rst, got_p_m, P(mv),
-        Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm)))
-    got_rst = mp(got_rst, ax(succ_sm_m), succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))
+    # After peeling w,ev,sfv,hv: forall n. forall p. forall sn. forall sp. Omega(w) -> ...
+    # But rec_step_succ has all implies AFTER all foralls. So the body after 4 foralls is:
+    # forall n. forall p. forall sn. forall sp. Omega -> In(n,w) -> In(p,w) -> sc -> rec -> app -> succ_sn -> succ_sp -> app_result
+    nv2, pv2, snv2, spv2 = Var(), Var(), Var(), Var()
+    inner_after4 = Forall(nv2, Forall(pv2, Forall(snv2, Forall(spv2,
+        Implies(omega_w, Implies(In(nv2, w), Implies(In(pv2, w), Implies(succ_char,
+            Implies(RecDef(hv, ev, sfv, w), Implies(Apply(hv, nv2, pv2),
+                Implies(SuccDef(snv2, nv2), Implies(SuccDef(spv2, pv2),
+                    Apply(hv, snv2, spv2)))))))))))))
+    got_rst = apply_thm(rst, [w, ev, sfv, hv], concl=inner_after4)
+    # Peel n=mv, p=mv, sn=smv, sp=smv manually:
+    from core.proof import _expand
+    cur_f = inner_after4
+    for term in [mv, mv, smv, smv]:
+        exp = _expand(cur_f)
+        next_f = exp.body
+        # forall_left substitutes exp.var with term:
+        from core.proof import _subst
+        next_f = _subst(exp.body, exp.var, term)
+        fl_t = fl(cur_f, next_f, term)
+        got_rst = Proof(Sequent(got_rst.sequent.left, [next_f]), 'cut',
+            [wr(got_rst, next_f), wl(fl_t, *got_rst.sequent.left)], principal=cur_f)
+        cur_f = next_f
+    # Now got_rst.right[0] = Omega -> In(mv,w) -> In(mv,w) -> sc -> rec -> Apply(h,mv,mv) -> Succ(smv,mv) -> Succ(smv,mv) -> Apply(h,smv,smv)
+    got_rst = mp(got_rst, ax(omega_w), omega_w, cur_f.right)
+    cur_f = cur_f.right
+    got_rst = mp(got_rst, got_in_mw, In(mv, w), cur_f.right)
+    cur_f = cur_f.right
+    got_rst = mp(got_rst, got_in_mw, In(mv, w), cur_f.right)
+    cur_f = cur_f.right
+    got_rst = mp(got_rst, ax(succ_char), succ_char, cur_f.right)
+    cur_f = cur_f.right
+    got_rst = mp(got_rst, ax(rec_h), rec_h, cur_f.right)
+    cur_f = cur_f.right
+    got_rst = mp(got_rst, got_p_m, P(mv), cur_f.right)
+    cur_f = cur_f.right
+    got_rst = mp(got_rst, ax(succ_sm_m), succ_sm_m, cur_f.right)
+    cur_f = cur_f.right
     got_rst = mp(got_rst, ax(succ_sm_m), succ_sm_m, app_h_sm_sm)
     # got_rst: [char_p, In(mv,pv), omega_w, succ_char, rec_h, succ_sm_m] |- Apply(h,smv,smv) = P(smv)
 
