@@ -3171,16 +3171,22 @@ def plus_comm():
     # ====================================================================
     # Section 12: Discharge hypotheses and close foralls
     # ====================================================================
-    for hh in [plus_mn, in_n_w, in_m_w, omega_w]:
+    # Discharge using goal's formula tree directly:
+    # goal = Forall(w, Forall(m, Forall(n, Forall(p, Implies(omega_w, Implies(in_m_w, Implies(in_n_w, Implies(plus_mn, plus_nm))))))))
+    g_p = goal.body.body.body  # Forall(p, Implies(omega_w, ...))
+    g_imp_omega = g_p.body     # Implies(omega_w, Implies(in_m_w, ...))
+    g_imp_m = g_imp_omega.right  # Implies(in_m_w, Implies(in_n_w, ...))
+    g_imp_n = g_imp_m.right      # Implies(in_n_w, Implies(plus_mn, plus_nm))
+    g_imp_plus = g_imp_n.right   # Implies(plus_mn, plus_nm)
+
+    for hh, imp in [(plus_mn, g_imp_plus), (in_n_w, g_imp_n), (in_m_w, g_imp_m), (omega_w, g_imp_omega)]:
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
             proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
 
-    for var in [p, n, m, w]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+    for var, fa in [(p, g_p), (n, goal.body.body), (m, goal.body), (w, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
 
+    assert proof.sequent.right[0] is goal
     proof.name = 'plus_comm'
     return proof
