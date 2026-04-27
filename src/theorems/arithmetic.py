@@ -2615,23 +2615,28 @@ def prove_addition(m_val, n_val):
     # In either case, Num(nv_final, n_val) should be on the left.
 
     # === Step J: Discharge hypotheses and close with forall ===
-    # Define goal using the exact formula objects, so right side IS goal.
+    # Goal: forall m, n. Num(m, m_val) -> Num(n, n_val) -> exists p. Num(p, p_val) /\ Plus(m, n, p)
+    # No w — use omega_exists to eliminate Omega(w) internally.
     num_n = NumDef(nv_final, n_val)
     ex_goal = Exists(pv_result, And(NumDef(pv_result, p_val), PlusDef(mv, nv_final, pv_result)))
     imp_num_n = Implies(num_n, ex_goal)
     imp_num_m = Implies(num_m, imp_num_n)
-    imp_omega = Implies(omega_w, imp_num_m)
-    fa_nv = Forall(nv_final, imp_omega)
+    fa_nv = Forall(nv_final, imp_num_m)
     fa_mv = Forall(mv, fa_nv)
-    fa_w = Forall(w, fa_mv)
-    goal = fa_w
+    goal = fa_mv
 
-    # Discharge in order: num_n, num_m, omega_w (innermost first)
-    # Use goal sub-formulas as principal to ensure right[0] IS goal.
-    for hh, imp in [(num_n, imp_num_n), (num_m, imp_num_m), (omega_w, imp_omega)]:
+    # Discharge Num hypotheses:
+    for hh, imp in [(num_n, imp_num_n), (num_m, imp_num_m)]:
         if any(same(hh, f_) for f_ in proof.sequent.left):
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
             proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+
+    # Eliminate Omega(w): eel w from Omega(w), cut with omega_exists
+    from theorems.omega import omega_exists
+    if any(same(omega_w, f_) for f_ in proof.sequent.left):
+        proof = eel(proof, omega_w, w)
+        oe = omega_exists()
+        proof = cut(proof, proof.sequent.left[-1], oe)
 
     # Discharge any remaining non-axiom hypotheses:
     non_ax = [f_ for f_ in proof.sequent.left if not _is_ax(f_)]
@@ -2641,7 +2646,7 @@ def prove_addition(m_val, n_val):
         proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
 
     # Close foralls using goal sub-formulas:
-    for var, fa in [(nv_final, fa_nv), (mv, fa_mv), (w, goal)]:
+    for var, fa in [(nv_final, fa_nv), (mv, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
 
     assert proof.sequent.right[0] is goal, \
