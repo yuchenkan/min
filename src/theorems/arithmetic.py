@@ -799,6 +799,353 @@ def rec_step_succ():
     return proof
 
 
+def rec_h_zero_identity():
+    """When initial value is 0 (empty set), h(m) = m for all m in omega.
+    Ext, Inf, Sep |- forall w, sf, h, e.
+      Omega(w) -> succ_char(sf, w) -> Recursive(h, e, sf, w) -> Empty(e) ->
+      forall m. In(m, w) -> Apply(h, m, m)
+    Induction on m with P(m) = Apply(h, m, m).
+    Base: Apply(h, 0, 0) from Recursive base (h(0) = e = 0, and 0 = e).
+    Step: Apply(h, m, m) -> Apply(h, S(m), S(m)) from rec_step_succ."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef)
+    from core.proof import _expand
+
+    w = Var(postfix='w')
+    sfv = Var(postfix='sf')
+    hv = Var(postfix='h')
+    ev = Var(postfix='e')
+    mv = Var(postfix='m')
+    omega_w = Omega(w)
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    rec_h = RecDef(hv, ev, sfv, w)
+    empty_ev = Empty(ev)
+    app_h_mm = Apply(hv, mv, mv)
+
+    goal = Forall(w, Forall(sfv, Forall(hv, Forall(ev,
+        Implies(omega_w, Implies(succ_char, Implies(rec_h, Implies(empty_ev,
+            Forall(mv, Implies(In(mv, w), app_h_mm))))))))))
+
+    # === Induction setup ===
+    # P(x) = Apply(h, x, x)
+    from theorems.axioms import separation
+    from theorems.omega import omega_smallest_inductive, omega_contains_empty, omega_succ_closed
+
+    pv = Var(postfix='p')
+    xv = Var(postfix='xv')
+    def P(x):
+        return Apply(hv, x, x)
+    char_p_body = Iff(In(xv, pv), And(In(xv, w), P(xv)))
+    char_p = Forall(xv, char_p_body)
+
+    sep = separation(P, [hv])
+    got_sep = sep
+    for term in [hv]:
+        actual = got_sep.sequent.right[0]
+        exp = _expand(actual)
+        inst = exp.body
+        got_sep = Proof(Sequent(got_sep.sequent.left, [inst]), 'cut',
+            [wr(got_sep, inst), weaken_to(fl(actual, inst, term), got_sep.sequent.left)],
+            principal=actual)
+    # Peel forall a_set = w:
+    actual = got_sep.sequent.right[0]
+    got_sep = Proof(Sequent(got_sep.sequent.left, [Exists(pv, char_p)]), 'cut',
+        [wr(got_sep, Exists(pv, char_p)), weaken_to(fl(actual, Exists(pv, char_p), w), got_sep.sequent.left)],
+        principal=actual)
+    # got_sep: [Sep] |- Exists(pv, char_p)
+
+    # char_p helpers:
+    def char_p_fwd(term_x):
+        inst = Iff(In(term_x, pv), And(In(term_x, w), P(term_x)))
+        fl_inst = fl(char_p, inst, term_x)
+        return mp(iff_mp(In(term_x, pv), And(In(term_x, w), P(term_x)), []),
+            fl_inst, inst, Implies(In(term_x, pv), And(In(term_x, w), P(term_x))))
+
+    def char_p_bwd(term_x):
+        inst = Iff(In(term_x, pv), And(In(term_x, w), P(term_x)))
+        fl_inst = fl(char_p, inst, term_x)
+        return mp(iff_mp_rev(In(term_x, pv), And(In(term_x, w), P(term_x)), []),
+            fl_inst, inst, Implies(And(In(term_x, w), P(term_x)), In(term_x, pv)))
+
+    # === Base: Empty(ev) -> In(ev, pv) ===
+    # From Recursive base: Apply(h, ev, ev) (h(0)=e, and P(e) = Apply(h,e,e))
+    # Wait: Recursive base is Apply(h, ev, ev)? No: h(0)=e means Apply(h, 0, e).
+    # But e IS 0 (the empty set). So Apply(h, e, e) = Apply(h, 0, 0). P(0) = Apply(h, 0, 0). Yes!
+    ev_r = Var()
+    base_h = Forall(ev_r, Implies(Empty(ev_r), Apply(hv, ev_r, ev)))
+    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
+    step_h_body = Forall(nst, Implies(In(nst, w),
+        Forall(valst, Implies(Apply(hv, nst, valst),
+            Forall(snst, Implies(SuccDef(snst, nst),
+                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                    Apply(hv, snst, fvalst)))))))))
+    xd_h, yd_h = Var(), Var()
+    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(hv, xd_h, yd_h)), In(xd_h, w)))
+    func_h = FuncDef(hv)
+    and_bs = And(base_h, step_h_body)
+    and_dom_bs = And(dom_sub_h, and_bs)
+
+    got_dom_bs_r = apply_thm(and_elim_right(func_h, and_dom_bs, []), [],
+        rec_h, and_dom_bs, ax(rec_h))
+    got_bs_r = apply_thm(and_elim_right(dom_sub_h, and_bs, []), [],
+        and_dom_bs, and_bs, got_dom_bs_r)
+    got_base_h = apply_thm(and_elim_left(base_h, step_h_body, []), [],
+        and_bs, base_h, got_bs_r)
+    # [rec_h] |- forall ev_r. Empty(ev_r) -> Apply(hv, ev_r, ev)
+
+    # Base case uses fresh ev_base (ev is free in rec_h, can't be eigenvariable).
+    # h(ev_base) = ev from Recursive. Eq(ev, ev_base) from unique_empty. Transfer: Apply(h,eb,eb).
+    ev_base = Var(postfix='eb')
+    empty_eb = Empty(ev_base)
+    from theorems.logic import and_intro, eq_symmetric
+    from theorems.recursion import eq_apply_val_transfer
+
+    got_app_eb_ev = apply_thm(got_base_h, [ev_base], empty_eb, Apply(hv, ev_base, ev), ax(empty_eb))
+    # [rec_h, Empty(ev_base)] |- Apply(hv, ev_base, ev)
+
+    # unique_empty: Empty(ev) -> Empty(ev_base) -> Eq(ev, ev_base)
+    from theorems.logic import unique_empty
+    ue = unique_empty()
+    got_eq_eeb = apply_thm(ue, [ev, ev_base], empty_ev,
+        Implies(empty_eb, Eq(ev, ev_base)), ax(empty_ev))
+    got_eq_eeb = mp(got_eq_eeb, ax(empty_eb), empty_eb, Eq(ev, ev_base))
+    # [Empty(ev), Empty(ev_base)] |- Eq(ev, ev_base)
+
+    # eq_apply_val_transfer: peel 3 foralls (f,x,y), then fl z=ev_base manually
+    # (can't use apply_thm with 4 terms because x=ev_base and z=ev_base clash)
+    eavt = eq_apply_val_transfer()
+    zz = Var()  # eavt's internal z var
+    fa_z = Forall(zz, Implies(Eq(ev, zz), Implies(Apply(hv, ev_base, ev), Apply(hv, ev_base, zz))))
+    got_eavt = apply_thm(eavt, [hv, ev_base, ev], Eq(ev, ev_base),
+        Implies(Apply(hv, ev_base, ev), Apply(hv, ev_base, ev_base)), ax(Eq(ev, ev_base)))
+    # Hmm, this still has concl with ev_base for z. But the 3-term peel gives fa_z on the right.
+    # Let me use apply_thm with 3 terms and hyp=None:
+    got_eavt3 = apply_thm(eavt, [hv, ev_base, ev], concl=fa_z)
+    # got_eavt3: [eavt axioms] |- Forall(zz, Implies(Eq(ev,zz), Implies(App(h,eb,ev), App(h,eb,zz))))
+    # fl z=ev_base:
+    inst_z = Implies(Eq(ev, ev_base), Implies(Apply(hv, ev_base, ev), Apply(hv, ev_base, ev_base)))
+    got_eavt_inst = fl(fa_z, inst_z, ev_base)
+    got_eavt_inst = Proof(Sequent(got_eavt3.sequent.left, [inst_z]), 'cut',
+        [wr(got_eavt3, inst_z), weaken_to(got_eavt_inst, got_eavt3.sequent.left)],
+        principal=fa_z)
+    # MP with Eq and Apply:
+    all_base_eq = list(got_eq_eeb.sequent.left)
+    for f_ in got_app_eb_ev.sequent.left:
+        if not any(same(f_, g) for g in all_base_eq):
+            all_base_eq.append(f_)
+    for f_ in got_eavt_inst.sequent.left:
+        if not any(same(f_, g) for g in all_base_eq):
+            all_base_eq.append(f_)
+    got_app_eb_eb = mp(weaken_to(got_eavt_inst, all_base_eq),
+        weaken_to(got_eq_eeb, all_base_eq), Eq(ev, ev_base),
+        Implies(Apply(hv, ev_base, ev), P(ev_base)))
+    got_app_eb_eb = mp(got_app_eb_eb, weaken_to(got_app_eb_ev, all_base_eq),
+        Apply(hv, ev_base, ev), P(ev_base))
+    # [rec_h, Empty(ev), Empty(ev_base)] |- P(ev_base)
+
+    # In(ev_base, w) from omega_contains_empty:
+    oce = omega_contains_empty()
+    got_eb_w = apply_thm(oce, [w], omega_w,
+        Forall(ev_base, Implies(empty_eb, In(ev_base, w))), ax(omega_w))
+    got_eb_w = apply_thm(got_eb_w, [ev_base], empty_eb, In(ev_base, w), ax(empty_eb))
+    # [omega_w, Empty(ev_base), Inf] |- In(ev_base, w)
+
+    # And(In(eb,w), P(eb)) -> In(eb, pv):
+    and_w_p_eb = And(In(ev_base, w), P(ev_base))
+    all_base = list(got_eb_w.sequent.left)
+    for f_ in got_app_eb_eb.sequent.left:
+        if not any(same(f_, g) for g in all_base):
+            all_base.append(f_)
+    got_and_base = mp(apply_thm(and_intro(In(ev_base, w), P(ev_base), []), [], In(ev_base, w),
+        Implies(P(ev_base), and_w_p_eb), weaken_to(got_eb_w, all_base)),
+        weaken_to(got_app_eb_eb, all_base), P(ev_base), and_w_p_eb)
+    got_bwd_eb = char_p_bwd(ev_base)
+    all_bwd = list(got_and_base.sequent.left)
+    for f_ in got_bwd_eb.sequent.left:
+        if not any(same(f_, g) for g in all_bwd):
+            all_bwd.append(f_)
+    got_in_ep = mp(weaken_to(got_bwd_eb, all_bwd), got_and_base, and_w_p_eb, In(ev_base, pv))
+
+    # Close base: implies_right Empty(ev_base), forall_right ev_base
+    imp_base = Implies(empty_eb, In(ev_base, pv))
+    rem = [f_ for f_ in got_in_ep.sequent.left if not same(f_, empty_eb)]
+    proof_base = Proof(Sequent(rem, [imp_base]), 'implies_right', [got_in_ep], principal=imp_base)
+    base_ind = Forall(ev_base, imp_base)
+    proof_base = Proof(Sequent(rem, [base_ind]), 'forall_right', [proof_base], principal=base_ind, term=ev_base)
+
+    # === Step: In(m, pv) -> Succ(sm, m) -> In(sm, pv) ===
+    smv = Var(postfix='sm')
+    succ_sm_m = SuccDef(smv, mv)
+    in_mv_p = In(mv, pv)
+
+    # From char_p fwd: In(mv, pv) -> And(In(mv,w), P(mv))
+    got_fwd_m = char_p_fwd(mv)
+    got_and_m = mp(weaken_to(got_fwd_m, [in_mv_p]), ax(in_mv_p), in_mv_p, And(In(mv, w), P(mv)))
+    got_in_mw = apply_thm(and_elim_left(In(mv, w), P(mv), []), [],
+        And(In(mv, w), P(mv)), In(mv, w), got_and_m)
+    got_p_m = apply_thm(and_elim_right(In(mv, w), P(mv), []), [],
+        And(In(mv, w), P(mv)), P(mv), got_and_m)
+    # [char_p, In(mv,pv)] |- In(mv,w) and P(mv) = Apply(h,mv,mv)
+
+    # rec_step_succ: Apply(h,mv,mv) + Succ(smv,mv) + Succ(S(mv),mv) -> Apply(h,smv,S(mv))
+    # But we want Apply(h,smv,smv), i.e., P(smv). We need S(mv) = smv, i.e., Succ(smv,mv).
+    # So: rec_step_succ with n=mv, p=mv, sn=smv, sp=smv.
+    # Succ(smv,mv) = succ_sm_m (given). Succ(smv,mv) = Succ(sp,p) with sp=smv, p=mv. ✓
+    # Apply(h,smv,smv) = rec_step_succ result. ✓
+    rst = rec_step_succ()
+    # rst: |- forall w,m,sf,h,n,p,sn,sp. Omega->In(n,w)->In(p,w)->sc->Rec->App(h,n,p)->Succ(sn,n)->Succ(sp,p)->App(h,sn,sp)
+    # Instantiate: w=w, m=ev (initial value!), sf=sfv, h=hv, n=mv, p=mv, sn=smv, sp=smv
+    app_h_sm_sm = Apply(hv, smv, smv)
+    got_rst = apply_thm(rst, [w, ev, sfv, hv, mv, mv, smv, smv],
+        omega_w, Implies(In(mv, w), Implies(In(mv, w), Implies(succ_char,
+            Implies(rec_h, Implies(P(mv), Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))))))),
+        ax(omega_w))
+    got_rst = mp(got_rst, got_in_mw, In(mv, w),
+        Implies(In(mv, w), Implies(succ_char, Implies(rec_h, Implies(P(mv),
+            Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm)))))))
+    got_rst = mp(got_rst, got_in_mw, In(mv, w),
+        Implies(succ_char, Implies(rec_h, Implies(P(mv),
+            Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))))))
+    got_rst = mp(got_rst, ax(succ_char), succ_char,
+        Implies(rec_h, Implies(P(mv), Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm)))))
+    got_rst = mp(got_rst, ax(rec_h), rec_h,
+        Implies(P(mv), Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))))
+    got_rst = mp(got_rst, got_p_m, P(mv),
+        Implies(succ_sm_m, Implies(succ_sm_m, app_h_sm_sm)))
+    got_rst = mp(got_rst, ax(succ_sm_m), succ_sm_m, Implies(succ_sm_m, app_h_sm_sm))
+    got_rst = mp(got_rst, ax(succ_sm_m), succ_sm_m, app_h_sm_sm)
+    # got_rst: [char_p, In(mv,pv), omega_w, succ_char, rec_h, succ_sm_m] |- Apply(h,smv,smv) = P(smv)
+
+    # omega_succ_closed: In(smv, w)
+    osc = omega_succ_closed()
+    got_sm_w = apply_thm(osc, [w], omega_w,
+        Forall(mv, Implies(In(mv, w), Forall(smv, Implies(succ_sm_m, In(smv, w))))),
+        ax(omega_w))
+    got_sm_w = apply_thm(got_sm_w, [mv], In(mv, w),
+        Forall(smv, Implies(succ_sm_m, In(smv, w))), got_in_mw)
+    got_sm_w = apply_thm(got_sm_w, [smv], succ_sm_m, In(smv, w), ax(succ_sm_m))
+    # [char_p, In(mv,pv), omega_w, succ_sm_m, Inf] |- In(smv, w)
+
+    # And(In(smv,w), P(smv)) -> In(smv, pv)
+    and_w_p_sm = And(In(smv, w), P(smv))
+    all_step = list(got_rst.sequent.left)
+    for f_ in got_sm_w.sequent.left:
+        if not any(same(f_, g) for g in all_step):
+            all_step.append(f_)
+    got_and_step = mp(apply_thm(and_intro(In(smv, w), P(smv), []), [], In(smv, w),
+        Implies(P(smv), and_w_p_sm), weaken_to(got_sm_w, all_step)),
+        weaken_to(got_rst, all_step), P(smv), and_w_p_sm)
+    got_bwd_sm = char_p_bwd(smv)
+    all_bwd_sm = list(got_and_step.sequent.left)
+    for f_ in got_bwd_sm.sequent.left:
+        if not any(same(f_, g) for g in all_bwd_sm):
+            all_bwd_sm.append(f_)
+    got_in_sp = mp(weaken_to(got_bwd_sm, all_bwd_sm), got_and_step, and_w_p_sm, In(smv, pv))
+
+    # Close step: implies_right succ_sm_m, forall smv, implies_right In(mv,pv), forall mv
+    imp_succ = Implies(succ_sm_m, In(smv, pv))
+    rem_s = [f_ for f_ in got_in_sp.sequent.left if not same(f_, succ_sm_m)]
+    cur_step = Proof(Sequent(rem_s, [imp_succ]), 'implies_right', [got_in_sp], principal=imp_succ)
+    fa_sm = Forall(smv, imp_succ)
+    cur_step = Proof(Sequent(rem_s, [fa_sm]), 'forall_right', [cur_step], principal=fa_sm, term=smv)
+    imp_inp = Implies(in_mv_p, fa_sm)
+    rem_n = [f_ for f_ in cur_step.sequent.left if not same(f_, in_mv_p)]
+    cur_step = Proof(Sequent(rem_n, [imp_inp]), 'implies_right', [cur_step], principal=imp_inp)
+    step_ind = Forall(mv, imp_inp)
+    proof_step = Proof(Sequent(rem_n, [step_ind]), 'forall_right', [cur_step], principal=step_ind, term=mv)
+
+    # === Build Inductive(pv), Subset(pv,w), apply omega_smallest_inductive ===
+    from definitions import Inductive as InductiveDef, Subset as SubsetDef
+    ind_p = InductiveDef(pv)
+    sub_pw = SubsetDef(pv, w)
+
+    # Inductive = And(base_ind, step_ind):
+    all_ind = list(proof_base.sequent.left)
+    for f_ in proof_step.sequent.left:
+        if not any(same(f_, g) for g in all_ind):
+            all_ind.append(f_)
+    got_ind = mp(apply_thm(and_intro(base_ind, step_ind, []), [], base_ind,
+        Implies(step_ind, ind_p), weaken_to(proof_base, all_ind)),
+        weaken_to(proof_step, all_ind), step_ind, ind_p)
+
+    # Subset(pv,w): from char_p fwd, In(xv,pv) -> In(xv,w)
+    xsub = Var()
+    got_fwd_x = char_p_fwd(xsub)
+    got_and_x = mp(got_fwd_x, ax(In(xsub, pv)), In(xsub, pv), And(In(xsub, w), P(xsub)))
+    got_in_xw = apply_thm(and_elim_left(In(xsub, w), P(xsub), []), [],
+        And(In(xsub, w), P(xsub)), In(xsub, w), got_and_x)
+    imp_sub = Implies(In(xsub, pv), In(xsub, w))
+    got_sub = Proof(Sequent([char_p], [sub_pw]), 'forall_right',
+        [Proof(Sequent([char_p], [imp_sub]), 'implies_right', [got_in_xw], principal=imp_sub)],
+        principal=sub_pw, term=xsub)
+
+    # omega_smallest_inductive: Omega(w) -> And(Subset,Inductive) -> Eq(pv,w)
+    osi = omega_smallest_inductive()
+    hyp_and = And(sub_pw, ind_p)
+    eq_pw = Eq(pv, w)
+    got_osi = apply_thm(osi, [pv, w], omega_w, Implies(hyp_and, eq_pw), ax(omega_w))
+    all_osi = list(got_ind.sequent.left)
+    for f_ in got_sub.sequent.left:
+        if not any(same(f_, g) for g in all_osi):
+            all_osi.append(f_)
+    got_si = mp(apply_thm(and_intro(sub_pw, ind_p, []), [], sub_pw,
+        Implies(ind_p, hyp_and), weaken_to(got_sub, all_osi)),
+        weaken_to(got_ind, all_osi), ind_p, hyp_and)
+    all_eq = list(got_si.sequent.left)
+    for f_ in got_osi.sequent.left:
+        if not any(same(f_, g) for g in all_eq):
+            all_eq.append(f_)
+    got_eq = mp(weaken_to(got_osi, all_eq), got_si, hyp_and, eq_pw)
+
+    # === Extract: In(mv, w) -> P(mv) ===
+    # From Eq(pv,w): In(mv,w) -> In(mv,pv). From char_p: In(mv,pv) -> P(mv).
+    zz = Var()
+    iff_mv = Iff(In(mv, pv), In(mv, w))
+    got_iff_mv = Proof(Sequent(got_eq.sequent.left, [iff_mv]), 'cut',
+        [wr(got_eq, iff_mv), weaken_to(fl(eq_pw, iff_mv, mv), got_eq.sequent.left)],
+        principal=eq_pw)
+    got_in_mp = mp(mp(iff_mp_rev(In(mv, pv), In(mv, w), []),
+        got_iff_mv, iff_mv, Implies(In(mv, w), In(mv, pv))),
+        ax(In(mv, w)), In(mv, w), In(mv, pv))
+    got_fwd_mv = char_p_fwd(mv)
+    all_ext = list(got_in_mp.sequent.left)
+    for f_ in got_fwd_mv.sequent.left:
+        if not any(same(f_, g) for g in all_ext):
+            all_ext.append(f_)
+    got_and_ext = mp(weaken_to(got_fwd_mv, all_ext),
+        weaken_to(got_in_mp, all_ext), In(mv, pv), And(In(mv, w), P(mv)))
+    got_p_mv = apply_thm(and_elim_right(In(mv, w), P(mv), []), [],
+        And(In(mv, w), P(mv)), P(mv), got_and_ext)
+    # [..., In(mv,w)] |- Apply(hv, mv, mv)
+
+    # eel pv from char_p, cut with got_sep:
+    proof = got_p_mv
+    proof = eel(proof, char_p, pv)
+    proof = cut(proof, proof.sequent.left[-1], got_sep)
+
+    # === Discharge and close ===
+    imp_mv = Implies(In(mv, w), app_h_mm)
+    rem_mv = [f_ for f_ in proof.sequent.left if not same(f_, In(mv, w))]
+    proof = Proof(Sequent(rem_mv, [imp_mv]), 'implies_right', [proof], principal=imp_mv)
+    fa_mv = Forall(mv, imp_mv)
+    proof = Proof(Sequent(rem_mv, [fa_mv]), 'forall_right', [proof], principal=fa_mv, term=mv)
+    for hh in [empty_ev, rec_h, succ_char, omega_w]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [ev, hv, sfv, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+
+    proof.name = 'rec_h_zero_identity'
+    return proof
+
+
 def plus_comm():
     """Commutativity of addition: m + n = n + m.
     |- forall w, m, n, p.
