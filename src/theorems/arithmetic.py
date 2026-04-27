@@ -3733,3 +3733,95 @@ def plus_comm():
     assert proof.sequent.right[0] is goal
     proof.name = 'plus_comm'
     return proof
+
+
+def exists_num(k):
+    """Every natural number exists as a ZFC set.
+    |- exists n. Num(n, k)
+    Base: EmptySet axiom -> exists n. Empty(n) = exists n. Num(n, 0).
+    Step: successor_exists -> exists s. Succ(s, prev) -> Num(s, i+1)."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import Num as NumDef, Successor as SuccDef
+    from theorems.axioms import empty_set
+    from theorems.sets import successor_exists
+    from core.proof import _expand
+
+    nv = Var(postfix='n')
+
+    if k == 0:
+        # EmptySet axiom = Exists(b, Empty(b)) alpha-matches Exists(nv, Num(nv,0)).
+        es = empty_set()
+        goal = Exists(nv, NumDef(nv, 0))
+        # Wrap with goal on right for clean display:
+        proof = Proof(Sequent(es.sequent.left, [goal]), 'axiom', principal=goal)
+        proof.name = 'exists_num_0'
+        return proof
+
+    # Chain: for i = 0, 1, ..., k-1, build exists n. Num(n, i+1) from exists n. Num(n, i)
+    proof = exists_num(k - 1)
+    # proof: [axioms] |- exists prev. Num(prev, k-1)
+
+    prev = Var(postfix=f'n{k-1}')
+    cur = Var(postfix=f'n{k}')
+    num_prev = NumDef(prev, k - 1)
+    succ_cur = SuccDef(cur, prev)
+    num_cur = NumDef(cur, k)
+    # num_cur = Exists(m, And(Num(m, k-1), Succ(cur, m)))
+
+    # successor_exists at prev: exists cur. Succ(cur, prev)
+    se = successor_exists()
+    got_se = apply_thm(se, [prev], concl=Exists(cur, succ_cur))
+    # [Pairing, Union] |- Exists(cur, Succ(cur, prev))
+
+    # From Num(prev, k-1) and Succ(cur, prev): build Num(cur, k)
+    # Num(cur, k) = Exists(m, And(Num(m, k-1), Succ(cur, m)))
+    from theorems.logic import and_intro
+    and_ns = And(num_prev, succ_cur)
+    got_and = mp(apply_thm(and_intro(num_prev, succ_cur, []), [], num_prev,
+        Implies(succ_cur, and_ns), ax(num_prev)),
+        ax(succ_cur), succ_cur, and_ns)
+    # [Num(prev, k-1), Succ(cur, prev)] |- And(Num(prev, k-1), Succ(cur, prev))
+
+    mv = Var()
+    got_num_cur = eir(got_and, And(NumDef(mv, k - 1), SuccDef(cur, mv)), mv, prev)
+    # [Num(prev, k-1), Succ(cur, prev)] |- Num(cur, k)
+
+    # eir cur: exists cur. Num(cur, k)
+    cv = Var()
+    got_ex_cur = eir(got_num_cur, NumDef(cv, k), cv, cur)
+    # [Num(prev, k-1), Succ(cur, prev)] |- exists cv. Num(cv, k)
+
+    # eel cur from Succ(cur, prev), cut with got_se:
+    got_ex_cur = eel(got_ex_cur, succ_cur, cur)
+    got_ex_cur = cut(got_ex_cur, got_ex_cur.sequent.left[-1], got_se)
+    # [Num(prev, k-1), Pairing, Union] |- exists cv. Num(cv, k)
+
+    # eel prev from Num(prev, k-1):
+    got_ex_cur = eel(got_ex_cur, num_prev, prev)
+    # Cut with proof (exists prev. Num(prev, k-1)).
+    # SPECIAL: EmptySet on proof.left alpha-matches the principal (Exists(prev, Num(prev,0))).
+    # Can't use same()-based helpers. Use identity checks for left management.
+    ex_num_prev = got_ex_cur.sequent.left[-1]  # the Exists from eel
+    # Build c_left = union of proof.left and got_ex_cur.left minus ex_num_prev (by identity)
+    c_left = list(proof.sequent.left)
+    for f_ in got_ex_cur.sequent.left:
+        if f_ is ex_num_prev:
+            continue
+        if not any(f_ is g for g in c_left):
+            c_left.append(f_)
+    # br1 = proof weakened to c_left
+    br1 = proof
+    for f_ in c_left:
+        if not any(f_ is g for g in br1.sequent.left):
+            br1 = wl(br1, f_)
+    # br2 = got_ex_cur weakened to c_left (must include all of c_left + ex_num_prev)
+    br2 = got_ex_cur
+    for f_ in c_left:
+        if not any(f_ is g for g in br2.sequent.left):
+            br2 = wl(br2, f_)
+    got_ex_cur = Proof(Sequent(c_left, got_ex_cur.sequent.right), 'cut',
+        [wr(br1, got_ex_cur.sequent.right[0]), br2], principal=ex_num_prev)
+    # [axioms] |- exists cv. Num(cv, k)
+
+    got_ex_cur.name = f'exists_num_{k}'
+    return got_ex_cur
