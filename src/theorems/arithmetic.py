@@ -2051,6 +2051,67 @@ def rec_succ_shift():
     return proof
 
 
+def sf_apply_transfer():
+    """Two sf's with succ_char+dom_sub at same w agree on Apply.
+    |- forall w, sf1, sf2, x, y.
+         succ_char(sf1,w) -> dom_sub(sf1,w) -> succ_char(sf2,w) ->
+         Apply(sf1,x,y) -> Apply(sf2,x,y)
+    From Apply(sf1,x,y): dom_sub -> In(x,w). succ_char1 fwd -> Succ(y,x). succ_char2 bwd -> Apply(sf2,x,y)."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import (Apply, Successor as SuccDef)
+
+    w = Var(postfix='w')
+    sf1 = Var(postfix='sf1')
+    sf2 = Var(postfix='sf2')
+    xv = Var(postfix='x')
+    yv = Var(postfix='y')
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+
+    succ_char1 = Forall(xsc, Implies(In(xsc, w), Forall(ysc, Iff(Apply(sf1, xsc, ysc), SuccDef(ysc, xsc)))))
+    succ_char2 = Forall(xsc, Implies(In(xsc, w), Forall(ysc, Iff(Apply(sf2, xsc, ysc), SuccDef(ysc, xsc)))))
+    dom_sub1 = Forall(xds, Implies(Exists(yds, Apply(sf1, xds, yds)), In(xds, w)))
+    app1 = Apply(sf1, xv, yv)
+    app2 = Apply(sf2, xv, yv)
+    succ_yx = SuccDef(yv, xv)
+
+    # dom_sub1: Apply(sf1,x,y) -> In(x,w)
+    got_in_xw = apply_thm(ax(dom_sub1), [xv], Exists(yds, Apply(sf1, xv, yds)), In(xv, w),
+        eir(ax(app1), Apply(sf1, xv, yds), yds, yv))
+
+    # succ_char1 fwd at (x,y): In(x,w) -> Apply(sf1,x,y) -> Succ(y,x)
+    got_fa1 = mp(fl(succ_char1, Implies(In(xv, w), Forall(ysc, Iff(Apply(sf1, xv, ysc), SuccDef(ysc, xv)))), xv),
+        got_in_xw, In(xv, w), Forall(ysc, Iff(Apply(sf1, xv, ysc), SuccDef(ysc, xv))))
+    iff1 = Iff(app1, succ_yx)
+    got_succ = mp(mp(iff_mp(app1, succ_yx, []),
+        apply_thm(got_fa1, [yv], concl=iff1), iff1, Implies(app1, succ_yx)),
+        ax(app1), app1, succ_yx)
+
+    # succ_char2 bwd at (x,y): In(x,w) -> Succ(y,x) -> Apply(sf2,x,y)
+    got_fa2 = mp(fl(succ_char2, Implies(In(xv, w), Forall(ysc, Iff(Apply(sf2, xv, ysc), SuccDef(ysc, xv)))), xv),
+        got_in_xw, In(xv, w), Forall(ysc, Iff(Apply(sf2, xv, ysc), SuccDef(ysc, xv))))
+    iff2 = Iff(app2, succ_yx)
+    got_app2 = mp(mp(iff_mp_rev(app2, succ_yx, []),
+        apply_thm(got_fa2, [yv], concl=iff2), iff2, Implies(succ_yx, app2)),
+        got_succ, succ_yx, app2)
+    # [succ_char1, dom_sub1, succ_char2, Apply(sf1,x,y)] |- Apply(sf2,x,y)
+
+    # Discharge and close:
+    proof = got_app2
+    for hh in [app1, succ_char2, dom_sub1, succ_char1]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [yv, xv, sf2, sf1, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+
+    proof.name = 'sf_apply_transfer'
+    return proof
+
+
 def plus_comm():
     """Commutativity of addition: m + n = n + m.
     |- forall w, m, n, p.
