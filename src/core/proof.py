@@ -200,7 +200,7 @@ def _check_weakening_left(s, ps, principal):
     if not _in(principal, s.left):
         return False
     # Set semantics: if principal already in premise, weakening is a no-op.
-    if _in(principal, ps[0].sequent.left):
+    if _in(principal, ps[0].left):
         return _eq_sequent(ps[0], s)
     return _eq_sequent(ps[0], Sequent(_remove(s.left, principal), s.right))
 
@@ -211,7 +211,7 @@ def _check_weakening_right(s, ps, principal):
     if not _in(principal, s.right):
         return False
     # Set semantics: if principal already in premise, weakening is a no-op.
-    if _in(principal, ps[0].sequent.right):
+    if _in(principal, ps[0].right):
         return _eq_sequent(ps[0], s)
     return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, principal)))
 

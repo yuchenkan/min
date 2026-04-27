@@ -25,8 +25,7 @@ def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
                     [cur], principal=layers[i + 1], term=terms[len(terms) - 1 - i])
     thm_ctx = list(thm.sequent.left)
     inst = Proof(Sequent(thm_ctx, [body]), 'cut',
-        [Proof(Sequent(thm_ctx, [layers[-1], body]), 'weakening_right', [thm], principal=body),
-         wl(cur, *thm_ctx)], principal=layers[-1])
+        [wr(thm, body), wl(cur, *thm_ctx)], principal=layers[-1])
     if hyp is None:
         return inst
     imp = body
@@ -35,28 +34,30 @@ def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
     new_from_thm = [f for f in thm_ctx if not any(same(f, g) for g in hyp_ctx)]
     all_ctx = thm_ctx + new_from_hyp
     inst_w = wl(inst, *new_from_hyp)
-    inst_w = Proof(Sequent(inst_w.sequent.left, [imp, concl]),
-                   'weakening_right', [inst_w], principal=concl)
+    inst_w = wr(inst_w, concl)
     hp_w = wl(hyp_proof, *new_from_thm)
-    mp1 = Proof(Sequent(all_ctx, [hyp, concl]), 'weakening_right', [hp_w], principal=concl)
-    mp2 = Proof(Sequent([concl], [concl]), 'axiom', principal=concl)
-    for f in all_ctx:
-        mp2 = Proof(Sequent(mp2.sequent.left + [f], [concl]), 'weakening_left', [mp2], principal=f)
-    mp3 = Proof(Sequent(all_ctx + [imp], [concl]), 'implies_left', [mp1, mp2], principal=imp)
-    return Proof(Sequent(all_ctx, [concl]), 'cut', [inst_w, mp3], principal=imp)
+    mp1 = wr(hp_w, concl)
+    mp2 = ax(concl)
+    mp2 = wl(mp2, *all_ctx)
+    all_ctx_imp = all_ctx if any(same(imp, g) for g in all_ctx) else all_ctx + [imp]
+    mp3 = Proof(Sequent(all_ctx_imp, [concl]), 'implies_left', [mp1, mp2], principal=imp)
+    return Proof(Sequent(all_ctx, [concl]), 'cut', [wr(inst_w, concl), mp3], principal=imp)
 
 
 def wl(proof, *formulas):
-    """Weaken left: add formulas to the left side."""
+    """Weaken left: add formulas to the left side. No-op if already present."""
     cur = proof
     for f in formulas:
-        cur = Proof(Sequent(cur.sequent.left + [f], cur.sequent.right),
-                    'weakening_left', [cur], principal=f)
+        if not any(same(f, g) for g in cur.sequent.left):
+            cur = Proof(Sequent(cur.sequent.left + [f], cur.sequent.right),
+                        'weakening_left', [cur], principal=f)
     return cur
 
 
 def wr(proof, formula):
-    """Weaken right: add a formula to the right side."""
+    """Weaken right: add a formula to the right side. No-op if already present."""
+    if any(same(formula, g) for g in proof.sequent.right):
+        return proof
     return Proof(Sequent(proof.sequent.left, proof.sequent.right + [formula]),
                  'weakening_right', [proof], principal=formula)
 
@@ -128,11 +129,10 @@ def mp(impl_proof, arg_proof, P, Q):
     all_ctx = ctx_i + new_from_arg
     wp1 = wl(impl_proof, *new_from_arg)
     wp2 = wl(arg_proof, *new_from_impl)
-    mp1 = Proof(Sequent(all_ctx, [P, Q]), 'weakening_right', [wp2], principal=Q)
-    mp2 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
-    for f in all_ctx:
-        mp2 = Proof(Sequent(mp2.sequent.left + [f], [Q]), 'weakening_left', [mp2], principal=f)
-    mp3 = Proof(Sequent(all_ctx + [imp], [Q]), 'implies_left', [mp1, mp2], principal=imp)
+    mp1 = wr(wp2, Q)
+    mp2 = ax(Q)
+    mp2 = wl(mp2, *all_ctx)
+    all_ctx_imp = all_ctx if any(same(imp, g) for g in all_ctx) else all_ctx + [imp]
+    mp3 = Proof(Sequent(all_ctx_imp, [Q]), 'implies_left', [mp1, mp2], principal=imp)
     return Proof(Sequent(all_ctx, [Q]), 'cut',
-        [Proof(Sequent(all_ctx, [imp, Q]), 'weakening_right', [wp1], principal=Q),
-         mp3], principal=imp)
+        [wr(wp1, Q), mp3], principal=imp)

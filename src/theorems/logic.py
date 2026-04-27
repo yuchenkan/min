@@ -3,7 +3,7 @@
 from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
-from core import zfc
+from core import same, zfc
 from definitions import Empty
 
 def modus_ponens(P, Q, vars: list[Var]):
@@ -887,7 +887,8 @@ def or_iff_compat(P, Q, R, S, vars: list[Var]):
     ext_pr = Proof(Sequent([iff_pr], [PR]), 'cut', [e3, e5], principal=H_pr)
 
     # --- Extract RP from iff_pr ---
-    f1 = Proof(Sequent([iff_pr, PR, RP], [RP]), 'axiom', principal=RP)
+    f1_left = [iff_pr, PR] if same(PR, RP) else [iff_pr, PR, RP]
+    f1 = Proof(Sequent(f1_left, [RP]), 'axiom', principal=RP)
     f2 = Proof(Sequent([iff_pr, PR], [NRP, RP]), 'not_right', [f1], principal=NRP)
     f3 = Proof(Sequent([iff_pr], [H_pr, RP]), 'implies_right', [f2], principal=H_pr)
     f4 = Proof(Sequent([H_pr], [H_pr, RP]), 'weakening_right',
