@@ -3442,17 +3442,44 @@ def rec_exists_step():
     got_final = mp(apply_thm(ai_final, [], ra_formula, Implies(app_u_sn, goal), got_ra_u),
         got_app_u_sn, app_u_sn, goal)
 
-    # Discharge hypotheses, forall close
+    # Build full goal with definition objects for compact display:
+    # Discharge order: reversed(hyps) = omega_w, ran_f_closed, union_u, sing_new, ordp_new, succ_sn, app_f_val, app_v_n, in_n_w, func_f, ra_v
+    # Forall order: u, s_new, p_new, sn, fval, val, n, w, f, a, v
+    g_imp_omega = Implies(omega_w, goal)
+    g_imp_ranfc = Implies(ran_f_closed, g_imp_omega)
+    g_imp_union = Implies(union_u, g_imp_ranfc)
+    g_imp_sing = Implies(sing_new, g_imp_union)
+    g_imp_ordp = Implies(ordp_new, g_imp_sing)
+    g_imp_succ = Implies(succ_sn, g_imp_ordp)
+    g_imp_appf = Implies(app_f_val, g_imp_succ)
+    g_imp_appv = Implies(app_v_n, g_imp_appf)
+    g_imp_in = Implies(in_n_w, g_imp_appv)
+    g_imp_funcf = Implies(func_f, g_imp_in)
+    g_imp_rav = Implies(ra_v, g_imp_funcf)
+    g_fa_u = Forall(u, g_imp_rav)
+    g_fa_snew = Forall(s_new, g_fa_u)
+    g_fa_pnew = Forall(p_new, g_fa_snew)
+    g_fa_sn = Forall(sn, g_fa_pnew)
+    g_fa_fval = Forall(fval, g_fa_sn)
+    g_fa_val = Forall(val, g_fa_fval)
+    g_fa_n = Forall(n, g_fa_val)
+    g_fa_w = Forall(w, g_fa_n)
+    g_fa_f = Forall(f, g_fa_w)
+    g_fa_a = Forall(a, g_fa_f)
+    full_goal = Forall(v, g_fa_a)
+
+    # Discharge hypotheses using goal sub-formulas
+    g_imps = [g_imp_omega, g_imp_ranfc, g_imp_union, g_imp_sing, g_imp_ordp,
+              g_imp_succ, g_imp_appf, g_imp_appv, g_imp_in, g_imp_funcf, g_imp_rav]
     proof = got_final
-    for h in reversed(hyps):
+    for h, g_imp in zip(reversed(hyps), g_imps):
         if any(same(h, g) for g in proof.sequent.left):
-            imp_h = Implies(h, proof.sequent.right[0])
             remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
-            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
-    for var in [u, s_new, p_new, sn, fval, val, n, w, f, a, v]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+            proof = Proof(Sequent(remaining, [g_imp]), 'implies_right', [proof], principal=g_imp)
+    g_fas = [g_fa_u, g_fa_snew, g_fa_pnew, g_fa_sn, g_fa_fval, g_fa_val, g_fa_n, g_fa_w, g_fa_f, g_fa_a, full_goal]
+    for var, fa in zip([u, s_new, p_new, sn, fval, val, n, w, f, a, v], g_fas):
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    assert proof.sequent.right[0] is full_goal
     proof.name = 'rec_exists_step'
     return proof
 
@@ -6122,47 +6149,65 @@ def rec_h_step():
     cur = Proof(Sequent(list(br1.sequent.left), [app_h_sn_fv]), 'cut',
         [wr(br1, app_h_sn_fv), br2], principal=ex_vv)
 
+    # Build goal using definition objects for compact display:
+    # Step condition: forall n. In(n,w) -> forall val. App(h,n,val) -> forall sn. Succ(sn,n) -> forall fval. App(f,val,fval) -> App(h,sn,fval)
+    # Use the SAME variable instances (n, val, sn, fval) already used in the proof.
+    from definitions import Successor as SuccDef
+    rec_step = Forall(n, Implies(in_n_w,
+        Forall(val, Implies(app_h_nv,
+            Forall(sn, Implies(succ_sn,
+                Forall(fval, Implies(app_f_vfv,
+                    app_h_sn_fv))))))))
+    goal = Forall(h, Forall(a, Forall(f, Forall(w,
+        Implies(char_h, Implies(func_f, Implies(omega_w, Implies(f_at_a, Implies(ran_f_closed,
+            rec_step)))))))))
+
+    # Navigate goal to extract sub-formulas for discharge:
+    g_hw = goal.body.body.body  # Forall(w, ...)
+    g_charh = g_hw.body  # Implies(char_h, ...)
+    g_funcf = g_charh.right  # Implies(func_f, ...)
+    g_omegaw = g_funcf.right  # Implies(omega_w, ...)
+    g_fat = g_omegaw.right  # Implies(f_at_a, ...)
+    g_ranfc = g_fat.right  # Implies(ran_f_closed, step)
+    g_step = g_ranfc.right  # = rec_step
+    g_in = g_step.body  # Implies(In(n,w), Forall(val, ...))
+    g_fa_val = g_in.right  # Forall(val, ...)
+    g_app_h = g_fa_val.body  # Implies(App(h,n,val), Forall(sn, ...))
+    g_fa_sn = g_app_h.right  # Forall(sn, ...)
+    g_succ = g_fa_sn.body  # Implies(Succ(sn,n), Forall(fval, ...))
+    g_fa_fval = g_succ.right  # Forall(fval, ...)
+    g_app_f = g_fa_fval.body  # Implies(App(f,val,fval), App(h,sn,fval))
+
     # Discharge and close in INTERLEAVED order matching Recursive's step structure:
-    # Forall(n, Implies(In, Forall(val, Implies(App_h, Forall(sn, Implies(Succ, Forall(fval, Implies(App_f, App_h))))))))
     proof = cur
     # Inner first: discharge Apply(f,val,fval), close fval:
-    for hh in [app_f_vfv]:
-        imp = Implies(hh, proof.sequent.right[0])
-        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    proof = Proof(Sequent(proof.sequent.left, [Forall(fval, proof.sequent.right[0])]),
-        'forall_right', [proof], principal=Forall(fval, proof.sequent.right[0]), term=fval)
+    rem = [f_ for f_ in proof.sequent.left if not same(f_, app_f_vfv)]
+    proof = Proof(Sequent(rem, [g_app_f]), 'implies_right', [proof], principal=g_app_f)
+    proof = Proof(Sequent(proof.sequent.left, [g_fa_fval]),
+        'forall_right', [proof], principal=g_fa_fval, term=fval)
     # Discharge Succ(sn,n), close sn:
-    for hh in [succ_sn]:
-        imp = Implies(hh, proof.sequent.right[0])
-        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    proof = Proof(Sequent(proof.sequent.left, [Forall(sn, proof.sequent.right[0])]),
-        'forall_right', [proof], principal=Forall(sn, proof.sequent.right[0]), term=sn)
+    rem = [f_ for f_ in proof.sequent.left if not same(f_, succ_sn)]
+    proof = Proof(Sequent(rem, [g_succ]), 'implies_right', [proof], principal=g_succ)
+    proof = Proof(Sequent(proof.sequent.left, [g_fa_sn]),
+        'forall_right', [proof], principal=g_fa_sn, term=sn)
     # Discharge Apply(h,n,val), close val:
-    for hh in [app_h_nv]:
-        imp = Implies(hh, proof.sequent.right[0])
-        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    proof = Proof(Sequent(proof.sequent.left, [Forall(val, proof.sequent.right[0])]),
-        'forall_right', [proof], principal=Forall(val, proof.sequent.right[0]), term=val)
+    rem = [f_ for f_ in proof.sequent.left if not same(f_, app_h_nv)]
+    proof = Proof(Sequent(rem, [g_app_h]), 'implies_right', [proof], principal=g_app_h)
+    proof = Proof(Sequent(proof.sequent.left, [g_fa_val]),
+        'forall_right', [proof], principal=g_fa_val, term=val)
     # Discharge In(n,w), close n:
-    for hh in [in_n_w]:
-        imp = Implies(hh, proof.sequent.right[0])
-        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    proof = Proof(Sequent(proof.sequent.left, [Forall(n, proof.sequent.right[0])]),
-        'forall_right', [proof], principal=Forall(n, proof.sequent.right[0]), term=n)
+    rem = [f_ for f_ in proof.sequent.left if not same(f_, in_n_w)]
+    proof = Proof(Sequent(rem, [g_in]), 'implies_right', [proof], principal=g_in)
+    proof = Proof(Sequent(proof.sequent.left, [g_step]),
+        'forall_right', [proof], principal=g_step, term=n)
     # Outer: discharge ran_f_closed, f_at_a, omega_w, func_f, char_h:
-    for hh in [ran_f_closed, f_at_a, omega_w, func_f, char_h]:
+    for hh, g_imp in [(ran_f_closed, g_ranfc), (f_at_a, g_fat), (omega_w, g_omegaw), (func_f, g_funcf), (char_h, g_charh)]:
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [w, f, a, h]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+            proof = Proof(Sequent(rem, [g_imp]), 'implies_right', [proof], principal=g_imp)
+    for var, fa in [(w, g_hw), (f, goal.body.body), (a, goal.body), (h, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    assert proof.sequent.right[0] is goal
     proof.name = 'rec_h_step'
     return proof
 
@@ -6711,17 +6756,24 @@ def rec_h_function():
     got_func = mp(apply_thm(ai, [], rel_formula, Implies(sv_formula, func_h), proof_rel),
         proof_sv, sv_formula, func_h)
 
+    # Build goal with definition objects for compact display:
+    g_imp_omega = Implies(omega_w, func_h)
+    g_imp_funcf = Implies(func_f, g_imp_omega)
+    g_imp_charh = Implies(char_h, g_imp_funcf)
+    g_fa_w = Forall(w, g_imp_charh)
+    g_fa_f = Forall(f, g_fa_w)
+    g_fa_a = Forall(a, g_fa_f)
+    goal = Forall(h, g_fa_a)
+
     # Discharge and close
     proof = got_func
-    for hh in [omega_w, func_f, char_h]:
+    for hh, g_imp in zip([omega_w, func_f, char_h], [g_imp_omega, g_imp_funcf, g_imp_charh]):
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [w, f, a, h]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+            proof = Proof(Sequent(rem, [g_imp]), 'implies_right', [proof], principal=g_imp)
+    for var, fa in zip([w, f, a, h], [g_fa_w, g_fa_f, g_fa_a, goal]):
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    assert proof.sequent.right[0] is goal
     proof.name = 'rec_h_function'
     return proof
 
@@ -7207,15 +7259,19 @@ def recursion_theorem():
                     br2 = wl(br2, f_)
             proof = Proof(Sequent(c_left, proof.sequent.right), 'cut',
                 [wr(br1, proof.sequent.right[0]), br2], principal=pred)
-    for hh in [omega_w, dom_closed, func_f]:
+    # Use goal sub-formulas for compact display:
+    g_imp_omega = goal.body.body.body.right.right  # Implies(omega_w, exu_h)
+    g_imp_dom = goal.body.body.body.right  # Implies(dom_closed, Implies(omega_w, exu_h))
+    g_imp_func = goal.body.body.body  # Implies(func_f, ...)
+    g_fa_w = goal.body.body  # Forall(w, ...)
+    g_fa_f = goal.body  # Forall(f, ...)
+    for hh, g_imp in zip([omega_w, dom_closed, func_f], [g_imp_omega, g_imp_dom, g_imp_func]):
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [w, f, a]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+            proof = Proof(Sequent(rem, [g_imp]), 'implies_right', [proof], principal=g_imp)
+    for var, fa in zip([w, f, a], [g_fa_w, g_fa_f, goal]):
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    assert proof.sequent.right[0] is goal
     proof.name = 'recursion_theorem'
     return proof
 
@@ -7830,17 +7886,27 @@ def rec_values_agree():
     ex_p_actual = proof.sequent.left[-1]
     proof = cut(proof, ex_p_actual, got_sep)
 
+    # Build goal with definition objects for compact display:
+    g_imp_rech2 = Implies(rec_h2, fa_nf)
+    g_imp_rech = Implies(rec_h, g_imp_rech2)
+    g_imp_omega = Implies(omega_w, g_imp_rech)
+    g_imp_dom = Implies(dom_closed, g_imp_omega)
+    g_fa_h2 = Forall(h2, g_imp_dom)
+    g_fa_h = Forall(h, g_fa_h2)
+    g_fa_w = Forall(w, g_fa_h)
+    g_fa_f = Forall(f, g_fa_w)
+    goal = Forall(a, g_fa_f)
+
     # Discharge hypotheses: rec_h2, rec_h, omega_w, dom_closed
-    for hh in [rec_h2, rec_h, omega_w, dom_closed]:
+    g_imps = [g_imp_rech2, g_imp_rech, g_imp_omega, g_imp_dom]
+    for hh, g_imp in zip([rec_h2, rec_h, omega_w, dom_closed], g_imps):
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+            proof = Proof(Sequent(rem, [g_imp]), 'implies_right', [proof], principal=g_imp)
     # forall_right: h2, h, w, f, a
-    for var in [h2, h, w, f, a]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+    for var, fa in zip([h2, h, w, f, a], [g_fa_h2, g_fa_h, g_fa_w, g_fa_f, goal]):
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    assert proof.sequent.right[0] is goal
 
     proof.name = 'rec_values_agree'
     return proof

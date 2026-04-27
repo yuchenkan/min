@@ -2065,15 +2065,29 @@ def rec_succ_shift():
     proof = Proof(Sequent(rem_nf, [imp_nf]), 'implies_right', [proof], principal=imp_nf)
     fa_nf = Forall(nf, imp_nf)
     proof = Proof(Sequent(rem_nf, [fa_nf]), 'forall_right', [proof], principal=fa_nf, term=nf)
-    for hh in [in_m_w, succ_sm_m, rec_h2, rec_h1, succ_char, omega_w]:
+    # Build goal with definition objects for compact display:
+    g_imp_inm = Implies(in_m_w, fa_nf)
+    g_imp_succ = Implies(succ_sm_m, g_imp_inm)
+    g_imp_rech2 = Implies(rec_h2, g_imp_succ)
+    g_imp_rech1 = Implies(rec_h1, g_imp_rech2)
+    g_imp_sc = Implies(succ_char, g_imp_rech1)
+    g_imp_omega = Implies(omega_w, g_imp_sc)
+    g_fa_smv = Forall(smv, g_imp_omega)
+    g_fa_mv = Forall(mv, g_fa_smv)
+    g_fa_h2 = Forall(h2, g_fa_mv)
+    g_fa_h1 = Forall(h1, g_fa_h2)
+    g_fa_sfv = Forall(sfv, g_fa_h1)
+    goal = Forall(w, g_fa_sfv)
+
+    for hh, g_imp in zip([in_m_w, succ_sm_m, rec_h2, rec_h1, succ_char, omega_w],
+                         [g_imp_inm, g_imp_succ, g_imp_rech2, g_imp_rech1, g_imp_sc, g_imp_omega]):
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [smv, mv, h2, h1, sfv, w]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+            proof = Proof(Sequent(rem, [g_imp]), 'implies_right', [proof], principal=g_imp)
+    for var, fa in zip([smv, mv, h2, h1, sfv, w],
+                       [g_fa_smv, g_fa_mv, g_fa_h2, g_fa_h1, g_fa_sfv, goal]):
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    assert proof.sequent.right[0] is goal
 
     proof.name = 'rec_succ_shift'
     return proof
