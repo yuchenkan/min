@@ -42,25 +42,31 @@ class Proof:
         return result
 
 
-def verify(proof: Proof, axiom_checker, trust=False) -> bool:
+def verify(proof: Proof, axiom_checker, trust=False, cache=True) -> bool:
     """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions.
-    trust: if True, skip subtrees marked with trusted=True."""
+    trust: if True, skip subtrees marked with trusted=True.
+    cache: if True, mark verified nodes and skip them on re-encounter."""
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(s.right[0]):
         return False
     for f in s.left:
         if not axiom_checker(f):
             return False
-    return _verify(proof, trust)
+    return _verify(proof, trust, cache)
 
 
-def _verify(proof: Proof, trust: bool) -> bool:
+def _verify(proof: Proof, trust: bool, cache: bool) -> bool:
+    if cache and getattr(proof, '_verified', False):
+        return True
     if trust and proof.trusted:
         return True
     for p in proof.premises:
-        if not _verify(p, trust):
+        if not _verify(p, trust, cache):
             return False
-    return _check_rule(proof)
+    if not _check_rule(proof):
+        return False
+    proof._verified = True
+    return True
 
 
 def _check_rule(proof: Proof) -> bool:
