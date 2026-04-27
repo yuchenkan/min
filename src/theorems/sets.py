@@ -5,7 +5,7 @@ from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
 from core import zfc
-from definitions import Empty, OrdPair
+from definitions import Empty, OrdPair, Omega
 from theorems.logic import and_elim_left, and_elim_right, and_intro, char_transfer, eq_reflexive, eq_symmetric, eq_transitive, iff_chain, iff_mp_rev, iff_sym, or_iff_compat, or_intro_right
 
 def singleton_exists():
@@ -3506,3 +3506,99 @@ def eq_successor_transfer():
     return proof
 
 
+
+
+def omega_unique():
+    """Two omega sets are equal.
+    Ext, Inf |- forall w, w'. Omega(w) -> Omega(w') -> Eq(w, w')
+    From Omega(w) with b=w' (Inductive): x in w -> x in w'. Reverse. Extensionality."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import Inductive as InductiveDef
+    from theorems.omega import omega_is_inductive
+    from theorems.logic import iff_intro, iff_mp, iff_mp_rev, and_elim_left
+
+    w1 = Var(postfix='w1')
+    w2 = Var(postfix='w2')
+    omega_w1 = Omega(w1)
+    omega_w2 = Omega(w2)
+    ind_w1 = InductiveDef(w1)
+    ind_w2 = InductiveDef(w2)
+    xv = Var(postfix='x')
+
+    # omega_is_inductive: Omega(w) -> Inductive(w)
+    oi = omega_is_inductive()
+    got_ind_w1 = apply_thm(oi, [w1], omega_w1, ind_w1, ax(omega_w1))
+    got_ind_w2 = apply_thm(oi, [w2], omega_w2, ind_w2, ax(omega_w2))
+
+    # From Omega(w1) with b=w2: Inductive(w2) -> forall x. x in w1 iff (x in w2 and forall c. Ind(c) -> x in c)
+    cv = Var()
+    and_cond = And(In(xv, w2), Forall(cv, Implies(InductiveDef(cv), In(xv, cv))))
+    iff_w1 = Iff(In(xv, w1), and_cond)
+    fa_x_iff_w1 = Forall(xv, iff_w1)
+    imp_ind_w1 = Implies(ind_w2, fa_x_iff_w1)
+    got_imp_w1 = fl(omega_w1, imp_ind_w1, w2)
+    got_fa_w1 = mp(got_imp_w1, got_ind_w2, ind_w2, fa_x_iff_w1)
+    got_iff_w1 = apply_thm(got_fa_w1, [xv], concl=iff_w1)
+    # [omega_w1, omega_w2, Ext, Inf] |- Iff(In(xv,w1), And(In(xv,w2), ...))
+
+    # Forward: In(xv,w1) -> In(xv,w2) (extract from And)
+    got_fwd_and = mp(iff_mp(In(xv, w1), and_cond, []),
+        got_iff_w1, iff_w1, Implies(In(xv, w1), and_cond))
+    got_fwd_and = mp(got_fwd_and, ax(In(xv, w1)), In(xv, w1), and_cond)
+    got_fwd = apply_thm(and_elim_left(In(xv, w2), Forall(cv, Implies(InductiveDef(cv), In(xv, cv))), []), [],
+        and_cond, In(xv, w2), got_fwd_and)
+    # [..., In(xv,w1)] |- In(xv,w2)
+
+    # Reverse: from Omega(w2) with b=w1
+    and_cond2 = And(In(xv, w1), Forall(cv, Implies(InductiveDef(cv), In(xv, cv))))
+    iff_w2 = Iff(In(xv, w2), and_cond2)
+    fa_x_iff_w2 = Forall(xv, iff_w2)
+    imp_ind_w2 = Implies(ind_w1, fa_x_iff_w2)
+    got_imp_w2 = fl(omega_w2, imp_ind_w2, w1)
+    got_fa_w2 = mp(got_imp_w2, got_ind_w1, ind_w1, fa_x_iff_w2)
+    got_iff_w2 = apply_thm(got_fa_w2, [xv], concl=iff_w2)
+    got_bwd_and = mp(iff_mp(In(xv, w2), and_cond2, []),
+        got_iff_w2, iff_w2, Implies(In(xv, w2), and_cond2))
+    got_bwd_and = mp(got_bwd_and, ax(In(xv, w2)), In(xv, w2), and_cond2)
+    got_bwd = apply_thm(and_elim_left(In(xv, w1), Forall(cv, Implies(InductiveDef(cv), In(xv, cv))), []), [],
+        and_cond2, In(xv, w1), got_bwd_and)
+    # [..., In(xv,w2)] |- In(xv,w1)
+
+    # Build Iff(In(xv,w1), In(xv,w2)):
+    imp_fwd = Implies(In(xv, w1), In(xv, w2))
+    imp_bwd = Implies(In(xv, w2), In(xv, w1))
+    rem_fwd = [f_ for f_ in got_fwd.sequent.left if not same(f_, In(xv, w1))]
+    got_imp_fwd = Proof(Sequent(rem_fwd, [imp_fwd]), 'implies_right', [got_fwd], principal=imp_fwd)
+    rem_bwd = [f_ for f_ in got_bwd.sequent.left if not same(f_, In(xv, w2))]
+    got_imp_bwd = Proof(Sequent(rem_bwd, [imp_bwd]), 'implies_right', [got_bwd], principal=imp_bwd)
+
+    iff_12 = Iff(In(xv, w1), In(xv, w2))
+    ii = iff_intro(In(xv, w1), In(xv, w2), [])
+    all_iff = list(got_imp_fwd.sequent.left)
+    for f_ in got_imp_bwd.sequent.left:
+        if not any(same(f_, g) for g in all_iff):
+            all_iff.append(f_)
+    got_iff = mp(apply_thm(ii, [], imp_fwd, Implies(imp_bwd, iff_12),
+        weaken_to(got_imp_fwd, all_iff)),
+        weaken_to(got_imp_bwd, all_iff), imp_bwd, iff_12)
+
+    # forall xv -> Eq(w1, w2):
+    eq_w = Eq(w1, w2)
+    fa_iff = Forall(xv, iff_12)
+    got_eq = Proof(Sequent(got_iff.sequent.left, [fa_iff]), 'forall_right',
+        [got_iff], principal=fa_iff, term=xv)
+
+    # Discharge and close:
+    proof = got_eq
+    for hh in [omega_w2, omega_w1]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [w2, w1]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+
+    proof.name = 'omega_unique'
+    return proof

@@ -106,6 +106,7 @@ if __name__ == '__main__':
         ('rec_h_zero_identity', theorems.rec_h_zero_identity()),
         ('plus_zero_left', theorems.plus_zero_left()),
         ('rec_succ_shift', theorems.rec_succ_shift()),
+        ('omega_unique', theorems.omega_unique()),
     ]
 
     failed = []
