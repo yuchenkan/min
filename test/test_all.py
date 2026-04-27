@@ -108,6 +108,7 @@ if __name__ == '__main__':
         ('rec_succ_shift', theorems.rec_succ_shift()),
         ('omega_unique', theorems.omega_unique()),
         ('sf_apply_transfer', theorems.sf_apply_transfer()),
+        ('plus_comm', theorems.plus_comm()),
     ]
 
     failed = []
