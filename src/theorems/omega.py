@@ -1219,3 +1219,149 @@ def func_unique_thm():
     return proof
 
 
+
+
+def omega_exists():
+    """Omega exists: construct the smallest inductive set from Infinity + Separation.
+    Ext, Inf, Sep |- exists w. Omega(w)
+    From infinity_gives_inductive: exists b. Inductive(b).
+    Separation on b with phi(x) = forall c. Inductive(c) -> x in c.
+    The result satisfies Omega."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import iff_intro, iff_mp, iff_mp_rev, and_intro, and_elim_left, and_elim_right
+    from theorems.axioms import separation
+
+    bv = Var()   # the inductive set from Infinity
+    wv = Var()   # omega (the separation result)
+    xv = Var()   # element variable
+    cv = Var()   # inductive set variable (in Omega's forall)
+
+    ind_b = Inductive(bv)
+    omega_wv = Omega(wv)
+
+    # phi(x) = forall c. Inductive(c) -> x in c
+    def phi(x):
+        return Forall(cv, Implies(Inductive(cv), In(x, cv)))
+
+    # Separation: forall bv. exists wv. forall xv. xv in wv iff (xv in bv and phi(xv))
+    sep = separation(phi, [])
+    from core.proof import _expand
+    # Peel forall a_set = bv:
+    got_sep = sep
+    actual = got_sep.sequent.right[0]
+    char_wv_body = Iff(In(xv, wv), And(In(xv, bv), phi(xv)))
+    char_wv = Forall(xv, char_wv_body)
+    ex_wv = Exists(wv, char_wv)
+    got_sep = Proof(Sequent(got_sep.sequent.left, [ex_wv]), 'cut',
+        [wr(got_sep, ex_wv), wl(fl(actual, ex_wv, bv), *got_sep.sequent.left)],
+        principal=actual)
+    # got_sep: [Sep] |- Exists(wv, char_wv)
+
+    # === Verify Omega(wv) from char_wv and Inductive(bv) ===
+    # Omega(wv) = forall b'. Inductive(b') -> forall x. x in wv iff (x in b' and forall c. Ind(c) -> x in c)
+    # From char_wv: x in wv iff (x in bv and phi(x)) where phi(x) = forall c. Ind(c) -> x in c.
+    # For any Inductive(b'):
+    #   Forward: x in wv -> (x in bv and phi(x)) -> phi(x) -> Ind(b') -> x in b'. So x in b'.
+    #            And phi(x) is already there. So x in b' and phi(x). ✓
+    #   Backward: x in b' and phi(x) -> phi(x) -> Ind(bv) -> x in bv. And phi(x). So x in bv and phi(x) -> x in wv. ✓
+
+    bpv = Var()  # b' in Omega's forall
+    ind_bp = Inductive(bpv)
+
+    # char_wv at xv: In(xv,wv) iff And(In(xv,bv), phi(xv))
+    got_char = fl(char_wv, char_wv_body, xv)
+    and_in_phi = And(In(xv, bv), phi(xv))
+
+    # --- Forward: In(xv, wv) -> And(In(xv, bpv), phi(xv)) ---
+    # In(xv,wv) -> And(In(xv,bv), phi(xv)) from char_wv
+    got_fwd_char = mp(iff_mp(In(xv, wv), and_in_phi, []),
+        got_char, char_wv_body, Implies(In(xv, wv), and_in_phi))
+    got_and = mp(got_fwd_char, ax(In(xv, wv)), In(xv, wv), and_in_phi)
+    # [char_wv, In(xv,wv)] |- And(In(xv,bv), phi(xv))
+    got_phi = apply_thm(and_elim_right(In(xv, bv), phi(xv), []), [],
+        and_in_phi, phi(xv), got_and)
+    # [char_wv, In(xv,wv)] |- phi(xv) = forall c. Ind(c) -> x in c
+    # Instantiate at bpv: Ind(bpv) -> In(xv, bpv)
+    got_in_bp = apply_thm(got_phi, [bpv], ind_bp, In(xv, bpv), ax(ind_bp))
+    # [char_wv, In(xv,wv), Ind(bpv)] |- In(xv, bpv)
+    # And(In(xv, bpv), phi(xv)):
+    all_fwd = list(got_in_bp.sequent.left)
+    for f_ in got_phi.sequent.left:
+        if not any(same(f_, g) for g in all_fwd):
+            all_fwd.append(f_)
+    omega_and = And(In(xv, bpv), phi(xv))
+    got_fwd = mp(apply_thm(and_intro(In(xv, bpv), phi(xv), []), [], In(xv, bpv),
+        Implies(phi(xv), omega_and), weaken_to(got_in_bp, all_fwd)),
+        weaken_to(got_phi, all_fwd), phi(xv), omega_and)
+    # [char_wv, In(xv,wv), Ind(bpv)] |- And(In(xv,bpv), phi(xv))
+
+    # --- Backward: And(In(xv, bpv), phi(xv)) -> In(xv, wv) ---
+    # From phi(xv) and Inductive(bv): In(xv, bv).
+    # From In(xv, bv) and phi(xv): And(...) -> In(xv, wv) via char_wv backward.
+    got_phi_bwd = apply_thm(and_elim_right(In(xv, bpv), phi(xv), []), [],
+        omega_and, phi(xv), ax(omega_and))
+    got_in_bv_from_phi = apply_thm(got_phi_bwd, [bv], ind_b, In(xv, bv), ax(ind_b))
+    # [omega_and, Ind(bv)] |- In(xv, bv)
+    and_bv_phi = And(In(xv, bv), phi(xv))
+    all_bwd = list(got_in_bv_from_phi.sequent.left)
+    for f_ in got_phi_bwd.sequent.left:
+        if not any(same(f_, g) for g in all_bwd):
+            all_bwd.append(f_)
+    got_and_bv = mp(apply_thm(and_intro(In(xv, bv), phi(xv), []), [], In(xv, bv),
+        Implies(phi(xv), and_bv_phi), weaken_to(got_in_bv_from_phi, all_bwd)),
+        weaken_to(got_phi_bwd, all_bwd), phi(xv), and_bv_phi)
+    # [omega_and, Ind(bv)] |- And(In(xv,bv), phi(xv))
+    got_bwd_char = mp(iff_mp_rev(In(xv, wv), and_bv_phi, []),
+        got_char, char_wv_body, Implies(and_bv_phi, In(xv, wv)))
+    all_bwd2 = list(got_and_bv.sequent.left)
+    for f_ in got_bwd_char.sequent.left:
+        if not any(same(f_, g) for g in all_bwd2):
+            all_bwd2.append(f_)
+    got_bwd = mp(weaken_to(got_bwd_char, all_bwd2), got_and_bv, and_bv_phi, In(xv, wv))
+    # [omega_and, Ind(bv), char_wv] |- In(xv, wv)
+
+    # --- Build Iff(In(xv, wv), omega_and) ---
+    imp_fwd = Implies(In(xv, wv), omega_and)
+    imp_bwd = Implies(omega_and, In(xv, wv))
+    rem_fwd = [f_ for f_ in got_fwd.sequent.left if not same(f_, In(xv, wv))]
+    got_imp_fwd = Proof(Sequent(rem_fwd, [imp_fwd]), 'implies_right', [got_fwd], principal=imp_fwd)
+    rem_bwd = [f_ for f_ in got_bwd.sequent.left if not same(f_, omega_and)]
+    got_imp_bwd = Proof(Sequent(rem_bwd, [imp_bwd]), 'implies_right', [got_bwd], principal=imp_bwd)
+
+    iff_omega = Iff(In(xv, wv), omega_and)
+    ii = iff_intro(In(xv, wv), omega_and, [])
+    all_iff = list(got_imp_fwd.sequent.left)
+    for f_ in got_imp_bwd.sequent.left:
+        if not any(same(f_, g) for g in all_iff):
+            all_iff.append(f_)
+    got_iff = mp(apply_thm(ii, [], imp_fwd, Implies(imp_bwd, iff_omega),
+        weaken_to(got_imp_fwd, all_iff)),
+        weaken_to(got_imp_bwd, all_iff), imp_bwd, iff_omega)
+
+    # forall xv, implies_right Ind(bpv), forall bpv -> Omega(wv)
+    fa_x = Forall(xv, iff_omega)
+    got_fa_x = Proof(Sequent(got_iff.sequent.left, [fa_x]), 'forall_right',
+        [got_iff], principal=fa_x, term=xv)
+    imp_ind = Implies(ind_bp, fa_x)
+    rem_ind = [f_ for f_ in got_fa_x.sequent.left if not same(f_, ind_bp)]
+    got_imp_ind = Proof(Sequent(rem_ind, [imp_ind]), 'implies_right',
+        [got_fa_x], principal=imp_ind)
+    got_omega = Proof(Sequent(rem_ind, [omega_wv]), 'forall_right',
+        [got_imp_ind], principal=omega_wv, term=bpv)
+    # got_omega: [char_wv, Ind(bv), Sep] |- Omega(wv)
+
+    # === Package: eir wv, eel wv from char_wv, cut with got_sep ===
+    got_ex_omega = eir(got_omega, Omega(wv), wv, wv)
+    # eel wv from char_wv:
+    got_ex_omega = eel(got_ex_omega, char_wv, wv)
+    # cut Exists(wv, char_wv) with got_sep:
+    got_ex_omega = cut(got_ex_omega, got_ex_omega.sequent.left[-1], got_sep)
+
+    # === eel bv from Ind(bv), cut with infinity_gives_inductive ===
+    got_ex_omega = eel(got_ex_omega, ind_b, bv)
+    # Exists(bv, Ind(bv)) on left. Cut with infinity_gives_inductive:
+    igi = infinity_gives_inductive()
+    got_ex_omega = cut(got_ex_omega, got_ex_omega.sequent.left[-1], igi)
+
+    got_ex_omega.name = 'omega_exists'
+    return got_ex_omega

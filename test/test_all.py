@@ -107,6 +107,7 @@ if __name__ == '__main__':
         ('plus_zero_left', theorems.plus_zero_left()),
         ('rec_succ_shift', theorems.rec_succ_shift()),
         ('omega_unique', theorems.omega_unique()),
+        ('omega_exists', theorems.omega_exists()),
         ('sf_apply_transfer', theorems.sf_apply_transfer()),
         ('plus_comm', theorems.plus_comm()),
     ]
