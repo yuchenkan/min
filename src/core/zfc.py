@@ -53,6 +53,8 @@ class PowerSet(ZFCAxiom):
 
 
 class Separation(ZFCAxiom):
+    _str_x = Var()
+
     def __init__(self, phi, vars: list):
         self.phi = phi
         self.vars = vars
@@ -66,7 +68,8 @@ class Separation(ZFCAxiom):
         return body
 
     def __str__(self):
-        return 'Separation(...)'
+        x = Separation._str_x
+        return f'Separation({x} => {self.phi(x)})'
 
 
 class Infinity(ZFCAxiom):
@@ -91,6 +94,9 @@ class Choice(ZFCAxiom):
 
 
 class Replacement(ZFCAxiom):
+    _str_x = Var()
+    _str_y = Var()
+
     def __init__(self, phi, vars: list):
         self.phi = phi
         self.vars = vars
@@ -109,7 +115,8 @@ class Replacement(ZFCAxiom):
         return body
 
     def __str__(self):
-        return 'Replacement(...)'
+        x, y = Replacement._str_x, Replacement._str_y
+        return f'Replacement({x},{y} => {self.phi(x, y)})'
 
 
 class Regularity(ZFCAxiom):
