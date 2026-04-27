@@ -101,6 +101,7 @@ if __name__ == '__main__':
         ('rec_unique', theorems.rec_unique()),
         ('eq_successor_transfer', theorems.eq_successor_transfer()),
         ('sf_props', theorems.sf_props()),
+        ('plus_zero_right', theorems.plus_zero_right()),
     ]
 
     failed = []
