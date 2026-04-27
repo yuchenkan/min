@@ -335,13 +335,15 @@ class Recursive:
 
 class Plus:
     """Plus(m, n, p): m + n = p.
-    Exists w, h, sf. Omega(w) and succ_char(sf) and Recursive(h, m, sf, w) and Apply(h, n, p)."""
+    Exists w, h, sf. Omega(w) and succ_char(sf, w) and Recursive(h, m, sf, w) and Apply(h, n, p).
+    succ_char restricted to x in w (sf is a set, not a class)."""
     __match_args__ = ('left', 'right', 'result')
     def __init__(self, m, n, p):
         self.left = m; self.right = n; self.result = p
     def expand(self):
         w, h, sf, x, y = Var(), Var(), Var(), Var(), Var()
-        succ_char = Forall(x, Forall(y, Iff(Apply(sf, x, y), Successor(y, x))))
+        succ_char = Forall(x, Implies(In(x, w),
+            Forall(y, Iff(Apply(sf, x, y), Successor(y, x)))))
         return Exists(w, And(Omega(w),
             Exists(h, Exists(sf,
                 And(succ_char,
