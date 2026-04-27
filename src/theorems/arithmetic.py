@@ -2073,5 +2073,8 @@ def plus_comm():
         Implies(omega_w, Implies(in_m_w, Implies(in_n_w,
             Implies(plus_mn, plus_nm))))))))
 
-    # TODO: proof
-    raise NotImplementedError('plus_comm proof not yet built')
+    # plus_comm requires opening Plus(m,n,p), using omega_unique to bridge w's,
+    # and constructing Plus(n,m,p) via the induction lemmas.
+    # All sub-theorems are proved: plus_zero_left, rec_step_succ, rec_succ_shift, sf_props.
+    # The formal packaging is ~300 lines of sequent plumbing.
+    raise NotImplementedError('plus_comm: all sub-theorems proved, packaging TODO')
