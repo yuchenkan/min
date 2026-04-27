@@ -210,6 +210,40 @@ class Omega:
         return f'{self.set} = omega'
 
 
+class Nat:
+    """Nat(n): n is a natural number (n in omega).
+    exists w. Omega(w) and In(n, w)."""
+    __match_args__ = ('elem',)
+    def __init__(self, n):
+        self.elem = n
+    def expand(self):
+        w = Var()
+        return Exists(w, And(Omega(w), In(self.elem, w)))
+    def subst(self, old, new):
+        return Nat(new if self.elem is old else self.elem)
+    def __str__(self):
+        return f'{self.elem} in N'
+
+
+class Num:
+    """Num(n, k): n equals the natural number k (k is a Python int).
+    Num(n, 0) = Empty(n)
+    Num(n, k+1) = exists m. Num(m, k) and Successor(n, m)"""
+    __match_args__ = ('elem', 'value')
+    def __init__(self, n, k):
+        self.elem = n
+        self.value = k
+    def expand(self):
+        if self.value == 0:
+            return Empty(self.elem)
+        m = Var()
+        return Exists(m, And(Num(m, self.value - 1), Successor(self.elem, m)))
+    def subst(self, old, new):
+        return Num(new if self.elem is old else self.elem, self.value)
+    def __str__(self):
+        return f'{self.elem} = {self.value}'
+
+
 # --- Relations and functions (Section 4.1.6) ---
 
 class Apply:

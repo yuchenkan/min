@@ -4,7 +4,7 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
-from definitions import Empty, OrdPair, Omega
+from definitions import Empty, OrdPair, Omega, Num
 
 from theorems.logic import (iff_mp, iff_mp_rev, iff_intro, and_intro,
     and_elim_left, and_elim_right, eq_reflexive, eq_substitution)
@@ -442,10 +442,11 @@ def plus_zero_right():
     omega_w = Omega(w)
     in_m_w = In(m, w)
     empty_ev = Empty(ev)
+    zero_ev = Num(ev, 0)
     plus_goal = PlusDef(m, ev, m)
 
     goal = Forall(w, Forall(m, Forall(ev,
-        Implies(omega_w, Implies(in_m_w, Implies(empty_ev, plus_goal))))))
+        Implies(omega_w, Implies(in_m_w, Implies(zero_ev, plus_goal))))))
 
     from theorems.recursion import recursion_theorem
     from theorems.sets import successor_exists
@@ -843,10 +844,11 @@ def rec_h_zero_identity():
         Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
     rec_h = RecDef(hv, ev, sfv, w)
     empty_ev = Empty(ev)
+    zero_ev = Num(ev, 0)
     app_h_mm = Apply(hv, mv, mv)
 
     goal = Forall(w, Forall(sfv, Forall(hv, Forall(ev,
-        Implies(omega_w, Implies(succ_char, Implies(rec_h, Implies(empty_ev,
+        Implies(omega_w, Implies(succ_char, Implies(rec_h, Implies(zero_ev,
             Forall(mv, Implies(In(mv, w), app_h_mm))))))))))
 
     # === Induction setup ===
@@ -1216,10 +1218,11 @@ def plus_zero_left():
     omega_w = Omega(w)
     in_m_w = In(mv, w)
     empty_ev = Empty(ev)
+    zero_ev = Num(ev, 0)
     plus_goal = PlusDef(ev, mv, mv)
 
     goal = Forall(w, Forall(mv, Forall(ev,
-        Implies(omega_w, Implies(in_m_w, Implies(empty_ev, plus_goal))))))
+        Implies(omega_w, Implies(in_m_w, Implies(zero_ev, plus_goal))))))
 
     sfv = Var(postfix='sf')
     hv = Var(postfix='h')
