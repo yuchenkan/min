@@ -1,7 +1,9 @@
-"""Proof combinators for composing theorems. Not part of the core engine."""
+"""Proof combinators for composing theorems. Not part of the core engine.
+These are mechanical assembly — no formula inspection, no cleverness."""
 
 from core.proof import Sequent, Proof
-from core.lang import Implies, Forall
+from core.lang import Var, Not, Implies, Forall
+from core.derived import Exists
 from core import same
 
 
@@ -57,6 +59,63 @@ def wr(proof, formula):
     """Weaken right: add a formula to the right side."""
     return Proof(Sequent(proof.sequent.left, proof.sequent.right + [formula]),
                  'weakening_right', [proof], principal=formula)
+
+
+def weaken_to(proof, target_left):
+    """Weaken proof's left to include all formulas in target_left. Dedup via same()."""
+    cur = proof
+    for f in target_left:
+        if not any(same(f, g) for g in cur.sequent.left):
+            cur = wl(cur, f)
+    return cur
+
+
+def ax(formula):
+    """Axiom: formula |- formula."""
+    return Proof(Sequent([formula], [formula]), 'axiom', principal=formula)
+
+
+def fl(parent, body, term):
+    """Forall left: from parent = Forall(x, ...) on left, instantiate x with term to get body."""
+    return Proof(Sequent([parent], [body]), 'forall_left',
+        [Proof(Sequent([body], [body]), 'axiom', principal=body)],
+        principal=parent, term=term)
+
+
+def eir(proof, body, var, witness):
+    """Exists intro right: from proof |- body[var:=witness], derive |- Exists(var, body)."""
+    ctx = list(proof.sequent.left)
+    body_inst = proof.sequent.right[0]
+    nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+    f = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
+              principal=Forall(var, Not(body)), term=witness)
+    return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [f],
+                 principal=Exists(var, body))
+
+
+def eel(proof, pred, var):
+    """Exists elim left: from proof with pred on left (var free in pred),
+    replace pred with Exists(var, pred) on left (var not free in right)."""
+    ctx = [f for f in proof.sequent.left if not same(f, pred)]
+    D = proof.sequent.right[0]
+    p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+    p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
+               'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
+    return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
+                 [p2], principal=Exists(var, pred))
+
+
+def cut(proof, pred, got_pred):
+    """Cut: replace pred on left of proof with got_pred's left.
+    proof: [..., pred] |- D. got_pred: [ctx2] |- pred. Result: [merged - pred] |- D."""
+    c_left = [f for f in proof.sequent.left if not same(f, pred)]
+    for f in got_pred.sequent.left:
+        if not any(same(f, g) for g in c_left):
+            c_left = c_left + [f]
+    br1 = weaken_to(got_pred, c_left)
+    br2 = weaken_to(proof, c_left)
+    return Proof(Sequent(c_left, proof.sequent.right), 'cut',
+        [wr(br1, proof.sequent.right[0]), br2], principal=pred)
 
 
 def mp(impl_proof, arg_proof, P, Q):
