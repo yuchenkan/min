@@ -3803,24 +3803,8 @@ def exists_num(k):
     # Can't use same()-based helpers. Use identity checks for left management.
     ex_num_prev = got_ex_cur.sequent.left[-1]  # the Exists from eel
     # Build c_left = union of proof.left and got_ex_cur.left minus ex_num_prev (by identity)
-    c_left = list(proof.sequent.left)
-    for f_ in got_ex_cur.sequent.left:
-        if f_ is ex_num_prev:
-            continue
-        if not any(f_ is g for g in c_left):
-            c_left.append(f_)
-    # br1 = proof weakened to c_left
-    br1 = proof
-    for f_ in c_left:
-        if not any(f_ is g for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    # br2 = got_ex_cur weakened to c_left (must include all of c_left + ex_num_prev)
-    br2 = got_ex_cur
-    for f_ in c_left:
-        if not any(f_ is g for g in br2.sequent.left):
-            br2 = wl(br2, f_)
-    got_ex_cur = Proof(Sequent(c_left, got_ex_cur.sequent.right), 'cut',
-        [wr(br1, got_ex_cur.sequent.right[0]), br2], principal=ex_num_prev)
+    # Use cut() helper now that Sequent enforces set semantics — no need for identity tricks.
+    got_ex_cur = cut(got_ex_cur, got_ex_cur.sequent.left[-1], proof)
     # [axioms] |- exists cv. Num(cv, k)
 
     got_ex_cur.name = f'exists_num_{k}'

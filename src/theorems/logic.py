@@ -196,14 +196,15 @@ def or_elim(A, B, C, vars: list[Var]):
     # [OrAB, AC, BC] |- [C]
     p1 = Proof(Sequent([OrAB, AC, C], [C]), 'axiom', principal=C)
     # [AC] |- [NA, B, C]: from [AC, A] |- [B, C]
-    ax_a = Proof(Sequent([A], [A, B, C]), 'axiom', principal=A)
-    ax_c = Proof(Sequent([A, C], [B, C]), 'axiom', principal=C)
-    impl_ac = Proof(Sequent([A, AC], [B, C]), 'implies_left', [ax_a, ax_c], principal=AC)
-    p0a = Proof(Sequent([AC], [NA, B, C]), 'not_right', [impl_ac], principal=NA)
+    ax_a = wr(wr(Proof(Sequent([A], [A]), 'axiom', principal=A), B), C)
+    ax_c = wr(Proof(Sequent([A, C], [C]), 'axiom', principal=C), B)
+    right_bc = [B] if same(B, C) else [B, C]
+    impl_ac = Proof(Sequent([A, AC], right_bc), 'implies_left', [ax_a, ax_c], principal=AC)
+    p0a = Proof(Sequent([AC], [NA] + right_bc), 'not_right', [impl_ac], principal=NA)
     # [AC, B] |- [B, C]
-    p0b = Proof(Sequent([AC, B], [B, C]), 'axiom', principal=B)
+    p0b = wr(Proof(Sequent([AC, B], [B]), 'axiom', principal=B), C)
     # [AC, OrAB] |- [B, C]
-    impl_or = Proof(Sequent([AC, OrAB], [B, C]), 'implies_left', [p0a, p0b], principal=OrAB)
+    impl_or = Proof(Sequent([AC, OrAB], right_bc), 'implies_left', [p0a, p0b], principal=OrAB)
     # [OrAB, AC, BC] |- [C]
     result = Proof(Sequent([OrAB, AC, BC], [C]), 'implies_left',
                    [impl_or, p1], principal=BC)
@@ -859,162 +860,7 @@ def eq_substitution():
 
 
 def or_iff_compat(P, Q, R, S, vars: list[Var]):
-    """|- forall vars. Iff(P,R) implies Iff(Q,S) implies Iff(Or(P,Q), Or(R,S))
-    Handles degenerate cases P=R or Q=S via iff_chain."""
-    # Degenerate: when same(P,R) or same(Q,S), the general proof creates duplicates.
-    # Handle by swapping to reduce to the other case, or build simpler proof.
-    if same(Q, S):
-        # Build: Iff(P,R) → Iff(Q,Q) → Iff(Or(P,Q), Or(R,Q))
-        # Same structure as P=R case but for the Q/S component.
-        from tactics import apply_thm, mp, ax, weaken_to
-        iff_pr_f = Iff(P, R)
-        iff_qs_f = Iff(Q, S)
-        or_pq = Or(P, Q)
-        or_rs = Or(R, S)
-        iff_or = Iff(or_pq, or_rs)
-        # Forward: Or(P,Q) → Or(R,S). Case P: P→R from iff. Case Q: Q→S trivially (same).
-        oe = or_elim(P, Q, or_rs, [])
-        oil_r = or_intro_left(R, S, [])
-        oir_s = or_intro_right(R, S, [])
-        iel = iff_elim_left(P, R, [])
-        got_pr = apply_thm(iel, [], iff_pr_f, Implies(P, R), ax(iff_pr_f))
-        got_p_r = mp(got_pr, ax(P), P, R)
-        got_p_rs = mp(apply_thm(oil_r, [], R, or_rs, got_p_r), got_p_r, R, or_rs)
-        p_to_rs = Implies(P, or_rs)
-        rem_p = [f_ for f_ in got_p_rs.sequent.left if not same(f_, P)]
-        got_p_rs_imp = Proof(Sequent(rem_p, [p_to_rs]), 'implies_right', [got_p_rs], principal=p_to_rs)
-        # Q → Or(R,S): Q=S, so or_intro_right(R,S) applied to Q
-        got_q_rs = apply_thm(oir_s, [], Q, or_rs, Proof(Sequent([Q], [Q]), 'axiom', principal=Q))
-        q_to_rs = Implies(Q, or_rs)
-        got_q_rs_imp = Proof(Sequent([], [q_to_rs]), 'implies_right', [got_q_rs], principal=q_to_rs)
-        fwd = apply_thm(oe, [], or_pq, Implies(p_to_rs, Implies(q_to_rs, or_rs)), ax(or_pq))
-        fwd = mp(fwd, weaken_to(got_p_rs_imp, fwd.sequent.left), p_to_rs, Implies(q_to_rs, or_rs))
-        fwd = mp(fwd, weaken_to(got_q_rs_imp, fwd.sequent.left), q_to_rs, or_rs)
-        fwd_imp = Implies(or_pq, or_rs)
-        rem_fwd = [f_ for f_ in fwd.sequent.left if not same(f_, or_pq)]
-        got_fwd = Proof(Sequent(rem_fwd, [fwd_imp]), 'implies_right', [fwd], principal=fwd_imp)
-        # Backward: Or(R,S) → Or(P,Q). R→P from iff_elim_right. S→Q trivially.
-        oe2 = or_elim(R, S, or_pq, [])
-        oil_p = or_intro_left(P, Q, [])
-        oir_q = or_intro_right(P, Q, [])
-        ier = iff_elim_right(P, R, [])
-        got_rp = apply_thm(ier, [], iff_pr_f, Implies(R, P), ax(iff_pr_f))
-        got_r_p = mp(got_rp, ax(R), R, P)
-        got_r_pq = mp(apply_thm(oil_p, [], P, or_pq, got_r_p), got_r_p, P, or_pq)
-        r_to_pq = Implies(R, or_pq)
-        rem_r = [f_ for f_ in got_r_pq.sequent.left if not same(f_, R)]
-        got_r_pq_imp = Proof(Sequent(rem_r, [r_to_pq]), 'implies_right', [got_r_pq], principal=r_to_pq)
-        got_s_pq = apply_thm(oir_q, [], S, or_pq, Proof(Sequent([S], [S]), 'axiom', principal=S))
-        s_to_pq = Implies(S, or_pq)
-        got_s_pq_imp = Proof(Sequent([], [s_to_pq]), 'implies_right', [got_s_pq], principal=s_to_pq)
-        bwd = apply_thm(oe2, [], or_rs, Implies(r_to_pq, Implies(s_to_pq, or_pq)), ax(or_rs))
-        bwd = mp(bwd, weaken_to(got_r_pq_imp, bwd.sequent.left), r_to_pq, Implies(s_to_pq, or_pq))
-        bwd = mp(bwd, weaken_to(got_s_pq_imp, bwd.sequent.left), s_to_pq, or_pq)
-        bwd_imp = Implies(or_rs, or_pq)
-        rem_bwd = [f_ for f_ in bwd.sequent.left if not same(f_, or_rs)]
-        got_bwd = Proof(Sequent(rem_bwd, [bwd_imp]), 'implies_right', [bwd], principal=bwd_imp)
-        # Build Iff:
-        ii = iff_intro(or_pq, or_rs, [])
-        all_left = list(got_fwd.sequent.left)
-        for f_ in got_bwd.sequent.left:
-            if not any(same(f_, g) for g in all_left): all_left.append(f_)
-        got_iff = mp(apply_thm(ii, [], fwd_imp, Implies(bwd_imp, iff_or),
-            weaken_to(got_fwd, all_left)), weaken_to(got_bwd, all_left), bwd_imp, iff_or)
-        # Discharge:
-        imp_qs = Implies(iff_qs_f, iff_or)
-        rem_qs = [f_ for f_ in got_iff.sequent.left if not same(f_, iff_qs_f)]
-        got_imp_qs = Proof(Sequent(rem_qs, [imp_qs]), 'implies_right',
-            [wl(got_iff, iff_qs_f)], principal=imp_qs)
-        imp_pr = Implies(iff_pr_f, imp_qs)
-        rem_pr = [f_ for f_ in got_imp_qs.sequent.left if not same(f_, iff_pr_f)]
-        got_result = Proof(Sequent(rem_pr, [imp_pr]), 'implies_right', [got_imp_qs], principal=imp_pr)
-        for v in reversed(vars):
-            body = got_result.sequent.right[0]
-            fa = Forall(v, body)
-            got_result = Proof(Sequent(got_result.sequent.left, [fa]), 'forall_right',
-                [got_result], principal=fa, term=v)
-        return got_result
-
-    if same(P, R):
-        from tactics import apply_thm, mp, ax
-        iff_qs_f = Iff(Q, S)
-        iff_pq_f = Iff(P, R)  # trivially true since P=R
-        or_pq = Or(P, Q)
-        or_rs = Or(R, S)
-        iff_or = Iff(or_pq, or_rs)
-        # Forward: Or(P,Q) → Or(R,S). Case P: P→R trivially (same). Case Q: Q→S from iff.
-        # Use or_elim: Or(P,Q) → (P→Or(R,S)) → (Q→Or(R,S)) → Or(R,S)
-        oe = or_elim(P, Q, or_rs, [])
-        oil_r = or_intro_left(R, S, [])  # R → Or(R,S)
-        oir_s = or_intro_right(R, S, [])  # S → Or(R,S)
-        # P → Or(R,S): P→R (trivial since same) → Or(R,S)
-        p_to_rs = Implies(P, or_rs)
-        ax_p = Proof(Sequent([P], [P]), 'axiom', principal=P)
-        got_p_rs = mp(apply_thm(oil_r, [], R, or_rs, ax_p), ax_p, R, or_rs)  # won't work since oil expects R not P... but same(P,R)
-        # Actually simpler: P = R by same(), so or_intro_left(R,S) applied to P works
-        got_p_rs = apply_thm(oil_r, [], P, or_rs, Proof(Sequent([P], [P]), 'axiom', principal=P))
-        got_p_rs = Proof(Sequent([], [p_to_rs]), 'implies_right', [got_p_rs], principal=p_to_rs)
-        # Q → Or(R,S): Q → S from iff_elim_left, then or_intro_right
-        iel = iff_elim_left(Q, S, [])
-        got_qs = apply_thm(iel, [], iff_qs_f, Implies(Q, S), ax(iff_qs_f))
-        got_q_s = mp(got_qs, ax(Q), Q, S)
-        got_q_rs = mp(apply_thm(oir_s, [], S, or_rs, got_q_s), got_q_s, S, or_rs)
-        q_to_rs = Implies(Q, or_rs)
-        rem_q = [f_ for f_ in got_q_rs.sequent.left if not same(f_, Q)]
-        got_q_rs_imp = Proof(Sequent(rem_q, [q_to_rs]), 'implies_right', [got_q_rs], principal=q_to_rs)
-        # or_elim: Or(P,Q) → P→Or(R,S) → Q→Or(R,S) → Or(R,S)
-        fwd = apply_thm(oe, [], or_pq, Implies(p_to_rs, Implies(q_to_rs, or_rs)), ax(or_pq))
-        fwd = mp(fwd, got_p_rs, p_to_rs, Implies(q_to_rs, or_rs))
-        fwd = mp(fwd, got_q_rs_imp, q_to_rs, or_rs)
-        fwd_imp = Implies(or_pq, or_rs)
-        rem_fwd = [f_ for f_ in fwd.sequent.left if not same(f_, or_pq)]
-        got_fwd = Proof(Sequent(rem_fwd, [fwd_imp]), 'implies_right', [fwd], principal=fwd_imp)
-
-        # Backward: Or(R,S) → Or(P,Q). R→P trivially. S→Q from iff_elim_right.
-        oe2 = or_elim(R, S, or_pq, [])
-        oil_p = or_intro_left(P, Q, [])
-        oir_q = or_intro_right(P, Q, [])
-        got_r_pq = apply_thm(oil_p, [], R, or_pq, Proof(Sequent([R], [R]), 'axiom', principal=R))
-        r_to_pq = Implies(R, or_pq)
-        got_r_pq = Proof(Sequent([], [r_to_pq]), 'implies_right', [got_r_pq], principal=r_to_pq)
-        ier = iff_elim_right(Q, S, [])
-        got_sq = apply_thm(ier, [], iff_qs_f, Implies(S, Q), ax(iff_qs_f))
-        got_s_q = mp(got_sq, ax(S), S, Q)
-        got_s_pq = mp(apply_thm(oir_q, [], Q, or_pq, got_s_q), got_s_q, Q, or_pq)
-        s_to_pq = Implies(S, or_pq)
-        rem_s = [f_ for f_ in got_s_pq.sequent.left if not same(f_, S)]
-        got_s_pq_imp = Proof(Sequent(rem_s, [s_to_pq]), 'implies_right', [got_s_pq], principal=s_to_pq)
-        bwd = apply_thm(oe2, [], or_rs, Implies(r_to_pq, Implies(s_to_pq, or_pq)), ax(or_rs))
-        bwd = mp(bwd, got_r_pq, r_to_pq, Implies(s_to_pq, or_pq))
-        bwd = mp(bwd, got_s_pq_imp, s_to_pq, or_pq)
-        bwd_imp = Implies(or_rs, or_pq)
-        rem_bwd = [f_ for f_ in bwd.sequent.left if not same(f_, or_rs)]
-        got_bwd = Proof(Sequent(rem_bwd, [bwd_imp]), 'implies_right', [bwd], principal=bwd_imp)
-
-        # Iff(Or(P,Q), Or(R,S)) from fwd + bwd:
-        ii = iff_intro(or_pq, or_rs, [])
-        all_left = list(got_fwd.sequent.left)
-        for f_ in got_bwd.sequent.left:
-            if not any(same(f_, g) for g in all_left):
-                all_left.append(f_)
-        from tactics import weaken_to
-        got_iff = mp(apply_thm(ii, [], fwd_imp, Implies(bwd_imp, iff_or),
-            weaken_to(got_fwd, all_left)), weaken_to(got_bwd, all_left), bwd_imp, iff_or)
-
-        # Discharge Iff(Q,S), then add trivial Iff(P,R) hypothesis:
-        imp_qs = Implies(iff_qs_f, iff_or)
-        rem_qs = [f_ for f_ in got_iff.sequent.left if not same(f_, iff_qs_f)]
-        got_imp_qs = Proof(Sequent(rem_qs, [imp_qs]), 'implies_right', [got_iff], principal=imp_qs)
-        imp_pr = Implies(iff_pq_f, imp_qs)
-        got_result = Proof(Sequent(rem_qs, [imp_pr]), 'implies_right',
-            [wl(got_imp_qs, iff_pq_f)], principal=imp_pr)
-        for v in reversed(vars):
-            body = got_result.sequent.right[0]
-            fa = Forall(v, body)
-            got_result = Proof(Sequent(got_result.sequent.left, [fa]), 'forall_right',
-                [got_result], principal=fa, term=v)
-        return got_result
-
+    """|- forall vars. Iff(P,R) implies Iff(Q,S) implies Iff(Or(P,Q), Or(R,S))"""
     PR = Implies(P, R)
     RP = Implies(R, P)
     QS = Implies(Q, S)
@@ -1062,7 +908,8 @@ def or_iff_compat(P, Q, R, S, vars: list[Var]):
     ext_qs = Proof(Sequent([iff_qs], [QS]), 'cut', [g3, g5], principal=H_qs)
 
     # --- Extract SQ from iff_qs ---
-    h1 = Proof(Sequent([iff_qs, QS, SQ], [SQ]), 'axiom', principal=SQ)
+    h1_left = [iff_qs, QS] if same(QS, SQ) else [iff_qs, QS, SQ]
+    h1 = Proof(Sequent(h1_left, [SQ]), 'axiom', principal=SQ)
     h2 = Proof(Sequent([iff_qs, QS], [NSQ, SQ]), 'not_right', [h1], principal=NSQ)
     h3 = Proof(Sequent([iff_qs], [H_qs, SQ]), 'implies_right', [h2], principal=H_qs)
     h4 = Proof(Sequent([H_qs], [H_qs, SQ]), 'weakening_right',
@@ -1070,35 +917,30 @@ def or_iff_compat(P, Q, R, S, vars: list[Var]):
     h5 = Proof(Sequent([H_qs, iff_qs], [SQ]), 'not_left', [h4], principal=iff_qs)
     ext_sq = Proof(Sequent([iff_qs], [SQ]), 'cut', [h3, h5], principal=H_qs)
 
-    # === Forward: PR, QS, or_pq, NR |- S ===
-    # implies_left on PR in context {QS, NR, P}:
-    #   premise 1a: QS, NR, P |- P, S
+    # === Forward: PR, QS, or_pq |- or_rs ===
+    # implies_left on PR with context G={QS, NR, P}:
+    #   premise 0: G |- P, S
     a1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
-    a2 = Proof(Sequent([P], [P, S]), 'weakening_right', [a1], principal=S)
-    a3 = Proof(Sequent([NR, P], [P, S]), 'weakening_left', [a2], principal=NR)
-    a4 = Proof(Sequent([QS, NR, P], [P, S]), 'weakening_left', [a3], principal=QS)
-    #   premise 1b: QS, NR, P, R |- S
+    a2 = wr(a1, S)
+    a3 = wl(a2, NR)
+    a4 = wl(a3, QS)
+    #   premise 1: _set_add(G, R) |- S
     b1 = Proof(Sequent([R], [R]), 'axiom', principal=R)
-    b2 = Proof(Sequent([R], [R, S]), 'weakening_right', [b1], principal=S)
+    b2 = wr(b1, S)
     b3 = Proof(Sequent([NR, R], [S]), 'not_left', [b2], principal=NR)
-    b4 = Proof(Sequent([QS, NR, R], [S]), 'weakening_left', [b3], principal=QS)
+    b4 = wl(b3, QS)
     b5 = wl(b4, P)  # no-op if P same as R
-    fw_pr_left = [PR, QS, NR, P] if not same(P, R) else [PR, QS, NR, P]
-    # Actually: implies_left removes PR, splits on PR.left=P and PR.right=R
-    # premise[0] = a4: needs [QS, NR, P] |- [P, S]. premise[1] = b5: needs [QS, NR, P, R] |- [S]
-    # With P=R, b5 = [QS, NR, P] |- [S]. implies_left expects [QS,NR,P] + [R] but R=P so just [QS,NR,P].
-    fw_pr = Proof(Sequent(b5.sequent.left + ([PR] if not any(same(PR, g) for g in b5.sequent.left) else []),
-        [S]), 'implies_left', [a4, b5], principal=PR)
+    fw_pr = Proof(Sequent([PR, QS, NR, P], [S]), 'implies_left', [a4, b5], principal=PR)
     fw_np = Proof(Sequent([PR, QS, NR], [NP, S]), 'not_right', [fw_pr], principal=NP)
-    # implies_left on QS in context {PR, NR, Q}:
+    # implies_left on QS with context {PR, NR, Q}:
     c1 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
-    c2 = Proof(Sequent([Q], [Q, S]), 'weakening_right', [c1], principal=S)
-    c3 = Proof(Sequent([NR, Q], [Q, S]), 'weakening_left', [c2], principal=NR)
-    c4 = Proof(Sequent([PR, NR, Q], [Q, S]), 'weakening_left', [c3], principal=PR)
+    c2 = wr(c1, S)
+    c3 = wl(c2, NR)
+    c4 = wl(c3, PR)
     d1 = Proof(Sequent([S], [S]), 'axiom', principal=S)
-    d2 = Proof(Sequent([Q, S], [S]), 'weakening_left', [d1], principal=Q)
-    d3 = Proof(Sequent([NR, Q, S], [S]), 'weakening_left', [d2], principal=NR)
-    d4 = Proof(Sequent([PR, NR, Q, S], [S]), 'weakening_left', [d3], principal=PR)
+    d2 = wl(d1, Q)   # no-op if Q same as S
+    d3 = wl(d2, NR)
+    d4 = wl(d3, PR)
     fw_qs = Proof(Sequent([PR, QS, NR, Q], [S]), 'implies_left', [c4, d4], principal=QS)
     # implies_left on or_pq
     fw_core = Proof(Sequent([PR, QS, or_pq, NR], [S]), 'implies_left', [fw_np, fw_qs], principal=or_pq)
@@ -1119,28 +961,30 @@ def or_iff_compat(P, Q, R, S, vars: list[Var]):
     fw_c2 = Proof(Sequent([iff_pr, iff_qs, or_pq], [or_rs]), 'cut', [fw_u3, fw_u4], principal=QS)
     fwd = Proof(Sequent([iff_pr, iff_qs], [or_fwd]), 'implies_right', [fw_c2], principal=or_fwd)
 
-    # === Backward: RP, SQ, or_rs, NP |- Q ===
-    # implies_left on RP in context {SQ, NP, R}:
+    # === Backward: RP, SQ, or_rs |- or_pq ===
+    # implies_left on RP with context G={SQ, NP, R}:
+    #   premise 0: G |- R, Q
     aa1 = Proof(Sequent([R], [R]), 'axiom', principal=R)
-    aa2 = Proof(Sequent([R], [R, Q]), 'weakening_right', [aa1], principal=Q)
-    aa3 = Proof(Sequent([NP, R], [R, Q]), 'weakening_left', [aa2], principal=NP)
-    aa4 = Proof(Sequent([SQ, NP, R], [R, Q]), 'weakening_left', [aa3], principal=SQ)
+    aa2 = wr(aa1, Q)
+    aa3 = wl(aa2, NP)
+    aa4 = wl(aa3, SQ)
+    #   premise 1: _set_add(G, P) |- Q
     bb1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
-    bb2 = Proof(Sequent([P], [P, Q]), 'weakening_right', [bb1], principal=Q)
+    bb2 = wr(bb1, Q)
     bb3 = Proof(Sequent([NP, P], [Q]), 'not_left', [bb2], principal=NP)
-    bb4 = Proof(Sequent([SQ, NP, P], [Q]), 'weakening_left', [bb3], principal=SQ)
-    bb5 = Proof(Sequent([SQ, NP, R, P], [Q]), 'weakening_left', [bb4], principal=R)
+    bb4 = wl(bb3, SQ)
+    bb5 = wl(bb4, R)  # no-op if P same as R
     bw_rp = Proof(Sequent([RP, SQ, NP, R], [Q]), 'implies_left', [aa4, bb5], principal=RP)
     bw_nr = Proof(Sequent([RP, SQ, NP], [NR, Q]), 'not_right', [bw_rp], principal=NR)
-    # implies_left on SQ in context {RP, NP, S}:
+    # implies_left on SQ with context {RP, NP, S}:
     cc1 = Proof(Sequent([S], [S]), 'axiom', principal=S)
-    cc2 = Proof(Sequent([S], [S, Q]), 'weakening_right', [cc1], principal=Q)
-    cc3 = Proof(Sequent([NP, S], [S, Q]), 'weakening_left', [cc2], principal=NP)
-    cc4 = Proof(Sequent([RP, NP, S], [S, Q]), 'weakening_left', [cc3], principal=RP)
+    cc2 = wr(cc1, Q)
+    cc3 = wl(cc2, NP)
+    cc4 = wl(cc3, RP)
     dd1 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
-    dd2 = Proof(Sequent([S, Q], [Q]), 'weakening_left', [dd1], principal=S)
-    dd3 = Proof(Sequent([NP, S, Q], [Q]), 'weakening_left', [dd2], principal=NP)
-    dd4 = Proof(Sequent([RP, NP, S, Q], [Q]), 'weakening_left', [dd3], principal=RP)
+    dd2 = wl(dd1, S)   # no-op if S same as Q
+    dd3 = wl(dd2, NP)
+    dd4 = wl(dd3, RP)
     bw_sq = Proof(Sequent([RP, SQ, NP, S], [Q]), 'implies_left', [cc4, dd4], principal=SQ)
     bw_core = Proof(Sequent([RP, SQ, or_rs, NP], [Q]), 'implies_left', [bw_nr, bw_sq], principal=or_rs)
     bw_closed = Proof(Sequent([RP, SQ, or_rs], [or_pq]), 'implies_right', [bw_core], principal=or_pq)

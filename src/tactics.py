@@ -102,8 +102,9 @@ def eel(proof, pred, var):
     p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
     p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
                'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
-    return Proof(Sequent(ctx + [Exists(var, pred)], [D]), 'not_left',
-                 [p2], principal=Exists(var, pred))
+    ex = Exists(var, pred)
+    ctx_with_ex = ctx if any(same(ex, g) for g in ctx) else ctx + [ex]
+    return Proof(Sequent(ctx_with_ex, [D]), 'not_left', [p2], principal=ex)
 
 
 def cut(proof, pred, got_pred):
