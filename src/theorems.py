@@ -2594,7 +2594,7 @@ def tuple_injection():
     """Kuratowski ordered pair injection.
     |- forall a,b,c,d,sa,pab,sc,pcd.
        char_sa -> char_pab -> char_sc -> char_pcd -> char_outer -> And(Eq(a,c),Eq(b,d))"""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, fl
 
     a, b, c, d = Var(), Var(), Var(), Var()
     sa, pab, sc, pcd = Var(), Var(), Var(), Var()
@@ -2618,10 +2618,7 @@ def tuple_injection():
         sym_pf = iff_sym(In_s1, cond1, [])
         ch1 = char_transfer(cond1, In_s1, In_s2)
         ch2 = char_transfer(cond1, In_s2, cond2)
-        def _fl(parent, body, term):
-            return Proof(Sequent([parent], [body]), 'forall_left',
-                [Proof(Sequent([body], [body]), 'axiom', principal=body)], principal=parent, term=term)
-        ic1 = _fl(c1, c1b, xvar); ieq = _fl(eq_s, eq_body, xvar); ic2 = _fl(c2, c2b, xvar)
+        ic1 = fl(c1, c1b, xvar); ieq = fl(eq_s, eq_body, xvar); ic2 = fl(c2, c2b, xvar)
         got_sym = mp(sym_pf, ic1, c1b, F_sym)
         got_mid = mp(mp(ch1, got_sym, F_sym, Implies(eq_body, F_mid)), ieq, eq_body, F_mid)
         got_res = mp(mp(ch2, got_mid, F_mid, Implies(c2b, result)), ic2, c2b, result)
@@ -2837,7 +2834,7 @@ def tuple_injection():
 def kuratowski():
     """Pairing |- forall a,b,c,d,t1,t2.
        OrdPair(t1,a,b) -> OrdPair(t2,c,d) -> Eq(t1,t2) -> And(Eq(a,c),Eq(b,d))"""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, fl
     from core import zfc
 
     a, b, c, d = Var(), Var(), Var(), Var()
@@ -2869,14 +2866,9 @@ def kuratowski():
     In_t1 = In(xv2, t1); In_t2 = In(xv2, t2)
     eq_body = Iff(In_t1, In_t2)
 
-    def _fl(parent, body, term):
-        return Proof(Sequent([parent], [body]), 'forall_left',
-            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
-            principal=parent, term=term)
-
-    ic1 = _fl(char_t1, ct1_body, xv2)    # char_t1 |- ct1_body
-    ic2 = _fl(char_t2, ct2_body, xv2)    # char_t2 |- ct2_body
-    ieq = _fl(eq_t1_t2, eq_body, xv2)    # eq_t1_t2 |- eq_body
+    ic1 = fl(char_t1, ct1_body, xv2)    # char_t1 |- ct1_body
+    ic2 = fl(char_t2, ct2_body, xv2)    # char_t2 |- ct2_body
+    ieq = fl(eq_t1_t2, eq_body, xv2)    # eq_t1_t2 |- eq_body
 
     sym_pf = iff_sym(In_t1, or_sa_pab, [])
     ch1 = char_transfer(or_sa_pab, In_t1, In_t2)
@@ -3639,7 +3631,7 @@ def big_union_exists():
 def unique_successor():
     """|- forall x, s1, s2. Successor(s1,x) -> Successor(s2,x) -> Eq(s1,s2)
     Sets with the same successor characterization are equal."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, fl
     from definitions import Successor as SuccDef
 
     x, s1, s2, zv = Var(), Var(), Var(), Var()
@@ -3656,14 +3648,9 @@ def unique_successor():
     iff2 = Iff(In(zv, s2), mid)
     iff_result = Iff(In(zv, s1), In(zv, s2))
 
-    def _fl(parent, body, term):
-        return Proof(Sequent([parent], [body]), 'forall_left',
-            [Proof(Sequent([body], [body]), 'axiom', principal=body)],
-            principal=parent, term=term)
-
     # succ1 |- iff1 and succ2 |- iff2
-    got_iff1 = _fl(succ1, iff1, zv)
-    got_iff2 = _fl(succ2, iff2, zv)
+    got_iff1 = fl(succ1, iff1, zv)
+    got_iff2 = fl(succ2, iff2, zv)
 
     # iff_sym on iff2: succ2 |- Iff(mid, In(zv, s2))
     iff2_sym = Iff(mid, In(zv, s2))
