@@ -100,6 +100,7 @@ if __name__ == '__main__':
         ('rec_values_agree', theorems.rec_values_agree()),
         ('rec_unique', theorems.rec_unique()),
         ('eq_successor_transfer', theorems.eq_successor_transfer()),
+        ('sf_props', theorems.sf_props()),
     ]
 
     failed = []
