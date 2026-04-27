@@ -20,6 +20,15 @@ class Sequent:
     def __init__(self, left: list[Formula], right: list[Formula]):
         self.left = list(left)
         self.right = list(right)
+        # Enforce set semantics: no duplicates (by alpha-equivalence).
+        for i in range(len(self.left)):
+            for j in range(i + 1, len(self.left)):
+                if _eq(self.left[i], self.left[j]):
+                    raise ValueError(f'duplicate on left: {self.left[i]}')
+        for i in range(len(self.right)):
+            for j in range(i + 1, len(self.right)):
+                if _eq(self.right[i], self.right[j]):
+                    raise ValueError(f'duplicate on right: {self.right[i]}')
 
 
 class Proof:
@@ -114,7 +123,7 @@ def _check_not_left(s, ps, principal):
     if not _in(principal, s.left):
         return False
     return _eq_sequent(ps[0], Sequent(
-        _remove(s.left, principal), [principal.operand] + s.right))
+        _remove(s.left, principal), _set_add(s.right, principal.operand)))
 
 
 def _check_not_right(s, ps, principal):
@@ -123,7 +132,7 @@ def _check_not_right(s, ps, principal):
     if not _in(principal, s.right):
         return False
     return _eq_sequent(ps[0], Sequent(
-        s.left + [principal.operand], _remove(s.right, principal)))
+        _set_add(s.left, principal.operand), _remove(s.right, principal)))
 
 
 # --- Implies ---
@@ -134,8 +143,8 @@ def _check_implies_left(s, ps, principal):
     if not _in(principal, s.left):
         return False
     G = _remove(s.left, principal)
-    return (_eq_sequent(ps[0], Sequent(G, [principal.left] + s.right)) and
-            _eq_sequent(ps[1], Sequent(G + [principal.right], s.right)))
+    return (_eq_sequent(ps[0], Sequent(G, _set_add(s.right, principal.left))) and
+            _eq_sequent(ps[1], Sequent(_set_add(G, principal.right), s.right)))
 
 
 def _check_implies_right(s, ps, principal):
@@ -145,7 +154,7 @@ def _check_implies_right(s, ps, principal):
         return False
     D = _remove(s.right, principal)
     return _eq_sequent(ps[0], Sequent(
-        s.left + [principal.left], [principal.right] + D))
+        _set_add(s.left, principal.left), _set_add(D, principal.right)))
 
 
 # --- Forall ---
@@ -157,7 +166,7 @@ def _check_forall_left(s, ps, principal, t):
         return False
     G = _remove(s.left, principal)
     substituted = _subst(principal.body, principal.var, t)
-    return _eq_sequent(ps[0], Sequent(G + [substituted], s.right))
+    return _eq_sequent(ps[0], Sequent(_set_add(G, substituted), s.right))
 
 
 def _check_forall_right(s, ps, principal, y):
@@ -171,7 +180,7 @@ def _check_forall_right(s, ps, principal, y):
     if _var_bound_in(y, principal.body):
         return False
     substituted = _subst(principal.body, principal.var, y)
-    return _eq_sequent(ps[0], Sequent(s.left, [substituted] + D))
+    return _eq_sequent(ps[0], Sequent(s.left, _set_add(D, substituted)))
 
 
 # --- Cut ---
@@ -179,8 +188,8 @@ def _check_forall_right(s, ps, principal, y):
 def _check_cut(s, ps, principal):
     if len(ps) != 2 or principal is None:
         return False
-    return (_eq_sequent(ps[0], Sequent(s.left, [principal] + s.right)) and
-            _eq_sequent(ps[1], Sequent(s.left + [principal], s.right)))
+    return (_eq_sequent(ps[0], Sequent(s.left, _set_add(s.right, principal))) and
+            _eq_sequent(ps[1], Sequent(_set_add(s.left, principal), s.right)))
 
 
 # --- Structural ---
@@ -190,6 +199,9 @@ def _check_weakening_left(s, ps, principal):
         return False
     if not _in(principal, s.left):
         return False
+    # Set semantics: if principal already in premise, weakening is a no-op.
+    if _in(principal, ps[0].sequent.left):
+        return _eq_sequent(ps[0], s)
     return _eq_sequent(ps[0], Sequent(_remove(s.left, principal), s.right))
 
 
@@ -198,6 +210,9 @@ def _check_weakening_right(s, ps, principal):
         return False
     if not _in(principal, s.right):
         return False
+    # Set semantics: if principal already in premise, weakening is a no-op.
+    if _in(principal, ps[0].sequent.right):
+        return _eq_sequent(ps[0], s)
     return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, principal)))
 
 
@@ -248,6 +263,13 @@ def _remove(lst, f):
         else:
             result.append(g)
     return result
+
+
+def _set_add(lst, f):
+    """Add f to lst if not already present (by alpha-equivalence)."""
+    if _in(f, lst):
+        return list(lst)
+    return list(lst) + [f]
 
 
 def _eq_sequent(a, b):
