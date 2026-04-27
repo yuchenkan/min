@@ -678,6 +678,127 @@ def plus_zero_right():
     return proof
 
 
+def rec_step_succ():
+    """Recursive step gives h(S(n)) = S(h(n)).
+    |- forall w, m, sf, h, n, p, sn, sp.
+         Omega(w) -> In(n, w) -> In(p, w) ->
+         succ_char(sf, w) -> Recursive(h, m, sf, w) ->
+         Apply(h, n, p) -> Succ(sn, n) -> Succ(sp, p) -> Apply(h, sn, sp)
+    From Recursive step + succ_char backward."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef)
+
+    w = Var(postfix='w')
+    m = Var(postfix='m')
+    sfv = Var(postfix='sf')
+    hv = Var(postfix='h')
+    n, p = Var(postfix='n'), Var(postfix='p')
+    sn, sp = Var(postfix='sn'), Var(postfix='sp')
+    omega_w = Omega(w)
+    in_n_w, in_p_w = In(n, w), In(p, w)
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    app_sf_xy = Apply(sfv, xsc, ysc)
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(app_sf_xy, SuccDef(ysc, xsc)))))
+    rec_h = RecDef(hv, m, sfv, w)
+    app_h_np = Apply(hv, n, p)
+    succ_sn_n = SuccDef(sn, n)
+    succ_sp_p = SuccDef(sp, p)
+    app_h_sn_sp = Apply(hv, sn, sp)
+
+    goal = Forall(w, Forall(m, Forall(sfv, Forall(hv, Forall(n, Forall(p, Forall(sn, Forall(sp,
+        Implies(omega_w, Implies(in_n_w, Implies(in_p_w,
+            Implies(succ_char, Implies(rec_h, Implies(app_h_np,
+                Implies(succ_sn_n, Implies(succ_sp_p, app_h_sn_sp))))))))))))))))
+
+    # === Extract Recursive step ===
+    ev_r = Var()
+    base_h = Forall(ev_r, Implies(Empty(ev_r), Apply(hv, ev_r, m)))
+    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
+    step_h = Forall(nst, Implies(In(nst, w),
+        Forall(valst, Implies(Apply(hv, nst, valst),
+            Forall(snst, Implies(SuccDef(snst, nst),
+                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                    Apply(hv, snst, fvalst)))))))))
+    xd_h, yd_h = Var(), Var()
+    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(hv, xd_h, yd_h)), In(xd_h, w)))
+    func_h = FuncDef(hv)
+    and_bs = And(base_h, step_h)
+    and_dom_bs = And(dom_sub_h, and_bs)
+
+    got_dom_bs = apply_thm(and_elim_right(func_h, and_dom_bs, []), [],
+        rec_h, and_dom_bs, ax(rec_h))
+    got_bs = apply_thm(and_elim_right(dom_sub_h, and_bs, []), [],
+        and_dom_bs, and_bs, got_dom_bs)
+    got_step = apply_thm(and_elim_right(base_h, step_h, []), [],
+        and_bs, step_h, got_bs)
+    # [rec_h] |- step_h
+
+    # Peel step at (n, p, sn, sp):
+    step_at_n = Implies(in_n_w, Forall(valst, Implies(Apply(hv, n, valst),
+        Forall(snst, Implies(SuccDef(snst, n),
+            Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                Apply(hv, snst, fvalst))))))))
+    got_s = cut(fl(step_h, step_at_n, n), step_h, got_step)
+    got_s = mp(got_s, ax(in_n_w), in_n_w, step_at_n.right)
+    step_at_p = Implies(app_h_np, Forall(snst, Implies(SuccDef(snst, n),
+        Forall(fvalst, Implies(Apply(sfv, p, fvalst), Apply(hv, snst, fvalst))))))
+    fl_p = fl(got_s.sequent.right[0], step_at_p, p)
+    got_s = Proof(Sequent(got_s.sequent.left, [step_at_p]), 'cut',
+        [wr(got_s, step_at_p), weaken_to(fl_p, got_s.sequent.left)],
+        principal=got_s.sequent.right[0])
+    got_s = mp(got_s, ax(app_h_np), app_h_np, step_at_p.right)
+    step_at_sn = Implies(succ_sn_n, Forall(fvalst, Implies(Apply(sfv, p, fvalst), Apply(hv, sn, fvalst))))
+    fl_sn = fl(got_s.sequent.right[0], step_at_sn, sn)
+    got_s = Proof(Sequent(got_s.sequent.left, [step_at_sn]), 'cut',
+        [wr(got_s, step_at_sn), weaken_to(fl_sn, got_s.sequent.left)],
+        principal=got_s.sequent.right[0])
+    got_s = mp(got_s, ax(succ_sn_n), succ_sn_n, step_at_sn.right)
+    app_sf_p_sp = Apply(sfv, p, sp)
+    step_at_sp = Implies(app_sf_p_sp, app_h_sn_sp)
+    fl_sp = fl(got_s.sequent.right[0], step_at_sp, sp)
+    got_s = Proof(Sequent(got_s.sequent.left, [step_at_sp]), 'cut',
+        [wr(got_s, step_at_sp), weaken_to(fl_sp, got_s.sequent.left)],
+        principal=got_s.sequent.right[0])
+    # got_s: [rec_h, In(n,w), Apply(h,n,p), Succ(sn,n)] |- Apply(sf,p,sp) -> Apply(h,sn,sp)
+
+    # === succ_char backward: Succ(sp,p) -> Apply(sf,p,sp) given In(p,w) ===
+    sc_at_p = Implies(in_p_w, Forall(ysc, Iff(Apply(sfv, p, ysc), SuccDef(ysc, p))))
+    got_sc_p = fl(succ_char, sc_at_p, p)
+    got_fa_p = mp(got_sc_p, ax(in_p_w), in_p_w, Forall(ysc, Iff(Apply(sfv, p, ysc), SuccDef(ysc, p))))
+    iff_p_sp = Iff(app_sf_p_sp, succ_sp_p)
+    got_iff_p = apply_thm(got_fa_p, [sp], concl=iff_p_sp)
+    got_app_sf = mp(mp(iff_mp_rev(app_sf_p_sp, succ_sp_p, []),
+        got_iff_p, iff_p_sp, Implies(succ_sp_p, app_sf_p_sp)),
+        ax(succ_sp_p), succ_sp_p, app_sf_p_sp)
+    # [succ_char, In(p,w), Succ(sp,p)] |- Apply(sf,p,sp)
+
+    # === Combine ===
+    all_left = list(got_s.sequent.left)
+    for f_ in got_app_sf.sequent.left:
+        if not any(same(f_, g) for g in all_left):
+            all_left.append(f_)
+    got_result = mp(weaken_to(got_s, all_left),
+        weaken_to(got_app_sf, all_left), app_sf_p_sp, app_h_sn_sp)
+    # [rec_h, In(n,w), Apply(h,n,p), Succ(sn,n), succ_char, In(p,w), Succ(sp,p)] |- Apply(h,sn,sp)
+
+    # === Discharge and close ===
+    proof = wl(got_result, omega_w)  # omega_w not used but part of goal
+    for hh in [succ_sp_p, succ_sn_n, app_h_np, rec_h, succ_char, in_p_w, in_n_w, omega_w]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [sp, sn, p, n, hv, sfv, m, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+
+    proof.name = 'rec_step_succ'
+    return proof
+
+
 def plus_comm():
     """Commutativity of addition: m + n = n + m.
     |- forall w, m, n, p.
