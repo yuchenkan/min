@@ -99,12 +99,30 @@ def eel(proof, pred, var):
     replace pred with Exists(var, pred) on left (var not free in right)."""
     ctx = [f for f in proof.sequent.left if not same(f, pred)]
     D = proof.sequent.right[0]
+    ex = Exists(var, pred)
+    if any(same(ex, g) for g in ctx):
+        # Exists(var, pred) already in ctx. We need ctx |- D from [ctx, pred] |- D.
+        # Strategy: build p2 with full ctx, then use cut with excluded middle
+        # to get a version with ctx_minus_ex on left for the not_left premise.
+        ex_in_ctx = next(g for g in ctx if same(ex, g))
+        ctx_minus_ex = [f for f in ctx if not same(f, ex_in_ctx)]
+        A = Forall(var, Not(pred))
+        # Steps 1-2: normal eel construction (but ctx includes ex_in_ctx)
+        p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
+        p2 = Proof(Sequent(ctx, [A, D]), 'forall_right', [p1], principal=A, term=var)
+        # Step 3: excluded middle to build ctx_minus_ex |- [Not(A), A, D]
+        ax_A = Proof(Sequent([A], [A]), 'axiom', principal=A)
+        nr = Proof(Sequent([], [Not(A), A]), 'not_right', [ax_A], principal=Not(A))
+        em = wr(nr, D)
+        em = wl(em, *ctx_minus_ex)
+        # Step 4: cut to get ctx_minus_ex |- [A, D] (principal = ex_in_ctx)
+        p3 = Proof(Sequent(ctx_minus_ex, [A, D]), 'cut', [em, p2], principal=ex_in_ctx)
+        # Step 5: not_left to get ctx |- D
+        return Proof(Sequent(ctx, [D]), 'not_left', [p3], principal=ex_in_ctx)
     p1 = Proof(Sequent(ctx, [Not(pred), D]), 'not_right', [proof], principal=Not(pred))
     p2 = Proof(Sequent(ctx, [Forall(var, Not(pred)), D]),
                'forall_right', [p1], principal=Forall(var, Not(pred)), term=var)
-    ex = Exists(var, pred)
-    ctx_with_ex = ctx if any(same(ex, g) for g in ctx) else ctx + [ex]
-    return Proof(Sequent(ctx_with_ex, [D]), 'not_left', [p2], principal=ex)
+    return Proof(Sequent(ctx + [ex], [D]), 'not_left', [p2], principal=ex)
 
 
 def cut(proof, pred, got_pred):

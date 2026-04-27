@@ -5374,17 +5374,8 @@ def rec_h_apply():
     cur = Proof(Sequent(c_left, [app_h]), 'cut', [wr(br1, app_h), br2], principal=ordp_q)
     # _eel qv from and_ord_in -> Apply(v,n,y):
     cur = eel(cur, and_ord_in, qv)
-    # Now left has: [ra_v, app_v, in_n_w, char_h, Apply(v,n,y)_from_eel]
-    # app_v and the _eel Exists are same(). Remove the _eel duplicate only.
-    # Remove last element (the _eel one) by identity, keeping app_v:
-    c_left = [f_ for f_ in cur.sequent.left if f_ is not cur.sequent.left[-1]]
-    # c_left = [ra_v, app_v, in_n_w, char_h]
-    app_v_eel = cur.sequent.left[-1]
-    br1 = wr(ax(app_v), app_h)  # [app_v] |- [app_v, app_h]; app_v same as app_v_eel
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    cur = Proof(Sequent(c_left, [app_h]), 'cut', [br1, cur], principal=app_v_eel)
+    # eel handles degenerate case: Exists(qv, and_ord_in) ≈ app_v already in ctx.
+    # Result left is [ra_v, app_v, in_n_w, char_h] — no duplicate to clean up.
 
     proof = cur
     for hh in [app_v, ra_v, in_n_w, char_h]:
