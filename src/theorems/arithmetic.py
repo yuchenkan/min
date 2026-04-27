@@ -623,33 +623,40 @@ def plus_zero_right():
     # [and_rec_uniq, Empty(ev)] |- Apply(hv, ev, m)
 
     # === Step 5: Package into Plus(m, ev, m) ===
-    # Plus = Exists(w', And(Omega(w'), Exists(h, Exists(sf, And(succ_char, And(Rec, Apply))))))
+    # Plus = Exists(w', And(Omega(w'), Exists(h, Exists(sf, And(sf_all, And(Rec, Apply))))))
+    # sf_all = And(succ_char, And(Function(sf), dom_sub))
     # Build And(Recursive, Apply):
     and_rec_app = And(rec_h, app_h_em)
     got_ra = mp(apply_thm(and_intro(rec_h, app_h_em, []), [], rec_h,
         Implies(app_h_em, and_rec_app), got_rec_from),
         got_app_em, app_h_em, and_rec_app)
-    # And(succ_char, And(Rec, Apply)):
-    and_sc_ra = And(succ_char, and_rec_app)
-    got_scra = mp(apply_thm(and_intro(succ_char, and_rec_app, []), [], succ_char,
-        Implies(and_rec_app, and_sc_ra), weaken_to(got_sc_from, got_ra.sequent.left)),
-        got_ra, and_rec_app, and_sc_ra)
+    # And(sf_all, And(Rec, Apply)):  sf_all = and_sc_fd from sf_props
+    and_sf_ra = And(and_sc_fd, and_rec_app)
+    all_pkg = list(got_ra.sequent.left)
+    for f_ in ax(and_sc_fd).sequent.left:
+        if not any(same(f_, g) for g in all_pkg):
+            all_pkg.append(f_)
+    got_sfra = mp(apply_thm(and_intro(and_sc_fd, and_rec_app, []), [], and_sc_fd,
+        Implies(and_rec_app, and_sf_ra), ax(and_sc_fd)),
+        got_ra, and_rec_app, and_sf_ra)
     # Exists sf, h, w:
     sf_var, h_var, w_var = Var(), Var(), Var()
-    xsc3, ysc3 = Var(), Var()
+    xsc3, ysc3, xds3, yds3 = Var(), Var(), Var(), Var()
     sc_pat = Forall(xsc3, Implies(In(xsc3, w), Forall(ysc3, Iff(Apply(sf_var, xsc3, ysc3), SuccDef(ysc3, xsc3)))))
-    inner_sf = And(sc_pat, And(RecDef(hv, m, sf_var, w), Apply(hv, ev, m)))
-    got_ex_sf = eir(got_scra, inner_sf, sf_var, sfv)
-    inner_h = Exists(sf_var, And(sc_pat, And(RecDef(h_var, m, sf_var, w), Apply(h_var, ev, m))))
+    sf_all_pat = And(sc_pat, And(FuncDef(sf_var), Forall(xds3, Implies(Exists(yds3, Apply(sf_var, xds3, yds3)), In(xds3, w)))))
+    inner_sf = And(sf_all_pat, And(RecDef(hv, m, sf_var, w), Apply(hv, ev, m)))
+    got_ex_sf = eir(got_sfra, inner_sf, sf_var, sfv)
+    inner_h = Exists(sf_var, And(sf_all_pat, And(RecDef(h_var, m, sf_var, w), Apply(h_var, ev, m))))
     got_ex_h = eir(got_ex_sf, inner_h, h_var, hv)
     ex_h_sf = got_ex_h.sequent.right[0]
     and_omega_ex = And(omega_w, ex_h_sf)
     got_omega_ex = mp(apply_thm(and_intro(omega_w, ex_h_sf, []), [], omega_w,
         Implies(ex_h_sf, and_omega_ex), ax(omega_w)),
         got_ex_h, ex_h_sf, and_omega_ex)
+    sf_all_w = And(Forall(xsc3, Implies(In(xsc3, w_var), Forall(ysc3, Iff(Apply(sf_var, xsc3, ysc3), SuccDef(ysc3, xsc3))))),
+        And(FuncDef(sf_var), Forall(xds3, Implies(Exists(yds3, Apply(sf_var, xds3, yds3)), In(xds3, w_var)))))
     inner_w = And(Omega(w_var), Exists(h_var, Exists(sf_var,
-        And(Forall(xsc3, Implies(In(xsc3, w_var), Forall(ysc3, Iff(Apply(sf_var, xsc3, ysc3), SuccDef(ysc3, xsc3))))),
-            And(RecDef(h_var, m, sf_var, w_var), Apply(h_var, ev, m))))))
+        And(sf_all_w, And(RecDef(h_var, m, sf_var, w_var), Apply(h_var, ev, m))))))
     got_plus = eir(got_omega_ex, inner_w, w_var, w)
     # got_plus: [and_sc_fd, and_rec_uniq, Empty(ev), omega_w, axioms] |- Plus(m, ev, m)
 
@@ -664,16 +671,18 @@ def plus_zero_right():
 
     # === Step 7: Discharge and close ===
     proof = cur
-    for hh in [empty_ev, In(m, w), omega_w]:
+    g_ev = goal.body.body  # Forall(ev, Implies(omega, ...))
+    g_omega = g_ev.body    # Implies(omega, Implies(in_m, Implies(empty, plus)))
+    g_in_m = g_omega.right
+    g_empty = g_in_m.right
+    for hh, imp in [(empty_ev, g_empty), (In(m, w), g_in_m), (omega_w, g_omega)]:
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
             proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [ev, m, w]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+    for var, fa in [(ev, g_ev), (m, goal.body), (w, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
 
+    assert proof.sequent.right[0] is goal
     proof.name = 'plus_zero_right'
     return proof
 
@@ -783,18 +792,29 @@ def rec_step_succ():
         weaken_to(got_app_sf, all_left), app_sf_p_sp, app_h_sn_sp)
     # [rec_h, In(n,w), Apply(h,n,p), Succ(sn,n), succ_char, In(p,w), Succ(sp,p)] |- Apply(h,sn,sp)
 
-    # === Discharge and close ===
+    # === Discharge and close using goal ===
     proof = wl(got_result, omega_w)  # omega_w not used but part of goal
-    for hh in [succ_sp_p, succ_sn_n, app_h_np, rec_h, succ_char, in_p_w, in_n_w, omega_w]:
+    # Unpack goal's implies chain:
+    g8 = goal.body.body.body.body.body.body.body  # Forall(sp, Implies(omega, ...))
+    cur_imp = g8.body  # Implies(omega_w, Implies(in_n, ...))
+    imps = []
+    while hasattr(cur_imp, 'right') and isinstance(cur_imp, Implies):
+        imps.append(cur_imp)
+        cur_imp = cur_imp.right
+    # imps[0]=Implies(omega,...), imps[1]=Implies(in_n,...), ..., imps[7]=Implies(succ_sp,app)
+    hyps_imps = list(zip([succ_sp_p, succ_sn_n, app_h_np, rec_h, succ_char, in_p_w, in_n_w, omega_w],
+                         reversed(imps)))
+    for hh, imp in hyps_imps:
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
             proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [sp, sn, p, n, hv, sfv, m, w]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+    # Forall chain:
+    fas = [g8, goal.body.body.body.body.body.body, goal.body.body.body.body.body,
+           goal.body.body.body.body, goal.body.body.body, goal.body.body, goal.body, goal]
+    for var, fa in zip([sp, sn, p, n, hv, sfv, m, w], fas):
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
 
+    assert proof.sequent.right[0] is goal
     proof.name = 'rec_step_succ'
     return proof
 
@@ -1154,22 +1174,26 @@ def rec_h_zero_identity():
     proof = eel(proof, char_p, pv)
     proof = cut(proof, proof.sequent.left[-1], got_sep)
 
-    # === Discharge and close ===
-    imp_mv = Implies(In(mv, w), app_h_mm)
+    # === Discharge and close using goal ===
+    g_ev = goal.body.body.body  # Forall(ev, Implies(omega, ...))
+    g_omega = g_ev.body
+    g_sc = g_omega.right
+    g_rec = g_sc.right
+    g_empty = g_rec.right  # Implies(empty, Forall(mv, ...))
+    g_fa_mv = g_empty.right  # Forall(mv, Implies(In(mv,w), app))
+    g_in_mv = g_fa_mv.body  # Implies(In(mv,w), app)
+
     rem_mv = [f_ for f_ in proof.sequent.left if not same(f_, In(mv, w))]
-    proof = Proof(Sequent(rem_mv, [imp_mv]), 'implies_right', [proof], principal=imp_mv)
-    fa_mv = Forall(mv, imp_mv)
-    proof = Proof(Sequent(rem_mv, [fa_mv]), 'forall_right', [proof], principal=fa_mv, term=mv)
-    for hh in [empty_ev, rec_h, succ_char, omega_w]:
+    proof = Proof(Sequent(rem_mv, [g_in_mv]), 'implies_right', [proof], principal=g_in_mv)
+    proof = Proof(Sequent(rem_mv, [g_fa_mv]), 'forall_right', [proof], principal=g_fa_mv, term=mv)
+    for hh, imp in [(empty_ev, g_empty), (rec_h, g_rec), (succ_char, g_sc), (omega_w, g_omega)]:
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
             proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [ev, hv, sfv, w]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+    for var, fa in [(ev, g_ev), (hv, goal.body.body), (sfv, goal.body), (w, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
 
+    assert proof.sequent.right[0] is goal
     proof.name = 'rec_h_zero_identity'
     return proof
 
@@ -1325,31 +1349,33 @@ def plus_zero_left():
     got_hmm = apply_thm(got_hmm, [mv], in_m_w, app_h_mm, ax(in_m_w))
     # [succ_char, rec_h, empty_ev, In(m,w), omega_w, axioms] |- Apply(h,m,m)
 
-    # === Package into Plus(e, m, m) ===
-    # Same pattern as plus_zero_right:
+    # === Package into Plus(e, m, m) with new Plus structure ===
+    # sf_all = And(succ_char, And(Function(sf), dom_sub))
     and_rec_app = And(rec_h, app_h_mm)
     got_ra = mp(apply_thm(and_intro(rec_h, app_h_mm, []), [], rec_h,
         Implies(app_h_mm, and_rec_app), ax(rec_h)),
         got_hmm, app_h_mm, and_rec_app)
-    and_sc_ra = And(succ_char, and_rec_app)
-    got_scra = mp(apply_thm(and_intro(succ_char, and_rec_app, []), [], succ_char,
-        Implies(and_rec_app, and_sc_ra), ax(succ_char)),
-        got_ra, and_rec_app, and_sc_ra)
+    and_sf_ra = And(and_sc_fd, and_rec_app)
+    got_sfra = mp(apply_thm(and_intro(and_sc_fd, and_rec_app, []), [], and_sc_fd,
+        Implies(and_rec_app, and_sf_ra), ax(and_sc_fd)),
+        got_ra, and_rec_app, and_sf_ra)
     sf_var, h_var, w_var = Var(), Var(), Var()
-    xsc2, ysc2 = Var(), Var()
+    xsc2, ysc2, xds2, yds2 = Var(), Var(), Var(), Var()
     sc_pat = Forall(xsc2, Implies(In(xsc2, w), Forall(ysc2, Iff(Apply(sf_var, xsc2, ysc2), SuccDef(ysc2, xsc2)))))
-    inner_sf = And(sc_pat, And(RecDef(hv, ev, sf_var, w), Apply(hv, mv, mv)))
-    got_ex_sf = eir(got_scra, inner_sf, sf_var, sfv)
-    inner_h = Exists(sf_var, And(sc_pat, And(RecDef(h_var, ev, sf_var, w), Apply(h_var, mv, mv))))
+    sf_all_pat = And(sc_pat, And(FuncDef(sf_var), Forall(xds2, Implies(Exists(yds2, Apply(sf_var, xds2, yds2)), In(xds2, w)))))
+    inner_sf = And(sf_all_pat, And(RecDef(hv, ev, sf_var, w), Apply(hv, mv, mv)))
+    got_ex_sf = eir(got_sfra, inner_sf, sf_var, sfv)
+    inner_h = Exists(sf_var, And(sf_all_pat, And(RecDef(h_var, ev, sf_var, w), Apply(h_var, mv, mv))))
     got_ex_h = eir(got_ex_sf, inner_h, h_var, hv)
     ex_h_sf = got_ex_h.sequent.right[0]
     and_omega_ex = And(omega_w, ex_h_sf)
     got_omega_ex = mp(apply_thm(and_intro(omega_w, ex_h_sf, []), [], omega_w,
         Implies(ex_h_sf, and_omega_ex), ax(omega_w)),
         got_ex_h, ex_h_sf, and_omega_ex)
+    sf_all_w = And(Forall(xsc2, Implies(In(xsc2, w_var), Forall(ysc2, Iff(Apply(sf_var, xsc2, ysc2), SuccDef(ysc2, xsc2))))),
+        And(FuncDef(sf_var), Forall(xds2, Implies(Exists(yds2, Apply(sf_var, xds2, yds2)), In(xds2, w_var)))))
     inner_w = And(Omega(w_var), Exists(h_var, Exists(sf_var,
-        And(Forall(xsc2, Implies(In(xsc2, w_var), Forall(ysc2, Iff(Apply(sf_var, xsc2, ysc2), SuccDef(ysc2, xsc2))))),
-            And(RecDef(h_var, ev, sf_var, w_var), Apply(h_var, mv, mv))))))
+        And(sf_all_w, And(RecDef(h_var, ev, sf_var, w_var), Apply(h_var, mv, mv))))))
     got_plus = eir(got_omega_ex, inner_w, w_var, w)
 
     # === Close existentials ===
@@ -1369,18 +1395,20 @@ def plus_zero_left():
     cur = eel(cur, and_sc_fd, sfv)
     cur = cut(cur, cur.sequent.left[-1], got_sp)
 
-    # Discharge and close:
+    # Discharge and close using goal:
     proof = cur
-    for hh in [empty_ev, in_m_w, omega_w]:
+    g_ev = goal.body.body  # Forall(ev, Implies(omega, ...))
+    g_omega = g_ev.body
+    g_in_m = g_omega.right
+    g_empty = g_in_m.right
+    for hh, imp in [(empty_ev, g_empty), (in_m_w, g_in_m), (omega_w, g_omega)]:
         if any(same(hh, g) for g in proof.sequent.left):
-            imp = Implies(hh, proof.sequent.right[0])
             rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
             proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-    for var in [ev, mv, w]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+    for var, fa in [(ev, g_ev), (mv, goal.body), (w, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
 
+    assert proof.sequent.right[0] is goal
     proof.name = 'plus_zero_left'
     return proof
 
