@@ -926,8 +926,13 @@ def or_iff_compat(P, Q, R, S, vars: list[Var]):
     b2 = Proof(Sequent([R], [R, S]), 'weakening_right', [b1], principal=S)
     b3 = Proof(Sequent([NR, R], [S]), 'not_left', [b2], principal=NR)
     b4 = Proof(Sequent([QS, NR, R], [S]), 'weakening_left', [b3], principal=QS)
-    b5 = Proof(Sequent([QS, NR, P, R], [S]), 'weakening_left', [b4], principal=P)
-    fw_pr = Proof(Sequent([PR, QS, NR, P], [S]), 'implies_left', [a4, b5], principal=PR)
+    b5 = wl(b4, P)  # no-op if P same as R
+    fw_pr_left = [PR, QS, NR, P] if not same(P, R) else [PR, QS, NR, P]
+    # Actually: implies_left removes PR, splits on PR.left=P and PR.right=R
+    # premise[0] = a4: needs [QS, NR, P] |- [P, S]. premise[1] = b5: needs [QS, NR, P, R] |- [S]
+    # With P=R, b5 = [QS, NR, P] |- [S]. implies_left expects [QS,NR,P] + [R] but R=P so just [QS,NR,P].
+    fw_pr = Proof(Sequent(b5.sequent.left + ([PR] if not any(same(PR, g) for g in b5.sequent.left) else []),
+        [S]), 'implies_left', [a4, b5], principal=PR)
     fw_np = Proof(Sequent([PR, QS, NR], [NP, S]), 'not_right', [fw_pr], principal=NP)
     # implies_left on QS in context {PR, NR, Q}:
     c1 = Proof(Sequent([Q], [Q]), 'axiom', principal=Q)
