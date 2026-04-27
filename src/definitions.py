@@ -335,18 +335,21 @@ class Recursive:
 
 class Plus:
     """Plus(m, n, p): m + n = p.
-    Exists w, h, sf. Omega(w) and succ_char(sf, w) and Recursive(h, m, sf, w) and Apply(h, n, p).
-    succ_char restricted to x in w (sf is a set, not a class)."""
+    Exists w, h, sf. Omega(w) and sf_props(sf,w) and Recursive(h, m, sf, w) and Apply(h, n, p).
+    sf_props(sf,w) = succ_char(sf,w) /\\ Function(sf) /\\ dom_sub(sf,w).
+    Function and dom_sub needed to apply recursion theorem on opened Plus."""
     __match_args__ = ('left', 'right', 'result')
     def __init__(self, m, n, p):
         self.left = m; self.right = n; self.result = p
     def expand(self):
-        w, h, sf, x, y = Var(), Var(), Var(), Var(), Var()
+        w, h, sf, x, y, xd, yd = Var(), Var(), Var(), Var(), Var(), Var(), Var()
         succ_char = Forall(x, Implies(In(x, w),
             Forall(y, Iff(Apply(sf, x, y), Successor(y, x)))))
+        sf_all = And(succ_char, And(Function(sf),
+            Forall(xd, Implies(Exists(yd, Apply(sf, xd, yd)), In(xd, w)))))
         return Exists(w, And(Omega(w),
             Exists(h, Exists(sf,
-                And(succ_char,
+                And(sf_all,
                 And(Recursive(h, self.left, sf, w),
                     Apply(h, self.right, self.result)))))))
     def subst(self, old, new):
