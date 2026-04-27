@@ -5037,7 +5037,7 @@ def rec_agree():
 
     Proved by induction on n. Step case uses RecApprox's backward condition
     (S(n) in dom v -> n in dom v) and ran clause (f defined at v(n))."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Function as FuncDef, Apply, RecApprox, Relation, Successor
 
     a, f, w, n = Var(), Var(), Var(), Var()
@@ -5336,7 +5336,6 @@ def rec_agree():
 
     # IH: Q(nv) instantiated with v1,v2,val1,val2 gives Eq(val1,val2)
     q_nv = Q(nv)
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     app1_nv = Apply(v1, nv, val1)
     app2_nv = Apply(v2, nv, val2)
     eq_val = Eq(val1, val2)
@@ -6199,7 +6198,7 @@ def singleton_apply_eq():
        OrdPair(p,e,a) -> Singleton(v,p) -> Apply(v,x,y) ->
        Eq(x,e) and Eq(y,a)
     If v = {<e,a>} and Apply(v,x,y), then x=e and y=a."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Singleton, PairSet, Apply
 
     e, a_var, p, v, x, y = Var(), Var(), Var(), Var(), Var(), Var()
@@ -6234,7 +6233,6 @@ def singleton_apply_eq():
 
     qv = Var()
     eq_goal = And(Eq(e, x), Eq(a_var, y))
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
 
     # From kuratowski instantiated:
     got_ku = apply_thm(ku, [e, a_var, x, y, p], ordp,
@@ -6314,7 +6312,7 @@ def eq_apply_transfer():
        Eq(x1, x2) -> Apply(v, x1, y) -> Apply(v, x2, y)
     Equal inputs give equal Apply: if x1=x2, then v(x1)=y implies v(x2)=y.
     Chains through OrdPair via eq_in_eq + iff_chain."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Singleton, PairSet, Apply
 
     v, x1, x2, y = Var(), Var(), Var(), Var()
@@ -6322,7 +6320,6 @@ def eq_apply_transfer():
     app1 = Apply(v, x1, y)
     app2 = Apply(v, x2, y)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -6583,7 +6580,7 @@ def successor_injection():
        Succ(sn, m) -> Succ(sn, n) -> Eq(m, n)
     Successor is injective: S(m) = S(n) implies m = n.
     Uses regularity to rule out the In(m,n) and In(n,m) case."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Successor, PairSet
 
     m, n, sn = Var(), Var(), Var()
@@ -6591,7 +6588,6 @@ def successor_injection():
     succ_n = Successor(sn, n)
     eq_mn = Eq(m, n)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -6999,7 +6995,7 @@ def eq_apply_val_transfer():
        Eq(y1, y2) -> Apply(v, x, y1) -> Apply(v, x, y2)
     Equal outputs: if y1=y2 and v(x)=y1, then v(x)=y2.
     Transfers the value argument via PairSet char_transfer."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Singleton, PairSet, Apply
 
     v, x, y1, y2 = Var(), Var(), Var(), Var()
@@ -7007,7 +7003,6 @@ def eq_apply_val_transfer():
     app1 = Apply(v, x, y1)
     app2 = Apply(v, x, y2)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -7254,7 +7249,7 @@ def extend_function():
        Function(v) -> OrdPair(p, x0, y0) -> Singleton(s, p) -> Union(u, v, s) ->
        (forall z. Apply(v, x0, z) -> Eq(y0, z)) -> Function(u)
     Extending a function with a consistent singleton preserves Function."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import (Function as FuncDef, Apply, Singleton, PairSet,
                              Relation, Union as UnionDef)
 
@@ -7267,7 +7262,6 @@ def extend_function():
     consistency = Forall(zz, Implies(Apply(v, x0, zz), Eq(y0, zz)))
     goal = FuncDef(u)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -7588,7 +7582,7 @@ def extend_function():
 def ordpair_eq_transfer():
     """|- forall p, z, x, y. Eq(z, p) -> OrdPair(p, x, y) -> OrdPair(z, x, y)
     If z=p and p is an ordered pair <x,y>, then z is the same ordered pair."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Singleton, PairSet
 
     p, z, x, y = Var(), Var(), Var(), Var()
@@ -7597,7 +7591,6 @@ def ordpair_eq_transfer():
     ordp = OrdPair(p, x, y)
     ordz = OrdPair(z, x, y)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -7735,7 +7728,7 @@ def apply_union_intro_left():
     """|- forall u, v1, v2, x, y.
        Apply(v1, x, y) -> Union(u, v1, v2) -> Apply(u, x, y)
     If <x,y> in v1 and u = v1|v2, then <x,y> in u."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Apply, Union as UnionDef
 
     u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
@@ -7744,7 +7737,6 @@ def apply_union_intro_left():
     app_u = Apply(u, x, y)
     union_u = UnionDef(u, v1, v2)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -7845,7 +7837,7 @@ def apply_union_intro_right():
     """|- forall u, v1, v2, x, y.
        Apply(v2, x, y) -> Union(u, v1, v2) -> Apply(u, x, y)
     If <x,y> in v2 and u = v1|v2, then <x,y> in u."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Apply, Union as UnionDef
 
     u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
@@ -7854,7 +7846,6 @@ def apply_union_intro_right():
     app_u = Apply(u, x, y)
     union_u = UnionDef(u, v1, v2)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -7941,7 +7932,7 @@ def apply_union_elim():
     """|- forall u, v1, v2, x, y.
        Apply(u, x, y) -> Union(u, v1, v2) -> Or(Apply(v1,x,y), Apply(v2,x,y))
     If <x,y> in u = v1|v2, then <x,y> in v1 or <x,y> in v2."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Apply, Union as UnionDef
 
     u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
@@ -7951,7 +7942,6 @@ def apply_union_elim():
     app2 = Apply(v2, x, y)
     union_u = UnionDef(u, v1, v2)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -8056,7 +8046,7 @@ def rec_exists_step():
        (forall y,z. Apply(f,y,z) -> exists w. Apply(f,z,w)) ->
        Omega(w) -> And(RecApprox(u,a,f,w), Apply(u,sn,fval))
     Extending a RecApprox by one successor step preserves RecApprox."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import (Function as FuncDef, Apply, RecApprox,
                              Singleton, PairSet, Successor, Union as UnionDef)
     from core.proof import _subst
@@ -8082,7 +8072,6 @@ def rec_exists_step():
     app_u_sn = Apply(u, sn, fval)
     goal = And(ra_u, app_u_sn)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -9082,7 +9071,7 @@ def singleton_is_recapprox():
       (exists z. Apply(f, a, z)) -> Omega(w) -> Empty(e) ->
       OrdPair(p, e, a) -> Singleton(v, p) ->
       RecApprox(v, a, f, w) and Apply(v, e, a)"""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import (Function as FuncDef, Apply, RecApprox, Relation,
                              Singleton, PairSet, Successor)
     from core.proof import _subst
@@ -9097,7 +9086,6 @@ def singleton_is_recapprox():
     omega_w = Omega(w)
     f_at_a = Exists(zz, Apply(f, a, zz))
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -9688,7 +9676,7 @@ def rec_exists():
       exists v. And(RecApprox(v,a,f,w), exists y. Apply(v,n,y))
     Proved by induction on omega using singleton_is_recapprox (base)
     and rec_exists_step (step)."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import (Function as FuncDef, Apply, RecApprox,
                              Successor, Singleton, Union as UnionDef)
 
@@ -9705,7 +9693,6 @@ def rec_exists():
     def Q(x):
         return Exists(vv, And(RecApprox(vv, a, f, w), Exists(yy, Apply(vv, x, yy))))
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -10309,7 +10296,7 @@ def rec_value():
       (exists v. And(RecApprox(v,a,f,w), Apply(v,n,y2))) ->
       Eq(y1,y2)
     Combines rec_exists (existence) and rec_agree (agreement)."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Function as FuncDef, Apply, RecApprox
 
     a, f, w, n, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
@@ -10323,7 +10310,6 @@ def rec_value():
     ran_f_closed = Forall(yrf, Forall(zrf,
         Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -10436,7 +10422,7 @@ def ordpair_val_transfer():
     """|- forall p, x, y1, y2.
        Eq(y1, y2) -> OrdPair(p, x, y1) -> OrdPair(p, x, y2)
     Transfer the value argument of OrdPair via Eq."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Singleton, PairSet
 
     p, x, y1, y2 = Var(), Var(), Var(), Var()
@@ -10444,7 +10430,6 @@ def ordpair_val_transfer():
     ordp1 = OrdPair(p, x, y1)
     ordp2 = OrdPair(p, x, y2)
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -10608,7 +10593,7 @@ def ordpair_unique():
     """Ext |- forall x, y, p1, p2.
        OrdPair(p1, x, y) -> OrdPair(p2, x, y) -> Eq(p1, p2)
     The ordered pair of x,y is unique up to extensional equality."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Singleton, PairSet
 
     x, y, p1, p2 = Var(), Var(), Var(), Var()
@@ -10616,7 +10601,6 @@ def ordpair_unique():
     ordp2 = OrdPair(p2, x, y)
     zv, sa1, sa2, pab1, pab2 = Var(), Var(), Var(), Var(), Var()
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -10877,7 +10861,7 @@ def rec_func_exists():
       exists h. forall p. Iff(In(p, h), exists n. And(In(n, w), phi(n, p)))
     where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y)).
     The set h is the graph of the recursive function."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Function as FuncDef, Apply, RecApprox
     from core.proof import _subst
 
@@ -10890,7 +10874,6 @@ def rec_func_exists():
     ran_f_closed = Forall(yrf, Forall(zrf,
         Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -11034,7 +11017,7 @@ def rec_graph_exists():
       exists h. forall p. Iff(In(p, h), exists n. And(In(n, w), phi(n, p)))
     where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y)).
     Uses Replacement axiom with rec_func_exists as the functional condition."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Function as FuncDef, Apply, RecApprox
     from core.proof import _subst
 
@@ -11047,7 +11030,6 @@ def rec_graph_exists():
     ran_f_closed = Forall(yrf, Forall(zrf,
         Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
 
-    ax = lambda h: Proof(Sequent([h], [h]), 'axiom', principal=h)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -11375,7 +11357,7 @@ def rec_h_apply():
        In(n, w) -> RecApprox(v, a, f, w) -> Apply(v, n, y) -> Apply(h, n, y)
     where phi(m, p) = exists v', y'. And(And(RecApprox(v',a,f,w), Apply(v',m,y')), OrdPair(p,m,y')).
     If a RecApprox maps n to y, and h has the graph characterization, then h(n)=y."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Function as FuncDef, Apply, RecApprox
 
     h, a, f, w, n, y, v = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='N'), Var(postfix='Y'), Var(postfix='V')
@@ -11390,7 +11372,6 @@ def rec_h_apply():
     app_v = Apply(v, n, y)
     app_h = Apply(h, n, y)
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -11544,7 +11525,7 @@ def rec_h_apply_fwd():
     From char_h forward: In(q,h) -> exists m,v',y'. RA(v')∧App(v',m,y')∧OrdPair(q,m,y').
     From tuple_injection: OrdPair(q,n,y)∧OrdPair(q,m,y') -> n=m, y=y'.
     Transfer: App(v',m,y') -> App(v',n,y)."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Function as FuncDef, Apply, RecApprox
 
     h, a, f, w, n, y = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='N'), Var(postfix='Y')
@@ -11561,7 +11542,6 @@ def rec_h_apply_fwd():
     app_vv = Apply(vv, n, y)
     goal = Exists(vv, And(ra_vv, app_vv))
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -11816,7 +11796,7 @@ def rec_h_dom_sub():
     From Apply(h,x,y): unpack OrdPair(q,x,y) and In(q,h).
     From char_h forward: In(q,h) -> exists m. m in w and phi(m,q).
     phi(m,q) gives OrdPair(q,m,y'). pair_injection: x=m. So x in w."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Apply, RecApprox
 
     h, a, f, w, x, y = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='X'), Var(postfix='Y')
@@ -11829,7 +11809,6 @@ def rec_h_dom_sub():
     app_h = Apply(h, x, y)
     in_x_w = In(x, w)
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -12006,7 +11985,7 @@ def rec_h_step():
        (exists z. Apply(f,a,z)) -> ran_f_closed ->
        In(n,w) -> Apply(h,n,val) -> Successor(sn,n) -> Apply(f,val,fval) ->
        Apply(h,sn,fval)"""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import (Function as FuncDef, Apply, RecApprox, Successor,
                              Singleton, Union as UnionDef)
 
@@ -12032,7 +12011,6 @@ def rec_h_step():
     pp, mm = Var(), Var()
     char_h = Forall(pp, Iff(In(pp, h), Exists(mm, And(In(mm, w), phi(mm, pp)))))
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -12394,7 +12372,7 @@ def succ_func_exists():
       Omega(w) -> exists sf. forall p. Iff(In(p, sf), exists x. And(In(x,w), phi(x,p)))
     where phi(x, p) = exists s. And(Successor(s, x), OrdPair(p, x, s)).
     Constructs sf = {<x, S(x)> : x in omega}."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Successor
 
     w = Var(postfix='w')
@@ -12403,7 +12381,6 @@ def succ_func_exists():
     def phi(x, p):
         return Exists(sr, And(Successor(sr, x), OrdPair(p, x, sr)))
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -12639,7 +12616,7 @@ def rec_h_function():
        char_h -> Function(f) -> Omega(w) -> Function(h)
     Relation from characterization (every element is OrdPair).
     Single-valued from forward bridge + rec_value."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import (Function as FuncDef, Apply, RecApprox, Relation)
 
     h, a, f, w = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W')
@@ -12652,7 +12629,6 @@ def rec_h_function():
     pp, mm = Var(), Var()
     char_h = Forall(pp, Iff(In(pp, h), Exists(mm, And(In(mm, w), phi(mm, pp)))))
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -12999,7 +12975,7 @@ def recursion_theorem():
         /\\ (forall n in w. forall val. Apply(h,n,val) ->
             forall sn. Succ(sn,n) -> forall fval. Apply(f,val,fval) ->
             Apply(h,sn,fval))"""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import Function as FuncDef, Apply, RecApprox, Recursive, Successor
 
     # --- Goal ---
@@ -13023,7 +12999,6 @@ def recursion_theorem():
     ev = Var(postfix='e')
     empty_ev = Empty(ev)
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
@@ -13637,7 +13612,7 @@ def rec_values_agree():
       Recursive(h,a,f,w) -> Recursive(h',a,f,w) ->
       forall n. In(n,w) -> forall y. Apply(h,n,y) -> Apply(h',n,y)
     By induction with P(n) = exists y. Apply(h,n,y) /\\ Apply(h',n,y) /\\ exists z. Apply(f,y,z)."""
-    from tactics import apply_thm, wl, wr, mp
+    from tactics import apply_thm, wl, wr, mp, ax
     from definitions import (Function as FuncDef, Apply, Recursive,
         Successor as SuccDef)
 
@@ -13656,7 +13631,6 @@ def rec_values_agree():
     dom_closed = And(f_at_a, ran_f_closed)
     func_h = FuncDef(h)
 
-    ax = lambda hh: Proof(Sequent([hh], [hh]), 'axiom', principal=hh)
     def _fl(parent, body, term):
         return Proof(Sequent([parent], [body]), 'forall_left',
             [Proof(Sequent([body], [body]), 'axiom', principal=body)],
