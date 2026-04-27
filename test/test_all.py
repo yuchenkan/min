@@ -110,6 +110,7 @@ if __name__ == '__main__':
         ('omega_exists', theorems.omega_exists()),
         ('sf_apply_transfer', theorems.sf_apply_transfer()),
         ('plus_comm', theorems.plus_comm()),
+        ('plus_2_3', theorems.prove_addition(2, 3)),
     ]
 
     failed = []
