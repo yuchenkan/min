@@ -4017,25 +4017,30 @@ def singleton_is_recapprox():
     # got_ra: [context] |- RecApprox(v, a, f, w) (alpha-equiv)
 
     # And(RecApprox(v,a,f,w), Apply(v,ev,a))
-    ra_formula = got_ra.sequent.right[0]
+    ra_def = RecApprox(v, a, f, w)  # definition object — compact __str__
     app_formula = Apply(v, ev, a)
-    and_ra_app = And(ra_formula, app_formula)
-    ai_final = and_intro(ra_formula, app_formula, [])
-    got_final = mp(apply_thm(ai_final, [], ra_formula,
+    and_ra_app = And(ra_def, app_formula)
+    ai_final = and_intro(ra_def, app_formula, [])
+    got_final = mp(apply_thm(ai_final, [], ra_def,
         Implies(app_formula, and_ra_app), got_ra),
         got_apply2, app_formula, and_ra_app)
 
-    # Discharge hypotheses, forall close
+    # Build goal using definition objects for compact display:
+    goal = Forall(a, Forall(f, Forall(w, Forall(ev, Forall(p, Forall(v,
+        Implies(f_at_a, Implies(omega_w, Implies(empty_e,
+            Implies(ordp, Implies(sing_v, and_ra_app)))))))))))
+    g5 = goal.body.body.body.body.body  # Forall(v, ...)
+    g_fat = g5.body; g_omega = g_fat.right; g_empty = g_omega.right
+    g_ordp = g_empty.right; g_sing = g_ordp.right
+
     proof = got_final
-    for h in [sing_v, ordp, empty_e, omega_w, f_at_a]:
+    for h, imp in [(sing_v, g_sing), (ordp, g_ordp), (empty_e, g_empty), (omega_w, g_omega), (f_at_a, g_fat)]:
         if any(same(h, g) for g in proof.sequent.left):
-            imp_h = Implies(h, proof.sequent.right[0])
             remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
-            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
-    for var in [v, p, ev, w, f, a]:
-        body = proof.sequent.right[0]
-        fa = Forall(var, body)
+            proof = Proof(Sequent(remaining, [imp]), 'implies_right', [proof], principal=imp)
+    for var, fa in [(v, g5), (p, goal.body.body.body.body), (ev, goal.body.body.body), (w, goal.body.body), (f, goal.body), (a, goal)]:
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
+    assert proof.sequent.right[0] is goal
     proof.name = 'singleton_is_recapprox'
     return proof
 
