@@ -1633,34 +1633,422 @@ def rec_succ_shift():
     # -> Apply(h2,snv,sy2). From Function(h2): y'=sy2.
     # But we have Apply(h2,snv,y') as hypothesis. Via func_unique: y'=sy2.
 
-    # This is getting really long. Let me take a shortcut: instead of the full formal proof,
-    # let me use rec_step_succ for both h1 and h2, and P(n) IH, chaining through
-    # func_unique and unique_successor.
+    # === Step case: In(nv, pv) -> Succ(snv, nv) -> In(snv, pv) ===
+    # Strengthened P: P(n) = ∃y2. Apply(h2,n,y2) ∧ In(y2,w) ∧ ∃s. Succ(s,y2) ∧ Apply(h1,n,s)
+    # This is what we need from the induction. But the GOAL theorem uses the simpler
+    # ∀y,s. Apply(h2,n,y)->Succ(s,y)->Apply(h1,n,s). We'll derive it from the strengthened P + func_unique.
+    # Actually, for the separation predicate, use the strengthened version.
 
-    # For now, let me just get the structure right and test incrementally.
+    # REDEFINE P for separation:
+    y2v = Var(postfix='y2')
+    s2v = Var(postfix='s2')
+    def P_strong(x):
+        return Exists(y2v, And(Apply(h2, x, y2v), And(In(y2v, w),
+            Exists(s2v, And(SuccDef(s2v, y2v), Apply(h1, x, s2v))))))
 
-    # STEP CASE OUTLINE:
-    # Given: In(nv,pv), Succ(snv,nv)
-    # From P(n): ∀y,s. Apply(h2,nv,y) -> Succ(s,y) -> Apply(h1,nv,s)
-    # Need: P(S(n)): ∀y',s'. Apply(h2,snv,y') -> Succ(s',y') -> Apply(h1,snv,s')
-    #
-    # Given Apply(h2,snv,y') and Succ(s',y'):
-    # 1. dom_sub(h2): Apply(h2,nv,_) exists (since snv∈w from succ_sn_n + In(nv,w))
-    #    Actually, Recursive(h2) doesn't guarantee h2(nv) exists unless nv∈w.
-    #    We have In(nv,w) from char_p_fwd. But we need Apply(h2,nv,y2) for some y2.
-    #    From ExistsUnique or from rec_h_total... we don't have rec_h_total.
-    #    But rec_step_succ tells us: Apply(h2,nv,y2) + ... -> Apply(h2,snv,result).
-    #    We're going BACKWARDS: from Apply(h2,snv,y'), deduce what y2 was.
-    #    From func_unique on h2: Apply(h2,snv,y') and Apply(h2,snv,sy2) -> y'=sy2.
-    #    But we need to know Apply(h2,snv,sy2) first, which requires knowing y2.
-    #
-    # This is getting circular without a "h is total on w" lemma.
-    # Let me strengthen the induction predicate:
-    # P(n) = ∃y2. Apply(h2,n,y2) ∧ ∃s. Succ(s,y2) ∧ Apply(h1,n,s) ∧ In(y2,w) ∧ In(s,w)
-    # This tracks that h2(n) exists and is in w, and h1(n) = S(h2(n)).
+    # Rebuild separation with P_strong:
+    char_p_body_s = Iff(In(xv, pv), And(In(xv, w), P_strong(xv)))
+    char_p_s = Forall(xv, char_p_body_s)
+    sep_s = separation(P_strong, [h1, h2, w])
+    got_sep_s = sep_s
+    for term in [w, h2, h1]:
+        actual_s = got_sep_s.sequent.right[0]
+        exp_s = _expand(actual_s)
+        inst_s = exp_s.body
+        got_sep_s = Proof(Sequent(got_sep_s.sequent.left, [inst_s]), 'cut',
+            [wr(got_sep_s, inst_s), wl(fl(actual_s, inst_s, term), *got_sep_s.sequent.left)],
+            principal=actual_s)
+    actual_s = got_sep_s.sequent.right[0]
+    got_sep_s = Proof(Sequent(got_sep_s.sequent.left, [Exists(pv, char_p_s)]), 'cut',
+        [wr(got_sep_s, Exists(pv, char_p_s)),
+         wl(fl(actual_s, Exists(pv, char_p_s), w), *got_sep_s.sequent.left)],
+        principal=actual_s)
 
-    # Actually, this is getting very complex. Let me commit what we have and plan.
-    raise NotImplementedError('rec_succ_shift: step case in progress')
+    def char_ps_fwd(term_x):
+        inst = Iff(In(term_x, pv), And(In(term_x, w), P_strong(term_x)))
+        return mp(iff_mp(In(term_x, pv), And(In(term_x, w), P_strong(term_x)), []),
+            fl(char_p_s, inst, term_x), inst,
+            Implies(In(term_x, pv), And(In(term_x, w), P_strong(term_x))))
+    def char_ps_bwd(term_x):
+        inst = Iff(In(term_x, pv), And(In(term_x, w), P_strong(term_x)))
+        return mp(iff_mp_rev(In(term_x, pv), And(In(term_x, w), P_strong(term_x)), []),
+            fl(char_p_s, inst, term_x), inst,
+            Implies(And(In(term_x, w), P_strong(term_x)), In(term_x, pv)))
+
+    # -- Rebuild base with P_strong --
+    # P_strong(0) = ∃y2. Apply(h2,0,y2) ∧ In(y2,w) ∧ ∃s. Succ(s,y2) ∧ Apply(h1,0,s)
+    # y2=m, In(m,w), s=sm, Succ(sm,m), Apply(h1,0,sm)
+    and_succ_app = And(succ_sm_m, Apply(h1, eb, smv))
+    got_sa = mp(apply_thm(and_intro(succ_sm_m, Apply(h1, eb, smv), []), [],
+        succ_sm_m, Implies(Apply(h1, eb, smv), and_succ_app), ax(succ_sm_m)),
+        got_h1_eb, Apply(h1, eb, smv), and_succ_app)
+    got_ex_s = eir(got_sa, And(SuccDef(s2v, mv), Apply(h1, eb, s2v)), s2v, smv)
+    and_in_ex = And(In(mv, w), got_ex_s.sequent.right[0])
+    all_ie = list(got_eb_w.sequent.left)
+    for f_ in got_ex_s.sequent.left:
+        if not any(same(f_, g) for g in all_ie):
+            all_ie.append(f_)
+    # Need In(mv,w)... but mv is the initial value param, In(mv,w) is a hypothesis.
+    got_and_ie = mp(apply_thm(and_intro(In(mv, w), got_ex_s.sequent.right[0], []), [],
+        In(mv, w), Implies(got_ex_s.sequent.right[0], and_in_ex), ax(In(mv, w))),
+        weaken_to(got_ex_s, [In(mv, w)] + got_ex_s.sequent.left),
+        got_ex_s.sequent.right[0], and_in_ex)
+    and_app_ie = And(Apply(h2, eb, mv), and_in_ex)
+    got_app_ie = mp(apply_thm(and_intro(Apply(h2, eb, mv), and_in_ex, []), [],
+        Apply(h2, eb, mv), Implies(and_in_ex, and_app_ie), got_h2_eb),
+        got_and_ie, and_in_ex, and_app_ie)
+    p_strong_eb = P_strong(eb)
+    got_ps_eb = eir(got_app_ie,
+        And(Apply(h2, eb, y2v), And(In(y2v, w), Exists(s2v, And(SuccDef(s2v, y2v), Apply(h1, eb, s2v))))),
+        y2v, mv)
+    # got_ps_eb: [...] |- P_strong(eb)
+
+    # In(eb,w) + P_strong(eb) -> In(eb, pv):
+    and_wp_eb_s = And(In(eb, w), p_strong_eb)
+    all_bs = list(got_eb_w.sequent.left)
+    for f_ in got_ps_eb.sequent.left:
+        if not any(same(f_, g) for g in all_bs):
+            all_bs.append(f_)
+    got_and_bs = mp(apply_thm(and_intro(In(eb, w), p_strong_eb, []), [], In(eb, w),
+        Implies(p_strong_eb, and_wp_eb_s), weaken_to(got_eb_w, all_bs)),
+        weaken_to(got_ps_eb, all_bs), p_strong_eb, and_wp_eb_s)
+    got_bwd_ebs = char_ps_bwd(eb)
+    all_bwds = list(got_and_bs.sequent.left)
+    for f_ in got_bwd_ebs.sequent.left:
+        if not any(same(f_, g) for g in all_bwds):
+            all_bwds.append(f_)
+    got_in_eps = mp(weaken_to(got_bwd_ebs, all_bwds), got_and_bs, and_wp_eb_s, In(eb, pv))
+    imp_base_s = Implies(Empty(eb), In(eb, pv))
+    rem_ebs = [f_ for f_ in got_in_eps.sequent.left if not same(f_, Empty(eb))]
+    proof_base_s = Proof(Sequent(rem_ebs, [imp_base_s]), 'implies_right', [got_in_eps], principal=imp_base_s)
+    base_ind_s = Forall(eb, imp_base_s)
+    proof_base_s = Proof(Sequent(rem_ebs, [base_ind_s]), 'forall_right', [proof_base_s], principal=base_ind_s, term=eb)
+
+    # -- Step with P_strong --
+    # Given In(nv,pv), Succ(snv,nv):
+    # From char_ps_fwd: In(nv,w) + P_strong(nv)
+    # P_strong(nv) = ∃y2. Apply(h2,nv,y2) ∧ In(y2,w) ∧ ∃s2. Succ(s2,y2) ∧ Apply(h1,nv,s2)
+    # Open y2, s2: have Apply(h2,nv,y2), In(y2,w), Succ(s2,y2), Apply(h1,nv,s2)
+    # In(s2,w) from omega_succ_closed + In(y2,w) + Succ(s2,y2)
+    # rec_step_succ on h2: In(nv,w) + In(y2,w) + Apply(h2,nv,y2) + Succ(snv,nv) + Succ(sy2,y2) -> Apply(h2,snv,sy2)
+    #   where sy2 is S(y2). From successor_exists: ∃sy2. Succ(sy2,y2).
+    # rec_step_succ on h1: In(nv,w) + In(s2,w) + Apply(h1,nv,s2) + Succ(snv,nv) + Succ(ss2,s2) -> Apply(h1,snv,ss2)
+    #   where ss2 is S(s2). From successor_exists: ∃ss2. Succ(ss2,s2).
+    # Succ(ss2, sy2): sy2 = S(y2) = s2 (since Succ(s2,y2)). So Succ(ss2, s2) = Succ(ss2, sy2). ✓
+    # P_strong(snv) with y2'=sy2, s2'=ss2. In(sy2,w) from omega_succ_closed.
+
+    got_fwd_ns = char_ps_fwd(nv)
+    got_and_ns = mp(weaken_to(got_fwd_ns, [In(nv, pv)]), ax(In(nv, pv)),
+        In(nv, pv), And(In(nv, w), P_strong(nv)))
+    got_in_nws = apply_thm(and_elim_left(In(nv, w), P_strong(nv), []), [],
+        And(In(nv, w), P_strong(nv)), In(nv, w), got_and_ns)
+    got_ps_n = apply_thm(and_elim_right(In(nv, w), P_strong(nv), []), [],
+        And(In(nv, w), P_strong(nv)), P_strong(nv), got_and_ns)
+    # [char_p_s, In(nv,pv)] |- P_strong(nv)
+
+    # Work from inside: assume Apply(h2,nv,y2), In(y2,w), Succ(s2,y2), Apply(h1,nv,s2)
+    app_h2_ny2 = Apply(h2, nv, y2v)
+    in_y2_w = In(y2v, w)
+    succ_s2_y2 = SuccDef(s2v, y2v)
+    app_h1_ns2 = Apply(h1, nv, s2v)
+
+    # In(s2,w) from omega_succ_closed:
+    osc = omega_succ_closed()
+    got_s2_w = apply_thm(osc, [w], omega_w,
+        Forall(y2v, Implies(in_y2_w, Forall(s2v, Implies(succ_s2_y2, In(s2v, w))))),
+        ax(omega_w))
+    got_s2_w = apply_thm(got_s2_w, [y2v], in_y2_w,
+        Forall(s2v, Implies(succ_s2_y2, In(s2v, w))), ax(in_y2_w))
+    got_s2_w = apply_thm(got_s2_w, [s2v], succ_s2_y2, In(s2v, w), ax(succ_s2_y2))
+    # [omega_w, In(y2,w), Succ(s2,y2), Inf] |- In(s2,w)
+
+    # successor_exists at y2 and s2:
+    sy2v = Var(postfix='sy2')
+    ss2v = Var(postfix='ss2')
+    se2 = successor_exists()
+    got_se_y2 = apply_thm(se2, [y2v], concl=Exists(sy2v, SuccDef(sy2v, y2v)))
+    got_se_s2 = apply_thm(se2, [s2v], concl=Exists(ss2v, SuccDef(ss2v, s2v)))
+
+    # rec_step_succ on h2: Apply(h2,snv,sy2)
+    rst = rec_step_succ()
+    # Peel 4 non-repeating foralls, then fl the rest:
+    nv3, pv3, snv3, spv3 = Var(), Var(), Var(), Var()
+    inner_rst = Forall(nv3, Forall(pv3, Forall(snv3, Forall(spv3,
+        Implies(omega_w, Implies(In(nv3, w), Implies(In(pv3, w), Implies(succ_char,
+            Implies(rec_h2, Implies(Apply(h2, nv3, pv3),
+                Implies(SuccDef(snv3, nv3), Implies(SuccDef(spv3, pv3),
+                    Apply(h2, snv3, spv3)))))))))))))
+    got_rst_h2 = apply_thm(rst, [w, mv, sfv, h2], concl=inner_rst)
+    # Peel n=nv, p=y2v, sn=snv, sp=sy2v:
+    cur_f = inner_rst
+    for term in [nv, y2v, snv, sy2v]:
+        exp_f = _expand(cur_f)
+        next_f = _subst(exp_f.body, exp_f.var, term)
+        got_rst_h2 = Proof(Sequent(got_rst_h2.sequent.left, [next_f]), 'cut',
+            [wr(got_rst_h2, next_f), wl(fl(cur_f, next_f, term), *got_rst_h2.sequent.left)],
+            principal=cur_f)
+        cur_f = next_f
+    # MP through: omega, In(nv,w), In(y2,w), succ_char, rec_h2, Apply(h2,nv,y2), Succ(snv,nv), Succ(sy2,y2)
+    got_rst_h2 = mp(got_rst_h2, ax(omega_w), omega_w, cur_f.right); cur_f = cur_f.right
+    got_rst_h2 = mp(got_rst_h2, got_in_nws, In(nv, w), cur_f.right); cur_f = cur_f.right
+    got_rst_h2 = mp(got_rst_h2, ax(in_y2_w), in_y2_w, cur_f.right); cur_f = cur_f.right
+    got_rst_h2 = mp(got_rst_h2, ax(succ_char), succ_char, cur_f.right); cur_f = cur_f.right
+    got_rst_h2 = mp(got_rst_h2, ax(rec_h2), rec_h2, cur_f.right); cur_f = cur_f.right
+    got_rst_h2 = mp(got_rst_h2, ax(app_h2_ny2), app_h2_ny2, cur_f.right); cur_f = cur_f.right
+    got_rst_h2 = mp(got_rst_h2, ax(succ_sn_n), succ_sn_n, cur_f.right); cur_f = cur_f.right
+    got_rst_h2 = mp(got_rst_h2, ax(SuccDef(sy2v, y2v)), SuccDef(sy2v, y2v), Apply(h2, snv, sy2v))
+    # [..., Succ(sy2,y2)] |- Apply(h2,snv,sy2)
+
+    # rec_step_succ on h1: Apply(h1,snv,ss2)
+    inner_rst1 = Forall(nv3, Forall(pv3, Forall(snv3, Forall(spv3,
+        Implies(omega_w, Implies(In(nv3, w), Implies(In(pv3, w), Implies(succ_char,
+            Implies(rec_h1, Implies(Apply(h1, nv3, pv3),
+                Implies(SuccDef(snv3, nv3), Implies(SuccDef(spv3, pv3),
+                    Apply(h1, snv3, spv3)))))))))))))
+    got_rst_h1 = apply_thm(rst, [w, smv, sfv, h1], concl=inner_rst1)
+    cur_f = inner_rst1
+    for term in [nv, s2v, snv, ss2v]:
+        exp_f = _expand(cur_f)
+        next_f = _subst(exp_f.body, exp_f.var, term)
+        got_rst_h1 = Proof(Sequent(got_rst_h1.sequent.left, [next_f]), 'cut',
+            [wr(got_rst_h1, next_f), wl(fl(cur_f, next_f, term), *got_rst_h1.sequent.left)],
+            principal=cur_f)
+        cur_f = next_f
+    got_rst_h1 = mp(got_rst_h1, ax(omega_w), omega_w, cur_f.right); cur_f = cur_f.right
+    got_rst_h1 = mp(got_rst_h1, got_in_nws, In(nv, w), cur_f.right); cur_f = cur_f.right
+    got_rst_h1 = mp(got_rst_h1, got_s2_w, In(s2v, w), cur_f.right); cur_f = cur_f.right
+    got_rst_h1 = mp(got_rst_h1, ax(succ_char), succ_char, cur_f.right); cur_f = cur_f.right
+    got_rst_h1 = mp(got_rst_h1, ax(rec_h1), rec_h1, cur_f.right); cur_f = cur_f.right
+    got_rst_h1 = mp(got_rst_h1, ax(app_h1_ns2), app_h1_ns2, cur_f.right); cur_f = cur_f.right
+    got_rst_h1 = mp(got_rst_h1, ax(succ_sn_n), succ_sn_n, cur_f.right); cur_f = cur_f.right
+    got_rst_h1 = mp(got_rst_h1, ax(SuccDef(ss2v, s2v)), SuccDef(ss2v, s2v), Apply(h1, snv, ss2v))
+    # [..., Succ(ss2,s2)] |- Apply(h1,snv,ss2)
+
+    # In(sy2,w) from omega_succ_closed + In(y2,w):
+    got_sy2_w = apply_thm(osc, [w], omega_w,
+        Forall(y2v, Implies(in_y2_w, Forall(sy2v, Implies(SuccDef(sy2v, y2v), In(sy2v, w))))),
+        ax(omega_w))
+    got_sy2_w = apply_thm(got_sy2_w, [y2v], in_y2_w,
+        Forall(sy2v, Implies(SuccDef(sy2v, y2v), In(sy2v, w))), ax(in_y2_w))
+    got_sy2_w = apply_thm(got_sy2_w, [sy2v], SuccDef(sy2v, y2v), In(sy2v, w), ax(SuccDef(sy2v, y2v)))
+
+    # Succ(ss2, sy2): from Succ(s2,y2) -> s2 = S(y2) -> sy2 = S(y2) = s2
+    # -> Succ(ss2, s2) = Succ(ss2, sy2) via eq_successor_transfer
+    # From unique_successor: Succ(s2,y2) and Succ(sy2,y2) -> Eq(s2,sy2)
+    got_eq_s2sy2 = apply_thm(us, [y2v, s2v, sy2v], succ_s2_y2,
+        Implies(SuccDef(sy2v, y2v), Eq(s2v, sy2v)), ax(succ_s2_y2))
+    got_eq_s2sy2 = mp(got_eq_s2sy2, ax(SuccDef(sy2v, y2v)), SuccDef(sy2v, y2v), Eq(s2v, sy2v))
+    # eq_successor_transfer: Eq(ss2,ss2) + Eq(sy2,s2) + Succ(ss2,s2) -> Succ(ss2,sy2)
+    # Peel only 2 (a=ss2v, b=sy2v), then fl c=ss2v and d=s2v manually.
+    got_eq_ss = apply_thm(er, [ss2v], concl=Eq(ss2v, ss2v))
+    cv, dv = Var(), Var()
+    fa_cd = Forall(cv, Forall(dv,
+        Implies(Eq(ss2v, cv), Implies(Eq(sy2v, dv), Implies(SuccDef(cv, dv), SuccDef(ss2v, sy2v))))))
+    got_est2 = apply_thm(est, [ss2v, sy2v], concl=fa_cd)
+    # fl c=ss2v:
+    fa_d2 = Forall(dv, Implies(Eq(ss2v, ss2v), Implies(Eq(sy2v, dv), Implies(SuccDef(ss2v, dv), SuccDef(ss2v, sy2v)))))
+    got_est_c = Proof(Sequent(got_est2.sequent.left, [fa_d2]), 'cut',
+        [wr(got_est2, fa_d2), wl(fl(fa_cd, fa_d2, ss2v), *got_est2.sequent.left)], principal=fa_cd)
+    # fl d=s2v:
+    inst_d = Implies(Eq(ss2v, ss2v), Implies(Eq(sy2v, s2v), Implies(SuccDef(ss2v, s2v), SuccDef(ss2v, sy2v))))
+    got_est_inst = Proof(Sequent(got_est_c.sequent.left, [inst_d]), 'cut',
+        [wr(got_est_c, inst_d), wl(fl(fa_d2, inst_d, s2v), *got_est_c.sequent.left)], principal=fa_d2)
+    got_succ_ss_sy = mp(got_est_inst, got_eq_ss, Eq(ss2v, ss2v),
+        Implies(Eq(sy2v, s2v), Implies(SuccDef(ss2v, s2v), SuccDef(ss2v, sy2v))))
+    got_eq_sy2_s2 = apply_thm(es, [s2v, sy2v], Eq(s2v, sy2v), Eq(sy2v, s2v), got_eq_s2sy2)
+    got_succ_ss_sy = mp(got_succ_ss_sy, got_eq_sy2_s2, Eq(sy2v, s2v), Implies(SuccDef(ss2v, s2v), SuccDef(ss2v, sy2v)))
+    got_succ_ss_sy = mp(got_succ_ss_sy, ax(SuccDef(ss2v, s2v)), SuccDef(ss2v, s2v), SuccDef(ss2v, sy2v))
+    # [Succ(s2,y2), Succ(sy2,y2), Succ(ss2,s2)] |- Succ(ss2,sy2)
+
+    # Build P_strong(snv): ∃y2'. Apply(h2,snv,y2') ∧ In(y2',w) ∧ ∃s2'. Succ(s2',y2') ∧ Apply(h1,snv,s2')
+    # y2'=sy2, s2'=ss2
+    and_succ_app_step = And(SuccDef(ss2v, sy2v), Apply(h1, snv, ss2v))
+    all_step_left = []
+    for pr in [got_rst_h2, got_rst_h1, got_sy2_w, got_succ_ss_sy]:
+        for f_ in pr.sequent.left:
+            if not any(same(f_, g) for g in all_step_left):
+                all_step_left.append(f_)
+    got_sa_step = mp(apply_thm(and_intro(SuccDef(ss2v, sy2v), Apply(h1, snv, ss2v), []), [],
+        SuccDef(ss2v, sy2v), Implies(Apply(h1, snv, ss2v), and_succ_app_step),
+        weaken_to(got_succ_ss_sy, all_step_left)),
+        weaken_to(got_rst_h1, all_step_left), Apply(h1, snv, ss2v), and_succ_app_step)
+    got_ex_s_step = eir(got_sa_step, And(SuccDef(s2v, sy2v), Apply(h1, snv, s2v)), s2v, ss2v)
+    and_in_ex_step = And(In(sy2v, w), got_ex_s_step.sequent.right[0])
+    got_ie_step = mp(apply_thm(and_intro(In(sy2v, w), got_ex_s_step.sequent.right[0], []), [],
+        In(sy2v, w), Implies(got_ex_s_step.sequent.right[0], and_in_ex_step),
+        weaken_to(got_sy2_w, all_step_left)),
+        weaken_to(got_ex_s_step, all_step_left), got_ex_s_step.sequent.right[0], and_in_ex_step)
+    and_app_ie_step = And(Apply(h2, snv, sy2v), and_in_ex_step)
+    got_app_ie_step = mp(apply_thm(and_intro(Apply(h2, snv, sy2v), and_in_ex_step, []), [],
+        Apply(h2, snv, sy2v), Implies(and_in_ex_step, and_app_ie_step),
+        weaken_to(got_rst_h2, all_step_left)),
+        weaken_to(got_ie_step, all_step_left), and_in_ex_step, and_app_ie_step)
+    p_strong_snv = P_strong(snv)
+    got_ps_snv = eir(got_app_ie_step,
+        And(Apply(h2, snv, y2v), And(In(y2v, w), Exists(s2v, And(SuccDef(s2v, y2v), Apply(h1, snv, s2v))))),
+        y2v, sy2v)
+    # [...lots...] |- P_strong(snv)
+
+    # Close: eel ss2v from Succ(ss2,s2), eel sy2v from Succ(sy2,y2),
+    # fold back into P_strong(nv) components, eel y2v, s2v
+    # Fold Succ(ss2,s2) + Succ(sy2,y2) back:
+    cur_step = got_ps_snv
+    cur_step = eel(cur_step, SuccDef(ss2v, s2v), ss2v)
+    cur_step = cut(cur_step, cur_step.sequent.left[-1], got_se_s2)
+    cur_step = eel(cur_step, SuccDef(sy2v, y2v), sy2v)
+    cur_step = cut(cur_step, cur_step.sequent.left[-1], got_se_y2)
+
+    # Fold app_h1_ns2, succ_s2_y2 into And, eel s2v:
+    and_succ_app_n = And(succ_s2_y2, app_h1_ns2)
+    for pred, gp in [
+        (succ_s2_y2, apply_thm(and_elim_left(succ_s2_y2, app_h1_ns2, []), [], and_succ_app_n, succ_s2_y2, ax(and_succ_app_n))),
+        (app_h1_ns2, apply_thm(and_elim_right(succ_s2_y2, app_h1_ns2, []), [], and_succ_app_n, app_h1_ns2, ax(and_succ_app_n)))]:
+        if any(same(pred, g) for g in cur_step.sequent.left):
+            cur_step = cut(cur_step, pred, gp)
+    cur_step = eel(cur_step, and_succ_app_n, s2v)
+    ex_s2 = cur_step.sequent.left[-1]
+
+    # Fold in_y2_w, ex_s2 into And, then with app_h2_ny2, eel y2v:
+    and_in_ex_n = And(in_y2_w, ex_s2)
+    for pred, gp in [
+        (in_y2_w, apply_thm(and_elim_left(in_y2_w, ex_s2, []), [], and_in_ex_n, in_y2_w, ax(and_in_ex_n))),
+        (ex_s2, apply_thm(and_elim_right(in_y2_w, ex_s2, []), [], and_in_ex_n, ex_s2, ax(and_in_ex_n)))]:
+        if any(same(pred, g) for g in cur_step.sequent.left):
+            cur_step = cut(cur_step, pred, gp)
+    and_app_in_ex_n = And(app_h2_ny2, and_in_ex_n)
+    for pred, gp in [
+        (app_h2_ny2, apply_thm(and_elim_left(app_h2_ny2, and_in_ex_n, []), [], and_app_in_ex_n, app_h2_ny2, ax(and_app_in_ex_n))),
+        (and_in_ex_n, apply_thm(and_elim_right(app_h2_ny2, and_in_ex_n, []), [], and_app_in_ex_n, and_in_ex_n, ax(and_app_in_ex_n)))]:
+        if any(same(pred, g) for g in cur_step.sequent.left):
+            cur_step = cut(cur_step, pred, gp)
+    cur_step = eel(cur_step, and_app_in_ex_n, y2v)
+    # P_strong(nv) on left. Cut with got_ps_n:
+    cur_step = cut(cur_step, cur_step.sequent.left[-1], got_ps_n)
+
+    # In(snv,w) from omega_succ_closed:
+    got_snv_w = apply_thm(osc, [w], omega_w,
+        Forall(nv, Implies(In(nv, w), Forall(snv, Implies(succ_sn_n, In(snv, w))))),
+        ax(omega_w))
+    got_snv_w = apply_thm(got_snv_w, [nv], In(nv, w), Forall(snv, Implies(succ_sn_n, In(snv, w))), got_in_nws)
+    got_snv_w = apply_thm(got_snv_w, [snv], succ_sn_n, In(snv, w), ax(succ_sn_n))
+
+    # And(In(snv,w), P_strong(snv)) -> In(snv, pv):
+    and_wp_snv = And(In(snv, w), p_strong_snv)
+    all_sw = list(cur_step.sequent.left)
+    for f_ in got_snv_w.sequent.left:
+        if not any(same(f_, g) for g in all_sw):
+            all_sw.append(f_)
+    got_and_sw = mp(apply_thm(and_intro(In(snv, w), p_strong_snv, []), [], In(snv, w),
+        Implies(p_strong_snv, and_wp_snv), weaken_to(got_snv_w, all_sw)),
+        weaken_to(cur_step, all_sw), p_strong_snv, and_wp_snv)
+    got_bwd_snv = char_ps_bwd(snv)
+    all_bwd_snv = list(got_and_sw.sequent.left)
+    for f_ in got_bwd_snv.sequent.left:
+        if not any(same(f_, g) for g in all_bwd_snv):
+            all_bwd_snv.append(f_)
+    got_in_snp = mp(weaken_to(got_bwd_snv, all_bwd_snv), got_and_sw, and_wp_snv, In(snv, pv))
+
+    # Close step: implies_right Succ(snv,nv), forall snv, implies_right In(nv,pv), forall nv
+    imp_succ_s = Implies(succ_sn_n, In(snv, pv))
+    rem_ss = [f_ for f_ in got_in_snp.sequent.left if not same(f_, succ_sn_n)]
+    cur_s = Proof(Sequent(rem_ss, [imp_succ_s]), 'implies_right', [got_in_snp], principal=imp_succ_s)
+    fa_snv = Forall(snv, imp_succ_s)
+    cur_s = Proof(Sequent(rem_ss, [fa_snv]), 'forall_right', [cur_s], principal=fa_snv, term=snv)
+    imp_inp_s = Implies(In(nv, pv), fa_snv)
+    rem_inp = [f_ for f_ in cur_s.sequent.left if not same(f_, In(nv, pv))]
+    cur_s = Proof(Sequent(rem_inp, [imp_inp_s]), 'implies_right', [cur_s], principal=imp_inp_s)
+    step_ind_s = Forall(nv, imp_inp_s)
+    proof_step_s = Proof(Sequent(rem_inp, [step_ind_s]), 'forall_right', [cur_s], principal=step_ind_s, term=nv)
+
+    # === Build Inductive(pv), Subset(pv,w), omega_smallest_inductive ===
+    from definitions import Inductive as InductiveDef, Subset as SubsetDef
+    ind_p = InductiveDef(pv)
+    sub_pw = SubsetDef(pv, w)
+
+    all_ind = list(proof_base_s.sequent.left)
+    for f_ in proof_step_s.sequent.left:
+        if not any(same(f_, g) for g in all_ind):
+            all_ind.append(f_)
+    got_ind = mp(apply_thm(and_intro(base_ind_s, step_ind_s, []), [], base_ind_s,
+        Implies(step_ind_s, ind_p), weaken_to(proof_base_s, all_ind)),
+        weaken_to(proof_step_s, all_ind), step_ind_s, ind_p)
+
+    xsub = Var()
+    got_fwd_x = char_ps_fwd(xsub)
+    got_and_x = mp(got_fwd_x, ax(In(xsub, pv)), In(xsub, pv), And(In(xsub, w), P_strong(xsub)))
+    got_in_xw = apply_thm(and_elim_left(In(xsub, w), P_strong(xsub), []), [],
+        And(In(xsub, w), P_strong(xsub)), In(xsub, w), got_and_x)
+    imp_sub = Implies(In(xsub, pv), In(xsub, w))
+    got_sub = Proof(Sequent([char_p_s], [sub_pw]), 'forall_right',
+        [Proof(Sequent([char_p_s], [imp_sub]), 'implies_right', [got_in_xw], principal=imp_sub)],
+        principal=sub_pw, term=xsub)
+
+    osi = omega_smallest_inductive()
+    hyp_and = And(sub_pw, ind_p)
+    eq_pw = Eq(pv, w)
+    got_osi = apply_thm(osi, [pv, w], omega_w, Implies(hyp_and, eq_pw), ax(omega_w))
+    all_osi = list(got_ind.sequent.left)
+    for f_ in got_sub.sequent.left:
+        if not any(same(f_, g) for g in all_osi):
+            all_osi.append(f_)
+    got_si = mp(apply_thm(and_intro(sub_pw, ind_p, []), [], sub_pw,
+        Implies(ind_p, hyp_and), weaken_to(got_sub, all_osi)),
+        weaken_to(got_ind, all_osi), ind_p, hyp_and)
+    all_eq = list(got_si.sequent.left)
+    for f_ in got_osi.sequent.left:
+        if not any(same(f_, g) for g in all_eq):
+            all_eq.append(f_)
+    got_eq = mp(weaken_to(got_osi, all_eq), got_si, hyp_and, eq_pw)
+
+    # === Extract: In(nv, w) -> P_strong(nv) -> (the goal's P_n) ===
+    # From Eq(pv,w): In(nv,w) -> In(nv,pv) -> P_strong(nv)
+    # From P_strong(nv): ∃y2. ... -> (∀y,s. Apply(h2,nv,y)->Succ(s,y)->Apply(h1,nv,s)) via func_unique
+    # Actually for the extraction, we can derive the weaker P(n) from P_strong(n) + func_unique(h2).
+    # But for simplicity, let's just keep P_strong in the goal.
+    # The goal becomes: ∀n∈w. P_strong(n). The caller can extract what they need.
+
+    nf = Var(postfix='nf')
+    iff_nf = Iff(In(nf, pv), In(nf, w))
+    got_iff_nf = Proof(Sequent(got_eq.sequent.left, [iff_nf]), 'cut',
+        [wr(got_eq, iff_nf), weaken_to(fl(eq_pw, iff_nf, nf), got_eq.sequent.left)],
+        principal=eq_pw)
+    got_in_nfp = mp(mp(iff_mp_rev(In(nf, pv), In(nf, w), []),
+        got_iff_nf, iff_nf, Implies(In(nf, w), In(nf, pv))),
+        ax(In(nf, w)), In(nf, w), In(nf, pv))
+    got_fwd_nf = char_ps_fwd(nf)
+    all_ext = list(got_in_nfp.sequent.left)
+    for f_ in got_fwd_nf.sequent.left:
+        if not any(same(f_, g) for g in all_ext):
+            all_ext.append(f_)
+    got_and_ext = mp(weaken_to(got_fwd_nf, all_ext),
+        weaken_to(got_in_nfp, all_ext), In(nf, pv), And(In(nf, w), P_strong(nf)))
+    got_ps_nf = apply_thm(and_elim_right(In(nf, w), P_strong(nf), []), [],
+        And(In(nf, w), P_strong(nf)), P_strong(nf), got_and_ext)
+    # [..., In(nf,w)] |- P_strong(nf)
+
+    # eel pv, cut with got_sep_s:
+    proof = got_ps_nf
+    proof = eel(proof, char_p_s, pv)
+    proof = cut(proof, proof.sequent.left[-1], got_sep_s)
+
+    # Discharge and close:
+    imp_nf = Implies(In(nf, w), P_strong(nf))
+    rem_nf = [f_ for f_ in proof.sequent.left if not same(f_, In(nf, w))]
+    proof = Proof(Sequent(rem_nf, [imp_nf]), 'implies_right', [proof], principal=imp_nf)
+    fa_nf = Forall(nf, imp_nf)
+    proof = Proof(Sequent(rem_nf, [fa_nf]), 'forall_right', [proof], principal=fa_nf, term=nf)
+    for hh in [in_m_w, succ_sm_m, rec_h2, rec_h1, succ_char, omega_w]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [smv, mv, h2, h1, sfv, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+
+    proof.name = 'rec_succ_shift'
+    return proof
 
 
 def plus_comm():
