@@ -1174,6 +1174,217 @@ def rec_h_zero_identity():
     return proof
 
 
+def plus_zero_left():
+    """0 + m = m: addition with zero on the left.
+    |- forall w, m, e.
+         Omega(w) -> In(m, w) -> Empty(e) -> Plus(e, m, m)
+    Uses sf_props + recursion_theorem + rec_h_zero_identity."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef, Plus as PlusDef, ExistsUnique)
+    from theorems.recursion import recursion_theorem
+    from theorems.sets import successor_exists
+    from theorems.omega import omega_succ_closed, omega_contains_empty
+
+    w = Var(postfix='w')
+    mv = Var(postfix='m')
+    ev = Var(postfix='e')
+    omega_w = Omega(w)
+    in_m_w = In(mv, w)
+    empty_ev = Empty(ev)
+    plus_goal = PlusDef(ev, mv, mv)
+
+    goal = Forall(w, Forall(mv, Forall(ev,
+        Implies(omega_w, Implies(in_m_w, Implies(empty_ev, plus_goal))))))
+
+    sfv = Var(postfix='sf')
+    hv = Var(postfix='h')
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+
+    # === sf_props → succ_char, Function(sf), dom_sub ===
+    sp = sf_props()
+    app_sf = Apply(sfv, xsc, ysc)
+    succ_yx = SuccDef(ysc, xsc)
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(app_sf, succ_yx))))
+    func_sf = FuncDef(sfv)
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    and_func_dom = And(func_sf, dom_sub_sf)
+    and_sc_fd = And(succ_char, and_func_dom)
+    got_sp = apply_thm(sp, [w], concl=Exists(sfv, and_sc_fd))
+
+    got_sc_from = apply_thm(and_elim_left(succ_char, and_func_dom, []), [],
+        and_sc_fd, succ_char, ax(and_sc_fd))
+    got_fd_from = apply_thm(and_elim_right(succ_char, and_func_dom, []), [],
+        and_sc_fd, and_func_dom, ax(and_sc_fd))
+    got_func_from = apply_thm(and_elim_left(func_sf, dom_sub_sf, []), [],
+        and_func_dom, func_sf, got_fd_from)
+    got_dom_from = apply_thm(and_elim_right(func_sf, dom_sub_sf, []), [],
+        and_func_dom, dom_sub_sf, got_fd_from)
+
+    # === dom_closed(sf, e) ===
+    # f_at_a: ∃z. Apply(sf, e, z). From In(e,w) + succ_char backward + successor_exists.
+    sm = Var(postfix='sm')
+    se = successor_exists()
+    got_se = apply_thm(se, [ev], concl=Exists(sm, SuccDef(sm, ev)))
+
+    # In(e,w) from omega_contains_empty:
+    oce = omega_contains_empty()
+    got_ev_w = apply_thm(oce, [w], omega_w,
+        Forall(ev, Implies(empty_ev, In(ev, w))), ax(omega_w))
+    got_ev_w = apply_thm(got_ev_w, [ev], empty_ev, In(ev, w), ax(empty_ev))
+
+    sc_at_e = Implies(In(ev, w), Forall(ysc, Iff(Apply(sfv, ev, ysc), SuccDef(ysc, ev))))
+    got_fa_e = mp(fl(succ_char, sc_at_e, ev), got_ev_w, In(ev, w),
+        Forall(ysc, Iff(Apply(sfv, ev, ysc), SuccDef(ysc, ev))))
+    iff_e_sm = Iff(Apply(sfv, ev, sm), SuccDef(sm, ev))
+    got_app_e = mp(mp(iff_mp_rev(Apply(sfv, ev, sm), SuccDef(sm, ev), []),
+        apply_thm(got_fa_e, [sm], concl=iff_e_sm), iff_e_sm,
+        Implies(SuccDef(sm, ev), Apply(sfv, ev, sm))),
+        ax(SuccDef(sm, ev)), SuccDef(sm, ev), Apply(sfv, ev, sm))
+    zfa2 = Var()
+    got_fat = eir(got_app_e, Apply(sfv, ev, zfa2), zfa2, sm)
+    got_fat = eel(got_fat, SuccDef(sm, ev), sm)
+    got_fat = cut(got_fat, got_fat.sequent.left[-1], got_se)
+    f_at_a = Exists(zfa2, Apply(sfv, ev, zfa2))
+
+    # ran_f_closed: same as plus_zero_right (doesn't depend on initial value)
+    yr, zr, qr = Var(postfix='yr'), Var(postfix='zr'), Var(postfix='qr')
+    app_yz = Apply(sfv, yr, zr)
+    succ_zr_yr = SuccDef(zr, yr)
+    got_in_yr = apply_thm(got_dom_from, [yr],
+        Exists(yds, Apply(sfv, yr, yds)), In(yr, w),
+        eir(ax(app_yz), Apply(sfv, yr, yds), yds, zr))
+    got_sc_yr = fl(succ_char, Implies(In(yr, w), Forall(ysc, Iff(Apply(sfv, yr, ysc), SuccDef(ysc, yr)))), yr)
+    got_fa_yr = mp(got_sc_yr, got_in_yr, In(yr, w),
+        Forall(ysc, Iff(Apply(sfv, yr, ysc), SuccDef(ysc, yr))))
+    got_succ_zr = mp(mp(iff_mp(app_yz, succ_zr_yr, []),
+        apply_thm(got_fa_yr, [zr], concl=Iff(app_yz, succ_zr_yr)),
+        Iff(app_yz, succ_zr_yr), Implies(app_yz, succ_zr_yr)),
+        ax(app_yz), app_yz, succ_zr_yr)
+    osc = omega_succ_closed()
+    got_in_zr = apply_thm(osc, [w], omega_w,
+        Forall(yr, Implies(In(yr, w), Forall(zr, Implies(succ_zr_yr, In(zr, w))))),
+        ax(omega_w))
+    got_in_zr = apply_thm(got_in_zr, [yr], In(yr, w),
+        Forall(zr, Implies(succ_zr_yr, In(zr, w))), got_in_yr)
+    got_in_zr = apply_thm(got_in_zr, [zr], succ_zr_yr, In(zr, w), got_succ_zr)
+    succ_qr_zr = SuccDef(qr, zr)
+    got_app_zr = mp(mp(iff_mp_rev(Apply(sfv, zr, qr), succ_qr_zr, []),
+        apply_thm(mp(fl(succ_char, Implies(In(zr, w), Forall(ysc, Iff(Apply(sfv, zr, ysc), SuccDef(ysc, zr)))), zr),
+            got_in_zr, In(zr, w), Forall(ysc, Iff(Apply(sfv, zr, ysc), SuccDef(ysc, zr)))),
+            [qr], concl=Iff(Apply(sfv, zr, qr), succ_qr_zr)),
+        Iff(Apply(sfv, zr, qr), succ_qr_zr), Implies(succ_qr_zr, Apply(sfv, zr, qr))),
+        ax(succ_qr_zr), succ_qr_zr, Apply(sfv, zr, qr))
+    got_se_zr = apply_thm(se, [zr], concl=Exists(qr, succ_qr_zr))
+    qr2 = Var()
+    got_ex_zr = eir(got_app_zr, Apply(sfv, zr, qr2), qr2, qr)
+    got_ex_zr = eel(got_ex_zr, succ_qr_zr, qr)
+    got_ex_zr = cut(got_ex_zr, got_ex_zr.sequent.left[-1], got_se_zr)
+    ex_q_app = got_ex_zr.sequent.right[0]
+    imp_rfc = Implies(app_yz, ex_q_app)
+    rem_rfc = [f_ for f_ in got_ex_zr.sequent.left if not same(f_, app_yz)]
+    cur_rfc = Proof(Sequent(rem_rfc, [imp_rfc]), 'implies_right', [got_ex_zr], principal=imp_rfc)
+    ran_f_closed = Forall(yr, Forall(zr, imp_rfc))
+    for var in [zr, yr]:
+        body = cur_rfc.sequent.right[0]
+        fa = Forall(var, body)
+        cur_rfc = Proof(Sequent(cur_rfc.sequent.left, [fa]), 'forall_right', [cur_rfc], principal=fa, term=var)
+
+    dom_closed = And(f_at_a, ran_f_closed)
+    all_dc = list(got_fat.sequent.left)
+    for f_ in cur_rfc.sequent.left:
+        if not any(same(f_, g) for g in all_dc):
+            all_dc.append(f_)
+    got_dc = mp(apply_thm(and_intro(f_at_a, ran_f_closed, []), [], f_at_a,
+        Implies(ran_f_closed, dom_closed), weaken_to(got_fat, all_dc)),
+        weaken_to(cur_rfc, all_dc), ran_f_closed, dom_closed)
+    got_dc = cut(got_dc, succ_char, got_sc_from)
+
+    # === recursion_theorem → ∃!h. Recursive(h, e, sf, w) ===
+    rt = recursion_theorem()
+    rec_h = RecDef(hv, ev, sfv, w)
+    exu_h = ExistsUnique(hv, rec_h)
+    got_rt = apply_thm(rt, [ev, sfv, w], func_sf,
+        Implies(dom_closed, Implies(omega_w, exu_h)), got_func_from)
+    got_rt = mp(got_rt, got_dc, dom_closed, Implies(omega_w, exu_h))
+    got_rt = mp(got_rt, ax(omega_w), omega_w, exu_h)
+
+    # === rec_h_zero_identity: Apply(h, m, m) ===
+    rhi = rec_h_zero_identity()
+    app_h_mm = Apply(hv, mv, mv)
+    got_hmm = apply_thm(rhi, [w, sfv, hv, ev], omega_w,
+        Implies(succ_char, Implies(rec_h, Implies(empty_ev,
+            Forall(mv, Implies(in_m_w, app_h_mm))))), ax(omega_w))
+    got_hmm = mp(got_hmm, ax(succ_char), succ_char,
+        Implies(rec_h, Implies(empty_ev, Forall(mv, Implies(in_m_w, app_h_mm)))))
+    got_hmm = mp(got_hmm, ax(rec_h), rec_h,
+        Implies(empty_ev, Forall(mv, Implies(in_m_w, app_h_mm))))
+    got_hmm = mp(got_hmm, ax(empty_ev), empty_ev, Forall(mv, Implies(in_m_w, app_h_mm)))
+    got_hmm = apply_thm(got_hmm, [mv], in_m_w, app_h_mm, ax(in_m_w))
+    # [succ_char, rec_h, empty_ev, In(m,w), omega_w, axioms] |- Apply(h,m,m)
+
+    # === Package into Plus(e, m, m) ===
+    # Same pattern as plus_zero_right:
+    and_rec_app = And(rec_h, app_h_mm)
+    got_ra = mp(apply_thm(and_intro(rec_h, app_h_mm, []), [], rec_h,
+        Implies(app_h_mm, and_rec_app), ax(rec_h)),
+        got_hmm, app_h_mm, and_rec_app)
+    and_sc_ra = And(succ_char, and_rec_app)
+    got_scra = mp(apply_thm(and_intro(succ_char, and_rec_app, []), [], succ_char,
+        Implies(and_rec_app, and_sc_ra), ax(succ_char)),
+        got_ra, and_rec_app, and_sc_ra)
+    sf_var, h_var, w_var = Var(), Var(), Var()
+    xsc2, ysc2 = Var(), Var()
+    sc_pat = Forall(xsc2, Implies(In(xsc2, w), Forall(ysc2, Iff(Apply(sf_var, xsc2, ysc2), SuccDef(ysc2, xsc2)))))
+    inner_sf = And(sc_pat, And(RecDef(hv, ev, sf_var, w), Apply(hv, mv, mv)))
+    got_ex_sf = eir(got_scra, inner_sf, sf_var, sfv)
+    inner_h = Exists(sf_var, And(sc_pat, And(RecDef(h_var, ev, sf_var, w), Apply(h_var, mv, mv))))
+    got_ex_h = eir(got_ex_sf, inner_h, h_var, hv)
+    ex_h_sf = got_ex_h.sequent.right[0]
+    and_omega_ex = And(omega_w, ex_h_sf)
+    got_omega_ex = mp(apply_thm(and_intro(omega_w, ex_h_sf, []), [], omega_w,
+        Implies(ex_h_sf, and_omega_ex), ax(omega_w)),
+        got_ex_h, ex_h_sf, and_omega_ex)
+    inner_w = And(Omega(w_var), Exists(h_var, Exists(sf_var,
+        And(Forall(xsc2, Implies(In(xsc2, w_var), Forall(ysc2, Iff(Apply(sf_var, xsc2, ysc2), SuccDef(ysc2, xsc2))))),
+            And(RecDef(h_var, ev, sf_var, w_var), Apply(h_var, mv, mv))))))
+    got_plus = eir(got_omega_ex, inner_w, w_var, w)
+
+    # === Close existentials ===
+    # From ExistsUnique: extract Recursive
+    h2v = Var()
+    uniq_part = Forall(h2v, Implies(RecDef(h2v, ev, sfv, w), Eq(hv, h2v)))
+    and_rec_uniq = And(rec_h, uniq_part)
+    got_rec_from = apply_thm(and_elim_left(rec_h, uniq_part, []), [],
+        and_rec_uniq, rec_h, ax(and_rec_uniq))
+
+    cur = got_plus
+    # Cut rec_h and succ_char with derivations from and_rec_uniq and and_sc_fd:
+    cur = cut(cur, rec_h, got_rec_from)
+    cur = cut(cur, succ_char, got_sc_from)
+    cur = eel(cur, and_rec_uniq, hv)
+    cur = cut(cur, cur.sequent.left[-1], got_rt)
+    cur = eel(cur, and_sc_fd, sfv)
+    cur = cut(cur, cur.sequent.left[-1], got_sp)
+
+    # Discharge and close:
+    proof = cur
+    for hh in [empty_ev, in_m_w, omega_w]:
+        if any(same(hh, g) for g in proof.sequent.left):
+            imp = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    for var in [ev, mv, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+
+    proof.name = 'plus_zero_left'
+    return proof
+
+
 def plus_comm():
     """Commutativity of addition: m + n = n + m.
     |- forall w, m, n, p.
