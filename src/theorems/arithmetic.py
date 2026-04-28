@@ -13,6 +13,22 @@ from theorems.sets import (kuratowski, ordpair_exists, unique_successor,
 from theorems.recursion import succ_func_exists
 
 
+def _tuple_inject(ku, er, a, b, c, d, q, ordp_q, ordp_q_cd, q2):
+    """Kuratowski pair injection: from OrdPair(q,a,b) and OrdPair(q,c,d), derive And(Eq(a,c), Eq(b,d)).
+    Uses fl+cut to avoid leaving Forall(q2,...) on any premise right side."""
+    from tactics import apply_thm, fl, wl, mp, ax, cut
+    fa_inner = Forall(q2, Implies(OrdPair(q2, c, d), Implies(Eq(q, q2),
+        And(Eq(a, c), Eq(b, d)))))
+    got_ti = apply_thm(ku, [a, b, c, d, q], ordp_q, fa_inner, ax(ordp_q))
+    imp_inst = Implies(ordp_q_cd, Implies(Eq(q, q), And(Eq(a, c), Eq(b, d))))
+    got_fl = fl(fa_inner, imp_inst, q)
+    got_fl = wl(got_fl, *[f for f in got_ti.sequent.left if not same(f, fa_inner)])
+    got_ti = cut(got_fl, fa_inner, got_ti)
+    got_ti = mp(got_ti, ax(ordp_q_cd), ordp_q_cd, Implies(Eq(q, q), And(Eq(a, c), Eq(b, d))))
+    got_eq_qq = apply_thm(er, [q], concl=Eq(q, q))
+    return mp(got_ti, got_eq_qq, Eq(q, q), And(Eq(a, c), Eq(b, d)))
+
+
 def sf_props():
     """Successor function exists with succ_char, Function, and dom_sub.
     Rep, Ext, Pairing |- forall w.
@@ -58,13 +74,7 @@ def sf_props():
     qv2 = Var(postfix='q2')
     ku = kuratowski()
     er = eq_reflexive()
-    got_eq_qq = apply_thm(er, [qv], concl=Eq(qv, qv))
-    got_ti = apply_thm(ku, [xsc, ysc, xsf, ssf, qv], ordp_q,
-        Forall(qv2, Implies(OrdPair(qv2, xsf, ssf), Implies(Eq(qv, qv2),
-            And(Eq(xsc, xsf), Eq(ysc, ssf))))), ax(ordp_q))
-    got_ti = apply_thm(got_ti, [qv], ordp_q_xs,
-        Implies(Eq(qv, qv), And(Eq(xsc, xsf), Eq(ysc, ssf))), ax(ordp_q_xs))
-    got_ti = mp(got_ti, got_eq_qq, Eq(qv, qv), And(Eq(xsc, xsf), Eq(ysc, ssf)))
+    got_ti = _tuple_inject(ku, er, xsc, ysc, xsf, ssf, qv, ordp_q, ordp_q_xs, qv2)
 
     got_eq_ys = apply_thm(and_elim_right(Eq(xsc, xsf), Eq(ysc, ssf), []), [],
         And(Eq(xsc, xsf), Eq(ysc, ssf)), Eq(ysc, ssf), got_ti)
@@ -219,13 +229,7 @@ def sf_props():
     got_dm_ex = mp(got_dm_fwd, ax(in_dm_sf), in_dm_sf, ex_dm)
 
     ordp_dm_xs = OrdPair(q_dm, xsf, ssf)
-    got_ti_dm = apply_thm(ku, [xsv, y1sv, xsf, ssf, q_dm], ordp_dm,
-        Forall(qv2, Implies(OrdPair(qv2, xsf, ssf), Implies(Eq(q_dm, qv2),
-            And(Eq(xsv, xsf), Eq(y1sv, ssf))))), ax(ordp_dm))
-    got_ti_dm = apply_thm(got_ti_dm, [q_dm], ordp_dm_xs,
-        Implies(Eq(q_dm, q_dm), And(Eq(xsv, xsf), Eq(y1sv, ssf))), ax(ordp_dm_xs))
-    got_ti_dm = mp(got_ti_dm, apply_thm(er, [q_dm], concl=Eq(q_dm, q_dm)),
-        Eq(q_dm, q_dm), And(Eq(xsv, xsf), Eq(y1sv, ssf)))
+    got_ti_dm = _tuple_inject(ku, er, xsv, y1sv, xsf, ssf, q_dm, ordp_dm, ordp_dm_xs, qv2)
     got_eq_xv = apply_thm(and_elim_left(Eq(xsv, xsf), Eq(y1sv, ssf), []), [],
         And(Eq(xsv, xsf), Eq(y1sv, ssf)), Eq(xsv, xsf), got_ti_dm)
 
@@ -298,13 +302,7 @@ def sf_props():
         fl(sf_char, sf_inst_ds, q_ds), sf_inst_ds, Implies(In(q_ds, sfv), ex_ds))
     got_ds_ex = mp(got_ds_fwd, ax(in_ds_sf), in_ds_sf, ex_ds)
     ordp_ds_xs = OrdPair(q_ds, xsf, ssf)
-    got_ti_ds = apply_thm(ku, [xds, yds, xsf, ssf, q_ds], ordp_ds,
-        Forall(qv2, Implies(OrdPair(qv2, xsf, ssf), Implies(Eq(q_ds, qv2),
-            And(Eq(xds, xsf), Eq(yds, ssf))))), ax(ordp_ds))
-    got_ti_ds = apply_thm(got_ti_ds, [q_ds], ordp_ds_xs,
-        Implies(Eq(q_ds, q_ds), And(Eq(xds, xsf), Eq(yds, ssf))), ax(ordp_ds_xs))
-    got_ti_ds = mp(got_ti_ds, apply_thm(er, [q_ds], concl=Eq(q_ds, q_ds)),
-        Eq(q_ds, q_ds), And(Eq(xds, xsf), Eq(yds, ssf)))
+    got_ti_ds = _tuple_inject(ku, er, xds, yds, xsf, ssf, q_ds, ordp_ds, ordp_ds_xs, qv2)
     got_eq_xds = apply_thm(and_elim_left(Eq(xds, xsf), Eq(yds, ssf), []), [],
         And(Eq(xds, xsf), Eq(yds, ssf)), Eq(xds, xsf), got_ti_ds)
     got_iff_xds = apply_thm(esub, [xds, xsf, w], Eq(xds, xsf),

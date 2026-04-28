@@ -5471,17 +5471,11 @@ def rec_h_apply_fwd():
     # For now, use qv for both in the actual proof (they ARE the same witness) but build
     # the kuratowski formula with different vars, then instantiate both with qv.
     qv2 = Var(postfix='q2')
-    ordp_q2my = OrdPair(qv2, mm, yr)
+    ordp_qmy = OrdPair(qv, mm, yr)
     ku = kuratowski()
     er = eq_reflexive()
-    got_eq_qq = apply_thm(er, [qv], concl=Eq(qv, qv))
-    # Stage 1: peel [n,y,mm,yr,qv] + OrdPair(qv,n,y) hyp
-    fa_s2 = Forall(qv2, Implies(ordp_q2my, Implies(Eq(qv, qv2), And(Eq(n, mm), Eq(y, yr)))))
-    got_ti = apply_thm(ku, [n, y, mm, yr, qv], ordp_q, fa_s2, ax(ordp_q))
-    # Stage 2: peel [qv2=qv] + OrdPair(qv,mm,yr) hyp (instantiate qv2 with qv)
-    fa_s2_inst = Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))))
-    got_ti = apply_thm(got_ti, [qv], ordp_qmy, Implies(Eq(qv, qv), And(Eq(n, mm), Eq(y, yr))), ax(ordp_qmy))
-    got_ti = mp(got_ti, got_eq_qq, Eq(qv, qv), And(Eq(n, mm), Eq(y, yr)))
+    from theorems.arithmetic import _tuple_inject
+    got_ti = _tuple_inject(ku, er, n, y, mm, yr, qv, ordp_q, ordp_qmy, qv2)
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(n,m), Eq(y,y'))
 
     # Extract Eq(n,m) and Eq(y,y'):
@@ -5693,15 +5687,10 @@ def rec_h_dom_sub():
 
     # pair_injection: OrdPair(q,x,y) and OrdPair(q,m,y') with Eq(q,q) -> Eq(x,m)
     qv2 = Var(postfix='q2')
-    ordp_q2my = OrdPair(qv2, mm, yr)
     ku = kuratowski()
     er = eq_reflexive()
-    got_eq_qq = apply_thm(er, [qv], concl=Eq(qv, qv))
-    fa_s2 = Forall(qv2, Implies(ordp_q2my, Implies(Eq(qv, qv2), And(Eq(x, mm), Eq(y, yr)))))
-    got_ti = apply_thm(ku, [x, y, mm, yr, qv], ordp_q, fa_s2, ax(ordp_q))
-    fa_s2_inst = Implies(ordp_qmy, Implies(Eq(qv, qv), And(Eq(x, mm), Eq(y, yr))))
-    got_ti = apply_thm(got_ti, [qv], ordp_qmy, Implies(Eq(qv, qv), And(Eq(x, mm), Eq(y, yr))), ax(ordp_qmy))
-    got_ti = mp(got_ti, got_eq_qq, Eq(qv, qv), And(Eq(x, mm), Eq(y, yr)))
+    from theorems.arithmetic import _tuple_inject
+    got_ti = _tuple_inject(ku, er, x, y, mm, yr, qv, ordp_q, ordp_qmy, qv2)
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(x,m), Eq(y,y'))
 
     # Extract Eq(x,m):
