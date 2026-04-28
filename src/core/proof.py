@@ -110,6 +110,7 @@ def _check_rule(proof: Proof) -> bool:
 # --- Identity ---
 
 def _check_axiom(s, ps, principal):
+    """A |- A. Principal must be in both left and right."""
     if len(ps) != 0 or principal is None:
         return False
     return _in(principal, s.left) and _in(principal, s.right)
@@ -118,6 +119,8 @@ def _check_axiom(s, ps, principal):
 # --- Not ---
 
 def _check_not_left(s, ps, principal):
+    """G, Not(A) |- D  from  G |- D, A.
+    Principal Not(A) on left; premise moves A to right."""
     if len(ps) != 1 or not isinstance(principal, Not):
         return False
     if not _in(principal, s.left):
@@ -127,6 +130,8 @@ def _check_not_left(s, ps, principal):
 
 
 def _check_not_right(s, ps, principal):
+    """G |- D, Not(A)  from  G, A |- D.
+    Principal Not(A) on right; premise moves A to left."""
     if len(ps) != 1 or not isinstance(principal, Not):
         return False
     if not _in(principal, s.right):
@@ -138,6 +143,8 @@ def _check_not_right(s, ps, principal):
 # --- Implies ---
 
 def _check_implies_left(s, ps, principal):
+    """G, A->B |- D  from  G |- D, A  and  G, B |- D.
+    Principal A->B on left; prem0 proves A, prem1 uses B."""
     if len(ps) != 2 or not isinstance(principal, Implies):
         return False
     if not _in(principal, s.left):
@@ -148,6 +155,8 @@ def _check_implies_left(s, ps, principal):
 
 
 def _check_implies_right(s, ps, principal):
+    """G |- D, A->B  from  G, A |- D, B.
+    Principal A->B on right; premise assumes A and proves B."""
     if len(ps) != 1 or not isinstance(principal, Implies):
         return False
     if not _in(principal, s.right):
@@ -160,6 +169,8 @@ def _check_implies_right(s, ps, principal):
 # --- Forall ---
 
 def _check_forall_left(s, ps, principal, t):
+    """G, Forall(x,A) |- D  from  G, A[x:=t] |- D.
+    Principal Forall(x,A) on left; premise instantiates x with term t."""
     if len(ps) != 1 or t is None or not isinstance(principal, Forall):
         return False
     if not _in(principal, s.left):
@@ -170,6 +181,8 @@ def _check_forall_left(s, ps, principal, t):
 
 
 def _check_forall_right(s, ps, principal, y):
+    """G |- D, Forall(x,A)  from  G |- D, A[x:=y].
+    Principal Forall(x,A) on right; y is eigenvariable (fresh, not free in G or D)."""
     if len(ps) != 1 or y is None or not isinstance(principal, Forall):
         return False
     if not _in(principal, s.right):
@@ -186,6 +199,8 @@ def _check_forall_right(s, ps, principal, y):
 # --- Cut ---
 
 def _check_cut(s, ps, principal):
+    """G |- D  from  G |- D, C  and  G, C |- D.
+    Principal C is the cut formula; appears on prem0 right and prem1 left."""
     if len(ps) != 2 or principal is None:
         return False
     return (_eq_sequent(ps[0], Sequent(s.left, _set_add(s.right, principal))) and
@@ -195,22 +210,24 @@ def _check_cut(s, ps, principal):
 # --- Structural ---
 
 def _check_weakening_left(s, ps, principal):
+    """G, A |- D  from  G |- D.
+    Principal A added to left. No-op if A already in premise."""
     if len(ps) != 1 or principal is None:
         return False
     if not _in(principal, s.left):
         return False
-    # Set semantics: if principal already in premise, weakening is a no-op.
     if _in(principal, ps[0].left):
         return _eq_sequent(ps[0], s)
     return _eq_sequent(ps[0], Sequent(_remove(s.left, principal), s.right))
 
 
 def _check_weakening_right(s, ps, principal):
+    """G |- D, A  from  G |- D.
+    Principal A added to right. No-op if A already in premise."""
     if len(ps) != 1 or principal is None:
         return False
     if not _in(principal, s.right):
         return False
-    # Set semantics: if principal already in premise, weakening is a no-op.
     if _in(principal, ps[0].right):
         return _eq_sequent(ps[0], s)
     return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, principal)))
