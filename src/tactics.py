@@ -15,17 +15,25 @@ def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
     concl: the conclusion after instantiation (= body when hyp is None)
     hyp_proof: proof of hyp_ctx |- hyp (None when hyp is None)
     Returns: proof of thm_ctx |- concl (pure) or thm_ctx + hyp_ctx |- concl (with hyp)"""
+    from core.proof import _expand, _subst
     body = Implies(hyp, concl) if hyp is not None else concl
-    layers = [body]
-    for t in reversed(terms):
-        layers.append(Forall(t, layers[-1]))
+    # Peel theorem's actual Foralls, compute partial instantiations
+    thm_concl = thm.sequent.right[0]
+    foralls = []  # foralls[i] = Forall at level i (partially instantiated)
+    f = thm_concl
+    for t in terms:
+        f = _expand(f)
+        foralls.append(f)
+        f = _subst(f.body, f.var, t)
+    # f is now the fully instantiated body
+    # Build forall_left chain bottom-up
     cur = Proof(Sequent([body], [body]), 'axiom', principal=body)
-    for i in range(len(terms)):
-        cur = Proof(Sequent([layers[i + 1]], [body]), 'forall_left',
-                    [cur], principal=layers[i + 1], term=terms[len(terms) - 1 - i])
+    for i in reversed(range(len(terms))):
+        cur = Proof(Sequent([foralls[i]], [body]), 'forall_left',
+                    [cur], principal=foralls[i], term=terms[i])
     thm_ctx = list(thm.sequent.left)
     inst = Proof(Sequent(thm_ctx, [body]), 'cut',
-        [wr(thm, body), wl(cur, *thm_ctx)], principal=layers[-1])
+        [wr(thm, body), wl(cur, *thm_ctx)], principal=thm_concl)
     if hyp is None:
         return inst
     imp = body
