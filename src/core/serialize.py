@@ -12,10 +12,11 @@ from core.proof import Proof, Sequent, _expand
 
 BOUND = 0
 FREE = 1
-TAG_IN = 2
-TAG_NOT = 3
-TAG_IMPLIES = 4
-TAG_FORALL = 5
+SCHEMA = 2
+TAG_IN = 3
+TAG_NOT = 4
+TAG_IMPLIES = 5
+TAG_FORALL = 6
 
 RULES = ['axiom', 'not_left', 'not_right', 'implies_left', 'implies_right',
          'forall_left', 'forall_right', 'cut', 'weakening_left', 'weakening_right']
@@ -49,9 +50,20 @@ def _read_varint(data, pos):
 # --- Encode ---
 
 def _encode(proof):
-    free_vars = {}   # Var -> id
-    formulas = {}    # tuple -> id
-    proofs = {}      # tuple -> id
+    free_vars = {}    # Var -> id
+    schema_vars = {}  # Var -> n (SCHEMA(0) for x, SCHEMA(1) for y)
+    formulas = {}     # tuple -> id
+    proofs = {}       # tuple -> id
+    axioms = []       # axiom descriptors for root left
+
+    # Collect schema vars from axioms on root's left
+    from core.zfc import ZFCAxiom, Separation, Replacement
+    for f in proof.sequent.left:
+        if isinstance(f, Separation):
+            schema_vars[Separation._str_x] = 0
+        elif isinstance(f, Replacement):
+            schema_vars[Replacement._str_x] = 0
+            schema_vars[Replacement._str_y] = 1
 
     def encode_free_var(v):
         if v not in free_vars:
@@ -80,6 +92,8 @@ def _encode(proof):
     def encode_var(v, ups):
         if v in ups:
             return (BOUND, ups[v])
+        if v in schema_vars:
+            return (SCHEMA, schema_vars[v])
         return (FREE, encode_free_var(v))
 
     def _encode_formula(f, ups):
@@ -115,15 +129,36 @@ def _encode(proof):
             proofs[key] = len(proofs)
         return proofs[key]
 
-    root = encode_proof(proof, '')
-    return len(free_vars), list(formulas.keys()), list(proofs.keys()), root
+    root = encode_proof(proof)
+
+    # Encode axiom descriptors for root's left
+    # Simple axioms: (tag,). Schemas: (tag, phi_formula_id, var_ids...)
+    AX_TAGS = {
+        'Extensionality': 0, 'EmptySet': 1, 'Pairing': 2, 'Union': 3,
+        'PowerSet': 4, 'Separation': 5, 'Infinity': 6, 'Choice': 7,
+        'Replacement': 8, 'Regularity': 9,
+    }
+    for f in proof.sequent.left:
+        if isinstance(f, Separation):
+            phi_id = encode_formula(f.phi(Separation._str_x))
+            var_ids = tuple(encode_var(v, {}) for v in f.vars)
+            axioms.append((AX_TAGS['Separation'], phi_id, var_ids))
+        elif isinstance(f, Replacement):
+            phi_id = encode_formula(f.phi(Replacement._str_x, Replacement._str_y))
+            var_ids = tuple(encode_var(v, {}) for v in f.vars)
+            axioms.append((AX_TAGS['Replacement'], phi_id, var_ids))
+        elif isinstance(f, ZFCAxiom):
+            axioms.append((AX_TAGS[type(f).__name__],))
+
+    return len(free_vars), list(formulas.keys()), list(proofs.keys()), axioms, root
 
 
 # --- Decode ---
 
-def _decode(free_var_count, formula_table, proof_table, root_id):
+def _decode(free_var_count, formula_table, proof_table, axiom_descs, root_id):
     free_vars = [Var() for _ in range(free_var_count)]
     bound_vars = []
+    schema_vars = [Var(), Var()]  # SCHEMA(0) and SCHEMA(1)
     formulas = [None] * len(formula_table)
     proofs = [None] * len(proof_table)
 
@@ -138,6 +173,8 @@ def _decode(free_var_count, formula_table, proof_table, root_id):
     def decode_var(entry):
         if entry[0] == BOUND:
             return decode_bound_var(entry[1])
+        elif entry[0] == SCHEMA:
+            return schema_vars[entry[1]]
         else:
             return decode_free_var(entry[1])
 
@@ -178,18 +215,41 @@ def _decode(free_var_count, formula_table, proof_table, root_id):
         )
         return proofs[idx]
 
-    return decode_proof(root_id)
+    # Reconstruct axioms for root's left
+    from core.zfc import (Extensionality, EmptySet, Pairing, Union, PowerSet,
+                          Separation, Infinity, Choice, Replacement, Regularity)
+    from core.proof import _subst
+    AX_CLASSES = [Extensionality, EmptySet, Pairing, Union, PowerSet,
+                  Separation, Infinity, Choice, Replacement, Regularity]
+    decoded_axioms = []
+    sx, sy = schema_vars[0], schema_vars[1]
+    for desc in axiom_descs:
+        tag = desc[0]
+        if tag == 5:  # Separation
+            phi_formula = decode_formula(desc[1])
+            vars_list = [decode_var(v) for v in desc[2]]
+            decoded_axioms.append(Separation(lambda x, _pf=phi_formula, _sx=sx: _subst(_pf, _sx, x), vars_list))
+        elif tag == 8:  # Replacement
+            phi_formula = decode_formula(desc[1])
+            vars_list = [decode_var(v) for v in desc[2]]
+            decoded_axioms.append(Replacement(
+                lambda x, y, _pf=phi_formula, _sx=sx, _sy=sy: _subst(_subst(_pf, _sx, x), _sy, y),
+                vars_list))
+        else:
+            decoded_axioms.append(AX_CLASSES[tag]())
+
+    return decode_proof(root_id), decoded_axioms
 
 
 # --- Pack/Unpack ---
 
 def serialize(proof):
-    fv_count, formula_table, proof_table, root = _encode(proof)
+    fv_count, formula_table, proof_table, axiom_descs, root = _encode(proof)
     buf = bytearray()
     w = lambda n: _write_varint(buf, n)
 
     def write_var(v):
-        w(v[0]); w(v[1])  # (BOUND/FREE, id)
+        w(v[0]); w(v[1])
 
     w(fv_count)
     w(len(formula_table))
@@ -216,6 +276,14 @@ def serialize(proof):
         if rule in HAS_TERM:
             write_var(trm)
         for pi in prems: w(pi)
+    w(len(axiom_descs))
+    for desc in axiom_descs:
+        w(desc[0])  # axiom tag
+        if desc[0] in (5, 8):  # Separation, Replacement
+            w(desc[1])  # phi formula id
+            w(len(desc[2]))  # vars count
+            for v in desc[2]:
+                write_var(v)
     w(root)
     return bytes(buf)
 
@@ -248,6 +316,15 @@ def deserialize(data):
         trm = read_var() if rule in HAS_TERM else None
         prems = tuple(r() for _ in range(PREM_COUNT[rule]))
         proof_table.append((rule, (left, right), pri, trm, prems))
+    axiom_descs = []
+    for _ in range(r()):
+        tag = r()
+        if tag in (5, 8):  # Separation, Replacement
+            phi_id = r()
+            vars_list = tuple(read_var() for _ in range(r()))
+            axiom_descs.append((tag, phi_id, vars_list))
+        else:
+            axiom_descs.append((tag,))
     root = r()
 
-    return _decode(fv_count, formula_table, proof_table, root)
+    return _decode(fv_count, formula_table, proof_table, axiom_descs, root)
