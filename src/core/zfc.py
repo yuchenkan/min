@@ -58,6 +58,9 @@ class Separation(ZFCAxiom):
     def __init__(self, phi, vars: list):
         self.phi = phi
         self.vars = vars
+        from core.proof import _free_vars
+        for v in _free_vars(phi(Separation._str_x)) - {Separation._str_x}:
+            assert v in vars, f'Separation: free var {v} in phi not in vars'
 
     def expand(self):
         a, b, x = Var(), Var(), Var()
@@ -100,6 +103,9 @@ class Replacement(ZFCAxiom):
     def __init__(self, phi, vars: list):
         self.phi = phi
         self.vars = vars
+        from core.proof import _free_vars
+        for v in _free_vars(phi(Replacement._str_x, Replacement._str_y)) - {Replacement._str_x, Replacement._str_y}:
+            assert v in vars, f'Replacement: free var {v} in phi not in vars'
 
     def expand(self):
         a, b, x, y, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()

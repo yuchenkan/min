@@ -61,16 +61,19 @@ def verify(proof: Proof, axiom_checker, trust=False, cache=True) -> bool:
     for f in s.left:
         if not axiom_checker(f):
             return False
-    return _verify(proof, trust, cache)
+    return _verify(proof, trust, cache, '')
 
 
-def _verify(proof: Proof, trust: bool, cache: bool) -> bool:
+def _verify(proof: Proof, trust: bool, cache: bool, pp) -> bool:
+    #if pp == '01000000000100000000100000000110100000100001100000010010000000':
+    #    print(proof.principal)
+    #    exit(1)
     if cache and getattr(proof, '_verified', False):
         return True
     if trust and proof.trusted:
         return True
-    for p in proof.premises:
-        if not _verify(p, trust, cache):
+    for i, p in enumerate(proof.premises):
+        if not _verify(p, trust, cache, f'{pp}{i}'):
             return False
     if not _check_rule(proof):
         return False
@@ -236,7 +239,7 @@ def _check_weakening_right(s, ps, principal):
 # --- Formula equality (alpha-equivalence, expands definitions) ---
 
 def _eq(a, b, env=None):
-    if a is b:
+    if a is b and env is None:
         return True
     if env is None:
         env = []

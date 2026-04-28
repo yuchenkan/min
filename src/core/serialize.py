@@ -59,7 +59,7 @@ def _encode(proof):
         return free_vars[v]
 
     # Pass 1: expand + create fresh binding vars, return (formula, {Var: up}, next_up)
-    def expand_fresh(f, subst={}):
+    def expand_fresh(f, subst):
         f = _expand(f)
         match f:
             case In(l, r):
@@ -97,7 +97,7 @@ def _encode(proof):
         return formulas[key]
 
     def encode_formula(f):
-        ef, ups, _ = expand_fresh(f)
+        ef, ups, _ = expand_fresh(f, {})
         return _encode_formula(ef, ups)
 
     def encode_sequent(seq):
@@ -115,7 +115,7 @@ def _encode(proof):
             proofs[key] = len(proofs)
         return proofs[key]
 
-    root = encode_proof(proof)
+    root = encode_proof(proof, '')
     return len(free_vars), list(formulas.keys()), list(proofs.keys()), root
 
 
