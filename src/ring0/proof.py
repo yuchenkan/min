@@ -23,25 +23,25 @@ class Proof:
         self.substituted = substituted
 
 
-def verify(proof, axioms):
-    """Verify a proof. axioms is a set of formula objects (identity-based)."""
+def verify(proof, axioms, verified):
+    """Verify a proof. axioms is a set of formula objects. verified is a set of proof objects."""
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(next(iter(s.right))):
         return False
     if not s.left <= axioms:
         return False
-    return _verify(proof)
+    return _verify(proof, verified)
 
 
-def _verify(proof):
-    if getattr(proof, '_verified', False):
+def _verify(proof, verified):
+    if proof in verified:
         return True
     for p in proof.premises:
-        if not _verify(p):
+        if not _verify(p, verified):
             return False
     if not _check_rule(proof):
         return False
-    proof._verified = True
+    verified.add(proof)
     return True
 
 

@@ -5,7 +5,7 @@ No definitions. No tactics. No proof construction.
 """
 
 from ring0.lang import Var, In, Not, Implies, Forall
-from ring0.proof import Proof, Sequent
+from ring0.proof import Proof, Sequent, verify
 from ring0 import zfc
 
 
@@ -183,6 +183,7 @@ class DecodeContext:
         self.bound_vars = {}
         self.formulas = {}
         self.proofs = {}
+        self.verified = set()
 
 
 def decode_var(entry, ctx, schema_vars):
@@ -306,16 +307,20 @@ def decode(data, ctx):
     for aid in axiom_ids:
         axioms.add(decode_formula(aid, formula_table2, dec_ctx, None))
 
-    return proof2, axioms
+    return verify(proof2, axioms, dec_ctx.verified)
 
 
 def save_ctx(ctx, path):
     enc_ctx, dec_ctx = ctx
+    # Reverse map: Proof obj -> idx
+    proof_to_idx = {p: i for i, p in dec_ctx.proofs.items()}
+    verified_ids = [proof_to_idx[p] for p in dec_ctx.verified if p in proof_to_idx]
     import pickle
     with open(path, 'wb') as f:
         pickle.dump({
             'formulas': list(enc_ctx.formulas.keys()),
             'proofs': list(enc_ctx.proofs.keys()),
+            'verified': verified_ids,
         }, f)
 
 
@@ -336,4 +341,8 @@ def load_ctx(path):
         decode_formula(i, formula_table, dec_ctx, None)
     for i in range(len(proof_table)):
         _decode(formula_table, proof_table, i, dec_ctx, has_substituted=True)
+    # Restore verified set
+    for i in data['verified']:
+        if i in dec_ctx.proofs:
+            dec_ctx.verified.add(dec_ctx.proofs[i])
     return enc_ctx, dec_ctx
