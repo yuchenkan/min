@@ -3807,3 +3807,26 @@ def exists_num(k):
 
     got_ex_cur.name = f'exists_num_{k}'
     return got_ex_cur
+
+
+def plus_assoc():
+    """Associativity of addition: (m + n) + k = m + (n + k).
+    |- forall w, m, n, k, p, q, r.
+         Omega(w) -> In(m, w) -> In(n, w) -> In(k, w) ->
+         Plus(m, n, p) -> Plus(p, k, q) ->
+         Plus(n, k, r) -> Plus(m, r, q)
+    """
+    from definitions import Plus as PlusDef
+
+    w = Var(postfix='w')
+    m, n, k = Var(postfix='m'), Var(postfix='n'), Var(postfix='k')
+    p, q, r = Var(postfix='p'), Var(postfix='q'), Var(postfix='r')
+    omega_w = Omega(w)
+
+    goal = Forall(w, Forall(m, Forall(n, Forall(k, Forall(p, Forall(q, Forall(r,
+        Implies(omega_w, Implies(In(m, w), Implies(In(n, w), Implies(In(k, w),
+            Implies(PlusDef(m, n, p), Implies(PlusDef(p, k, q),
+                Implies(PlusDef(n, k, r), PlusDef(m, r, q)))))))))))))))
+    assert str(goal)
+
+    raise NotImplementedError('plus_assoc proof TODO')
