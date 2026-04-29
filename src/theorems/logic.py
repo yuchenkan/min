@@ -1088,9 +1088,9 @@ def iff_sym(P, Q, vars: list[Var]):
 
 
 
-def char_transfer(A, B, C):
-    """|- Iff(A,B) implies Iff(B,C) implies Iff(A,C)
-    No quantifiers -- for inline composition. Same as iff_chain core."""
+def char_transfer(A, B, C, vars: list[Var] = None):
+    """|- [forall vars.] Iff(A,B) implies Iff(B,C) implies Iff(A,C)
+    When vars is None or empty, no quantifiers (for inline composition)."""
     AB = Implies(A, B); BA = Implies(B, A)
     BC = Implies(B, C); CB = Implies(C, B)
     AC = Implies(A, C); CA = Implies(C, A)
@@ -1243,6 +1243,11 @@ def char_transfer(A, B, C):
     imp1 = Implies(iff_bc, iff_ac)
     s1 = Proof(Sequent([iff_ab], [imp1]), 'implies_right', [core], principal=imp1)
     imp2 = Implies(iff_ab, imp1)
-    return Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+    proof = Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
+    for v in (vars or []):
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
+    return proof
 
 
