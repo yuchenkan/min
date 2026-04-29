@@ -70,25 +70,6 @@ def _encode(proof):
             free_vars[v] = len(free_vars)
         return free_vars[v]
 
-    # Pass 1: expand + create fresh binding vars, return (formula, {Var: up}, next_up)
-    def expand_fresh(f, subst):
-        f = _expand(f)
-        match f:
-            case In(l, r):
-                return In(subst.get(l, l), subst.get(r, r)), {}, 0
-            case Not(o):
-                eo, ups, n = expand_fresh(o, subst)
-                return Not(eo), ups, n
-            case Implies(l, r):
-                el, ups_l, n = expand_fresh(l, subst)
-                er, ups_r, m = expand_fresh(r, subst)
-                return Implies(el, er), {**ups_l, **ups_r}, max(n, m)
-            case Forall(v, b):
-                fresh_v = Var()
-                eb, ups, n = expand_fresh(b, {**subst, v: fresh_v})
-                return Forall(fresh_v, eb), {**ups, fresh_v: n}, n + 1
-
-    # Pass 2: encode (expanded, fresh vars, no _expand needed)
     def encode_var(v, ups):
         if v in ups:
             return (BOUND, ups[v])
@@ -96,25 +77,50 @@ def _encode(proof):
             return (SCHEMA, schema_vars[v])
         return (FREE, encode_free_var(v))
 
-    def _encode_formula(f, ups):
-        match f:
-            case In(l, r):
-                key = (TAG_IN, encode_var(l, ups), encode_var(r, ups))
-            case Not(o):
-                key = (TAG_NOT, _encode_formula(o, ups))
-            case Implies(l, r):
-                key = (TAG_IMPLIES, _encode_formula(l, ups), _encode_formula(r, ups))
-            case Forall(v, b):
-                key = (TAG_FORALL, (BOUND, ups[v]), _encode_formula(b, ups))
-        if key not in formulas:
-            formulas[key] = len(formulas)
-        return formulas[key]
-
     encode_formula_cache = {}
     def encode_formula(f):
-        if f not in encode_formula_cache:
-            ef, ups, _ = expand_fresh(f, {})
-            encode_formula_cache[f] = _encode_formula(ef, ups)
+        if f in encode_formula_cache:
+            return encode_formula_cache[f]
+
+        aps = {}
+        def assign_pos(f):
+            f = _expand(f)
+            match f:
+                case In(l, r):
+                    return 0
+                case Not(o):
+                    return _assign_pos(o)
+                case Implies(l, r):
+                    return max(_assign_pos(l), _assign_pos(r))
+                case Forall(v, b):
+                    aps[f] = _assign_pos(b)
+                    return aps[f] + 1
+
+        seen = {}
+        def _assign_pos(f):
+            if f in seen:
+                return seen[f]
+            seen[f] = assign_pos(f)
+            return seen[f]
+
+        assign_pos(f)
+
+        def _encode_formula(f, ups):
+            f = _expand(f)
+            match f:
+                case In(l, r):
+                    key = (TAG_IN, encode_var(l, ups), encode_var(r, ups))
+                case Not(o):
+                    key = (TAG_NOT, _encode_formula(o, ups))
+                case Implies(l, r):
+                    key = (TAG_IMPLIES, _encode_formula(l, ups), _encode_formula(r, ups))
+                case Forall(v, b):
+                    key = (TAG_FORALL, (BOUND, aps[f]), _encode_formula(b, {**ups, v: aps[f]}))
+            if key not in formulas:
+                formulas[key] = len(formulas)
+            return formulas[key]
+
+        encode_formula_cache[f] = _encode_formula(f, {})
         return encode_formula_cache[f]
 
     def encode_sequent(seq):
