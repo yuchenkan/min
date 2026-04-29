@@ -26,12 +26,6 @@ class Proof:
         self.principal = principal
         self.substituted = substituted
 
-    def theorem(self) -> Formula:
-        s = self.sequent
-        result = s.right[0] if len(s.right) == 1 else None
-        for f in reversed(s.left):
-            result = Implies(f, result)
-        return result
 
 
 def verify(proof: Proof, axiom_checker) -> bool:
