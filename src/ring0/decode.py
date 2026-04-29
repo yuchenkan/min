@@ -302,14 +302,11 @@ def decode(data, ctx):
     proof2 = _decode(formula_table2, list(enc_ctx.proofs.keys()), root_id2, dec_ctx, has_substituted=True)
 
     # Decode axiom formulas into dec_ctx, collect as set for identity check
-    axiom_objs = set()
+    axioms = set()
     for aid in axiom_ids:
-        axiom_objs.add(decode_formula(aid, formula_table2, dec_ctx, None))
+        axioms.add(decode_formula(aid, formula_table2, dec_ctx, None))
 
-    def is_axiom(f):
-        return f in axiom_objs
-
-    return proof2, is_axiom
+    return proof2, axioms
 
 
 def save_ctx(ctx, path):

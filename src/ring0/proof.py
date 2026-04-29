@@ -23,13 +23,13 @@ class Proof:
         self.substituted = substituted
 
 
-def verify(proof, axiom_checker):
+def verify(proof, axioms):
+    """Verify a proof. axioms is a set of formula objects (identity-based)."""
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(next(iter(s.right))):
         return False
-    for f in s.left:
-        if not axiom_checker(f):
-            return False
+    if not s.left <= axioms:
+        return False
     return _verify(proof)
 
 
