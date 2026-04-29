@@ -3911,12 +3911,211 @@ def plus_assoc():
     P_body = Implies(Apply(hp, k, qv), Implies(Apply(hn, k, rv), Apply(hm, rv, qv)))
     P_k = Forall(qv, Forall(rv, P_body))
 
-    # TODO: the full proof body follows plus_comm's structure
-    # - Open all 3 Plus, unify omega/sf via omega_unique + sf_apply_transfer
-    # - Base case: k=0, use rec_h_zero_identity for hp, hn
-    # - Step case: k→S(k), use rec_step_succ for hp, hn, hm
-    # - Close by omega_smallest_inductive
-    # - Instantiate P(k) with actual q, r to get Apply(hm, r, q)
-    # - Fold back into Plus(m, r, q)
+    # ====================================================================
+    # Section 3: Extract Recursive base/step for hp, hn
+    # ====================================================================
+    # Recursive(h, init, sf, w) expands to Function(h) /\ dom_sub(h) /\ base(h,init) /\ step(h)
+    # base(h, init) = forall e. Empty(e) -> Apply(h, e, init)
+    ev = Var()
+    base_hp = Forall(ev, Implies(Empty(ev), Apply(hp, ev, p)))
+    base_hn = Forall(ev, Implies(Empty(ev), Apply(hn, ev, n)))
+    # We'll extract these from rec_hp and rec_hn using and_elim
 
-    raise NotImplementedError('plus_assoc sections 3-10 TODO')
+    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
+    step_hp = Forall(nst, Implies(In(nst, wv),
+        Forall(valst, Implies(Apply(hp, nst, valst),
+            Forall(snst, Implies(SuccDef(snst, nst),
+                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                    Apply(hp, snst, fvalst)))))))))
+    step_hn = Forall(nst, Implies(In(nst, wv),
+        Forall(valst, Implies(Apply(hn, nst, valst),
+            Forall(snst, Implies(SuccDef(snst, nst),
+                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                    Apply(hn, snst, fvalst)))))))))
+    step_hm = Forall(nst, Implies(In(nst, wv),
+        Forall(valst, Implies(Apply(hm, nst, valst),
+            Forall(snst, Implies(SuccDef(snst, nst),
+                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                    Apply(hm, snst, fvalst)))))))))
+
+    func_hp = FuncDef(hp)
+    func_hn = FuncDef(hn)
+    func_hm = FuncDef(hm)
+    xd_h, yd_h = Var(), Var()
+    dom_sub_hp = Forall(xd_h, Implies(Exists(yd_h, Apply(hp, xd_h, yd_h)), In(xd_h, wv)))
+    dom_sub_hn = Forall(xd_h, Implies(Exists(yd_h, Apply(hn, xd_h, yd_h)), In(xd_h, wv)))
+    dom_sub_hm = Forall(xd_h, Implies(Exists(yd_h, Apply(hm, xd_h, yd_h)), In(xd_h, wv)))
+
+    # Extract base_hp from rec_hp:
+    and_base_step_hp = And(base_hp, step_hp)
+    and_dom_bs_hp = And(dom_sub_hp, and_base_step_hp)
+    got_dom_bs_hp = apply_thm(and_elim_right(func_hp, and_dom_bs_hp, []), [],
+        rec_hp, and_dom_bs_hp, ax(rec_hp))
+    got_base_hp = apply_thm(and_elim_left(base_hp, step_hp, []), [],
+        and_base_step_hp, base_hp,
+        apply_thm(and_elim_right(dom_sub_hp, and_base_step_hp, []), [],
+            and_dom_bs_hp, and_base_step_hp, got_dom_bs_hp))
+
+    # Extract base_hn from rec_hn:
+    and_base_step_hn = And(base_hn, step_hn)
+    and_dom_bs_hn = And(dom_sub_hn, and_base_step_hn)
+    got_dom_bs_hn = apply_thm(and_elim_right(func_hn, and_dom_bs_hn, []), [],
+        rec_hn, and_dom_bs_hn, ax(rec_hn))
+    got_base_hn = apply_thm(and_elim_left(base_hn, step_hn, []), [],
+        and_base_step_hn, base_hn,
+        apply_thm(and_elim_right(dom_sub_hn, and_base_step_hn, []), [],
+            and_dom_bs_hn, and_base_step_hn, got_dom_bs_hn))
+
+    # ====================================================================
+    # Section 4: Base case — P(0)
+    # ====================================================================
+    # P(0) = forall q',r'. Apply(hp,0,q') -> Apply(hn,0,r') -> Apply(hm,r',q')
+    # hp(0)=p, hn(0)=n, given Apply(hm,n,p).
+    # So: Apply(hp,0,q') means q'=p (by func_unique on hp).
+    # Apply(hn,0,r') means r'=n (by func_unique on hn).
+    # Then Apply(hm,r',q') = Apply(hm,n,p) — given.
+    #
+    # For now: use the base property to get Apply(hp,0,p) and Apply(hn,0,n),
+    # then use func_unique to transfer to arbitrary q',r'.
+
+    eb = Var(postfix='eb')
+    empty_eb = Empty(eb)
+    oce = omega_contains_empty()
+    got_eb_wv = apply_thm(oce, [wv], omega_wv,
+        Forall(eb, Implies(empty_eb, In(eb, wv))), ax(omega_wv))
+    got_eb_wv = apply_thm(got_eb_wv, [eb], empty_eb, In(eb, wv), ax(empty_eb))
+    # [omega_wv, Ext, Inf, Empty(eb)] |- In(eb, wv)
+
+    # Apply(hp, eb, p) from base_hp:
+    got_hp_0 = apply_thm(got_base_hp, [eb], empty_eb, Apply(hp, eb, p), ax(empty_eb))
+    # Apply(hn, eb, n) from base_hn:
+    got_hn_0 = apply_thm(got_base_hn, [eb], empty_eb, Apply(hn, eb, n), ax(empty_eb))
+
+    # For P(0) we need: forall q',r'. Apply(hp,eb,q') -> Apply(hn,eb,r') -> Apply(hm,r',q')
+    # Given Apply(hm,n,p), Apply(hp,eb,p), Apply(hn,eb,n):
+    # Apply(hp,eb,q') + func_unique(hp) + Apply(hp,eb,p) -> Eq(q',p)
+    # Apply(hn,eb,r') + func_unique(hn) + Apply(hn,eb,n) -> Eq(r',n)
+    # Eq(r',n) + Eq(q',p) + Apply(hm,n,p) -> Apply(hm,r',q') via eq_apply_val_transfer
+    from theorems.recursion import eq_apply_val_transfer, eq_apply_transfer
+    from theorems.omega import func_unique_thm
+
+    fut = func_unique_thm()
+    eavt = eq_apply_val_transfer()
+
+    # func_unique: Function(h) -> Apply(h,x,y1) -> Apply(h,x,y2) -> Eq(y1,y2)
+    # Get Eq(qv, p) from Apply(hp,eb,qv) + Apply(hp,eb,p):
+    got_eq_qv_p = apply_thm(fut, [hp, eb, qv, p], func_hp,
+        Implies(Apply(hp, eb, qv), Implies(Apply(hp, eb, p), Eq(qv, p))),
+        ax(func_hp))
+    got_eq_qv_p = mp(mp(got_eq_qv_p, ax(Apply(hp, eb, qv)),
+        Apply(hp, eb, qv), Implies(Apply(hp, eb, p), Eq(qv, p))),
+        got_hp_0, Apply(hp, eb, p), Eq(qv, p))
+
+    # Eq(rv, n) from Apply(hn,eb,rv) + Apply(hn,eb,n):
+    got_eq_rv_n = apply_thm(fut, [hn, eb, rv, n], func_hn,
+        Implies(Apply(hn, eb, rv), Implies(Apply(hn, eb, n), Eq(rv, n))),
+        ax(func_hn))
+    got_eq_rv_n = mp(mp(got_eq_rv_n, ax(Apply(hn, eb, rv)),
+        Apply(hn, eb, rv), Implies(Apply(hn, eb, n), Eq(rv, n))),
+        got_hn_0, Apply(hn, eb, n), Eq(rv, n))
+
+    # Step 1: Eq(rv,n) -> Eq(n,rv) via eq_symmetric
+    es = eq_symmetric()
+    got_eq_n_rv = apply_thm(es, [rv, n], Eq(rv, n), Eq(n, rv), got_eq_rv_n)
+    # Step 2: eq_apply_transfer: Eq(n,rv) -> Apply(hm,n,p) -> Apply(hm,rv,p)
+    eat = eq_apply_transfer()
+    got_hm_rv_p = apply_thm(eat, [hm, n, rv, p], Eq(n, rv),
+        Implies(app_hm_np, Apply(hm, rv, p)), got_eq_n_rv)
+    got_hm_rv_p = mp(got_hm_rv_p, ax(app_hm_np), app_hm_np, Apply(hm, rv, p))
+    # Step 3: Eq(qv,p) -> Eq(p,qv)
+    got_eq_p_qv = apply_thm(es, [qv, p], Eq(qv, p), Eq(p, qv), got_eq_qv_p)
+    # Step 4: eq_apply_val_transfer: Eq(p,qv) -> Apply(hm,rv,p) -> Apply(hm,rv,qv)
+    got_hm_base = apply_thm(eavt, [hm, rv, p, qv], Eq(p, qv),
+        Implies(Apply(hm, rv, p), Apply(hm, rv, qv)), got_eq_p_qv)
+    got_hm_base = mp(got_hm_base, got_hm_rv_p, Apply(hm, rv, p), Apply(hm, rv, qv))
+    # [rec_hp, rec_hn, app_hm_np, func_hp, func_hn, Apply(hp,eb,qv), Apply(hn,eb,rv),
+    #  Empty(eb), omega_wv, Ext, Inf] |- Apply(hm, rv, qv)
+
+    # Discharge Apply(hn,eb,rv) and Apply(hp,eb,qv), close forall rv, qv:
+    imp_hn = Implies(Apply(hn, eb, rv), Apply(hm, rv, qv))
+    rem_hn = [f_ for f_ in got_hm_base.sequent.left if not same(f_, Apply(hn, eb, rv))]
+    got_base_imp = Proof(Sequent(rem_hn, [imp_hn]), 'implies_right',
+        [got_hm_base], principal=imp_hn)
+    imp_hp = Implies(Apply(hp, eb, qv), imp_hn)
+    rem_hp = [f_ for f_ in got_base_imp.sequent.left if not same(f_, Apply(hp, eb, qv))]
+    got_base_imp2 = Proof(Sequent(rem_hp, [imp_hp]), 'implies_right',
+        [got_base_imp], principal=imp_hp)
+    # Close forall rv, qv:
+    P_eb = Forall(qv, Forall(rv, Implies(Apply(hp, eb, qv),
+        Implies(Apply(hn, eb, rv), Apply(hm, rv, qv)))))
+    fa_rv = Forall(rv, Implies(Apply(hp, eb, qv),
+        Implies(Apply(hn, eb, rv), Apply(hm, rv, qv))))
+    cur_base = Proof(Sequent(rem_hp, [fa_rv]), 'forall_right',
+        [got_base_imp2], principal=fa_rv, term=rv)
+    cur_base = Proof(Sequent(rem_hp, [P_eb]), 'forall_right',
+        [cur_base], principal=P_eb, term=qv)
+    # cur_base: [rec_hp, rec_hn, app_hm_np, func_hp, func_hn,
+    #            Empty(eb), omega_wv, Ext, Inf] |- P(eb)
+
+    # ====================================================================
+    # Section 5: Step case — P(k) -> P(S(k))
+    # ====================================================================
+    # Assume P(kv) for some kv in wv: forall q',r'. Apply(hp,kv,q') -> Apply(hn,kv,r') -> Apply(hm,r',q')
+    # Need: forall q',r'. Apply(hp,S(kv),q') -> Apply(hn,S(kv),r') -> Apply(hm,r',q')
+    #
+    # From rec_step_succ on hp: Apply(hp,kv,q0) -> Succ(skv,kv) -> Succ(sq0,q0) -> Apply(hp,skv,sq0)
+    # From rec_step_succ on hn: Apply(hn,kv,r0) -> Succ(skv,kv) -> Succ(sr0,r0) -> Apply(hn,skv,sr0)
+    # From rec_step_succ on hm: Apply(hm,r0,q0) -> Succ(sr0,r0) -> Succ(sq0,q0) -> Apply(hm,sr0,sq0)
+    #
+    # Apply(hp,skv,q') means q'=sq0 for some q0 with Apply(hp,kv,q0) (by func_unique on hp)
+    # Apply(hn,skv,r') means r'=sr0 for some r0 with Apply(hn,kv,r0)
+    # By IH: Apply(hm,r0,q0)
+    # By rec_step_succ on hm: Apply(hm,sr0,sq0)
+    # Then q'=sq0 and r'=sr0, so Apply(hm,r',q')
+
+    rss = rec_step_succ()
+
+    kv = Var(postfix='kv')
+    skv = Var(postfix='skv')
+    in_kv_wv = In(kv, wv)
+    succ_skv_kv = SuccDef(skv, kv)
+
+    # P(kv) instantiated:
+    q0 = Var(postfix='q0')
+    r0 = Var(postfix='r0')
+    sq0 = Var(postfix='sq0')
+    sr0 = Var(postfix='sr0')
+    succ_sq0_q0 = SuccDef(sq0, q0)
+    succ_sr0_r0 = SuccDef(sr0, r0)
+
+    P_kv = Forall(qv, Forall(rv, Implies(Apply(hp, kv, qv),
+        Implies(Apply(hn, kv, rv), Apply(hm, rv, qv)))))
+
+    # IH: Apply(hp,kv,q0) -> Apply(hn,kv,r0) -> Apply(hm,r0,q0)
+    # Peel P(kv) = Forall(qv, Forall(rv, ...)) with q0, r0
+    ih_fa_rv = Forall(rv, Implies(Apply(hp, kv, q0), Implies(Apply(hn, kv, rv), Apply(hm, rv, q0))))
+    ih_body = Implies(Apply(hp, kv, q0), Implies(Apply(hn, kv, r0), Apply(hm, r0, q0)))
+    ih = apply_thm(apply_thm(ax(P_kv), [q0], concl=ih_fa_rv), [r0], concl=ih_body)
+    ih = mp(mp(ih, ax(Apply(hp, kv, q0)), Apply(hp, kv, q0),
+        Implies(Apply(hn, kv, r0), Apply(hm, r0, q0))),
+        ax(Apply(hn, kv, r0)), Apply(hn, kv, r0), Apply(hm, r0, q0))
+    # ih: [P(kv), Apply(hp,kv,q0), Apply(hn,kv,r0)] |- Apply(hm,r0,q0)
+
+    # rec_step_succ on hm: need In(r0,wv), In(q0,wv)
+    # Get In(r0,wv) from dom_sub_hn + Apply(hn,kv,r0):
+    got_in_r0 = apply_thm(dom_sub_hn, [kv],
+        Exists(yd_h, Apply(hn, kv, yd_h)), In(kv, wv),
+        eir(ax(Apply(hn, kv, r0)), Apply(hn, kv, yd_h), yd_h, r0))
+    # Hmm, dom_sub gives In(kv, wv) not In(r0, wv). Need ran_sub or something.
+    # Actually we need In(r0, wv) — r0 is a value of hn. We need "values of h are in w".
+    # This comes from: In(kv, wv) + Apply(hn, kv, r0) + hn is total on w → r0 ∈ w.
+    # Actually, from rec_h_dom_sub or just from omega closure.
+    # rec_h_dom_sub: Apply(h,x,y) -> In(x,w). But that gives In(x,w), not In(y,w).
+    # For In(y,w): we need "ran(h) ⊆ w". Not directly available.
+    # BUT: from induction structure, if kv ∈ w and hn(kv) = r0,
+    # and h preserves membership (by rec_step_succ + omega_succ_closed),
+    # then r0 ∈ w. This is proven by induction on kv.
+    #
+    # This is a significant complication. Let me check if plus_comm handles this.
+
+    raise NotImplementedError('plus_assoc step case: need In(r0,wv) — values of h are in w')
