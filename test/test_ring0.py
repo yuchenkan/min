@@ -6,8 +6,9 @@ sys.path.insert(0, 'src')
 
 from core.lang import Var, In
 from core.serialize import serialize
-from ring0.decode import decode, save_ctx, EncodeContext, DecodeContext
+from ring0.decode import decode, save_ctx, load_ctx, EncodeContext, DecodeContext
 import theorems
+import os
 
 
 if __name__ == '__main__':
@@ -112,11 +113,17 @@ if __name__ == '__main__':
         ('sf_apply_transfer', theorems.sf_apply_transfer()),
         ('plus_comm', theorems.plus_comm()),
         ('rec_val_in_omega', theorems.rec_val_in_omega()),
+        ('plus_assoc', theorems.plus_assoc()),
         ('plus_2_3', theorems.prove_addition(2, 3)),
         ('exists_num_5', theorems.exists_num(5)),
     ]
 
-    ctx = (EncodeContext(), DecodeContext())
+    ctx_path = '/tmp/ring0_all.pkl'
+    if os.path.exists(ctx_path):
+        ctx = load_ctx(ctx_path)
+        print(f'loaded ctx: {len(ctx[1].verified):,} verified nodes')
+    else:
+        ctx = (EncodeContext(), DecodeContext())
     failed = []
     for name, proof in all_proofs:
         ok = decode(serialize(proof), ctx)
@@ -128,8 +135,7 @@ if __name__ == '__main__':
     print(f'\n{len(all_proofs) - len(failed)}/{len(all_proofs)} ring0 verified.')
     print(f'verified nodes: {len(ctx[1].verified):,}')
 
-    save_ctx(ctx, '/tmp/ring0_all.pkl')
-    import os
-    print(f'saved: {os.path.getsize("/tmp/ring0_all.pkl"):,} bytes')
+    save_ctx(ctx, ctx_path)
+    print(f'saved: {os.path.getsize(ctx_path):,} bytes')
 
     assert not failed, f'failed: {failed}'
