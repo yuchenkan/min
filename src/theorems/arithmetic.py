@@ -4749,19 +4749,23 @@ def plus_assoc():
 
     # rec_step_succ on hp: Apply(hp,xs,q0_s) + Succ(sxs,xs) + Succ(sq0_s,q0_s) → Apply(hp,sxs,sq0_s)
     rss = rec_step_succ()
-    got_rss_hp = apply_thm(rss, [wv, p, sfv, hp, xs, q0_s, sxs, sq0_s],
-        omega_wv, Implies(In(xs, wv), Implies(In(q0_s, wv), Implies(succ_char,
+    got_rss_hp = apply_thm(rss, [wv_p, p, sfv_p, hp, xs, q0_s, sxs, sq0_s],
+        omega_wp, Implies(In(xs, wv_p), Implies(In(q0_s, wv_p), Implies(succ_char_p,
             Implies(rec_hp, Implies(Apply(hp, xs, q0_s), Implies(succ_sxs_xs,
                 Implies(succ_sq0, Apply(hp, sxs, sq0_s)))))))),
-        ax(omega_wv))
-    got_rss_hp = mp(got_rss_hp, got_in_xs_wv, In(xs, wv),
-        Implies(In(q0_s, wv), Implies(succ_char, Implies(rec_hp,
+        ax(omega_wp))
+    in_xs_wp = In(xs, wv_p)
+    in_q0_wp = In(q0_s, wv_p)
+    got_in_xs_wp = transfer_in(xs, wv, wv_p, got_eq_wv_wp, got_in_xs_wv)
+    got_in_q0_wp = transfer_in(q0_s, wv, wv_p, got_eq_wv_wp, got_in_q0)
+    got_rss_hp = mp(got_rss_hp, got_in_xs_wp, in_xs_wp,
+        Implies(in_q0_wp, Implies(succ_char_p, Implies(rec_hp,
             Implies(Apply(hp, xs, q0_s), Implies(succ_sxs_xs,
                 Implies(succ_sq0, Apply(hp, sxs, sq0_s))))))))
-    got_rss_hp = mp(got_rss_hp, got_in_q0, In(q0_s, wv),
-        Implies(succ_char, Implies(rec_hp, Implies(Apply(hp, xs, q0_s),
+    got_rss_hp = mp(got_rss_hp, got_in_q0_wp, in_q0_wp,
+        Implies(succ_char_p, Implies(rec_hp, Implies(Apply(hp, xs, q0_s),
             Implies(succ_sxs_xs, Implies(succ_sq0, Apply(hp, sxs, sq0_s)))))))
-    got_rss_hp = mp(got_rss_hp, ax(succ_char), succ_char,
+    got_rss_hp = mp(got_rss_hp, ax(succ_char_p), succ_char_p,
         Implies(rec_hp, Implies(Apply(hp, xs, q0_s), Implies(succ_sxs_xs,
             Implies(succ_sq0, Apply(hp, sxs, sq0_s))))))
     got_rss_hp = mp(got_rss_hp, ax(rec_hp), rec_hp,
@@ -4773,20 +4777,24 @@ def plus_assoc():
         Implies(succ_sq0, Apply(hp, sxs, sq0_s)))
     got_rss_hp = mp(got_rss_hp, ax(succ_sq0), succ_sq0, Apply(hp, sxs, sq0_s))
 
-    # rec_step_succ on hn: Apply(hn,xs,r0_s) + Succ(sxs,xs) + Succ(sr0_s,r0_s) → Apply(hn,sxs,sr0_s)
-    got_rss_hn = apply_thm(rss, [wv, n, sfv, hn, xs, r0_s, sxs, sr0_s],
-        omega_wv, Implies(In(xs, wv), Implies(In(r0_s, wv), Implies(succ_char,
+    # rec_step_succ on hn: uses wv_n, sfv_n
+    got_rss_hn = apply_thm(rss, [wv_n, n, sfv_n, hn, xs, r0_s, sxs, sr0_s],
+        omega_wn, Implies(In(xs, wv_n), Implies(In(r0_s, wv_n), Implies(succ_char_n,
             Implies(rec_hn, Implies(Apply(hn, xs, r0_s), Implies(succ_sxs_xs,
                 Implies(succ_sr0, Apply(hn, sxs, sr0_s)))))))),
-        ax(omega_wv))
-    got_rss_hn = mp(got_rss_hn, got_in_xs_wv, In(xs, wv),
-        Implies(In(r0_s, wv), Implies(succ_char, Implies(rec_hn,
+        ax(omega_wn))
+    in_xs_wn = In(xs, wv_n)
+    in_r0_wn = In(r0_s, wv_n)
+    got_in_xs_wn = transfer_in(xs, wv, wv_n, got_eq_wv_wn, got_in_xs_wv)
+    got_in_r0_wn = transfer_in(r0_s, wv, wv_n, got_eq_wv_wn, got_in_r0)
+    got_rss_hn = mp(got_rss_hn, got_in_xs_wn, in_xs_wn,
+        Implies(in_r0_wn, Implies(succ_char_n, Implies(rec_hn,
             Implies(Apply(hn, xs, r0_s), Implies(succ_sxs_xs,
                 Implies(succ_sr0, Apply(hn, sxs, sr0_s))))))))
-    got_rss_hn = mp(got_rss_hn, got_in_r0, In(r0_s, wv),
-        Implies(succ_char, Implies(rec_hn, Implies(Apply(hn, xs, r0_s),
+    got_rss_hn = mp(got_rss_hn, got_in_r0_wn, in_r0_wn,
+        Implies(succ_char_n, Implies(rec_hn, Implies(Apply(hn, xs, r0_s),
             Implies(succ_sxs_xs, Implies(succ_sr0, Apply(hn, sxs, sr0_s)))))))
-    got_rss_hn = mp(got_rss_hn, ax(succ_char), succ_char,
+    got_rss_hn = mp(got_rss_hn, ax(succ_char_n), succ_char_n,
         Implies(rec_hn, Implies(Apply(hn, xs, r0_s), Implies(succ_sxs_xs,
             Implies(succ_sr0, Apply(hn, sxs, sr0_s))))))
     got_rss_hn = mp(got_rss_hn, ax(rec_hn), rec_hn,
@@ -5143,7 +5151,15 @@ def plus_assoc():
     proof = cut_all(proof, dom_sub_sf, got_dom_sf_from)
     proof = cut_all(proof, and_func_dom, got_fd_from)
 
-    # Fold Plus(p,k,q): cut components → and_sf_ra_p, eel sfv_p/hp, fold omega
+    # Fold Plus(p,k,q): cut succ_char_p components → sf_all_p, then fold
+    proof = cut_all(proof, succ_char_p, apply_thm(and_elim_left(succ_char_p, and_func_dom_p, []), [],
+        sf_all_p, succ_char_p, ax(sf_all_p)))
+    proof = cut_all(proof, func_sfp, apply_thm(and_elim_left(func_sfp, dom_sub_sfp, []), [],
+        and_func_dom_p, func_sfp, apply_thm(and_elim_right(succ_char_p, and_func_dom_p, []), [],
+            sf_all_p, and_func_dom_p, ax(sf_all_p))))
+    proof = cut_all(proof, dom_sub_sfp, apply_thm(and_elim_right(func_sfp, dom_sub_sfp, []), [],
+        and_func_dom_p, dom_sub_sfp, apply_thm(and_elim_right(succ_char_p, and_func_dom_p, []), [],
+            sf_all_p, and_func_dom_p, ax(sf_all_p))))
     proof = cut_all(proof, rec_hp, got_rec_hp_from)
     proof = cut_all(proof, app_hp_kq, got_app_hp_from)
     proof = cut_all(proof, func_hp, apply_thm(and_elim_left(func_hp,
@@ -5160,7 +5176,15 @@ def plus_assoc():
     if any(same(and_omega_p, g) for g in proof.sequent.left):
         proof = eel(proof, and_omega_p, wv_p)
 
-    # Fold Plus(n,k,r)
+    # Fold Plus(n,k,r): cut succ_char_n components → sf_all_n
+    proof = cut_all(proof, succ_char_n, apply_thm(and_elim_left(succ_char_n, and_func_dom_n, []), [],
+        sf_all_n, succ_char_n, ax(sf_all_n)))
+    proof = cut_all(proof, func_sfn, apply_thm(and_elim_left(func_sfn, dom_sub_sfn, []), [],
+        and_func_dom_n, func_sfn, apply_thm(and_elim_right(succ_char_n, and_func_dom_n, []), [],
+            sf_all_n, and_func_dom_n, ax(sf_all_n))))
+    proof = cut_all(proof, dom_sub_sfn, apply_thm(and_elim_right(func_sfn, dom_sub_sfn, []), [],
+        and_func_dom_n, dom_sub_sfn, apply_thm(and_elim_right(succ_char_n, and_func_dom_n, []), [],
+            sf_all_n, and_func_dom_n, ax(sf_all_n))))
     proof = cut_all(proof, rec_hn, got_rec_hn_from)
     proof = cut_all(proof, app_hn_kr, got_app_hn_from)
     proof = cut_all(proof, func_hn, apply_thm(and_elim_left(func_hn,
