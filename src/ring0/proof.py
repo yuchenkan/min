@@ -17,14 +17,13 @@ class Sequent:
 class Proof:
     def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None,
                  name: str = None, term: Var = None, principal: Formula = None,
-                 trusted: bool = False, substituted: Formula = None):
+                 substituted: Formula = None):
         self.sequent = sequent
         self.rule = rule
         self.premises = premises or []
         self.name = name
         self.term = term
         self.principal = principal
-        self.trusted = trusted
         self.substituted = substituted
 
     def theorem(self) -> Formula:
@@ -35,26 +34,22 @@ class Proof:
         return result
 
 
-def verify(proof: Proof, axiom_checker, trust=False, cache=True) -> bool:
-    """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions.
-    trust: if True, skip subtrees marked with trusted=True.
-    cache: if True, mark verified nodes and skip them on re-encounter."""
+def verify(proof: Proof, axiom_checker) -> bool:
+    """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions."""
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(next(iter(s.right))):
         return False
     for f in s.left:
         if not axiom_checker(f):
             return False
-    return _verify(proof, trust, cache)
+    return _verify(proof)
 
 
-def _verify(proof: Proof, trust: bool, cache: bool) -> bool:
-    if cache and getattr(proof, '_verified', False):
-        return True
-    if trust and proof.trusted:
+def _verify(proof: Proof) -> bool:
+    if getattr(proof, '_verified', False):
         return True
     for p in proof.premises:
-        if not _verify(p, trust, cache):
+        if not _verify(p):
             return False
     if not _check_rule(proof):
         return False
