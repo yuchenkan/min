@@ -257,15 +257,14 @@ def _decode(formula_table, proof_table, root_id, ctx, has_substituted=False):
 
     return decode_proof(root_id)
 
-def decode(data):
+def decode(data, ctx):
     """Decode binary data into (proof, axioms)."""
     formula_table, proof_table, axiom_descs, root_id = unpack(data)
 
-    enc_ctx = EncodeContext()
-    dec_ctx = DecodeContext()
+    enc_ctx, dec_ctx = ctx
 
-    ctx = DecodeContext()
-    proof = _decode(formula_table, proof_table, root_id, ctx)
+    mid_ctx = DecodeContext()
+    proof = _decode(formula_table, proof_table, root_id, mid_ctx)
 
     # Reconstruct axioms as core formulas
     schema_vars = {0: Var(), 1: Var()}
@@ -276,13 +275,13 @@ def decode(data):
     for desc in axiom_descs:
         tag = desc[0]
         if tag == 5:  # Separation
-            phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
-            vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
+            phi = decode_formula(desc[1], formula_table, mid_ctx, schema_vars)
+            vars_list = [decode_var(v, mid_ctx, schema_vars) for v in desc[2]]
             decoded_axioms.append(zfc.separation(
                 lambda x, _p=phi, _s=sx: _subst(_p, _s, x), vars_list))
         elif tag == 8:  # Replacement
-            phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
-            vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
+            phi = decode_formula(desc[1], formula_table, mid_ctx, schema_vars)
+            vars_list = [decode_var(v, mid_ctx, schema_vars) for v in desc[2]]
             decoded_axioms.append(zfc.replacement(
                 lambda x, y, _p=phi, _sx=sx, _sy=sy: _subst(_subst(_p, _sx, x), _sy, y),
                 vars_list))
