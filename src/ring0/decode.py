@@ -131,7 +131,8 @@ class EncodeContext:
         self.encode_proof_cache = {}
 
 
-def _encode(proof, ctx, free_vars):
+def _encode(proof, ctx):
+    free_vars = {}
 
     ef = lambda f: encode_formula(f, free_vars, ctx.formulas, ctx.encode_formula_cache)
 
@@ -253,10 +254,9 @@ def decode(data):
             decoded_axioms.append(AX_FUNCS[tag]())
 
     # Re-encode proof + axioms into global unique presentation
-    free_vars = {}
-    ef = lambda f: encode_formula(f, free_vars, enc_ctx.formulas, enc_ctx.encode_formula_cache)
+    ef = lambda f: encode_formula(f, None, enc_ctx.formulas, enc_ctx.encode_formula_cache)
 
-    root_id2 = _encode(proof, enc_ctx, free_vars)
+    root_id2 = _encode(proof, enc_ctx)
 
     axiom_ids = set()
     for ax in decoded_axioms:
