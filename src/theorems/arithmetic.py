@@ -3843,23 +3843,80 @@ def plus_assoc():
                 Implies(PlusDef(n, k, r), PlusDef(m, r, q)))))))))))))))
     assert str(goal)
 
-    # The proof follows plus_comm's structure but with 3 recursive functions.
-    # Key idea: reuse plus_comm to reduce to:
-    #   Plus(m,n,p) ∧ Plus(p,k,q) ∧ Plus(n,k,r) → Plus(m,r,q)
-    # By plus_comm on Plus(p,k,q): Plus(k,p,q)
-    # By plus_comm on Plus(n,k,r): Plus(k,n,r)
-    # Now we have: Plus(m,n,p), Plus(k,p,q), Plus(k,n,r)
-    # Want: Plus(m,r,q)
-    # All three share the same "second argument" structure (h(·) applied to something).
-    # h_m(n)=p, h_k(p)=q, h_k(n)=r.
-    # Want: h_m(r) = h_m(h_k(n)) = ?= h_k(h_m(n)) = h_k(p) = q.
-    # This is h_m(h_k(n)) = h_k(h_m(n)) — commutativity of composition!
-    # But this requires a separate induction argument.
-    #
-    # Simpler: direct induction on k.
+    # Direct induction on k.
     # h_m(n)=p. h_p(k)=q. h_n(k)=r. Want: h_m(r)=q.
-    # P(k) = ∀q',r'. h_p(k)=q' → h_n(k)=r' → h_m(r')=q'.
+    # P(k) = ∀q',r'. Apply(h_p,k,q') → Apply(h_n,k,r') → Apply(h_m,r',q').
     # Base (k=0): h_p(0)=p, h_n(0)=n, h_m(n)=p. ✓
     # Step: h_p(S(k))=S(q'), h_n(S(k))=S(r'), h_m(S(r'))=S(h_m(r'))=S(q'). ✓
 
-    raise NotImplementedError('plus_assoc proof body TODO — ~1000 lines, same structure as plus_comm')
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef, Plus as PlusDef)
+    from core.proof import _expand, _subst
+    from theorems.axioms import separation
+    from theorems.recursion import recursion_theorem
+    from theorems.sets import omega_unique, successor_exists, eq_successor_transfer
+    from theorems.omega import (omega_smallest_inductive, omega_contains_empty,
+        omega_succ_closed)
+    from theorems.logic import eq_symmetric
+
+    er = eq_reflexive()
+    esub = eq_substitution()
+
+    # ====================================================================
+    # Section 1: Open Plus(m,n,p) — same pattern as plus_comm section 1
+    # ====================================================================
+    wv = Var(postfix='wv')
+    hm = Var(postfix='hm')
+    sfv = Var(postfix='sfv')
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+
+    omega_wv = Omega(wv)
+    succ_char = Forall(xsc, Implies(In(xsc, wv),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, wv)))
+    and_func_dom = And(func_sf, dom_sub_sf)
+    sf_all = And(succ_char, and_func_dom)
+    rec_hm = RecDef(hm, m, sfv, wv)
+    app_hm_np = Apply(hm, n, p)
+    and_rec_app_m = And(rec_hm, app_hm_np)
+    and_sf_ra_m = And(sf_all, and_rec_app_m)
+
+    # Plus(p,k,q): exists w2, h2, sf2. ...
+    hp = Var(postfix='hp')
+    rec_hp = RecDef(hp, p, sfv, wv)  # same sfv, wv (will unify via omega_unique)
+    app_hp_kq = Apply(hp, k, q)
+    and_rec_app_p = And(rec_hp, app_hp_kq)
+    and_sf_ra_p = And(sf_all, and_rec_app_p)
+
+    # Plus(n,k,r): exists w3, h3, sf3. ...
+    hn = Var(postfix='hn')
+    rec_hn = RecDef(hn, n, sfv, wv)
+    app_hn_kr = Apply(hn, k, r)
+    and_rec_app_n = And(rec_hn, app_hn_kr)
+    and_sf_ra_n = And(sf_all, and_rec_app_n)
+
+    # The result we want: Plus(m, r, q) = Apply(hm, r, q) wrapped in exists
+    app_hm_rq = Apply(hm, r, q)
+    plus_mrq = PlusDef(m, r, q)
+
+    # ====================================================================
+    # Section 2: Set up the induction predicate
+    # ====================================================================
+    # P(k) = ∀q',r'. Apply(hp,k,q') → Apply(hn,k,r') → Apply(hm,r',q')
+    qv = Var(postfix='qv')
+    rv = Var(postfix='rv')
+    P_body = Implies(Apply(hp, k, qv), Implies(Apply(hn, k, rv), Apply(hm, rv, qv)))
+    P_k = Forall(qv, Forall(rv, P_body))
+
+    # TODO: the full proof body follows plus_comm's structure
+    # - Open all 3 Plus, unify omega/sf via omega_unique + sf_apply_transfer
+    # - Base case: k=0, use rec_h_zero_identity for hp, hn
+    # - Step case: k→S(k), use rec_step_succ for hp, hn, hm
+    # - Close by omega_smallest_inductive
+    # - Instantiate P(k) with actual q, r to get Apply(hm, r, q)
+    # - Fold back into Plus(m, r, q)
+
+    raise NotImplementedError('plus_assoc sections 3-10 TODO')
