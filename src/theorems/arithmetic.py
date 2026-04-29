@@ -3823,6 +3823,20 @@ def plus_assoc():
     p, q, r = Var(postfix='p'), Var(postfix='q'), Var(postfix='r')
     omega_w = Omega(w)
 
+    # goal: forall w,m,n,k,p,q,r.
+    #   Omega(w) -> In(m,w) -> In(n,w) -> In(k,w) ->
+    #   Plus(m,n,p) -> Plus(p,k,q) -> Plus(n,k,r) -> Plus(m,r,q)
+    #
+    # Strategy: induction on k.
+    # Open Plus(m,n,p) to get h_m with h_m(n)=p, Recursive(h_m, m, sf, w).
+    # Open Plus(p,k,q) to get h_p with h_p(k)=q, Recursive(h_p, p, sf, w).
+    # Open Plus(n,k,r) to get h_n with h_n(k)=r, Recursive(h_n, n, sf, w).
+    # Want: Plus(m,r,q) i.e. h_m(r)=q i.e. h_m(h_n(k))=h_p(k).
+    #
+    # Base (k=0): h_m(h_n(0))=h_m(n)=p=h_p(0). ✓
+    # Step: h_p(S(k))=S(h_p(k)), h_n(S(k))=S(h_n(k)),
+    #        h_m(S(h_n(k)))=S(h_m(h_n(k)))=S(h_p(k))=h_p(S(k)). ✓
+
     goal = Forall(w, Forall(m, Forall(n, Forall(k, Forall(p, Forall(q, Forall(r,
         Implies(omega_w, Implies(In(m, w), Implies(In(n, w), Implies(In(k, w),
             Implies(PlusDef(m, n, p), Implies(PlusDef(p, k, q),
