@@ -3,12 +3,6 @@
 from ring0.lang import Var, In, Not, Implies, Forall, Formula
 
 
-def _expand(f):
-    while hasattr(f, 'expand'):
-        if not hasattr(f, '_cache'):
-            f._cache = f.expand()
-        f = f._cache
-    return f
 
 
 
@@ -71,7 +65,7 @@ def _verify(proof: Proof, trust: bool, cache: bool) -> bool:
 def _check_rule(proof: Proof) -> bool:
     s = proof.sequent
     ps = [p.sequent for p in proof.premises]
-    principal = _expand(proof.principal) if proof.principal else None
+    principal = proof.principal
 
     match proof.rule:
         case "axiom":
@@ -243,7 +237,7 @@ def _eq_sequent(a, b):
 def _free_vars(formula, bound=None):
     if bound is None:
         bound = set()
-    formula = _expand(formula)
+
     match formula:
         case In(left, right):
             result = set()
@@ -263,7 +257,7 @@ def _free_vars(formula, bound=None):
 
 def _var_bound_in(var, formula):
     """Check if var appears as a binding variable in any Forall inside formula."""
-    formula = _expand(formula)
+
     match formula:
         case In():
             return False
