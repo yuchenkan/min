@@ -11,24 +11,13 @@ def _expand(f):
     return f
 
 
-def same(a, b):
-    """Alpha-equivalence after expanding definitions."""
-    return _eq(a, b)
-
 
 class Sequent:
-    def __init__(self, left: list[Formula], right: list[Formula]):
-        self.left = list(left)
-        self.right = list(right)
-        # Enforce set semantics: no duplicates (by alpha-equivalence).
-        for i in range(len(self.left)):
-            for j in range(i + 1, len(self.left)):
-                if _eq(self.left[i], self.left[j]):
-                    raise ValueError(f'duplicate on left: {self.left[i]}')
-        for i in range(len(self.right)):
-            for j in range(i + 1, len(self.right)):
-                if _eq(self.right[i], self.right[j]):
-                    raise ValueError(f'duplicate on right: {self.right[i]}')
+    def __init__(self, left, right):
+        self.left = set(left)
+        self.right = set(right)
+        assert len(self.left) == len(list(left))
+        assert len(self.right) == len(list(right))
 
 
 class Proof:
@@ -56,7 +45,7 @@ def verify(proof: Proof, axiom_checker, trust=False, cache=True) -> bool:
     trust: if True, skip subtrees marked with trusted=True.
     cache: if True, mark verified nodes and skip them on re-encounter."""
     s = proof.sequent
-    if len(s.right) != 1 or _free_vars(s.right[0]):
+    if len(s.right) != 1 or _free_vars(next(iter(s.right))):
         return False
     for f in s.left:
         if not axiom_checker(f):
@@ -235,78 +224,20 @@ def _check_weakening_right(s, ps, principal):
 
 # --- Formula equality (alpha-equivalence, expands definitions) ---
 
-def _eq(a, b, env=None):
-    if a is b and env is None:
-        return True
-    if env is None:
-        env = []
-    a = _expand(a)
-    b = _expand(b)
-    if type(a) is not type(b):
-        return False
-    match a:
-        case Var():
-            return _eq_var(a, b, env)
-        case In(l1, r1):
-            return _eq(l1, b.left, env) and _eq(r1, b.right, env)
-        case Not(o1):
-            return _eq(o1, b.operand, env)
-        case Implies(l1, r1):
-            return _eq(l1, b.left, env) and _eq(r1, b.right, env)
-        case Forall(v1, b1):
-            return _eq(b1, b.body, env + [(v1, b.var)])
-    return False
+def _in(f, s):
+    return f in s
 
 
-def _eq_var(v1, v2, env):
-    for left, right in reversed(env):
-        if v1 is left and v2 is right:
-            return True
-        if v1 is left or v2 is right:
-            return False
-    return v1 is v2
+def _remove(s, f):
+    return s - {f}
 
 
-def _in(f, lst):
-    return any(same(f, g) for g in lst)
-
-
-def _remove(lst, f):
-    result = []
-    removed = False
-    for g in lst:
-        if not removed and same(f, g):
-            removed = True
-        else:
-            result.append(g)
-    return result
-
-
-def _set_add(lst, f):
-    """Add f to lst if not already present (by alpha-equivalence)."""
-    if _in(f, lst):
-        return list(lst)
-    return list(lst) + [f]
+def _set_add(s, f):
+    return s | {f}
 
 
 def _eq_sequent(a, b):
-    return _is_permutation(a.left, b.left) and _is_permutation(a.right, b.right)
-
-
-def _is_permutation(a, b):
-    if len(a) != len(b):
-        return False
-    used = [False] * len(b)
-    for f in a:
-        found = False
-        for j, g in enumerate(b):
-            if not used[j] and same(f, g):
-                used[j] = True
-                found = True
-                break
-        if not found:
-            return False
-    return True
+    return a.left == b.left and a.right == b.right
 
 
 # --- Substitution (works on expanded formulas) ---
