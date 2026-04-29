@@ -5,8 +5,23 @@ No definitions. No tactics. No proof construction.
 """
 
 from ring0.lang import Var, In, Not, Implies, Forall
-from ring0.proof import Proof, Sequent, _subst
+from ring0.proof import Proof, Sequent
 from ring0 import zfc
+
+
+def _subst(formula, old, new):
+    match formula:
+        case In(left, right):
+            return In(new if left is old else left,
+                      new if right is old else right)
+        case Not(operand):
+            return Not(_subst(operand, old, new))
+        case Implies(left, right):
+            return Implies(_subst(left, old, new), _subst(right, old, new))
+        case Forall(var, body):
+            if var is old:
+                return formula
+            return Forall(var, _subst(body, old, new))
 
 BOUND = 0
 FREE = 1
@@ -263,11 +278,14 @@ def decode(data):
         if tag == 5:  # Separation
             phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
             vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
-            decoded_axioms.append(zfc.separation(sx, phi, vars_list))
+            decoded_axioms.append(zfc.separation(
+                lambda x, _p=phi, _s=sx: _subst(_p, _s, x), vars_list))
         elif tag == 8:  # Replacement
             phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
             vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
-            decoded_axioms.append(zfc.replacement(sx, sy, phi, vars_list))
+            decoded_axioms.append(zfc.replacement(
+                lambda x, y, _p=phi, _sx=sx, _sy=sy: _subst(_subst(_p, _sx, x), _sy, y),
+                vars_list))
         else:
             decoded_axioms.append(AX_FUNCS[tag]())
 

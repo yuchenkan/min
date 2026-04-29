@@ -239,23 +239,6 @@ def _eq_sequent(a, b):
     return a.left == b.left and a.right == b.right
 
 
-# --- Substitution (works on expanded formulas) ---
-
-def _subst(formula, old, new):
-    formula = _expand(formula)
-    match formula:
-        case In(left, right):
-            return In(new if left is old else left,
-                      new if right is old else right)
-        case Not(operand):
-            return Not(_subst(operand, old, new))
-        case Implies(left, right):
-            return Implies(_subst(left, old, new), _subst(right, old, new))
-        case Forall(var, body):
-            if var is old:
-                return formula
-            return Forall(var, _subst(body, old, new))
-
 
 def _free_vars(formula, bound=None):
     if bound is None:
