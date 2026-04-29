@@ -310,3 +310,33 @@ def decode(data, ctx):
         return f in axiom_objs
 
     return proof2, is_axiom
+
+
+def save_ctx(ctx, path):
+    enc_ctx, dec_ctx = ctx
+    import pickle
+    with open(path, 'wb') as f:
+        pickle.dump({
+            'formulas': list(enc_ctx.formulas.keys()),
+            'proofs': list(enc_ctx.proofs.keys()),
+        }, f)
+
+
+def load_ctx(path):
+    import pickle
+    with open(path, 'rb') as f:
+        data = pickle.load(f)
+    enc_ctx = EncodeContext()
+    dec_ctx = DecodeContext()
+    for key in data['formulas']:
+        enc_ctx.formulas[key] = len(enc_ctx.formulas)
+    for key in data['proofs']:
+        enc_ctx.proofs[key] = len(enc_ctx.proofs)
+    # Rebuild dec_ctx from enc_ctx tables
+    formula_table = data['formulas']
+    proof_table = data['proofs']
+    for i in range(len(formula_table)):
+        decode_formula(i, formula_table, dec_ctx, None)
+    for i in range(len(proof_table)):
+        _decode(formula_table, proof_table, i, dec_ctx, has_substituted=True)
+    return enc_ctx, dec_ctx
