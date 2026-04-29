@@ -1,9 +1,6 @@
-"""Sequent calculus for first-order logic with set theory language."""
+"""Ring 0 sequent calculus verifier. Identity-based, no alpha-equivalence."""
 
 from ring0.lang import Var, In, Not, Implies, Forall, Formula
-
-
-
 
 
 class Sequent:
@@ -15,9 +12,8 @@ class Sequent:
 
 
 class Proof:
-    def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None,
-                 name: str = None, term: Var = None, principal: Formula = None,
-                 substituted: Formula = None):
+    def __init__(self, sequent, rule, premises=None, name=None,
+                 term=None, principal=None, substituted=None):
         self.sequent = sequent
         self.rule = rule
         self.premises = premises or []
@@ -27,9 +23,7 @@ class Proof:
         self.substituted = substituted
 
 
-
-def verify(proof: Proof, axiom_checker) -> bool:
-    """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions."""
+def verify(proof, axiom_checker):
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(next(iter(s.right))):
         return False
@@ -39,7 +33,7 @@ def verify(proof: Proof, axiom_checker) -> bool:
     return _verify(proof)
 
 
-def _verify(proof: Proof) -> bool:
+def _verify(proof):
     if getattr(proof, '_verified', False):
         return True
     for p in proof.premises:
@@ -51,182 +45,86 @@ def _verify(proof: Proof) -> bool:
     return True
 
 
-def _check_rule(proof: Proof) -> bool:
+def _check_rule(proof):
     s = proof.sequent
     ps = [p.sequent for p in proof.premises]
-    principal = proof.principal
+    p = proof.principal
 
     match proof.rule:
         case "axiom":
-            return _check_axiom(s, ps, principal)
+            return len(ps) == 0 and p is not None and p in s.left and p in s.right
+
         case "not_left":
-            return _check_not_left(s, ps, principal)
+            if len(ps) != 1 or not isinstance(p, Not) or p not in s.left:
+                return False
+            return ps[0].left == s.left - {p} and ps[0].right == s.right | {p.operand}
+
         case "not_right":
-            return _check_not_right(s, ps, principal)
+            if len(ps) != 1 or not isinstance(p, Not) or p not in s.right:
+                return False
+            return ps[0].left == s.left | {p.operand} and ps[0].right == s.right - {p}
+
         case "implies_left":
-            return _check_implies_left(s, ps, principal)
+            if len(ps) != 2 or not isinstance(p, Implies) or p not in s.left:
+                return False
+            G = s.left - {p}
+            return (ps[0].left == G and ps[0].right == s.right | {p.left} and
+                    ps[1].left == G | {p.right} and ps[1].right == s.right)
+
         case "implies_right":
-            return _check_implies_right(s, ps, principal)
+            if len(ps) != 1 or not isinstance(p, Implies) or p not in s.right:
+                return False
+            D = s.right - {p}
+            return ps[0].left == s.left | {p.left} and ps[0].right == D | {p.right}
+
         case "forall_left":
-            return _check_forall_left(s, ps, principal, proof.term, proof.substituted)
+            sub = proof.substituted
+            if len(ps) != 1 or proof.term is None or sub is None or not isinstance(p, Forall):
+                return False
+            if p not in s.left:
+                return False
+            return ps[0].left == (s.left - {p}) | {sub} and ps[0].right == s.right
+
         case "forall_right":
-            return _check_forall_right(s, ps, principal, proof.term, proof.substituted)
+            sub = proof.substituted
+            y = proof.term
+            if len(ps) != 1 or y is None or sub is None or not isinstance(p, Forall):
+                return False
+            if p not in s.right:
+                return False
+            D = s.right - {p}
+            if _var_free_in_sequent(y, s.left, D):
+                return False
+            if _var_bound_in(y, p.body):
+                return False
+            return ps[0].left == s.left and ps[0].right == D | {sub}
+
         case "cut":
-            return _check_cut(s, ps, principal)
+            if len(ps) != 2 or p is None:
+                return False
+            return (ps[0].left == s.left and ps[0].right == s.right | {p} and
+                    ps[1].left == s.left | {p} and ps[1].right == s.right)
+
         case "weakening_left":
-            return _check_weakening_left(s, ps, principal)
+            if len(ps) != 1 or p is None or p not in s.left:
+                return False
+            if p in ps[0].left:
+                return ps[0].left == s.left and ps[0].right == s.right
+            return ps[0].left == s.left - {p} and ps[0].right == s.right
+
         case "weakening_right":
-            return _check_weakening_right(s, ps, principal)
+            if len(ps) != 1 or p is None or p not in s.right:
+                return False
+            if p in ps[0].right:
+                return ps[0].left == s.left and ps[0].right == s.right
+            return ps[0].left == s.left and ps[0].right == s.right - {p}
+
     return False
-
-
-# --- Identity ---
-
-def _check_axiom(s, ps, principal):
-    """A |- A. Principal must be in both left and right."""
-    if len(ps) != 0 or principal is None:
-        return False
-    return _in(principal, s.left) and _in(principal, s.right)
-
-
-# --- Not ---
-
-def _check_not_left(s, ps, principal):
-    """G, Not(A) |- D  from  G |- D, A.
-    Principal Not(A) on left; premise moves A to right."""
-    if len(ps) != 1 or not isinstance(principal, Not):
-        return False
-    if not _in(principal, s.left):
-        return False
-    return _eq_sequent(ps[0], Sequent(
-        _remove(s.left, principal), _set_add(s.right, principal.operand)))
-
-
-def _check_not_right(s, ps, principal):
-    """G |- D, Not(A)  from  G, A |- D.
-    Principal Not(A) on right; premise moves A to left."""
-    if len(ps) != 1 or not isinstance(principal, Not):
-        return False
-    if not _in(principal, s.right):
-        return False
-    return _eq_sequent(ps[0], Sequent(
-        _set_add(s.left, principal.operand), _remove(s.right, principal)))
-
-
-# --- Implies ---
-
-def _check_implies_left(s, ps, principal):
-    """G, A->B |- D  from  G |- D, A  and  G, B |- D.
-    Principal A->B on left; prem0 proves A, prem1 uses B."""
-    if len(ps) != 2 or not isinstance(principal, Implies):
-        return False
-    if not _in(principal, s.left):
-        return False
-    G = _remove(s.left, principal)
-    return (_eq_sequent(ps[0], Sequent(G, _set_add(s.right, principal.left))) and
-            _eq_sequent(ps[1], Sequent(_set_add(G, principal.right), s.right)))
-
-
-def _check_implies_right(s, ps, principal):
-    """G |- D, A->B  from  G, A |- D, B.
-    Principal A->B on right; premise assumes A and proves B."""
-    if len(ps) != 1 or not isinstance(principal, Implies):
-        return False
-    if not _in(principal, s.right):
-        return False
-    D = _remove(s.right, principal)
-    return _eq_sequent(ps[0], Sequent(
-        _set_add(s.left, principal.left), _set_add(D, principal.right)))
-
-
-# --- Forall ---
-
-def _check_forall_left(s, ps, principal, t, substituted):
-    """G, Forall(x,A) |- D  from  G, A[x:=t] |- D.
-    Principal Forall(x,A) on left; premise instantiates x with term t."""
-    if len(ps) != 1 or t is None or substituted is None or not isinstance(principal, Forall):
-        return False
-    if not _in(principal, s.left):
-        return False
-    G = _remove(s.left, principal)
-    return _eq_sequent(ps[0], Sequent(_set_add(G, substituted), s.right))
-
-
-def _check_forall_right(s, ps, principal, y, substituted):
-    """G |- D, Forall(x,A)  from  G |- D, A[x:=y].
-    Principal Forall(x,A) on right; y is eigenvariable (fresh, not free in G or D)."""
-    if len(ps) != 1 or y is None or substituted is None or not isinstance(principal, Forall):
-        return False
-    if not _in(principal, s.right):
-        return False
-    D = _remove(s.right, principal)
-    if _var_free_in_sequent(y, Sequent(s.left, D)):
-        return False
-    if _var_bound_in(y, principal.body):
-        return False
-    return _eq_sequent(ps[0], Sequent(s.left, _set_add(D, substituted)))
-
-
-# --- Cut ---
-
-def _check_cut(s, ps, principal):
-    """G |- D  from  G |- D, C  and  G, C |- D.
-    Principal C is the cut formula; appears on prem0 right and prem1 left."""
-    if len(ps) != 2 or principal is None:
-        return False
-    return (_eq_sequent(ps[0], Sequent(s.left, _set_add(s.right, principal))) and
-            _eq_sequent(ps[1], Sequent(_set_add(s.left, principal), s.right)))
-
-
-# --- Structural ---
-
-def _check_weakening_left(s, ps, principal):
-    """G, A |- D  from  G |- D.
-    Principal A added to left. No-op if A already in premise."""
-    if len(ps) != 1 or principal is None:
-        return False
-    if not _in(principal, s.left):
-        return False
-    if _in(principal, ps[0].left):
-        return _eq_sequent(ps[0], s)
-    return _eq_sequent(ps[0], Sequent(_remove(s.left, principal), s.right))
-
-
-def _check_weakening_right(s, ps, principal):
-    """G |- D, A  from  G |- D.
-    Principal A added to right. No-op if A already in premise."""
-    if len(ps) != 1 or principal is None:
-        return False
-    if not _in(principal, s.right):
-        return False
-    if _in(principal, ps[0].right):
-        return _eq_sequent(ps[0], s)
-    return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, principal)))
-
-
-# --- Formula equality (alpha-equivalence, expands definitions) ---
-
-def _in(f, s):
-    return f in s
-
-
-def _remove(s, f):
-    return s - {f}
-
-
-def _set_add(s, f):
-    return s | {f}
-
-
-def _eq_sequent(a, b):
-    return a.left == b.left and a.right == b.right
-
 
 
 def _free_vars(formula, bound=None):
     if bound is None:
         bound = set()
-
     match formula:
         case In(left, right):
             result = set()
@@ -245,8 +143,6 @@ def _free_vars(formula, bound=None):
 
 
 def _var_bound_in(var, formula):
-    """Check if var appears as a binding variable in any Forall inside formula."""
-
     match formula:
         case In():
             return False
@@ -255,11 +151,9 @@ def _var_bound_in(var, formula):
         case Implies(left, right):
             return _var_bound_in(var, left) or _var_bound_in(var, right)
         case Forall(v, body):
-            if v is var:
-                return True
-            return _var_bound_in(var, body)
+            return v is var or _var_bound_in(var, body)
     return False
 
 
-def _var_free_in_sequent(var, s):
-    return any(var in _free_vars(f) for f in s.left | s.right)
+def _var_free_in_sequent(var, left, right):
+    return any(var in _free_vars(f) for f in left | right)
