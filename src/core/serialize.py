@@ -110,9 +110,12 @@ def _encode(proof):
             formulas[key] = len(formulas)
         return formulas[key]
 
+    encode_formula_cache = {}
     def encode_formula(f):
-        ef, ups, _ = expand_fresh(f, {})
-        return _encode_formula(ef, ups)
+        if f not in encode_formula_cache:
+            ef, ups, _ = expand_fresh(f, {})
+            encode_formula_cache[f] = _encode_formula(ef, ups)
+        return encode_formula_cache[f]
 
     def encode_sequent(seq):
         left = tuple(sorted(encode_formula(f) for f in seq.left))
