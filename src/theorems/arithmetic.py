@@ -4385,23 +4385,137 @@ def plus_assoc():
     and_rec_app_m = And(rec_hm, app_hm_np)
     and_sf_ra_m = And(sf_all, and_rec_app_m)
 
-    # Plus(p,k,q): exists w2, h2, sf2. ...
+    # Plus(p,k,q): separate wv_p, sfv_p for independent folding
+    wv_p = Var(postfix='wp')
+    sfv_p = Var(postfix='sfp')
     hp = Var(postfix='hp')
-    rec_hp = RecDef(hp, p, sfv, wv)  # same sfv, wv (will unify via omega_unique)
+    omega_wp = Omega(wv_p)
+    succ_char_p = Forall(xsc, Implies(In(xsc, wv_p),
+        Forall(ysc, Iff(Apply(sfv_p, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sfp = FuncDef(sfv_p)
+    dom_sub_sfp = Forall(xds, Implies(Exists(yds, Apply(sfv_p, xds, yds)), In(xds, wv_p)))
+    and_func_dom_p = And(func_sfp, dom_sub_sfp)
+    sf_all_p = And(succ_char_p, and_func_dom_p)
+    rec_hp = RecDef(hp, p, sfv_p, wv_p)
     app_hp_kq = Apply(hp, k, q)
     and_rec_app_p = And(rec_hp, app_hp_kq)
-    and_sf_ra_p = And(sf_all, and_rec_app_p)
+    and_sf_ra_p = And(sf_all_p, and_rec_app_p)
 
-    # Plus(n,k,r): exists w3, h3, sf3. ...
+    # Plus(n,k,r): separate wv_n, sfv_n
+    wv_n = Var(postfix='wn')
+    sfv_n = Var(postfix='sfn')
     hn = Var(postfix='hn')
-    rec_hn = RecDef(hn, n, sfv, wv)
+    omega_wn = Omega(wv_n)
+    succ_char_n = Forall(xsc, Implies(In(xsc, wv_n),
+        Forall(ysc, Iff(Apply(sfv_n, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sfn = FuncDef(sfv_n)
+    dom_sub_sfn = Forall(xds, Implies(Exists(yds, Apply(sfv_n, xds, yds)), In(xds, wv_n)))
+    and_func_dom_n = And(func_sfn, dom_sub_sfn)
+    sf_all_n = And(succ_char_n, and_func_dom_n)
+    rec_hn = RecDef(hn, n, sfv_n, wv_n)
     app_hn_kr = Apply(hn, k, r)
     and_rec_app_n = And(rec_hn, app_hn_kr)
-    and_sf_ra_n = And(sf_all, and_rec_app_n)
+    and_sf_ra_n = And(sf_all_n, and_rec_app_n)
 
     # The result we want: Plus(m, r, q) = Apply(hm, r, q) wrapped in exists
     app_hm_rq = Apply(hm, r, q)
     plus_mrq = PlusDef(m, r, q)
+
+    # Fold-back structure for Plus(m,n,p):
+    ex_sfv_m = Exists(sfv, and_sf_ra_m)
+    ex_hm_m = Exists(hm, ex_sfv_m)
+    and_omega_m = And(omega_wv, ex_hm_m)
+    # Plus(m,n,p) = Exists(wv, and_omega_m)
+
+    got_sc_from = apply_thm(and_elim_left(succ_char, and_func_dom, []), [],
+        sf_all, succ_char, ax(sf_all))
+    got_fd_from = apply_thm(and_elim_right(succ_char, and_func_dom, []), [],
+        sf_all, and_func_dom, ax(sf_all))
+    got_func_sf_from = apply_thm(and_elim_left(func_sf, dom_sub_sf, []), [],
+        and_func_dom, func_sf, got_fd_from)
+    got_dom_sf_from = apply_thm(and_elim_right(func_sf, dom_sub_sf, []), [],
+        and_func_dom, dom_sub_sf, got_fd_from)
+    got_rec_from = apply_thm(and_elim_left(rec_hm, app_hm_np, []), [],
+        and_rec_app_m, rec_hm, ax(and_rec_app_m))
+    got_app_from = apply_thm(and_elim_right(rec_hm, app_hm_np, []), [],
+        and_rec_app_m, app_hm_np, ax(and_rec_app_m))
+    got_sf_from = apply_thm(and_elim_left(sf_all, and_rec_app_m, []), [],
+        and_sf_ra_m, sf_all, ax(and_sf_ra_m))
+    got_ra_from = apply_thm(and_elim_right(sf_all, and_rec_app_m, []), [],
+        and_sf_ra_m, and_rec_app_m, ax(and_sf_ra_m))
+    got_omega_from = apply_thm(and_elim_left(omega_wv, ex_hm_m, []), [],
+        and_omega_m, omega_wv, ax(and_omega_m))
+    got_exhm_from = apply_thm(and_elim_right(omega_wv, ex_hm_m, []), [],
+        and_omega_m, ex_hm_m, ax(and_omega_m))
+
+    # Fold-back structure for Plus(p,k,q):
+    ex_sfp_p = Exists(sfv_p, and_sf_ra_p)
+    ex_hp_p = Exists(hp, ex_sfp_p)
+    and_omega_p = And(omega_wp, ex_hp_p)
+
+    got_rec_hp_from = apply_thm(and_elim_left(rec_hp, app_hp_kq, []), [],
+        and_rec_app_p, rec_hp, ax(and_rec_app_p))
+    got_app_hp_from = apply_thm(and_elim_right(rec_hp, app_hp_kq, []), [],
+        and_rec_app_p, app_hp_kq, ax(and_rec_app_p))
+    got_sf_p_from = apply_thm(and_elim_left(sf_all_p, and_rec_app_p, []), [],
+        and_sf_ra_p, sf_all_p, ax(and_sf_ra_p))
+    got_ra_p_from = apply_thm(and_elim_right(sf_all_p, and_rec_app_p, []), [],
+        and_sf_ra_p, and_rec_app_p, ax(and_sf_ra_p))
+    got_omega_wp_from = apply_thm(and_elim_left(omega_wp, ex_hp_p, []), [],
+        and_omega_p, omega_wp, ax(and_omega_p))
+    got_exhp_from = apply_thm(and_elim_right(omega_wp, ex_hp_p, []), [],
+        and_omega_p, ex_hp_p, ax(and_omega_p))
+
+    # Fold-back structure for Plus(n,k,r):
+    ex_sfn_n = Exists(sfv_n, and_sf_ra_n)
+    ex_hn_n = Exists(hn, ex_sfn_n)
+    and_omega_n = And(omega_wn, ex_hn_n)
+
+    got_rec_hn_from = apply_thm(and_elim_left(rec_hn, app_hn_kr, []), [],
+        and_rec_app_n, rec_hn, ax(and_rec_app_n))
+    got_app_hn_from = apply_thm(and_elim_right(rec_hn, app_hn_kr, []), [],
+        and_rec_app_n, app_hn_kr, ax(and_rec_app_n))
+    got_sf_n_from = apply_thm(and_elim_left(sf_all_n, and_rec_app_n, []), [],
+        and_sf_ra_n, sf_all_n, ax(and_sf_ra_n))
+    got_ra_n_from = apply_thm(and_elim_right(sf_all_n, and_rec_app_n, []), [],
+        and_sf_ra_n, and_rec_app_n, ax(and_sf_ra_n))
+    got_omega_wn_from = apply_thm(and_elim_left(omega_wn, ex_hn_n, []), [],
+        and_omega_n, omega_wn, ax(and_omega_n))
+    got_exhn_from = apply_thm(and_elim_right(omega_wn, ex_hn_n, []), [],
+        and_omega_n, ex_hn_n, ax(and_omega_n))
+
+    # omega_unique transfers
+    ou = omega_unique()
+    eq_w_wv = Eq(w, wv)
+    got_eq_w_wv = mp(apply_thm(ou, [w, wv], omega_w,
+        Implies(omega_wv, eq_w_wv), ax(omega_w)),
+        ax(omega_wv), omega_wv, eq_w_wv)
+    eq_wv_wp = Eq(wv, wv_p)
+    got_eq_wv_wp = mp(apply_thm(ou, [wv, wv_p], omega_wv,
+        Implies(omega_wp, eq_wv_wp), ax(omega_wv)),
+        ax(omega_wp), omega_wp, eq_wv_wp)
+    eq_wv_wn = Eq(wv, wv_n)
+    got_eq_wv_wn = mp(apply_thm(ou, [wv, wv_n], omega_wv,
+        Implies(omega_wn, eq_wv_wn), ax(omega_wv)),
+        ax(omega_wn), omega_wn, eq_wv_wn)
+
+    # Transfer In(x, w) → In(x, wv) via Eq(w, wv)
+    def transfer_in(x_var, w_from, w_to, eq_proof, got_in_from):
+        """From got_in_from: [...] |- In(x, w_from), derive [...] |- In(x, w_to)."""
+        iff_f = Iff(In(x_var, w_from), In(x_var, w_to))
+        eq_f = Eq(w_from, w_to)
+        got_iff = Proof(Sequent(eq_proof.sequent.left, [iff_f]), 'cut',
+            [wr(eq_proof, iff_f),
+             weaken_to(fl(eq_f, iff_f, x_var), eq_proof.sequent.left)],
+            principal=eq_f)
+        return mp(mp(iff_mp(In(x_var, w_from), In(x_var, w_to), []),
+            got_iff, iff_f, Implies(In(x_var, w_from), In(x_var, w_to))),
+            got_in_from, In(x_var, w_from), In(x_var, w_to))
+
+    from theorems.logic import iff_mp
+    got_in_m_wv = transfer_in(m, w, wv, got_eq_w_wv, ax(In(m, w)))
+    got_in_n_wv = transfer_in(n, w, wv, got_eq_w_wv, ax(In(n, w)))
+    got_in_k_wv = transfer_in(k, w, wv, got_eq_w_wv, ax(In(k, w)))
 
     # ====================================================================
     # Section 2: Set up the induction predicate (strengthened)
@@ -4435,12 +4549,19 @@ def plus_assoc():
     dom_sub_hn = Forall(xd_h, Implies(Exists(yd_h, Apply(hn, xd_h, yd_h)), In(xd_h, wv)))
     dom_sub_hm = Forall(xd_h, Implies(Exists(yd_h, Apply(hm, xd_h, yd_h)), In(xd_h, wv)))
 
-    step_hp = Forall(nst, Implies(In(nst, wv),
+    step_hp = Forall(nst, Implies(In(nst, wv_p),
         Forall(valst, Implies(Apply(hp, nst, valst),
             Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                Forall(fvalst, Implies(Apply(sfv_p, valst, fvalst),
                     Apply(hp, snst, fvalst)))))))))
 
+    step_hm = Forall(nst, Implies(In(nst, wv),
+        Forall(valst, Implies(Apply(hm, nst, valst),
+            Forall(snst, Implies(SuccDef(snst, nst),
+                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                    Apply(hm, snst, fvalst)))))))))
+
+    dom_sub_hp = Forall(xd_h, Implies(Exists(yd_h, Apply(hp, xd_h, yd_h)), In(xd_h, wv_p)))
     and_base_step_hp = And(base_hp, step_hp)
     and_dom_bs_hp = And(dom_sub_hp, and_base_step_hp)
     got_dom_bs_hp = apply_thm(and_elim_right(func_hp, and_dom_bs_hp, []), [],
@@ -4450,12 +4571,13 @@ def plus_assoc():
         apply_thm(and_elim_right(dom_sub_hp, and_base_step_hp, []), [],
             and_dom_bs_hp, and_base_step_hp, got_dom_bs_hp))
 
-    step_hn = Forall(nst, Implies(In(nst, wv),
+    step_hn = Forall(nst, Implies(In(nst, wv_n),
         Forall(valst, Implies(Apply(hn, nst, valst),
             Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
+                Forall(fvalst, Implies(Apply(sfv_n, valst, fvalst),
                     Apply(hn, snst, fvalst)))))))))
 
+    dom_sub_hn = Forall(xd_h, Implies(Exists(yd_h, Apply(hn, xd_h, yd_h)), In(xd_h, wv_n)))
     and_base_step_hn = And(base_hn, step_hn)
     and_dom_bs_hn = And(dom_sub_hn, and_base_step_hn)
     got_dom_bs_hn = apply_thm(and_elim_right(func_hn, and_dom_bs_hn, []), [],
@@ -4972,45 +5094,129 @@ def plus_assoc():
     got_and_sf = mp(apply_thm(and_intro(sf_all, and_rec_rq, []), [],
         sf_all, Implies(and_rec_rq, and_sf_rec), ax(sf_all)),
         got_and_rec, and_rec_rq, and_sf_rec)
+    # Use fresh vars for eir to avoid _var_bound_in conflicts with forall_right
     sfv_e, hm_e, wv_e = Var(), Var(), Var()
-    got_ex_sf = eir(got_and_sf, and_sf_rec, sfv_e, sfv)
-    ex_sf_body = Exists(sfv_e, and_sf_rec)
-    got_ex_hm = eir(got_ex_sf, ex_sf_body, hm_e, hm)
-    ex_hm_body = Exists(hm_e, ex_sf_body)
+    # Build body with fresh vars, then eir
+    from core.proof import _subst
+    and_sf_rec_e = _subst(and_sf_rec, sfv, sfv_e)
+    got_ex_sf = eir(got_and_sf, and_sf_rec_e, sfv_e, sfv)
+    ex_sf_body = Exists(sfv_e, and_sf_rec_e)
+    ex_sf_body_e = _subst(ex_sf_body, hm, hm_e)
+    got_ex_hm = eir(got_ex_sf, ex_sf_body_e, hm_e, hm)
+    ex_hm_body = Exists(hm_e, ex_sf_body_e)
     and_omega_result = And(omega_wv, ex_hm_body)
     got_and_omega = mp(apply_thm(and_intro(omega_wv, ex_hm_body, []), [],
         omega_wv, Implies(ex_hm_body, and_omega_result), ax(omega_wv)),
         got_ex_hm, ex_hm_body, and_omega_result)
-    got_plus_result = eir(got_and_omega, and_omega_result, wv_e, wv)
+    and_omega_result_e = _subst(and_omega_result, wv, wv_e)
+    got_plus_result = eir(got_and_omega, and_omega_result_e, wv_e, wv)
     proof = got_plus_result
     # sfv, hm, wv now bound on right. Plus(m,r,q) on right.
 
     # ====================================================================
-    # Section 11: Discharge all non-axiom hypotheses
+    # Section 11: Discharge hypotheses
     # ====================================================================
-    # Discharge every non-axiom formula from the left via implies_right.
-    # This creates a valid proof with all axioms on the left.
-    from core.zfc import ZFCAxiom
-    while True:
-        non_ax = [f_ for f_ in proof.sequent.left if not isinstance(f_, ZFCAxiom)]
-        if not non_ax:
-            break
-        hyp = non_ax[0]
-        cur_right = proof.sequent.right[0]
-        imp = Implies(hyp, cur_right)
-        rem = [f_ for f_ in proof.sequent.left if not same(f_, hyp)]
-        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    # The internal proof uses shared sfv/wv for all three Plus definitions.
+    # Folding back into separate Plus(m,n,p), Plus(p,k,q), Plus(n,k,r)
+    # requires sf_apply_transfer + rec_unique to show the shared sf agrees
+    # with each Plus's individual sf. For now: discharge all non-axiom
+    # hypotheses generically. The conclusion has extra quantifiers/implications
+    # for the internal variables beyond the standard Plus-based goal.
+    # A proper wrapper (opening Plus, applying this, repackaging) is TODO.
+    def cut_all(prf, formula, derivation):
+        while any(same(formula, g) for g in prf.sequent.left):
+            prf = cut(prf, formula, derivation)
+        return prf
 
-    # Close foralls for all free variables in the conclusion
-    from core.proof import _free_vars
-    while True:
-        fv = _free_vars(proof.sequent.right[0])
-        if not fv:
-            break
-        var = next(iter(fv))
-        fa = Forall(var, proof.sequent.right[0])
-        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
-            [proof], principal=fa, term=var)
+    # Cut intermediate transfers back
+    proof = cut_all(proof, In(m, wv), got_in_m_wv)
+    proof = cut_all(proof, in_n_wv, got_in_n_wv)
+    proof = cut_all(proof, in_k_wv, got_in_k_wv)
+    proof = cut_all(proof, in_p_wv, got_in_p_wv)
+    proof = cut_all(proof, eq_wv_wp, got_eq_wv_wp)
+    proof = cut_all(proof, eq_wv_wn, got_eq_wv_wn)
+    proof = cut_all(proof, eq_w_wv, got_eq_w_wv)
+
+    # Cut succ_char/func/dom back to sf_all
+    proof = cut_all(proof, succ_char, got_sc_from)
+    proof = cut_all(proof, func_sf, got_func_sf_from)
+    proof = cut_all(proof, dom_sub_sf, got_dom_sf_from)
+    proof = cut_all(proof, and_func_dom, got_fd_from)
+
+    # Fold Plus(p,k,q): cut components → and_sf_ra_p, eel sfv_p/hp, fold omega
+    proof = cut_all(proof, rec_hp, got_rec_hp_from)
+    proof = cut_all(proof, app_hp_kq, got_app_hp_from)
+    proof = cut_all(proof, func_hp, apply_thm(and_elim_left(func_hp,
+        And(dom_sub_hp, and_base_step_hp), []), [], rec_hp, func_hp, ax(rec_hp)))
+    proof = cut_all(proof, sf_all_p, got_sf_p_from)
+    proof = cut_all(proof, and_rec_app_p, got_ra_p_from)
+    if any(same(and_sf_ra_p, g) for g in proof.sequent.left):
+        proof = eel(proof, and_sf_ra_p, sfv_p)
+        ex_sfp = proof.sequent.left[-1]
+        proof = eel(proof, ex_sfp, hp)
+        ex_hp = proof.sequent.left[-1]
+        proof = cut_all(proof, ex_hp, got_exhp_from)
+    proof = cut_all(proof, omega_wp, got_omega_wp_from)
+    if any(same(and_omega_p, g) for g in proof.sequent.left):
+        proof = eel(proof, and_omega_p, wv_p)
+
+    # Fold Plus(n,k,r)
+    proof = cut_all(proof, rec_hn, got_rec_hn_from)
+    proof = cut_all(proof, app_hn_kr, got_app_hn_from)
+    proof = cut_all(proof, func_hn, apply_thm(and_elim_left(func_hn,
+        And(dom_sub_hn, and_base_step_hn), []), [], rec_hn, func_hn, ax(rec_hn)))
+    proof = cut_all(proof, sf_all_n, got_sf_n_from)
+    proof = cut_all(proof, and_rec_app_n, got_ra_n_from)
+    if any(same(and_sf_ra_n, g) for g in proof.sequent.left):
+        proof = eel(proof, and_sf_ra_n, sfv_n)
+        ex_sfn = proof.sequent.left[-1]
+        proof = eel(proof, ex_sfn, hn)
+        ex_hn = proof.sequent.left[-1]
+        proof = cut_all(proof, ex_hn, got_exhn_from)
+    proof = cut_all(proof, omega_wn, got_omega_wn_from)
+    if any(same(and_omega_n, g) for g in proof.sequent.left):
+        proof = eel(proof, and_omega_n, wv_n)
+
+    # Fold Plus(m,n,p)
+    proof = cut_all(proof, rec_hm, got_rec_from)
+    proof = cut_all(proof, app_hm_np, got_app_from)
+    _and_dom_bs_hm = And(dom_sub_hm, And(base_hm, step_hm))
+    proof = cut_all(proof, func_hm, apply_thm(and_elim_left(func_hm,
+        _and_dom_bs_hm, []), [], rec_hm, func_hm, ax(rec_hm)))
+    proof = cut_all(proof, sf_all, got_sf_from)
+    proof = cut_all(proof, and_rec_app_m, got_ra_from)
+    if any(same(and_sf_ra_m, g) for g in proof.sequent.left):
+        proof = eel(proof, and_sf_ra_m, sfv)
+        ex_sfv = proof.sequent.left[-1]
+        proof = eel(proof, ex_sfv, hm)
+        ex_hm = proof.sequent.left[-1]
+        proof = cut_all(proof, ex_hm, got_exhm_from)
+    proof = cut_all(proof, omega_wv, got_omega_from)
+    if any(same(and_omega_m, g) for g in proof.sequent.left):
+        proof = eel(proof, and_omega_m, wv)
+
+    # Discharge goal hypotheses
+    g_body = goal
+    for _ in range(7):
+        g_body = g_body.body
+    goal_imps = []
+    cur = g_body
+    while isinstance(cur, Implies):
+        goal_imps.append((cur.left, cur))
+        cur = cur.right
+    for hyp, imp_formula in reversed(goal_imps):
+        if any(same(hyp, g) for g in proof.sequent.left):
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hyp)]
+            proof = Proof(Sequent(rem, [imp_formula]), 'implies_right',
+                [proof], principal=imp_formula)
+
+    # Close foralls
+    for i in range(6, -1, -1):
+        cur_goal = goal
+        for _ in range(i):
+            cur_goal = cur_goal.body
+        proof = Proof(Sequent(proof.sequent.left, [cur_goal]), 'forall_right',
+            [proof], principal=cur_goal, term=cur_goal.var)
 
     proof.name = 'plus_assoc'
     return proof
