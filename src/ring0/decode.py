@@ -242,14 +242,11 @@ def decode(data):
         if tag == 5:  # Separation
             phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
             vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
-            decoded_axioms.append(zfc.separation(
-                lambda x, _p=phi, _s=sx: _subst(_p, _s, x), vars_list))
+            decoded_axioms.append(zfc.separation(sx, phi, vars_list))
         elif tag == 8:  # Replacement
             phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
             vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
-            decoded_axioms.append(zfc.replacement(
-                lambda x, y, _p=phi, _sx=sx, _sy=sy: _subst(_subst(_p, _sx, x), _sy, y),
-                vars_list))
+            decoded_axioms.append(zfc.replacement(sx, sy, phi, vars_list))
         else:
             decoded_axioms.append(AX_FUNCS[tag]())
 

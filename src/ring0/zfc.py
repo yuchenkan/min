@@ -1,6 +1,7 @@
 """ZFC axioms for ring 0. Pure functions, no classes. Returns core formulas."""
 
 from ring0.lang import Var, In, Not, Implies, Forall
+from ring0.proof import _subst
 
 
 # --- Derived connectives (expand immediately) ---
@@ -50,10 +51,10 @@ def power_set():
     return Forall(a, exists(b, Forall(x,
         iff(In(x, b), Forall(y, Implies(In(y, x), In(y, a)))))))
 
-def separation(phi, vars):
-    a, b, x = Var(), Var(), Var()
+def separation(x, phi, vars):
+    a, b = Var(), Var()
     body = Forall(a, exists(b, Forall(x,
-        iff(In(x, b), and_(In(x, a), phi(x))))))
+        iff(In(x, b), and_(In(x, a), phi)))))
     for v in vars:
         body = Forall(v, body)
     return body
@@ -73,12 +74,12 @@ def choice():
             exists(z, and_(and_(In(z, y), In(z, c)),
                 Forall(w, Implies(and_(In(w, y), In(w, c)), eq(w, z))))))))))
 
-def replacement(phi, vars):
-    a, b, x, y, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
+def replacement(x, y, phi, vars):
+    a, b, y1, y2 = Var(), Var(), Var(), Var()
     functional = Forall(x, Implies(In(x, a),
-        Forall(y1, Forall(y2, Implies(and_(phi(x, y1), phi(x, y2)), eq(y1, y2))))))
+        Forall(y1, Forall(y2, Implies(and_(_subst(phi, y, y1), _subst(phi, y, y2)), eq(y1, y2))))))
     image = exists(b, Forall(y,
-        iff(In(y, b), exists(x, and_(In(x, a), phi(x, y))))))
+        iff(In(y, b), exists(x, and_(In(x, a), phi)))))
     body = Forall(a, Implies(functional, image))
     for v in vars:
         body = Forall(v, body)
