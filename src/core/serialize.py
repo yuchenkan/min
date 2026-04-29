@@ -157,33 +157,29 @@ def _encode(proof):
         elif isinstance(f, ZFCAxiom):
             axioms.append((AX_TAGS[type(f).__name__],))
 
-    return len(free_vars), list(formulas.keys()), list(proofs.keys()), axioms, root
+    return list(formulas.keys()), list(proofs.keys()), axioms, root
 
 
 # --- Decode ---
 
-def _decode(free_var_count, formula_table, proof_table, axiom_descs, root_id):
-    free_vars = [Var() for _ in range(free_var_count)]
-    bound_vars = []
-    schema_vars = [Var(), Var()]  # SCHEMA(0) and SCHEMA(1)
+def _decode(formula_table, proof_table, axiom_descs, root_id):
+    free_vars = {}
+    bound_vars = {}
+    schema_vars = {0: Var(), 1: Var()}
     formulas = [None] * len(formula_table)
     proofs = [None] * len(proof_table)
 
-    def decode_free_var(idx):
-        return free_vars[idx]
-
-    def decode_bound_var(idx):
-        while idx >= len(bound_vars):
-            bound_vars.append(Var())
-        return bound_vars[idx]
-
     def decode_var(entry):
         if entry[0] == BOUND:
-            return decode_bound_var(entry[1])
+            if entry[1] not in bound_vars:
+                bound_vars[entry[1]] = Var()
+            return bound_vars[entry[1]]
         elif entry[0] == SCHEMA:
             return schema_vars[entry[1]]
         else:
-            return decode_free_var(entry[1])
+            if entry[1] not in free_vars:
+                free_vars[entry[1]] = Var()
+            return free_vars[entry[1]]
 
     def decode_formula(idx):
         if formulas[idx] is not None:
@@ -251,14 +247,13 @@ def _decode(free_var_count, formula_table, proof_table, axiom_descs, root_id):
 # --- Pack/Unpack ---
 
 def serialize(proof):
-    fv_count, formula_table, proof_table, axiom_descs, root = _encode(proof)
+    formula_table, proof_table, axiom_descs, root = _encode(proof)
     buf = bytearray()
     w = lambda n: _write_varint(buf, n)
 
     def write_var(v):
         w(v[0]); w(v[1])
 
-    w(fv_count)
     w(len(formula_table))
     for entry in formula_table:
         tag = entry[0]
@@ -302,7 +297,6 @@ def deserialize(data):
     def read_var():
         return (r(), r())  # (BOUND/FREE, id)
 
-    fv_count = r()
     formula_table = []
     for _ in range(r()):
         tag = r()
@@ -334,4 +328,4 @@ def deserialize(data):
             axiom_descs.append((tag,))
     root = r()
 
-    return _decode(fv_count, formula_table, proof_table, axiom_descs, root)
+    return _decode(formula_table, proof_table, axiom_descs, root)

@@ -37,6 +37,89 @@ def _read_varint(data, pos):
         shift += 7
 
 
+def encode_var(v, ups, free_vars):
+    if v in ups:
+        return (BOUND, ups[v])
+    if v not in free_vars:
+        free_vars[v] = len(free_vars)
+    return (FREE, free_vars[v])
+
+
+def encode_formula(f, free_vars, formulas, encode_formula_cache):
+    if f in encode_formula_cache:
+        return encode_formula_cache[f]
+
+    def expand_fresh(f, subst):
+        f = _expand(f)
+        match f:
+            case In(l, r):
+                return In(subst.get(l, l), subst.get(r, r)), {}, 0
+            case Not(o):
+                eo, ups, n = expand_fresh(o, subst)
+                return Not(eo), ups, n
+            case Implies(l, r):
+                el, ups_l, n = expand_fresh(l, subst)
+                er, ups_r, m = expand_fresh(r, subst)
+                return Implies(el, er), {**ups_l, **ups_r}, max(n, m)
+            case Forall(v, b):
+                fresh_v = Var()
+                eb, ups, n = expand_fresh(b, {**subst, v: fresh_v})
+                return Forall(fresh_v, eb), {**ups, fresh_v: n}, n + 1
+
+    def _encode_formula(f, ups):
+        match f:
+            case In(l, r):
+                key = (TAG_IN, encode_var(l, ups, free_vars), encode_var(r, ups, free_vars))
+            case Not(o):
+                key = (TAG_NOT, _encode_formula(o, ups))
+            case Implies(l, r):
+                key = (TAG_IMPLIES, _encode_formula(l, ups), _encode_formula(r, ups))
+            case Forall(v, b):
+                key = (TAG_FORALL, (BOUND, ups[v]), _encode_formula(b, ups))
+        if key not in formulas:
+            formulas[key] = len(formulas)
+        return formulas[key]
+
+    ef, ups, _ = expand_fresh(f, {})
+    encode_formula_cache[f] = _encode_formula(ef, ups)
+    return encode_formula_cache[f]
+
+
+class EncodeContext:
+    def __init__(self):
+        self.formulas = {}
+        self.proofs = {}
+        self.encode_formula_cache = {}
+        self.encode_proof_cache = {}
+
+
+def _encode(proof, ctx):
+    free_vars = {}
+
+    ef = lambda f: encode_formula(f, free_vars, ctx.formulas, ctx.encode_formula_cache)
+
+    def encode_sequent(seq):
+        left = tuple(sorted(ef(f) for f in seq.left))
+        right = tuple(sorted(ef(f) for f in seq.right))
+        return (left, right)
+
+    def encode_proof(p):
+        if p in ctx.encode_proof_cache:
+            return ctx.encode_proof_cache[p]
+        prems = tuple(encode_proof(pr) for pr in p.premises)
+        seq = encode_sequent(p.sequent)
+        pri = ef(p.principal)
+        trm = encode_var(p.term, {}, free_vars) if p.term else None
+        key = (RULE_TO_TAG[p.rule], seq, pri, trm, prems)
+        if key not in ctx.proofs:
+            ctx.proofs[key] = len(ctx.proofs)
+        ctx.encode_proof_cache[p] = ctx.proofs[key]
+        return ctx.proofs[key]
+
+    root = encode_proof(proof)
+    return list(ctx.formulas.keys()), list(ctx.proofs.keys()), root
+
+
 def decode(data):
     """Decode binary data into (proof, axioms)."""
     pos = [0]
@@ -76,24 +159,26 @@ def decode(data):
     root_id = r()
 
     # Decode
-    free_vars = [Var() for _ in range(fv_count)]
-    bound_vars = []
-    schema_vars = [Var(), Var()]
-    formulas = [None] * len(formula_table)
-    proofs = [None] * len(proof_table)
+    free_vars = {}
+    bound_vars = {}
+    schema_vars = {0: Var(), 1: Var()}
+    formulas = {}
+    proofs = {}
 
     def decode_var(entry):
         if entry[0] == BOUND:
-            while entry[1] >= len(bound_vars):
-                bound_vars.append(Var())
+            if entry[1] not in bound_vars:
+                bound_vars[entry[1]] = Var()
             return bound_vars[entry[1]]
         elif entry[0] == SCHEMA:
             return schema_vars[entry[1]]
         else:
+            if entry[1] not in free_vars:
+                free_vars[entry[1]] = Var()
             return free_vars[entry[1]]
 
     def decode_formula(idx):
-        if formulas[idx] is not None:
+        if idx in formulas:
             return formulas[idx]
         tag, *args = formula_table[idx]
         if tag == TAG_IN:
@@ -113,7 +198,7 @@ def decode(data):
                        [decode_formula(i) for i in right_ids])
 
     def decode_proof(idx):
-        if proofs[idx] is not None:
+        if idx in proofs:
             return proofs[idx]
         rule, seq, pri, trm, prems = proof_table[idx]
         decoded_prems = [decode_proof(i) for i in prems]
