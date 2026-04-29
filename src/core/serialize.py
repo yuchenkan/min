@@ -122,7 +122,10 @@ def _encode(proof):
         right = tuple(sorted(encode_formula(f) for f in seq.right))
         return (left, right)
 
+    encode_proof_cache = {}
     def encode_proof(p):
+        if p in encode_proof_cache:
+            return encode_proof_cache[p]
         prems = tuple(encode_proof(pr) for pr in p.premises)
         seq = encode_sequent(p.sequent)
         pri = encode_formula(p.principal)
@@ -130,6 +133,7 @@ def _encode(proof):
         key = (RULE_TO_TAG[p.rule], seq, pri, trm, prems)
         if key not in proofs:
             proofs[key] = len(proofs)
+        encode_proof_cache[p] = proofs[key]
         return proofs[key]
 
     root = encode_proof(proof)
