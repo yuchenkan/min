@@ -6,8 +6,7 @@ No definitions. No tactics. No proof construction.
 
 from ring0.lang import Var, In, Not, Implies, Forall
 from ring0.proof import Proof, Sequent, _subst
-from ring0.zfc import (Extensionality, EmptySet, Pairing, Union, PowerSet,
-                      Separation, Infinity, Choice, Replacement, Regularity)
+from ring0 import zfc
 
 BOUND = 0
 FREE = 1
@@ -24,8 +23,6 @@ TAG_TO_RULE = {0: 'axiom', 1: 'not_left', 2: 'not_right', 3: 'implies_left',
 PREM_COUNT = {0: 0, 1: 1, 2: 1, 3: 2, 4: 1, 5: 1, 6: 1, 7: 2, 8: 1, 9: 1}
 HAS_TERM = {5, 6}
 
-AX_CLASSES = [Extensionality, EmptySet, Pairing, Union, PowerSet,
-              Separation, Infinity, Choice, Replacement, Regularity]
 
 
 def _read_varint(data, pos):
@@ -132,7 +129,9 @@ def decode(data):
         )
         return proofs[idx]
 
-    # Reconstruct axioms
+    # Reconstruct axioms as core formulas
+    AX_FUNCS = [zfc.extensionality, zfc.empty_set, zfc.pairing, zfc.union,
+                zfc.power_set, None, zfc.infinity, zfc.choice, None, zfc.regularity]
     decoded_axioms = []
     sx, sy = schema_vars[0], schema_vars[1]
     for desc in axiom_descs:
@@ -140,15 +139,15 @@ def decode(data):
         if tag == 5:  # Separation
             phi = decode_formula(desc[1])
             vars_list = [decode_var(v) for v in desc[2]]
-            decoded_axioms.append(Separation(
+            decoded_axioms.append(zfc.separation(
                 lambda x, _p=phi, _s=sx: _subst(_p, _s, x), vars_list))
         elif tag == 8:  # Replacement
             phi = decode_formula(desc[1])
             vars_list = [decode_var(v) for v in desc[2]]
-            decoded_axioms.append(Replacement(
+            decoded_axioms.append(zfc.replacement(
                 lambda x, y, _p=phi, _sx=sx, _sy=sy: _subst(_subst(_p, _sx, x), _sy, y),
                 vars_list))
         else:
-            decoded_axioms.append(AX_CLASSES[tag]())
+            decoded_axioms.append(AX_FUNCS[tag]())
 
     return decode_proof(root_id), decoded_axioms

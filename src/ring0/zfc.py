@@ -1,139 +1,91 @@
-"""ZFC axioms as formula-level objects with expand()."""
+"""ZFC axioms for ring 0. Pure functions, no classes. Returns core formulas."""
 
 from ring0.lang import Var, In, Not, Implies, Forall
-from ring0.derived import Exists, And, Or, Iff, Eq
 
 
-class ZFCAxiom:
-    """Base class for ZFC axioms."""
-    def expand(self):
-        raise NotImplementedError
+# --- Derived connectives (expand immediately) ---
 
-    def __str__(self):
-        return type(self).__name__
+def exists(v, body):
+    return Not(Forall(v, Not(body)))
 
+def and_(left, right):
+    return Not(Implies(left, Not(right)))
 
-class Extensionality(ZFCAxiom):
-    def expand(self):
-        x, y, z = Var(), Var(), Var()
-        return Forall(x, Forall(y,
-            Implies(
-                Forall(z, Iff(In(z, x), In(z, y))),
-                Forall(z, Iff(In(x, z), In(y, z))))))
+def or_(left, right):
+    return Implies(Not(left), right)
 
+def iff(left, right):
+    return Not(Implies(Implies(left, right), Not(Implies(right, left))))
 
-class EmptySet(ZFCAxiom):
-    def expand(self):
-        b, x = Var(), Var()
-        return Exists(b, Forall(x, Not(In(x, b))))
+def eq(left, right):
+    z = Var()
+    return Forall(z, Not(Implies(Implies(In(z, left), In(z, right)),
+                                 Not(Implies(In(z, right), In(z, left))))))
 
 
-class Pairing(ZFCAxiom):
-    def expand(self):
-        x, y, z, b = Var(), Var(), Var(), Var()
-        return Forall(x, Forall(y,
-            Exists(b, Forall(z,
-                Iff(In(z, b), Or(Eq(z, x), Eq(z, y)))))))
+# --- ZFC axiom formulas ---
 
+def extensionality():
+    x, y, z = Var(), Var(), Var()
+    return Forall(x, Forall(y, Implies(
+        Forall(z, iff(In(z, x), In(z, y))),
+        Forall(z, iff(In(x, z), In(y, z))))))
 
-class Union(ZFCAxiom):
-    def expand(self):
-        a, b, x, y = Var(), Var(), Var(), Var()
-        return Forall(a,
-            Exists(b, Forall(x,
-                Iff(In(x, b), Exists(y, And(In(y, a), In(x, y)))))))
+def empty_set():
+    b, x = Var(), Var()
+    return exists(b, Forall(x, Not(In(x, b))))
 
+def pairing():
+    x, y, z, b = Var(), Var(), Var(), Var()
+    return Forall(x, Forall(y, exists(b, Forall(z,
+        iff(In(z, b), or_(eq(z, x), eq(z, y)))))))
 
-class PowerSet(ZFCAxiom):
-    def expand(self):
-        a, b, x, y = Var(), Var(), Var(), Var()
-        return Forall(a,
-            Exists(b, Forall(x,
-                Iff(In(x, b), Forall(y, Implies(In(y, x), In(y, a)))))))
+def union():
+    a, b, x, y = Var(), Var(), Var(), Var()
+    return Forall(a, exists(b, Forall(x,
+        iff(In(x, b), exists(y, and_(In(y, a), In(x, y)))))))
 
+def power_set():
+    a, b, x, y = Var(), Var(), Var(), Var()
+    return Forall(a, exists(b, Forall(x,
+        iff(In(x, b), Forall(y, Implies(In(y, x), In(y, a)))))))
 
-class Separation(ZFCAxiom):
-    _str_x = Var()
+def separation(phi, vars):
+    a, b, x = Var(), Var(), Var()
+    body = Forall(a, exists(b, Forall(x,
+        iff(In(x, b), and_(In(x, a), phi(x))))))
+    for v in vars:
+        body = Forall(v, body)
+    return body
 
-    def __init__(self, phi, vars: list):
-        self.phi = phi
-        self.vars = vars
-        from ring0.proof import _free_vars
-        for v in _free_vars(phi(Separation._str_x)) - {Separation._str_x}:
-            assert v in vars, f'Separation: free var {v} in phi not in vars'
+def infinity():
+    b, e, y, z, s, w = Var(), Var(), Var(), Var(), Var(), Var()
+    return exists(b, and_(
+        exists(e, and_(In(e, b), Forall(z, Not(In(z, e))))),
+        Forall(y, Implies(In(y, b),
+            exists(s, and_(In(s, b), Forall(w, iff(In(w, s), or_(In(w, y), eq(w, y))))))))))
 
-    def expand(self):
-        a, b, x = Var(), Var(), Var()
-        body = Forall(a, Exists(b, Forall(x,
-            Iff(In(x, b), And(In(x, a), self.phi(x))))))
-        for v in self.vars:
-            body = Forall(v, body)
-        return body
+def choice():
+    x, y, z, c, w = Var(), Var(), Var(), Var(), Var()
+    return Forall(x, Implies(
+        Forall(y, Implies(In(y, x), exists(z, In(z, y)))),
+        exists(c, Forall(y, Implies(In(y, x),
+            exists(z, and_(and_(In(z, y), In(z, c)),
+                Forall(w, Implies(and_(In(w, y), In(w, c)), eq(w, z))))))))))
 
-    def __str__(self):
-        x = Separation._str_x
-        return f'Separation({x} => {self.phi(x)})'
+def replacement(phi, vars):
+    a, b, x, y, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
+    functional = Forall(x, Implies(In(x, a),
+        Forall(y1, Forall(y2, Implies(and_(phi(x, y1), phi(x, y2)), eq(y1, y2))))))
+    image = exists(b, Forall(y,
+        iff(In(y, b), exists(x, and_(In(x, a), phi(x, y))))))
+    body = Forall(a, Implies(functional, image))
+    for v in vars:
+        body = Forall(v, body)
+    return body
 
-
-class Infinity(ZFCAxiom):
-    def expand(self):
-        b, e, y, z, s, w = Var(), Var(), Var(), Var(), Var(), Var()
-        return Exists(b, And(
-            Exists(e, And(In(e, b), Forall(z, Not(In(z, e))))),
-            Forall(y, Implies(In(y, b),
-                Exists(s, And(In(s, b),
-                    Forall(w, Iff(In(w, s), Or(In(w, y), Eq(w, y))))))))))
-
-
-class Choice(ZFCAxiom):
-    def expand(self):
-        x, y, z, c, w = Var(), Var(), Var(), Var(), Var()
-        return Forall(x,
-            Implies(
-                Forall(y, Implies(In(y, x), Exists(z, In(z, y)))),
-                Exists(c, Forall(y, Implies(In(y, x),
-                    Exists(z, And(And(In(z, y), In(z, c)),
-                        Forall(w, Implies(And(In(w, y), In(w, c)), Eq(w, z))))))))))
-
-
-class Replacement(ZFCAxiom):
-    _str_x = Var()
-    _str_y = Var()
-
-    def __init__(self, phi, vars: list):
-        self.phi = phi
-        self.vars = vars
-        from ring0.proof import _free_vars
-        for v in _free_vars(phi(Replacement._str_x, Replacement._str_y)) - {Replacement._str_x, Replacement._str_y}:
-            assert v in vars, f'Replacement: free var {v} in phi not in vars'
-
-    def expand(self):
-        a, b, x, y, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
-        functional = Forall(x, Implies(In(x, a),
-            Forall(y1, Forall(y2, Implies(
-                And(self.phi(x, y1), self.phi(x, y2)),
-                Eq(y1, y2))))))
-        image = Exists(b, Forall(y,
-            Iff(In(y, b), Exists(x, And(In(x, a), self.phi(x, y))))))
-        body = Forall(a, Implies(functional, image))
-        for v in self.vars:
-            body = Forall(v, body)
-        return body
-
-    def __str__(self):
-        x, y = Replacement._str_x, Replacement._str_y
-        return f'Replacement({x},{y} => {self.phi(x, y)})'
-
-
-class Regularity(ZFCAxiom):
-    def expand(self):
-        a, y, z = Var(), Var(), Var()
-        return Forall(a,
-            Implies(
-                Exists(y, In(y, a)),
-                Exists(y, And(In(y, a), Not(Exists(z, And(In(z, a), In(z, y))))))))
-
-
-def is_axiom(formula) -> bool:
-    """Check if formula is a ZFC axiom."""
-    return isinstance(formula, ZFCAxiom)
+def regularity():
+    a, y, z = Var(), Var(), Var()
+    return Forall(a, Implies(
+        exists(y, In(y, a)),
+        exists(y, and_(In(y, a), Not(exists(z, and_(In(z, a), In(z, y))))))))
