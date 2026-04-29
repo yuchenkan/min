@@ -197,6 +197,7 @@ def _decode(formula_table, proof_table, root_id, ctx, has_substituted=False):
 
     df = lambda idx: decode_formula(idx, formula_table, ctx, None)
     dv = lambda entry: decode_var(entry, ctx, None)
+    subst_cache = {}
 
     def decode_sequent(seq):
         left_ids, right_ids = seq
@@ -218,7 +219,10 @@ def _decode(formula_table, proof_table, root_id, ctx, has_substituted=False):
         if sub is not None:
             decoded_sub = df(sub)
         elif rule in HAS_TERM and decoded_pri is not None:
-            decoded_sub = _subst(decoded_pri.body, decoded_pri.var, decoded_trm)
+            key = (decoded_pri, decoded_trm)
+            if key not in subst_cache:
+                subst_cache[key] = _subst(decoded_pri.body, decoded_pri.var, decoded_trm)
+            decoded_sub = subst_cache[key]
         else:
             decoded_sub = None
         ctx.proofs[idx] = Proof(
