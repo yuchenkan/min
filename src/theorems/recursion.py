@@ -1035,7 +1035,7 @@ def eq_apply_transfer():
     iff_in_eq1 = Iff(In(zv, sa), Eq(zv, x1))
     iff_in_eq2 = Iff(In(zv, sa), Eq(zv, x2))
 
-    ct1 = char_transfer(In(zv, sa), Eq(zv, x1), Eq(zv, x2))
+    ct1 = char_transfer(In(zv, sa), Eq(zv, x1), Eq(zv, x2), [])
     got_sing_z = mp(mp(ct1,
         fl(sing_x1, iff_in_eq1, zv), iff_in_eq1, Implies(iff_eq_z, iff_in_eq2)),
         got_iff_eq_z, iff_eq_z, iff_in_eq2)
@@ -1074,7 +1074,7 @@ def eq_apply_transfer():
     # got_iff_or: [eq_x] |- Iff(or_x1, or_x2)
 
     # iff_chain: In(z,pab) iff or_x1, or_x1 iff or_x2 -> In(z,pab) iff or_x2
-    ct2 = char_transfer(In(zv, pab), or_x1, or_x2)
+    ct2 = char_transfer(In(zv, pab), or_x1, or_x2, [])
     got_pair_z = mp(mp(ct2,
         fl(pair_x1, iff_in_or1, zv), iff_in_or1, Implies(iff_or, iff_in_or2)),
         got_iff_or, iff_or, iff_in_or2)
@@ -1700,7 +1700,7 @@ def eq_apply_val_transfer():
     # got_iff_or: [eq_y] |- Iff(or_y1, or_y2)
 
     # char_transfer: In(z,pab) iff or_y1, or_y1 iff or_y2 -> In(z,pab) iff or_y2
-    ct = char_transfer(In(zv, pab), or_y1, or_y2)
+    ct = char_transfer(In(zv, pab), or_y1, or_y2, [])
     got_pair_z = mp(mp(ct,
         fl(pair_y1, iff_in_or1, zv), iff_in_or1, Implies(iff_or, iff_in_or2)),
         got_iff_or, iff_or, iff_in_or2)
@@ -3263,7 +3263,7 @@ def rec_exists_step():
     iff_sn5 = Iff(In(zz5, sn), or_m5)
     iff_sn_sm5 = Iff(In(zz5, sn), In(zz5, sm5))
     fl_eq_sn_sm = fl(Eq(sn, sm5), iff_sn_sm5, zz5)
-    ct5 = char_transfer(In(zz5, sn), In(zz5, sm5), or_m5)
+    ct5 = char_transfer(In(zz5, sn), In(zz5, sm5), or_m5, [])
     got_iff_sn5 = mp(mp(ct5, fl_eq_sn_sm, iff_sn_sm5, Implies(iff_sm5, iff_sn5)),
         fl(succ_sm, iff_sm5, zz5), iff_sm5, iff_sn5)
     fa_succ_sn_m = Forall(zz5, iff_sn5)
@@ -3849,7 +3849,7 @@ def singleton_is_recapprox():
     # Eq(zz, p) -> In(wv,zz) iff In(wv,p)
     fl_eq_zp = fl(Eq(zz, p), iff_zp, wv)
     # char_transfer: In(wv,zz) iff In(wv,p), In(wv,p) iff Or(...) -> In(wv,zz) iff Or(...)
-    ct_ps = char_transfer(In(wv, zz), In(wv, p), or_eq)
+    ct_ps = char_transfer(In(wv, zz), In(wv, p), or_eq, [])
     got_ps_z_w = mp(mp(ct_ps, fl_eq_zp, iff_zp, Implies(iff_in_p, iff_in_z)),
         fl(ps_p, iff_in_p, wv), iff_in_p, iff_in_z)
     # got_ps_z_w: [Eq(zz,p), ps_p] |- Iff(In(wv,zz), Or(...))

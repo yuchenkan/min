@@ -1366,8 +1366,8 @@ def tuple_injection():
         eq_body = Iff(In_s1, In_s2); F_sym = Iff(cond1, In_s1); F_mid = Iff(cond1, In_s2)
         result = Iff(cond1, cond2)
         sym_pf = iff_sym(In_s1, cond1, [])
-        ch1 = char_transfer(cond1, In_s1, In_s2)
-        ch2 = char_transfer(cond1, In_s2, cond2)
+        ch1 = char_transfer(cond1, In_s1, In_s2, [])
+        ch2 = char_transfer(cond1, In_s2, cond2, [])
         ic1 = fl(c1, c1b, xvar); ieq = fl(eq_s, eq_body, xvar); ic2 = fl(c2, c2b, xvar)
         got_sym = mp(sym_pf, ic1, c1b, F_sym)
         got_mid = mp(mp(ch1, got_sym, F_sym, Implies(eq_body, F_mid)), ieq, eq_body, F_mid)
@@ -1622,8 +1622,8 @@ def kuratowski():
     ieq = fl(eq_t1_t2, eq_body, xv2)    # eq_t1_t2 |- eq_body
 
     sym_pf = iff_sym(In_t1, or_sa_pab, [])
-    ch1 = char_transfer(or_sa_pab, In_t1, In_t2)
-    ch2 = char_transfer(or_sa_pab, In_t2, or_sc_pcd)
+    ch1 = char_transfer(or_sa_pab, In_t1, In_t2, [])
+    ch2 = char_transfer(or_sa_pab, In_t2, or_sc_pcd, [])
 
     F_sym = Iff(or_sa_pab, In_t1)
     F_mid = Iff(or_sa_pab, In_t2)
@@ -2237,7 +2237,7 @@ def successor_exists():
     # got_iff_or: [sing] |- [iff_or]
 
     # Chain: Iff(In(xv,s), or_old) and Iff(or_old, or_new) -> Iff(In(xv,s), or_new)
-    ct = char_transfer(In(xv, s), or_old, or_new)
+    ct = char_transfer(In(xv, s), or_old, or_new, [])
     got_chain = mp(mp(ct, got_union, union_body, Implies(iff_or, succ_body)),
                    got_iff_or, iff_or, succ_body)
     # got_chain: [union_s, sing] |- [succ_body]
@@ -2414,7 +2414,7 @@ def unique_successor():
     got_iff2_sym = mp(sym, got_iff2, iff2, iff2_sym)
 
     # iff_chain: Iff(In(zv,s1), mid), Iff(mid, In(zv,s2)) -> Iff(In(zv,s1), In(zv,s2))
-    ct = char_transfer(In(zv, s1), mid, In(zv, s2))
+    ct = char_transfer(In(zv, s1), mid, In(zv, s2), [])
     got_result = mp(mp(ct, got_iff1, iff1, Implies(iff2_sym, iff_result)),
                     got_iff2_sym, iff2_sym, iff_result)
     # got_result: [succ1, succ2] |- [iff_result]
@@ -2464,7 +2464,7 @@ def eq_in_eq():
     got_iff2 = fl(eq_x, iff_wx1_wx2, wv)
 
     # iff_chain: Iff(In(w,z), In(w,x1)), Iff(In(w,x1), In(w,x2)) -> Iff(In(w,z), In(w,x2))
-    ct = char_transfer(In(wv, z), In(wv, x1), In(wv, x2))
+    ct = char_transfer(In(wv, z), In(wv, x1), In(wv, x2), [])
     got_result = mp(mp(ct, got_iff1, iff_wz_wx1, Implies(iff_wx1_wx2, iff_wz_wx2)),
                     got_iff2, iff_wx1_wx2, iff_wz_wx2)
     # got_result: [eq_zx1, eq_x] |- [iff_wz_wx2]
@@ -2480,7 +2480,7 @@ def eq_in_eq():
     iff_wx2_wx1 = Iff(In(wv, x2), In(wv, x1))
     got_iff2_sym = mp(iff_sym(In(wv, x1), In(wv, x2), []), got_iff2, iff_wx1_wx2, iff_wx2_wx1)
     got_iff_zx2 = fl(eq_zx2, Iff(In(wv, z), In(wv, x2)), wv)
-    ct2 = char_transfer(In(wv, z), In(wv, x2), In(wv, x1))
+    ct2 = char_transfer(In(wv, z), In(wv, x2), In(wv, x1), [])
     got_result2 = mp(mp(ct2, got_iff_zx2, Iff(In(wv, z), In(wv, x2)), Implies(iff_wx2_wx1, iff_wz_wx1)),
                      got_iff2_sym, iff_wx2_wx1, iff_wz_wx1)
     fa_w2 = Forall(wv, iff_wz_wx1)
@@ -2893,7 +2893,7 @@ def ordpair_eq_transfer():
     iff_z_or = Iff(In(wv, z), or_eq)
 
     fl_eq_zp = fl(eq_zp, iff_zp, wv)
-    ct = char_transfer(In(wv, z), In(wv, p), or_eq)
+    ct = char_transfer(In(wv, z), In(wv, p), or_eq, [])
     got_ps_z_w = mp(mp(ct, fl_eq_zp, iff_zp, Implies(iff_p_or, iff_z_or)),
         fl(ps_p, iff_p_or, wv), iff_p_or, iff_z_or)
     fa_ps_z = Forall(wv, iff_z_or)
@@ -3047,7 +3047,7 @@ def ordpair_val_transfer():
     got_iff_or = mp(mp(oic, got_iff_refl, iff_refl_x, Implies(iff_eq_z, iff_or)),
         got_iff_eq_z, iff_eq_z, iff_or)
 
-    ct = char_transfer(In(zv, pab), or_y1, or_y2)
+    ct = char_transfer(In(zv, pab), or_y1, or_y2, [])
     got_pair_z = mp(mp(ct,
         fl(pair_y1, iff_in_or1, zv), iff_in_or1, Implies(iff_or, iff_in_or2)),
         got_iff_or, iff_or, iff_in_or2)
@@ -3192,7 +3192,7 @@ def ordpair_unique():
     fl_ps2 = fl(ps2, iff_pab2, zv)
     iff_sym_ps = iff_sym(In(zv, pab2), or_xy, [])
     got_ps2_sym = mp(iff_sym_ps, fl_ps2, iff_pab2, Iff(or_xy, In(zv, pab2)))
-    ct_pab = char_transfer(In(zv, pab1), or_xy, In(zv, pab2))
+    ct_pab = char_transfer(In(zv, pab1), or_xy, In(zv, pab2), [])
     iff_pabs = Iff(In(zv, pab1), In(zv, pab2))
     got_iff_pabs = mp(mp(ct_pab, fl_ps1, iff_pab1, Implies(Iff(or_xy, In(zv, pab2)), iff_pabs)),
         got_ps2_sym, Iff(or_xy, In(zv, pab2)), iff_pabs)
@@ -3242,7 +3242,7 @@ def ordpair_unique():
     iff_sa2_sym = Iff(eq_zx, In(zv, sa2))
     got_sa2_sym = mp(iff_sym(In(zv, sa2), eq_zx, []), fl_sing2, iff_sa2, iff_sa2_sym)
     iff_sa1_sa2 = Iff(In(zv, sa1), In(zv, sa2))
-    ct_sa = char_transfer(In(zv, sa1), eq_zx, In(zv, sa2))
+    ct_sa = char_transfer(In(zv, sa1), eq_zx, In(zv, sa2), [])
     got_iff_sas = mp(mp(ct_sa, fl_sing1, iff_sa1, Implies(iff_sa2_sym, iff_sa1_sa2)),
         got_sa2_sym, iff_sa2_sym, iff_sa1_sa2)
     got_eq_sas = Proof(Sequent([sing1, sing2], [Eq(sa1, sa2)]), 'forall_right',
@@ -3276,7 +3276,7 @@ def ordpair_unique():
     iff_or_sym = Iff(or_s2p2, or_s1p1)
     got_iff_or_sym = mp(iff_sym(or_s1p1, or_s2p2, []), got_iff_or, iff_or, iff_or_sym)
     iff_p2_s1 = Iff(In(zv, p2), or_s1p1)
-    ct_p2 = char_transfer(In(zv, p2), or_s2p2, or_s1p1)
+    ct_p2 = char_transfer(In(zv, p2), or_s2p2, or_s1p1, [])
     fl_ps_p2 = fl(ps_p2, iff_p2, zv)
     got_iff_p2_s1 = mp(mp(ct_p2, fl_ps_p2, iff_p2, Implies(iff_or_sym, iff_p2_s1)),
         got_iff_or_sym, iff_or_sym, iff_p2_s1)
@@ -3287,7 +3287,7 @@ def ordpair_unique():
     iff_p1_p2 = Iff(In(zv, p1), In(zv, p2))
     iff_s1_p2 = Iff(or_s1p1, In(zv, p2))
     got_iff_s1_p2 = mp(iff_sym(In(zv, p2), or_s1p1, []), got_iff_p2_s1, iff_p2_s1, iff_s1_p2)
-    ct_final = char_transfer(In(zv, p1), or_s1p1, In(zv, p2))
+    ct_final = char_transfer(In(zv, p1), or_s1p1, In(zv, p2), [])
     got_eq_p1p2 = mp(mp(ct_final, fl_ps_p1, iff_p1, Implies(iff_s1_p2, iff_p1_p2)),
         got_iff_s1_p2, iff_s1_p2, iff_p1_p2)
     eq_p1p2 = Eq(p1, p2)

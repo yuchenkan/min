@@ -817,7 +817,7 @@ def func_preserves_eq():
 
     # iff_chain: Iff(In(zv,sa), Eq(zv,x2)) + Iff(Eq(zv,x2), Eq(zv,x1)) -> Iff(In(zv,sa), Eq(zv,x1))
     iff_in_eq1 = Iff(In(zv, sa), Eq(zv, x1))
-    ct = char_transfer(In(zv, sa), Eq(zv, x2), Eq(zv, x1))
+    ct = char_transfer(In(zv, sa), Eq(zv, x2), Eq(zv, x1), [])
     got_sing_z = mp(mp(ct, got_sing_inst, iff_in_eq, Implies(iff_eq_z_rev, iff_in_eq1)),
                     got_iff_rev, iff_eq_z_rev, iff_in_eq1)
     # got_sing_z: [sing_x2, eq_x] |- [Iff(In(zv,sa), Eq(zv,x1))]
@@ -873,7 +873,7 @@ def func_preserves_eq():
     got_iff_or_rev = mp(iff_sym(or_x1, or_x2, []), got_iff_or, iff_or_fwd, iff_or)
 
     # iff_chain: Iff(In(z,pab), or_x2) + Iff(or_x2, or_x1) -> Iff(In(z,pab), or_x1)
-    ct2 = char_transfer(In(zv, pab), or_x2, or_x1)
+    ct2 = char_transfer(In(zv, pab), or_x2, or_x1, [])
     got_pair_z = mp(mp(ct2, got_pair_inst, iff_in_or2, Implies(iff_or, iff_in_or1)),
                     got_iff_or_rev, iff_or, iff_in_or1)
     # got_pair_z: [pair_x2_y2, eq_x] |- [Iff(In(z,pab), Or(Eq(z,x1),Eq(z,y2)))]
