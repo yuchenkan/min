@@ -218,7 +218,7 @@ def _decode(formula_table, proof_table, root_id, ctx, has_substituted=False):
         decoded_trm = dv(trm) if trm is not None else None
         if sub is not None:
             decoded_sub = df(sub)
-        elif rule in HAS_TERM and decoded_pri is not None:
+        elif rule in HAS_TERM:
             key = (decoded_pri, decoded_trm)
             if key not in subst_cache:
                 subst_cache[key] = _subst(decoded_pri.body, decoded_pri.var, decoded_trm)
