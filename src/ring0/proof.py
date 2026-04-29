@@ -23,7 +23,7 @@ class Sequent:
 class Proof:
     def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None,
                  name: str = None, term: Var = None, principal: Formula = None,
-                 trusted: bool = False):
+                 trusted: bool = False, substituted: Formula = None):
         self.sequent = sequent
         self.rule = rule
         self.premises = premises or []
@@ -31,6 +31,7 @@ class Proof:
         self.term = term
         self.principal = principal
         self.trusted = trusted
+        self.substituted = substituted
 
     def theorem(self) -> Formula:
         s = self.sequent
@@ -84,9 +85,9 @@ def _check_rule(proof: Proof) -> bool:
         case "implies_right":
             return _check_implies_right(s, ps, principal)
         case "forall_left":
-            return _check_forall_left(s, ps, principal, proof.term)
+            return _check_forall_left(s, ps, principal, proof.term, proof.substituted)
         case "forall_right":
-            return _check_forall_right(s, ps, principal, proof.term)
+            return _check_forall_right(s, ps, principal, proof.term, proof.substituted)
         case "cut":
             return _check_cut(s, ps, principal)
         case "weakening_left":
@@ -157,22 +158,21 @@ def _check_implies_right(s, ps, principal):
 
 # --- Forall ---
 
-def _check_forall_left(s, ps, principal, t):
+def _check_forall_left(s, ps, principal, t, substituted):
     """G, Forall(x,A) |- D  from  G, A[x:=t] |- D.
     Principal Forall(x,A) on left; premise instantiates x with term t."""
-    if len(ps) != 1 or t is None or not isinstance(principal, Forall):
+    if len(ps) != 1 or t is None or substituted is None or not isinstance(principal, Forall):
         return False
     if not _in(principal, s.left):
         return False
     G = _remove(s.left, principal)
-    substituted = _subst(principal.body, principal.var, t)
     return _eq_sequent(ps[0], Sequent(_set_add(G, substituted), s.right))
 
 
-def _check_forall_right(s, ps, principal, y):
+def _check_forall_right(s, ps, principal, y, substituted):
     """G |- D, Forall(x,A)  from  G |- D, A[x:=y].
     Principal Forall(x,A) on right; y is eigenvariable (fresh, not free in G or D)."""
-    if len(ps) != 1 or y is None or not isinstance(principal, Forall):
+    if len(ps) != 1 or y is None or substituted is None or not isinstance(principal, Forall):
         return False
     if not _in(principal, s.right):
         return False
@@ -181,7 +181,6 @@ def _check_forall_right(s, ps, principal, y):
         return False
     if _var_bound_in(y, principal.body):
         return False
-    substituted = _subst(principal.body, principal.var, y)
     return _eq_sequent(ps[0], Sequent(s.left, _set_add(D, substituted)))
 
 
@@ -297,4 +296,4 @@ def _var_bound_in(var, formula):
 
 
 def _var_free_in_sequent(var, s):
-    return any(var in _free_vars(f) for f in s.left + s.right)
+    return any(var in _free_vars(f) for f in s.left | s.right)

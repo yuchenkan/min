@@ -148,7 +148,8 @@ def _encode(proof, ctx):
         seq = encode_sequent(p.sequent)
         pri = ef(p.principal)
         trm = encode_var(p.term, {}, free_vars) if p.term else None
-        key = (RULE_TO_TAG[p.rule], seq, pri, trm, prems)
+        sub = ef(p.substituted) if p.substituted else None
+        key = (RULE_TO_TAG[p.rule], seq, pri, trm, sub, prems)
         if key not in ctx.proofs:
             ctx.proofs[key] = len(ctx.proofs)
         ctx.encode_proof_cache[p] = ctx.proofs[key]
@@ -192,7 +193,7 @@ def decode_formula(idx, formula_table, ctx, schema_vars):
     return result
 
 
-def _decode(formula_table, proof_table, root_id, ctx):
+def _decode(formula_table, proof_table, root_id, ctx, has_substituted=False):
 
     df = lambda idx: decode_formula(idx, formula_table, ctx, None)
     dv = lambda entry: decode_var(entry, ctx, None)
@@ -205,17 +206,28 @@ def _decode(formula_table, proof_table, root_id, ctx):
     def decode_proof(idx):
         if idx in ctx.proofs:
             return ctx.proofs[idx]
-        rule, seq, pri, trm, prems = proof_table[idx]
+        if has_substituted:
+            rule, seq, pri, trm, sub, prems = proof_table[idx]
+        else:
+            rule, seq, pri, trm, prems = proof_table[idx]
+            sub = None
         decoded_prems = [decode_proof(i) for i in prems]
         decoded_seq = decode_sequent(seq)
         decoded_pri = df(pri)
         decoded_trm = dv(trm) if trm is not None else None
+        if sub is not None:
+            decoded_sub = df(sub)
+        elif rule in HAS_TERM and decoded_pri is not None:
+            decoded_sub = _subst(decoded_pri.body, decoded_pri.var, decoded_trm)
+        else:
+            decoded_sub = None
         ctx.proofs[idx] = Proof(
             sequent=decoded_seq,
             rule=TAG_TO_RULE[rule],
             premises=decoded_prems,
             principal=decoded_pri,
             term=decoded_trm,
+            substituted=decoded_sub,
         )
         return ctx.proofs[idx]
 
@@ -261,7 +273,7 @@ def decode(data):
 
     # Decode from unified table
     formula_table2 = list(enc_ctx.formulas.keys())
-    proof2 = _decode(formula_table2, list(enc_ctx.proofs.keys()), root_id2, dec_ctx)
+    proof2 = _decode(formula_table2, list(enc_ctx.proofs.keys()), root_id2, dec_ctx, has_substituted=True)
 
     # Decode axiom formulas into dec_ctx, collect as set for identity check
     axiom_objs = set()
