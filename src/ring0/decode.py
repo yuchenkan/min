@@ -37,6 +37,44 @@ def _read_varint(data, pos):
         shift += 7
 
 
+def unpack(data):
+    pos = [0]
+    r = lambda: _read_varint(data, pos)
+    def read_var():
+        return (r(), r())
+
+    formula_table = []
+    for _ in range(r()):
+        tag = r()
+        if tag == TAG_IN:
+            formula_table.append((tag, read_var(), read_var()))
+        elif tag == TAG_NOT:
+            formula_table.append((tag, r()))
+        elif tag == TAG_IMPLIES:
+            formula_table.append((tag, r(), r()))
+        elif tag == TAG_FORALL:
+            formula_table.append((tag, read_var(), r()))
+    proof_table = []
+    for _ in range(r()):
+        rule = r()
+        left = tuple(r() for _ in range(r()))
+        right = tuple(r() for _ in range(r()))
+        pri = r()
+        trm = read_var() if rule in HAS_TERM else None
+        prems = tuple(r() for _ in range(PREM_COUNT[rule]))
+        proof_table.append((rule, (left, right), pri, trm, prems))
+    axiom_descs = []
+    for _ in range(r()):
+        tag = r()
+        if tag in (5, 8):
+            axiom_descs.append((tag, r(), tuple(read_var() for _ in range(r()))))
+        else:
+            axiom_descs.append((tag,))
+    root_id = r()
+
+    return formula_table, proof_table, axiom_descs, root_id
+
+
 def encode_var(v, ups, free_vars):
     if v in ups:
         return (BOUND, ups[v])
@@ -127,41 +165,43 @@ class DecodeContext:
         self.proofs = {}
 
 
+def decode_var(entry, ctx, schema_vars):
+    if entry[0] == BOUND:
+        if entry[1] not in ctx.bound_vars:
+            ctx.bound_vars[entry[1]] = Var()
+        return ctx.bound_vars[entry[1]]
+    elif entry[0] == SCHEMA:
+        return schema_vars[entry[1]]
+    else:
+        if entry[1] not in ctx.free_vars:
+            ctx.free_vars[entry[1]] = Var()
+        return ctx.free_vars[entry[1]]
+
+def decode_formula(idx, formula_table, ctx, schema_vars):
+    if idx in ctx.formulas:
+        return ctx.formulas[idx]
+    tag, *args = formula_table[idx]
+    if tag == TAG_IN:
+        result = In(decode_var(args[0], ctx, schema_vars), decode_var(args[1], ctx, schema_vars))
+    elif tag == TAG_NOT:
+        result = Not(decode_formula(args[0], formula_table, ctx, schema_vars))
+    elif tag == TAG_IMPLIES:
+        result = Implies(decode_formula(args[0], formula_table, ctx, schema_vars), decode_formula(args[1], formula_table, ctx, schema_vars))
+    elif tag == TAG_FORALL:
+        result = Forall(decode_var(args[0], ctx, schema_vars), decode_formula(args[1], formula_table, ctx, schema_vars))
+    ctx.formulas[idx] = result
+    return result
+
+
 def _decode(formula_table, proof_table, root_id, ctx):
 
-    def decode_var(entry):
-        if entry[0] == BOUND:
-            if entry[1] not in ctx.bound_vars:
-                ctx.bound_vars[entry[1]] = Var()
-            return ctx.bound_vars[entry[1]]
-        elif entry[0] == SCHEMA:
-            if entry[1] not in ctx.free_vars:
-                ctx.free_vars[entry[1]] = Var()
-            return ctx.free_vars[entry[1]]
-        else:
-            if entry[1] not in ctx.free_vars:
-                ctx.free_vars[entry[1]] = Var()
-            return ctx.free_vars[entry[1]]
-
-    def decode_formula(idx):
-        if idx in ctx.formulas:
-            return ctx.formulas[idx]
-        tag, *args = formula_table[idx]
-        if tag == TAG_IN:
-            result = In(decode_var(args[0]), decode_var(args[1]))
-        elif tag == TAG_NOT:
-            result = Not(decode_formula(args[0]))
-        elif tag == TAG_IMPLIES:
-            result = Implies(decode_formula(args[0]), decode_formula(args[1]))
-        elif tag == TAG_FORALL:
-            result = Forall(decode_var(args[0]), decode_formula(args[1]))
-        ctx.formulas[idx] = result
-        return result
+    df = lambda idx: decode_formula(idx, formula_table, ctx, None)
+    dv = lambda entry: decode_var(entry, ctx, None)
 
     def decode_sequent(seq):
         left_ids, right_ids = seq
-        return Sequent([decode_formula(i) for i in left_ids],
-                       [decode_formula(i) for i in right_ids])
+        return Sequent([df(i) for i in left_ids],
+                       [df(i) for i in right_ids])
 
     def decode_proof(idx):
         if idx in ctx.proofs:
@@ -169,8 +209,8 @@ def _decode(formula_table, proof_table, root_id, ctx):
         rule, seq, pri, trm, prems = proof_table[idx]
         decoded_prems = [decode_proof(i) for i in prems]
         decoded_seq = decode_sequent(seq)
-        decoded_pri = decode_formula(pri)
-        decoded_trm = decode_var(trm) if trm is not None else None
+        decoded_pri = df(pri)
+        decoded_trm = dv(trm) if trm is not None else None
         ctx.proofs[idx] = Proof(
             sequent=decoded_seq,
             rule=TAG_TO_RULE[rule],
@@ -184,41 +224,7 @@ def _decode(formula_table, proof_table, root_id, ctx):
 
 def decode(data):
     """Decode binary data into (proof, axioms)."""
-    pos = [0]
-    r = lambda: _read_varint(data, pos)
-    def read_var():
-        return (r(), r())
-
-    # Unpack tables
-    fv_count = r()
-    formula_table = []
-    for _ in range(r()):
-        tag = r()
-        if tag == TAG_IN:
-            formula_table.append((tag, read_var(), read_var()))
-        elif tag == TAG_NOT:
-            formula_table.append((tag, r()))
-        elif tag == TAG_IMPLIES:
-            formula_table.append((tag, r(), r()))
-        elif tag == TAG_FORALL:
-            formula_table.append((tag, read_var(), r()))
-    proof_table = []
-    for _ in range(r()):
-        rule = r()
-        left = tuple(r() for _ in range(r()))
-        right = tuple(r() for _ in range(r()))
-        pri = r()
-        trm = read_var() if rule in HAS_TERM else None
-        prems = tuple(r() for _ in range(PREM_COUNT[rule]))
-        proof_table.append((rule, (left, right), pri, trm, prems))
-    axiom_descs = []
-    for _ in range(r()):
-        tag = r()
-        if tag in (5, 8):
-            axiom_descs.append((tag, r(), tuple(read_var() for _ in range(r()))))
-        else:
-            axiom_descs.append((tag,))
-    root_id = r()
+    formula_table, proof_table, axiom_descs, root_id = unpack(data)
 
     ctx = DecodeContext()
     proof = _decode(formula_table, proof_table, root_id, ctx)
@@ -232,17 +238,17 @@ def decode(data):
     for desc in axiom_descs:
         tag = desc[0]
         if tag == 5:  # Separation
-            phi = decode_formula(desc[1])
-            vars_list = [decode_var(v) for v in desc[2]]
+            phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
+            vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
             decoded_axioms.append(zfc.separation(
                 lambda x, _p=phi, _s=sx: _subst(_p, _s, x), vars_list))
         elif tag == 8:  # Replacement
-            phi = decode_formula(desc[1])
-            vars_list = [decode_var(v) for v in desc[2]]
+            phi = decode_formula(desc[1], formula_table, ctx, schema_vars)
+            vars_list = [decode_var(v, ctx, schema_vars) for v in desc[2]]
             decoded_axioms.append(zfc.replacement(
                 lambda x, y, _p=phi, _sx=sx, _sy=sy: _subst(_subst(_p, _sx, x), _sy, y),
                 vars_list))
         else:
             decoded_axioms.append(AX_FUNCS[tag]())
 
-    return decode_proof(root_id), decoded_axioms
+    return proof, decoded_axioms
