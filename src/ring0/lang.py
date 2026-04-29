@@ -4,76 +4,51 @@
 class Var:
     _counter = 0
 
-    def __init__(self, postfix=None):
+    def __init__(self):
         Var._counter += 1
         self._id = Var._counter
-        self._postfix = postfix
 
     def __str__(self):
-        s = f'v.{self._id:x}'
-        return f'{s}/*{self._postfix}*/' if self._postfix else s
+        return f'v.{self._id:x}'
 
 
 class In:
     __match_args__ = ('left', 'right')
-    def __init__(self, left: Var, right: Var, postfix=None):
+    def __init__(self, left, right):
         self.left = left
         self.right = right
-        self._postfix = postfix
-
-    def subst(self, old: Var, new: Var):
-        return In(new if self.left is old else self.left,
-                  new if self.right is old else self.right)
 
     def __str__(self):
-        s = f'{self.left} in {self.right}'
-        return f'{s}/*{self._postfix}*/' if self._postfix else s
+        return f'{self.left} in {self.right}'
 
 
 class Not:
     __match_args__ = ('operand',)
-    def __init__(self, operand: 'Formula', postfix=None):
+    def __init__(self, operand):
         self.operand = operand
-        self._postfix = postfix
-
-    def subst(self, old: Var, new: Var):
-        return Not(self.operand.subst(old, new))
 
     def __str__(self):
-        s = f'not ({self.operand})'
-        return f'{s}/*{self._postfix}*/' if self._postfix else s
+        return f'not ({self.operand})'
 
 
 class Implies:
     __match_args__ = ('left', 'right')
-    def __init__(self, left: 'Formula', right: 'Formula', postfix=None):
+    def __init__(self, left, right):
         self.left = left
         self.right = right
-        self._postfix = postfix
-
-    def subst(self, old: Var, new: Var):
-        return Implies(self.left.subst(old, new), self.right.subst(old, new))
 
     def __str__(self):
-        s = f'({self.left}) implies ({self.right})'
-        return f'{s}/*{self._postfix}*/' if self._postfix else s
+        return f'({self.left}) implies ({self.right})'
 
 
 class Forall:
     __match_args__ = ('var', 'body')
-    def __init__(self, var: Var, body: 'Formula', postfix=None):
+    def __init__(self, var, body):
         self.var = var
         self.body = body
-        self._postfix = postfix
-
-    def subst(self, old: Var, new: Var):
-        if self.var is old:
-            return self
-        return Forall(self.var, self.body.subst(old, new))
 
     def __str__(self):
-        s = f'forall {self.var}. ({self.body})'
-        return f'{s}/*{self._postfix}*/' if self._postfix else s
+        return f'forall {self.var}. ({self.body})'
 
 
 Formula = In | Not | Implies | Forall
