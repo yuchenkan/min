@@ -19,6 +19,7 @@ TAG_FORALL = 6
 TAG_TO_RULE = {0: 'axiom', 1: 'not_left', 2: 'not_right', 3: 'implies_left',
                4: 'implies_right', 5: 'forall_left', 6: 'forall_right',
                7: 'cut', 8: 'weakening_left', 9: 'weakening_right'}
+RULE_TO_TAG = {r: i for i, r in TAG_TO_RULE.items()}
 
 PREM_COUNT = {0: 0, 1: 1, 2: 1, 3: 2, 4: 1, 5: 1, 6: 1, 7: 2, 8: 1, 9: 1}
 HAS_TERM = {5, 6}
@@ -88,7 +89,6 @@ def encode_formula(f, free_vars, formulas, encode_formula_cache):
         return encode_formula_cache[f]
 
     def expand_fresh(f, subst):
-        f = _expand(f)
         match f:
             case In(l, r):
                 return In(subst.get(l, l), subst.get(r, r)), {}, 0
@@ -131,8 +131,7 @@ class EncodeContext:
         self.encode_proof_cache = {}
 
 
-def _encode(proof, ctx):
-    free_vars = {}
+def _encode(proof, ctx, free_vars):
 
     ef = lambda f: encode_formula(f, free_vars, ctx.formulas, ctx.encode_formula_cache)
 
@@ -154,8 +153,7 @@ def _encode(proof, ctx):
         ctx.encode_proof_cache[p] = ctx.proofs[key]
         return ctx.proofs[key]
 
-    root = encode_proof(proof)
-    return list(ctx.formulas.keys()), list(ctx.proofs.keys()), root
+    return encode_proof(proof)
 
 class DecodeContext:
     def __init__(self):
@@ -226,6 +224,9 @@ def decode(data):
     """Decode binary data into (proof, axioms)."""
     formula_table, proof_table, axiom_descs, root_id = unpack(data)
 
+    enc_ctx = EncodeContext()
+    dec_ctx = DecodeContext()
+
     ctx = DecodeContext()
     proof = _decode(formula_table, proof_table, root_id, ctx)
 
@@ -251,4 +252,15 @@ def decode(data):
         else:
             decoded_axioms.append(AX_FUNCS[tag]())
 
-    return proof, decoded_axioms
+    # Re-encode proof + axioms into global unique presentation
+    free_vars = {}
+    ef = lambda f: encode_formula(f, free_vars, enc_ctx.formulas, enc_ctx.encode_formula_cache)
+
+    root_id2 = _encode(proof, enc_ctx, free_vars)
+
+    axiom_ids = set()
+    for ax in decoded_axioms:
+        axiom_ids.add(ef(ax))
+
+    # Decode from unified table
+    return _decode(list(enc_ctx.formulas.keys()), list(enc_ctx.proofs.keys()), root_id2, dec_ctx)
