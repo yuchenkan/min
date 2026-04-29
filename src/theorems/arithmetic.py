@@ -3843,4 +3843,23 @@ def plus_assoc():
                 Implies(PlusDef(n, k, r), PlusDef(m, r, q)))))))))))))))
     assert str(goal)
 
-    raise NotImplementedError('plus_assoc proof TODO')
+    # The proof follows plus_comm's structure but with 3 recursive functions.
+    # Key idea: reuse plus_comm to reduce to:
+    #   Plus(m,n,p) ∧ Plus(p,k,q) ∧ Plus(n,k,r) → Plus(m,r,q)
+    # By plus_comm on Plus(p,k,q): Plus(k,p,q)
+    # By plus_comm on Plus(n,k,r): Plus(k,n,r)
+    # Now we have: Plus(m,n,p), Plus(k,p,q), Plus(k,n,r)
+    # Want: Plus(m,r,q)
+    # All three share the same "second argument" structure (h(·) applied to something).
+    # h_m(n)=p, h_k(p)=q, h_k(n)=r.
+    # Want: h_m(r) = h_m(h_k(n)) = ?= h_k(h_m(n)) = h_k(p) = q.
+    # This is h_m(h_k(n)) = h_k(h_m(n)) — commutativity of composition!
+    # But this requires a separate induction argument.
+    #
+    # Simpler: direct induction on k.
+    # h_m(n)=p. h_p(k)=q. h_n(k)=r. Want: h_m(r)=q.
+    # P(k) = ∀q',r'. h_p(k)=q' → h_n(k)=r' → h_m(r')=q'.
+    # Base (k=0): h_p(0)=p, h_n(0)=n, h_m(n)=p. ✓
+    # Step: h_p(S(k))=S(q'), h_n(S(k))=S(r'), h_m(S(r'))=S(h_m(r'))=S(q'). ✓
+
+    raise NotImplementedError('plus_assoc proof body TODO — ~1000 lines, same structure as plus_comm')
