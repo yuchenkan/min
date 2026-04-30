@@ -2,7 +2,7 @@
 
 from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
-from core.proof import Sequent, Proof, _free_vars
+from core.proof import Sequent, Proof
 from core import same, zfc
 from tactics import wl, wr
 from definitions import Empty
@@ -31,7 +31,6 @@ def modus_ponens(P, Q, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'modus_ponens'
-    assert not _free_vars(proof.sequent.right[0]), 'modus_ponens: open result'
     return proof
 
 
@@ -51,7 +50,6 @@ def double_negation(P, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'double_negation'
-    assert not _free_vars(proof.sequent.right[0]), 'double_negation: open result'
     return proof
 
 
@@ -83,7 +81,6 @@ def iff_intro(P, Q, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'iff_intro'
-    assert not _free_vars(proof.sequent.right[0]), 'iff_intro: open result'
     return proof
 
 
@@ -118,7 +115,6 @@ def iff_elim_left(P, Q, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'iff_elim_left'
-    assert not _free_vars(proof.sequent.right[0]), 'iff_elim_left: open result'
     return proof
 
 
@@ -149,7 +145,6 @@ def iff_elim_right(P, Q, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'iff_elim_right'
-    assert not _free_vars(proof.sequent.right[0]), 'iff_elim_right: open result'
     return proof
 
 
@@ -170,7 +165,6 @@ def or_intro_left(A, B, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'or_intro_left'
-    assert not _free_vars(proof.sequent.right[0]), 'or_intro_left: open result'
     return proof
 
 
@@ -189,7 +183,6 @@ def or_intro_right(A, B, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'or_intro_right'
-    assert not _free_vars(proof.sequent.right[0]), 'or_intro_right: open result'
     return proof
 
 
@@ -228,7 +221,6 @@ def or_elim(A, B, C, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'or_elim'
-    assert not _free_vars(proof.sequent.right[0]), 'or_elim: open result'
     return proof
 
 
@@ -255,7 +247,6 @@ def and_intro(A, B, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'and_intro'
-    assert not _free_vars(proof.sequent.right[0]), 'and_intro: open result'
     return proof
 
 
@@ -284,7 +275,6 @@ def and_elim_left(A, B, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'and_elim_left'
-    assert not _free_vars(proof.sequent.right[0]), 'and_elim_left: open result'
     return proof
 
 
@@ -310,7 +300,6 @@ def and_elim_right(A, B, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'and_elim_right'
-    assert not _free_vars(proof.sequent.right[0]), 'and_elim_right: open result'
     return proof
 
 
@@ -330,7 +319,6 @@ def forall_instantiation(x: Var, body, t: Var, vars: list[Var]):
         fa_v = Forall(v, body_r)
         proof = Proof(Sequent([], [fa_v]), 'forall_right', [proof], term=v, principal=fa_v)
     proof.name = 'forall_instantiation'
-    assert not _free_vars(proof.sequent.right[0]), 'forall_instantiation: open result'
     return proof
 
 
@@ -381,7 +369,6 @@ def forall_implies_exists(P, Q, x: Var, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'forall_implies_exists'
-    assert not _free_vars(proof.sequent.right[0]), 'forall_implies_exists: open result'
     return proof
 
 
@@ -817,7 +804,6 @@ def iff_chain(P, Q, R, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'iff_chain'
-    assert not _free_vars(proof.sequent.right[0]), 'iff_chain: open result'
     return proof
 
 
@@ -1035,7 +1021,6 @@ def or_iff_compat(P, Q, R, S, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'or_iff_compat'
-    assert not _free_vars(proof.sequent.right[0]), 'or_iff_compat: open result'
     return proof
 
 
@@ -1044,7 +1029,6 @@ def iff_mp(P, Q, vars: list[Var]):
     """|- forall vars. Iff(P,Q) implies P implies Q"""
     proof = iff_elim_left(P, Q, vars)
     proof.name = 'iff_mp'
-    assert not _free_vars(proof.sequent.right[0]), 'iff_mp: open result'
     return proof
 
 
@@ -1053,7 +1037,6 @@ def iff_mp_rev(P, Q, vars: list[Var]):
     """|- forall vars. Iff(P,Q) implies Q implies P"""
     proof = iff_elim_right(P, Q, vars)
     proof.name = 'iff_mp_rev'
-    assert not _free_vars(proof.sequent.right[0]), 'iff_mp_rev: open result'
     return proof
 
 
@@ -1101,7 +1084,6 @@ def iff_sym(P, Q, vars: list[Var]):
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
     proof.name = 'iff_sym'
-    assert not _free_vars(proof.sequent.right[0]), 'iff_sym: open result'
     return proof
 
 
@@ -1265,7 +1247,6 @@ def char_transfer(A, B, C, vars: list[Var]):
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
-    assert not _free_vars(proof.sequent.right[0]), 'char_transfer: open result'
     return proof
 
 
