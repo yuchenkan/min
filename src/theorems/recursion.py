@@ -5474,7 +5474,7 @@ def rec_h_apply_fwd():
     ordp_qmy = OrdPair(qv, mm, yr)
     ku = kuratowski()
     er = eq_reflexive()
-    from theorems.arithmetic import _tuple_inject
+    from tactics import tuple_inject as _tuple_inject
     got_ti = _tuple_inject(ku, er, n, y, mm, yr, qv, ordp_q, ordp_qmy, qv2)
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(n,m), Eq(y,y'))
 
@@ -5689,7 +5689,7 @@ def rec_h_dom_sub():
     qv2 = Var(postfix='q2')
     ku = kuratowski()
     er = eq_reflexive()
-    from theorems.arithmetic import _tuple_inject
+    from tactics import tuple_inject as _tuple_inject
     got_ti = _tuple_inject(ku, er, x, y, mm, yr, qv, ordp_q, ordp_qmy, qv2)
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(x,m), Eq(y,y'))
 

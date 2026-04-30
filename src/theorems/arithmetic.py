@@ -13,20 +13,7 @@ from theorems.sets import (kuratowski, ordpair_exists, unique_successor,
 from theorems.recursion import succ_func_exists
 
 
-def _tuple_inject(ku, er, a, b, c, d, q, ordp_q, ordp_q_cd, q2):
-    """Kuratowski pair injection: from OrdPair(q,a,b) and OrdPair(q,c,d), derive And(Eq(a,c), Eq(b,d)).
-    Uses fl+cut to avoid leaving Forall(q2,...) on any premise right side."""
-    from tactics import apply_thm, fl, wl, mp, ax, cut
-    fa_inner = Forall(q2, Implies(OrdPair(q2, c, d), Implies(Eq(q, q2),
-        And(Eq(a, c), Eq(b, d)))))
-    got_ti = apply_thm(ku, [a, b, c, d, q], ordp_q, fa_inner, ax(ordp_q))
-    imp_inst = Implies(ordp_q_cd, Implies(Eq(q, q), And(Eq(a, c), Eq(b, d))))
-    got_fl = fl(fa_inner, imp_inst, q)
-    got_fl = wl(got_fl, *[f for f in got_ti.sequent.left if not same(f, fa_inner)])
-    got_ti = cut(got_fl, fa_inner, got_ti)
-    got_ti = mp(got_ti, ax(ordp_q_cd), ordp_q_cd, Implies(Eq(q, q), And(Eq(a, c), Eq(b, d))))
-    got_eq_qq = apply_thm(er, [q], concl=Eq(q, q))
-    return mp(got_ti, got_eq_qq, Eq(q, q), And(Eq(a, c), Eq(b, d)))
+from tactics import tuple_inject as _tuple_inject
 
 
 def sf_props():
