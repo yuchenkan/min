@@ -1835,9 +1835,6 @@ def union_exists():
     iff_xy_xa = Iff(In(xv, yv), In(xv, a))
     eq_inst_a = _inst_fl(eq_ya, iff_xy_xa, xv)  # Eq(yv,a) |- Iff(In(xv,yv), In(xv,a))
     fwd_xy_xa = Implies(In(xv, yv), In(xv, a))
-    ext_fwd_a = Proof(Sequent([iff_xy_xa], [fwd_xy_xa]), 'cut',
-        *[None, None], principal=None)  # placeholder -- need to extract forward from Iff
-
     # This is getting very long. Let me use a helper for Iff forward extraction.
     def _ext_fwd(iff_f):
         L = iff_f.left; R = iff_f.right
@@ -2046,10 +2043,7 @@ def union_exists():
     # Or elim: ps, bu, Or(In(xv,a), In(xv,b)) |- In(xv,s)
     bwd_a_w = wl(bwd_case_a, or_ab)
     bwd_b_w = wl(bwd_case_b, bu)
-    br1_bwd = Proof(Sequent([ps, bu], [Not(in_xa), in_xs]), 'not_right',
-                    [wl(bwd_case_a, or_ab)], principal=Not(in_xa))
-    # Hmm, bwd_case_a has [ps, bu, in_xa] on left. I need [ps, bu] |- [Not(in_xa), in_xs].
-    # not_right from [ps, bu, in_xa] |- [in_xs]: gives [ps, bu] |- [Not(in_xa), in_xs]. (ok)
+    # not_right from [ps, bu, in_xa] |- [in_xs]: gives [ps, bu] |- [Not(in_xa), in_xs].
     br1_bwd = Proof(Sequent([ps, bu], [Not(in_xa), in_xs]), 'not_right',
                     [bwd_case_a], principal=Not(in_xa))
     bwd_or_elim = Proof(Sequent([ps, bu, or_ab], [in_xs]), 'implies_left',
@@ -2501,16 +2495,7 @@ def eq_in_eq():
     il = Proof(Sequent([eq_x, H], []), 'implies_left', [fwd_pf, nr], principal=H)
     core = Proof(Sequent([eq_x], [iff_result]), 'not_right', [il], principal=iff_result)
 
-    # Close: eq_x -> forall z. Iff(eq_zx1, eq_zx2)
-    imp = Implies(eq_x, Forall(z, iff_result))
-    s1 = Proof(Sequent([], [Forall(z, iff_result)]),
-               'forall_right',
-               [Proof(Sequent([eq_x], [iff_result]), core.rule, core.premises, principal=core.principal)],
-               principal=Forall(z, iff_result), term=z)
-    # Hmm, need to discharge eq_x first, then forall z
-    d1 = Proof(Sequent([], [Implies(eq_x, iff_result)]), 'implies_right', [core], principal=Implies(eq_x, iff_result))
-    # But I want forall z INSIDE the implies. Let me restructure:
-    # eq_x |- forall z. iff_result
+    # Close: eq_x |- forall z. iff_result, then |- eq_x -> forall z. iff_result
     fa_z = Forall(z, iff_result)
     core_fa = Proof(Sequent([eq_x], [fa_z]), 'forall_right', [core], principal=fa_z, term=z)
     # |- eq_x -> forall z. iff_result

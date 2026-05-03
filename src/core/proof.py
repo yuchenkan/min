@@ -42,6 +42,8 @@ class Proof:
         self.term = term
         self.principal = principal
         self.trusted = trusted
+        if not _check_rule(self):
+            raise ValueError(f'invalid proof step: {rule}')
 
     def theorem(self) -> Formula:
         s = self.sequent

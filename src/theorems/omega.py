@@ -655,10 +655,6 @@ def omega_smallest_inductive():
     got_fa = mp(got_imp,
                 Proof(Sequent([ind_p], [ind_p]), 'axiom', principal=ind_p),
                 ind_p, fa_iff)
-    # Instantiate with zv: omega_w, ind_p |- iff_zw
-    got_iff = Proof(Sequent(got_fa.sequent.left, [iff_zw]), 'forall_left',
-                    [Proof(Sequent([iff_zw], [iff_zw]), 'axiom', principal=iff_zw)],
-                    principal=fa_iff, term=zv)
     # got_fa has fa_iff on right. Cut to instantiate with zv.
     fl_iff = Proof(Sequent([fa_iff], [iff_zw]), 'forall_left',
                    [Proof(Sequent([iff_zw], [iff_zw]), 'axiom', principal=iff_zw)],
@@ -1185,10 +1181,8 @@ def func_unique_thm():
     br1 = wr(Proof(Sequent([app1], [app1]), 'axiom', principal=app1), eq_y)
     br2 = Proof(Sequent([app2, n_app2], []), 'not_left',
                [Proof(Sequent([app2], [app2]), 'axiom', principal=app2)], principal=n_app2)
-    il = Proof(Sequent([app1, app2, Implies(app1, n_app2)], []),
-               'implies_left', [wl(br1, app2), wl(br2, app1)], principal=Implies(app1, n_app2))
 
-    # Wait, br1 needs right = [app1] not [app1, eq_y]. For implies_left:
+    # br1 needs right = [app1] not [app1, eq_y]. For implies_left:
     # Branch 1: G |- app1, D (D = conclusion.right = [])
     # So branch 1 should be: [app1, app2] |- [app1]
     br1_fix = wl(Proof(Sequent([app1], [app1]), 'axiom', principal=app1), app2)
