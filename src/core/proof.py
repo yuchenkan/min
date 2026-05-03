@@ -13,7 +13,7 @@ def _expand(f):
 
 def same(a, b):
     """Alpha-equivalence after expanding definitions."""
-    return _eq(a, b)
+    return _eq(a, b, [])
 
 
 class Sequent:
@@ -23,11 +23,11 @@ class Sequent:
         # Enforce set semantics: no duplicates (by alpha-equivalence).
         for i in range(len(self.left)):
             for j in range(i + 1, len(self.left)):
-                if _eq(self.left[i], self.left[j]):
+                if _eq(self.left[i], self.left[j], []):
                     raise ValueError(f'duplicate on left: {self.left[i]}')
         for i in range(len(self.right)):
             for j in range(i + 1, len(self.right)):
-                if _eq(self.right[i], self.right[j]):
+                if _eq(self.right[i], self.right[j], []):
                     raise ValueError(f'duplicate on right: {self.right[i]}')
 
 
@@ -219,11 +219,9 @@ def _check_weakening_right(s, ps, principal):
 
 # --- Formula equality (alpha-equivalence, expands definitions) ---
 
-def _eq(a, b, env=None):
-    if a is b and env is None:
+def _eq(a, b, env):
+    if a is b and not env:
         return True
-    if env is None:
-        env = []
     if _eq_raw(a, b, env):
         return True
     # Expand definitions and retry
