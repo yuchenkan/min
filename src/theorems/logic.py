@@ -235,10 +235,8 @@ def and_intro(A, B, vars: list[Var]):
     s1 = Proof(Sequent([A, B, NB], []), 'not_left', [ax_b], principal=NB)
     s2 = Proof(Sequent([A, B, imp], []), 'implies_left', [ax_a, s1], principal=imp)
     s3 = Proof(Sequent([A, B], [nand]), 'not_right', [s2], principal=nand)
-    # Use And display
-    s3d = Proof(Sequent([A, B], [And(A, B)]), s3.rule, s3.premises, principal=s3.principal)
-    imp1 = Implies(B, And(A, B))
-    s4 = Proof(Sequent([A], [imp1]), 'implies_right', [s3d], principal=imp1)
+    imp1 = Implies(B, nand)
+    s4 = Proof(Sequent([A], [imp1]), 'implies_right', [s3], principal=imp1)
     imp2 = Implies(A, imp1)
     s5 = Proof(Sequent([], [imp2]), 'implies_right', [s4], principal=imp2)
     proof = s5
@@ -265,10 +263,8 @@ def and_elim_left(A, B, vars: list[Var]):
     ax_imp = Proof(Sequent([imp], [imp, A]), 'axiom', principal=imp)
     p1 = Proof(Sequent([imp, nand], [A]), 'not_left', [ax_imp], principal=nand)
     s2 = Proof(Sequent([nand], [A]), 'cut', [p0, p1], principal=imp)
-    # Use And display
-    s2d = Proof(Sequent([And(A, B)], [A]), s2.rule, s2.premises, principal=s2.principal)
-    top = Implies(And(A, B), A)
-    s3 = Proof(Sequent([], [top]), 'implies_right', [s2d], principal=top)
+    top = Implies(nand, A)
+    s3 = Proof(Sequent([], [top]), 'implies_right', [s2], principal=top)
     proof = s3
     for v in vars:
         body = proof.sequent.right[0]
@@ -291,9 +287,8 @@ def and_elim_right(A, B, vars: list[Var]):
     ax_imp = Proof(Sequent([imp], [imp, B]), 'axiom', principal=imp)
     p1 = Proof(Sequent([imp, nand], [B]), 'not_left', [ax_imp], principal=nand)
     s2 = Proof(Sequent([nand], [B]), 'cut', [p0, p1], principal=imp)
-    s2d = Proof(Sequent([And(A, B)], [B]), s2.rule, s2.premises, principal=s2.principal)
-    top = Implies(And(A, B), B)
-    s3 = Proof(Sequent([], [top]), 'implies_right', [s2d], principal=top)
+    top = Implies(nand, B)
+    s3 = Proof(Sequent([], [top]), 'implies_right', [s2], principal=top)
     proof = s3
     for v in vars:
         body = proof.sequent.right[0]

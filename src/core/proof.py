@@ -38,10 +38,6 @@ class Proof:
         if not _check_rule(sequent, rule, premises, principal, term):
             raise ValueError(f'invalid proof step: {rule}')
         self.sequent = sequent
-        self.rule = rule
-        self.premises = premises
-        self.term = term
-        self.principal = principal
         self.name = name
 
     def theorem(self) -> Formula:

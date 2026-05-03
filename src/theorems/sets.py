@@ -1385,18 +1385,14 @@ def tuple_injection():
     xv2 = Var()
     t1 = _transfer(char_sa, char_sc, Eq(sa, sc), xv2)
     fa_iff_ac = t1.sequent.right[0]
-    ax_fa = Proof(Sequent(t1.sequent.left, [fa_iff_ac]), t1.rule, t1.premises,
-                  term=t1.term, principal=t1.principal)
-    case1_ac = apply_thm(singleton_injection(), [a, c], fa_iff_ac, eq_ac, ax_fa)
+    case1_ac = apply_thm(singleton_injection(), [a, c], fa_iff_ac, eq_ac, t1)
 
     # --- Step 2b: Case 1 pair transfer -> Or(And(ac,bd), And(ad,bc)) ---
     xv3 = Var()
     t2 = _transfer(char_pab, char_pcd, Eq(pab, pcd), xv3)
     fa_iff_pair = t2.sequent.right[0]
     or_pair = Or(And(eq_ac, eq_bd), And(eq_ad, eq_bc))
-    ax_fp = Proof(Sequent(t2.sequent.left, [fa_iff_pair]), t2.rule, t2.premises,
-                  term=t2.term, principal=t2.principal)
-    case1_or = apply_thm(pair_injection(), [a, b, c, d], fa_iff_pair, or_pair, ax_fp)
+    case1_or = apply_thm(pair_injection(), [a, b, c, d], fa_iff_pair, or_pair, t2)
 
     # --- Step 2c: or_pair + eq_ac -> eq_bd ---
     # Sub-case 1: And(eq_ac, eq_bd) -> eq_bd
@@ -1473,9 +1469,7 @@ def tuple_injection():
     # 3a: sa=pcd -> forall x. Iff(Eq(x,a), Or(Eq(x,c),Eq(x,d))) -> And(Eq(c,a),Eq(d,a))
     t3 = _transfer(char_sa, char_pcd, Eq(sa, pcd), xv4)
     and_ca_da = And(Eq(c, a), Eq(d, a))
-    case2_sp = apply_thm(singleton_pair_eq(), [a, c, d], t3.sequent.right[0], and_ca_da,
-                         Proof(Sequent(t3.sequent.left, t3.sequent.right), t3.rule, t3.premises,
-                               term=t3.term, principal=t3.principal))
+    case2_sp = apply_thm(singleton_pair_eq(), [a, c, d], t3.sequent.right[0], and_ca_da, t3)
 
     # 3b: pab=sc -> forall x. Iff(Or(Eq(x,a),Eq(x,b)), Eq(x,c)) -> iff_sym -> singleton_pair_eq -> And(Eq(a,c),Eq(b,c))
     t4 = _transfer(char_pab, char_sc, Eq(pab, sc), xv5)
@@ -1494,10 +1488,8 @@ def tuple_injection():
     got_fa_eo = Proof(Sequent(got_eo.sequent.left, [fa_eo]),
                       'forall_right', [got_eo], principal=fa_eo, term=xv5)
     # Cut iff_or_eq
-    t4_pf = Proof(Sequent(t4.sequent.left, t4.sequent.right), t4.rule, t4.premises,
-                  term=t4.term, principal=t4.principal)
     got_fa_eo_full = Proof(Sequent(t4.sequent.left, [fa_eo]), 'cut',
-        [wr(t4_pf, fa_eo), wl(got_fa_eo, *t4.sequent.left)], principal=iff_or_eq)
+        [wr(t4, fa_eo), wl(got_fa_eo, *t4.sequent.left)], principal=iff_or_eq)
     # singleton_pair_eq: Iff(Eq(x,c), Or(Eq(x,a),Eq(x,b))) -> And(Eq(a,c), Eq(b,c))
     and_ac_bc = And(eq_ac, eq_bc)
     case2_ps = apply_thm(singleton_pair_eq(), [c, a, b], fa_eo, and_ac_bc,

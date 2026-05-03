@@ -238,9 +238,8 @@ def infinity_gives_inductive():
     fl = Proof(Sequent(gi4.sequent.left + [Forall(b, Not(ind_b))], []), 'forall_left', [nl], principal=Forall(b, Not(ind_b)), term=b)
     gex = Proof(Sequent(gi4.sequent.left, [ex_ind]), 'not_right', [fl], principal=ex_ind)
     gfex = eel(gex, inf_and, b)
-    proof = Proof(Sequent([ext_ax, inf_ax], [ex_ind]), gfex.rule, gfex.premises, term=gfex.term, principal=gfex.principal)
-    proof.name = 'infinity_gives_inductive'
-    return proof
+    gfex.name = 'infinity_gives_inductive'
+    return gfex
 
 
 
