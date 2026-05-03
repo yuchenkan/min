@@ -170,7 +170,7 @@ class Inductive:
 
 class OrdPair:
     """OrdPair(t, a, b): t = (a, b) = {{a}, {a, b}}.
-    Exists sa. Singleton(sa,a) and Exists pab. PairSet(pab,a,b) and PairSet(t,sa,pab)."""
+    Forall sa. Singleton(sa,a) -> Forall pab. PairSet(pab,a,b) -> PairSet(t,sa,pab)."""
     __match_args__ = ('set', 'left', 'right')
     def __init__(self, t, a, b, postfix=None):
         self.set = t; self.left = a; self.right = b; self._postfix = postfix
@@ -178,13 +178,9 @@ class OrdPair:
         p = self._postfix
         sa = Var(postfix=f'{p}.sa' if p else None)
         pab = Var(postfix=f'{p}.pab' if p else None)
-        return Exists(sa, And(Singleton(sa, self.left, postfix=f'{p}.sing' if p else None),
-            Exists(pab, And(PairSet(pab, self.left, self.right, postfix=f'{p}.ps_ab' if p else None),
-                PairSet(self.set, sa, pab, postfix=f'{p}.ps_t' if p else None),
-                postfix=f'{p}.and_inner' if p else None),
-            postfix=f'{p}.ex_pab' if p else None),
-            postfix=f'{p}.and_outer' if p else None),
-            postfix=f'{p}.ex_sa' if p else None)
+        return Forall(sa, Implies(Singleton(sa, self.left, postfix=f'{p}.sing' if p else None),
+            Forall(pab, Implies(PairSet(pab, self.left, self.right, postfix=f'{p}.ps_ab' if p else None),
+                PairSet(self.set, sa, pab, postfix=f'{p}.ps_t' if p else None)))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return OrdPair(r(self.set), r(self.left), r(self.right))
