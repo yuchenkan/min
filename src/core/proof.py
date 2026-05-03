@@ -160,7 +160,7 @@ def _check_forall_left(s, ps, principal, t):
     if not _in(principal, s.left):
         return False
     G = _remove(s.left, principal)
-    substituted = _subst(principal.body, principal.var, t)
+    substituted = principal.body.subst(principal.var, t)
     return _eq_sequent(ps[0], Sequent(_set_add(G, substituted), s.right))
 
 
@@ -176,7 +176,7 @@ def _check_forall_right(s, ps, principal, y):
         return False
     if _var_bound_in(y, principal.body):
         return False
-    substituted = _subst(principal.body, principal.var, y)
+    substituted = principal.body.subst(principal.var, y)
     return _eq_sequent(ps[0], Sequent(s.left, _set_add(D, substituted)))
 
 
@@ -308,19 +308,7 @@ def _is_permutation(a, b):
 # --- Substitution (works on expanded formulas) ---
 
 def _subst(formula, old, new):
-    formula = _expand(formula)
-    match formula:
-        case In(left, right):
-            return In(new if left is old else left,
-                      new if right is old else right)
-        case Not(operand):
-            return Not(_subst(operand, old, new))
-        case Implies(left, right):
-            return Implies(_subst(left, old, new), _subst(right, old, new))
-        case Forall(var, body):
-            if var is old:
-                return formula
-            return Forall(var, _subst(body, old, new))
+    return formula.subst(old, new)
 
 
 def _free_vars(formula, bound=None):
