@@ -25,18 +25,19 @@ def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
         f = _expand(f)
         foralls.append(f)
         f = _subst(f.body, f.var, t)
-    # f is now the fully instantiated body
-    # Build forall_left chain bottom-up
-    cur = Proof(Sequent([body], [body]), 'axiom', principal=body)
+    # f is now the fully instantiated body (via _expand + _subst chain)
+    # Use f instead of caller's body to ensure alpha-equivalence with _check_forall_left
+    inst_body = f
+    cur = Proof(Sequent([inst_body], [inst_body]), 'axiom', principal=inst_body)
     for i in reversed(range(len(terms))):
-        cur = Proof(Sequent([foralls[i]], [body]), 'forall_left',
+        cur = Proof(Sequent([foralls[i]], [inst_body]), 'forall_left',
                     [cur], principal=foralls[i], term=terms[i])
     thm_ctx = list(thm.sequent.left)
-    inst = Proof(Sequent(thm_ctx, [body]), 'cut',
-        [wr(thm, body), wl(cur, *thm_ctx)], principal=thm_concl)
+    inst = Proof(Sequent(thm_ctx, [inst_body]), 'cut',
+        [wr(thm, inst_body), wl(cur, *thm_ctx)], principal=thm_concl)
     if hyp is None:
         return inst
-    imp = body
+    imp = inst_body
     hyp_ctx = list(hyp_proof.sequent.left)
     new_from_hyp = [f for f in hyp_ctx if not any(same(f, g) for g in thm_ctx)]
     new_from_thm = [f for f in thm_ctx if not any(same(f, g) for g in hyp_ctx)]
