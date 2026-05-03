@@ -33,15 +33,13 @@ class Sequent:
 
 class Proof:
     def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None,
-                 name: str = None, term: Var = None, principal: Formula = None,
-                 trusted: bool = False):
+                 name: str = None, term: Var = None, principal: Formula = None):
         self.sequent = sequent
         self.rule = rule
         self.premises = premises or []
         self.name = name
         self.term = term
         self.principal = principal
-        self.trusted = trusted
         if not _check_rule(self):
             raise ValueError(f'invalid proof step: {rule}')
 
@@ -53,31 +51,18 @@ class Proof:
         return result
 
 
-def verify(proof: Proof, axiom_checker, trust=False, cache=True) -> bool:
-    """Verify a proof. axiom_checker(formula) -> bool validates left-side assumptions.
-    trust: if True, skip subtrees marked with trusted=True.
-    cache: if True, mark verified nodes and skip them on re-encounter."""
+def verify(proof: Proof, axiom_checker) -> bool:
+    """Verify a proof. Rules are checked at construction.
+    This only checks the root: one closed formula on right, all left are axioms."""
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(s.right[0]):
         return False
     for f in s.left:
         if not axiom_checker(f):
             return False
-    return _verify(proof, trust, cache)
-
-
-def _verify(proof: Proof, trust: bool, cache: bool) -> bool:
-    if cache and getattr(proof, '_verified', False):
-        return True
-    if trust and proof.trusted:
-        return True
-    for p in proof.premises:
-        if not _verify(p, trust, cache):
-            return False
-    if not _check_rule(proof):
-        return False
-    proof._verified = True
     return True
+
+
 
 
 def _check_rule(proof: Proof) -> bool:
