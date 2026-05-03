@@ -224,8 +224,18 @@ def _eq(a, b, env=None):
         return True
     if env is None:
         env = []
-    a = _expand(a)
-    b = _expand(b)
+    if _eq_raw(a, b, env):
+        return True
+    # Expand definitions and retry
+    ae = _expand(a)
+    be = _expand(b)
+    if ae is a and be is b:
+        return False  # already primitive, no expansion possible
+    return _eq_raw(ae, be, env)
+
+
+def _eq_raw(a, b, env):
+    """Structural equality without expanding definitions."""
     if type(a) is not type(b):
         return False
     match a:
@@ -239,6 +249,10 @@ def _eq(a, b, env=None):
             return _eq(l1, b.left, env) and _eq(r1, b.right, env)
         case Forall(v1, b1):
             return _eq(b1, b.body, env + [(v1, b.var)])
+    # Definition objects: compare fields via __match_args__
+    args = getattr(type(a), '__match_args__', None)
+    if args is not None:
+        return all(_eq(getattr(a, k), getattr(b, k), env) for k in args)
     return False
 
 
