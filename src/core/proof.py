@@ -51,9 +51,9 @@ class Proof:
         return result
 
 
-def verify(proof: Proof, axiom_checker) -> bool:
-    """Verify a proof. Rules are checked at construction.
-    This only checks the root: one closed formula on right, all left are axioms."""
+def qed(proof: Proof, axiom_checker) -> bool:
+    """Check a completed proof: one closed formula on right, all left are axioms.
+    Rules are checked at construction."""
     s = proof.sequent
     if len(s.right) != 1 or _free_vars(s.right[0]):
         return False

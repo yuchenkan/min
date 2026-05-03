@@ -3,7 +3,7 @@
 import sys
 sys.path.insert(0, 'src')
 
-from core import Var, In, verify
+from core import Var, In, qed
 from core.zfc import is_axiom
 import theorems
 
@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
     failed = []
     for name, proof in all_proofs:
-        ok = verify(proof, is_axiom)
+        ok = qed(proof, is_axiom)
         print(f'{name}: {"ok" if ok else "FAILED"}  {proof.theorem()}')
         if not ok:
             failed.append(name)
