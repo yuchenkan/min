@@ -34,14 +34,15 @@ class Sequent:
 class Proof:
     def __init__(self, sequent: Sequent, rule: str, premises: list['Proof'] = None,
                  name: str = None, term: Var = None, principal: Formula = None):
+        premises = premises or []
+        if not _check_rule(sequent, rule, premises, principal, term):
+            raise ValueError(f'invalid proof step: {rule}')
         self.sequent = sequent
         self.rule = rule
-        self.premises = premises or []
-        self.name = name
+        self.premises = premises
         self.term = term
         self.principal = principal
-        if not _check_rule(self):
-            raise ValueError(f'invalid proof step: {rule}')
+        self.name = name
 
     def theorem(self) -> Formula:
         s = self.sequent
@@ -65,12 +66,12 @@ def qed(proof: Proof, axiom_checker) -> bool:
 
 
 
-def _check_rule(proof: Proof) -> bool:
-    s = proof.sequent
-    ps = [p.sequent for p in proof.premises]
-    principal = _expand(proof.principal) if proof.principal else None
+def _check_rule(sequent, rule, premises, principal, term) -> bool:
+    s = sequent
+    ps = [p.sequent for p in premises]
+    principal = _expand(principal) if principal else None
 
-    match proof.rule:
+    match rule:
         case "axiom":
             return _check_axiom(s, ps, principal)
         case "not_left":
@@ -82,9 +83,9 @@ def _check_rule(proof: Proof) -> bool:
         case "implies_right":
             return _check_implies_right(s, ps, principal)
         case "forall_left":
-            return _check_forall_left(s, ps, principal, proof.term)
+            return _check_forall_left(s, ps, principal, term)
         case "forall_right":
-            return _check_forall_right(s, ps, principal, proof.term)
+            return _check_forall_right(s, ps, principal, term)
         case "cut":
             return _check_cut(s, ps, principal)
         case "weakening_left":
