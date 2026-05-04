@@ -5,7 +5,7 @@ sys.setrecursionlimit(100000)
 sys.path.insert(0, 'src')
 
 from core.lang import Var, Forall
-from core.derived import Exists
+from core.derived import Exists, Eq
 from core.proof import qed, same
 from core.zfc import ZFCAxiom
 from definitions import OrdPair

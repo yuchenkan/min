@@ -213,7 +213,7 @@ def run_agent(task, max_turns=200):
 
 
 if __name__ == "__main__":
-    max_turns = 200
+    max_turns = 2000
     if "--max-turns" in sys.argv:
         idx = sys.argv.index("--max-turns")
         max_turns = int(sys.argv[idx + 1])
