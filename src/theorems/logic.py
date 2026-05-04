@@ -370,25 +370,34 @@ def forall_implies_exists(P, Q, x: Var, vars: list[Var]):
 
 def eq_reflexive():
     """|- forall a. Eq(a, a)"""
-    a, z = Var(), Var()
-    P = In(z, a)
-    PtoP = Implies(P, P)
-    NPtoP = Not(PtoP)
-    imp_main = Implies(PtoP, NPtoP)
-    iff_body = Not(imp_main)
+    a = Var()
+    z = Var()
+    P   = In(z, a)
+    PQ  = Implies(P, P)          # In(z,a) → In(z,a)
+    NPQ = Not(PQ)
+    H   = Implies(PQ, NPQ)       # (P→P) → ¬(P→P)
+    iff_pp = Not(H)              # expanded inner body of Eq(a,a)
 
-    ax = Proof(Sequent([P], [P]), 'axiom', principal=P)
-    p0 = Proof(Sequent([], [PtoP]), 'implies_right', [ax], principal=PtoP)
-    p1_ax = Proof(Sequent([P], [P]), 'axiom', principal=P)
-    p1_ir = Proof(Sequent([], [PtoP]), 'implies_right', [p1_ax], principal=PtoP)
-    p1 = Proof(Sequent([NPtoP], []), 'not_left', [p1_ir], principal=NPtoP)
-    s1 = Proof(Sequent([imp_main], []), 'implies_left', [p0, p1], principal=imp_main)
-    s2 = Proof(Sequent([], [iff_body]), 'not_right', [s1], principal=iff_body)
-    fz = Forall(z, iff_body)
-    s3 = Proof(Sequent([], [fz]), 'forall_right', [s2], term=z, principal=fz)
-    fa = Forall(a, Eq(a, a))
-    s4 = Proof(Sequent([], [fa]), 'forall_right', [s3], term=a, principal=fa, name='eq_reflexive')
-    return s4
+    # [P] |- [P]
+    s1 = Proof(Sequent([P], [P]), 'axiom', principal=P)
+    # [] |- [PQ]    (P → P)
+    s2 = Proof(Sequent([], [PQ]), 'implies_right', [s1], principal=PQ)
+    # [Not(PQ)] |-   (¬(P→P) is contradictory given P→P)
+    s3 = Proof(Sequent([NPQ], []), 'not_left', [s2], principal=NPQ)
+    # [H] |-         (Implies(PQ, Not(PQ)) leads to contradiction)
+    s4 = Proof(Sequent([H], []), 'implies_left', [s2, s3], principal=H)
+    # [] |- [iff_pp] = [] |- [Not(H)]
+    s5 = Proof(Sequent([], [iff_pp]), 'not_right', [s4], principal=iff_pp)
+    # [] |- [Eq(a,a)]  via forall_right: Eq(a,a) expands to Forall(z',body),
+    # and with eigenvariable z the premise body[z'/z] = iff_pp is proved by s5.
+    eq_aa = Eq(a, a)
+    s6 = Proof(Sequent([], [eq_aa]), 'forall_right', [s5], principal=eq_aa, term=z)
+    # [] |- [Forall(a, Eq(a,a))]
+    fa = Forall(a, eq_aa)
+    s7 = Proof(Sequent([], [fa]), 'forall_right', [s6], principal=fa, term=a)
+    s7.name = 'eq_reflexive'
+    return s7
+
 
 
 
