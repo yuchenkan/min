@@ -222,9 +222,13 @@ def _check_weakening_right(s, ps, principal):
 def _eq(a, b, env, expand=True):
     if a is b and not env:
         return True
-    if type(a) is type(b):
-        if hasattr(a, 'eq'):
-            return a.eq(b, env, expand, _eq)
+    if type(a) is not type(b):
+        pass
+    elif isinstance(a, (int, str, float, bool)):
+        return a == b
+    elif hasattr(a, 'eq'):
+        return a.eq(b, env, expand, _eq)
+    else:
         args = getattr(type(a), '__match_args__', None)
         if args is not None:
             return all(_eq(getattr(a, k), getattr(b, k), env, expand) for k in args)

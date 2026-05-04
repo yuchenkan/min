@@ -36,9 +36,6 @@ class And:
         self.right = right
         self._postfix = postfix
 
-    def eq(self, other, env, expand, eq):
-        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
-
     def expand(self):
         p = self._postfix
         return Not(Implies(self.left, Not(self.right, postfix=f'{p}.nr' if p else None),
@@ -60,9 +57,6 @@ class Or:
         self.right = right
         self._postfix = postfix
 
-    def eq(self, other, env, expand, eq):
-        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
-
     def expand(self):
         p = self._postfix
         return Implies(Not(self.left, postfix=f'{p}.nl' if p else None), self.right,
@@ -82,9 +76,6 @@ class Iff:
         self.left = left
         self.right = right
         self._postfix = postfix
-
-    def eq(self, other, env, expand, eq):
-        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
 
     def expand(self):
         p = self._postfix
@@ -108,9 +99,6 @@ class Eq:
         self.left = left
         self.right = right
         self._postfix = postfix
-
-    def eq(self, other, env, expand, eq):
-        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
 
     def expand(self):
         p = self._postfix

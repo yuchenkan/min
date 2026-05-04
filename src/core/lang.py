@@ -27,9 +27,6 @@ class In:
         self.right = right
         self._postfix = postfix
 
-    def eq(self, other, env, expand, eq):
-        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
-
     def subst(self, old: Var, new: Var):
         return In(new if self.left is old else self.left,
                   new if self.right is old else self.right)
@@ -45,9 +42,6 @@ class Not:
         self.operand = operand
         self._postfix = postfix
 
-    def eq(self, other, env, expand, eq):
-        return eq(self.operand, other.operand, env, expand)
-
     def subst(self, old: Var, new: Var):
         return Not(self.operand.subst(old, new))
 
@@ -62,9 +56,6 @@ class Implies:
         self.left = left
         self.right = right
         self._postfix = postfix
-
-    def eq(self, other, env, expand, eq):
-        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
 
     def subst(self, old: Var, new: Var):
         return Implies(self.left.subst(old, new), self.right.subst(old, new))
