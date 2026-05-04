@@ -168,6 +168,7 @@ def run_agent(task, max_turns):
     messages = [{"role": "user", "content": task}]
 
     for turn in range(max_turns):
+        print(f"\n--- Turn {turn + 1}/{max_turns} ---")
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=16000,
@@ -176,6 +177,8 @@ def run_agent(task, max_turns):
             messages=messages,
             thinking={"type": "adaptive"},
         )
+        print(f"  stop_reason={response.stop_reason} blocks={len(response.content)} "
+              f"in={response.usage.input_tokens} out={response.usage.output_tokens}")
 
         # Print text
         for block in response.content:
