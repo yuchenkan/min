@@ -1343,8 +1343,8 @@ def pair_injection():
 
 
 
-def tuple_injection():
-    """Kuratowski ordered pair injection.
+def _tuple_injection_chars():
+    """Kuratowski ordered pair injection (char form, used by kuratowski()).
     |- forall a,b,c,d,sa,pab,sc,pcd.
        char_sa -> char_pab -> char_sc -> char_pcd -> char_outer -> And(Eq(a,c),Eq(b,d))"""
     from tactics import apply_thm, wl, wr, mp, fl
@@ -1518,8 +1518,7 @@ def tuple_injection():
     nbd2 = Not(eq_bd)
     and_c2_1 = Proof(Sequent(got_bd_c2.sequent.left + [nbd2], []), 'not_left',
                      [got_bd_c2], principal=nbd2)
-    and_c2_2 = Proof(Sequent(got_bd_c2.sequent.left + [Implies(eq_ac, nbd2)], []),
-                     'implies_left', [got_ac_c2, and_c2_1], principal=Implies(eq_ac, nbd2))
+    # Weaken got_ac_c2 so its context matches got_bd_c2's context
     # Hmm got_ac_c2 ctx is [and_ac_bc] but and_c2_2 ctx also has and_ca_da etc.
     # Let me weaken got_ac_c2 to match
     got_ac_c2_w = wl(got_ac_c2, and_ca_da)
@@ -1572,8 +1571,172 @@ def tuple_injection():
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent([], [fa]), 'forall_right', [proof], term=v, principal=fa)
+    proof.name = '_tuple_injection_chars'
+    return proof
+
+
+def tuple_injection():
+    """Kuratowski ordered pair injection (goal form).
+    Pairing |- forall a, b, c, d, t.
+        OrdPair(t, a, b) -> OrdPair(t, c, d) -> And(Eq(a, c), Eq(b, d))
+    Proof: get singleton/pairset witnesses from Pairing; apply OrdPair universals
+    to get PairSet(t,...); derive char_outer; apply _tuple_injection_chars."""
+    from tactics import apply_thm, wl, wr, mp, fl, cut, eel, ax
+    from core.proof import _expand, _subst
+    from definitions import Singleton, PairSet
+    from core import same as _same
+
+    a, b, c, d, t = Var(), Var(), Var(), Var(), Var()
+    sa0, pab0, sc0, pcd0, zv = Var(), Var(), Var(), Var(), Var()
+    pairing = zfc.Pairing()
+    ordp_ab = OrdPair(t, a, b)
+    ordp_cd = OrdPair(t, c, d)
+    goal = And(Eq(a, c), Eq(b, d))
+    sing_sa0 = Singleton(sa0, a)
+    ps_pab0  = PairSet(pab0, a, b)
+    sing_sc0 = Singleton(sc0, c)
+    ps_pcd0  = PairSet(pcd0, c, d)
+
+    # ---- Step 1: Witness existentials from Pairing ----
+    # Exists sa. Singleton(sa, a)
+    se = singleton_exists()
+    se_fa = se.sequent.right[0]          # forall a'. exists sa. Singleton(sa, a')
+    se_at_a = _subst(se_fa.body, se_fa.var, a)
+    got_ex_sing_a = Proof(Sequent([pairing], [se_at_a]), 'cut',
+        [wr(se, se_at_a), wl(fl(se_fa, se_at_a, a), pairing)], principal=se_fa)
+
+    # Exists pab. PairSet(pab, a, b)
+    pair_exp = _expand(pairing)          # Forall(x, Forall(y, Exists(b, Forall(z, Iff(...)))))
+    pair_at_a  = _subst(pair_exp.body, pair_exp.var, a)
+    pair_at_ab = _subst(pair_at_a.body, pair_at_a.var, b)
+    fl_a  = fl(pair_exp,   pair_at_a,  a)
+    fl_ab = fl(pair_at_a,  pair_at_ab, b)
+    got_pair_a  = Proof(Sequent([pairing], [pair_at_a]), 'cut',
+        [wr(ax(pairing), pair_at_a), wl(fl_a, pairing)], principal=pair_exp)
+    got_ex_pair_ab = Proof(Sequent([pairing], [pair_at_ab]), 'cut',
+        [wr(got_pair_a, pair_at_ab), wl(fl_ab, pairing)], principal=pair_at_a)
+
+    # Exists sc. Singleton(sc, c)
+    se_at_c = _subst(se_fa.body, se_fa.var, c)
+    got_ex_sing_c = Proof(Sequent([pairing], [se_at_c]), 'cut',
+        [wr(se, se_at_c), wl(fl(se_fa, se_at_c, c), pairing)], principal=se_fa)
+
+    # Exists pcd. PairSet(pcd, c, d)
+    pair_at_c  = _subst(pair_exp.body, pair_exp.var, c)
+    pair_at_cd = _subst(pair_at_c.body, pair_at_c.var, d)
+    fl_c  = fl(pair_exp,  pair_at_c,  c)
+    fl_cd = fl(pair_at_c, pair_at_cd, d)
+    got_pair_c  = Proof(Sequent([pairing], [pair_at_c]), 'cut',
+        [wr(ax(pairing), pair_at_c), wl(fl_c, pairing)], principal=pair_exp)
+    got_ex_pair_cd = Proof(Sequent([pairing], [pair_at_cd]), 'cut',
+        [wr(got_pair_c, pair_at_cd), wl(fl_cd, pairing)], principal=pair_at_c)
+
+    # ---- Step 2: Core proof with specific witnesses ----
+
+    # 2a: PairSet(t, sa0, pab0) from ordp_ab + sing_sa0 + ps_pab0
+    ordp_ab_exp = _expand(ordp_ab)
+    body1_ab = _subst(ordp_ab_exp.body, ordp_ab_exp.var, sa0)
+    step_sa0    = fl(ordp_ab, body1_ab, sa0)
+    inner_fa_ab = body1_ab.right
+    got_fa_ab   = mp(step_sa0, ax(sing_sa0), body1_ab.left, inner_fa_ab)
+    body2_ab    = _subst(inner_fa_ab.body, inner_fa_ab.var, pab0)
+    step_pab0   = fl(inner_fa_ab, body2_ab, pab0)
+    got_impl_ab = cut(wl(step_pab0, ordp_ab, sing_sa0), inner_fa_ab, got_fa_ab)
+    got_ps_t_ab = mp(got_impl_ab, ax(ps_pab0), body2_ab.left, body2_ab.right)
+    # got_ps_t_ab: [ordp_ab, sing_sa0, ps_pab0] |- PairSet(t, sa0, pab0)
+
+    # 2b: PairSet(t, sc0, pcd0) from ordp_cd + sing_sc0 + ps_pcd0
+    ordp_cd_exp = _expand(ordp_cd)
+    body1_cd = _subst(ordp_cd_exp.body, ordp_cd_exp.var, sc0)
+    step_sc0    = fl(ordp_cd, body1_cd, sc0)
+    inner_fa_cd = body1_cd.right
+    got_fa_cd   = mp(step_sc0, ax(sing_sc0), body1_cd.left, inner_fa_cd)
+    body2_cd    = _subst(inner_fa_cd.body, inner_fa_cd.var, pcd0)
+    step_pcd0   = fl(inner_fa_cd, body2_cd, pcd0)
+    got_impl_cd = cut(wl(step_pcd0, ordp_cd, sing_sc0), inner_fa_cd, got_fa_cd)
+    got_ps_t_cd = mp(got_impl_cd, ax(ps_pcd0), body2_cd.left, body2_cd.right)
+    # got_ps_t_cd: [ordp_cd, sing_sc0, ps_pcd0] |- PairSet(t, sc0, pcd0)
+
+    ps_t_ab = got_ps_t_ab.sequent.right[0]   # PairSet(t, sa0, pab0)
+    ps_t_cd = got_ps_t_cd.sequent.right[0]   # PairSet(t, sc0, pcd0)
+
+    # 2c: char_outer = Forall(zv, Iff(Or(Eq(zv,sa0),Eq(zv,pab0)), Or(Eq(zv,sc0),Eq(zv,pcd0))))
+    or_sa_pab  = Or(Eq(zv, sa0), Eq(zv, pab0))
+    or_sc_pcd  = Or(Eq(zv, sc0), Eq(zv, pcd0))
+    in_t_zv    = In(zv, t)
+    iff_t_sap  = Iff(in_t_zv, or_sa_pab)
+    iff_t_scp  = Iff(in_t_zv, or_sc_pcd)
+    iff_sap_t  = Iff(or_sa_pab, in_t_zv)
+    iff_outer  = Iff(or_sa_pab, or_sc_pcd)
+
+    fl_pst_ab_zv = fl(ps_t_ab, iff_t_sap, zv)
+    fl_pst_cd_zv = fl(ps_t_cd, iff_t_scp, zv)
+    got_sym_iff  = mp(iff_sym(in_t_zv, or_sa_pab, []),
+                      fl_pst_ab_zv, iff_t_sap, iff_sap_t)
+    ct = char_transfer(or_sa_pab, in_t_zv, or_sc_pcd, [])
+    got_outer_zv = mp(
+        mp(ct, got_sym_iff, iff_sap_t, Implies(iff_t_scp, iff_outer)),
+        fl_pst_cd_zv, iff_t_scp, iff_outer)
+    char_outer = Forall(zv, iff_outer)
+    got_char_outer = Proof(Sequent(got_outer_zv.sequent.left, [char_outer]),
+        'forall_right', [got_outer_zv], term=zv, principal=char_outer)
+    # got_char_outer: [ps_t_ab, ps_t_cd] |- char_outer
+
+    # 2d: Apply _tuple_injection_chars([a,b,c,d,sa0,pab0,sc0,pcd0], chars)
+    ti = _tuple_injection_chars()
+    ti_c2 = Implies(ps_pab0,
+             Implies(sing_sc0,
+             Implies(ps_pcd0,
+             Implies(char_outer, goal))))
+    step1 = apply_thm(ti, [a, b, c, d, sa0, pab0, sc0, pcd0], sing_sa0, ti_c2, ax(sing_sa0))
+    step2 = mp(step1, ax(ps_pab0), ps_pab0,
+               Implies(sing_sc0, Implies(ps_pcd0, Implies(char_outer, goal))))
+    step3 = mp(step2, ax(sing_sc0), sing_sc0,
+               Implies(ps_pcd0, Implies(char_outer, goal)))
+    step4 = mp(step3, ax(ps_pcd0), ps_pcd0, Implies(char_outer, goal))
+    step5 = mp(step4, got_char_outer, char_outer, goal)
+    # step5.left: [sing_sa0, ps_pab0, sing_sc0, ps_pcd0, ps_t_ab, ps_t_cd]
+
+    # 2e: Cut out ps_t_ab and ps_t_cd (replace with derivation hypotheses)
+    step6 = cut(step5, ps_t_ab, got_ps_t_ab)
+    # step6.left: [sing_sa0, ps_pab0, sing_sc0, ps_pcd0, ps_t_cd, ordp_ab]
+    step7 = cut(step6, ps_t_cd, got_ps_t_cd)
+    # step7.left: [sing_sa0, ps_pab0, sing_sc0, ps_pcd0, ordp_ab, ordp_cd]
+
+    # ---- Step 3: Eliminate witnesses via eel + cut ----
+    # Replace each specific witness with its existential from Pairing.
+    # Order: pcd0, pab0, sc0, sa0 (so Exists nesting resolves correctly)
+
+    e1  = eel(step7, ps_pcd0, pcd0)
+    c1  = cut(e1,  Exists(pcd0, ps_pcd0),  got_ex_pair_cd)
+    e2  = eel(c1,  ps_pab0,  pab0)
+    c2  = cut(e2,  Exists(pab0, ps_pab0),  got_ex_pair_ab)
+    e3  = eel(c2,  sing_sc0, sc0)
+    c3  = cut(e3,  Exists(sc0, sing_sc0),  got_ex_sing_c)
+    e4  = eel(c3,  sing_sa0, sa0)
+    c4  = cut(e4,  Exists(sa0, sing_sa0),  got_ex_sing_a)
+    # c4.left: [ordp_ab, ordp_cd, pairing]
+
+    # ---- Step 4: Discharge OrdPair hypotheses, quantify ----
+    imp_cd    = Implies(ordp_cd, goal)
+    ctx_no_cd = [f for f in c4.sequent.left if not _same(f, ordp_cd)]
+    p1 = Proof(Sequent(ctx_no_cd, [imp_cd]), 'implies_right', [c4], principal=imp_cd)
+
+    imp_ab_cd = Implies(ordp_ab, imp_cd)
+    ctx_no_ab = [f for f in p1.sequent.left if not _same(f, ordp_ab)]
+    p2 = Proof(Sequent(ctx_no_ab, [imp_ab_cd]), 'implies_right', [p1], principal=imp_ab_cd)
+
+    proof = p2
+    for v in [t, d, c, b, a]:
+        body = proof.sequent.right[0]
+        fa   = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof],
+                      term=v, principal=fa)
+
     proof.name = 'tuple_injection'
     return proof
+
+
 
 
 
@@ -1633,8 +1796,8 @@ def kuratowski():
                          'forall_right', [got_outer], principal=char_outer, term=xv2)
     # got_outer_fa: [char_t1, eq_t1_t2, char_t2] |- [char_outer]
 
-    # --- Apply tuple_injection ---
-    ti = tuple_injection()
+    # --- Apply _tuple_injection_chars ---
+    ti = _tuple_injection_chars()
     # tuple_injection: |- forall a..pcd. char_sa -> char_pab -> char_sc -> char_pcd -> char_outer -> goal
     # Instantiate with a,b,c,d,sa,pab,sc,pcd and apply char hypotheses one by one
     ti_hyp = char_sa
