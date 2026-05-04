@@ -207,13 +207,13 @@ def run_agent(task, max_turns):
 
         tool_results = []
         for tool in tool_uses:
-            print(f"  [{tool.name}] {json.dumps(tool.input)[:120]}")
+            print(f"  [{tool.name}] {json.dumps(tool.input)[:200]}")
             result = execute_tool(tool.name, tool.input)
             if tool.name == "done":
-                print(f"\n{tool.input['summary']}")
+                print(f"\n{tool.input.get('summary', '')}")
                 print(f"[completed in {turn + 1} turns]")
                 return
-            print(f"  -> {result[:120]}")
+            print(f"  -> {result[:500]}")
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tool.id,
