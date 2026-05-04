@@ -34,15 +34,16 @@ TOOLS = [
     },
     {
         "name": "edit_file",
-        "description": "Replace exact text in a file. old_text must match uniquely.",
+        "description": "Replace lines in a file. Specify start line and number of lines to replace.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "path": {"type": "string"},
-                "old_text": {"type": "string"},
-                "new_text": {"type": "string"},
+                "offset": {"type": "integer", "description": "Start line (1-indexed)"},
+                "count": {"type": "integer", "description": "Number of lines to remove"},
+                "text": {"type": "string", "description": "Replacement text"},
             },
-            "required": ["path", "old_text", "new_text"],
+            "required": ["path", "offset", "count", "text"],
         },
     },
     {
@@ -109,19 +110,24 @@ def execute_tool(name, inp):
         return "".join(f"{i + offset + 1}\t{line}" for i, line in enumerate(selected))
 
     elif name == "edit_file":
+        path = inp["path"]
+        if not path.startswith("src/theorems/"):
+            return f"Error: can only edit files under src/theorems/"
         try:
-            with open(inp["path"]) as f:
-                content = f.read()
+            with open(path) as f:
+                lines = f.readlines()
         except FileNotFoundError:
-            return f"Error: {inp['path']} not found"
-        count = content.count(inp["old_text"])
-        if count == 0:
-            return "Error: old_text not found"
-        if count > 1:
-            return f"Error: old_text found {count} times, must be unique"
-        content = content.replace(inp["old_text"], inp["new_text"], 1)
-        with open(inp["path"], "w") as f:
-            f.write(content)
+            return f"Error: {path} not found"
+        offset = inp["offset"] - 1
+        count = inp["count"]
+        if offset < 0 or offset > len(lines):
+            return f"Error: offset out of range (file has {len(lines)} lines)"
+        new_lines = inp["text"].splitlines(True)
+        if new_lines and not new_lines[-1].endswith("\n"):
+            new_lines[-1] += "\n"
+        lines[offset:offset + count] = new_lines
+        with open(path, "w") as f:
+            f.writelines(lines)
         return "OK"
 
     elif name == "run":
