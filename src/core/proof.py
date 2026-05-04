@@ -223,18 +223,8 @@ def _eq(a, b, env, expand=True):
     if a is b and not env:
         return True
     if type(a) is type(b):
-        match a:
-            case Var():
-                return _eq_var(a, b, env)
-            case In(l1, r1):
-                return _eq(l1, b.left, env, expand) and _eq(r1, b.right, env, expand)
-            case Not(o1):
-                return _eq(o1, b.operand, env, expand)
-            case Implies(l1, r1):
-                return _eq(l1, b.left, env, expand) and _eq(r1, b.right, env, expand)
-            case Forall(v1, b1):
-                return _eq(b1, b.body, env + [(v1, b.var)], expand)
-        # Definition objects: compare fields via __match_args__
+        if hasattr(a, 'eq'):
+            return a.eq(b, env, expand, _eq)
         args = getattr(type(a), '__match_args__', None)
         if args is not None:
             return all(_eq(getattr(a, k), getattr(b, k), env, expand) for k in args)
@@ -248,13 +238,6 @@ def _eq(a, b, env, expand=True):
     return _eq(ae, be, env, expand)
 
 
-def _eq_var(v1, v2, env):
-    for left, right in reversed(env):
-        if v1 is left and v2 is right:
-            return True
-        if v1 is left or v2 is right:
-            return False
-    return v1 is v2
 
 
 def _in(f, lst):

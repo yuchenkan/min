@@ -9,6 +9,12 @@ class Var:
         self._id = Var._counter
         self._postfix = postfix
 
+    def eq(self, other, env, expand, eq):
+        for v1, v2 in env:
+            if self is v1: return other is v2
+            if other is v2: return False
+        return self is other
+
     def __str__(self):
         s = f'v.{self._id:x}'
         return f'{s}/*{self._postfix}*/' if self._postfix else s
@@ -20,6 +26,9 @@ class In:
         self.left = left
         self.right = right
         self._postfix = postfix
+
+    def eq(self, other, env, expand, eq):
+        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
 
     def subst(self, old: Var, new: Var):
         return In(new if self.left is old else self.left,
@@ -36,6 +45,9 @@ class Not:
         self.operand = operand
         self._postfix = postfix
 
+    def eq(self, other, env, expand, eq):
+        return eq(self.operand, other.operand, env, expand)
+
     def subst(self, old: Var, new: Var):
         return Not(self.operand.subst(old, new))
 
@@ -51,6 +63,9 @@ class Implies:
         self.right = right
         self._postfix = postfix
 
+    def eq(self, other, env, expand, eq):
+        return eq(self.left, other.left, env, expand) and eq(self.right, other.right, env, expand)
+
     def subst(self, old: Var, new: Var):
         return Implies(self.left.subst(old, new), self.right.subst(old, new))
 
@@ -65,6 +80,9 @@ class Forall:
         self.var = var
         self.body = body
         self._postfix = postfix
+
+    def eq(self, other, env, expand, eq):
+        return eq(self.body, other.body, env + [(self.var, other.var)], expand)
 
     def subst(self, old: Var, new: Var):
         if self.var is old:
