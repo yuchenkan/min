@@ -1,8 +1,10 @@
-"""Autonomous coding agent using Claude API.
+"""Coding agent for the proof engine. Edits src/theorems/ only.
 
 Usage:
-    ANTHROPIC_API_KEY=... python agent.py "task description"
-    ANTHROPIC_API_KEY=... python agent.py "task description" --max-turns 50
+    python agent.py
+    python agent.py --max-turns 50
+
+API key loaded from .env. Goals defined in goal.py.
 """
 
 import os
@@ -34,7 +36,7 @@ TOOLS = [
     },
     {
         "name": "edit_file",
-        "description": "Replace lines in a file. Specify start line and number of lines to replace.",
+        "description": "Replace lines in a file under src/theorems/ only. Specify start line and number of lines to replace.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -85,16 +87,17 @@ TOOLS = [
     },
 ]
 
-SYSTEM = """You are a disciplined coding agent working on a formal proof engine.
+SYSTEM = """You are a coding agent working on a formal proof engine.
 
-Rules:
-1. Read before you edit.
-2. One edit at a time.
-3. Test after every edit.
-4. Commit after each test passes.
-5. No shortcuts. No batch edits.
+Project: a sequent calculus engine that verifies proofs from ZFC axioms.
+You can only edit files under src/theorems/. Core, definitions, and tactics are fixed.
 
-When done, call the done tool with a summary."""
+Test command: python goal.py
+This runs the goals and prints pass/fail for each.
+
+Test with: python goal.py
+Commit when tests pass.
+When all goals pass, call the done tool."""
 
 
 def execute_tool(name, inp):
@@ -210,15 +213,22 @@ def run_agent(task, max_turns=200):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python agent.py 'task'")
-        sys.exit(1)
-
     max_turns = 200
-    args = sys.argv[1:]
-    if "--max-turns" in args:
-        idx = args.index("--max-turns")
-        max_turns = int(args[idx + 1])
-        args = args[:idx] + args[idx + 2:]
+    if "--max-turns" in sys.argv:
+        idx = sys.argv.index("--max-turns")
+        max_turns = int(sys.argv[idx + 1])
 
-    run_agent(args[0], max_turns)
+    # Read goal.py for context
+    with open("goal.py") as f:
+        goal_src = f.read()
+
+    task = f"""Fix the theorems in src/theorems/ so that goal.py passes.
+
+goal.py:
+```python
+{goal_src}
+```
+
+Run `python goal.py` to test. Read the relevant theorem files to understand what needs to change."""
+
+    run_agent(task, max_turns)
