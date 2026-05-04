@@ -101,6 +101,13 @@ When all goals pass, call the done tool."""
 
 
 def execute_tool(name, inp):
+    try:
+        return _execute_tool(name, inp)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def _execute_tool(name, inp):
     if name == "read_file":
         try:
             with open(inp["path"]) as f:
