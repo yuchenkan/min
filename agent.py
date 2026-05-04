@@ -92,8 +92,10 @@ SYSTEM = """You are a coding agent working on a formal proof engine.
 Project: a sequent calculus engine that verifies proofs from ZFC axioms.
 You can only edit files under src/theorems/. Core, definitions, and tactics are fixed.
 
-Test command: python goal.py
-This runs the goals and prints pass/fail for each.
+Each proof step is checked at construction. If Proof() raises ValueError,
+the rule application is wrong. Read the error, trace why the sequent
+doesn't match, and fix the proof code. Don't guess — spot the exact
+mismatch by reading the code and understanding what each proof step requires.
 
 Test with: python goal.py
 Commit when tests pass.
@@ -176,14 +178,15 @@ def run_agent(task, max_turns):
 
     for turn in range(max_turns):
         print(f"\n--- Turn {turn + 1}/{max_turns} ---")
-        response = client.messages.create(
+        with client.messages.stream(
             model="claude-sonnet-4-6",
-            max_tokens=16000,
+            max_tokens=128000,
             system=SYSTEM,
             tools=TOOLS,
             messages=messages,
             thinking={"type": "adaptive"},
-        )
+        ) as stream:
+            response = stream.get_final_message()
         print(f"  stop_reason={response.stop_reason} blocks={len(response.content)} "
               f"in={response.usage.input_tokens} out={response.usage.output_tokens}")
 
