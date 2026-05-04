@@ -164,7 +164,7 @@ def execute_tool(name, inp):
     return f"Error: unknown tool {name}"
 
 
-def run_agent(task, max_turns=200):
+def run_agent(task, max_turns):
     messages = [{"role": "user", "content": task}]
 
     for turn in range(max_turns):
@@ -188,7 +188,7 @@ def run_agent(task, max_turns=200):
 
         tool_uses = [b for b in response.content if b.type == "tool_use"]
         if not tool_uses:
-            return
+            continue
 
         messages.append({"role": "assistant", "content": response.content})
 
