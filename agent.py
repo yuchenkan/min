@@ -9,8 +9,13 @@ import os
 import sys
 import json
 import subprocess
-import anthropic
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'vendor'))
+
+from dotenv import load_dotenv
+load_dotenv()
+
+import anthropic
 client = anthropic.Anthropic()
 
 TOOLS = [
