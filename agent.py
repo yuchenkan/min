@@ -76,11 +76,16 @@ TOOLS = [
     },
     {
         "name": "done",
-        "description": "Signal that the task is complete.",
+        "description": "Signal that the task is complete or that a goal is wrong.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "summary": {"type": "string"},
+                "blocked": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Goal names that are wrong or impossible. Explain why in summary.",
+                },
             },
             "required": ["summary"],
         },
