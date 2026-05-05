@@ -2945,256 +2945,98 @@ def ordpair_val_transfer():
     return proof
 
 def ordpair_unique():
-    """Ext |- forall x, y, p1, p2.
-       OrdPair(p1, x, y) -> OrdPair(p2, x, y) -> Eq(p1, p2)
-    The ordered pair of x,y is unique up to extensional equality."""
-    from tactics import apply_thm, wl, wr, mp, ax, eel, fl
+    """Pairing |- forall a, b, t, s. OrdPair(t,a,b) -> OrdPair(s,a,b) -> Eq(t,s)"""
+    from tactics import apply_thm, wl, wr, mp, fl, ax, cut as tcut, eel
     from definitions import Singleton, PairSet
+    from core.proof import _expand, _subst
 
-    x, y, p1, p2 = Var(), Var(), Var(), Var()
-    ordp1 = OrdPair(p1, x, y)
-    ordp2 = OrdPair(p2, x, y)
-    zv, sa1, sa2, pab1, pab2 = Var(), Var(), Var(), Var(), Var()
+    a, b, t, s = Var(), Var(), Var(), Var()
+    sa0, pab0, zv = Var(), Var(), Var()
+    pairing = zfc.Pairing()
 
+    ordp_t = OrdPair(t, a, b)
+    ordp_s = OrdPair(s, a, b)
+    sing_sa = SingletonDef(sa0, a)
+    pair_pab = PairSetDef(pab0, a, b)
 
-    # OrdPair(p,x,y) = exists sa. Sing(sa,x) and exists pab. PS(pab,x,y) and PS(p,sa,pab)
-    # The key: PS(p,sa,pab) characterizes p's membership.
-    # If PS(p1,sa1,pab1) and PS(p2,sa2,pab2) with same sa,pab (up to Eq),
-    # then z in p1 iff Or(Eq(z,sa1),Eq(z,pab1)) iff Or(Eq(z,sa2),Eq(z,pab2)) iff z in p2.
-    # So Eq(p1,p2).
+    # Step 1: Derive PairSet(t,sa0,pab0) from OrdPair(t,a,b) + witnesses
+    ordp_t_exp = _expand(ordp_t)
+    body1_t = _subst(ordp_t_exp.body, ordp_t_exp.var, sa0)
+    got_body1_t = fl(ordp_t, body1_t, sa0)
+    inner_fa_t = body1_t.right
+    got_inner_t = mp(got_body1_t, ax(sing_sa), body1_t.left, inner_fa_t)
+    body2_t = _subst(inner_fa_t.body, inner_fa_t.var, pab0)
+    got_body2_t_partial = fl(inner_fa_t, body2_t, pab0)
+    got_body2_t = tcut(wl(got_body2_t_partial, *got_inner_t.sequent.left), inner_fa_t, got_inner_t)
+    ps_t_result = body2_t.right
+    got_ps_t = mp(got_body2_t, ax(pair_pab), body2_t.left, ps_t_result)
 
-    # Strategy: from OrdPair(p1,x,y) and OrdPair(p2,x,y), unpack both to get
-    # PS(p1,sa1,pab1) and PS(p2,sa2,pab2). Show Eq(sa1,sa2) and Eq(pab1,pab2)
-    # via singleton_eq + pair characterization. Then char_transfer to get Eq(p1,p2).
+    # Step 2: Similarly for OrdPair(s,a,b)
+    ordp_s_exp = _expand(ordp_s)
+    body1_s = _subst(ordp_s_exp.body, ordp_s_exp.var, sa0)
+    got_body1_s = fl(ordp_s, body1_s, sa0)
+    inner_fa_s = body1_s.right
+    got_inner_s = mp(got_body1_s, ax(sing_sa), body1_s.left, inner_fa_s)
+    body2_s = _subst(inner_fa_s.body, inner_fa_s.var, pab0)
+    got_body2_s_partial = fl(inner_fa_s, body2_s, pab0)
+    got_body2_s = tcut(wl(got_body2_s_partial, *got_inner_s.sequent.left), inner_fa_s, got_inner_s)
+    ps_s_result = body2_s.right
+    got_ps_s = mp(got_body2_s, ax(pair_pab), body2_s.left, ps_s_result)
 
-    # Actually simpler: both have PS(p_i, sa_i, pab_i) where sa_i = {x} and pab_i = {x,y}.
-    # Since sa1 and sa2 are both singletons of x: Eq(sa1,sa2) via unique_successor-like argument.
-    # Similarly pab1,pab2 are both pair sets of x,y: Eq(pab1,pab2).
-    # Then PS(p1,sa1,pab1) and PS(p2,sa2,pab2) with Eq(sa1,sa2) and Eq(pab1,pab2)
-    # -> transfer via eq_substitution -> Eq(p1,p2).
+    # Step 3: Eq(t,s) from PairSet(t,...) and PairSet(s,...) via char_transfer
+    or_sp = Or(Eq(zv, sa0), Eq(zv, pab0))
+    iff_t = Iff(In(zv, t), or_sp)
+    iff_s = Iff(In(zv, s), or_sp)
+    got_iff_t = fl(ps_t_result, iff_t, zv)
+    got_iff_s = fl(ps_s_result, iff_s, zv)
+    iff_s_sym = Iff(or_sp, In(zv, s))
+    got_iff_s_sym = mp(iff_sym(In(zv, s), or_sp, []), got_iff_s, iff_s, iff_s_sym)
+    iff_ts = Iff(In(zv, t), In(zv, s))
+    ct = char_transfer(In(zv, t), or_sp, In(zv, s), [])
+    got_iff_ts = mp(mp(ct, got_iff_t, iff_t, Implies(iff_s_sym, iff_ts)),
+                    got_iff_s_sym, iff_s_sym, iff_ts)
+    eq_ts = Eq(t, s)
+    got_eq = Proof(Sequent(got_iff_ts.sequent.left, [eq_ts]),
+        'forall_right', [got_iff_ts], principal=eq_ts, term=zv)
 
-    # Even simpler approach: from each OrdPair, extract PS(p_i, sa_i, pab_i).
-    # PS gives: z in p_i iff Or(Eq(z,sa_i),Eq(z,pab_i)).
-    # From Sing(sa_i,x): Eq(z,sa_i) iff Eq(z,{x}) -- but this is circular.
-    # Actually: Sing(sa1,x) and Sing(sa2,x) give sa1 and sa2 the same membership.
-    # singleton_eq: Sing(sa1,x) and Sing(sa2,x) -> Eq(sa1,sa2). Do we have this?
-    # For PairSet: PS(pab1,x,y) and PS(pab2,x,y):
-    # z in pab1 iff Or(Eq(z,x),Eq(z,y)) iff z in pab2. So Eq(pab1,pab2).
-    # This follows the same char_transfer pattern as unique_successor.
-    or_xy = Or(Eq(zv, x), Eq(zv, y))
-    iff_pab1 = Iff(In(zv, pab1), or_xy)
-    iff_pab2 = Iff(In(zv, pab2), or_xy)
-    ps1 = PairSet(pab1, x, y)
-    ps2 = PairSet(pab2, x, y)
-    fl_ps1 = fl(ps1, iff_pab1, zv)
-    fl_ps2 = fl(ps2, iff_pab2, zv)
-    iff_sym_ps = iff_sym(In(zv, pab2), or_xy, [])
-    got_ps2_sym = mp(iff_sym_ps, fl_ps2, iff_pab2, Iff(or_xy, In(zv, pab2)))
-    ct_pab = char_transfer(In(zv, pab1), or_xy, In(zv, pab2), [])
-    iff_pabs = Iff(In(zv, pab1), In(zv, pab2))
-    got_iff_pabs = mp(mp(ct_pab, fl_ps1, iff_pab1, Implies(Iff(or_xy, In(zv, pab2)), iff_pabs)),
-        got_ps2_sym, Iff(or_xy, In(zv, pab2)), iff_pabs)
-    eq_pabs = Eq(pab1, pab2)
-    got_eq_pabs = Proof(Sequent([ps1, ps2], [eq_pabs]), 'forall_right',
-        [got_iff_pabs], principal=eq_pabs, term=zv)
-    # got_eq_pabs: [PS(pab1,x,y), PS(pab2,x,y)] |- Eq(pab1, pab2)
+    # Step 4: Cut PairSet results from OrdPair derivations
+    got_with_t = tcut(got_eq, ps_t_result, got_ps_t)
+    got_with_s = tcut(got_with_t, ps_s_result, got_ps_s)
 
-    # Now from Eq(sa1,sa2) and Eq(pab1,pab2) and PS(p1,sa1,pab1) and PS(p2,sa2,pab2):
-    # Transfer PS(p2,sa2,pab2) to PS(p2,sa1,pab1) via eq_substitution, then char_transfer.
-    # Actually: PS(p_i, sa_i, pab_i) = forall z. In(z,p_i) iff Or(Eq(z,sa_i),Eq(z,pab_i))
-    # With Eq(sa1,sa2): Eq(z,sa1) iff Eq(z,sa2) via eq_in_eq.
-    # With Eq(pab1,pab2): Eq(z,pab1) iff Eq(z,pab2) via eq_in_eq.
-    # or_iff_compat: Or(Eq(z,sa1),Eq(z,pab1)) iff Or(Eq(z,sa2),Eq(z,pab2))
-    # char_transfer on PS(p2): In(z,p2) iff Or(Eq(z,sa2),Eq(z,pab2)) iff Or(Eq(z,sa1),Eq(z,pab1)) iff In(z,p1)
+    # Step 5: Existentially eliminate sa0, pab0; cut with Pairing
+    got_e1 = eel(got_with_s, pair_pab, pab0)
+    pair_ax_exp = _expand(pairing)
+    pair_at_a = _subst(pair_ax_exp.body, pair_ax_exp.var, a)
+    pair_at_ab = _subst(pair_at_a.body, pair_at_a.var, b)
+    fl_a = fl(pair_ax_exp, pair_at_a, a)
+    fl_ab = fl(pair_at_a, pair_at_ab, b)
+    got_pair_a = Proof(Sequent([pairing], [pair_at_a]), 'cut',
+        [wr(ax(pairing), pair_at_a), wl(fl_a, pairing)], principal=pair_ax_exp)
+    got_ex_pair_ab = Proof(Sequent([pairing], [pair_at_ab]), 'cut',
+        [wr(got_pair_a, pair_at_ab), wl(fl_ab, pairing)], principal=pair_at_a)
+    got_c1 = tcut(got_e1, got_e1.sequent.left[-1], got_ex_pair_ab)
 
-    # This is doable but long. For now, use a shorter approach:
-    # Unpack both OrdPairs. Show the inner PairSet(p_i, sa_i, pab_i) characterizations
-    # are equivalent. Then Eq(p1, p2).
+    got_e2 = eel(got_c1, sing_sa, sa0)
+    se = singleton_exists()
+    se_fa = se.sequent.right[0]
+    se_at_a = _subst(se_fa.body, se_fa.var, a)
+    got_ex_sing = Proof(Sequent(se.sequent.left, [se_at_a]), 'cut',
+        [wr(se, se_at_a), wl(fl(se_fa, se_at_a, a), *se.sequent.left)], principal=se_fa)
+    got_c2 = tcut(got_e2, got_e2.sequent.left[-1], got_ex_sing)
 
-    # Actually simplest: use the fact that OrdPair(p,x,y) determines p's membership completely.
-    # From OrdPair(p1,x,y): extract PS(p1,sa1,pab1) where Sing(sa1,x) and PS(pab1,x,y).
-    # From OrdPair(p2,x,y): extract PS(p2,sa2,pab2) where Sing(sa2,x) and PS(pab2,x,y).
-    # singleton_eq: Eq(sa1,sa2).
-    # got_eq_pabs: Eq(pab1,pab2).
-    # Transfer: PS(p2,sa2,pab2) -> PS(p2,sa1,pab1) (via eq_substitution on sa,pab).
-    # Then: In(z,p1) iff Or(Eq(z,sa1),Eq(z,pab1)) and In(z,p2) iff Or(Eq(z,sa1),Eq(z,pab1))
-    # char_transfer: Eq(p1,p2).
-
-    sing1 = Singleton(sa1, x)
-    sing2 = Singleton(sa2, x)
-    ps_p1 = PairSet(p1, sa1, pab1)
-    ps_p2 = PairSet(p2, sa2, pab2)
-    or_s1p1 = Or(Eq(zv, sa1), Eq(zv, pab1))
-    or_s2p2 = Or(Eq(zv, sa2), Eq(zv, pab2))
-    iff_p1 = Iff(In(zv, p1), or_s1p1)
-    iff_p2 = Iff(In(zv, p2), or_s2p2)
-
-    # Eq(sa1,sa2): both singletons of x, so same membership via char_transfer.
-    # Sing(sa1,x): z in sa1 iff Eq(z,x). Sing(sa2,x): z in sa2 iff Eq(z,x).
-    # iff_sym + char_transfer: z in sa1 iff Eq(z,x) iff z in sa2. Hence Eq(sa1,sa2).
-    eq_zx = Eq(zv, x)
-    iff_sa1 = Iff(In(zv, sa1), eq_zx)
-    iff_sa2 = Iff(In(zv, sa2), eq_zx)
-    fl_sing1 = fl(sing1, iff_sa1, zv)
-    fl_sing2 = fl(sing2, iff_sa2, zv)
-    iff_sa2_sym = Iff(eq_zx, In(zv, sa2))
-    got_sa2_sym = mp(iff_sym(In(zv, sa2), eq_zx, []), fl_sing2, iff_sa2, iff_sa2_sym)
-    iff_sa1_sa2 = Iff(In(zv, sa1), In(zv, sa2))
-    ct_sa = char_transfer(In(zv, sa1), eq_zx, In(zv, sa2), [])
-    got_iff_sas = mp(mp(ct_sa, fl_sing1, iff_sa1, Implies(iff_sa2_sym, iff_sa1_sa2)),
-        got_sa2_sym, iff_sa2_sym, iff_sa1_sa2)
-    got_eq_sas = Proof(Sequent([sing1, sing2], [Eq(sa1, sa2)]), 'forall_right',
-        [got_iff_sas], principal=Eq(sa1, sa2), term=zv)
-
-    # From Eq(sa1,sa2) and Eq(pab1,pab2):
-    # Eq(z,sa1) iff Eq(z,sa2) via eq_in_eq on sa
-    # Eq(z,pab1) iff Eq(z,pab2) via eq_in_eq on pab
-    eie = eq_in_eq()
-    iff_sa = Iff(Eq(zv, sa1), Eq(zv, sa2))
-    got_iff_sa = apply_thm(eie, [sa1, sa2], Eq(sa1, sa2), Forall(zv, iff_sa), got_eq_sas)
-    fl_iff_sa = fl(Forall(zv, iff_sa), iff_sa, zv)
-    got_iff_sa = Proof(Sequent(got_iff_sa.sequent.left, [iff_sa]), 'cut',
-        [wr(got_iff_sa, iff_sa), wl(fl_iff_sa, *got_iff_sa.sequent.left)],
-        principal=Forall(zv, iff_sa))
-
-    iff_pab = Iff(Eq(zv, pab1), Eq(zv, pab2))
-    got_iff_pab = apply_thm(eie, [pab1, pab2], Eq(pab1, pab2), Forall(zv, iff_pab), got_eq_pabs)
-    fl_iff_pab = fl(Forall(zv, iff_pab), iff_pab, zv)
-    got_iff_pab = Proof(Sequent(got_iff_pab.sequent.left, [iff_pab]), 'cut',
-        [wr(got_iff_pab, iff_pab), wl(fl_iff_pab, *got_iff_pab.sequent.left)],
-        principal=Forall(zv, iff_pab))
-
-    # or_iff_compat: iff_sa + iff_pab -> Iff(or_s1p1, or_s2p2)
-    iff_or = Iff(or_s1p1, or_s2p2)
-    oic = or_iff_compat(Eq(zv, sa1), Eq(zv, pab1), Eq(zv, sa2), Eq(zv, pab2), [])
-    got_iff_or = mp(mp(oic, got_iff_sa, iff_sa, Implies(iff_pab, iff_or)),
-        got_iff_pab, iff_pab, iff_or)
-
-    # char_transfer on PS(p2): In(z,p2) iff or_s2p2, or_s2p2 iff or_s1p1 -> In(z,p2) iff or_s1p1
-    iff_or_sym = Iff(or_s2p2, or_s1p1)
-    got_iff_or_sym = mp(iff_sym(or_s1p1, or_s2p2, []), got_iff_or, iff_or, iff_or_sym)
-    iff_p2_s1 = Iff(In(zv, p2), or_s1p1)
-    ct_p2 = char_transfer(In(zv, p2), or_s2p2, or_s1p1, [])
-    fl_ps_p2 = fl(ps_p2, iff_p2, zv)
-    got_iff_p2_s1 = mp(mp(ct_p2, fl_ps_p2, iff_p2, Implies(iff_or_sym, iff_p2_s1)),
-        got_iff_or_sym, iff_or_sym, iff_p2_s1)
-
-    # Now: In(z,p1) iff or_s1p1 (from ps_p1) and In(z,p2) iff or_s1p1 (from above)
-    # iff_sym + char_transfer -> In(z,p1) iff In(z,p2) = Eq(p1,p2)
-    fl_ps_p1 = fl(ps_p1, iff_p1, zv)
-    iff_p1_p2 = Iff(In(zv, p1), In(zv, p2))
-    iff_s1_p2 = Iff(or_s1p1, In(zv, p2))
-    got_iff_s1_p2 = mp(iff_sym(In(zv, p2), or_s1p1, []), got_iff_p2_s1, iff_p2_s1, iff_s1_p2)
-    ct_final = char_transfer(In(zv, p1), or_s1p1, In(zv, p2), [])
-    got_eq_p1p2 = mp(mp(ct_final, fl_ps_p1, iff_p1, Implies(iff_s1_p2, iff_p1_p2)),
-        got_iff_s1_p2, iff_s1_p2, iff_p1_p2)
-    eq_p1p2 = Eq(p1, p2)
-    got_eq = Proof(Sequent(got_eq_p1p2.sequent.left, [eq_p1p2]), 'forall_right',
-        [got_eq_p1p2], principal=eq_p1p2, term=zv)
-    # got_eq: [sing1, sing2, ps1, ps2, ps_p1, ps_p2, Ext?] |- Eq(p1,p2)
-
-    # Now need to unpack OrdPair(p1,x,y) and OrdPair(p2,x,y) to get these components,
-    # then _eel to close the existentials.
-    # This is the same unpack pattern as in ordpair_eq_transfer.
-    # For brevity, package sing1+PS(pab1,x,y) into And from OrdPair, similarly for ordp2.
-
-    # Unpack ordp1: get sing1, ps(pab1,x,y), ps(p1,sa1,pab1)
-    and_inner1 = And(PairSet(pab1, x, y), ps_p1)
-    and_outer1 = And(sing1, Exists(pab1, and_inner1))
-    got_s1 = apply_thm(and_elim_left(sing1, Exists(pab1, and_inner1), []), [],
-        and_outer1, sing1, ax(and_outer1))
-    got_ep1 = apply_thm(and_elim_right(sing1, Exists(pab1, and_inner1), []), [],
-        and_outer1, Exists(pab1, and_inner1),
-        Proof(Sequent([and_outer1], [and_outer1]), 'axiom', principal=and_outer1))
-    got_ps_xy1 = apply_thm(and_elim_left(PairSet(pab1, x, y), ps_p1, []), [],
-        and_inner1, PairSet(pab1, x, y), ax(and_inner1))
-    got_ps_p1 = apply_thm(and_elim_right(PairSet(pab1, x, y), ps_p1, []), [],
-        and_inner1, ps_p1, Proof(Sequent([and_inner1], [and_inner1]), 'axiom', principal=and_inner1))
-
-    # Similarly for ordp2:
-    and_inner2 = And(PairSet(pab2, x, y), ps_p2)
-    and_outer2 = And(sing2, Exists(pab2, and_inner2))
-    got_s2 = apply_thm(and_elim_left(sing2, Exists(pab2, and_inner2), []), [],
-        and_outer2, sing2, ax(and_outer2))
-    got_ep2 = apply_thm(and_elim_right(sing2, Exists(pab2, and_inner2), []), [],
-        and_outer2, Exists(pab2, and_inner2),
-        Proof(Sequent([and_outer2], [and_outer2]), 'axiom', principal=and_outer2))
-    got_ps_xy2 = apply_thm(and_elim_left(PairSet(pab2, x, y), ps_p2, []), [],
-        and_inner2, PairSet(pab2, x, y), ax(and_inner2))
-    got_ps_p2 = apply_thm(and_elim_right(PairSet(pab2, x, y), ps_p2, []), [],
-        and_inner2, ps_p2, Proof(Sequent([and_inner2], [and_inner2]), 'axiom', principal=and_inner2))
-
-    # Cut individual components into got_eq:
-    # Replace sing1 with and_outer1, etc. (same pattern as ordpair_eq_transfer)
-    cur = got_eq
-    for (pred, got_pred, and_src) in [
-        (ps_p1, got_ps_p1, and_inner1), (PairSet(pab1, x, y), got_ps_xy1, and_inner1),
-        (ps_p2, got_ps_p2, and_inner2), (PairSet(pab2, x, y), got_ps_xy2, and_inner2)]:
-        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
-        if not any(same(and_src, g) for g in c_left):
-            c_left = c_left + [and_src]
-        br1 = got_pred
-        for f_ in c_left:
-            if not any(same(f_, g) for g in br1.sequent.left):
-                br1 = wl(br1, f_)
-        br2 = cur
-        for f_ in br1.sequent.left:
-            if not any(same(f_, g) for g in cur.sequent.left):
-                br2 = wl(br2, f_)
-        cur = Proof(Sequent(c_left, [eq_p1p2]), 'cut',
-            [wr(br1, eq_p1p2), br2], principal=pred)
-    # _eel pab1, pab2:
-    cur = eel(cur, and_inner1, pab1)
-    for (pred, got_pred, and_src) in [(sing1, got_s1, and_outer1), (Exists(pab1, and_inner1), got_ep1, and_outer1)]:
-        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
-        if not any(same(and_src, g) for g in c_left):
-            c_left = c_left + [and_src]
-        br1 = got_pred
-        for f_ in c_left:
-            if not any(same(f_, g) for g in br1.sequent.left):
-                br1 = wl(br1, f_)
-        br2 = cur
-        for f_ in br1.sequent.left:
-            if not any(same(f_, g) for g in cur.sequent.left):
-                br2 = wl(br2, f_)
-        cur = Proof(Sequent(c_left, [eq_p1p2]), 'cut',
-            [wr(br1, eq_p1p2), br2], principal=pred)
-    cur = eel(cur, and_outer1, sa1)
-    # Similarly for ordp2's components:
-    cur = eel(cur, and_inner2, pab2)
-    for (pred, got_pred, and_src) in [(sing2, got_s2, and_outer2), (Exists(pab2, and_inner2), got_ep2, and_outer2)]:
-        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
-        if not any(same(and_src, g) for g in c_left):
-            c_left = c_left + [and_src]
-        br1 = got_pred
-        for f_ in c_left:
-            if not any(same(f_, g) for g in br1.sequent.left):
-                br1 = wl(br1, f_)
-        br2 = cur
-        for f_ in br1.sequent.left:
-            if not any(same(f_, g) for g in cur.sequent.left):
-                br2 = wl(br2, f_)
-        cur = Proof(Sequent(c_left, [eq_p1p2]), 'cut',
-            [wr(br1, eq_p1p2), br2], principal=pred)
-    cur = eel(cur, and_outer2, sa2)
-    # cur: [OrdPair(p1,x,y), OrdPair(p2,x,y), Ext?] |- Eq(p1,p2)
-
-    # Discharge and close
-    ordp1_actual = [f_ for f_ in cur.sequent.left if same(f_, ordp1)][0]
-    ordp2_actual = [f_ for f_ in cur.sequent.left if same(f_, ordp2)][0]
-    proof = cur
-    for h in [ordp2_actual, ordp1_actual]:
-        imp_h = Implies(h, proof.sequent.right[0])
-        remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
-        proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
-    for var in [p2, p1, y, x]:
+    # Step 6: Discharge and close
+    proof = got_c2
+    for h in [ordp_s, ordp_t]:
+        if any(same(h, g) for g in proof.sequent.left):
+            imp_h = Implies(h, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(rem, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [s, t, b, a]:
         body = proof.sequent.right[0]
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
     proof.name = 'ordpair_unique'
     return proof
-
-
 
 def eq_successor_transfer():
     """Transfer Successor through equalities.
