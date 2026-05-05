@@ -264,7 +264,7 @@ def and_elim_left(A, B, vars: list[Var]):
     ax_imp = Proof(Sequent([imp], [imp, A]), 'axiom', principal=imp)
     p1 = Proof(Sequent([imp, nand], [A]), 'not_left', [ax_imp], principal=nand)
     s2 = Proof(Sequent([nand], [A]), 'cut', [p0, p1], principal=imp)
-    top = Implies(nand, A)
+    top = Implies(And(A, B), A)
     s3 = Proof(Sequent([], [top]), 'implies_right', [s2], principal=top)
     proof = s3
     for v in vars:
