@@ -5,7 +5,7 @@ from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
 from core import zfc
-from definitions import Empty, OrdPair, Omega
+from definitions import Empty, OrdPair, Omega, Singleton as SingletonDef, PairSet as PairSetDef, Successor as SuccessorDef
 from theorems.logic import and_elim_left, and_elim_right, and_intro, char_transfer, eq_reflexive, eq_symmetric, eq_transitive, iff_chain, iff_mp_rev, iff_sym, or_iff_compat, or_intro_right
 
 def singleton_exists():
@@ -132,8 +132,7 @@ def singleton_exists():
                'weakening_left', [p3], principal=pairing_ax)
     r3 = Proof(Sequent([pairing_ax], [E_clean]), 'cut', [r1, r2], principal=E_or)
 
-    # === Close ===
-    goal = Forall(a, E_clean)
+    goal = Forall(a, Exists(bp, SingletonDef(bp, a)))
     s1 = Proof(Sequent([pairing_ax], [goal]),
                'forall_right', [r3], principal=goal, term=a)
     s1.name = 'singleton_exists'
