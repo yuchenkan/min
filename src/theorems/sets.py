@@ -249,243 +249,27 @@ def singleton_eq():
 
 
 def eq_transfer():
-    """Extensionality |- forall a,b,c,d. Eq(a,b) implies Eq(c,d) implies Iff(In(a,c),In(b,d))"""
-    a, b, c, d = Var(), Var(), Var(), Var()
-    xp, yp, zp = Var(), Var(), Var()
+    """|- forall a, b, z. Eq(a,b) implies Iff(In(z,a), In(z,b))"""
+    a, b, z = Var(), Var(), Var()
 
-    ext_ax = zfc.Extensionality()
     eq_ab = Eq(a, b)
-    eq_cd = Eq(c, d)
-    A = In(a, c)
-    B = In(b, c)
-    C = In(b, d)
-    AB = Implies(A, B)
-    BA = Implies(B, A)
-    BC = Implies(B, C)
-    CB = Implies(C, B)
-    AC = Implies(A, C)
-    CA = Implies(C, A)
-    H_ac = Implies(AC, Not(CA))
-    iff_ac = Iff(A, C)
+    iff = Iff(In(z, a), In(z, b))
 
-    # Extensionality expanded form
-    ext_full = Forall(xp, Forall(yp,
-        Implies(Forall(zp, Iff(In(zp, xp), In(zp, yp))),
-                Forall(zp, Iff(In(xp, zp), In(yp, zp))))))
-    ext_inst_x = Forall(yp,
-        Implies(Forall(zp, Iff(In(zp, a), In(zp, yp))),
-                Forall(zp, Iff(In(a, zp), In(yp, zp)))))
-    eq_ab_exp = Forall(zp, Iff(In(zp, a), In(zp, b)))
-    fa_iff_ab = Forall(zp, Iff(In(a, zp), In(b, zp)))
-    ext_inst_xy = Implies(eq_ab_exp, fa_iff_ab)
-    iff_ab_c = Iff(A, B)  # Iff(In(a,c), In(b,c))
+    # Eq(a,b) = Forall(w, Iff(In(w,a), In(w,b))). Instantiate w=z.
+    ax_iff = Proof(Sequent([iff], [iff]), 'axiom', principal=iff)
+    fl = Proof(Sequent([eq_ab], [iff]), 'forall_left', [ax_iff], principal=eq_ab, term=z)
 
-    # Eq(c,d) gives membership equivalence
-    eq_cd_exp = Forall(zp, Iff(In(zp, c), In(zp, d)))
-    iff_bcd = Iff(B, C)  # Iff(In(b,c), In(b,d))
-
-    # === Get iff_ab_c from Extensionality + Eq(a,b) ===
-    # ext_inst_xy |- ext_inst_xy (axiom)
-    # forall_left twice on ext_ax to get ext_inst_xy
-    t0 = Proof(Sequent([ext_inst_xy], [ext_inst_xy]), 'axiom', principal=ext_inst_xy)
-    t1 = Proof(Sequent([ext_inst_x], [ext_inst_xy]),
-               'forall_left', [t0], principal=ext_inst_x, term=b)
-    t2 = Proof(Sequent([ext_ax], [ext_inst_xy]),
-               'forall_left', [t1], principal=ext_full, term=a)
-    # ext_ax, eq_ab |- fa_iff_ab (modus ponens)
-    mp1a = Proof(Sequent([eq_ab], [eq_ab]), 'axiom', principal=eq_ab)
-    mp1b = Proof(Sequent([eq_ab], [eq_ab, iff_ab_c]), 'weakening_right', [mp1a], principal=iff_ab_c)
-    mp1c = Proof(Sequent([eq_ab, fa_iff_ab], [iff_ab_c]),
-                 'weakening_left',
-                 [Proof(Sequent([fa_iff_ab], [iff_ab_c]), 'forall_left',
-                        [Proof(Sequent([iff_ab_c], [iff_ab_c]), 'axiom', principal=iff_ab_c)],
-                        principal=fa_iff_ab, term=c)],
-                 principal=eq_ab)
-    mp1 = Proof(Sequent([eq_ab, ext_inst_xy], [iff_ab_c]),
-                'implies_left', [mp1b, mp1c], principal=ext_inst_xy)
-    # Cut ext_inst_xy: ext_ax, eq_ab |- iff_ab_c
-    ct1a = Proof(Sequent([ext_ax], [ext_inst_xy, iff_ab_c]),
-                 'weakening_right', [t2], principal=iff_ab_c)
-    ct1b = Proof(Sequent([ext_ax, eq_ab], [ext_inst_xy, iff_ab_c]),
-                 'weakening_left', [ct1a], principal=eq_ab)
-    ct1c = Proof(Sequent([ext_ax, eq_ab, ext_inst_xy], [iff_ab_c]),
-                 'weakening_left', [mp1], principal=ext_ax)
-    got_iff_ab_c = Proof(Sequent([ext_ax, eq_ab], [iff_ab_c]),
-                         'cut', [ct1b, ct1c], principal=ext_inst_xy)
-
-    # === Get iff_bcd from Eq(c,d) ===
-    # eq_cd |- iff_bcd (just forall_left with b)
-    got_iff_bcd = Proof(Sequent([eq_cd], [iff_bcd]), 'forall_left',
-                        [Proof(Sequent([iff_bcd], [iff_bcd]), 'axiom', principal=iff_bcd)],
-                        principal=eq_cd, term=b)
-
-    # === Extract AB from iff_ab_c and BC from iff_bcd ===
-    H_ab = Implies(AB, Not(BA))
-    e1 = Proof(Sequent([iff_ab_c, AB], [AB]), 'axiom', principal=AB)
-    e2 = Proof(Sequent([iff_ab_c, AB], [Not(BA), AB]), 'weakening_right', [e1], principal=Not(BA))
-    e3 = Proof(Sequent([iff_ab_c], [H_ab, AB]), 'implies_right', [e2], principal=H_ab)
-    e4 = Proof(Sequent([H_ab], [H_ab, AB]), 'weakening_right',
-               [Proof(Sequent([H_ab], [H_ab]), 'axiom', principal=H_ab)], principal=AB)
-    e5 = Proof(Sequent([H_ab, iff_ab_c], [AB]), 'not_left', [e4], principal=iff_ab_c)
-    ext_ab = Proof(Sequent([iff_ab_c], [AB]), 'cut', [e3, e5], principal=H_ab)
-
-    H_bc = Implies(BC, Not(CB))
-    f1 = Proof(Sequent([iff_bcd, BC], [BC]), 'axiom', principal=BC)
-    f2 = Proof(Sequent([iff_bcd, BC], [Not(CB), BC]), 'weakening_right', [f1], principal=Not(CB))
-    f3 = Proof(Sequent([iff_bcd], [H_bc, BC]), 'implies_right', [f2], principal=H_bc)
-    f4 = Proof(Sequent([H_bc], [H_bc, BC]), 'weakening_right',
-               [Proof(Sequent([H_bc], [H_bc]), 'axiom', principal=H_bc)], principal=BC)
-    f5 = Proof(Sequent([H_bc, iff_bcd], [BC]), 'not_left', [f4], principal=iff_bcd)
-    ext_bc = Proof(Sequent([iff_bcd], [BC]), 'cut', [f3, f5], principal=H_bc)
-
-    # === Extract BA from iff_ab_c and CB from iff_bcd ===
-    g1 = Proof(Sequent([iff_ab_c, AB, BA], [BA]), 'axiom', principal=BA)
-    g2 = Proof(Sequent([iff_ab_c, AB], [Not(BA), BA]), 'not_right', [g1], principal=Not(BA))
-    g3 = Proof(Sequent([iff_ab_c], [H_ab, BA]), 'implies_right', [g2], principal=H_ab)
-    g4 = Proof(Sequent([H_ab], [H_ab, BA]), 'weakening_right',
-               [Proof(Sequent([H_ab], [H_ab]), 'axiom', principal=H_ab)], principal=BA)
-    g5 = Proof(Sequent([H_ab, iff_ab_c], [BA]), 'not_left', [g4], principal=iff_ab_c)
-    ext_ba = Proof(Sequent([iff_ab_c], [BA]), 'cut', [g3, g5], principal=H_ab)
-
-    h1 = Proof(Sequent([iff_bcd, BC, CB], [CB]), 'axiom', principal=CB)
-    h2 = Proof(Sequent([iff_bcd, BC], [Not(CB), CB]), 'not_right', [h1], principal=Not(CB))
-    h3 = Proof(Sequent([iff_bcd], [H_bc, CB]), 'implies_right', [h2], principal=H_bc)
-    h4 = Proof(Sequent([H_bc], [H_bc, CB]), 'weakening_right',
-               [Proof(Sequent([H_bc], [H_bc]), 'axiom', principal=H_bc)], principal=CB)
-    h5 = Proof(Sequent([H_bc, iff_bcd], [CB]), 'not_left', [h4], principal=iff_bcd)
-    ext_cb = Proof(Sequent([iff_bcd], [CB]), 'cut', [h3, h5], principal=H_bc)
-
-    # === Forward: AB, BC, A |- C (hypothetical syllogism) ===
-    fw1 = Proof(Sequent([A], [A]), 'axiom', principal=A)
-    fw2 = Proof(Sequent([A], [A, C]), 'weakening_right', [fw1], principal=C)
-    fw3 = Proof(Sequent([BC, A], [A, C]), 'weakening_left', [fw2], principal=BC)
-    fw4 = Proof(Sequent([B], [B]), 'axiom', principal=B)
-    fw5 = Proof(Sequent([B], [B, C]), 'weakening_right', [fw4], principal=C)
-    fw6 = Proof(Sequent([A, B], [B, C]), 'weakening_left', [fw5], principal=A)
-    fw7 = Proof(Sequent([C], [C]), 'axiom', principal=C)
-    fw8 = Proof(Sequent([A, C], [C]), 'weakening_left', [fw7], principal=A)
-    fw9 = Proof(Sequent([A, B, C], [C]), 'weakening_left', [fw8], principal=B)
-    fw10 = Proof(Sequent([A, B, BC], [C]), 'implies_left', [fw6, fw9], principal=BC)
-    fw = Proof(Sequent([AB, BC, A], [C]), 'implies_left', [fw3, fw10], principal=AB)
-
-    # === Backward: BA, CB, C |- A ===
-    bw1 = Proof(Sequent([C], [C]), 'axiom', principal=C)
-    bw2 = Proof(Sequent([C], [C, A]), 'weakening_right', [bw1], principal=A)
-    bw3 = Proof(Sequent([BA, C], [C, A]), 'weakening_left', [bw2], principal=BA)
-    bw4 = Proof(Sequent([B], [B]), 'axiom', principal=B)
-    bw5 = Proof(Sequent([B], [B, A]), 'weakening_right', [bw4], principal=A)
-    bw6 = Proof(Sequent([C, B], [B, A]), 'weakening_left', [bw5], principal=C)
-    bw7 = Proof(Sequent([A], [A]), 'axiom', principal=A)
-    bw8 = Proof(Sequent([C, A], [A]), 'weakening_left', [bw7], principal=C)
-    bw9 = Proof(Sequent([C, B, A], [A]), 'weakening_left', [bw8], principal=B)
-    bw10 = Proof(Sequent([C, B, BA], [A]), 'implies_left', [bw6, bw9], principal=BA)
-    bw = Proof(Sequent([CB, BA, C], [A]), 'implies_left', [bw3, bw10], principal=CB)
-
-    # === Compose forward: ext_ax, eq_ab, eq_cd, A |- C ===
-    # Cut AB: from iff_ab_c |- AB (ext_ab) + fw with iff contexts
-    fw_c1a = Proof(Sequent([iff_ab_c], [AB, C]), 'weakening_right', [ext_ab], principal=C)
-    fw_c1b = Proof(Sequent([iff_ab_c, BC], [AB, C]), 'weakening_left', [fw_c1a], principal=BC)
-    fw_c1c = Proof(Sequent([iff_ab_c, BC, A], [AB, C]), 'weakening_left', [fw_c1b], principal=A)
-    fw_c1d = Proof(Sequent([iff_ab_c, AB, BC, A], [C]), 'weakening_left', [fw], principal=iff_ab_c)
-    fw_c1 = Proof(Sequent([iff_ab_c, BC, A], [C]), 'cut', [fw_c1c, fw_c1d], principal=AB)
-    # Cut BC: from iff_bcd |- BC (ext_bc) + above
-    fw_c2a = Proof(Sequent([iff_bcd], [BC, C]), 'weakening_right', [ext_bc], principal=C)
-    fw_c2b = Proof(Sequent([iff_bcd, iff_ab_c], [BC, C]), 'weakening_left', [fw_c2a], principal=iff_ab_c)
-    fw_c2c = Proof(Sequent([iff_bcd, iff_ab_c, A], [BC, C]), 'weakening_left', [fw_c2b], principal=A)
-    fw_c2d = Proof(Sequent([iff_ab_c, iff_bcd, BC, A], [C]), 'weakening_left', [fw_c1], principal=iff_bcd)
-    fw_c2 = Proof(Sequent([iff_ab_c, iff_bcd, A], [C]), 'cut', [fw_c2c, fw_c2d], principal=BC)
-    # Cut iff_ab_c: ext_ax, eq_ab, iff_bcd, A |- C
-    fw_c3a = Proof(Sequent([ext_ax, eq_ab], [iff_ab_c, C]),
-                   'weakening_right', [got_iff_ab_c], principal=C)
-    fw_c3b = Proof(Sequent([ext_ax, eq_ab, iff_bcd], [iff_ab_c, C]),
-                   'weakening_left', [fw_c3a], principal=iff_bcd)
-    fw_c3c = Proof(Sequent([ext_ax, eq_ab, iff_bcd, A], [iff_ab_c, C]),
-                   'weakening_left', [fw_c3b], principal=A)
-    fw_c3d = Proof(Sequent([ext_ax, eq_ab, iff_ab_c, iff_bcd, A], [C]),
-                   'weakening_left', [fw_c2], principal=ext_ax)
-    fw_c3e = Proof(Sequent([ext_ax, eq_ab, iff_ab_c, iff_bcd, A], [C]),
-                   'weakening_left', [fw_c3d], principal=eq_ab)
-    # Hmm, fw_c2 already has [iff_ab_c, iff_bcd, A] on left. I need to add ext_ax and eq_ab.
-    # fw_c2: [iff_ab_c, iff_bcd, A] |- [C]. Weaken left ext_ax, eq_ab:
-    fw_c3d2 = Proof(Sequent([ext_ax, iff_ab_c, iff_bcd, A], [C]),
-                    'weakening_left', [fw_c2], principal=ext_ax)
-    fw_c3e2 = Proof(Sequent([ext_ax, eq_ab, iff_ab_c, iff_bcd, A], [C]),
-                    'weakening_left', [fw_c3d2], principal=eq_ab)
-    fw_c3 = Proof(Sequent([ext_ax, eq_ab, iff_bcd, A], [C]),
-                  'cut', [fw_c3c, fw_c3e2], principal=iff_ab_c)
-    # Cut iff_bcd: ext_ax, eq_ab, eq_cd, A |- C
-    fw_c4a = Proof(Sequent([eq_cd], [iff_bcd, C]), 'weakening_right', [got_iff_bcd], principal=C)
-    fw_c4b = Proof(Sequent([eq_cd, ext_ax], [iff_bcd, C]), 'weakening_left', [fw_c4a], principal=ext_ax)
-    fw_c4c = Proof(Sequent([eq_cd, ext_ax, eq_ab], [iff_bcd, C]),
-                   'weakening_left', [fw_c4b], principal=eq_ab)
-    fw_c4d = Proof(Sequent([eq_cd, ext_ax, eq_ab, A], [iff_bcd, C]),
-                   'weakening_left', [fw_c4c], principal=A)
-    fw_c4e = Proof(Sequent([ext_ax, eq_ab, eq_cd, iff_bcd, A], [C]),
-                   'weakening_left', [fw_c3], principal=eq_cd)
-    fw_final = Proof(Sequent([ext_ax, eq_ab, eq_cd, A], [C]),
-                     'cut', [fw_c4d, fw_c4e], principal=iff_bcd)
-
-    # === Compose backward: ext_ax, eq_ab, eq_cd, C |- A ===
-    bw_c1a = Proof(Sequent([iff_ab_c], [BA, A]), 'weakening_right', [ext_ba], principal=A)
-    bw_c1b = Proof(Sequent([iff_ab_c, CB], [BA, A]), 'weakening_left', [bw_c1a], principal=CB)
-    bw_c1c = Proof(Sequent([iff_ab_c, CB, C], [BA, A]), 'weakening_left', [bw_c1b], principal=C)
-    bw_c1d = Proof(Sequent([iff_ab_c, CB, BA, C], [A]), 'weakening_left', [bw], principal=iff_ab_c)
-    bw_c1 = Proof(Sequent([iff_ab_c, CB, C], [A]), 'cut', [bw_c1c, bw_c1d], principal=BA)
-    bw_c2a = Proof(Sequent([iff_bcd], [CB, A]), 'weakening_right', [ext_cb], principal=A)
-    bw_c2b = Proof(Sequent([iff_bcd, iff_ab_c], [CB, A]), 'weakening_left', [bw_c2a], principal=iff_ab_c)
-    bw_c2c = Proof(Sequent([iff_bcd, iff_ab_c, C], [CB, A]), 'weakening_left', [bw_c2b], principal=C)
-    bw_c2d = Proof(Sequent([iff_ab_c, iff_bcd, CB, C], [A]), 'weakening_left', [bw_c1], principal=iff_bcd)
-    bw_c2 = Proof(Sequent([iff_ab_c, iff_bcd, C], [A]), 'cut', [bw_c2c, bw_c2d], principal=CB)
-    bw_c3a = Proof(Sequent([ext_ax, eq_ab], [iff_ab_c, A]),
-                   'weakening_right', [got_iff_ab_c], principal=A)
-    bw_c3b = Proof(Sequent([ext_ax, eq_ab, iff_bcd], [iff_ab_c, A]),
-                   'weakening_left', [bw_c3a], principal=iff_bcd)
-    bw_c3c = Proof(Sequent([ext_ax, eq_ab, iff_bcd, C], [iff_ab_c, A]),
-                   'weakening_left', [bw_c3b], principal=C)
-    bw_c3d = Proof(Sequent([ext_ax, iff_ab_c, iff_bcd, C], [A]),
-                   'weakening_left', [bw_c2], principal=ext_ax)
-    bw_c3e = Proof(Sequent([ext_ax, eq_ab, iff_ab_c, iff_bcd, C], [A]),
-                   'weakening_left', [bw_c3d], principal=eq_ab)
-    bw_c3 = Proof(Sequent([ext_ax, eq_ab, iff_bcd, C], [A]),
-                  'cut', [bw_c3c, bw_c3e], principal=iff_ab_c)
-    bw_c4a = Proof(Sequent([eq_cd], [iff_bcd, A]), 'weakening_right', [got_iff_bcd], principal=A)
-    bw_c4b = Proof(Sequent([eq_cd, ext_ax], [iff_bcd, A]), 'weakening_left', [bw_c4a], principal=ext_ax)
-    bw_c4c = Proof(Sequent([eq_cd, ext_ax, eq_ab], [iff_bcd, A]),
-                   'weakening_left', [bw_c4b], principal=eq_ab)
-    bw_c4d = Proof(Sequent([eq_cd, ext_ax, eq_ab, C], [iff_bcd, A]),
-                   'weakening_left', [bw_c4c], principal=C)
-    bw_c4e = Proof(Sequent([ext_ax, eq_ab, eq_cd, iff_bcd, C], [A]),
-                   'weakening_left', [bw_c3], principal=eq_cd)
-    bw_final = Proof(Sequent([ext_ax, eq_ab, eq_cd, C], [A]),
-                     'cut', [bw_c4d, bw_c4e], principal=iff_bcd)
-
-    # === Build Iff(A, C) ===
-    fwd_ac = Proof(Sequent([ext_ax, eq_ab, eq_cd], [AC]),
-                   'implies_right', [fw_final], principal=AC)
-    bwd_ca = Proof(Sequent([ext_ax, eq_ab, eq_cd], [CA]),
-                   'implies_right', [bw_final], principal=CA)
-    nr = Proof(Sequent([ext_ax, eq_ab, eq_cd, Not(CA)], []),
-               'not_left', [bwd_ca], principal=Not(CA))
-    il = Proof(Sequent([ext_ax, eq_ab, eq_cd, H_ac], []),
-               'implies_left', [fwd_ac, nr], principal=H_ac)
-    core = Proof(Sequent([ext_ax, eq_ab, eq_cd], [iff_ac]),
-                 'not_right', [il], principal=iff_ac)
-
-    # === Close ===
-    imp1 = Implies(eq_cd, iff_ac)
-    s1 = Proof(Sequent([ext_ax, eq_ab], [imp1]), 'implies_right', [core], principal=imp1)
-    imp2 = Implies(eq_ab, imp1)
-    s2 = Proof(Sequent([ext_ax], [imp2]), 'implies_right', [s1], principal=imp2)
-    fd = Forall(d, imp2)
-    s3 = Proof(Sequent([ext_ax], [fd]), 'forall_right', [s2], term=d, principal=fd)
-    fc = Forall(c, fd)
-    s4 = Proof(Sequent([ext_ax], [fc]), 'forall_right', [s3], term=c, principal=fc)
-    fb = Forall(b, fc)
-    s5 = Proof(Sequent([ext_ax], [fb]), 'forall_right', [s4], term=b, principal=fb)
+    imp = Implies(eq_ab, iff)
+    s1 = Proof(Sequent([], [imp]), 'implies_right', [fl], principal=imp)
+    fz = Forall(z, imp)
+    s2 = Proof(Sequent([], [fz]), 'forall_right', [s1], principal=fz, term=z)
+    fb = Forall(b, fz)
+    s3 = Proof(Sequent([], [fb]), 'forall_right', [s2], principal=fb, term=b)
     fa = Forall(a, fb)
-    s6 = Proof(Sequent([ext_ax], [fa]), 'forall_right', [s5], term=a, principal=fa)
-    s6.name = 'eq_transfer'
-    return s6
+    s4 = Proof(Sequent([], [fa]), 'forall_right', [s3], principal=fa, term=a)
+    s4.name = 'eq_transfer'
+    return s4
+
 
 
 
