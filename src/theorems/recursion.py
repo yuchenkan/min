@@ -11,6 +11,21 @@ from theorems.logic import and_elim_left, and_elim_right, and_intro, char_transf
 from theorems.omega import func_preserves_eq, func_unique_thm, omega_contains_empty, omega_smallest_inductive, omega_succ_closed
 from theorems.sets import eq_in_eq, kuratowski, ordpair_eq_transfer, ordpair_exists, ordpair_unique, ordpair_val_transfer, singleton_exists, succ_not_empty, union_exists, unique_successor
 
+def _tuple_inject(ku, er, a, b, c, d, q, ordp_q, ordp_q_cd, q2):
+    """From OrdPair(q,a,b) and OrdPair(q,c,d), derive And(Eq(a,c), Eq(b,d))."""
+    from tactics import apply_thm, wl, fl, mp, cut, ax
+    fa_inner = Forall(q2, Implies(OrdPair(q2, c, d), Implies(Eq(q, q2),
+        And(Eq(a, c), Eq(b, d)))))
+    got_ti = apply_thm(ku, [a, b, c, d, q], ordp_q, fa_inner, ax(ordp_q))
+    imp_inst = Implies(ordp_q_cd, Implies(Eq(q, q), And(Eq(a, c), Eq(b, d))))
+    got_fl = fl(fa_inner, imp_inst, q)
+    got_fl = wl(got_fl, *[f for f in got_ti.sequent.left if not same(f, fa_inner)])
+    got_ti = cut(got_fl, fa_inner, got_ti)
+    got_ti = mp(got_ti, ax(ordp_q_cd), ordp_q_cd, Implies(Eq(q, q), And(Eq(a, c), Eq(b, d))))
+    got_eq_qq = apply_thm(er, [q], concl=Eq(q, q))
+    return mp(got_ti, got_eq_qq, Eq(q, q), And(Eq(a, c), Eq(b, d)))
+
+
 def rec_approx_zero():
     """|- forall v, a, f, w, e, y.
        RecApprox(v,a,f,w) -> Empty(e) -> Apply(v,e,y) -> Eq(y,a)
@@ -5474,7 +5489,7 @@ def rec_h_apply_fwd():
     ordp_qmy = OrdPair(qv, mm, yr)
     ku = kuratowski()
     er = eq_reflexive()
-    from tactics import tuple_inject as _tuple_inject
+    # _tuple_inject is defined above
     got_ti = _tuple_inject(ku, er, n, y, mm, yr, qv, ordp_q, ordp_qmy, qv2)
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(n,m), Eq(y,y'))
 
@@ -5689,7 +5704,7 @@ def rec_h_dom_sub():
     qv2 = Var(postfix='q2')
     ku = kuratowski()
     er = eq_reflexive()
-    from tactics import tuple_inject as _tuple_inject
+    # _tuple_inject is defined above
     got_ti = _tuple_inject(ku, er, x, y, mm, yr, qv, ordp_q, ordp_qmy, qv2)
     # got_ti: [ordp_q, ordp_qmy] |- And(Eq(x,m), Eq(y,y'))
 

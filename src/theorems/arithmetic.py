@@ -13,7 +13,7 @@ from theorems.sets import (kuratowski, ordpair_exists, unique_successor,
 from theorems.recursion import succ_func_exists
 
 
-from tactics import tuple_inject as _tuple_inject
+from theorems.recursion import _tuple_inject
 
 
 def sf_props():
