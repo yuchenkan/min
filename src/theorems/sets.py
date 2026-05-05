@@ -2011,13 +2011,9 @@ def union_exists():
     # Package s into Exists, then package p into Exists.
     # Then discharge PairSet and BigUnion from axioms.
 
-    # For now, package into: exists s. Union(s,a,b)  and  ... hmm, we just need exists s. Union(s,a,b).
-    # From ps, bu |- Union(s,a,b), existential intro on s: ps, bu |- exists s. Union(s,a,b)
-    ex_union = Exists(s, UnionDef(s, a, b))
-    # Existential intro on right: from |- P(t), derive |- exists x. P(x) with witness t.
-    # not_right: from Forall(s, Not(Union(s,a,b))), P(s) |- to get |- Not(Forall(s, Not(P(s)))), ...
-    # Actually simpler: P(s) on right. not_left with Not(P(s)). forall_left with s. not_right.
-    n_union = Not(UnionDef(s, a, b))
+    # Existential intro: ps, bu |- exists s. Forall(xv, iff_union)
+    ex_union = Exists(s, fa_union)
+    n_union = Not(fa_union)
     fa_n_union = Forall(s, n_union)
     nl_eu = Proof(Sequent([ps, bu, n_union], []), 'not_left', [core_fa], principal=n_union)
     fl_eu = Proof(Sequent([ps, bu, fa_n_union], []), 'forall_left', [nl_eu],
