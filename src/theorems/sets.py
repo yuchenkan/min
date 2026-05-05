@@ -1605,68 +1605,98 @@ def kuratowski():
     step5 = mp(step4, got_outer_fa, char_outer, goal)
     # step5: [char_sa, char_pab, char_sc, char_pcd, char_t1, eq_t1_t2, char_t2] |- [goal]
 
-    # --- Close: package hyps into OrdPair (Exists/And) then discharge ---
-    proof = step5
+    # --- Close: derive OrdPair components from OrdPair hypotheses, eliminate witnesses ---
+    from tactics import ax, cut as tcut, eel
+    from core.proof import _expand, _subst
+    from definitions import Singleton, PairSet
 
-    def _pack_and(proof, A, B):
-        ctx = [f for f in proof.sequent.left if not same(f, A) and not same(f, B)]
-        D = proof.sequent.right[0]
-        ab = And(A, B)
-        ax_ab = Proof(Sequent([ab], [ab]), "axiom", principal=ab)
-        got_a = apply_thm(and_elim_left(A, B, []), [], ab, A, ax_ab)
-        got_b = apply_thm(and_elim_right(A, B, []), [], ab, B,
-                          Proof(Sequent([ab], [ab]), "axiom", principal=ab))
-        p1 = Proof(Sequent([ab, B] + ctx, [D]), "cut",
-            [wr(wl(got_a, B, *ctx), D), wl(proof, ab)], principal=A)
-        return Proof(Sequent([ab] + ctx, [D]), "cut",
-            [wr(wl(got_b, *ctx), D), p1], principal=B)
+    pairing = zfc.Pairing()
+    ordp_ab = OrdPair(t1, a, b)
+    ordp_cd = OrdPair(t2, c, d)
 
-    def _pack_exists(proof, pred, var):
-        ctx = [f for f in proof.sequent.left if not same(f, pred)]
-        D = proof.sequent.right[0]
-        p1 = Proof(Sequent(ctx, [Not(pred), D]), "not_right", [proof], principal=Not(pred))
-        fa_np = Forall(var, Not(pred))
-        p2 = Proof(Sequent(ctx, [fa_np, D]), "forall_right", [p1], principal=fa_np, term=var)
-        ex = Exists(var, pred)
-        return Proof(Sequent(ctx + [ex], [D]), "not_left", [p2], principal=ex)
+    # Derive char_t1 from OrdPair(t1,a,b) + char_sa + char_pab
+    ordp_ab_exp = _expand(ordp_ab)
+    body1_ab = _subst(ordp_ab_exp.body, ordp_ab_exp.var, sa)
+    got_body1_ab = fl(ordp_ab, body1_ab, sa)
+    inner_fa_ab = body1_ab.right
+    got_inner_ab = mp(got_body1_ab, ax(char_sa), body1_ab.left, inner_fa_ab)
+    body2_ab = _subst(inner_fa_ab.body, inner_fa_ab.var, pab)
+    got_body2_ab = tcut(wl(fl(inner_fa_ab, body2_ab, pab), *got_inner_ab.sequent.left),
+                        inner_fa_ab, got_inner_ab)
+    got_char_t1 = mp(got_body2_ab, ax(char_pab), body2_ab.left, body2_ab.right)
+    # got_char_t1: [ordp_ab, char_sa, char_pab] |- char_t1
 
-    # Package OrdPair(t2,c,d)
-    proof = _pack_and(proof, char_pcd, char_t2)
-    and_pcd_t2 = proof.sequent.left[0]  # the And just created
-    proof = _pack_exists(proof, and_pcd_t2, pcd)
-    ex_pcd = proof.sequent.left[-1]  # the Exists just created
-    proof = _pack_and(proof, char_sc, ex_pcd)
-    and_sc_ex = proof.sequent.left[0]
-    proof = _pack_exists(proof, and_sc_ex, sc)
+    # Derive char_t2 from OrdPair(t2,c,d) + char_sc + char_pcd
+    ordp_cd_exp = _expand(ordp_cd)
+    body1_cd = _subst(ordp_cd_exp.body, ordp_cd_exp.var, sc)
+    got_body1_cd = fl(ordp_cd, body1_cd, sc)
+    inner_fa_cd = body1_cd.right
+    got_inner_cd = mp(got_body1_cd, ax(char_sc), body1_cd.left, inner_fa_cd)
+    body2_cd = _subst(inner_fa_cd.body, inner_fa_cd.var, pcd)
+    got_body2_cd = tcut(wl(fl(inner_fa_cd, body2_cd, pcd), *got_inner_cd.sequent.left),
+                        inner_fa_cd, got_inner_cd)
+    got_char_t2 = mp(got_body2_cd, ax(char_pcd), body2_cd.left, body2_cd.right)
+    # got_char_t2: [ordp_cd, char_sc, char_pcd] |- char_t2
 
-    # Package OrdPair(t1,a,b)
-    proof = _pack_and(proof, char_pab, char_t1)
-    and_pab_t1 = proof.sequent.left[0]
-    proof = _pack_exists(proof, and_pab_t1, pab)
-    ex_pab = proof.sequent.left[-1]
-    proof = _pack_and(proof, char_sa, ex_pab)
-    and_sa_ex = proof.sequent.left[0]
-    proof = _pack_exists(proof, and_sa_ex, sa)
+    # Cut char_t1 and char_t2 from step5
+    step6 = tcut(step5, char_t1, got_char_t1)
+    step7 = tcut(step6, char_t2, got_char_t2)
+    # step7: [ordp_ab, char_sa, char_pab, ordp_cd, char_sc, char_pcd, eq_t1_t2] |- [goal]
 
-    # Discharge: Eq, OrdPair(t2), forall t2, OrdPair(t1), forall t1, forall d,c,b,a
-    ord2_f = Exists(sc, and_sc_ex)
-    ord1_f = Exists(sa, and_sa_ex)
+    # Existentially eliminate pcd, sc, pab, sa and cut with Pairing witnesses
+    pair_ax_exp = _expand(pairing)
 
-    imp_eq = Implies(eq_t1_t2, goal)
-    proof = Proof(Sequent([ord1_f, ord2_f], [imp_eq]), "implies_right", [proof], principal=imp_eq)
-    imp_ord2 = Implies(OrdPair(t2, c, d), imp_eq)
-    proof = Proof(Sequent([ord1_f], [imp_ord2]), "implies_right", [proof], principal=imp_ord2)
-    fa_t2 = Forall(t2, imp_ord2)
-    proof = Proof(Sequent([ord1_f], [fa_t2]), "forall_right", [proof], term=t2, principal=fa_t2)
-    imp_ord1 = Implies(OrdPair(t1, a, b), fa_t2)
-    proof = Proof(Sequent([], [imp_ord1]), "implies_right", [proof], principal=imp_ord1)
-    fa_t1 = Forall(t1, imp_ord1)
-    proof = Proof(Sequent([], [fa_t1]), "forall_right", [proof], term=t1, principal=fa_t1)
-    for v in [d, c, b, a]:
+    def _get_pairing_witness(var1, var2, wit_var):
+        """Get Exists(wit_var, PairSet(wit_var, var1, var2)) from Pairing."""
+        p1 = _subst(pair_ax_exp.body, pair_ax_exp.var, var1)
+        p2 = _subst(p1.body, p1.var, var2)
+        f1 = fl(pair_ax_exp, p1, var1)
+        f2 = fl(p1, p2, var2)
+        g1 = Proof(Sequent([pairing], [p1]), 'cut',
+            [wr(ax(pairing), p1), wl(f1, pairing)], principal=pair_ax_exp)
+        return Proof(Sequent([pairing], [p2]), 'cut',
+            [wr(g1, p2), wl(f2, pairing)], principal=p1)
+
+    se = singleton_exists()
+    se_fa = se.sequent.right[0]
+    def _get_sing_witness(var):
+        """Get Exists(wit, Singleton(wit, var)) from Pairing."""
+        inst = _subst(se_fa.body, se_fa.var, var)
+        return Proof(Sequent(se.sequent.left, [inst]), 'cut',
+            [wr(se, inst), wl(fl(se_fa, inst, var), *se.sequent.left)], principal=se_fa)
+
+    proof = step7
+    # Eliminate pcd -> cut from Pairing(c,d)
+    proof = eel(proof, char_pcd, pcd)
+    proof = tcut(proof, proof.sequent.left[-1], _get_pairing_witness(c, d, pcd))
+    # Eliminate pab -> cut from Pairing(a,b)
+    proof = eel(proof, char_pab, pab)
+    proof = tcut(proof, proof.sequent.left[-1], _get_pairing_witness(a, b, pab))
+    # Eliminate sc -> cut from singleton_exists(c)
+    proof = eel(proof, char_sc, sc)
+    proof = tcut(proof, proof.sequent.left[-1], _get_sing_witness(c))
+    # Eliminate sa -> cut from singleton_exists(a)
+    proof = eel(proof, char_sa, sa)
+    proof = tcut(proof, proof.sequent.left[-1], _get_sing_witness(a))
+    # proof: [ordp_ab, ordp_cd, eq_t1_t2, pairing] |- [goal]
+
+    # Discharge: Eq(t1,t2), OrdPair(t2,c,d), forall t2, OrdPair(t1,a,b), forall t1, forall d,c,b,a
+    for h in [eq_t1_t2, ordp_cd]:
+        if any(same(h, g) for g in proof.sequent.left):
+            imp_h = Implies(h, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(rem, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    fa_t2 = Forall(t2, proof.sequent.right[0])
+    proof = Proof(Sequent(proof.sequent.left, [fa_t2]), 'forall_right', [proof], term=t2, principal=fa_t2)
+    imp_ord1 = Implies(ordp_ab, fa_t2)
+    rem = [f_ for f_ in proof.sequent.left if not same(f_, ordp_ab)]
+    proof = Proof(Sequent(rem, [imp_ord1]), 'implies_right', [proof], principal=imp_ord1)
+    for v in [t1, d, c, b, a]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
-        proof = Proof(Sequent([], [fa]), "forall_right", [proof], term=v, principal=fa)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), "forall_right", [proof], term=v, principal=fa)
     proof.name = "kuratowski"
+    return proof
     return proof
 
 
