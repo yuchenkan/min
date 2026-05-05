@@ -1356,5 +1356,16 @@ def omega_exists():
     igi = infinity_gives_inductive()
     got_ex_omega = cut(got_ex_omega, got_ex_omega.sequent.left[-1], igi)
 
+    # Replace expanded Infinity (Exists form) with the Infinity() axiom object
+    inf_ax = zfc.Infinity()
+    expanded_inf = None
+    for f in got_ex_omega.sequent.left:
+        if not isinstance(f, zfc.ZFCAxiom) and same(f, inf_ax):
+            expanded_inf = f
+            break
+    if expanded_inf is not None:
+        inf_proof = Proof(Sequent([inf_ax], [expanded_inf]), 'axiom', principal=inf_ax)
+        got_ex_omega = cut(got_ex_omega, expanded_inf, inf_proof)
+
     got_ex_omega.name = 'omega_exists'
     return got_ex_omega
