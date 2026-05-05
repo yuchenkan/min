@@ -232,9 +232,9 @@ def singleton_eq():
     d2 = Proof(Sequent([char_a, char_b], [Z]), 'forall_left', [d1], principal=char_b, term=a)
 
     # --- Close ---
-    imp1 = Implies(char_b, Z)
+    imp1 = Implies(SingletonDef(s, b), Z)
     s1 = Proof(Sequent([char_a], [imp1]), 'implies_right', [d2], principal=imp1)
-    imp2 = Implies(char_a, imp1)
+    imp2 = Implies(SingletonDef(s, a), imp1)
     s2 = Proof(Sequent([], [imp2]), 'implies_right', [s1], principal=imp2)
     fs = Forall(s, imp2)
     s3 = Proof(Sequent([], [fs]), 'forall_right', [s2], term=s, principal=fs)
