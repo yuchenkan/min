@@ -2702,14 +2702,6 @@ def succ_not_empty():
 
     # Build or_in_eq from eq_nn (eq_reflexive)
     er = eq_reflexive()
-    got_eq_nn = apply_thm(er, [n], In(n, n), Implies(In(n, n), eq_nn),
-        Proof(Sequent([in_n_n], [in_n_n]), 'axiom', principal=in_n_n))
-    # Hmm, eq_reflexive gives |- forall x. Eq(x, x). Instantiate with n.
-    got_eq_nn = apply_thm(er, [n], in_n_n, eq_nn,
-        Proof(Sequent([in_n_n], [in_n_n]), 'axiom', principal=in_n_n))
-    # Wait, eq_reflexive has form: forall x1 x2 x3. In(x1,x2) -> ... -> Eq(x1,x1)?
-    # No, eq_reflexive: |- forall x. Eq(x, x). No hypothesis.
-    # Let me just peel it.
     er_body = er.sequent.right[0]  # forall x. Eq(x, x)
     from core.proof import _subst
     got_eq = Proof(Sequent([], [Eq(n, n)]), 'cut',
@@ -2731,21 +2723,9 @@ def succ_not_empty():
     fl_empty = fl(empty_sn, not_in, n)
     # fl_empty: [empty_sn] |- Not(In(n, sn))
 
-    # Contradiction: In(n, sn) and Not(In(n, sn)) -> false
-    got_contra = Proof(Sequent([succ_sn, empty_sn], []), 'not_left',
-        [wl(got_in, empty_sn)], principal=not_in)
-    # Wait, not_left: from G |- A, D derive G, Not(A) |- D
-    # I have got_in: [succ_sn] |- In(n,sn) and fl_empty: [empty_sn] |- Not(In(n,sn))
-    # Cut: [succ_sn, empty_sn] |- false (empty right)
-    # not_left on Not(In(n,sn)): from [succ_sn] |- [In(n,sn)], get [succ_sn, Not(In(n,sn))] |- []
+    # not_left: from [succ_sn] |- [In(n,sn)], get [succ_sn, Not(In(n,sn))] |- []
     got_contra = Proof(Sequent([succ_sn, not_in], []), 'not_left',
         [got_in], principal=not_in)
-    # Cut with fl_empty to replace not_in with empty_sn:
-    got_contra2 = Proof(Sequent([succ_sn, empty_sn], []), 'cut',
-        [wr(wl(fl_empty, succ_sn), Not(in_n_sn)),  # Hmm, fl_empty already has Not on right
-         got_contra], principal=not_in)
-    # Wait: fl_empty: [empty_sn] |- [Not(In(n,sn))]
-    # got_contra: [succ_sn, Not(In(n,sn))] |- []
     # Cut on Not(In(n,sn)): [succ_sn, empty_sn] |- []
     # Branch 1: [succ_sn, empty_sn] |- [Not(In(n,sn))] = wl(fl_empty, succ_sn)
     # Branch 2: [succ_sn, empty_sn, Not(In(n,sn))] |- [] = wl(got_contra, empty_sn)
