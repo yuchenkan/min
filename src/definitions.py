@@ -337,6 +337,24 @@ class Total:
         return f'Total({self.func}, {self.domain})'
 
 
+class TotalFrom:
+    """TotalFrom(f, a): f is defined at a and range-closed.
+    And(Exists(z, Apply(f,a,z)), Forall(x, Forall(y, Implies(Apply(f,x,y), Exists(z, Apply(f,y,z))))))"""
+    __match_args__ = ('func', 'init')
+    def __init__(self, f, a):
+        self.func = f; self.init = a
+    def expand(self):
+        z, x, y = Var(), Var(), Var()
+        return And(Exists(z, Apply(self.func, self.init, z)),
+                   Forall(x, Forall(y, Implies(Apply(self.func, x, y),
+                       Exists(z, Apply(self.func, y, z))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TotalFrom(r(self.func), r(self.init))
+    def __str__(self):
+        return f'TotalFrom({self.func}, {self.init})'
+
+
 class Recursive:
     """Recursive(h, a, f, w): isRecursive per book Thm 4.2.14.
     Function(h) /\\ dom(h) <= w /\\ h(0) = a /\\
