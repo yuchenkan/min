@@ -5,7 +5,7 @@ from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
 from core import zfc
-from definitions import Empty, OrdPair, Omega, Singleton as SingletonDef, PairSet as PairSetDef, Successor as SuccessorDef
+from vocab import Empty, OrdPair, Omega, Singleton as SingletonDef, PairSet as PairSetDef, Successor as SuccessorDef
 from theorems.logic import and_elim_left, and_elim_right, and_intro, char_transfer, eq_reflexive, eq_symmetric, eq_transitive, iff_chain, iff_mp_rev, iff_sym, or_iff_compat, or_intro_right
 
 def singleton_exists():
@@ -1366,7 +1366,7 @@ def tuple_injection():
     to get PairSet(t,...); derive char_outer; apply _tuple_injection_chars."""
     from tactics import apply_thm, wl, wr, mp, fl, cut, eel, ax
     from core.proof import _expand, _subst
-    from definitions import Singleton, PairSet
+    from vocab import Singleton, PairSet
     from core import same as _same
 
     a, b, c, d, t = Var(), Var(), Var(), Var(), Var()
@@ -1608,7 +1608,7 @@ def kuratowski():
     # --- Close: derive OrdPair components from OrdPair hypotheses, eliminate witnesses ---
     from tactics import ax, cut as tcut, eel
     from core.proof import _expand, _subst
-    from definitions import Singleton, PairSet
+    from vocab import Singleton, PairSet
 
     pairing = zfc.Pairing()
     ordp_ab = OrdPair(t1, a, b)
@@ -1705,7 +1705,7 @@ def union_exists():
     """Pairing, Union_ax |- forall a, b. exists s. Union(s, a, b)
     Binary union exists from Pairing + Union axiom."""
     from tactics import apply_thm, wl, wr, mp
-    from definitions import Union as UnionDef, PairSet, BigUnion
+    from vocab import Union as UnionDef, PairSet, BigUnion
 
     a, b, s, p, xv, yv, zv = Var(), Var(), Var(), Var(), Var(), Var(), Var()
     pairing_ax = zfc.Pairing()
@@ -2125,7 +2125,7 @@ def successor_exists():
     """Pairing, Union |- forall x. exists s. Successor(s, x)
     S(x) = x union {x} exists."""
     from tactics import apply_thm, wl, wr, mp
-    from definitions import Successor as SuccDef, Singleton, Union as UnionDef
+    from vocab import Successor as SuccDef, Singleton, Union as UnionDef
 
     x, s, sa, u, xv = Var(), Var(), Var(), Var(), Var()
     pairing_ax = zfc.Pairing()
@@ -2321,7 +2321,7 @@ def successor_exists():
 def intersect_exists():
     """Separation |- forall a, b. exists s. Intersect(s, a, b)
     Binary intersection exists."""
-    from definitions import Intersect
+    from vocab import Intersect
     a, b, s = Var(), Var(), Var()
     sep = zfc.Separation(lambda x: In(x, b), [b])
     goal = Forall(b, Forall(a, Exists(s, Intersect(s, a, b))))
@@ -2334,7 +2334,7 @@ def intersect_exists():
 def big_union_exists():
     """Union_axiom |- forall a. exists s. BigUnion(s, a)
     The big union of any set exists."""
-    from definitions import BigUnion
+    from vocab import BigUnion
     ax = zfc.Union()
     a, s = Var(), Var()
     goal = Forall(a, Exists(s, BigUnion(s, a)))
@@ -2349,7 +2349,7 @@ def unique_successor():
     """|- forall x, s1, s2. Successor(s1,x) -> Successor(s2,x) -> Eq(s1,s2)
     Sets with the same successor characterization are equal."""
     from tactics import apply_thm, wl, wr, mp, fl
-    from definitions import Successor as SuccDef
+    from vocab import Successor as SuccDef
 
     x, s1, s2, zv = Var(), Var(), Var(), Var()
     succ1 = SuccDef(s1, x)  # forall z. z in s1 iff (z in x or z = x)
@@ -2481,7 +2481,7 @@ def ordpair_exists():
     """Pairing |- forall x, y. exists p. OrdPair(p, x, y)
     Every ordered pair exists as a set."""
     from tactics import apply_thm, wl, wr, mp, eel, eir, fl, cut
-    from definitions import Singleton, PairSet
+    from vocab import Singleton, PairSet
     from core.proof import _subst, _expand
     import sys
 
@@ -2697,7 +2697,7 @@ def succ_not_empty():
     """|- forall n, sn. Succ(sn, n) -> not Empty(sn)
     No successor is empty. If sn = n union {n}, then n in sn, so sn is not empty."""
     from tactics import apply_thm, wl, wr, mp, fl
-    from definitions import Successor, Apply
+    from vocab import Successor, Apply
 
     n, sn, zv = Var(), Var(), Var()
     succ_sn = Successor(sn, n)
@@ -2779,7 +2779,7 @@ def succ_not_empty():
 def ordpair_eq_transfer():
     """|- forall a, b, c, d, t. Eq(a,c) -> Eq(b,d) -> OrdPair(t,a,b) -> OrdPair(t,c,d)"""
     from tactics import apply_thm, wl, wr, mp, fl, ax, cut as tcut
-    from definitions import Singleton, PairSet
+    from vocab import Singleton, PairSet
     from core.proof import _expand, _subst
 
     a, b, c, d, t = Var(), Var(), Var(), Var(), Var()
@@ -2881,7 +2881,7 @@ def ordpair_eq_transfer():
 def ordpair_val_transfer():
     """|- forall t, a, b, c. Eq(b,c) -> OrdPair(t,a,b) -> OrdPair(t,a,c)"""
     from tactics import apply_thm, wl, wr, mp, fl, ax, cut as tcut
-    from definitions import Singleton, PairSet
+    from vocab import Singleton, PairSet
     from core.proof import _expand, _subst
     from tactics import weaken_to
 
@@ -2977,7 +2977,7 @@ def ordpair_val_transfer():
 def ordpair_unique():
     """Pairing |- forall a, b, t, s. OrdPair(t,a,b) -> OrdPair(s,a,b) -> Eq(t,s)"""
     from tactics import apply_thm, wl, wr, mp, fl, ax, cut as tcut, eel
-    from definitions import Singleton, PairSet
+    from vocab import Singleton, PairSet
     from core.proof import _expand, _subst
 
     a, b, t, s = Var(), Var(), Var(), Var()
@@ -3075,7 +3075,7 @@ def eq_successor_transfer():
     From Eq(a,c): In(z,a) iff In(z,c). From Eq(b,d): In(z,b) iff In(z,d), Eq(z,b) iff Eq(z,d).
     Chain through Successor(c,d) = forall z. In(z,c) iff Or(In(z,d), Eq(z,d))."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import Successor as SuccDef
+    from vocab import Successor as SuccDef
 
     a, b, c, d = Var(postfix='a'), Var(postfix='b'), Var(postfix='c'), Var(postfix='d')
     zv = Var(postfix='z')
@@ -3183,7 +3183,7 @@ def omega_unique():
     Ext, Inf |- forall w, w'. Omega(w) -> Omega(w') -> Eq(w, w')
     From Omega(w) with b=w' (Inductive): x in w -> x in w'. Reverse. Extensionality."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import Inductive as InductiveDef
+    from vocab import Inductive as InductiveDef
     from theorems.omega import omega_is_inductive
     from theorems.logic import iff_intro, iff_mp, iff_mp_rev, and_elim_left
 

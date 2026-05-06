@@ -4,7 +4,7 @@ from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
-from definitions import Empty, OrdPair, Omega, Num
+from vocab import Empty, OrdPair, Omega, Num
 
 from theorems.logic import (iff_mp, iff_mp_rev, iff_intro, and_intro,
     and_elim_left, and_elim_right, eq_reflexive, eq_substitution)
@@ -23,7 +23,7 @@ def sf_props():
     where succ_char(sf, w) = forall x. In(x,w) -> forall y. Iff(Apply(sf,x,y), Successor(y,x))
     and dom_sub(sf, w) = forall x. (exists y. Apply(sf,x,y)) -> In(x,w)"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Relation as RelDef,
+    from vocab import (Function as FuncDef, Apply, Relation as RelDef,
         Successor as SuccDef)
 
     w = Var(postfix='w')
@@ -396,7 +396,7 @@ def plus_zero_right():
     From Recursive base + Empty(b): Apply(h,b,a).
     From func_unique: Eq(c,a)."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, Plus as PlusDef)
     from theorems.omega import func_unique_thm
 
@@ -540,7 +540,7 @@ def rec_step_succ():
          Apply(h, n, p) -> Succ(sn, n) -> Succ(sp, p) -> Apply(h, sn, sp)
     From Recursive step + succ_char backward."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef)
 
     w = Var(postfix='w')
@@ -673,7 +673,7 @@ def rec_h_zero_identity():
     Base: Apply(h, 0, 0) from Recursive base (h(0) = e = 0, and 0 = e).
     Step: Apply(h, m, m) -> Apply(h, S(m), S(m)) from rec_step_succ."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef)
     from core.proof import _expand
 
@@ -949,7 +949,7 @@ def rec_h_zero_identity():
     proof_step = Proof(Sequent(rem_n, [step_ind]), 'forall_right', [cur_step], principal=step_ind, term=mv)
 
     # === Build Inductive(pv), Subset(pv,w), apply omega_smallest_inductive ===
-    from definitions import Inductive as InductiveDef, Subset as SubsetDef
+    from vocab import Inductive as InductiveDef, Subset as SubsetDef
     ind_p = InductiveDef(pv)
     sub_pw = SubsetDef(pv, w)
 
@@ -1048,7 +1048,7 @@ def plus_zero_left():
     From rec_h_zero_identity: h(m)=m for all m. So Apply(h,a,a).
     From func_unique: Eq(c,a)."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, Plus as PlusDef)
     from theorems.omega import func_unique_thm
     from theorems.sets import omega_unique
@@ -1213,7 +1213,7 @@ def rec_succ_shift():
       forall n. In(n,w) -> forall y,s. Apply(h2,n,y) -> Successor(s,y) -> Apply(h1,n,s)
     Induction on n with P(n) = forall y,s. Apply(h2,n,y) -> Succ(s,y) -> Apply(h1,n,s)."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef)
     from core.proof import _expand, _subst
     from theorems.axioms import separation
@@ -1776,7 +1776,7 @@ def rec_succ_shift():
     proof_step_s = Proof(Sequent(rem_inp, [step_ind_s]), 'forall_right', [cur_s], principal=step_ind_s, term=nv)
 
     # === Build Inductive(pv), Subset(pv,w), omega_smallest_inductive ===
-    from definitions import Inductive as InductiveDef, Subset as SubsetDef
+    from vocab import Inductive as InductiveDef, Subset as SubsetDef
     ind_p = InductiveDef(pv)
     sub_pw = SubsetDef(pv, w)
 
@@ -1887,7 +1887,7 @@ def sf_apply_transfer():
          Apply(sf1,x,y) -> Apply(sf2,x,y)
     From Apply(sf1,x,y): dom_sub -> In(x,w). succ_char1 fwd -> Succ(y,x). succ_char2 bwd -> Apply(sf2,x,y)."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Apply, Successor as SuccDef)
+    from vocab import (Apply, Successor as SuccDef)
 
     w = Var(postfix='w')
     sf1 = Var(postfix='sf1')
@@ -1948,7 +1948,7 @@ def prove_addition(m_val, n_val):
     Uses sf_props + recursion_theorem + rec_step_succ chain.
     Right side uses Num/Plus definition objects for clean display."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, Plus as PlusDef, Num as NumDef, ExistsUnique)
     from theorems.recursion import recursion_theorem
     from theorems.sets import successor_exists
@@ -2586,7 +2586,7 @@ def plus_comm():
       exists h_n. Recursive(h_n,n,sf,w) /\\ Apply(h_n,m,q).
     Base: rec_h_zero_identity.  Step: rec_succ_shift + rec_step_succ."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, Plus as PlusDef, ExistsUnique)
     from core.proof import _expand, _subst
     from theorems.axioms import separation
@@ -3401,7 +3401,7 @@ def plus_comm():
     # ====================================================================
     # Section 8: Inductive(pv), Subset(pv,wv), omega_smallest_inductive
     # ====================================================================
-    from definitions import Inductive as InductiveDef, Subset as SubsetDef
+    from vocab import Inductive as InductiveDef, Subset as SubsetDef
     ind_p = InductiveDef(pv)
     sub_pw = SubsetDef(pv, wv)
 
@@ -3662,7 +3662,7 @@ def unique_num(k):
     """Every natural number exists uniquely as a ZFC set.
     |- ExistsUnique(n, Num(n, k))"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import Num as NumDef, Successor as SuccDef, ExistsUnique
+    from vocab import Num as NumDef, Successor as SuccDef, ExistsUnique
     from theorems.axioms import empty_set
     from theorems.sets import successor_exists, unique_successor, eq_successor_transfer
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
@@ -3819,7 +3819,7 @@ def rec_val_in_omega():
     Base: Apply(h, 0, y) -> y=a (func_unique + base) -> In(a, w).
     Step: Apply(h, S(x), y) -> y=S(h(x)) -> In(h(x), w) by IH -> In(S(h(x)), w) by omega_succ_closed."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef)
     from theorems.axioms import separation
     from theorems.omega import (omega_smallest_inductive, omega_contains_empty,
@@ -4191,7 +4191,7 @@ def rec_val_in_omega():
     step_ind = fa_xs
     proof_step = got_step
 
-    from definitions import Inductive as InductiveDef, Subset as SubsetDef
+    from vocab import Inductive as InductiveDef, Subset as SubsetDef
     ind_p = InductiveDef(pv)
     sub_pw = SubsetDef(pv, w)
 
@@ -4317,7 +4317,7 @@ def plus_assoc():
          Plus(m, n, p) -> Plus(p, k, q) ->
          Plus(n, k, r) -> Plus(m, r, q)
     """
-    from definitions import Plus as PlusDef
+    from vocab import Plus as PlusDef
 
     w = Var(postfix='w')
     m, n, k = Var(postfix='m'), Var(postfix='n'), Var(postfix='k')
@@ -4351,7 +4351,7 @@ def plus_assoc():
     # Step: h_p(S(k))=S(q'), h_n(S(k))=S(r'), h_m(S(r'))=S(h_m(r'))=S(q'). ✓
 
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive as RecDef,
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, Plus as PlusDef)
     from core.proof import _expand, _subst
     from theorems.axioms import separation
@@ -4939,7 +4939,7 @@ def plus_assoc():
     step_ind = fa_xs
     proof_step = got_step
 
-    from definitions import Inductive as InductiveDef, Subset as SubsetDef
+    from vocab import Inductive as InductiveDef, Subset as SubsetDef
     ind_p = InductiveDef(pv)
     sub_pw = SubsetDef(pv, wv)
 

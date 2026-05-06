@@ -5,7 +5,7 @@ from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same, zfc
 from tactics import wl, wr
-from definitions import Empty
+from vocab import Empty
 
 def modus_ponens(P, Q, vars: list[Var]):
     """|- forall vars. P implies (P implies Q) implies Q"""

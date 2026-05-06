@@ -3,7 +3,7 @@
 from core.lang import Var, In
 from core.proof import Sequent, Proof
 from core import zfc
-from definitions import Empty
+from vocab import Empty
 
 def extensionality():
     ax = zfc.Extensionality()

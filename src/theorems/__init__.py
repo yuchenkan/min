@@ -1,7 +1,7 @@
 """Theorems package. Re-exports all public functions."""
 
 # Monkey-patch ExistsUnique with alpha-equivalence support (like Forall/Exists)
-from definitions import ExistsUnique as _ExU
+from vocab import ExistsUnique as _ExU
 def _exu_eq(self, other, env, expand, eq):
     return eq(self.body, other.body, env + [(self.var, other.var)], expand)
 _ExU.eq = _exu_eq

@@ -5,7 +5,7 @@ from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
 from core import zfc
-from definitions import Empty, OrdPair, Subset, Inductive, Omega
+from vocab import Empty, OrdPair, Subset, Inductive, Omega
 from theorems.logic import and_elim_left, and_elim_right, char_transfer, eq_substitution, iff_sym, or_iff_compat, unique_empty
 from theorems.sets import eq_in_eq, unique_successor
 
@@ -13,7 +13,7 @@ def infinity_gives_inductive():
     """Infinity, Extensionality |- exists b. Inductive(b)
     The Infinity axiom provides an inductive set."""
     from tactics import apply_thm, wl, wr, mp, eel
-    from definitions import Inductive, Empty, Successor
+    from vocab import Inductive, Empty, Successor
 
     # Infinity gives: exists b. (exists e.e in b  and  Empty(e))  and  (forall y in b.exists s.s in b  and  Successor(s,y))
     # Need: exists b. Inductive(b) = exists b. (forall e.Empty(e)->e in b)  and  (forall x in b.forall s.Succ(s,x)->s in b)
@@ -247,7 +247,7 @@ def omega_is_inductive():
     """Infinity, Extensionality |- forall w. Omega(w) -> Inductive(w)
     omega is itself an inductive set."""
     from tactics import apply_thm, wl, wr, mp, eel, fl
-    from definitions import Inductive, Omega, Empty, Successor
+    from vocab import Inductive, Omega, Empty, Successor
 
     w, b0, xv, cv, ev, sv = Var(), Var(), Var(), Var(), Var(), Var()
     inf_ax = zfc.Infinity()
@@ -551,7 +551,7 @@ def omega_contains_empty():
     """Ext, Inf |- forall w. Omega(w) -> forall e. Empty(e) -> In(e, w)
     Every empty set is in omega."""
     from tactics import apply_thm, wl, wr, mp
-    from definitions import Successor
+    from vocab import Successor
 
     w, ev = Var(), Var()
     omega_w = Omega(w)
@@ -593,7 +593,7 @@ def omega_succ_closed():
     """Ext, Inf |- forall w. Omega(w) -> forall x. In(x,w) -> forall s. Succ(s,x) -> In(s,w)
     Omega is closed under successor."""
     from tactics import apply_thm, wl, wr, mp
-    from definitions import Successor
+    from vocab import Successor
 
     w, xv, sv, ev = Var(), Var(), Var(), Var()
     omega_w = Omega(w)
@@ -745,7 +745,7 @@ def func_preserves_eq():
        Function(f) -> Eq(x1,x2) -> Apply(f,x1,y1) -> Apply(f,x2,y2) -> Eq(y1,y2)
     Functions map equal inputs to equal outputs."""
     from tactics import apply_thm, wl, wr, mp, eel, eir, fl, ax
-    from definitions import Function as FuncDef, Apply, Singleton, PairSet, OrdPair
+    from vocab import Function as FuncDef, Apply, Singleton, PairSet, OrdPair
     from theorems.logic import eq_reflexive, eq_symmetric, and_intro
     from theorems.sets import ordpair_eq_transfer
 
@@ -834,7 +834,7 @@ def func_unique_thm():
     """|- forall f, x, y1, y2. Function(f) -> Apply(f,x,y1) -> Apply(f,x,y2) -> Eq(y1,y2)
     Basic function uniqueness: same input implies same output."""
     from tactics import apply_thm, wl, wr, mp, fl
-    from definitions import Function as FuncDef, Apply
+    from vocab import Function as FuncDef, Apply
 
     f, x, y1, y2 = Var(), Var(), Var(), Var()
     func_f = FuncDef(f)
@@ -843,7 +843,7 @@ def func_unique_thm():
     eq_y = Eq(y1, y2)
 
     # Function(f) = And(Relation(f), single_valued). Extract single_valued.
-    from definitions import Relation
+    from vocab import Relation
     xv, ya, yb = Var(), Var(), Var()
     and_apps = And(app1, app2)
     imp = Implies(and_apps, eq_y)

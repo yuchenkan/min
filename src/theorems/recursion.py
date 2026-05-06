@@ -5,7 +5,7 @@ from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
 from core import zfc
-from definitions import Empty, OrdPair, Subset, Inductive, Omega, ExistsUnique
+from vocab import Empty, OrdPair, Subset, Inductive, Omega, ExistsUnique
 # Patch ExistsUnique to support alpha-equivalence (it binds its var like Exists/Forall)
 if not hasattr(ExistsUnique, 'eq'):
     ExistsUnique.eq = lambda self, other, env, expand, eq: (
@@ -24,7 +24,7 @@ def _ordpair_set_transfer(z_var, p_var, x_var, y_var, eq_zp_proof, ordp_proof):
     From Eq(z,p): char_transfer PairSet to get PS(z,sa,pab).
     Close with implies_right + forall_right."""
     from tactics import apply_thm, wl, wr, mp, ax, fl
-    from definitions import Singleton, PairSet
+    from vocab import Singleton, PairSet
 
     sa, pab, wv = Var(), Var(), Var()
     sing_sa_x = Singleton(sa, x_var)
@@ -103,7 +103,7 @@ def rec_approx_zero():
        RecApprox(v,a,f,w) -> Empty(e) -> Apply(v,e,y) -> Eq(y,a)
     Any RecApprox maps 0 to a."""
     from tactics import apply_thm, wl, wr, mp, eir
-    from definitions import Function as FuncDef, Apply, RecApprox, Relation
+    from vocab import Function as FuncDef, Apply, RecApprox, Relation
 
     v, a, f, w, e, y = Var(), Var(), Var(), Var(), Var(), Var()
     ra = RecApprox(v, a, f, w)
@@ -224,7 +224,7 @@ def rec_agree():
     Proved by induction on n. Step case uses RecApprox's backward condition
     (S(n) in dom v -> n in dom v) and ran clause (f defined at v(n))."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Function as FuncDef, Apply, RecApprox, Relation, Successor
+    from vocab import Function as FuncDef, Apply, RecApprox, Relation, Successor
 
     a, f, w, n = Var(), Var(), Var(), Var()
     v1, v2, y1, y2 = Var(), Var(), Var(), Var()
@@ -922,7 +922,7 @@ def apply_singleton():
        OrdPair(p, x, y) -> Singleton(v, p) -> Apply(v, x, y)
     If v = {p} and p = <x,y>, then v(x) = y."""
     from tactics import apply_thm, wl, wr, mp, eir, fl
-    from definitions import Singleton, PairSet, Apply
+    from vocab import Singleton, PairSet, Apply
 
     x, y, p, v = Var(), Var(), Var(), Var()
     ordp = OrdPair(p, x, y)
@@ -987,7 +987,7 @@ def singleton_apply_eq():
        Eq(x,e) and Eq(y,a)
     If v = {<e,a>} and Apply(v,x,y), then x=e and y=a."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, fl
-    from definitions import Singleton, PairSet, Apply
+    from vocab import Singleton, PairSet, Apply
 
     e, a_var, p, v, x, y = Var(), Var(), Var(), Var(), Var(), Var()
     ordp = OrdPair(p, e, a_var)
@@ -1090,7 +1090,7 @@ def eq_apply_transfer():
     Equal inputs give equal Apply: if x1=x2, then v(x1)=y implies v(x2)=y.
     Uses ordpair_eq_transfer to transform OrdPair(p,x1,y) to OrdPair(p,x2,y)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Apply
+    from vocab import Apply
     from theorems.logic import eq_reflexive, and_intro
 
     v, x1, x2, y = Var(), Var(), Var(), Var()
@@ -1154,7 +1154,7 @@ def successor_injection():
     Successor is injective: S(m) = S(n) implies m = n.
     Uses regularity to rule out the In(m,n) and In(n,m) case."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Successor, PairSet
+    from vocab import Successor, PairSet
 
     m, n, sn = Var(), Var(), Var()
     succ_m = Successor(sn, m)
@@ -1550,7 +1550,7 @@ def eq_apply_val_transfer():
     Equal outputs: if y1=y2 and v(x)=y1, then v(x)=y2.
     Uses ordpair_val_transfer to transform OrdPair(p,x,y1) to OrdPair(p,x,y2)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Apply
+    from vocab import Apply
     from theorems.logic import and_intro
 
     v, x, y1, y2 = Var(), Var(), Var(), Var()
@@ -1610,7 +1610,7 @@ def extend_function():
        (forall z. Apply(v, x0, z) -> Eq(y0, z)) -> Function(u)
     Extending a function with a consistent singleton preserves Function."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import (Function as FuncDef, Apply, Singleton, PairSet,
+    from vocab import (Function as FuncDef, Apply, Singleton, PairSet,
                              Relation, Union as UnionDef)
 
     v, s, p, x0, y0, u = Var(), Var(), Var(), Var(), Var(), Var()
@@ -1923,7 +1923,7 @@ def apply_union_intro_left():
        Apply(v1, x, y) -> Union(u, v1, v2) -> Apply(u, x, y)
     If <x,y> in v1 and u = v1|v2, then <x,y> in u."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Apply, Union as UnionDef
+    from vocab import Apply, Union as UnionDef
 
     u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
     pv = Var()
@@ -2013,7 +2013,7 @@ def apply_union_intro_right():
        Apply(v2, x, y) -> Union(u, v1, v2) -> Apply(u, x, y)
     If <x,y> in v2 and u = v1|v2, then <x,y> in u."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Apply, Union as UnionDef
+    from vocab import Apply, Union as UnionDef
 
     u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
     pv = Var()
@@ -2089,7 +2089,7 @@ def apply_union_elim():
        Apply(u, x, y) -> Union(u, v1, v2) -> Or(Apply(v1,x,y), Apply(v2,x,y))
     If <x,y> in u = v1|v2, then <x,y> in v1 or <x,y> in v2."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Apply, Union as UnionDef
+    from vocab import Apply, Union as UnionDef
 
     u, v1, v2, x, y = Var(), Var(), Var(), Var(), Var()
     pv = Var()
@@ -2184,7 +2184,7 @@ def rec_exists_step():
        Omega(w) -> And(RecApprox(u,a,f,w), Apply(u,sn,fval))
     Extending a RecApprox by one successor step preserves RecApprox."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import (Function as FuncDef, Apply, RecApprox,
+    from vocab import (Function as FuncDef, Apply, RecApprox,
                              Singleton, PairSet, Successor, Union as UnionDef)
     from core.proof import _subst
 
@@ -3217,7 +3217,7 @@ def singleton_is_recapprox():
       OrdPair(p, e, a) -> Singleton(v, p) ->
       RecApprox(v, a, f, w) and Apply(v, e, a)"""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import (Function as FuncDef, Apply, RecApprox, Relation,
+    from vocab import (Function as FuncDef, Apply, RecApprox, Relation,
                              Singleton, PairSet, Successor)
     from core.proof import _subst
 
@@ -3767,7 +3767,7 @@ def rec_exists():
     Proved by induction on omega using singleton_is_recapprox (base)
     and rec_exists_step (step)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import (Function as FuncDef, Apply, RecApprox,
+    from vocab import (Function as FuncDef, Apply, RecApprox,
                              Successor, Singleton, Union as UnionDef)
 
     a, f, w, n = Var(), Var(), Var(), Var()
@@ -4368,7 +4368,7 @@ def rec_value():
       Eq(y1,y2)
     Combines rec_exists (existence) and rec_agree (agreement)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, fl
-    from definitions import Function as FuncDef, Apply, RecApprox
+    from vocab import Function as FuncDef, Apply, RecApprox
 
     a, f, w, n, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
     v1, v2 = Var(), Var()
@@ -4488,7 +4488,7 @@ def _rec_functional_condition():
     where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y)).
     The set h is the graph of the recursive function."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Function as FuncDef, Apply, RecApprox
+    from vocab import Function as FuncDef, Apply, RecApprox
     from core.proof import _subst
 
     a, f, w = Var(), Var(), Var()
@@ -4615,7 +4615,7 @@ def rec_func_exists():
       exists s. forall p. Iff(In(p,s), exists n. And(In(n,w), phi(n,p)))
     where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y))."""
     from tactics import apply_thm, wl, wr, mp, ax, cut, fl
-    from definitions import Function as FuncDef, Apply, RecApprox, TotalFrom
+    from vocab import Function as FuncDef, Apply, RecApprox, TotalFrom
 
     # Delegate to rec_graph_exists which does the heavy lifting
     rge = rec_graph_exists()
@@ -4695,7 +4695,7 @@ def rec_graph_exists():
     where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y)).
     Uses Replacement axiom with rec_func_exists as the functional condition."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, fl
-    from definitions import Function as FuncDef, Apply, RecApprox
+    from vocab import Function as FuncDef, Apply, RecApprox
     from core.proof import _subst
 
     a, f, w = Var(), Var(), Var()
@@ -5024,7 +5024,7 @@ def rec_h_apply():
     where phi(m, p) = exists v', y'. And(And(RecApprox(v',a,f,w), Apply(v',m,y')), OrdPair(p,m,y')).
     If a RecApprox maps n to y, and h has the graph characterization, then h(n)=y."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Function as FuncDef, Apply, RecApprox
+    from vocab import Function as FuncDef, Apply, RecApprox
 
     h, a, f, w, n, y, v = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='N'), Var(postfix='Y'), Var(postfix='V')
     vr, yr = Var(), Var()
@@ -5164,7 +5164,7 @@ def rec_h_apply_fwd():
     From tuple_injection: OrdPair(q,n,y)∧OrdPair(q,m,y') -> n=m, y=y'.
     Transfer: App(v',m,y') -> App(v',n,y)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Function as FuncDef, Apply, RecApprox
+    from vocab import Function as FuncDef, Apply, RecApprox
 
     h, a, f, w, n, y = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='N'), Var(postfix='Y')
     vr, yr = Var(), Var()
@@ -5407,7 +5407,7 @@ def rec_h_dom_sub():
     From char_h forward: In(q,h) -> exists m. m in w and phi(m,q).
     phi(m,q) gives OrdPair(q,m,y'). pair_injection: x=m. So x in w."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Apply, RecApprox
+    from vocab import Apply, RecApprox
 
     h, a, f, w, x, y = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W'), Var(postfix='X'), Var(postfix='Y')
     vr, yr = Var(), Var()
@@ -5572,7 +5572,7 @@ def rec_h_step():
        In(n,w) -> Apply(h,n,val) -> Successor(sn,n) -> Apply(f,val,fval) ->
        Apply(h,sn,fval)"""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import (Function as FuncDef, Apply, RecApprox, Successor,
+    from vocab import (Function as FuncDef, Apply, RecApprox, Successor,
                              Singleton, Union as UnionDef)
 
     h, a, f, w = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W')
@@ -5890,7 +5890,7 @@ def rec_h_step():
     # Build goal using definition objects for compact display:
     # Step condition: forall n. In(n,w) -> forall val. App(h,n,val) -> forall sn. Succ(sn,n) -> forall fval. App(f,val,fval) -> App(h,sn,fval)
     # Use the SAME variable instances (n, val, sn, fval) already used in the proof.
-    from definitions import Successor as SuccDef
+    from vocab import Successor as SuccDef
     rec_step = Forall(n, Implies(in_n_w,
         Forall(val, Implies(app_h_nv,
             Forall(sn, Implies(succ_sn,
@@ -5958,7 +5958,7 @@ def succ_func_exists():
     where phi(x, p) = exists s. And(Successor(s, x), OrdPair(p, x, s)).
     Constructs sf = {<x, S(x)> : x in omega}."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Successor
+    from vocab import Successor
 
     w = Var(postfix='w')
     omega_w = Omega(w)
@@ -6183,7 +6183,7 @@ def rec_h_function():
     Relation from characterization (every element is OrdPair).
     Single-valued from forward bridge + rec_value."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import (Function as FuncDef, Apply, RecApprox, Relation)
+    from vocab import (Function as FuncDef, Apply, RecApprox, Relation)
 
     h, a, f, w = Var(postfix='H'), Var(postfix='A'), Var(postfix='F'), Var(postfix='W')
     func_f = FuncDef(f)
@@ -6529,7 +6529,7 @@ def recursion_theorem():
             forall sn. Succ(sn,n) -> forall fval. Apply(f,val,fval) ->
             Apply(h,sn,fval))"""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, weaken_to
-    from definitions import Function as FuncDef, Apply, RecApprox, Recursive, Successor
+    from vocab import Function as FuncDef, Apply, RecApprox, Recursive, Successor
 
     # --- Goal ---
     a, f, w = Var(postfix='a'), Var(postfix='f'), Var(postfix='w')
@@ -6541,10 +6541,10 @@ def recursion_theorem():
     yrf, zrf, wrf = Var(), Var(), Var()
     ran_f_closed = Forall(yrf, Forall(zrf,
         Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
-    from definitions import TotalFrom
+    from vocab import TotalFrom
     dom_closed = TotalFrom(f, a)
     recursive_h = Recursive(hv, a, f, w)
-    from definitions import ExistsUnique
+    from vocab import ExistsUnique
     exu_h = ExistsUnique(hv, recursive_h)
     goal = Forall(a, Forall(f, Forall(w,
         Implies(func_f, Implies(dom_closed, Implies(omega_w, exu_h))))))
@@ -7023,7 +7023,7 @@ def rec_values_agree():
       forall n. In(n,w) -> forall y. Apply(h,n,y) -> Apply(h',n,y)
     By induction with P(n) = exists y. Apply(h,n,y) /\\ Apply(h',n,y) /\\ exists z. Apply(f,y,z)."""
     from tactics import apply_thm, wl, wr, mp, ax, cut, eel, eir, fl, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive,
+    from vocab import (Function as FuncDef, Apply, Recursive,
         Successor as SuccDef)
 
     # === Setup ===
@@ -7038,7 +7038,7 @@ def rec_values_agree():
     yr_, zr_, wr__ = Var(), Var(), Var()
     ran_f_closed = Forall(yr_, Forall(zr_,
         Implies(Apply(f, yr_, zr_), Exists(wr__, Apply(f, zr_, wr__)))))
-    from definitions import TotalFrom
+    from vocab import TotalFrom
     dom_closed = TotalFrom(f, a)
     func_h = FuncDef(h)
 
@@ -7658,7 +7658,7 @@ def rec_unique():
       Recursive(h,a,f,w) -> Recursive(h',a,f,w) -> Eq(h, h')
     From rec_values_agree + Relation + ordpair_unique + eq_substitution."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import (Function as FuncDef, Apply, Recursive,
+    from vocab import (Function as FuncDef, Apply, Recursive,
         Relation as RelDef, Successor as SuccDef)
 
     a, f, w = Var(postfix='a'), Var(postfix='f'), Var(postfix='w')
@@ -7671,7 +7671,7 @@ def rec_unique():
     yr_, zr_, wr__ = Var(), Var(), Var()
     ran_f_closed = Forall(yr_, Forall(zr_,
         Implies(Apply(f, yr_, zr_), Exists(wr__, Apply(f, zr_, wr__)))))
-    from definitions import TotalFrom
+    from vocab import TotalFrom
     dom_closed = TotalFrom(f, a)
 
     # --- Helper: z in A -> z in B, given Relation(A), dom_sub_A, rec_values_agree ---

@@ -8,7 +8,7 @@ from core.lang import Var, In, Not, Forall, Implies
 from core.derived import Exists, Eq, And, Or, Iff
 from core.proof import qed, same
 from core.zfc import ZFCAxiom
-from definitions import (OrdPair, Successor, Empty, Singleton, PairSet,
+from vocab import (OrdPair, Successor, Empty, Singleton, PairSet,
     Subset, Inductive, Omega, Function, Apply, RecApprox, Recursive,
     ExistsUnique, Union, TotalFrom, Plus, Num)
 
