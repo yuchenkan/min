@@ -7867,9 +7867,9 @@ def rec_unique():
         weaken_to(got_imp_fwd, all_iff_left)),
         weaken_to(got_imp_rev, all_iff_left), imp_rev, iff_z)
 
-    fa_z = Forall(zv, iff_z)
-    got_eq = Proof(Sequent(got_iff.sequent.left, [fa_z]), 'forall_right',
-        [got_iff], principal=fa_z, term=zv)
+    eq_hh2 = Eq(h, h2)
+    got_eq = Proof(Sequent(got_iff.sequent.left, [eq_hh2]), 'forall_right',
+        [got_iff], principal=eq_hh2, term=zv)
 
     # --- Discharge and close ---
     proof = got_eq
