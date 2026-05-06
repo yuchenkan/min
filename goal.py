@@ -10,7 +10,7 @@ from core.proof import qed, same
 from core.zfc import ZFCAxiom
 from definitions import (OrdPair, Successor, Empty, Singleton, PairSet,
     Subset, Inductive, Omega, Function, Apply, RecApprox, Recursive,
-    ExistsUnique, Union, TotalFrom)
+    ExistsUnique, Union, TotalFrom, Plus, Num)
 
 is_axiom = lambda f: isinstance(f, ZFCAxiom)
 
@@ -222,6 +222,42 @@ goals = [
      Forall(a, Forall(b, Forall(c, Forall(d, Forall(s,
          Implies(TotalFrom(b,a), Implies(Omega(c), Implies(Recursive(d,a,b,c),
              Implies(Recursive(s,a,b,c), Eq(d,s))))))))))),
+    # --- arithmetic ---
+    ('unique_num_0',
+     lambda: theorems.unique_num(0),
+     ExistsUnique(a, Num(a, 0))),
+    ('unique_num_1',
+     lambda: theorems.unique_num(1),
+     ExistsUnique(a, Num(a, 1))),
+    ('unique_num_2',
+     lambda: theorems.unique_num(2),
+     ExistsUnique(a, Num(a, 2))),
+    ('plus_zero_right',
+     lambda: theorems.plus_zero_right(),
+     Forall(w, Forall(a, Forall(b, Forall(c, Forall(d,
+         Implies(Omega(w), Implies(In(a,w), Implies(Num(b,0),
+             Implies(Plus(a,b,c), Eq(c,a))))))))))),
+    ('plus_zero_left',
+     lambda: theorems.plus_zero_left(),
+     Forall(w, Forall(a, Forall(b, Forall(c,
+         Implies(Omega(w), Implies(In(a,w), Implies(Num(b,0),
+             Implies(Plus(b,a,c), Eq(c,a)))))))))),
+    ('plus_comm',
+     lambda: theorems.plus_comm(),
+     Forall(w, Forall(a, Forall(b, Forall(c,
+         Implies(Omega(w), Implies(In(a,w), Implies(In(b,w),
+             Implies(Plus(a,b,c), Plus(b,a,c)))))))))),
+    ('plus_assoc',
+     lambda: theorems.plus_assoc(),
+     Forall(w, Forall(a, Forall(b, Forall(c, Forall(d, Forall(s, Forall(t,
+         Implies(Omega(w), Implies(In(a,w), Implies(In(b,w), Implies(In(c,w),
+             Implies(Plus(a,b,d), Implies(Plus(d,c,s),
+                 Implies(Plus(b,c,t), Plus(a,t,s))))))))))))))))  ,
+    ('prove_2_plus_2',
+     lambda: theorems.prove_addition(2, 2),
+     Forall(w, Forall(a, Forall(b, Forall(c,
+         Implies(Omega(w), Implies(Num(a,2), Implies(Num(b,2),
+             Implies(Num(c,4), Plus(a,b,c)))))))))),
 ]
 
 if __name__ == '__main__':
