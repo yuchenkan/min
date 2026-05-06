@@ -3688,81 +3688,155 @@ def plus_comm():
     proof.name = 'plus_comm'
     return proof
 
-
 def unique_num(k):
     """Every natural number exists uniquely as a ZFC set.
-    |- exists! n. Num(n, k)
-    Base: EmptySet axiom -> exists n. Empty(n) = exists n. Num(n, 0).
-    Step: successor_exists -> exists s. Succ(s, prev) -> Num(s, i+1)."""
+    |- ExistsUnique(n, Num(n, k))"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from definitions import Num as NumDef, Successor as SuccDef
+    from definitions import Num as NumDef, Successor as SuccDef, ExistsUnique
     from theorems.axioms import empty_set
-    from theorems.sets import successor_exists
+    from theorems.sets import successor_exists, unique_successor, eq_successor_transfer
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        unique_empty, eq_reflexive, eq_symmetric, eq_transitive, eq_substitution)
+    from theorems.recursion import func_unique_thm
     from core.proof import _expand
 
     nv = Var(postfix='n')
+    goal = ExistsUnique(nv, NumDef(nv, k))
 
     if k == 0:
-        # EmptySet axiom = Exists(b, Empty(b)) alpha-matches Exists(nv, Num(nv,0)).
+        # Existence from empty_set, uniqueness from unique_empty
         es = empty_set()
-        goal = Exists(nv, NumDef(nv, 0))
-        # Wrap with goal on right for clean display:
-        proof = Proof(Sequent(es.sequent.left, [goal]), 'axiom', principal=goal)
-        proof.name = 'unique_num_0'
+        ue = unique_empty()
+
+        # From ue at nv: Empty(nv) -> Forall(v2, Implies(Empty(v2), Eq(nv,v2)))
+        v2 = Var()
+        uniq_body = Forall(v2, Implies(NumDef(v2, 0), Eq(nv, v2)))
+        got_uniq = apply_thm(ue, [nv], NumDef(nv, 0), uniq_body, ax(NumDef(nv, 0)))
+
+        # And(Num(nv,0), uniq_body)
+        num_nv = NumDef(nv, 0)
+        and_body = And(num_nv, uniq_body)
+        got_and = mp(apply_thm(and_intro(num_nv, uniq_body, []), [],
+            num_nv, Implies(uniq_body, and_body), ax(num_nv)),
+            got_uniq, uniq_body, and_body)
+
+        # eir: Exists(cv, And(Num(cv,0), Forall(...)))
+        cv = Var()
+        eir_body = And(NumDef(cv, 0), Forall(v2, Implies(NumDef(v2, 0), Eq(cv, v2))))
+        got_ex = eir(got_and, eir_body, cv, nv)
+
+        # eel Num(nv,0), cut with empty_set
+        got_ex = eel(got_ex, num_nv, nv)
+        got_ex = cut(got_ex, got_ex.sequent.left[-1], es)
+
+        # Relabel to ExistsUnique
+        proof = Proof(Sequent(got_ex.sequent.left, [goal]),
+                      'weakening_right', [got_ex], principal=goal)
+        proof.name = f'unique_num_{k}'
         return proof
 
-    # Chain: for i = 0, 1, ..., k-1, build exists n. Num(n, i+1) from exists n. Num(n, i)
-    proof = unique_num(k - 1)
-    # proof: [axioms] |- exists prev. Num(prev, k-1)
+    # k > 0: build from unique_num(k-1)
+    prev_proof = unique_num(k - 1)
 
-    prev = Var(postfix=f'n{k-1}')
-    cur = Var(postfix=f'n{k}')
+    prev = Var(postfix=f'p{k-1}')
+    q_var = Var(postfix='q')
     num_prev = NumDef(prev, k - 1)
-    succ_cur = SuccDef(cur, prev)
-    num_cur = NumDef(cur, k)
-    # num_cur = Exists(m, And(Num(m, k-1), Succ(cur, m)))
+    uniq_prev = Forall(q_var, Implies(NumDef(q_var, k - 1), Eq(prev, q_var)))
+    and_prev = And(num_prev, uniq_prev)
 
-    # successor_exists at prev: exists cur. Succ(cur, prev)
     se = successor_exists()
+    cur = Var(postfix=f'c{k}')
+    succ_cur = SuccDef(cur, prev)
     got_se = apply_thm(se, [prev], concl=Exists(cur, succ_cur))
-    # [Pairing, Union] |- Exists(cur, Succ(cur, prev))
 
-    # From Num(prev, k-1) and Succ(cur, prev): build Num(cur, k)
-    # Num(cur, k) = Exists(m, And(Num(m, k-1), Succ(cur, m)))
-    from theorems.logic import and_intro
+    # Extract components from and_prev
+    got_num_p = apply_thm(and_elim_left(num_prev, uniq_prev, []), [],
+        and_prev, num_prev, ax(and_prev))
+    got_uniq_p = apply_thm(and_elim_right(num_prev, uniq_prev, []), [],
+        and_prev, uniq_prev, ax(and_prev))
+
+    # Build Num(cur, k) from num_prev + Succ(cur, prev)
     and_ns = And(num_prev, succ_cur)
-    got_and = mp(apply_thm(and_intro(num_prev, succ_cur, []), [], num_prev,
-        Implies(succ_cur, and_ns), ax(num_prev)),
+    got_and_ns = mp(apply_thm(and_intro(num_prev, succ_cur, []), [],
+        num_prev, Implies(succ_cur, and_ns), got_num_p),
         ax(succ_cur), succ_cur, and_ns)
-    # [Num(prev, k-1), Succ(cur, prev)] |- And(Num(prev, k-1), Succ(cur, prev))
-
     mv = Var()
-    got_num_cur = eir(got_and, And(NumDef(mv, k - 1), SuccDef(cur, mv)), mv, prev)
-    # [Num(prev, k-1), Succ(cur, prev)] |- Num(cur, k)
+    got_num_cur = eir(got_and_ns, And(NumDef(mv, k - 1), SuccDef(cur, mv)), mv, prev)
+    # [and_prev, Succ(cur, prev)] |- Num(cur, k)
 
-    # eir cur: exists cur. Num(cur, k)
+    # Build uniqueness: Forall(v2, Implies(Num(v2, k), Eq(cur, v2)))
+    v2 = Var(postfix='v2')
+    num_v2 = NumDef(v2, k)
+    m2 = Var(postfix='m2')
+    num_m2 = NumDef(m2, k - 1)
+    succ_v2_m2 = SuccDef(v2, m2)
+    and_m2 = And(num_m2, succ_v2_m2)
+
+    # From uniq_prev (extracted from and_prev): Num(m2, k-1) -> Eq(prev, m2)
+    got_eq_prev_m2 = apply_thm(got_uniq_p, [m2], num_m2, Eq(prev, m2), ax(num_m2))
+
+    er = eq_reflexive()
+    es_thm = eq_symmetric()
+    est = eq_successor_transfer()
+    got_eq_cc = apply_thm(er, [cur], concl=Eq(cur, cur))
+    got_eq_m2_prev = apply_thm(es_thm, [prev, m2], Eq(prev, m2), Eq(m2, prev), got_eq_prev_m2)
+
+    # est: Eq(a,c) -> Eq(b,d) -> Succ(c,d) -> Succ(a,b)
+    got_succ_cur_m2 = apply_thm(est, [cur, m2, cur, prev], Eq(cur, cur),
+        Implies(Eq(m2, prev), Implies(succ_cur, SuccDef(cur, m2))), got_eq_cc)
+    got_succ_cur_m2 = mp(got_succ_cur_m2, got_eq_m2_prev, Eq(m2, prev),
+        Implies(succ_cur, SuccDef(cur, m2)))
+    got_succ_cur_m2 = mp(got_succ_cur_m2, ax(succ_cur), succ_cur, SuccDef(cur, m2))
+
+    us = unique_successor()
+    got_eq_cur_v2 = apply_thm(us, [m2, cur, v2], SuccDef(cur, m2),
+        Implies(succ_v2_m2, Eq(cur, v2)), got_succ_cur_m2)
+    got_eq_cur_v2 = mp(got_eq_cur_v2, ax(succ_v2_m2), succ_v2_m2, Eq(cur, v2))
+
+    # Fold num_m2 and succ_v2_m2 into And, eel to Num(v2,k)
+    got_nm2 = apply_thm(and_elim_left(num_m2, succ_v2_m2, []), [],
+        and_m2, num_m2, ax(and_m2))
+    got_sv2 = apply_thm(and_elim_right(num_m2, succ_v2_m2, []), [],
+        and_m2, succ_v2_m2, ax(and_m2))
+    got_eq_cur_v2 = cut(got_eq_cur_v2, num_m2, got_nm2)
+    got_eq_cur_v2 = cut(got_eq_cur_v2, succ_v2_m2, got_sv2)
+    got_eq_cur_v2 = eel(got_eq_cur_v2, and_m2, m2)
+    got_eq_cur_v2 = cut(got_eq_cur_v2, got_eq_cur_v2.sequent.left[-1], ax(num_v2))
+    # Left now has: [and_prev, Succ(cur,prev), num_v2, axioms]
+
+    # Close: implies_right Num(v2,k), forall v2
+    imp_v2 = Implies(num_v2, Eq(cur, v2))
+    rem_v2 = [f_ for f_ in got_eq_cur_v2.sequent.left if not same(f_, num_v2)]
+    got_uniq_cur = Proof(Sequent(rem_v2, [imp_v2]), 'implies_right',
+        [got_eq_cur_v2], principal=imp_v2)
+    uniq_cur = Forall(v2, imp_v2)
+    got_uniq_cur = Proof(Sequent(rem_v2, [uniq_cur]), 'forall_right',
+        [got_uniq_cur], principal=uniq_cur, term=v2)
+
+    # And(Num(cur,k), uniq_cur)
+    num_cur_k = NumDef(cur, k)
+    and_cur = And(num_cur_k, uniq_cur)
+    all_and = list(got_num_cur.sequent.left)
+    for f_ in got_uniq_cur.sequent.left:
+        if not any(same(f_, g) for g in all_and):
+            all_and.append(f_)
+    got_and_cur = mp(apply_thm(and_intro(num_cur_k, uniq_cur, []), [],
+        num_cur_k, Implies(uniq_cur, and_cur), weaken_to(got_num_cur, all_and)),
+        weaken_to(got_uniq_cur, all_and), uniq_cur, and_cur)
+
+    # eir -> Exists, eel Succ, cut successor_exists, eel and_prev, cut prev_proof
     cv = Var()
-    got_ex_cur = eir(got_num_cur, NumDef(cv, k), cv, cur)
-    # [Num(prev, k-1), Succ(cur, prev)] |- exists cv. Num(cv, k)
+    eir_body = And(NumDef(cv, k), Forall(v2, Implies(NumDef(v2, k), Eq(cv, v2))))
+    got_ex = eir(got_and_cur, eir_body, cv, cur)
+    got_ex = eel(got_ex, succ_cur, cur)
+    got_ex = cut(got_ex, got_ex.sequent.left[-1], got_se)
+    got_ex = eel(got_ex, and_prev, prev)
+    got_ex = cut(got_ex, got_ex.sequent.left[-1], prev_proof)
 
-    # eel cur from Succ(cur, prev), cut with got_se:
-    got_ex_cur = eel(got_ex_cur, succ_cur, cur)
-    got_ex_cur = cut(got_ex_cur, got_ex_cur.sequent.left[-1], got_se)
-    # [Num(prev, k-1), Pairing, Union] |- exists cv. Num(cv, k)
-
-    # eel prev from Num(prev, k-1):
-    got_ex_cur = eel(got_ex_cur, num_prev, prev)
-    # Cut with proof (exists prev. Num(prev, k-1)).
-    # SPECIAL: EmptySet on proof.left alpha-matches the principal (Exists(prev, Num(prev,0))).
-    # Can't use same()-based helpers. Use identity checks for left management.
-    ex_num_prev = got_ex_cur.sequent.left[-1]  # the Exists from eel
-    # Build c_left = union of proof.left and got_ex_cur.left minus ex_num_prev (by identity)
-    # Use cut() helper now that Sequent enforces set semantics — no need for identity tricks.
-    got_ex_cur = cut(got_ex_cur, got_ex_cur.sequent.left[-1], proof)
-    # [axioms] |- exists cv. Num(cv, k)
-
-    got_ex_cur.name = f'unique_num_{k}'
-    return got_ex_cur
+    proof = Proof(Sequent(got_ex.sequent.left, [goal]),
+                  'weakening_right', [got_ex], principal=goal)
+    proof.name = f'unique_num_{k}'
+    return proof
 
 
 def rec_val_in_omega():
