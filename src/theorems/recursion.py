@@ -489,7 +489,7 @@ def rec_agree():
 
     # func_preserves_eq: Function(f), Eq(val1,val2), Apply(f,val1,fv1), Apply(f,val2,fv2) -> Eq(fv1,fv2)
     fpe = func_preserves_eq()
-    got_fv_eq = apply_thm(fpe, [f, val1, val2, fv1, fv2], func_f,
+    got_fv_eq = apply_thm(fpe, [val1, val2, fv1, fv2, f], func_f,
         Implies(eq_val, Implies(app_f_val1_fv1, Implies(app_f_val2_fv2, Eq(fv1, fv2)))),
         ax(func_f))
     got_fv_eq2 = mp(got_fv_eq, got_ih4, eq_val,
@@ -652,8 +652,8 @@ def rec_agree():
          wl(fl(sep_after_afw, sep_after_afw_body_at_w, w), sep)],
         principal=sep_after_afw)
     ex_t = fl_w.sequent.right[0]
-    t_var = ex_t.operand.var
-    fa_char = ex_t.operand.body.operand
+    t_var = ex_t.var
+    fa_char = ex_t.body
     t = t_var
 
     def _char_at(z):
@@ -4485,8 +4485,8 @@ def rec_exists():
          wl(fl(sep_after, sep_at_w, w), sep)],
         principal=sep_after)
     ex_t = fl_w.sequent.right[0]
-    t_var = ex_t.operand.var
-    fa_char = ex_t.operand.body.operand
+    t_var = ex_t.var
+    fa_char = ex_t.body
     t = t_var
 
     def _char_at(z):
@@ -4809,7 +4809,7 @@ def rec_value():
 
 
 
-def rec_func_exists():
+def _rec_functional_condition():
     """The recursive function's graph exists (via Replacement).
     Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w.
       Function(f) -> (exists z. Apply(f,a,z)) ->
@@ -4939,6 +4939,83 @@ def rec_func_exists():
 
 
 
+def rec_func_exists():
+    """The recursive function's graph exists (via Replacement).
+    |- forall a, f, w.
+      Function(f) -> TotalFrom(f,a) -> Omega(w) ->
+      exists s. forall p. Iff(In(p,s), exists n. And(In(n,w), phi(n,p)))
+    where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y))."""
+    from tactics import apply_thm, wl, wr, mp, ax, cut, fl
+    from definitions import Function as FuncDef, Apply, RecApprox, TotalFrom
+
+    # Delegate to rec_graph_exists which does the heavy lifting
+    rge = rec_graph_exists()
+    # rge: [axioms] |- forall a,f,w. Func(f) -> Omega(w) -> Exists(s, ...)
+    # But we need: forall a,f,w. Func(f) -> TotalFrom(f,a) -> Omega(w) -> Exists(s, ...)
+
+    a, f, w = Var(), Var(), Var()
+    func_f = FuncDef(f)
+    omega_w = Omega(w)
+    total_fa = TotalFrom(f, a)
+
+    # Peel rge to get: Func(f) -> Omega(w) -> Exists(s, ...)
+    # Then add TotalFrom as an extra (vacuous) hypothesis between Func and Omega.
+
+    # rge structure: Forall(a, Forall(f, Forall(w, Implies(Func(f), Implies(Omega(w), Exists(...))))))
+    # Peel 3 foralls:
+    rge_f = rge.sequent.right[0]
+    inner = Implies(func_f, Implies(omega_w, None))  # placeholder
+    # Actually, just use apply_thm to peel and then re-close with TotalFrom.
+
+    # Build the expected conclusion after peeling 3 foralls:
+    # Func(f) -> Omega(w) -> Exists(s, char)
+    # We need to add TotalFrom(f,a) as vacuous hypothesis:
+    # Func(f) -> TotalFrom(f,a) -> Omega(w) -> Exists(s, char)
+
+    # Approach: peel rge with [a,f,w], mp Func(f) and Omega(w),
+    # then re-introduce TotalFrom as implies_right (vacuous), then close.
+
+    # But first, we need to know the exact Exists formula from rge.
+    # Let me use apply_thm to peel 3 foralls:
+    # After peeling a,f,w: Implies(Func(f), Implies(Omega(w), ex_goal))
+    from core.proof import _subst, _expand
+
+    # Peel the 3 foralls manually using fl + cut pattern:
+    cur = rge
+    for term in [a, f, w]:
+        outer = cur.sequent.right[0]
+        inner_body = _expand(outer)
+        inst = _subst(inner_body.body, inner_body.var, term)
+        fl_step = fl(outer, inst, term)
+        cur = Proof(Sequent(cur.sequent.left, [inst]), 'cut',
+            [wr(cur, inst), wl(fl_step, *cur.sequent.left)], principal=outer)
+    # cur: [axioms] |- Implies(func_f, Implies(omega_w, ex_goal))
+    imp_body = cur.sequent.right[0]
+    # imp_body = Implies(func_f, Implies(omega_w, ex_goal))
+    ex_goal = imp_body.right.right  # the Exists(s, ...) conclusion
+
+    # MP with Func(f) and Omega(w):
+    got = mp(cur, ax(func_f), func_f, Implies(omega_w, ex_goal))
+    got = mp(got, ax(omega_w), omega_w, ex_goal)
+    # got: [func_f, omega_w, axioms] |- ex_goal
+
+    # Add TotalFrom as vacuous hypothesis via weakening + implies_right:
+    got = wl(got, total_fa)
+    # Discharge: omega_w, total_fa, func_f
+    proof = got
+    for h in [omega_w, total_fa, func_f]:
+        imp = Implies(h, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
+    # Close: w, f, a
+    for var in [w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'rec_func_exists'
+    return proof
+
+
 def rec_graph_exists():
     """The recursive function's graph exists as a set (via Replacement).
     Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w.
@@ -4988,8 +5065,8 @@ def rec_graph_exists():
     app2f = Apply(v2f, nf, y2f)
     ordp2f = OrdPair(p2f, nf, y2f)
 
-    # Use rec_func_exists to get the core: given individual hyps, Eq(p1,p2)
-    rfe = rec_func_exists()
+    # Use _rec_functional_condition to get the core: given individual hyps, Eq(p1,p2)
+    rfe = _rec_functional_condition()
     # rfe: [axioms] |- forall a,f,w,n,p1,p2,v1,y1,v2,y2.
     #   In(n,w)->Func(f)->Omega(w)->ra1->app1->ordp1->ra2->app2->ordp2->Eq(p1,p2)
 
