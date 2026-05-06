@@ -57,6 +57,45 @@ def add_machine():
     )
 
 
+def formalize(tm):
+    """Convert a Python TM to formal vocab description.
+
+    Returns dict with:
+      states: {name: int} — state name to natural number
+      symbols: {val: int} — symbol to natural number
+      directions: {val: int} — direction to natural number
+      transitions: [(q, r, w, d, q')] — as natural number tuples
+      start: int
+      halt: int
+    """
+    # Collect states
+    states = {}
+    def state_id(name):
+        if name not in states:
+            states[name] = len(states)
+        return states[name]
+
+    state_id(tm.start)
+    state_id(tm.halt)
+    for (q, _), (_, _, qn) in tm.transitions.items():
+        state_id(q)
+        state_id(qn)
+
+    # Directions: +1 -> 1 (right), -1 -> 0 (left)
+    dir_map = {+1: 1, -1: 0}
+
+    transitions = []
+    for (q, r), (w, d, qn) in tm.transitions.items():
+        transitions.append((state_id(q), r, w, dir_map[d], state_id(qn)))
+
+    return {
+        'states': states,
+        'transitions': transitions,
+        'start': state_id(tm.start),
+        'halt': state_id(tm.halt),
+    }
+
+
 def encode(a, b):
     """Encode a+b as tape: 1^a 0 1^b starting at position 0."""
     tape = {}
