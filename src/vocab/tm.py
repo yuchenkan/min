@@ -1,0 +1,187 @@
+"""Turing machine vocabulary.
+
+Models tm.py in ZFC. All predicates use Forall form (no existential witnesses).
+
+Symbols: 0 = empty set, 1 = S(0).
+States: natural numbers.
+Directions: 0 = left, 1 = right.
+"""
+
+from core.lang import Var, Not, In, Implies, Forall
+from core.derived import Exists, And, Or, Iff, Eq
+from vocab.sets import Empty
+from vocab.ordpair import OrdPair, Successor
+from vocab.functions import Apply
+from vocab.omega import Num
+
+
+class TM:
+    """TM(tm, delta, q0, qhalt): tm = (delta, (q0, qhalt)).
+    Forall inner. OrdPair(inner, q0, qhalt) -> OrdPair(tm, delta, inner)."""
+    __match_args__ = ('set', 'delta', 'start', 'halt')
+    def __init__(self, tm, delta, q0, qhalt):
+        self.set = tm; self.delta = delta; self.start = q0; self.halt = qhalt
+    def expand(self):
+        inner = Var()
+        return Forall(inner, Implies(OrdPair(inner, self.start, self.halt),
+                                     OrdPair(self.set, self.delta, inner)))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TM(r(self.set), r(self.delta), r(self.start), r(self.halt))
+    def __str__(self):
+        return f'TM({self.set}, {self.delta}, {self.start}, {self.halt})'
+
+
+class TMConfig:
+    """TMConfig(c, q, h, tape): c = (q, (h, tape)).
+    Forall inner. OrdPair(inner, h, tape) -> OrdPair(c, q, inner)."""
+    __match_args__ = ('config', 'state', 'head', 'tape')
+    def __init__(self, c, q, h, tape):
+        self.config = c; self.state = q; self.head = h; self.tape = tape
+    def expand(self):
+        inner = Var()
+        return Forall(inner, Implies(OrdPair(inner, self.head, self.tape),
+                                     OrdPair(self.config, self.state, inner)))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TMConfig(r(self.config), r(self.state), r(self.head), r(self.tape))
+    def __str__(self):
+        return f'Config({self.state}, {self.head}, {self.tape})'
+
+
+class TMTransition:
+    """TMTransition(delta, q, r, w, d, q'): delta maps (q,r) to (w,(d,q')).
+    Forall inp. OrdPair(inp, q, r) ->
+        Forall dp. OrdPair(dp, d, q') ->
+            Forall out. OrdPair(out, w, dp) ->
+                Apply(delta, inp, out)."""
+    __match_args__ = ('delta', 'state', 'read', 'write', 'move', 'next')
+    def __init__(self, delta, q, r, w, d, qn):
+        self.delta = delta; self.state = q; self.read = r
+        self.write = w; self.move = d; self.next = qn
+    def expand(self):
+        inp, out, dp = Var(), Var(), Var()
+        return Forall(inp, Implies(OrdPair(inp, self.state, self.read),
+            Forall(dp, Implies(OrdPair(dp, self.move, self.next),
+                Forall(out, Implies(OrdPair(out, self.write, dp),
+                    Apply(self.delta, inp, out)))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TMTransition(r(self.delta), r(self.state), r(self.read),
+                            r(self.write), r(self.move), r(self.next))
+    def __str__(self):
+        return f'delta({self.state},{self.read}) = ({self.write},{self.move},{self.next})'
+
+
+class TapeUpdate:
+    """TapeUpdate(tape', tape, h, w): tape' agrees with tape except at h where it has w.
+    Forall x. Forall y.
+        Iff(Apply(tape', x, y),
+            Or(And(Eq(x,h), Eq(y,w)),
+               And(Apply(tape, x, y), Not(Eq(x,h)))))."""
+    __match_args__ = ('new_tape', 'old_tape', 'pos', 'sym')
+    def __init__(self, tapen, tape, h, w):
+        self.new_tape = tapen; self.old_tape = tape; self.pos = h; self.sym = w
+    def expand(self):
+        x, y = Var(), Var()
+        return Forall(x, Forall(y,
+            Iff(Apply(self.new_tape, x, y),
+                Or(And(Eq(x, self.pos), Eq(y, self.sym)),
+                   And(Apply(self.old_tape, x, y), Not(Eq(x, self.pos)))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TapeUpdate(r(self.new_tape), r(self.old_tape), r(self.pos), r(self.sym))
+    def __str__(self):
+        return f'{self.new_tape} = {self.old_tape}[{self.pos} := {self.sym}]'
+
+
+class HeadMove:
+    """HeadMove(h, h', d): h' is h moved by d. d=1 (right): Successor(h',h). d=0 (left): Successor(h,h').
+    Or(And(Num(d,1), Successor(h',h)), And(Num(d,0), Successor(h,h')))."""
+    __match_args__ = ('head', 'new_head', 'direction')
+    def __init__(self, h, hn, d):
+        self.head = h; self.new_head = hn; self.direction = d
+    def expand(self):
+        return Or(And(Num(self.direction, 1), Successor(self.new_head, self.head)),
+                  And(Num(self.direction, 0), Successor(self.head, self.new_head)))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return HeadMove(r(self.head), r(self.new_head), r(self.direction))
+    def __str__(self):
+        return f'Move({self.head}, {self.new_head}, {self.direction})'
+
+
+class TMStep:
+    """TMStep(delta, c1, c2): c2 is one step from c1 under delta.
+    Forall q,h,tape,sym,w,d,q',h',tape'.
+        TMConfig(c1,q,h,tape) -> Apply(tape,h,sym) ->
+        TMTransition(delta,q,sym,w,d,q') ->
+        TapeUpdate(tape',tape,h,w) -> HeadMove(h,h',d) ->
+        TMConfig(c2,q',h',tape')."""
+    __match_args__ = ('delta', 'before', 'after')
+    def __init__(self, delta, c1, c2):
+        self.delta = delta; self.before = c1; self.after = c2
+    def expand(self):
+        q, h, tape, sym = Var(), Var(), Var(), Var()
+        w, d, qn, hn, tapen = Var(), Var(), Var(), Var(), Var()
+        return Forall(q, Forall(h, Forall(tape, Forall(sym,
+            Forall(w, Forall(d, Forall(qn, Forall(hn, Forall(tapen,
+                Implies(TMConfig(self.before, q, h, tape),
+                Implies(Apply(tape, h, sym),
+                Implies(TMTransition(self.delta, q, sym, w, d, qn),
+                Implies(TapeUpdate(tapen, tape, h, w),
+                Implies(HeadMove(h, hn, d),
+                    TMConfig(self.after, qn, hn, tapen)))))))))))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TMStep(r(self.delta), r(self.before), r(self.after))
+    def __str__(self):
+        return f'Step({self.before} -> {self.after})'
+
+
+class TMRun:
+    """TMRun(run, delta, c0, n): run is an n-step execution from c0.
+    Forall zero. Empty(zero) -> Apply(run, zero, c0)
+    and Forall k. In(k, n) -> Forall sk. Successor(sk, k) ->
+            Forall ck. Apply(run, k, ck) ->
+                Forall ck1. Apply(run, sk, ck1) ->
+                    TMStep(delta, ck, ck1)."""
+    __match_args__ = ('run', 'delta', 'init', 'steps')
+    def __init__(self, run, delta, c0, n):
+        self.run = run; self.delta = delta; self.init = c0; self.steps = n
+    def expand(self):
+        zero, k, sk, ck, ck1 = Var(), Var(), Var(), Var(), Var()
+        base = Forall(zero, Implies(Empty(zero), Apply(self.run, zero, self.init)))
+        step = Forall(k, Implies(In(k, self.steps),
+            Forall(sk, Implies(Successor(sk, k),
+                Forall(ck, Implies(Apply(self.run, k, ck),
+                    Forall(ck1, Implies(Apply(self.run, sk, ck1),
+                        TMStep(self.delta, ck, ck1)))))))))
+        return And(base, step)
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TMRun(r(self.run), r(self.delta), r(self.init), r(self.steps))
+    def __str__(self):
+        return f'Run({self.run}, {self.delta}, {self.init}, {self.steps})'
+
+
+class TMHalts:
+    """TMHalts(delta, c0, qhalt, n): TM halts in n steps from c0.
+    Forall run. TMRun(run, delta, c0, n) ->
+        Forall cf. Apply(run, n, cf) ->
+            Forall hf. Forall tf.
+                TMConfig(cf, qhalt, hf, tf)."""
+    __match_args__ = ('delta', 'init', 'halt_state', 'steps')
+    def __init__(self, delta, c0, qhalt, n):
+        self.delta = delta; self.init = c0; self.halt_state = qhalt; self.steps = n
+    def expand(self):
+        run, cf, hf, tf = Var(), Var(), Var(), Var()
+        return Forall(run, Implies(TMRun(run, self.delta, self.init, self.steps),
+            Forall(cf, Implies(Apply(run, self.steps, cf),
+                Forall(hf, Forall(tf,
+                    TMConfig(cf, self.halt_state, hf, tf)))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return TMHalts(r(self.delta), r(self.init), r(self.halt_state), r(self.steps))
+    def __str__(self):
+        return f'Halts({self.delta}, {self.init}, {self.halt_state}, {self.steps})'
