@@ -1,8 +1,7 @@
 """Coding agent for the proof engine. Edits src/theorems/ only.
 
 Usage:
-    python agent.py              # use Anthropic API directly
-    python agent.py --claude     # use claude -p (Claude Code CLI)
+    python agent.py
     python agent.py --max-turns 50
 
 API key loaded from .env. Goals defined in goal.py.
@@ -179,87 +178,32 @@ def _execute_tool(name, inp):
     return f"Error: unknown tool {name}"
 
 
-def generate_api(messages):
-    with client.messages.stream(
-        model="claude-opus-4-6",
-        max_tokens=128000,
-        system=SYSTEM,
-        tools=TOOLS,
-        messages=messages,
-        thinking={"type": "adaptive"},
-    ) as stream:
-        return stream.get_final_message()
+def run_agent(max_turns):
+    with open("goal.py") as f:
+        goal_src = f.read()
 
+    task = f"""Fix the theorems in src/theorems/ so that goal.py passes.
 
-def generate_cli(messages):
-    """Call claude -p for one turn of inference."""
-    # Format conversation as text for claude -p
-    tools_desc = json.dumps(TOOLS, indent=2)
-    parts = [SYSTEM, "",
-        f"Available tools:\n{tools_desc}", "",
-        "Output ONLY a single JSON object, nothing else.",
-        "Always include \"thinking\" to explain your reasoning.",
-        "{\"thinking\": \"why\", \"tool\": \"tool_name\", \"input\": {...}}",
-        "{\"thinking\": \"why\", \"done\": \"summary\"}",
-        ""]
-    for msg in messages:
-        if msg["role"] == "user":
-            content = msg["content"]
-            if isinstance(content, str):
-                parts.append(f"User: {content}")
-            else:
-                for r in content:
-                    parts.append(f"Tool result ({r.get('tool_use_id','')}):\n{r['content']}")
-        elif msg["role"] == "assistant":
-            parts.append("Assistant: [previous response]")
+goal.py:
+```python
+{goal_src}
+```
 
-    result = subprocess.run(
-        ["claude", "-p", "--tools", ""],
-        input="\n".join(parts), text=True,
-        capture_output=True,
-    )
-    # Parse response as a tool call or text
-    text = result.stdout.strip()
-    try:
-        data = json.loads(text)
-        content = []
-        if "thinking" in data:
-            content.append(type('B', (), {
-                'type': 'text', 'text': data['thinking'],
-                'name': '', 'input': {}, 'id': '',
-            })())
-        if "tool" in data:
-            content.append(type('B', (), {
-                'type': 'tool_use', 'name': data['tool'],
-                'input': data['input'], 'id': 'cli_0', 'text': '',
-            })())
-            return type('R', (), {
-                'stop_reason': 'tool_use', 'content': content,
-                'usage': type('U', (), {'input_tokens': 0, 'output_tokens': 0})(),
-            })()
-        if "done" in data:
-            content.append(type('B', (), {
-                'type': 'tool_use', 'name': 'done',
-                'input': {'summary': data['done']}, 'id': 'cli_0', 'text': '',
-            })())
-            return type('R', (), {
-                'stop_reason': 'tool_use', 'content': content,
-                'usage': type('U', (), {'input_tokens': 0, 'output_tokens': 0})(),
-            })()
-    except json.JSONDecodeError:
-        print(f"  [cli: invalid JSON]\n  {text[:200]}")
-        # Append bad output + correction to messages so model sees its mistake
-        messages.append({"role": "assistant", "content": text})
-        messages.append({"role": "user", "content": "Invalid JSON. Output exactly one JSON object per response."})
-        return generate_cli(messages)
+Run `python goal.py` to test. Read the relevant theorem files to understand what needs to change."""
 
-
-def run_agent(task, max_turns, generate):
     messages = [{"role": "user", "content": task}]
 
     for turn in range(max_turns):
         print(f"\n--- Turn {turn + 1}/{max_turns} ---")
-        response = generate(messages)
+        with client.messages.stream(
+            model="claude-opus-4-6",
+            max_tokens=128000,
+            system=SYSTEM,
+            tools=TOOLS,
+            messages=messages,
+            thinking={"type": "adaptive"},
+        ) as stream:
+            response = stream.get_final_message()
         print(f"  stop_reason={response.stop_reason} blocks={len(response.content)} "
               f"in={response.usage.input_tokens} out={response.usage.output_tokens}")
 
@@ -306,23 +250,7 @@ def run_agent(task, max_turns, generate):
 
 if __name__ == "__main__":
     max_turns = 2000
-    generate = generate_api
-    if "--claude" in sys.argv:
-        generate = generate_cli
     if "--max-turns" in sys.argv:
         idx = sys.argv.index("--max-turns")
         max_turns = int(sys.argv[idx + 1])
-
-    with open("goal.py") as f:
-        goal_src = f.read()
-
-    task = f"""Fix the theorems in src/theorems/ so that goal.py passes.
-
-goal.py:
-```python
-{goal_src}
-```
-
-Run `python goal.py` to test. Read the relevant theorem files to understand what needs to change."""
-
-    run_agent(task, max_turns, generate)
+    run_agent(max_turns)
