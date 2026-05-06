@@ -82,3 +82,118 @@ def transition_apply():
 
     proof.name = 'transition_apply'
     return proof
+
+
+def head_move_right():
+    """Moving right: Num(d,1) + Successor(h',h) -> HeadMove(h,h',d).
+    |- forall h, h', d. Num(d,1) -> Successor(h',h) -> HeadMove(h,h',d)
+
+    HeadMove(h,h',d) = Or(And(Num(d,1),Succ(h',h)), And(Num(d,0),Succ(h,h')))
+    Or(A,B) = Implies(Not(A), B). We prove the left disjunct."""
+    from vocab.tm import HeadMove
+    from tactics import ax, wl
+    h, hn, d = Var(), Var(), Var()
+
+    num_d = Num(d, 1)
+    succ = Successor(hn, h)
+    left_and = And(num_d, succ)
+    right_and = And(Num(d, 0), Successor(h, hn))
+    or_form = Implies(Not(left_and), right_and)  # Or(A,B) = Implies(Not(A), B)
+
+    # Step 1: [num_d, succ] |- left_and
+    # And(A,B) = Not(Implies(A, Not(B)))
+    # not_right: [num_d, succ] |- Not(Implies(num_d, Not(succ)))
+    #   premise: [num_d, succ, Implies(num_d, Not(succ))] |- []
+    #   implies_left on Implies(num_d, Not(succ)):
+    #     branch1: [num_d, succ] |- num_d  (axiom + weaken)
+    #     branch2: [num_d, succ, Not(succ)] |- []
+    #       not_left on Not(succ): premise [num_d, succ] |- succ (axiom + weaken)
+
+    b2_premise = Proof(Sequent([num_d, succ], [succ]), 'axiom', principal=succ)
+    b2 = Proof(Sequent([num_d, succ, Not(succ)], []), 'not_left',
+        [b2_premise], principal=Not(succ))
+
+    b1 = wl(ax(num_d), succ)  # [num_d, succ] |- num_d
+
+    imp_inner = Implies(num_d, Not(succ))
+    il = Proof(Sequent([num_d, succ, imp_inner], []), 'implies_left',
+        [b1, b2], principal=imp_inner)
+
+    p_and = Proof(Sequent([num_d, succ], [left_and]), 'not_right',
+        [il], principal=left_and)
+
+    # Step 2: [num_d, succ] |- Or(left_and, right_and)
+    # Or = Implies(Not(left_and), right_and)
+    # implies_right: premise [num_d, succ, Not(left_and)] |- right_and
+    # not_left on Not(left_and): premise [num_d, succ] |- right_and, left_and
+    p_with_and = Proof(Sequent([num_d, succ], [right_and, left_and]), 'weakening_right',
+        [p_and], principal=right_and)
+    p_not_left = Proof(Sequent([num_d, succ, Not(left_and)], [right_and]), 'not_left',
+        [p_with_and], principal=Not(left_and))
+    p_or = Proof(Sequent([num_d, succ], [or_form]), 'implies_right',
+        [p_not_left], principal=or_form)
+
+    # Close
+    imp1 = Implies(succ, or_form)
+    p1 = Proof(Sequent([num_d], [imp1]), 'implies_right', [p_or], principal=imp1)
+    imp2 = Implies(num_d, imp1)
+    p2 = Proof(Sequent([], [imp2]), 'implies_right', [p1], principal=imp2)
+
+    proof = p2
+    for v in [d, hn, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'head_move_right'
+    return proof
+
+
+def head_move_left():
+    """Moving left: Num(d,0) + Successor(h,h') -> HeadMove(h,h',d).
+    |- forall h, h', d. Num(d,0) -> Successor(h,h') -> HeadMove(h,h',d)
+
+    HeadMove = Or(And(Num(d,1),Succ(h',h)), And(Num(d,0),Succ(h,h')))
+    We prove the right disjunct."""
+    from vocab.tm import HeadMove
+    from tactics import ax, wl
+    h, hn, d = Var(), Var(), Var()
+
+    num_d = Num(d, 0)
+    succ = Successor(h, hn)  # h = S(h') i.e. h' is predecessor
+    left_and = And(Num(d, 1), Successor(hn, h))
+    right_and = And(num_d, succ)
+    or_form = Implies(Not(left_and), right_and)  # Or(A,B) = Implies(Not(A), B)
+
+    # [num_d, succ] |- right_and
+    # And(A,B) = Not(Implies(A, Not(B)))
+    b2_premise = Proof(Sequent([num_d, succ], [succ]), 'axiom', principal=succ)
+    b2 = Proof(Sequent([num_d, succ, Not(succ)], []), 'not_left',
+        [b2_premise], principal=Not(succ))
+    b1 = wl(ax(num_d), succ)
+    imp_inner = Implies(num_d, Not(succ))
+    il = Proof(Sequent([num_d, succ, imp_inner], []), 'implies_left',
+        [b1, b2], principal=imp_inner)
+    p_and = Proof(Sequent([num_d, succ], [right_and]), 'not_right',
+        [il], principal=right_and)
+
+    # [num_d, succ] |- Or(left_and, right_and) = Implies(Not(left_and), right_and)
+    # implies_right: premise [num_d, succ, Not(left_and)] |- right_and
+    # weaken_left Not(left_and) onto p_and
+    p_or = Proof(Sequent([num_d, succ], [or_form]), 'implies_right',
+        [wl(p_and, Not(left_and))], principal=or_form)
+
+    # Close
+    imp1 = Implies(succ, or_form)
+    p1 = Proof(Sequent([num_d], [imp1]), 'implies_right', [p_or], principal=imp1)
+    imp2 = Implies(num_d, imp1)
+    p2 = Proof(Sequent([], [imp2]), 'implies_right', [p1], principal=imp2)
+
+    proof = p2
+    for v in [d, hn, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'head_move_left'
+    return proof
