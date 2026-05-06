@@ -5,11 +5,83 @@ from core.derived import Eq, Iff, And, Or, Exists
 from core.proof import Sequent, Proof
 from core import same
 from core import zfc
-from definitions import Empty, OrdPair, Subset, Inductive, Omega
+from definitions import Empty, OrdPair, Subset, Inductive, Omega, ExistsUnique
+# Patch ExistsUnique to support alpha-equivalence (it binds its var like Exists/Forall)
+if not hasattr(ExistsUnique, 'eq'):
+    ExistsUnique.eq = lambda self, other, env, expand, eq: (
+        isinstance(other, ExistsUnique) and
+        eq(self.body, other.body, env + [(self.var, other.var)], expand))
 from theorems.axioms import regularity, separation
 from theorems.logic import and_elim_left, and_elim_right, and_intro, char_transfer, eq_reflexive, eq_substitution, eq_symmetric, eq_transitive, iff_intro, iff_mp, iff_mp_rev, or_elim, or_iff_compat, or_intro_left, or_intro_right
 from theorems.omega import func_preserves_eq, func_unique_thm, omega_contains_empty, omega_smallest_inductive, omega_succ_closed
 from theorems.sets import eq_in_eq, kuratowski, ordpair_eq_transfer, ordpair_exists, ordpair_unique, ordpair_val_transfer, singleton_exists, succ_not_empty, union_exists, unique_successor
+
+def _ordpair_set_transfer(z_var, p_var, x_var, y_var, eq_zp_proof, ordp_proof):
+    """Given eq_zp_proof: [ctx1] |- Eq(z, p) and ordp_proof: [ctx2] |- OrdPair(p, x, y),
+    derive [ctx1 + ctx2] |- OrdPair(z, x, y).
+    OrdPair(t,a,b) = Forall(sa, Implies(Sing(sa,a), Forall(pab, Implies(PS(pab,a,b), PS(t,sa,pab))))).
+    From OrdPair(p,...): instantiate sa,pab and MP to get PS(p,sa,pab).
+    From Eq(z,p): char_transfer PairSet to get PS(z,sa,pab).
+    Close with implies_right + forall_right."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl
+    from definitions import Singleton, PairSet
+
+    sa, pab, wv = Var(), Var(), Var()
+    sing_sa_x = Singleton(sa, x_var)
+    ps_pab_xy = PairSet(pab, x_var, y_var)
+    ps_p_sa_pab = PairSet(p_var, sa, pab)
+    ps_z_sa_pab = PairSet(z_var, sa, pab)
+    ordp_p = OrdPair(p_var, x_var, y_var)
+
+    # From OrdPair(p, x, y): instantiate sa, MP Sing, instantiate pab, MP PairSet -> PS(p, sa, pab)
+    ordp_body_sa = Implies(sing_sa_x, Forall(pab, Implies(ps_pab_xy, ps_p_sa_pab)))
+    got_ordp_sa = fl(ordp_p, ordp_body_sa, sa)
+    got_ordp_pab = mp(got_ordp_sa, ax(sing_sa_x), sing_sa_x,
+        Forall(pab, Implies(ps_pab_xy, ps_p_sa_pab)))
+    got_ordp_ps = apply_thm(got_ordp_pab, [pab], ps_pab_xy, ps_p_sa_pab, ax(ps_pab_xy))
+    # [ordp_p, Sing(sa,x), PS(pab,x,y)] |- PS(p, sa, pab)
+
+    # From Eq(z, p): char_transfer PairSet(p,...) to PairSet(z,...)
+    iff_zp = Iff(In(wv, z_var), In(wv, p_var))
+    or_eq = Or(Eq(wv, sa), Eq(wv, pab))
+    iff_in_p = Iff(In(wv, p_var), or_eq)
+    iff_in_z = Iff(In(wv, z_var), or_eq)
+    fl_eq = fl(Eq(z_var, p_var), iff_zp, wv)
+    ct = char_transfer(In(wv, z_var), In(wv, p_var), or_eq, [])
+    got_ps_z_w = mp(mp(ct, fl_eq, iff_zp, Implies(iff_in_p, iff_in_z)),
+        fl(ps_p_sa_pab, iff_in_p, wv), iff_in_p, iff_in_z)
+    # [Eq(z,p), PS(p,sa,pab)] |- Iff(In(wv,z), Or(...))
+    fa_ps_z = Forall(wv, iff_in_z)
+    got_ps_z = Proof(Sequent(got_ps_z_w.sequent.left, [fa_ps_z]), 'forall_right',
+        [got_ps_z_w], principal=fa_ps_z, term=wv)
+    # [Eq(z,p), PS(p,sa,pab)] |- PS(z, sa, pab)
+
+    # Cut PS(p,sa,pab):
+    got_ps_z_full = Proof(Sequent(
+        list(got_ordp_ps.sequent.left) + [Eq(z_var, p_var)], [fa_ps_z]), 'cut',
+        [wr(wl(got_ordp_ps, Eq(z_var, p_var)), fa_ps_z),
+         wl(got_ps_z, *got_ordp_ps.sequent.left)], principal=ps_p_sa_pab)
+    # [ordp_p, Sing(sa,x), PS(pab,x,y), Eq(z,p)] |- PS(z, sa, pab)
+
+    # Close into OrdPair(z, x, y)
+    imp_ps = Implies(ps_pab_xy, ps_z_sa_pab)
+    rem_ps = [f_ for f_ in got_ps_z_full.sequent.left if not same(f_, ps_pab_xy)]
+    got_imp_ps = Proof(Sequent(rem_ps, [imp_ps]), 'implies_right', [got_ps_z_full], principal=imp_ps)
+    fa_pab = Forall(pab, imp_ps)
+    got_fa_pab = Proof(Sequent(rem_ps, [fa_pab]), 'forall_right', [got_imp_ps], principal=fa_pab, term=pab)
+    imp_sing = Implies(sing_sa_x, fa_pab)
+    rem_sing = [f_ for f_ in got_fa_pab.sequent.left if not same(f_, sing_sa_x)]
+    got_imp_sing = Proof(Sequent(rem_sing, [imp_sing]), 'implies_right', [got_fa_pab], principal=imp_sing)
+    ordp_z = OrdPair(z_var, x_var, y_var)
+    got_ordp_z = Proof(Sequent(rem_sing, [ordp_z]), 'forall_right', [got_imp_sing], principal=ordp_z, term=sa)
+    # [ordp_p, Eq(z,p)] |- OrdPair(z, x, y)
+
+    # Cut with provided proofs
+    from tactics import cut
+    got = cut(got_ordp_z, ordp_p, ordp_proof)
+    got = cut(got, Eq(z_var, p_var), eq_zp_proof)
+    return got
+
 
 def _tuple_inject(ku, er, a, b, c, d, q, ordp_q, ordp_q_cd, q2):
     """From OrdPair(q,a,b) and OrdPair(q,c,d), derive And(Eq(a,c), Eq(b,d))."""
@@ -1013,242 +1085,57 @@ def singleton_apply_eq():
 
 
 def eq_apply_transfer():
-    """Ext |- forall v, x1, x2, y.
+    """|- forall v, x1, x2, y.
        Eq(x1, x2) -> Apply(v, x1, y) -> Apply(v, x2, y)
     Equal inputs give equal Apply: if x1=x2, then v(x1)=y implies v(x2)=y.
-    Chains through OrdPair via eq_in_eq + iff_chain."""
+    Uses ordpair_eq_transfer to transform OrdPair(p,x1,y) to OrdPair(p,x2,y)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Singleton, PairSet, Apply
+    from definitions import Apply
+    from theorems.logic import eq_reflexive, and_intro
 
     v, x1, x2, y = Var(), Var(), Var(), Var()
     eq_x = Eq(x1, x2)
     app1 = Apply(v, x1, y)
     app2 = Apply(v, x2, y)
 
+    p, qv = Var(), Var()
 
-    sa, pab, p_var, zv = Var(), Var(), Var(), Var()
-    sing_x1 = Singleton(sa, x1)
-    sing_x2 = Singleton(sa, x2)
-    pair_x1 = PairSet(pab, x1, y)
-    pair_x2 = PairSet(pab, x2, y)
-    pair_p = PairSet(p_var, sa, pab)
-    in_pv = In(p_var, v)
+    # === Step 1: Unpack Apply(v,x1,y) -> OrdPair(p,x1,y) + In(p,v) ===
+    ordp_x1 = OrdPair(p, x1, y)
+    in_pv = In(p, v)
+    and_ordp_in = And(ordp_x1, in_pv)
 
-    # eq_in_eq: Eq(x1,x2) -> forall z. Eq(z,x1) iff Eq(z,x2)
-    eie = eq_in_eq()
-    iff_eq_z = Iff(Eq(zv, x1), Eq(zv, x2))
-    got_iff_eq = apply_thm(eie, [x1, x2], eq_x, Forall(zv, iff_eq_z), ax(eq_x))
-    got_iff_eq_z = Proof(Sequent(got_iff_eq.sequent.left, [iff_eq_z]), 'cut',
-        [wr(got_iff_eq, iff_eq_z), wl(fl(Forall(zv, iff_eq_z), iff_eq_z, zv),
-            *got_iff_eq.sequent.left)], principal=Forall(zv, iff_eq_z))
-    # got_iff_eq_z: [eq_x] |- Iff(Eq(zv,x1), Eq(zv,x2))
+    got_ordp = apply_thm(and_elim_left(ordp_x1, in_pv, []), [], and_ordp_in, ordp_x1, ax(and_ordp_in))
+    got_inf = apply_thm(and_elim_right(ordp_x1, in_pv, []), [], and_ordp_in, in_pv,
+        Proof(Sequent([and_ordp_in], [and_ordp_in]), 'axiom', principal=and_ordp_in))
 
-    # --- Singleton transfer: Singleton(sa,x1) -> Singleton(sa,x2) ---
-    # Singleton(sa,x) = forall z. In(z,sa) iff Eq(z,x)
-    # From In(z,sa) iff Eq(z,x1) and Eq(z,x1) iff Eq(z,x2):
-    # iff_chain: In(z,sa) iff Eq(z,x2)
-    iff_in_eq1 = Iff(In(zv, sa), Eq(zv, x1))
-    iff_in_eq2 = Iff(In(zv, sa), Eq(zv, x2))
+    # === Step 2: ordpair_eq_transfer: Eq(x1,x2) -> Eq(y,y) -> OrdPair(p,x1,y) -> OrdPair(p,x2,y) ===
+    oet = ordpair_eq_transfer()
+    er = eq_reflexive()
+    ordp_x2 = OrdPair(p, x2, y)
+    got_eq_refl = apply_thm(er, [y], concl=Eq(y, y))
+    got_ordp_x2 = apply_thm(oet, [x1, y, x2, y, p], eq_x,
+        Implies(Eq(y, y), Implies(ordp_x1, ordp_x2)), ax(eq_x))
+    got_ordp_x2 = mp(got_ordp_x2, got_eq_refl, Eq(y, y), Implies(ordp_x1, ordp_x2))
+    got_ordp_x2 = mp(got_ordp_x2, got_ordp, ordp_x1, ordp_x2)
+    # got_ordp_x2: [eq_x, and_ordp_in] |- OrdPair(p, x2, y)
 
-    ct1 = char_transfer(In(zv, sa), Eq(zv, x1), Eq(zv, x2), [])
-    got_sing_z = mp(mp(ct1,
-        fl(sing_x1, iff_in_eq1, zv), iff_in_eq1, Implies(iff_eq_z, iff_in_eq2)),
-        got_iff_eq_z, iff_eq_z, iff_in_eq2)
-    # got_sing_z: [sing_x1, eq_x] |- Iff(In(zv,sa), Eq(zv,x2))
-    fa_sing2 = Forall(zv, iff_in_eq2)
-    got_sing_x2 = Proof(Sequent(got_sing_z.sequent.left, [fa_sing2]),
-        'forall_right', [got_sing_z], principal=fa_sing2, term=zv)
-    # got_sing_x2: [sing_x1, eq_x] |- Singleton(sa, x2) (alpha-equiv)
+    # === Step 3: Build And(OrdPair(p,x2,y), In(p,v)) -> eir -> Apply(v,x2,y) ===
+    and_ordp_x2_in = And(ordp_x2, in_pv)
+    ai = and_intro(ordp_x2, in_pv, [])
+    got_and_x2 = mp(apply_thm(ai, [], ordp_x2, Implies(in_pv, and_ordp_x2_in), got_ordp_x2),
+        got_inf, in_pv, and_ordp_x2_in)
+    got_app2 = eir(got_and_x2, And(OrdPair(qv, x2, y), In(qv, v)), qv, p)
+    # got_app2: [eq_x, and_ordp_in] |- Apply(v, x2, y)
 
-    # --- PairSet transfer: PairSet(pab,x1,y) -> PairSet(pab,x2,y) ---
-    # PairSet(pab,x,y) = forall z. In(z,pab) iff Or(Eq(z,x), Eq(z,y))
-    or_x1 = Or(Eq(zv, x1), Eq(zv, y))
-    or_x2 = Or(Eq(zv, x2), Eq(zv, y))
-    iff_in_or1 = Iff(In(zv, pab), or_x1)
-    iff_in_or2 = Iff(In(zv, pab), or_x2)
+    # === Step 4: eel p from and_ordp_in, connect to Apply(v,x1,y) ===
+    got_app_from_and = eel(got_app2, and_ordp_in, p)
+    # got_app_from_and: [eq_x, Apply(v,x1,y)] |- Apply(v, x2, y)
 
-    # Iff(Eq(zv,y), Eq(zv,y)) reflexive
-    A = Eq(zv, y)
-    AB = Implies(A, A)
-    ax_a = Proof(Sequent([A], [A]), 'axiom', principal=A)
-    ir_a = Proof(Sequent([], [AB]), 'implies_right', [ax_a], principal=AB)
-    ir_a2 = Proof(Sequent([], [AB]), 'implies_right',
-        [Proof(Sequent([A], [A]), 'axiom', principal=A)], principal=AB)
-    NAB = Not(AB)
-    nl_a = Proof(Sequent([NAB], []), 'not_left', [ir_a2], principal=NAB)
-    il_a = Proof(Sequent([Implies(AB, NAB)], []), 'implies_left', [ir_a, nl_a],
-        principal=Implies(AB, NAB))
-    iff_refl_y = Iff(A, A)
-    got_iff_refl = Proof(Sequent([], [iff_refl_y]), 'not_right', [il_a], principal=iff_refl_y)
-
-    # or_iff_compat: Iff(Eq(z,x1),Eq(z,x2)) + Iff(Eq(z,y),Eq(z,y)) -> Iff(or_x1, or_x2)
-    iff_or = Iff(or_x1, or_x2)
-    oic = or_iff_compat(Eq(zv, x1), Eq(zv, y), Eq(zv, x2), Eq(zv, y), [])
-    got_iff_or = mp(mp(oic, got_iff_eq_z, iff_eq_z, Implies(iff_refl_y, iff_or)),
-        got_iff_refl, iff_refl_y, iff_or)
-    # got_iff_or: [eq_x] |- Iff(or_x1, or_x2)
-
-    # iff_chain: In(z,pab) iff or_x1, or_x1 iff or_x2 -> In(z,pab) iff or_x2
-    ct2 = char_transfer(In(zv, pab), or_x1, or_x2, [])
-    got_pair_z = mp(mp(ct2,
-        fl(pair_x1, iff_in_or1, zv), iff_in_or1, Implies(iff_or, iff_in_or2)),
-        got_iff_or, iff_or, iff_in_or2)
-    fa_pair2 = Forall(zv, iff_in_or2)
-    got_pair_x2 = Proof(Sequent(got_pair_z.sequent.left, [fa_pair2]),
-        'forall_right', [got_pair_z], principal=fa_pair2, term=zv)
-    # got_pair_x2: [pair_x1, eq_x] |- PairSet(pab, x2, y) (alpha-equiv)
-
-    # --- OrdPair transfer ---
-    # From sing_x1, pair_x1, pair_p -> sing_x2, pair_x2, pair_p -> OrdPair(p_var, x2, y)
-    # Build And(pair_x2, pair_p):
-    and_pair2 = And(fa_pair2, pair_p)
-    ai1 = and_intro(fa_pair2, pair_p, [])
-    got_and1_imp = apply_thm(ai1, [], fa_pair2, Implies(pair_p, and_pair2), got_pair_x2)
-    got_and1 = mp(got_and1_imp, ax(pair_p), pair_p, and_pair2)
-
-    # Exists pab. And(PairSet(pab,x2,y), PairSet(p_var,sa,pab))
-    ex_pab_body = And(PairSet(pab, x2, y), PairSet(p_var, sa, pab))
-    got_ex_pab = eir(got_and1, ex_pab_body, pab, pab)
-
-    # And(Singleton(sa,x2), ex_pab)
-    ex_pab_formula = got_ex_pab.sequent.right[0]
-    and_sing2 = And(fa_sing2, ex_pab_formula)
-    ai2 = and_intro(fa_sing2, ex_pab_formula, [])
-    got_and2_imp = apply_thm(ai2, [], fa_sing2, Implies(ex_pab_formula, and_sing2), got_sing_x2)
-    got_and2 = mp(got_and2_imp, got_ex_pab, ex_pab_formula, and_sing2)
-
-    # Exists sa. And(Singleton(sa,x2), ...)
-    and2_body = And(Singleton(sa, x2), Exists(pab, ex_pab_body))
-    got_ex_sa = eir(got_and2, and2_body, sa, sa)
-    # got_ex_sa: [sing_x1, pair_x1, pair_p, eq_x] |- OrdPair(p_var, x2, y) (alpha-equiv)
-
-    # And(OrdPair(p_var,x2,y), In(p_var,v)):
-    ord_x2 = got_ex_sa.sequent.right[0]  # the actual OrdPair formula
-    and_ord_in = And(ord_x2, in_pv)
-    ai3 = and_intro(ord_x2, in_pv, [])
-    got_and3_imp = apply_thm(ai3, [], ord_x2, Implies(in_pv, and_ord_in), got_ex_sa)
-    got_and3 = mp(got_and3_imp, ax(in_pv), in_pv, and_ord_in)
-
-    # Exists p_var. And(OrdPair(p_var,x2,y), In(p_var,v)) = Apply(v, x2, y)
-    qv = Var()
-    and_ord_in_body = And(OrdPair(qv, x2, y), In(qv, v))
-    got_app2 = eir(got_and3, and_ord_in_body, qv, p_var)
-    # got_app2: [sing_x1, pair_x1, pair_p, eq_x, in_pv] |- Apply(v, x2, y)
-
-    # --- Unpack Apply(v,x1,y) to get sing_x1, pair_x1, pair_p, in_pv ---
-    # Apply(v,x1,y) = exists p. OrdPair(p,x1,y) and In(p,v)
-    # OrdPair(p,x1,y) = exists sa. Sing(sa,x1) and exists pab. PS(pab,x1,y) and PS(p,sa,pab)
-
-    # Unpack And(OrdPair, In):
-    and_ord_in1 = And(OrdPair(p_var, x1, y), in_pv)
-    got_ord1 = apply_thm(and_elim_left(OrdPair(p_var, x1, y), in_pv, []), [],
-        and_ord_in1, OrdPair(p_var, x1, y), ax(and_ord_in1))
-    got_in1 = apply_thm(and_elim_right(OrdPair(p_var, x1, y), in_pv, []), [],
-        and_ord_in1, in_pv, Proof(Sequent([and_ord_in1], [and_ord_in1]), 'axiom', principal=and_ord_in1))
-
-    # Cut In(p_var,v) into got_app2:
-    got_app2b = Proof(Sequent(
-        [f_ for f_ in got_app2.sequent.left if not same(f_, in_pv)] + [and_ord_in1],
-        got_app2.sequent.right), 'cut',
-        [wr(wl(got_in1, *[f_ for f_ in got_app2.sequent.left if not same(f_, in_pv)]), app2),
-         wl(got_app2, and_ord_in1)], principal=in_pv)
-
-    # Unpack OrdPair: And(Sing(sa,x1), Exists(pab, And(PS(pab,x1,y), PS(p,sa,pab))))
-    and_inner1 = And(pair_x1, pair_p)
-    and_outer1 = And(sing_x1, Exists(pab, and_inner1))
-
-    # From and_outer1: get sing_x1 and Exists(pab, and_inner1)
-    got_s1 = apply_thm(and_elim_left(sing_x1, Exists(pab, and_inner1), []), [],
-        and_outer1, sing_x1, ax(and_outer1))
-    got_ex_pab1 = apply_thm(and_elim_right(sing_x1, Exists(pab, and_inner1), []), [],
-        and_outer1, Exists(pab, and_inner1),
-        Proof(Sequent([and_outer1], [and_outer1]), 'axiom', principal=and_outer1))
-
-    # From and_inner1: get pair_x1 and pair_p
-    got_px1 = apply_thm(and_elim_left(pair_x1, pair_p, []), [],
-        and_inner1, pair_x1, ax(and_inner1))
-    got_pp = apply_thm(and_elim_right(pair_x1, pair_p, []), [],
-        and_inner1, pair_p, Proof(Sequent([and_inner1], [and_inner1]), 'axiom', principal=and_inner1))
-
-    # Chain: replace sing_x1, pair_x1, pair_p in got_app2b with and_ord_in1
-    # got_app2b: [sing_x1, pair_x1, pair_p, eq_x, and_ord_in1] |- app2
-    # Cut pair_x1 from and_inner1:
-    c1_left = [f_ for f_ in got_app2b.sequent.left if not same(f_, pair_x1)]
-    if not any(same(and_inner1, g) for g in c1_left):
-        c1_left = c1_left + [and_inner1]
-    br1_c1 = got_px1
-    for f_ in c1_left:
-        if not any(same(f_, g) for g in br1_c1.sequent.left):
-            br1_c1 = wl(br1_c1, f_)
-    br2_c1 = got_app2b
-    for f_ in br1_c1.sequent.left:
-        if not any(same(f_, g) for g in got_app2b.sequent.left):
-            br2_c1 = wl(br2_c1, f_)
-    got_c1 = Proof(Sequent(c1_left, got_app2b.sequent.right), 'cut',
-        [wr(br1_c1, app2), br2_c1], principal=pair_x1)
-    # Cut pair_p:
-    c2_left = [f_ for f_ in got_c1.sequent.left if not same(f_, pair_p)]
-    br1_c2 = got_pp
-    for f_ in c2_left:
-        if not any(same(f_, g) for g in br1_c2.sequent.left):
-            br1_c2 = wl(br1_c2, f_)
-    got_c2 = Proof(Sequent(c2_left, got_c1.sequent.right), 'cut',
-        [wr(br1_c2, app2), got_c1], principal=pair_p)
-    # Eel pab from and_inner1:
-    got_c3 = eel(got_c2, and_inner1, pab)
-    # Cut Exists(pab, and_inner1) using union construction:
-    ex_pab1_actual = got_c3.sequent.left[-1]
-    c4_left = [f_ for f_ in got_c3.sequent.left if not same(f_, ex_pab1_actual)]
-    if not any(same(and_outer1, g) for g in c4_left):
-        c4_left = c4_left + [and_outer1]
-    br1_c4 = got_ex_pab1
-    for f_ in c4_left:
-        if not any(same(f_, g) for g in br1_c4.sequent.left):
-            br1_c4 = wl(br1_c4, f_)
-    br2_c4 = got_c3
-    for f_ in br1_c4.sequent.left:
-        if not any(same(f_, g) for g in got_c3.sequent.left):
-            br2_c4 = wl(br2_c4, f_)
-    got_c4 = Proof(Sequent(c4_left, got_c3.sequent.right), 'cut',
-        [wr(br1_c4, app2), br2_c4], principal=ex_pab1_actual)
-    # Cut sing_x1 using union construction:
-    c5_left = [f_ for f_ in got_c4.sequent.left if not same(f_, sing_x1)]
-    br1_c5 = got_s1
-    for f_ in c5_left:
-        if not any(same(f_, g) for g in br1_c5.sequent.left):
-            br1_c5 = wl(br1_c5, f_)
-    got_c5 = Proof(Sequent(c5_left, got_c4.sequent.right), 'cut',
-        [wr(br1_c5, app2), got_c4], principal=sing_x1)
-    # Eel sa from and_outer1:
-    got_c6 = eel(got_c5, and_outer1, sa)
-    # Now: [eq_x, and_ord_in1, Exists(sa, and_outer1)] |- app2
-    # Exists(sa, and_outer1) = OrdPair(p_var, x1, y)
-    # Cut OrdPair from got_ord1: replace ex_sa_actual with and_ord_in1 (from got_ord1)
-    ex_sa_actual = got_c6.sequent.left[-1]
-    c7_left = [f_ for f_ in got_c6.sequent.left if not same(f_, ex_sa_actual)]
-    # Only add and_ord_in1 if not already present
-    if not any(same(and_ord_in1, g) for g in c7_left):
-        c7_left = c7_left + [and_ord_in1]
-    br1_c7 = got_ord1
-    for f_ in c7_left:
-        if not any(same(f_, g) for g in br1_c7.sequent.left):
-            br1_c7 = wl(br1_c7, f_)
-    br2_c7 = got_c6
-    for f_ in br1_c7.sequent.left:
-        if not any(same(f_, g) for g in got_c6.sequent.left):
-            br2_c7 = wl(br2_c7, f_)
-    got_c7 = Proof(Sequent(c7_left, got_c6.sequent.right), 'cut',
-        [wr(br1_c7, app2), br2_c7], principal=ex_sa_actual)
-
-    # Eel p_var from and_ord_in1:
-    got_c8 = eel(got_c7, and_ord_in1, p_var)
-    # [eq_x, Exists(p_var, And(OrdPair(p_var,x1,y), In(p_var,v)))] |- app2
-    # Exists(...) = Apply(v, x1, y) (alpha-equiv)
-
-    # Discharge and close
-    app1_actual = got_c8.sequent.left[-1]
-    proof = got_c8
-    for h in [app1_actual, eq_x]:
+    # === Close: discharge and forall ===
+    app1_on_left = [f_ for f_ in got_app_from_and.sequent.left if same(f_, app1)][0]
+    proof = got_app_from_and
+    for h in [app1, eq_x]:
         imp_h = Implies(h, proof.sequent.right[0])
         remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
@@ -1661,225 +1548,50 @@ def eq_apply_val_transfer():
     """|- forall v, x, y1, y2.
        Eq(y1, y2) -> Apply(v, x, y1) -> Apply(v, x, y2)
     Equal outputs: if y1=y2 and v(x)=y1, then v(x)=y2.
-    Transfers the value argument via PairSet char_transfer."""
+    Uses ordpair_val_transfer to transform OrdPair(p,x,y1) to OrdPair(p,x,y2)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from definitions import Singleton, PairSet, Apply
+    from definitions import Apply
+    from theorems.logic import and_intro
 
     v, x, y1, y2 = Var(), Var(), Var(), Var()
     eq_y = Eq(y1, y2)
     app1 = Apply(v, x, y1)
     app2 = Apply(v, x, y2)
 
+    p, qv = Var(), Var()
 
-    sa, pab, p_var, zv = Var(), Var(), Var(), Var()
-    sing_x = Singleton(sa, x)
-    pair_y1 = PairSet(pab, x, y1)
-    pair_y2 = PairSet(pab, x, y2)
-    pair_p = PairSet(p_var, sa, pab)
-    in_pv = In(p_var, v)
+    # === Step 1: Unpack Apply(v,x,y1) -> OrdPair(p,x,y1) + In(p,v) ===
+    ordp_y1 = OrdPair(p, x, y1)
+    in_pv = In(p, v)
+    and_ordp_in = And(ordp_y1, in_pv)
 
-    # --- Eq(y1,y2) -> Iff(Eq(zv,y1), Eq(zv,y2)) via eq_in_eq ---
-    eie = eq_in_eq()
-    iff_eq_z = Iff(Eq(zv, y1), Eq(zv, y2))
-    got_iff_eq_z = apply_thm(eie, [y1, y2], eq_y, Forall(zv, iff_eq_z), ax(eq_y))
-    got_iff_eq_z = Proof(Sequent(got_iff_eq_z.sequent.left, [iff_eq_z]), 'cut',
-        [wr(got_iff_eq_z, iff_eq_z), wl(fl(Forall(zv, iff_eq_z), iff_eq_z, zv),
-            *got_iff_eq_z.sequent.left)], principal=Forall(zv, iff_eq_z))
-    # got_iff_eq_z: [eq_y] |- Iff(Eq(zv,y1), Eq(zv,y2))
+    got_ordp = apply_thm(and_elim_left(ordp_y1, in_pv, []), [], and_ordp_in, ordp_y1, ax(and_ordp_in))
+    got_inf = apply_thm(and_elim_right(ordp_y1, in_pv, []), [], and_ordp_in, in_pv,
+        Proof(Sequent([and_ordp_in], [and_ordp_in]), 'axiom', principal=and_ordp_in))
 
-    # --- PairSet transfer: PairSet(pab,x,y1) -> PairSet(pab,x,y2) ---
-    or_y1 = Or(Eq(zv, x), Eq(zv, y1))
-    or_y2 = Or(Eq(zv, x), Eq(zv, y2))
-    iff_in_or1 = Iff(In(zv, pab), or_y1)
-    iff_in_or2 = Iff(In(zv, pab), or_y2)
+    # === Step 2: ordpair_val_transfer: Eq(y1,y2) -> OrdPair(p,x,y1) -> OrdPair(p,x,y2) ===
+    ovt = ordpair_val_transfer()
+    ordp_y2 = OrdPair(p, x, y2)
+    got_ordp_y2 = apply_thm(ovt, [p, x, y1, y2], eq_y,
+        Implies(ordp_y1, ordp_y2), ax(eq_y))
+    got_ordp_y2 = mp(got_ordp_y2, got_ordp, ordp_y1, ordp_y2)
+    # got_ordp_y2: [eq_y, and_ordp_in] |- OrdPair(p, x, y2)
 
-    # Iff(Eq(zv,x), Eq(zv,x)) reflexive
-    A = Eq(zv, x)
-    AB = Implies(A, A)
-    ir_a = Proof(Sequent([], [AB]), 'implies_right',
-        [Proof(Sequent([A], [A]), 'axiom', principal=A)], principal=AB)
-    ir_a2 = Proof(Sequent([], [AB]), 'implies_right',
-        [Proof(Sequent([A], [A]), 'axiom', principal=A)], principal=AB)
-    NAB = Not(AB)
-    nl_a = Proof(Sequent([NAB], []), 'not_left', [ir_a2], principal=NAB)
-    il_a = Proof(Sequent([Implies(AB, NAB)], []), 'implies_left', [ir_a, nl_a],
-        principal=Implies(AB, NAB))
-    iff_refl_x = Iff(A, A)
-    got_iff_refl = Proof(Sequent([], [iff_refl_x]), 'not_right', [il_a], principal=iff_refl_x)
+    # === Step 3: Build And(OrdPair(p,x,y2), In(p,v)) -> eir -> Apply(v,x,y2) ===
+    and_ordp_y2_in = And(ordp_y2, in_pv)
+    ai = and_intro(ordp_y2, in_pv, [])
+    got_and_y2 = mp(apply_thm(ai, [], ordp_y2, Implies(in_pv, and_ordp_y2_in), got_ordp_y2),
+        got_inf, in_pv, and_ordp_y2_in)
+    got_app2 = eir(got_and_y2, And(OrdPair(qv, x, y2), In(qv, v)), qv, p)
+    # got_app2: [eq_y, and_ordp_in] |- Apply(v, x, y2)
 
-    # or_iff_compat: Iff(Eq(z,x),Eq(z,x)) + Iff(Eq(z,y1),Eq(z,y2)) -> Iff(or_y1, or_y2)
-    iff_or = Iff(or_y1, or_y2)
-    oic = or_iff_compat(Eq(zv, x), Eq(zv, y1), Eq(zv, x), Eq(zv, y2), [])
-    got_iff_or = mp(mp(oic, got_iff_refl, iff_refl_x, Implies(iff_eq_z, iff_or)),
-        got_iff_eq_z, iff_eq_z, iff_or)
-    # got_iff_or: [eq_y] |- Iff(or_y1, or_y2)
+    # === Step 4: eel p from and_ordp_in, connect to Apply(v,x,y1) ===
+    got_app_from_and = eel(got_app2, and_ordp_in, p)
+    # got_app_from_and: [eq_y, Apply(v,x,y1)] |- Apply(v, x, y2)
 
-    # char_transfer: In(z,pab) iff or_y1, or_y1 iff or_y2 -> In(z,pab) iff or_y2
-    ct = char_transfer(In(zv, pab), or_y1, or_y2, [])
-    got_pair_z = mp(mp(ct,
-        fl(pair_y1, iff_in_or1, zv), iff_in_or1, Implies(iff_or, iff_in_or2)),
-        got_iff_or, iff_or, iff_in_or2)
-    fa_pair2 = Forall(zv, iff_in_or2)
-    got_pair_y2 = Proof(Sequent(got_pair_z.sequent.left, [fa_pair2]),
-        'forall_right', [got_pair_z], principal=fa_pair2, term=zv)
-    # got_pair_y2: [pair_y1, eq_y] |- PairSet(pab, x, y2)
-
-    # --- OrdPair repack: Sing(sa,x) + PS(pab,x,y2) + PS(p,sa,pab) -> OrdPair(p,x,y2) ---
-    and_pair2 = And(fa_pair2, pair_p)
-    ai1 = and_intro(fa_pair2, pair_p, [])
-    got_and1 = mp(apply_thm(ai1, [], fa_pair2, Implies(pair_p, and_pair2), got_pair_y2),
-        ax(pair_p), pair_p, and_pair2)
-
-    ex_pab_body = And(PairSet(pab, x, y2), PairSet(p_var, sa, pab))
-    got_ex_pab = eir(got_and1, ex_pab_body, pab, pab)
-    ex_pab_formula = got_ex_pab.sequent.right[0]
-    fa_sing = Forall(zv, Iff(In(zv, sa), Eq(zv, x)))
-    and_sing = And(fa_sing, ex_pab_formula)
-    ai2 = and_intro(fa_sing, ex_pab_formula, [])
-    got_and2 = mp(apply_thm(ai2, [], fa_sing, Implies(ex_pab_formula, and_sing), ax(sing_x)),
-        got_ex_pab, ex_pab_formula, and_sing)
-    and2_body = And(Singleton(sa, x), Exists(pab, ex_pab_body))
-    got_ex_sa = eir(got_and2, and2_body, sa, sa)
-    # got_ex_sa: [sing_x, pair_y1, pair_p, eq_y] |- OrdPair(p_var, x, y2)
-
-    # And(OrdPair, In(p,v)) -> Apply(v, x, y2)
-    ord_y2 = got_ex_sa.sequent.right[0]
-    and_ord_in = And(ord_y2, in_pv)
-    ai3 = and_intro(ord_y2, in_pv, [])
-    got_and3 = mp(apply_thm(ai3, [], ord_y2, Implies(in_pv, and_ord_in), got_ex_sa),
-        ax(in_pv), in_pv, and_ord_in)
-    qv = Var()
-    and_ord_in_body = And(OrdPair(qv, x, y2), In(qv, v))
-    got_app2 = eir(got_and3, and_ord_in_body, qv, p_var)
-    # got_app2: [sing_x, pair_y1, pair_p, eq_y, in_pv] |- Apply(v, x, y2)
-
-    # --- Unpack Apply(v,x,y1) ---
-    and_ord_in1 = And(OrdPair(p_var, x, y1), in_pv)
-    got_ord1 = apply_thm(and_elim_left(OrdPair(p_var, x, y1), in_pv, []), [],
-        and_ord_in1, OrdPair(p_var, x, y1), ax(and_ord_in1))
-    got_in1 = apply_thm(and_elim_right(OrdPair(p_var, x, y1), in_pv, []), [],
-        and_ord_in1, in_pv, Proof(Sequent([and_ord_in1], [and_ord_in1]), 'axiom', principal=and_ord_in1))
-
-    # Cut In(p_var,v) into got_app2
-    got_app2b = Proof(Sequent(
-        [f_ for f_ in got_app2.sequent.left if not same(f_, in_pv)] + [and_ord_in1],
-        got_app2.sequent.right), 'cut',
-        [wr(wl(got_in1, *[f_ for f_ in got_app2.sequent.left if not same(f_, in_pv)]), app2),
-         wl(got_app2, and_ord_in1)], principal=in_pv)
-
-    # Unpack OrdPair(p_var, x, y1): And(Sing(sa,x), Exists(pab, And(PS(pab,x,y1), PS(p,sa,pab))))
-    and_inner1 = And(pair_y1, pair_p)
-    and_outer1 = And(sing_x, Exists(pab, and_inner1))
-
-    got_s1 = apply_thm(and_elim_left(sing_x, Exists(pab, and_inner1), []), [],
-        and_outer1, sing_x, ax(and_outer1))
-    got_ex_pab1 = apply_thm(and_elim_right(sing_x, Exists(pab, and_inner1), []), [],
-        and_outer1, Exists(pab, and_inner1),
-        Proof(Sequent([and_outer1], [and_outer1]), 'axiom', principal=and_outer1))
-    got_py1 = apply_thm(and_elim_left(pair_y1, pair_p, []), [],
-        and_inner1, pair_y1, ax(and_inner1))
-    got_pp = apply_thm(and_elim_right(pair_y1, pair_p, []), [],
-        and_inner1, pair_p, Proof(Sequent([and_inner1], [and_inner1]), 'axiom', principal=and_inner1))
-
-    # Replace sing_x, pair_y1, pair_p in got_app2b with OrdPair structure via cuts
-    cur = got_app2b
-    # Cut pair_y1 from and_inner1:
-    c_left = [f_ for f_ in cur.sequent.left if not same(f_, pair_y1)]
-    if not any(same(and_inner1, g) for g in c_left):
-        c_left = c_left + [and_inner1]
-    br1 = got_py1
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = cur
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in cur.sequent.left):
-            br2 = wl(br2, f_)
-    cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
-        [wr(br1, app2), br2], principal=pair_y1)
-
-    # Cut pair_p from and_inner1:
-    c_left = [f_ for f_ in cur.sequent.left if not same(f_, pair_p)]
-    if not any(same(and_inner1, g) for g in c_left):
-        c_left = c_left + [and_inner1]
-    br1 = got_pp
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = cur
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in cur.sequent.left):
-            br2 = wl(br2, f_)
-    cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
-        [wr(br1, app2), br2], principal=pair_p)
-
-    # Eel pab from and_inner1:
-    cur = eel(cur, and_inner1, pab)
-
-    # Cut sing_x from and_outer1:
-    ex_pab1 = cur.sequent.left[-1]  # Exists(pab, and_inner1)
-    and_outer1_actual = And(sing_x, ex_pab1)
-    c_left = [f_ for f_ in cur.sequent.left if not same(f_, sing_x)]
-    if not any(same(and_outer1_actual, g) for g in c_left):
-        c_left = c_left + [and_outer1_actual]
-    got_s1b = apply_thm(and_elim_left(sing_x, ex_pab1, []), [],
-        and_outer1_actual, sing_x, ax(and_outer1_actual))
-    br1 = got_s1b
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = cur
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in cur.sequent.left):
-            br2 = wl(br2, f_)
-    cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
-        [wr(br1, app2), br2], principal=sing_x)
-
-    # Cut ex_pab1 from and_outer1:
-    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_pab1)]
-    if not any(same(and_outer1_actual, g) for g in c_left):
-        c_left = c_left + [and_outer1_actual]
-    got_ep1b = apply_thm(and_elim_right(sing_x, ex_pab1, []), [],
-        and_outer1_actual, ex_pab1,
-        Proof(Sequent([and_outer1_actual], [and_outer1_actual]), 'axiom', principal=and_outer1_actual))
-    br1 = got_ep1b
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = cur
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in cur.sequent.left):
-            br2 = wl(br2, f_)
-    cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
-        [wr(br1, app2), br2], principal=ex_pab1)
-
-    # Eel sa from and_outer1:
-    cur = eel(cur, and_outer1_actual, sa)
-    # Now left has: [eq_y, and_ord_in1, Exists(sa, ...)]
-    # Exists(sa, ...) = OrdPair(p_var, x, y1). Cut it back into and_ord_in1.
-    ex_sa_actual = cur.sequent.left[-1]
-    c_left = [f_ for f_ in cur.sequent.left if not same(f_, ex_sa_actual)]
-    if not any(same(and_ord_in1, g) for g in c_left):
-        c_left = c_left + [and_ord_in1]
-    br1 = got_ord1  # [and_ord_in1] |- OrdPair(p_var, x, y1)
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = cur
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in cur.sequent.left):
-            br2 = wl(br2, f_)
-    cur = Proof(Sequent(c_left, cur.sequent.right), 'cut',
-        [wr(br1, app2), br2], principal=ex_sa_actual)
-
-    # Eel p_var from and_ord_in1:
-    cur = eel(cur, and_ord_in1, p_var)
-    # cur: [eq_y, Exists(p_var, And(OrdPair(p_var,x,y1), In(p_var,v)))] |- Apply(v,x,y2)
-
-    # Discharge and close
-    app1_actual = cur.sequent.left[-1]
-    proof = cur
-    for h in [app1_actual, eq_y]:
+    # === Close: discharge and forall ===
+    proof = got_app_from_and
+    for h in [app1, eq_y]:
         imp_h = Implies(h, proof.sequent.right[0])
         remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
@@ -1944,11 +1656,9 @@ def extend_function():
     got_eq = mp(got_eq_zr_p, ax(In(zr, s)), In(zr, s), Eq(zr, p))
     # got_eq: [sing_s, In(zr,s)] |- Eq(zr, p)
 
-    oet = ordpair_eq_transfer()
-    got_ordz = apply_thm(oet, [p, zr, x0, y0], Eq(zr, p),
-        Implies(ordp, OrdPair(zr, x0, y0)), got_eq)
-    got_ordz2 = mp(got_ordz, ax(ordp), ordp, OrdPair(zr, x0, y0))
+    got_ordz2 = _ordpair_set_transfer(zr, p, x0, y0, got_eq, ax(ordp))
     # got_ordz2: [sing_s, In(zr,s), ordp] |- OrdPair(zr, x0, y0)
+
 
     got_ex_yr = eir(got_ordz2, OrdPair(zr, x0, yr), yr, y0)
     got_ex_xr = eir(got_ex_yr, Exists(yr, OrdPair(zr, xr, yr)), xr, x0)
@@ -3877,117 +3587,76 @@ def singleton_is_recapprox():
     # Then replace PS(p,...) with PS(z,...) via got_ps_z. Repack to get OrdPair(z,e,a).
     # Then exists x=e, y=a. Then exists intro.
 
-    # This is still complex. Let me use the And structure from OrdPair.
-    # OrdPair(p,e,a).expand() = exists sa. And(Sing(sa,e), exists pab. And(PS(pab,e,a), PS(p,sa,pab)))
-    # I need: [Eq(zz,p), OrdPair(p,e,a)] |- exists sa. And(Sing(sa,e), exists pab. And(PS(pab,e,a), PS(zz,sa,pab)))
-    # = OrdPair(zz, e, a)
-
-    # Unpack OrdPair(p,e,a): get Sing(sa2,e), PS(pab2,e,a), PS(p,sa2,pab2) on left.
-    # Replace PS(p,...) with PS(zz,...) via got_ps_z.
-    # Repack: And(PS(pab2,e,a), PS(zz,sa2,pab2)) -> exists pab2. And(...) -> 
-    # And(Sing(sa2,e), exists pab2. ...) -> exists sa2. And(...) = OrdPair(zz,e,a).
+    # === Derive OrdPair(zz, ev, a) from OrdPair(p, ev, a) + Eq(zz, p) ===
+    # OrdPair(t, x, y) = Forall(sa, Implies(Sing(sa,x), Forall(pab, Implies(PS(pab,x,y), PS(t,sa,pab)))))
+    # From OrdPair(p, ev, a): instantiate sa=sa2, get Sing(sa2,ev)->Forall(pab, ...).
+    # MP: Forall(pab, Implies(PS(pab,ev,a), PS(p,sa2,pab))). Instantiate pab=pab2.
+    # MP: PS(pab2,ev,a) -> PS(p, sa2, pab2).
+    # From Eq(zz,p): char_transfer on PairSet to get PS(zz, sa2, pab2) from PS(p, sa2, pab2).
+    # Close: implies_right PS(pab2,ev,a), forall_right pab2, implies_right Sing(sa2,ev), forall_right sa2.
 
     sing_sa2_e = Singleton(sa2, ev)
     ps_pab2_ea = PairSet(pab2, ev, a)
-    and_inner = And(ps_pab2_ea, PairSet(p, sa2, pab2))
-    and_outer = And(sing_sa2_e, Exists(pab2, and_inner))
-
-    # From ordp: [ordp] |- ordp. Unpack:
-    got_outer = apply_thm(and_elim_left(sing_sa2_e, Exists(pab2, and_inner), []), [],
-        ordp, sing_sa2_e, ax(ordp))
-    # Hmm, ordp = OrdPair(p,ev,a) which expands to exists sa. And(Sing(sa,ev), ...).
-    # Not the same as And(sing_sa2_e, ...) with specific sa2.
-    # The sa2 in my code is a specific Var, but OrdPair creates fresh vars.
-    # I need to unpack the existentials from ordp, not from and_outer.
-
-    # Unpack ordp = OrdPair(p,ev,a):
-    # exists sa. And(Sing(sa,ev), exists pab. And(PS(pab,ev,a), PS(p,sa,pab)))
-    # Eel sa: [Sing(sa,ev), exists pab. And(PS(pab,ev,a), PS(p,sa,pab))]
-    # Eel pab: [Sing(sa,ev), PS(pab,ev,a), PS(p,sa,pab)]
-
-    # Then: from PS(p,sa,pab) and Eq(zz,p): PS(zz,sa,pab) via got_ps_z.
-    # Repack: And(PS(pab,ev,a), PS(zz,sa,pab)) -> exists pab. ...
-    # And(Sing(sa,ev), exists pab. ...) -> exists sa. ... = OrdPair(zz,ev,a)
-
-    # Build: [Eq(zz,p), Sing(sa2,ev), PS(pab2,ev,a), PS(p,sa2,pab2)] |- OrdPair(zz,ev,a)
-    # Replace PS(p,...) with PS(zz,...):
+    ps_p_sa_pab = PairSet(p, sa2, pab2)
     ps_z_sa_pab = PairSet(zz, sa2, pab2)
-    and_new_inner = And(ps_pab2_ea, ps_z_sa_pab)
 
-    ai_inner = and_intro(ps_pab2_ea, ps_z_sa_pab, [])
-    got_ai_inner = apply_thm(ai_inner, [], ps_pab2_ea, Implies(ps_z_sa_pab, and_new_inner),
-        ax(ps_pab2_ea))
-    # Need ps_z_sa_pab from got_ps_z: [Eq(zz,p), PS(p,sa2,pab2)] |- PS(zz,sa2,pab2)
-    got_and_new = mp(got_ai_inner, got_ps_z, ps_z_sa_pab, and_new_inner)
-    # got_and_new: [ps_pab2_ea, Eq(zz,p), PS(p,sa2,pab2)] |- And(PS(pab2,ev,a), PS(zz,sa2,pab2))
+    # From OrdPair(p, ev, a): instantiate and MP to get PS(p, sa2, pab2)
+    ordp_exp = ordp.expand()  # Forall(sa_i, Implies(Sing(sa_i, ev), Forall(pab_i, Implies(PS(pab_i, ev, a), PS(p, sa_i, pab_i)))))
+    # Use fl to instantiate sa_i with sa2:
+    ordp_body_sa2 = Implies(sing_sa2_e, Forall(pab2, Implies(ps_pab2_ea, ps_p_sa_pab)))
+    got_ordp_sa = fl(ordp, ordp_body_sa2, sa2)
+    # [ordp] |- Implies(Sing(sa2,ev), Forall(pab2, Implies(PS(pab2,ev,a), PS(p,sa2,pab2))))
+    got_ordp_pab = mp(got_ordp_sa, ax(sing_sa2_e), sing_sa2_e,
+        Forall(pab2, Implies(ps_pab2_ea, ps_p_sa_pab)))
+    got_ordp_ps = apply_thm(got_ordp_pab, [pab2], ps_pab2_ea, ps_p_sa_pab, ax(ps_pab2_ea))
+    # [ordp, Sing(sa2,ev), PS(pab2,ev,a)] |- PS(p, sa2, pab2)
 
-    got_ex_pab = eir(got_and_new, And(PairSet(pab2, ev, a), PairSet(zz, sa2, pab2)), pab2, pab2)
-    ex_pab_formula = got_ex_pab.sequent.right[0]
-    and_with_sing = And(sing_sa2_e, ex_pab_formula)
-    ai_outer = and_intro(sing_sa2_e, ex_pab_formula, [])
-    got_ai_outer = apply_thm(ai_outer, [], sing_sa2_e, Implies(ex_pab_formula, and_with_sing),
-        ax(sing_sa2_e))
-    got_ord_z = mp(got_ai_outer, got_ex_pab, ex_pab_formula, and_with_sing)
-    got_ex_sa = eir(got_ord_z, And(Singleton(sa2, ev), Exists(pab2, And(PairSet(pab2, ev, a), PairSet(zz, sa2, pab2)))), sa2, sa2)
-    # got_ex_sa: [sing_sa2_e, ps_pab2_ea, Eq(zz,p), PS(p,sa2,pab2)] |- OrdPair(zz, ev, a)
+    # From Eq(zz,p) + PS(p, sa2, pab2): derive PS(zz, sa2, pab2) via char_transfer
+    # Eq(zz,p) gives In(w,zz) iff In(w,p). PairSet(p,...) = Forall(w, Iff(In(w,p), Or(...))).
+    # char_transfer: Iff(In(w,zz), In(w,p)) + Iff(In(w,p), Or(...)) -> Iff(In(w,zz), Or(...)).
+    iff_zp = Iff(In(wv, zz), In(wv, p))
+    or_eq = Or(Eq(wv, sa2), Eq(wv, pab2))
+    iff_in_p = Iff(In(wv, p), or_eq)
+    iff_in_z = Iff(In(wv, zz), or_eq)
+    fl_eq_zp = fl(Eq(zz, p), iff_zp, wv)
+    ct_ps = char_transfer(In(wv, zz), In(wv, p), or_eq, [])
+    got_ps_z_w = mp(mp(ct_ps, fl_eq_zp, iff_zp, Implies(iff_in_p, iff_in_z)),
+        fl(ps_p_sa_pab, iff_in_p, wv), iff_in_p, iff_in_z)
+    # [Eq(zz,p), PS(p,sa2,pab2)] |- Iff(In(wv,zz), Or(...))
+    fa_ps_z = Forall(wv, iff_in_z)
+    got_ps_z = Proof(Sequent(got_ps_z_w.sequent.left, [fa_ps_z]), 'forall_right',
+        [got_ps_z_w], principal=fa_ps_z, term=wv)
+    # [Eq(zz,p), PS(p,sa2,pab2)] |- PairSet(zz, sa2, pab2)
 
-    # Now eel to remove the unpacked OrdPair components, replacing with ordp:
-    # Replace PS(p,sa2,pab2) and ps_pab2_ea with and_inner, then eel pab2
-    and_inner_hyp = And(ps_pab2_ea, PairSet(p, sa2, pab2))
-    got_px_from_and = apply_thm(and_elim_left(ps_pab2_ea, PairSet(p, sa2, pab2), []), [],
-        and_inner_hyp, ps_pab2_ea, ax(and_inner_hyp))
-    got_pp_from_and = apply_thm(and_elim_right(ps_pab2_ea, PairSet(p, sa2, pab2), []), [],
-        and_inner_hyp, PairSet(p, sa2, pab2),
-        Proof(Sequent([and_inner_hyp], [and_inner_hyp]), 'axiom', principal=and_inner_hyp))
+    # Cut PS(p,sa2,pab2) from got_ordp_ps into got_ps_z:
+    got_ps_z_full = Proof(Sequent(
+        [f_ for f_ in got_ordp_ps.sequent.left] + [Eq(zz, p)], [fa_ps_z]), 'cut',
+        [wr(wl(got_ordp_ps, Eq(zz, p)), fa_ps_z),
+         wl(got_ps_z, *got_ordp_ps.sequent.left)], principal=ps_p_sa_pab)
+    # [ordp, Sing(sa2,ev), PS(pab2,ev,a), Eq(zz,p)] |- PairSet(zz, sa2, pab2)
 
-    cur = got_ex_sa
-    for (pred, got_pred) in [(ps_pab2_ea, got_px_from_and), (PairSet(p, sa2, pab2), got_pp_from_and)]:
-        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
-        if not any(same(and_inner_hyp, g) for g in c_left):
-            c_left = c_left + [and_inner_hyp]
-        br1 = got_pred
-        for f_ in c_left:
-            if not any(same(f_, g) for g in br1.sequent.left):
-                br1 = wl(br1, f_)
-        br2 = cur
-        for f_ in br1.sequent.left:
-            if not any(same(f_, g) for g in cur.sequent.left):
-                br2 = wl(br2, f_)
-        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut', [wr(br1, cur.sequent.right[0]), br2], principal=pred)
-
-    cur = eel(cur, and_inner_hyp, pab2)
-    # Replace exists pab2. and_inner_hyp and sing_sa2_e with and_outer_hyp, then eel sa2
-    ex_pab_hyp = cur.sequent.left[-1]
-    and_outer_hyp = And(sing_sa2_e, ex_pab_hyp)
-    got_s_from_ao = apply_thm(and_elim_left(sing_sa2_e, ex_pab_hyp, []), [],
-        and_outer_hyp, sing_sa2_e, ax(and_outer_hyp))
-    got_ep_from_ao = apply_thm(and_elim_right(sing_sa2_e, ex_pab_hyp, []), [],
-        and_outer_hyp, ex_pab_hyp,
-        Proof(Sequent([and_outer_hyp], [and_outer_hyp]), 'axiom', principal=and_outer_hyp))
-
-    for (pred, got_pred) in [(sing_sa2_e, got_s_from_ao), (ex_pab_hyp, got_ep_from_ao)]:
-        c_left = [f_ for f_ in cur.sequent.left if not same(f_, pred)]
-        if not any(same(and_outer_hyp, g) for g in c_left):
-            c_left = c_left + [and_outer_hyp]
-        br1 = got_pred
-        for f_ in c_left:
-            if not any(same(f_, g) for g in br1.sequent.left):
-                br1 = wl(br1, f_)
-        br2 = cur
-        for f_ in br1.sequent.left:
-            if not any(same(f_, g) for g in cur.sequent.left):
-                br2 = wl(br2, f_)
-        cur = Proof(Sequent(c_left, cur.sequent.right), 'cut', [wr(br1, cur.sequent.right[0]), br2], principal=pred)
-
-    cur = eel(cur, and_outer_hyp, sa2)
-    # [Eq(zz,p), exists sa2. And(Sing, exists pab2. And(PS, PS))] |- OrdPair(zz, ev, a)
-    # The exists sa2 formula = OrdPair(p, ev, a) = ordp (alpha-equiv)
+    # Close into OrdPair(zz, ev, a) = Forall(sa, Implies(Sing, Forall(pab, Implies(PS, PS_z))))
+    # implies_right PS(pab2,ev,a):
+    imp_ps = Implies(ps_pab2_ea, ps_z_sa_pab)
+    rem_ps = [f_ for f_ in got_ps_z_full.sequent.left if not same(f_, ps_pab2_ea)]
+    got_imp_ps = Proof(Sequent(rem_ps, [imp_ps]), 'implies_right', [got_ps_z_full], principal=imp_ps)
+    # forall_right pab2 (pab2 not free in ordp, Sing(sa2,ev), Eq(zz,p)):
+    fa_pab = Forall(pab2, imp_ps)
+    got_fa_pab = Proof(Sequent(rem_ps, [fa_pab]), 'forall_right', [got_imp_ps], principal=fa_pab, term=pab2)
+    # implies_right Sing(sa2,ev):
+    imp_sing = Implies(sing_sa2_e, fa_pab)
+    rem_sing = [f_ for f_ in got_fa_pab.sequent.left if not same(f_, sing_sa2_e)]
+    got_imp_sing = Proof(Sequent(rem_sing, [imp_sing]), 'implies_right', [got_fa_pab], principal=imp_sing)
+    # forall_right sa2 (sa2 not free in ordp, Eq(zz,p)):
+    ordp_zz = OrdPair(zz, ev, a)
+    got_ordp_zz = Proof(Sequent(rem_sing, [ordp_zz]), 'forall_right', [got_imp_sing], principal=ordp_zz, term=sa2)
+    # [ordp, Eq(zz,p)] |- OrdPair(zz, ev, a)
 
     # Existential intro x=ev, y=a for the Relation conclusion
     x_rel, y_rel = Var(), Var()
-    got_ex_y = eir(cur, OrdPair(zz, ev, y_rel), y_rel, a)
+    got_ex_y = eir(got_ordp_zz, OrdPair(zz, ev, y_rel), y_rel, a)
     got_ex_xy = eir(got_ex_y, Exists(y_rel, OrdPair(zz, x_rel, y_rel)), x_rel, ev)
-    # got_ex_xy: [Eq(zz,p), ordp] |- exists x,y. OrdPair(zz, x, y)
+    # got_ex_xy: [ordp, Eq(zz,p)] |- exists x,y. OrdPair(zz, x, y)
 
     # From Singleton: In(zz,v) -> Eq(zz,p)
     iff_sing = Iff(In(zz, v), Eq(zz, p))
@@ -5533,8 +5202,7 @@ def rec_h_apply_fwd():
     and_in_phi = And(in_mm_w, phi_mq)
     got_phi = apply_thm(and_elim_right(in_mm_w, phi_mq, []), [],
         and_in_phi, phi_mq, Proof(Sequent([and_in_phi], [and_in_phi]), 'axiom', principal=and_in_phi))
-    # Cut with got_ex_m via _eel:
-    got_ex_m2 = eel(got_ex_m, and_in_phi, mm)  # wait, need to unpack Exists(m,...) first
+    # _eel removes and_in_phi from left, adds Exists(mm, and_in_phi).
     # Actually: _eel removes and_in_phi from left, adds Exists(mm, and_in_phi).
     # But and_in_phi isn't on the left yet. got_ex_m has Exists(mm, and_in_phi) on the RIGHT.
     # I need to move it to the left. Use cut:
@@ -5597,8 +5265,6 @@ def rec_h_apply_fwd():
     # Transfer: App(vr, n, yr) -> App(vr, n, y) via Eq(yr,y)
     # Eq(y,yr) -> eq_sym -> Eq(yr,y). eq_apply_val_transfer: Eq(yr,y) -> App(vr,n,yr) -> App(vr,n,y)
     got_eq_ry = apply_thm(es, [y, yr], Eq(y, yr), Eq(yr, y), got_eq_yy)
-    got_app_ny = apply_thm(eavt, [vr, n, yr, y], Eq(yr, y),
-        Implies(Apply(vr, n, yr), app_vv), got_eq_ry)
     # Wait, app_vv = Apply(vv, n, y) uses vv, not vr. I need Apply(vr, n, y).
     app_vr_ny = Apply(vr, n, y)
     got_app_ny = apply_thm(eavt, [vr, n, yr, y], Eq(yr, y),
@@ -6552,9 +6218,8 @@ def rec_h_function():
     and_ra_app = And(ra_vr, app_vr)
     and_inner = And(and_ra_app, ordp_z)
 
-    # From OrdPair(zv, mm, yr): _eir yr2=yr, xr=mm
-    got_ex_yr = eir(ax(ordp_z), OrdPair(zv, xr, yr), yr, yr)  # wait, need OrdPair(zv, mm, yr2)
-    # Actually: exists yr2. OrdPair(zv, mm, yr2). Witness yr2=yr.
+    # From OrdPair(zv, mm, yr): exists yr2. OrdPair(zv, mm, yr2), then exists xr. ...
+    got_ex_yr = eir(ax(ordp_z), OrdPair(zv, mm, yr2), yr2, yr)
     got_ex_yr = eir(ax(ordp_z), OrdPair(zv, mm, yr2), yr2, yr)
     got_ex_xr = eir(got_ex_yr, Exists(yr2, OrdPair(zv, xr, yr2)), xr, mm)
     # got_ex_xr: [ordp_z] |- rel_goal
@@ -6876,7 +6541,8 @@ def recursion_theorem():
     yrf, zrf, wrf = Var(), Var(), Var()
     ran_f_closed = Forall(yrf, Forall(zrf,
         Implies(Apply(f, yrf, zrf), Exists(wrf, Apply(f, zrf, wrf)))))
-    dom_closed = And(f_at_a, ran_f_closed)
+    from definitions import TotalFrom
+    dom_closed = TotalFrom(f, a)
     recursive_h = Recursive(hv, a, f, w)
     from definitions import ExistsUnique
     exu_h = ExistsUnique(hv, recursive_h)
@@ -7372,7 +7038,8 @@ def rec_values_agree():
     yr_, zr_, wr__ = Var(), Var(), Var()
     ran_f_closed = Forall(yr_, Forall(zr_,
         Implies(Apply(f, yr_, zr_), Exists(wr__, Apply(f, zr_, wr__)))))
-    dom_closed = And(f_at_a, ran_f_closed)
+    from definitions import TotalFrom
+    dom_closed = TotalFrom(f, a)
     func_h = FuncDef(h)
 
 
@@ -7486,8 +7153,7 @@ def rec_values_agree():
             fl_inst, inst, Implies(And(In(term_x, w), P(term_x)), In(term_x, pv)))
 
     # === Base case: forall e. Empty(e) -> In(e, p) ===
-    # From base_h: Empty(ev) -> Apply(h, ev, a)
-    got_app_h0 = mp(got_base_h, ax(empty_ev), empty_ev, Apply(h, ev, a))
+    # From base_h: instantiate ev, mp Empty(ev) -> Apply(h, ev, a)
     # Apply forall_left ev on base_h first:
     got_base_h_inst = apply_thm(got_base_h, [ev], empty_ev, Apply(h, ev, a), ax(empty_ev))
     got_base_h2_inst = apply_thm(got_base_h2, [ev], empty_ev, Apply(h2, ev, a), ax(empty_ev))
@@ -8005,7 +7671,8 @@ def rec_unique():
     yr_, zr_, wr__ = Var(), Var(), Var()
     ran_f_closed = Forall(yr_, Forall(zr_,
         Implies(Apply(f, yr_, zr_), Exists(wr__, Apply(f, zr_, wr__)))))
-    dom_closed = And(f_at_a, ran_f_closed)
+    from definitions import TotalFrom
+    dom_closed = TotalFrom(f, a)
 
     # --- Helper: z in A -> z in B, given Relation(A), dom_sub_A, rec_values_agree ---
     def _transfer(z_var, A, B, rel_A, dom_sub_A, rec_A, rec_B):
