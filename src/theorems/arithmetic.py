@@ -253,30 +253,7 @@ def sf_props():
     # cur_dm: [sf_char, And(app1,app2), Ext] |- In(xsv,w)
 
     # === dom_sub_sf: forall x. (exists y. Apply(sf,x,y)) -> In(x,w) ===
-    # Build from cur_dm by replacing And(app1,app2) with app1, then eel y1sv, close forall xsv
-    yd_sf = Var()
-    cur_dom = cut(cur_dm, and_apps,
-        apply_thm(and_intro(app1, app2, []), [], app1, Implies(app2, and_apps), ax(app1)))
-    # cur_dom has [sf_char, app1, app2, Ext] on left, but we added app2 unnecessarily
-    # Simpler: go back to got_in_xsv before the And(app1,app2) cut:
-    # Actually cur_dm was built from got_in_xsv with existential folding + cut with And.
-    # The And is there because the single-valued section needed both apps.
-    # For dom_sub, I just need one Apply. Let me rebuild from got_in_xsv:
-    # got_in_xsv at line 236 has [ordp_dm, ordp_dm_xs, In(xsf,w), Ext] |- In(xsv,w)
-    # After folding: [sf_char, app1, Ext] |- In(xsv,w)
-    # (the folding removes ordp_dm, ordp_dm_xs, In(xsf,w) and replaces with sf_char + app1)
-    # I already did this folding in cur_dm, but then also cut with And(app1,app2).
-    # The cut at line 260 replaced app1 with And(app1,app2) via and_elim_left.
-    # For dom_sub, I need the version BEFORE that cut. That's cur_dm before line 260.
-    # But cur_dm was already modified. I need to redo the folding without the And cut.
-    # Or: just derive app1 back from And(app1,app2) and rebuild.
-    # Simplest: from cur_dm [sf_char, And(app1,app2), Ext] |- In(xsv,w),
-    # weaken with app1 and cut And(app1,app2) using and_intro:
-    # Actually this is circular. Let me just eel y1sv from app1 to get dom_sub directly.
-    # cur_dm has And(app1,app2) on left. I want app1 instead.
-    # From [app1] |- And(app1,app2) requires app2 which I don't have.
-    # Better: go back to before cut at line 260 and save a copy.
-    # This is getting messy. Let me just build dom_sub from scratch using the same pattern.
+    # Build from scratch using the same pattern as cur_dm but without the And(app1,app2).
     xds, yds = Var(postfix='xds'), Var(postfix='yds')
     app_ds = Apply(sfv, xds, yds)
     q_ds = Var(postfix='qds')
@@ -931,10 +908,7 @@ def rec_h_zero_identity():
     eavt = eq_apply_val_transfer()
     zz = Var()  # eavt's internal z var
     fa_z = Forall(zz, Implies(Eq(ev, zz), Implies(Apply(hv, ev_base, ev), Apply(hv, ev_base, zz))))
-    got_eavt = apply_thm(eavt, [hv, ev_base, ev], Eq(ev, ev_base),
-        Implies(Apply(hv, ev_base, ev), Apply(hv, ev_base, ev_base)), ax(Eq(ev, ev_base)))
-    # Hmm, this still has concl with ev_base for z. But the 3-term peel gives fa_z on the right.
-    # Let me use apply_thm with 3 terms and hyp=None:
+    # Use apply_thm with 3 terms and hyp=None:
     got_eavt3 = apply_thm(eavt, [hv, ev_base, ev], concl=fa_z)
     # got_eavt3: [eavt axioms] |- Forall(zz, Implies(Eq(ev,zz), Implies(App(h,eb,ev), App(h,eb,zz))))
     # fl z=ev_base:
@@ -1563,26 +1537,21 @@ def rec_succ_shift():
         weaken_to(got_h1_eb, all_base), Apply(h1, eb, smv), Apply(h1, eb, sv))
     # [..., Apply(h2,eb,yv), Succ(sv,yv)] |- Apply(h1,eb,sv)
 
-    # Close: implies_right Succ(sv,yv), forall sv, implies_right Apply(h2,eb,yv), forall yv
+    # Close: implies_right Succ(sv,yv), implies_right Apply(h2,eb,yv), forall_right sv, forall_right yv
+    # This matches P(eb) = Forall(yv, Forall(sv, Implies(Apply(h2,eb,yv), Implies(succ_sy, Apply(h1,eb,sv)))))
     imp_s = Implies(succ_sy, Apply(h1, eb, sv))
     rem_s = [f_ for f_ in got_h1_es.sequent.left if not same(f_, succ_sy)]
     cur_base = Proof(Sequent(rem_s, [imp_s]), 'implies_right', [got_h1_es], principal=imp_s)
-    imp_y = Implies(Apply(h2, eb, yv), imp_s)
-    rem_y = [f_ for f_ in cur_base.sequent.left if not same(f_, Apply(h2, eb, yv))]
-    cur_base = Proof(Sequent(rem_y, [imp_y]), 'implies_right', [cur_base], principal=imp_y)
-    fa_s = Forall(sv, imp_y)
-    # Wait, the P(n) structure is Forall(yv, Forall(sv, Implies(app_h2, Implies(succ, app_h1))))
-    # So close: forall sv, forall yv
-    p_eb = P(eb)
-    cur_base = Proof(Sequent(rem_y, [Forall(sv, imp_s)]), 'forall_right',
-        [Proof(Sequent(rem_s, [imp_s]), 'implies_right', [got_h1_es], principal=imp_s)],
-        principal=Forall(sv, imp_s), term=sv)
-    fa_sv_body = Forall(sv, imp_s)
-    imp_app_fa = Implies(Apply(h2, eb, yv), fa_sv_body)
+    imp_h2_s = Implies(Apply(h2, eb, yv), imp_s)
     rem_app = [f_ for f_ in cur_base.sequent.left if not same(f_, Apply(h2, eb, yv))]
-    cur_base = Proof(Sequent(rem_app, [imp_app_fa]), 'implies_right', [cur_base], principal=imp_app_fa)
-    p_eb_formula = Forall(yv, imp_app_fa)
+    cur_base = Proof(Sequent(rem_app, [imp_h2_s]), 'implies_right', [cur_base], principal=imp_h2_s)
+    fa_sv_body = Forall(sv, imp_h2_s)
+    cur_base = Proof(Sequent(rem_app, [fa_sv_body]), 'forall_right',
+        [cur_base], principal=fa_sv_body, term=sv)
+    p_eb_formula = Forall(yv, fa_sv_body)
     cur_base = Proof(Sequent(rem_app, [p_eb_formula]), 'forall_right', [cur_base], principal=p_eb_formula, term=yv)
+    # cur_base: [...] |- P(eb)
+
     # cur_base: [...] |- P(eb)
 
     # In(eb, w) from omega_contains_empty:
@@ -3720,9 +3689,9 @@ def plus_comm():
     return proof
 
 
-def exists_num(k):
-    """Every natural number exists as a ZFC set.
-    |- exists n. Num(n, k)
+def unique_num(k):
+    """Every natural number exists uniquely as a ZFC set.
+    |- exists! n. Num(n, k)
     Base: EmptySet axiom -> exists n. Empty(n) = exists n. Num(n, 0).
     Step: successor_exists -> exists s. Succ(s, prev) -> Num(s, i+1)."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
@@ -3739,11 +3708,11 @@ def exists_num(k):
         goal = Exists(nv, NumDef(nv, 0))
         # Wrap with goal on right for clean display:
         proof = Proof(Sequent(es.sequent.left, [goal]), 'axiom', principal=goal)
-        proof.name = 'exists_num_0'
+        proof.name = 'unique_num_0'
         return proof
 
     # Chain: for i = 0, 1, ..., k-1, build exists n. Num(n, i+1) from exists n. Num(n, i)
-    proof = exists_num(k - 1)
+    proof = unique_num(k - 1)
     # proof: [axioms] |- exists prev. Num(prev, k-1)
 
     prev = Var(postfix=f'n{k-1}')
@@ -3792,7 +3761,7 @@ def exists_num(k):
     got_ex_cur = cut(got_ex_cur, got_ex_cur.sequent.left[-1], proof)
     # [axioms] |- exists cv. Num(cv, k)
 
-    got_ex_cur.name = f'exists_num_{k}'
+    got_ex_cur.name = f'unique_num_{k}'
     return got_ex_cur
 
 
