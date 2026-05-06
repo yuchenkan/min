@@ -11,6 +11,8 @@ from core.zfc import ZFCAxiom
 from vocab import (OrdPair, Successor, Empty, Singleton, PairSet,
     Subset, Inductive, Omega, Function, Apply, RecApprox, Recursive,
     ExistsUnique, Union, TotalFrom, Plus, Num)
+from tm import add_goal
+tm_add_goal = add_goal()
 
 is_axiom = lambda f: isinstance(f, ZFCAxiom)
 
@@ -258,12 +260,19 @@ goals = [
      Forall(w, Forall(a, Forall(b, Forall(c,
          Implies(Omega(w), Implies(Num(a,2), Implies(Num(b,2),
              Implies(Num(c,4), Plus(a,b,c)))))))))),
+    # --- turing machine ---
+    ('tm_add_correct',
+     None,  # theorem not yet written
+     tm_add_goal),
 ]
 
 if __name__ == '__main__':
+    select = set(sys.argv[1:]) if len(sys.argv) > 1 else None
     passed = 0
     failed = []
     for name, build, expected in goals:
+        if select and name not in select:
+            continue
         try:
             proof = build()
             assert same(proof.sequent.right[0], expected, expand=False), \
@@ -273,6 +282,7 @@ if __name__ == '__main__':
         except Exception as e:
             failed.append(name)
             print(f'{name}: {e}')
-    print(f'\n{passed}/{len(goals)} passed')
+    total = len([n for n,_,_ in goals if not select or n in select])
+    print(f'\n{passed}/{total} passed')
     if failed:
         print(f'failed: {", ".join(failed)}')

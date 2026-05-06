@@ -58,22 +58,28 @@ def add_machine():
 
 
 def formalize(tm):
-    """Convert a Python TM to formal vocab description.
+    """Convert a Python TM to formal ZFC delta characterization.
 
     Returns dict with:
-      states: {name: int} — state name to natural number
-      symbols: {val: int} — symbol to natural number
-      directions: {val: int} — direction to natural number
-      transitions: [(q, r, w, d, q')] — as natural number tuples
-      start: int
-      halt: int
+      delta: Var — transition function variable
+      q0: Var — start state variable
+      qH: Var — halt state variable
+      q0_num: int — start state number
+      qH_num: int — halt state number
+      delta_char: formula — conjunction of TMTransition for each rule
+      state_ids: dict — state name to number mapping
     """
-    # Collect states
-    states = {}
+    from core.lang import Var, Implies, Forall
+    from core.derived import And
+    from vocab.omega import Num
+    from vocab.tm import TMTransition
+
+    # Assign natural numbers to states
+    state_ids = {}
     def state_id(name):
-        if name not in states:
-            states[name] = len(states)
-        return states[name]
+        if name not in state_ids:
+            state_ids[name] = len(state_ids)
+        return state_ids[name]
 
     state_id(tm.start)
     state_id(tm.halt)
@@ -81,19 +87,138 @@ def formalize(tm):
         state_id(q)
         state_id(qn)
 
-    # Directions: +1 -> 1 (right), -1 -> 0 (left)
     dir_map = {+1: 1, -1: 0}
 
-    transitions = []
+    delta = Var(postfix='delta')
+    q0 = Var(postfix='q0')
+    qH = Var(postfix='qH')
+
+    # Build delta characterization: conjunction of TMTransition for each rule
+    conjuncts = []
     for (q, r), (w, d, qn) in tm.transitions.items():
-        transitions.append((state_id(q), r, w, dir_map[d], state_id(qn)))
+        qv = Var(postfix=f's{state_id(q)}')
+        rv = Var(postfix=f'r{r}')
+        wv = Var(postfix=f'w{w}')
+        dv = Var(postfix=f'd{dir_map[d]}')
+        qnv = Var(postfix=f's{state_id(qn)}')
+        trans = TMTransition(delta, qv, rv, wv, dv, qnv)
+        nums = [Num(qv, state_id(q)), Num(rv, r), Num(wv, w),
+                Num(dv, dir_map[d]), Num(qnv, state_id(qn))]
+        body = trans
+        for num in reversed(nums):
+            body = Implies(num, body)
+        for v in [qnv, dv, wv, rv, qv]:
+            body = Forall(v, body)
+        conjuncts.append(body)
+
+    delta_char = conjuncts[0]
+    for c in conjuncts[1:]:
+        delta_char = And(delta_char, c)
 
     return {
-        'states': states,
-        'transitions': transitions,
-        'start': state_id(tm.start),
-        'halt': state_id(tm.halt),
+        'delta': delta, 'q0': q0, 'qH': qH,
+        'q0_num': state_id(tm.start),
+        'qH_num': state_id(tm.halt),
+        'delta_char': delta_char,
+        'state_ids': state_ids,
     }
+
+
+def add_goal():
+    """Correctness goal for the addition TM.
+
+    ∀ delta, q0, qH, z, tape_in, c0, a, b, c.
+      delta_char → Num(q0, 0) → Num(qH, 1) → Num(z, 0) →
+      UnaryTape(tape_in, a, b) → TMConfig(c0, q0, z, tape_in) →
+      Plus(a, b, c) →
+      ∃ n. TMHalts(delta, c0, qH, n)
+    """
+    from core.lang import Var, Implies, Forall
+    from core.derived import Exists
+    from vocab.omega import Num
+    from vocab.recursion import Plus as PlusDef
+    from vocab.tm import TMConfig, TMHalts
+
+    f = formalize(add_machine())
+    delta, q0, qH = f['delta'], f['q0'], f['qH']
+
+    a, b, c = Var(postfix='a'), Var(postfix='b'), Var(postfix='c')
+    tape_in = Var(postfix='tin')
+    c0 = Var(postfix='c0')
+    zero_var = Var(postfix='z')
+    n = Var(postfix='n')
+
+    body = Implies(f['delta_char'],
+        Implies(Num(q0, f['q0_num']),
+        Implies(Num(qH, f['qH_num']),
+        Implies(Num(zero_var, 0),
+        Implies(UnaryTape(tape_in, a, b),
+        Implies(TMConfig(c0, q0, zero_var, tape_in),
+        Implies(PlusDef(a, b, c),
+            Exists(n, TMHalts(delta, c0, qH, n)))))))))
+
+    goal = body
+    for v in [c, b, a, c0, zero_var, tape_in, qH, q0, delta]:
+        goal = Forall(v, goal)
+
+    return goal
+
+
+class UnaryTape:
+    """UnaryTape(tape, a, b): tape encodes 1^a 0 1^b.
+    - i < a: tape(i) = 1
+    - i = a: tape(i) = 0
+    - j < b: tape(a+1+j) = 1
+    Uses Plus to express a+1+j. Uses In(i, a) for i < a (ordinal membership)."""
+    __match_args__ = ('tape', 'left', 'right')
+    def __init__(self, tape, a, b):
+        self.tape = tape; self.left = a; self.right = b
+    def expand(self):
+        from core.lang import Var, In, Implies, Forall
+        from core.derived import And
+        from vocab.ordpair import Successor
+        from vocab.functions import Apply
+        from vocab.omega import Num
+        from vocab.recursion import Plus
+        i, one, zero, sa, j, pos = Var(), Var(), Var(), Var(), Var(), Var()
+        low = Forall(i, Implies(In(i, self.left),
+            Forall(one, Implies(Num(one, 1), Apply(self.tape, i, one)))))
+        sep = Forall(zero, Implies(Num(zero, 0), Apply(self.tape, self.left, zero)))
+        high = Forall(j, Implies(In(j, self.right),
+            Forall(sa, Implies(Successor(sa, self.left),
+                Forall(pos, Implies(Plus(sa, j, pos),
+                    Forall(one, Implies(Num(one, 1),
+                        Apply(self.tape, pos, one)))))))))
+        return And(low, And(sep, high))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return UnaryTape(r(self.tape), r(self.left), r(self.right))
+    def __str__(self):
+        return f'Tape(1^{self.left} 0 1^{self.right})'
+
+
+class UnaryOutput:
+    """UnaryOutput(tape, c): tape starts with 1^c then 0.
+    - i < c: tape(i) = 1
+    - tape(c) = 0"""
+    __match_args__ = ('tape', 'count')
+    def __init__(self, tape, c):
+        self.tape = tape; self.count = c
+    def expand(self):
+        from core.lang import Var, In, Implies, Forall
+        from core.derived import And
+        from vocab.functions import Apply
+        from vocab.omega import Num
+        i, one, zero = Var(), Var(), Var()
+        ones = Forall(i, Implies(In(i, self.count),
+            Forall(one, Implies(Num(one, 1), Apply(self.tape, i, one)))))
+        end = Forall(zero, Implies(Num(zero, 0), Apply(self.tape, self.count, zero)))
+        return And(ones, end)
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return UnaryOutput(r(self.tape), r(self.count))
+    def __str__(self):
+        return f'Tape(1^{self.count})'
 
 
 def encode(a, b):
