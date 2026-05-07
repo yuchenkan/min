@@ -502,3 +502,67 @@ def tape_read_sep():
 
     proof.name = 'tape_read_sep'
     return proof
+
+
+def tape_read_high():
+    """Read from second group: UnaryTape + In(j,b) + Successor(sa,a) + Plus(sa,j,pos) + Num(one,1)
+       -> Apply(tape,pos,one).
+    |- forall tape, a, b, j, sa, pos, one.
+         UnaryTape(tape,a,b) -> In(j,b) -> Successor(sa,a) -> Plus(sa,j,pos) ->
+         Num(one,1) -> Apply(tape,pos,one)"""
+    from tactics import apply_thm, mp, ax
+    from theorems.logic import and_elim_right
+    from tm import UnaryTape
+    from vocab.recursion import Plus as PlusDef
+
+    tape, a, b, j, sa, pos, one = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    ut = UnaryTape(tape, a, b)
+    in_j_b = In(j, b)
+    succ_sa = Successor(sa, a)
+    plus_pos = PlusDef(sa, j, pos)
+    num_one = Num(one, 1)
+    app = Apply(tape, pos, one)
+
+    exp = ut.expand()
+    low_f = exp.left
+    rest_f = exp.right   # And(sep_f, high_f)
+    sep_f = rest_f.left
+    high_f = rest_f.right
+
+    # Extract rest then high
+    aer1 = and_elim_right(low_f, rest_f, [])
+    got_rest = apply_thm(aer1, [], ut, rest_f, ax(ut))
+
+    aer2 = and_elim_right(sep_f, high_f, [])
+    got_high = apply_thm(aer2, [], rest_f, high_f, got_rest)
+    # [ut] |- high_f = Forall(j', In(j',b) -> Forall(sa', Succ(sa',a) -> ...))
+
+    # Instantiate: j, then In(j,b), then sa, then Succ(sa,a), then pos, then Plus, then one, then Num
+    got = apply_thm(got_high, [j], in_j_b,
+        Forall(sa, Implies(succ_sa, Forall(pos, Implies(plus_pos,
+            Forall(one, Implies(num_one, app)))))),
+        ax(in_j_b))
+    got = apply_thm(got, [sa], succ_sa,
+        Forall(pos, Implies(plus_pos, Forall(one, Implies(num_one, app)))),
+        ax(succ_sa))
+    got = apply_thm(got, [pos], plus_pos,
+        Forall(one, Implies(num_one, app)),
+        ax(plus_pos))
+    got = apply_thm(got, [one], num_one, app, ax(num_one))
+    # [ut, In(j,b), Succ(sa,a), Plus(sa,j,pos), Num(one,1)] |- Apply(tape,pos,one)
+
+    # Close
+    for premise in [num_one, plus_pos, succ_sa, in_j_b, ut]:
+        imp = Implies(premise, got.sequent.right[0])
+        left = [f for f in got.sequent.left if not same(f, premise)]
+        got = Proof(Sequent(left, [imp]), 'implies_right', [got], principal=imp)
+
+    proof = got
+    for v in [one, pos, sa, j, b, a, tape]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_read_high'
+    return proof
