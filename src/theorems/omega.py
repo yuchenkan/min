@@ -237,7 +237,14 @@ def infinity_gives_inductive():
     nl = Proof(Sequent(gi4.sequent.left + [Not(ind_b)], []), 'not_left', [gi4], principal=Not(ind_b))
     fl = Proof(Sequent(gi4.sequent.left + [Forall(b, Not(ind_b))], []), 'forall_left', [nl], principal=Forall(b, Not(ind_b)), term=b)
     gex = Proof(Sequent(gi4.sequent.left, [ex_ind]), 'not_right', [fl], principal=ex_ind)
-    gfex = eel(gex, inf_and, b)
+    # Inline eel(gex, inf_and, b) but place inf_ax (Infinity() object) on the left
+    # instead of Exists(b, inf_and) so that is_axiom recognizes it.
+    ctx = [f for f in gex.sequent.left if not same(f, inf_and)]
+    D = gex.sequent.right[0]
+    p1 = Proof(Sequent(ctx, [Not(inf_and), D]), 'not_right', [gex], principal=Not(inf_and))
+    p2 = Proof(Sequent(ctx, [Forall(b, Not(inf_and)), D]),
+               'forall_right', [p1], principal=Forall(b, Not(inf_and)), term=b)
+    gfex = Proof(Sequent(ctx + [inf_ax], [D]), 'not_left', [p2], principal=inf_ax)
     gfex.name = 'infinity_gives_inductive'
     return gfex
 
