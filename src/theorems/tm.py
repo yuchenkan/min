@@ -566,3 +566,132 @@ def tape_read_high():
 
     proof.name = 'tape_read_high'
     return proof
+
+
+def tape_update_at():
+    """Read at written position: TapeUpdate(tape',tape,h,w) + Eq(x,h) + Eq(y,w) -> Apply(tape',x,y).
+    |- forall tape', tape, h, w, x, y.
+         TapeUpdate(tape',tape,h,w) -> Eq(x,h) -> Eq(y,w) -> Apply(tape',x,y)
+
+    TapeUpdate's Iff instantiated with x,y, forward direction, left disjunct of Or."""
+    from tactics import apply_thm, mp, ax, fl, wl
+    from theorems.logic import iff_mp_rev, or_intro_left, and_intro
+
+    tapen, tape, h, w, x, y = Var(), Var(), Var(), Var(), Var(), Var()
+    tu = TapeUpdate(tapen, tape, h, w)
+    eq_xh = Eq(x, h)
+    eq_yw = Eq(y, w)
+    app_new = Apply(tapen, x, y)
+    app_old = Apply(tape, x, y)
+    not_eq = Not(Eq(x, h))
+
+    # TapeUpdate = Forall(x', Forall(y', Iff(Apply(tape',x',y'),
+    #   Or(And(Eq(x',h), Eq(y',w)), And(Apply(tape,x',y'), Not(Eq(x',h)))))))
+    # Instantiate x'=x, y'=y, get Iff, take reverse direction (Or → Apply),
+    # then prove the Or via left disjunct And(Eq(x,h), Eq(y,w)).
+
+    left_and = And(eq_xh, eq_yw)
+    right_and = And(app_old, not_eq)
+    or_form = Or(left_and, right_and)
+    iff_form = Iff(app_new, or_form)
+
+    # Step 1: [tu] |- Iff(Apply(tape',x,y), Or(...))
+    # Instantiate tu's two foralls with x and y
+    got_iff = apply_thm(ax(tu), [x, y], concl=iff_form)
+
+    # Step 2: Iff reverse: Or(...) -> Apply(tape',x,y)
+    iff_rev = iff_mp_rev(app_new, or_form, [])
+    got_imp = apply_thm(iff_rev, [], iff_form,
+        Implies(or_form, app_new), got_iff)
+
+    # Step 3: Build Or(And(Eq(x,h),Eq(y,w)), And(...)) from And(Eq(x,h),Eq(y,w))
+    # and_intro: Eq(x,h) -> Eq(y,w) -> And(Eq(x,h), Eq(y,w))
+    ai = and_intro(eq_xh, eq_yw, [])
+    got_and = apply_thm(ai, [], eq_xh, Implies(eq_yw, left_and), ax(eq_xh))
+    got_and = mp(got_and, ax(eq_yw), eq_yw, left_and)
+    # [Eq(x,h), Eq(y,w)] |- And(Eq(x,h), Eq(y,w))
+
+    # or_intro_left: And(Eq(x,h),Eq(y,w)) -> Or(And(...), And(...))
+    oil = or_intro_left(left_and, right_and, [])
+    got_or = apply_thm(oil, [], left_and, or_form, got_and)
+    # [Eq(x,h), Eq(y,w)] |- Or(...)
+
+    # Step 4: mp: Or(...) -> Apply(tape',x,y) with Or(...)
+    got_app = mp(got_imp, got_or, or_form, app_new)
+    # [tu, Eq(x,h), Eq(y,w)] |- Apply(tape',x,y)
+
+    # Close
+    for premise in [eq_yw, eq_xh, tu]:
+        imp = Implies(premise, got_app.sequent.right[0])
+        left = [f for f in got_app.sequent.left if not same(f, premise)]
+        got_app = Proof(Sequent(left, [imp]), 'implies_right', [got_app], principal=imp)
+
+    proof = got_app
+    for v in [y, x, w, h, tape, tapen]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_update_at'
+    return proof
+
+
+def tape_update_other():
+    """Read at other position: TapeUpdate(tape',tape,h,w) + Apply(tape,x,y) + Not(Eq(x,h))
+       -> Apply(tape',x,y).
+    |- forall tape', tape, h, w, x, y.
+         TapeUpdate(tape',tape,h,w) -> Apply(tape,x,y) -> Not(Eq(x,h)) -> Apply(tape',x,y)
+
+    TapeUpdate's Iff instantiated, forward direction, right disjunct of Or."""
+    from tactics import apply_thm, mp, ax, wl
+    from theorems.logic import iff_mp_rev, or_intro_right, and_intro
+
+    tapen, tape, h, w, x, y = Var(), Var(), Var(), Var(), Var(), Var()
+    tu = TapeUpdate(tapen, tape, h, w)
+    eq_xh = Eq(x, h)
+    eq_yw = Eq(y, w)
+    app_new = Apply(tapen, x, y)
+    app_old = Apply(tape, x, y)
+    not_eq = Not(Eq(x, h))
+
+    left_and = And(eq_xh, eq_yw)
+    right_and = And(app_old, not_eq)
+    or_form = Or(left_and, right_and)
+    iff_form = Iff(app_new, or_form)
+
+    # [tu] |- Iff(...)
+    got_iff = apply_thm(ax(tu), [x, y], concl=iff_form)
+
+    # Iff reverse: Or -> Apply(tape',x,y)
+    iff_rev = iff_mp_rev(app_new, or_form, [])
+    got_imp = apply_thm(iff_rev, [], iff_form,
+        Implies(or_form, app_new), got_iff)
+
+    # Build And(Apply(tape,x,y), Not(Eq(x,h)))
+    ai = and_intro(app_old, not_eq, [])
+    got_and = apply_thm(ai, [], app_old, Implies(not_eq, right_and), ax(app_old))
+    got_and = mp(got_and, ax(not_eq), not_eq, right_and)
+
+    # or_intro_right: right_and -> Or(left_and, right_and)
+    oir = or_intro_right(left_and, right_and, [])
+    got_or = apply_thm(oir, [], right_and, or_form, got_and)
+
+    # mp
+    got_app = mp(got_imp, got_or, or_form, app_new)
+
+    # Close
+    for premise in [not_eq, app_old, tu]:
+        imp = Implies(premise, got_app.sequent.right[0])
+        left = [f for f in got_app.sequent.left if not same(f, premise)]
+        got_app = Proof(Sequent(left, [imp]), 'implies_right', [got_app], principal=imp)
+
+    proof = got_app
+    for v in [y, x, w, h, tape, tapen]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_update_other'
+    return proof
