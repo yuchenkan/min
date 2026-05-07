@@ -3272,3 +3272,115 @@ def omega_unique():
 
     proof.name = 'omega_unique'
     return proof
+
+
+def ordpair_set_transfer():
+    """Transfer OrdPair across Eq on the set argument.
+    |- forall s1, s2, a, b. Eq(s1,s2) -> OrdPair(s2,a,b) -> OrdPair(s1,a,b)
+
+    OrdPair(s,a,b) = Forall(sa, Sing(sa,a) -> Forall(pab, PS(pab,a,b) -> PS(s,sa,pab)))
+    The only occurrence of s is in PS(s,sa,pab) = Forall(x, Iff(In(x,s), Or(Eq(x,sa),Eq(x,pab)))).
+    From Eq(s1,s2), eq_transfer gives Iff(In(x,s1), In(x,s2)), which transfers PS."""
+    from core.lang import Var, In, Not, Implies, Forall
+    from core.derived import Exists, And, Or, Iff, Eq
+    from core.proof import Proof, Sequent, same
+    from vocab.ordpair import OrdPair
+    from vocab.sets import Singleton, PairSet
+    from tactics import apply_thm, mp, ax, fl, wl, wr, weaken_to
+
+    s1, s2, a, b = Var(postfix='s1'), Var(postfix='s2'), Var(postfix='a'), Var(postfix='b')
+    eq_s = Eq(s1, s2)
+    op2 = OrdPair(s2, a, b)
+    op1 = OrdPair(s1, a, b)
+
+    sa = Var(postfix='sa')
+    pab = Var(postfix='pab')
+    xv = Var(postfix='x')
+
+    sing_sa = Singleton(sa, a)
+    ps_pab = PairSet(pab, a, b)
+    ps_s2 = PairSet(s2, sa, pab)
+    ps_s1 = PairSet(s1, sa, pab)
+
+    # From OrdPair(s2,a,b), instantiate with sa, pab:
+    # [op2, Sing(sa,a), PS(pab,a,b)] |- PS(s2,sa,pab)
+    got_ps_s2 = apply_thm(ax(op2), [sa], sing_sa,
+        Forall(pab, Implies(ps_pab, ps_s2)), ax(sing_sa))
+    got_ps_s2 = apply_thm(got_ps_s2, [pab], ps_pab, ps_s2, ax(ps_pab))
+
+    # PS(s2,sa,pab) = Forall(x, Iff(In(x,s2), Or(Eq(x,sa),Eq(x,pab))))
+    # Instantiate with xv:
+    in_x_s2 = In(xv, s2)
+    in_x_s1 = In(xv, s1)
+    or_eq = Or(Eq(xv, sa), Eq(xv, pab))
+    iff_s2 = Iff(in_x_s2, or_eq)
+    got_iff_s2 = apply_thm(got_ps_s2, [xv], concl=iff_s2)
+
+    # eq_transfer: Eq(s1,s2) -> Iff(In(x,s1), In(x,s2))
+    et = eq_transfer()
+    iff_in = Iff(in_x_s1, in_x_s2)
+    got_iff_in = apply_thm(et, [s1, s2, xv], eq_s, iff_in, ax(eq_s))
+
+    # iff_sym: Iff(In(x,s1), In(x,s2)) -> Iff(In(x,s2), In(x,s1))
+    from theorems.logic import iff_sym, iff_chain
+    iff_in_rev = Iff(in_x_s2, in_x_s1)
+    got_iff_in_rev = apply_thm(iff_sym(in_x_s1, in_x_s2, []), [],
+        iff_in, iff_in_rev, got_iff_in)
+
+    # iff_chain: Iff(In(x,s2), In(x,s1)) + Iff(In(x,s2), Or(...)) gives nothing useful.
+    # We need: Iff(In(x,s1), Or(Eq(x,sa), Eq(x,pab)))
+    # From: Iff(In(x,s1), In(x,s2)) [got_iff_in]
+    #   and Iff(In(x,s2), Or(...)) [got_iff_s2]
+    # iff_chain(A,B,C): Iff(A,B) -> Iff(B,C) -> Iff(A,C)
+    # With A=In(x,s1), B=In(x,s2), C=Or(...):
+    iff_target = Iff(in_x_s1, or_eq)
+    got_iff_target = apply_thm(iff_chain(in_x_s1, in_x_s2, or_eq, []), [],
+        iff_in, Implies(iff_s2, iff_target), got_iff_in)
+    got_iff_target = mp(got_iff_target, got_iff_s2, iff_s2, iff_target)
+    # ctx |- Iff(In(x,s1), Or(Eq(x,sa), Eq(x,pab)))
+
+    # forall_right on xv -> PS(s1,sa,pab)
+    ctx = list(got_iff_target.sequent.left)
+    fa_iff = Forall(xv, iff_target)
+    got_ps_s1 = Proof(Sequent(ctx, [fa_iff]), 'forall_right',
+        [got_iff_target], principal=fa_iff, term=xv)
+
+    # Rebuild OrdPair(s1,a,b):
+    # Forall(sa, Sing(sa,a) -> Forall(pab, PS(pab,a,b) -> PS(s1,sa,pab)))
+    imp_ps = Implies(ps_pab, ps_s1)
+    left_no_ps = [f for f in got_ps_s1.sequent.left if not same(f, ps_pab)]
+    p1 = Proof(Sequent(left_no_ps, [imp_ps]), 'implies_right',
+        [got_ps_s1], principal=imp_ps)
+    fa_pab = Forall(pab, imp_ps)
+    p2 = Proof(Sequent(left_no_ps, [fa_pab]), 'forall_right',
+        [p1], principal=fa_pab, term=pab)
+    imp_sing = Implies(sing_sa, fa_pab)
+    left_no_sing = [f for f in p2.sequent.left if not same(f, sing_sa)]
+    p3 = Proof(Sequent(left_no_sing, [imp_sing]), 'implies_right',
+        [p2], principal=imp_sing)
+    fa_sa = Forall(sa, imp_sing)
+    p4 = Proof(Sequent(left_no_sing, [fa_sa]), 'forall_right',
+        [p3], principal=fa_sa, term=sa)
+    # ctx' |- Forall(sa, ...) which is OrdPair(s1,a,b) expanded
+
+    # Replace expanded form with OrdPair(s1,a,b) on the right via cut
+    p4 = Proof(Sequent(left_no_sing, [op1]), 'cut',
+        [wr(p4, op1),
+         Proof(Sequent(left_no_sing + [op1], [op1]), 'axiom', principal=op1)],
+        principal=fa_sa)
+
+    # Close: implies_right for op2, eq_s, then forall_right
+    for premise in [op2, eq_s]:
+        imp = Implies(premise, p4.sequent.right[0])
+        left = [f for f in p4.sequent.left if not same(f, premise)]
+        p4 = Proof(Sequent(left, [imp]), 'implies_right', [p4], principal=imp)
+
+    proof = p4
+    for v in [b, a, s2, s1]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'ordpair_set_transfer'
+    return proof
