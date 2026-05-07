@@ -305,3 +305,200 @@ def step_elim():
 
     p.name = 'step_elim'
     return p
+
+
+def tape_read_low():
+    """Read from first group: UnaryTape + In(i,a) + Num(one,1) -> Apply(tape,i,one).
+    |- forall tape, a, b, i, one.
+         UnaryTape(tape,a,b) -> In(i,a) -> Num(one,1) -> Apply(tape,i,one)
+
+    UnaryTape's first conjunct: forall i. In(i,a) -> forall one. Num(one,1) -> Apply(tape,i,one)"""
+    from tactics import apply_thm, mp, ax, fl
+    from theorems.logic import and_elim_left
+    from tm import UnaryTape
+
+    tape, a, b, i, one = Var(), Var(), Var(), Var(), Var()
+    ut = UnaryTape(tape, a, b)
+    in_i_a = In(i, a)
+    num_one = Num(one, 1)
+    app = Apply(tape, i, one)
+
+    # UnaryTape = And(low, And(sep, high))
+    # low = forall i. In(i,a) -> forall one. Num(one,1) -> Apply(tape,i,one)
+    low = Forall(i, Implies(in_i_a, Forall(one, Implies(num_one, app))))
+
+    sep_and_high = And(
+        Forall(Var(), Implies(Num(Var(), 0), Apply(tape, a, Var()))),  # dummy - just need the type
+        Forall(Var(), Implies(In(Var(), b), Forall(Var(), Implies(Successor(Var(), a),
+            Forall(Var(), Implies(Var(), Forall(Var(), Implies(Num(Var(), 1), Apply(tape, Var(), Var()))))))))))
+
+    # Simpler: just extract the first conjunct from UnaryTape via and_elim
+    # But and_elim_left needs the exact formulas. Let me expand UnaryTape and work from there.
+
+    # Actually, UnaryTape.expand() gives And(low, And(sep, high)) with specific Vars.
+    # Those Vars are different from ours. Use fl to instantiate.
+
+    # Better approach: ut is on the left. Expand it, extract low, instantiate.
+    # [ut] |- low via cut with expanded form.
+    # Then fl on low with i, then mp with In(i,a), then fl with one, then mp with Num(one,1).
+
+    # Step 1: [ut] |- low
+    # ut expands to And(low', And(sep', high')) with fresh vars.
+    # We need to extract low' then show it matches our low.
+    # This is complex. Let me use a direct approach.
+
+    # Direct: ut is a definition. Its first conjunct IS low (with the ut's own vars).
+    # After fl: [ut] |- In(i,a) -> Forall(one, Implies(Num(one,1), Apply(tape,i,one)))
+    # This requires expanding ut first.
+
+    # Use apply_thm with and_elim_left to extract the first conjunct.
+    # and_elim_left(A, B, []) proves And(A,B) -> A.
+    # But we need the exact A and B from ut.expand().
+
+    ut_exp = ut.expand()  # And(low_actual, And(sep_actual, high_actual))
+    # low_actual uses fresh Vars from expand(). Not our i, one.
+    # Extract it:
+    low_actual = ut_exp.left if hasattr(ut_exp, 'left') else None
+
+    # Hmm, And doesn't have .left/.right — it has __match_args__ = ('left', 'right')
+    # Actually And is Not(Implies(A, Not(B))). expand() gives the Not(Implies(...)).
+    # We need to work with the unexpanded And.
+
+    # Let me just build it as: [ut, In(i,a), Num(one,1)] |- Apply(tape,i,one)
+    # by expanding ut, extracting low, instantiating, and applying.
+
+    # The cleanest way: prove it as a tautology.
+    # [ut] |- ut (axiom), then cut with expansion, extract, instantiate.
+
+    # Actually, this is what apply_thm does for definitions with forall structure.
+    # But ut expands to And(...) not Forall(...). Need and_elim first.
+
+    # Let me try: prove and_elim_left on ut's expansion to get low_actual,
+    # then fl twice + mp twice.
+
+    ael = and_elim_left(Forall(i, Implies(in_i_a, Forall(one, Implies(num_one, app)))),
+                        And(Forall(Var(), Implies(Num(Var(), 0), Apply(tape, a, Var()))),
+                            Var()),  # dummy second conjunct
+                        [])
+    # This won't work — and_elim_left needs exact formula match.
+
+    # Simplest approach: just use fl directly on ut since the engine
+    # expands definitions during rule checking.
+    # [ut] |- Implies(In(i,a), Forall(one, Implies(Num(one,1), Apply(tape,i,one))))
+    # via forall_left on ut with term=i
+
+    # But ut is And(...), not Forall. Can't fl on it directly.
+    # Need to first get the Forall conjunct out.
+
+    # I think the right tool is: prove a helper that extracts from And.
+    # Or: work at the expanded level.
+
+    # Let me just do it manually with cut.
+    # ut expands to And(low, rest) = Not(Implies(low, Not(rest)))
+    # And-elim-left in sequent calculus:
+    # [And(A,B)] |- A
+    # Proof: And(A,B) = Not(Implies(A, Not(B)))
+    # [Not(Implies(A, Not(B)))] |- A
+    # not_left: premise [empty] |- Implies(A, Not(B)), A
+    #   implies_right: premise [A] |- Not(B), A  -- weakening_right
+    #     not_right: premise [A, B] |- A  -- axiom + weaken
+    # Actually this is what and_elim_left proves. Let me just use it properly.
+
+    # The issue: I need to know the exact expansion of UnaryTape to pass
+    # the right A and B to and_elim_left.
+    # Let me compute them.
+
+    # UnaryTape(tape,a,b).expand() builds And(low, And(sep, high)) with FRESH vars.
+    # Each call creates new Vars. So I can't predict them.
+    # But I can call expand() and destructure.
+
+    # And expands to Not(Implies(A, Not(B))). The formula objects have:
+    # And.left and And.right (from __match_args__)
+    from core.derived import And as AndCls
+    exp = ut.expand()
+    # exp is And(low_f, And(sep_f, high_f))
+    low_f = exp.left    # the forall-i clause
+    rest_f = exp.right   # And(sep_f, high_f)
+
+    # and_elim_left(low_f, rest_f, []) proves:
+    # |- And(low_f, rest_f) -> low_f
+    ael = and_elim_left(low_f, rest_f, [])
+    # apply_thm to get [ut] |- low_f
+    got_low = apply_thm(ael, [], ut, low_f, ax(ut))
+    # [ut] |- low_f
+
+    # Now low_f = Forall(fresh_i, Implies(In(fresh_i, a), Forall(fresh_one, ...)))
+    # Instantiate with our i:
+    inner_after_i = Forall(one, Implies(num_one, app))
+    got_imp = apply_thm(got_low, [i], in_i_a, inner_after_i, ax(in_i_a))
+    # [ut, In(i,a)] |- Forall(one, Implies(Num(one,1), Apply(tape,i,one)))
+
+    got_app = apply_thm(got_imp, [one], num_one, app, ax(num_one))
+    # [ut, In(i,a), Num(one,1)] |- Apply(tape,i,one)
+
+    # Close with implies_right + forall_right
+    for premise in [num_one, in_i_a, ut]:
+        imp = Implies(premise, got_app.sequent.right[0])
+        left = [f for f in got_app.sequent.left if not same(f, premise)]
+        got_app = Proof(Sequent(left, [imp]), 'implies_right', [got_app], principal=imp)
+
+    proof = got_app
+    for v in [one, i, b, a, tape]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_read_low'
+    return proof
+
+
+def tape_read_sep():
+    """Read separator: UnaryTape + Num(zero,0) -> Apply(tape,a,zero).
+    |- forall tape, a, b, zero.
+         UnaryTape(tape,a,b) -> Num(zero,0) -> Apply(tape,a,zero)"""
+    from tactics import apply_thm, mp, ax
+    from theorems.logic import and_elim_left, and_elim_right
+    from tm import UnaryTape
+
+    tape, a, b, zero = Var(), Var(), Var(), Var()
+    ut = UnaryTape(tape, a, b)
+    num_zero = Num(zero, 0)
+    app = Apply(tape, a, zero)
+
+    exp = ut.expand()
+    low_f = exp.left
+    rest_f = exp.right  # And(sep_f, high_f)
+
+    # Extract rest from ut
+    aer = and_elim_right(low_f, rest_f, [])
+    got_rest = apply_thm(aer, [], ut, rest_f, ax(ut))
+    # [ut] |- And(sep_f, high_f)
+
+    sep_f = rest_f.left   # Forall(zero', Implies(Num(zero',0), Apply(tape,a,zero')))
+    high_f = rest_f.right
+
+    # Extract sep from rest
+    ael = and_elim_left(sep_f, high_f, [])
+    got_sep = apply_thm(ael, [], rest_f, sep_f, got_rest)
+    # [ut] |- sep_f = Forall(zero', ...)
+
+    # Instantiate with our zero
+    got_app = apply_thm(got_sep, [zero], num_zero, app, ax(num_zero))
+    # [ut, Num(zero,0)] |- Apply(tape,a,zero)
+
+    # Close
+    for premise in [num_zero, ut]:
+        imp = Implies(premise, got_app.sequent.right[0])
+        left = [f for f in got_app.sequent.left if not same(f, premise)]
+        got_app = Proof(Sequent(left, [imp]), 'implies_right', [got_app], principal=imp)
+
+    proof = got_app
+    for v in [zero, b, a, tape]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_read_sep'
+    return proof
