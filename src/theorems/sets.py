@@ -3386,6 +3386,207 @@ def ordpair_set_transfer():
     return proof
 
 
+def unique_singleton():
+    """Pairing |- forall a. ExistsUnique(s, Singleton(s,a))"""
+    from tactics import apply_thm, mp, ax, eir, eel
+    from theorems.logic import and_intro
+    from vocab import ExistsUnique
+    from vocab.sets import Singleton as Sing
+
+    a, s, s2 = Var(), Var(), Var()
+    body = Sing(s, a)
+    body2 = Sing(s2, a)
+    eq_ss2 = Eq(s, s2)
+
+    # Existence: singleton_exists gives ∀a. ∃s. Singleton(s,a)
+    se = singleton_exists()
+    got_ex = apply_thm(se, [a], concl=Exists(s, body))
+
+    # Uniqueness: ordpair_unique pattern — from Singleton(s,a) + Singleton(s2,a), derive Eq(s,s2)
+    # Two singletons of same element are extensionally equal (same members)
+    # Use Extensionality... actually let's use the existing approach:
+    # Singleton(s,a): ∀d. d∈s ↔ d=a.  Singleton(s2,a): ∀d. d∈s2 ↔ d=a.
+    # By Extensionality: (∀d. d∈s ↔ d∈s2) → Eq(s,s2)
+    # ∀d. d∈s ↔ d=a ↔ d∈s2.  So d∈s ↔ d∈s2.
+    # This requires iff_chain + extensionality. For simplicity, use eq_transfer pattern.
+
+    # Actually, simpler: use the existing ordpair_unique proof pattern.
+    # singleton_eq proves: Singleton(s,a) → Singleton(s,b) → Eq(a,b)
+    # But I need: Singleton(s,a) → Singleton(s2,a) → Eq(s,s2)
+    # These are different! singleton_eq proves the CONTENT is unique, not the SET.
+
+    # For set uniqueness: need Extensionality.
+    # Ext: ∀s,s2. (∀d. d∈s ↔ d∈s2) → Eq(s,s2)
+    # From Singleton(s,a) and Singleton(s2,a): ∀d. (d∈s ↔ d=a) and (d∈s2 ↔ d=a)
+    # Hence d∈s ↔ d=a ↔ d∈s2, so d∈s ↔ d∈s2. By Ext: Eq(s,s2).
+
+    from theorems.logic import iff_chain, eq_substitution, iff_mp, iff_mp_rev, iff_sym
+    import core.zfc as zfc
+
+    d = Var()
+    iff_s = Iff(In(d, s), Eq(d, a))
+    iff_s2 = Iff(In(d, s2), Eq(d, a))
+
+    from tactics import fl, wl, cut
+    # From Singleton(s,a): fl → Iff(In(d,s), Eq(d,a))
+    got_iff_s = fl(body, iff_s, d)
+    got_iff_s2 = fl(body2, iff_s2, d)
+
+    # iff_sym on iff_s2: Iff(Eq(d,a), In(d,s2))
+    iff_s2_rev = Iff(Eq(d, a), In(d, s2))
+    got_s2_rev = apply_thm(iff_sym(In(d, s2), Eq(d, a), []), [], iff_s2, iff_s2_rev, got_iff_s2)
+
+    # iff_chain: Iff(In(d,s), Eq(d,a)) → Iff(Eq(d,a), In(d,s2)) → Iff(In(d,s), In(d,s2))
+    iff_ss2 = Iff(In(d, s), In(d, s2))
+    ic = iff_chain(In(d, s), Eq(d, a), In(d, s2), [])
+    got_iff_ss2 = mp(apply_thm(ic, [], iff_s, Implies(iff_s2_rev, iff_ss2), got_iff_s),
+        got_s2_rev, iff_s2_rev, iff_ss2)
+    # [body, body2] |- Iff(In(d,s), In(d,s2))
+
+    # Close ∀d, then use eq_transfer to get Eq(s,s2)
+    # ∀d. Iff(In(d,s), In(d,s2)) IS Eq(s,s2) after expansion (same() is True)
+    fa_iff = Forall(d, iff_ss2)
+    got_eq = Proof(Sequent(got_iff_ss2.sequent.left, [fa_iff]),
+        'forall_right', [got_iff_ss2], principal=fa_iff, term=d)
+    # [body, body2] |- Eq(s, s2)  (= ∀d. Iff(In(d,s), In(d,s2)))
+
+    # Build uniqueness: body2 → Eq(s, s2)
+    imp_uniq = Implies(body2, eq_ss2)
+    left_u = [f for f in got_eq.sequent.left if not same(f, body2)]
+    got_uniq = Proof(Sequent(left_u, [imp_uniq]), 'implies_right', [got_eq], principal=imp_uniq)
+    fa_uniq = Forall(s2, imp_uniq)
+    got_uniq = Proof(Sequent(got_uniq.sequent.left, [fa_uniq]),
+        'forall_right', [got_uniq], principal=fa_uniq, term=s2)
+    # [body, Ext] |- ∀s2. Singleton(s2,a) → Eq(s,s2)
+
+    # And-intro: body ∧ ∀s2. body2→Eq(s,s2)
+    and_eu = And(body, fa_uniq)
+    got_and = mp(apply_thm(and_intro(body, fa_uniq, []), [], body,
+        Implies(fa_uniq, and_eu), ax(body)), got_uniq, fa_uniq, and_eu)
+    # [body, Ext] |- And(body, ∀s2. body2→Eq(s,s2))
+
+    # Exists intro → ExistsUnique
+    got_eu = eir(got_and, And(Sing(s, a), Forall(s2, Implies(Sing(s2, a), Eq(s, s2)))), s, s)
+
+    # Eliminate ∃s from singleton_exists
+    got_eu = eel(got_eu, body, s)
+    got_eu = cut(got_eu, got_eu.sequent.left[-1], got_ex)
+
+    # Close ∀a with ExistsUnique on right
+    from vocab import ExistsUnique
+    goal_eu = ExistsUnique(s, Sing(s, a))
+    goal = Forall(a, goal_eu)
+    proof = got_eu
+    # Relabel right to ExistsUnique (alpha-equiv to expanded Exists)
+    proof = Proof(Sequent(proof.sequent.left, [goal_eu]),
+        'weakening_right', [proof], principal=goal_eu)
+    proof = Proof(Sequent(proof.sequent.left, [goal]),
+        'forall_right', [proof], principal=goal, term=a)
+
+    proof.name = 'unique_singleton'
+    return proof
+
+
+def unique_successor_set():
+    """Pairing |- forall n. ExistsUnique(s, Successor(s,n))"""
+    from tactics import apply_thm, mp, ax, eir, eel, cut
+    from theorems.logic import and_intro
+    from vocab import ExistsUnique
+    from vocab.ordpair import Successor as Succ
+
+    n, s, s2 = Var(), Var(), Var()
+    body = Succ(s, n)
+    body2 = Succ(s2, n)
+    eq_ss2 = Eq(s, s2)
+
+    # Existence
+    se = successor_exists()
+    got_ex = apply_thm(se, [n], concl=Exists(s, body))
+
+    # Uniqueness from unique_successor: ∀n,a,b. Succ(a,n)→Succ(b,n)→Eq(a,b)
+    us = unique_successor()
+    got_uniq = apply_thm(us, [n, s, s2], body, Implies(body2, eq_ss2), ax(body))
+    # [body] |- Succ(s2,n) → Eq(s,s2)
+    fa_uniq = Forall(s2, Implies(body2, eq_ss2))
+    got_fa_uniq = Proof(Sequent(got_uniq.sequent.left, [fa_uniq]),
+        'forall_right', [got_uniq], principal=fa_uniq, term=s2)
+
+    # And-intro
+    and_eu = And(body, fa_uniq)
+    got_and = mp(apply_thm(and_intro(body, fa_uniq, []), [], body,
+        Implies(fa_uniq, and_eu), ax(body)), got_fa_uniq, fa_uniq, and_eu)
+
+    # Exists intro
+    got_eu = eir(got_and, And(Succ(s, n), Forall(s2, Implies(Succ(s2, n), Eq(s, s2)))), s, s)
+
+    # Eliminate ∃s from successor_exists
+    got_eu = eel(got_eu, body, s)
+    got_eu = cut(got_eu, got_eu.sequent.left[-1], got_ex)
+
+    # Close ∀n with ExistsUnique on right
+    from vocab import ExistsUnique
+    goal_eu = ExistsUnique(s, Succ(s, n))
+    goal = Forall(n, goal_eu)
+    proof = got_eu
+    proof = Proof(Sequent(proof.sequent.left, [goal_eu]),
+        'weakening_right', [proof], principal=goal_eu)
+    proof = Proof(Sequent(proof.sequent.left, [goal]),
+        'forall_right', [proof], principal=goal, term=n)
+
+    proof.name = 'unique_successor_set'
+    return proof
+
+
+def unique_ordpair():
+    """Pairing |- forall x, y. ExistsUnique(p, OrdPair(p,x,y))"""
+    from tactics import apply_thm, mp, ax, eir, eel, cut
+    from theorems.logic import and_intro
+    from vocab import ExistsUnique
+
+    x, y, p, p2 = Var(), Var(), Var(), Var()
+    body = OrdPair(p, x, y)
+    body2 = OrdPair(p2, x, y)
+    eq_pp2 = Eq(p, p2)
+
+    # Existence
+    oe = ordpair_exists()
+    got_ex = apply_thm(oe, [x, y], concl=Exists(p, body))
+
+    # Uniqueness from ordpair_unique: ∀a,b,t,s. OrdPair(t,a,b)→OrdPair(s,a,b)→Eq(t,s)
+    ou = ordpair_unique()
+    got_uniq = apply_thm(ou, [x, y, p, p2], body, Implies(body2, eq_pp2), ax(body))
+    fa_uniq = Forall(p2, Implies(body2, eq_pp2))
+    got_fa_uniq = Proof(Sequent(got_uniq.sequent.left, [fa_uniq]),
+        'forall_right', [got_uniq], principal=fa_uniq, term=p2)
+
+    # And-intro
+    and_eu = And(body, fa_uniq)
+    got_and = mp(apply_thm(and_intro(body, fa_uniq, []), [], body,
+        Implies(fa_uniq, and_eu), ax(body)), got_fa_uniq, fa_uniq, and_eu)
+
+    # Exists intro
+    got_eu = eir(got_and, And(OrdPair(p, x, y), Forall(p2, Implies(OrdPair(p2, x, y), Eq(p, p2)))), p, p)
+
+    # Eliminate ∃p from ordpair_exists
+    got_eu = eel(got_eu, body, p)
+    got_eu = cut(got_eu, got_eu.sequent.left[-1], got_ex)
+
+    # Close ∀x, ∀y with ExistsUnique on right
+    from vocab import ExistsUnique
+    goal_eu = ExistsUnique(p, OrdPair(p, x, y))
+    proof = got_eu
+    proof = Proof(Sequent(proof.sequent.left, [goal_eu]),
+        'weakening_right', [proof], principal=goal_eu)
+    for v in [y, x]:
+        b = proof.sequent.right[0]
+        fa = Forall(v, b)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'unique_ordpair'
+    return proof
+
+
 def subset_in_powerset():
     """If every element of s is in w, then s ∈ P(w).
     |- forall s, pw.

@@ -1070,3 +1070,48 @@ def omega_exists():
 
     got_ex_omega.name = 'omega_exists'
     return got_ex_omega
+
+
+def unique_omega():
+    """ExistsUnique(a, Omega(a)): omega exists and is unique.
+    Separation, Extensionality, Infinity |- ExistsUnique(a, Omega(a))"""
+    from tactics import apply_thm, mp, ax, eir, eel, cut
+    from theorems.logic import and_intro
+    from theorems.sets import omega_unique as ou_thm
+
+    a, a2 = Var(), Var()
+    body = Omega(a)
+    body2 = Omega(a2)
+    eq_aa2 = Eq(a, a2)
+
+    # Existence
+    got_ex = omega_exists()
+
+    # Uniqueness: omega_unique gives ∀w1,w2. Omega(w1)→Omega(w2)→∀x.Iff(In(x,w1),In(x,w2))
+    # ∀x.Iff(In(x,w1),In(x,w2)) IS Eq(w1,w2) after expansion
+    ou = ou_thm()
+    got_uniq = apply_thm(ou, [a, a2], body, Implies(body2, eq_aa2), ax(body))
+    # [body, Ext, Inf] |- Omega(a2) → Eq(a,a2)
+    fa_uniq = Forall(a2, Implies(body2, eq_aa2))
+    got_fa_uniq = Proof(Sequent(got_uniq.sequent.left, [fa_uniq]),
+        'forall_right', [got_uniq], principal=fa_uniq, term=a2)
+
+    # And-intro
+    and_eu = And(body, fa_uniq)
+    got_and = mp(apply_thm(and_intro(body, fa_uniq, []), [], body,
+        Implies(fa_uniq, and_eu), ax(body)), got_fa_uniq, fa_uniq, and_eu)
+
+    # Exists intro
+    got_eu = eir(got_and, And(Omega(a), Forall(a2, Implies(Omega(a2), Eq(a, a2)))), a, a)
+
+    # Eliminate ∃a from omega_exists
+    got_eu = eel(got_eu, body, a)
+    got_eu = cut(got_eu, got_eu.sequent.left[-1], got_ex)
+
+    # Relabel to ExistsUnique (alpha-equivalent to the expanded Exists form)
+    from vocab import ExistsUnique
+    goal = ExistsUnique(a, Omega(a))
+    proof = Proof(Sequent(got_eu.sequent.left, [goal]),
+                  'weakening_right', [got_eu], principal=goal)
+    proof.name = 'unique_omega'
+    return proof
