@@ -789,3 +789,83 @@ def config_eq():
 
     proof.name = 'config_eq'
     return proof
+
+
+def config_intro():
+    """Construct TMConfig from OrdPair witnesses.
+    Pairing |- forall c, q, h, t, inner.
+        OrdPair(inner, h, t) -> OrdPair(c, q, inner) -> TMConfig(c, q, h, t)
+
+    TMConfig(c,q,h,t) = forall inner'. OrdPair(inner',h,t) -> OrdPair(c,q,inner').
+    Proof: from OrdPair(inner,h,t) and any OrdPair(inner',h,t), by ordpair_unique
+    get Eq(inner',inner). Then ordpair_set_transfer gives OrdPair(c,q,inner')."""
+    from tactics import apply_thm, mp, ax, wl
+    from theorems.sets import ordpair_unique, ordpair_set_transfer
+    import theorems
+
+    c, q, h, t, inner, inner2 = Var(), Var(), Var(), Var(), Var(), Var()
+
+    op_inner = OrdPair(inner, h, t)
+    op_inner2 = OrdPair(inner2, h, t)
+    op_c = OrdPair(c, q, inner)
+    op_c2 = OrdPair(c, q, inner2)
+    cfg = TMConfig(c, q, h, t)  # = Forall(inner', OrdPair(inner',h,t) -> OrdPair(c,q,inner'))
+
+    # ordpair_unique: OrdPair(inner2,h,t) -> OrdPair(inner,h,t) -> Eq(inner2,inner)
+    ou = ordpair_unique()
+    eq_i2_i = Eq(inner2, inner)
+    got_eq = mp(apply_thm(ou, [h, t, inner2, inner], op_inner2,
+        Implies(op_inner, eq_i2_i), ax(op_inner2)),
+        ax(op_inner), op_inner, eq_i2_i)
+    # [op_inner2, op_inner] |- Eq(inner2, inner)
+
+    # ordpair_set_transfer: Eq(inner2,inner) -> OrdPair(c,q,inner) -> OrdPair(c,q,inner2)
+    # Wait, ordpair_set_transfer is: Eq(a,b) -> OrdPair(b,c,d) -> OrdPair(a,c,d)
+    # I need: Eq(inner2, inner) -> OrdPair(c, q, inner) -> OrdPair(c, q, inner2)
+    # That's ordpair_eq_transfer or ordpair_val_transfer... let me check
+    # ordpair_set_transfer: Eq(a,b) -> OrdPair(b,c,d) -> OrdPair(a,c,d)
+    # I need to transfer the THIRD argument, not the first.
+    # ordpair_eq_transfer: Eq(a,c) -> Eq(b,d) -> OrdPair(t,a,b) -> OrdPair(t,c,d)
+    # With a=q, c=q (Eq(q,q)), b=inner2, d=inner... no, I need OrdPair(c,q,inner2) from
+    # Eq(inner2,inner) and OrdPair(c,q,inner)
+    # That's: Eq(inner2, inner) means inner2 = inner. OrdPair(c, q, inner) + Eq(inner, inner2)?
+    # I need eq_symmetric first: Eq(inner2, inner) -> Eq(inner, inner2)
+    # Then ordpair_val_transfer: Eq(b,c) -> OrdPair(t,a,b) -> OrdPair(t,a,c)
+    # gives: Eq(inner, inner2) -> OrdPair(c,q,inner) -> OrdPair(c,q,inner2) ✓
+    from theorems.logic import eq_symmetric
+    ost = theorems.ordpair_val_transfer()
+    eq_sym = eq_symmetric()
+    eq_i_i2 = Eq(inner, inner2)
+
+    got_eq_rev = apply_thm(eq_sym, [inner2, inner], eq_i2_i, eq_i_i2, got_eq)
+    # [op_inner2, op_inner] |- Eq(inner, inner2)
+
+    got_op_c2 = mp(apply_thm(ost, [c, q, inner, inner2], eq_i_i2,
+        Implies(op_c, op_c2), got_eq_rev), ax(op_c), op_c, op_c2)
+    # [op_inner2, op_inner, op_c] |- OrdPair(c, q, inner2)
+
+    # Close: implies_right for op_inner2, then forall_right for inner2 → gives TMConfig body
+    imp = Implies(op_inner2, op_c2)
+    left = [f for f in got_op_c2.sequent.left if not same(f, op_inner2)]
+    p = Proof(Sequent(left, [imp]), 'implies_right', [got_op_c2], principal=imp)
+    # [op_inner, op_c] |- Implies(OrdPair(inner2,h,t), OrdPair(c,q,inner2))
+
+    fa = Forall(inner2, imp)
+    p = Proof(Sequent(p.sequent.left, [fa]), 'forall_right', [p], principal=fa, term=inner2)
+    # [op_inner, op_c] |- Forall(inner2, OrdPair(inner2,h,t) -> OrdPair(c,q,inner2)) = TMConfig
+
+    # Close outer implications and foralls
+    for premise in [op_c, op_inner]:
+        imp_outer = Implies(premise, p.sequent.right[0])
+        left = [f for f in p.sequent.left if not same(f, premise)]
+        p = Proof(Sequent(left, [imp_outer]), 'implies_right', [p], principal=imp_outer)
+
+    proof = p
+    for v in [inner, t, h, q, c]:
+        body = proof.sequent.right[0]
+        fa_v = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa_v]), 'forall_right',
+            [proof], principal=fa_v, term=v)
+
+    proof.name = 'config_intro'
+    return proof

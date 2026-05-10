@@ -167,19 +167,29 @@ class TMRun:
 
 class TMHalts:
     """TMHalts(delta, c0, qhalt, n): TM halts in n steps from c0.
-    Forall run. TMRun(run, delta, c0, n) ->
-        Forall cf. Apply(run, n, cf) ->
-            Forall hf. Forall tf.
-                TMConfig(cf, qhalt, hf, tf)."""
+    Exists trace. And(
+      Forall zero. Empty(zero) -> Apply(trace, zero, c0),          -- base
+      And(
+        Forall k. In(k,n) -> Forall sk. Succ(sk,k) ->             -- step
+          Forall ck. Apply(trace,k,ck) ->
+            Forall ck1. Apply(trace,sk,ck1) -> TMStep(delta,ck,ck1),
+        Exists cf. And(Apply(trace, n, cf),                        -- halted
+          Exists hf. Exists tf. TMConfig(cf, qhalt, hf, tf))))"""
     __match_args__ = ('delta', 'init', 'halt_state', 'steps')
     def __init__(self, delta, c0, qhalt, n):
         self.delta = delta; self.init = c0; self.halt_state = qhalt; self.steps = n
     def expand(self):
-        run, cf, hf, tf = Var(), Var(), Var(), Var()
-        return Forall(run, Implies(TMRun(run, self.delta, self.init, self.steps),
-            Forall(cf, Implies(Apply(run, self.steps, cf),
-                Forall(hf, Forall(tf,
-                    TMConfig(cf, self.halt_state, hf, tf)))))))
+        trace, cf, hf, tf = Var(), Var(), Var(), Var()
+        zero, k, sk, ck, ck1 = Var(), Var(), Var(), Var(), Var()
+        base = Forall(zero, Implies(Empty(zero), Apply(trace, zero, self.init)))
+        step = Forall(k, Implies(In(k, self.steps),
+            Forall(sk, Implies(Successor(sk, k),
+                Forall(ck, Implies(Apply(trace, k, ck),
+                    Forall(ck1, Implies(Apply(trace, sk, ck1),
+                        TMStep(self.delta, ck, ck1)))))))))
+        halted = Exists(cf, And(Apply(trace, self.steps, cf),
+            Exists(hf, Exists(tf, TMConfig(cf, self.halt_state, hf, tf)))))
+        return Exists(trace, And(base, And(step, halted)))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return TMHalts(r(self.delta), r(self.init), r(self.halt_state), r(self.steps))
