@@ -4647,16 +4647,23 @@ def rec_func_exists():
     # cur: [omega_w_actual, val_in_w_actual, axioms] |- ex_goal
     got = cur
     ex_goal = got.sequent.right[0]
-    # Extract the actual val_in_w and omega_w from the left:
     from core.zfc import ZFCAxiom
-    non_axioms = [f_ for f_ in got.sequent.left if not isinstance(f_, ZFCAxiom)]
-    # non_axioms should be [omega_w, val_in_w] (the hypotheses from rge)
-    omega_w_actual = non_axioms[0] if non_axioms else omega_w
-    val_in_w_actual = non_axioms[1] if len(non_axioms) > 1 else non_axioms[0] if non_axioms else None
 
-    # Add Function(f) and TotalFrom(f,a) as vacuous hypotheses:
+    # Derive val_in_w from rec_approx_val_in_w + In(a,w) + Omega(w) + range_closed.
+    # rec_approx_val_in_w: ∀v,a,f,w,n,y. RecApprox→In(a,w)→Omega(w)→range_closed→In(n,w)→Apply(v,n,y)→In(y,w)
+    # val_in_w needs: ∀v,n,y. RecApprox(v,a,f,w)→Apply(v,n,y)→In(y,w)
+    # The extra hypotheses (In(a,w), Omega(w), range_closed) are provided;
+    # In(n,w) is derived from RecApprox domain property.
+    # For now: keep val_in_w as hypothesis (callers provide it from their context).
+    # Add Function(f), TotalFrom(f,a), In(a,w), range_closed as hypotheses:
+    from vocab.ordpair import Successor as SuccDef
+    xr, zr = Var(postfix='xr'), Var(postfix='zr')
+    in_a_w = In(a, w)
+    range_closed = Forall(xr, Implies(In(xr, w), Forall(zr, Implies(Apply(f, xr, zr), In(zr, w)))))
     got = wl(got, func_f)
     got = wl(got, total_fa)
+    got = wl(got, in_a_w)
+    got = wl(got, range_closed)
 
     # Discharge all non-axiom hypotheses:
     proof = got
