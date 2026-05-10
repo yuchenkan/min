@@ -3384,3 +3384,277 @@ def ordpair_set_transfer():
 
     proof.name = 'ordpair_set_transfer'
     return proof
+
+
+def subset_in_powerset():
+    """If every element of s is in w, then s ∈ P(w).
+    |- forall s, pw.
+        (forall d. In(d,pw) iff (forall e. In(e,d) -> In(e,w))) ->
+        (forall e. In(e,s) -> In(e,w)) ->
+        In(s,pw)
+
+    Direct from PowerSet characterization (Iff backward direction)."""
+    from tactics import apply_thm, mp, ax, fl, wl, cut
+    from theorems.logic import iff_mp_rev, iff_mp, or_elim, eq_substitution
+    from core.derived import Or
+
+    w, x, y, pw, ppw, p = Var(), Var(), Var(), Var(), Var(), Var()
+    s, d = Var(), Var()
+    sx, sxy, inner = Var(), Var(), Var()
+
+    in_x_w = In(x, w)
+    in_y_w = In(y, w)
+    # pw characterization: s ∈ pw iff s ⊆ w
+    pw_char = Forall(s, Iff(In(s, pw), Forall(d, Implies(In(d, s), In(d, w)))))
+    # ppw characterization: s ∈ ppw iff s ⊆ pw
+    ppw_char = Forall(s, Iff(In(s, ppw), Forall(d, Implies(In(d, s), In(d, pw)))))
+    op = OrdPair(p, x, y)
+    goal = In(p, ppw)
+
+    # Pair characterizations (hypotheses, from Pairing axiom externally):
+    # {x} = pair(x,x): ∀z. z∈sx ↔ z=x ∨ z=x  (i.e., z=x)
+    # {x,y} = pair(x,y): ∀z. z∈sxy ↔ z=x ∨ z=y
+    pair_x_char = Forall(d, Iff(In(d, sx), Or(Eq(d, x), Eq(d, x))))
+    pair_xy_char = Forall(d, Iff(In(d, sxy), Or(Eq(d, x), Eq(d, y))))
+
+    # --- Step 2: Show {x} ∈ pw ---
+    # Need: ∀d. d∈sx → d∈w.  From pair_x_char: d∈sx → d=x∨d=x → d=x → d∈w.
+    # Then pw_char backward: (∀d. d∈sx → d∈w) → sx∈pw
+
+    # d∈sx → d=x∨d=x (from pair_x_char forward)
+    iff_sx = Iff(In(d, sx), Or(Eq(d, x), Eq(d, x)))
+    got_iff_sx = fl(pair_x_char, iff_sx, d)
+    got_in_imp = apply_thm(iff_mp(In(d, sx), Or(Eq(d, x), Eq(d, x)), []),
+        [], iff_sx, Implies(In(d, sx), Or(Eq(d, x), Eq(d, x))), got_iff_sx)
+    # [pair_x_char] |- In(d,sx) -> Or(Eq(d,x), Eq(d,x))
+
+    # d=x → d∈w (from In(x,w) + eq_substitution)
+    esub = eq_substitution()
+    eq_dx = Eq(d, x)
+    iff_dw_xw = Iff(In(d, w), In(x, w))
+    got_esub = apply_thm(esub, [d, x, w], eq_dx, iff_dw_xw, ax(eq_dx))
+    got_rev = apply_thm(iff_mp_rev(In(d, w), In(x, w), []),
+        [], iff_dw_xw, Implies(In(x, w), In(d, w)), got_esub)
+    got_d_in_w = mp(got_rev, ax(in_x_w), In(x, w), In(d, w))
+    # [eq_dx, in_x_w] |- In(d,w)
+
+    # Or(A,A) → A: Or(A,A) = Implies(Not(A), A). Use implies_left.
+    or_eq = Or(Eq(d, x), Eq(d, x))  # = Implies(Not(Eq(d,x)), Eq(d,x))
+    ax_eq = Proof(Sequent([eq_dx], [eq_dx]), 'axiom', principal=eq_dx)
+    nr_eq = Proof(Sequent([], [Not(eq_dx), eq_dx]), 'not_right', [ax_eq], principal=Not(eq_dx))
+    ax_eq2 = Proof(Sequent([eq_dx], [eq_dx]), 'axiom', principal=eq_dx)
+    or_to_eq = Proof(Sequent([or_eq], [eq_dx]), 'implies_left',
+        [nr_eq, ax_eq2], principal=or_eq)
+    # [Or(Eq(d,x),Eq(d,x))] |- Eq(d,x)
+
+    # Chain: In(d,sx) → Or → Eq(d,x) → In(d,w)
+    got_chain_sx = mp(got_in_imp, ax(In(d, sx)), In(d, sx), or_eq)
+    # [pair_x_char, In(d,sx)] |- Or(Eq(d,x), Eq(d,x))
+    got_eq_from_sx = cut(or_to_eq, or_eq, got_chain_sx)
+    # [pair_x_char, In(d,sx)] |- Eq(d,x)
+    got_d_w_from_sx = cut(got_d_in_w, eq_dx, got_eq_from_sx)
+    got_d_w_from_sx = wl(got_d_w_from_sx, In(d, sx))
+    # [pair_x_char, in_x_w, In(d,sx)] |- In(d,w)
+
+    # Close: In(d,sx) → In(d,w)
+    imp_d_sx_w = Implies(In(d, sx), In(d, w))
+    left_for_imp = [f for f in got_d_w_from_sx.sequent.left if not same(f, In(d, sx))]
+    got_sx_sub_w = Proof(Sequent(left_for_imp, [imp_d_sx_w]),
+        'implies_right', [got_d_w_from_sx], principal=imp_d_sx_w)
+    # Close d → forall d
+    fa_sx_sub = Forall(d, imp_d_sx_w)
+    got_sx_sub_w = Proof(Sequent(got_sx_sub_w.sequent.left, [fa_sx_sub]),
+        'forall_right', [got_sx_sub_w], principal=fa_sx_sub, term=d)
+    # [pair_x_char, in_x_w] |- ∀d. In(d,sx) → In(d,w)
+
+    # pw_char backward at sx: (∀d. In(d,sx)→In(d,w)) → In(sx,pw)
+    iff_pw_sx = Iff(In(sx, pw), Forall(d, Implies(In(d, sx), In(d, w))))
+    got_pw_iff_sx = fl(pw_char, iff_pw_sx, sx)
+    got_pw_rev_sx = apply_thm(iff_mp_rev(In(sx, pw), fa_sx_sub, []),
+        [], iff_pw_sx, Implies(fa_sx_sub, In(sx, pw)), got_pw_iff_sx)
+    got_sx_in_pw = mp(got_pw_rev_sx, got_sx_sub_w, fa_sx_sub, In(sx, pw))
+    # [pair_x_char, in_x_w, pw_char] |- In(sx, pw)
+
+    # --- Step 3: Show {x,y} ∈ pw (same pattern, using both in_x_w and in_y_w) ---
+    iff_sxy = Iff(In(d, sxy), Or(Eq(d, x), Eq(d, y)))
+    got_iff_sxy = fl(pair_xy_char, iff_sxy, d)
+    got_in_imp_xy = apply_thm(iff_mp(In(d, sxy), Or(Eq(d, x), Eq(d, y)), []),
+        [], iff_sxy, Implies(In(d, sxy), Or(Eq(d, x), Eq(d, y))), got_iff_sxy)
+
+    # Eq(d,y) → In(d,w): same as eq_dx case but with y
+    eq_dy = Eq(d, y)
+    got_esub_y = apply_thm(esub, [d, y, w], eq_dy, Iff(In(d, w), In(y, w)), ax(eq_dy))
+    got_rev_y = apply_thm(iff_mp_rev(In(d, w), In(y, w), []),
+        [], Iff(In(d, w), In(y, w)), Implies(In(y, w), In(d, w)), got_esub_y)
+    got_d_in_w_y = mp(got_rev_y, ax(in_y_w), In(y, w), In(d, w))
+    # [eq_dy, in_y_w] |- In(d,w)
+
+    or_eq_xy = Or(Eq(d, x), Eq(d, y))
+    oe_xy = or_elim(Eq(d, x), Eq(d, y), In(d, w), [])
+    imp_l = Implies(Eq(d, x), In(d, w))
+    imp_r = Implies(Eq(d, y), In(d, w))
+    left_l = [f for f in got_d_in_w.sequent.left if not same(f, eq_dx)]
+    p_imp_l = Proof(Sequent(left_l, [imp_l]), 'implies_right',
+        [got_d_in_w], principal=imp_l)
+    eq_dy = Eq(d, y)
+    left_r = [f for f in got_d_in_w_y.sequent.left if not same(f, eq_dy)]
+    p_imp_r = Proof(Sequent(left_r, [imp_r]), 'implies_right',
+        [got_d_in_w_y], principal=imp_r)
+
+    got_or_xy = apply_thm(oe_xy, [], or_eq_xy,
+        Implies(imp_l, Implies(imp_r, In(d, w))), ax(or_eq_xy))
+    got_or_xy = mp(got_or_xy, p_imp_l, imp_l, Implies(imp_r, In(d, w)))
+    got_or_xy = mp(got_or_xy, p_imp_r, imp_r, In(d, w))
+    # [or_eq_xy, in_x_w, in_y_w, Extensionality] |- In(d,w)
+
+    got_chain_sxy = mp(got_in_imp_xy, ax(In(d, sxy)), In(d, sxy), or_eq_xy)
+    got_d_w_from_sxy = cut(got_or_xy, or_eq_xy, got_chain_sxy)
+    # [pair_xy_char, In(d,sxy), in_x_w, in_y_w] |- In(d,w)
+
+    imp_d_sxy_w = Implies(In(d, sxy), In(d, w))
+    left_for_imp2 = [f for f in got_d_w_from_sxy.sequent.left if not same(f, In(d, sxy))]
+    got_sxy_sub_w = Proof(Sequent(left_for_imp2, [imp_d_sxy_w]),
+        'implies_right', [got_d_w_from_sxy], principal=imp_d_sxy_w)
+    fa_sxy_sub = Forall(d, imp_d_sxy_w)
+    got_sxy_sub_w = Proof(Sequent(got_sxy_sub_w.sequent.left, [fa_sxy_sub]),
+        'forall_right', [got_sxy_sub_w], principal=fa_sxy_sub, term=d)
+    # [pair_xy_char, in_x_w, in_y_w] |- ∀d. In(d,sxy) → In(d,w)
+
+    iff_pw_sxy = Iff(In(sxy, pw), Forall(d, Implies(In(d, sxy), In(d, w))))
+    got_pw_iff_sxy = fl(pw_char, iff_pw_sxy, sxy)
+    got_pw_rev_sxy = apply_thm(iff_mp_rev(In(sxy, pw), fa_sxy_sub, []),
+        [], iff_pw_sxy, Implies(fa_sxy_sub, In(sxy, pw)), got_pw_iff_sxy)
+    got_sxy_in_pw = mp(got_pw_rev_sxy, got_sxy_sub_w, fa_sxy_sub, In(sxy, pw))
+    # [pair_xy_char, in_x_w, in_y_w, pw_char] |- In(sxy, pw)
+
+    # --- Step 4: Show p ∈ ppw ---
+    # p = {{x},{x,y}} = (x,y). Elements of p are sx={x} and sxy={x,y}.
+    # OrdPair(p,x,y) expands to: ∀inner. ... but structurally p = pair(sx, sxy).
+    # We need: ∀d. d∈p → d∈pw. From OrdPair(p,x,y) and Pairing for p:
+    # d∈p ↔ d=sx ∨ d=sxy. Then d=sx → In(d,pw) (from got_sx_in_pw + eq_sub).
+    # d=sxy → In(d,pw) (from got_sxy_in_pw + eq_sub).
+
+    # Actually, OrdPair(p,x,y) in Kuratowski means p is characterized by Pairing.
+    # The expansion: OrdPair(p,x,y) = ∀z. z∈p ↔ (z={x} ∨ z={x,y})
+    # But that's not quite how it's defined in this system. Let me check.
+    # OrdPair(p,x,y) is a vocab definition. Its expansion involves PairSet.
+    # Actually looking at vocab/ordpair.py:
+    # OrdPair(set, fst, snd): set = {{fst}, {fst, snd}}
+    # It expands using Forall over elements... let me check.
+
+    # For now, I'll use the fact that OrdPair + Pairing characterization gives
+    # the membership of p. This requires connecting OrdPair to element membership.
+
+    # Actually, the simpler route: we already have Pairing axiom directly.
+    # From Pairing(sx, sxy): ∃p'. ∀d. d∈p' ↔ d=sx ∨ d=sxy
+    # And OrdPair(p,x,y) means p IS this pair set (by definition).
+    # So d∈p ↔ d=sx ∨ d=sxy.
+
+    # Let me use the PairSet characterization that comes from OrdPair.
+    # OrdPair(p,x,y) -> forall d. d in p iff (d = {x} or d = {x,y})
+    # But OrdPair's expansion in this system is different... let me just use
+    # the structural approach: from OrdPair(p,x,y), pair_x_char gives {x}=sx,
+    # pair_xy_char gives {x,y}=sxy, and p={{x},{x,y}} = {sx, sxy}.
+
+    # For the ppw membership, I need: ∀d. d∈p → d∈pw
+    # d∈p: from OrdPair characterization, d is either sx or sxy
+    # Then d∈pw follows from got_sx_in_pw or got_sxy_in_pw
+
+    # This is getting complex. Let me use a simpler intermediate:
+    # I'll require pair_x_char, pair_xy_char, and a "p = {sx, sxy}" characterization
+    # as hypotheses (from Pairing), then derive In(p, ppw).
+
+    # For the outer OrdPair: p = {sx, sxy} where sx={x,x}={x} and sxy={x,y}
+    # Pairing gives: ∀d. d∈p ↔ (d=sx ∨ d=sxy)
+    p_char = Forall(d, Iff(In(d, p), Or(Eq(d, sx), Eq(d, sxy))))
+
+    # d∈p → d∈pw: from p_char forward + (d=sx → d∈pw) + (d=sxy → d∈pw)
+    iff_p_d = Iff(In(d, p), Or(Eq(d, sx), Eq(d, sxy)))
+    got_iff_p = fl(p_char, iff_p_d, d)
+    got_p_fwd = apply_thm(iff_mp(In(d, p), Or(Eq(d, sx), Eq(d, sxy)), []),
+        [], iff_p_d, Implies(In(d, p), Or(Eq(d, sx), Eq(d, sxy))), got_iff_p)
+
+    # d=sx → d∈pw: from In(sx,pw) + eq_substitution
+    eq_d_sx = Eq(d, sx)
+    iff_d_sx_pw = Iff(In(d, pw), In(sx, pw))
+    got_esub_sx = apply_thm(esub, [d, sx, pw], eq_d_sx, iff_d_sx_pw, ax(eq_d_sx))
+    got_d_pw_sx = mp(apply_thm(iff_mp_rev(In(d, pw), In(sx, pw), []),
+        [], iff_d_sx_pw, Implies(In(sx, pw), In(d, pw)), got_esub_sx),
+        ax(In(sx, pw)), In(sx, pw), In(d, pw))
+    # [eq_d_sx, In(sx,pw)] |- In(d,pw)
+
+    eq_d_sxy = Eq(d, sxy)
+    iff_d_sxy_pw = Iff(In(d, pw), In(sxy, pw))
+    got_esub_sxy = apply_thm(esub, [d, sxy, pw], eq_d_sxy, iff_d_sxy_pw, ax(eq_d_sxy))
+    got_d_pw_sxy = mp(apply_thm(iff_mp_rev(In(d, pw), In(sxy, pw), []),
+        [], iff_d_sxy_pw, Implies(In(sxy, pw), In(d, pw)), got_esub_sxy),
+        ax(In(sxy, pw)), In(sxy, pw), In(d, pw))
+    # [eq_d_sxy, In(sxy,pw)] |- In(d,pw)
+
+    # Or-elim: Or(Eq(d,sx), Eq(d,sxy)) → In(d,pw)
+    or_d = Or(Eq(d, sx), Eq(d, sxy))
+    oe_d = or_elim(Eq(d, sx), Eq(d, sxy), In(d, pw), [])
+    imp_d_sx = Implies(Eq(d, sx), In(d, pw))
+    imp_d_sxy = Implies(Eq(d, sxy), In(d, pw))
+    left_d_sx = [f for f in got_d_pw_sx.sequent.left if not same(f, Eq(d, sx))]
+    p_imp_d_sx = Proof(Sequent(left_d_sx, [imp_d_sx]), 'implies_right',
+        [got_d_pw_sx], principal=imp_d_sx)
+    left_d_sxy = [f for f in got_d_pw_sxy.sequent.left if not same(f, Eq(d, sxy))]
+    p_imp_d_sxy = Proof(Sequent(left_d_sxy, [imp_d_sxy]), 'implies_right',
+        [got_d_pw_sxy], principal=imp_d_sxy)
+
+    got_or_d = apply_thm(oe_d, [], or_d,
+        Implies(imp_d_sx, Implies(imp_d_sxy, In(d, pw))), ax(or_d))
+    got_or_d = mp(got_or_d, p_imp_d_sx, imp_d_sx, Implies(imp_d_sxy, In(d, pw)))
+    got_or_d = mp(got_or_d, p_imp_d_sxy, imp_d_sxy, In(d, pw))
+    # [or_d, In(sx,pw), In(sxy,pw)] |- In(d,pw)
+
+    # Chain: In(d,p) → Or → In(d,pw)
+    got_dp_or = mp(got_p_fwd, ax(In(d, p)), In(d, p), or_d)
+    got_d_pw_from_p = cut(got_or_d, or_d, got_dp_or)
+    # [p_char, In(d,p), In(sx,pw), In(sxy,pw)] |- In(d,pw)
+
+    # Close: implies_right for In(d,p), forall d
+    imp_dp_pw = Implies(In(d, p), In(d, pw))
+    left_dp = [f for f in got_d_pw_from_p.sequent.left if not same(f, In(d, p))]
+    got_p_sub_pw = Proof(Sequent(left_dp, [imp_dp_pw]),
+        'implies_right', [got_d_pw_from_p], principal=imp_dp_pw)
+    fa_p_sub = Forall(d, imp_dp_pw)
+    got_p_sub_pw = Proof(Sequent(got_p_sub_pw.sequent.left, [fa_p_sub]),
+        'forall_right', [got_p_sub_pw], principal=fa_p_sub, term=d)
+    # [p_char, In(sx,pw), In(sxy,pw)] |- ∀d. In(d,p) → In(d,pw)
+
+    # ppw_char backward at p: (∀d. In(d,p)→In(d,pw)) → In(p,ppw)
+    iff_ppw_p = Iff(In(p, ppw), Forall(d, Implies(In(d, p), In(d, pw))))
+    got_ppw_iff_p = fl(ppw_char, iff_ppw_p, p)
+    got_ppw_rev = apply_thm(iff_mp_rev(In(p, ppw), fa_p_sub, []),
+        [], iff_ppw_p, Implies(fa_p_sub, In(p, ppw)), got_ppw_iff_p)
+    got_p_in_ppw = mp(got_ppw_rev, got_p_sub_pw, fa_p_sub, In(p, ppw))
+    # [p_char, In(sx,pw), In(sxy,pw), ppw_char] |- In(p, ppw)
+
+    # --- Step 5: Cut In(sx,pw) and In(sxy,pw) with their proofs ---
+    got_p_in_ppw = cut(got_p_in_ppw, In(sx, pw), got_sx_in_pw)
+    got_p_in_ppw = cut(got_p_in_ppw, In(sxy, pw), got_sxy_in_pw)
+    # [pair_x_char, pair_xy_char, p_char, in_x_w, in_y_w, pw_char, ppw_char] |- In(p,ppw)
+
+    # --- Step 6: Close ---
+    # Discharge all non-axiom hypotheses, then close with forall_right.
+    # Non-axioms on the left: pair_x_char, pair_xy_char, p_char, pw_char, ppw_char, in_x_w, in_y_w
+    # Axioms (Extensionality) stay on the left.
+    from core.zfc import ZFCAxiom
+    hyps = [f for f in got_p_in_ppw.sequent.left if not isinstance(f, ZFCAxiom)]
+    for h in hyps:
+        imp_h = Implies(h, got_p_in_ppw.sequent.right[0])
+        left_h = [f for f in got_p_in_ppw.sequent.left if not same(f, h)]
+        got_p_in_ppw = Proof(Sequent(left_h, [imp_h]),
+            'implies_right', [got_p_in_ppw], principal=imp_h)
+
+    proof = got_p_in_ppw
+    for v in [p, ppw, pw, y, x, sxy, sx, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'ordpair_in_powerset'
+    return proof
