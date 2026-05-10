@@ -1148,400 +1148,190 @@ def eq_apply_transfer():
 
 
 
-def successor_injection():
-    """Reg, Pairing |- forall m, n, sn.
-       Succ(sn, m) -> Succ(sn, n) -> Eq(m, n)
-    Successor is injective: S(m) = S(n) implies m = n.
-    Uses regularity to rule out the In(m,n) and In(n,m) case."""
-    from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
-    from vocab import Successor, PairSet
+def successor_injection_omega():
+    """Successor injection on ω (no Regularity).
+    Ext, Inf, Sep |- forall w, m, n, sn.
+       Omega(w) -> In(m,w) -> In(n,w) -> Succ(sn, m) -> Succ(sn, n) -> Eq(m, n)
 
-    m, n, sn = Var(), Var(), Var()
+    From Succ(sn,m) and Succ(sn,n): sn = S(m) = S(n).
+    By Successor def: m∈S(n) → m∈n ∨ m=n, and n∈S(m) → n∈m ∨ n=m.
+    Cases m=n or n=m: done.
+    Case m∈n ∧ n∈m: TransitiveSet(m)→n⊆m, TransitiveSet(n)→m⊆n, Ext→m=n.
+    Uses omega_transitive_set (Lemma 4.2.4)."""
+    from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, cut
+    from theorems.logic import or_elim, iff_mp, eq_reflexive
+    from theorems.sets import omega_transitive_set, eq_transfer
+    from vocab import Successor, Omega
+    from vocab.sets import TransitiveSet
+
+    w, m, n, sn = Var(postfix='w'), Var(postfix='m'), Var(postfix='n'), Var(postfix='sn')
+    omega_w = Omega(w)
+    in_m_w = In(m, w)
+    in_n_w = In(n, w)
     succ_m = Successor(sn, m)
     succ_n = Successor(sn, n)
     eq_mn = Eq(m, n)
 
-
-    es = eq_symmetric()
+    # m ∈ S(n): from Succ(sn,m), Succ(sn,n), sn = S(m) = S(n).
+    # Succ(sn,m): ∀x. x∈sn ↔ x∈m ∨ x=m. Inst x=n: n∈sn ↔ n∈m ∨ n=m.
+    # Succ(sn,n): ∀x. x∈sn ↔ x∈n ∨ x=n. Inst x=m: m∈sn ↔ m∈n ∨ m=n.
+    # From m=m (reflexive): m∈m ∨ m=m → m∈sn. So m∈sn.
+    # Then from Succ(sn,n): m∈sn → m∈n ∨ m=n.
+    # Similarly n∈sn → n∈m ∨ n=m.
+    from core.derived import Or
     er = eq_reflexive()
 
-    # From Succ(sn,m) instantiate z=m: Iff(In(m,sn), Or(In(m,m), Eq(m,m)))
-    or_mm = Or(In(m, m), Eq(m, m))
-    iff_m_sn = Iff(In(m, sn), or_mm)
-    fl_succ_m = fl(succ_m, iff_m_sn, m)
-    # From eq_reflexive: Eq(m,m)
-    got_eqmm = apply_thm(er, [m], concl=Eq(m, m))
-    # or_intro_right: Eq(m,m) -> Or(In(m,m), Eq(m,m))
-    oir_m = or_intro_right(In(m, m), Eq(m, m), [])
-    got_or_mm = mp(oir_m, got_eqmm, Eq(m, m), or_mm)
-    # Iff backward: Or(...) -> In(m,sn)
-    got_bwd_m = mp(iff_mp_rev(In(m, sn), or_mm, []), fl_succ_m, iff_m_sn,
-        Implies(or_mm, In(m, sn)))
-    got_m_in_sn = mp(got_bwd_m, got_or_mm, or_mm, In(m, sn))
-    # got_m_in_sn: [succ_m] |- In(m, sn)
+    # m ∈ sn: from Succ(sn,m), m=m gives Or(In(m,m), Eq(m,m)), backward gives In(m,sn)
+    from theorems.logic import or_intro_right, iff_mp_rev
+    eq_mm = Eq(m, m)
+    got_eq_mm = apply_thm(er, [m], concl=eq_mm)
+    or_m = Or(In(m, m), eq_mm)
+    got_or_m = apply_thm(or_intro_right(In(m, m), eq_mm, []), [], eq_mm, or_m, got_eq_mm)
+    iff_m_sn = Iff(In(m, sn), or_m)
+    got_m_in_sn = mp(apply_thm(iff_mp_rev(In(m, sn), or_m, []),
+        [], iff_m_sn, Implies(or_m, In(m, sn)), fl(succ_m, iff_m_sn, m)),
+        got_or_m, or_m, In(m, sn))
+    # [succ_m] |- In(m, sn)
 
-    # From Succ(sn,n) instantiate z=m: Iff(In(m,sn), Or(In(m,n), Eq(m,n)))
-    or_mn = Or(In(m, n), Eq(m, n))
+    # m∈sn + Succ(sn,n) → m∈n ∨ m=n
+    or_mn = Or(In(m, n), eq_mn)
     iff_m_sn_n = Iff(In(m, sn), or_mn)
-    fl_succ_n_m = fl(succ_n, iff_m_sn_n, m)
-    got_fwd_n = mp(iff_mp(In(m, sn), or_mn, []), fl_succ_n_m, iff_m_sn_n,
-        Implies(In(m, sn), or_mn))
-    got_or_mn = mp(got_fwd_n, got_m_in_sn, In(m, sn), or_mn)
-    # got_or_mn: [succ_m, succ_n] |- Or(In(m,n), Eq(m,n))
+    got_or_mn = mp(apply_thm(iff_mp(In(m, sn), or_mn, []),
+        [], iff_m_sn_n, Implies(In(m, sn), or_mn), fl(succ_n, iff_m_sn_n, m)),
+        got_m_in_sn, In(m, sn), or_mn)
+    # [succ_m, succ_n] |- Or(In(m,n), Eq(m,n))
 
-    # Similarly from Succ(sn,n) z=n: In(n,sn) via Eq(n,n)
-    or_nn = Or(In(n, n), Eq(n, n))
-    iff_n_sn = Iff(In(n, sn), or_nn)
-    fl_succ_n_n = fl(succ_n, iff_n_sn, n)
-    got_eqnn = apply_thm(er, [n], concl=Eq(n, n))
-    oir_n = or_intro_right(In(n, n), Eq(n, n), [])
-    got_or_nn = mp(oir_n, got_eqnn, Eq(n, n), or_nn)
-    got_bwd_n = mp(iff_mp_rev(In(n, sn), or_nn, []), fl_succ_n_n, iff_n_sn,
-        Implies(or_nn, In(n, sn)))
-    got_n_in_sn = mp(got_bwd_n, got_or_nn, or_nn, In(n, sn))
-    # got_n_in_sn: [succ_n] |- In(n, sn)
+    # Similarly: n∈sn + Succ(sn,m) → n∈m ∨ n=m
+    eq_nn = Eq(n, n)
+    got_eq_nn = apply_thm(er, [n], concl=eq_nn)
+    or_n = Or(In(n, n), eq_nn)
+    got_or_n = apply_thm(or_intro_right(In(n, n), eq_nn, []), [], eq_nn, or_n, got_eq_nn)
+    iff_n_sn = Iff(In(n, sn), or_n)
+    got_n_in_sn = mp(apply_thm(iff_mp_rev(In(n, sn), or_n, []),
+        [], iff_n_sn, Implies(or_n, In(n, sn)), fl(succ_n, iff_n_sn, n)),
+        got_or_n, or_n, In(n, sn))
+    # [succ_n] |- In(n, sn)
 
-    # From Succ(sn,m) z=n: Iff(In(n,sn), Or(In(n,m), Eq(n,m)))
-    or_nm = Or(In(n, m), Eq(n, m))
+    eq_nm = Eq(n, m)
+    or_nm = Or(In(n, m), eq_nm)
     iff_n_sn_m = Iff(In(n, sn), or_nm)
-    fl_succ_m_n = fl(succ_m, iff_n_sn_m, n)
-    got_fwd_m = mp(iff_mp(In(n, sn), or_nm, []), fl_succ_m_n, iff_n_sn_m,
-        Implies(In(n, sn), or_nm))
-    got_or_nm = mp(got_fwd_m, got_n_in_sn, In(n, sn), or_nm)
-    # got_or_nm: [succ_m, succ_n] |- Or(In(n,m), Eq(n,m))
+    got_or_nm = mp(apply_thm(iff_mp(In(n, sn), or_nm, []),
+        [], iff_n_sn_m, Implies(In(n, sn), or_nm), fl(succ_m, iff_n_sn_m, n)),
+        got_n_in_sn, In(n, sn), or_nm)
+    # [succ_m, succ_n] |- Or(In(n,m), Eq(n,m))
 
-    # === Case analysis ===
-    # or_elim on Or(In(m,n), Eq(m,n)):
-    #   Case Eq(m,n): done
-    #   Case In(m,n): or_elim on Or(In(n,m), Eq(n,m)):
-    #     Case Eq(n,m): eq_sym -> Eq(m,n)
-    #     Case In(n,m): In(m,n) and In(n,m) -> contradiction via regularity
+    # === Four cases via nested or_elim ===
+    # Case m=n: done.
+    # Case n=m: Eq(n,m) → Eq(m,n) by eq_symmetric.
+    es = eq_symmetric()
+    got_eq_nm_to_mn = apply_thm(es, [n, m], eq_nm, eq_mn, ax(eq_nm))
+    # [Eq(n,m)] |- Eq(m,n)
 
-    # Case In(m,n) and In(n,m): contradiction via regularity on PairSet(p, m, n)
-    # Regularity: forall a. (exists y. In(y,a)) -> exists y. (In(y,a) and not exists z. (In(z,a) and In(z,y)))
-    pv, yv, zv = Var(), Var(), Var()
-    ps_mn = PairSet(pv, m, n)
-    reg = regularity()
-    reg_ax = reg.sequent.left[0]  # Regularity axiom formula
+    # Case m∈n ∧ n∈m: TransitiveSet → m⊆n, n⊆m → m=n by Ext.
+    # TransitiveSet(n): In(m,n) → ∀y. In(y,m) → In(y,n) → m⊆n
+    # TransitiveSet(m): In(n,m) → ∀y. In(y,n) → In(y,m) → n⊆m
+    # m⊆n ∧ n⊆m: ∀z. In(z,m)↔In(z,n) → Eq(m,n)
+    ots = omega_transitive_set()
+    ts_m = TransitiveSet(m)
+    ts_n = TransitiveSet(n)
+    got_ts_m = apply_thm(ots, [w, m], omega_w, Implies(in_m_w, ts_m), ax(omega_w))
+    got_ts_m = mp(got_ts_m, ax(in_m_w), in_m_w, ts_m)
+    got_ts_n = apply_thm(ots, [w, n], omega_w, Implies(in_n_w, ts_n), ax(omega_w))
+    got_ts_n = mp(got_ts_n, ax(in_n_w), in_n_w, ts_n)
+    # [omega_w, in_m_w, ots_axioms] |- TransitiveSet(m)
+    # [omega_w, in_n_w, ots_axioms] |- TransitiveSet(n)
 
-    in_m_n = In(m, n)
-    in_n_m = In(n, m)
+    # From TransitiveSet(n) + In(m,n): In(z,m) → In(z,n) (m⊆n)
+    z = Var()
+    got_m_sub_n = apply_thm(apply_thm(got_ts_n, [m], In(m, n),
+        Forall(z, Implies(In(z, m), In(z, n))), ax(In(m, n))),
+        [z])
+    # [In(m,n), omega_w, in_n_w, ...] |- In(z,m) → In(z,n)
 
-    # PairSet(pv, m, n): In(yv, pv) iff Or(Eq(yv, m), Eq(yv, n))
-    or_eq_mn = Or(Eq(yv, m), Eq(yv, n))
-    iff_ps = Iff(In(yv, pv), or_eq_mn)
-    fl_ps = fl(ps_mn, iff_ps, yv)
+    # From TransitiveSet(m) + In(n,m): In(z,n) → In(z,m) (n⊆m)
+    got_n_sub_m = apply_thm(apply_thm(got_ts_m, [n], In(n, m),
+        Forall(z, Implies(In(z, n), In(z, m))), ax(In(n, m))),
+        [z])
+    # [In(n,m), omega_w, in_m_w, ...] |- In(z,n) → In(z,m)
 
-    # Show pv is non-empty: m is in pv (via Eq(m,m) and or_intro_left)
-    got_eqmm2 = apply_thm(er, [m], concl=Eq(m, m))
-    oil_m = or_intro_left(Eq(m, m), Eq(m, n), [])
-    # Wait, PairSet uses Or(Eq(yv,m), Eq(yv,n)), instantiated at yv=m:
-    # Or(Eq(m,m), Eq(m,n))
-    or_eq_m = Or(Eq(m, m), Eq(m, n))
-    iff_ps_m = Iff(In(m, pv), or_eq_m)
-    fl_ps_m = fl(ps_mn, iff_ps_m, m)
-    oil_mm = or_intro_left(Eq(m, m), Eq(m, n), [])
-    got_or_eq_m = mp(oil_mm, got_eqmm2, Eq(m, m), or_eq_m)
-    got_bwd_ps = mp(iff_mp_rev(In(m, pv), or_eq_m, []), fl_ps_m, iff_ps_m,
-        Implies(or_eq_m, In(m, pv)))
-    got_m_in_pv = mp(got_bwd_ps, got_or_eq_m, or_eq_m, In(m, pv))
-    # got_m_in_pv: [ps_mn] |- In(m, pv)
+    # Combine m⊆n and n⊆m into ∀z. Iff(In(z,m), In(z,n)) = Eq(m,n)
+    # Iff(A,B) = And(A→B, B→A) = Not(Implies(A→B, Not(B→A)))
+    # Build directly: discharge both implications, close ∀z
+    imp_fwd_z = got_m_sub_n.sequent.right[0]
+    imp_bwd_z = got_n_sub_m.sequent.right[0]
+    iff_zmn = Iff(In(z, m), In(z, n))
+    # Iff = And(fwd, bwd). Build And:
+    and_fwd_bwd = And(imp_fwd_z, imp_bwd_z)
+    got_and = mp(apply_thm(and_intro(imp_fwd_z, imp_bwd_z, []), [],
+        imp_fwd_z, Implies(imp_bwd_z, and_fwd_bwd), got_m_sub_n),
+        got_n_sub_m, imp_bwd_z, and_fwd_bwd)
+    # and_fwd_bwd is alpha-equiv to iff_zmn (And(A→B, B→A) = Iff(A,B) after expansion)
+    fa_z = Forall(z, iff_zmn)
+    got_fa_z = Proof(Sequent(got_and.sequent.left, [fa_z]),
+        'forall_right', [got_and], principal=fa_z, term=z)
+    # fa_z = ∀z. Iff(In(z,m), In(z,n)) = Eq(m,n) after expansion!
+    # So got_fa_z proves Eq(m,n).
+    got_case_mn = got_fa_z
+    # [In(m,n), In(n,m), omega_w, in_m_w, in_n_w, ...] |- Eq(m,n)
 
-    # Exists intro: exists y. In(y, pv)
-    got_ex_pv = eir(got_m_in_pv, In(yv, pv), yv, m)
-    # got_ex_pv: [ps_mn] |- Exists(yv, In(yv, pv))
+    # === Nested or_elim ===
+    # Inner or_elim on Or(In(n,m), Eq(n,m)):
+    # Case In(n,m): need In(m,n) on left too → use got_case_mn
+    # Case Eq(n,m): → Eq(m,n) via eq_symmetric
+    imp_nm = Implies(In(n, m), eq_mn)
+    imp_eqnm = Implies(eq_nm, eq_mn)
 
-    # Apply regularity: exists y. In(y,pv) and not exists z. (In(z,pv) and In(z,y))
-    reg_body = And(In(yv, pv), Not(Exists(zv, And(In(zv, pv), In(zv, yv)))))
-    ex_reg = Exists(yv, reg_body)
-    imp_reg = Implies(Exists(yv, In(yv, pv)), ex_reg)
-    fl_reg = fl(reg_ax, imp_reg, pv)
-    got_reg = mp(fl_reg, got_ex_pv, Exists(yv, In(yv, pv)), ex_reg)
-    # got_reg: [Regularity, ps_mn] |- Exists(yv, And(In(yv,pv), Not(Exists(zv, And(In(zv,pv), In(zv,yv))))))
+    # For In(n,m) → Eq(m,n): need In(m,n) on left (from outer or_elim)
+    left_nm = [f_ for f_ in got_case_mn.sequent.left if not same(f_, In(n, m))]
+    p_imp_nm = Proof(Sequent(left_nm, [imp_nm]), 'implies_right', [got_case_mn], principal=imp_nm)
+    left_eqnm = [f_ for f_ in got_eq_nm_to_mn.sequent.left if not same(f_, eq_nm)]
+    p_imp_eqnm = Proof(Sequent(left_eqnm, [imp_eqnm]), 'implies_right', [got_eq_nm_to_mn], principal=imp_eqnm)
 
-    # Case analysis on yv: In(yv, pv) means Or(Eq(yv,m), Eq(yv,n)).
-    # Case yv=m: need to show exists z. In(z,pv) and In(z,m). Take z=n: In(n,pv) and In(n,m). Contradiction with Not(Exists...).
-    # Case yv=n: take z=m: In(m,pv) and In(m,n). Contradiction.
+    oe_inner = or_elim(In(n, m), eq_nm, eq_mn, [])
+    got_inner = apply_thm(oe_inner, [], or_nm,
+        Implies(imp_nm, Implies(imp_eqnm, eq_mn)), ax(or_nm))
+    got_inner = mp(got_inner, p_imp_nm, imp_nm, Implies(imp_eqnm, eq_mn))
+    got_inner = mp(got_inner, p_imp_eqnm, imp_eqnm, eq_mn)
+    # [Or(In(n,m),Eq(n,m)), In(m,n), omega_w, in_m_w, in_n_w, ...] |- Eq(m,n)
 
-    no_z = Not(Exists(zv, And(In(zv, pv), In(zv, yv))))
-
-    # Derive false from [In(yv,pv), no_z, ps_mn, In(m,n), In(n,m)] for yv=m:
-    # Under yv=m: no_z becomes Not(Exists(zv, And(In(zv,pv), In(zv,m))))
-    # But z=n works: In(n,pv) (from ps_mn) and In(n,m) (given).
-    # So Exists(zv, And(In(zv,pv), In(zv,m))) is true. Contradiction with no_z.
-
-    # For yv=m case: show Exists(zv, And(In(zv,pv), In(zv,m)))
-    # Witness z=n: And(In(n,pv), In(n,m))
-    # In(n,pv): from ps_mn via Eq(n,n) -> or_intro_right -> iff_bwd
-    got_eqnn2 = apply_thm(er, [n], concl=Eq(n, n))
-    or_eq_n = Or(Eq(n, m), Eq(n, n))
-    iff_ps_n = Iff(In(n, pv), or_eq_n)
-    fl_ps_n = fl(ps_mn, iff_ps_n, n)
-    oir_nn = or_intro_right(Eq(n, m), Eq(n, n), [])
-    got_or_eq_n = mp(oir_nn, got_eqnn2, Eq(n, n), or_eq_n)
-    got_bwd_ps_n = mp(iff_mp_rev(In(n, pv), or_eq_n, []), fl_ps_n, iff_ps_n,
-        Implies(or_eq_n, In(n, pv)))
-    got_n_in_pv = mp(got_bwd_ps_n, got_or_eq_n, or_eq_n, In(n, pv))
-    # got_n_in_pv: [ps_mn] |- In(n, pv)
-
-    and_zn = And(In(n, pv), in_n_m)
-    ai_zn = and_intro(In(n, pv), in_n_m, [])
-    got_and_zn = mp(apply_thm(ai_zn, [], In(n, pv), Implies(in_n_m, and_zn), got_n_in_pv),
-        ax(in_n_m), in_n_m, and_zn)
-    got_ex_zn = eir(got_and_zn, And(In(zv, pv), In(zv, m)), zv, n)
-    # got_ex_zn: [ps_mn, In(n,m)] |- Exists(zv, And(In(zv,pv), In(zv,m)))
-
-    # For yv=n case: witness z=m: And(In(m,pv), In(m,n))
-    and_zm = And(In(m, pv), in_m_n)
-    ai_zm = and_intro(In(m, pv), in_m_n, [])
-    got_and_zm = mp(apply_thm(ai_zm, [], In(m, pv), Implies(in_m_n, and_zm), got_m_in_pv),
-        ax(in_m_n), in_m_n, and_zm)
-    got_ex_zm = eir(got_and_zm, And(In(zv, pv), In(zv, n)), zv, m)
-    # got_ex_zm: [ps_mn, In(m,n)] |- Exists(zv, And(In(zv,pv), In(zv,n)))
-
-    # Now show: from reg_body (yv), derive false.
-    # reg_body = And(In(yv,pv), Not(Exists(zv, And(In(zv,pv), In(zv,yv)))))
-    # From In(yv,pv): Or(Eq(yv,m), Eq(yv,n)) via ps_mn forward.
-    got_in_yv_pv = apply_thm(and_elim_left(In(yv, pv), no_z, []), [],
-        reg_body, In(yv, pv), ax(reg_body))
-    got_no_z = apply_thm(and_elim_right(In(yv, pv), no_z, []), [],
-        reg_body, no_z, Proof(Sequent([reg_body], [reg_body]), 'axiom', principal=reg_body))
-
-    fl_ps_yv = fl(ps_mn, iff_ps, yv)
-    got_fwd_ps = mp(iff_mp(In(yv, pv), or_eq_mn, []), fl_ps_yv, iff_ps,
-        Implies(In(yv, pv), or_eq_mn))
-    got_or_yv = mp(got_fwd_ps, got_in_yv_pv, In(yv, pv), or_eq_mn)
-    # got_or_yv: [reg_body, ps_mn] |- Or(Eq(yv,m), Eq(yv,n))
-
-    # Case Eq(yv,m): substitute yv->m in no_z.
-    # no_z = Not(Exists(zv, And(In(zv,pv), In(zv,yv))))
-    # With Eq(yv,m): In(zv,yv) iff In(zv,m). So Not(Exists(zv, And(In(zv,pv), In(zv,m)))).
-    # But got_ex_zn proves Exists(zv, And(In(zv,pv), In(zv,m))). Contradiction.
-    # Transfer no_z using Eq(yv,m): need In(zv,yv) iff In(zv,m) from Eq(yv,m).
-    eq_ym = Eq(yv, m)
-    iff_in_yv_m = Iff(In(zv, yv), In(zv, m))
-    fl_eq_ym = fl(eq_ym, iff_in_yv_m, zv)
-
-    # From iff_in_yv_m: In(zv,yv)->In(zv,m) and back.
-    # And(In(zv,pv), In(zv,yv)) -> And(In(zv,pv), In(zv,m)) via forward on second component.
-    # Similarly backward.
-    # So Exists(zv, And(In(zv,pv), In(zv,yv))) iff Exists(zv, And(In(zv,pv), In(zv,m))).
-
-    # Simpler approach: From got_ex_zn and no_z, derive false under Eq(yv,m).
-    # no_z says Not(Exists(zv, And(In(zv,pv), In(zv,yv)))).
-    # got_ex_zn proves Exists(zv, And(In(zv,pv), In(zv,m))).
-    # Need to show Exists(zv, And(In(zv,pv), In(zv,yv))) from got_ex_zn + Eq(yv,m).
-    # From Eq(yv,m) and In(zv,m): need In(zv,yv).
-    # eq_substitution: Eq(yv,m) -> In(zv,yv) iff In(zv,m).
-    eqs = eq_substitution()
-    # eq_substitution: Ext |- forall a,b,c. Eq(a,b) -> Iff(In(a,c), In(b,c))
-    # But I need Iff(In(c,a), In(c,b)) — membership IN a vs IN b, not a IN c.
-    # Eq(yv,m) = forall w. In(w,yv) iff In(w,m). So In(zv,yv) iff In(zv,m) directly.
-    got_iff_in = mp(iff_mp_rev(In(zv, yv), In(zv, m), []), fl_eq_ym, iff_in_yv_m,
-        Implies(In(zv, m), In(zv, yv)))
-    # got_iff_in: [eq_ym] |- In(zv,m) -> In(zv,yv)
-
-    # From And(In(zv,pv), In(zv,m)): extract In(zv,m), transfer to In(zv,yv), rebuild And
-    and_zv_m = And(In(zv, pv), In(zv, m))
-    and_zv_yv = And(In(zv, pv), In(zv, yv))
-    got_inzpv = apply_thm(and_elim_left(In(zv, pv), In(zv, m), []), [],
-        and_zv_m, In(zv, pv), ax(and_zv_m))
-    got_inzm = apply_thm(and_elim_right(In(zv, pv), In(zv, m), []), [],
-        and_zv_m, In(zv, m), Proof(Sequent([and_zv_m], [and_zv_m]), 'axiom', principal=and_zv_m))
-    got_inzyv = mp(got_iff_in, got_inzm, In(zv, m), In(zv, yv))
-    # got_inzyv: [eq_ym, And(In(zv,pv), In(zv,m))] |- In(zv, yv)
-    ai_zyv = and_intro(In(zv, pv), In(zv, yv), [])
-    got_and_zyv = mp(apply_thm(ai_zyv, [], In(zv, pv), Implies(In(zv, yv), and_zv_yv), got_inzpv),
-        got_inzyv, In(zv, yv), and_zv_yv)
-    # got_and_zyv: [eq_ym, and_zv_m] |- And(In(zv,pv), In(zv,yv))
-
-    got_ex_zyv_from_m = eir(got_and_zyv, And(In(zv, pv), In(zv, yv)), zv, zv)
-    # Eel zv from and_zv_m:
-    got_ex_zyv = eel(got_ex_zyv_from_m, and_zv_m, zv)
-    ex_zv_m = got_ex_zyv.sequent.left[-1]  # Exists(zv, And(In(zv,pv), In(zv,m)))
-    # got_ex_zyv: [eq_ym, Exists(zv, And(In(zv,pv), In(zv,m)))] |- Exists(zv, And(In(zv,pv), In(zv,yv)))
-
-    # Cut with got_ex_zn: replace Exists(zv,And(In(zv,pv),In(zv,m))) with [ps_mn, In(n,m)]
-    ex_zyv = got_ex_zyv.sequent.right[0]  # Exists(zv, And(In(zv,pv), In(zv,yv)))
-    got_ex_zyv_full = Proof(
-        Sequent([eq_ym, ps_mn, in_n_m], [ex_zyv]), 'cut',
-        [wr(wl(got_ex_zn, eq_ym), ex_zyv),
-         wl(got_ex_zyv, ps_mn, in_n_m)], principal=ex_zv_m)
-
-    # Contradiction: ex_zyv and no_z
-    got_false_m = Proof(Sequent([eq_ym, ps_mn, in_n_m, no_z], []), 'not_left',
-        [got_ex_zyv_full], principal=no_z)
-    # got_false_m: [eq_ym, ps_mn, In(n,m), no_z] |- []
-
-    # Similarly for Case Eq(yv,n): derive false
-    eq_yn = Eq(yv, n)
-    iff_in_yv_n = Iff(In(zv, yv), In(zv, n))
-    fl_eq_yn = fl(eq_yn, iff_in_yv_n, zv)
-    got_iff_in_n = mp(iff_mp_rev(In(zv, yv), In(zv, n), []), fl_eq_yn, iff_in_yv_n,
-        Implies(In(zv, n), In(zv, yv)))
-    and_zv_n = And(In(zv, pv), In(zv, n))
-    got_inzpv2 = apply_thm(and_elim_left(In(zv, pv), In(zv, n), []), [],
-        and_zv_n, In(zv, pv), ax(and_zv_n))
-    got_inzn = apply_thm(and_elim_right(In(zv, pv), In(zv, n), []), [],
-        and_zv_n, In(zv, n), Proof(Sequent([and_zv_n], [and_zv_n]), 'axiom', principal=and_zv_n))
-    got_inzyv2 = mp(got_iff_in_n, got_inzn, In(zv, n), In(zv, yv))
-    got_and_zyv2 = mp(apply_thm(ai_zyv, [], In(zv, pv), Implies(In(zv, yv), and_zv_yv), got_inzpv2),
-        got_inzyv2, In(zv, yv), and_zv_yv)
-    got_ex_zyv_from_n = eir(got_and_zyv2, And(In(zv, pv), In(zv, yv)), zv, zv)
-    got_ex_zyv_n = eel(got_ex_zyv_from_n, and_zv_n, zv)
-    ex_zv_n = got_ex_zyv_n.sequent.left[-1]
-    got_ex_zyv_full_n = Proof(
-        Sequent([eq_yn, ps_mn, in_m_n], [ex_zyv]), 'cut',
-        [wr(wl(got_ex_zm, eq_yn), ex_zyv),
-         wl(got_ex_zyv_n, ps_mn, in_m_n)], principal=ex_zv_n)
-    got_false_n = Proof(Sequent([eq_yn, ps_mn, in_m_n, no_z], []), 'not_left',
-        [got_ex_zyv_full_n], principal=no_z)
-    # got_false_n: [eq_yn, ps_mn, In(m,n), no_z] |- []
-
-    # Now combine: from reg_body (which gives yv with In(yv,pv) and no_z):
-    # Or(Eq(yv,m), Eq(yv,n)) + false from each case -> false
-
-    # Replace got_in_yv_pv and got_no_z in false proofs with reg_body:
-    # got_false_m: [eq_ym, ps_mn, in_n_m, no_z] |- []
-    # Need: [eq_ym, ps_mn, in_n_m, reg_body] |- []
-    no_z_from_reg = got_no_z  # [reg_body] |- no_z
-    got_false_m2 = Proof(Sequent([eq_ym, ps_mn, in_n_m, reg_body], []), 'cut',
-        [wl(no_z_from_reg, eq_ym, ps_mn, in_n_m),
-         wl(got_false_m, reg_body)], principal=no_z)
-
-    got_false_n2 = Proof(Sequent([eq_yn, ps_mn, in_m_n, reg_body], []), 'cut',
-        [wl(no_z_from_reg, eq_yn, ps_mn, in_m_n),
-         wl(got_false_n, reg_body)], principal=no_z)
-
-    # wr to get eq_mn on right (from false):
-    got_false_m3 = Proof(Sequent(got_false_m2.sequent.left, [eq_mn]),
-        'weakening_right', [got_false_m2], principal=eq_mn)
-    got_false_n3 = Proof(Sequent(got_false_n2.sequent.left, [eq_mn]),
-        'weakening_right', [got_false_n2], principal=eq_mn)
-
-    # or_elim on Or(Eq(yv,m), Eq(yv,n)):
-    oe_yv = or_elim(eq_ym, eq_yn, eq_mn, [])
-    imp_ym = Implies(eq_ym, eq_mn)
-    imp_yn = Implies(eq_yn, eq_mn)
-    rem_ym = [f_ for f_ in got_false_m3.sequent.left if not same(f_, eq_ym)]
-    got_imp_ym = Proof(Sequent(rem_ym, [imp_ym]), 'implies_right', [got_false_m3], principal=imp_ym)
-    rem_yn = [f_ for f_ in got_false_n3.sequent.left if not same(f_, eq_yn)]
-    got_imp_yn = Proof(Sequent(rem_yn, [imp_yn]), 'implies_right', [got_false_n3], principal=imp_yn)
-
-    got_oe1 = mp(oe_yv, wl(got_or_yv, in_m_n, in_n_m),
-        or_eq_mn, Implies(imp_ym, Implies(imp_yn, eq_mn)))
-    got_oe2 = mp(got_oe1, got_imp_ym, imp_ym, Implies(imp_yn, eq_mn))
-    got_false_both = mp(got_oe2, got_imp_yn, imp_yn, eq_mn)
-    # got_false_both: [reg_body, ps_mn, In(m,n), In(n,m), succ_m?, succ_n?] |- eq_mn
-
-    # Eel yv from reg_body:
-    got_false_eel = eel(got_false_both, reg_body, yv)
-    ex_reg_actual = got_false_eel.sequent.left[-1]
-    # Cut with got_reg:
-    c_left = [f_ for f_ in got_false_eel.sequent.left if not same(f_, ex_reg_actual)]
-    if not any(same(reg_ax, g) for g in c_left):
-        c_left = c_left + [reg_ax]
-    br1 = got_reg
-    for f_ in c_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = got_false_eel
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in got_false_eel.sequent.left):
-            br2 = wl(br2, f_)
-    got_case_both = Proof(Sequent(c_left, [eq_mn]), 'cut',
-        [wr(br1, eq_mn), br2], principal=ex_reg_actual)
-    # got_case_both: [Reg, ps_mn, In(m,n), In(n,m), succ_m, succ_n] |- Eq(m,n)
-
-    # Now need PairSet(pv, m, n) from Pairing axiom. Or just leave as hypothesis and eel.
-    # Use pairing() axiom to get exists pv. PairSet(pv, m, n).
-    pair_ax = zfc.Pairing()
-    pair_body = PairSet(pv, m, n)
-    # Pairing: forall a,b. exists p. PairSet(p, a, b)
-    fa_pair = Forall(pv, Implies(pair_body, Exists(pv, pair_body)))  # not quite right
-    # Actually Pairing = forall x,y. exists z. PairSet(z, x, y)
-    # Instantiate with m, n:
-    ex_pv = Exists(pv, pair_body)
-    fa2 = Forall(n, ex_pv)
-    fl_pair1 = fl(pair_ax, fa2, m)
-    fl_pair2 = Proof(Sequent([pair_ax], [ex_pv]), 'cut',
-        [wr(fl_pair1, ex_pv), wl(fl(fa2, ex_pv, n), pair_ax)], principal=fa2)
-    # fl_pair2: [Pairing] |- Exists(pv, PairSet(pv, m, n))
-
-    # Eel pv from got_case_both:
-    got_case_both_eel = eel(got_case_both, pair_body, pv)
-    ex_pair = got_case_both_eel.sequent.left[-1]  # Exists(pv, PairSet(pv,m,n))
-    # Cut with fl_pair2:
-    c2_left = [f_ for f_ in got_case_both_eel.sequent.left if not same(f_, ex_pair)]
-    if not any(same(pair_ax, g) for g in c2_left):
-        c2_left = c2_left + [pair_ax]
-    br1 = fl_pair2
-    for f_ in c2_left:
-        if not any(same(f_, g) for g in br1.sequent.left):
-            br1 = wl(br1, f_)
-    br2 = got_case_both_eel
-    for f_ in br1.sequent.left:
-        if not any(same(f_, g) for g in got_case_both_eel.sequent.left):
-            br2 = wl(br2, f_)
-    got_case_cycle = Proof(Sequent(c2_left, [eq_mn]), 'cut',
-        [wr(br1, eq_mn), br2], principal=ex_pair)
-    # got_case_cycle: [Reg, Pairing, In(m,n), In(n,m), succ_m, succ_n] |- Eq(m,n)
-
-    # === Outer case analysis ===
-    # Case Eq(m,n): done directly
-    got_case_eq_mn = ax(eq_mn)
-
-    # Case Eq(n,m): eq_sym -> Eq(m,n)
-    got_case_eq_nm = apply_thm(es, [n, m], Eq(n, m), eq_mn, ax(Eq(n, m)))
-
-    # Case In(m,n):
-    #   inner or_elim on Or(In(n,m), Eq(n,m)):
-    #     Case Eq(n,m): got_case_eq_nm
-    #     Case In(n,m): got_case_cycle
-
-    oe_inner = or_elim(In(n, m), Eq(n, m), eq_mn, [])
-    imp_inm = Implies(in_n_m, eq_mn)
-    rem_inm = [f_ for f_ in got_case_cycle.sequent.left if not same(f_, in_n_m)]
-    got_imp_inm = Proof(Sequent(rem_inm, [imp_inm]), 'implies_right', [got_case_cycle], principal=imp_inm)
-    imp_eqnm = Implies(Eq(n, m), eq_mn)
-    rem_eqnm = [f_ for f_ in got_case_eq_nm.sequent.left if not same(f_, Eq(n, m))]
-    got_imp_eqnm = Proof(Sequent(rem_eqnm, [imp_eqnm]), 'implies_right', [got_case_eq_nm], principal=imp_eqnm)
-
-    got_inner = mp(oe_inner, wl(got_or_nm, in_m_n, reg_ax, pair_ax),
-        or_nm, Implies(imp_inm, Implies(imp_eqnm, eq_mn)))
-    got_inner2 = mp(got_inner, got_imp_inm, imp_inm, Implies(imp_eqnm, eq_mn))
-    got_inner3 = mp(got_inner2, got_imp_eqnm, imp_eqnm, eq_mn)
-    # got_inner3: [succ_m, succ_n, In(m,n), Reg, Pairing] |- Eq(m,n)
+    # Cut Or(In(n,m),Eq(n,m)) with got_or_nm:
+    got_from_mn = cut(got_inner, or_nm, got_or_nm)
+    # [In(m,n), succ_m, succ_n, omega_w, in_m_w, in_n_w, ...] |- Eq(m,n)
 
     # Outer or_elim on Or(In(m,n), Eq(m,n)):
-    oe_outer = or_elim(in_m_n, Eq(m, n), eq_mn, [])
-    imp_inmn = Implies(in_m_n, eq_mn)
-    rem_inmn = [f_ for f_ in got_inner3.sequent.left if not same(f_, in_m_n)]
-    got_imp_inmn = Proof(Sequent(rem_inmn, [imp_inmn]), 'implies_right', [got_inner3], principal=imp_inmn)
+    # Case In(m,n): → Eq(m,n) via got_from_mn
+    # Case Eq(m,n): → Eq(m,n) trivially
+    imp_inmn = Implies(In(m, n), eq_mn)
     imp_eqmn = Implies(eq_mn, eq_mn)
-    got_imp_eqmn = Proof(Sequent([], [imp_eqmn]), 'implies_right',
+    left_inmn = [f_ for f_ in got_from_mn.sequent.left if not same(f_, In(m, n))]
+    p_imp_inmn = Proof(Sequent(left_inmn, [imp_inmn]), 'implies_right', [got_from_mn], principal=imp_inmn)
+    p_imp_eqmn = Proof(Sequent([], [imp_eqmn]), 'implies_right',
         [Proof(Sequent([eq_mn], [eq_mn]), 'axiom', principal=eq_mn)], principal=imp_eqmn)
 
-    got_outer = mp(oe_outer, wl(got_or_mn, reg_ax, pair_ax),
-        or_mn, Implies(imp_inmn, Implies(imp_eqmn, eq_mn)))
-    got_outer2 = mp(got_outer, got_imp_inmn, imp_inmn, Implies(imp_eqmn, eq_mn))
-    got_result = mp(got_outer2, got_imp_eqmn, imp_eqmn, eq_mn)
-    # got_result: [succ_m, succ_n, Reg, Pairing] |- Eq(m, n)
+    oe_outer = or_elim(In(m, n), eq_mn, eq_mn, [])
+    got_result = apply_thm(oe_outer, [], or_mn,
+        Implies(imp_inmn, Implies(imp_eqmn, eq_mn)), ax(or_mn))
+    got_result = mp(got_result, p_imp_inmn, imp_inmn, Implies(imp_eqmn, eq_mn))
+    got_result = mp(got_result, p_imp_eqmn, imp_eqmn, eq_mn)
+    # [Or(In(m,n),Eq(m,n)), succ_m, succ_n, omega_w, in_m_w, in_n_w, ...] |- Eq(m,n)
 
-    # Discharge and close
+    # Cut Or(In(m,n),Eq(m,n)) with got_or_mn:
+    got_result = cut(got_result, or_mn, got_or_mn)
+
+    # Discharge and close:
+    for h in [succ_n, succ_m, in_n_w, in_m_w, omega_w]:
+        if any(same(h, f_) for f_ in got_result.sequent.left):
+            imp_h = Implies(h, got_result.sequent.right[0])
+            left_h = [f_ for f_ in got_result.sequent.left if not same(f_, h)]
+            got_result = Proof(Sequent(left_h, [imp_h]), 'implies_right', [got_result], principal=imp_h)
     proof = got_result
-    for h in [succ_n, succ_m]:
-        if any(same(h, g) for g in proof.sequent.left):
-            imp_h = Implies(h, proof.sequent.right[0])
-            remaining = [f_ for f_ in proof.sequent.left if not same(f_, h)]
-            proof = Proof(Sequent(remaining, [imp_h]), 'implies_right', [proof], principal=imp_h)
-    for var in [sn, n, m]:
+    for v in [sn, n, m, w]:
         body = proof.sequent.right[0]
-        fa = Forall(var, body)
-        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], term=var, principal=fa)
-    proof.name = 'successor_injection'
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+    proof.name = 'successor_injection_omega'
     return proof
-
 
 
 def eq_apply_val_transfer():
@@ -2269,7 +2059,7 @@ def rec_exists_step():
     auil = apply_union_intro_left()
     auir = apply_union_intro_right()
     sne = succ_not_empty()
-    si = successor_injection()
+    si = successor_injection_omega()
 
     # === Apply(u, sn, fval) from apply_union_intro_right ===
     asn = apply_singleton()
