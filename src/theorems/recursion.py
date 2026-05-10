@@ -5707,10 +5707,80 @@ def rec_graph_exists():
     # This is complex. For now: assume In(yr, uuf) as derivable from RecApprox+Apply,
     # provide via ax, discharge later. TODO: prove from prop 3 + BigUnion properties.
     in_yr_uuf = In(yr, uuf)
+    # Derive In(yr, uuf) from RecApprox prop 3 + apply_first_in_double_union:
+    # RecApprox prop 3: ∀x,y. Apply(vr,x,y) → ∃z. Apply(f,y,z)
+    # From Apply(vr,nf,yr): ∃z. Apply(f,yr,z)
+    # From apply_first_in_double_union: Apply(f,yr,z) → BigUnion(uf,f) → BigUnion(uuf,uf) → In(yr,uuf)
+    ra_exp = ra_vr.expand()
+    p345 = ra_exp.right.right  # And(prop3, And(prop4, prop5))
+    prop3 = p345.left  # ∀x.∀y. Apply(vr,x,y)→∃z.Apply(f,y,z)
+    got_p3 = apply_thm(and_elim_left(prop3, p345.right, []), [],
+        p345, prop3,
+        apply_thm(and_elim_right(ra_exp.right.left, p345, []), [],
+            ra_exp.right, p345,
+            apply_thm(and_elim_right(ra_exp.left, ra_exp.right, []), [],
+                ra_exp, ra_exp.right, ax(ra_vr))))
+    # [ra_vr] |- prop3
+    zz = Var()
+    ex_fyz = Exists(zz, Apply(f, yr, zz))
+    got_ex_fyz = apply_thm(apply_thm(got_p3, [nf]), [yr], app_vr, ex_fyz, ax(app_vr))
+    # [ra_vr, app_vr] |- ∃z. Apply(f, yr, z)
+
+    # apply_first_in_double_union: Apply(f,yr,z) → BigUnion(uf,f) → BigUnion(uuf,uf) → In(yr,uuf)
+    from theorems.sets import apply_first_in_double_union
+    afidu = apply_first_in_double_union()
+    sxy2 = Var()  # PairSet witness for afidu
+    got_afidu = apply_thm(afidu, [f, yr, sxy2, zz, uf, uuf])
+    # mp through hypotheses. afidu has foralls for sxy then implies chain.
+    # Use dynamic approach: check if right is Implies, mp with ax(hyp).
+    for _ in range(20):  # safety bound
+        if same(got_afidu.sequent.right[0], in_yr_uuf):
+            break
+        cur = got_afidu.sequent.right[0]
+        if type(cur).__name__ == 'Implies':
+            got_afidu = mp(got_afidu, ax(cur.left), cur.left, cur.right)
+        else:
+            break  # not an Implies, stop
+    # [Apply(f,yr,zz), uf_char, uuf_char, Pairing, ...] |- In(yr, uuf)
+
+    # Eliminate any zz-free non-Apply formula on the left (PairSet from afidu internals).
+    # Find it dynamically and eel its set-variable, then cut with Pairing:
+    from core.proof import _free_vars
+    app_fyzz = Apply(f, yr, zz)
+    for f_ in list(got_afidu.sequent.left):
+        if zz in _free_vars(f_) and not same(f_, app_fyzz) and not isinstance(f_, zfc.ZFCAxiom):
+            # f_ is PairSet(set_var, yr_internal, zz_internal). Its __match_args__[0] is the set var.
+            if hasattr(f_, '__match_args__') and len(f_.__match_args__) >= 1:
+                set_var = getattr(f_, f_.__match_args__[0])
+                # eel set_var over f_, then cut with Pairing existence:
+                pairing2 = zfc.Pairing()
+                pair_ax2 = Proof(Sequent([pairing2], [pairing2]), 'axiom', principal=pairing2)
+                # Get ∃set_var. f_ from Pairing:
+                # f_ has 'left' and 'right' match args for PairSet
+                if hasattr(f_, 'left') and hasattr(f_, 'right'):
+                    got_ex_f = apply_thm(pair_ax2, [f_.left, f_.right], concl=Exists(set_var, f_))
+                    got_afidu = eel(got_afidu, f_, set_var)
+                    got_afidu = cut(got_afidu, got_afidu.sequent.left[-1], got_ex_f)
+            break
+
+    # Find the actual Apply(f,yr,zz) formula on the left (may use different var objects):
+    app_on_left = None
+    for f_ in got_afidu.sequent.left:
+        if zz in _free_vars(f_) and not isinstance(f_, zfc.ZFCAxiom):
+            app_on_left = f_
+            break
+    if app_on_left is not None:
+        got_afidu = eel(got_afidu, app_on_left, zz)
+    # After eel, the existential is on the left. Cut with got_ex_fyz:
+    # Find the existential formula on the left that matches:
+    ex_on_left = got_afidu.sequent.left[-1]  # eel puts it last
+    got_yr_uuf = cut(got_afidu, ex_on_left, got_ex_fyz)
+    # [ra_vr, app_vr, uf_char, uuf_char, ...] |- In(yr, uuf)
+
     from theorems.logic import or_intro_right
     or_yr = Or(In(yr, w), in_yr_uuf)
     got_or_yr = apply_thm(or_intro_right(In(yr, w), in_yr_uuf, []),
-        [], in_yr_uuf, or_yr, ax(in_yr_uuf))
+        [], in_yr_uuf, or_yr, got_yr_uuf)
     iff_big_yr = Iff(in_yr_big, or_yr)
     got_yr_big = mp(apply_thm(_iff_rev(in_yr_big, or_yr, []),
         [], iff_big_yr, Implies(or_yr, in_yr_big), fl(big_char, iff_big_yr, yr)),
