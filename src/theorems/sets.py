@@ -3587,6 +3587,174 @@ def unique_ordpair():
     return proof
 
 
+def apply_first_in_double_union():
+    """The first argument of Apply is in ∪∪f.
+    Union |- forall f, x, y, uf, uuf.
+        Apply(f,x,y) -> BigUnion(uf,f) -> BigUnion(uuf,uf) -> In(x, uuf)
+
+    From Apply(f,x,y): ∃p. OrdPair(p,x,y) ∧ In(p,f).
+    OrdPair(p,x,y) gives Singleton(sx,x), so In(x,sx) and In(sx,p).
+    In(sx,p) ∧ In(p,f) → In(sx,∪f) via BigUnion.
+    In(x,sx) ∧ In(sx,∪f) → In(x,∪∪f) via BigUnion."""
+    from tactics import apply_thm, mp, ax, fl, wl, eel, eir, cut
+    from theorems.logic import iff_mp_rev, and_intro
+    from vocab.ordpair import OrdPair as OP
+    from vocab.functions import Apply as App
+    from vocab import BigUnion as BU
+    from vocab.sets import Singleton
+
+    f, x, y = Var(), Var(), Var()
+    uf, uuf = Var(), Var()
+    p, sx = Var(), Var()
+    z, z2 = Var(), Var()
+
+    app_fxy = App(f, x, y)
+    bu_uf = BU(uf, f)    # uf = ∪f
+    bu_uuf = BU(uuf, uf)  # uuf = ∪∪f
+    goal = In(x, uuf)
+
+    # Apply(f,x,y) expands to ∃p. OrdPair(p,x,y) ∧ In(p,f)
+    op_p = OP(p, x, y)
+    in_p_f = In(p, f)
+
+    # From OrdPair(p,x,y): instantiate with sx to get Singleton(sx,x) → ...
+    # OrdPair(p,x,y) = ∀sx. Singleton(sx,x) → ∀sxy. PairSet(sxy,x,y) → PairSet(p,sx,sxy)
+    # We just need: ∃sx. Singleton(sx,x) ∧ In(sx, p)
+    # Singleton(sx,x): ∀d. d∈sx ↔ d=x. So In(x,sx).
+    # PairSet(p,sx,sxy): ∀d. d∈p ↔ d=sx ∨ d=sxy. So In(sx,p).
+
+    sing_sx = Singleton(sx, x)
+
+    # In(x, sx) from Singleton: ∀d. d∈sx ↔ d=x. Instantiate d=x, backward with Eq(x,x):
+    from theorems.logic import eq_reflexive, iff_mp_rev as _iff_rev
+    from core.derived import Or
+    er = eq_reflexive()
+    eq_xx = Eq(x, x)
+    got_eqxx = apply_thm(er, [x], concl=eq_xx)
+    # [er axioms] |- Eq(x,x)
+    iff_sx = Iff(In(x, sx), Eq(x, x))
+    got_in_x_sx = mp(apply_thm(_iff_rev(In(x, sx), eq_xx, []),
+        [], iff_sx, Implies(eq_xx, In(x, sx)), fl(sing_sx, iff_sx, x)),
+        got_eqxx, eq_xx, In(x, sx))
+    # [sing_sx] |- In(x, sx)
+
+    # In(sx, p) from OrdPair: p = {sx, sxy} for some sxy.
+    # OrdPair(p,x,y) → ∀sx'. Singleton(sx',x) → ∀sxy. PairSet(sxy,x,y) → PairSet(p,sx',sxy)
+    # PairSet(p,sx,sxy) means ∀d. d∈p ↔ d=sx ∨ d=sxy. So In(sx,p) from left disjunct.
+    from vocab.sets import PairSet
+    sxy = Var()
+    ps_sxy = PairSet(sxy, x, y)
+    ps_p = PairSet(p, sx, sxy)
+    # Extract PairSet(p,sx,sxy) from OrdPair:
+    inner_fa = Forall(sxy, Implies(ps_sxy, ps_p))
+    got_fl1 = fl(op_p, Implies(sing_sx, inner_fa), sx)
+    got_ps_p = mp(got_fl1, ax(sing_sx), sing_sx, inner_fa)
+    # [op_p, sing_sx] |- ∀sxy. PairSet(sxy,x,y) → PairSet(p,sx,sxy)
+    # Need a witness for sxy. Use Pairing(x,y):
+    import core.zfc as zfc
+    from core.proof import Proof, Sequent
+    pairing = zfc.Pairing()
+    pair_ax = Proof(Sequent([pairing], [pairing]), 'axiom', principal=pairing)
+    got_ex_sxy = apply_thm(pair_ax, [x, y], concl=Exists(sxy, ps_sxy))
+    # Instantiate and mp:
+    got_ps_p2 = apply_thm(got_ps_p, [sxy], ps_sxy, ps_p, ax(ps_sxy))
+    # [op_p, sing_sx, ps_sxy] |- PairSet(p, sx, sxy)
+
+    # From PairSet(p,sx,sxy): In(sx,p) via left disjunct
+    # PairSet: ∀d. d∈p ↔ d=sx ∨ d=sxy. Instantiate d=sx.
+    # Eq(sx,sx) → Or(Eq(sx,sx), Eq(sx,sxy)) → In(sx,p)
+    from theorems.logic import or_intro_left
+    eq_sxsx = Eq(sx, sx)
+    got_eq_sx = apply_thm(er, [sx], concl=eq_sxsx)
+    or_sx = Or(eq_sxsx, Eq(sx, sxy))
+    got_or_sx = apply_thm(or_intro_left(eq_sxsx, Eq(sx, sxy), []),
+        [], eq_sxsx, or_sx, got_eq_sx)
+    iff_p_sx = Iff(In(sx, p), or_sx)
+    got_in_sx_p = mp(apply_thm(_iff_rev(In(sx, p), or_sx, []),
+        [], iff_p_sx, Implies(or_sx, In(sx, p)), fl(ps_p, iff_p_sx, sx)),
+        got_or_sx, or_sx, In(sx, p))
+    # [op_p, sing_sx, ps_sxy] |- In(sx, p)
+
+    # In(sx, ∪f): from In(sx,p) ∧ In(p,f) → ∃y'. y'∈f ∧ sx∈y' → In(sx, ∪f) via BigUnion
+    # BigUnion(uf,f): ∀z. z∈uf ↔ ∃y'. y'∈f ∧ z∈y'
+    # Backward: ∃y'. y'∈f ∧ sx∈y' → In(sx, uf)
+    # Witness y'=p: In(p,f) ∧ In(sx,p)
+    and_pf_sxp = And(In(p, f), In(sx, p))
+    got_and_pf = mp(apply_thm(and_intro(in_p_f, In(sx, p), []),
+        [], in_p_f, Implies(In(sx, p), and_pf_sxp), ax(in_p_f)),
+        got_in_sx_p, In(sx, p), and_pf_sxp)
+    # ∃p. In(p,f) ∧ In(sx,p)
+    ex_p_and = Exists(p, and_pf_sxp)
+    got_ex_pand = eir(got_and_pf, and_pf_sxp, p, p)
+    # BigUnion backward:
+    iff_uf = Iff(In(sx, uf), Exists(z, And(In(z, f), In(sx, z))))
+    got_in_sx_uf = mp(apply_thm(_iff_rev(In(sx, uf), Exists(z, And(In(z, f), In(sx, z))), []),
+        [], iff_uf, Implies(Exists(z, And(In(z, f), In(sx, z))), In(sx, uf)),
+        fl(bu_uf, iff_uf, sx)),
+        got_ex_pand, Exists(z, And(In(z, f), In(sx, z))), In(sx, uf))
+    # [op_p, sing_sx, ps_sxy, in_p_f, bu_uf] |- In(sx, uf)
+
+    # In(x, ∪∪f): from In(x,sx) ∧ In(sx,uf) → In(x, uuf) via BigUnion
+    and_sxuf_xsx = And(In(sx, uf), In(x, sx))
+    got_and_sx = mp(apply_thm(and_intro(In(sx, uf), In(x, sx), []),
+        [], In(sx, uf), Implies(In(x, sx), and_sxuf_xsx), got_in_sx_uf),
+        got_in_x_sx, In(x, sx), and_sxuf_xsx)
+    ex_sx_and = Exists(sx, and_sxuf_xsx)
+    got_ex_sxand = eir(got_and_sx, and_sxuf_xsx, sx, sx)
+    iff_uuf = Iff(In(x, uuf), Exists(z2, And(In(z2, uf), In(x, z2))))
+    got_in_x_uuf = mp(apply_thm(_iff_rev(In(x, uuf), Exists(z2, And(In(z2, uf), In(x, z2))), []),
+        [], iff_uuf, Implies(Exists(z2, And(In(z2, uf), In(x, z2))), In(x, uuf)),
+        fl(bu_uuf, iff_uuf, x)),
+        got_ex_sxand, Exists(z2, And(In(z2, uf), In(x, z2))), In(x, uuf))
+    # [op_p, sing_sx, ps_sxy, in_p_f, bu_uf, bu_uuf, sing_sx] |- In(x, uuf)
+
+    # Eliminate ps_sxy (from Pairing):
+    got_result = got_in_x_uuf
+    if any(same(ps_sxy, f_) for f_ in got_result.sequent.left):
+        got_result = eel(got_result, ps_sxy, sxy)
+        got_result = cut(got_result, got_result.sequent.left[-1], got_ex_sxy)
+
+    # PairSet(p,sx,sxy) also has sx free — cut it with got_ps_p2's derivation:
+    if any(same(ps_p, f_) for f_ in got_result.sequent.left):
+        got_result = cut(got_result, ps_p, got_ps_p2)
+
+    # Eliminate sing_sx (from singleton_exists):
+    from theorems.sets import singleton_exists
+    got_ex_sing = apply_thm(singleton_exists(), [x], concl=Exists(sx, sing_sx))
+    if any(same(sing_sx, f_) for f_ in got_result.sequent.left):
+        got_result = eel(got_result, sing_sx, sx)
+        got_result = cut(got_result, got_result.sequent.left[-1], got_ex_sing)
+
+    # Package op_p + in_p_f into Apply(f,x,y) form, then eel p:
+    and_op_in = And(op_p, in_p_f)
+    if any(same(op_p, f_) for f_ in got_result.sequent.left):
+        got_result = cut(got_result, op_p,
+            apply_thm(and_elim_left(op_p, in_p_f, []), [], and_op_in, op_p, ax(and_op_in)))
+    if any(same(in_p_f, f_) for f_ in got_result.sequent.left):
+        got_result = cut(got_result, in_p_f,
+            apply_thm(and_elim_right(op_p, in_p_f, []), [], and_op_in, in_p_f, ax(and_op_in)))
+    got_result = eel(got_result, and_op_in, p)
+    # Now Exists(p, And(OrdPair(p,x,y), In(p,f))) = Apply(f,x,y) on left
+
+    # Discharge ALL non-axiom hypotheses, then close foralls:
+    from core.zfc import ZFCAxiom
+    proof = got_result
+    non_ax = [f_ for f_ in proof.sequent.left if not isinstance(f_, ZFCAxiom)]
+    for h in non_ax:
+        imp = Implies(h, proof.sequent.right[0])
+        left_h = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+        proof = Proof(Sequent(left_h, [imp]), 'implies_right', [proof], principal=imp)
+
+    for v in [uuf, uf, sxy, y, x, f]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'apply_first_in_double_union'
+    return proof
+
+
 def subset_in_powerset():
     """If every element of s is in w, then s ∈ P(w).
     |- forall s, pw.
