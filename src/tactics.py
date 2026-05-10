@@ -143,8 +143,31 @@ def cut(proof, pred, got_pred):
             c_left = c_left + [f]
     br1 = weaken_to(got_pred, c_left)
     br2 = weaken_to(proof, c_left)
-    return Proof(Sequent(c_left, proof.sequent.right), 'cut',
-        [wr(br1, proof.sequent.right[0]), br2], principal=pred)
+    # hint: set CUT_DEBUG=True to dump on failure
+    try:
+        return Proof(Sequent(c_left, proof.sequent.right), 'cut',
+            [wr(br1, proof.sequent.right[0]), br2], principal=pred)
+    except ValueError as e:
+        if globals().get('CUT_DEBUG'):
+            from core.proof import _set_add, _eq_sequent
+            print(f'CUT FAILED: {e}')
+            print(f'pred: {pred}')
+            s = Sequent(c_left, proof.sequent.right)
+            ps0 = wr(br1, proof.sequent.right[0])
+            ps1 = br2
+            expected_ps0 = Sequent(s.left, _set_add(s.right, pred))
+            expected_ps1 = Sequent(_set_add(s.left, pred), s.right)
+            print(f'ps0 match: {_eq_sequent(ps0.sequent, expected_ps0)}')
+            print(f'ps1 match: {_eq_sequent(ps1.sequent, expected_ps1)}')
+            if not _eq_sequent(ps0.sequent, expected_ps0):
+                print(f'ps0.left: {[str(f_) for f_ in ps0.sequent.left]}')
+                print(f'expected.left: {[str(f_) for f_ in expected_ps0.left]}')
+                print(f'ps0.right: {[str(f_) for f_ in ps0.sequent.right]}')
+                print(f'expected.right: {[str(f_) for f_ in expected_ps0.right]}')
+            if not _eq_sequent(ps1.sequent, expected_ps1):
+                print(f'ps1.left: {[str(f_) for f_ in ps1.sequent.left]}')
+                print(f'expected.left: {[str(f_) for f_ in expected_ps1.left]}')
+        raise
 
 
 def mp(impl_proof, arg_proof, P, Q):

@@ -4617,9 +4617,9 @@ def rec_func_exists():
     from tactics import apply_thm, wl, wr, mp, ax, cut, fl
     from vocab import Function as FuncDef, Apply, RecApprox, TotalFrom
 
-    # Delegate to rec_graph_exists (Z version)
-    # rge: [axioms] |- forall a,f,w. Omega(w) -> val_in_w -> Exists(h, char)
-    # We need: forall a,f,w. Function(f) -> TotalFrom(f,a) -> Omega(w) -> val_in_w -> Exists(h, char)
+    # Delegate to rec_graph_exists (Z version, no Replacement, no val_in_w)
+    # rge: [Z axioms] |- forall a,f,w. Omega(w) -> Exists(h, char)
+    # We need: forall a,f,w. Function(f) -> TotalFrom(f,a) -> Omega(w) -> Exists(h, char)
     rge = rec_graph_exists()
     from core.proof import _subst, _expand
 
@@ -4637,38 +4637,26 @@ def rec_func_exists():
         fl_step = fl(outer, inst, term)
         cur = Proof(Sequent(cur.sequent.left, [inst]), 'cut',
             [wr(cur, inst), wl(fl_step, *cur.sequent.left)], principal=outer)
-    # cur: [axioms] |- Implies(omega_w, Implies(val_in_w, ex_goal))
-    imp_body = cur.sequent.right[0]
 
-    # MP through the rge hypotheses dynamically:
+    # MP through the rge hypotheses dynamically (just Omega(w)):
     while hasattr(cur.sequent.right[0], 'left') and type(cur.sequent.right[0]).__name__ == 'Implies':
         imp = cur.sequent.right[0]
         cur = mp(cur, ax(imp.left), imp.left, imp.right)
-    # cur: [omega_w_actual, val_in_w_actual, axioms] |- ex_goal
     got = cur
-    ex_goal = got.sequent.right[0]
     from core.zfc import ZFCAxiom
 
-    # Derive val_in_w from rec_approx_val_in_w + In(a,w) + Omega(w) + range_closed.
-    # rec_approx_val_in_w: ∀v,a,f,w,n,y. RecApprox→In(a,w)→Omega(w)→range_closed→In(n,w)→Apply(v,n,y)→In(y,w)
-    # val_in_w needs: ∀v,n,y. RecApprox(v,a,f,w)→Apply(v,n,y)→In(y,w)
-    # The extra hypotheses (In(a,w), Omega(w), range_closed) are provided;
-    # In(n,w) is derived from RecApprox domain property.
-    # For now: keep val_in_w as hypothesis (callers provide it from their context).
-    # Add Function(f), TotalFrom(f,a), In(a,w), range_closed as hypotheses:
-    from vocab.ordpair import Successor as SuccDef
-    xr, zr = Var(postfix='xr'), Var(postfix='zr')
-    in_a_w = In(a, w)
-    range_closed = Forall(xr, Implies(In(xr, w), Forall(zr, Implies(Apply(f, xr, zr), In(zr, w)))))
+    # Add Function(f) and TotalFrom(f,a) as vacuous hypotheses:
     got = wl(got, func_f)
     got = wl(got, total_fa)
-    got = wl(got, in_a_w)
-    got = wl(got, range_closed)
 
-    # Discharge all non-axiom hypotheses:
+    # Discharge in order: Omega(w), TotalFrom(f,a), Function(f)
     proof = got
+    print('rec_func_exists before discharge:')
+    for f_ in proof.sequent.left:
+        print(f'  {type(f_).__name__} is_axiom={isinstance(f_, ZFCAxiom)} {f_}')
     non_ax = [f_ for f_ in proof.sequent.left if not isinstance(f_, ZFCAxiom)]
-    for h in non_ax:
+    print(f'non_ax: {[str(f_) for f_ in non_ax]}')
+    for h in non_ax:  # discharge ALL non-axioms, omega first (it's first in list)
         imp = Implies(h, proof.sequent.right[0])
         rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
@@ -5801,12 +5789,12 @@ def rec_graph_exists():
     got_and_uf = mp(apply_thm(and_intro(In(sx2, uf), In(yr, sx2), []), [],
         In(sx2, uf), Implies(In(yr, sx2), and_uf_yr), got_in_sx2_uf),
         got_in_yr_sx2, In(yr, sx2), and_uf_yr)
-    got_ex_uf = eir(got_and_uf, and_uf_yr, sx2, sx2)
+    got_ex_sx2_uf = eir(got_and_uf, and_uf_yr, sx2, sx2)
     iff_uuf_yr = Iff(In(yr, uuf), Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))))
     got_yr_uuf = mp(apply_thm(iff_mp_rev(In(yr, uuf), Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))), []),
         [], iff_uuf_yr, Implies(Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))), In(yr, uuf)),
         fl(uuf_char, iff_uuf_yr, yr)),
-        got_ex_uf, Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))), In(yr, uuf))
+        got_ex_sx2_uf, Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))), In(yr, uuf))
     # [op_pp, sing_sx2, ps_sxy2, in_pp_f, uf_char, uuf_char] |- In(yr, uuf)
 
     # Elimination order matters: ps_pp has pp, sx2, sxy2 all free.
@@ -5828,6 +5816,12 @@ def rec_graph_exists():
         got_yr_uuf = cut(got_yr_uuf, got_yr_uuf.sequent.left[-1], got_ex_sing2)
     # Package op_pp + in_pp_f into Apply(f,yr,zz) form:
     and_op_in = And(op_pp, in_pp_f)
+    # print(f'Before op_pp/in_pp_f packaging:')
+    # print(f'  op_pp = {op_pp}')
+    # print(f'  in_pp_f = {in_pp_f}')
+    # for i, f_ in enumerate(got_yr_uuf.sequent.left):
+    #     # print(f'  [{i}] {f_}')
+    #     # print(f'       same(op_pp): {same(op_pp, f_)}, same(in_pp_f): {same(in_pp_f, f_)}')
     if any(same(op_pp, f_) for f_ in got_yr_uuf.sequent.left):
         got_yr_uuf = cut(got_yr_uuf, op_pp,
             apply_thm(and_elim_left(op_pp, in_pp_f, []), [], and_op_in, op_pp, ax(and_op_in)))
@@ -5939,9 +5933,7 @@ def rec_graph_exists():
         got_bwd = eel(got_bwd, and_inner, yr)
     ex_yr = got_bwd.sequent.left[-1]  # the Exists(yr, ...) that eel produced
     got_bwd = eel(got_bwd, ex_yr, vr)
-
-    # Find the ∃vr.∃yr... formula actually on the left (may differ from phi_nf_pv due to packaging):
-    phi_nf_actual = ex_yr  # whatever eel(vr) produced
+    phi_nf_actual = got_bwd.sequent.left[-1]  # the ∃vr.∃yr... AFTER eel(vr)
     and_nf_phi = And(In(nf, w), phi_nf_actual)
     if any(same(In(nf, w), f_) for f_ in got_bwd.sequent.left):
         got_bwd = cut(got_bwd, In(nf, w), apply_thm(and_elim_left(In(nf, w), phi_nf_actual, []),
@@ -5977,10 +5969,14 @@ def rec_graph_exists():
     got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_pb)
     got_ex_desired = eel(got_ex_desired, big_char, big)
     got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_big)
-    got_ex_desired = eel(got_ex_desired, uuf_char, uuf)
-    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_uuf)
-    got_ex_desired = eel(got_ex_desired, uf_char, uf)
-    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_uf)
+    # Dependency: uuf_char has uf free, big_char has uuf free.
+    if any(same(uuf_char, f_) for f_ in got_ex_desired.sequent.left):
+        got_ex_desired = eel(got_ex_desired, uuf_char, uuf)
+        # hint: set CUT_DEBUG in tactics.py to debug cut failures
+        got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_uuf)
+    if any(same(uf_char, f_) for f_ in got_ex_desired.sequent.left):
+        got_ex_desired = eel(got_ex_desired, uf_char, uf)
+        got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_uf)
 
     # === Discharge hypotheses and close foralls ===
     proof = got_ex_desired
@@ -8219,13 +8215,14 @@ def recursion_theorem():
     g_imp_func = goal.body.body.body  # Implies(func_f, ...)
     g_fa_w = goal.body.body  # Forall(w, ...)
     g_fa_f = goal.body  # Forall(f, ...)
-    # Discharge all non-axiom hypotheses (including val_in_w from rge):
+    # Discharge in order: Omega(w), TotalFrom(f,a), Function(f)
+    # (innermost first → outermost in final implies chain)
     from core.zfc import ZFCAxiom as _ZFC
-    non_ax_final = [f_ for f_ in proof.sequent.left if not isinstance(f_, _ZFC)]
-    for hh in non_ax_final:
-        imp_hh = Implies(hh, proof.sequent.right[0])
-        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-        proof = Proof(Sequent(rem, [imp_hh]), 'implies_right', [proof], principal=imp_hh)
+    for hh in [omega_w, dom_closed, func_f]:
+        if any(same(hh, f_) for f_ in proof.sequent.left):
+            imp_hh = Implies(hh, proof.sequent.right[0])
+            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+            proof = Proof(Sequent(rem, [imp_hh]), 'implies_right', [proof], principal=imp_hh)
     for var in [w, f, a]:
         body = proof.sequent.right[0]
         fa = Forall(var, body)
