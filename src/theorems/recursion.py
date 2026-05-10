@@ -5726,56 +5726,121 @@ def rec_graph_exists():
     got_ex_fyz = apply_thm(apply_thm(got_p3, [nf]), [yr], app_vr, ex_fyz, ax(app_vr))
     # [ra_vr, app_vr] |- ∃z. Apply(f, yr, z)
 
-    # apply_first_in_double_union: Apply(f,yr,z) → BigUnion(uf,f) → BigUnion(uuf,uf) → In(yr,uuf)
-    from theorems.sets import apply_first_in_double_union
-    afidu = apply_first_in_double_union()
-    sxy2 = Var()  # PairSet witness for afidu
-    got_afidu = apply_thm(afidu, [f, yr, sxy2, zz, uf, uuf])
-    # mp through hypotheses. afidu has foralls for sxy then implies chain.
-    # Use dynamic approach: check if right is Implies, mp with ax(hyp).
-    for _ in range(20):  # safety bound
-        if same(got_afidu.sequent.right[0], in_yr_uuf):
-            break
-        cur = got_afidu.sequent.right[0]
-        if type(cur).__name__ == 'Implies':
-            got_afidu = mp(got_afidu, ax(cur.left), cur.left, cur.right)
-        else:
-            break  # not an Implies, stop
-    # [Apply(f,yr,zz), uf_char, uuf_char, Pairing, ...] |- In(yr, uuf)
-
-    # Eliminate any zz-free non-Apply formula on the left (PairSet from afidu internals).
-    # Find it dynamically and eel its set-variable, then cut with Pairing:
+    # INLINE derivation: Apply(f,yr,zz) + uf_char + uuf_char → In(yr, uuf)
+    # Chain: Apply(f,yr,zz) → OrdPair(p,yr,zz)∧In(p,f) → In(sx,p)∧In(p,f) → In(sx,uf) → In(yr,sx) → In(yr,uuf)
+    # All using variables from THIS scope (no afidu internal vars).
     from core.proof import _free_vars
-    app_fyzz = Apply(f, yr, zz)
-    for f_ in list(got_afidu.sequent.left):
-        if zz in _free_vars(f_) and not same(f_, app_fyzz) and not isinstance(f_, zfc.ZFCAxiom):
-            # f_ is PairSet(set_var, yr_internal, zz_internal). Its __match_args__[0] is the set var.
-            if hasattr(f_, '__match_args__') and len(f_.__match_args__) >= 1:
-                set_var = getattr(f_, f_.__match_args__[0])
-                # eel set_var over f_, then cut with Pairing existence:
-                pairing2 = zfc.Pairing()
-                pair_ax2 = Proof(Sequent([pairing2], [pairing2]), 'axiom', principal=pairing2)
-                # Get ∃set_var. f_ from Pairing:
-                # f_ has 'left' and 'right' match args for PairSet
-                if hasattr(f_, 'left') and hasattr(f_, 'right'):
-                    got_ex_f = apply_thm(pair_ax2, [f_.left, f_.right], concl=Exists(set_var, f_))
-                    got_afidu = eel(got_afidu, f_, set_var)
-                    got_afidu = cut(got_afidu, got_afidu.sequent.left[-1], got_ex_f)
-            break
+    from theorems.logic import eq_reflexive, or_intro_left
 
-    # Find the actual Apply(f,yr,zz) formula on the left (may use different var objects):
-    app_on_left = None
-    for f_ in got_afidu.sequent.left:
-        if zz in _free_vars(f_) and not isinstance(f_, zfc.ZFCAxiom):
-            app_on_left = f_
-            break
-    if app_on_left is not None:
-        got_afidu = eel(got_afidu, app_on_left, zz)
-    # After eel, the existential is on the left. Cut with got_ex_fyz:
-    # Find the existential formula on the left that matches:
-    ex_on_left = got_afidu.sequent.left[-1]  # eel puts it last
-    got_yr_uuf = cut(got_afidu, ex_on_left, got_ex_fyz)
-    # [ra_vr, app_vr, uf_char, uuf_char, ...] |- In(yr, uuf)
+    app_fyzz = Apply(f, yr, zz)
+    pp = Var(postfix='pp')  # the ordered pair witness
+    sx2 = Var(postfix='sx2')  # singleton {yr}
+    sxy2 = Var(postfix='sxy2')  # pair {yr,zz}
+
+    # From Apply(f,yr,zz): ∃pp. OrdPair(pp,yr,zz) ∧ In(pp,f)
+    op_pp = OrdPair(pp, yr, zz)
+    in_pp_f = In(pp, f)
+
+    # OrdPair(pp,yr,zz) → PairSet(pp,sx2,sxy2) where Singleton(sx2,yr), PairSet(sxy2,yr,zz)
+    # → In(sx2, pp) [from PairSet(pp,...)]
+    # Singleton(sx2,yr) → In(yr, sx2) [from Singleton]
+    # In(sx2,pp) ∧ In(pp,f) → In(sx2, uf) [from uf_char backward]
+    # In(yr,sx2) ∧ In(sx2,uf) → In(yr, uuf) [from uuf_char backward]
+
+    from vocab.sets import Singleton as _Sing, PairSet as _PS
+    sing_sx2 = _Sing(sx2, yr)
+    ps_sxy2 = _PS(sxy2, yr, zz)
+    ps_pp = _PS(pp, sx2, sxy2)
+
+    # Extract PairSet(pp,sx2,sxy2) from OrdPair:
+    inner_fa2 = Forall(sxy2, Implies(ps_sxy2, ps_pp))
+    got_fl2 = fl(op_pp, Implies(sing_sx2, inner_fa2), sx2)
+    got_ps2 = mp(got_fl2, ax(sing_sx2), sing_sx2, inner_fa2)
+    got_ps_pp = apply_thm(got_ps2, [sxy2], ps_sxy2, ps_pp, ax(ps_sxy2))
+    # [op_pp, sing_sx2, ps_sxy2] |- PairSet(pp, sx2, sxy2)
+
+    # In(sx2, pp): from PairSet(pp,sx2,sxy2), instantiate d=sx2, backward with Or(Eq(sx2,sx2), ...)
+    er = eq_reflexive()
+    eq_sx2 = Eq(sx2, sx2)
+    got_eq_sx2 = apply_thm(er, [sx2], concl=eq_sx2)
+    from core.derived import Or
+    or_sx2 = Or(eq_sx2, Eq(sx2, sxy2))
+    got_or_sx2 = apply_thm(or_intro_left(eq_sx2, Eq(sx2, sxy2), []), [], eq_sx2, or_sx2, got_eq_sx2)
+    iff_pp_sx2 = Iff(In(sx2, pp), or_sx2)
+    got_in_sx2_pp = mp(apply_thm(iff_mp_rev(In(sx2, pp), or_sx2, []),
+        [], iff_pp_sx2, Implies(or_sx2, In(sx2, pp)), fl(ps_pp, iff_pp_sx2, sx2)),
+        got_or_sx2, or_sx2, In(sx2, pp))
+    # [op_pp, sing_sx2, ps_sxy2] |- In(sx2, pp)
+
+    # In(yr, sx2): from Singleton(sx2,yr), Eq(yr,yr)
+    eq_yr = Eq(yr, yr)
+    got_eq_yr = apply_thm(er, [yr], concl=eq_yr)
+    iff_sx2_yr = Iff(In(yr, sx2), eq_yr)
+    got_in_yr_sx2 = mp(apply_thm(iff_mp_rev(In(yr, sx2), eq_yr, []),
+        [], iff_sx2_yr, Implies(eq_yr, In(yr, sx2)), fl(sing_sx2, iff_sx2_yr, yr)),
+        got_eq_yr, eq_yr, In(yr, sx2))
+    # [sing_sx2] |- In(yr, sx2)
+
+    # In(sx2, uf): from In(sx2,pp) ∧ In(pp,f), BigUnion backward on uf_char
+    zbu = Var()
+    and_pf_sx = And(In(pp, f), In(sx2, pp))
+    got_and_pf = mp(apply_thm(and_intro(in_pp_f, In(sx2, pp), []), [],
+        in_pp_f, Implies(In(sx2, pp), and_pf_sx), ax(in_pp_f)),
+        got_in_sx2_pp, In(sx2, pp), and_pf_sx)
+    got_ex_pf = eir(got_and_pf, and_pf_sx, pp, pp)
+    iff_uf_sx = Iff(In(sx2, uf), Exists(zbu, And(In(zbu, f), In(sx2, zbu))))
+    got_in_sx2_uf = mp(apply_thm(iff_mp_rev(In(sx2, uf), Exists(zbu, And(In(zbu, f), In(sx2, zbu))), []),
+        [], iff_uf_sx, Implies(Exists(zbu, And(In(zbu, f), In(sx2, zbu))), In(sx2, uf)),
+        fl(uf_char, iff_uf_sx, sx2)),
+        got_ex_pf, Exists(zbu, And(In(zbu, f), In(sx2, zbu))), In(sx2, uf))
+    # [op_pp, sing_sx2, ps_sxy2, in_pp_f, uf_char] |- In(sx2, uf)
+
+    # In(yr, uuf): from In(yr,sx2) ∧ In(sx2,uf), BigUnion backward on uuf_char
+    zbu2 = Var()
+    and_uf_yr = And(In(sx2, uf), In(yr, sx2))
+    got_and_uf = mp(apply_thm(and_intro(In(sx2, uf), In(yr, sx2), []), [],
+        In(sx2, uf), Implies(In(yr, sx2), and_uf_yr), got_in_sx2_uf),
+        got_in_yr_sx2, In(yr, sx2), and_uf_yr)
+    got_ex_uf = eir(got_and_uf, and_uf_yr, sx2, sx2)
+    iff_uuf_yr = Iff(In(yr, uuf), Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))))
+    got_yr_uuf = mp(apply_thm(iff_mp_rev(In(yr, uuf), Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))), []),
+        [], iff_uuf_yr, Implies(Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))), In(yr, uuf)),
+        fl(uuf_char, iff_uuf_yr, yr)),
+        got_ex_uf, Exists(zbu2, And(In(zbu2, uf), In(yr, zbu2))), In(yr, uuf))
+    # [op_pp, sing_sx2, ps_sxy2, in_pp_f, uf_char, uuf_char] |- In(yr, uuf)
+
+    # Elimination order matters: ps_pp has pp, sx2, sxy2 all free.
+    # Must eliminate ps_pp first, then sing_sx2, then ps_sxy2, then op_pp+in_pp_f.
+    # Cut ps_pp with its derivation (got_ps_pp):
+    if any(same(ps_pp, f_) for f_ in got_yr_uuf.sequent.left):
+        got_yr_uuf = cut(got_yr_uuf, ps_pp, got_ps_pp)
+    # Now eliminate ps_sxy2 (from Pairing):
+    pairing2 = zfc.Pairing()
+    pair_ax2 = Proof(Sequent([pairing2], [pairing2]), 'axiom', principal=pairing2)
+    got_ex_ps2 = apply_thm(pair_ax2, [yr, zz], concl=Exists(sxy2, ps_sxy2))
+    if any(same(ps_sxy2, f_) for f_ in got_yr_uuf.sequent.left):
+        got_yr_uuf = eel(got_yr_uuf, ps_sxy2, sxy2)
+        got_yr_uuf = cut(got_yr_uuf, got_yr_uuf.sequent.left[-1], got_ex_ps2)
+    # Eliminate sing_sx2 (from singleton_exists):
+    got_ex_sing2 = apply_thm(singleton_exists(), [yr], concl=Exists(sx2, sing_sx2))
+    if any(same(sing_sx2, f_) for f_ in got_yr_uuf.sequent.left):
+        got_yr_uuf = eel(got_yr_uuf, sing_sx2, sx2)
+        got_yr_uuf = cut(got_yr_uuf, got_yr_uuf.sequent.left[-1], got_ex_sing2)
+    # Package op_pp + in_pp_f into Apply(f,yr,zz) form:
+    and_op_in = And(op_pp, in_pp_f)
+    if any(same(op_pp, f_) for f_ in got_yr_uuf.sequent.left):
+        got_yr_uuf = cut(got_yr_uuf, op_pp,
+            apply_thm(and_elim_left(op_pp, in_pp_f, []), [], and_op_in, op_pp, ax(and_op_in)))
+    if any(same(in_pp_f, f_) for f_ in got_yr_uuf.sequent.left):
+        got_yr_uuf = cut(got_yr_uuf, in_pp_f,
+            apply_thm(and_elim_right(op_pp, in_pp_f, []), [], and_op_in, in_pp_f, ax(and_op_in)))
+    got_yr_uuf = eel(got_yr_uuf, and_op_in, pp)
+    # Now ∃pp.And(OrdPair(pp,yr,zz),In(pp,f)) = Apply(f,yr,zz) on left
+    # eel zz, cut with got_ex_fyz:
+    app_on_left = next(f_ for f_ in got_yr_uuf.sequent.left if zz in _free_vars(f_) and not isinstance(f_, zfc.ZFCAxiom))
+    got_yr_uuf = eel(got_yr_uuf, app_on_left, zz)
+    got_yr_uuf = cut(got_yr_uuf, got_yr_uuf.sequent.left[-1], got_ex_fyz)
+    # [ra_vr, app_vr, uf_char, uuf_char, Pairing] |- In(yr, uuf)
 
     from theorems.logic import or_intro_right
     or_yr = Or(In(yr, w), in_yr_uuf)
