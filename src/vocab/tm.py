@@ -170,9 +170,9 @@ class TMHalts:
     Exists trace. And(
       Forall zero. Empty(zero) -> Apply(trace, zero, c0),          -- base
       And(
-        Forall k. In(k,n) -> Forall sk. Succ(sk,k) ->             -- step
+        Forall k. In(k,n) -> Forall sk. Succ(sk,k) ->             -- total+step
           Forall ck. Apply(trace,k,ck) ->
-            Forall ck1. Apply(trace,sk,ck1) -> TMStep(delta,ck,ck1),
+            Exists ck1. And(Apply(trace,sk,ck1), TMStep(delta,ck,ck1)),
         Exists cf. And(Apply(trace, n, cf),                        -- halted
           Exists hf. Exists tf. TMConfig(cf, qhalt, hf, tf))))"""
     __match_args__ = ('delta', 'init', 'halt_state', 'steps')
@@ -185,7 +185,7 @@ class TMHalts:
         step = Forall(k, Implies(In(k, self.steps),
             Forall(sk, Implies(Successor(sk, k),
                 Forall(ck, Implies(Apply(trace, k, ck),
-                    Forall(ck1, Implies(Apply(trace, sk, ck1),
+                    Exists(ck1, And(Apply(trace, sk, ck1),
                         TMStep(self.delta, ck, ck1)))))))))
         halted = Exists(cf, And(Apply(trace, self.steps, cf),
             Exists(hf, Exists(tf, TMConfig(cf, self.halt_state, hf, tf)))))

@@ -266,7 +266,7 @@ goals = [
              Implies(Num(c,4), Plus(a,b,c)))))))))),
     # --- turing machine ---
     ('tm_add_correct',
-     None,  # theorem not yet written
+     lambda: theorems.tm_add_correct(),
      tm_add_goal),
 ]
 

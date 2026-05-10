@@ -3,11 +3,12 @@
 from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Exists, And, Or, Iff, Eq
 from core.proof import Proof, Sequent, same
+from core.zfc import Replacement
 from vocab.ordpair import OrdPair, Successor
 from vocab.functions import Apply
 from vocab.omega import Num
 from vocab.sets import Empty
-from vocab.tm import TMConfig, TMTransition, TMStep, TapeUpdate, HeadMove
+from vocab.tm import TMConfig, TMTransition, TMStep, TapeUpdate, HeadMove, TMHalts
 
 
 def config_elim():
@@ -869,3 +870,12 @@ def config_intro():
 
     proof.name = 'config_intro'
     return proof
+
+
+def tm_add_correct():
+    """TM addition correctness: the unary addition machine halts.
+    |- forall delta,q0,qH,z,tape_in,c0,a,b,c.
+         delta_char -> Num(q0,0) -> Num(qH,1) -> Num(z,0) ->
+         UnaryTape(tape_in,a,b) -> TMConfig(c0,q0,z,tape_in) ->
+         Plus(a,b,c) -> Exists(n, TMHalts(delta,c0,qH,n))"""
+    raise NotImplementedError("tm_add_correct proof under construction")
