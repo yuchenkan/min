@@ -5013,7 +5013,7 @@ def rec_graph_exists():
     where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y)).
 
     Key idea: same as succ_func_exists — pairs bounded by P(P(w)), Separate from it.
-    The 'values in w' hypothesis ensures all recursive outputs stay in w."""
+    Derives val_in_w internally from In(a,w) + range_closed(f,w) via rec_approx_val_in_w."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, cut
     from theorems.logic import iff_intro, iff_mp, iff_mp_rev, and_intro, and_elim_left, and_elim_right
     from theorems.sets import ordpair_bounded, singleton_exists
