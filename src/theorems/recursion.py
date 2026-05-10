@@ -5489,40 +5489,34 @@ def rec_approx_val_in_w():
 
     # === Apply omega_smallest_inductive ===
     osi = omega_smallest_inductive()
-    # osi: ∀p,w. Omega(w) → And(Subset(p,w), Inductive(p)) → Eq(p,w)
     eq_pv_w = Eq(pv, w)
-    and_sub_ind = And(sub_pv_w, and_ind)
 
-    # Combine Subset + Inductive:
+    # Use definition objects for the And(Sub,Ind) — matches what osi produces:
+    and_sub_ind = And(Subset(pv, w), Inductive(pv))
+
+    # Combine Subset + Inductive using definition objects:
     all_osi = list(all_ctx)
     for f_ in got_sub.sequent.left:
         if not any(same(f_, g) for g in all_osi):
             all_osi.append(f_)
     got_sub_w = weaken_to(got_sub, all_osi)
     got_ind_w = weaken_to(got_ind, all_osi)
+    # Build And(Subset(pv,w), Inductive(pv)) using raw formulas that the proofs produce,
+    # then the result is alpha-equiv to and_sub_ind.
     got_and_si = mp(apply_thm(and_intro(sub_pv_w, and_ind, []), [],
-        sub_pv_w, Implies(and_ind, and_sub_ind), got_sub_w),
-        got_ind_w, and_ind, and_sub_ind)
+        sub_pv_w, Implies(and_ind, And(sub_pv_w, and_ind)), got_sub_w),
+        got_ind_w, and_ind, And(sub_pv_w, and_ind))
+    # got_and_si proves And(sub_pv_w, and_ind) ≈ And(Subset(pv,w), Inductive(pv)) = and_sub_ind
 
-    # Apply osi: instantiate [pv, w], then mp through hypotheses
+    # Apply osi: instantiate [pv,w], mp omega_w, then mp And(Sub,Ind) using actual formula
     got_osi = apply_thm(osi, [pv, w])
-    and_sub_ind_actual = None  # will capture the actual And(Sub,Ind) formula from osi
-    while not same(got_osi.sequent.right[0], eq_pv_w):
-        cur = got_osi.sequent.right[0]
-        hyp = cur.left
-        if same(hyp, omega_w):
-            got_osi = mp(got_osi, ax(omega_w), hyp, cur.right)
-        else:
-            # And(Subset(pv,w), Inductive(pv)) — use ax then cut with got_and_si later
-            and_sub_ind_actual = hyp
-            got_osi = mp(got_osi, ax(hyp), hyp, cur.right)
-    got_eq = got_osi
-    # Cut the And(Sub,Ind) hypothesis: relabel got_and_si to match the actual formula
-    if and_sub_ind_actual is not None and any(same(and_sub_ind_actual, f_) for f_ in got_eq.sequent.left):
-        # got_and_si proves and_sub_ind (our formula). Relabel to and_sub_ind_actual:
-        got_and_si_relabeled = Proof(Sequent(got_and_si.sequent.left, [and_sub_ind_actual]),
-            'weakening_right', [got_and_si], principal=and_sub_ind_actual)
-        got_eq = cut(got_eq, and_sub_ind_actual, got_and_si_relabeled)
+    # got_osi right is Implies(Omega(w), Implies(And(Sub,Ind), Eq(pv,w)))
+    cur = got_osi.sequent.right[0]
+    got_osi = mp(got_osi, ax(cur.left), cur.left, cur.right)  # mp Omega(w)
+    # Now right is Implies(And(Sub,Ind)_actual, Eq(pv,w))
+    cur = got_osi.sequent.right[0]
+    # mp with got_and_si — use cur.left (the ACTUAL formula from osi) as P:
+    got_eq = mp(got_osi, got_and_si, cur.left, cur.right)
     # [all_osi + omega_w + osi_axioms] |- Eq(pv, w)
 
     # === Extract P(n) for specific n ===
