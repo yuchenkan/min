@@ -5951,10 +5951,10 @@ def rec_h_step():
 
 
 
-def succ_func_exists():
-    """The successor function exists as a set (via Replacement).
+def succ_func_exists_rep():
+    """DEPRECATED: uses Replacement. Use succ_func_exists() (Z version) instead.
     Pairing, Rep |- forall w.
-      Omega(w) -> exists sf. forall p. Iff(In(p, sf), exists x. And(In(x,w), phi(x,p)))
+      exists sf. forall p. Iff(In(p, sf), exists x. And(In(x,w), phi(x,p)))
     where phi(x, p) = exists s. And(Successor(s, x), OrdPair(p, x, s)).
     Constructs sf = {<x, S(x)> : x in omega}."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
@@ -6171,6 +6171,237 @@ def succ_func_exists():
         body = proof.sequent.right[0]
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'succ_func_exists_rep'
+    return proof
+
+
+def succ_func_exists():
+    """The successor function exists as a set (via PowerSet + Separation, no Replacement).
+    PowerSet, Separation, Pairing, Extensionality |- forall w.
+      (forall x. In(x,w) -> forall s. Succ(s,x) -> In(s,w)) ->
+      exists sf. forall p. Iff(In(p, sf), exists x. And(In(x,w), phi(x,p)))
+    where phi(x, p) = exists s. And(Successor(s, x), OrdPair(p, x, s)).
+
+    Key idea: successor pairs (x,S(x)) ∈ P(P(w)) when w is successor-closed.
+    Separate from P(P(w)) instead of using Replacement."""
+    from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, cut
+    from theorems.logic import iff_intro, iff_mp, iff_mp_rev, and_intro, and_elim_left, and_elim_right
+    from theorems.sets import ordpair_bounded, singleton_exists
+    from vocab.sets import Singleton, PairSet
+    from vocab.ordpair import OrdPair, Successor
+    import core.zfc as zfc
+
+    w = Var(postfix='w')
+    sf = Var(postfix='sf')
+    pv = Var(postfix='pv')
+    xv = Var(postfix='x')
+    sr = Var(postfix='sr')
+    pw = Var(postfix='pw')
+    ppw = Var(postfix='ppw')
+    sx_v = Var(postfix='sx')
+    sxy_v = Var(postfix='sxy')
+    s_var, d_var = Var(), Var()
+
+    def phi(p):
+        return Exists(xv, And(In(xv, w), Exists(sr, And(Successor(sr, xv), OrdPair(p, xv, sr)))))
+
+    succ_closed = Forall(xv, Implies(In(xv, w), Forall(sr, Implies(Successor(sr, xv), In(sr, w)))))
+
+    # PowerSet characterizations
+    pw_char = Forall(s_var, Iff(In(s_var, pw), Forall(d_var, Implies(In(d_var, s_var), In(d_var, w)))))
+    ppw_char = Forall(s_var, Iff(In(s_var, ppw), Forall(d_var, Implies(In(d_var, s_var), In(d_var, pw)))))
+
+    # Separation characterization
+    sf_sep_iff = Iff(In(pv, sf), And(In(pv, ppw), phi(pv)))
+    sf_sep_char = Forall(pv, sf_sep_iff)
+
+    # Desired characterization
+    desired_iff = Iff(In(pv, sf), phi(pv))
+    desired_char = Forall(pv, desired_iff)
+
+    # === Get PowerSet witnesses ===
+    ps_axiom = zfc.PowerSet()
+    ps_ax = Proof(Sequent([ps_axiom], [ps_axiom]), 'axiom', principal=ps_axiom)
+    got_ex_pw = apply_thm(ps_ax, [w], concl=Exists(pw, pw_char))
+    got_ex_ppw = apply_thm(ps_ax, [pw], concl=Exists(ppw, ppw_char))
+
+    # === Get Separation witness ===
+    sep = zfc.Separation(phi, [w])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    got_ex_sf = apply_thm(sep_ax, [w, ppw], concl=Exists(sf, sf_sep_char))
+
+    # === Build desired Iff from sep char ===
+    # Forward: In(pv,sf) → φ(pv)
+    got_sep_fwd = apply_thm(iff_mp(In(pv, sf), And(In(pv, ppw), phi(pv)), []),
+        [], sf_sep_iff, Implies(In(pv, sf), And(In(pv, ppw), phi(pv))),
+        fl(sf_sep_char, sf_sep_iff, pv))
+    got_and = mp(got_sep_fwd, ax(In(pv, sf)), In(pv, sf), And(In(pv, ppw), phi(pv)))
+    got_fwd = apply_thm(and_elim_right(In(pv, ppw), phi(pv), []),
+        [], And(In(pv, ppw), phi(pv)), phi(pv), got_and)
+    # [sf_sep_char, In(pv,sf)] |- φ(pv)
+    imp_fwd = Implies(In(pv, sf), phi(pv))
+    left_f = [f for f in got_fwd.sequent.left if not same(f, In(pv, sf))]
+    got_imp_fwd = Proof(Sequent(left_f, [imp_fwd]), 'implies_right', [got_fwd], principal=imp_fwd)
+
+    # Backward: φ(pv) → In(pv,sf)
+    # Need: φ(pv) → In(pv,ppw) (bounding) + φ(pv) → And(In(pv,ppw), φ(pv)) → In(pv,sf)
+
+    # Bounding: from φ(pv), extract xv∈w, sr with Succ(sr,xv), OrdPair(pv,xv,sr)
+    # Then sr∈w (from succ_closed), then ordpair_bounded gives In(pv,ppw).
+    succ_xv = Successor(sr, xv)
+    op_pv = OrdPair(pv, xv, sr)
+    and_inner = And(succ_xv, op_pv)
+    and_outer = And(In(xv, w), Exists(sr, and_inner))
+
+    # Get sr∈w from succ_closed
+    got_sc_inst = apply_thm(ax(succ_closed), [xv], In(xv, w),
+        Forall(sr, Implies(succ_xv, In(sr, w))), ax(In(xv, w)))
+    got_sr_w = apply_thm(got_sc_inst, [sr], succ_xv, In(sr, w), ax(succ_xv))
+    # [succ_closed, In(xv,w), Succ(sr,xv)] |- In(sr,w)
+
+    # Get Singleton and PairSet witnesses (for ordpair_bounded)
+    sing_sx = Singleton(sx_v, xv)
+    ps_sxy = PairSet(sxy_v, xv, sr)
+
+    # singleton_exists: Pairing |- ∀x. ∃sx. Singleton(sx,x)
+    se = singleton_exists()
+    got_ex_sing = apply_thm(se, [xv], concl=Exists(sx_v, sing_sx))
+    # [Pairing] |- ∃sx. Singleton(sx, xv)
+
+    # Pairing(xv, sr) → ∃sxy. PairSet(sxy, xv, sr)
+    pairing = zfc.Pairing()
+    pair_ax = Proof(Sequent([pairing], [pairing]), 'axiom', principal=pairing)
+    got_ex_ps = apply_thm(pair_ax, [xv, sr], concl=Exists(sxy_v, ps_sxy))
+    # [Pairing] |- ∃sxy. PairSet(sxy, xv, sr)
+
+    # Apply ordpair_bounded: In(xv,w) → In(sr,w) → OrdPair(pv,xv,sr) → ... → In(pv,ppw)
+    ob = ordpair_bounded()
+    # ob has hypotheses in some order. Let me instantiate and mp through.
+    # ob: Ext |- ∀w,sx,sxy,x,y,pw,ppw,p. ... chain of implies ... → In(p,ppw)
+    # Instantiate with [w, sx_v, sxy_v, xv, sr, pw, ppw, pv]
+    # Then mp through the hypotheses (which ordpair_bounded discharges in its specific order)
+
+    # ordpair_bounded's implies order (from its closing loop):
+    # [ppw_char, pw_char, op, in_y_w, in_x_w, sing_sx, ps_sxy] (reversed = discharged order)
+    # Wait, it discharges: ppw_char, pw_char, op, in_y_w, in_x_w, sing_sx, ps_sxy
+    # So the IMPLIES chain is: ps_sxy → sing_sx → In(xv,w) → In(sr,w) → OrdPair → pw_char → ppw_char → In(pv,ppw)
+
+    # Let me just use apply_thm to instantiate and provide first hyp, then mp the rest.
+    # Actually apply_thm with concl gives just the instantiated body (all implies remaining)
+    # Instantiate ordpair_bounded. Forall order (outermost first): w, x, y, p, pw, ppw, sx, sxy
+    got_ob = apply_thm(ob, [w, xv, sr, pv, pw, ppw, sx_v, sxy_v])
+    # [Ext] |- implies chain ending in In(pv,ppw)
+    # mp each hypothesis using the actual formula from the proof's right side.
+    # Most are provided as axioms; In(sr,w) uses got_sr_w.
+    in_sr_w = In(sr, w)
+    while not same(got_ob.sequent.right[0], In(pv, ppw)):
+        cur = got_ob.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, in_sr_w):
+            got_ob = mp(got_ob, got_sr_w, hyp, cur.right)
+        else:
+            got_ob = mp(got_ob, ax(hyp), hyp, cur.right)
+    # [..., ps_sxy, sing_sx, In(xv,w), Succ(sr,xv), OrdPair(pv,xv,sr), succ_closed, pw_char, ppw_char, Ext, Pairing] |- In(pv,ppw)
+
+    # Eliminate sing_sx and ps_sxy existentials
+    got_ob = eel(got_ob, sing_sx, sx_v)
+    got_ob = cut(got_ob, got_ob.sequent.left[-1], got_ex_sing)
+    got_ob = eel(got_ob, ps_sxy, sxy_v)
+    got_ob = cut(got_ob, got_ob.sequent.left[-1], got_ex_ps)
+    # [..., In(xv,w), Succ(sr,xv), OrdPair(pv,xv,sr), succ_closed, pw_char, ppw_char, Ext, Pairing] |- In(pv,ppw)
+
+    # Now package: from And(Succ,OrdPair) get the components (they're already separate on left)
+    # Eliminate existentials for φ(pv): eel sr (over And(Succ,OrdPair)), eel xv (over And(In(xv,w), ...))
+    # First discharge OrdPair and Succ into And(Succ, OrdPair), then eel sr
+    got_bound = got_ob  # has In(xv,w), Succ(sr,xv), OrdPair(pv,xv,sr) on left
+
+    # Package Succ + OrdPair into And, then eel sr
+    got_and_so = mp(apply_thm(and_intro(succ_xv, op_pv, []), [], succ_xv,
+        Implies(op_pv, and_inner), ax(succ_xv)), ax(op_pv), op_pv, and_inner)
+    # [Succ, OrdPair] |- And(Succ, OrdPair)
+    # Cut to replace Succ, OrdPair on left of got_bound with And(Succ,OrdPair):
+    got_bound = cut(got_bound, succ_xv, apply_thm(and_elim_left(succ_xv, op_pv, []),
+        [], and_inner, succ_xv, ax(and_inner)))
+    got_bound = cut(got_bound, op_pv, apply_thm(and_elim_right(succ_xv, op_pv, []),
+        [], and_inner, op_pv, ax(and_inner)))
+    # Now and_inner is on the left
+    got_bound = eel(got_bound, and_inner, sr)
+    # Exists(sr, And(Succ(sr,xv), OrdPair(pv,xv,sr))) on left
+
+    # Package In(xv,w) + Exists(sr,...) into And, then eel xv
+    ex_sr = Exists(sr, and_inner)
+    got_and_xw = mp(apply_thm(and_intro(In(xv, w), ex_sr, []), [], In(xv, w),
+        Implies(ex_sr, and_outer), ax(In(xv, w))), ax(ex_sr), ex_sr, and_outer)
+    got_bound = cut(got_bound, In(xv, w), apply_thm(and_elim_left(In(xv, w), ex_sr, []),
+        [], and_outer, In(xv, w), ax(and_outer)))
+    got_bound = cut(got_bound, ex_sr, apply_thm(and_elim_right(In(xv, w), ex_sr, []),
+        [], and_outer, ex_sr, ax(and_outer)))
+    got_bound = eel(got_bound, and_outer, xv)
+    # [φ(pv), succ_closed, pw_char, ppw_char, Ext, Pairing] |- In(pv,ppw)
+
+    # Now build backward: φ(pv) → In(pv,sf)
+    # From In(pv,ppw) and φ(pv): build And(In(pv,ppw), φ(pv))
+    phi_pv = phi(pv)
+    and_ppw_phi = And(In(pv, ppw), phi_pv)
+    got_and_ppw = mp(apply_thm(and_intro(In(pv, ppw), phi_pv, []), [], In(pv, ppw),
+        Implies(phi_pv, and_ppw_phi), got_bound),
+        ax(phi_pv), phi_pv, and_ppw_phi)
+    # [φ(pv), succ_closed, pw_char, ppw_char, Ext, Pairing] |- And(In(pv,ppw), φ(pv))
+
+    # sf_sep_char backward: And(In(pv,ppw), φ(pv)) → In(pv,sf)
+    got_sep_bwd = apply_thm(iff_mp_rev(In(pv, sf), And(In(pv, ppw), phi_pv), []),
+        [], sf_sep_iff, Implies(And(In(pv, ppw), phi_pv), In(pv, sf)),
+        fl(sf_sep_char, sf_sep_iff, pv))
+    got_bwd = mp(got_sep_bwd, got_and_ppw, and_ppw_phi, In(pv, sf))
+    # [φ(pv), succ_closed, pw_char, ppw_char, sf_sep_char, Ext, Pairing] |- In(pv,sf)
+
+    imp_bwd = Implies(phi_pv, In(pv, sf))
+    left_b = [f for f in got_bwd.sequent.left if not same(f, phi_pv)]
+    got_imp_bwd = Proof(Sequent(left_b, [imp_bwd]), 'implies_right', [got_bwd], principal=imp_bwd)
+
+    # === Combine into Iff ===
+    ii = iff_intro(In(pv, sf), phi_pv, [])
+    got_iff = mp(apply_thm(ii, [], imp_fwd, Implies(imp_bwd, desired_iff), got_imp_fwd),
+        got_imp_bwd, imp_bwd, desired_iff)
+    # [...] |- Iff(In(pv,sf), φ(pv))
+
+    # Forall pv
+    fa_pv = Forall(pv, desired_iff)
+    got_fa = Proof(Sequent(got_iff.sequent.left, [fa_pv]),
+        'forall_right', [got_iff], principal=fa_pv, term=pv)
+
+    # === Close existentials: sf, ppw, pw ===
+    # eir sf (witness the desired_char from fa_pv)
+    got_ex_desired = eir(got_fa, desired_char, sf, sf)
+    # Wait, eir(proof, body, var, witness) — body is what we existentially generalize
+    # Actually eir expects: from proof |- body[var:=witness], derive |- Exists(var, body)
+    # Here body = Forall(pv, Iff(In(pv, Var_sf), phi(pv))) with Var_sf as the variable
+    # And we have proof |- Forall(pv, Iff(In(pv, sf), phi(pv)))
+    # So witness = sf, body has sf as free var... this is the right pattern.
+    desired_ex = Exists(sf, desired_char)
+    got_ex_desired = eir(got_fa, desired_char, sf, sf)
+
+    # Eliminate existentials in dependency order: sf first (uses ppw), then ppw (uses pw), then pw
+    # sf_sep_char references ppw, so eliminate sf before ppw
+    got_ex_desired = eel(got_ex_desired, sf_sep_char, sf)
+    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_sf)
+
+    # ppw_char references pw, so eliminate ppw before pw
+    got_ex_desired = eel(got_ex_desired, ppw_char, ppw)
+    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_ppw)
+
+    # pw_char references w (which stays as forall variable)
+    got_ex_desired = eel(got_ex_desired, pw_char, pw)
+    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_pw)
+
+    # === Close: implies_right for succ_closed, forall_right for w ===
+    imp_sc = Implies(succ_closed, got_ex_desired.sequent.right[0])
+    left_sc = [f for f in got_ex_desired.sequent.left if not same(f, succ_closed)]
+    proof = Proof(Sequent(left_sc, [imp_sc]), 'implies_right', [got_ex_desired], principal=imp_sc)
+
+    fa_w = Forall(w, imp_sc)
+    proof = Proof(Sequent(proof.sequent.left, [fa_w]), 'forall_right', [proof], principal=fa_w, term=w)
+
     proof.name = 'succ_func_exists'
     return proof
 

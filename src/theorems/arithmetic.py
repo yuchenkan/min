@@ -36,7 +36,13 @@ def sf_props():
     sf_body = Iff(In(pv, sfv), Exists(xsf, And(In(xsf, w),
         Exists(ssf, And(SuccDef(ssf, xsf), OrdPair(pv, xsf, ssf))))))
     sf_char = Forall(pv, sf_body)
-    got_sfe = apply_thm(sfe, [w], concl=Exists(sfv, sf_char))
+    # succ_func_exists: ∀w. succ_closed(w) → ∃sf. sf_char
+    # Provide succ_closed(w) as hypothesis (callers provide Omega(w) which implies this)
+    xsc_tmp = Var(postfix='x')
+    sr_tmp = Var(postfix='sr')
+    succ_closed = Forall(xsc_tmp, Implies(In(xsc_tmp, w),
+        Forall(sr_tmp, Implies(SuccDef(sr_tmp, xsc_tmp), In(sr_tmp, w)))))
+    got_sfe = apply_thm(sfe, [w], succ_closed, Exists(sfv, sf_char), ax(succ_closed))
 
     # === succ_char from sf_char ===
     xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
@@ -379,8 +385,14 @@ def sf_props():
     got_ex = eel(got_ex, sf_char, sfv)
     got_ex = cut(got_ex, got_ex.sequent.left[-1], got_sfe)
 
-    # forall w:
+    # Discharge succ_closed (has w free) before closing forall w:
     proof = got_ex
+    if any(same(succ_closed, f) for f in proof.sequent.left):
+        imp_sc = Implies(succ_closed, proof.sequent.right[0])
+        left_sc = [f for f in proof.sequent.left if not same(f, succ_closed)]
+        proof = Proof(Sequent(left_sc, [imp_sc]), 'implies_right', [proof], principal=imp_sc)
+
+    # forall w:
     body = proof.sequent.right[0]
     fa_w = Forall(w, body)
     proof = Proof(Sequent(proof.sequent.left, [fa_w]), 'forall_right', [proof], principal=fa_w, term=w)
@@ -1971,7 +1983,16 @@ def prove_addition(m_val, n_val):
     dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
     and_func_dom = And(func_sf, dom_sub_sf)
     and_sc_fd = And(succ_char, and_func_dom)
-    got_sp = apply_thm(sp, [w], concl=Exists(sfv, and_sc_fd))
+    # sf_props now: ∀w. succ_closed(w) → ∃sf. and_sc_fd
+    # Derive succ_closed from omega_w via omega_succ_closed
+    from theorems.omega import omega_succ_closed as _osc_thm
+    osc = _osc_thm()
+    xsc_tmp = Var(postfix='x')
+    sr_tmp = Var(postfix='sr')
+    succ_closed_w = Forall(xsc_tmp, Implies(In(xsc_tmp, w),
+        Forall(sr_tmp, Implies(SuccDef(sr_tmp, xsc_tmp), In(sr_tmp, w)))))
+    got_sc_w = apply_thm(osc, [w], omega_w, succ_closed_w, ax(omega_w))
+    got_sp = apply_thm(sp, [w], succ_closed_w, Exists(sfv, and_sc_fd), got_sc_w)
     got_sc = apply_thm(and_elim_left(succ_char, and_func_dom, []), [], and_sc_fd, succ_char, ax(and_sc_fd))
     got_fd = apply_thm(and_elim_right(succ_char, and_func_dom, []), [], and_sc_fd, and_func_dom, ax(and_sc_fd))
     got_func = apply_thm(and_elim_left(func_sf, dom_sub_sf, []), [], and_func_dom, func_sf, got_fd)
