@@ -49,7 +49,7 @@ class Recursive:
         r = lambda f: new if f is old else f
         return Recursive(r(self.func), r(self.init), r(self.step), r(self.omega))
     def __str__(self):
-        return f'Recursive({self.func}, {self.init}, {self.step})'
+        return f'Recursive({self.func}, {self.init}, {self.step}, {self.omega})'
 
 
 class Plus:

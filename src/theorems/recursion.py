@@ -8168,6 +8168,9 @@ def recursion_theorem():
     # ExistsUnique intro hv:
     # ExistsUnique(hv, Recursive(hv)) expands to Exists(hv, And(Recursive(hv), forall h2v. ...))
     got_and = eir(got_exu_body, exu_body, hv, hv)
+    # Relabel to ExistsUnique (alpha-equiv to expanded Exists form):
+    got_and = Proof(Sequent(got_and.sequent.left, [exu_h]),
+        'weakening_right', [got_and], principal=exu_h)
     # got_and: [...] |- ExistsUnique(hv, Recursive(hv, a, f, w))
 
     # _eel hv from char_h (now hv is bound in right, so eigenvariable check passes):
@@ -8228,6 +8231,8 @@ def recursion_theorem():
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
     proof.name = 'recursion_theorem'
+    # hint: uncomment to dump theorem shape
+    # print(f'recursion_theorem right: {proof.sequent.right[0]}')
     return proof
 
 
