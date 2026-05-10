@@ -5424,21 +5424,24 @@ def rec_approx_val_in_w():
     got_step_in_pv = char_bwd(sn, got_sn_in_w, got_P_sn)
     # [...] |- In(sn,pv)
 
-    # Discharge Succ(sn,n):
+    # Discharge Succ(sn,n) then close ∀sn BEFORE discharging In(n,pv):
+    # This matches Inductive's structure: ∀n. In(n,pv) → ∀sn. Succ(sn,n) → In(sn,pv)
     got_step = got_step_in_pv
     imp_sn = Implies(succ_sn, got_step.sequent.right[0])
     left_sn = [f_ for f_ in got_step.sequent.left if not same(f_, succ_sn)]
     got_step = Proof(Sequent(left_sn, [imp_sn]), 'implies_right', [got_step], principal=imp_sn)
+
+    # Close ∀sn:
+    fa_sn = Forall(sn, got_step.sequent.right[0])
+    got_step = Proof(Sequent(got_step.sequent.left, [fa_sn]),
+        'forall_right', [got_step], principal=fa_sn, term=sn)
 
     # Discharge In(n,pv):
     imp_npv = Implies(In(n, pv), got_step.sequent.right[0])
     left_npv = [f_ for f_ in got_step.sequent.left if not same(f_, In(n, pv))]
     got_step = Proof(Sequent(left_npv, [imp_npv]), 'implies_right', [got_step], principal=imp_npv)
 
-    # Close ∀sn, ∀n:
-    fa_sn = Forall(sn, got_step.sequent.right[0])
-    got_step = Proof(Sequent(got_step.sequent.left, [fa_sn]),
-        'forall_right', [got_step], principal=fa_sn, term=sn)
+    # Close ∀n (∀sn already closed above):
     fa_n_step = Forall(n, got_step.sequent.right[0])
     got_step = Proof(Sequent(got_step.sequent.left, [fa_n_step]),
         'forall_right', [got_step], principal=fa_n_step, term=n)
