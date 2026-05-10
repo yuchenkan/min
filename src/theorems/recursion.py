@@ -4617,39 +4617,18 @@ def rec_func_exists():
     from tactics import apply_thm, wl, wr, mp, ax, cut, fl
     from vocab import Function as FuncDef, Apply, RecApprox, TotalFrom
 
-    # Delegate to rec_graph_exists which does the heavy lifting
+    # Delegate to rec_graph_exists (Z version)
+    # rge: [axioms] |- forall a,f,w. Omega(w) -> val_in_w -> Exists(h, char)
+    # We need: forall a,f,w. Function(f) -> TotalFrom(f,a) -> Omega(w) -> val_in_w -> Exists(h, char)
     rge = rec_graph_exists()
-    # rge: [axioms] |- forall a,f,w. Func(f) -> Omega(w) -> Exists(s, ...)
-    # But we need: forall a,f,w. Func(f) -> TotalFrom(f,a) -> Omega(w) -> Exists(s, ...)
+    from core.proof import _subst, _expand
 
     a, f, w = Var(), Var(), Var()
     func_f = FuncDef(f)
     omega_w = Omega(w)
     total_fa = TotalFrom(f, a)
 
-    # Peel rge to get: Func(f) -> Omega(w) -> Exists(s, ...)
-    # Then add TotalFrom as an extra (vacuous) hypothesis between Func and Omega.
-
-    # rge structure: Forall(a, Forall(f, Forall(w, Implies(Func(f), Implies(Omega(w), Exists(...))))))
-    # Peel 3 foralls:
-    rge_f = rge.sequent.right[0]
-    inner = Implies(func_f, Implies(omega_w, None))  # placeholder
-    # Actually, just use apply_thm to peel and then re-close with TotalFrom.
-
-    # Build the expected conclusion after peeling 3 foralls:
-    # Func(f) -> Omega(w) -> Exists(s, char)
-    # We need to add TotalFrom(f,a) as vacuous hypothesis:
-    # Func(f) -> TotalFrom(f,a) -> Omega(w) -> Exists(s, char)
-
-    # Approach: peel rge with [a,f,w], mp Func(f) and Omega(w),
-    # then re-introduce TotalFrom as implies_right (vacuous), then close.
-
-    # But first, we need to know the exact Exists formula from rge.
-    # Let me use apply_thm to peel 3 foralls:
-    # After peeling a,f,w: Implies(Func(f), Implies(Omega(w), ex_goal))
-    from core.proof import _subst, _expand
-
-    # Peel the 3 foralls manually using fl + cut pattern:
+    # Peel 3 foralls from rge:
     cur = rge
     for term in [a, f, w]:
         outer = cur.sequent.right[0]
@@ -4658,21 +4637,31 @@ def rec_func_exists():
         fl_step = fl(outer, inst, term)
         cur = Proof(Sequent(cur.sequent.left, [inst]), 'cut',
             [wr(cur, inst), wl(fl_step, *cur.sequent.left)], principal=outer)
-    # cur: [axioms] |- Implies(func_f, Implies(omega_w, ex_goal))
+    # cur: [axioms] |- Implies(omega_w, Implies(val_in_w, ex_goal))
     imp_body = cur.sequent.right[0]
-    # imp_body = Implies(func_f, Implies(omega_w, ex_goal))
-    ex_goal = imp_body.right.right  # the Exists(s, ...) conclusion
 
-    # MP with Func(f) and Omega(w):
-    got = mp(cur, ax(func_f), func_f, Implies(omega_w, ex_goal))
-    got = mp(got, ax(omega_w), omega_w, ex_goal)
-    # got: [func_f, omega_w, axioms] |- ex_goal
+    # MP through the rge hypotheses dynamically:
+    while hasattr(cur.sequent.right[0], 'left') and type(cur.sequent.right[0]).__name__ == 'Implies':
+        imp = cur.sequent.right[0]
+        cur = mp(cur, ax(imp.left), imp.left, imp.right)
+    # cur: [omega_w_actual, val_in_w_actual, axioms] |- ex_goal
+    got = cur
+    ex_goal = got.sequent.right[0]
+    # Extract the actual val_in_w and omega_w from the left:
+    from core.zfc import ZFCAxiom
+    non_axioms = [f_ for f_ in got.sequent.left if not isinstance(f_, ZFCAxiom)]
+    # non_axioms should be [omega_w, val_in_w] (the hypotheses from rge)
+    omega_w_actual = non_axioms[0] if non_axioms else omega_w
+    val_in_w_actual = non_axioms[1] if len(non_axioms) > 1 else non_axioms[0] if non_axioms else None
 
-    # Add TotalFrom as vacuous hypothesis via weakening + implies_right:
+    # Add Function(f) and TotalFrom(f,a) as vacuous hypotheses:
+    got = wl(got, func_f)
     got = wl(got, total_fa)
-    # Discharge: omega_w, total_fa, func_f
+
+    # Discharge all non-axiom hypotheses:
     proof = got
-    for h in [omega_w, total_fa, func_f]:
+    non_ax = [f_ for f_ in proof.sequent.left if not isinstance(f_, ZFCAxiom)]
+    for h in non_ax:
         imp = Implies(h, proof.sequent.right[0])
         rem = [f_ for f_ in proof.sequent.left if not same(f_, h)]
         proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
@@ -4685,8 +4674,8 @@ def rec_func_exists():
     return proof
 
 
-def rec_graph_exists():
-    """The recursive function's graph exists as a set (via Replacement).
+def rec_graph_exists_rep():
+    """DEPRECATED: uses Replacement. Use rec_graph_exists() (Z version) instead.
     Ext, Inf, Sep, Pairing, Union, Reg, Rep |- forall a, f, w.
       Function(f) -> (exists z. Apply(f,a,z)) ->
       (forall y,z. Apply(f,y,z) -> exists q. Apply(f,z,q)) ->
@@ -5011,9 +5000,253 @@ def rec_graph_exists():
         body = proof.sequent.right[0]
         fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
-    proof.name = 'rec_graph_exists'
+    proof.name = 'rec_graph_exists_rep'
     return proof
 
+
+def rec_graph_exists():
+    """The recursive function's graph exists (via PowerSet + Separation, no Replacement).
+    Ext, Sep, Pairing, PowerSet |- forall a, f, w.
+      Omega(w) ->
+      (forall v, n, y. RecApprox(v,a,f,w) -> Apply(v,n,y) -> In(y,w)) ->
+      exists h. forall p. Iff(In(p, h), exists n. And(In(n, w), phi(n, p)))
+    where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y)).
+
+    Key idea: same as succ_func_exists — pairs bounded by P(P(w)), Separate from it.
+    The 'values in w' hypothesis ensures all recursive outputs stay in w."""
+    from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, cut
+    from theorems.logic import iff_intro, iff_mp, iff_mp_rev, and_intro, and_elim_left, and_elim_right
+    from theorems.sets import ordpair_bounded, singleton_exists
+    from vocab import Function as FuncDef, Apply, RecApprox
+    from vocab.sets import Singleton, PairSet
+    from vocab.ordpair import OrdPair, Successor
+    import core.zfc as zfc
+
+    a, f, w = Var(), Var(), Var()
+    omega_w = Omega(w)
+    pw = Var(postfix='pw')
+    ppw = Var(postfix='ppw')
+    hv = Var(postfix='h')
+    pv = Var(postfix='pv')
+    nf = Var(postfix='nf')
+    vr, yr = Var(), Var()
+    s_var, d_var = Var(), Var()
+    sx_v, sxy_v = Var(), Var()
+
+    def phi(n, p):
+        return Exists(vr, Exists(yr, And(And(RecApprox(vr, a, f, w), Apply(vr, n, yr)),
+                                         OrdPair(p, n, yr))))
+
+    # Values-in-w hypothesis
+    val_in_w = Forall(vr, Forall(nf, Forall(yr,
+        Implies(RecApprox(vr, a, f, w), Implies(Apply(vr, nf, yr), In(yr, w))))))
+
+    # PowerSet characterizations
+    pw_char = Forall(s_var, Iff(In(s_var, pw), Forall(d_var, Implies(In(d_var, s_var), In(d_var, w)))))
+    ppw_char = Forall(s_var, Iff(In(s_var, ppw), Forall(d_var, Implies(In(d_var, s_var), In(d_var, pw)))))
+
+    # Separation characterization
+    sf_sep_iff = Iff(In(pv, hv), And(In(pv, ppw), phi(nf, pv)))
+    # Actually separation is over ALL p, not a specific nf. Let me fix:
+    phi_pv = Exists(nf, And(In(nf, w), phi(nf, pv)))
+    sf_sep_iff = Iff(In(pv, hv), And(In(pv, ppw), phi_pv))
+    sf_sep_char = Forall(pv, sf_sep_iff)
+
+    # Desired characterization
+    desired_iff = Iff(In(pv, hv), phi_pv)
+    desired_char = Forall(pv, desired_iff)
+
+    # === Get PowerSet witnesses ===
+    ps_axiom = zfc.PowerSet()
+    ps_ax = Proof(Sequent([ps_axiom], [ps_axiom]), 'axiom', principal=ps_axiom)
+    got_ex_pw = apply_thm(ps_ax, [w], concl=Exists(pw, pw_char))
+    got_ex_ppw = apply_thm(ps_ax, [pw], concl=Exists(ppw, ppw_char))
+
+    # === Get Separation witness ===
+    def sep_phi(p):
+        return Exists(nf, And(In(nf, w), phi(nf, p)))
+    sep = zfc.Separation(sep_phi, [a, f, w])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    # Separation wraps vars outermost-first: ∀w.∀f.∀a.∀domain. So peel [w,f,a,ppw]:
+    got_ex_sf = apply_thm(sep_ax, [w, f, a, ppw], concl=Exists(hv, sf_sep_char))
+    in_pv_hv = In(pv, hv)
+    in_pv_ppw = In(pv, ppw)
+    and_ppw_phi = And(in_pv_ppw, phi_pv)
+    sf_sep_iff = Iff(in_pv_hv, and_ppw_phi)
+
+    # === Build desired Iff (same pattern as succ_func_exists) ===
+    # Forward: in_pv_hv → phi_pv (drop In(pv,ppw))
+    got_sep_fwd = apply_thm(iff_mp(in_pv_hv, and_ppw_phi, []),
+        [], sf_sep_iff, Implies(in_pv_hv, and_ppw_phi),
+        fl(sf_sep_char, sf_sep_iff, pv))
+    got_and = mp(got_sep_fwd, ax(in_pv_hv), in_pv_hv, and_ppw_phi)
+    got_fwd = apply_thm(and_elim_right(in_pv_ppw, phi_pv, []),
+        [], and_ppw_phi, phi_pv, got_and)
+    imp_fwd = Implies(in_pv_hv, phi_pv)
+    left_f = [f_ for f_ in got_fwd.sequent.left if not same(f_, in_pv_hv)]
+    got_imp_fwd = Proof(Sequent(left_f, [imp_fwd]), 'implies_right', [got_fwd], principal=imp_fwd)
+
+    # Backward: phi_pv → In(pv,hv)
+    # Need: phi_pv → In(pv,ppw) (bounding)
+    # phi_pv = ∃nf. In(nf,w) ∧ ∃vr,yr. RecApprox(vr,a,f,w) ∧ Apply(vr,nf,yr) ∧ OrdPair(pv,nf,yr)
+    # From this: nf∈w, yr∈w (from val_in_w + RecApprox + Apply), OrdPair(pv,nf,yr)
+    # Then ordpair_bounded: nf∈w ∧ yr∈w ∧ OrdPair(pv,nf,yr) → In(pv,ppw)
+
+    # Get yr∈w from val_in_w
+    ra_vr = RecApprox(vr, a, f, w)
+    app_vr = Apply(vr, nf, yr)
+    op_pv = OrdPair(pv, nf, yr)
+    got_yr_w = apply_thm(ax(val_in_w), [vr, nf, yr], ra_vr,
+        Implies(app_vr, In(yr, w)), ax(ra_vr))
+    got_yr_w = mp(got_yr_w, ax(app_vr), app_vr, In(yr, w))
+    # [val_in_w, ra_vr, app_vr] |- In(yr, w)
+
+    # Apply ordpair_bounded
+    ob = ordpair_bounded()
+    got_ob = apply_thm(ob, [w, nf, yr, pv, pw, ppw, sx_v, sxy_v])
+    # mp through its hypotheses dynamically
+    in_yr_w = In(yr, w)
+    in_nf_w = In(nf, w)
+    while not same(got_ob.sequent.right[0], In(pv, ppw)):
+        cur = got_ob.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, in_yr_w):
+            got_ob = mp(got_ob, got_yr_w, hyp, cur.right)
+        elif same(hyp, in_nf_w):
+            got_ob = mp(got_ob, ax(in_nf_w), hyp, cur.right)
+        elif same(hyp, op_pv):
+            got_ob = mp(got_ob, ax(op_pv), hyp, cur.right)
+        elif same(hyp, pw_char):
+            got_ob = mp(got_ob, ax(pw_char), hyp, cur.right)
+        elif same(hyp, ppw_char):
+            got_ob = mp(got_ob, ax(ppw_char), hyp, cur.right)
+        else:
+            # Singleton/PairSet witnesses from Pairing
+            got_ob = mp(got_ob, ax(hyp), hyp, cur.right)
+    # [..., val_in_w, ra_vr, app_vr, In(nf,w), OrdPair, pw_char, ppw_char, Pairing, Ext] |- In(pv,ppw)
+
+    # Eliminate Singleton/PairSet existentials from Pairing
+    pairing = zfc.Pairing()
+    pair_ax = Proof(Sequent([pairing], [pairing]), 'axiom', principal=pairing)
+    sing_nf = Singleton(sx_v, nf)
+    ps_nfyr = PairSet(sxy_v, nf, yr)
+    got_ex_sing = apply_thm(singleton_exists(), [nf], concl=Exists(sx_v, sing_nf))
+    got_ex_ps = apply_thm(pair_ax, [nf, yr], concl=Exists(sxy_v, ps_nfyr))
+
+    if any(same(sing_nf, f_) for f_ in got_ob.sequent.left):
+        got_ob = eel(got_ob, sing_nf, sx_v)
+        got_ob = cut(got_ob, got_ob.sequent.left[-1], got_ex_sing)
+    if any(same(ps_nfyr, f_) for f_ in got_ob.sequent.left):
+        got_ob = eel(got_ob, ps_nfyr, sxy_v)
+        got_ob = cut(got_ob, got_ob.sequent.left[-1], got_ex_ps)
+
+    # Package And(In(pv,ppw), phi_pv) for separation backward
+    # got_ob proves In(pv,ppw). Combine with phi_pv:
+    got_and_ppw = mp(apply_thm(and_intro(in_pv_ppw, phi_pv, []), [], in_pv_ppw,
+        Implies(phi_pv, and_ppw_phi), got_ob),
+        ax(phi_pv), phi_pv, and_ppw_phi)
+
+    # Separation backward: and_ppw_phi → in_pv_hv
+    got_sep_bwd = apply_thm(iff_mp_rev(in_pv_hv, and_ppw_phi, []),
+        [], sf_sep_iff, Implies(and_ppw_phi, in_pv_hv),
+        fl(sf_sep_char, sf_sep_iff, pv))
+    got_bwd = mp(got_sep_bwd, got_and_ppw, and_ppw_phi, in_pv_hv)
+
+    # Need to package individual hyps back into phi_pv on left.
+    # phi_pv = ∃nf. And(In(nf,w), ∃vr.∃yr. And(And(RecApprox,Apply),OrdPair))
+    # Currently got_bwd has: [ra_vr, app_vr, In(nf,w), op_pv, val_in_w, ...] |- In(pv,hv)
+    # Strategy: cut each individual with its extraction from the And, then eel.
+
+    and_ra_app = And(ra_vr, app_vr)
+    and_inner = And(and_ra_app, op_pv)
+
+    # Replace ra_vr with [and_inner] |- ra_vr
+    if any(same(ra_vr, f_) for f_ in got_bwd.sequent.left):
+        ext = apply_thm(and_elim_left(ra_vr, app_vr, []), [],
+            and_ra_app, ra_vr,
+            apply_thm(and_elim_left(and_ra_app, op_pv, []), [],
+                and_inner, and_ra_app, ax(and_inner)))
+        got_bwd = cut(got_bwd, ra_vr, ext)
+
+    # Replace app_vr with [and_inner] |- app_vr
+    if any(same(app_vr, f_) for f_ in got_bwd.sequent.left):
+        ext = apply_thm(and_elim_right(ra_vr, app_vr, []), [],
+            and_ra_app, app_vr,
+            apply_thm(and_elim_left(and_ra_app, op_pv, []), [],
+                and_inner, and_ra_app, ax(and_inner)))
+        got_bwd = cut(got_bwd, app_vr, ext)
+
+    # Replace op_pv with [and_inner] |- op_pv
+    if any(same(op_pv, f_) for f_ in got_bwd.sequent.left):
+        ext = apply_thm(and_elim_right(and_ra_app, op_pv, []), [],
+            and_inner, op_pv, ax(and_inner))
+        got_bwd = cut(got_bwd, op_pv, ext)
+
+    # eel yr over and_inner, then eel vr
+    got_bwd = eel(got_bwd, and_inner, yr)
+    ex_yr = Exists(yr, and_inner)
+    got_bwd = eel(got_bwd, ex_yr, vr)
+
+    # Now have phi(nf,pv) = ∃vr.∃yr.And(And(RecApprox,Apply),OrdPair) on left
+    phi_nf_pv = Exists(vr, Exists(yr, and_inner))
+    and_nf_phi = And(In(nf, w), phi_nf_pv)
+
+    # Replace In(nf,w) with [and_nf_phi] |- In(nf,w)
+    if any(same(In(nf, w), f_) for f_ in got_bwd.sequent.left):
+        ext_nf = apply_thm(and_elim_left(In(nf, w), phi_nf_pv, []), [],
+            and_nf_phi, In(nf, w), ax(and_nf_phi))
+        got_bwd = cut(got_bwd, In(nf, w), ext_nf)
+
+    # Replace phi_nf_pv with [and_nf_phi] |- phi_nf_pv
+    if any(same(phi_nf_pv, f_) for f_ in got_bwd.sequent.left):
+        ext_phi = apply_thm(and_elim_right(In(nf, w), phi_nf_pv, []), [],
+            and_nf_phi, phi_nf_pv, ax(and_nf_phi))
+        got_bwd = cut(got_bwd, phi_nf_pv, ext_phi)
+
+    # eel nf over and_nf_phi → phi_pv on left
+    got_bwd = eel(got_bwd, and_nf_phi, nf)
+
+    # Close backward: phi_pv → in_pv_hv
+    imp_bwd = Implies(phi_pv, in_pv_hv)
+    left_b = [f_ for f_ in got_bwd.sequent.left if not same(f_, phi_pv)]
+    got_imp_bwd = Proof(Sequent(left_b, [imp_bwd]), 'implies_right', [got_bwd], principal=imp_bwd)
+
+    # === Combine into Iff ===
+    desired_iff = Iff(in_pv_hv, phi_pv)
+    ii = iff_intro(in_pv_hv, phi_pv, [])
+    got_iff = mp(apply_thm(ii, [], imp_fwd, Implies(imp_bwd, desired_iff), got_imp_fwd),
+        got_imp_bwd, imp_bwd, desired_iff)
+
+    # Forall pv
+    desired_char = Forall(pv, desired_iff)
+    got_fa = Proof(Sequent(got_iff.sequent.left, [desired_char]),
+        'forall_right', [got_iff], principal=desired_char, term=pv)
+
+    # === Close existentials ===
+    ex_desired = Exists(hv, desired_char)
+    got_ex_desired = eir(got_fa, desired_char, hv, hv)
+
+    # Eliminate sf_sep_char, ppw_char, pw_char existentials (dependency order)
+    got_ex_desired = eel(got_ex_desired, sf_sep_char, hv)
+    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_sf)
+    got_ex_desired = eel(got_ex_desired, ppw_char, ppw)
+    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_ppw)
+    got_ex_desired = eel(got_ex_desired, pw_char, pw)
+    got_ex_desired = cut(got_ex_desired, got_ex_desired.sequent.left[-1], got_ex_pw)
+
+    # === Discharge hypotheses and close foralls ===
+    proof = got_ex_desired
+    for h in [val_in_w, omega_w]:
+        if any(same(h, f_) for f_ in proof.sequent.left):
+            imp_h = Implies(h, proof.sequent.right[0])
+            left_h = [f_ for f_ in proof.sequent.left if not same(f_, h)]
+            proof = Proof(Sequent(left_h, [imp_h]), 'implies_right', [proof], principal=imp_h)
+    for var in [w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
+    proof.name = 'rec_graph_exists'
+    return proof
 
 
 def rec_h_apply():
