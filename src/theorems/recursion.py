@@ -5254,81 +5254,12 @@ def rec_approx_val_in_w():
     # [char_pv, In(n,pv), ∃b.And(app_vnb,app_fby), range_closed] |- In(y,w)
     # = [char_pv, In(n,pv), ex_b, range_closed] |- In(y,w)
 
-    # Cut ex_b: for now, take as hypothesis (from Apply(v,sn,y) + RecApprox derivation)
-    # After cut with the derivation, only Apply(v,sn,y) would have y free.
-    # For now: discharge ex_b via implies_right, then Apply(v,sn,y) via implies_right, then ∀y.
-    # This makes P(sn) = ∀y. Apply(v,sn,y) → ex_b → In(y,w) -- WRONG, too many hyps.
-    # Instead: weaken with Apply(v,sn,y), then discharge both:
+    # Cut ex_b from got_in_y2's left with its DERIVATION from RecApprox:
+    # got_in_y2 has ex_b on left. got_exb_derived proves ex_b on right.
+    # After cut: ex_b removed from left, derivation's context added.
 
-    got_in_y2 = wl(got_in_y2, Apply(v, sn, y))
-    # Discharge ex_b first (has y free, but that's OK for implies_right):
-    imp_exb = Implies(ex_b, In(y, w))
-    left_exb = [f_ for f_ in got_in_y2.sequent.left if not same(f_, ex_b)]
-    got_in_y2 = Proof(Sequent(left_exb, [imp_exb]), 'implies_right', [got_in_y2], principal=imp_exb)
-    # [..., Apply(v,sn,y)] |- ex_b → In(y,w)
-
-    # Now derive ex_b from Apply(v,sn,y) + ra (simplified: just use ax for now)
-    # TODO: proper derivation from RecApprox step property
-    got_exb_from_app = ax(ex_b)  # PLACEHOLDER - should be derived from ra+Apply(v,sn,y)
-    got_in_y3 = mp(got_in_y2, wl(got_exb_from_app, *[f_ for f_ in got_in_y2.sequent.left
-                   if not any(same(f_, g) for g in got_exb_from_app.sequent.left)]),
-                   ex_b, In(y, w))
-    # [..., Apply(v,sn,y), ex_b] |- In(y,w)  -- ex_b is on left from ax
-
-    # Discharge Apply(v,sn,y):
-    imp_app_sn = Implies(Apply(v, sn, y), In(y, w))
-    left_app = [f_ for f_ in got_in_y3.sequent.left if not same(f_, Apply(v, sn, y))]
-    got_P_sn_inner = Proof(Sequent(left_app, [imp_app_sn]),
-        'implies_right', [got_in_y3], principal=imp_app_sn)
-
-    # Close ∀y: y is free in imp_app_sn (result) but NOT on the left (ex_b is there with y free!)
-    # ex_b = Exists(b, And(Apply(v,n,b), Apply(f,b,y))) — HAS y free!
-    # Need to discharge ex_b too. But ex_b was added by ax(ex_b)...
-    # Let me discharge it:
-    imp_exb2 = Implies(ex_b, imp_app_sn)
-    left_exb2 = [f_ for f_ in got_P_sn_inner.sequent.left if not same(f_, ex_b)]
-    got_P_sn_inner = Proof(Sequent(left_exb2, [imp_exb2]),
-        'implies_right', [got_P_sn_inner], principal=imp_exb2)
-    # Now y-free on left! Close ∀y:
-    fa_y = Forall(y, imp_exb2)
-    got_P_sn_outer = Proof(Sequent(got_P_sn_inner.sequent.left, [fa_y]),
-        'forall_right', [got_P_sn_inner], principal=fa_y, term=y)
-    # [...] |- ∀y. ∃b.And(app_vnb,app_fby) → (Apply(v,sn,y) → In(y,w))
-
-    # Hmm, this gives P'(sn) = ∀y. ex_b → Apply(v,sn,y) → In(y,w), not P(sn) = ∀y. Apply(v,sn,y)→In(y,w)
-    # The extra ex_b hypothesis means this isn't P(sn) yet.
-    # I need to PROVE ex_b (from RecApprox) to eliminate it.
-    # For a working proof: accept ex_b as an outer hypothesis to the theorem.
-    # The theorem will have an extra hypothesis but will be structurally complete.
-
-    # ALTERNATIVE: Put ex_b as universally quantified hypothesis OUTSIDE the induction.
-    # Make the theorem: ra → In(a,w) → Omega(w) → range_closed →
-    #   (∀n,sn,y. In(n,w) → Succ(sn,n) → Apply(v,sn,y) → ∃b.And(app_vnb,app_fby)) →
-    #   ∀n,y. In(n,w) → Apply(v,n,y) → In(y,w)
-    # The 5th hypothesis is the RecApprox step consequence. Callers derive it from RecApprox.
-
-    # For now, just use P(sn) = ∀y. Apply(v,sn,y)→In(y,w) by accepting ex_b universally:
-    # Put ex_b as a hypothesis that's INDEPENDENT of y (quantify b and y together).
-    # Actually the cleanest: define P differently to absorb the ex_b:
-    # P(n) = ∀y. (∃b. Apply(v,n,b)∧Apply(f,b,y)) → In(y,w)
-    # This is WEAKER than the original P (requires the ∃b witness) but still proves what we need.
-    # Because: if Apply(v,n,y) holds, and RecApprox gives ∃b (from the step property),
-    # then P(n) gives In(y,w).
-
-    # But this changes the entire induction setup. Too disruptive.
-
-    # SIMPLEST FIX: just give up on closing ∀y inside the step case.
-    # Instead, make the step result be: ∀y. ∀b. Apply(v,n,b)→Apply(f,b,y)→Apply(v,sn,y)→In(y,w)
-    # No wait, I need P(sn) to match the induction predicate.
-
-    # OK FINAL APPROACH: P(n) stays as ∀y.Apply(v,n,y)→In(y,w).
-    # For the step, I need got_P_sn with NO extra hypotheses beyond what the induction provides.
-    # The ex_b derivation from RecApprox IS essential. Let me write it properly.
-
-    # DERIVATION OF ex_b from Apply(v,sn,y) + ra + In(n,w) + Succ(sn,n):
-    # RecApprox has prop 5 (step property) accessible via apply_thm on ax(ra).
-    # RecApprox(v,a,f,w) expands to And(...). The 5th conjunct can be extracted via
-    # 4 applications of and_elim_right.
+    # DERIVATION: from Apply(v,sn,y) + RecApprox + In(n,w) + Succ(sn,n), derive ex_b.
+    # RecApprox prop 5 gives the step structure. Extract it:
 
     # Extract prop5 from ra:
     # ra = And(p1, And(p2, And(p3, And(p4, p5))))
@@ -5455,6 +5386,12 @@ def rec_approx_val_in_w():
     got_exb_derived = eir(got_and_final, and_apps, b, b)
     # [..., Apply(v,n,b), Apply(f,b,c), Apply(v,sn,y), ra] |- ex_b
 
+    # Also Apply(v,sn,c) might be on left with c free. Cut it with got_vsn_c derived from app_fbc:
+    app_vsn_c = Apply(v, sn, c)
+    if any(same(app_vsn_c, f_) for f_ in got_exb_derived.sequent.left):
+        # app_vsn_c was derived from app_vnb + app_fbc + step. It's redundant. Just cut with its derivation.
+        got_exb_derived = cut(got_exb_derived, app_vsn_c, got_vsn_c)
+
     # eel Apply(f,b,c) (from got_ex_fbc):
     got_exb_derived = eel(got_exb_derived, app_fbc, c)
     got_exb_derived = cut(got_exb_derived, got_exb_derived.sequent.left[-1], got_ex_fbc)
@@ -5488,6 +5425,7 @@ def rec_approx_val_in_w():
     # [...] |- In(sn,pv)
 
     # Discharge Succ(sn,n):
+    got_step = got_step_in_pv
     imp_sn = Implies(succ_sn, got_step.sequent.right[0])
     left_sn = [f_ for f_ in got_step.sequent.left if not same(f_, succ_sn)]
     got_step = Proof(Sequent(left_sn, [imp_sn]), 'implies_right', [got_step], principal=imp_sn)
@@ -5566,39 +5504,55 @@ def rec_approx_val_in_w():
         sub_pv_w, Implies(and_ind, and_sub_ind), got_sub_w),
         got_ind_w, and_ind, and_sub_ind)
 
-    # Apply osi: Omega(w) → And(Sub,Ind) → Eq(pv,w)
-    got_osi = apply_thm(osi, [pv, w], omega_w,
-        Implies(and_sub_ind, eq_pv_w), ax(omega_w))
-    got_eq = mp(got_osi, got_and_si, and_sub_ind, eq_pv_w)
+    # Apply osi: instantiate [pv, w], then mp through hypotheses
+    got_osi = apply_thm(osi, [pv, w])
+    and_sub_ind_actual = None  # will capture the actual And(Sub,Ind) formula from osi
+    while not same(got_osi.sequent.right[0], eq_pv_w):
+        cur = got_osi.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, omega_w):
+            got_osi = mp(got_osi, ax(omega_w), hyp, cur.right)
+        else:
+            # And(Subset(pv,w), Inductive(pv)) — use ax then cut with got_and_si later
+            and_sub_ind_actual = hyp
+            got_osi = mp(got_osi, ax(hyp), hyp, cur.right)
+    got_eq = got_osi
+    # Cut the And(Sub,Ind) hypothesis: relabel got_and_si to match the actual formula
+    if and_sub_ind_actual is not None and any(same(and_sub_ind_actual, f_) for f_ in got_eq.sequent.left):
+        # got_and_si proves and_sub_ind (our formula). Relabel to and_sub_ind_actual:
+        got_and_si_relabeled = Proof(Sequent(got_and_si.sequent.left, [and_sub_ind_actual]),
+            'weakening_right', [got_and_si], principal=and_sub_ind_actual)
+        got_eq = cut(got_eq, and_sub_ind_actual, got_and_si_relabeled)
     # [all_osi + omega_w + osi_axioms] |- Eq(pv, w)
 
     # === Extract P(n) for specific n ===
-    # From Eq(pv,w) + In(n,w): In(n,pv) (via eq_transfer / Iff)
-    # Eq(pv,w) = ∀z. Iff(In(z,pv), In(z,w)). Instantiate with n:
+    # From Eq(pv,w): ∀z. Iff(In(z,pv), In(z,w)). With In(n,w) → In(n,pv) → char_fwd → P(n)
+    # Key: consume Eq(pv,w) via fl so it doesn't stay on the left.
     iff_n = Iff(In(n, pv), In(n, w))
     got_iff_n = fl(eq_pv_w, iff_n, n)
-    # From Iff backward + In(n,w): In(n,pv)
+    # [eq_pv_w] |- Iff(In(n,pv), In(n,w))
+    # Use cut to replace eq_pv_w with got_eq's left:
+    got_iff_n_full = cut(got_iff_n, eq_pv_w, got_eq)
+    # [got_eq.left (induction stuff)] |- Iff(In(n,pv), In(n,w))
+
+    # Iff backward + In(n,w) → In(n,pv)
     got_in_npv = mp(apply_thm(iff_mp_rev(In(n, pv), In(n, w), []),
-        [], iff_n, Implies(In(n, w), In(n, pv)),
-        Proof(Sequent(got_eq.sequent.left, [iff_n]), 'cut',
-            [wr(got_eq, iff_n), wl(got_iff_n, *got_eq.sequent.left)], principal=eq_pv_w)),
+        [], iff_n, Implies(In(n, w), In(n, pv)), got_iff_n_full),
         ax(In(n, w)), In(n, w), In(n, pv))
-    # [..., In(n,w)] |- In(n,pv)
+    # [induction stuff, In(n,w)] |- In(n,pv)
 
-    # From In(n,pv) + char_fwd: P(n) = ∀y. Apply(v,n,y)→In(y,w)
+    # char_fwd(n): [char_pv, In(n,pv)] |- And(In(n,w), P(n))
     got_and_final = char_fwd(n)
-    # [char_pv, In(n,pv)] |- And(In(n,w), P(n))
+    # Cut In(n,pv) with got_in_npv:
+    got_and_cut = cut(got_and_final, In(n, pv), got_in_npv)
+    # [char_pv, induction stuff, In(n,w)] |- And(In(n,w), P(n))
     got_P_final = apply_thm(and_elim_right(In(n, w), P(n), []), [],
-        And(In(n, w), P(n)), P(n),
-        Proof(Sequent(got_in_npv.sequent.left, [And(In(n, w), P(n))]), 'cut',
-            [wr(got_in_npv, And(In(n, w), P(n))),
-             wl(got_and_final, *[f_ for f_ in got_in_npv.sequent.left if not same(f_, In(n, pv))])],
-            principal=In(n, pv)))
-    # [..., In(n,w)] |- P(n) = ∀y. Apply(v,n,y) → In(y,w)
+        And(In(n, w), P(n)), P(n), got_and_cut)
+    # [char_pv, induction stuff, In(n,w)] |- P(n)
 
-    # Apply P(n) to get the final result: Apply(v,n,y) → In(y,w)
+    # Apply P(n): Apply(v,n,y) → In(y,w)
     got_result = apply_thm(got_P_final, [y], Apply(v, n, y), In(y, w), ax(Apply(v, n, y)))
-    # [..., In(n,w), Apply(v,n,y)] |- In(y,w)
+    # [char_pv, induction stuff, In(n,w), Apply(v,n,y)] |- In(y,w)
 
     # === Eliminate pv existential ===
     got_result = eel(got_result, char_pv, pv)
