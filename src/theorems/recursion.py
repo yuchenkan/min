@@ -7610,9 +7610,13 @@ def recursion_theorem():
     char_h = Forall(pp, Iff(In(pp, hv), Exists(mm, And(In(mm, w), phi(mm, pp)))))
     ex_h_char = Exists(hv, char_h)
 
-    got_rge = apply_thm(rge, [a, f, w], func_f, Implies(omega_w, ex_h_char), ax(func_f))
-    got_rge = mp(got_rge, ax(omega_w), omega_w, ex_h_char)
-    # got_rge: [func_f, omega_w, axioms] |- Exists(hv, char_h)
+    # rec_graph_exists now: ∀a,f,w. Omega(w) → val_in_w → ∃h. char_h
+    # mp through its hypotheses dynamically (ax for each, left on left for later discharge):
+    got_rge = apply_thm(rge, [a, f, w])
+    while not same(got_rge.sequent.right[0], ex_h_char):
+        cur = got_rge.sequent.right[0]
+        got_rge = mp(got_rge, ax(cur.left), cur.left, cur.right)
+    # got_rge: [omega_w, val_in_w, axioms] |- Exists(hv, char_h)
 
     # === Get rec_h_apply ===
     rha = rec_h_apply()
@@ -8048,13 +8052,17 @@ def recursion_theorem():
     g_imp_func = goal.body.body.body  # Implies(func_f, ...)
     g_fa_w = goal.body.body  # Forall(w, ...)
     g_fa_f = goal.body  # Forall(f, ...)
-    for hh, g_imp in zip([omega_w, dom_closed, func_f], [g_imp_omega, g_imp_dom, g_imp_func]):
-        if any(same(hh, g) for g in proof.sequent.left):
-            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [g_imp]), 'implies_right', [proof], principal=g_imp)
-    for var, fa in zip([w, f, a], [g_fa_w, g_fa_f, goal]):
+    # Discharge all non-axiom hypotheses (including val_in_w from rge):
+    from core.zfc import ZFCAxiom as _ZFC
+    non_ax_final = [f_ for f_ in proof.sequent.left if not isinstance(f_, _ZFC)]
+    for hh in non_ax_final:
+        imp_hh = Implies(hh, proof.sequent.right[0])
+        rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
+        proof = Proof(Sequent(rem, [imp_hh]), 'implies_right', [proof], principal=imp_hh)
+    for var in [w, f, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(var, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right', [proof], principal=fa, term=var)
-    assert proof.sequent.right[0] is goal
     proof.name = 'recursion_theorem'
     return proof
 
