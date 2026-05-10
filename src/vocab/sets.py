@@ -74,6 +74,24 @@ class PairSet:
         return f'{s}/*{self._postfix}*/' if self._postfix else s
 
 
+class TransitiveSet:
+    """TransitiveSet(a): a is a transitive set.
+    forall x. In(x, a) -> forall y. In(y, x) -> In(y, a).
+    Every element of a is a subset of a.
+    Not to be confused with isTransitive(r) for relations (book p136)."""
+    __match_args__ = ('set',)
+    def __init__(self, a):
+        self.set = a
+    def expand(self):
+        x, y = Var(), Var()
+        return Forall(x, Implies(In(x, self.set),
+            Forall(y, Implies(In(y, x), In(y, self.set)))))
+    def subst(self, old, new):
+        return TransitiveSet(new if self.set is old else self.set)
+    def __str__(self):
+        return f'TransitiveSet({self.set})'
+
+
 class Subset:
     """Subset(a, b) = forall x. In(x, a) implies In(x, b). a sub b."""
     __match_args__ = ('left', 'right')
