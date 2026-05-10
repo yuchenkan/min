@@ -2792,12 +2792,29 @@ def rec_exists_step():
          wl(got_succ_sn_m, *got_eq_sn_sm.sequent.left)], principal=Eq(sn, sm5))
     # got_succ_sn_m2: [ordp_new, sing_new, app_s_sm, succ_sm] |- Successor(sn, m5)
 
-    # successor_injection: Succ(sn,m5) + Succ(sn,n) -> Eq(m5,n)
+    # successor_injection_omega: Omega(w)→In(m5,w)→In(n,w)→Succ(sn,m5)→Succ(sn,n)→Eq(m5,n)
     succ_sn_n = Successor(sn, n)
-    got_eq_m_n = apply_thm(si, [m5, n, sn], fa_succ_sn_m,
-        Implies(succ_sn_n, Eq(m5, n)), got_succ_sn_m2)
-    got_eq_m_n = mp(got_eq_m_n, ax(succ_sn), succ_sn, Eq(m5, n))
-    # got_eq_m_n: [ordp_new, sing_new, app_s_sm, succ_sm, succ_sn, Reg, Pairing] |- Eq(m5, n)
+    # hint: uncomment for debug
+    # print(f'rec_exists_step at si call: w={w}, m5={m5}, n={n}, sn={sn}')
+    # New: need [w, m5, n, sn] + Omega(w) + In(m5,w) + In(n,w) + Succ(sn,m5) + Succ(sn,n)
+    got_eq_m_n = apply_thm(si, [w, m5, n, sn])
+    # mp through hypotheses dynamically:
+    while not same(got_eq_m_n.sequent.right[0], Eq(m5, n)):
+        cur = got_eq_m_n.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, omega_w):
+            got_eq_m_n = mp(got_eq_m_n, ax(omega_w), hyp, cur.right)
+        elif same(hyp, in_n_w):
+            got_eq_m_n = mp(got_eq_m_n, ax(in_n_w), hyp, cur.right)
+        elif same(hyp, fa_succ_sn_m) or same(hyp, Successor(sn, m5)):
+            got_eq_m_n = mp(got_eq_m_n, got_succ_sn_m2, hyp, cur.right)
+        elif same(hyp, succ_sn) or same(hyp, succ_sn_n):
+            got_eq_m_n = mp(got_eq_m_n, ax(succ_sn), hyp, cur.right)
+        else:
+            # In(m5,w) or other — provide via ax
+            # print(f'  si hyp not matched, using ax: {hyp}')
+            got_eq_m_n = mp(got_eq_m_n, ax(hyp), hyp, cur.right)
+    # got_eq_m_n: [...] |- Eq(m5, n)
 
     # Now build step_concl for case s using Eq(m5,n):
     # Part 1: Exists(val5, Apply(u,m5,val5)).

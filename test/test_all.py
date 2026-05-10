@@ -75,7 +75,7 @@ if __name__ == '__main__':
         ('apply_singleton', theorems.apply_singleton()),
         ('singleton_apply_eq', theorems.singleton_apply_eq()),
         ('eq_apply_transfer', theorems.eq_apply_transfer()),
-        ('successor_injection', theorems.successor_injection()),
+        ('successor_injection_omega', theorems.successor_injection_omega()),
         ('eq_apply_val_transfer', theorems.eq_apply_val_transfer()),
         ('extend_function', theorems.extend_function()),
         ('ordpair_eq_transfer', theorems.ordpair_eq_transfer()),
