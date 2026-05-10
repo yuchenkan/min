@@ -5585,14 +5585,14 @@ def rec_approx_val_in_w():
 
 def rec_graph_exists():
     """The recursive function's graph exists (via PowerSet + Separation, no Replacement).
-    Ext, Sep, Pairing, PowerSet |- forall a, f, w.
+    Ext, Sep, Pairing, PowerSet, Union |- forall a, f, w.
       Omega(w) ->
-      (forall v, n, y. RecApprox(v,a,f,w) -> Apply(v,n,y) -> In(y,w)) ->
       exists h. forall p. Iff(In(p, h), exists n. And(In(n, w), phi(n, p)))
     where phi(n, p) = exists v, y. And(And(RecApprox(v,a,f,w), Apply(v,n,y)), OrdPair(p,n,y)).
 
-    Key idea: same as succ_func_exists — pairs bounded by P(P(w)), Separate from it.
-    Derives val_in_w internally from In(a,w) + range_closed(f,w) via rec_approx_val_in_w."""
+    Following the book (Theorem 4.2.14): bound pairs by P(P(ω ∪ ∪∪f)).
+    RecApprox property 2 gives n ∈ ω, property 3 gives y ∈ dom f ⊆ ∪∪f.
+    No extra hypotheses beyond Omega(w)."""
     from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, cut
     # Import rec_approx_val_in_w — the induction proving RecApprox values stay in w
     from theorems.recursion import rec_approx_val_in_w as _ravw
