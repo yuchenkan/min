@@ -201,7 +201,7 @@ class UnaryTape:
         r = lambda f: new if f is old else f
         return UnaryTape(r(self.tape), r(self.left), r(self.right))
     def __str__(self):
-        return f'Tape(1^{self.left} 0 1^{self.right})'
+        return f'{self.tape} = Tape(1^{self.left} 0 1^{self.right})'
 
 
 class UnaryOutput:
@@ -225,7 +225,7 @@ class UnaryOutput:
         r = lambda f: new if f is old else f
         return UnaryOutput(r(self.tape), r(self.count))
     def __str__(self):
-        return f'Tape(1^{self.count})'
+        return f'{self.tape} = Tape(1^{self.count})'
 
 
 def encode(a, b):
