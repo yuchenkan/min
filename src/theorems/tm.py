@@ -939,8 +939,202 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     # Full P1(0) = ∃tra, ca. And(sg_1e, And(sg_1b, And(sg_1c, sg_1d)))
     # Witnesses: tra = {(z, c0)}, ca = c0.
 
-    # TODO: implement proof construction
-    raise NotImplementedError
+    # === Implement proof ===
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import and_intro, eq_substitution, iff_mp_rev, eq_reflexive
+    from theorems.sets import ordpair_exists, singleton_exists
+    from core.proof import Proof, Sequent
+    import core.zfc as zfc
+
+    cfg0 = TMConfig(c0, q0, z, tape_in)
+    num_z = Num(z, 0)
+
+    # --- 1a: construct trace = {pair_0} where pair_0 = (z, c0) ---
+    pair_0a = Var(postfix='p0a')
+    op_p0 = OrdPair(pair_0a, z, c0)
+
+    # ordpair_exists: Pairing |- ∀x,y. ∃p. OrdPair(p,x,y)
+    oe = ordpair_exists()
+    got_ex_pair = apply_thm(oe, [z, c0], concl=Exists(pair_0a, op_p0))
+    # [Pairing] |- ∃pair_0a. OrdPair(pair_0a, z, c0)
+
+    # singleton_exists: Pairing |- ∀x. ∃s. Singleton(s,x)
+    from vocab.sets import Singleton as Sing
+    se = singleton_exists()
+    sing_tra = Sing(tra, pair_0a)
+    got_ex_tra = apply_thm(se, [pair_0a], concl=Exists(tra, sing_tra))
+    # [Pairing] |- ∃tra. Singleton(tra, pair_0a)
+
+    # In(pair_0a, tra) from Singleton(tra, pair_0a):
+    # Singleton: ∀d. d∈tra ↔ d=pair_0a. Backward with Eq(pair_0a, pair_0a):
+    er = eq_reflexive()
+    eq_pp = Eq(pair_0a, pair_0a)
+    got_eq_pp = apply_thm(er, [pair_0a], concl=eq_pp)
+    iff_tra = Iff(In(pair_0a, tra), eq_pp)
+    got_in_p_tra = mp(apply_thm(iff_mp_rev(In(pair_0a, tra), eq_pp, []),
+        [], iff_tra, Implies(eq_pp, In(pair_0a, tra)), fl(sing_tra, iff_tra, pair_0a)),
+        got_eq_pp, eq_pp, In(pair_0a, tra))
+    # [sing_tra] |- In(pair_0a, tra)
+
+    # Apply(tra, z, c0) = ∃p. OrdPair(p,z,c0) ∧ In(p, tra)
+    and_op_in = And(op_p0, In(pair_0a, tra))
+    got_and_op_in = mp(apply_thm(and_intro(op_p0, In(pair_0a, tra), []),
+        [], op_p0, Implies(In(pair_0a, tra), and_op_in), ax(op_p0)),
+        got_in_p_tra, In(pair_0a, tra), and_op_in)
+    got_apply_tra = eir(got_and_op_in, and_op_in, pair_0a, pair_0a)
+    # [op_p0, sing_tra] |- Apply(tra, z, c0)
+
+    # --- 1b: ∀z'. Empty(z') → Apply(tra, z', c0) ---
+    # From Empty(z') and Num(z,0)=Empty(z): both are ∅, so Eq(z', z).
+    # Then Apply(tra, z', c0) from Apply(tra, z, c0) + eq_apply_transfer.
+    # Actually simpler: Empty(z') means z'=∅, Num(z,0) means z=∅, so z'=z.
+    # unique_empty: Empty(z') → Empty(z) → Eq(z', z).
+    from theorems.logic import unique_empty
+    ue = unique_empty()
+    z_prime = Var(postfix='zp')
+    eq_zp_z = Eq(z_prime, z)
+    # unique_empty: ∀a. Empty(a) → ∀b. Empty(b) → Eq(a,b)
+    # Peel ∀a with z_prime, mp Empty(z'), then peel ∀b with z, mp Empty(z)=Num(z,0)
+    got_ue_inst = apply_thm(ue, [z_prime], Empty(z_prime),
+        Forall(z, Implies(Empty(z), eq_zp_z)), ax(Empty(z_prime)))
+    got_eq_zp = apply_thm(got_ue_inst, [z], num_z, eq_zp_z, ax(num_z))
+    # [Empty(z'), Num(z,0)] |- Eq(z', z)
+
+    # Apply(tra, z', c0) from Apply(tra, z, c0) + Eq(z', z):
+    from theorems.recursion import eq_apply_transfer
+    eat = eq_apply_transfer()
+    # eq_apply_transfer: ∀f,x,y,z. Eq(x,y) → Apply(f,x,z) → ∃p. OrdPair(p,y,z)∧In(p,f)
+    # Instantiate [tra, z, z_prime, c0]: Eq(z,z_prime) → Apply(tra,z,c0) → Apply(tra,z_prime,c0)
+    # But we have Eq(z_prime, z), need Eq(z, z_prime). Use eq_symmetric.
+    from theorems.logic import eq_symmetric
+    es = eq_symmetric()
+    got_eq_z_zp = apply_thm(es, [z_prime, z], eq_zp_z, Eq(z, z_prime), got_eq_zp)
+    # [Empty(z'), Num(z,0)] |- Eq(z, z')
+    got_eat = apply_thm(eat, [tra, z, z_prime, c0])
+    while type(got_eat.sequent.right[0]).__name__ == 'Implies':
+        cur = got_eat.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, Eq(z, z_prime)):
+            got_eat = mp(got_eat, got_eq_z_zp, hyp, cur.right)
+        elif same(hyp, Apply(tra, z, c0)):
+            got_eat = mp(got_eat, got_apply_tra, hyp, cur.right)
+        else:
+            got_eat = mp(got_eat, ax(hyp), hyp, cur.right)
+    got_apply_zp = got_eat
+    # got_apply_zp: [...] |- Apply(tra, z', c0) (in expanded Exists form)
+    # [Empty(z'), Num(z,0), op_p0, sing_tra] |- Apply(tra, z', c0)
+
+    # Close: ∀z'. Empty(z') → Apply(tra, z', c0)
+    imp_1b = Implies(Empty(z_prime), Apply(tra, z_prime, c0))
+    left_1b = [f_ for f_ in got_apply_zp.sequent.left if not same(f_, Empty(z_prime))]
+    got_1b = Proof(Sequent(left_1b, [imp_1b]), 'implies_right', [got_apply_zp], principal=imp_1b)
+    fa_1b = Forall(z_prime, imp_1b)
+    got_1b = Proof(Sequent(got_1b.sequent.left, [fa_1b]),
+        'forall_right', [got_1b], principal=fa_1b, term=z_prime)
+    # [Num(z,0), op_p0, sing_tra, axioms] |- ∀z'. Empty(z') → Apply(tra, z', c0)
+
+    # --- 1c: Apply(tra, zero_var, c0) ---
+    # zero_var and z are both 0: Num(z,0) and Num(zero_var,0) → Eq(zero_var, z).
+    # Actually zero_var is the 0 we substitute into P1. If zero_var = z, trivial.
+    # For the induction, the base case substitutes the Separation var with 0.
+    # The Separation var gets unified with z via Empty/Num.
+    # Simplest: use got_apply_tra directly if zero_var = z.
+    # If not, derive via eq_apply_transfer as in 1b.
+    # For now: Apply(tra, z, c0) suffices since P1(0) uses z as "0".
+    got_1c = got_apply_tra
+    # [op_p0, sing_tra] |- Apply(tra, z, c0)
+
+    # --- 1d: step_valid vacuous ---
+    # ∀ja. In(ja, z) → ... where z = 0 = ∅.
+    # In(ja, ∅) is false for all ja (Empty(z) + Num(z,0)).
+    # Proof: assume In(ja, z). From Num(z,0)=Empty(z): ¬In(ja, z). Contradiction → anything.
+    not_in_ja = Not(In(ja, z))
+    got_not_in = fl(num_z, not_in_ja, ja)
+    # [Num(z,0)] |- ¬In(ja, z)
+    ax_in_ja = Proof(Sequent([In(ja, z)], [In(ja, z)]), 'axiom', principal=In(ja, z))
+    got_bot = Proof(Sequent([In(ja, z), not_in_ja], []), 'not_left', [ax_in_ja], principal=not_in_ja)
+
+    # From ⊥: derive the full step_valid body
+    step_body = Forall(sja, Implies(Successor(sja, ja),
+        Forall(cja, Implies(Apply(tra, ja, cja),
+            Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))
+    got_bot_step = Proof(Sequent(got_bot.sequent.left, [step_body]),
+        'weakening_right', [got_bot], principal=step_body)
+    # [In(ja,z), ¬In(ja,z)] |- step_body
+
+    # Cut ¬In(ja,z) with got_not_in:
+    got_bot_step = cut(got_bot_step, not_in_ja, got_not_in)
+    # [In(ja,z), Num(z,0)] |- step_body
+
+    # Close: In(ja, z) → step_body, ∀ja
+    imp_1d = Implies(In(ja, z), step_body)
+    left_1d = [f_ for f_ in got_bot_step.sequent.left if not same(f_, In(ja, z))]
+    got_1d = Proof(Sequent(left_1d, [imp_1d]), 'implies_right', [got_bot_step], principal=imp_1d)
+    fa_1d = Forall(ja, imp_1d)
+    got_1d = Proof(Sequent(got_1d.sequent.left, [fa_1d]),
+        'forall_right', [got_1d], principal=fa_1d, term=ja)
+    # [Num(z,0)] |- ∀ja. In(ja, z) → step_body
+
+    # --- 1e: TMConfig(c0, q0, z, tape_in) ---
+    got_1e = ax(cfg0)
+    # [TMConfig(c0,q0,z,tape_in)] |- TMConfig(c0,q0,z,tape_in)
+
+    # === Compose into P1(z) = ∃tra, ca. And(1e, And(1b, And(1c, 1d))) ===
+    # And(1c, 1d):
+    got_cd = mp(apply_thm(and_intro(got_1c.sequent.right[0], got_1d.sequent.right[0], []),
+        [], got_1c.sequent.right[0], Implies(got_1d.sequent.right[0],
+            And(got_1c.sequent.right[0], got_1d.sequent.right[0])), got_1c),
+        got_1d, got_1d.sequent.right[0], And(got_1c.sequent.right[0], got_1d.sequent.right[0]))
+
+    # And(1b, And(1c, 1d)):
+    got_bcd = mp(apply_thm(and_intro(got_1b.sequent.right[0], got_cd.sequent.right[0], []),
+        [], got_1b.sequent.right[0], Implies(got_cd.sequent.right[0],
+            And(got_1b.sequent.right[0], got_cd.sequent.right[0])), got_1b),
+        got_cd, got_cd.sequent.right[0], And(got_1b.sequent.right[0], got_cd.sequent.right[0]))
+
+    # And(1e, And(1b, And(1c, 1d))):
+    got_all = mp(apply_thm(and_intro(got_1e.sequent.right[0], got_bcd.sequent.right[0], []),
+        [], got_1e.sequent.right[0], Implies(got_bcd.sequent.right[0],
+            And(got_1e.sequent.right[0], got_bcd.sequent.right[0])), got_1e),
+        got_bcd, got_bcd.sequent.right[0], And(got_1e.sequent.right[0], got_bcd.sequent.right[0]))
+
+    # eir ca = c0:
+    got_ex_ca = eir(got_all, And(got_1e.sequent.right[0], got_bcd.sequent.right[0]), ca, c0)
+
+    # Eliminate existentials. Order matters: sing_tra has both tra and pair_0a free.
+    # eel tra first (over sing_tra), then eel pair_0a (over op_p0).
+    # debug: dump full state before existential elimination
+    from core.proof import _free_vars
+    print(f'Before existential elimination:')
+    print(f'  Left ({len(got_ex_ca.sequent.left)}):')
+    for i, f_ in enumerate(got_ex_ca.sequent.left):
+        fvs = _free_vars(f_)
+        flags = []
+        if tra in fvs: flags.append('tra')
+        if pair_0a in fvs: flags.append('p0a')
+        print(f'    [{i}] {" ".join(flags) if flags else "-"}: {f_}')
+    print(f'  Right:')
+    print(f'    {got_ex_ca.sequent.right[0]}')
+    fvr = _free_vars(got_ex_ca.sequent.right[0])
+    print(f'    tra in right: {tra in fvr}')
+    print(f'    pair_0a in right: {pair_0a in fvr}')
+    # eir tra into the right (making ∃tra, ∃ca part of P1(0)):
+    # got_ex_ca has ∃ca. And(...) on right, tra free. eir tra wraps ∃tra around it:
+    ex_ca_body = got_ex_ca.sequent.right[0]  # ∃ca. And(...) — has tra free
+    got_ex_tra_ca = eir(got_ex_ca, ex_ca_body, tra, tra)
+    # [..., sing_tra, op_p0] |- ∃tra. ∃ca. And(...)
+
+    # Now tra is NOT free on the right. Eliminate sing_tra and op_p0 from left:
+    if any(same(sing_tra, f_) for f_ in got_ex_tra_ca.sequent.left):
+        got_ex_tra_ca = eel(got_ex_tra_ca, sing_tra, tra)
+        got_ex_tra_ca = cut(got_ex_tra_ca, got_ex_tra_ca.sequent.left[-1], got_ex_tra)
+    if any(same(op_p0, f_) for f_ in got_ex_tra_ca.sequent.left):
+        got_ex_tra_ca = eel(got_ex_tra_ca, op_p0, pair_0a)
+        got_ex_tra_ca = cut(got_ex_tra_ca, got_ex_tra_ca.sequent.left[-1], got_ex_pair)
+
+    proof = got_ex_tra_ca
+    proof.name = 'phase1_base'
+    return proof
 
 
 def phase1_step(q0, tape_in, c0, z, delta, a, b, tra, ca, ja, sja, cja, cja1, ka, ska, w):
