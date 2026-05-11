@@ -1182,8 +1182,216 @@ def phase1_step(q0, tape_in, c0, z, delta, a, b, tra, ca, ja, sja, cja, cja1, ka
 
     Compose 2a-2f into P1(S(ka)) via eir for ∃tra', ∃ca'.
     """
-    # TODO: implement
-    raise NotImplementedError
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import and_intro, and_elim_left, and_elim_right, iff_mp_rev, eq_reflexive, or_elim
+    from theorems.sets import ordpair_exists, singleton_exists, union_exists
+    from theorems.tm import tape_read_low, head_move_right, config_intro
+    from theorems.recursion import apply_union_intro_left, apply_union_intro_right
+    from core.proof import Proof, Sequent, _free_vars
+    from core.derived import Or
+    from vocab.sets import Singleton as Sing
+    from vocab.ordpair import Successor as Succ
+    import core.zfc as zfc
+    from tm import UnaryTape
+
+    # The predicate P1(ka) — reuse phase1_pred
+    p1_ka = phase1_pred(ka, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    p1_ska = phase1_pred(ska, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+
+    # Hypotheses
+    in_ka_a = In(ka, a)
+    utape = UnaryTape(tape_in, a, b)
+    succ_ska = Succ(ska, ka)
+    num_q0 = Num(q0, 0)
+
+    # === Assume P1(ka) on the left, open existentials ===
+    # P1(ka) = ∃tra, ca. And(TMConfig(ca,q0,ka,tape_in), And(base_cond, And(apply_ka, step_valid)))
+    # We work with the components on the left.
+
+    cfg_ka = TMConfig(ca, q0, ka, tape_in)
+    app_tra_z_c0 = Apply(tra, z, c0)  # base condition (simplified: using z directly)
+    # Actually base_cond is ∀z'. Empty(z') → Apply(tra, z', c0). For the step case,
+    # we just need to preserve it in the extended trace. Let's keep it abstract.
+
+    # For the step case, we need:
+    # 1. The current config: TMConfig(ca, q0, ka, tape_in)
+    # 2. Tape reads 1 at ka: Apply(tape_in, ka, one) from tape_read_low + In(ka, a)
+    # 3. TMStep from current to next config
+    # 4. Extended trace with new entry
+
+    # --- 2a: tape reads 1 at position ka ---
+    one = Var(postfix='one')
+    trl = tape_read_low()
+    # tape_read_low: ∀tape,a,b,i,one. UnaryTape(tape,a,b) → In(i,a) → Num(one,1) → Apply(tape,i,one)
+    num_one = Num(one, 1)
+    got_read = apply_thm(trl, [tape_in, a, b, ka, one])
+    while type(got_read.sequent.right[0]).__name__ == 'Implies':
+        cur = got_read.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, utape):
+            got_read = mp(got_read, ax(utape), hyp, cur.right)
+        elif same(hyp, in_ka_a):
+            got_read = mp(got_read, ax(in_ka_a), hyp, cur.right)
+        elif same(hyp, num_one):
+            got_read = mp(got_read, ax(num_one), hyp, cur.right)
+        else:
+            got_read = mp(got_read, ax(hyp), hyp, cur.right)
+    # [utape, In(ka,a), Num(one,1)] |- Apply(tape_in, ka, one)
+
+    # --- 2c: new config (q0, S(ka), tape_in) ---
+    # For the scanning step, the tape is unchanged (write 1 over 1).
+    # The new config has head S(ka).
+    # We need: ∃ca'. TMConfig(ca', q0, S(ka), tape_in)
+    # Use ordpair_exists + config_intro.
+    # Actually, config_intro gives: OrdPair(inner,h,t) → OrdPair(c,q,inner) → TMConfig(c,q,h,t)
+    # We need to construct the ordered pairs for the new config.
+
+    # For now, use a simpler approach: the TMStep gives us the new config implicitly.
+    # step_elim gives: TMStep(delta,c1,c2) + components → TMConfig(c2,...)
+    # But we need step_intro FIRST to build TMStep.
+
+    # step_intro needs 6 component proofs with specific vars NOT free on left.
+    # This is very complex for a general proof. For the scanning step:
+    # - config: TMConfig(ca, q0, ka, tape_in)
+    # - tape read: Apply(tape_in, ka, one)
+    # - transition: TMTransition(delta, q0, one, one, d1, q0)
+    # - tape update: TapeUpdate(tape_in, tape_in, ka, one) — identity update
+    # - head move: HeadMove(ka, S(ka), d1)
+    # - new config: TMConfig(ca', q0, S(ka), tape_in)
+
+    # The tape update is tricky: TapeUpdate(t', t, h, w) means t' agrees with t
+    # except at h where it has w. If w = tape(h) (write same value), then t' ≡ t.
+    # But we can't prove t' = t in general — TapeUpdate defines a NEW tape.
+    # For TMStep, we need TapeUpdate(some_tape, tape_in, ka, one).
+    # We can use tape_in ITSELF as the updated tape (since writing 1 over 1 is identity).
+    # TapeUpdate(tape_in, tape_in, ka, one): need ∀x,y. (x=ka∧y=one)∨(Apply(tape_in,x,y)∧x≠ka)
+    # ↔ Apply(tape_in, x, y). This is true when Apply(tape_in, ka, one) holds.
+    # But proving this formally requires the full TapeUpdate Iff...
+
+    # SIMPLER: TMStep is universally quantified over the internal vars including tape'.
+    # It says: FOR ALL decompositions, IF the components match, THEN the next config is right.
+    # So tape' is universally quantified — we can CHOOSE tape' = tape_in.
+    # We just need to show that WITH tape' = tape_in, all the conditions hold.
+
+    # Actually TMStep uses step_intro which requires:
+    # p_cfg1, p_read, p_trans, p_update, p_move, p_cfg2
+    # These must prove facts about specific (universally quantified) vars.
+    # step_intro handles the forall_right closing.
+
+    # For now: the step case proof is very long (~200 lines for the TM plumbing).
+    # Let me write just the SKELETON and test incrementally.
+
+    # TODO: compose sub-helpers below
+    raise NotImplementedError("phase1_step: compose sub-helpers")
+
+
+def phase1_step_read(tape_in, a, b, ka, one):
+    """Sub-goal 2a: tape reads 1 at position ka.
+    [UnaryTape(tape_in,a,b), In(ka,a), Num(one,1), axioms] |- Apply(tape_in, ka, one)"""
+    from tactics import apply_thm, mp, ax
+    from theorems.tm import tape_read_low
+    from tm import UnaryTape
+    utape = UnaryTape(tape_in, a, b)
+    in_ka_a = In(ka, a)
+    num_one = Num(one, 1)
+    trl = tape_read_low()
+    got = apply_thm(trl, [tape_in, a, b, ka, one])
+    while type(got.sequent.right[0]).__name__ == 'Implies':
+        cur = got.sequent.right[0]
+        got = mp(got, ax(cur.left), cur.left, cur.right)
+    return got
+
+
+def extract_transition(delta_char_formula, index):
+    """Extract the index-th transition from delta_char (0-indexed).
+    delta_char = And(And(And(And(And(t0,t1),t2),t3),t4),t5).
+    Returns: [delta_char] |- t_index"""
+    from tactics import apply_thm, ax
+    from theorems.logic import and_elim_left, and_elim_right
+    # Navigate the nested And to extract the desired transition.
+    # There are 6 transitions. Index 0 is the innermost left.
+    # Peel from outside: and_elim_left gets the left (first 5), and_elim_right gets t5.
+    # Keep peeling left to get deeper.
+    cur = delta_char_formula
+    # Build path: to get t_index, we need to know the nesting depth.
+    # Flatten first:
+    transitions = []
+    def flatten(f):
+        if hasattr(f, 'left') and hasattr(f, 'right') and type(f).__name__ == 'And':
+            flatten(f.left)
+            transitions.append(f.right)
+        else:
+            transitions.append(f)
+    flatten(delta_char_formula)
+    # transitions[0] = t0 (innermost left), transitions[5] = t5 (outermost right)
+    # To extract transitions[index]:
+    target = transitions[index]
+    # Build proof by peeling And from outside
+    got = ax(delta_char_formula)
+    f = delta_char_formula
+    while type(f).__name__ == 'And':
+        if index < len(transitions) - 1:
+            # target is in f.left — peel left
+            got = apply_thm(and_elim_left(f.left, f.right, []), [],
+                f, f.left, got)
+            f = f.left
+            # Recalculate: count transitions in f
+            sub_trans = []
+            flatten_sub = lambda ff: (flatten_sub(ff.left) or sub_trans.append(ff.right) or True) if (hasattr(ff, 'left') and type(ff).__name__ == 'And') else sub_trans.append(ff)
+            sub_trans = []
+            flatten_sub(f)
+            if index >= len(sub_trans):
+                break
+        else:
+            # target is f.right — peel right
+            got = apply_thm(and_elim_right(f.left, f.right, []), [],
+                f, f.right, got)
+            break
+    return got
+
+
+def phase1_step_transition(delta_char_formula, delta, q0, one, d1):
+    """Sub-goal 2b: extract transition (q0,1)→(1,R,q0) from delta_char.
+    [delta_char] |- TMTransition(delta, q0, one, one, d1, q0)
+    after instantiating with Num(q0,0), Num(one,1), Num(d1,1), Num(q0,0)."""
+    from tactics import apply_thm, mp, ax
+
+    # Extract first transition (index 0): (q0,1)→(1,R,q0)
+    got_t0 = extract_transition(delta_char_formula, 0)
+    # got_t0: [delta_char] |- ∀s0,r1,w1,d1,s0'. Num(s0,0)→Num(r1,1)→Num(w1,1)→Num(d1,1)→Num(s0',0)→TMTransition(delta,s0,r1,w1,d1,s0')
+
+    # Instantiate with [q0, one, one, d1, q0]:
+    got = apply_thm(got_t0, [q0, one, one, d1, q0])
+    # mp through Num hypotheses:
+    while type(got.sequent.right[0]).__name__ == 'Implies':
+        cur = got.sequent.right[0]
+        got = mp(got, ax(cur.left), cur.left, cur.right)
+    return got
+
+
+def phase1_step_tmstep(delta, q0, ka, ska, tape_in, ca, ca_new, one, d1):
+    """Sub-goal 2c+2d: construct next config and TMStep.
+    [TMConfig(ca,q0,ka,tape_in), Apply(tape_in,ka,one),
+     TMTransition(delta,q0,one,one,d1,q0), Num(d1,1),
+     Successor(ska,ka), Pairing]
+    |- ∃ca_new. TMConfig(ca_new, q0, ska, tape_in) ∧ TMStep(delta, ca, ca_new)
+
+    Uses head_move_right, config_intro, step_intro.
+    Tape unchanged (write 1 over 1)."""
+    # TODO: implement — the TM step plumbing
+    raise NotImplementedError("phase1_step_tmstep")
+
+
+def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1):
+    """Sub-goal 2e+2f: extend trace and step_valid.
+    [Apply(tra,z,c0), Apply(tra,ka,ca), step_valid(tra,ka),
+     TMStep(delta,ca,ca_new), Union(tra,singleton) = tra_new, Pairing]
+    |- Apply(tra_new,z,c0) ∧ Apply(tra_new,ska,ca_new) ∧ step_valid(tra_new,ska)
+
+    Uses apply_union_intro_left (old values), apply_union_intro_right (new value).
+    step_valid extends: old steps + new step at ka."""
+    # TODO: implement — trace extension plumbing
+    raise NotImplementedError("phase1_step_extend_trace")
 
 
 def tm_add_correct():
