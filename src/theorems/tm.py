@@ -3807,16 +3807,302 @@ def config_eq_transfer():
     return proof
 
 
-def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1):
-    """Sub-goal 2e+2f: extend trace and step_valid.
-    [Apply(tra,z,c0), Apply(tra,ka,ca), step_valid(tra,ka),
-     TMStep(delta,ca,ca_new), Union(tra,singleton) = tra_new, Pairing]
-    |- Apply(tra_new,z,c0) ∧ Apply(tra_new,ska,ca_new) ∧ step_valid(tra_new,ska)
+def phase1_step_extend_trace(tra, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1):
+    """Sub-goal 2e+2f: extend trace and build P1(S(ka)) body.
 
-    Uses apply_union_intro_left (old values), apply_union_intro_right (new value).
-    step_valid extends: old steps + new step at ka."""
-    # TODO: implement — trace extension plumbing
-    raise NotImplementedError("phase1_step_extend_trace")
+    Hypotheses (on left):
+      TMConfig(ca, q0, ka, tape_in) — from P1(ka) opening [via caller]
+      ∀z'. Empty(z') → Apply(tra, z', c0) — base condition from P1(ka)
+      Apply(tra, ka, ca) — trace at ka from P1(ka)
+      step_valid(tra, ka) — old step validity from P1(ka)
+      TMConfig(ca_new, q0, ska, tape_in) — new config [from tmstep]
+      TMStep(delta, ca, ca_new) — the step [from tmstep]
+      Successor(ska, ka) — ska = S(ka)
+      Pairing, Union_ax
+
+    Returns proof of: ∃tra_new, ca_body.
+      And(TMConfig(ca_body, q0, ska, tape_in),
+      And(∀z'. Empty(z') → Apply(tra_new, z', c0),
+      And(Apply(tra_new, ska, ca_body),
+          step_valid(tra_new, ska))))
+
+    Strategy:
+    1. Construct pair_ska = (ska, ca_new) via ordpair_exists
+    2. Construct sing = {pair_ska} via singleton_exists
+    3. Construct tra_new = tra ∪ sing via union_exists
+    4. Base: Apply(tra_new, z', c0) from Apply(tra, z', c0) + apply_union_intro_left
+    5. Head: Apply(tra_new, ska, ca_new) from apply_singleton + apply_union_intro_right
+    6. step_valid(tra_new, ska): ∀ja ∈ S(ka).
+         In(ja, ska) ↔ Or(In(ja,ka), Eq(ja,ka)) from Successor(ska,ka).
+         Case ja ∈ ka: old step_valid, transfer Apply's via apply_union_intro_left
+         Case ja = ka: Apply(tra,ka,ca) → TMStep(delta,ca,ca_new) + Apply(tra_new,ska,ca_new)
+    7. Wrap in And + ∃tra_new + ∃ca_body(=ca_new)
+    """
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        eq_symmetric, or_elim, iff_mp, iff_mp_rev)
+    from theorems.sets import (ordpair_exists, singleton_exists, union_exists)
+    from theorems.recursion import (apply_singleton, apply_union_intro_left,
+        apply_union_intro_right, eq_apply_transfer, eq_apply_val_transfer)
+    from vocab.sets import Singleton as Sing, Union as UnionDef
+    from core.proof import Proof, Sequent
+    from core.derived import Exists, Or
+    import core.zfc as zfc
+
+    succ_ska = Successor(ska, ka)
+    step_valid_ka = Forall(ja, Implies(In(ja, ka),
+        Forall(sja, Implies(Successor(sja, ja),
+            Forall(cja, Implies(Apply(tra, ja, cja),
+                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+    tmstep_ca = TMStep(delta, ca, ca_new)
+
+    oe = ordpair_exists()
+
+    # === 1. Construct tra_new = tra ∪ {(ska, ca_new)} ===
+    pair_ska = Var(postfix='pska')
+    op_pair_ska = OrdPair(pair_ska, ska, ca_new)
+    got_ex_pair = apply_thm(oe, [ska, ca_new], concl=Exists(pair_ska, op_pair_ska))
+
+    sing = Var(postfix='sing')
+    sing_def = Sing(sing, pair_ska)
+    se = singleton_exists()
+    got_ex_sing = apply_thm(se, [pair_ska], concl=Exists(sing, sing_def))
+
+    tra_new = Var(postfix='trn')
+    union_def = UnionDef(tra_new, tra, sing)
+    ue = union_exists()
+    got_ex_union = apply_thm(ue, [tra, sing], concl=Exists(tra_new, union_def))
+
+    # === 2. Base: ∀z'. Empty(z') → Apply(tra_new, z', c0) ===
+    # From ∀z'. Empty(z') → Apply(tra, z', c0) (hypothesis) + apply_union_intro_left
+    base_old = Forall(z, Implies(Empty(z), Apply(tra, z, c0)))
+    z_prime = Var(postfix='zp2')
+    app_tra_zp_c0 = Apply(tra, z_prime, c0)
+    app_trn_zp_c0 = Apply(tra_new, z_prime, c0)
+
+    # Instantiate base_old: Empty(z') → Apply(tra, z', c0)
+    got_app_old_z = apply_thm(ax(base_old), [z_prime], Empty(z_prime), app_tra_zp_c0, ax(Empty(z_prime)))
+    # [base_old, Empty(z')] |- Apply(tra, z', c0)
+
+    # apply_union_intro_left: Apply(v1,x,y) → Union(u,v1,v2) → Apply(u,x,y)
+    aul = apply_union_intro_left()
+    got_app_new_z = apply_thm(aul, [tra_new, tra, sing, z_prime, c0])
+    got_app_new_z = mp(got_app_new_z, got_app_old_z, app_tra_zp_c0,
+        Implies(union_def, app_trn_zp_c0))
+    got_app_new_z = mp(got_app_new_z, ax(union_def), union_def, app_trn_zp_c0)
+    # [base_old, Empty(z'), union_def] |- Apply(tra_new, z', c0)
+
+    # Close: ∀z'. Empty(z') → Apply(tra_new, z', c0)
+    imp_base = Implies(Empty(z_prime), app_trn_zp_c0)
+    left_base = [f for f in got_app_new_z.sequent.left if not same(f, Empty(z_prime))]
+    got_base = Proof(Sequent(left_base, [imp_base]),
+        'implies_right', [got_app_new_z], principal=imp_base)
+    fa_base = Forall(z_prime, imp_base)
+    got_base = Proof(Sequent(got_base.sequent.left, [fa_base]),
+        'forall_right', [got_base], principal=fa_base, term=z_prime)
+    # [base_old, union_def] |- ∀z'. Empty(z') → Apply(tra_new, z', c0)
+
+    # === 3. Head: Apply(tra_new, ska, ca_new) ===
+    # apply_singleton: OrdPair(p,x,y) → Singleton(v,p) → Apply(v,x,y)
+    asn = apply_singleton()
+    app_sing = Apply(sing, ska, ca_new)
+    got_app_sing = apply_thm(asn, [ska, ca_new, pair_ska, sing])
+    got_app_sing = mp(got_app_sing, ax(op_pair_ska), op_pair_ska,
+        Implies(sing_def, app_sing))
+    got_app_sing = mp(got_app_sing, ax(sing_def), sing_def, app_sing)
+    # [Pairing, op_pair_ska, sing_def] |- Apply(sing, ska, ca_new)
+
+    # apply_union_intro_right: Apply(v2,x,y) → Union(u,v1,v2) → Apply(u,x,y)
+    aur = apply_union_intro_right()
+    app_trn_ska = Apply(tra_new, ska, ca_new)
+    got_head = apply_thm(aur, [tra_new, tra, sing, ska, ca_new])
+    got_head = mp(got_head, got_app_sing, app_sing, Implies(union_def, app_trn_ska))
+    got_head = mp(got_head, ax(union_def), union_def, app_trn_ska)
+    # [Pairing, op_pair_ska, sing_def, union_def] |- Apply(tra_new, ska, ca_new)
+
+    # === 4. step_valid(tra_new, ska) ===
+    # ∀ja ∈ S(ka). ∀sja. Succ(sja,ja) → ∀cja. Apply(tra_new,ja,cja) →
+    #   ∃cja1. And(Apply(tra_new,sja,cja1), TMStep(delta,cja,cja1))
+    #
+    # In(ja, ska) from Successor(ska,ka): Or(In(ja,ka), Eq(ja,ka)).
+    # Case In(ja,ka): use old step_valid on tra, transfer Apply's to tra_new
+    # Case Eq(ja,ka): ja=ka, use TMStep(delta,ca,ca_new) + Apply(tra_new,ska,ca_new)
+
+    step_body_new = Forall(sja, Implies(Successor(sja, ja),
+        Forall(cja, Implies(Apply(tra_new, ja, cja),
+            Exists(cja1, And(Apply(tra_new, sja, cja1), TMStep(delta, cja, cja1)))))))
+
+    # --- Case 1: In(ja, ka) → step_body_new ---
+    # From old step_valid: In(ja,ka) → ∀sja. Succ(sja,ja) → ∀cja. Apply(tra,ja,cja) →
+    #   ∃cja1. And(Apply(tra,sja,cja1), TMStep(delta,cja,cja1))
+    # Need to transfer: Apply(tra_new,ja,cja) → Apply(tra,ja,cja) [backwards? no]
+    # Actually: we need Apply(tra_new,ja,cja) as hypothesis, derive from Apply(tra,ja,cja).
+    # But Apply(tra_new,ja,cja) is STRONGER than Apply(tra,ja,cja) (tra_new ⊇ tra).
+    # We can't go backwards. Instead: Apply(tra_new,ja,cja) → apply_union_elim → Or(Apply(tra,...), Apply(sing,...))
+    # For ja ∈ ka: Apply(sing,ja,cja) gives ja=ska, but ja ∈ ka and ska = S(ka), so ja ≠ ska.
+    # Hmm, this gets complex. We need Or-elim on the union elim result.
+
+    # Simpler approach: DON'T use apply_union_elim. Instead, take Apply(tra_new,ja,cja) as hypothesis,
+    # and from the OLD step_valid derive ∃cja1 with Apply(tra,sja,cja1).
+    # Then transfer Apply(tra,sja,cja1) to Apply(tra_new,sja,cja1) via apply_union_intro_left.
+    # But we need Apply(tra,ja,cja) from Apply(tra_new,ja,cja)... which we can't get directly.
+
+    # Wait: the step_valid for the NEW trace uses Apply(tra_new,...) everywhere.
+    # The old step_valid has Apply(tra,...). We need:
+    # From Apply(tra_new,ja,cja), derive something that triggers old step_valid.
+    # Old step_valid needs Apply(tra,ja,cja). We have Apply(tra_new,ja,cja) where tra_new = tra ∪ sing.
+    # apply_union_elim: Apply(tra_new,ja,cja) → Or(Apply(tra,ja,cja), Apply(sing,ja,cja)).
+    # In the Apply(tra,...) case: use old step_valid directly.
+    # In the Apply(sing,...) case: sing = {(ska,ca_new)}, so singleton_apply_eq gives ja=ska, cja=ca_new.
+    #   But if In(ja,ka) and ja=ska=S(ka): In(S(ka),ka)... this needs S(ka)∈ka which is false
+    #   (anti-reflexivity of ordinals). But we don't have that theorem easily.
+
+    # Actually, for In(ja,ka) case, we're given In(ja,ka) as hypothesis. If Apply(sing,ja,cja) holds,
+    # then ja=ska=S(ka) and cja=ca_new. We get In(S(ka),ka). If ka∈ω, this is impossible.
+    # But we don't have ka∈ω as a hypothesis in phase1_step_extend_trace.
+    # Hmm, we might need it. Or we can just accept both or-branches and handle them.
+
+    # SIMPLER APPROACH: Don't decompose via union_elim. Instead, for the old case (ja ∈ ka):
+    # The old step_valid gives ∃cja1.And(Apply(tra,sja,cja1), TMStep(delta,cja,cja1)).
+    # We need Apply(tra_new,sja,cja1) instead of Apply(tra,sja,cja1).
+    # Transfer via apply_union_intro_left: Apply(tra,...) + Union(tra_new,tra,sing) → Apply(tra_new,...).
+    # But we also need Apply(tra,ja,cja) to trigger the old step_valid.
+    # We DON'T have Apply(tra,ja,cja) — we have Apply(tra_new,ja,cja) as hypothesis.
+
+    # I think we need to restructure. The old step_valid should give us the cja1 witness.
+    # We actually DON'T need Apply(tra,ja,cja) from the new trace hypothesis.
+    # The old P1(ka) has Apply(tra,ka,ca) and step_valid for all j<ka.
+    # In step_valid, the ∀cja.Apply(tra,ja,cja) → ... works for ANY cja.
+    # So if we have Apply(tra_new,ja,cja), we DON'T directly have Apply(tra,ja,cja).
+
+    # The fundamental issue: the old step_valid is about tra, the new one is about tra_new.
+    # The old values in tra are preserved in tra_new (union), but the new hypothesis
+    # Apply(tra_new,ja,cja) could be from EITHER tra or sing.
+
+    # For a clean proof: just use apply_union_elim on Apply(tra_new,ja,cja) and handle both cases.
+    # Case Apply(tra,ja,cja): old step_valid gives ∃cja1, transfer to tra_new. ✓
+    # Case Apply(sing,ja,cja): singleton_apply_eq gives ja=ska, cja=ca_new.
+    #   Then sja=S(ja)=S(ska). We need ∃cja1. Apply(tra_new,S(ska),cja1) ∧ TMStep(delta,ca_new,cja1).
+    #   This is about the NEXT step after ska, which we don't have.
+    #   But we're in the case In(ja,ka) AND ja=ska=S(ka). In(S(ka),ka) means S(ka) ∈ ka.
+    #   For finite ordinals in ω, this is impossible (S(ka) > ka).
+    #   Without an ordinal theory, we can't prove this is ⊥.
+    #   But Successor(ska,ka) + In(ja,ka) + Eq(ja,ska) means In(ska,ka).
+    #   We have Successor(ska,ka): ka ∈ ska and ka ∈ ska ↔ Or(In(ka,ka),Eq(ka,ka)).
+    #   Hmm, In(ska,ka) is different from In(ka,ska).
+
+    # This is getting hairy. The issue is that without omega membership / TransitiveSet,
+    # we can't rule out In(S(ka),ka).
+
+    # ALTERNATIVE: restructure the predicate. Instead of Apply(tra_new,ja,cja) as hypothesis,
+    # make step_valid universally quantified over cja FROM TRA (not tra_new).
+    # But that changes phase1_pred.
+
+    # PRAGMATIC: For the In(ja,ka) case, don't decompose the Apply. Instead:
+    # Assert: for ja ∈ ka, old step_valid guarantees the step.
+    # The old step_valid uses Apply(tra,...). We prove ∃cja1 with Apply(tra,...),
+    # then transfer the Apply in the ∃ to Apply(tra_new,...).
+    # We don't NEED Apply(tra_new,ja,cja) as hypothesis for the old case!
+    # The old step_valid already gives us what we need.
+
+    # Wait, but the NEW step_valid has Apply(tra_new,ja,cja) as its inner hypothesis.
+    # The formula IS: ∀cja. Apply(tra_new,ja,cja) → ∃cja1...
+    # We're PROVING this. So we assume Apply(tra_new,ja,cja) and must derive ∃cja1.
+    # With Apply(tra_new,ja,cja): union_elim gives Or(Apply(tra,...), Apply(sing,...)).
+    # Apply(tra,...) case: old step_valid (instantiated with ja,sja,cja) gives
+    #   Apply(tra,ja,cja) → ∃cja1. And(Apply(tra,sja,cja1), TMStep(delta,cja,cja1)).
+    #   Transfer Apply(tra,sja,cja1) to Apply(tra_new,sja,cja1). ✓
+    # Apply(sing,...) case: ja=ska, cja=ca_new. In(ja,ka)=In(ska,ka).
+    #   We need to derive ⊥ from In(ska,ka) + Successor(ska,ka) [or just get the ∃ somehow].
+    #   In(ska,ka) means S(ka)∈ka. For natural numbers this is impossible.
+    #   We have TransitiveSet proofs for omega members. If ka∈ω, TransitiveSet(ka) means
+    #   ∀x∈ka. x⊆ka. And In(ska,ka) means ska∈ka, so ska⊆ka. But ska=S(ka)=ka∪{ka},
+    #   so ka∈ska⊆ka → ka∈ka. Then TransitiveSet(ka): ka∈ka → ka⊆ka ∈ ka (loop).
+    #   Actually, ka∈ka violates Regularity (well-foundedness). But we eliminated Regularity.
+    #   We proved successor_injection_omega which uses TransitiveSet + Extensionality.
+    #   For In(S(ka),ka) to give ⊥, we need n∉n for n∈ω (anti-reflexivity).
+    #   We DO have this: omega_transitive_set + some anti-reflexivity lemma.
+
+    # This is getting very deep. Let me check: do we even need the Apply(sing,...) case?
+    # For In(ja,ka) with ja=ska=S(ka): we need In(S(ka),ka) to be impossible.
+    # This requires ka∈ω and anti-reflexivity.
+
+    # But phase1_step_extend_trace doesn't have In(ka,ω) as a hypothesis!
+    # The induction is over ω via omega_smallest_inductive, so ka∈a where a⊆ω.
+    # We'd need In(ka,ω) to derive the contradiction.
+
+    # DECISION: Add In(ka, w) and Omega(w) as parameters/hypotheses.
+    # Or: restructure to avoid the singleton case.
+
+    # CLEANER ALTERNATIVE: Change the step_valid formulation so that
+    # for the step case, we DON'T need union_elim.
+    # Instead of ∀cja. Apply(tra_new,ja,cja) → ...,
+    # use ∀cja. Apply(tra,ja,cja) → ... even in the new predicate.
+    # Then the old step_valid transfers DIRECTLY.
+    # But this changes phase1_pred.
+
+    # Actually, looking at phase1_pred:
+    # step_valid = ∀ja. In(ja,ka) → ∀sja. Succ(sja,ja) → ∀cja. Apply(tra,ja,cja) →
+    #   ∃cja1. And(Apply(tra,sja,cja1), TMStep(delta,cja,cja1))
+    # The Apply's are on tra (the trace), not on the new trace. So when extending:
+    # P1(ka) has step_valid with Apply(tra_old,...). P1(S(ka)) has step_valid with Apply(tra_new,...).
+    # The difference is the trace variable.
+
+    # When we open the existentials of P1(ka), we get tra_old with its properties.
+    # We construct tra_new = tra_old ∪ {(ska,ca_new)}.
+    # For P1(S(ka)), we need step_valid(tra_new, S(ka)).
+
+    # For ja < S(ka) = ja < ka ∨ ja = ka:
+    # Case ja < ka: old step_valid gives ∃cja1.And(Apply(tra_old,sja,cja1),TMStep).
+    #   But P1(S(ka))'s step_valid wants Apply(tra_new,sja,cja1).
+    #   Transfer: Apply(tra_old,...) → Apply(tra_new,...) via union_intro_left. ✓
+    #   Also: the ∀cja.Apply(tra_new,ja,cja)→... hypothesis gives Apply(tra_new,ja,cja).
+    #   We need Apply(tra_old,ja,cja) for old step_valid.
+    #   Problem: can't go from Apply(tra_new,...) to Apply(tra_old,...) without union_elim.
+
+    # So the union_elim issue persists. The Apply(sing,ja,cja) case needs handling.
+
+    # I think the cleanest fix: change phase1_pred so step_valid is UNIVERSALLY quantified
+    # over ALL traces that EXTEND the current one, not tied to a specific trace.
+    # But that's a big refactor.
+
+    # PRAGMATIC FIX: For the Apply(sing,ja,cja) case in In(ja,ka):
+    # sing = {(ska,ca_new)}. singleton_apply_eq: Apply(sing,ja,cja) → Eq(ja,ska)∧Eq(cja,ca_new).
+    # Eq(ja,ska) + In(ja,ka) → In(ska,ka). We need ¬In(ska,ka).
+    # For ordinals: n∉n. We have omega_transitive_set. If we add In(ka,w), Omega(w):
+    # TransitiveSet(ka) → In(ska,ka) → ska⊆ka → ka∈ka (since ka∈ska) → contradicts n∉n.
+    # But n∉n needs Regularity or TransitiveSet + Extensionality (which we have).
+
+    # Actually, for n∈ω: n∉n is provable from omega_transitive_set + successor_injection_omega.
+    # successor_injection_omega: Omega(w) → In(a,w) → In(b,w) → Succ(a,b) → Succ(a,c) → Eq(b,c)
+    # Hmm, that's about injection, not anti-reflexivity.
+
+    # Let me check if we have a "no_self_membership" or "ordinal anti-reflexivity" theorem.
+
+    # For now: add In(ka,w) and Omega(w) as additional hypotheses and leave the
+    # singleton case as a TODO. This lets me test the overall structure.
+
+    # ACTUALLY: the simplest approach that avoids ALL these issues:
+    # Don't use Apply(tra_new,ja,cja) from the step_valid formula at all.
+    # Instead, for the In(ja,ka) case, use the FACT that tra_old has all entries for j<ka.
+    # The old step_valid: ∀cja. Apply(tra_old,ja,cja) → ∃cja1. And(Apply(tra_old,...),TMStep).
+    # We KNOW Apply(tra_old,ja,cja) holds for each j (from the trace construction).
+    # But the NEW formula has ∀cja.Apply(tra_new,ja,cja)→... We're proving THIS.
+    # So we MUST handle Apply(tra_new,ja,cja) as hypothesis and derive the conclusion.
+
+    # I think the cleanest path is:
+    # 1. apply_union_elim on Apply(tra_new,ja,cja) → Or(Apply(tra,ja,cja), Apply(sing,ja,cja))
+    # 2. Apply(tra,ja,cja) case: old step_valid + union_intro_left on result
+    # 3. Apply(sing,ja,cja) case: derive same result (vacuously via ⊥ from In(ska,ka))
+    #    — this needs the anti-reflexivity argument, which needs omega membership.
+
+    # For NOW: implement cases 1+2, leave case 3 as TODO requiring omega anti-reflexivity.
+    # Signal the issue by adding In(ka, w) + Omega(w) to the parameter list.
+
+    # Actually, you know what, let me just skip the problematic case for now and
+    # implement what I can. The overall structure is clear. I'll mark the dependency.
+
+    raise NotImplementedError("phase1_step_extend_trace: needs ordinal anti-reflexivity for singleton case")
 
 
 def tm_add_correct():
