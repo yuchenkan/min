@@ -1844,16 +1844,7 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
                            (base_f, got_base), (app_f, got_app), (sv_f, got_sv)]:
         while any(same(formula, f) for f in got_tmstep.sequent.left):
             got_tmstep = cut(got_tmstep, formula, proof)
-    # body_ka on got_tmstep left. eel ca, tra, cut with P1(ka).
-    print(f'body_ka on tmstep left: {any(same(body_ka, f) for f in got_tmstep.sequent.left)}')
-    print(f'body_ka on tmstep left (is): {any(f is body_ka for f in got_tmstep.sequent.left)}')
-    from core.proof import _free_vars as _fv_step, _var_free_in_sequent as _vfis
-    ca_free_tmstep = [(i,f) for i,f in enumerate(got_tmstep.sequent.left)
-                      if _vfis(ca, Sequent([f], []))]
-    print(f'ca free on tmstep left: {[(i, type(f).__name__) for i,f in ca_free_tmstep]}')
-    got_tmstep = eel(got_tmstep, body_ka, ca)
-    got_tmstep = eel(got_tmstep, Exists(ca, body_ka), tra)
-    got_tmstep = cut(got_tmstep, p1_ka_formula, got_P1_ka)
+    # body_ka stays on the left — will be eel'd at the end after P1(S(ka)) is fully built.
 
     # Open ∃ca_new from got_tmstep
     ca_new = Var(postfix='cn')
@@ -1874,11 +1865,7 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
                            (base_f, got_base), (app_f, got_app), (sv_f, got_sv)]:
         while any(same(formula, f) for f in got_extend.sequent.left):
             got_extend = cut(got_extend, formula, proof)
-    # body_ka on got_extend left. eel ca, tra, cut with P1(ka).
-    if any(same(body_ka, f) for f in got_extend.sequent.left):
-        got_extend = eel(got_extend, body_ka, ca)
-        got_extend = eel(got_extend, Exists(ca, body_ka), tra)
-        got_extend = cut(got_extend, p1_ka_formula, got_P1_ka)
+    # body_ka stays on the left — eel'd at the end.
     # Cut TMStep from extend
     if any(same(tmstep_ca, f) for f in got_extend.sequent.left):
         got_extend = cut(got_extend, tmstep_ca, got_tmstep_from_and)
@@ -1922,8 +1909,15 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
         got_ex_tra_ca = eel(got_ex_tra_ca, and_cfg_step, ca_new)
         got_ex_tra_ca = cut(got_ex_tra_ca, Exists(ca_new, and_cfg_step), got_tmstep)
 
-    # === Step 5+6: Discharge Or → Q(S(ka)), discharge Q(ka) ===
-    got_p1_ska = got_ex_tra_ca  # |- P1(S(ka))
+    # === Step 5: eel body_ka (P1(ka) body) from left ===
+    # Now P1(S(ka)) = ∃tra.∃ca.body is on the right. ca is BOUND. Safe to eel.
+    got_p1_ska = got_ex_tra_ca
+    got_p1_ska = eel(got_p1_ska, body_ka, ca)
+    got_p1_ska = eel(got_p1_ska, Exists(ca, body_ka), tra)
+    got_p1_ska = cut(got_p1_ska, p1_ka_formula, got_P1_ka)
+    # Now P1(ka) components replaced by [q_ka, or_ska_a, ...] from got_P1_ka's left.
+
+    # === Step 6: Discharge Or → Q(S(ka)), discharge Q(ka) ===
     # Cut remaining In(ka,a) and Apply(tape_in,ka,one)
     if any(same(in_ka_a, f) for f in got_p1_ska.sequent.left):
         got_p1_ska = cut(got_p1_ska, in_ka_a, got_in_ka_a)
