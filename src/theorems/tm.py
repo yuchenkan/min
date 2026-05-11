@@ -1941,14 +1941,88 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
         got_ex_tra_ca = eel(got_ex_tra_ca, and_cfg_step, ca_new)
         got_ex_tra_ca = cut(got_ex_tra_ca, Exists(ca_new, and_cfg_step), got_tmstep)
 
-    # Wrap P1(S(ka)) into Q1(S(ka)) = Or(In(S(ka),a),Eq(S(ka),a)) → P1(S(ka))
-    # And discharge Q1(ka) from the left.
-    # Currently got_ex_tra_ca: [ctx with P1(ka) components on left] |- P1(S(ka))
-    # The P1(ka) components came from the caller opening P1(ka).
-    # For Q1: wrap output in implies_right with Or(In(ska,a),Eq(ska,a)).
+    # === Q wrapping: Or(In(ska,a),Eq(ska,a)) → P1(S(ka)) ===
+    # Derive In(ka,a) from Or(In(ska,a),Eq(ska,a)) + TransitiveSet(a) + Successor(ska,ka).
+    # Then cut In(ka,a) and Apply(tape_in,ka,one) into the proof.
     from core.derived import Or
+    from theorems.logic import or_elim, or_intro_left, eq_reflexive
+    from theorems.sets import omega_transitive_set
+    from vocab.sets import TransitiveSet
+    from vocab.omega import Omega
+
     or_ska_a = Or(In(ska, a), Eq(ska, a))
+    in_ka_a = In(ka, a)
+    omega_w = Omega(w)
+    in_a_w = In(a, w)
+
+    # TransitiveSet(a): Omega(w) → In(a,w) → TransitiveSet(a)
+    ots = omega_transitive_set()
+    got_trans_a = apply_thm(ots, [w, a])
+    got_trans_a = mp(got_trans_a, ax(omega_w), omega_w, Implies(in_a_w, TransitiveSet(a)))
+    got_trans_a = mp(got_trans_a, ax(in_a_w), in_a_w, TransitiveSet(a))
+
+    # n ∈ sn from Successor(ska,ka): In(ka,ska) ↔ Or(In(ka,ka),Eq(ka,ka)). Eq(ka,ka) true.
+    from theorems.logic import iff_mp_rev, or_intro_right
+    er = eq_reflexive()
+    eq_kaka = Eq(ka, ka)
+    got_eq_kk = apply_thm(er, [ka], concl=eq_kaka)
+    in_ka_ska = In(ka, ska)
+    iff_ka_ska = Iff(in_ka_ska, Or(In(ka, ka), eq_kaka))
+    got_or_kk = apply_thm(or_intro_right(In(ka,ka), eq_kaka, []), [],
+        eq_kaka, Or(In(ka,ka), eq_kaka), got_eq_kk)
+    got_in_ka_ska = mp(apply_thm(iff_mp_rev(in_ka_ska, Or(In(ka,ka), eq_kaka), []),
+        [], iff_ka_ska, Implies(Or(In(ka,ka), eq_kaka), in_ka_ska),
+        fl(succ_ska, iff_ka_ska, ka)),
+        got_or_kk, Or(In(ka,ka), eq_kaka), in_ka_ska)
+    # [succ_ska] |- In(ka, ska)
+
+    # In(ska,a) case: TransitiveSet(a) → In(ska,a) → ska⊆a → In(ka,ska) → In(ka,a)
+    yv = Var(postfix='yv')
+    got_ska_sub = apply_thm(got_trans_a, [ska], In(ska, a),
+        Forall(yv, Implies(In(yv, ska), In(yv, a))), ax(In(ska, a)))
+    got_in_ka_a_from_ska = apply_thm(got_ska_sub, [ka], in_ka_ska, in_ka_a, got_in_ka_ska)
+    # [In(ska,a), succ_ska, Omega(w), In(a,w), ...] |- In(ka, a)
+
+    # Eq(ska,a) case: Eq(ska,a) → In(ka,ska) ↔ In(ka,a). Forward.
+    from theorems.logic import iff_mp
+    iff_ka_a = Iff(In(ka, ska), In(ka, a))
+    got_iff_ka = apply_thm(ax(Eq(ska, a)), [ka], concl=iff_ka_a)
+    got_fwd_ka = apply_thm(iff_mp(In(ka,ska), In(ka,a), []),
+        [], iff_ka_a, Implies(In(ka,ska), In(ka,a)), got_iff_ka)
+    got_in_ka_a_from_eq = mp(got_fwd_ka, got_in_ka_ska, In(ka,ska), in_ka_a)
+    # [Eq(ska,a), succ_ska] |- In(ka, a)
+
+    # or_elim: Or(In(ska,a),Eq(ska,a)) → In(ka,a)
+    oe = or_elim(In(ska, a), Eq(ska, a), in_ka_a, [])
+    imp_l = Implies(In(ska, a), in_ka_a)
+    imp_r = Implies(Eq(ska, a), in_ka_a)
+    got_imp_l = Proof(Sequent([f for f in got_in_ka_a_from_ska.sequent.left if not same(f, In(ska,a))],
+        [imp_l]), 'implies_right', [got_in_ka_a_from_ska], principal=imp_l)
+    got_imp_r = Proof(Sequent([f for f in got_in_ka_a_from_eq.sequent.left if not same(f, Eq(ska,a))],
+        [imp_r]), 'implies_right', [got_in_ka_a_from_eq], principal=imp_r)
+    got_in_ka_a = apply_thm(oe, [], or_ska_a, Implies(imp_l, Implies(imp_r, in_ka_a)), ax(or_ska_a))
+    got_in_ka_a = mp(got_in_ka_a, got_imp_l, imp_l, Implies(imp_r, in_ka_a))
+    got_in_ka_a = mp(got_in_ka_a, got_imp_r, imp_r, in_ka_a)
+    # [Or(In(ska,a),Eq(ska,a)), succ_ska, Omega(w), In(a,w), ...] |- In(ka,a)
+
+    # Cut In(ka,a) into the P1(S(ka)) proof
     got_p1_ska = got_ex_tra_ca
+    if any(same(in_ka_a, f) for f in got_p1_ska.sequent.left):
+        got_p1_ska = cut(got_p1_ska, in_ka_a, got_in_ka_a)
+
+    # Also cut Apply(tape_in,ka,one) — derivable from In(ka,a) + UnaryTape + tape_read_low
+    app_tape_ka_one = Apply(tape_in, ka, one)
+    got_read = phase1_step_read(tape_in, a, b, ka, one)
+    # got_read has In(ka,a) on its left. Cut that with got_in_ka_a.
+    if any(same(in_ka_a, f) for f in got_read.sequent.left):
+        got_read = cut(got_read, in_ka_a, got_in_ka_a)
+    if any(same(app_tape_ka_one, f) for f in got_p1_ska.sequent.left):
+        got_p1_ska = cut(got_p1_ska, app_tape_ka_one, got_read)
+    # Cut any remaining In(ka,a) from the cuts
+    while any(same(in_ka_a, f) for f in got_p1_ska.sequent.left):
+        got_p1_ska = cut(got_p1_ska, in_ka_a, got_in_ka_a)
+
+    # Discharge Or(In(ska,a),Eq(ska,a)) → Q1(S(ka))
     got_p1_ska = wl(got_p1_ska, or_ska_a)
     imp_q_ska = Implies(or_ska_a, got_p1_ska.sequent.right[0])
     left_q = [f for f in got_p1_ska.sequent.left if not same(f, or_ska_a)]
@@ -5011,221 +5085,48 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # Build Q(sn) = Or(In(sn,a),Eq(sn,a)) → P1(sn).
     # Assume Or(In(sn,a),Eq(sn,a)). Derive In(n,a) via TransitiveSet(a).
     # Then: Q(n) + In(n,a) → P1(n). tape_read + phase1_step → P1(sn). Discharge.
-    or_sna = Or(In(sn, a), Eq(sn, a))
-
-    # From Or(In(sn,a),Eq(sn,a)), derive In(n,a):
-    # In(sn,a) + TransitiveSet(a) → sn⊆a → n∈sn → n∈a. n∈sn from Successor(sn,n).
-    # Eq(sn,a) + n∈sn → n∈a (same argument via Eq transfer).
-    # Both cases: In(n, a).
-    # Use omega_transitive_set: Omega(w) → In(a,w) → TransitiveSet(a).
-    ots = omega_transitive_set()
-    got_trans_a = apply_thm(ots, [w, a])
-    got_trans_a = mp(got_trans_a, ax(omega_w), omega_w, Implies(in_a_w, TransitiveSet(a)))
-    got_trans_a = mp(got_trans_a, ax(in_a_w), in_a_w, TransitiveSet(a))
-    # TransitiveSet(a): ∀x∈a. ∀y∈x. y∈a. Instantiate x=sn: In(sn,a) → ∀y∈sn. y∈a.
-    yv = Var(postfix='yv')
-    got_sn_sub_a = apply_thm(got_trans_a, [sn], In(sn, a),
-        Forall(yv, Implies(In(yv, sn), In(yv, a))), ax(In(sn, a)))
-
-    # n ∈ sn from Successor(sn,n): In(n,sn) ↔ Or(In(n,n), Eq(n,n)). Eq(n,n) true.
-    from theorems.logic import eq_reflexive as er_thm
-    er = er_thm()
-    eq_nn = Eq(n, n)
-    got_eq_nn = apply_thm(er, [n], concl=eq_nn)
-    in_n_sn = In(n, sn)
-    iff_n_sn = Iff(in_n_sn, Or(In(n, n), eq_nn))
-    got_or_nn = apply_thm(or_intro_right(In(n,n), eq_nn, []), [],
-        eq_nn, Or(In(n,n), eq_nn), got_eq_nn)
-    got_in_n_sn = mp(apply_thm(iff_mp_rev(in_n_sn, Or(In(n,n), eq_nn), []),
-        [], iff_n_sn, Implies(Or(In(n,n), eq_nn), in_n_sn),
-        fl(succ_sn, iff_n_sn, n)),
-        got_or_nn, Or(In(n,n), eq_nn), in_n_sn)
-    # [succ_sn] |- In(n, sn)
-
-    # In(sn,a) case: In(n,a) from TransitiveSet
-    in_n_a = In(n, a)
-    got_in_n_a_from_sn = apply_thm(got_sn_sub_a, [n], in_n_sn, in_n_a, got_in_n_sn)
-    # [In(sn,a), succ_sn, ...] |- In(n, a)
-
-    # Eq(sn,a) case: Eq(sn,a) → In(n,sn) ↔ In(n,a). Forward.
-    iff_na = Iff(In(n, sn), In(n, a))
-    got_iff_na = apply_thm(ax(Eq(sn, a)), [n], concl=iff_na)
-    got_fwd_na = apply_thm(iff_mp(In(n,sn), In(n,a), []),
-        [], iff_na, Implies(In(n,sn), In(n,a)), got_iff_na)
-    got_in_n_a_from_eq = mp(got_fwd_na, got_in_n_sn, In(n,sn), in_n_a)
-    # [Eq(sn,a), succ_sn] |- In(n, a)
-
-    # or_elim: Or(In(sn,a),Eq(sn,a)) → In(n,a)
-    from theorems.logic import or_elim
-    oe = or_elim(In(sn, a), Eq(sn, a), in_n_a, [])
-    imp_l = Implies(In(sn, a), in_n_a)
-    imp_r = Implies(Eq(sn, a), in_n_a)
-    got_imp_l = Proof(Sequent([f for f in got_in_n_a_from_sn.sequent.left if not same(f, In(sn,a))],
-        [imp_l]), 'implies_right', [got_in_n_a_from_sn], principal=imp_l)
-    got_imp_r = Proof(Sequent([f for f in got_in_n_a_from_eq.sequent.left if not same(f, Eq(sn,a))],
-        [imp_r]), 'implies_right', [got_in_n_a_from_eq], principal=imp_r)
-    got_in_n_a = apply_thm(oe, [], or_sna, Implies(imp_l, Implies(imp_r, in_n_a)), ax(or_sna))
-    got_in_n_a = mp(got_in_n_a, got_imp_l, imp_l, Implies(imp_r, in_n_a))
-    got_in_n_a = mp(got_in_n_a, got_imp_r, imp_r, in_n_a)
-    # [Or(In(sn,a),Eq(sn,a)), succ_sn, Omega(w), In(a,w), ...] |- In(n, a)
-
-    # In(n,a) → Or(In(n,a),Eq(n,a)) (left disjunct)
-    from theorems.logic import or_intro_left
-    or_na = Or(in_n_a, Eq(n, a))
-    got_or_na = apply_thm(or_intro_left(in_n_a, Eq(n,a), []), [], in_n_a, or_na, got_in_n_a)
-    # → Q(n) → P1(n)
-    got_P1_n = mp(got_Q_n, got_or_na, or_na, P1(n))
-    # Q(n) might need same()-matching. got_Q_n.right = Q(n) which expands to Implies(Or(...), P1(n)).
-    # got_or_na.right = Or(In(n,a), Eq(n,a)). mp should work via expansion.
-
-    # Now: P1(n) + In(n,a) available. Call phase1_step.
-    # phase1_step needs: In(n,a) (= In(ka,a)), P1(n) components, tape_read, etc.
-    # phase1_step_read needs In(n,a) for tape_read_low.
-    # All these are available. Just call phase1_step.
+    # phase1_step returns Q(S(n)) with P1(n) components on its left.
+    # These have n/sn free. Just call phase1_step and let components flow.
     got_step_Q = phase1_step(q0, tape_in, c0, z, delta, delta_char_formula,
         a, b, tra, ca, ja, sja, cja, cja1, n, sn, w, one, d1)
-    # got_step_Q: [20 hypotheses] |- Q(S(n))
-    # The 20 hypotheses include P1(n) components that need cutting.
-
-    # Extract P1(n) body from got_P1_n and cut into got_step_Q:
-    p1_n_formula = got_P1_n.sequent.right[0]
-    body_n = p1_n_formula.body.body  # inside ∃tra.∃ca
-    func_n = body_n.left; rest1 = body_n.right
-    dom_n = rest1.left; rest2 = rest1.right
-    cfg_n = rest2.left; rest3 = rest2.right
-    base_n = rest3.left; rest4 = rest3.right
-    app_n = rest4.left; sv_n = rest4.right
-
-    def extract(got_body, left_f, right_f):
-        got_l = apply_thm(and_elim_left(left_f, right_f, []), [],
-            And(left_f, right_f), left_f, got_body)
-        got_r = apply_thm(and_elim_right(left_f, right_f, []), [],
-            And(left_f, right_f), right_f, got_body)
-        return got_l, got_r
-
-    got_func, got_r1 = extract(ax(body_n), func_n, rest1)
-    got_dom, got_r2 = extract(got_r1, dom_n, rest2)
-    got_cfg, got_r3 = extract(got_r2, cfg_n, rest3)
-    got_base_old, got_r4 = extract(got_r3, base_n, rest4)
-    got_app, got_sv = extract(got_r4, app_n, sv_n)
-
-    for formula, proof in [(func_n, got_func), (dom_n, got_dom), (cfg_n, got_cfg),
-                           (base_n, got_base_old), (app_n, got_app), (sv_n, got_sv)]:
-        while any(same(formula, f) for f in got_step_Q.sequent.left):
-            got_step_Q = cut(got_step_Q, formula, proof)
-    # body_n on got_step_Q's left. eel ca, tra, cut with P1(n).
-    got_step_Q = eel(got_step_Q, body_n, ca)
-    got_step_Q = eel(got_step_Q, Exists(ca, body_n), tra)
-    got_step_Q = cut(got_step_Q, p1_n_formula, got_P1_n)
-
-    # Cut remaining n-dependent hypotheses:
-    # In(n,w): derivable from char_fwd → already got_in_n_w
-    in_n_w = In(n, w)
-    if any(same(in_n_w, f) for f in got_step_Q.sequent.left):
-        got_step_Q = cut(got_step_Q, in_n_w, got_in_n_w)
-    # In(n,a): derivable from got_in_n_a
-    if any(same(in_n_a, f) for f in got_step_Q.sequent.left):
-        got_step_Q = cut(got_step_Q, in_n_a, got_in_n_a)
-    # Apply(tape_in,n,one): derivable from tape_read_low + In(n,a)
-    from theorems.tm import phase1_step_read
-    got_read_n = phase1_step_read(tape_in, a, b, n, one)
-    app_tin_n = Apply(tape_in, n, one)
-    if any(same(app_tin_n, f) for f in got_step_Q.sequent.left):
-        got_step_Q = cut(got_step_Q, app_tin_n, got_read_n)
-    # In(n,a) from got_read_n's left should be cut too
-    if any(same(in_n_a, f) for f in got_step_Q.sequent.left):
-        got_step_Q = cut(got_step_Q, in_n_a, got_in_n_a)
-    # Cut or_sna (from the Q step derivation) — it has sn free
-    if any(same(or_sna, f) for f in got_step_Q.sequent.left):
-        got_step_Q = cut(got_step_Q, or_sna, ax(or_sna))
-        # This adds or_sna back... not helpful. Need to cut with proof from context.
-        # or_sna was on the left via ax(or_sna) in the got_in_n_a derivation.
-        # It flows through. Just discharge it via implies_right.
-    # Discharge all sn-dependent formulas from the left
-    from core.proof import _free_vars as _fv_sn
-    for ff in list(got_step_Q.sequent.left):
-        if sn in _fv_sn(ff) and not same(ff, In(sn, pv)):
-            got_step_Q = wl(got_step_Q, ff)
-            imp_ff = Implies(ff, got_step_Q.sequent.right[0])
-            left_ff = [f for f in got_step_Q.sequent.left if not same(f, ff)]
-            got_step_Q = Proof(Sequent(left_ff, [imp_ff]),
-                'implies_right', [got_step_Q], principal=imp_ff)
-
-    # [ctx without sn-free except In(sn,pv) which gets discharged below] |- ... → Q(S(n))
-    # But now the right has extra Implies. This changes the Inductive formula.
-    # Actually: the sn-dependent formula is Or(In(sn,a),Eq(sn,a)). After discharge:
-    # right = Implies(Or(In(sn,a),Eq(sn,a)), Q(S(n))). This IS Q(sn) from Successor!
-    # Wait no: Q(sn) = Or(In(sn,a),Eq(sn,a)) → P1(sn). But our right is
-    # Or(In(sn,a),Eq(sn,a)) → Q(S(n)) where Q(S(n)) = Or(In(S(n),a),...) → P1(S(n)).
-    # That's a double implication. Not what we want.
-    # The Or(In(sn,a),...) should NOT be on the left in the first place.
-    # It came from the Q step derivation (proving In(n,a) from Or(In(sn,a),...)).
-    # But those derivations should be CUT, not left as hypotheses.
-
-    # Actually: got_in_n_a was built from ax(or_sna) + TransitiveSet etc.
-    # ax(or_sna) puts or_sna on the left. When got_in_n_a is used to cut In(n,a)
-    # from got_step_Q, or_sna flows into got_step_Q's left.
-    # Fix: cut or_sna from got_step_Q. But we need a proof of or_sna.
-    # or_sna = Or(In(sn,a),Eq(sn,a)). This is not provable from the induction context.
-    # It was an ASSUMPTION for the Q(sn) body.
-    # The solution: the Q(sn) discharge should happen HERE, not in phase1_step.
-    # phase1_step should return P1(S(n)) (not Q), and the Q wrapping happens here.
-
-    # WAIT: phase1_step now returns Q(S(ka)) by discharging Or(In(ska,a),Eq(ska,a)).
-    # But the or_sna on the left of got_step_Q is from the INDUCTION's derivation,
-    # not from phase1_step. It was introduced by got_in_n_a which used ax(or_sna).
-    # Solution: move the or_sna derivation INTO the implies_right discharge.
-    # i.e., don't derive In(n,a) separately — let phase1_step handle it internally.
-
-    # SIMPLEST: just undo the Q wrapping in phase1_step, handle it all here.
-    # But the user said to keep Q in phase1_step. So instead: derive got_in_n_a
-    # WITHOUT putting or_sna on the left. Use implies_right + mp instead of ax.
+    # got_step_Q: [P1(n) components + external hyps] |- Q(S(n))
 
     # In(sn, pv) from Q(sn) + In(sn,w)
     got_step_in_pv = char_bwd(sn, got_sn_in_w, got_step_Q)
 
-    # Close: Succ(sn,n) → In(sn,pv), ∀sn, In(n,pv) → ..., ∀n
-    imp_sn = Implies(succ_sn, In(sn, pv))
-    left_sn = [f_ for f_ in got_step_in_pv.sequent.left if not same(f_, succ_sn)]
-    got_step_closed = Proof(Sequent(left_sn, [imp_sn]),
-        'implies_right', [got_step_in_pv], principal=imp_sn)
+    # Discharge ALL n/sn-dependent formulas before closing ∀sn and ∀n.
+    # Keep only In(n,pv) and Succ(sn,n) for the Inductive formula.
+    from core.proof import _free_vars as _fvd
+    from core.proof import _var_free_in_sequent
+    proof = got_step_in_pv
+    # Discharge sn-dependent (except Succ which is part of Inductive)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(sn, Sequent([ff], [])) and not same(ff, succ_sn):
+            proof = wl(proof, ff)
+            imp_ff = Implies(ff, proof.sequent.right[0])
+            left_ff = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left_ff, [imp_ff]),
+                'implies_right', [proof], principal=imp_ff)
+    # Discharge Succ(sn,n), close ∀sn
+    imp_sn = Implies(succ_sn, proof.sequent.right[0])
+    left_sn = [f_ for f_ in proof.sequent.left if not same(f_, succ_sn)]
+    proof = Proof(Sequent(left_sn, [imp_sn]), 'implies_right', [proof], principal=imp_sn)
     fa_sn = Forall(sn, imp_sn)
-    # DEBUG
-    from core.proof import _free_vars as _fvd, _eq_sequent, _set_add
-    print(f'forall_right sn: left={len(got_step_closed.sequent.left)}, right={got_step_closed.sequent.right[0]}')
-    print(f'fa_sn: {fa_sn}')
-    print(f'same(imp_sn, got_step_closed.right[0]): {same(imp_sn, got_step_closed.sequent.right[0])}')
-    # Check the expected premise
-    expected_premise = Sequent(got_step_closed.sequent.left, [imp_sn])
-    actual_premise = got_step_closed.sequent
-    print(f'premise match: {_eq_sequent(actual_premise, expected_premise)}')
-    try:
-        got_step_closed = Proof(Sequent(got_step_closed.sequent.left, [fa_sn]),
-            'forall_right', [got_step_closed], principal=fa_sn, term=sn)
-    except ValueError:
-        print(f'forall_right sn FAILED')
-        print(f'  left count: {len(got_step_closed.sequent.left)}')
-        print(f'  right: {got_step_closed.sequent.right[0]}')
-        print(f'  fa_sn: {fa_sn}')
-        print(f'  term sn id: {id(sn)}, fa_sn.var id: {id(fa_sn.var)}')
-        print(f'  sn is fa_sn.var: {sn is fa_sn.var}')
-        from core.proof import _var_free_in_sequent, _var_bound_in, _in, _remove, _set_add
-        s = Sequent(got_step_closed.sequent.left, [fa_sn])
-        D = _remove(s.right, fa_sn)
-        print(f'  D: {D}')
-        print(f'  var_free_in_sequent(sn, (left, D)): {_var_free_in_sequent(sn, Sequent(s.left, D))}')
-        for i, ff in enumerate(s.left):
-            if _var_free_in_sequent(sn, Sequent([ff], [])):
-                print(f'  sn free in [{i}]: {ff}')
-        print(f'  var_bound_in(sn, fa_sn.body): {_var_bound_in(sn, fa_sn.body)}')
-        subst = fa_sn.body.subst(fa_sn.var, sn)
-        print(f'  substituted: {subst}')
-        print(f'  same(subst, right[0]): {same(subst, got_step_closed.sequent.right[0])}')
-        raise
-    imp_npv = Implies(In(n, pv), got_step_closed.sequent.right[0])
-    left_npv = [f_ for f_ in got_step_closed.sequent.left if not same(f_, In(n, pv))]
+    proof = Proof(Sequent(proof.sequent.left, [fa_sn]),
+        'forall_right', [proof], principal=fa_sn, term=sn)
+    # Discharge n-dependent (except In(n,pv) which is part of Inductive)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(n, Sequent([ff], [])) and not same(ff, In(n, pv)):
+            proof = wl(proof, ff)
+            imp_ff = Implies(ff, proof.sequent.right[0])
+            left_ff = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left_ff, [imp_ff]),
+                'implies_right', [proof], principal=imp_ff)
+    # Discharge In(n,pv), close ∀n
+    imp_npv = Implies(In(n, pv), proof.sequent.right[0])
+    left_npv = [f_ for f_ in proof.sequent.left if not same(f_, In(n, pv))]
     got_ind_step = Proof(Sequent(left_npv, [imp_npv]),
-        'implies_right', [got_step_closed], principal=imp_npv)
+        'implies_right', [proof], principal=imp_npv)
     fa_n_step = Forall(n, imp_npv)
     got_ind_step = Proof(Sequent(got_ind_step.sequent.left, [fa_n_step]),
         'forall_right', [got_ind_step], principal=fa_n_step, term=n)
