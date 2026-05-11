@@ -4787,11 +4787,19 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     pv = Var(postfix='ind_pv')
     xv = Var(postfix='ind_xv')
 
+    # === Base case first — we need the actual formula for Separation ===
+    got_base_P = phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    # got_base_P: [Pairing, TMConfig(c0,q0,z,tape_in), Num(z,0)] |- P1(z)
+    # Use the ACTUAL formula from the proof for Separation (avoids expansion mismatch).
+    base_formula = got_base_P.sequent.right[0]  # the actual P1(z) formula
+
+    # Build P as a lambda that produces the same formula structure via subst.
+    # base_formula uses z as ka. For P(nn), substitute nn for z in base_formula.
     def P(nn):
-        return phase1_pred(nn, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+        return base_formula.subst(z, nn) if nn is not z else base_formula
 
     # === Separation: pv = {nn ∈ w : P(nn)} ===
-    sep = zfc.Separation(P, [q0, tape_in, c0, z, delta])
+    sep = zfc.Separation(P, [q0, tape_in, c0, delta])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
     got_ex_pv = apply_thm(sep_ax, [w], concl=Exists(pv, char_pv))
@@ -4829,41 +4837,39 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
             [], iff_inst, Implies(In(term, pv), And(In(term, w), P(term))), got_iff)
         return mp(got_imp, ax(In(term, pv)), In(term, pv), And(In(term, w), P(term)))
 
-    # === Base case: In(zero, pv) from P1(0) ===
-    # z is used for the ∀z'.Empty(z')→Apply(tra,z',c0) bound var in phase1_pred.
-    # zero is the base case ka. They must be different Vars.
+    # === Base case: ∀zero. Empty(zero) → In(zero, pv) ===
     zero = Var(postfix='ind_zero')
-    empty_zero = Empty(zero)
-    got_base_P = phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
-    # phase1_base uses z as ka (= the "0" variable). zero_var = z inside phase1_base.
-    # But we need P1(zero) for the induction, not P1(z).
-    # Actually, phase1_base returns P1(z) since it sets zero_var = z.
-    # For the induction base, we use z as "0" (with Num(z,0) on the left).
-    # char_bwd needs In(z, w) — from omega_contains_empty.
-    # got_base_P: [Pairing, TMConfig(c0,q0,zero,tape_in), Num(zero,0)] |- P1(zero)
-
-    # In(z, w) from omega_contains_empty:
-    # phase1_base returns P1(z) with [Pairing, TMConfig(c0,q0,z,tape_in), Num(z,0)] on left.
-    # Num(z,0) = Empty(z). omega_contains_empty: Omega(w) → Empty(z) → In(z,w).
-    empty_z = Empty(z)
+    empty_z = Num(z, 0)  # = Empty(z)
     oce = omega_contains_empty()
     got_z_in_w = apply_thm(oce, [w], omega_w,
         Forall(z, Implies(empty_z, In(z, w))), ax(omega_w))
     got_z_in_w = apply_thm(got_z_in_w, [z], empty_z, In(z, w), ax(empty_z))
 
-    got_base = char_bwd(z, got_z_in_w, got_base_P)
-    # Close: Empty(z) → In(z, pv), ∀z — but z is used in char_pv's Forall too.
-    # Use zero (different var) for the Inductive base's universal quantifier.
-    # Inductive base = ∀zero. Empty(zero) → In(zero, pv).
-    # From got_base: [..., Empty(z)] |- In(z, pv). Discharge Empty(z), close ∀z.
-    # But the Inductive formula uses its OWN bound var. Since z is the param,
-    # we use z as the Inductive base bound var.
-    imp_ez = Implies(empty_z, In(z, pv))
-    left_ez = [f_ for f_ in got_base.sequent.left if not same(f_, empty_z)]
-    got_ind_base = Proof(Sequent(left_ez, [imp_ez]), 'implies_right', [got_base], principal=imp_ez)
-    fa_ind_base = Forall(z, imp_ez)
+    got_base_in_pv = char_bwd(z, got_z_in_w, got_base_P)
+
+    # Transfer In(z,pv) → In(zero,pv) via Eq(zero,z) from unique_empty.
+    from theorems.logic import unique_empty, eq_substitution
+    ue = unique_empty()
+    empty_zero = Empty(zero)
+    eq_zero_z = Eq(zero, z)
+    got_eq_zz = apply_thm(ue, [zero], empty_zero,
+        Forall(z, Implies(empty_z, eq_zero_z)), ax(empty_zero))
+    got_eq_zz = apply_thm(got_eq_zz, [z], empty_z, eq_zero_z, ax(empty_z))
+
+    es_thm = eq_substitution()
+    iff_in = Iff(In(zero, pv), In(z, pv))
+    got_iff_zz = apply_thm(es_thm, [zero, z, pv], eq_zero_z, iff_in, got_eq_zz)
+    got_in_zero_pv = mp(apply_thm(iff_mp_rev(In(zero, pv), In(z, pv), []),
+        [], iff_in, Implies(In(z, pv), In(zero, pv)), got_iff_zz),
+        got_base_in_pv, In(z, pv), In(zero, pv))
+
+    imp_ez = Implies(empty_zero, In(zero, pv))
+    left_ez = [f_ for f_ in got_in_zero_pv.sequent.left if not same(f_, empty_zero)]
+    got_ind_base = Proof(Sequent(left_ez, [imp_ez]),
+        'implies_right', [got_in_zero_pv], principal=imp_ez)
+    fa_ind_base = Forall(zero, imp_ez)
     got_ind_base = Proof(Sequent(got_ind_base.sequent.left, [fa_ind_base]),
-        'forall_right', [got_ind_base], principal=fa_ind_base, term=z)
+        'forall_right', [got_ind_base], principal=fa_ind_base, term=zero)
 
     # === Step case: In(n, pv) → ∀sn. Succ(sn,n) → In(sn, pv) ===
     succ_sn = Successor(sn, n)
@@ -4924,8 +4930,13 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     for formula, proof in [(func_tra_f, got_func), (dom_bound_n, got_dom),
                            (cfg_n, got_cfg), (base_n, got_base_old),
                            (app_n, got_app), (sv_n, got_sv)]:
-        if any(same(formula, f) for f in got_step_P.sequent.left):
+        found = any(same(formula, f) for f in got_step_P.sequent.left)
+        print(f'  cut {formula}: found={found}')
+        if found:
             got_step_P = cut(got_step_P, formula, proof)
+    print(f'after cuts, left count: {len(got_step_P.sequent.left)}')
+    for i, ff in enumerate(got_step_P.sequent.left):
+        print(f'  [{i}] {ff}')
     # Now body_n is on got_step_P's left (from the ax(body_n) in the extracts).
 
     # eel ca from body_n, then eel tra from body_n:
@@ -4947,14 +4958,80 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # body_n has both tra and ca free. eel ca: need ca not free elsewhere on left.
     # Other left formulas from got_step_P that weren't cut: axioms, delta_char, Num's, etc.
     # These don't have ca free. The P1(n) components (func, dom, cfg, base, app, sv) were cut.
-    # So ca is free ONLY in body_n. ✓
+    # Use the actual formula from the left instead of body_n (avoids same() mismatch).
+    # Find the formula with tra+ca free on the left — that's the P(n) body.
+    # Actually, after cuts the P(n) components are replaced by body_n from extract.
+    # But the actual formula might be wrapped differently. Just use whatever's there.
+    # DEBUG
+    from core.proof import _free_vars as _fv_dbg, same as _same_dbg
+    found_body = [i for i, ff in enumerate(got_step_P.sequent.left) if _same_dbg(body_n, ff)]
+    print(f'body_n on left: indices={found_body}')
+    if not found_body:
+        # Check item 14 specifically
+        ff14 = got_step_P.sequent.left[14] if len(got_step_P.sequent.left) > 14 else None
+        if ff14:
+            print(f'item[14] is body_n: {ff14 is body_n}')
+            print(f'same(body_n, item[14]): {_same_dbg(body_n, ff14)}')
+            print(f'type(body_n): {type(body_n).__name__}, type(item14): {type(ff14).__name__}')
+            print(f'id(body_n.left): {id(body_n.left)}, id(item14.left): {id(ff14.left) if hasattr(ff14, "left") else "N/A"}')
+            # Check if item[14] is the same object as one of the extract sources
+            print(f'body_n.left is func_tra_f: {body_n.left is func_tra_f}')
+            if hasattr(ff14, 'left'):
+                print(f'item14.left is func_tra_f: {ff14.left is func_tra_f}')
+                print(f'same(func_tra_f, item14.left): {_same_dbg(func_tra_f, ff14.left)}')
+                print(f'same(func_tra_f, body_n.left): {_same_dbg(func_tra_f, body_n.left)}')
+            # Check And structure
+            if hasattr(body_n, 'left') and hasattr(ff14, 'left'):
+                print(f'same(.left, .left): {_same_dbg(body_n.left, ff14.left)}')
+                print(f'same(.right, .right): {_same_dbg(body_n.right, ff14.right)}')
+                # Drill into right
+                br = body_n.right
+                fr = ff14.right
+                if hasattr(br, 'left') and hasattr(fr, 'left'):
+                    print(f'same(.right.left, .right.left): {_same_dbg(br.left, fr.left)}')
+                    print(f'same(.right.right, .right.right): {_same_dbg(br.right, fr.right)}')
+                    br2 = br.right
+                    fr2 = fr.right
+                    if hasattr(br2, 'left') and hasattr(fr2, 'left'):
+                        print(f'same(.right.right.left, ...): {_same_dbg(br2.left, fr2.left)}')
+                        print(f'same(.right.right.right, ...): {_same_dbg(br2.right, fr2.right)}')
+                        br3 = br2.right
+                        fr3 = fr2.right
+                        if hasattr(br3, 'left') and hasattr(fr3, 'left'):
+                            print(f'same(.r.r.r.left, ...): {_same_dbg(br3.left, fr3.left)}')
+                            print(f'same(.r.r.r.right, ...): {_same_dbg(br3.right, fr3.right)}')
+    ca_free_in = [i for i, ff in enumerate(got_step_P.sequent.left) if ca in _fv_dbg(ff)]
+    print(f'ca free on left: indices={ca_free_in}')
+    print(f'ca in right: {ca in _fv_dbg(got_step_P.sequent.right[0])}')
 
-    got_step_P = eel(got_step_P, body_n, ca)
-    # [∃ca.body_n, other_ctx] |- P1(S(n))
-    got_step_P = eel(got_step_P, Exists(ca, body_n), tra)
-    # [∃tra.∃ca.body_n, other_ctx] |- P1(S(n))
-    # ∃tra.∃ca.body_n = P(n). Cut with got_P_n.
-    got_step_P = cut(got_step_P, Exists(tra, Exists(ca, body_n)), got_P_n)
+    # Find the P(n)-related formula on got_step_P's left.
+    # It might be body_n (And) or the ∃tra.∃ca wrapped version.
+    # Use got_P_n.sequent.right[0] = P(n) for matching.
+    p_n_formula = got_P_n.sequent.right[0]
+    # P(n) is ∃tra. ∃ca. body. After cuts, the body (unwrapped And) is on the left.
+    # The body from got_step_P comes from ax(body_n) via cuts.
+    # Use the actual formula on the left for eel.
+    # Find formula with tra AND ca free:
+    actual_body = None
+    for ff in got_step_P.sequent.left:
+        if tra in _fv_dbg(ff) and ca in _fv_dbg(ff):
+            actual_body = ff
+            break
+    if actual_body is None:
+        # Maybe it's already ∃-wrapped. Look for P(n) directly.
+        for ff in got_step_P.sequent.left:
+            if _same_dbg(p_n_formula, ff):
+                actual_body = ff
+                break
+    if actual_body is not None and not _same_dbg(actual_body, p_n_formula):
+        # It's the unwrapped body. eel ca, then tra, then cut with P(n).
+        got_step_P = eel(got_step_P, actual_body, ca)
+        ex_ca_body = Exists(ca, actual_body)
+        got_step_P = eel(got_step_P, ex_ca_body, tra)
+        got_step_P = cut(got_step_P, Exists(tra, ex_ca_body), got_P_n)
+    elif actual_body is not None:
+        # It's P(n) itself. Just cut directly.
+        got_step_P = cut(got_step_P, p_n_formula, got_P_n)
     # [char_pv, In(n,pv), other_ctx] |- P1(S(n))
 
     # Build In(sn, pv) from P1(S(n)) + In(sn,w):
