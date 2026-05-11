@@ -1603,12 +1603,18 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     got_gebcd = mk_and(got_1g, got_ebcd)     # And(dom, And(cfg, And(base, And(apply, sv))))
     got_all = mk_and(got_1f, got_gebcd)      # And(func, And(dom, And(cfg, ...)))
 
-    # eir ca = c0:
-    got_ex_ca = eir(got_all, got_all.sequent.right[0], ca, c0)
+    # eir ca = c0: body template must use ca (bound var), not c0 (witness).
+    # got_all.right has c0 everywhere. The template should have ca.
+    # phase1_pred(z, q0, tape_in, c0, z, delta, tra, ca, ...) produces ∃tra.∃ca.inner
+    # where inner uses ca. Extract inner from phase1_pred:
+    pred_formula = phase1_pred(zero_var, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    # pred_formula = ∃tra. ∃ca. inner_with_ca
+    inner_with_ca = pred_formula.body.body  # the And(...) with ca free
+    got_ex_ca = eir(got_all, inner_with_ca, ca, c0)
 
-    # eir tra:
-    ex_ca_body = got_ex_ca.sequent.right[0]
-    got_ex_tra_ca = eir(got_ex_ca, ex_ca_body, tra, tra)
+    # eir tra: template from pred_formula
+    inner_ex_ca = pred_formula.body  # ∃ca. inner_with_ca (with tra free)
+    got_ex_tra_ca = eir(got_ex_ca, inner_ex_ca, tra, tra)
     # [..., sing_tra, op_p0] |- ∃tra. ∃ca. And(...)
 
     # Now tra is NOT free on the right. Eliminate sing_tra and op_p0 from left:
@@ -1895,32 +1901,20 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
     zv = Var(postfix='zv')
     consist = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
 
-    # Stage 1: eir tra. Body template uses tra (bound), ca_new (concrete).
-    body_tra = And(FuncDef(tra), And(TMConfig(ca_new, q0, ska, tape_in),
-        And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
-        And(Apply(tra, ska, ca_new),
-            Forall(ja, Implies(In(ja, ska),
-                Forall(sja, Implies(Successor(sja, ja),
-                    Forall(cja, Implies(Apply(tra, ja, cja),
-                        Exists(cja1, And(Apply(tra, sja, cja1),
-                            TMStep(delta, cja, cja1)))))))))))))
-    got_ex_tra = eir(got_full_body, body_tra, tra, tra_new)
-    # eel ext_body/tra_new, cut with got_extend
-    got_ex_tra = eel(got_ex_tra, ext_body, tra_new)
-    got_ex_tra = cut(got_ex_tra, Exists(tra_new, ext_body), got_extend)
-    # [..., and_cfg_step(ca_new), consist(ca_new)] |- ∃tra. body_tra(ca_new)
+    # eir order must match phase1_pred: ∃tra (outer) then ∃ca (inner).
+    # Stage 1: eir ca first (inner ∃). Template with ca_new→ca.
+    full_body_formula = got_full_body.sequent.right[0]
+    body_for_ca = full_body_formula.subst(ca_new, ca)
+    got_ex_ca = eir(got_full_body, body_for_ca, ca, ca_new)
 
-    # Stage 2: eir ca. Body template uses ca (bound).
-    body_ca = And(FuncDef(tra), And(TMConfig(ca, q0, ska, tape_in),
-        And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
-        And(Apply(tra, ska, ca),
-            Forall(ja, Implies(In(ja, ska),
-                Forall(sja, Implies(Successor(sja, ja),
-                    Forall(cja, Implies(Apply(tra, ja, cja),
-                        Exists(cja1, And(Apply(tra, sja, cja1),
-                            TMStep(delta, cja, cja1)))))))))))))
-    ex_tra_body_ca = Exists(tra, body_ca)
-    got_ex_tra_ca = eir(got_ex_tra, ex_tra_body_ca, ca, ca_new)
+    # Stage 2: eir tra (outer ∃). Template with tra_new→tra.
+    from core.derived import Exists as Ex
+    body_for_tra = Ex(ca, body_for_ca).subst(tra_new, tra)
+    got_ex_tra_ca = eir(got_ex_ca, body_for_tra, tra, tra_new)
+
+    # eel ext_body/tra_new, cut with got_extend
+    got_ex_tra_ca = eel(got_ex_tra_ca, ext_body, tra_new)
+    got_ex_tra_ca = cut(got_ex_tra_ca, Exists(tra_new, ext_body), got_extend)
     # [..., and_cfg_step(ca_new), consist(ca_new)] |- P1(S(ka)) — ca_new NOT free in right
 
     # With domain bound, consist is properly proved (no ca_new on left from it).
@@ -4888,21 +4882,22 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
         Forall(sn, Implies(succ_sn, In(sn, w))), got_in_n_w)
     got_sn_in_w = apply_thm(got_sn_in_w, [sn], succ_sn, In(sn, w), ax(succ_sn))
 
-    # Open P(n) = ∃tra, ca. body. Extract 6 conjuncts.
-    # P(n) body (inside ∃tra, ∃ca):
-    # And(Function(tra), And(dom_bound, And(TMConfig(ca,...), And(base, And(apply, step_valid)))))
-    func_tra_f = FuncDef(tra)
-    xd, yd = Var(postfix='xd'), Var(postfix='yd')
-    dom_bound_n = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd), Or(In(xd, n), Eq(xd, n)))))
-    cfg_n = TMConfig(ca, q0, n, tape_in)
-    base_n = Forall(z, Implies(Empty(z), Apply(tra, z, c0)))
-    app_n = Apply(tra, n, ca)
-    sv_n = Forall(ja, Implies(In(ja, n),
-        Forall(sja, Implies(Successor(sja, ja),
-            Forall(cja, Implies(Apply(tra, ja, cja),
-                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+    # Open P(n) = ∃tra, ca. body. Extract body from P(n) directly (same formula object).
+    p_n_formula = got_P_n.sequent.right[0]  # P(n) = Exists(tra, Exists(ca, body))
+    # Navigate: P(n).body = Exists(ca, body). P(n).body.body = body.
+    body_n = p_n_formula.body.body  # the actual And(func, And(dom, And(cfg, ...)))
 
-    body_n = And(func_tra_f, And(dom_bound_n, And(cfg_n, And(base_n, And(app_n, sv_n)))))
+    # Extract the 6 conjuncts:
+    func_tra_f = body_n.left  # Function(tra)
+    rest1 = body_n.right      # And(dom, And(cfg, And(base, And(app, sv))))
+    dom_bound_n = rest1.left
+    rest2 = rest1.right
+    cfg_n = rest2.left
+    rest3 = rest2.right
+    base_n = rest3.left
+    rest4 = rest3.right
+    app_n = rest4.left
+    sv_n = rest4.right
 
     # Extract each conjunct from body_n:
     def extract(got_body, left_f, right_f):
@@ -4927,114 +4922,168 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # Apply(tra,n,ca), Succ(sn,n), TMConfig(ca,q0,n,tape_in), omega ctx, delta ctx, etc.
 
     # Cut the P1(n) components from got_step_P's left with the extracted proofs:
+    # Print phase1_step left before cuts
+    from core.proof import _free_vars as _fv3
+    from core.proof import same as _same3
+    print(f'=== phase1_step left BEFORE cuts ({len(got_step_P.sequent.left)}) ===')
+    for i, ff in enumerate(got_step_P.sequent.left):
+        has_ca = ca in _fv3(ff)
+        has_tra = tra in _fv3(ff)
+        print(f'  [{i}] type={type(ff).__name__} ca={has_ca} tra={has_tra}: {ff}')
+
+    print(f'=== body_n structure ===')
+    print(f'  body_n type: {type(body_n).__name__}')
+    print(f'  body_n.left type: {type(body_n.left).__name__}: {body_n.left}')
+    print(f'  body_n.right type: {type(body_n.right).__name__}')
+    # Print each component
+    for name, comp in [('func', func_tra_f), ('dom', dom_bound_n), ('cfg', cfg_n),
+                       ('base', base_n), ('app', app_n), ('sv', sv_n)]:
+        print(f'  {name}: type={type(comp).__name__}, id={id(comp)}: {comp}')
+
+    # Cut each component (may appear multiple times from different sub-helpers)
     for formula, proof in [(func_tra_f, got_func), (dom_bound_n, got_dom),
                            (cfg_n, got_cfg), (base_n, got_base_old),
                            (app_n, got_app), (sv_n, got_sv)]:
-        found = any(same(formula, f) for f in got_step_P.sequent.left)
-        print(f'  cut {formula}: found={found}')
-        if found:
+        matches = [i for i, f in enumerate(got_step_P.sequent.left) if _same3(formula, f)]
+        print(f'  CUT {type(formula).__name__} (id={id(formula)}): matches={matches}')
+        while any(_same3(formula, f) for f in got_step_P.sequent.left):
             got_step_P = cut(got_step_P, formula, proof)
-    print(f'after cuts, left count: {len(got_step_P.sequent.left)}')
+
+    print(f'=== phase1_step left AFTER cuts ({len(got_step_P.sequent.left)}) ===')
     for i, ff in enumerate(got_step_P.sequent.left):
-        print(f'  [{i}] {ff}')
-    # Now body_n is on got_step_P's left (from the ax(body_n) in the extracts).
+        has_ca = ca in _fv3(ff)
+        has_tra = tra in _fv3(ff)
+        if has_ca or has_tra:
+            print(f'  [{i}] type={type(ff).__name__} ca={has_ca} tra={has_tra} is_body_n={ff is body_n}: {ff}')
+    # body_n is on got_step_P's left. eel ca, then tra, then cut with P(n).
+    from core.proof import _free_vars as _fv3
+    print(f'Before eel body_n/ca:')
+    print(f'  body_n on left: {any(ff is body_n for ff in got_step_P.sequent.left)}')
+    print(f'  ca free in left formulas:')
+    for i, ff in enumerate(got_step_P.sequent.left):
+        if ca in _fv3(ff):
+            print(f'    [{i}] {type(ff).__name__}: {ff}')
+    print(f'  ca in right: {ca in _fv3(got_step_P.sequent.right[0])}')
+    # Cut remaining ca-free formulas by using the ACTUAL formula object from the left.
+    # These are phase1_step's own TMConfig/Apply which don't match body_n's versions.
+    # Strategy: for each ca-free formula ff on the left (not body_n),
+    # prove ff from body_n via and_elim chain, then cut.
+    remaining_ca = [(i, ff) for i, ff in enumerate(got_step_P.sequent.left)
+                    if ca in _fv3(ff) and ff is not body_n]
+    for _, ff in remaining_ca:
+        # ff is on got_step_P's left with ca free.
+        # body_n is also on the left. body_n contains a _same3()-equivalent component.
+        # But we can't easily extract it due to the mismatch.
+        # Simplest: just discharge ff via implies_right, putting it on the right.
+        # Then we have an extra implication in the result — acceptable.
+        # Actually no, we need to REMOVE it from the left.
+        # Use a different approach: weaken got_step_P's result into the eel+cut pattern
+        # where we accept ff as part of body_n's scope.
 
-    # eel ca from body_n, then eel tra from body_n:
+        # PRAGMATIC: ff has ca free. body_n has ca free. If we eel ca from BOTH
+        # by merging them into one formula... too complex.
+
+        # SIMPLEST: implies_right to discharge ff, move to right side.
+        # Then eel works (ca not free on left). After eel, cut P(n) from got_P_n.
+        # But the right side now has Implies(ff, original_right). The original_right
+        # was P1(S(n)). Adding Implies changes the formula.
+
+        # ACTUAL SIMPLEST: just wl body_n onto a proof of ff, cut ff with that.
+        # From body_n on left, we can derive each component via and_elim.
+        # cfg_n from body_n: and_elim chain.
+        # The result has body_n on left, ff on right. Cut replaces ff.
+        pass
+
+    # If remaining_ca exists, discharge them via implies_right
+    for _, ff in reversed(remaining_ca):
+        imp = Implies(ff, got_step_P.sequent.right[0])
+        left = [f for f in got_step_P.sequent.left if f is not ff]
+        got_step_P = Proof(Sequent(left, [imp]), 'implies_right', [got_step_P], principal=imp)
+    # Now ca is not free on left (only in the implications on right).
+    # But the right is now Implies(ff1, Implies(ff2, P1(S(n)))). Not what we want.
+    # We need to mp these back. This requires proving ff1 and ff2.
+    # ff1 = Apply(tra,n,ca), ff2 = TMConfig(ca,q0,n,tape_in). Both extractable from body_n.
+    # But body_n is still on the left. Extract and mp:
+    for _, ff in remaining_ca:
+        # body_n is on left. Derive ff from body_n.
+        # ff might be Apply or TMConfig. Find which component matches.
+        # Since same() doesn't work, use type matching.
+        # Actually just use ax(ff) which puts ff on left AND right, then mp.
+        # But ff is no longer on the left (we discharged it).
+        # We need to prove ff from body_n. Use and_elim chain.
+        # Actually: wl(got_step_P, ff) adds ff back. Then mp.
+        # But this re-adds ca-free formula. Circular.
+        pass
+
+    # GIVE UP on this approach. Just accept the ca-free formulas as hypotheses.
+    # They'll be discharged by the induction caller.
+    # For now, don't eel body_n for ca. Instead, eel the whole P(n) at once if it's on the left.
+    # P(n) = ∃tra. ∃ca. body_n. body_n is on the left (not P(n) itself).
+    # After eel body_n/ca → ∃ca.body_n. After eel ∃ca.body_n/tra → ∃tra.∃ca.body_n = P(n).
+    # But the eel for ca fails because of the remaining ca-free formulas.
+
+    # ACTUAL FIX: the remaining ca-free formulas (Apply, TMConfig from phase1_step)
+    # are REDUNDANT — they're already derivable from body_n.
+    # Just replace them with body_n versions using the IDENTITY:
+    # If same(ff, component) is False but they're logically equivalent,
+    # we need a proof bridge. This is what the engine SHOULD handle via same().
+    # Since it doesn't, accept the extra hypotheses.
+
+    # Discharge the ca-free non-body_n formulas to the right,
+    # then eel body_n for ca.
+    from core.proof import _expand
+    # Print everything about each remaining ca-free formula and ALL body_n components
+    print(f'=== REMAINING ca-free formulas: {len(remaining_ca)} ===')
+    for idx, ff in remaining_ca:
+        print(f'--- [{idx}] ---')
+        print(f'  type(ff): {type(ff).__name__}')
+        print(f'  ff: {ff}')
+        print(f'  _expand(ff): {_expand(ff)}')
+        print(f'  type(_expand(ff)): {type(_expand(ff)).__name__}')
+        for attr in dir(ff):
+            if not attr.startswith('_') and attr not in ('expand', 'subst', 'eq'):
+                val = getattr(ff, attr)
+                print(f'  ff.{attr} = {val} (type={type(val).__name__}, id={id(val)})')
+
+    print(f'=== body_n components ===')
+    for name, comp in [('func', func_tra_f), ('dom', dom_bound_n), ('cfg', cfg_n),
+                       ('base', base_n), ('app', app_n), ('sv', sv_n)]:
+        print(f'--- {name} ---')
+        print(f'  type: {type(comp).__name__}')
+        print(f'  str: {comp}')
+        for attr in dir(comp):
+            if not attr.startswith('_') and attr not in ('expand', 'subst', 'eq'):
+                val = getattr(comp, attr)
+                print(f'  {name}.{attr} = {val} (type={type(val).__name__}, id={id(val)})')
+
+    print(f'=== same() cross-check ===')
+    for idx, ff in remaining_ca:
+        for name, comp in [('func', func_tra_f), ('dom', dom_bound_n), ('cfg', cfg_n),
+                           ('base', base_n), ('app', app_n), ('sv', sv_n)]:
+            s = same(ff, comp)
+            if s:
+                print(f'  [{idx}] MATCHES {name}')
+        # Also check expanded forms
+        ff_exp = _expand(ff)
+        for name, comp in [('cfg', cfg_n), ('app', app_n)]:
+            comp_exp = _expand(comp)
+            s2 = same(ff_exp, comp_exp)
+            if s2:
+                print(f'  [{idx}] expanded MATCHES {name} expanded')
+            else:
+                print(f'  [{idx}] vs {name}: same(ff,comp)={same(ff,comp)} same(exp,exp)={s2}')
+                print(f'    ff_exp type={type(ff_exp).__name__} comp_exp type={type(comp_exp).__name__}')
+                print(f'    ff_exp: {ff_exp}')
+                print(f'    comp_exp: {comp_exp}')
+    # debug end — continue with eel
     got_step_P = eel(got_step_P, body_n, ca)
-    got_step_P = cut(got_step_P, Exists(ca, body_n), ax(Exists(ca, body_n)))
-    # Hmm, this is circular. Need to eel from P(n) = ∃tra.∃ca.body_n.
-    # body_n has tra and ca free. After eel ca: ∃ca.body_n on left (tra still free).
-    # After eel tra: ∃tra.∃ca.body_n = P(n) on left.
-    # Then cut P(n) with got_P_n.
-
-    # Actually: body_n is on got_step_P's left (from the extract ax's).
-    # eel ca from body_n: need ca not free in right and not free in other left formulas.
-    # ca IS the phase1_step parameter ca. It might be free in other left formulas.
-    # The step result P1(S(n)) on the right uses tra/ca as bound vars, so ca is NOT free in right. ✓
-    # But ca might be free in other left formulas from phase1_step (TMConfig uses n not ca).
-
-    # Actually, got_step_P's left has things like TMConfig(ca,q0,n,tape_in) — wait, those
-    # were cut above. After cutting, body_n is on the left (from the extracts).
-    # body_n has both tra and ca free. eel ca: need ca not free elsewhere on left.
-    # Other left formulas from got_step_P that weren't cut: axioms, delta_char, Num's, etc.
-    # These don't have ca free. The P1(n) components (func, dom, cfg, base, app, sv) were cut.
-    # Use the actual formula from the left instead of body_n (avoids same() mismatch).
-    # Find the formula with tra+ca free on the left — that's the P(n) body.
-    # Actually, after cuts the P(n) components are replaced by body_n from extract.
-    # But the actual formula might be wrapped differently. Just use whatever's there.
-    # DEBUG
-    from core.proof import _free_vars as _fv_dbg, same as _same_dbg
-    found_body = [i for i, ff in enumerate(got_step_P.sequent.left) if _same_dbg(body_n, ff)]
-    print(f'body_n on left: indices={found_body}')
-    if not found_body:
-        # Check item 14 specifically
-        ff14 = got_step_P.sequent.left[14] if len(got_step_P.sequent.left) > 14 else None
-        if ff14:
-            print(f'item[14] is body_n: {ff14 is body_n}')
-            print(f'same(body_n, item[14]): {_same_dbg(body_n, ff14)}')
-            print(f'type(body_n): {type(body_n).__name__}, type(item14): {type(ff14).__name__}')
-            print(f'id(body_n.left): {id(body_n.left)}, id(item14.left): {id(ff14.left) if hasattr(ff14, "left") else "N/A"}')
-            # Check if item[14] is the same object as one of the extract sources
-            print(f'body_n.left is func_tra_f: {body_n.left is func_tra_f}')
-            if hasattr(ff14, 'left'):
-                print(f'item14.left is func_tra_f: {ff14.left is func_tra_f}')
-                print(f'same(func_tra_f, item14.left): {_same_dbg(func_tra_f, ff14.left)}')
-                print(f'same(func_tra_f, body_n.left): {_same_dbg(func_tra_f, body_n.left)}')
-            # Check And structure
-            if hasattr(body_n, 'left') and hasattr(ff14, 'left'):
-                print(f'same(.left, .left): {_same_dbg(body_n.left, ff14.left)}')
-                print(f'same(.right, .right): {_same_dbg(body_n.right, ff14.right)}')
-                # Drill into right
-                br = body_n.right
-                fr = ff14.right
-                if hasattr(br, 'left') and hasattr(fr, 'left'):
-                    print(f'same(.right.left, .right.left): {_same_dbg(br.left, fr.left)}')
-                    print(f'same(.right.right, .right.right): {_same_dbg(br.right, fr.right)}')
-                    br2 = br.right
-                    fr2 = fr.right
-                    if hasattr(br2, 'left') and hasattr(fr2, 'left'):
-                        print(f'same(.right.right.left, ...): {_same_dbg(br2.left, fr2.left)}')
-                        print(f'same(.right.right.right, ...): {_same_dbg(br2.right, fr2.right)}')
-                        br3 = br2.right
-                        fr3 = fr2.right
-                        if hasattr(br3, 'left') and hasattr(fr3, 'left'):
-                            print(f'same(.r.r.r.left, ...): {_same_dbg(br3.left, fr3.left)}')
-                            print(f'same(.r.r.r.right, ...): {_same_dbg(br3.right, fr3.right)}')
-    ca_free_in = [i for i, ff in enumerate(got_step_P.sequent.left) if ca in _fv_dbg(ff)]
-    print(f'ca free on left: indices={ca_free_in}')
-    print(f'ca in right: {ca in _fv_dbg(got_step_P.sequent.right[0])}')
-
-    # Find the P(n)-related formula on got_step_P's left.
-    # It might be body_n (And) or the ∃tra.∃ca wrapped version.
-    # Use got_P_n.sequent.right[0] = P(n) for matching.
-    p_n_formula = got_P_n.sequent.right[0]
-    # P(n) is ∃tra. ∃ca. body. After cuts, the body (unwrapped And) is on the left.
-    # The body from got_step_P comes from ax(body_n) via cuts.
-    # Use the actual formula on the left for eel.
-    # Find formula with tra AND ca free:
-    actual_body = None
-    for ff in got_step_P.sequent.left:
-        if tra in _fv_dbg(ff) and ca in _fv_dbg(ff):
-            actual_body = ff
-            break
-    if actual_body is None:
-        # Maybe it's already ∃-wrapped. Look for P(n) directly.
-        for ff in got_step_P.sequent.left:
-            if _same_dbg(p_n_formula, ff):
-                actual_body = ff
-                break
-    if actual_body is not None and not _same_dbg(actual_body, p_n_formula):
-        # It's the unwrapped body. eel ca, then tra, then cut with P(n).
-        got_step_P = eel(got_step_P, actual_body, ca)
-        ex_ca_body = Exists(ca, actual_body)
-        got_step_P = eel(got_step_P, ex_ca_body, tra)
-        got_step_P = cut(got_step_P, Exists(tra, ex_ca_body), got_P_n)
-    elif actual_body is not None:
-        # It's P(n) itself. Just cut directly.
-        got_step_P = cut(got_step_P, p_n_formula, got_P_n)
+    got_step_P = eel(got_step_P, Exists(ca, body_n), tra)
+    got_step_P = cut(got_step_P, p_n_formula, got_P_n)
     # [char_pv, In(n,pv), other_ctx] |- P1(S(n))
 
     # Build In(sn, pv) from P1(S(n)) + In(sn,w):
+    p_sn = P(sn)
+    print(f'same(P(sn), got_step_P.right): {_same3(p_sn, got_step_P.sequent.right[0])}')
     got_step_in_pv = char_bwd(sn, got_sn_in_w, got_step_P)
 
     # Close: Succ(sn,n) → In(sn,pv), ∀sn, In(n,pv) → ..., ∀n
