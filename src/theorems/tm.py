@@ -872,6 +872,126 @@ def config_intro():
     return proof
 
 
+def phase1_pred(ka, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
+    """Phase 1 induction predicate: after ka steps, state q0, head at ka, tape unchanged.
+    P(ka) = ∃tra, ca.
+      TMConfig(ca, q0, ka, tape_in) ∧
+      Apply(tra, z, c0) ∧
+      Apply(tra, ka, ca) ∧
+      ∀ja < ka. ∀cja. Apply(tra, ja, cja) →
+        ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))
+    where sja = S(ja), bound inside the forall."""
+    step_valid = Forall(ja, Implies(In(ja, ka),
+        Forall(sja, Implies(Successor(sja, ja),
+            Forall(cja, Implies(Apply(tra, ja, cja),
+                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+    return Exists(tra, Exists(ca, And(
+        TMConfig(ca, q0, ka, tape_in),
+        And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+        And(Apply(tra, ka, ca),
+            step_valid)))))
+
+
+def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
+    """Phase 1 base case: P1(0).
+    Returns: [TMConfig(c0,q0,z,tape_in), Num(z,0), Pairing] |- P1(0)
+    where P1(0) = phase1_pred(zero_var, ...)"""
+
+    zero_var = Var(postfix='z0')  # the 0 for P1(0)
+    p1_zero = phase1_pred(zero_var, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    # P1(0) = ∃tra, ca. And(
+    #   TMConfig(ca, q0, 0, tape_in),
+    #   And(∀z'. Empty(z') → Apply(tra, z', c0),
+    #   And(Apply(tra, 0, ca),
+    #       ∀ja. In(ja, 0) → ...)))
+
+    # Sub-goal 1a: ∃tra. tra = {(z, c0)} — singleton trace
+    #   Pairing |- ∃pair_0a. OrdPair(pair_0a, z, c0)     [ordpair_exists]
+    #   Pairing |- ∃tra. Singleton(tra, pair_0a)           [singleton_exists]
+    #   Then Apply(tra, z, c0) = ∃p. OrdPair(p,z,c0) ∧ In(p, tra)
+    #   Witness p = pair_0a: OrdPair(pair_0a, z, c0) ∧ In(pair_0a, {pair_0a}) ✓
+    sg_1a = Exists(tra, Apply(tra, z, c0))
+
+    # Sub-goal 1b: ∀z'. Empty(z') → Apply(tra, z', c0)
+    #   From Empty(z') get ∀x. ¬In(x, z'). Combined with unique_empty: Eq(z', z).
+    #   Wait: Num(z, 0) means z = ∅. Empty(z') means z' = ∅. So Eq(z', z).
+    #   Then Apply(tra, z', c0) follows from Apply(tra, z, c0) + Eq(z', z) + eq_apply_transfer.
+    z_prime = Var(postfix='zp')
+    sg_1b = Forall(z_prime, Implies(Empty(z_prime), Apply(tra, z_prime, c0)))
+
+    # Sub-goal 1c: Apply(tra, zero_var, ca) where ca = c0 and zero_var = z (both = 0)
+    #   From Num(z, 0) and Num(zero_var, 0): Eq(zero_var, z).
+    #   Apply(tra, z, c0) from 1a. Transfer: Apply(tra, zero_var, c0).
+    #   ca = c0 as witness.
+    sg_1c = Apply(tra, zero_var, c0)
+
+    # Sub-goal 1d: ∀ja. In(ja, zero_var) → ∀sja. Successor(sja,ja) → ∀cja. Apply(tra,ja,cja) → ∃cja1. ...
+    #   zero_var = 0 = ∅. In(ja, ∅) is false. Vacuously true.
+    sg_1d = Forall(ja, Implies(In(ja, zero_var),
+        Forall(sja, Implies(Successor(sja, ja),
+            Forall(cja, Implies(Apply(tra, ja, cja),
+                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+
+    # Sub-goal 1e: TMConfig(ca, q0, zero_var, tape_in) where ca = c0
+    #   From TMConfig(c0, q0, z, tape_in) given + Eq(zero_var, z).
+    sg_1e = TMConfig(c0, q0, zero_var, tape_in)
+
+    # Full P1(0) = ∃tra, ca. And(sg_1e, And(sg_1b, And(sg_1c, sg_1d)))
+    # Witnesses: tra = {(z, c0)}, ca = c0.
+
+    # TODO: implement proof construction
+    raise NotImplementedError
+
+
+def phase1_step(q0, tape_in, c0, z, delta, a, b, tra, ca, ja, sja, cja, cja1, ka, ska, w):
+    """Phase 1 step case: In(ka, a) → P1(ka) → P1(S(ka)).
+
+    Assume In(ka, a) and P1(ka) on the left.
+    From P1(ka): get tra_old, ca_old with:
+      TMConfig(ca_old, q0, ka, tape_in), Apply(tra_old, z, c0),
+      Apply(tra_old, ka, ca_old), step_valid up to ka.
+
+    Sub-goal 2a (tape read):
+      [UnaryTape(tape_in,a,b), In(ka,a), Num(one,1)]
+      |- Apply(tape_in, ka, one)
+      From tape_read_low: In(ka, a) gives tape reads 1 at position ka.
+
+    Sub-goal 2b (transition lookup):
+      [delta_char, Num(q0,0), Num(one,1), Num(d1,1)]
+      |- TMTransition(delta, q0, one, one, d1, q0)
+      Extract from delta_char conjunction: (q0,1)→(1,R,q0).
+
+    Sub-goal 2c (new config construction):
+      [Pairing, axioms]
+      |- ∃ca'. TMConfig(ca', q0, S(ka), tape_in)
+      head_move_right: HeadMove(ka, S(ka), d1).
+      Tape unchanged (write 1 over 1).
+      config_intro: build (q0, S(ka), tape_in).
+
+    Sub-goal 2d (TMStep):
+      [results of 2a, 2b, 2c]
+      |- TMStep(delta, ca_old, ca')
+      step_intro assembles from: TMConfig, Apply(tape,h,sym),
+      TMTransition, TapeUpdate, HeadMove, TMConfig.
+
+    Sub-goal 2e (trace extension):
+      |- tra' = tra_old ∪ {(S(ka), ca')}
+      Pairing gives {(S(ka), ca')} as singleton.
+      union_exists gives tra' = tra_old ∪ singleton.
+      apply_union_intro_left: old Apply's preserved in tra'.
+      apply_union_intro_right: Apply(tra', S(ka), ca') from singleton.
+
+    Sub-goal 2f (step_valid extension):
+      step_valid for tra' up to S(ka):
+      ∀ja < S(ka): either ja < ka (old steps, preserved via apply_union_intro_left)
+                    or ja = ka (new step: TMStep(delta, ca_old, ca') from 2d).
+
+    Compose 2a-2f into P1(S(ka)) via eir for ∃tra', ∃ca'.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+
 def tm_add_correct():
     """TM addition correctness: the unary addition machine halts with correct output.
     |- forall delta,q0,qH,z,tape_in,c0,a,b,c.
