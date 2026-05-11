@@ -873,9 +873,111 @@ def config_intro():
 
 
 def tm_add_correct():
-    """TM addition correctness: the unary addition machine halts.
+    """TM addition correctness: the unary addition machine halts with correct output.
     |- forall delta,q0,qH,z,tape_in,c0,a,b,c.
          delta_char -> Num(q0,0) -> Num(qH,1) -> Num(z,0) ->
          UnaryTape(tape_in,a,b) -> TMConfig(c0,q0,z,tape_in) ->
-         Plus(a,b,c) -> Exists(n, TMHalts(delta,c0,qH,n))"""
+         Plus(a,b,c) -> Exists(n, Exists(tf, And(TMHalts(delta,c0,qH,n), UnaryOutput(tf,c))))
+
+    """
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Exists, And, Iff, Eq
+    from core.proof import Proof, Sequent, same
+    from vocab.ordpair import OrdPair, Successor
+    from vocab.functions import Apply
+    from vocab.omega import Num, Omega
+    from vocab.sets import Empty
+    from vocab.tm import TMConfig, TMTransition, TMStep, TapeUpdate, HeadMove, TMHalts
+    from vocab.recursion import Plus as PlusDef
+    from tm import UnaryTape, UnaryOutput, formalize, add_machine
+
+    f = formalize(add_machine())
+
+    # Variables matching the goal
+    delta = Var(postfix='delta')
+    q0 = Var(postfix='q0')
+    qH = Var(postfix='qH')
+    z = Var(postfix='z')
+    tape_in = Var(postfix='tin')
+    c0 = Var(postfix='c0')
+    a = Var(postfix='a')
+    b = Var(postfix='b')
+    c = Var(postfix='c')
+    w = Var(postfix='w')
+
+    # Phase variables
+    k = Var(postfix='k')
+    sk = Var(postfix='sk')
+    sa = Var(postfix='sa')
+    ck = Var(postfix='ck')
+    hk = Var(postfix='hk')
+    tk = Var(postfix='tk')
+    tape2 = Var(postfix='t2')
+    tape3 = Var(postfix='t3')
+    n = Var(postfix='n')
+    tf = Var(postfix='tf')
+    one = Var(postfix='one')
+    zero_v = Var(postfix='zv')
+    tr = Var(postfix='tr')
+
+    # Hypotheses
+    omega_w = Omega(w)
+    delta_char = f['delta_char']
+    num_q0 = Num(q0, f['q0_num'])      # Num(q0, 0)
+    num_qH = Num(qH, f['qH_num'])      # Num(qH, 1)
+    num_z = Num(z, 0)
+    utape = UnaryTape(tape_in, a, b)
+    cfg0 = TMConfig(c0, q0, z, tape_in)
+    plus_abc = PlusDef(a, b, c)
+
+    # === Formal sub-goals for each phase ===
+
+    # Phase 1 result: after a steps, config is (q0, a, tape_in)
+    # with a valid trace on {0..a}
+    phase1_post = Exists(tr, Exists(ck, And(
+        TMConfig(ck, q0, a, tape_in),                     # state q0, head at a, tape unchanged
+        And(
+            Forall(z, Implies(Empty(z), Apply(tr, z, c0))),  # trace(0) = c0
+            Forall(k, Implies(In(k, a), Forall(sk, Implies(Successor(sk, k),
+                Forall(ck, Implies(Apply(tr, k, ck),
+                    Exists(Var(), And(Apply(tr, sk, Var()), TMStep(delta, ck, Var())))))))))
+        ))))
+
+    # Phase 2 result: one step from (q0, a, tape_in) to (q1, S(a), tape2)
+    # where tape2 = tape_in[a := 1]
+    phase2_post = Exists(ck, Exists(tape2, And(
+        TMConfig(ck, Var(), sa, tape2),    # state q1, head at S(a)
+        And(
+            TapeUpdate(tape2, tape_in, a, one),   # tape2 = tape_in with 1 at position a
+            TMStep(delta, Var(), ck)               # valid step from phase1 end
+        ))))
+
+    # Phase 3 result: after b steps from (q1, S(a), tape2), config is (q1, S(a)+b, tape2)
+    # tape2 unchanged (writes 1 over 1)
+    # S(a)+b expressed via Plus(S(a), b, head_pos)
+    phase3_post = Exists(ck, Exists(hk, And(
+        TMConfig(ck, Var(), hk, tape2),    # state q1, head at S(a)+b
+        PlusDef(sa, b, hk)                 # head position = S(a) + b
+        )))
+
+    # Phase 4 result: one step from (q1, S(a)+b, tape2) to (q2, a+b, tape2)
+    # moves left, tape unchanged
+    phase4_post = Exists(ck, And(
+        TMConfig(ck, Var(), c, tape2),     # state q2, head at c = a+b
+        TMStep(delta, Var(), ck)
+        ))
+
+    # Phase 5 result: one step from (q2, c, tape2) to (qH, S(c), tape3)
+    # tape3 = tape2[c := 0], and UnaryOutput(tape3, c)
+    phase5_post = Exists(ck, Exists(tape3, And(
+        TMConfig(ck, qH, Var(), tape3),    # state qH
+        And(
+            TapeUpdate(tape3, tape2, c, zero_v),   # tape3 = tape2 with 0 at position c
+            UnaryOutput(tape3, c)                    # output is 1^c then 0
+        ))))
+
+    # === Final goal ===
+    # Exists(n, Exists(tf, And(TMHalts(delta, c0, qH, n), UnaryOutput(tf, c))))
+    # where n = S(S(S(c))) and tf = tape3 from Phase 5.
+
     raise NotImplementedError("tm_add_correct proof under construction")
