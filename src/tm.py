@@ -128,6 +128,7 @@ def add_goal():
     """Correctness goal for the addition TM.
 
     ∀ delta, q0, qH, z, tape_in, c0, a, b, c.
+      Function(delta) → Function(tape_in) →
       delta_char → Num(q0, 0) → Num(qH, 1) → Num(z, 0) →
       UnaryTape(tape_in, a, b) → TMConfig(c0, q0, z, tape_in) →
       Plus(a, b, c) →
@@ -136,6 +137,7 @@ def add_goal():
     from core.lang import Var, Implies, Forall
     from core.derived import Exists, And
     from vocab.omega import Num
+    from vocab.functions import Function as FuncDef
     from vocab.recursion import Plus as PlusDef
     from vocab.tm import TMConfig, TMHalts
 
@@ -149,7 +151,9 @@ def add_goal():
     n = Var(postfix='n')
     tf = Var(postfix='tf')
 
-    body = Implies(f['delta_char'],
+    body = Implies(FuncDef(delta),
+        Implies(FuncDef(tape_in),
+        Implies(f['delta_char'],
         Implies(Num(q0, f['q0_num']),
         Implies(Num(qH, f['qH_num']),
         Implies(Num(zero_var, 0),
@@ -158,7 +162,7 @@ def add_goal():
         Implies(PlusDef(a, b, c),
             Exists(n, Exists(tf, And(
                 TMHalts(delta, c0, qH, n),
-                UnaryOutput(tf, c)))))))))))
+                UnaryOutput(tf, c)))))))))))))
 
     goal = body
     for v in [c, b, a, c0, zero_var, tape_in, qH, q0, delta]:

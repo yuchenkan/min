@@ -74,20 +74,21 @@ class TMTransition:
 
 
 class TapeUpdate:
-    """TapeUpdate(tape', tape, h, w): tape' agrees with tape except at h where it has w.
-    Forall x. Forall y.
-        Iff(Apply(tape', x, y),
-            Or(And(Eq(x,h), Eq(y,w)),
-               And(Apply(tape, x, y), Not(Eq(x,h)))))."""
+    """TapeUpdate(tape', tape, h, w): tape' is tape with position h set to w.
+    Forall p. Iff(In(p, tape'),
+        Or(OrdPair(p, h, w),
+           And(In(p, tape), Not(Exists(y, OrdPair(p, h, y))))))
+    Fully characterizes tape' as a set: contains exactly the pair (h,w)
+    plus all elements of tape that aren't pairs with first component h."""
     __match_args__ = ('new_tape', 'old_tape', 'pos', 'sym')
     def __init__(self, tapen, tape, h, w):
         self.new_tape = tapen; self.old_tape = tape; self.pos = h; self.sym = w
     def expand(self):
-        x, y = Var(), Var()
-        return Forall(x, Forall(y,
-            Iff(Apply(self.new_tape, x, y),
-                Or(And(Eq(x, self.pos), Eq(y, self.sym)),
-                   And(Apply(self.old_tape, x, y), Not(Eq(x, self.pos)))))))
+        p, y = Var(), Var()
+        return Forall(p, Iff(In(p, self.new_tape),
+            Or(OrdPair(p, self.pos, self.sym),
+               And(In(p, self.old_tape),
+                   Not(Exists(y, OrdPair(p, self.pos, y)))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return TapeUpdate(r(self.new_tape), r(self.old_tape), r(self.pos), r(self.sym))
