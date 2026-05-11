@@ -1256,21 +1256,24 @@ def config_intro():
 def phase1_pred(ka, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     """Phase 1 induction predicate: after ka steps, state q0, head at ka, tape unchanged.
     P(ka) = ∃tra, ca.
+      Function(tra) ∧
       TMConfig(ca, q0, ka, tape_in) ∧
-      Apply(tra, z, c0) ∧
+      ∀z'. Empty(z') → Apply(tra, z', c0) ∧
       Apply(tra, ka, ca) ∧
-      ∀ja < ka. ∀cja. Apply(tra, ja, cja) →
+      ∀ja < ka. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
         ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))
     where sja = S(ja), bound inside the forall."""
+    from vocab.functions import Function as FuncDef
     step_valid = Forall(ja, Implies(In(ja, ka),
         Forall(sja, Implies(Successor(sja, ja),
             Forall(cja, Implies(Apply(tra, ja, cja),
                 Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
     return Exists(tra, Exists(ca, And(
-        TMConfig(ca, q0, ka, tape_in),
+        FuncDef(tra),
+        And(TMConfig(ca, q0, ka, tape_in),
         And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
         And(Apply(tra, ka, ca),
-            step_valid)))))
+            step_valid))))))
 
 
 def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
@@ -3838,25 +3841,11 @@ def phase1_step_extend_trace(tra, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cj
          Case ja = ka: Apply(tra,ka,ca) → TMStep(delta,ca,ca_new) + Apply(tra_new,ska,ca_new)
     7. Wrap in And + ∃tra_new + ∃ca_body(=ca_new)
     """
-    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
-        eq_symmetric, or_elim, iff_mp, iff_mp_rev)
-    from theorems.sets import (ordpair_exists, singleton_exists, union_exists)
-    from theorems.recursion import (apply_singleton, apply_union_intro_left,
-        apply_union_intro_right, eq_apply_transfer, eq_apply_val_transfer)
-    from vocab.sets import Singleton as Sing, Union as UnionDef
-    from core.proof import Proof, Sequent
-    from core.derived import Exists, Or
-    import core.zfc as zfc
-
-    succ_ska = Successor(ska, ka)
-    step_valid_ka = Forall(ja, Implies(In(ja, ka),
-        Forall(sja, Implies(Successor(sja, ja),
-            Forall(cja, Implies(Apply(tra, ja, cja),
-                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
-    tmstep_ca = TMStep(delta, ca, ca_new)
-
-    oe = ordpair_exists()
+    # TODO: implement the full trace extension
+    # This is ~120 lines of: construct tra_new, transfer base/head, extend step_valid.
+    # The step_valid extension needs apply_union_elim for the Apply(tra_new,ja,cja) hypothesis,
+    # or_elim on the result, and omega_no_self_membership for the singleton case.
+    raise NotImplementedError("phase1_step_extend_trace: implementation pending")
 
     # === 1. Construct tra_new = tra ∪ {(ska, ca_new)} ===
     pair_ska = Var(postfix='pska')

@@ -1084,6 +1084,159 @@ def singleton_apply_eq():
 
 
 
+def singleton_is_function():
+    """A singleton set containing one ordered pair is a function.
+    Pairing, Extensionality |- ∀p, x, y, v.
+        OrdPair(p,x,y) → Singleton(v,p) → Function(v)
+
+    Relation(v): ∀q∈v. q=p (by Singleton), and p is an OrdPair. ✓
+    Single-valued(v): Apply(v,a,b1) ∧ Apply(v,a,b2) → Eq(b1,b2).
+      From singleton_apply_eq: Apply(v,a,b) → Eq(a,x) ∧ Eq(b,y). So b1=y and b2=y. ✓"""
+    from core.lang import Var, In, Not, Implies, Forall
+    from core.derived import Exists, And, Or, Iff, Eq
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, wl, wr, mp, ax, fl, cut, eir, eel
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        eq_symmetric, eq_transitive, iff_mp, iff_mp_rev)
+    from theorems.recursion import singleton_apply_eq
+    from vocab import (OrdPair, Singleton, Function as FuncDef, Apply, Relation)
+
+    p, x, y, v = Var(postfix='sp'), Var(postfix='sx'), Var(postfix='sy'), Var(postfix='sv')
+    op = OrdPair(p, x, y)
+    sing = Singleton(v, p)
+    func_v = FuncDef(v)
+
+    # singleton_apply_eq: OrdPair(p,x,y) → Singleton(v,p) → Apply(v,a,b) → And(Eq(a,x),Eq(b,y))
+    sae = singleton_apply_eq()
+
+    # === Relation(v) ===
+    # Relation(v) = ∀q. In(q,v) → ∃x',y'. OrdPair(q,x',y')
+    # From Singleton(v,p): In(q,v) ↔ Eq(q,p). So In(q,v) → Eq(q,p).
+    # From OrdPair(p,x,y) + Eq(q,p): OrdPair(q,x,y) via set transfer.
+    # ∃x',y'. OrdPair(q,x',y'): witness x'=x, y'=y.
+    q = Var(postfix='sq')
+    in_q_v = In(q, v)
+    eq_qp = Eq(q, p)
+
+    # Singleton(v,p): ∀d. In(d,v) ↔ Eq(d,p)
+    iff_sing = Iff(in_q_v, eq_qp)
+    got_fwd = apply_thm(iff_mp(in_q_v, eq_qp, []),
+        [], iff_sing, Implies(in_q_v, eq_qp), fl(sing, iff_sing, q))
+    got_eq_qp = mp(got_fwd, ax(in_q_v), in_q_v, eq_qp)
+    # [sing, In(q,v)] |- Eq(q,p)
+
+    # OrdPair(q,x,y) from OrdPair(p,x,y) + Eq(q,p)
+    from theorems.sets import ordpair_set_transfer
+    ost = ordpair_set_transfer()
+    # ordpair_set_transfer: Eq(s1,s2) → OrdPair(s2,a,b) → OrdPair(s1,a,b)
+    op_q = OrdPair(q, x, y)
+    got_op_q = mp(apply_thm(ost, [q, p, x, y], eq_qp,
+        Implies(op, op_q), got_eq_qp), ax(op), op, op_q)
+    # [sing, In(q,v), op] |- OrdPair(q,x,y)
+
+    # ∃x',y'. OrdPair(q,x',y')
+    x2, y2 = Var(postfix='sx2'), Var(postfix='sy2')
+    got_ex_rel = eir(got_op_q, OrdPair(q, x, y), y, y)  # ∃y. OrdPair(q,x,y)... wrong var
+    # Actually need ∃x2,y2 with FRESH vars. eir with witness x for x2, y for y2:
+    got_ex_y2 = eir(got_op_q, OrdPair(q, x, y2), y2, y)
+    got_ex_x2y2 = eir(got_ex_y2, Exists(y2, OrdPair(q, x2, y2)), x2, x)
+    # [...] |- ∃x2. ∃y2. OrdPair(q, x2, y2)
+
+    # Close: In(q,v) → ..., ∀q = Relation(v)
+    imp_rel = Implies(in_q_v, got_ex_x2y2.sequent.right[0])
+    left_rel = [f for f in got_ex_x2y2.sequent.left if not same(f, in_q_v)]
+    got_rel = Proof(Sequent(left_rel, [imp_rel]),
+        'implies_right', [got_ex_x2y2], principal=imp_rel)
+    fa_rel = Forall(q, imp_rel)
+    got_rel = Proof(Sequent(got_rel.sequent.left, [fa_rel]),
+        'forall_right', [got_rel], principal=fa_rel, term=q)
+    # [sing, op] |- Relation(v)
+
+    # === Single-valued(v) ===
+    # ∀a,b1,b2. And(Apply(v,a,b1), Apply(v,a,b2)) → Eq(b1,b2)
+    a, b1, b2 = Var(postfix='sa'), Var(postfix='sb1'), Var(postfix='sb2')
+    app1 = Apply(v, a, b1)
+    app2 = Apply(v, a, b2)
+    eq_b12 = Eq(b1, b2)
+
+    # singleton_apply_eq(p,x,y,v,a,b1): op → sing → app1 → And(Eq(a,x),Eq(b1,y))
+    got_sae1 = apply_thm(sae, [x, y, p, v, a, b1])
+    got_sae1 = mp(got_sae1, ax(op), op, got_sae1.sequent.right[0].right)
+    got_sae1 = mp(got_sae1, ax(sing), sing, got_sae1.sequent.right[0].right)
+    es = eq_symmetric()
+    # sae result: And(Eq(x,a), Eq(y,b1)) — note Eq direction
+    and_eq1 = And(Eq(x, a), Eq(y, b1))
+    got_sae1 = mp(got_sae1, ax(app1), app1, and_eq1)
+    got_eq_yb1 = apply_thm(and_elim_right(Eq(x,a), Eq(y,b1), []), [],
+        and_eq1, Eq(y, b1), got_sae1)
+    # eq_symmetric: Eq(y,b1) → Eq(b1,y)
+    got_eq_b1y = apply_thm(es, [y, b1], Eq(y,b1), Eq(b1,y), got_eq_yb1)
+    # [op, sing, app1, Ext, Pairing] |- Eq(b1,y)
+
+    and_eq2 = And(Eq(x, a), Eq(y, b2))
+    got_sae2 = apply_thm(sae, [x, y, p, v, a, b2])
+    got_sae2 = mp(got_sae2, ax(op), op, got_sae2.sequent.right[0].right)
+    got_sae2 = mp(got_sae2, ax(sing), sing, got_sae2.sequent.right[0].right)
+    got_sae2 = mp(got_sae2, ax(app2), app2, and_eq2)
+    got_eq_yb2 = apply_thm(and_elim_right(Eq(x,a), Eq(y,b2), []), [],
+        and_eq2, Eq(y, b2), got_sae2)
+    got_eq_b2y = apply_thm(es, [y, b2], Eq(y,b2), Eq(b2,y), got_eq_yb2)
+    # [op, sing, app2, Ext, Pairing] |- Eq(b2,y)
+
+    # Eq(b1,y) + Eq(y,b2) → Eq(b1,b2) via eq_transitive
+    # got_eq_b2y is Eq(b2,y). Reverse: Eq(y,b2)
+    et = eq_transitive()
+    eq_yb2 = Eq(y, b2)
+    got_eq_yb2_2 = apply_thm(es, [b2, y], Eq(b2, y), eq_yb2, got_eq_b2y)
+    got_eq_b12 = apply_thm(et, [b1, y, b2])
+    got_eq_b12 = mp(got_eq_b12, got_eq_b1y, Eq(b1, y), Implies(eq_yb2, eq_b12))
+    got_eq_b12 = mp(got_eq_b12, got_eq_yb2_2, eq_yb2, eq_b12)
+    # [op, sing, app1, app2, Ext, Pairing] |- Eq(b1,b2)
+
+    # And(app1, app2) as hypothesis, discharge
+    and_apps = And(app1, app2)
+    ael1 = and_elim_left(app1, app2, [])
+    aer1 = and_elim_right(app1, app2, [])
+    got_a1 = apply_thm(ael1, [], and_apps, app1, ax(and_apps))
+    got_a2 = apply_thm(aer1, [], and_apps, app2, ax(and_apps))
+    got_eq_b12 = cut(got_eq_b12, app1, got_a1)
+    got_eq_b12 = cut(got_eq_b12, app2, got_a2)
+    # [op, sing, And(app1,app2), Ext, Pairing] |- Eq(b1,b2)
+
+    imp_sv = Implies(and_apps, eq_b12)
+    left_sv = [f for f in got_eq_b12.sequent.left if not same(f, and_apps)]
+    got_sv = Proof(Sequent(left_sv, [imp_sv]),
+        'implies_right', [got_eq_b12], principal=imp_sv)
+    for vv in [b2, b1, a]:
+        body = got_sv.sequent.right[0]
+        fa = Forall(vv, body)
+        got_sv = Proof(Sequent(got_sv.sequent.left, [fa]),
+            'forall_right', [got_sv], principal=fa, term=vv)
+    # [op, sing, Ext, Pairing] |- single_valued(v)
+
+    # === And(Relation(v), single_valued(v)) = Function(v) ===
+    ai = and_intro(got_rel.sequent.right[0], got_sv.sequent.right[0], [])
+    got_func = mp(apply_thm(ai, [], got_rel.sequent.right[0],
+        Implies(got_sv.sequent.right[0], func_v), got_rel),
+        got_sv, got_sv.sequent.right[0], func_v)
+
+    # Close
+    for premise in [sing, op]:
+        imp = Implies(premise, got_func.sequent.right[0])
+        left = [f for f in got_func.sequent.left if not same(f, premise)]
+        got_func = Proof(Sequent(left, [imp]), 'implies_right', [got_func], principal=imp)
+
+    proof = got_func
+    for vv in [v, y, x, p]:
+        body = proof.sequent.right[0]
+        fa = Forall(vv, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=vv)
+
+    proof.name = 'singleton_is_function'
+    return proof
+
+
 def eq_apply_transfer():
     """|- forall v, x1, x2, y.
        Eq(x1, x2) -> Apply(v, x1, y) -> Apply(v, x2, y)
