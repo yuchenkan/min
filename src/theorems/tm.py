@@ -3826,11 +3826,347 @@ def phase1_step_extend_trace(tra, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cj
          Case ja = ka: Apply(tra,ka,ca) → TMStep(delta,ca,ca_new) + Apply(tra_new,ska,ca_new)
     7. Wrap in And + ∃tra_new + ∃ca_body(=ca_new)
     """
-    # TODO: implement the full trace extension
-    # This is ~120 lines of: construct tra_new, transfer base/head, extend step_valid.
-    # The step_valid extension needs apply_union_elim for the Apply(tra_new,ja,cja) hypothesis,
-    # or_elim on the result, and omega_no_self_membership for the singleton case.
-    raise NotImplementedError("phase1_step_extend_trace: implementation pending")
+    # TODO: implement (~150 lines)
+    # Available tools:
+    #   apply_union_intro_left/right: transfer Apply across union
+    #   apply_union_elim: decompose Apply(tra_new,...) into Or(Apply(tra,...), Apply(sing,...))
+    #   extend_function: Function(tra) + OrdPair + Singleton + Union + consistency → Function(tra_new)
+    #   func_unique_thm: Function(tra) + two Apply's → Eq on values
+    #   singleton_apply_eq: Apply(sing,...) → Eq on args
+    #   omega_no_self_membership: ¬In(n,n) for n∈ω (for singleton case ⊥)
+    #
+    # Pending issues (need omega context from caller):
+    #   1. Function(tra_new): extend_function needs consistency ∀z.Apply(tra,ska,z)→Eq(ca_new,z)
+    #      Consistency is vacuously true (ska ∉ dom(tra)) but proving it needs omega_no_self_membership.
+    #   2. Singleton case in step_valid: Apply(sing,ja,cja) + In(ja,ka) → Eq(ja,ska) → In(ska,ka) → ⊥
+    #      Needs omega_transitive_set + omega_no_self_membership.
+    #   3. Eq(ja,ka) case: func_unique gives Eq(cja,ca), then TMStep transfers.
+    #
+    # Parameters needed from caller (phase1_step):
+    #   Omega(w), In(ka,w) — for omega-dependent ⊥ derivations
+    raise NotImplementedError("phase1_step_extend_trace")
+
+    # === 1. Construct tra_new = tra ∪ {(ska, ca_new)} ===
+    pair_ska = Var(postfix='pska')
+    op_pair_ska = OrdPair(pair_ska, ska, ca_new)
+    got_ex_pair = apply_thm(oe, [ska, ca_new], concl=Exists(pair_ska, op_pair_ska))
+
+    sing = Var(postfix='sing')
+    sing_def = Sing(sing, pair_ska)
+    se = singleton_exists()
+    got_ex_sing = apply_thm(se, [pair_ska], concl=Exists(sing, sing_def))
+
+    tra_new = Var(postfix='trn')
+    union_def = UnionDef(tra_new, tra, sing)
+    ue = union_exists()
+    got_ex_union = apply_thm(ue, [tra, sing], concl=Exists(tra_new, union_def))
+
+    # === 2. Function(tra_new) via extend_function ===
+    # extend_function: Function(v) → OrdPair(p,x0,y0) → Singleton(s,p) → Union(u,v,s) →
+    #   (∀z. Apply(v,x0,z) → Eq(y0,z)) → Function(u)
+    ef = extend_function()
+    func_trn = FuncDef(tra_new)
+    # Consistency: ∀z. Apply(tra,ska,z) → Eq(ca_new,z)
+    # From func_unique: Function(tra) → Apply(tra,ska,z) → Apply(tra,ska,ca_new) → Eq(z,ca_new)
+    # But we DON'T have Apply(tra,ska,ca_new) — tra maps up to ka, not ska.
+    # The consistency condition is VACUOUSLY true if ska ∉ dom(tra).
+    # For now, just apply extend_function and handle the consistency condition.
+    zv = Var(postfix='zv')
+    consist = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
+    # Vacuously true: Apply(tra,ska,zv) can't hold if tra only maps 0..ka.
+    # But we can't prove this vacuity without more info about tra's domain.
+    # Actually, for the step case, we'd need In(ka,w) + Omega(w) to show ska∉dom(tra_old).
+    # Hmm, the consistency is about ska=S(ka) not being in the domain of tra.
+    # Without that, we need to prove it differently.
+    # SIMPLEST: the consistency condition is ∀z. Apply(tra,ska,z) → Eq(ca_new,z).
+    # We can't prove this vacuously without domain info.
+    # But extend_function requires it. So we need it as a hypothesis (from the caller).
+    # OR: prove Function(tra_new) differently.
+    # For a union of a function with a disjoint singleton, Function follows.
+    # But extend_function already handles this with the consistency condition.
+    # The consistency says: if tra already maps ska to something, it must be ca_new.
+    # In practice tra doesn't map ska at all, so it's vacuously true.
+    # Let me just leave Function(tra_new) as a hypothesis for now — the caller provides it.
+    # Actually no, that defeats the purpose of having Function in the predicate.
+    #
+    # PRAGMATIC: add the consistency condition as an additional hypothesis.
+    # In the phase1_step composition, we'll derive it from the induction context.
+    # For now, just leave Function(tra_new) as something we need on the left.
+
+    # Actually, let me think about this differently. For the step case of the induction,
+    # we know: In(ka, a) ∧ In(a, w) ∧ Omega(w). So ka ∈ ω. And tra maps 0..ka.
+    # ska = S(ka). ska ∉ {0,..,ka} because S(ka) > ka for natural numbers.
+    # But showing Apply(tra,ska,zv) → ⊥ requires showing ska is NOT in dom(tra).
+    # dom(tra) ⊆ S(ka) (= {0,...,ka}). Apply(tra,ska,zv) → ska ∈ dom(tra) → ska ∈ S(ka).
+    # In(ska, ska) → ⊥ from omega_no_self_membership + Omega(w) + In(ska,w).
+    # Wait, In(ska,ska)... but ska = S(ka) ∈ ω. omega_no_self_membership: ¬In(ska,ska).
+    # But Apply(tra,ska,zv) doesn't give In(ska,ska) — it gives In(some_pair, tra).
+    # Hmm. We'd need to show that tra's keys are all < ska (i.e., ∈ ka or = ka at most).
+    # This is complex and we don't track the domain.
+    #
+    # SIMPLEST PATH: For the extend_function consistency condition, note that
+    # the old tra maps {0,...,ka}. Apply(tra,ska,zv) means ∃p. OrdPair(p,ska,zv) ∧ In(p,tra).
+    # We don't have a way to show this is false without domain tracking.
+    #
+    # Let me just use the consistency condition as a hypothesis and
+    # have the phase1_step caller provide it. It will be derivable from
+    # Function(tra) + the fact that the trace only maps indices < S(ka).
+    #
+    # OR: avoid extend_function entirely. Prove Function(tra_new) directly:
+    # tra_new = tra ∪ sing. Relation: every element is from tra or sing, both have pairs. ✓
+    # Single-valued: Apply(tra_new,x,y1) ∧ Apply(tra_new,x,y2).
+    #   union_elim on each → 4 cases. tra+tra: Function(tra). sing+sing: singleton function.
+    #   tra+sing or sing+tra: x from tra domain AND x=ska. Cross case.
+    #   For the cross case: we need consistency.
+    #
+    # I think the simplest is to just axiomatize "consistency" as a hypothesis
+    # and let the caller deal with it. OR: add it as part of phase1_pred.
+    # Actually, no. Let me just use extend_function and pass consistency as an arg.
+    # The caller (phase1_step) will derive it from the omega context.
+
+    # For now: skip Function(tra_new) and add it as an ax() hypothesis.
+    # Mark as TODO for the caller.
+    got_func_trn = ax(func_trn)  # TODO: derive from extend_function + consistency
+
+    # === 3. Base: ∀z'. Empty(z') → Apply(tra_new, z', c0) ===
+    base_old = Forall(z, Implies(Empty(z), Apply(tra, z, c0)))
+    z_prime = Var(postfix='zp2')
+    app_tra_zp = Apply(tra, z_prime, c0)
+    app_trn_zp = Apply(tra_new, z_prime, c0)
+
+    got_app_old_z = apply_thm(ax(base_old), [z_prime], Empty(z_prime), app_tra_zp, ax(Empty(z_prime)))
+    aul = apply_union_intro_left()
+    got_app_new_z = apply_thm(aul, [tra_new, tra, sing, z_prime, c0])
+    got_app_new_z = mp(got_app_new_z, got_app_old_z, app_tra_zp, Implies(union_def, app_trn_zp))
+    got_app_new_z = mp(got_app_new_z, ax(union_def), union_def, app_trn_zp)
+
+    imp_base = Implies(Empty(z_prime), app_trn_zp)
+    left_base = [f for f in got_app_new_z.sequent.left if not same(f, Empty(z_prime))]
+    got_base = Proof(Sequent(left_base, [imp_base]),
+        'implies_right', [got_app_new_z], principal=imp_base)
+    fa_base = Forall(z_prime, imp_base)
+    got_base = Proof(Sequent(got_base.sequent.left, [fa_base]),
+        'forall_right', [got_base], principal=fa_base, term=z_prime)
+
+    # === 4. Head: Apply(tra_new, ska, ca_new) ===
+    asn = apply_singleton()
+    app_sing_ska = Apply(sing, ska, ca_new)
+    got_app_sing = apply_thm(asn, [ska, ca_new, pair_ska, sing])
+    got_app_sing = mp(got_app_sing, ax(op_pair_ska), op_pair_ska, Implies(sing_def, app_sing_ska))
+    got_app_sing = mp(got_app_sing, ax(sing_def), sing_def, app_sing_ska)
+
+    aur = apply_union_intro_right()
+    app_trn_ska = Apply(tra_new, ska, ca_new)
+    got_head = apply_thm(aur, [tra_new, tra, sing, ska, ca_new])
+    got_head = mp(got_head, got_app_sing, app_sing_ska, Implies(union_def, app_trn_ska))
+    got_head = mp(got_head, ax(union_def), union_def, app_trn_ska)
+
+    # === 5. step_valid(tra_new, ska) ===
+    # For each ja ∈ ska: In(ja,ska) ↔ Or(In(ja,ka), Eq(ja,ka)) from Successor.
+    # Case In(ja,ka): old step_valid + apply_union_elim + transfer
+    # Case Eq(ja,ka): func_unique(tra,ka,cja,ca) + TMStep(delta,ca,ca_new)
+
+    app_trn_ja = Apply(tra_new, ja, cja)
+    app_trn_sja = Apply(tra_new, sja, cja1)
+    step_body_new = Exists(cja1, And(app_trn_sja, TMStep(delta, cja, cja1)))
+
+    # From Successor(ska,ka): In(ja,ska) → Or(In(ja,ka), Eq(ja,ka))
+    iff_ska_ja = Iff(In(ja, ska), Or(In(ja, ka), Eq(ja, ka)))
+    got_or_ja = mp(apply_thm(iff_mp(In(ja,ska), Or(In(ja,ka), Eq(ja,ka)), []),
+        [], iff_ska_ja, Implies(In(ja,ska), Or(In(ja,ka), Eq(ja,ka))),
+        fl(succ_ska, iff_ska_ja, ja)),
+        ax(In(ja, ska)), In(ja, ska), Or(In(ja, ka), Eq(ja, ka)))
+    # [succ_ska, In(ja,ska)] |- Or(In(ja,ka), Eq(ja,ka))
+
+    # --- Case In(ja,ka): use apply_union_elim + old step_valid ---
+    # apply_union_elim: Apply(tra_new,ja,cja) → Union(tra_new,tra,sing) → Or(Apply(tra,ja,cja), Apply(sing,ja,cja))
+    aue = apply_union_elim()
+    app_tra_ja = Apply(tra, ja, cja)
+    app_sing_ja = Apply(sing, ja, cja)
+    or_apps = Or(app_tra_ja, app_sing_ja)
+
+    got_or_apps = apply_thm(aue, [tra_new, tra, sing, ja, cja])
+    got_or_apps = mp(got_or_apps, ax(app_trn_ja), app_trn_ja, Implies(union_def, or_apps))
+    got_or_apps = mp(got_or_apps, ax(union_def), union_def, or_apps)
+    # [Apply(tra_new,ja,cja), union_def] |- Or(Apply(tra,ja,cja), Apply(sing,ja,cja))
+
+    # Sub-case Apply(tra,ja,cja): old step_valid gives ∃cja1 with Apply(tra,...).
+    # Old step_valid: In(ja,ka) → ∀sja. Succ(sja,ja) → ∀cja. Apply(tra,ja,cja) → ∃cja1. And(Apply(tra,sja,cja1), TMStep)
+    got_old_sv = apply_thm(ax(step_valid_old), [ja], In(ja,ka),
+        Forall(sja, Implies(Successor(sja,ja), Forall(cja, Implies(app_tra_ja,
+            Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))))))),
+        ax(In(ja, ka)))
+    got_old_sv = apply_thm(got_old_sv, [sja], Successor(sja,ja),
+        Forall(cja, Implies(app_tra_ja, Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))))),
+        ax(Successor(sja, ja)))
+    got_old_sv = apply_thm(got_old_sv, [cja], app_tra_ja,
+        Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))),
+        ax(app_tra_ja))
+    # [step_valid_old, In(ja,ka), Succ(sja,ja), Apply(tra,ja,cja)] |- ∃cja1. And(Apply(tra,...), TMStep)
+
+    # Transfer Apply(tra,sja,cja1) to Apply(tra_new,sja,cja1) inside the ∃:
+    # Need to eel cja1, transfer, then eir back.
+    app_tra_sja = Apply(tra, sja, cja1)
+    and_old = And(app_tra_sja, TMStep(delta, cja, cja1))
+    got_app_tra_sja = apply_thm(and_elim_left(app_tra_sja, TMStep(delta, cja, cja1), []),
+        [], and_old, app_tra_sja, ax(and_old))
+    got_tmstep_old = apply_thm(and_elim_right(app_tra_sja, TMStep(delta, cja, cja1), []),
+        [], and_old, TMStep(delta, cja, cja1), ax(and_old))
+
+    # Transfer: Apply(tra,sja,cja1) → Apply(tra_new,sja,cja1)
+    got_app_trn_sja = apply_thm(aul, [tra_new, tra, sing, sja, cja1])
+    got_app_trn_sja = mp(got_app_trn_sja, got_app_tra_sja, app_tra_sja,
+        Implies(union_def, app_trn_sja))
+    got_app_trn_sja = mp(got_app_trn_sja, ax(union_def), union_def, app_trn_sja)
+
+    # Rebuild And(Apply(tra_new,...), TMStep)
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    and_new = And(app_trn_sja, TMStep(delta, cja, cja1))
+    got_and_new = mk_and(got_app_trn_sja, got_tmstep_old)
+    # [and_old, union_def] |- And(Apply(tra_new,sja,cja1), TMStep)
+
+    # eir cja1: And(...) → ∃cja1. And(...)
+    got_ex_new = eir(got_and_new, and_new, cja1, cja1)
+    # eel cja1 from and_old
+    got_ex_new = eel(got_ex_new, and_old, cja1)
+    # [..., ∃cja1.and_old, union_def] |- ∃cja1. And(Apply(tra_new,...), TMStep)
+
+    # Cut ∃cja1.and_old with got_old_sv:
+    got_case_in_tra = cut(got_ex_new, Exists(cja1, and_old), got_old_sv)
+    # [step_valid_old, In(ja,ka), Succ(sja,ja), Apply(tra,ja,cja), union_def] |- step_body_new
+
+    # Sub-case Apply(sing,ja,cja): singleton_apply_eq gives Eq(ja,ska), Eq(cja,ca_new).
+    # In(ja,ka) + Eq(ja,ska) → In(ska,ka). With Successor(ska,ka): In(ska,ska) (see below).
+    # Actually simpler: just derive step_body_new via ⊥.
+    # From singleton_apply_eq: Eq(ja,ska) → In(ja,ka) → In(ska,ka).
+    # omega_transitive_set: TransitiveSet(ka). In(ska,ka) → ska⊆ka → ka∈ska → ka∈ka.
+    # But we need Omega(w) + In(ka,w) for this. These come from the caller.
+    # For now, leave this as ⊥ → step_body_new with ax() placeholder.
+    # The ⊥ derivation needs omega context which is provided by the phase1_step caller.
+    got_case_in_sing = Proof(Sequent([app_sing_ja, In(ja, ka), Successor(sja, ja)],
+        [step_body_new]), 'weakening_right',
+        [Proof(Sequent([app_sing_ja, In(ja, ka), Successor(sja, ja)], []),
+            # TODO: derive ⊥ from singleton_apply_eq + In(ska,ka) + omega context
+            # For now this is a structural placeholder
+            'axiom', principal=app_sing_ja)],
+        principal=step_body_new)
+    # HACK: This axiom step is invalid. Need proper ⊥ proof.
+    # Leaving as placeholder — will be fixed when phase1_step provides omega context.
+
+    # or_elim on the two Apply sub-cases:
+    oe_apps = or_elim(app_tra_ja, app_sing_ja, step_body_new, [])
+    imp_tra = Implies(app_tra_ja, step_body_new)
+    imp_sing = Implies(app_sing_ja, step_body_new)
+    left_tra = [f for f in got_case_in_tra.sequent.left if not same(f, app_tra_ja)]
+    got_imp_tra = Proof(Sequent(left_tra, [imp_tra]),
+        'implies_right', [got_case_in_tra], principal=imp_tra)
+    left_sing = [f for f in got_case_in_sing.sequent.left if not same(f, app_sing_ja)]
+    got_imp_sing = Proof(Sequent(left_sing, [imp_sing]),
+        'implies_right', [got_case_in_sing], principal=imp_sing)
+
+    got_case_in = apply_thm(oe_apps, [], or_apps,
+        Implies(imp_tra, Implies(imp_sing, step_body_new)), got_or_apps)
+    got_case_in = mp(got_case_in, got_imp_tra, imp_tra, Implies(imp_sing, step_body_new))
+    got_case_in = mp(got_case_in, got_imp_sing, imp_sing, step_body_new)
+    # [..., In(ja,ka), Succ(sja,ja), Apply(tra_new,ja,cja)] |- step_body_new
+
+    # --- Case Eq(ja,ka): func_unique(tra) → Eq(cja, ca) → TMStep + Apply ===
+    # Apply(tra_new,ka,cja) via union_elim: Or(Apply(tra,ka,cja), Apply(sing,ka,cja))
+    # Apply(tra,ka,cja) + Function(tra) + Apply(tra,ka,ca) → Eq(cja,ca) via func_unique.
+    # Then TMStep(delta,ca,ca_new) → TMStep(delta,cja,cja1) with Eq(cja,ca), cja1=ca_new.
+    # Also: Eq(ja,ka) + Succ(sja,ja) → Succ(sja,ka). Combined with Succ(ska,ka) → Eq(sja,ska).
+    # Apply(tra_new,ska,ca_new) from step 4 → transfer to Apply(tra_new,sja,ca_new) via Eq(sja,ska).
+
+    # For Apply(sing,ka,cja): singleton_apply_eq → Eq(ka,ska). Since ska=S(ka),
+    # Eq(ka,ska) + In(ka,ka) (from Eq + ka∈S(ka)=ska)... this needs omega context.
+    # Same issue as above — leave as ⊥ placeholder.
+
+    # For the Apply(tra,ka,cja) sub-case:
+    fu = func_unique_thm()
+    app_tra_ka = Apply(tra, ka, ca)
+    eq_cja_ca = Eq(cja, ca)
+    got_fu_tra = apply_thm(fu, [tra, ka, cja, ca])
+    got_fu_tra = mp(got_fu_tra, ax(func_tra), func_tra, got_fu_tra.sequent.right[0].right)
+    got_fu_tra = mp(got_fu_tra, ax(Apply(tra, ka, cja)), Apply(tra, ka, cja),
+        got_fu_tra.sequent.right[0].right)
+    got_fu_tra = mp(got_fu_tra, ax(app_tra_ka), app_tra_ka, eq_cja_ca)
+    # [Function(tra), Apply(tra,ka,cja), Apply(tra,ka,ca)] |- Eq(cja,ca)
+
+    # TMStep(delta,cja,ca_new) from TMStep(delta,ca,ca_new) + Eq(cja,ca)?
+    # TMStep is a definition object with .before=ca. We can't directly substitute.
+    # TMStep(delta,ca,ca_new) is a specific formula. TMStep(delta,cja,ca_new) is different.
+    # But after Eq(cja,ca), they're equivalent via definition expansion.
+    # Actually TMStep expands to a big ∀...→ formula that mentions ca (the .before).
+    # With Eq(cja,ca), we can transfer: In(p,cja) ↔ In(p,ca). So the Config decomposition
+    # inside TMStep transfers. This is complex.
+    #
+    # Simpler: use TMStep(delta,ca,ca_new) directly and provide ca_new as witness for cja1.
+    # step_body_new = ∃cja1. And(Apply(tra_new,sja,cja1), TMStep(delta,cja,cja1))
+    # Witness cja1 = ca_new:
+    #   Apply(tra_new,sja,ca_new): need Eq(sja,ska), then transfer from Apply(tra_new,ska,ca_new).
+    #   TMStep(delta,cja,ca_new): need from TMStep(delta,ca,ca_new) + Eq(cja,ca).
+    # Both need work.
+
+    # For now: just build the Eq(ja,ka) case structurally and leave the omega-dependent
+    # sub-case as a placeholder. The main logic is:
+    # [Eq(ja,ka), Succ(sja,ja), Apply(tra_new,ja,cja), Function(tra), Apply(tra,ka,ca), TMStep(delta,ca,ca_new)] |- step_body_new
+
+    # This whole function is getting too complex. Let me just produce the final result
+    # with placeholders and verify the structure compiles. The actual omega-dependent
+    # pieces will be filled in when phase1_step provides the omega context.
+
+    # For now: use got_case_in as the In(ja,ka) branch.
+    # For the Eq(ja,ka) branch: leave as a placeholder.
+    got_case_eq = ax(step_body_new)
+    got_case_eq = wl(got_case_eq, Eq(ja, ka), Successor(sja, ja), app_trn_ja)
+    # PLACEHOLDER: [step_body_new, Eq(ja,ka), Succ(sja,ja), Apply(tra_new,ja,cja)] |- step_body_new
+
+    # or_elim on In(ja,ka) vs Eq(ja,ka):
+    oe_ja = or_elim(In(ja, ka), Eq(ja, ka), step_body_new, [])
+    imp_in_ja = Implies(In(ja, ka), step_body_new)
+    imp_eq_ja = Implies(Eq(ja, ka), step_body_new)
+
+    # Discharge In(ja,ka) from got_case_in:
+    left_in = [f for f in got_case_in.sequent.left if not same(f, In(ja, ka))]
+    got_imp_in_ja = Proof(Sequent(left_in, [imp_in_ja]),
+        'implies_right', [got_case_in], principal=imp_in_ja)
+    # Discharge Eq(ja,ka) from got_case_eq:
+    left_eq = [f for f in got_case_eq.sequent.left if not same(f, Eq(ja, ka))]
+    got_imp_eq_ja = Proof(Sequent(left_eq, [imp_eq_ja]),
+        'implies_right', [got_case_eq], principal=imp_eq_ja)
+
+    got_sv_body = apply_thm(oe_ja, [], Or(In(ja,ka), Eq(ja,ka)),
+        Implies(imp_in_ja, Implies(imp_eq_ja, step_body_new)), got_or_ja)
+    got_sv_body = mp(got_sv_body, got_imp_in_ja, imp_in_ja, Implies(imp_eq_ja, step_body_new))
+    got_sv_body = mp(got_sv_body, got_imp_eq_ja, imp_eq_ja, step_body_new)
+    # [..., In(ja,ska), Succ(sja,ja), Apply(tra_new,ja,cja)] |- step_body_new
+
+    # Close: Apply → ∀cja, Succ → ∀sja, In(ja,ska) → ∀ja
+    for premise, var in [(app_trn_ja, cja), (Successor(sja, ja), sja), (In(ja, ska), ja)]:
+        imp = Implies(premise, got_sv_body.sequent.right[0])
+        left = [f for f in got_sv_body.sequent.left if not same(f, premise)]
+        got_sv_body = Proof(Sequent(left, [imp]), 'implies_right', [got_sv_body], principal=imp)
+        fa = Forall(var, got_sv_body.sequent.right[0])
+        got_sv_body = Proof(Sequent(got_sv_body.sequent.left, [fa]),
+            'forall_right', [got_sv_body], principal=fa, term=var)
+    got_sv = got_sv_body
+    # step_valid for tra_new, ska
+
+    # === 6. Compose And + ∃ ===
+    # And(func, And(cfg_new, And(base, And(head, step_valid))))
+    # cfg_new comes from the caller as a hypothesis.
+    cfg_new = TMConfig(ca_new, q0, ska, tape_in) if False else None  # placeholder — caller provides
+    # Actually, we need TMConfig(ca_new,...) from the caller. It's not constructed here.
+    # phase1_step_extend_trace builds the trace extension part. TMConfig comes from tmstep.
+    # Let me just return the pieces and let the caller compose.
+
+    # For now, return a proof of the step_valid + base + head + func parts.
+    # The caller (phase1_step) will compose with TMConfig and wrap in ∃.
+    raise NotImplementedError("phase1_step_extend_trace: structure built, needs omega-dependent pieces + final composition")
 
     # === 1. Construct tra_new = tra ∪ {(ska, ca_new)} ===
     pair_ska = Var(postfix='pska')
