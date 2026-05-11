@@ -1257,23 +1257,29 @@ def phase1_pred(ka, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     """Phase 1 induction predicate: after ka steps, state q0, head at ka, tape unchanged.
     P(ka) = ∃tra, ca.
       Function(tra) ∧
+      ∀x,y. Apply(tra,x,y) → Or(In(x,ka), Eq(x,ka)) ∧  [domain bound]
       TMConfig(ca, q0, ka, tape_in) ∧
       ∀z'. Empty(z') → Apply(tra, z', c0) ∧
       Apply(tra, ka, ca) ∧
-      ∀ja < ka. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
-        ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))
-    where sja = S(ja), bound inside the forall."""
+      step_valid(tra, ka)
+    where step_valid = ∀ja < ka. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
+        ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))"""
     from vocab.functions import Function as FuncDef
+    from core.derived import Or
+    xd, yd = Var(postfix='xd'), Var(postfix='yd')
+    dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
+        Or(In(xd, ka), Eq(xd, ka)))))
     step_valid = Forall(ja, Implies(In(ja, ka),
         Forall(sja, Implies(Successor(sja, ja),
             Forall(cja, Implies(Apply(tra, ja, cja),
                 Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
     return Exists(tra, Exists(ca, And(
         FuncDef(tra),
+        And(dom_bound,
         And(TMConfig(ca, q0, ka, tape_in),
         And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
         And(Apply(tra, ka, ca),
-            step_valid))))))
+            step_valid)))))))
 
 
 def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
@@ -1281,7 +1287,7 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     Returns: [TMConfig(c0,q0,z,tape_in), Num(z,0), Pairing] |- P1(0)
     where P1(0) = phase1_pred(zero_var, ...)"""
 
-    zero_var = Var(postfix='z0')  # the 0 for P1(0)
+    zero_var = z  # use z directly as base case ka (z has Num(z,0) = Empty(z))
     p1_zero = phase1_pred(zero_var, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
     # P1(0) = ∃tra, ca. And(
     #   TMConfig(ca, q0, 0, tape_in),
@@ -1325,7 +1331,7 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
 
     # === Implement proof ===
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
-    from theorems.logic import and_intro, eq_substitution, iff_mp_rev, eq_reflexive
+    from theorems.logic import and_intro, and_elim_left, and_elim_right, eq_substitution, iff_mp_rev, eq_reflexive
     from theorems.sets import ordpair_exists, singleton_exists
     from core.proof import Proof, Sequent
     import core.zfc as zfc
@@ -1473,7 +1479,118 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     got_1f = mp(got_1f, ax(sing_tra), sing_tra, func_tra)
     # [Pairing, op_p0, sing_tra] |- Function(tra)
 
-    # === Compose into P1(z) = ∃tra, ca. And(1f, And(1e, And(1b, And(1c, 1d)))) ===
+    # --- 1g: domain bound: ∀x,y. Apply(tra,x,y) → Or(In(x,zero_var), Eq(x,zero_var)) ---
+    # tra = {(z,c0)} singleton. Apply(tra,x,y) → singleton_apply_eq → Eq(z,x) ∧ Eq(c0,y).
+    # Eq(z,x) → eq_symmetric → Eq(x,z). Or right disjunct: Or(In(x,z), Eq(x,z)).
+    from theorems.recursion import singleton_apply_eq as sae_thm
+    from theorems.logic import or_intro_right, eq_symmetric
+    from core.derived import Or
+    xd, yd = Var(postfix='xd'), Var(postfix='yd')
+    app_tra_xd = Apply(tra, xd, yd)
+    eq_xd_z = Eq(xd, zero_var)
+    or_dom = Or(In(xd, zero_var), eq_xd_z)
+
+    sae = sae_thm()
+    eq_z_xd = Eq(z, xd)
+    and_sae = And(eq_z_xd, Eq(c0, yd))
+    got_sae = apply_thm(sae, [z, c0, pair_0a, tra, xd, yd])
+    got_sae = mp(got_sae, ax(op_p0), op_p0, got_sae.sequent.right[0].right)
+    got_sae = mp(got_sae, ax(sing_tra), sing_tra, got_sae.sequent.right[0].right)
+    got_sae = mp(got_sae, ax(app_tra_xd), app_tra_xd, and_sae)
+    got_eq_z_xd = apply_thm(and_elim_left(eq_z_xd, Eq(c0, yd), []), [],
+        and_sae, eq_z_xd, got_sae)
+    # Eq(z,x): Or right disjunct directly (we have Eq(z,xd), need Or(In(xd,z), Eq(xd,z)))
+    # Actually, Eq(z,xd) is about z and xd having the same elements.
+    # We need Eq(xd, zero_var) where zero_var is the ka for the base case (=0).
+    # zero_var = z via the Num(z,0) hypothesis. So Eq(xd, z) = Eq(xd, zero_var).
+    # From Eq(z,xd) → eq_symmetric → Eq(xd,z). Then Or right disjunct.
+    # But zero_var ≠ z as Var objects. Use the z directly since the base pred uses zero_var.
+    # Actually, looking at phase1_pred: dom_bound uses ka = zero_var. Got sae gives Eq(z, xd).
+    # zero_var is the ka for the base case. The predicate was called with ka=zero_var.
+    # The sae pair uses z (the original z parameter) in OrdPair(pair_0a, z, c0).
+    # We need Or(In(xd, zero_var), Eq(xd, zero_var)).
+    # From Eq(z, xd): if z = zero_var, then Eq(zero_var, xd) → eq_sym → Eq(xd, zero_var). ✓
+    # But z ≠ zero_var as Var objects. They're connected by Num(z,0) ↔ Empty(z).
+    # The singleton pair uses z. The pred uses zero_var. Need to bridge.
+    # Simplest: use Eq(z, xd) from sae directly. The dom_bound for the base uses zero_var.
+    # We proved earlier that zero_var and z are both 0 (both Empty). unique_empty → Eq(zero_var, z).
+    # Then: Eq(z, xd) + Eq(zero_var, z) → Eq(zero_var, xd) → Eq(xd, zero_var).
+    # This is getting complex. Let me just use z directly in the Or.
+    # Or(In(xd, zero_var), Eq(xd, zero_var)): zero_var is the base case ka.
+    # The sae gives Eq(z, xd) where z is the pair's first component.
+    # z and zero_var might be the same or different.
+    # Looking at the code: zero_var = Var(postfix='z0'), z is a parameter.
+    # They're DIFFERENT vars. But the dom_bound uses zero_var (as ka in phase1_pred).
+    # The sae result has Eq(z, xd). We need Eq(xd, zero_var).
+    # From Num(z,0) and the P1(0) construction: zero_var is the 0 substituted into P1.
+    # Actually, in the base case, the trace uses z (from OrdPair(pair_0a, z, c0)).
+    # But the domain bound uses zero_var (from phase1_pred(zero_var, ...)).
+    # We need to connect z to zero_var via Eq.
+    # From unique_empty: Num(z,0) ∧ Num(zero_var,0) → Eq(z, zero_var).
+    # Then: Eq(z, xd) + Eq(z, zero_var) → Eq(zero_var, xd) via eq chain.
+    # This is too much plumbing. SIMPLER: just use z as the base ka.
+    # But phase1_pred was called with zero_var as ka, so the dom_bound formula uses zero_var.
+    # The formula on the right uses zero_var, not z.
+
+    # SIMPLEST FIX: sae gives Eq(z, xd). We need Or(In(xd, zero_var), Eq(xd, zero_var)).
+    # Both Eq(z, xd) and the Or use different variables.
+    # Instead of bridging, use Eq(z, xd) to derive In(xd, zero_var) or Eq(xd, zero_var) directly.
+    # Eq(z, xd) = ∀v. v∈z ↔ v∈xd. This means z and xd have same elements.
+    # Eq(xd, zero_var): xd and zero_var have same elements.
+    # From Eq(z, xd) and Eq(z, zero_var): Eq(xd, zero_var) by transitivity.
+    # We have Num(z,0) on the left. zero_var was constructed as Var(postfix='z0').
+    # Num(zero_var,0) is NOT on the left. Hmm.
+
+    # Actually, in the unique_empty step (1b), we derived Eq(z', z) from Empty(z') and Num(z,0).
+    # Can we derive Eq(z, zero_var) from Num(z,0) and something about zero_var?
+    # zero_var appears in the domain bound formula which uses zero_var as ka.
+    # But zero_var doesn't have any properties on the left.
+
+    # The real issue: the sae result uses z (from the pair), but the dom_bound uses
+    # zero_var (from the pred). These are different Vars.
+
+    # CLEANEST FIX: build the dom_bound proof using z instead of zero_var.
+    # The dom_bound formula in the predicate uses zero_var (as ka).
+    # But we can prove the formula with zero_var by noting Eq(zero_var, z) or by using z directly.
+
+    # Actually, let me look at what the actual dom_bound formula is from phase1_pred:
+    # phase1_pred(zero_var, ...) creates dom_bound with ka=zero_var:
+    # ∀xd,yd. Apply(tra,xd,yd) → Or(In(xd,zero_var), Eq(xd,zero_var))
+    # The sae gives Eq(z, xd). I need Eq(xd, zero_var).
+    # If I could show Eq(zero_var, z), then Eq(z,xd)+Eq(zero_var,z)→Eq(zero_var,xd)→Eq(xd,zero_var).
+
+    # Eq(zero_var, z): both are 0. From Num(z,0)=Empty(z) and Num(zero_var,0)=Empty(zero_var).
+    # But we don't have Num(zero_var,0) on the left!
+    # zero_var was created in phase1_base. Its "0-ness" isn't on the left.
+
+    # PRAGMATIC: just directly prove Or(In(xd, zero_var), Eq(xd, zero_var)) from Eq(z, xd).
+    # Eq(z, xd) means z ≡ xd (same elements). We need xd ≡ zero_var or xd ∈ zero_var.
+    # Without Eq(z, zero_var), we can't connect them.
+
+    # REAL FIX: use z as the base case ka instead of zero_var.
+    # Or: don't create zero_var at all. Just use z for P1(0).
+    # But phase1_pred(z, ...) would make the domain bound use z as ka.
+    # Then the sae gives Eq(z, xd) → Or(In(xd, z), Eq(xd, z)). Works!
+
+    # Let me change the base case to use z instead of zero_var.
+    # Now zero_var = z, so Or(In(xd, z), Eq(xd, z)). From Eq(z, xd) → eq_sym → Eq(xd, z). ✓
+    es_thm = eq_symmetric()
+    got_es = apply_thm(es_thm, [z, xd])
+    got_eq_xd_z = mp(got_es, got_eq_z_xd, eq_z_xd, eq_xd_z)
+    # Or right: Eq(x,z) → Or(In(x,z), Eq(x,z))
+    oir = or_intro_right(In(xd, zero_var), eq_xd_z, [])
+    got_or_dom = apply_thm(oir, [], eq_xd_z, or_dom, got_eq_xd_z)
+    # Close: Apply → Or, ∀y, ∀x
+    imp_dom = Implies(app_tra_xd, or_dom)
+    left_dom = [f for f in got_or_dom.sequent.left if not same(f, app_tra_xd)]
+    got_1g = Proof(Sequent(left_dom, [imp_dom]), 'implies_right', [got_or_dom], principal=imp_dom)
+    fa_yd = Forall(yd, imp_dom)
+    got_1g = Proof(Sequent(got_1g.sequent.left, [fa_yd]), 'forall_right', [got_1g], principal=fa_yd, term=yd)
+    fa_xd = Forall(xd, fa_yd)
+    got_1g = Proof(Sequent(got_1g.sequent.left, [fa_xd]), 'forall_right', [got_1g], principal=fa_xd, term=xd)
+    # [Pairing, Ext, op_p0, sing_tra] |- dom_bound(tra, zero_var)
+
+    # === Compose P1(z) = ∃tra, ca. And(1f, And(1g, And(1e, And(1b, And(1c, 1d))))) ===
     def mk_and(got_l, got_r):
         """Helper: [ctx_l] |- L and [ctx_r] |- R → [merged] |- And(L, R)"""
         L, R = got_l.sequent.right[0], got_r.sequent.right[0]
@@ -1483,7 +1600,8 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     got_cd = mk_and(got_1c, got_1d)         # And(apply, step_valid)
     got_bcd = mk_and(got_1b, got_cd)         # And(base, And(apply, step_valid))
     got_ebcd = mk_and(got_1e, got_bcd)       # And(cfg, And(base, And(apply, step_valid)))
-    got_all = mk_and(got_1f, got_ebcd)       # And(func, And(cfg, And(base, And(apply, step_valid))))
+    got_gebcd = mk_and(got_1g, got_ebcd)     # And(dom, And(cfg, And(base, And(apply, sv))))
+    got_all = mk_and(got_1f, got_gebcd)      # And(func, And(dom, And(cfg, ...)))
 
     # eir ca = c0:
     got_ex_ca = eir(got_all, got_all.sequent.right[0], ca, c0)
@@ -1805,237 +1923,13 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
     got_ex_tra_ca = eir(got_ex_tra, ex_tra_body_ca, ca, ca_new)
     # [..., and_cfg_step(ca_new), consist(ca_new)] |- P1(S(ka)) — ca_new NOT free in right
 
-    # Merge and_cfg_step + consist into one And, eel ca_new
-    and_both = And(and_cfg_step, consist)
-    got_cfg_from_both = apply_thm(and_elim_left(and_cfg_step, consist, []), [],
-        and_both, and_cfg_step, ax(and_both))
-    got_con_from_both = apply_thm(and_elim_right(and_cfg_step, consist, []), [],
-        and_both, consist, ax(and_both))
+    # With domain bound, consist is properly proved (no ca_new on left from it).
+    # Only and_cfg_step has ca_new free on the left.
+    # eel and_cfg_step/ca_new, then cut with got_tmstep.
     if any(same(and_cfg_step, f) for f in got_ex_tra_ca.sequent.left):
-        got_ex_tra_ca = cut(got_ex_tra_ca, and_cfg_step, got_cfg_from_both)
-    if any(same(consist, f) for f in got_ex_tra_ca.sequent.left):
-        got_ex_tra_ca = cut(got_ex_tra_ca, consist, got_con_from_both)
-    got_ex_tra_ca = eel(got_ex_tra_ca, and_both, ca_new)
-    # [..., ∃ca_new. and_both] |- P1(S(ka))
+        got_ex_tra_ca = eel(got_ex_tra_ca, and_cfg_step, ca_new)
+        got_ex_tra_ca = cut(got_ex_tra_ca, Exists(ca_new, and_cfg_step), got_tmstep)
 
-    # Cut ∃ca_new. and_both with proof from got_tmstep + consist.
-    # got_tmstep: [ctx_t] |- ∃ca_new. and_cfg_step
-    # Need: [ctx_t, ...] |- ∃ca_new. and_both = ∃ca_new. And(and_cfg_step, consist)
-    # From and_cfg_step on left (inside ∃): mk_and with ax(consist) → and_both → eir ca_new.
-    # consist = ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv). With ca_new from the ∃ scope.
-    # ax(consist) has [consist] on left. consist has ca_new free.
-    # After mk_and: [and_cfg_step, consist] |- and_both. eir ca_new: [and_cfg_step, consist] |- ∃ca_new. and_both.
-    # eel both from left: [∃ca_new. And(and_cfg_step, consist)] |- ∃ca_new. and_both.
-    # = [∃ca_new. and_both] |- ∃ca_new. and_both — tautology, useless.
-
-    # Better: start from got_tmstep's ∃ca_new. and_cfg_step.
-    # Open: assume and_cfg_step on left.
-    # Build consist from the context: consist = ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv).
-    # This is the extend_function consistency. It's NOT provable without domain tracking.
-    # But we CAN weaken: from and_cfg_step, we have TMStep(delta,ca,ca_new) and TMConfig(ca_new,...).
-    # These don't give us consist.
-    # consist is about tra mapping ska — unrelated to TMStep/TMConfig.
-
-    # Prove ∃ca_new. consist from Function(tra):
-    # ∃c. ∀zv. Apply(tra,ska,zv) → Eq(c,zv) = "tra is single-valued at ska"
-    # Case ¬∃y.Apply(tra,ska,y): pick any c, consist vacuously true.
-    # Case ∃y.Apply(tra,ska,y): pick c=y, func_unique gives Eq(y,zv).
-    # Proof via excluded middle on Apply(tra,ska,zv):
-    # Assume Apply(tra,ska,zv). eir y=zv: ∃y.Apply(tra,ska,y).
-    # From func_unique + Apply(tra,ska,zv) + Apply(tra,ska,ca_new_witness) → Eq(zv,ca_new_witness).
-    # But we're building ∀zv. so this is inside a forall.
-    # Simpler: just pick ca_new = ca (the old config) as witness.
-    # ∀zv. Apply(tra,ska,zv) → Eq(ca,zv):
-    #   Assume Apply(tra,ska,zv). From func_unique + func_tra: need Apply(tra,ska,ca).
-    #   We don't have Apply(tra,ska,ca). This approach fails.
-    # Actually simplest: use the NOT case. ¬∃y.Apply(tra,ska,y) = ∀y.¬Apply(tra,ska,y).
-    # Then ∀zv. Apply(tra,ska,zv) → Eq(ca,zv) follows from ¬Apply(tra,ska,zv) → ⊥ → Eq(ca,zv).
-    # But ¬∃y.Apply(tra,ska,y) needs domain reasoning.
-    # OR: just use excluded middle in sequent calculus.
-
-    # Excluded middle: |- ∃y.Apply(tra,ska,y), ¬∃y.Apply(tra,ska,y)
-    # not_right on axiom: from [A] |- [A] get [] |- [¬A, A]
-    yy = Var(postfix='yy')
-    ex_app = Exists(yy, Apply(tra, ska, yy))
-    # [] |- [ex_app, Not(ex_app)]
-    ax_ex = Proof(Sequent([ex_app], [ex_app]), 'axiom', principal=ex_app)
-    lem = Proof(Sequent([], [Not(ex_app), ex_app]), 'not_right', [ax_ex], principal=Not(ex_app))
-
-    # Case ¬∃y.Apply(tra,ska,y): vacuously true for any witness.
-    # ∀zv.¬Apply(tra,ska,zv) from ¬∃y.Apply(tra,ska,y) (they're the same).
-    # Assume Apply(tra,ska,zv): contradicts ¬Apply (via eir y=zv).
-    # ⊥ → Eq(ca,zv). Close ∀zv. eir ca_new = ca.
-    not_ex_app = Not(ex_app)
-    app_tra_ska_zv = Apply(tra, ska, zv)
-    # eir yy=zv into ∃: [Apply(tra,ska,zv)] |- ∃yy.Apply(tra,ska,yy)
-    got_eir_app = eir(ax(app_tra_ska_zv), Apply(tra, ska, yy), yy, zv)
-    # not_left: [Apply(tra,ska,zv), ¬∃y.Apply] |- []
-    got_bot_neg = Proof(Sequent([app_tra_ska_zv, not_ex_app], []),
-        'not_left', [got_eir_app], principal=not_ex_app)
-    got_neg_case = Proof(Sequent(got_bot_neg.sequent.left, [Eq(ca, zv)]),
-        'weakening_right', [got_bot_neg], principal=Eq(ca, zv))
-    # Close: Apply → Eq, ∀zv, eir ca_new=ca
-    imp_neg = Implies(app_tra_ska_zv, Eq(ca, zv))
-    got_neg_case = Proof(Sequent([not_ex_app], [imp_neg]),
-        'implies_right', [got_neg_case], principal=imp_neg)
-    fa_neg = Forall(zv, imp_neg)
-    got_neg_case = Proof(Sequent([not_ex_app], [fa_neg]),
-        'forall_right', [got_neg_case], principal=fa_neg, term=zv)
-    # consist template with ca (not ca_new): ∀zv. Apply(tra,ska,zv) → Eq(ca, zv)
-    consist_ca = Forall(zv, Implies(app_tra_ska_zv, Eq(ca, zv)))
-    # eir ca_new = ca:
-    from core.derived import Exists as Ex
-    consist_tmpl = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
-    got_neg_ex = eir(got_neg_case, consist_tmpl, ca_new, ca)
-    # [¬∃y.Apply(tra,ska,y)] |- ∃ca_new. consist
-
-    # Case ∃y.Apply(tra,ska,y): pick ca_new = y, use func_unique.
-    app_tra_ska_yy = Apply(tra, ska, yy)
-    from theorems.omega import func_unique_thm
-    from theorems.logic import eq_symmetric as eq_sym_thm
-    fu2 = func_unique_thm()
-    es2 = eq_sym_thm()
-    # func_unique: Function(tra) → Apply(tra,ska,zv) → Apply(tra,ska,yy) → Eq(zv,yy)
-    eq_zv_yy = Eq(zv, yy)
-    got_fu2 = apply_thm(fu2, [tra, ska, zv, yy])
-    got_fu2 = mp(got_fu2, ax(func_tra), func_tra, got_fu2.sequent.right[0].right)
-    got_fu2 = mp(got_fu2, ax(app_tra_ska_zv), app_tra_ska_zv, got_fu2.sequent.right[0].right)
-    got_fu2 = mp(got_fu2, ax(app_tra_ska_yy), app_tra_ska_yy, eq_zv_yy)
-    # Eq(yy,zv) from Eq(zv,yy):
-    eq_yy_zv = Eq(yy, zv)
-    got_yy_zv = apply_thm(es2, [zv, yy], eq_zv_yy, eq_yy_zv, got_fu2)
-    # Close: Apply(tra,ska,zv) → Eq(yy,zv), ∀zv
-    imp_pos = Implies(app_tra_ska_zv, eq_yy_zv)
-    left_pos = [f for f in got_yy_zv.sequent.left if not same(f, app_tra_ska_zv)]
-    got_pos_case = Proof(Sequent(left_pos, [imp_pos]),
-        'implies_right', [got_yy_zv], principal=imp_pos)
-    fa_pos = Forall(zv, imp_pos)
-    got_pos_case = Proof(Sequent(got_pos_case.sequent.left, [fa_pos]),
-        'forall_right', [got_pos_case], principal=fa_pos, term=zv)
-    # [Function(tra), Apply(tra,ska,yy)] |- ∀zv. Apply(tra,ska,zv) → Eq(yy,zv)
-    # eir ca_new = yy:
-    consist_tmpl2 = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
-    got_pos_ex = eir(got_pos_case, consist_tmpl2, ca_new, yy)
-    # [Function(tra), Apply(tra,ska,yy)] |- ∃ca_new. consist
-    # eel yy from Apply(tra,ska,yy):
-    got_pos_ex = eel(got_pos_ex, app_tra_ska_yy, yy)
-    # [Function(tra), ∃yy.Apply(tra,ska,yy)] |- ∃ca_new. consist
-    got_pos_ex = cut(got_pos_ex, ex_app, ax(ex_app))
-    # Wait, this is circular. ex_app is on the left via eel. I need it from context.
-    # Actually eel replaces Apply(tra,ska,yy) with ∃yy.Apply = ex_app. ax(ex_app) just gives [ex_app]|-[ex_app].
-    # The cut would be: cut(proof, ex_app, ax(ex_app)). This replaces ex_app on left with [ex_app]. No change.
-    # I don't need this cut. The proof already has ex_app on left from eel.
-    # [Function(tra), ex_app] |- ∃ca_new. consist
-
-    # Combine via cut on LEM:
-    # lem: [] |- [Not(ex_app), ex_app]
-    # neg case: [Not(ex_app)] |- ∃ca_new. consist
-    # pos case: [Function(tra), ex_app] |- ∃ca_new. consist
-    # cut Not(ex_app): merge = [Function(tra)] |- ∃ca_new. consist
-    ex_consist = Exists(ca_new, consist)
-    from tactics import weaken_to
-    lem_w = wl(lem, func_tra)
-    lem_w = wr(lem_w, ex_consist)
-    # [Function(tra)] |- [Not(ex_app), ex_app, ∃ca_new.consist]
-    # not_left on ex_app: from [ctx] |- [ex_app, ∃ca_new.consist] get [ctx, Not(ex_app)] |- [∃ca_new.consist]
-    # Hmm, need to be careful. Let me use the standard cut pattern.
-
-    # neg: [Not(ex_app)] |- ∃ca_new.consist
-    # pos: [Function(tra), ex_app] |- ∃ca_new.consist
-    # lem: [] |- [Not(ex_app), ex_app]
-    # By cut on Not(ex_app): from lem: [] |- [Not(ex_app), ex_app]
-    #   and pos_w: [Function(tra), Not(ex_app), ex_app] |- ∃ca_new.consist
-    #   Cut Not(ex_app) doesn't work directly.
-    # Standard approach: cut ex_app from pos with lem.
-    # pos has ex_app on left. lem proves ex_app (along with Not(ex_app)).
-    # cut(pos, ex_app, lem): removes ex_app from pos's left, adds lem's left.
-    # But lem has [] on left and [Not(ex_app), ex_app] on right.
-    # cut expects got_pred to prove ex_app: lem proves [Not(ex_app), ex_app] on right.
-    # That's not just ex_app — it has Not(ex_app) too.
-    # cut function uses wr to add the proof's right formula to lem's right. Complex.
-
-    # Simplest: use the or_elim pattern on LEM.
-    # Or(ex_app, Not(ex_app)) = Implies(Not(ex_app), Not(ex_app))... no, that's not Or.
-    # LEM in our system: [] |- [Not(A), A] which is [] |- [Not(Not(A)), A] if we rearrange... no.
-    # Actually [] |- [Not(A), A] is not Or. Let me build it properly.
-    # From not_right: [A] |- [A] → [] |- [Not(A), A].
-    # To combine neg and pos cases: use two cuts.
-    # Cut A from pos: needs a proof of A. We have lem: [] |- [Not(A), A].
-    # cut(pos, ex_app, lem'): where lem' = [] |- [ex_app, Not(ex_app)].
-    # Wait, cut expects lem' to have ex_app on the right (among possibly others).
-    # cut(pos, ex_app, proof_of_ex_app): proof_of_ex_app has ex_app on right.
-    # lem has [Not(ex_app), ex_app] on right. That counts.
-    # After cut: pos's left minus ex_app, plus lem's left ([]), right = [ex_consist].
-    # But: the cut also puts Not(ex_app) on the right from lem? No, cut rule:
-    # From [G] |- [D, P] and [G, P] |- [D] get [G] |- [D].
-    # ps0 = lem_w (weakened): [Function(tra)] |- [Not(ex_app), ex_app, ex_consist]
-    #   = [G] |- [D, P] where D = [Not(ex_app), ex_consist], P = ex_app.
-    # ps1 = pos_w: [Function(tra), ex_app] |- [ex_consist]
-    #   = [G, P] |- [D] where D = [ex_consist]. But D should match! D in ps1 = [ex_consist].
-    #   D in ps0 minus P = [Not(ex_app), ex_consist]. These don't match!
-    # The rule requires ps0 right = D ∪ {P} and ps1 right = D. With D = [ex_consist]:
-    #   ps0 right = [ex_consist, ex_app]. But actual ps0 right = [Not(ex_app), ex_app, ex_consist].
-    #   Extra Not(ex_app) in ps0. This means D = [Not(ex_app), ex_consist].
-    #   Then ps1 should be [G, P] |- [Not(ex_app), ex_consist].
-
-    # So: pos needs Not(ex_app) on the right too. wr:
-    got_pos_w = wr(wl(got_pos_ex, func_tra) if not any(same(func_tra, f) for f in got_pos_ex.sequent.left) else got_pos_ex, Not(ex_app))
-    # [Function(tra), ex_app] |- [∃ca_new.consist, Not(ex_app)]
-
-    # Now cut ex_app:
-    lem_w2 = wl(wr(lem, ex_consist), func_tra)
-    # [Function(tra)] |- [Not(ex_app), ex_app, ∃ca_new.consist]
-    got_cut1 = Proof(Sequent([func_tra], [Not(ex_app), ex_consist]), 'cut',
-        [lem_w2, got_pos_w], principal=ex_app)
-    # [Function(tra)] |- [Not(ex_app), ∃ca_new.consist]
-
-    # Now cut Not(ex_app): neg case has Not(ex_app) on left.
-    got_neg_w = wl(got_neg_ex, func_tra)
-    got_neg_w = wr(got_neg_w, Not(ex_app))
-    # Hmm, this is getting messy. Let me use the simpler approach.
-    # not_left: from [G] |- [D, A] get [G, Not(A)] |- [D].
-    # With A = ex_app: from [Function(tra)] |- [Not(ex_app), ∃ca_new.consist, ex_app] ...
-    # This is getting too complex for inline.
-
-    # SIMPLEST: just use neg directly. ¬∃y case gives any witness.
-    # From ¬∃y.Apply(tra,ska,y): ∀y.¬Apply(tra,ska,y).
-    # consist[ca_new:=ca] = ∀zv. Apply(tra,ska,zv) → Eq(ca,zv).
-    # Apply(tra,ska,zv) + ¬Apply(tra,ska,zv) → ⊥ → Eq(ca,zv). ✓
-    # So neg case works with witness ca.
-
-    # For pos case: just pick ca_new = yy where Apply(tra,ska,yy) holds.
-    # The func_unique gives Eq(zv,yy) → Eq(yy,zv). ✓
-
-    # Both cases give ∃ca_new. consist. Combine:
-    # cut Not(ex_app) from got_cut1: [Function(tra)] |- [Not(ex_app), ∃ca_new.consist]
-    # not_left on Not(ex_app): need [Function(tra)] |- [ex_app, ∃ca_new.consist]... hmm.
-
-    # Let me just use the neg case alone as the proof.
-    # got_neg_ex: [¬∃y.Apply(tra,ska,y)] |- ∃ca_new.consist
-    # The ¬∃ is a HYPOTHESIS. We don't have it from the context.
-    # We need LEM to get either ∃ or ¬∃.
-
-    # ACTUALLY: let me just accept ∃ca_new.consist as hypothesis.
-    # The proof is correct but has this extra obligation.
-    # Cut what we can:
-
-    # got_proof_both approach: merge then cut.
-    # [and_cfg_step, consist] |- ∃ca_new.and_both (via mk_and + eir)
-    got_proof_both = mk_and(ax(and_cfg_step), ax(consist))
-    got_proof_both = eir(got_proof_both, and_both, ca_new, ca_new)
-    # Merge left into and_both:
-    got_proof_both = cut(got_proof_both, and_cfg_step, got_cfg_from_both)
-    got_proof_both = cut(got_proof_both, consist, got_con_from_both)
-    # [and_both] |- ∃ca_new. and_both. eel:
-    got_proof_both = eel(got_proof_both, and_both, ca_new)
-    # [∃ca_new.and_both] |- ∃ca_new.and_both — tautology
-    # This just moves ∃ca_new.and_both through. No help.
-
-    # We need to break ∃ca_new.and_both into ∃ca_new.and_cfg_step (from tmstep) + ∃ca_new.consist.
-    # ∃ca_new.and_both ← ∃ca_new.and_cfg_step ∧ ∃ca_new.consist? No, ∃ doesn't distribute over ∧.
-    # ∃ca_new. And(A(ca_new), B(ca_new)) ← ∃ca_new.A(ca_new) only if B can be proved for the same ca_new.
-
-    # This is the fundamental issue. Accept ∃ca_new.consist on the left.
     got_result = got_ex_tra_ca
     got_result.name = 'phase1_step'
     return got_result
@@ -4352,17 +4246,98 @@ def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja
     # BUT: Apply(tra,ska,zv) doesn't mean ska is in the DOMAIN of tra in a simple way.
     # It means ∃p. OrdPair(p,ska,zv) ∧ In(p,tra). This doesn't directly give In(ska,ka).
     #
-    # PRAGMATIC: just use ax(consist) as placeholder. The consistency is true but hard to prove
-    # without domain tracking. extend_function still works — the axiom will appear on the left.
+    # Prove consistency from dom_bound + omega context:
+    # dom_bound: ∀x,y. Apply(tra,x,y) → Or(In(x,ka), Eq(x,ka))
+    from core.derived import Or
+    xd, yd = Var(postfix='xd'), Var(postfix='yd')
+    dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
+        Or(In(xd, ka), Eq(xd, ka)))))
     zv = Var(postfix='zv')
-    consist = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
-    # Apply extend_function with consistency as ax() hypothesis
+    app_tra_ska_zv = Apply(tra, ska, zv)
+    eq_cn_zv = Eq(ca_new, zv)
+    consist = Forall(zv, Implies(app_tra_ska_zv, eq_cn_zv))
+
+    # From dom_bound instantiated with x=ska, y=zv:
+    # Apply(tra,ska,zv) → Or(In(ska,ka), Eq(ska,ka))
+    or_ska = Or(In(ska, ka), Eq(ska, ka))
+    got_dom_inst = apply_thm(ax(dom_bound), [ska, zv], app_tra_ska_zv, or_ska, ax(app_tra_ska_zv))
+    # [dom_bound, Apply(tra,ska,zv)] |- Or(In(ska,ka), Eq(ska,ka))
+
+    # Both disjuncts → ⊥ → Eq(ca_new,zv)
+    # In(ska,ka) case: bot_from_in_ska_ka
+    got_bot_left_d = bot_from_in_ska_ka(ax(In(ska, ka)))
+    got_left_d = Proof(Sequent(got_bot_left_d.sequent.left, [eq_cn_zv]),
+        'weakening_right', [got_bot_left_d], principal=eq_cn_zv)
+
+    # Eq(ska,ka) case: ka∈ska (from Successor) + Eq(ska,ka) → ka∈ka → ⊥
+    # Reuse bot_from_sing_apply pattern: Eq(ska,ka) → eq_substitution → In(ka,ska)→In(ka,ka)
+    # Actually simpler: Eq(ska,ka) = ∀z. z∈ska ↔ z∈ka. Instantiate z=ka.
+    # Forward: ka∈ska → ka∈ka. ka∈ska from Successor. So ka∈ka. Then ⊥.
+    from theorems.logic import eq_reflexive, or_intro_right as oir_thm
+    er = eq_reflexive()
+    # ka∈ska from Successor(ska,ka)
+    eq_kaka = Eq(ka, ka)
+    got_eq_kk = apply_thm(er, [ka], concl=eq_kaka)
+    in_ka_ska_f = In(ka, ska)
+    iff_ka_ska_d = Iff(in_ka_ska_f, Or(In(ka, ka), eq_kaka))
+    got_or_kk = apply_thm(oir_thm(In(ka,ka), eq_kaka, []), [],
+        eq_kaka, Or(In(ka,ka), eq_kaka), got_eq_kk)
+    got_in_ka_ska_d = mp(apply_thm(iff_mp_rev(in_ka_ska_f, Or(In(ka,ka), eq_kaka), []),
+        [], iff_ka_ska_d, Implies(Or(In(ka,ka), eq_kaka), in_ka_ska_f),
+        fl(succ_ska, iff_ka_ska_d, ka)),
+        got_or_kk, Or(In(ka,ka), eq_kaka), in_ka_ska_f)
+    # [succ_ska] |- In(ka, ska)
+
+    # Eq(ska,ka) → In(ka,ska) ↔ In(ka,ka). Forward: In(ka,ska)→In(ka,ka).
+    iff_kk_d = Iff(In(ka, ska), In(ka, ka))
+    got_iff_kk_d = apply_thm(ax(Eq(ska, ka)), [ka], concl=iff_kk_d)
+    got_fwd_kk = apply_thm(iff_mp(In(ka,ska), In(ka,ka), []), [],
+        iff_kk_d, Implies(In(ka,ska), In(ka,ka)), got_iff_kk_d)
+    got_in_kk = mp(got_fwd_kk, got_in_ka_ska_d, In(ka,ska), In(ka,ka))
+    # [Eq(ska,ka), succ_ska] |- In(ka,ka). Use omega_no_self_membership for ⊥.
+    not_kk = Not(In(ka, ka))
+    onsm2 = omega_no_self_membership()
+    got_not_kk = apply_thm(onsm2, [w, ka])
+    got_not_kk = mp(got_not_kk, ax(omega_w), omega_w, Implies(in_ka_w, not_kk))
+    got_not_kk = mp(got_not_kk, ax(in_ka_w), in_ka_w, not_kk)
+    got_in_kk_w = weaken_to(got_in_kk, list(got_not_kk.sequent.left))
+    got_not_kk_w = weaken_to(got_not_kk, list(got_in_kk_w.sequent.left))
+    ctx_r = list(got_in_kk_w.sequent.left)
+    got_bot_r = Proof(Sequent(ctx_r + [not_kk], []), 'not_left', [got_in_kk_w], principal=not_kk)
+    got_bot_r = Proof(Sequent(ctx_r, []), 'cut', [got_not_kk_w, got_bot_r], principal=not_kk)
+    got_right_d = Proof(Sequent(ctx_r, [eq_cn_zv]), 'weakening_right', [got_bot_r], principal=eq_cn_zv)
+
+    # or_elim
+    oe_dom = or_elim(In(ska, ka), Eq(ska, ka), eq_cn_zv, [])
+    imp_l_d = Implies(In(ska, ka), eq_cn_zv)
+    imp_r_d = Implies(Eq(ska, ka), eq_cn_zv)
+    got_imp_l_d = Proof(Sequent([f for f in got_left_d.sequent.left if not same(f, In(ska,ka))],
+        [imp_l_d]), 'implies_right', [got_left_d], principal=imp_l_d)
+    got_imp_r_d = Proof(Sequent([f for f in got_right_d.sequent.left if not same(f, Eq(ska,ka))],
+        [imp_r_d]), 'implies_right', [got_right_d], principal=imp_r_d)
+    got_consist_body = apply_thm(oe_dom, [], or_ska,
+        Implies(imp_l_d, Implies(imp_r_d, eq_cn_zv)), got_dom_inst)
+    got_consist_body = mp(got_consist_body, got_imp_l_d, imp_l_d, Implies(imp_r_d, eq_cn_zv))
+    got_consist_body = mp(got_consist_body, got_imp_r_d, imp_r_d, eq_cn_zv)
+    # [..., dom_bound, Apply(tra,ska,zv)] |- Eq(ca_new, zv)
+
+    # Close: Apply → Eq, ∀zv = consist
+    imp_consist = Implies(app_tra_ska_zv, eq_cn_zv)
+    left_c = [f for f in got_consist_body.sequent.left if not same(f, app_tra_ska_zv)]
+    got_consist = Proof(Sequent(left_c, [imp_consist]),
+        'implies_right', [got_consist_body], principal=imp_consist)
+    fa_consist = Forall(zv, imp_consist)
+    got_consist = Proof(Sequent(got_consist.sequent.left, [fa_consist]),
+        'forall_right', [got_consist], principal=fa_consist, term=zv)
+    # [dom_bound, omega ctx] |- consist
+
+    # Apply extend_function
     got_func_trn = apply_thm(ef, [tra, sing, pair_ska, ska, ca_new, tra_new])
     got_func_trn = mp(got_func_trn, ax(func_tra), func_tra, got_func_trn.sequent.right[0].right)
     got_func_trn = mp(got_func_trn, ax(op_pair_ska), op_pair_ska, got_func_trn.sequent.right[0].right)
     got_func_trn = mp(got_func_trn, ax(sing_def), sing_def, got_func_trn.sequent.right[0].right)
     got_func_trn = mp(got_func_trn, ax(union_def), union_def, got_func_trn.sequent.right[0].right)
-    got_func_trn = mp(got_func_trn, ax(consist), consist, func_trn)
+    got_func_trn = mp(got_func_trn, got_consist, consist, func_trn)
 
     # === 3. Base ===
     z_prime = Var(postfix='zp2')
