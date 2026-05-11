@@ -4761,6 +4761,287 @@ def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja
     got_ex_trn.name = 'phase1_step_extend_trace'
     return got_ex_trn
 
+def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
+                     tra, ca, ja, sja, cja, cja1, one, d1):
+    """Phase 1 complete: omega induction proving P1(a).
+    Returns: [axioms + hypotheses] |- P1(a) = phase1_pred(a, q0, tape_in, ...)
+
+    Hypotheses: Omega(w), In(a,w), TMConfig(c0,q0,z,tape_in), Num(z,0),
+    delta_char, Num(q0,0), Num(one,1), Num(d1,1), UnaryTape(tape_in,a,b),
+    Function(delta), Function(tape_in), Successor/Separation/Pairing/Union/Ext/Inf."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_mp, iff_mp_rev)
+    from theorems.omega import omega_smallest_inductive, omega_contains_empty, omega_succ_closed
+    from vocab import Omega, Inductive, Subset
+    from vocab.sets import Empty
+    from vocab.functions import Function as FuncDef
+    from core.proof import Proof, Sequent
+    from core.derived import Exists, Or
+    import core.zfc as zfc
+
+    omega_w = Omega(w)
+    in_a_w = In(a, w)
+    n = Var(postfix='ind_n')
+    sn = Var(postfix='ind_sn')
+    pv = Var(postfix='ind_pv')
+    xv = Var(postfix='ind_xv')
+
+    def P(nn):
+        return phase1_pred(nn, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+
+    # === Separation: pv = {nn ∈ w : P(nn)} ===
+    sep = zfc.Separation(P, [q0, tape_in, c0, z, delta])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
+    got_ex_pv = apply_thm(sep_ax, [w], concl=Exists(pv, char_pv))
+
+    def char_bwd(term, got_in_w, got_P):
+        """Build In(term, pv) from In(term, w) and P(term).
+        Uses apply_thm to instantiate char_pv, avoiding fresh-var mismatch."""
+        # char_pv = ∀xv. Iff(In(xv,pv), And(In(xv,w), P(xv)))
+        # Instantiate xv=term: Iff(In(term,pv), And(In(term,w), P(term)))
+        # Use apply_thm to get the actual instantiated formula from the engine.
+        p_formula = got_P.sequent.right[0]
+        and_form = And(In(term, w), p_formula)
+        # apply_thm handles the forall instantiation + alpha-equiv matching:
+        got_inst = apply_thm(ax(char_pv), [term])
+        # got_inst: [char_pv] |- Iff(In(term,pv), And(In(term,w), P_sep(term)))
+        # where P_sep(term) is the Separation's P, alpha-equiv to p_formula.
+        iff_inst = got_inst.sequent.right[0]
+        # Iff reverse: And(...) → In(term,pv)
+        got_rev = apply_thm(iff_mp_rev(iff_inst.left, iff_inst.right, []),
+            [], iff_inst, Implies(iff_inst.right, iff_inst.left), got_inst)
+        # Build And(In(term,w), P_sep(term)) from got_in_w + got_P.
+        # Extract the And components from iff_inst.right:
+        and_sep = iff_inst.right  # And(In(term,w), P_sep(term))
+        in_tw = and_sep.left  # In(term,w) — should match got_in_w.right
+        p_sep = and_sep.right  # P_sep(term) — alpha-equiv to p_formula
+        got_and = mp(apply_thm(and_intro(in_tw, p_sep, []), [],
+            in_tw, Implies(p_sep, and_sep), got_in_w),
+            got_P, p_sep, and_sep)
+        return mp(got_rev, got_and, and_sep, iff_inst.left)
+
+    def char_fwd(term):
+        iff_inst = Iff(In(term, pv), And(In(term, w), P(term)))
+        got_iff = fl(char_pv, iff_inst, term)
+        got_imp = apply_thm(iff_mp(In(term, pv), And(In(term, w), P(term)), []),
+            [], iff_inst, Implies(In(term, pv), And(In(term, w), P(term))), got_iff)
+        return mp(got_imp, ax(In(term, pv)), In(term, pv), And(In(term, w), P(term)))
+
+    # === Base case: In(zero, pv) from P1(0) ===
+    # z is used for the ∀z'.Empty(z')→Apply(tra,z',c0) bound var in phase1_pred.
+    # zero is the base case ka. They must be different Vars.
+    zero = Var(postfix='ind_zero')
+    empty_zero = Empty(zero)
+    got_base_P = phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    # phase1_base uses z as ka (= the "0" variable). zero_var = z inside phase1_base.
+    # But we need P1(zero) for the induction, not P1(z).
+    # Actually, phase1_base returns P1(z) since it sets zero_var = z.
+    # For the induction base, we use z as "0" (with Num(z,0) on the left).
+    # char_bwd needs In(z, w) — from omega_contains_empty.
+    # got_base_P: [Pairing, TMConfig(c0,q0,zero,tape_in), Num(zero,0)] |- P1(zero)
+
+    # In(z, w) from omega_contains_empty:
+    # phase1_base returns P1(z) with [Pairing, TMConfig(c0,q0,z,tape_in), Num(z,0)] on left.
+    # Num(z,0) = Empty(z). omega_contains_empty: Omega(w) → Empty(z) → In(z,w).
+    empty_z = Empty(z)
+    oce = omega_contains_empty()
+    got_z_in_w = apply_thm(oce, [w], omega_w,
+        Forall(z, Implies(empty_z, In(z, w))), ax(omega_w))
+    got_z_in_w = apply_thm(got_z_in_w, [z], empty_z, In(z, w), ax(empty_z))
+
+    got_base = char_bwd(z, got_z_in_w, got_base_P)
+    # Close: Empty(z) → In(z, pv), ∀z — but z is used in char_pv's Forall too.
+    # Use zero (different var) for the Inductive base's universal quantifier.
+    # Inductive base = ∀zero. Empty(zero) → In(zero, pv).
+    # From got_base: [..., Empty(z)] |- In(z, pv). Discharge Empty(z), close ∀z.
+    # But the Inductive formula uses its OWN bound var. Since z is the param,
+    # we use z as the Inductive base bound var.
+    imp_ez = Implies(empty_z, In(z, pv))
+    left_ez = [f_ for f_ in got_base.sequent.left if not same(f_, empty_z)]
+    got_ind_base = Proof(Sequent(left_ez, [imp_ez]), 'implies_right', [got_base], principal=imp_ez)
+    fa_ind_base = Forall(z, imp_ez)
+    got_ind_base = Proof(Sequent(got_ind_base.sequent.left, [fa_ind_base]),
+        'forall_right', [got_ind_base], principal=fa_ind_base, term=z)
+
+    # === Step case: In(n, pv) → ∀sn. Succ(sn,n) → In(sn, pv) ===
+    succ_sn = Successor(sn, n)
+    got_and_n = char_fwd(n)
+    got_in_n_w = apply_thm(and_elim_left(In(n, w), P(n), []), [],
+        And(In(n, w), P(n)), In(n, w), got_and_n)
+    got_P_n = apply_thm(and_elim_right(In(n, w), P(n), []), [],
+        And(In(n, w), P(n)), P(n), got_and_n)
+    # [char_pv, In(n,pv)] |- P(n) = ∃tra, ca. And(func, And(dom, And(cfg, ...)))
+
+    # In(sn, w) from omega_succ_closed:
+    osc = omega_succ_closed()
+    got_sn_in_w = apply_thm(osc, [w], omega_w,
+        Forall(n, Implies(In(n, w), Forall(sn, Implies(succ_sn, In(sn, w))))), ax(omega_w))
+    got_sn_in_w = apply_thm(got_sn_in_w, [n], In(n, w),
+        Forall(sn, Implies(succ_sn, In(sn, w))), got_in_n_w)
+    got_sn_in_w = apply_thm(got_sn_in_w, [sn], succ_sn, In(sn, w), ax(succ_sn))
+
+    # Open P(n) = ∃tra, ca. body. Extract 6 conjuncts.
+    # P(n) body (inside ∃tra, ∃ca):
+    # And(Function(tra), And(dom_bound, And(TMConfig(ca,...), And(base, And(apply, step_valid)))))
+    func_tra_f = FuncDef(tra)
+    xd, yd = Var(postfix='xd'), Var(postfix='yd')
+    dom_bound_n = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd), Or(In(xd, n), Eq(xd, n)))))
+    cfg_n = TMConfig(ca, q0, n, tape_in)
+    base_n = Forall(z, Implies(Empty(z), Apply(tra, z, c0)))
+    app_n = Apply(tra, n, ca)
+    sv_n = Forall(ja, Implies(In(ja, n),
+        Forall(sja, Implies(Successor(sja, ja),
+            Forall(cja, Implies(Apply(tra, ja, cja),
+                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+
+    body_n = And(func_tra_f, And(dom_bound_n, And(cfg_n, And(base_n, And(app_n, sv_n)))))
+
+    # Extract each conjunct from body_n:
+    def extract(got_body, left_f, right_f):
+        got_l = apply_thm(and_elim_left(left_f, right_f, []), [],
+            And(left_f, right_f), left_f, got_body)
+        got_r = apply_thm(and_elim_right(left_f, right_f, []), [],
+            And(left_f, right_f), right_f, got_body)
+        return got_l, got_r
+
+    got_func, got_rest1 = extract(ax(body_n), func_tra_f, And(dom_bound_n, And(cfg_n, And(base_n, And(app_n, sv_n)))))
+    got_dom, got_rest2 = extract(got_rest1, dom_bound_n, And(cfg_n, And(base_n, And(app_n, sv_n))))
+    got_cfg, got_rest3 = extract(got_rest2, cfg_n, And(base_n, And(app_n, sv_n)))
+    got_base_old, got_rest4 = extract(got_rest3, base_n, And(app_n, sv_n))
+    got_app, got_sv = extract(got_rest4, app_n, sv_n)
+    # All 6 have [body_n] on the left.
+
+    # Call phase1_step with n as ka, sn as ska:
+    got_step_P = phase1_step(q0, tape_in, c0, z, delta, delta_char_formula,
+        a, b, tra, ca, ja, sja, cja, cja1, n, sn, w, one, d1)
+    # got_step_P: [20 hypotheses] |- P1(S(n))
+    # The 20 hypotheses include: Function(tra), dom_bound, base_old, step_valid_old,
+    # Apply(tra,n,ca), Succ(sn,n), TMConfig(ca,q0,n,tape_in), omega ctx, delta ctx, etc.
+
+    # Cut the P1(n) components from got_step_P's left with the extracted proofs:
+    for formula, proof in [(func_tra_f, got_func), (dom_bound_n, got_dom),
+                           (cfg_n, got_cfg), (base_n, got_base_old),
+                           (app_n, got_app), (sv_n, got_sv)]:
+        if any(same(formula, f) for f in got_step_P.sequent.left):
+            got_step_P = cut(got_step_P, formula, proof)
+    # Now body_n is on got_step_P's left (from the ax(body_n) in the extracts).
+
+    # eel ca from body_n, then eel tra from body_n:
+    got_step_P = eel(got_step_P, body_n, ca)
+    got_step_P = cut(got_step_P, Exists(ca, body_n), ax(Exists(ca, body_n)))
+    # Hmm, this is circular. Need to eel from P(n) = ∃tra.∃ca.body_n.
+    # body_n has tra and ca free. After eel ca: ∃ca.body_n on left (tra still free).
+    # After eel tra: ∃tra.∃ca.body_n = P(n) on left.
+    # Then cut P(n) with got_P_n.
+
+    # Actually: body_n is on got_step_P's left (from the extract ax's).
+    # eel ca from body_n: need ca not free in right and not free in other left formulas.
+    # ca IS the phase1_step parameter ca. It might be free in other left formulas.
+    # The step result P1(S(n)) on the right uses tra/ca as bound vars, so ca is NOT free in right. ✓
+    # But ca might be free in other left formulas from phase1_step (TMConfig uses n not ca).
+
+    # Actually, got_step_P's left has things like TMConfig(ca,q0,n,tape_in) — wait, those
+    # were cut above. After cutting, body_n is on the left (from the extracts).
+    # body_n has both tra and ca free. eel ca: need ca not free elsewhere on left.
+    # Other left formulas from got_step_P that weren't cut: axioms, delta_char, Num's, etc.
+    # These don't have ca free. The P1(n) components (func, dom, cfg, base, app, sv) were cut.
+    # So ca is free ONLY in body_n. ✓
+
+    got_step_P = eel(got_step_P, body_n, ca)
+    # [∃ca.body_n, other_ctx] |- P1(S(n))
+    got_step_P = eel(got_step_P, Exists(ca, body_n), tra)
+    # [∃tra.∃ca.body_n, other_ctx] |- P1(S(n))
+    # ∃tra.∃ca.body_n = P(n). Cut with got_P_n.
+    got_step_P = cut(got_step_P, Exists(tra, Exists(ca, body_n)), got_P_n)
+    # [char_pv, In(n,pv), other_ctx] |- P1(S(n))
+
+    # Build In(sn, pv) from P1(S(n)) + In(sn,w):
+    got_step_in_pv = char_bwd(sn, got_sn_in_w, got_step_P)
+
+    # Close: Succ(sn,n) → In(sn,pv), ∀sn, In(n,pv) → ..., ∀n
+    imp_sn = Implies(succ_sn, In(sn, pv))
+    left_sn = [f_ for f_ in got_step_in_pv.sequent.left if not same(f_, succ_sn)]
+    got_step_closed = Proof(Sequent(left_sn, [imp_sn]),
+        'implies_right', [got_step_in_pv], principal=imp_sn)
+    fa_sn = Forall(sn, imp_sn)
+    got_step_closed = Proof(Sequent(got_step_closed.sequent.left, [fa_sn]),
+        'forall_right', [got_step_closed], principal=fa_sn, term=sn)
+    imp_npv = Implies(In(n, pv), fa_sn)
+    left_npv = [f_ for f_ in got_step_closed.sequent.left if not same(f_, In(n, pv))]
+    got_ind_step = Proof(Sequent(left_npv, [imp_npv]),
+        'implies_right', [got_step_closed], principal=imp_npv)
+    fa_n_step = Forall(n, imp_npv)
+    got_ind_step = Proof(Sequent(got_ind_step.sequent.left, [fa_n_step]),
+        'forall_right', [got_ind_step], principal=fa_n_step, term=n)
+
+    # === Inductive(pv) ===
+    all_ctx = list(got_ind_base.sequent.left)
+    for f_ in got_ind_step.sequent.left:
+        if not any(same(f_, g) for g in all_ctx):
+            all_ctx.append(f_)
+    got_ind_base_w = weaken_to(got_ind_base, all_ctx)
+    got_ind_step_w = weaken_to(got_ind_step, all_ctx)
+    ind_base_f = got_ind_base_w.sequent.right[0]
+    ind_step_f = got_ind_step_w.sequent.right[0]
+    and_ind_full = And(ind_base_f, ind_step_f)
+    got_ind = mp(apply_thm(and_intro(ind_base_f, ind_step_f, []), [],
+        ind_base_f, Implies(ind_step_f, and_ind_full), got_ind_base_w),
+        got_ind_step_w, ind_step_f, and_ind_full)
+
+    # === Subset(pv, w) ===
+    xs = Var(postfix='ind_xs')
+    got_fwd_xs = char_fwd(xs)
+    got_xs_in_w = apply_thm(and_elim_left(In(xs, w), P(xs), []), [],
+        And(In(xs, w), P(xs)), In(xs, w), got_fwd_xs)
+    imp_sub = Implies(In(xs, pv), In(xs, w))
+    left_sub = [f_ for f_ in got_xs_in_w.sequent.left if not same(f_, In(xs, pv))]
+    got_sub = Proof(Sequent(left_sub, [imp_sub]), 'implies_right', [got_xs_in_w], principal=imp_sub)
+    sub_pv_w_f = Forall(xs, imp_sub)
+    got_sub = Proof(Sequent(got_sub.sequent.left, [sub_pv_w_f]),
+        'forall_right', [got_sub], principal=sub_pv_w_f, term=xs)
+
+    # === omega_smallest_inductive ===
+    osi = omega_smallest_inductive()
+    eq_pv_w = Eq(pv, w)
+    got_osi = apply_thm(osi, [pv, w])
+    while not same(got_osi.sequent.right[0], eq_pv_w):
+        cur = got_osi.sequent.right[0]
+        got_osi = mp(got_osi, ax(cur.left), cur.left, cur.right)
+    all_osi = list(all_ctx)
+    for f_ in got_sub.sequent.left:
+        if not any(same(f_, g) for g in all_osi):
+            all_osi.append(f_)
+    got_sub_w = weaken_to(got_sub, all_osi)
+    got_ind_w = weaken_to(got_ind, all_osi)
+    got_and_si = mp(apply_thm(and_intro(sub_pv_w_f, and_ind_full, []), [],
+        sub_pv_w_f, Implies(and_ind_full, And(sub_pv_w_f, and_ind_full)), got_sub_w),
+        got_ind_w, and_ind_full, And(sub_pv_w_f, and_ind_full))
+    non_ax_on_eq = [f_ for f_ in got_osi.sequent.left
+        if not isinstance(f_, zfc.ZFCAxiom) and not same(f_, omega_w)]
+    for h in non_ax_on_eq:
+        got_osi = cut(got_osi, h, got_and_si)
+
+    # === Extract P(a) from In(a,w) ===
+    iff_a = Iff(In(a, pv), In(a, w))
+    got_iff_a = cut(fl(eq_pv_w, iff_a, a), eq_pv_w, got_osi)
+    got_in_apv = mp(apply_thm(iff_mp_rev(In(a, pv), In(a, w), []),
+        [], iff_a, Implies(In(a, w), In(a, pv)), got_iff_a),
+        ax(in_a_w), in_a_w, In(a, pv))
+    got_and_a = cut(char_fwd(a), In(a, pv), got_in_apv)
+    got_P_a = apply_thm(and_elim_right(In(a, w), P(a), []), [],
+        And(In(a, w), P(a)), P(a), got_and_a)
+    # [..., In(a,w)] |- P1(a)
+
+    # === Eliminate pv ===
+    got_P_a = eel(got_P_a, char_pv, pv)
+    got_P_a = cut(got_P_a, Exists(pv, char_pv), got_ex_pv)
+
+    got_P_a.name = 'phase1_induction'
+    return got_P_a
+
+
 def tm_add_correct():
     """TM addition correctness: the unary addition machine halts with correct output.
     |- forall delta,q0,qH,z,tape_in,c0,a,b,c.
