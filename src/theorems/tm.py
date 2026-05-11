@@ -1873,25 +1873,29 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
     # ext_body = And(func_trn, And(base_new, And(head_new, sv_new)))
     # Goal: ∃tra_new. ∃ca_new. And(func_trn, And(cfg_new, And(base, And(head, sv))))
 
-    # Get the ext_body formula from got_extend's right (inside ∃tra_new)
-    # Exists(tra_new, ext_body) = Not(Forall(tra_new, Not(ext_body)))
-    # We can get ext_body via expand: _expand(∃tra_new.B) = Forall(tra_new, Not(B))... complex.
-    # Instead, reconstruct ext_body from known components.
-    base_new = Forall(z, Implies(Empty(z), Apply(tra_new, z, c0)))
-    head_new = Apply(tra_new, ska, ca_new)
-    ext_body = And(func_trn, And(base_new, And(head_new, step_valid_new)))
+    # Get ext_body from got_extend's actual output (inside ∃tra_new).
+    ext_body = got_extend.sequent.right[0].body  # Exists(tra_new, ext_body).body
+    # ext_body = And(func, And(dom, And(base, And(head, sv))))
 
-    # Assume ext_body on left. Extract func and rest.
-    rest_ext = And(base_new, And(head_new, step_valid_new))
-    got_func_from_ext = apply_thm(and_elim_left(func_trn, rest_ext, []), [],
-        ext_body, func_trn, ax(ext_body))
-    got_rest_from_ext = apply_thm(and_elim_right(func_trn, rest_ext, []), [],
+    # Extract func and rest from ext_body.
+    got_func_from_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
+        ext_body, ext_body.left, ax(ext_body))
+    rest_ext = ext_body.right
+    got_rest_from_ext = apply_thm(and_elim_right(ext_body.left, rest_ext, []), [],
         ext_body, rest_ext, ax(ext_body))
 
-    # Insert cfg_new: And(cfg_new, rest_ext)
-    got_cfg_rest = mk_and(got_cfg_new_from_and, got_rest_from_ext)
-    # And(func, And(cfg, rest))
-    got_full_body = mk_and(got_func_from_ext, got_cfg_rest)
+    # rest_ext = And(dom, And(base, And(head, sv))). Insert cfg after dom:
+    # And(dom, And(cfg, And(base, And(head, sv))))
+    dom_from_ext = rest_ext.left
+    rest_after_dom = rest_ext.right  # And(base, And(head, sv))
+    got_dom_from_ext = apply_thm(and_elim_left(dom_from_ext, rest_after_dom, []), [],
+        rest_ext, dom_from_ext, got_rest_from_ext)
+    got_rest_after_dom = apply_thm(and_elim_right(dom_from_ext, rest_after_dom, []), [],
+        rest_ext, rest_after_dom, got_rest_from_ext)
+
+    got_cfg_rest = mk_and(got_cfg_new_from_and, got_rest_after_dom)
+    got_dom_cfg_rest = mk_and(got_dom_from_ext, got_cfg_rest)
+    got_full_body = mk_and(got_func_from_ext, got_dom_cfg_rest)
     # [..., ext_body, And(cfg_step)] |- And(func, And(cfg, And(base, And(head, sv))))
 
     # === Wrap in ∃tra_new, ∃ca_new = P1(S(ka)) ===
@@ -4739,10 +4743,92 @@ def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja
         got_sv_body = Proof(Sequent(got_sv_body.sequent.left, [fa]), 'forall_right', [got_sv_body], principal=fa, term=var)
     got_sv = got_sv_body
 
-    # === 6. Compose + existentials ===
+    # === 6. Domain bound for tra_new ===
+    # Old: ∀x,y. Apply(tra,x,y) → Or(In(x,ka), Eq(x,ka)) — domain ⊆ S(ka)
+    # New: ∀x,y. Apply(tra_new,x,y) → Or(In(x,ska), Eq(x,ska)) — domain ⊆ S(S(ka))
+    # union_elim: Apply(tra_new,x,y) → Or(Apply(tra,x,y), Apply(sing,x,y))
+    # Apply(tra,x,y): old dom_bound → Or(In(x,ka),Eq(x,ka)).
+    #   In(x,ka) → In(x,ska) from Successor(ska,ka) backward.
+    #   Eq(x,ka) → In(x,ska) from Successor(ska,ka) backward (ka ∈ S(ka)).
+    #   So Or(In(x,ka),Eq(x,ka)) → In(x,ska) → Or(In(x,ska),Eq(x,ska)).
+    # Apply(sing,x,y): singleton_apply_eq → Eq(ska,x) → Eq(x,ska) → Or(In(x,ska),Eq(x,ska)).
+    from theorems.logic import or_intro_left as oil_thm
+    xdn = Var(postfix='xdn')
+    ydn = Var(postfix='ydn')
+    app_trn_xdn = Apply(tra_new, xdn, ydn)
+    or_dom_new = Or(In(xdn, ska), Eq(xdn, ska))
+
+    # Apply(tra,xdn,ydn) case: old dom_bound → Or(In(xdn,ka),Eq(xdn,ka))
+    app_tra_xdn = Apply(tra, xdn, ydn)
+    or_dom_old = Or(In(xdn, ka), Eq(xdn, ka))
+    got_dom_old = apply_thm(ax(dom_bound), [xdn, ydn], app_tra_xdn, or_dom_old, ax(app_tra_xdn))
+    # Or(In(xdn,ka),Eq(xdn,ka)) → In(xdn,ska) from Successor backward
+    # Successor(ska,ka): ∀z. In(z,ska) ↔ Or(In(z,ka),Eq(z,ka)). Reverse: Or→In(z,ska).
+    iff_succ_xdn = Iff(In(xdn, ska), Or(In(xdn, ka), Eq(xdn, ka)))
+    got_in_ska = mp(apply_thm(iff_mp_rev(In(xdn, ska), or_dom_old, []),
+        [], iff_succ_xdn, Implies(or_dom_old, In(xdn, ska)),
+        fl(succ_ska, iff_succ_xdn, xdn)),
+        got_dom_old, or_dom_old, In(xdn, ska))
+    # [dom_bound, Apply(tra,xdn,ydn), succ_ska] |- In(xdn,ska)
+    got_or_dom_tra = apply_thm(oil_thm(In(xdn,ska), Eq(xdn,ska), []), [],
+        In(xdn, ska), or_dom_new, got_in_ska)
+
+    # Apply(sing,xdn,ydn) case: singleton_apply_eq → Eq(ska,xdn) → Eq(xdn,ska)
+    app_sing_xdn = Apply(sing, xdn, ydn)
+    sae2 = singleton_apply_eq()
+    eq_ska_xdn = Eq(ska, xdn)
+    and_sae2 = And(eq_ska_xdn, Eq(ca_new, ydn))
+    got_sae2 = apply_thm(sae2, [ska, ca_new, pair_ska, sing, xdn, ydn])
+    got_sae2 = mp(got_sae2, ax(op_pair_ska), op_pair_ska, got_sae2.sequent.right[0].right)
+    got_sae2 = mp(got_sae2, ax(sing_def), sing_def, got_sae2.sequent.right[0].right)
+    got_sae2 = mp(got_sae2, ax(app_sing_xdn), app_sing_xdn, and_sae2)
+    got_eq_ska_xdn = apply_thm(and_elim_left(eq_ska_xdn, Eq(ca_new,ydn), []), [],
+        and_sae2, eq_ska_xdn, got_sae2)
+    from theorems.logic import eq_symmetric as es_thm2
+    es2 = es_thm2()
+    eq_xdn_ska = Eq(xdn, ska)
+    got_eq_xdn_ska = mp(apply_thm(es2, [ska, xdn]), got_eq_ska_xdn, eq_ska_xdn, eq_xdn_ska)
+    from theorems.logic import or_intro_right as oir_thm2
+    got_or_dom_sing = apply_thm(oir_thm2(In(xdn,ska), eq_xdn_ska, []), [],
+        eq_xdn_ska, or_dom_new, got_eq_xdn_ska)
+
+    # or_elim on Apply sub-cases
+    or_apps_dom = Or(app_tra_xdn, app_sing_xdn)
+    got_or_apps_dom = apply_thm(aue, [tra_new, tra, sing, xdn, ydn])
+    got_or_apps_dom = mp(got_or_apps_dom, ax(union_def), union_def,
+        Implies(app_trn_xdn, or_apps_dom))
+    got_or_apps_dom = mp(got_or_apps_dom, ax(app_trn_xdn), app_trn_xdn, or_apps_dom)
+
+    oe_dom = or_elim(app_tra_xdn, app_sing_xdn, or_dom_new, [])
+    imp_tra_dom = Implies(app_tra_xdn, or_dom_new)
+    imp_sing_dom = Implies(app_sing_xdn, or_dom_new)
+    got_imp_tra_dom = Proof(Sequent(
+        [f for f in got_or_dom_tra.sequent.left if not same(f, app_tra_xdn)],
+        [imp_tra_dom]), 'implies_right', [got_or_dom_tra], principal=imp_tra_dom)
+    got_imp_sing_dom = Proof(Sequent(
+        [f for f in got_or_dom_sing.sequent.left if not same(f, app_sing_xdn)],
+        [imp_sing_dom]), 'implies_right', [got_or_dom_sing], principal=imp_sing_dom)
+    got_dom_body = apply_thm(oe_dom, [], or_apps_dom,
+        Implies(imp_tra_dom, Implies(imp_sing_dom, or_dom_new)), got_or_apps_dom)
+    got_dom_body = mp(got_dom_body, got_imp_tra_dom, imp_tra_dom, Implies(imp_sing_dom, or_dom_new))
+    got_dom_body = mp(got_dom_body, got_imp_sing_dom, imp_sing_dom, or_dom_new)
+    # Close: Apply(tra_new,xdn,ydn) → Or(...), ∀ydn, ∀xdn
+    imp_dom_new = Implies(app_trn_xdn, or_dom_new)
+    left_dom_new = [f for f in got_dom_body.sequent.left if not same(f, app_trn_xdn)]
+    got_dom_new = Proof(Sequent(left_dom_new, [imp_dom_new]),
+        'implies_right', [got_dom_body], principal=imp_dom_new)
+    fa_ydn = Forall(ydn, imp_dom_new)
+    got_dom_new = Proof(Sequent(got_dom_new.sequent.left, [fa_ydn]),
+        'forall_right', [got_dom_new], principal=fa_ydn, term=ydn)
+    fa_xdn = Forall(xdn, fa_ydn)
+    got_dom_new = Proof(Sequent(got_dom_new.sequent.left, [fa_xdn]),
+        'forall_right', [got_dom_new], principal=fa_xdn, term=xdn)
+
+    # === 7. Compose + existentials ===
     got_hv = mk_and(got_head, got_sv)
     got_bhv = mk_and(got_base, got_hv)
-    got_fbhv = mk_and(got_func_trn, got_bhv)
+    got_dbhv = mk_and(got_dom_new, got_bhv)    # insert dom_bound
+    got_fbhv = mk_and(got_func_trn, got_dbhv)
 
     got_ex_trn = eir(got_fbhv, got_fbhv.sequent.right[0], tra_new, tra_new)
     got_ex_trn = eel(got_ex_trn, union_def, tra_new)
