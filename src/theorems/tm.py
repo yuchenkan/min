@@ -1463,48 +1463,33 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     got_1e = ax(cfg0)
     # [TMConfig(c0,q0,z,tape_in)] |- TMConfig(c0,q0,z,tape_in)
 
-    # === Compose into P1(z) = ∃tra, ca. And(1e, And(1b, And(1c, 1d))) ===
-    # And(1c, 1d):
-    got_cd = mp(apply_thm(and_intro(got_1c.sequent.right[0], got_1d.sequent.right[0], []),
-        [], got_1c.sequent.right[0], Implies(got_1d.sequent.right[0],
-            And(got_1c.sequent.right[0], got_1d.sequent.right[0])), got_1c),
-        got_1d, got_1d.sequent.right[0], And(got_1c.sequent.right[0], got_1d.sequent.right[0]))
+    # --- 1f: Function(tra) from singleton_is_function ---
+    from theorems.recursion import singleton_is_function
+    from vocab.functions import Function as FuncDef
+    sif = singleton_is_function()
+    func_tra = FuncDef(tra)
+    got_1f = apply_thm(sif, [pair_0a, z, c0, tra])
+    got_1f = mp(got_1f, ax(op_p0), op_p0, Implies(sing_tra, func_tra))
+    got_1f = mp(got_1f, ax(sing_tra), sing_tra, func_tra)
+    # [Pairing, op_p0, sing_tra] |- Function(tra)
 
-    # And(1b, And(1c, 1d)):
-    got_bcd = mp(apply_thm(and_intro(got_1b.sequent.right[0], got_cd.sequent.right[0], []),
-        [], got_1b.sequent.right[0], Implies(got_cd.sequent.right[0],
-            And(got_1b.sequent.right[0], got_cd.sequent.right[0])), got_1b),
-        got_cd, got_cd.sequent.right[0], And(got_1b.sequent.right[0], got_cd.sequent.right[0]))
+    # === Compose into P1(z) = ∃tra, ca. And(1f, And(1e, And(1b, And(1c, 1d)))) ===
+    def mk_and(got_l, got_r):
+        """Helper: [ctx_l] |- L and [ctx_r] |- R → [merged] |- And(L, R)"""
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
 
-    # And(1e, And(1b, And(1c, 1d))):
-    got_all = mp(apply_thm(and_intro(got_1e.sequent.right[0], got_bcd.sequent.right[0], []),
-        [], got_1e.sequent.right[0], Implies(got_bcd.sequent.right[0],
-            And(got_1e.sequent.right[0], got_bcd.sequent.right[0])), got_1e),
-        got_bcd, got_bcd.sequent.right[0], And(got_1e.sequent.right[0], got_bcd.sequent.right[0]))
+    got_cd = mk_and(got_1c, got_1d)         # And(apply, step_valid)
+    got_bcd = mk_and(got_1b, got_cd)         # And(base, And(apply, step_valid))
+    got_ebcd = mk_and(got_1e, got_bcd)       # And(cfg, And(base, And(apply, step_valid)))
+    got_all = mk_and(got_1f, got_ebcd)       # And(func, And(cfg, And(base, And(apply, step_valid))))
 
     # eir ca = c0:
-    got_ex_ca = eir(got_all, And(got_1e.sequent.right[0], got_bcd.sequent.right[0]), ca, c0)
+    got_ex_ca = eir(got_all, got_all.sequent.right[0], ca, c0)
 
-    # Eliminate existentials. Order matters: sing_tra has both tra and pair_0a free.
-    # eel tra first (over sing_tra), then eel pair_0a (over op_p0).
-    # debug: dump full state before existential elimination
-    from core.proof import _free_vars
-    print(f'Before existential elimination:')
-    print(f'  Left ({len(got_ex_ca.sequent.left)}):')
-    for i, f_ in enumerate(got_ex_ca.sequent.left):
-        fvs = _free_vars(f_)
-        flags = []
-        if tra in fvs: flags.append('tra')
-        if pair_0a in fvs: flags.append('p0a')
-        print(f'    [{i}] {" ".join(flags) if flags else "-"}: {f_}')
-    print(f'  Right:')
-    print(f'    {got_ex_ca.sequent.right[0]}')
-    fvr = _free_vars(got_ex_ca.sequent.right[0])
-    print(f'    tra in right: {tra in fvr}')
-    print(f'    pair_0a in right: {pair_0a in fvr}')
-    # eir tra into the right (making ∃tra, ∃ca part of P1(0)):
-    # got_ex_ca has ∃ca. And(...) on right, tra free. eir tra wraps ∃tra around it:
-    ex_ca_body = got_ex_ca.sequent.right[0]  # ∃ca. And(...) — has tra free
+    # eir tra:
+    ex_ca_body = got_ex_ca.sequent.right[0]
     got_ex_tra_ca = eir(got_ex_ca, ex_ca_body, tra, tra)
     # [..., sing_tra, op_p0] |- ∃tra. ∃ca. And(...)
 
