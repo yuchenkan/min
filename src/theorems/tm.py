@@ -1657,312 +1657,54 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1, a):
 
 
 def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja, sja, cja, cja1, ka, ska, w, one, d1):
-    """Phase 1 step case: Q1(ka) → Q1(S(ka)).
+    """Phase 1 step case: Q1(ka) → Q1(S(ka)), fully self-contained.
     Q1(n) = Phase1Q(n) = Or(In(n,a),Eq(n,a)) → P1(n).
 
-    From Q1(ka), assumes Or(In(S(ka),a),Eq(S(ka),a)) for Q1(S(ka)).
-    Derives In(ka,a) via TransitiveSet(a). Unwraps Q1(ka) → P1(ka).
-    Existing logic: P1(ka) → P1(S(ka)). Discharges → Q1(S(ka)).
+    Takes Q1(ka) on the left. Produces Q1(S(ka)) on the right.
+    Internally:
+    1. Assumes Or(In(ska,a),Eq(ska,a)) for Q1(S(ka)) output
+    2. Derives Or(In(ka,a),Eq(ka,a)) from the Or + TransitiveSet(a)
+    3. mp Q1(ka) with the Or → P1(ka)
+    4. Opens P1(ka) → components → sub-helpers → P1(S(ka))
+    5. Discharges Or → Q1(S(ka))
+    6. Discharges Q1(ka) → (Q1(ka) → Q1(S(ka)))
 
-    Returns: [ctx] |- Phase1Q(S(ka))
+    Hypotheses on left: Q1(ka), Successor(ska,ka), Omega(w), In(a,w),
+    UnaryTape, delta_char, Num's, Function's, axioms.
+    No P1(ka) components leak.
+
+    Returns: [ctx] |- Implies(Phase1Q(ka), Phase1Q(S(ka)))
     """
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
-    from theorems.logic import and_intro, and_elim_left, and_elim_right
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        or_elim, or_intro_left, or_intro_right, eq_reflexive,
+        iff_mp, iff_mp_rev)
     from theorems.tm import (phase1_step_read, phase1_step_transition,
         phase1_step_tmstep, phase1_step_extend_trace)
+    from theorems.sets import omega_transitive_set
     from vocab.functions import Function as FuncDef
-    from vocab.sets import Empty
+    from vocab.sets import Empty, TransitiveSet
     from vocab.omega import Omega
     from core.proof import Proof, Sequent, same
-    from core.derived import Exists
+    from core.derived import Exists, Or
     from tm import UnaryTape
 
     succ_ska = Successor(ska, ka)
-    func_tra = FuncDef(tra)
-    cfg_ka = TMConfig(ca, q0, ka, tape_in)
-    app_tra_ka = Apply(tra, ka, ca)
-    base_old = Forall(z, Implies(Empty(z), Apply(tra, z, c0)))
-    step_valid_old = Forall(ja, Implies(In(ja, ka),
-        Forall(sja, Implies(Successor(sja, ja),
-            Forall(cja, Implies(Apply(tra, ja, cja),
-                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
-    tmstep_ca_hyp = TMStep(delta, ca, Var(postfix='cn_placeholder'))  # will be from tmstep result
-
-    # === 1. Tape read ===
-    got_read = phase1_step_read(tape_in, a, b, ka, one)
-    # [UnaryTape, In(ka,a), Num(one,1), axioms] |- Apply(tape_in, ka, one)
-
-    # === 2. Transition ===
-    got_trans = phase1_step_transition(delta_char_formula, delta, q0, one, d1)
-    # [delta_char, Num(q0,0), Num(one,1), Num(d1,1)] |- TMTransition(delta, q0, one, one, d1, q0)
-
-    # === 3. TMStep + new config ===
-    got_tmstep = phase1_step_tmstep(delta, q0, ka, ska, tape_in, ca, one, d1)
-    # [TMConfig(ca,...), Apply(tape_in,ka,one), TMTransition(...), Num(d1,1),
-    #  Successor(ska,ka), Function(delta), Function(tape_in), Pairing, Extensionality]
-    # |- ∃ca_new. And(TMConfig(ca_new,q0,ska,tape_in), TMStep(delta,ca,ca_new))
-
-    # phase1_step_tmstep has Apply(tape_in,ka,one) and TMTransition on its left.
-    # These are also proved by got_read and got_trans. The induction caller will provide
-    # all hypotheses, so we don't need to cut here — just let hypotheses flow through.
-
-    # Open ∃ca_new from got_tmstep: get TMConfig + TMStep on the left
-    ca_new = Var(postfix='cn')
-    cfg_new = TMConfig(ca_new, q0, ska, tape_in)
-    tmstep_ca = TMStep(delta, ca, ca_new)
-    and_cfg_step = And(cfg_new, tmstep_ca)
-    # eel ca_new to get And(cfg_new, tmstep_ca) on the left
-    got_tmstep_open = got_tmstep  # has ∃ca_new. And(...) on right
-    # We need the And components on the LEFT for phase1_step_extend_trace.
-    # Strategy: eir is for going left→right. We have ∃ on the RIGHT.
-    # To use components: work INSIDE the ∃. Put And on the left via eel pattern.
-
-    # Actually, got_tmstep proves ∃ca_new. And(cfg_new, tmstep_ca) on the right.
-    # phase1_step_extend_trace needs TMStep(delta,ca,ca_new) and cfg_new on the left.
-    # So: open the ∃ and And, use the components, build P1(S(ka)), close ∃.
-
-    # To work inside the ∃: assume And(cfg_new, tmstep_ca) on the left.
-    # Then extract cfg_new and tmstep_ca. Feed to extend_trace.
-    # Build P1(S(ka)). eir ca_new back.
-
-    # Extract components from And:
-    got_cfg_new_from_and = apply_thm(and_elim_left(cfg_new, tmstep_ca, []), [],
-        and_cfg_step, cfg_new, ax(and_cfg_step))
-    got_tmstep_from_and = apply_thm(and_elim_right(cfg_new, tmstep_ca, []), [],
-        and_cfg_step, tmstep_ca, ax(and_cfg_step))
-
-    # === 4. Trace extension ===
-    tra_new = Var(postfix='trn')
-    got_extend = phase1_step_extend_trace(
-        tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1, w)
-    # Left: [Function(tra), base_old, app_tra_ka, step_valid_old, TMStep(delta,ca,ca_new),
-    #         Successor(ska,ka), Omega(w), In(ka,w), Pairing, Union, various Sep, consist]
-    # Right: ∃tra_new. And(Function(tra_new), And(base_new, And(head_new, step_valid_new)))
-
-    # Cut TMStep from extend_trace's left with got_tmstep_from_and:
-    if any(same(tmstep_ca, f) for f in got_extend.sequent.left):
-        got_extend = cut(got_extend, tmstep_ca, got_tmstep_from_and)
-
-    # === 5. Compose: And(TMConfig, trace_extension) → P1(S(ka)) ===
-    # P1(S(ka)) = ∃tra_new, ca_new. And(Function(tra_new), And(TMConfig(ca_new,...), And(base, And(head, step_valid))))
-    # got_extend proves ∃tra_new. And(Function, And(base, And(head, step_valid)))
-    # We need to INSERT TMConfig inside the ∃tra_new, after Function.
-
-    # Open ∃tra_new from got_extend: assume the And body on the left.
-    # Then mk_and with cfg_new to build the full P1 body.
-    # Then eir tra_new back.
-
-    # Actually, this is complex. Let me use a different approach:
-    # got_extend: [..., And(cfg_step)] |- ∃tra_new. And(func, And(base, And(head, sv)))
-    # cfg_new from And(cfg_step): got_cfg_new_from_and.
-    # I need: ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
-
-    # The ∃tra_new wraps a 4-conjunct. I need a 5-conjunct (with cfg_new inserted).
-    # To insert cfg_new: open ∃tra_new, extract the 4 conjuncts, add cfg_new, rebuild, close ∃.
-    # This is very verbose.
-
-    # SIMPLER: modify phase1_step_extend_trace to include TMConfig in its output.
-    # But that changes its signature.
-
-    # SIMPLEST: just build the full P1 body directly.
-    # P1(S(ka)) body (inside ∃tra_new, ∃ca_new):
-    # And(Function(tra_new), And(TMConfig(ca_new,...), And(base, And(head, sv))))
-    # = And(func, And(cfg_new, extend_body))
-    # where extend_body = And(base, And(head, sv))
-
-    # got_extend proves ∃tra_new. And(func, And(base, And(head, sv)))
-    # I need ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
-    # The cfg_new doesn't depend on tra_new (it only depends on ca_new).
-
-    # Strategy:
-    # 1. Inside the ∃tra_new scope: have And(func, And(base, And(head, sv))) on left.
-    # 2. Also have cfg_new on left (from and_cfg_step).
-    # 3. Extract func. Build And(cfg_new, And(base, And(head, sv))). Build And(func, ...).
-    # 4. eir tra_new.
-    # This requires ~15 lines of And manipulation.
-
-    # Let me do it inline with the eel/eir pattern.
-    # Currently got_extend has And(cfg_step) on the left and ∃tra_new.(...) on the right.
-    # I need to work inside the ∃tra_new to insert cfg_new.
-
-    # Alternative: use a fresh approach. The full P1(S(ka)) needs:
-    # ∃tra_new. ∃ca_new. And(func, And(cfg, And(base, And(head, sv))))
-    # I already have:
-    # - cfg_new from got_cfg_new_from_and: [And(cfg_step)] |- cfg_new
-    # - ∃tra_new.And(func, And(base, And(head, sv))) from got_extend: [..., And(cfg_step)] |- ∃tra_new.(...)
-    # I need to combine them.
-
-    # P1 body for the ∃ca_new scope:
-    # ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
-
-    # Since cfg_new doesn't mention tra_new, I can insert it:
-    # From ∃tra_new. And(func, rest) + cfg_new:
-    # Open ∃tra_new: have And(func, rest) on left, cfg_new on left.
-    # Extract func and rest. Build And(cfg_new, rest). Build And(func, And(cfg_new, rest)).
-    # eir tra_new.
-
-    # Let me use a helper for this pattern.
-    # tra_new already defined above (shared with extend_trace)
-    # The got_extend has ∃tra_new. X on the right where X = And(func_trn, And(base, And(head, sv)))
-    # I need to transform X into And(func_trn, And(cfg_new, And(base, And(head, sv))))
-    # inside the ∃.
-
-    # Open ∃tra_new from got_extend's right: put X on the left.
-    # Then add cfg_new, restructure And, eir tra_new back.
-
-    # got_extend: [ctx_ext, And(cfg_step)] |- ∃tra_new. X
-    # I want: [ctx_ext, And(cfg_step)] |- ∃tra_new. ∃ca_new. And(func, And(cfg, And(base, And(head, sv))))
-
-    # Hmm, the ∃ca_new wraps around ∃tra_new in P1, not inside it.
-    # P1(S(ka)) = ∃tra. ∃ca. And(func, And(cfg, And(base, And(head, sv))))
-    # So ca_new wraps OUTSIDE tra_new? No: P1 = ∃tra. ∃ca. Body(tra, ca).
-    # tra_new is the outer ∃, ca_new is the inner ∃.
-
-    # OK let me just build P1(S(ka)) from the pieces:
-    # 1. got_cfg_new_from_and: [And(cfg_step)] |- TMConfig(ca_new, q0, ska, tape_in)
-    # 2. got_extend: [..., And(cfg_step)] |- ∃tra_new. And(func, And(base, And(head, sv)))
-
-    # For each ca_new-level:
-    # Need: ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
-    # From got_extend's ∃tra_new. And(func, rest) + cfg_new.
-
-    # This requires working inside the ∃. Too complex inline.
-    # SIMPLEST: just return ∃tra_new applied AFTER inserting cfg_new into the And.
-    # Use eel on got_extend to open ∃tra_new, restructure, eir back.
-
-    # Actually, the extend_trace output has ∃tra_new on the right.
-    # I can't directly modify the right side of a proof.
-    # I need to: assume the ∃tra_new body on the LEFT, restructure, put result on RIGHT.
-
-    # Pattern: from [ctx] |- ∃x. A(x), and [A(x)] |- B(x), derive [ctx] |- ∃x. B(x).
-    # This is: eel x from A(x), then work with A(x) on left, derive B(x) on right, eir x.
-
-    # got_extend right = ∃tra_new. And(func, And(base, And(head, sv)))
-    # Let ext_body = And(func, And(base, And(head, sv)))
-    func_trn = FuncDef(tra_new)
-    from vocab.sets import Empty
-    base_new_z = Var(postfix='zbn')
-    app_trn_ska = Apply(tra_new, ska, ca_new)
-
-    # Define what the P1 body looks like inside ∃tra, ∃ca:
-    step_valid_new = Forall(ja, Implies(In(ja, ska),
-        Forall(sja, Implies(Successor(sja, ja),
-            Forall(cja, Implies(Apply(tra_new, ja, cja),
-                Exists(cja1, And(Apply(tra_new, sja, cja1), TMStep(delta, cja, cja1)))))))))
-
-    def mk_and(got_l, got_r):
-        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
-        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
-            got_r, R, And(L, R))
-
-    # Extract from got_extend's body: assume ext_body on left.
-    # ext_body = And(func_trn, And(base_new, And(head_new, sv_new)))
-    # I don't know the exact formula — it depends on extend_trace's internal vars.
-    # Instead of extracting, just use the eel pattern directly.
-
-    # APPROACH: the P1 predicate for S(ka) uses phase1_pred which builds the formula.
-    # The extend_trace returns ∃tra_new with a specific And structure.
-    # The cfg_new comes separately.
-    # I need to merge them into phase1_pred(ska, ...).
-
-    # Actually, phase1_pred(ska, ...) = ∃tra. ∃ca. And(Function(tra), And(TMConfig(ca,...), And(base, And(head, sv))))
-    # The ∃tra wraps the whole body. ca is ca_new here.
-
-    # Steps:
-    # a. From got_extend: [ctx] |- ∃tra_new. And(func, And(base, And(head, sv)))
-    #    Open ∃: [ctx, And(func, rest)] |- transform to P1 body for ca_new
-    # b. Extract func and rest from And.
-    # c. Add cfg_new: mk_and(cfg_new, rest) → And(cfg, And(base, And(head, sv)))
-    # d. mk_and(func, And(cfg, ...)) → And(func, And(cfg, And(base, And(head, sv))))
-    # e. eir ca_new: ∃ca. And(func, And(TMConfig(ca,...), ...))
-    # f. eir tra_new: ∃tra. ∃ca. ...
-
-    # But I don't have the internal And formula from extend_trace.
-    # Let me just accept that extend_trace returns a specific formula
-    # and work with got_extend.sequent.right[0] directly.
-
-    # Open ∃tra_new from got_extend: assume body on left, insert cfg_new, close ∃.
-    # got_extend: [ctx_e, And(cfg_step)] |- ∃tra_new. ext_body
-    # ext_body = And(func_trn, And(base_new, And(head_new, sv_new)))
-    # Goal: ∃tra_new. ∃ca_new. And(func_trn, And(cfg_new, And(base, And(head, sv))))
-
-    # Get ext_body from got_extend's actual output (inside ∃tra_new).
-    ext_body = got_extend.sequent.right[0].body  # Exists(tra_new, ext_body).body
-    # ext_body = And(func, And(dom, And(base, And(head, sv))))
-
-    # Extract func and rest from ext_body.
-    got_func_from_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
-        ext_body, ext_body.left, ax(ext_body))
-    rest_ext = ext_body.right
-    got_rest_from_ext = apply_thm(and_elim_right(ext_body.left, rest_ext, []), [],
-        ext_body, rest_ext, ax(ext_body))
-
-    # rest_ext = And(dom, And(base, And(head, sv))). Insert cfg after dom:
-    # And(dom, And(cfg, And(base, And(head, sv))))
-    dom_from_ext = rest_ext.left
-    rest_after_dom = rest_ext.right  # And(base, And(head, sv))
-    got_dom_from_ext = apply_thm(and_elim_left(dom_from_ext, rest_after_dom, []), [],
-        rest_ext, dom_from_ext, got_rest_from_ext)
-    got_rest_after_dom = apply_thm(and_elim_right(dom_from_ext, rest_after_dom, []), [],
-        rest_ext, rest_after_dom, got_rest_from_ext)
-
-    got_cfg_rest = mk_and(got_cfg_new_from_and, got_rest_after_dom)
-    got_dom_cfg_rest = mk_and(got_dom_from_ext, got_cfg_rest)
-    got_full_body = mk_and(got_func_from_ext, got_dom_cfg_rest)
-    # [..., ext_body, And(cfg_step)] |- And(func, And(cfg, And(base, And(head, sv))))
-
-    # === Wrap in ∃tra_new, ∃ca_new = P1(S(ka)) ===
-    # ca_new-dependent formulas on left: ext_body, and_cfg_step, consist
-    # tra_new-dependent formulas on left: ext_body
-    # Strategy: eir tra first, eel ext_body. Then eir ca, eel merged ca_new formulas.
-    zv = Var(postfix='zv')
-    consist = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
-
-    # eir order must match phase1_pred: ∃tra (outer) then ∃ca (inner).
-    # Stage 1: eir ca first (inner ∃). Template with ca_new→ca.
-    full_body_formula = got_full_body.sequent.right[0]
-    body_for_ca = full_body_formula.subst(ca_new, ca)
-    got_ex_ca = eir(got_full_body, body_for_ca, ca, ca_new)
-
-    # Stage 2: eir tra (outer ∃). Template with tra_new→tra.
-    from core.derived import Exists as Ex
-    body_for_tra = Ex(ca, body_for_ca).subst(tra_new, tra)
-    got_ex_tra_ca = eir(got_ex_ca, body_for_tra, tra, tra_new)
-
-    # eel ext_body/tra_new, cut with got_extend
-    got_ex_tra_ca = eel(got_ex_tra_ca, ext_body, tra_new)
-    got_ex_tra_ca = cut(got_ex_tra_ca, Exists(tra_new, ext_body), got_extend)
-    # [..., and_cfg_step(ca_new), consist(ca_new)] |- P1(S(ka)) — ca_new NOT free in right
-
-    # With domain bound, consist is properly proved (no ca_new on left from it).
-    # Only and_cfg_step has ca_new free on the left.
-    # eel and_cfg_step/ca_new, then cut with got_tmstep.
-    if any(same(and_cfg_step, f) for f in got_ex_tra_ca.sequent.left):
-        got_ex_tra_ca = eel(got_ex_tra_ca, and_cfg_step, ca_new)
-        got_ex_tra_ca = cut(got_ex_tra_ca, Exists(ca_new, and_cfg_step), got_tmstep)
-
-    # === Q wrapping: Or(In(ska,a),Eq(ska,a)) → P1(S(ka)) ===
-    # Derive In(ka,a) from Or(In(ska,a),Eq(ska,a)) + TransitiveSet(a) + Successor(ska,ka).
-    # Then cut In(ka,a) and Apply(tape_in,ka,one) into the proof.
-    from core.derived import Or
-    from theorems.logic import or_elim, or_intro_left, eq_reflexive
-    from theorems.sets import omega_transitive_set
-    from vocab.sets import TransitiveSet
-    from vocab.omega import Omega
-
-    or_ska_a = Or(In(ska, a), Eq(ska, a))
-    in_ka_a = In(ka, a)
     omega_w = Omega(w)
     in_a_w = In(a, w)
+    or_ska_a = Or(In(ska, a), Eq(ska, a))
+    or_ka_a = Or(In(ka, a), Eq(ka, a))
+    in_ka_a = In(ka, a)
+    q_ka = Phase1Q(ka, a, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
 
-    # TransitiveSet(a): Omega(w) → In(a,w) → TransitiveSet(a)
+    # === Step 1: Assume Or(In(ska,a),Eq(ska,a)) for Q(S(ka)) ===
+    # === Step 2: Derive Or(In(ka,a),Eq(ka,a)) via TransitiveSet(a) ===
     ots = omega_transitive_set()
     got_trans_a = apply_thm(ots, [w, a])
     got_trans_a = mp(got_trans_a, ax(omega_w), omega_w, Implies(in_a_w, TransitiveSet(a)))
     got_trans_a = mp(got_trans_a, ax(in_a_w), in_a_w, TransitiveSet(a))
 
-    # n ∈ sn from Successor(ska,ka): In(ka,ska) ↔ Or(In(ka,ka),Eq(ka,ka)). Eq(ka,ka) true.
-    from theorems.logic import iff_mp_rev, or_intro_right
+    # n ∈ sn from Successor: In(ka,ska) via Eq(ka,ka)
     er = eq_reflexive()
     eq_kaka = Eq(ka, ka)
     got_eq_kk = apply_thm(er, [ka], concl=eq_kaka)
@@ -1974,60 +1716,236 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
         [], iff_ka_ska, Implies(Or(In(ka,ka), eq_kaka), in_ka_ska),
         fl(succ_ska, iff_ka_ska, ka)),
         got_or_kk, Or(In(ka,ka), eq_kaka), in_ka_ska)
-    # [succ_ska] |- In(ka, ska)
 
-    # In(ska,a) case: TransitiveSet(a) → In(ska,a) → ska⊆a → In(ka,ska) → In(ka,a)
+    # In(ska,a) case → In(ka,a)
     yv = Var(postfix='yv')
     got_ska_sub = apply_thm(got_trans_a, [ska], In(ska, a),
         Forall(yv, Implies(In(yv, ska), In(yv, a))), ax(In(ska, a)))
     got_in_ka_a_from_ska = apply_thm(got_ska_sub, [ka], in_ka_ska, in_ka_a, got_in_ka_ska)
-    # [In(ska,a), succ_ska, Omega(w), In(a,w), ...] |- In(ka, a)
 
-    # Eq(ska,a) case: Eq(ska,a) → In(ka,ska) ↔ In(ka,a). Forward.
-    from theorems.logic import iff_mp
+    # Eq(ska,a) case → In(ka,a)
     iff_ka_a = Iff(In(ka, ska), In(ka, a))
     got_iff_ka = apply_thm(ax(Eq(ska, a)), [ka], concl=iff_ka_a)
     got_fwd_ka = apply_thm(iff_mp(In(ka,ska), In(ka,a), []),
         [], iff_ka_a, Implies(In(ka,ska), In(ka,a)), got_iff_ka)
     got_in_ka_a_from_eq = mp(got_fwd_ka, got_in_ka_ska, In(ka,ska), in_ka_a)
-    # [Eq(ska,a), succ_ska] |- In(ka, a)
 
-    # or_elim: Or(In(ska,a),Eq(ska,a)) → In(ka,a)
+    # or_elim → In(ka,a)
     oe = or_elim(In(ska, a), Eq(ska, a), in_ka_a, [])
-    imp_l = Implies(In(ska, a), in_ka_a)
-    imp_r = Implies(Eq(ska, a), in_ka_a)
     got_imp_l = Proof(Sequent([f for f in got_in_ka_a_from_ska.sequent.left if not same(f, In(ska,a))],
-        [imp_l]), 'implies_right', [got_in_ka_a_from_ska], principal=imp_l)
+        [Implies(In(ska,a), in_ka_a)]), 'implies_right', [got_in_ka_a_from_ska],
+        principal=Implies(In(ska,a), in_ka_a))
     got_imp_r = Proof(Sequent([f for f in got_in_ka_a_from_eq.sequent.left if not same(f, Eq(ska,a))],
-        [imp_r]), 'implies_right', [got_in_ka_a_from_eq], principal=imp_r)
-    got_in_ka_a = apply_thm(oe, [], or_ska_a, Implies(imp_l, Implies(imp_r, in_ka_a)), ax(or_ska_a))
-    got_in_ka_a = mp(got_in_ka_a, got_imp_l, imp_l, Implies(imp_r, in_ka_a))
-    got_in_ka_a = mp(got_in_ka_a, got_imp_r, imp_r, in_ka_a)
-    # [Or(In(ska,a),Eq(ska,a)), succ_ska, Omega(w), In(a,w), ...] |- In(ka,a)
+        [Implies(Eq(ska,a), in_ka_a)]), 'implies_right', [got_in_ka_a_from_eq],
+        principal=Implies(Eq(ska,a), in_ka_a))
+    got_in_ka_a = apply_thm(oe, [], or_ska_a,
+        Implies(Implies(In(ska,a),in_ka_a), Implies(Implies(Eq(ska,a),in_ka_a), in_ka_a)),
+        ax(or_ska_a))
+    got_in_ka_a = mp(got_in_ka_a, got_imp_l, Implies(In(ska,a),in_ka_a),
+        Implies(Implies(Eq(ska,a),in_ka_a), in_ka_a))
+    got_in_ka_a = mp(got_in_ka_a, got_imp_r, Implies(Eq(ska,a),in_ka_a), in_ka_a)
+    # [or_ska_a, succ_ska, Omega(w), In(a,w), axioms] |- In(ka,a)
 
-    # Cut In(ka,a) into the P1(S(ka)) proof
-    got_p1_ska = got_ex_tra_ca
-    if any(same(in_ka_a, f) for f in got_p1_ska.sequent.left):
-        got_p1_ska = cut(got_p1_ska, in_ka_a, got_in_ka_a)
+    # Or(In(ka,a),Eq(ka,a)) from In(ka,a)
+    got_or_ka_a = apply_thm(or_intro_left(in_ka_a, Eq(ka,a), []), [],
+        in_ka_a, or_ka_a, got_in_ka_a)
 
-    # Also cut Apply(tape_in,ka,one) — derivable from In(ka,a) + UnaryTape + tape_read_low
-    app_tape_ka_one = Apply(tape_in, ka, one)
+    # === Step 3: Q(ka) + Or → P1(ka) ===
+    # Q(ka) expands to Implies(Or, P1(ka)). Build the Implies explicitly and use cut+mp.
+    q_exp = q_ka.expand()  # Implies(Or(...), P1(ka))
+    p1_ka_concl = q_exp.right  # P1(ka) from this expansion
+    # [q_ka] |- q_ka. q_ka same() Implies(Or, P1). So [q_ka] |- Implies(Or, P1).
+    # ax(q_exp): [q_exp] |- [q_exp] where q_exp = Implies(Or, P1).
+    # cut q_ka with q_exp: from [q_ka] |- [q_ka, P1] and [q_ka, q_exp] |- [P1]
+    # Actually simpler: use fl which handles expansion.
+    # fl(q_ka, q_exp.right, dummy_term) won't work — q_ka isn't a Forall.
+    # Use cut: ax(q_ka) has [q_ka]|-[q_ka]. ax(q_exp) has [q_exp]|-[q_exp].
+    # Since same(q_ka, q_exp): they're interchangeable.
+    # [q_exp] |- [q_exp] = [Implies(Or,P1)] |- [Implies(Or,P1)].
+    # mp: Implies(Or,P1) + Or → P1.
+    got_q_exp = ax(q_exp)  # [q_exp] |- q_exp
+    print(f'q_exp type: {type(q_exp).__name__}')
+    print(f'q_exp.left type: {type(q_exp.left).__name__}: {q_exp.left}')
+    print(f'q_exp.right type: {type(q_exp.right).__name__}')
+    print(f'got_or_ka_a.right: {got_or_ka_a.sequent.right[0]}')
+    print(f'same(q_exp.left, got_or_ka_a.right): {same(q_exp.left, got_or_ka_a.sequent.right[0])}')
+    print(f'same(or_ka_a, q_exp.left): {same(or_ka_a, q_exp.left)}')
+    # Direct implies_left test
+    from core.proof import Proof as _P, Sequent as _S, _in, _expand, _remove, _set_add, _eq_sequent
+    imp = Implies(q_exp.left, q_exp.right)
+    print(f'imp: {imp}')
+    print(f'q_exp: {q_exp}')
+    print(f'same(imp, q_exp): {same(imp, q_exp)}')
+    print(f'_in(imp, [q_exp]): {_in(imp, [q_exp])}')
+    # Check what _expand does
+    exp_imp = _expand(imp)
+    exp_qexp = _expand(q_exp)
+    print(f'_expand(imp) type: {type(exp_imp).__name__}')
+    print(f'_expand(q_exp) type: {type(exp_qexp).__name__}')
+    print(f'_expand(imp) == _expand(q_exp): {exp_imp is exp_qexp}')
+    print(f'same(_expand(imp), _expand(q_exp)): {same(exp_imp, exp_qexp)}')
+    # mp doesn't work with ax(q_exp) because it weakens imp onto ps0.
+    # Instead: implies_left directly.
+    # From got_or_ka_a: [ctx_a] |- [P]  where P = Or(In(ka,a),Eq(ka,a))
+    # Need: [ctx_a, q_ka] |- [Q]  where Q = P1(ka)
+    # implies_left: from [G] |- [D, A] and [G, B] |- [D], derive [G, A→B] |- [D].
+    # Here A→B = q_exp = Implies(P, Q). A = P. B = Q.
+    # ps0: [ctx_a] |- [Q, P]. Got: wr(got_or_ka_a, Q) = [ctx_a] |- [P, Q]. ✓
+    # ps1: [ctx_a, Q] |- [Q]. Got: wl(ax(Q), *ctx_a) = [Q, ctx_a] |- [Q]. ✓
+    P_q = q_exp.left
+    Q_q = q_exp.right
+    ctx_a = list(got_or_ka_a.sequent.left)
+    ps0 = wr(got_or_ka_a, Q_q)  # [ctx_a] |- [P, Q]
+    ps1 = wl(ax(Q_q), *ctx_a)   # [Q, ctx_a] |- [Q]
+    got_P1_ka = Proof(Sequent(ctx_a + [q_exp], [Q_q]), 'implies_left', [ps0, ps1], principal=q_exp)
+    # [ctx_a, q_exp] |- P1(ka). Cut q_exp with q_ka (same formula):
+    got_P1_ka = cut(got_P1_ka, q_exp, ax(q_ka))
+    # [q_exp, or_ska_a, ...] |- P1(ka)
+    # Cut q_exp from left with ax(q_ka) (same formula, just different type):
+    got_P1_ka = cut(got_P1_ka, q_exp, ax(q_ka))
+    # [q_ka, or_ska_a, succ_ska, ...] |- P1(ka)
+
+    # === Step 4: Open P1(ka), run sub-helpers → P1(S(ka)) ===
+    # P1(ka) = ∃tra.∃ca.body. Extract body, then components.
+    p1_ka_formula = got_P1_ka.sequent.right[0]
+    body_ka = p1_ka_formula.body.body  # inside ∃tra.∃ca
+
+    def extract_and(got_body, left_f, right_f):
+        got_l = apply_thm(and_elim_left(left_f, right_f, []), [],
+            And(left_f, right_f), left_f, got_body)
+        got_r = apply_thm(and_elim_right(left_f, right_f, []), [],
+            And(left_f, right_f), right_f, got_body)
+        return got_l, got_r
+
+    func_f = body_ka.left; r1 = body_ka.right
+    dom_f = r1.left; r2 = r1.right
+    cfg_f = r2.left; r3 = r2.right
+    base_f = r3.left; r4 = r3.right
+    app_f = r4.left; sv_f = r4.right
+
+    got_func, got_r1 = extract_and(ax(body_ka), func_f, r1)
+    got_dom, got_r2 = extract_and(got_r1, dom_f, r2)
+    got_cfg, got_r3 = extract_and(got_r2, cfg_f, r3)
+    got_base, got_r4 = extract_and(got_r3, base_f, r4)
+    got_app, got_sv = extract_and(got_r4, app_f, sv_f)
+    # All 6 have [body_ka] on the left.
+
+    # Sub-helpers: tape_read, transition, tmstep, extend_trace
     got_read = phase1_step_read(tape_in, a, b, ka, one)
-    # got_read has In(ka,a) on its left. Cut that with got_in_ka_a.
+    # Cut In(ka,a) into got_read (it needs it for tape_read_low)
     if any(same(in_ka_a, f) for f in got_read.sequent.left):
         got_read = cut(got_read, in_ka_a, got_in_ka_a)
+
+    got_trans = phase1_step_transition(delta_char_formula, delta, q0, one, d1)
+
+    got_tmstep = phase1_step_tmstep(delta, q0, ka, ska, tape_in, ca, one, d1)
+    # Cut P1(ka) components from got_tmstep with extracted proofs
+    for formula, proof in [(func_f, got_func), (dom_f, got_dom), (cfg_f, got_cfg),
+                           (base_f, got_base), (app_f, got_app), (sv_f, got_sv)]:
+        while any(same(formula, f) for f in got_tmstep.sequent.left):
+            got_tmstep = cut(got_tmstep, formula, proof)
+    # body_ka on got_tmstep left. eel ca, tra, cut with P1(ka).
+    print(f'body_ka on tmstep left: {any(same(body_ka, f) for f in got_tmstep.sequent.left)}')
+    print(f'body_ka on tmstep left (is): {any(f is body_ka for f in got_tmstep.sequent.left)}')
+    from core.proof import _free_vars as _fv_step, _var_free_in_sequent as _vfis
+    ca_free_tmstep = [(i,f) for i,f in enumerate(got_tmstep.sequent.left)
+                      if _vfis(ca, Sequent([f], []))]
+    print(f'ca free on tmstep left: {[(i, type(f).__name__) for i,f in ca_free_tmstep]}')
+    got_tmstep = eel(got_tmstep, body_ka, ca)
+    got_tmstep = eel(got_tmstep, Exists(ca, body_ka), tra)
+    got_tmstep = cut(got_tmstep, p1_ka_formula, got_P1_ka)
+
+    # Open ∃ca_new from got_tmstep
+    ca_new = Var(postfix='cn')
+    cfg_new = TMConfig(ca_new, q0, ska, tape_in)
+    tmstep_ca = TMStep(delta, ca, ca_new)
+    and_cfg_step = And(cfg_new, tmstep_ca)
+    got_cfg_new_from_and = apply_thm(and_elim_left(cfg_new, tmstep_ca, []), [],
+        and_cfg_step, cfg_new, ax(and_cfg_step))
+    got_tmstep_from_and = apply_thm(and_elim_right(cfg_new, tmstep_ca, []), [],
+        and_cfg_step, tmstep_ca, ax(and_cfg_step))
+
+    # Extend trace
+    tra_new = Var(postfix='trn')
+    got_extend = phase1_step_extend_trace(
+        tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1, w)
+    # Cut P1(ka) components from got_extend
+    for formula, proof in [(func_f, got_func), (dom_f, got_dom),
+                           (base_f, got_base), (app_f, got_app), (sv_f, got_sv)]:
+        while any(same(formula, f) for f in got_extend.sequent.left):
+            got_extend = cut(got_extend, formula, proof)
+    # body_ka on got_extend left. eel ca, tra, cut with P1(ka).
+    if any(same(body_ka, f) for f in got_extend.sequent.left):
+        got_extend = eel(got_extend, body_ka, ca)
+        got_extend = eel(got_extend, Exists(ca, body_ka), tra)
+        got_extend = cut(got_extend, p1_ka_formula, got_P1_ka)
+    # Cut TMStep from extend
+    if any(same(tmstep_ca, f) for f in got_extend.sequent.left):
+        got_extend = cut(got_extend, tmstep_ca, got_tmstep_from_and)
+
+    # Build full P1(S(ka)) body: insert cfg_new + dom into extend output
+    ext_body = got_extend.sequent.right[0].body
+    got_func_from_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
+        ext_body, ext_body.left, ax(ext_body))
+    rest_ext = ext_body.right
+    got_rest_from_ext = apply_thm(and_elim_right(ext_body.left, rest_ext, []), [],
+        ext_body, rest_ext, ax(ext_body))
+    dom_from_ext = rest_ext.left
+    rest_after_dom = rest_ext.right
+    got_dom_from_ext = apply_thm(and_elim_left(dom_from_ext, rest_after_dom, []), [],
+        rest_ext, dom_from_ext, got_rest_from_ext)
+    got_rest_after_dom = apply_thm(and_elim_right(dom_from_ext, rest_after_dom, []), [],
+        rest_ext, rest_after_dom, got_rest_from_ext)
+
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    got_cfg_rest = mk_and(got_cfg_new_from_and, got_rest_after_dom)
+    got_dom_cfg_rest = mk_and(got_dom_from_ext, got_cfg_rest)
+    got_full_body = mk_and(got_func_from_ext, got_dom_cfg_rest)
+
+    # eir: tra first (inner), ca second (outer matches phase1_pred)
+    full_body_formula = got_full_body.sequent.right[0]
+    body_for_ca = full_body_formula.subst(ca_new, ca)
+    got_ex_ca = eir(got_full_body, body_for_ca, ca, ca_new)
+    body_for_tra = Exists(ca, body_for_ca).subst(tra_new, tra)
+    got_ex_tra_ca = eir(got_ex_ca, body_for_tra, tra, tra_new)
+
+    # eel ext_body/tra_new, cut with got_extend
+    got_ex_tra_ca = eel(got_ex_tra_ca, ext_body, tra_new)
+    got_ex_tra_ca = cut(got_ex_tra_ca, Exists(tra_new, ext_body), got_extend)
+
+    # eel and_cfg_step/ca_new, cut with got_tmstep
+    if any(same(and_cfg_step, f) for f in got_ex_tra_ca.sequent.left):
+        got_ex_tra_ca = eel(got_ex_tra_ca, and_cfg_step, ca_new)
+        got_ex_tra_ca = cut(got_ex_tra_ca, Exists(ca_new, and_cfg_step), got_tmstep)
+
+    # === Step 5+6: Discharge Or → Q(S(ka)), discharge Q(ka) ===
+    got_p1_ska = got_ex_tra_ca  # |- P1(S(ka))
+    # Cut remaining In(ka,a) and Apply(tape_in,ka,one)
+    if any(same(in_ka_a, f) for f in got_p1_ska.sequent.left):
+        got_p1_ska = cut(got_p1_ska, in_ka_a, got_in_ka_a)
+    app_tape_ka_one = Apply(tape_in, ka, one)
     if any(same(app_tape_ka_one, f) for f in got_p1_ska.sequent.left):
         got_p1_ska = cut(got_p1_ska, app_tape_ka_one, got_read)
-    # Cut any remaining In(ka,a) from the cuts
     while any(same(in_ka_a, f) for f in got_p1_ska.sequent.left):
         got_p1_ska = cut(got_p1_ska, in_ka_a, got_in_ka_a)
 
-    # Discharge Or(In(ska,a),Eq(ska,a)) → Q1(S(ka))
+    # Discharge Or(In(ska,a),Eq(ska,a)) → Q(S(ka))
     got_p1_ska = wl(got_p1_ska, or_ska_a)
     imp_q_ska = Implies(or_ska_a, got_p1_ska.sequent.right[0])
     left_q = [f for f in got_p1_ska.sequent.left if not same(f, or_ska_a)]
-    got_result = Proof(Sequent(left_q, [imp_q_ska]),
+    got_q_ska = Proof(Sequent(left_q, [imp_q_ska]),
         'implies_right', [got_p1_ska], principal=imp_q_ska)
+
+    # Discharge Q(ka) → (Q(ka) → Q(S(ka)))
+    imp_qq = Implies(q_ka, got_q_ska.sequent.right[0])
+    left_qq = [f for f in got_q_ska.sequent.left if not same(f, q_ka)]
+    got_result = Proof(Sequent(left_qq, [imp_qq]),
+        'implies_right', [got_q_ska], principal=imp_qq)
+
     got_result.name = 'phase1_step'
     return got_result
 
