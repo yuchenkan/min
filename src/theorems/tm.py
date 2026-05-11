@@ -1817,7 +1817,225 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
         got_ex_tra_ca = cut(got_ex_tra_ca, consist, got_con_from_both)
     got_ex_tra_ca = eel(got_ex_tra_ca, and_both, ca_new)
     # [..., ∃ca_new. and_both] |- P1(S(ka))
-    # ∃ca_new. and_both remains as hypothesis (consistency obligation for caller)
+
+    # Cut ∃ca_new. and_both with proof from got_tmstep + consist.
+    # got_tmstep: [ctx_t] |- ∃ca_new. and_cfg_step
+    # Need: [ctx_t, ...] |- ∃ca_new. and_both = ∃ca_new. And(and_cfg_step, consist)
+    # From and_cfg_step on left (inside ∃): mk_and with ax(consist) → and_both → eir ca_new.
+    # consist = ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv). With ca_new from the ∃ scope.
+    # ax(consist) has [consist] on left. consist has ca_new free.
+    # After mk_and: [and_cfg_step, consist] |- and_both. eir ca_new: [and_cfg_step, consist] |- ∃ca_new. and_both.
+    # eel both from left: [∃ca_new. And(and_cfg_step, consist)] |- ∃ca_new. and_both.
+    # = [∃ca_new. and_both] |- ∃ca_new. and_both — tautology, useless.
+
+    # Better: start from got_tmstep's ∃ca_new. and_cfg_step.
+    # Open: assume and_cfg_step on left.
+    # Build consist from the context: consist = ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv).
+    # This is the extend_function consistency. It's NOT provable without domain tracking.
+    # But we CAN weaken: from and_cfg_step, we have TMStep(delta,ca,ca_new) and TMConfig(ca_new,...).
+    # These don't give us consist.
+    # consist is about tra mapping ska — unrelated to TMStep/TMConfig.
+
+    # Prove ∃ca_new. consist from Function(tra):
+    # ∃c. ∀zv. Apply(tra,ska,zv) → Eq(c,zv) = "tra is single-valued at ska"
+    # Case ¬∃y.Apply(tra,ska,y): pick any c, consist vacuously true.
+    # Case ∃y.Apply(tra,ska,y): pick c=y, func_unique gives Eq(y,zv).
+    # Proof via excluded middle on Apply(tra,ska,zv):
+    # Assume Apply(tra,ska,zv). eir y=zv: ∃y.Apply(tra,ska,y).
+    # From func_unique + Apply(tra,ska,zv) + Apply(tra,ska,ca_new_witness) → Eq(zv,ca_new_witness).
+    # But we're building ∀zv. so this is inside a forall.
+    # Simpler: just pick ca_new = ca (the old config) as witness.
+    # ∀zv. Apply(tra,ska,zv) → Eq(ca,zv):
+    #   Assume Apply(tra,ska,zv). From func_unique + func_tra: need Apply(tra,ska,ca).
+    #   We don't have Apply(tra,ska,ca). This approach fails.
+    # Actually simplest: use the NOT case. ¬∃y.Apply(tra,ska,y) = ∀y.¬Apply(tra,ska,y).
+    # Then ∀zv. Apply(tra,ska,zv) → Eq(ca,zv) follows from ¬Apply(tra,ska,zv) → ⊥ → Eq(ca,zv).
+    # But ¬∃y.Apply(tra,ska,y) needs domain reasoning.
+    # OR: just use excluded middle in sequent calculus.
+
+    # Excluded middle: |- ∃y.Apply(tra,ska,y), ¬∃y.Apply(tra,ska,y)
+    # not_right on axiom: from [A] |- [A] get [] |- [¬A, A]
+    yy = Var(postfix='yy')
+    ex_app = Exists(yy, Apply(tra, ska, yy))
+    # [] |- [ex_app, Not(ex_app)]
+    ax_ex = Proof(Sequent([ex_app], [ex_app]), 'axiom', principal=ex_app)
+    lem = Proof(Sequent([], [Not(ex_app), ex_app]), 'not_right', [ax_ex], principal=Not(ex_app))
+
+    # Case ¬∃y.Apply(tra,ska,y): vacuously true for any witness.
+    # ∀zv.¬Apply(tra,ska,zv) from ¬∃y.Apply(tra,ska,y) (they're the same).
+    # Assume Apply(tra,ska,zv): contradicts ¬Apply (via eir y=zv).
+    # ⊥ → Eq(ca,zv). Close ∀zv. eir ca_new = ca.
+    not_ex_app = Not(ex_app)
+    app_tra_ska_zv = Apply(tra, ska, zv)
+    # eir yy=zv into ∃: [Apply(tra,ska,zv)] |- ∃yy.Apply(tra,ska,yy)
+    got_eir_app = eir(ax(app_tra_ska_zv), Apply(tra, ska, yy), yy, zv)
+    # not_left: [Apply(tra,ska,zv), ¬∃y.Apply] |- []
+    got_bot_neg = Proof(Sequent([app_tra_ska_zv, not_ex_app], []),
+        'not_left', [got_eir_app], principal=not_ex_app)
+    got_neg_case = Proof(Sequent(got_bot_neg.sequent.left, [Eq(ca, zv)]),
+        'weakening_right', [got_bot_neg], principal=Eq(ca, zv))
+    # Close: Apply → Eq, ∀zv, eir ca_new=ca
+    imp_neg = Implies(app_tra_ska_zv, Eq(ca, zv))
+    got_neg_case = Proof(Sequent([not_ex_app], [imp_neg]),
+        'implies_right', [got_neg_case], principal=imp_neg)
+    fa_neg = Forall(zv, imp_neg)
+    got_neg_case = Proof(Sequent([not_ex_app], [fa_neg]),
+        'forall_right', [got_neg_case], principal=fa_neg, term=zv)
+    # consist template with ca (not ca_new): ∀zv. Apply(tra,ska,zv) → Eq(ca, zv)
+    consist_ca = Forall(zv, Implies(app_tra_ska_zv, Eq(ca, zv)))
+    # eir ca_new = ca:
+    from core.derived import Exists as Ex
+    consist_tmpl = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
+    got_neg_ex = eir(got_neg_case, consist_tmpl, ca_new, ca)
+    # [¬∃y.Apply(tra,ska,y)] |- ∃ca_new. consist
+
+    # Case ∃y.Apply(tra,ska,y): pick ca_new = y, use func_unique.
+    app_tra_ska_yy = Apply(tra, ska, yy)
+    from theorems.omega import func_unique_thm
+    from theorems.logic import eq_symmetric as eq_sym_thm
+    fu2 = func_unique_thm()
+    es2 = eq_sym_thm()
+    # func_unique: Function(tra) → Apply(tra,ska,zv) → Apply(tra,ska,yy) → Eq(zv,yy)
+    eq_zv_yy = Eq(zv, yy)
+    got_fu2 = apply_thm(fu2, [tra, ska, zv, yy])
+    got_fu2 = mp(got_fu2, ax(func_tra), func_tra, got_fu2.sequent.right[0].right)
+    got_fu2 = mp(got_fu2, ax(app_tra_ska_zv), app_tra_ska_zv, got_fu2.sequent.right[0].right)
+    got_fu2 = mp(got_fu2, ax(app_tra_ska_yy), app_tra_ska_yy, eq_zv_yy)
+    # Eq(yy,zv) from Eq(zv,yy):
+    eq_yy_zv = Eq(yy, zv)
+    got_yy_zv = apply_thm(es2, [zv, yy], eq_zv_yy, eq_yy_zv, got_fu2)
+    # Close: Apply(tra,ska,zv) → Eq(yy,zv), ∀zv
+    imp_pos = Implies(app_tra_ska_zv, eq_yy_zv)
+    left_pos = [f for f in got_yy_zv.sequent.left if not same(f, app_tra_ska_zv)]
+    got_pos_case = Proof(Sequent(left_pos, [imp_pos]),
+        'implies_right', [got_yy_zv], principal=imp_pos)
+    fa_pos = Forall(zv, imp_pos)
+    got_pos_case = Proof(Sequent(got_pos_case.sequent.left, [fa_pos]),
+        'forall_right', [got_pos_case], principal=fa_pos, term=zv)
+    # [Function(tra), Apply(tra,ska,yy)] |- ∀zv. Apply(tra,ska,zv) → Eq(yy,zv)
+    # eir ca_new = yy:
+    consist_tmpl2 = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
+    got_pos_ex = eir(got_pos_case, consist_tmpl2, ca_new, yy)
+    # [Function(tra), Apply(tra,ska,yy)] |- ∃ca_new. consist
+    # eel yy from Apply(tra,ska,yy):
+    got_pos_ex = eel(got_pos_ex, app_tra_ska_yy, yy)
+    # [Function(tra), ∃yy.Apply(tra,ska,yy)] |- ∃ca_new. consist
+    got_pos_ex = cut(got_pos_ex, ex_app, ax(ex_app))
+    # Wait, this is circular. ex_app is on the left via eel. I need it from context.
+    # Actually eel replaces Apply(tra,ska,yy) with ∃yy.Apply = ex_app. ax(ex_app) just gives [ex_app]|-[ex_app].
+    # The cut would be: cut(proof, ex_app, ax(ex_app)). This replaces ex_app on left with [ex_app]. No change.
+    # I don't need this cut. The proof already has ex_app on left from eel.
+    # [Function(tra), ex_app] |- ∃ca_new. consist
+
+    # Combine via cut on LEM:
+    # lem: [] |- [Not(ex_app), ex_app]
+    # neg case: [Not(ex_app)] |- ∃ca_new. consist
+    # pos case: [Function(tra), ex_app] |- ∃ca_new. consist
+    # cut Not(ex_app): merge = [Function(tra)] |- ∃ca_new. consist
+    ex_consist = Exists(ca_new, consist)
+    from tactics import weaken_to
+    lem_w = wl(lem, func_tra)
+    lem_w = wr(lem_w, ex_consist)
+    # [Function(tra)] |- [Not(ex_app), ex_app, ∃ca_new.consist]
+    # not_left on ex_app: from [ctx] |- [ex_app, ∃ca_new.consist] get [ctx, Not(ex_app)] |- [∃ca_new.consist]
+    # Hmm, need to be careful. Let me use the standard cut pattern.
+
+    # neg: [Not(ex_app)] |- ∃ca_new.consist
+    # pos: [Function(tra), ex_app] |- ∃ca_new.consist
+    # lem: [] |- [Not(ex_app), ex_app]
+    # By cut on Not(ex_app): from lem: [] |- [Not(ex_app), ex_app]
+    #   and pos_w: [Function(tra), Not(ex_app), ex_app] |- ∃ca_new.consist
+    #   Cut Not(ex_app) doesn't work directly.
+    # Standard approach: cut ex_app from pos with lem.
+    # pos has ex_app on left. lem proves ex_app (along with Not(ex_app)).
+    # cut(pos, ex_app, lem): removes ex_app from pos's left, adds lem's left.
+    # But lem has [] on left and [Not(ex_app), ex_app] on right.
+    # cut expects got_pred to prove ex_app: lem proves [Not(ex_app), ex_app] on right.
+    # That's not just ex_app — it has Not(ex_app) too.
+    # cut function uses wr to add the proof's right formula to lem's right. Complex.
+
+    # Simplest: use the or_elim pattern on LEM.
+    # Or(ex_app, Not(ex_app)) = Implies(Not(ex_app), Not(ex_app))... no, that's not Or.
+    # LEM in our system: [] |- [Not(A), A] which is [] |- [Not(Not(A)), A] if we rearrange... no.
+    # Actually [] |- [Not(A), A] is not Or. Let me build it properly.
+    # From not_right: [A] |- [A] → [] |- [Not(A), A].
+    # To combine neg and pos cases: use two cuts.
+    # Cut A from pos: needs a proof of A. We have lem: [] |- [Not(A), A].
+    # cut(pos, ex_app, lem'): where lem' = [] |- [ex_app, Not(ex_app)].
+    # Wait, cut expects lem' to have ex_app on the right (among possibly others).
+    # cut(pos, ex_app, proof_of_ex_app): proof_of_ex_app has ex_app on right.
+    # lem has [Not(ex_app), ex_app] on right. That counts.
+    # After cut: pos's left minus ex_app, plus lem's left ([]), right = [ex_consist].
+    # But: the cut also puts Not(ex_app) on the right from lem? No, cut rule:
+    # From [G] |- [D, P] and [G, P] |- [D] get [G] |- [D].
+    # ps0 = lem_w (weakened): [Function(tra)] |- [Not(ex_app), ex_app, ex_consist]
+    #   = [G] |- [D, P] where D = [Not(ex_app), ex_consist], P = ex_app.
+    # ps1 = pos_w: [Function(tra), ex_app] |- [ex_consist]
+    #   = [G, P] |- [D] where D = [ex_consist]. But D should match! D in ps1 = [ex_consist].
+    #   D in ps0 minus P = [Not(ex_app), ex_consist]. These don't match!
+    # The rule requires ps0 right = D ∪ {P} and ps1 right = D. With D = [ex_consist]:
+    #   ps0 right = [ex_consist, ex_app]. But actual ps0 right = [Not(ex_app), ex_app, ex_consist].
+    #   Extra Not(ex_app) in ps0. This means D = [Not(ex_app), ex_consist].
+    #   Then ps1 should be [G, P] |- [Not(ex_app), ex_consist].
+
+    # So: pos needs Not(ex_app) on the right too. wr:
+    got_pos_w = wr(wl(got_pos_ex, func_tra) if not any(same(func_tra, f) for f in got_pos_ex.sequent.left) else got_pos_ex, Not(ex_app))
+    # [Function(tra), ex_app] |- [∃ca_new.consist, Not(ex_app)]
+
+    # Now cut ex_app:
+    lem_w2 = wl(wr(lem, ex_consist), func_tra)
+    # [Function(tra)] |- [Not(ex_app), ex_app, ∃ca_new.consist]
+    got_cut1 = Proof(Sequent([func_tra], [Not(ex_app), ex_consist]), 'cut',
+        [lem_w2, got_pos_w], principal=ex_app)
+    # [Function(tra)] |- [Not(ex_app), ∃ca_new.consist]
+
+    # Now cut Not(ex_app): neg case has Not(ex_app) on left.
+    got_neg_w = wl(got_neg_ex, func_tra)
+    got_neg_w = wr(got_neg_w, Not(ex_app))
+    # Hmm, this is getting messy. Let me use the simpler approach.
+    # not_left: from [G] |- [D, A] get [G, Not(A)] |- [D].
+    # With A = ex_app: from [Function(tra)] |- [Not(ex_app), ∃ca_new.consist, ex_app] ...
+    # This is getting too complex for inline.
+
+    # SIMPLEST: just use neg directly. ¬∃y case gives any witness.
+    # From ¬∃y.Apply(tra,ska,y): ∀y.¬Apply(tra,ska,y).
+    # consist[ca_new:=ca] = ∀zv. Apply(tra,ska,zv) → Eq(ca,zv).
+    # Apply(tra,ska,zv) + ¬Apply(tra,ska,zv) → ⊥ → Eq(ca,zv). ✓
+    # So neg case works with witness ca.
+
+    # For pos case: just pick ca_new = yy where Apply(tra,ska,yy) holds.
+    # The func_unique gives Eq(zv,yy) → Eq(yy,zv). ✓
+
+    # Both cases give ∃ca_new. consist. Combine:
+    # cut Not(ex_app) from got_cut1: [Function(tra)] |- [Not(ex_app), ∃ca_new.consist]
+    # not_left on Not(ex_app): need [Function(tra)] |- [ex_app, ∃ca_new.consist]... hmm.
+
+    # Let me just use the neg case alone as the proof.
+    # got_neg_ex: [¬∃y.Apply(tra,ska,y)] |- ∃ca_new.consist
+    # The ¬∃ is a HYPOTHESIS. We don't have it from the context.
+    # We need LEM to get either ∃ or ¬∃.
+
+    # ACTUALLY: let me just accept ∃ca_new.consist as hypothesis.
+    # The proof is correct but has this extra obligation.
+    # Cut what we can:
+
+    # got_proof_both approach: merge then cut.
+    # [and_cfg_step, consist] |- ∃ca_new.and_both (via mk_and + eir)
+    got_proof_both = mk_and(ax(and_cfg_step), ax(consist))
+    got_proof_both = eir(got_proof_both, and_both, ca_new, ca_new)
+    # Merge left into and_both:
+    got_proof_both = cut(got_proof_both, and_cfg_step, got_cfg_from_both)
+    got_proof_both = cut(got_proof_both, consist, got_con_from_both)
+    # [and_both] |- ∃ca_new. and_both. eel:
+    got_proof_both = eel(got_proof_both, and_both, ca_new)
+    # [∃ca_new.and_both] |- ∃ca_new.and_both — tautology
+    # This just moves ∃ca_new.and_both through. No help.
+
+    # We need to break ∃ca_new.and_both into ∃ca_new.and_cfg_step (from tmstep) + ∃ca_new.consist.
+    # ∃ca_new.and_both ← ∃ca_new.and_cfg_step ∧ ∃ca_new.consist? No, ∃ doesn't distribute over ∧.
+    # ∃ca_new. And(A(ca_new), B(ca_new)) ← ∃ca_new.A(ca_new) only if B can be proved for the same ca_new.
+
+    # This is the fundamental issue. Accept ∃ca_new.consist on the left.
     got_result = got_ex_tra_ca
     got_result.name = 'phase1_step'
     return got_result
