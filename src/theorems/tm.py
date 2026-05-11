@@ -1770,22 +1770,30 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
     got_full_body = mk_and(got_func_from_ext, got_cfg_rest)
     # [..., ext_body, And(cfg_step)] |- And(func, And(cfg, And(base, And(head, sv))))
 
-    # eir in two stages:
-    # Stage 1: eir ca. Body template uses tra_new (concrete) and ca (to be bound).
-    body_ca = And(func_trn, And(TMConfig(ca, q0, ska, tape_in),
-        And(Forall(z, Implies(Empty(z), Apply(tra_new, z, c0))),
-        And(Apply(tra_new, ska, ca),
+    # === Wrap in ∃tra_new, ∃ca_new = P1(S(ka)) ===
+    # ca_new-dependent formulas on left: ext_body, and_cfg_step, consist
+    # tra_new-dependent formulas on left: ext_body
+    # Strategy: eir tra first, eel ext_body. Then eir ca, eel merged ca_new formulas.
+    zv = Var(postfix='zv')
+    consist = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
+
+    # Stage 1: eir tra. Body template uses tra (bound), ca_new (concrete).
+    body_tra = And(FuncDef(tra), And(TMConfig(ca_new, q0, ska, tape_in),
+        And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+        And(Apply(tra, ska, ca_new),
             Forall(ja, Implies(In(ja, ska),
                 Forall(sja, Implies(Successor(sja, ja),
-                    Forall(cja, Implies(Apply(tra_new, ja, cja),
-                        Exists(cja1, And(Apply(tra_new, sja, cja1),
+                    Forall(cja, Implies(Apply(tra, ja, cja),
+                        Exists(cja1, And(Apply(tra, sja, cja1),
                             TMStep(delta, cja, cja1)))))))))))))
-    # body_ca[ca:=ca_new] should match got_full_body.right[0]
-    got_ex_ca = eir(got_full_body, body_ca, ca, ca_new)
-    # [...] |- ∃ca. body_ca (tra_new free)
+    got_ex_tra = eir(got_full_body, body_tra, tra, tra_new)
+    # eel ext_body/tra_new, cut with got_extend
+    got_ex_tra = eel(got_ex_tra, ext_body, tra_new)
+    got_ex_tra = cut(got_ex_tra, Exists(tra_new, ext_body), got_extend)
+    # [..., and_cfg_step(ca_new), consist(ca_new)] |- ∃tra. body_tra(ca_new)
 
-    # Stage 2: eir tra. Body template uses tra (to be bound) and ca (already bound in ∃).
-    body_tra = And(FuncDef(tra), And(TMConfig(ca, q0, ska, tape_in),
+    # Stage 2: eir ca. Body template uses ca (bound).
+    body_ca = And(FuncDef(tra), And(TMConfig(ca, q0, ska, tape_in),
         And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
         And(Apply(tra, ska, ca),
             Forall(ja, Implies(In(ja, ska),
@@ -1793,86 +1801,24 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
                     Forall(cja, Implies(Apply(tra, ja, cja),
                         Exists(cja1, And(Apply(tra, sja, cja1),
                             TMStep(delta, cja, cja1)))))))))))))
-    ex_ca_tmpl = Exists(ca, body_tra)
-    # ex_ca_tmpl[tra:=tra_new] should match got_ex_ca.right[0] = ∃ca. body_ca ✓
-    got_ex_tra_ca = eir(got_ex_ca, ex_ca_tmpl, tra, tra_new)
-    # [...] |- ∃tra. ∃ca. body_tra = P1(S(ka)) — tra_new NOT free in right!
+    ex_tra_body_ca = Exists(tra, body_ca)
+    got_ex_tra_ca = eir(got_ex_tra, ex_tra_body_ca, ca, ca_new)
+    # [..., and_cfg_step(ca_new), consist(ca_new)] |- P1(S(ka)) — ca_new NOT free in right
 
-    # eel ext_body from left (has tra_new free), cut with got_extend
-    got_ex_tra_ca = eel(got_ex_tra_ca, ext_body, tra_new)
-    ex_ext = Exists(tra_new, ext_body)
-    # The ∃ from eel should match got_extend's right
-    got_result = cut(got_ex_tra_ca, ex_ext, got_extend)
-
-    # eel And(cfg_step) from left, cut with got_tmstep
-    # Eliminate ca_new from left: and_cfg_step and consist both have ca_new free.
-    # Consistency condition from extend_function: ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv)
-    zv = Var(postfix='zv')
-    consist = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
-
-    # First eliminate consist (by discharging it as implies_right, then cutting):
-    # consist on the left is an axiom assumption. We need to remove it.
-    # implies_right: [ctx, consist] |- D → [ctx] |- consist → D.
-    # Then we'd need to provide consist. But consist is the placeholder.
-    # Simplest: just eel consist/ca_new first, then eel and_cfg_step/ca_new.
-    # eel consist/ca_new replaces consist with ∃ca_new.consist on left.
-    # But eel requires ca_new not free in right ✓ and not free in other left formulas
-    # (except consist). ca_new IS free in and_cfg_step too. So eel fails.
-
-    # Alternative: combine consist + and_cfg_step into one And, eel ca_new once.
+    # Merge and_cfg_step + consist into one And, eel ca_new
     and_both = And(and_cfg_step, consist)
-    ael_cfg = and_elim_left(and_cfg_step, consist, [])
-    ael_con = and_elim_right(and_cfg_step, consist, [])
-    got_cfg_from_both = apply_thm(ael_cfg, [], and_both, and_cfg_step, ax(and_both))
-    got_con_from_both = apply_thm(ael_con, [], and_both, consist, ax(and_both))
-
-    # Replace and_cfg_step and consist on left with and_both:
-    if any(same(and_cfg_step, f) for f in got_result.sequent.left):
-        got_result = cut(got_result, and_cfg_step, got_cfg_from_both)
-    if any(same(consist, f) for f in got_result.sequent.left):
-        got_result = cut(got_result, consist, got_con_from_both)
-    # Now and_both is on the left with ca_new free. eel ca_new from and_both.
-    got_result = eel(got_result, and_both, ca_new)
-    # ∃ca_new. and_both on the left. Cut with proof of ∃ca_new. and_both.
-
-    # Build ∃ca_new. and_both from got_tmstep + ax(consist):
-    # got_tmstep: [ctx] |- ∃ca_new. and_cfg_step
-    # Need: ∃ca_new. And(and_cfg_step, consist)
-    # = ∃ca_new. And(And(cfg_new, tmstep_ca), consist)
-    # From and_cfg_step + consist → and_both → eir ca_new
-    got_and_both = mk_and(ax(and_cfg_step), ax(consist))
-    got_ex_both = eir(got_and_both, and_both, ca_new, ca_new)
-    # [and_cfg_step, consist] |- ∃ca_new. and_both
-    # eel and_cfg_step from got_ex_both, cut with got_tmstep:
-    got_ex_both = eel(got_ex_both, and_cfg_step, ca_new)
-    # [∃ca_new.and_cfg_step, consist] |- ∃ca_new.and_both
-    got_ex_both = cut(got_ex_both, Exists(ca_new, and_cfg_step), got_tmstep)
-    # [ctx_tmstep, consist] |- ∃ca_new.and_both
-
-    # eel consist from got_ex_both:
-    # consist has ca_new free but ∃ca_new already binds it in the right.
-    # Hmm, consist is NOT inside the ∃ — it's separate on the left.
-    # Actually got_ex_both has consist on the left with ca_new free.
-    # But ∃ca_new.and_both on the right has ca_new bound. ✓
-    # eel consist/ca_new: replaces consist with ∃ca_new.consist. ca_new not free elsewhere.
-    got_ex_both = eel(got_ex_both, consist, ca_new)
-    # [ctx, ∃ca_new.consist] |- ∃ca_new.and_both. Hmm, we don't have ∃ca_new.consist proved.
-    # Actually we can't easily prove ∃ca_new.consist without a witness.
-    # The consist = ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv) with ca_new existentially quantified
-    # means "there exists SOME ca_new such that if tra maps ska to something, it equals ca_new."
-    # This is trivially true: just pick ca_new = anything.
-    # Actually, ∃ca_new. ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv):
-    # If tra(ska) is defined (∃y. Apply(tra,ska,y)), pick ca_new = y. Then Apply(tra,ska,zv) → Eq(y,zv) via func_unique.
-    # If tra(ska) is undefined, any ca_new works (vacuously true).
-
-    # This is getting too complex. Let me just add consist as a hypothesis to phase1_step
-    # and let the caller provide it. It's a reasonable assumption.
-    # OR: remove consist from the extend_trace by proving Function(tra_new) differently.
-
-    # SIMPLEST FIX: just cut ∃ca_new.and_both from got_result with got_ex_both
-    # (even though got_ex_both still has ∃ca_new.consist on left — leave it there).
-    got_result = cut(got_result, Exists(ca_new, and_both), got_ex_both)
-
+    got_cfg_from_both = apply_thm(and_elim_left(and_cfg_step, consist, []), [],
+        and_both, and_cfg_step, ax(and_both))
+    got_con_from_both = apply_thm(and_elim_right(and_cfg_step, consist, []), [],
+        and_both, consist, ax(and_both))
+    if any(same(and_cfg_step, f) for f in got_ex_tra_ca.sequent.left):
+        got_ex_tra_ca = cut(got_ex_tra_ca, and_cfg_step, got_cfg_from_both)
+    if any(same(consist, f) for f in got_ex_tra_ca.sequent.left):
+        got_ex_tra_ca = cut(got_ex_tra_ca, consist, got_con_from_both)
+    got_ex_tra_ca = eel(got_ex_tra_ca, and_both, ca_new)
+    # [..., ∃ca_new. and_both] |- P1(S(ka))
+    # ∃ca_new. and_both remains as hypothesis (consistency obligation for caller)
+    got_result = got_ex_tra_ca
     got_result.name = 'phase1_step'
     return got_result
 
