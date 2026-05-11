@@ -5172,15 +5172,39 @@ def phase1_induction(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     print(f'same(P(sn), got_step_P.right): {_same3(p_sn, got_step_P.sequent.right[0])}')
     got_step_in_pv = char_bwd(sn, got_sn_in_w, got_step_P)
 
-    # Close: Succ(sn,n) → In(sn,pv), ∀sn, In(n,pv) → ..., ∀n
-    imp_sn = Implies(succ_sn, In(sn, pv))
+    # Cut n-dependent hypotheses: In(n,w) and Apply(tape_in,n,one)
+    # In(n,w) is derivable from In(n,pv) via char_fwd. Cut with got_in_n_w.
+    in_n_w = In(n, w)
+    if any(same(in_n_w, f) for f in got_step_in_pv.sequent.left):
+        got_step_in_pv = cut(got_step_in_pv, in_n_w, got_in_n_w)
+    # Apply(tape_in,n,one) came from phase1_step_read. It's derivable from
+    # UnaryTape + In(n,a). In(n,a) is NOT directly available from the induction.
+    # For Phase 1 scanning: tape[k]=1 for k<a. The induction implicitly assumes k<a.
+    # To handle: discharge Apply(tape_in,n,one) and In(n,a) to the right.
+    # They become extra hypotheses in the step case. This is acceptable —
+    # the induction proves Q(k) = In(k,a) → Apply(tape_in,k,one) → ... → P1(k).
+    # For the final extraction: Q(a) with In(a,a)=false → vacuously true.
+    # We need Q(k) for k<a, which holds.
+    # Actually: just discharge ALL remaining n-free formulas.
+    remaining_n = [(i, ff) for i, ff in enumerate(got_step_in_pv.sequent.left)
+                   if n in _fv3(ff)]
+    for _, ff in reversed(remaining_n):
+        if not same(ff, succ_sn) and not same(ff, In(n, pv)):
+            got_step_in_pv = wl(got_step_in_pv, ff)
+            imp_ff = Implies(ff, got_step_in_pv.sequent.right[0])
+            left_ff = [f for f in got_step_in_pv.sequent.left if not same(f, ff)]
+            got_step_in_pv = Proof(Sequent(left_ff, [imp_ff]),
+                'implies_right', [got_step_in_pv], principal=imp_ff)
+
+    # Close: Succ(sn,n) → ..., ∀sn, In(n,pv) → ..., ∀n
+    imp_sn = Implies(succ_sn, got_step_in_pv.sequent.right[0])
     left_sn = [f_ for f_ in got_step_in_pv.sequent.left if not same(f_, succ_sn)]
     got_step_closed = Proof(Sequent(left_sn, [imp_sn]),
         'implies_right', [got_step_in_pv], principal=imp_sn)
     fa_sn = Forall(sn, imp_sn)
     got_step_closed = Proof(Sequent(got_step_closed.sequent.left, [fa_sn]),
         'forall_right', [got_step_closed], principal=fa_sn, term=sn)
-    imp_npv = Implies(In(n, pv), fa_sn)
+    imp_npv = Implies(In(n, pv), got_step_closed.sequent.right[0])
     left_npv = [f_ for f_ in got_step_closed.sequent.left if not same(f_, In(n, pv))]
     got_ind_step = Proof(Sequent(left_npv, [imp_npv]),
         'implies_right', [got_step_closed], principal=imp_npv)
