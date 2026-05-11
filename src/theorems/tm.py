@@ -1506,152 +1506,375 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
     return proof
 
 
-def phase1_step(q0, tape_in, c0, z, delta, a, b, tra, ca, ja, sja, cja, cja1, ka, ska, w):
-    """Phase 1 step case: In(ka, a) → P1(ka) → P1(S(ka)).
+def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja, sja, cja, cja1, ka, ska, w, one, d1):
+    """Phase 1 step case: In(ka, a) ∧ P1(ka) → P1(S(ka)).
 
-    Assume In(ka, a) and P1(ka) on the left.
-    From P1(ka): get tra_old, ca_old with:
-      TMConfig(ca_old, q0, ka, tape_in), Apply(tra_old, z, c0),
-      Apply(tra_old, ka, ca_old), step_valid up to ka.
+    Hypotheses (on left):
+      In(ka, a), UnaryTape(tape_in,a,b), Successor(ska,ka),
+      delta_char, Num(q0,0), Num(one,1), Num(d1,1),
+      Function(delta), Function(tape_in),
+      Omega(w), In(ka, w),
+      P1(ka) components (opened from existentials):
+        Function(tra), TMConfig(ca,q0,ka,tape_in),
+        ∀z'.Empty(z')→Apply(tra,z',c0), Apply(tra,ka,ca), step_valid(tra,ka)
+      Pairing, Union, Extensionality, various Separation instances
 
-    Sub-goal 2a (tape read):
-      [UnaryTape(tape_in,a,b), In(ka,a), Num(one,1)]
-      |- Apply(tape_in, ka, one)
-      From tape_read_low: In(ka, a) gives tape reads 1 at position ka.
+    Returns: [ctx] |- P1(S(ka))
+    where P1(S(ka)) = ∃tra_new, ca_new. And(Function(tra_new), And(TMConfig(...), And(base, And(head, step_valid))))
 
-    Sub-goal 2b (transition lookup):
-      [delta_char, Num(q0,0), Num(one,1), Num(d1,1)]
-      |- TMTransition(delta, q0, one, one, d1, q0)
-      Extract from delta_char conjunction: (q0,1)→(1,R,q0).
-
-    Sub-goal 2c (new config construction):
-      [Pairing, axioms]
-      |- ∃ca'. TMConfig(ca', q0, S(ka), tape_in)
-      head_move_right: HeadMove(ka, S(ka), d1).
-      Tape unchanged (write 1 over 1).
-      config_intro: build (q0, S(ka), tape_in).
-
-    Sub-goal 2d (TMStep):
-      [results of 2a, 2b, 2c]
-      |- TMStep(delta, ca_old, ca')
-      step_intro assembles from: TMConfig, Apply(tape,h,sym),
-      TMTransition, TapeUpdate, HeadMove, TMConfig.
-
-    Sub-goal 2e (trace extension):
-      |- tra' = tra_old ∪ {(S(ka), ca')}
-      Pairing gives {(S(ka), ca')} as singleton.
-      union_exists gives tra' = tra_old ∪ singleton.
-      apply_union_intro_left: old Apply's preserved in tra'.
-      apply_union_intro_right: Apply(tra', S(ka), ca') from singleton.
-
-    Sub-goal 2f (step_valid extension):
-      step_valid for tra' up to S(ka):
-      ∀ja < S(ka): either ja < ka (old steps, preserved via apply_union_intro_left)
-                    or ja = ka (new step: TMStep(delta, ca_old, ca') from 2d).
-
-    Compose 2a-2f into P1(S(ka)) via eir for ∃tra', ∃ca'.
+    Composes:
+    1. phase1_step_read → Apply(tape_in, ka, one)
+    2. phase1_step_transition → TMTransition(delta, q0, one, one, d1, q0)
+    3. phase1_step_tmstep → ∃ca_new. And(TMConfig(ca_new,...), TMStep(delta,ca,ca_new))
+    4. phase1_step_extend_trace → ∃tra_new. And(Function(tra_new), And(base, And(head, step_valid)))
+    5. Compose TMConfig from step 3 with trace from step 4 → P1(S(ka))
     """
-    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from theorems.logic import and_intro, and_elim_left, and_elim_right, iff_mp_rev, eq_reflexive, or_elim
-    from theorems.sets import ordpair_exists, singleton_exists, union_exists
-    from theorems.tm import tape_read_low, head_move_right, config_intro
-    from theorems.recursion import apply_union_intro_left, apply_union_intro_right
-    from core.proof import Proof, Sequent, _free_vars
-    from core.derived import Or
-    from vocab.sets import Singleton as Sing
-    from vocab.ordpair import Successor as Succ
-    import core.zfc as zfc
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import and_intro, and_elim_left, and_elim_right
+    from theorems.tm import (phase1_step_read, phase1_step_transition,
+        phase1_step_tmstep, phase1_step_extend_trace)
+    from vocab.functions import Function as FuncDef
+    from vocab.sets import Empty
+    from vocab.omega import Omega
+    from core.proof import Proof, Sequent, same
+    from core.derived import Exists
     from tm import UnaryTape
 
-    # The predicate P1(ka) — reuse phase1_pred
-    p1_ka = phase1_pred(ka, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
-    p1_ska = phase1_pred(ska, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
-
-    # Hypotheses
-    in_ka_a = In(ka, a)
-    utape = UnaryTape(tape_in, a, b)
-    succ_ska = Succ(ska, ka)
-    num_q0 = Num(q0, 0)
-
-    # === Assume P1(ka) on the left, open existentials ===
-    # P1(ka) = ∃tra, ca. And(TMConfig(ca,q0,ka,tape_in), And(base_cond, And(apply_ka, step_valid)))
-    # We work with the components on the left.
-
+    succ_ska = Successor(ska, ka)
+    func_tra = FuncDef(tra)
     cfg_ka = TMConfig(ca, q0, ka, tape_in)
-    app_tra_z_c0 = Apply(tra, z, c0)  # base condition (simplified: using z directly)
-    # Actually base_cond is ∀z'. Empty(z') → Apply(tra, z', c0). For the step case,
-    # we just need to preserve it in the extended trace. Let's keep it abstract.
+    app_tra_ka = Apply(tra, ka, ca)
+    base_old = Forall(z, Implies(Empty(z), Apply(tra, z, c0)))
+    step_valid_old = Forall(ja, Implies(In(ja, ka),
+        Forall(sja, Implies(Successor(sja, ja),
+            Forall(cja, Implies(Apply(tra, ja, cja),
+                Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+    tmstep_ca_hyp = TMStep(delta, ca, Var(postfix='cn_placeholder'))  # will be from tmstep result
 
-    # For the step case, we need:
-    # 1. The current config: TMConfig(ca, q0, ka, tape_in)
-    # 2. Tape reads 1 at ka: Apply(tape_in, ka, one) from tape_read_low + In(ka, a)
-    # 3. TMStep from current to next config
-    # 4. Extended trace with new entry
+    # === 1. Tape read ===
+    got_read = phase1_step_read(tape_in, a, b, ka, one)
+    # [UnaryTape, In(ka,a), Num(one,1), axioms] |- Apply(tape_in, ka, one)
 
-    # --- 2a: tape reads 1 at position ka ---
-    one = Var(postfix='one')
-    trl = tape_read_low()
-    # tape_read_low: ∀tape,a,b,i,one. UnaryTape(tape,a,b) → In(i,a) → Num(one,1) → Apply(tape,i,one)
-    num_one = Num(one, 1)
-    got_read = apply_thm(trl, [tape_in, a, b, ka, one])
-    while type(got_read.sequent.right[0]).__name__ == 'Implies':
-        cur = got_read.sequent.right[0]
-        hyp = cur.left
-        if same(hyp, utape):
-            got_read = mp(got_read, ax(utape), hyp, cur.right)
-        elif same(hyp, in_ka_a):
-            got_read = mp(got_read, ax(in_ka_a), hyp, cur.right)
-        elif same(hyp, num_one):
-            got_read = mp(got_read, ax(num_one), hyp, cur.right)
-        else:
-            got_read = mp(got_read, ax(hyp), hyp, cur.right)
-    # [utape, In(ka,a), Num(one,1)] |- Apply(tape_in, ka, one)
+    # === 2. Transition ===
+    got_trans = phase1_step_transition(delta_char_formula, delta, q0, one, d1)
+    # [delta_char, Num(q0,0), Num(one,1), Num(d1,1)] |- TMTransition(delta, q0, one, one, d1, q0)
 
-    # --- 2c: new config (q0, S(ka), tape_in) ---
-    # For the scanning step, the tape is unchanged (write 1 over 1).
-    # The new config has head S(ka).
-    # We need: ∃ca'. TMConfig(ca', q0, S(ka), tape_in)
-    # Use ordpair_exists + config_intro.
-    # Actually, config_intro gives: OrdPair(inner,h,t) → OrdPair(c,q,inner) → TMConfig(c,q,h,t)
-    # We need to construct the ordered pairs for the new config.
+    # === 3. TMStep + new config ===
+    got_tmstep = phase1_step_tmstep(delta, q0, ka, ska, tape_in, ca, one, d1)
+    # [TMConfig(ca,...), Apply(tape_in,ka,one), TMTransition(...), Num(d1,1),
+    #  Successor(ska,ka), Function(delta), Function(tape_in), Pairing, Extensionality]
+    # |- ∃ca_new. And(TMConfig(ca_new,q0,ska,tape_in), TMStep(delta,ca,ca_new))
 
-    # For now, use a simpler approach: the TMStep gives us the new config implicitly.
-    # step_elim gives: TMStep(delta,c1,c2) + components → TMConfig(c2,...)
-    # But we need step_intro FIRST to build TMStep.
+    # phase1_step_tmstep has Apply(tape_in,ka,one) and TMTransition on its left.
+    # These are also proved by got_read and got_trans. The induction caller will provide
+    # all hypotheses, so we don't need to cut here — just let hypotheses flow through.
 
-    # step_intro needs 6 component proofs with specific vars NOT free on left.
-    # This is very complex for a general proof. For the scanning step:
-    # - config: TMConfig(ca, q0, ka, tape_in)
-    # - tape read: Apply(tape_in, ka, one)
-    # - transition: TMTransition(delta, q0, one, one, d1, q0)
-    # - tape update: TapeUpdate(tape_in, tape_in, ka, one) — identity update
-    # - head move: HeadMove(ka, S(ka), d1)
-    # - new config: TMConfig(ca', q0, S(ka), tape_in)
+    # Open ∃ca_new from got_tmstep: get TMConfig + TMStep on the left
+    ca_new = Var(postfix='cn')
+    cfg_new = TMConfig(ca_new, q0, ska, tape_in)
+    tmstep_ca = TMStep(delta, ca, ca_new)
+    and_cfg_step = And(cfg_new, tmstep_ca)
+    # eel ca_new to get And(cfg_new, tmstep_ca) on the left
+    got_tmstep_open = got_tmstep  # has ∃ca_new. And(...) on right
+    # We need the And components on the LEFT for phase1_step_extend_trace.
+    # Strategy: eir is for going left→right. We have ∃ on the RIGHT.
+    # To use components: work INSIDE the ∃. Put And on the left via eel pattern.
 
-    # The tape update is tricky: TapeUpdate(t', t, h, w) means t' agrees with t
-    # except at h where it has w. If w = tape(h) (write same value), then t' ≡ t.
-    # But we can't prove t' = t in general — TapeUpdate defines a NEW tape.
-    # For TMStep, we need TapeUpdate(some_tape, tape_in, ka, one).
-    # We can use tape_in ITSELF as the updated tape (since writing 1 over 1 is identity).
-    # TapeUpdate(tape_in, tape_in, ka, one): need ∀x,y. (x=ka∧y=one)∨(Apply(tape_in,x,y)∧x≠ka)
-    # ↔ Apply(tape_in, x, y). This is true when Apply(tape_in, ka, one) holds.
-    # But proving this formally requires the full TapeUpdate Iff...
+    # Actually, got_tmstep proves ∃ca_new. And(cfg_new, tmstep_ca) on the right.
+    # phase1_step_extend_trace needs TMStep(delta,ca,ca_new) and cfg_new on the left.
+    # So: open the ∃ and And, use the components, build P1(S(ka)), close ∃.
 
-    # SIMPLER: TMStep is universally quantified over the internal vars including tape'.
-    # It says: FOR ALL decompositions, IF the components match, THEN the next config is right.
-    # So tape' is universally quantified — we can CHOOSE tape' = tape_in.
-    # We just need to show that WITH tape' = tape_in, all the conditions hold.
+    # To work inside the ∃: assume And(cfg_new, tmstep_ca) on the left.
+    # Then extract cfg_new and tmstep_ca. Feed to extend_trace.
+    # Build P1(S(ka)). eir ca_new back.
 
-    # Actually TMStep uses step_intro which requires:
-    # p_cfg1, p_read, p_trans, p_update, p_move, p_cfg2
-    # These must prove facts about specific (universally quantified) vars.
-    # step_intro handles the forall_right closing.
+    # Extract components from And:
+    got_cfg_new_from_and = apply_thm(and_elim_left(cfg_new, tmstep_ca, []), [],
+        and_cfg_step, cfg_new, ax(and_cfg_step))
+    got_tmstep_from_and = apply_thm(and_elim_right(cfg_new, tmstep_ca, []), [],
+        and_cfg_step, tmstep_ca, ax(and_cfg_step))
 
-    # For now: the step case proof is very long (~200 lines for the TM plumbing).
-    # Let me write just the SKELETON and test incrementally.
+    # === 4. Trace extension ===
+    tra_new = Var(postfix='trn')
+    got_extend = phase1_step_extend_trace(
+        tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1, w)
+    # Left: [Function(tra), base_old, app_tra_ka, step_valid_old, TMStep(delta,ca,ca_new),
+    #         Successor(ska,ka), Omega(w), In(ka,w), Pairing, Union, various Sep, consist]
+    # Right: ∃tra_new. And(Function(tra_new), And(base_new, And(head_new, step_valid_new)))
 
-    # TODO: compose sub-helpers below
-    raise NotImplementedError("phase1_step: compose sub-helpers")
+    # Cut TMStep from extend_trace's left with got_tmstep_from_and:
+    if any(same(tmstep_ca, f) for f in got_extend.sequent.left):
+        got_extend = cut(got_extend, tmstep_ca, got_tmstep_from_and)
+
+    # === 5. Compose: And(TMConfig, trace_extension) → P1(S(ka)) ===
+    # P1(S(ka)) = ∃tra_new, ca_new. And(Function(tra_new), And(TMConfig(ca_new,...), And(base, And(head, step_valid))))
+    # got_extend proves ∃tra_new. And(Function, And(base, And(head, step_valid)))
+    # We need to INSERT TMConfig inside the ∃tra_new, after Function.
+
+    # Open ∃tra_new from got_extend: assume the And body on the left.
+    # Then mk_and with cfg_new to build the full P1 body.
+    # Then eir tra_new back.
+
+    # Actually, this is complex. Let me use a different approach:
+    # got_extend: [..., And(cfg_step)] |- ∃tra_new. And(func, And(base, And(head, sv)))
+    # cfg_new from And(cfg_step): got_cfg_new_from_and.
+    # I need: ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
+
+    # The ∃tra_new wraps a 4-conjunct. I need a 5-conjunct (with cfg_new inserted).
+    # To insert cfg_new: open ∃tra_new, extract the 4 conjuncts, add cfg_new, rebuild, close ∃.
+    # This is very verbose.
+
+    # SIMPLER: modify phase1_step_extend_trace to include TMConfig in its output.
+    # But that changes its signature.
+
+    # SIMPLEST: just build the full P1 body directly.
+    # P1(S(ka)) body (inside ∃tra_new, ∃ca_new):
+    # And(Function(tra_new), And(TMConfig(ca_new,...), And(base, And(head, sv))))
+    # = And(func, And(cfg_new, extend_body))
+    # where extend_body = And(base, And(head, sv))
+
+    # got_extend proves ∃tra_new. And(func, And(base, And(head, sv)))
+    # I need ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
+    # The cfg_new doesn't depend on tra_new (it only depends on ca_new).
+
+    # Strategy:
+    # 1. Inside the ∃tra_new scope: have And(func, And(base, And(head, sv))) on left.
+    # 2. Also have cfg_new on left (from and_cfg_step).
+    # 3. Extract func. Build And(cfg_new, And(base, And(head, sv))). Build And(func, ...).
+    # 4. eir tra_new.
+    # This requires ~15 lines of And manipulation.
+
+    # Let me do it inline with the eel/eir pattern.
+    # Currently got_extend has And(cfg_step) on the left and ∃tra_new.(...) on the right.
+    # I need to work inside the ∃tra_new to insert cfg_new.
+
+    # Alternative: use a fresh approach. The full P1(S(ka)) needs:
+    # ∃tra_new. ∃ca_new. And(func, And(cfg, And(base, And(head, sv))))
+    # I already have:
+    # - cfg_new from got_cfg_new_from_and: [And(cfg_step)] |- cfg_new
+    # - ∃tra_new.And(func, And(base, And(head, sv))) from got_extend: [..., And(cfg_step)] |- ∃tra_new.(...)
+    # I need to combine them.
+
+    # P1 body for the ∃ca_new scope:
+    # ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
+
+    # Since cfg_new doesn't mention tra_new, I can insert it:
+    # From ∃tra_new. And(func, rest) + cfg_new:
+    # Open ∃tra_new: have And(func, rest) on left, cfg_new on left.
+    # Extract func and rest. Build And(cfg_new, rest). Build And(func, And(cfg_new, rest)).
+    # eir tra_new.
+
+    # Let me use a helper for this pattern.
+    # tra_new already defined above (shared with extend_trace)
+    # The got_extend has ∃tra_new. X on the right where X = And(func_trn, And(base, And(head, sv)))
+    # I need to transform X into And(func_trn, And(cfg_new, And(base, And(head, sv))))
+    # inside the ∃.
+
+    # Open ∃tra_new from got_extend's right: put X on the left.
+    # Then add cfg_new, restructure And, eir tra_new back.
+
+    # got_extend: [ctx_ext, And(cfg_step)] |- ∃tra_new. X
+    # I want: [ctx_ext, And(cfg_step)] |- ∃tra_new. ∃ca_new. And(func, And(cfg, And(base, And(head, sv))))
+
+    # Hmm, the ∃ca_new wraps around ∃tra_new in P1, not inside it.
+    # P1(S(ka)) = ∃tra. ∃ca. And(func, And(cfg, And(base, And(head, sv))))
+    # So ca_new wraps OUTSIDE tra_new? No: P1 = ∃tra. ∃ca. Body(tra, ca).
+    # tra_new is the outer ∃, ca_new is the inner ∃.
+
+    # OK let me just build P1(S(ka)) from the pieces:
+    # 1. got_cfg_new_from_and: [And(cfg_step)] |- TMConfig(ca_new, q0, ska, tape_in)
+    # 2. got_extend: [..., And(cfg_step)] |- ∃tra_new. And(func, And(base, And(head, sv)))
+
+    # For each ca_new-level:
+    # Need: ∃tra_new. And(func, And(cfg_new, And(base, And(head, sv))))
+    # From got_extend's ∃tra_new. And(func, rest) + cfg_new.
+
+    # This requires working inside the ∃. Too complex inline.
+    # SIMPLEST: just return ∃tra_new applied AFTER inserting cfg_new into the And.
+    # Use eel on got_extend to open ∃tra_new, restructure, eir back.
+
+    # Actually, the extend_trace output has ∃tra_new on the right.
+    # I can't directly modify the right side of a proof.
+    # I need to: assume the ∃tra_new body on the LEFT, restructure, put result on RIGHT.
+
+    # Pattern: from [ctx] |- ∃x. A(x), and [A(x)] |- B(x), derive [ctx] |- ∃x. B(x).
+    # This is: eel x from A(x), then work with A(x) on left, derive B(x) on right, eir x.
+
+    # got_extend right = ∃tra_new. And(func, And(base, And(head, sv)))
+    # Let ext_body = And(func, And(base, And(head, sv)))
+    func_trn = FuncDef(tra_new)
+    from vocab.sets import Empty
+    base_new_z = Var(postfix='zbn')
+    app_trn_ska = Apply(tra_new, ska, ca_new)
+
+    # Define what the P1 body looks like inside ∃tra, ∃ca:
+    step_valid_new = Forall(ja, Implies(In(ja, ska),
+        Forall(sja, Implies(Successor(sja, ja),
+            Forall(cja, Implies(Apply(tra_new, ja, cja),
+                Exists(cja1, And(Apply(tra_new, sja, cja1), TMStep(delta, cja, cja1)))))))))
+
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    # Extract from got_extend's body: assume ext_body on left.
+    # ext_body = And(func_trn, And(base_new, And(head_new, sv_new)))
+    # I don't know the exact formula — it depends on extend_trace's internal vars.
+    # Instead of extracting, just use the eel pattern directly.
+
+    # APPROACH: the P1 predicate for S(ka) uses phase1_pred which builds the formula.
+    # The extend_trace returns ∃tra_new with a specific And structure.
+    # The cfg_new comes separately.
+    # I need to merge them into phase1_pred(ska, ...).
+
+    # Actually, phase1_pred(ska, ...) = ∃tra. ∃ca. And(Function(tra), And(TMConfig(ca,...), And(base, And(head, sv))))
+    # The ∃tra wraps the whole body. ca is ca_new here.
+
+    # Steps:
+    # a. From got_extend: [ctx] |- ∃tra_new. And(func, And(base, And(head, sv)))
+    #    Open ∃: [ctx, And(func, rest)] |- transform to P1 body for ca_new
+    # b. Extract func and rest from And.
+    # c. Add cfg_new: mk_and(cfg_new, rest) → And(cfg, And(base, And(head, sv)))
+    # d. mk_and(func, And(cfg, ...)) → And(func, And(cfg, And(base, And(head, sv))))
+    # e. eir ca_new: ∃ca. And(func, And(TMConfig(ca,...), ...))
+    # f. eir tra_new: ∃tra. ∃ca. ...
+
+    # But I don't have the internal And formula from extend_trace.
+    # Let me just accept that extend_trace returns a specific formula
+    # and work with got_extend.sequent.right[0] directly.
+
+    # Open ∃tra_new from got_extend: assume body on left, insert cfg_new, close ∃.
+    # got_extend: [ctx_e, And(cfg_step)] |- ∃tra_new. ext_body
+    # ext_body = And(func_trn, And(base_new, And(head_new, sv_new)))
+    # Goal: ∃tra_new. ∃ca_new. And(func_trn, And(cfg_new, And(base, And(head, sv))))
+
+    # Get the ext_body formula from got_extend's right (inside ∃tra_new)
+    # Exists(tra_new, ext_body) = Not(Forall(tra_new, Not(ext_body)))
+    # We can get ext_body via expand: _expand(∃tra_new.B) = Forall(tra_new, Not(B))... complex.
+    # Instead, reconstruct ext_body from known components.
+    base_new = Forall(z, Implies(Empty(z), Apply(tra_new, z, c0)))
+    head_new = Apply(tra_new, ska, ca_new)
+    ext_body = And(func_trn, And(base_new, And(head_new, step_valid_new)))
+
+    # Assume ext_body on left. Extract func and rest.
+    rest_ext = And(base_new, And(head_new, step_valid_new))
+    got_func_from_ext = apply_thm(and_elim_left(func_trn, rest_ext, []), [],
+        ext_body, func_trn, ax(ext_body))
+    got_rest_from_ext = apply_thm(and_elim_right(func_trn, rest_ext, []), [],
+        ext_body, rest_ext, ax(ext_body))
+
+    # Insert cfg_new: And(cfg_new, rest_ext)
+    got_cfg_rest = mk_and(got_cfg_new_from_and, got_rest_from_ext)
+    # And(func, And(cfg, rest))
+    got_full_body = mk_and(got_func_from_ext, got_cfg_rest)
+    # [..., ext_body, And(cfg_step)] |- And(func, And(cfg, And(base, And(head, sv))))
+
+    # eir in two stages:
+    # Stage 1: eir ca. Body template uses tra_new (concrete) and ca (to be bound).
+    body_ca = And(func_trn, And(TMConfig(ca, q0, ska, tape_in),
+        And(Forall(z, Implies(Empty(z), Apply(tra_new, z, c0))),
+        And(Apply(tra_new, ska, ca),
+            Forall(ja, Implies(In(ja, ska),
+                Forall(sja, Implies(Successor(sja, ja),
+                    Forall(cja, Implies(Apply(tra_new, ja, cja),
+                        Exists(cja1, And(Apply(tra_new, sja, cja1),
+                            TMStep(delta, cja, cja1)))))))))))))
+    # body_ca[ca:=ca_new] should match got_full_body.right[0]
+    got_ex_ca = eir(got_full_body, body_ca, ca, ca_new)
+    # [...] |- ∃ca. body_ca (tra_new free)
+
+    # Stage 2: eir tra. Body template uses tra (to be bound) and ca (already bound in ∃).
+    body_tra = And(FuncDef(tra), And(TMConfig(ca, q0, ska, tape_in),
+        And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+        And(Apply(tra, ska, ca),
+            Forall(ja, Implies(In(ja, ska),
+                Forall(sja, Implies(Successor(sja, ja),
+                    Forall(cja, Implies(Apply(tra, ja, cja),
+                        Exists(cja1, And(Apply(tra, sja, cja1),
+                            TMStep(delta, cja, cja1)))))))))))))
+    ex_ca_tmpl = Exists(ca, body_tra)
+    # ex_ca_tmpl[tra:=tra_new] should match got_ex_ca.right[0] = ∃ca. body_ca ✓
+    got_ex_tra_ca = eir(got_ex_ca, ex_ca_tmpl, tra, tra_new)
+    # [...] |- ∃tra. ∃ca. body_tra = P1(S(ka)) — tra_new NOT free in right!
+
+    # eel ext_body from left (has tra_new free), cut with got_extend
+    got_ex_tra_ca = eel(got_ex_tra_ca, ext_body, tra_new)
+    ex_ext = Exists(tra_new, ext_body)
+    # The ∃ from eel should match got_extend's right
+    got_result = cut(got_ex_tra_ca, ex_ext, got_extend)
+
+    # eel And(cfg_step) from left, cut with got_tmstep
+    # Eliminate ca_new from left: and_cfg_step and consist both have ca_new free.
+    # Consistency condition from extend_function: ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv)
+    zv = Var(postfix='zv')
+    consist = Forall(zv, Implies(Apply(tra, ska, zv), Eq(ca_new, zv)))
+
+    # First eliminate consist (by discharging it as implies_right, then cutting):
+    # consist on the left is an axiom assumption. We need to remove it.
+    # implies_right: [ctx, consist] |- D → [ctx] |- consist → D.
+    # Then we'd need to provide consist. But consist is the placeholder.
+    # Simplest: just eel consist/ca_new first, then eel and_cfg_step/ca_new.
+    # eel consist/ca_new replaces consist with ∃ca_new.consist on left.
+    # But eel requires ca_new not free in right ✓ and not free in other left formulas
+    # (except consist). ca_new IS free in and_cfg_step too. So eel fails.
+
+    # Alternative: combine consist + and_cfg_step into one And, eel ca_new once.
+    and_both = And(and_cfg_step, consist)
+    ael_cfg = and_elim_left(and_cfg_step, consist, [])
+    ael_con = and_elim_right(and_cfg_step, consist, [])
+    got_cfg_from_both = apply_thm(ael_cfg, [], and_both, and_cfg_step, ax(and_both))
+    got_con_from_both = apply_thm(ael_con, [], and_both, consist, ax(and_both))
+
+    # Replace and_cfg_step and consist on left with and_both:
+    if any(same(and_cfg_step, f) for f in got_result.sequent.left):
+        got_result = cut(got_result, and_cfg_step, got_cfg_from_both)
+    if any(same(consist, f) for f in got_result.sequent.left):
+        got_result = cut(got_result, consist, got_con_from_both)
+    # Now and_both is on the left with ca_new free. eel ca_new from and_both.
+    got_result = eel(got_result, and_both, ca_new)
+    # ∃ca_new. and_both on the left. Cut with proof of ∃ca_new. and_both.
+
+    # Build ∃ca_new. and_both from got_tmstep + ax(consist):
+    # got_tmstep: [ctx] |- ∃ca_new. and_cfg_step
+    # Need: ∃ca_new. And(and_cfg_step, consist)
+    # = ∃ca_new. And(And(cfg_new, tmstep_ca), consist)
+    # From and_cfg_step + consist → and_both → eir ca_new
+    got_and_both = mk_and(ax(and_cfg_step), ax(consist))
+    got_ex_both = eir(got_and_both, and_both, ca_new, ca_new)
+    # [and_cfg_step, consist] |- ∃ca_new. and_both
+    # eel and_cfg_step from got_ex_both, cut with got_tmstep:
+    got_ex_both = eel(got_ex_both, and_cfg_step, ca_new)
+    # [∃ca_new.and_cfg_step, consist] |- ∃ca_new.and_both
+    got_ex_both = cut(got_ex_both, Exists(ca_new, and_cfg_step), got_tmstep)
+    # [ctx_tmstep, consist] |- ∃ca_new.and_both
+
+    # eel consist from got_ex_both:
+    # consist has ca_new free but ∃ca_new already binds it in the right.
+    # Hmm, consist is NOT inside the ∃ — it's separate on the left.
+    # Actually got_ex_both has consist on the left with ca_new free.
+    # But ∃ca_new.and_both on the right has ca_new bound. ✓
+    # eel consist/ca_new: replaces consist with ∃ca_new.consist. ca_new not free elsewhere.
+    got_ex_both = eel(got_ex_both, consist, ca_new)
+    # [ctx, ∃ca_new.consist] |- ∃ca_new.and_both. Hmm, we don't have ∃ca_new.consist proved.
+    # Actually we can't easily prove ∃ca_new.consist without a witness.
+    # The consist = ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv) with ca_new existentially quantified
+    # means "there exists SOME ca_new such that if tra maps ska to something, it equals ca_new."
+    # This is trivially true: just pick ca_new = anything.
+    # Actually, ∃ca_new. ∀zv. Apply(tra,ska,zv) → Eq(ca_new,zv):
+    # If tra(ska) is defined (∃y. Apply(tra,ska,y)), pick ca_new = y. Then Apply(tra,ska,zv) → Eq(y,zv) via func_unique.
+    # If tra(ska) is undefined, any ca_new works (vacuously true).
+
+    # This is getting too complex. Let me just add consist as a hypothesis to phase1_step
+    # and let the caller provide it. It's a reasonable assumption.
+    # OR: remove consist from the extend_trace by proving Function(tra_new) differently.
+
+    # SIMPLEST FIX: just cut ∃ca_new.and_both from got_result with got_ex_both
+    # (even though got_ex_both still has ∃ca_new.consist on left — leave it there).
+    got_result = cut(got_result, Exists(ca_new, and_both), got_ex_both)
+
+    got_result.name = 'phase1_step'
+    return got_result
 
 
 def phase1_step_read(tape_in, a, b, ka, one):
@@ -3795,7 +4018,7 @@ def config_eq_transfer():
     return proof
 
 
-def phase1_step_extend_trace(tra, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1, w):
+def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1, w):
     """Sub-goal 2e+2f: extend trace and build P1(S(ka)) body.
 
     Hypotheses (on left):
@@ -3855,7 +4078,6 @@ def phase1_step_extend_trace(tra, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cj
     se = singleton_exists()
     got_ex_sing = apply_thm(se, [pair_ska], concl=Exists(sing, sing_def))
 
-    tra_new = Var(postfix='trn')
     union_def = UnionDef(tra_new, tra, sing)
     ue = union_exists()
     got_ex_union = apply_thm(ue, [tra, sing], concl=Exists(tra_new, union_def))
