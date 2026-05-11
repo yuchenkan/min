@@ -1769,12 +1769,691 @@ def phase1_step_tmstep(delta, q0, ka, ska, tape_in, ca, one, d1):
        f. config_eq_transfer → TMConfig(ca_new, qn, hn, tapen)
     3. And + eir to wrap result.
     """
-    # TODO: compose sub-helpers
-    raise NotImplementedError("phase1_step_tmstep: needs sub-helpers")
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        eq_symmetric, eq_transitive)
+    from theorems.sets import ordpair_exists
+    from theorems.omega import func_unique_thm
+    from theorems.tm import (config_intro, config_decompose, apply_func_transfer,
+        transition_unique, headmove_right_elim, config_eq_transfer, tape_update_eq)
+    from vocab.functions import Function as FuncDef
+    from core.proof import Proof, Sequent
+    from core.derived import Exists
+    import core.zfc as zfc
+
+    cfg_ca = TMConfig(ca, q0, ka, tape_in)
+    app_tape_ka = Apply(tape_in, ka, one)
+    trans_known = TMTransition(delta, q0, one, one, d1, q0)
+    num_d1 = Num(d1, 1)
+    succ_ska = Successor(ska, ka)
+    func_delta = FuncDef(delta)
+    func_tape = FuncDef(tape_in)
+
+    # === Part 1: Construct ca_new and TMConfig(ca_new, q0, ska, tape_in) ===
+    oe = ordpair_exists()
+    ca_new = Var(postfix='cn')
+    inner_new = Var(postfix='in2')
+    op_inner_new = OrdPair(inner_new, ska, tape_in)
+    op_ca_new = OrdPair(ca_new, q0, inner_new)
+    got_ex_inner = apply_thm(oe, [ska, tape_in], concl=Exists(inner_new, op_inner_new))
+    got_ex_ca = apply_thm(oe, [q0, inner_new], concl=Exists(ca_new, op_ca_new))
+
+    ci = config_intro()
+    cfg_new = TMConfig(ca_new, q0, ska, tape_in)
+    got_cfg_new = apply_thm(ci, [ca_new, q0, ska, tape_in, inner_new])
+    got_cfg_new = mp(got_cfg_new, ax(op_inner_new), op_inner_new,
+        Implies(op_ca_new, cfg_new))
+    got_cfg_new = mp(got_cfg_new, ax(op_ca_new), op_ca_new, cfg_new)
+    # [Pairing, OrdPair(inner_new,...), OrdPair(ca_new,...)] |- TMConfig(ca_new,q0,ska,tape_in)
+
+    # === Part 2: Prove TMStep(delta, ca, ca_new) ===
+    # TMStep = ∀q,h,tape,sym,w,d,qn,hn,tapen.
+    #   Config(ca,q,h,tape) → Apply(tape,h,sym) → Trans(delta,q,sym,w,d,qn) →
+    #   TapeUpdate(tapen,tape,h,w) → HeadMove(h,hn,d) → Config(ca_new,qn,hn,tapen)
+
+    q = Var(postfix='sq')
+    h = Var(postfix='sh')
+    tape = Var(postfix='st')
+    sym = Var(postfix='ss')
+    w = Var(postfix='sw')
+    d = Var(postfix='sd')
+    qn = Var(postfix='sqn')
+    hn = Var(postfix='shn')
+    tapen = Var(postfix='stn')
+
+    p_cfg = TMConfig(ca, q, h, tape)
+    p_read = Apply(tape, h, sym)
+    p_trans = TMTransition(delta, q, sym, w, d, qn)
+    p_upd = TapeUpdate(tapen, tape, h, w)
+    p_move = HeadMove(h, hn, d)
+    p_goal = TMConfig(ca_new, qn, hn, tapen)
+
+    # Step 2a: config_decompose → Eq(q,q0), Eq(h,ka), Eq(tape,tape_in)
+    cd = config_decompose()
+    eq_q = Eq(q, q0)
+    eq_h = Eq(h, ka)
+    eq_t = Eq(tape, tape_in)
+    and_3eq = And(eq_q, And(eq_h, eq_t))
+    got_3eq = apply_thm(cd, [ca, q, h, tape, q0, ka, tape_in])
+    got_3eq = mp(got_3eq, ax(p_cfg), p_cfg, Implies(cfg_ca, and_3eq))
+    got_3eq = mp(got_3eq, ax(cfg_ca), cfg_ca, and_3eq)
+    # [Pairing, p_cfg, cfg_ca] |- And(Eq(q,q0), And(Eq(h,ka), Eq(tape,tape_in)))
+
+    got_eq_q = apply_thm(and_elim_left(eq_q, And(eq_h, eq_t), []), [],
+        and_3eq, eq_q, got_3eq)
+    got_eq_ht = apply_thm(and_elim_right(eq_q, And(eq_h, eq_t), []), [],
+        and_3eq, And(eq_h, eq_t), got_3eq)
+    got_eq_h = apply_thm(and_elim_left(eq_h, eq_t, []), [],
+        And(eq_h, eq_t), eq_h, got_eq_ht)
+    got_eq_t = apply_thm(and_elim_right(eq_h, eq_t, []), [],
+        And(eq_h, eq_t), eq_t, got_eq_ht)
+
+    # Step 2b: apply_func_transfer + func_unique → Eq(sym,one)
+    # Transfer Apply(tape,h,sym) to Apply(tape_in,h,sym) via Eq(tape,tape_in)
+    aft = apply_func_transfer()
+    app_tin_h_sym = Apply(tape_in, h, sym)
+    got_app_tin = apply_thm(aft, [tape, tape_in, h, sym])
+    got_app_tin = mp(got_app_tin, got_eq_t, eq_t, Implies(p_read, app_tin_h_sym))
+    got_app_tin = mp(got_app_tin, ax(p_read), p_read, app_tin_h_sym)
+    # [..., p_read] |- Apply(tape_in, h, sym)
+
+    # Transfer Apply(tape_in,h,sym) to Apply(tape_in,ka,sym) via eq_apply_transfer + Eq(h,ka)
+    from theorems.recursion import eq_apply_transfer
+    eat = eq_apply_transfer()
+    app_tin_ka_sym = Apply(tape_in, ka, sym)
+    got_app_ka_sym = mp(apply_thm(eat, [tape_in, h, ka, sym], eq_h,
+        Implies(app_tin_h_sym, app_tin_ka_sym), got_eq_h),
+        got_app_tin, app_tin_h_sym, app_tin_ka_sym)
+
+    # func_unique: Function(tape_in) → Apply(tape_in,ka,sym) → Apply(tape_in,ka,one) → Eq(sym,one)
+    fu = func_unique_thm()
+    eq_sym = Eq(sym, one)
+    got_fu = apply_thm(fu, [tape_in, ka, sym, one])
+    got_fu = mp(got_fu, ax(func_tape), func_tape, got_fu.sequent.right[0].right)
+    got_fu = mp(got_fu, got_app_ka_sym, app_tin_ka_sym, got_fu.sequent.right[0].right)
+    got_eq_sym = mp(got_fu, ax(app_tape_ka), app_tape_ka, eq_sym)
+
+    # Step 2c: transition_unique → Eq(w,one), Eq(d,d1), Eq(qn,q0)
+    # Need TMTransition(delta,q,sym,w,d,qn) and TMTransition(delta,q,sym,one,d1,q0)
+    # But trans_known is TMTransition(delta,q0,one,one,d1,q0), not (delta,q,sym,...).
+    # Use Eq(q,q0) + Eq(sym,one) to see they have same effective input.
+    # transition_unique expects TWO transitions with SAME (delta,q,sym).
+    # We have p_trans = TMTransition(delta,q,sym,w,d,qn) and
+    # trans_known = TMTransition(delta,q0,one,one,d1,q0).
+    # These have different q,sym args. We need to build TMTransition(delta,q,sym,one,d1,q0)
+    # from trans_known + Eq(q,q0) + Eq(sym,one).
+    # Alternative: instantiate transition_unique with the KNOWN transition's args,
+    # and transfer p_trans's args.
+
+    # Actually simpler: transition_unique(delta, q, sym, w, d, qn, one, d1, q0):
+    # Function(delta) → TMTransition(delta,q,sym,w,d,qn) → TMTransition(delta,q,sym,one,d1,q0) → Eq's
+    # We need TMTransition(delta,q,sym,one,d1,q0). This is NOT the same as trans_known
+    # (which has q0,one instead of q,sym). But the engine checks alpha-equiv after expansion.
+    # TMTransition expands to Apply(delta, (q,sym), (w,(d,qn))). So TMTransition(delta,q,sym,one,d1,q0)
+    # gives Apply(delta, (q,sym), (one,(d1,q0))). And trans_known = TMTransition(delta,q0,one,one,d1,q0)
+    # gives Apply(delta, (q0,one), (one,(d1,q0))).
+    # These are different (different inp pair). Can't directly use transition_unique.
+
+    # Better approach: use Eq(q,q0) + Eq(sym,one) to transfer trans_known to same args.
+    # TMTransition is a definition. We need to show TMTransition(delta,q,sym,one,d1,q0)
+    # from TMTransition(delta,q0,one,one,d1,q0) + Eq(q,q0) + Eq(sym,one).
+    # This requires "TMTransition is invariant under Eq on input args."
+    # Since TMTransition builds OrdPair(inp,state,sym) internally, and we're just
+    # changing the state/sym args, the Apply(delta,inp,out) with a different inp pair...
+    # this is NOT a simple transfer.
+
+    # Simplest approach: don't use transition_unique. Instead, inline the func_unique
+    # approach on delta. We have p_trans and trans_known, both give Apply(delta,...).
+    # Instantiate both with the SAME inp pair (built from q,sym), use func_unique.
+
+    # Build common inp pair from (q, sym):
+    inp = Var(postfix='inp')
+    op_inp_qs = OrdPair(inp, q, sym)
+    got_ex_inp = apply_thm(oe, [q, sym], concl=Exists(inp, op_inp_qs))
+
+    # From p_trans(delta,q,sym,w,d,qn) with inp: Apply(delta,inp,out1) for some out1
+    dp1 = Var(postfix='dp1')
+    out1 = Var(postfix='out1')
+    op_dp1 = OrdPair(dp1, d, qn)
+    op_out1 = OrdPair(out1, w, dp1)
+    got_ex_dp1 = apply_thm(oe, [d, qn], concl=Exists(dp1, op_dp1))
+    got_ex_out1 = apply_thm(oe, [w, dp1], concl=Exists(out1, op_out1))
+
+    app_d_out1 = Apply(delta, inp, out1)
+    got_t1 = apply_thm(ax(p_trans), [inp], op_inp_qs,
+        Forall(dp1, Implies(op_dp1, Forall(out1, Implies(op_out1, app_d_out1)))), ax(op_inp_qs))
+    got_t1 = apply_thm(got_t1, [dp1], op_dp1,
+        Forall(out1, Implies(op_out1, app_d_out1)), ax(op_dp1))
+    got_t1 = apply_thm(got_t1, [out1], op_out1, app_d_out1, ax(op_out1))
+
+    # From trans_known(delta,q0,one,one,d1,q0) with inp:
+    # trans_known expects OrdPair(inp,q0,one). Transfer from OrdPair(inp,q,sym):
+    from theorems.sets import ordpair_eq_transfer
+    oet = ordpair_eq_transfer()
+    op_inp_q0one = OrdPair(inp, q0, one)
+    got_inp_transfer = apply_thm(oet, [q, sym, q0, one, inp])
+    got_inp_transfer = mp(got_inp_transfer, got_eq_q, eq_q, got_inp_transfer.sequent.right[0].right)
+    got_inp_transfer = mp(got_inp_transfer, got_eq_sym, eq_sym, got_inp_transfer.sequent.right[0].right)
+    got_inp_transfer = mp(got_inp_transfer, ax(op_inp_qs), op_inp_qs, op_inp_q0one)
+
+    dp2 = Var(postfix='dp2')
+    out2 = Var(postfix='out2')
+    op_dp2 = OrdPair(dp2, d1, q0)
+    op_out2 = OrdPair(out2, one, dp2)
+    got_ex_dp2 = apply_thm(oe, [d1, q0], concl=Exists(dp2, op_dp2))
+    got_ex_out2 = apply_thm(oe, [one, dp2], concl=Exists(out2, op_out2))
+
+    app_d_out2 = Apply(delta, inp, out2)
+    # TMTransition(delta,q0,one,one,d1,q0) instantiated with inp:
+    # OrdPair(inp,q0,one) → ∀dp2. OrdPair(dp2,d1,q0) → ∀out2. OrdPair(out2,one,dp2) → Apply(delta,inp,out2)
+    got_t2 = apply_thm(ax(trans_known), [inp], op_inp_q0one,
+        Forall(dp2, Implies(op_dp2, Forall(out2, Implies(op_out2, app_d_out2)))),
+        ax(op_inp_q0one))
+    got_t2 = apply_thm(got_t2, [dp2], op_dp2,
+        Forall(out2, Implies(op_out2, app_d_out2)), ax(op_dp2))
+    got_t2 = apply_thm(got_t2, [out2], op_out2, app_d_out2, ax(op_out2))
+    # [trans_known, OrdPair(inp,q0,one), op_dp2, op_out2] |- Apply(delta,inp,out2)
+    got_t2 = cut(got_t2, op_inp_q0one, got_inp_transfer)
+
+    # func_unique on delta: Eq(out1, out2)
+    eq_out = Eq(out1, out2)
+    got_eq_out = apply_thm(fu, [delta, inp, out1, out2])
+    got_eq_out = mp(got_eq_out, ax(func_delta), func_delta, got_eq_out.sequent.right[0].right)
+    got_eq_out = mp(got_eq_out, got_t1, app_d_out1, got_eq_out.sequent.right[0].right)
+    got_eq_out = mp(got_eq_out, got_t2, app_d_out2, eq_out)
+
+    # tuple_injection: Eq(out1,out2) + OrdPair(out1,w,dp1) + OrdPair(out2,one,dp2) → Eq(w,one), Eq(dp1,dp2)
+    from theorems.sets import ordpair_set_transfer, tuple_injection
+    ti = tuple_injection()
+    ost = ordpair_set_transfer()
+
+    op_out1_from2 = OrdPair(out1, one, dp2)
+    got_out1_from2 = mp(apply_thm(ost, [out1, out2, one, dp2], eq_out,
+        Implies(op_out2, op_out1_from2), got_eq_out),
+        ax(op_out2), op_out2, op_out1_from2)
+    eq_w_one = Eq(w, one)
+    eq_dp12 = Eq(dp1, dp2)
+    got_ti_out = apply_thm(ti, [w, dp1, one, dp2, out1])
+    got_ti_out = mp(got_ti_out, ax(op_out1), op_out1, Implies(op_out1_from2, And(eq_w_one, eq_dp12)))
+    got_ti_out = mp(got_ti_out, got_out1_from2, op_out1_from2, And(eq_w_one, eq_dp12))
+    got_eq_w = apply_thm(and_elim_left(eq_w_one, eq_dp12, []), [], And(eq_w_one, eq_dp12), eq_w_one, got_ti_out)
+    got_eq_dp = apply_thm(and_elim_right(eq_w_one, eq_dp12, []), [], And(eq_w_one, eq_dp12), eq_dp12, got_ti_out)
+
+    # tuple_injection on dp: Eq(dp1,dp2) + OrdPair(dp1,d,qn) + OrdPair(dp2,d1,q0) → Eq(d,d1), Eq(qn,q0)
+    op_dp1_from2 = OrdPair(dp1, d1, q0)
+    got_dp1_from2 = mp(apply_thm(ost, [dp1, dp2, d1, q0], eq_dp12,
+        Implies(op_dp2, op_dp1_from2), got_eq_dp),
+        ax(op_dp2), op_dp2, op_dp1_from2)
+    eq_d = Eq(d, d1)
+    eq_qn = Eq(qn, q0)
+    got_ti_dp = apply_thm(ti, [d, qn, d1, q0, dp1])
+    got_ti_dp = mp(got_ti_dp, ax(op_dp1), op_dp1, Implies(op_dp1_from2, And(eq_d, eq_qn)))
+    got_ti_dp = mp(got_ti_dp, got_dp1_from2, op_dp1_from2, And(eq_d, eq_qn))
+    got_eq_d = apply_thm(and_elim_left(eq_d, eq_qn, []), [], And(eq_d, eq_qn), eq_d, got_ti_dp)
+    got_eq_qn = apply_thm(and_elim_right(eq_d, eq_qn, []), [], And(eq_d, eq_qn), eq_qn, got_ti_dp)
+
+    # Eliminate existential witnesses
+    def elim(proof, formula, var, ex_proof):
+        if any(same(formula, ff) for ff in proof.sequent.left):
+            p = eel(proof, formula, var)
+            return cut(p, Exists(var, formula), ex_proof)
+        return proof
+
+    for var, formula, ex_p in [
+        (out2, op_out2, got_ex_out2), (dp2, op_dp2, got_ex_dp2),
+        (out1, op_out1, got_ex_out1), (dp1, op_dp1, got_ex_dp1),
+        (inp, op_inp_qs, got_ex_inp)]:
+        got_eq_w = elim(got_eq_w, formula, var, ex_p)
+        got_eq_d = elim(got_eq_d, formula, var, ex_p)
+        got_eq_qn = elim(got_eq_qn, formula, var, ex_p)
+
+    # Step 2d: headmove_right_elim → Eq(hn,ska)
+    hre = headmove_right_elim()
+    eq_hn = Eq(hn, ska)
+    got_eq_hn = apply_thm(hre, [h, hn, d, ka, ska, d1])
+    got_eq_hn = mp(got_eq_hn, ax(p_move), p_move, got_eq_hn.sequent.right[0].right)
+    got_eq_hn = mp(got_eq_hn, got_eq_h, eq_h, got_eq_hn.sequent.right[0].right)
+    got_eq_hn = mp(got_eq_hn, got_eq_d, eq_d, got_eq_hn.sequent.right[0].right)
+    got_eq_hn = mp(got_eq_hn, ax(num_d1), num_d1, got_eq_hn.sequent.right[0].right)
+    got_eq_hn = mp(got_eq_hn, ax(succ_ska), succ_ska, eq_hn)
+
+    # Step 2e: tape_update_eq → Eq(tapen,tape)
+    # Then Eq(tape,tape_in) → Eq(tapen,tape_in) by eq_transitive.
+    tue = tape_update_eq()
+    eq_tn_t = Eq(tapen, tape)
+    # tape_update_eq: Function(tape) → Apply(tape,h,w) → TapeUpdate(tapen,tape,h,w) → Eq(tapen,tape)
+    # We have func_tape = Function(tape_in), not Function(tape).
+    # Need Function(tape) from Function(tape_in) + Eq(tape,tape_in).
+    # Actually tape_update_eq takes its own vars. Instantiate with [tapen, tape, h, w]:
+    got_tue = apply_thm(tue, [tapen, tape, h, w])
+    # |- Function(tape) → Apply(tape,h,w) → TapeUpdate(tapen,tape,h,w) → Eq(tapen,tape)
+    # We have p_upd = TapeUpdate(tapen,tape,h,w) ✓
+    # We have p_read = Apply(tape,h,sym), not Apply(tape,h,w). Need Apply(tape,h,w).
+    # From Eq(sym,one) and Eq(w,one): Eq(sym,w)? No, Eq(w,one) and Eq(sym,one) → Eq(w,sym) by transitivity.
+    # Actually we need Apply(tape,h,w). We have Apply(tape,h,sym) and Eq(sym,one) and Eq(w,one).
+    # So Eq(w,sym) by: Eq(w,one) + Eq(sym,one) → Eq(w,sym) (both equal one).
+    # Then eq_apply_val_transfer: Eq(sym,w) → Apply(tape,h,sym) → Apply(tape,h,w).
+    # Wait: Eq(w,one) and Eq(sym,one) means w=one and sym=one, so w=sym.
+    # eq_symmetric(sym,one) → Eq(one,sym). eq_transitive(w,one,sym): Eq(w,one)→Eq(one,sym)→Eq(w,sym).
+    # Then eq_apply_val_transfer with Eq(sym,w)... hmm, direction.
+
+    # Simpler: transfer Apply(tape,h,sym) to Apply(tape,h,w) via Eq(sym,w).
+    # Eq(sym,one) reversed: Eq(one,sym). Eq(w,one): chain Eq(w,one)→Eq(one,sym)→Eq(w,sym).
+    es = eq_symmetric()
+    et = eq_transitive()
+    eq_one_sym = Eq(one, sym)
+    got_one_sym = apply_thm(es, [sym, one], eq_sym, eq_one_sym, got_eq_sym)
+    eq_w_sym = Eq(w, sym)
+    got_w_sym = apply_thm(et, [w, one, sym])
+    got_w_sym = mp(got_w_sym, got_eq_w, eq_w_one, Implies(eq_one_sym, eq_w_sym))
+    got_w_sym = mp(got_w_sym, got_one_sym, eq_one_sym, eq_w_sym)
+
+    # eq_apply_val_transfer: Eq(y1,y2) → Apply(f,x,y1) → Apply(f,x,y2)
+    from theorems.recursion import eq_apply_val_transfer
+    eavt = eq_apply_val_transfer()
+    # Eq(sym,w) → Apply(tape,h,sym) → Apply(tape,h,w)
+    eq_sym_w = Eq(sym, w)
+    got_sym_w = apply_thm(es, [w, sym], eq_w_sym, eq_sym_w, got_w_sym)
+    app_thw = Apply(tape, h, w)
+    got_app_thw = mp(apply_thm(eavt, [tape, h, sym, w], eq_sym_w,
+        Implies(p_read, app_thw), got_sym_w),
+        ax(p_read), p_read, app_thw)
+
+    # Function(tape): from Function(tape_in) + Eq(tape,tape_in)
+    # Actually, tape_update_eq's Function arg is the tape, not tape_in.
+    # We need Function(tape). Since Eq(tape,tape_in) and Function is defined via In/Apply,
+    # Function(tape) ↔ Function(tape_in). But proving this transfer is complex.
+    # Simpler: instantiate tape_update_eq with tape_in directly: [tapen, tape_in, h, w].
+    # But p_upd = TapeUpdate(tapen, tape, h, w), not TapeUpdate(tapen, tape_in, h, w).
+    # The engine compares formulas structurally, so tape ≠ tape_in.
+
+    # Best approach: first prove Eq(tapen, tape) from tape_update_eq instantiated
+    # with the ACTUAL tape/h/w, then chain to Eq(tapen, tape_in).
+    # For Function(tape): we can derive it from Function(tape_in) + Eq(tape,tape_in).
+    # Function(f) = And(Relation(f), single_valued(f)). Each part transfers via Eq.
+    # But this is another ~20 lines.
+
+    # Pragmatic: just assume Function(tape) from the context by using Eq transfer on the whole And.
+    # Actually, Function is a definition. Eq(tape, tape_in) means same elements.
+    # Function(tape) ↔ Function(tape_in) because Function is defined in terms of In.
+    # The transfer: from [Function(tape_in), Eq(tape,tape_in)] derive Function(tape).
+    # This requires expanding Function and transferring each In/Apply.
+
+    # SHORTCUT: instantiate tape_update_eq differently. Use:
+    # tape_update_eq(tapen, tape_in, ka, one):
+    #   Function(tape_in) → Apply(tape_in,ka,one) → TapeUpdate(tapen,tape_in,ka,one) → Eq(tapen,tape_in)
+    # But we have TapeUpdate(tapen, tape, h, w), not TapeUpdate(tapen, tape_in, ka, one).
+    # The Eq's (tape=tape_in, h=ka, w=one... well w=one via Eq) don't help because
+    # TapeUpdate is a structural formula.
+
+    # Most practical: just use the general tape_update_eq with the actual vars,
+    # and handle Function(tape) by noting it follows from Eq.
+    # Since Function(tape) = And(Relation(tape), ∀x,y1,y2. And(Apply(tape,x,y1),Apply(tape,x,y2))→Eq(y1,y2))
+    # and Eq(tape,tape_in) means ∀p. p∈tape ↔ p∈tape_in, every In/Apply fact transfers.
+    # This is exactly what apply_func_transfer does for the Apply part.
+    # For Relation: Relation(f) = ∀p. p∈f → ∃x,y. OrdPair(p,x,y) ∧ p∈f. Same In-based.
+
+    # Actually I realize the simplest approach: tape_update_eq proves Eq(tapen,tape).
+    # Combined with Eq(tape,tape_in) → Eq(tapen,tape_in). That's the final result.
+    # For Function(tape): I'll just skip it for now and pass func_tape = Function(tape_in)
+    # as a hypothesis to tape_update_eq? No, tape_update_eq expects Function(tape).
+
+    # OK let me just inline the key step: from Eq(tapen,tape) and Eq(tape,tape_in),
+    # get Eq(tapen,tape_in). For the Function(tape) prerequisite, I'll build it from
+    # Function(tape_in) + Eq(tape,tape_in). This transfer is generic and useful.
+
+    # Actually, rather than building Function(tape) which is very complex,
+    # let me take a completely different path for 2e:
+    # tape_update_eq with [tapen, tape, h, w] gives:
+    #   Function(tape) → Apply(tape,h,w) → TapeUpdate → Eq(tapen,tape)
+    # Skip this. Instead, directly show Eq(tapen,tape_in) using:
+    #   TapeUpdate(tapen,tape,h,w) + Eq(tape,tape_in) + Eq(h,ka) + Eq(w,one)
+    #   + Function(tape_in) + Apply(tape_in,ka,one)
+    # This is tape_update_eq instantiated with tape_in/ka/one after the Eq transfers.
+
+    # Since we can't instantiate tape_update_eq with tape_in (different from tape in the formula),
+    # we need to transfer TapeUpdate(tapen,tape,h,w) to TapeUpdate(tapen,tape_in,ka,one).
+    # But TapeUpdate is a definition — transferring it requires expanding and re-deriving.
+
+    # SIMPLEST: skip tape_update_eq for now. Use Eq(tape,tape_in) + Eq(h,ka) + Eq(w,one)
+    # to conclude Eq(tapen,tape) doesn't matter — we just need Eq(tapen,tape_in) for config_eq_transfer.
+    # And since config_eq_transfer takes Eq(t1,t2), we actually need Eq(tapen, tape_in).
+
+    # Chain: tape_update_eq gives Eq(tapen, tape) from Function(tape) + Apply(tape,h,w) + TapeUpdate.
+    # Then Eq(tape, tape_in) from 2a. Then Eq(tapen, tape_in) by eq_transitive.
+    # The Function(tape) problem remains.
+
+    # Final approach: I'll prove a one-off "Function transfers across Eq":
+    # Eq(f,g) + Function(f) → Function(g). This is true because Function is In-based.
+    # But I don't have this theorem. Let me use the reverse: Eq(tape_in,tape) + Function(tape_in) → Function(tape).
+    # Since Eq is extensional (same elements), And(Relation(tape),sv(tape)) iff And(Relation(tape_in),sv(tape_in)).
+    # This is a deep transfer. Not worth building inline.
+
+    # PRAGMATIC DECISION: For now, add Function(tape) as a premise of TMStep body.
+    # It's immediately available from Function(tape_in) + Eq(tape,tape_in) in principle,
+    # but proving the transfer would take ~30 lines. TMStep's universal quantifiers
+    # already encompass tape, so having Function(tape) as a premise is reasonable.
+
+    # NO WAIT: I can be smarter. tape_update_eq needs Function + Apply + TapeUpdate.
+    # But I have Apply(tape,h,w) already from got_app_thw. And TapeUpdate is p_upd.
+    # The only missing piece is Function(tape).
+    # Since tape is universally quantified in TMStep, I CAN'T have Function(tape) from outside.
+    # It MUST come from Function(tape_in) + Eq(tape,tape_in).
+
+    # Let me just handle this via the Eq expansion. Eq(tape,tape_in) means ∀p. p∈tape ↔ p∈tape_in.
+    # Function(tape_in) = And(Rel(tape_in), sv(tape_in)).
+    # Rel(tape_in) = ∀p. p∈tape_in → ∃x,y. OrdPair(p,x,y). With Eq: same for tape.
+    # sv(tape_in) = ∀x,y1,y2. And(Apply(tape_in,x,y1),Apply(tape_in,x,y2)) → Eq(y1,y2).
+    # Apply(tape_in,x,y) = ∃p. OrdPair(p,x,y) ∧ p∈tape_in. With Eq: same for tape.
+    # So Function(tape) follows. But formalizing this is a 30-line theorem.
+
+    # For NOW: I'll use tape_update_eq's conclusion directly by proving
+    # Eq(tapen,tape_in) a different way. Instead of tape_update_eq,
+    # use: Eq(tape,tape_in) and apply_func_transfer to move TapeUpdate's characterization,
+    # then derive Eq(tapen,tape_in) from Extensionality.
+    # But this is essentially re-proving tape_update_eq inline.
+
+    # ACTUAL SIMPLEST: use eq_transitive. I have Eq(tapen,tape) (from tape_update_eq
+    # if I can supply Function(tape)) and Eq(tape,tape_in).
+    # For Function(tape), expand func_tape=Function(tape_in) and transfer.
+    # Let me just write a tiny inline transfer for Function.
+
+    # Function(f) = And(Relation(f), single_valued(f)).
+    # Actually, for tape_update_eq, only the single_valued part is used (func_unique inside).
+    # And single_valued uses Apply which uses In. With Eq(tape,tape_in), every In(p,tape)↔In(p,tape_in).
+    # So Apply(tape,x,y)↔Apply(tape_in,x,y). And single_valued transfers.
+    # But Relation also transfers.
+    # The whole Function transfers via Eq.
+
+    # I think the cleanest is to skip tape_update_eq entirely and instead
+    # prove Eq(tapen, tape_in) directly from the Eq chain:
+    # tape ≡ tape_in (Eq), h ≡ ka, w ≡ one.
+    # TapeUpdate(tapen, tape, h, w) characterizes tapen based on tape/h/w.
+    # After substituting equivalents: tapen is characterized by tape_in/ka/one.
+    # tape_in already has one at ka. So tapen ≡ tape_in.
+    # But this IS tape_update_eq, just with transferred args.
+
+    # OK I'll just build Function(tape) from Function(tape_in) + Eq(tape,tape_in)
+    # by using apply_func_transfer on the definition. Since I already proved
+    # apply_func_transfer, I can transfer each Apply inside Function's definition.
+
+    # Actually, the truly simplest: eq_transitive gives Eq(A,C) from Eq(A,B)+Eq(B,C).
+    # I need Eq(tapen, tape_in).
+    # Path 1: Eq(tapen, tape) + Eq(tape, tape_in) → Eq(tapen, tape_in). Need Eq(tapen,tape).
+    # Path 2: Just prove Eq(tapen, tape_in) directly from TapeUpdate + Eq transfers.
+
+    # For Path 1, tape_update_eq(tapen, tape, h, w) needs Function(tape).
+    # Let me just admit we need a func_eq_transfer helper and leave a TODO.
+    # OR: skip the tape Eq entirely and use config_eq_transfer with Eq(tapen, tape_in)
+    # obtained by chaining Eq(tapen, tape) + Eq(tape, tape_in) — same problem.
+
+    # DECISION: For the TMStep proof, the 9 vars include tapen. The conclusion
+    # needs TMConfig(ca_new, qn, hn, tapen). With config_eq_transfer, I need
+    # Eq(tape_in, tapen). But I can't easily get this without tape_update_eq.
+    # Let me just use tape_update_eq with Function(tape) obtained from cut with
+    # a "func_transfer" proof. The func_transfer is: Eq(tape,tape_in) → Function(tape_in) → Function(tape).
+    # I'll prove it inline using the definition expansion.
+
+    # INLINE func_transfer: Eq(tape,tape_in) + Function(tape_in) → Function(tape)
+    # Function = And(Relation, single_valued). Both use In-based patterns.
+    # With Eq(tape,tape_in) = ∀p. p∈tape ↔ p∈tape_in, transfer each In.
+
+    # Actually, I just realized: Eq(tape, tape_in) IS the bidirectional membership.
+    # Function(tape) after expansion uses In(p, tape) etc.
+    # The engine checks formulas via expansion + alpha-equivalence.
+    # Function(tape).expand() and Function(tape_in).expand() differ by tape vs tape_in.
+    # They're NOT alpha-equivalent. So we need real proof work.
+
+    # Fine. Let me just use ax(func_tape) and wl it into the TMStep body context.
+    # But Function(tape_in) is NOT Function(tape). The engine won't accept it as a substitute.
+
+    # I'll write func_eq_transfer as a quick helper and use it.
+    # For now, leave as TODO and test the rest.
+
+    # Step 2e: Eq(tapen, tape_in) via tape_update_eq + func_eq_transfer + eq_transitive
+    # func_eq_transfer: Eq(tape, tape_in) + Function(tape_in) → Function(tape)
+    from theorems.tm import func_eq_transfer
+    fet = func_eq_transfer()
+    es_t = eq_symmetric()
+    eq_tin_t = Eq(tape_in, tape)
+    got_eq_tin_t = apply_thm(es_t, [tape, tape_in], eq_t, eq_tin_t, got_eq_t)
+    func_tape_v = FuncDef(tape)
+    got_func_tape = apply_thm(fet, [tape_in, tape])
+    got_func_tape = mp(got_func_tape, got_eq_tin_t, eq_tin_t, Implies(func_tape, func_tape_v))
+    got_func_tape = mp(got_func_tape, ax(func_tape), func_tape, func_tape_v)
+    # [...] |- Function(tape)
+
+    # tape_update_eq: Function(tape) → Apply(tape,h,w) → TapeUpdate(tapen,tape,h,w) → Eq(tapen,tape)
+    eq_tn_t = Eq(tapen, tape)
+    got_eq_tn_t = apply_thm(tue, [tapen, tape, h, w])
+    got_eq_tn_t = mp(got_eq_tn_t, got_func_tape, func_tape_v, got_eq_tn_t.sequent.right[0].right)
+    got_eq_tn_t = mp(got_eq_tn_t, got_app_thw, app_thw, got_eq_tn_t.sequent.right[0].right)
+    got_eq_tn_t = mp(got_eq_tn_t, ax(p_upd), p_upd, eq_tn_t)
+    # [..., p_upd] |- Eq(tapen, tape)
+
+    # eq_transitive: Eq(tapen,tape) + Eq(tape,tape_in) → Eq(tapen,tape_in)
+    eq_tn_tin = Eq(tapen, tape_in)
+    got_eq_tn_tin = apply_thm(et, [tapen, tape, tape_in])
+    got_eq_tn_tin = mp(got_eq_tn_tin, got_eq_tn_t, eq_tn_t, Implies(eq_t, eq_tn_tin))
+    got_eq_tn_tin = mp(got_eq_tn_tin, got_eq_t, eq_t, eq_tn_tin)
+    # [...] |- Eq(tapen, tape_in)
+
+    # Step 2f: config_eq_transfer → TMConfig(ca_new, qn, hn, tapen)
+    cet = config_eq_transfer()
+    got_cfg_goal = apply_thm(cet, [ca_new, q0, ska, tape_in, qn, hn, tapen])
+    got_cfg_goal = mp(got_cfg_goal, got_cfg_new, cfg_new, got_cfg_goal.sequent.right[0].right)
+    # Need Eq(q0,qn): from Eq(qn,q0), reverse
+    eq_q0_qn = Eq(q0, qn)
+    got_eq_q0_qn = apply_thm(es, [qn, q0], eq_qn, eq_q0_qn, got_eq_qn)
+    got_cfg_goal = mp(got_cfg_goal, got_eq_q0_qn, eq_q0_qn, got_cfg_goal.sequent.right[0].right)
+    # Need Eq(ska,hn): from Eq(hn,ska), reverse
+    eq_ska_hn = Eq(ska, hn)
+    got_eq_ska_hn = apply_thm(es, [hn, ska], eq_hn, eq_ska_hn, got_eq_hn)
+    got_cfg_goal = mp(got_cfg_goal, got_eq_ska_hn, eq_ska_hn, got_cfg_goal.sequent.right[0].right)
+    # Need Eq(tape_in,tapen): from Eq(tapen,tape_in), reverse
+    eq_tin_tn = Eq(tape_in, tapen)
+    got_eq_tin_tn = apply_thm(es, [tapen, tape_in], eq_tn_tin, eq_tin_tn, got_eq_tn_tin)
+    got_cfg_goal = mp(got_cfg_goal, got_eq_tin_tn, eq_tin_tn, p_goal)
+    # [...] |- TMConfig(ca_new, qn, hn, tapen)
+
+    # === Discharge 5 TMStep premises + close 9 foralls ===
+    proof_body = got_cfg_goal
+    for premise in [p_move, p_upd, p_trans, p_read, p_cfg]:
+        imp = Implies(premise, proof_body.sequent.right[0])
+        proof_body = Proof(Sequent(
+            [f for f in proof_body.sequent.left if not same(f, premise)] + [premise],
+            [proof_body.sequent.right[0]]),
+            'weakening_left', [proof_body], principal=premise) if not any(same(premise, f) for f in proof_body.sequent.left) else proof_body
+        imp = Implies(premise, proof_body.sequent.right[0])
+        left = [f for f in proof_body.sequent.left if not same(f, premise)]
+        proof_body = Proof(Sequent(left, [imp]), 'implies_right', [proof_body], principal=imp)
+
+    # Cut Eq(tapen,tape_in) from left with actual proof
+    if any(same(eq_tn_tin, f) for f in proof_body.sequent.left):
+        proof_body = cut(proof_body, eq_tn_tin, got_eq_tn_tin)
+
+    for v in [tapen, hn, qn, d, w, sym, tape, h, q]:
+        body = proof_body.sequent.right[0]
+        fa = Forall(v, body)
+        proof_body = Proof(Sequent(proof_body.sequent.left, [fa]),
+            'forall_right', [proof_body], principal=fa, term=v)
+    # [...external ctx...] |- TMStep(delta, ca, ca_new)
+
+    # === Part 3: And(TMConfig, TMStep) + eir ca_new ===
+    tmstep = TMStep(delta, ca, ca_new)
+    ai = and_intro(cfg_new, tmstep, [])
+    got_and = mp(apply_thm(ai, [], cfg_new, Implies(tmstep, And(cfg_new, tmstep)), got_cfg_new),
+        proof_body, tmstep, And(cfg_new, tmstep))
+
+    # eir ca_new: wrap right in ∃ca_new
+    got_ex = eir(got_and, And(cfg_new, tmstep), ca_new, ca_new)
+    # eel ca_new from op_ca_new on left, then cut with got_ex_ca
+    got_ex = eel(got_ex, op_ca_new, ca_new)
+    got_ex = cut(got_ex, Exists(ca_new, op_ca_new), got_ex_ca)
+    # eel inner_new from op_inner_new on left, then cut with got_ex_inner
+    got_ex = eel(got_ex, op_inner_new, inner_new)
+    got_ex = cut(got_ex, Exists(inner_new, op_inner_new), got_ex_inner)
+
+    got_ex.name = 'phase1_step_tmstep'
+    return got_ex
 
 
 # Dead code removed — the following were inline attempts now replaced by sub-helper stubs.
 # Keeping this marker for reference.
+def func_eq_transfer():
+    """Transfer Function across Eq.
+    |- ∀f,g. Eq(f,g) → Function(f) → Function(g)
+
+    Function = And(Relation, SingleValued). Both use In(p,f).
+    Eq(f,g) = ∀p. p∈f ↔ p∈g. Transfer each In occurrence."""
+    from tactics import apply_thm, mp, ax, wl, fl, eir, eel, cut
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_mp, iff_mp_rev)
+    from theorems.tm import apply_func_transfer
+    from vocab.functions import Function as FuncDef, Apply
+    from vocab import Relation
+    from core.proof import Proof, Sequent
+    from core.derived import Exists
+
+    f, g = Var(postfix='ff'), Var(postfix='fg')
+    eq_fg = Eq(f, g)
+    func_f = FuncDef(f)
+    func_g = FuncDef(g)
+
+    # Function(f) = And(Relation(f), single_valued(f))
+    # Relation(f) = ∀p. In(p,f) → ∃x,y. OrdPair(p,x,y)
+    # single_valued(f) = ∀x,y1,y2. And(Apply(f,x,y1), Apply(f,x,y2)) → Eq(y1,y2)
+    #
+    # For Relation(g): need ∀p. In(p,g) → ∃x,y.OrdPair(p,x,y).
+    # From Relation(f): In(p,f) → ∃x,y.OrdPair(p,x,y).
+    # Eq(f,g): In(p,g) → In(p,f) (backward). Chain: In(p,g) → In(p,f) → ∃x,y.OrdPair(p,x,y).
+    #
+    # For single_valued(g): ∀x,y1,y2. And(Apply(g,x,y1),Apply(g,x,y2)) → Eq(y1,y2).
+    # apply_func_transfer: Eq(g,f) → Apply(g,x,y) → Apply(f,x,y).
+    # So And(Apply(g,x,y1),Apply(g,x,y2)) → And(Apply(f,x,y1),Apply(f,x,y2)) → Eq(y1,y2).
+
+    # This is doable but requires expanding Function, extracting conjuncts, transferring each,
+    # and rebuilding. ~40 lines. Let me be mechanical.
+
+    # Strategy: build Function(g) from Function(f) + Eq(f,g).
+    # Function(g) = And(Relation(g), sv(g)).
+    # Function(f) = And(Relation(f), sv(f)). Extract both.
+
+    rel_f = Relation(f)
+    rel_g = Relation(g)
+
+    # Extract Relation(f) from Function(f):
+    func_exp = func_f.expand()  # And(Relation(f), sv(f))
+    sv_f_form = func_exp.right  # the single_valued part
+    got_rel_f = apply_thm(and_elim_left(rel_f, sv_f_form, []), [],
+        func_f, rel_f, ax(func_f))
+    got_sv_f = apply_thm(and_elim_right(rel_f, sv_f_form, []), [],
+        func_f, sv_f_form, ax(func_f))
+
+    # Build Relation(g): ∀p. In(p,g) → ∃x,y.OrdPair(p,x,y)
+    # Relation(f): ∀p. In(p,f) → ∃x,y.OrdPair(p,x,y)
+    # In(p,g) → In(p,f): from Eq(f,g) = ∀p. p∈f ↔ p∈g. Backward: p∈g → p∈f.
+    # Actually Eq(f,g) = ∀z. z∈f ↔ z∈g. Forward: z∈f → z∈g. Backward: z∈g → z∈f.
+    pv = Var(postfix='pv')
+    in_pf = In(pv, f)
+    in_pg = In(pv, g)
+    iff_in = Iff(in_pf, in_pg)
+    got_iff = apply_thm(ax(eq_fg), [pv], concl=iff_in)
+    # [Eq(f,g)] |- Iff(In(pv,f), In(pv,g))
+    got_back = apply_thm(iff_mp_rev(in_pf, in_pg, []), [],
+        iff_in, Implies(in_pg, in_pf), got_iff)
+    got_in_pf = mp(got_back, ax(in_pg), in_pg, in_pf)
+    # [Eq(f,g), In(pv,g)] |- In(pv,f)
+
+    # Relation(f) instantiated with pv: In(pv,f) → ∃x,y.OrdPair(pv,x,y)
+    xv, yv = Var(postfix='xv'), Var(postfix='yv')
+    rel_f_body = Exists(xv, Exists(yv, OrdPair(pv, xv, yv)))
+    got_rel_inst = apply_thm(got_rel_f, [pv], in_pf, rel_f_body, got_in_pf)
+    # [Function(f), Eq(f,g), In(pv,g)] |- ∃x,y.OrdPair(pv,x,y)
+
+    # Close: In(pv,g) → ..., ∀pv
+    imp_rel = Implies(in_pg, rel_f_body)
+    got_rel_g = Proof(Sequent(
+        [ff for ff in got_rel_inst.sequent.left if not same(ff, in_pg)],
+        [imp_rel]), 'implies_right', [got_rel_inst], principal=imp_rel)
+    fa_rel = Forall(pv, imp_rel)
+    got_rel_g = Proof(Sequent(got_rel_g.sequent.left, [fa_rel]),
+        'forall_right', [got_rel_g], principal=fa_rel, term=pv)
+    # [Function(f), Eq(f,g)] |- Relation(g)
+
+    # Build single_valued(g):
+    # sv(f) = ∀x,y1,y2. And(Apply(f,x,y1),Apply(f,x,y2)) → Eq(y1,y2)
+    # We need sv(g) = ∀x,y1,y2. And(Apply(g,x,y1),Apply(g,x,y2)) → Eq(y1,y2)
+    # From Apply(g,x,y) → Apply(f,x,y) via apply_func_transfer + Eq(g,f):
+    from theorems.logic import eq_symmetric
+    es = eq_symmetric()
+    eq_gf = Eq(g, f)
+    got_eq_gf = apply_thm(es, [f, g], eq_fg, eq_gf, ax(eq_fg))
+
+    aft = apply_func_transfer()
+    x, y1, y2 = Var(postfix='svx'), Var(postfix='svy1'), Var(postfix='svy2')
+    app_gx1 = Apply(g, x, y1)
+    app_gx2 = Apply(g, x, y2)
+    app_fx1 = Apply(f, x, y1)
+    app_fx2 = Apply(f, x, y2)
+    eq_y12 = Eq(y1, y2)
+
+    # Apply(g,x,y1) → Apply(f,x,y1)
+    got_fx1 = mp(apply_thm(aft, [g, f, x, y1], eq_gf,
+        Implies(app_gx1, app_fx1), got_eq_gf), ax(app_gx1), app_gx1, app_fx1)
+    got_fx2 = mp(apply_thm(aft, [g, f, x, y2], eq_gf,
+        Implies(app_gx2, app_fx2), got_eq_gf), ax(app_gx2), app_gx2, app_fx2)
+
+    # And(Apply(f,x,y1), Apply(f,x,y2)):
+    ai = and_intro(app_fx1, app_fx2, [])
+    got_and_f = mp(apply_thm(ai, [], app_fx1, Implies(app_fx2, And(app_fx1, app_fx2)), got_fx1),
+        got_fx2, app_fx2, And(app_fx1, app_fx2))
+
+    # sv(f) instantiated: And(Apply(f,x,y1),Apply(f,x,y2)) → Eq(y1,y2)
+    got_sv_inst = apply_thm(got_sv_f, [x, y1, y2], And(app_fx1, app_fx2), eq_y12, got_and_f)
+    # [Function(f), Eq(f,g), Apply(g,x,y1), Apply(g,x,y2)] |- Eq(y1,y2)
+
+    # Build And(Apply(g,x,y1), Apply(g,x,y2)) on left, discharge
+    and_gx = And(app_gx1, app_gx2)
+    got_gx1 = apply_thm(and_elim_left(app_gx1, app_gx2, []), [], and_gx, app_gx1, ax(and_gx))
+    got_gx2 = apply_thm(and_elim_right(app_gx1, app_gx2, []), [], and_gx, app_gx2, ax(and_gx))
+    got_sv_g = cut(got_sv_inst, app_gx1, got_gx1)
+    got_sv_g = cut(got_sv_g, app_gx2, got_gx2)
+    # [Function(f), Eq(f,g), And(Apply(g,x,y1),Apply(g,x,y2))] |- Eq(y1,y2)
+
+    imp_sv = Implies(and_gx, eq_y12)
+    got_sv_g = Proof(Sequent([ff for ff in got_sv_g.sequent.left if not same(ff, and_gx)],
+        [imp_sv]), 'implies_right', [got_sv_g], principal=imp_sv)
+    for v in [y2, y1, x]:
+        body = got_sv_g.sequent.right[0]
+        fa = Forall(v, body)
+        got_sv_g = Proof(Sequent(got_sv_g.sequent.left, [fa]),
+            'forall_right', [got_sv_g], principal=fa, term=v)
+    # [Function(f), Eq(f,g)] |- sv(g)
+
+    # And(Relation(g), sv(g)) = Function(g)
+    ai2 = and_intro(rel_g, got_sv_g.sequent.right[0], [])
+    got_func_g = mp(apply_thm(ai2, [], rel_g,
+        Implies(got_sv_g.sequent.right[0], func_g), got_rel_g),
+        got_sv_g, got_sv_g.sequent.right[0], func_g)
+
+    # Close
+    for premise in [func_f, eq_fg]:
+        imp = Implies(premise, got_func_g.sequent.right[0])
+        left = [ff for ff in got_func_g.sequent.left if not same(ff, premise)]
+        got_func_g = Proof(Sequent(left, [imp]), 'implies_right', [got_func_g], principal=imp)
+
+    proof = got_func_g
+    for v in [g, f]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'func_eq_transfer'
+    return proof
+
+
 _PHASE1_STEP_TMSTEP_OLD = """
     # === Part 2: Prove TMStep(delta, ca, ca_new) ===
     # TMStep = ∀q,h,tape,sym,w,d,qn,hn,tapen.
