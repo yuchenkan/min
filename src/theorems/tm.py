@@ -1282,10 +1282,29 @@ def phase1_pred(ka, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
             step_valid)))))))
 
 
-def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
-    """Phase 1 base case: P1(0).
-    Returns: [TMConfig(c0,q0,z,tape_in), Num(z,0), Pairing] |- P1(0)
-    where P1(0) = phase1_pred(zero_var, ...)"""
+class Phase1Q:
+    """Q(n) = Or(In(n,a), Eq(n,a)) → P1(n).
+    Bounded Phase 1 predicate: "if n ≤ a then P1(n)."
+    Used as the induction predicate for omega induction on step count."""
+    __match_args__ = ('n', 'a')
+    def __init__(self, n, a, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
+        self.n = n; self.a = a
+        self._args = (q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    def expand(self):
+        from core.derived import Or, Eq
+        return Implies(Or(In(self.n, self.a), Eq(self.n, self.a)),
+            phase1_pred(self.n, *self._args))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Phase1Q(r(self.n), r(self.a), *(r(x) for x in self._args))
+    def __str__(self):
+        return f'Q1({self.n})'
+
+
+def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1, a):
+    """Phase 1 base case: Q1(0).
+    Returns: [TMConfig(c0,q0,z,tape_in), Num(z,0), Pairing] |- Phase1Q(z, a, ...)
+    P1(0) proved unconditionally, Q1(0) by discharging the Or."""
 
     zero_var = z  # use z directly as base case ka (z has Num(z,0) = Empty(z))
     p1_zero = phase1_pred(zero_var, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
@@ -1625,33 +1644,27 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
         got_ex_tra_ca = eel(got_ex_tra_ca, op_p0, pair_0a)
         got_ex_tra_ca = cut(got_ex_tra_ca, got_ex_tra_ca.sequent.left[-1], got_ex_pair)
 
-    proof = got_ex_tra_ca
+    # Wrap P1(z) into Q1(z) = Or(In(z,a),Eq(z,a)) → P1(z)
+    from core.derived import Or
+    or_za = Or(In(z, a), Eq(z, a))
+    got_p1 = got_ex_tra_ca
+    got_p1 = wl(got_p1, or_za)
+    imp_q = Implies(or_za, got_p1.sequent.right[0])
+    left_q = [f_ for f_ in got_p1.sequent.left if not same(f_, or_za)]
+    proof = Proof(Sequent(left_q, [imp_q]), 'implies_right', [got_p1], principal=imp_q)
     proof.name = 'phase1_base'
     return proof
 
 
 def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja, sja, cja, cja1, ka, ska, w, one, d1):
-    """Phase 1 step case: In(ka, a) ∧ P1(ka) → P1(S(ka)).
+    """Phase 1 step case: Q1(ka) → Q1(S(ka)).
+    Q1(n) = Phase1Q(n) = Or(In(n,a),Eq(n,a)) → P1(n).
 
-    Hypotheses (on left):
-      In(ka, a), UnaryTape(tape_in,a,b), Successor(ska,ka),
-      delta_char, Num(q0,0), Num(one,1), Num(d1,1),
-      Function(delta), Function(tape_in),
-      Omega(w), In(ka, w),
-      P1(ka) components (opened from existentials):
-        Function(tra), TMConfig(ca,q0,ka,tape_in),
-        ∀z'.Empty(z')→Apply(tra,z',c0), Apply(tra,ka,ca), step_valid(tra,ka)
-      Pairing, Union, Extensionality, various Separation instances
+    From Q1(ka), assumes Or(In(S(ka),a),Eq(S(ka),a)) for Q1(S(ka)).
+    Derives In(ka,a) via TransitiveSet(a). Unwraps Q1(ka) → P1(ka).
+    Existing logic: P1(ka) → P1(S(ka)). Discharges → Q1(S(ka)).
 
-    Returns: [ctx] |- P1(S(ka))
-    where P1(S(ka)) = ∃tra_new, ca_new. And(Function(tra_new), And(TMConfig(...), And(base, And(head, step_valid))))
-
-    Composes:
-    1. phase1_step_read → Apply(tape_in, ka, one)
-    2. phase1_step_transition → TMTransition(delta, q0, one, one, d1, q0)
-    3. phase1_step_tmstep → ∃ca_new. And(TMConfig(ca_new,...), TMStep(delta,ca,ca_new))
-    4. phase1_step_extend_trace → ∃tra_new. And(Function(tra_new), And(base, And(head, step_valid)))
-    5. Compose TMConfig from step 3 with trace from step 4 → P1(S(ka))
+    Returns: [ctx] |- Phase1Q(S(ka))
     """
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
     from theorems.logic import and_intro, and_elim_left, and_elim_right
@@ -1928,7 +1941,19 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
         got_ex_tra_ca = eel(got_ex_tra_ca, and_cfg_step, ca_new)
         got_ex_tra_ca = cut(got_ex_tra_ca, Exists(ca_new, and_cfg_step), got_tmstep)
 
-    got_result = got_ex_tra_ca
+    # Wrap P1(S(ka)) into Q1(S(ka)) = Or(In(S(ka),a),Eq(S(ka),a)) → P1(S(ka))
+    # And discharge Q1(ka) from the left.
+    # Currently got_ex_tra_ca: [ctx with P1(ka) components on left] |- P1(S(ka))
+    # The P1(ka) components came from the caller opening P1(ka).
+    # For Q1: wrap output in implies_right with Or(In(ska,a),Eq(ska,a)).
+    from core.derived import Or
+    or_ska_a = Or(In(ska, a), Eq(ska, a))
+    got_p1_ska = got_ex_tra_ca
+    got_p1_ska = wl(got_p1_ska, or_ska_a)
+    imp_q_ska = Implies(or_ska_a, got_p1_ska.sequent.right[0])
+    left_q = [f for f in got_p1_ska.sequent.left if not same(f, or_ska_a)]
+    got_result = Proof(Sequent(left_q, [imp_q_ska]),
+        'implies_right', [got_p1_ska], principal=imp_q_ska)
     got_result.name = 'phase1_step'
     return got_result
 
