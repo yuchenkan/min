@@ -4129,6 +4129,29 @@ def plus_func_exists():
     print(f'plus_func_exists: eel+cut hv done')
 
     # Step 7: eel pv_wwxw, pv_ww, sfv and cut with their sources
+    # Before sfv eel: cut leaked succ_char and dom_sub_sf with sf_all derivations
+    # sf_all = And(succ_char, And(func_sf, dom_sub_sf)) is on the left.
+    # succ_char and dom_sub_sf may be separate leaked copies. Cut them.
+    for component_path in ['left', 'right.right']:
+        comp = sf_all
+        derivation = ax(sf_all)
+        for step in component_path.split('.'):
+            if step == 'left':
+                derivation = apply_thm(and_elim_left(comp.left, comp.right, []), [],
+                    comp, comp.left, derivation)
+                comp = comp.left
+            else:
+                derivation = apply_thm(and_elim_right(comp.left, comp.right, []), [],
+                    comp, comp.right, derivation)
+                comp = comp.right
+        # comp is the component, derivation proves it from [sf_all]
+        # Check if a matching formula is separately on the left
+        for f in list(got_ex_pf.sequent.left):
+            if same(f, comp) and not same(f, sf_all):
+                got_ex_pf = cut(got_ex_pf, f, derivation)
+                print(f'plus_func_exists: cut leaked sf component')
+                break
+
     for var, name, source in [(pv_wwxw, 'pv_wwxw', got_ex_pwwxw),
                                (pv_ww, 'pv_ww', got_ex_pww),
                                (sfv, 'sfv', got_ex_sf)]:
@@ -4138,6 +4161,8 @@ def plus_func_exists():
             print(f'plus_func_exists: {name} 0 formulas, skip')
             continue
         print(f'plus_func_exists: {name} {len(vfs)} formulas')
+        for f in vfs:
+            print(f'  {f}')
         cv = vfs[0]
         for f in vfs[1:]:
             got_ex_pf = cut(got_ex_pf, cv, apply_thm(and_elim_left(cv, f, []), [],
@@ -4146,14 +4171,68 @@ def plus_func_exists():
                 And(cv, f), f, ax(And(cv, f))))
             cv = And(cv, f)
         got_ex_pf = eel(got_ex_pf, cv, var)
-        # Try cut with source
-        if same(Exists(var, cv), source.sequent.right[0]):
-            got_ex_pf = cut(got_ex_pf, Exists(var, cv), source)
+        ex_cv = Exists(var, cv)
+        if same(ex_cv, source.sequent.right[0]):
+            got_ex_pf = cut(got_ex_pf, ex_cv, source)
             print(f'plus_func_exists: {name} cut done')
         else:
-            print(f'plus_func_exists: {name} mismatch')
-            print(f'  have: {Exists(var, cv)}')
-            print(f'  want: {source.sequent.right[0]}')
+            # Extras: derive ex_cv from source by opening source, adding extras, closing
+            # For sfv: extras are succ_char and dom_sub_sf, derivable from sf_all.
+            # Build: [sf_all] |- cv (by weakening + and_intro)
+            print(f'plus_func_exists: {name} building provider')
+            got_prov = ax(source.sequent.right[0].body)  # the body of ∃var. body
+            src_body = source.sequent.right[0].body
+            for f in vfs:
+                if not same(f, src_body):
+                    got_prov = wl(got_prov, f)
+            # Build cv on right from vfs
+            got_build = ax(vfs[0])
+            cb = vfs[0]
+            for f in vfs[1:]:
+                got_build = wl(got_build, f)
+                got_build = mp(apply_thm(and_intro(cb, f, []), [], cb,
+                    Implies(f, And(cb, f)), got_build), ax(f), f, And(cb, f))
+                cb = And(cb, f)
+            got_build = eir(got_build, cv, var, var)
+            # eel each vf, cut with derivation from src_body
+            for f in vfs:
+                if same(f, src_body):
+                    got_build = eel(got_build, f, var)
+                    got_build = cut(got_build, Exists(var, f), source)
+                else:
+                    # f is derivable from src_body (e.g., succ_char from sf_all)
+                    # Derive f from src_body using and_elim
+                    got_derive = ax(src_body)
+                    # Try all And decomposition paths
+                    derived = False
+                    def try_derive(body, proof_of_body):
+                        """Try to derive f from body via and_elim recursion."""
+                        if same(f, body):
+                            return proof_of_body
+                        if hasattr(body, 'left') and hasattr(body, 'right'):
+                            # Try left
+                            got_l = apply_thm(and_elim_left(body.left, body.right, []), [],
+                                body, body.left, proof_of_body)
+                            r = try_derive(body.left, got_l)
+                            if r is not None:
+                                return r
+                            # Try right
+                            got_r = apply_thm(and_elim_right(body.left, body.right, []), [],
+                                body, body.right, proof_of_body)
+                            r = try_derive(body.right, got_r)
+                            if r is not None:
+                                return r
+                        return None
+                    got_derive = try_derive(src_body, ax(src_body))
+                    if got_derive is None:
+                        print(f'plus_func_exists: {name} cannot derive {f}')
+                        print(f'  src_body = {src_body}')
+                        print(f'  src_body.left same = {same(f, src_body.left) if hasattr(src_body, "left") else "N/A"}')
+                        print(f'  src_body.right same = {same(f, src_body.right) if hasattr(src_body, "right") else "N/A"}')
+                        got_derive = ax(f)
+                    got_build = cut(got_build, f, got_derive)
+            got_ex_pf = cut(got_ex_pf, ex_cv, got_build)
+            print(f'plus_func_exists: {name} cut done')
 
     # Step 8: Discharge Omega(w), close ∀w
     if not any(same(omega_w, f) for f in got_ex_pf.sequent.left):
