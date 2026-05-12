@@ -10,7 +10,7 @@ from core.proof import qed, same
 from core.zfc import ZFCAxiom
 from vocab import (OrdPair, Successor, Empty, Singleton, PairSet,
     Subset, Inductive, Omega, Function, Apply, RecApprox, Recursive,
-    ExistsUnique, Union, TotalFrom, Plus, Num)
+    ExistsUnique, Union, TotalFrom, Plus, PlusFunc, Num)
 from tm import add_goal
 tm_add_goal = add_goal()
 
@@ -21,7 +21,7 @@ import theorems
 # fresh vars for goal formulas
 a, b, c, d, t, p = Var(), Var(), Var(), Var(), Var(), Var()
 x, y, z, w, s, n = Var(), Var(), Var(), Var(), Var(), Var()
-q, r = Var(), Var()
+q, r, h = Var(), Var(), Var()
 A, B, C = In(x,y), In(y,z), In(z,w)
 
 goals = [
@@ -226,6 +226,10 @@ goals = [
     ('unique_num_2',
      lambda: theorems.unique_num(2),
      ExistsUnique(a, Num(a, 2))),
+    ('plus_func_unique',
+     lambda: theorems.plus_func_unique(),
+     Forall(w, Implies(Omega(w),
+         ExistsUnique(h, PlusFunc(h, w))))),
     ('plus_zero_right',
      lambda: theorems.plus_zero_right(),
      Forall(w, Forall(a, Forall(b, Forall(c, Forall(d,
