@@ -4258,8 +4258,84 @@ def plus_func_unique():
     |- ∀w. Omega(w) → ∃!h. PlusFunc(h, w)
 
     Combines plus_func_exists + plus_func_eq."""
-    # TODO: combine plus_func_exists + plus_func_eq into ExistsUnique
-    raise NotImplementedError("plus_func_unique: needs plus_func_exists + plus_func_eq")
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import and_intro
+    from vocab.recursion import PlusFunc
+    from vocab.omega import Omega, ExistsUnique
+    from core.proof import Proof, Sequent, same
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Eq, And, Exists
+
+    w = Var(postfix='w')
+    h = Var(postfix='h')
+    omega_w = Omega(w)
+    pf_hw = PlusFunc(h, w)
+
+    # ExistsUnique(h, PlusFunc(h,w)) expands to ∃h. And(PlusFunc(h,w), ∀h'. PlusFunc(h',w)→Eq(h,h'))
+    eu = ExistsUnique(h, pf_hw)
+    eu_exp = eu.expand()
+    h_eu = eu_exp.var
+    eu_body = eu_exp.body  # And(PlusFunc(h_eu,w), ∀h'. PlusFunc(h',w)→Eq(h_eu,h'))
+    pf_part = eu_body.left  # PlusFunc(h_eu, w)
+    uniq_part = eu_body.right  # ∀h'. PlusFunc(h',w)→Eq(h_eu,h')
+
+    # From plus_func_exists: ∃h. PlusFunc(h,w) (after Omega(w))
+    pfe = plus_func_exists()
+    got_pfe = apply_thm(pfe, [w])
+    got_pfe = mp(got_pfe, ax(omega_w), omega_w, got_pfe.sequent.right[0].right)
+    # [Omega(w), axioms] |- ∃h. PlusFunc(h,w)
+    print(f'plus_func_unique: exists done')
+
+    # From plus_func_eq: ∀w,h1,h2. Omega→PlusFunc(h1)→PlusFunc(h2)→Eq(h1,h2)
+    pfeq = plus_func_eq()
+    # Build uniqueness: ∀h'. PlusFunc(h',w) → Eq(h_eu, h')
+    h2 = uniq_part.var
+    pf_h2 = uniq_part.body.left  # PlusFunc(h2, w)
+    eq_h_h2 = uniq_part.body.right  # Eq(h_eu, h2)
+    got_eq = apply_thm(pfeq, [w, h_eu, h2])
+    got_eq = mp(got_eq, ax(omega_w), omega_w, got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, ax(pf_part), pf_part, got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, ax(pf_h2), pf_h2, eq_h_h2)
+    # [Omega, PlusFunc(h_eu,w), PlusFunc(h2,w), axioms] |- Eq(h_eu, h2)
+    # Discharge PlusFunc(h2,w), close ∀h2
+    imp_uniq = Implies(pf_h2, eq_h_h2)
+    left_no_h2 = [f for f in got_eq.sequent.left if not same(f, pf_h2)]
+    got_uniq = Proof(Sequent(left_no_h2, [imp_uniq]), 'implies_right', [got_eq], principal=imp_uniq)
+    fa_uniq = Forall(h2, imp_uniq)
+    got_uniq = Proof(Sequent(got_uniq.sequent.left, [fa_uniq]),
+        'forall_right', [got_uniq], principal=fa_uniq, term=h2)
+    # [Omega, PlusFunc(h_eu,w), axioms] |- ∀h'. PlusFunc(h',w)→Eq(h_eu,h')
+    print(f'plus_func_unique: uniqueness done')
+
+    # And(PlusFunc, uniqueness) = eu_body
+    got_eu_body = mp(apply_thm(and_intro(pf_part, fa_uniq, []), [],
+        pf_part, Implies(fa_uniq, And(pf_part, fa_uniq)),
+        ax(pf_part)), got_uniq, fa_uniq, And(pf_part, fa_uniq))
+
+    # eir h_eu → ∃h. And(PlusFunc, uniqueness) = ExistsUnique
+    got_eu = eir(got_eu_body, eu_body, h_eu, h_eu)
+    # eel PlusFunc(h_eu,w) from left, cut with plus_func_exists
+    got_eu = eel(got_eu, pf_part, h_eu)
+    # ∃h_eu. PlusFunc(h_eu,w) on left. Cut with got_pfe.
+    got_eu = cut(got_eu, Exists(h_eu, pf_part), got_pfe)
+    # Cut with ExistsUnique vocab
+    got_eu = cut(ax(eu), eu, got_eu)
+    print(f'plus_func_unique: eu done, right = {got_eu.sequent.right[0]}')
+
+    # Discharge Omega(w), close ∀w
+    if not any(same(omega_w, f) for f in got_eu.sequent.left):
+        got_eu = wl(got_eu, omega_w)
+    imp_omega = Implies(omega_w, got_eu.sequent.right[0])
+    left_no_omega = [f for f in got_eu.sequent.left if not same(f, omega_w)]
+    proof = Proof(Sequent(left_no_omega, [imp_omega]), 'implies_right', [got_eu], principal=imp_omega)
+    fa_w = Forall(w, imp_omega)
+    proof = Proof(Sequent(proof.sequent.left, [fa_w]),
+        'forall_right', [proof], principal=fa_w, term=w)
+
+    print(f'plus_func_unique: result = {proof.sequent.right[0]}')
+
+    proof.name = 'plus_func_unique'
+    return proof
 
 
 def plus_setup():
