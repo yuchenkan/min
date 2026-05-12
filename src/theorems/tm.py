@@ -5215,7 +5215,7 @@ def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja
     return got_ex_trn
 
 class Phase2P:
-    """P2(sa): after S(a) steps, state q1, head at S(a), tape updated.
+    """P2: after 1 step of phase 2, state q1, head at S(a), tape updated.
     ∃tra, ca, tape2.
       Function(tra) ∧
       ∀x,y. Apply(tra,x,y) → Or(In(x,sa), Eq(x,sa)) ∧
@@ -5225,7 +5225,7 @@ class Phase2P:
       ∀ja < sa. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
           ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)) ∧
       TapeUpdate(tape2, tape_in, a, one)"""
-    __match_args__ = ('sa',)
+    __match_args__ = ()
     def __init__(self, sa, q1, tape_in, c0, z, delta, a, one,
                  tra, ca, tape2, ja, sja, cja, cja1):
         self.sa = sa
@@ -5255,7 +5255,7 @@ class Phase2P:
         r = lambda f: new if f is old else f
         return Phase2P(r(self.sa), *(r(x) for x in self._args))
     def __str__(self):
-        return f'P2({self.sa})'
+        return f'P2'
 
 
 class Phase3P:
@@ -5301,6 +5301,27 @@ class Phase3P:
         return Phase3P(r(self.j), *(r(x) for x in self._args))
     def __str__(self):
         return f'P3({self.j})'
+
+
+class Phase3Q:
+    """Q3(j) = Or(In(j,b), Eq(j,b)) → P3(j).
+    Bounded Phase 3 predicate: "if j ≤ b then P3(j)."
+    Used as the induction predicate for omega induction on phase 3 step count."""
+    __match_args__ = ('j',)
+    def __init__(self, j, b, sa, q1, tape2, c0, z, delta,
+                 tra, cj, pos, ja, sja, cja, cja1):
+        self.j = j; self.b = b
+        self._args = (sa, q1, tape2, c0, z, delta,
+                      tra, cj, pos, ja, sja, cja, cja1)
+    def expand(self):
+        from core.derived import Or, Eq
+        return Implies(Or(In(self.j, self.b), Eq(self.j, self.b)),
+            Phase3P(self.j, *self._args))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Phase3Q(r(self.j), r(self.b), *(r(x) for x in self._args))
+    def __str__(self):
+        return f'Q3({self.j})'
 
 
 class Phase1Q:
