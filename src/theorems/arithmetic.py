@@ -914,8 +914,11 @@ def plus_func_eq():
     """Two PlusFuncs over the same omega are equal.
     |- ∀w,h1,h2. Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eq(h1,h2)
 
-    From plus_func_values_agree (both directions) + extensionality."""
-    # TODO: implement using plus_func_values_agree
+    From plus_func_values_agree: for all m,n∈w, h1(⟨m,n⟩)=h2(⟨m,n⟩).
+    Transfer: In(z,h1) → Relation gives z=⟨x,y⟩ → Apply(h1,x,y) →
+    dom_eq gives x∈ω×ω → Product gives x=⟨m,n⟩ → values_agree → Apply(h2,x,y) → In(z,h2).
+    Symmetry + extensionality → Eq(h1,h2)."""
+    # TODO: implement - needs membership transfer via values_agree + dom_eq
     raise NotImplementedError("plus_func_eq under construction")
 
 
