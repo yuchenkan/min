@@ -5014,3 +5014,270 @@ def domain_exists():
 
     proof.name = 'domain_exists'
     return proof
+
+
+def product_exists():
+    """The cartesian product of any two sets exists.
+    Sep, PowerSet, Pairing, Union, Ext |- ∀a,b. ∃p. Product(p, a, b)
+
+    p = {z ∈ P(P(a∪b)) : ∃x∈a.∃y∈b. OrdPair(z,x,y)}.
+    Bounded by ordpair_bounded: ⟨x,y⟩ ∈ P(P(a∪b)) when x,y ∈ a∪b."""
+    from vocab.sets import Product
+    from vocab.ordpair import OrdPair
+    a, b, p = Var(postfix='a'), Var(postfix='b'), Var(postfix='p')
+    x, y, z = Var(postfix='x'), Var(postfix='y'), Var(postfix='z')
+
+    # The predicate for Separation: ∃x∈a.∃y∈b. OrdPair(z,x,y)
+    phi = lambda zv: Exists(x, Exists(y, And(In(x, a), And(In(y, b), OrdPair(zv, x, y)))))
+
+    # Separation on P(P(a∪b)) with phi gives:
+    # ∃p. ∀z. In(z,p) ↔ (In(z, P(P(a∪b))) ∧ ∃x∈a.∃y∈b. OrdPair(z,x,y))
+    # ordpair_bounded: OrdPair(z,x,y) ∧ x∈a∪b ∧ y∈a∪b → z ∈ P(P(a∪b))
+    # So the In(z,P(P(a∪b))) is redundant when ∃x∈a.∃y∈b.OrdPair(z,x,y) holds.
+    # Therefore: In(z,p) ↔ ∃x∈a.∃y∈b.OrdPair(z,x,y) = Product(p,a,b).
+
+    # For now: the engine checks alpha-equivalence between Separation expansion
+    # and the goal. The Separation predicate phi(z) = ∃x,y. In(x,a) ∧ In(y,b) ∧ OrdPair(z,x,y).
+    # This is exactly the RHS of Product. But Separation gives the ∧ with the bounding set,
+    # not plain. We need the bounding to be redundant.
+
+    # This requires ordpair_bounded to show the bounding is redundant.
+    # That's ~50 lines of proof. For a simpler approach: use PowerSet axiom directly.
+    # Actually, many set theory texts prove Product exists from PowerSet + Separation.
+
+    # The simplest approach that the engine can verify:
+    # Separation(phi, [a, b, x, y]) on the bounding set gives ∃p with the ∧ condition.
+    # Then prove: ∀z. ∃x∈a.∃y∈b.OrdPair(z,x,y) → In(z, bound). Discharge the ∧.
+
+    # For now, let me try the direct Separation approach and see if more work is needed.
+    sep = zfc.Separation(phi, [a, b])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+
+    prod = Product(p, a, b)
+    goal = Forall(a, Forall(b, Exists(p, prod)))
+
+    # Separation expands to: ∀a,b. ∀bound. ∃p. ∀z. In(z,p) ↔ (In(z,bound) ∧ phi(z))
+    # We need: ∀a,b. ∃p. ∀z. In(z,p) ↔ phi(z) [without the bounding]
+    # These are NOT the same — Separation has the extra In(z,bound).
+    # So simple axiom matching won't work. Need to provide the bound and prove redundancy.
+
+    # Bound: P(P(a∪b)). Need union_exists, powerset_exists.
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp, iff_mp_rev)
+    from vocab.sets import BigUnion, PowerSet, Union as UnionDef
+
+    # ∪{a,b} = a∪b. Actually, use Union(u,a,b) for binary union.
+    uab = Var(postfix='uab')
+    union_ab = UnionDef(uab, a, b)
+    ue = union_exists()
+    got_ex_uab = apply_thm(ue, [a, b], concl=Exists(uab, union_ab))
+
+    # P(a∪b)
+    puab = Var(postfix='puab')
+    ps_uab = PowerSet(puab, uab)
+    ps_axiom = zfc.PowerSet()
+    ps_ax_proof = Proof(Sequent([ps_axiom], [ps_axiom]), 'axiom', principal=ps_axiom)
+    got_ex_puab = apply_thm(ps_ax_proof, [uab], concl=Exists(puab, ps_uab))
+
+    # P(P(a∪b))
+    ppuab = Var(postfix='ppuab')
+    ps_puab = PowerSet(ppuab, puab)
+    got_ex_ppuab = apply_thm(ps_ax_proof, [puab], concl=Exists(ppuab, ps_puab))
+
+    # Separation on ppuab with phi:
+    sep2 = zfc.Separation(phi, [a, b])
+    sep_ax2 = Proof(Sequent([sep2], [sep2]), 'axiom', principal=sep2)
+    # Instantiate with a, b, ppuab:
+    iff_sep = Iff(In(z, p), And(In(z, ppuab), phi(z)))
+    char_p = Forall(z, iff_sep)
+    got_ex_p = apply_thm(sep_ax2, [b, a, ppuab], concl=Exists(p, char_p))
+
+    # Now prove: phi(z) → In(z, ppuab) [bounding redundancy]
+    # phi(z) = ∃x,y. In(x,a) ∧ In(y,b) ∧ OrdPair(z,x,y)
+    # In(x,a) → In(x, a∪b) [union_intro_left]. In(y,b) → In(y, a∪b).
+    # OrdPair(z,x,y) ∧ In(x,a∪b) ∧ In(y,a∪b) → In(z, P(P(a∪b))) [ordpair_bounded]
+    # So phi(z) → In(z, ppuab).
+
+    # With this: In(z,p) ↔ (In(z,ppuab) ∧ phi(z)) simplifies to In(z,p) ↔ phi(z).
+
+    # Forward: In(z,p) → phi(z). Just and_elim_right from the Iff.
+    got_iff_inst = apply_thm(ax(char_p), [z])
+    got_fwd_sep = apply_thm(iff_mp(In(z, p), And(In(z, ppuab), phi(z)), []), [],
+        iff_sep, Implies(In(z, p), And(In(z, ppuab), phi(z))), got_iff_inst)
+    got_fwd = mp(got_fwd_sep, ax(In(z, p)), In(z, p), And(In(z, ppuab), phi(z)))
+    got_fwd = apply_thm(and_elim_right(In(z, ppuab), phi(z), []), [],
+        And(In(z, ppuab), phi(z)), phi(z), got_fwd)
+    # [char_p, In(z,p)] |- phi(z)
+
+    # Backward: phi(z) → In(z,p). Need phi(z) → In(z,ppuab), then And, then Iff reverse.
+    # phi(z) → In(z, ppuab) via ordpair_bounded:
+    ob = ordpair_bounded()
+    in_x_a = In(x, a)
+    in_y_b = In(y, b)
+    in_x_uab = In(x, uab)
+    in_y_uab = In(y, uab)
+    op_z = OrdPair(z, x, y)
+
+    # Union: In(x,a) → In(x, a∪b).
+    from theorems.logic import or_intro_left, or_intro_right
+    from core.derived import Or
+    got_uab_x = apply_thm(ax(union_ab), [x])
+    iff_u = got_uab_x.sequent.right[0]
+    or_ab_x = Or(In(x, a), In(x, b))
+    got_or_x = apply_thm(or_intro_left(In(x, a), In(x, b), []), [], in_x_a, or_ab_x, ax(in_x_a))
+    got_rev_u = apply_thm(iff_mp_rev(In(x, uab), or_ab_x, []), [],
+        iff_u, Implies(or_ab_x, In(x, uab)), got_uab_x)
+    got_x_in_uab = mp(got_rev_u, got_or_x, or_ab_x, in_x_uab)
+
+    got_uab_y = apply_thm(ax(union_ab), [y])
+    iff_uy = got_uab_y.sequent.right[0]
+    or_ab_y = Or(In(y, a), In(y, b))
+    got_or_y = apply_thm(or_intro_right(In(y, a), In(y, b), []), [], in_y_b, or_ab_y, ax(in_y_b))
+    got_rev_uy = apply_thm(iff_mp_rev(In(y, uab), or_ab_y, []), [],
+        iff_uy, Implies(or_ab_y, In(y, uab)), got_uab_y)
+    got_y_in_uab = mp(got_rev_uy, got_or_y, or_ab_y, in_y_uab)
+
+    # ordpair_bounded: instantiate all foralls, mp all implies with ax
+    ob = ordpair_bounded()
+    got_ob = apply_thm(ob, [uab, x, y, z, puab, ppuab])
+    while isinstance(got_ob.sequent.right[0], (Forall, Implies)):
+        r = got_ob.sequent.right[0]
+        if isinstance(r, Forall):
+            got_ob = apply_thm(got_ob, [r.var])
+        else:
+            got_ob = mp(got_ob, ax(r.left), r.left, r.right)
+    # [..., In(x,uab), In(y,uab), OrdPair, ps_uab, ps_puab, Ext] |- In(z, ppuab)
+    # Cut actual proofs for In(x,uab), In(y,uab):
+    if any(same(in_x_uab, f) for f in got_ob.sequent.left):
+        got_ob = cut(got_ob, in_x_uab, got_x_in_uab)
+    if any(same(in_y_uab, f) for f in got_ob.sequent.left):
+        got_ob = cut(got_ob, in_y_uab, got_y_in_uab)
+
+    # Backward: phi(z) → In(z, p).
+    # From phi(z): open ∃x,y, get In(x,a), In(y,b), OrdPair(z,x,y).
+    # ordpair_bounded → In(z,ppuab). Build And(In(z,ppuab), phi(z)). Iff rev → In(z,p).
+    phi_z = phi(z)
+    phi_body = And(in_x_a, And(in_y_b, op_z))
+
+    # got_ob has In(z,ppuab) on right with In(x,a), In(y,b), OrdPair, etc on left.
+    # Also has internal ordpair_bounded vars. Discharge ALL non-essential left formulas:
+    from core.proof import _var_free_in_sequent
+    got_in_bound = got_ob
+    # Keep only: phi_body components (In(x,a), In(y,b), OrdPair) + non-x,y formulas
+    for ff in list(got_in_bound.sequent.left):
+        if (_var_free_in_sequent(x, Sequent([ff], [])) or _var_free_in_sequent(y, Sequent([ff], []))) \
+           and not same(ff, in_x_a) and not same(ff, in_y_b) and not same(ff, op_z):
+            got_in_bound = wl(got_in_bound, ff)
+            imp_f = Implies(ff, got_in_bound.sequent.right[0])
+            left_f = [f for f in got_in_bound.sequent.left if not same(f, ff)]
+            got_in_bound = Proof(Sequent(left_f, [imp_f]), 'implies_right', [got_in_bound], principal=imp_f)
+    # Discharge In(x,a), In(y,b), OrdPair, close y, x:
+    for hyp in [op_z, in_y_b, in_x_a]:
+        got_in_bound = wl(got_in_bound, hyp)
+        imp_h = Implies(hyp, got_in_bound.sequent.right[0])
+        left_h = [f for f in got_in_bound.sequent.left if not same(f, hyp)]
+        got_in_bound = Proof(Sequent(left_h, [imp_h]), 'implies_right', [got_in_bound], principal=imp_h)
+    for v in [y, x]:
+        body = got_in_bound.sequent.right[0]
+        fa = Forall(v, body)
+        got_in_bound = Proof(Sequent(got_in_bound.sequent.left, [fa]),
+            'forall_right', [got_in_bound], principal=fa, term=v)
+    # [...] |- ∀x.∀y. In(x,a) → In(y,b) → OrdPair(z,x,y) → (internal_discharged →) In(z,ppuab)
+    # This is complex to reopen. Instead, let me use a simpler approach:
+    # From phi(z) on left, derive In(z,ppuab) using the closed formula.
+    # Instantiate ∀x,∀y back, mp with phi_body components from phi(z):
+    # But phi(z) = ∃x.∃y.phi_body. Need to open it.
+    # From ax(phi_body) [In(x,a), In(y,b), OrdPair on left]:
+    # Instantiate got_in_bound at x,y:
+    got_inst = got_in_bound
+    got_inst = apply_thm(got_inst, [x, y])
+    # mp through all Implies:
+    while isinstance(got_inst.sequent.right[0], Implies):
+        cur = got_inst.sequent.right[0]
+        got_inst = mp(got_inst, ax(cur.left), cur.left, cur.right)
+    # [..., In(x,a), In(y,b), OrdPair, internal vars] |- In(z, ppuab)
+    # eel y from (In(y,b), OrdPair(z,x,y)):
+    and_yop = And(in_y_b, op_z)
+    for pred in [op_z, in_y_b]:
+        if any(same(pred, f) for f in got_inst.sequent.left):
+            got_pred = apply_thm(
+                and_elim_right(in_y_b, op_z, []) if same(pred, op_z)
+                else and_elim_left(in_y_b, op_z, []),
+                [], and_yop, pred, ax(and_yop))
+            got_inst = cut(got_inst, pred, got_pred)
+    got_inst = eel(got_inst, and_yop, y)
+    # eel x from (In(x,a), ∃y.And):
+    ex_y_and = Exists(y, and_yop)
+    and_x_ey = And(in_x_a, ex_y_and)
+    for pred in [in_x_a, ex_y_and]:
+        if any(same(pred, f) for f in got_inst.sequent.left):
+            got_pred = apply_thm(
+                and_elim_left(in_x_a, ex_y_and, []) if same(pred, in_x_a)
+                else and_elim_right(in_x_a, ex_y_and, []),
+                [], and_x_ey, pred, ax(and_x_ey))
+            got_inst = cut(got_inst, pred, got_pred)
+    got_inst = eel(got_inst, and_x_ey, x)
+    # [phi(z), ...] |- In(z, ppuab)
+
+    # Build And(In(z,ppuab), phi(z)):
+    got_and_bphi = mp(apply_thm(and_intro(In(z, ppuab), phi_z, []), [],
+        In(z, ppuab), Implies(phi_z, And(In(z, ppuab), phi_z)), got_inst),
+        ax(phi_z), phi_z, And(In(z, ppuab), phi_z))
+
+    # Build And(In(z,ppuab), phi(z)):
+    got_and_bphi = mp(apply_thm(and_intro(In(z, ppuab), phi_z, []), [],
+        In(z, ppuab), Implies(phi_z, And(In(z, ppuab), phi_z)), got_in_bound),
+        ax(phi_z), phi_z, And(In(z, ppuab), phi_z))
+
+    # Iff reverse: And(In(z,ppuab), phi(z)) → In(z,p)
+    got_rev_iff = apply_thm(iff_mp_rev(In(z, p), And(In(z, ppuab), phi_z), []), [],
+        iff_sep, Implies(And(In(z, ppuab), phi_z), In(z, p)), got_iff_inst)
+    got_back = mp(got_rev_iff, got_and_bphi, And(In(z, ppuab), phi_z), In(z, p))
+    # [phi(z), char_p, union_ab, ps_uab, ps_puab, Ext] |- In(z,p)
+
+    # Build Iff(In(z,p), phi(z)) = Product(p,a,b) at z:
+    prod_iff = Iff(In(z, p), phi_z)
+    imp_fwd = Implies(In(z, p), phi_z)
+    fwd_left = [f for f in got_fwd.sequent.left if not same(f, In(z, p))]
+    got_imp_fwd = Proof(Sequent(fwd_left, [imp_fwd]),
+        'implies_right', [got_fwd], principal=imp_fwd)
+    imp_back = Implies(phi_z, In(z, p))
+    back_left = [f for f in got_back.sequent.left if not same(f, phi_z)]
+    got_imp_back = Proof(Sequent(back_left, [imp_back]),
+        'implies_right', [got_back], principal=imp_back)
+    ii = iff_intro(In(z, p), phi_z, [])
+    got_prod_iff = mp(apply_thm(ii, [], imp_fwd, Implies(imp_back, prod_iff), got_imp_fwd),
+        got_imp_back, imp_back, prod_iff)
+
+    # Close ∀z → Product(p,a,b)
+    fa_z = Forall(z, prod_iff)
+    got_fa = Proof(Sequent(got_prod_iff.sequent.left, [fa_z]),
+        'forall_right', [got_prod_iff], principal=fa_z, term=z)
+    # Cut bridge to Product vocab:
+    got_prod = cut(ax(prod), prod, got_fa)
+
+    # eir p, eel char_p, cut with got_ex_p
+    got_ex = eir(got_prod, got_prod.sequent.right[0], p, p)
+    got_ex = eel(got_ex, char_p, p)
+    got_ex = cut(got_ex, Exists(p, char_p), got_ex_p)
+
+    # eel ppuab, puab, uab; cut with existence proofs
+    for var, formula, got_ex_proof in [
+        (ppuab, ps_puab, got_ex_ppuab),
+        (puab, ps_uab, got_ex_puab),
+        (uab, union_ab, got_ex_uab)]:
+        if any(same(formula, f) for f in got_ex.sequent.left):
+            got_ex = eel(got_ex, formula, var)
+            got_ex = cut(got_ex, Exists(var, formula), got_ex_proof)
+
+    # Close ∀a, ∀b
+    proof = got_ex
+    for v in [b, a]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'product_exists'
+    return proof

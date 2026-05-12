@@ -910,15 +910,119 @@ def plus_func_values_agree(h1, h2, w):
     return got_r_final
 
 
+def plus_func_apply_transfer(h1, h2, w):
+    """Apply(h1,pair,p) → Apply(h2,pair,p) for all pair,p.
+    [PlusFunc(h1,w), PlusFunc(h2,w), Omega(w), In(mv,w), In(nv,w),
+     OrdPair(pair,mv,nv), Apply(h1,pair,p)] |- Apply(h2,pair,p)
+
+    From values_agree R(nv): ∃pair0,p0. OrdPair(pair0,mv,nv) ∧ Apply(h1,pair0,p0) ∧ Apply(h2,pair0,p0).
+    ordpair_unique: pair=pair0. func_unique(h1): p=p0. So Apply(h2,pair,p)."""
+    from tactics import apply_thm, mp, ax, eel, cut
+    from theorems.omega import func_unique_thm
+    from theorems.sets import ordpair_unique
+    from theorems.logic import and_elim_left, and_elim_right, eq_substitution
+    from theorems.recursion import eq_apply_val_transfer, eq_apply_transfer
+    from theorems.logic import eq_symmetric, iff_mp, iff_mp_rev
+    from vocab import Function as FuncDef, Apply
+    from vocab.ordpair import OrdPair
+    from core.proof import Proof, Sequent, same
+
+    mv = Var(postfix='_mv')
+    nv = Var(postfix='_nv')
+    pv = Var(postfix='_pv')
+    pair_v = Var(postfix='_pair')
+    op_pair = OrdPair(pair_v, mv, nv)
+    app1 = Apply(h1, pair_v, pv)
+    app2 = Apply(h2, pair_v, pv)
+
+    got_r = plus_func_values_agree(h1, h2, w)
+    # got_r: [PlusFunc(h1,w), PlusFunc(h2,w), Omega(w), In(mv,w), Sep, Pairing, ...] |- R(nv)
+    # R(nv) = ∃pair0.∃p0. OrdPair(pair0,mv,nv) ∧ Apply(h1,pair0,p0) ∧ Apply(h2,pair0,p0)
+
+    pair0 = Var(postfix='_pr0')
+    p0 = Var(postfix='_p0')
+    op0 = OrdPair(pair0, mv, nv)
+    app1_0 = Apply(h1, pair0, p0)
+    app2_0 = Apply(h2, pair0, p0)
+    r_body = And(op0, And(app1_0, app2_0))
+
+    # Open R: get pair0, p0, OrdPair, Apply h1, Apply h2
+    got_op0 = apply_thm(and_elim_left(op0, And(app1_0, app2_0), []), [],
+        r_body, op0, ax(r_body))
+    got_apps = apply_thm(and_elim_right(op0, And(app1_0, app2_0), []), [],
+        r_body, And(app1_0, app2_0), ax(r_body))
+    got_app1_0 = apply_thm(and_elim_left(app1_0, app2_0, []), [],
+        And(app1_0, app2_0), app1_0, got_apps)
+    got_app2_0 = apply_thm(and_elim_right(app1_0, app2_0, []), [],
+        And(app1_0, app2_0), app2_0, got_apps)
+
+    # ordpair_unique: OrdPair(pair_v,mv,nv) ∧ OrdPair(pair0,mv,nv) → Eq(pair_v,pair0)
+    ou = ordpair_unique()
+    eq_pair = Eq(pair_v, pair0)
+    got_eq_pair = apply_thm(ou, [mv, nv, pair_v, pair0])
+    got_eq_pair = mp(got_eq_pair, ax(op_pair), op_pair, got_eq_pair.sequent.right[0].right)
+    got_eq_pair = mp(got_eq_pair, got_op0, op0, eq_pair)
+    # [r_body, OrdPair(pair_v,mv,nv), Pairing] |- Eq(pair_v, pair0)
+
+    # Transfer Apply(h1,pair0,p0) to Apply(h1,pair_v,p0) via Eq(pair_v,pair0)
+    # eq_apply_transfer: Eq(x1,x2) → Apply(f,x1,y) → Apply(f,x2,y)
+    # Wait, need reverse: Eq(pair_v,pair0) → Apply(h1,pair0,p0) → Apply(h1,pair_v,p0)
+    # That's Eq(pair_v,pair0) means pair_v and pair0 are the same set.
+    # Apply(h1,pair0,p0) → Apply(h1,pair_v,p0) via eq_apply_transfer with Eq(pair0,pair_v).
+    es = eq_symmetric()
+    eq_pair_rev = Eq(pair0, pair_v)
+    got_eq_pair_rev = apply_thm(es, [pair_v, pair0], eq_pair, eq_pair_rev, got_eq_pair)
+
+    eat = eq_apply_transfer()
+    app1_v0 = Apply(h1, pair_v, p0)
+    got_app1_v0 = apply_thm(eat, [h1, pair0, pair_v, p0])
+    got_app1_v0 = mp(got_app1_v0, got_eq_pair_rev, eq_pair_rev, got_app1_v0.sequent.right[0].right)
+    got_app1_v0 = mp(got_app1_v0, got_app1_0, app1_0, app1_v0)
+    # [r_body, OrdPair(...), Pairing] |- Apply(h1, pair_v, p0)
+
+    # func_unique(h1): Apply(h1,pair_v,pv) ∧ Apply(h1,pair_v,p0) → Eq(pv,p0)
+    got_func1, _, _, _, _ = plusfunc_elim(h1, w)
+    fu = func_unique_thm()
+    eq_p = Eq(pv, p0)
+    got_eq_p = apply_thm(fu, [h1, pair_v, pv, p0])
+    got_eq_p = mp(got_eq_p, got_func1, FuncDef(h1), got_eq_p.sequent.right[0].right)
+    got_eq_p = mp(got_eq_p, ax(app1), app1, got_eq_p.sequent.right[0].right)
+    got_eq_p = mp(got_eq_p, got_app1_v0, app1_v0, eq_p)
+    # [PlusFunc(h1,w), r_body, OrdPair(...), Apply(h1,pair,pv), Pairing] |- Eq(pv, p0)
+
+    # Transfer Apply(h2,pair0,p0) to Apply(h2,pair_v,pv):
+    # First: Apply(h2,pair0,p0) → Apply(h2,pair_v,p0) via eq_apply_transfer + Eq(pair0,pair_v)
+    app2_v0 = Apply(h2, pair_v, p0)
+    got_app2_v0 = apply_thm(eat, [h2, pair0, pair_v, p0])
+    got_app2_v0 = mp(got_app2_v0, got_eq_pair_rev, eq_pair_rev, got_app2_v0.sequent.right[0].right)
+    got_app2_v0 = mp(got_app2_v0, got_app2_0, app2_0, app2_v0)
+
+    # Then: Apply(h2,pair_v,p0) → Apply(h2,pair_v,pv) via eq_apply_val_transfer + Eq(p0,pv)
+    eq_p0_pv = Eq(p0, pv)
+    got_eq_p0_pv = apply_thm(es, [pv, p0], eq_p, eq_p0_pv, got_eq_p)
+    eavt = eq_apply_val_transfer()
+    got_app2 = apply_thm(eavt, [h2, pair_v, p0, pv])
+    got_app2 = mp(got_app2, got_eq_p0_pv, eq_p0_pv, got_app2.sequent.right[0].right)
+    got_app2 = mp(got_app2, got_app2_v0, app2_v0, app2)
+    # [..., r_body, OrdPair, Apply(h1,pair,p)] |- Apply(h2, pair_v, pv)
+
+    # eel r_body (pair0, p0), cut with got_r
+    got_app2 = eel(got_app2, r_body, p0)
+    got_app2 = eel(got_app2, Exists(p0, r_body), pair0)
+    r_nv = got_r.sequent.right[0]
+    got_app2 = cut(got_app2, r_nv, got_r)
+    # [PlusFunc(h1), PlusFunc(h2), Omega(w), In(mv,w), OrdPair, Apply(h1,pair,p), axioms] |- Apply(h2,pair,p)
+
+    got_app2.name = 'plus_func_apply_transfer'
+    return got_app2
+
+
 def plus_func_eq():
     """Two PlusFuncs over the same omega are equal.
     |- ∀w,h1,h2. Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eq(h1,h2)
 
-    From plus_func_values_agree: for all m,n∈w, h1(⟨m,n⟩)=h2(⟨m,n⟩).
-    Transfer: In(z,h1) → Relation gives z=⟨x,y⟩ → Apply(h1,x,y) →
-    dom_eq gives x∈ω×ω → Product gives x=⟨m,n⟩ → values_agree → Apply(h2,x,y) → In(z,h2).
-    Symmetry + extensionality → Eq(h1,h2)."""
-    # TODO: implement - needs membership transfer via values_agree + dom_eq
+    Uses plus_func_apply_transfer + rec_unique's _transfer pattern."""
+    # TODO: implement using plus_func_apply_transfer
     raise NotImplementedError("plus_func_eq under construction")
 
 
