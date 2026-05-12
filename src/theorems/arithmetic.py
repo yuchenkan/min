@@ -5156,22 +5156,26 @@ def h_zero_identity():
 
     # Separation: induction set {a∈w : P(a)}
     pv_ind = Var(postfix='_pi')
-    char_p = Forall(a_v, Iff(In(a_v, pv_ind), And(In(a_v, w), P(a_v))))
+    char_p = Forall(a_v, Iff(In(a_v, pv_ind), And(In(a_v, w), And(In(a_v, w), P(a_v)))))
     sep = separation(lambda x: And(In(x, w), P(x)), [w, hv])
-    got_sep = apply_thm(sep, [w, hv, pv_ind], concl=char_p)
+    # Separation params [w, hv], bound = w. Apply: [hv, w, w] (outermost param first)
+    got_sep = apply_thm(sep, [hv, w, w], concl=Exists(pv_ind, char_p))
     print(f'h_zero_identity: separation done')
 
+    def char_body(term):
+        return And(In(term, w), And(In(term, w), P(term)))
+
     def char_p_bwd(term):
-        inst = Iff(In(term, pv_ind), And(In(term, w), P(term)))
-        return mp(iff_mp_rev(In(term, pv_ind), And(In(term, w), P(term)), []),
+        inst = Iff(In(term, pv_ind), char_body(term))
+        return mp(iff_mp_rev(In(term, pv_ind), char_body(term), []),
             fl(char_p, inst, term), inst,
-            Implies(And(In(term, w), P(term)), In(term, pv_ind)))
+            Implies(char_body(term), In(term, pv_ind)))
 
     def char_p_fwd(term):
-        inst = Iff(In(term, pv_ind), And(In(term, w), P(term)))
-        return mp(iff_mp(In(term, pv_ind), And(In(term, w), P(term)), []),
+        inst = Iff(In(term, pv_ind), char_body(term))
+        return mp(iff_mp(In(term, pv_ind), char_body(term), []),
             fl(char_p, inst, term), inst,
-            Implies(In(term, pv_ind), And(In(term, w), P(term))))
+            Implies(In(term, pv_ind), char_body(term)))
 
     oce = omega_contains_empty()
 
@@ -5223,11 +5227,14 @@ def h_zero_identity():
         'forall_right', [got_P_e0], principal=Forall(z_v, imp2), term=z_v)
     print(f'h_zero_identity: P(e0) same = {same(got_P_e0.sequent.right[0], P(e0))}')
 
-    # And(In(e0,w), P(e0)) → In(e0, pv_ind)
-    got_and_base = mp(apply_thm(and_intro(In(e0, w), P(e0), []), [],
-        In(e0, w), Implies(P(e0), And(In(e0, w), P(e0))),
-        got_e0_w), got_P_e0, P(e0), And(In(e0, w), P(e0)))
-    got_base_in = mp(char_p_bwd(e0), got_and_base, And(In(e0, w), P(e0)), In(e0, pv_ind))
+    # char_body(e0) = And(In(e0,w), And(In(e0,w), P(e0))) → In(e0, pv_ind)
+    inner_base = And(In(e0, w), P(e0))
+    got_inner_base = mp(apply_thm(and_intro(In(e0, w), P(e0), []), [],
+        In(e0, w), Implies(P(e0), inner_base), got_e0_w), got_P_e0, P(e0), inner_base)
+    cb_e0 = char_body(e0)
+    got_and_base = mp(apply_thm(and_intro(In(e0, w), inner_base, []), [],
+        In(e0, w), Implies(inner_base, cb_e0), got_e0_w), got_inner_base, inner_base, cb_e0)
+    got_base_in = mp(char_p_bwd(e0), got_and_base, cb_e0, In(e0, pv_ind))
     # Discharge Empty(e0), ∀e0
     imp_e = Implies(empty_e0, In(e0, pv_ind))
     left_e = [f for f in got_base_in.sequent.left if not same(f, empty_e0)]
@@ -5240,12 +5247,16 @@ def h_zero_identity():
     xs = Var(postfix='_xs')
     ss = Var(postfix='_ss')
     succ_ss = SuccDef(ss, xs)
-    # From In(xs,pv_ind): And(In(xs,w), P(xs))
-    got_in_xs = mp(char_p_fwd(xs), ax(In(xs, pv_ind)), In(xs, pv_ind), And(In(xs, w), P(xs)))
-    got_xs_w = apply_thm(and_elim_left(In(xs, w), P(xs), []), [],
-        And(In(xs, w), P(xs)), In(xs, w), got_in_xs)
+    # From In(xs,pv_ind): char_body(xs) = And(In(xs,w), And(In(xs,w), P(xs)))
+    cb_xs = char_body(xs)
+    inner_xs = And(In(xs, w), P(xs))
+    got_in_xs = mp(char_p_fwd(xs), ax(In(xs, pv_ind)), In(xs, pv_ind), cb_xs)
+    got_xs_w = apply_thm(and_elim_left(In(xs, w), inner_xs, []), [],
+        cb_xs, In(xs, w), got_in_xs)
+    got_inner_xs = apply_thm(and_elim_right(In(xs, w), inner_xs, []), [],
+        cb_xs, inner_xs, got_in_xs)
     got_P_xs = apply_thm(and_elim_right(In(xs, w), P(xs), []), [],
-        And(In(xs, w), P(xs)), P(xs), got_in_xs)
+        inner_xs, P(xs), got_inner_xs)
 
     # P(ss): ∀z.Empty(z)→∀pair.OrdPair(pair,z,ss)→Apply(h,pair,ss)
     # From P(xs): instantiate at z_v, pair2 → Apply(h,pair2,xs) given Empty(z_v), OrdPair(pair2,z_v,xs)
@@ -5315,11 +5326,14 @@ def h_zero_identity():
     got_ss_w = apply_thm(got_ss_w, [ss])
     got_ss_w = mp(got_ss_w, ax(succ_ss), succ_ss, In(ss, w))
 
-    # And(In(ss,w), P(ss)) → In(ss, pv_ind)
-    got_and_step = mp(apply_thm(and_intro(In(ss, w), P(ss), []), [],
-        In(ss, w), Implies(P(ss), And(In(ss, w), P(ss))),
-        got_ss_w), got_P_ss, P(ss), And(In(ss, w), P(ss)))
-    got_step_in = mp(char_p_bwd(ss), got_and_step, And(In(ss, w), P(ss)), In(ss, pv_ind))
+    # char_body(ss) = And(In(ss,w), And(In(ss,w), P(ss))) → In(ss, pv_ind)
+    inner_ss = And(In(ss, w), P(ss))
+    got_inner_step = mp(apply_thm(and_intro(In(ss, w), P(ss), []), [],
+        In(ss, w), Implies(P(ss), inner_ss), got_ss_w), got_P_ss, P(ss), inner_ss)
+    cb_ss = char_body(ss)
+    got_and_step = mp(apply_thm(and_intro(In(ss, w), inner_ss, []), [],
+        In(ss, w), Implies(inner_ss, cb_ss), got_ss_w), got_inner_step, inner_ss, cb_ss)
+    got_step_in = mp(char_p_bwd(ss), got_and_step, cb_ss, In(ss, pv_ind))
 
     # Discharge Succ(ss,xs), ∀ss. Discharge In(xs,pv_ind). Discharge In(xs,w), ∀xs.
     imp_succ = Implies(succ_ss, In(ss, pv_ind))
@@ -5339,27 +5353,115 @@ def h_zero_identity():
         'forall_right', [got_step_in], principal=Forall(xs, imp_xs_w), term=xs)
     print(f'h_zero_identity: step done')
 
-    # === omega_smallest_inductive: pv_ind = w ===
+    # === omega_smallest_inductive: Subset(pv_ind,w) ∧ Inductive(pv_ind) → Eq(pv_ind,w) ===
+    from vocab.sets import Subset
+    from vocab.omega import Inductive
+
+    # Subset(pv_ind, w): ∀x. In(x,pv_ind) → In(x,w)
+    # From char_p: In(x,pv_ind) → And(In(x,w), P(x)) → In(x,w)
+    xsub = Var(postfix='_xsub')
+    got_sub = mp(char_p_fwd(xsub), ax(In(xsub, pv_ind)), In(xsub, pv_ind),
+        char_body(xsub))
+    got_sub = apply_thm(and_elim_left(In(xsub, w), And(In(xsub, w), P(xsub)), []), [],
+        char_body(xsub), In(xsub, w), got_sub)
+    imp_sub = Implies(In(xsub, pv_ind), In(xsub, w))
+    left_sub = [f for f in got_sub.sequent.left if not same(f, In(xsub, pv_ind))]
+    got_sub = Proof(Sequent(left_sub, [imp_sub]), 'implies_right', [got_sub], principal=imp_sub)
+    got_sub = Proof(Sequent(got_sub.sequent.left, [Forall(xsub, imp_sub)]),
+        'forall_right', [got_sub], principal=Forall(xsub, imp_sub), term=xsub)
+    sub_pind_w = Subset(pv_ind, w)
+    got_sub = cut(ax(sub_pind_w), sub_pind_w, got_sub)
+    print(f'h_zero_identity: Subset done')
+
+    # Inductive(pv_ind): And(base_part, step_part)
+    # base_part = ∀e. Empty(e) → In(e, pv_ind) — got_base_in has this
+    # step_part = ∀x. In(x,pv_ind) → ∀s. Succ(s,x) → In(s,pv_ind)
+    # got_step_in has ∀x. In(x,w) → In(x,pv_ind) → ∀s. Succ → In(s,pv_ind) (extra In(x,w))
+    # Weaken: add In(x,w) from Subset (In(x,pv_ind) → In(x,w))
+    # Actually simpler: got_step_in has In(x,w) as hypothesis. For Inductive, step doesn't need it.
+    # From In(xs,pv_ind): In(xs,w) via Subset. Then got_step_in works.
+    # Build: ∀x. In(x,pv_ind) → ∀s. Succ → In(s,pv_ind)
+    xind = Var(postfix='_xi')
+    sind = Var(postfix='_si')
+    succ_si = SuccDef(sind, xind)
+    # From In(xind, pv_ind): derive In(xind, w) via Subset
+    got_xind_w = mp(apply_thm(ax(sub_pind_w), [xind]),
+        ax(In(xind, pv_ind)), In(xind, pv_ind), In(xind, w))
+    # Instantiate got_step_in at xind: In(xind,w) → In(xind,pv_ind) → ∀s...
+    got_si = apply_thm(got_step_in, [xind])
+    got_si = mp(got_si, got_xind_w, In(xind, w), got_si.sequent.right[0].right)
+    got_si = mp(got_si, ax(In(xind, pv_ind)), In(xind, pv_ind), got_si.sequent.right[0].right)
+    # [In(xind,pv_ind), char_p, PlusFunc, Omega, axioms] |- ∀s. Succ(s,xind) → In(s,pv_ind)
+    imp_ind = Implies(In(xind, pv_ind), got_si.sequent.right[0])
+    left_ind = [f for f in got_si.sequent.left if not same(f, In(xind, pv_ind))]
+    got_si = Proof(Sequent(left_ind, [imp_ind]), 'implies_right', [got_si], principal=imp_ind)
+    got_si = Proof(Sequent(got_si.sequent.left, [Forall(xind, imp_ind)]),
+        'forall_right', [got_si], principal=Forall(xind, imp_ind), term=xind)
+    print(f'h_zero_identity: Inductive step part done')
+
+    # And(base, step) = Inductive(pv_ind)
+    ind_pind = Inductive(pv_ind)
+    got_ind = mp(apply_thm(and_intro(got_base_in.sequent.right[0], got_si.sequent.right[0], []), [],
+        got_base_in.sequent.right[0],
+        Implies(got_si.sequent.right[0], And(got_base_in.sequent.right[0], got_si.sequent.right[0])),
+        weaken_to(got_base_in, list(got_si.sequent.left) + [f for f in got_base_in.sequent.left if not any(same(f,g) for g in got_si.sequent.left)])),
+        got_si, got_si.sequent.right[0], And(got_base_in.sequent.right[0], got_si.sequent.right[0]))
+    got_ind = cut(ax(ind_pind), ind_pind, got_ind)
+    print(f'h_zero_identity: Inductive done')
+
+    # And(Subset, Inductive)
+    all_ctx = list(got_sub.sequent.left)
+    for f in got_ind.sequent.left:
+        if not any(same(f, g) for g in all_ctx):
+            all_ctx.append(f)
+    got_sub_ind = mp(apply_thm(and_intro(sub_pind_w, ind_pind, []), [],
+        sub_pind_w, Implies(ind_pind, And(sub_pind_w, ind_pind)),
+        weaken_to(got_sub, all_ctx)),
+        weaken_to(got_ind, all_ctx), ind_pind, And(sub_pind_w, ind_pind))
+
+    # omega_smallest_inductive: ∀s,w. Omega(w) → And(Subset,Inductive) → Eq(s,w)
     osi = omega_smallest_inductive()
-    got_osi = apply_thm(osi, [w, pv_ind])
+    got_osi = apply_thm(osi, [pv_ind, w])
     got_osi = mp(got_osi, ax(omega_w), omega_w, got_osi.sequent.right[0].right)
-    # base condition: ∀e.Empty(e)→In(e,pv_ind)
-    got_osi = mp(got_osi, got_base_in, got_base_in.sequent.right[0], got_osi.sequent.right[0].right)
-    # step condition: ∀x∈w. In(x,pv_ind) → ∀s.Succ(s,x)→In(s,pv_ind)
-    got_osi = mp(got_osi, got_step_in, got_step_in.sequent.right[0], got_osi.sequent.right[0].right)
-    # [PlusFunc, Omega, char_p, axioms] |- ∀a. In(a,w) → In(a,pv_ind)
+    got_osi = mp(got_osi, got_sub_ind, And(sub_pind_w, ind_pind), Eq(pv_ind, w))
     print(f'h_zero_identity: osi done, right = {got_osi.sequent.right[0]}')
 
-    # From In(a_v, pv_ind): P(a_v)
-    got_osi_a = apply_thm(got_osi, [a_v])
-    got_in_a_pind = mp(got_osi_a, ax(In(a_v, w)), In(a_v, w), In(a_v, pv_ind))
-    got_and_a = mp(char_p_fwd(a_v), got_in_a_pind, In(a_v, pv_ind), And(In(a_v, w), P(a_v)))
+    # From Eq(pv_ind,w) + In(a_v,w): In(a_v,pv_ind) → P(a_v)
+    from theorems.logic import eq_symmetric
+    from theorems.sets import eq_transfer
+    es = eq_symmetric()
+    got_eq_w_pind = apply_thm(es, [pv_ind, w])
+    got_eq_w_pind = mp(got_eq_w_pind, got_osi, Eq(pv_ind, w), Eq(w, pv_ind))
+    et = eq_transfer()
+    got_et = apply_thm(et, [w, pv_ind, a_v])
+    got_et = mp(got_et, got_eq_w_pind, Eq(w, pv_ind), got_et.sequent.right[0].right)
+    iff_et = got_et.sequent.right[0]
+    got_et_fwd = apply_thm(iff_mp(iff_et.left, iff_et.right, []), [],
+        iff_et, Implies(iff_et.left, iff_et.right), got_et)
+    got_in_a_pind = mp(got_et_fwd, ax(In(a_v, w)), In(a_v, w), In(a_v, pv_ind))
+    got_and_a = mp(char_p_fwd(a_v), got_in_a_pind, In(a_v, pv_ind), char_body(a_v))
+    got_inner_a = apply_thm(and_elim_right(In(a_v, w), And(In(a_v, w), P(a_v)), []), [],
+        char_body(a_v), And(In(a_v, w), P(a_v)), got_and_a)
     got_P_a = apply_thm(and_elim_right(In(a_v, w), P(a_v), []), [],
-        And(In(a_v, w), P(a_v)), P(a_v), got_and_a)
+        And(In(a_v, w), P(a_v)), P(a_v), got_inner_a)
     # [PlusFunc, Omega, In(a_v,w), char_p, axioms] |- P(a_v)
 
-    # eel pv_ind from char_p, cut with got_sep
+    # Cut pv_ind extras (Subset, Inductive leaked from osi) with derivations from char_p
+    for f in list(got_P_a.sequent.left):
+        if _var_free_in_sequent(pv_ind, Sequent([f], [])) and not same(f, char_p) and not isinstance(f, zfc.ZFCAxiom):
+            # f is derivable from char_p. Cut it.
+            if same(f, sub_pind_w):
+                got_P_a = cut(got_P_a, f, got_sub)
+            elif same(f, ind_pind):
+                got_P_a = cut(got_P_a, f, got_ind)
+            else:
+                print(f'h_zero_identity: cannot cut pv_ind extra: {f}')
+    # Now only char_p has pv_ind. eel + cut with got_sep.
     got_P_a = eel(got_P_a, char_p, pv_ind)
+    print(f'h_zero_identity: eel pv_ind ok')
+    print(f'h_zero_identity: left ∃pv_ind = {Exists(pv_ind, char_p)}')
+    print(f'h_zero_identity: got_sep right = {got_sep.sequent.right[0]}')
+    print(f'h_zero_identity: same = {same(Exists(pv_ind, char_p), got_sep.sequent.right[0])}')
     got_P_a = cut(got_P_a, Exists(pv_ind, char_p), got_sep)
     print(f'h_zero_identity: eel pv_ind done')
 
@@ -5392,16 +5494,23 @@ def h_zero_identity():
 
 def plus_zero_left():
     """0 + m = m: Given Plus(b,a,c) and Num(b,0), derive Eq(c,a).
-    |- forall w,a,b,c. Omega(w) -> In(a,w) -> Num(b,0) -> Plus(b,a,c) -> Eq(c,a)
-    Opens Plus to get Recursive(h,b,sf,w') and Apply(h,a,c).
-    From rec_h_zero_identity: h(m)=m for all m. So Apply(h,a,a).
-    From func_unique: Eq(c,a)."""
+    |- ∀w,a,b,c. Omega(w) → In(a,w) → Num(b,0) → Plus(b,a,c) → Eq(c,a)
+
+    From plus_func_unique: ∃!h. PlusFunc(h,w). Open h.
+    Plus(b,a,c) + PlusFunc(h,w) → Apply(h,⟨b,a⟩,c).
+    h_zero_identity + In(a,w) + Empty(b) + OrdPair(pair,b,a) → Apply(h,pair,a).
+    Function(h) → Eq(c,a). eel h, cut with plus_func_unique."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
-        Successor as SuccDef, Plus as PlusDef)
+    from vocab import (Function as FuncDef, Apply, Plus as PlusDef)
+    from vocab.recursion import PlusFunc
+    from vocab.ordpair import OrdPair
+    from theorems.logic import and_elim_left, and_elim_right
     from theorems.omega import func_unique_thm
-    from theorems.sets import omega_unique
-    from theorems.logic import and_elim_left, and_elim_right, iff_mp
+    from theorems.sets import ordpair_exists
+    from core.proof import Proof, Sequent, same
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Eq, And, Exists
+    from vocab.omega import Omega, ExistsUnique
 
     w = Var(postfix='w')
     a = Var(postfix='a')
@@ -5413,143 +5522,100 @@ def plus_zero_left():
     plus_bac = PlusDef(b, a, c)
     eq_ca = Eq(c, a)
 
-    goal = Forall(w, Forall(a, Forall(b, Forall(c,
-        Implies(omega_w, Implies(in_a_w, Implies(num_b_0,
-            Implies(plus_bac, eq_ca))))))))
+    # Get h from plus_func_unique: ∃!h. PlusFunc(h,w)
+    pfu = plus_func_unique()
+    got_pfu = apply_thm(pfu, [w])
+    got_pfu = mp(got_pfu, ax(omega_w), omega_w, got_pfu.sequent.right[0].right)
+    eu = got_pfu.sequent.right[0]
+    eu_exp = eu.expand()
+    hv = eu_exp.var
+    eu_body = eu_exp.body  # And(PlusFunc(hv,w), ∀h'.PlusFunc(h',w)→Eq(hv,h'))
+    pf_hw = PlusFunc(hv, w)
+    got_pf = apply_thm(and_elim_left(eu_body.left, eu_body.right, []), [],
+        eu_body, eu_body.left, ax(eu_body))
+    print(f'plus_zero_left: hv={hv}, pf_hw={pf_hw}')
 
-    # Open Plus(b,a,c)
-    wv = Var(postfix='wv')
-    hv = Var(postfix='hv')
-    sfv = Var(postfix='sfv')
-    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
-    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+    # Instantiate Plus(b,a,c) with w, hv → Apply(hv, pair, c)
+    pair_ba = Var(postfix='pba')
+    op_ba = OrdPair(pair_ba, b, a)
+    got_plus = apply_thm(ax(plus_bac), [w])
+    while isinstance(got_plus.sequent.right[0], Implies):
+        cur = got_plus.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, omega_w):
+            got_plus = mp(got_plus, ax(omega_w), hyp, cur.right)
+        elif same(hyp, pf_hw):
+            got_plus = mp(got_plus, got_pf, hyp, cur.right)
+        else:
+            got_plus = mp(got_plus, ax(hyp), hyp, cur.right)
+    if isinstance(got_plus.sequent.right[0], Forall):
+        got_plus = apply_thm(got_plus, [hv])
+        while isinstance(got_plus.sequent.right[0], Implies):
+            cur = got_plus.sequent.right[0]
+            hyp = cur.left
+            if same(hyp, pf_hw):
+                got_plus = mp(got_plus, got_pf, hyp, cur.right)
+            else:
+                got_plus = mp(got_plus, ax(hyp), hyp, cur.right)
+        if isinstance(got_plus.sequent.right[0], Forall):
+            got_plus = apply_thm(got_plus, [pair_ba])
+            while isinstance(got_plus.sequent.right[0], Implies):
+                cur = got_plus.sequent.right[0]
+                got_plus = mp(got_plus, ax(cur.left), cur.left, cur.right)
+    app_h_pair_c = got_plus.sequent.right[0]
+    print(f'plus_zero_left: Apply(h,pair,c) = {app_h_pair_c}')
 
-    omega_wv = Omega(wv)
-    succ_char = Forall(xsc, Implies(In(xsc, wv),
-        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
-    func_sf = FuncDef(sfv)
-    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, wv)))
-    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
-    rec_h = RecDef(hv, b, sfv, wv)
-    app_h_ac = Apply(hv, a, c)
-    and_rec_app = And(rec_h, app_h_ac)
-    and_sf_ra = And(sf_all, and_rec_app)
+    # h_zero_identity: PlusFunc(h,w) + In(a,w) + Empty(b) + OrdPair(pair,b,a) → Apply(h,pair,a)
+    hzi = h_zero_identity()
+    got_hzi = apply_thm(hzi, [w, hv])
+    got_hzi = mp(got_hzi, ax(omega_w), omega_w, got_hzi.sequent.right[0].right)
+    got_hzi = mp(got_hzi, got_pf, pf_hw, got_hzi.sequent.right[0].right)
+    got_hzi = apply_thm(got_hzi, [a])
+    got_hzi = mp(got_hzi, ax(in_a_w), in_a_w, got_hzi.sequent.right[0].right)
+    got_hzi = apply_thm(got_hzi, [b])
+    got_hzi = mp(got_hzi, ax(num_b_0), num_b_0, got_hzi.sequent.right[0].right)
+    got_hzi = apply_thm(got_hzi, [pair_ba])
+    got_hzi = mp(got_hzi, ax(op_ba), op_ba, Apply(hv, pair_ba, a))
+    print(f'plus_zero_left: Apply(h,pair,a) = {got_hzi.sequent.right[0]}')
 
-    got_rec = apply_thm(and_elim_left(rec_h, app_h_ac, []), [],
-        and_rec_app, rec_h, ax(and_rec_app))
-    got_app_ac = apply_thm(and_elim_right(rec_h, app_h_ac, []), [],
-        and_rec_app, app_h_ac, ax(and_rec_app))
-    got_sc = apply_thm(and_elim_left(succ_char, And(func_sf, dom_sub_sf), []), [],
-        sf_all, succ_char, apply_thm(and_elim_left(sf_all, and_rec_app, []), [],
-            and_sf_ra, sf_all, ax(and_sf_ra)))
+    # Extract Function(h) from PlusFunc
+    pf_exp = pf_hw.expand()
+    func_h = pf_exp.left
+    got_func = apply_thm(and_elim_left(func_h, pf_exp.right, []), [], pf_hw, func_h, got_pf)
 
-    # Extract Function(h)
-    func_h = FuncDef(hv)
-    ev = Var()
-    base_h = Forall(ev, Implies(Empty(ev), Apply(hv, ev, b)))
-    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
-    step_h = Forall(nst, Implies(In(nst, wv),
-        Forall(valst, Implies(Apply(hv, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
-                    Apply(hv, snst, fvalst)))))))))
-    xd_h, yd_h = Var(), Var()
-    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(hv, xd_h, yd_h)), In(xd_h, wv)))
-    and_bs = And(base_h, step_h)
-    and_dom_bs = And(dom_sub_h, and_bs)
-
-    got_func_h = apply_thm(and_elim_left(func_h, and_dom_bs, []), [],
-        rec_h, func_h, got_rec)
-
-    # rec_h_zero_identity: Omega(wv) -> succ_char -> Recursive(h,b,sf,wv) -> Empty(b) ->
-    #   forall m. In(m,wv) -> Apply(h,m,m)
-    rhi = rec_h_zero_identity()
-    mv_rhi = Var(postfix='m')
-    app_h_mm = Apply(hv, mv_rhi, mv_rhi)
-    got_hmm = apply_thm(rhi, [wv, sfv, hv, b], omega_wv,
-        Implies(succ_char, Implies(rec_h, Implies(num_b_0,
-            Forall(mv_rhi, Implies(In(mv_rhi, wv), app_h_mm))))), ax(omega_wv))
-    got_hmm = mp(got_hmm, got_sc, succ_char,
-        Implies(rec_h, Implies(num_b_0, Forall(mv_rhi, Implies(In(mv_rhi, wv), app_h_mm)))))
-    got_hmm = mp(got_hmm, got_rec, rec_h,
-        Implies(num_b_0, Forall(mv_rhi, Implies(In(mv_rhi, wv), app_h_mm))))
-    got_hmm = mp(got_hmm, ax(num_b_0), num_b_0,
-        Forall(mv_rhi, Implies(In(mv_rhi, wv), app_h_mm)))
-    # [and_rec_app, and_sf_ra, omega_wv, num_b_0, axioms] |- forall m. In(m,wv) -> Apply(h,m,m)
-
-    # Need In(a, wv) from omega_unique: Eq(w, wv) + In(a, w) -> In(a, wv)
-    ou = omega_unique()
-    eq_w_wv = Eq(w, wv)
-    got_eq_w_wv = apply_thm(ou, [w, wv], omega_w,
-        Implies(omega_wv, eq_w_wv), ax(omega_w))
-    got_eq_w_wv = mp(got_eq_w_wv, ax(omega_wv), omega_wv, eq_w_wv)
-    in_a_wv = In(a, wv)
-    iff_in_a = Iff(In(a, w), in_a_wv)
-    got_iff = Proof(Sequent(got_eq_w_wv.sequent.left, [iff_in_a]), 'cut',
-        [wr(got_eq_w_wv, iff_in_a),
-         weaken_to(fl(eq_w_wv, iff_in_a, a), got_eq_w_wv.sequent.left)],
-        principal=eq_w_wv)
-    got_in_a_wv = mp(mp(iff_mp(In(a, w), in_a_wv, []),
-        got_iff, iff_in_a, Implies(In(a, w), in_a_wv)),
-        ax(in_a_w), in_a_w, in_a_wv)
-
-    # Apply(h,a,a)
-    app_h_aa = Apply(hv, a, a)
-    got_app_aa = apply_thm(got_hmm, [a], in_a_wv, app_h_aa, got_in_a_wv)
-
-    # func_unique: Apply(h,a,c) + Apply(h,a,a) -> Eq(c,a)
+    # func_unique: Eq(c, a)
     fut = func_unique_thm()
-    got_eq = apply_thm(fut, [hv, a, c, a], func_h,
-        Implies(app_h_ac, Implies(app_h_aa, eq_ca)), got_func_h)
-    got_eq = mp(got_eq, got_app_ac, app_h_ac, Implies(app_h_aa, eq_ca))
-    got_eq = mp(got_eq, got_app_aa, app_h_aa, eq_ca)
+    got_eq = apply_thm(fut, [hv, pair_ba, c, a])
+    got_eq = mp(got_eq, got_func, func_h, got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_plus, app_h_pair_c, got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_hzi, got_hzi.sequent.right[0], eq_ca)
+    print(f'plus_zero_left: Eq(c,a) = {got_eq.sequent.right[0]}')
 
-    # Fold back: and_rec_app came from and_sf_ra. Cut and_rec_app → and_sf_ra stays.
-    # Then: eel sfv, hv from and_sf_ra. omega_wv is standalone on left.
-    # Fold omega_wv + exists into And(omega_wv, exists) via cut.
-    got_ra = apply_thm(and_elim_right(sf_all, and_rec_app, []), [],
-        and_sf_ra, and_rec_app, ax(and_sf_ra))
-    got_eq = cut(got_eq, and_rec_app, got_ra)
-    # succ_char may also be on left from got_sc; cut it from and_sf_ra too
-    got_sc_from = apply_thm(and_elim_left(succ_char, And(func_sf, dom_sub_sf), []), [],
-        sf_all, succ_char, apply_thm(and_elim_left(sf_all, and_rec_app, []), [],
-            and_sf_ra, sf_all, ax(and_sf_ra)))
-    if any(same(succ_char, g) for g in got_eq.sequent.left):
-        got_eq = cut(got_eq, succ_char, got_sc_from)
-    got_eq = eel(got_eq, and_sf_ra, sfv)
-    got_eq = eel(got_eq, got_eq.sequent.left[-1], hv)
-    ex_h_left = got_eq.sequent.left[-1]
-    and_omega_ex = And(omega_wv, Exists(hv, Exists(sfv, and_sf_ra)))
-    got_omega_wv = apply_thm(and_elim_left(omega_wv, Exists(hv, Exists(sfv, and_sf_ra)), []), [],
-        and_omega_ex, omega_wv, ax(and_omega_ex))
-    got_eq = cut(got_eq, omega_wv, got_omega_wv)
-    got_ex_h = apply_thm(and_elim_right(omega_wv, Exists(hv, Exists(sfv, and_sf_ra)), []), [],
-        and_omega_ex, Exists(hv, Exists(sfv, and_sf_ra)), ax(and_omega_ex))
-    got_eq = cut(got_eq, ex_h_left, got_ex_h)
-    got_eq = eel(got_eq, and_omega_ex, wv)
+    # eel pair_ba, cut with ordpair_exists
+    got_eq = eel(got_eq, op_ba, pair_ba)
+    got_ex_pair = apply_thm(ordpair_exists(), [b, a], concl=Exists(pair_ba, op_ba))
+    got_eq = cut(got_eq, Exists(pair_ba, op_ba), got_ex_pair)
 
-    # Discharge hypotheses
+    # eel hv from eu_body, cut with plus_func_unique
     proof = got_eq
-    g4 = goal.body.body.body  # Forall(c, ...)
-    g_imp = g4.body
-    hyps_imps = []
-    cur_imp = g_imp
-    while isinstance(cur_imp, Implies):
-        hyps_imps.append((cur_imp.left, cur_imp))
-        cur_imp = cur_imp.right
+    proof = eel(proof, eu_body, hv)
+    proof = cut(proof, eu.expand(), got_pfu)
+    print(f'plus_zero_left: eel hv done')
 
-    for hh in [omega_w, in_a_w]:
-        if not any(same(hh, g) for g in proof.sequent.left):
-            proof = wl(proof, hh)
+    # Discharge hypotheses, close ∀
+    for hyp in [plus_bac, num_b_0, in_a_w, omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [c, b, a, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
 
-    for hh, imp in reversed(hyps_imps):
-        if any(same(hh, g) for g in proof.sequent.left):
-            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-
-    for var, fa_target in [(c, g4), (b, goal.body.body), (a, goal.body), (w, goal)]:
-        proof = Proof(Sequent(proof.sequent.left, [fa_target]), 'forall_right',
-            [proof], principal=fa_target, term=var)
+    print(f'plus_zero_left: result = {proof.sequent.right[0]}')
 
     proof.name = 'plus_zero_left'
     return proof
