@@ -3594,39 +3594,458 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     proof_bwd = mk_and_on_left(proof_bwd, rec_hm_b, app_hm_nb_yb)
     proof_bwd = eel(proof_bwd, And(rec_hm_b, app_hm_nb_yb), hm_b)
     # eel y_b from app_hm_nb_yb — wait, y_b was already combined into And above.
-    # eel triple_b first (only free in op_triple), then y_b
-    ex_hm_b = Exists(hm_b, And(rec_hm_b, app_hm_nb_yb))
+    # === eel closures for backward direction ===
+    # Order: d_hm_b, triple_b, then hm_b+y_b together, then n_b, m_b
 
-    # eel triple_b from op_triple
+    # eel d_hm_b
+    d_fs = [f for f in proof_bwd.sequent.left
+        if _var_free_in_sequent(d_hm_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    if d_fs:
+        combined_d = d_fs[0]
+        for f in d_fs[1:]:
+            proof_bwd = mk_and_on_left(proof_bwd, combined_d, f)
+            combined_d = And(combined_d, f)
+        proof_bwd = eel(proof_bwd, combined_d, d_hm_b)
+        proof_bwd = cut(proof_bwd, Exists(d_hm_b, combined_d), got_de2)
+    print(f'pf_dom_eq bwd: eel d_hm_b done')
+    print(f'pf_dom_eq bwd: after d_hm_b, non-axiom left:')
+    for i, f in enumerate(proof_bwd.sequent.left):
+        if not isinstance(f, zfc.ZFCAxiom):
+            print(f'  [{i}] {f}')
+
+    # eel triple_b
     proof_bwd = eel(proof_bwd, op_triple, triple_b)
     proof_bwd = cut(proof_bwd, Exists(triple_b, op_triple), got_ex_triple)
     print(f'pf_dom_eq bwd: eel triple_b done')
 
-    # eel y_b: now free in ex_hm_b and possibly succ_char leaks
+    # Now dump what has hm_b or y_b free
+    print(f'pf_dom_eq bwd: after d+triple eel, hm_b/y_b free:')
+    for i, f in enumerate(proof_bwd.sequent.left):
+        hm_free = _var_free_in_sequent(hm_b, Sequent([f], []))
+        yb_free = _var_free_in_sequent(y_b, Sequent([f], []))
+        if (hm_free or yb_free) and not isinstance(f, zfc.ZFCAxiom):
+            print(f'  [{i}] hm={hm_free} y={yb_free}: {f}')
+
+    # Combine ALL formulas with hm_b free (if any remain after d_hm_b eel)
+    hm_fs = [f for f in proof_bwd.sequent.left
+        if _var_free_in_sequent(hm_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    if hm_fs:
+        combined_hm = hm_fs[0]
+        for f in hm_fs[1:]:
+            proof_bwd = mk_and_on_left(proof_bwd, combined_hm, f)
+            combined_hm = And(combined_hm, f)
+        yonly_fs = [f for f in proof_bwd.sequent.left
+            if _var_free_in_sequent(y_b, Sequent([f], []))
+            and not _var_free_in_sequent(hm_b, Sequent([f], []))
+            and not same(f, combined_hm) and not isinstance(f, zfc.ZFCAxiom)]
+        for f in yonly_fs:
+            proof_bwd = mk_and_on_left(proof_bwd, combined_hm, f)
+            combined_hm = And(combined_hm, f)
+        proof_bwd = eel(proof_bwd, combined_hm, hm_b)
+        ex_hm_combined = Exists(hm_b, combined_hm)
+        proof_bwd = eel(proof_bwd, ex_hm_combined, y_b)
+        print(f'pf_dom_eq bwd: eel hm_b+y_b done (hm was free)')
+    else:
+        # hm_b already bound (from d_hm_b eel). Only y_b needs eel.
+        y_b_fs = [f for f in proof_bwd.sequent.left
+            if _var_free_in_sequent(y_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+        print(f'pf_dom_eq bwd: hm_b already bound, y_b free in {len(y_b_fs)} formulas')
+        if y_b_fs:
+            combined_yb = y_b_fs[0]
+            for f in y_b_fs[1:]:
+                proof_bwd = mk_and_on_left(proof_bwd, combined_yb, f)
+                combined_yb = And(combined_yb, f)
+            proof_bwd = eel(proof_bwd, combined_yb, y_b)
+            # y_b_fs[0] is ∃hm_b.And(Rec,Apply(hm_b,n_b,y_b)). hm_b bound, y_b free.
+            # Provider: from got_rec_b + got_ex_app_hm, build ∃y_b. formula.
+            dom_y = got_ex_app_hm.sequent.right[0].var
+            app_hm_dom = Apply(hm_b, n_b, dom_y)
+            got_pv = mp(apply_thm(and_intro(rec_hm_b, app_hm_dom, []), [],
+                rec_hm_b, Implies(app_hm_dom, And(rec_hm_b, app_hm_dom)),
+                got_rec_b), ax(app_hm_dom), app_hm_dom, And(rec_hm_b, app_hm_dom))
+            tmpl_hm4 = And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, dom_y))
+            got_pv = eir(got_pv, tmpl_hm4, _hmv, hm_b)
+            tmpl_yb4 = Exists(hm_b, And(RecDef(hm_b, m_b, sfv, w), Apply(hm_b, n_b, y_b)))
+            got_pv = eir(got_pv, tmpl_yb4, y_b, dom_y)
+            # [eu_body, app_hm_dom] |- ∃y_b. ∃hm_b. And(Rec, Apply)
+            # eel app_hm_dom (dom_y free only here)
+            got_pv = eel(got_pv, app_hm_dom, dom_y)
+            got_pv = cut(got_pv, Exists(dom_y, app_hm_dom), got_ex_app_hm)
+            # eel hm_b: combine ALL hm_b-free formulas on provider left
+            hm_left = [f for f in got_pv.sequent.left
+                if _var_free_in_sequent(hm_b, Sequent([f], []))]
+            combined_hm_pv = hm_left[0]
+            for f in hm_left[1:]:
+                got_pv = mk_and_on_left(got_pv, combined_hm_pv, f)
+                combined_hm_pv = And(combined_hm_pv, f)
+            got_pv = eel(got_pv, combined_hm_pv, hm_b)
+            # Cut ∃hm_b. combined_hm_pv — derive from got_rfem (which gives ∃!hm_b)
+            # Simplest: the combined includes eu_body which subsumes the other hm_b formulas.
+            # Build: from [eu_body] derive all other hm_b formulas, combine, eir hm_b, eel eu_body, cut.
+            got_pv_inner = ax(eu_body)
+            got_pv_inner = wl(got_pv_inner, *[f for f in hm_left if not same(f, eu_body)])
+            # Build combined_hm_pv from eu_body + the others
+            inner_combined = hm_left[0]
+            for f in hm_left[1:]:
+                inner_combined = And(inner_combined, f)
+            got_pv_inner = mp(apply_thm(and_intro(hm_left[0], hm_left[1], []) if len(hm_left) == 2
+                else and_intro(hm_left[0], hm_left[1], []), [],
+                hm_left[0], Implies(hm_left[1], And(hm_left[0], hm_left[1])),
+                ax(hm_left[0])), ax(hm_left[1]), hm_left[1], And(hm_left[0], hm_left[1]))
+            if len(hm_left) > 2:
+                for f in hm_left[2:]:
+                    prev = got_pv_inner.sequent.right[0]
+                    got_pv_inner = mp(apply_thm(and_intro(prev, f, []), [],
+                        prev, Implies(f, And(prev, f)), got_pv_inner),
+                        ax(f), f, And(prev, f))
+            got_pv_inner = eir(got_pv_inner, combined_hm_pv, hm_b, hm_b)
+            # eel each hm_left formula, cut with source
+            for f in hm_left:
+                got_pv_inner = eel(got_pv_inner, f, hm_b)
+            # Now left has ∃hm_b.f for each f in hm_left. Cut with got_rfem for eu_body.
+            got_pv_inner = cut(got_pv_inner, Exists(hm_b, eu_body), got_rfem)
+            # Other ∃hm_b.f formulas: derive from got_rfem + domain_exists
+            # This is getting too complex. Just use got_rfem for the whole thing.
+            # Actually: just cut proof_bwd directly instead of building perfect provider.
+            # Skip the provider cut for now and see if the rest works.
+            print(f'pf_dom_eq bwd: provider hm_b eel skipped (complex), continuing')
+            pass
+            print(f'pf_dom_eq bwd: provider right = {got_pv.sequent.right[0]}')
+            proof_bwd = cut(proof_bwd, Exists(y_b, combined_yb), got_pv)
+        print(f'pf_dom_eq bwd: eel y_b done')
+    # Provider for exists y_b. exists hm_b. combined_hm
+    # combined_hm has hm_b and y_b free. Its core: And(rec_hm_b, app_hm_nb_yb) plus extras.
+    # Build from: ax(rec_hm_b) + ax(app_hm_nb_yb) -> And -> eir hm_b -> eir y_b
+    # Then eel both from the ax left side, cut with got_rfem + got_ex_app_hm.
+    dom_app_var = got_ex_app_hm.sequent.right[0].var  # y-var from Domain
+    app_hm_nb_dom = Apply(hm_b, n_b, dom_app_var)
+
+    # Start with ax hypotheses matching combined_hm structure but using dom_app_var for y_b
+    # Build combined_hm[dom_app_var/y_b] from axioms
+    # The hm_fs list was: rec_hm_b, app_hm_nb_yb, eu_body (possibly)
+    # Substitute y_b -> dom_app_var mentally. rec_hm_b has no y_b. app_hm_nb_yb -> app_hm_nb_dom.
+    # eu_body has no y_b.
+    # Actually, just build the same combined_hm but from axioms:
+    hm_fs_ax = []
+    for f in hm_fs:
+        hm_fs_ax.append(f)
+    # Use y_b directly (it will be eel-d later). Build And from axioms.
+    got_prov = ax(hm_fs_ax[0])
+    combined_prov = hm_fs_ax[0]
+    for f in hm_fs_ax[1:]:
+        got_prov = mp(apply_thm(and_intro(combined_prov, f, []), [],
+            combined_prov, Implies(f, And(combined_prov, f)),
+            got_prov), ax(f), f, And(combined_prov, f))
+        combined_prov = And(combined_prov, f)
+    # Add yonly extras
+    for f in yonly_fs:
+        got_prov = mp(apply_thm(and_intro(combined_prov, f, []), [],
+            combined_prov, Implies(f, And(combined_prov, f)),
+            got_prov), ax(f), f, And(combined_prov, f))
+        combined_prov = And(combined_prov, f)
+    # got_prov: [all hm_fs + yonly as axioms] |- combined_hm
+    # eir hm_b -> exists hm_b. combined_hm
+    # Need template with _hmv instead of hm_b... actually combined_hm uses hm_b.
+    # eir(proof, body, var, witness): body[witness/var] == proof.right[0]
+    # If var=hm_b, witness=hm_b: body=combined_hm, body[hm_b/hm_b]=combined_hm. Trivial.
+    got_prov = eir(got_prov, combined_hm, hm_b, hm_b)
+    # eir y_b -> exists y_b. exists hm_b. combined_hm
+    got_prov = eir(got_prov, ex_hm_combined, y_b, y_b)
+    # got_prov: [hm_fs axioms] |- exists y_b. exists hm_b. combined_hm
+
+    # Now eel hm_b from the axiom left side: combine all hm_b-free, eel, cut
+    hm_prov_fs = [f for f in got_prov.sequent.left
+        if _var_free_in_sequent(hm_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    combined_hm_prov = hm_prov_fs[0]
+    for f in hm_prov_fs[1:]:
+        got_prov = mk_and_on_left(got_prov, combined_hm_prov, f)
+        combined_hm_prov = And(combined_hm_prov, f)
+    got_prov = eel(got_prov, combined_hm_prov, hm_b)
+    # Cut exists hm_b. combined_hm_prov with EU extraction
+    got_ex_rec_prov = eir(got_rec_b, rec_hm_b, hm_b, hm_b)
+    got_ex_rec_prov = eel(got_ex_rec_prov, eu_body, hm_b)
+    got_ex_rec_prov = cut(got_ex_rec_prov, eu.expand(), got_rfem)
+    # got_ex_rec_prov: [axioms] |- exists hm_b. Rec(hm_b,...)
+    # But I need exists hm_b. combined_hm_prov (which might include eu_body and app)
+    # If combined_hm_prov = And(rec_hm_b, app_hm_nb_yb):
+    #   need exists hm_b. And(Rec, Apply)
+    #   from exists hm_b. Rec + exists y. Apply(hm_b,n_b,y):
+    #   Open Rec: [Rec(hm_b,...)] |- ... weaken with Apply -> And -> eir hm_b
+    #   But Apply(hm_b,...) has hm_b free... ugh.
+    # ALTERNATIVE: use got_ex_app_hm which gives exists y. Apply(hm_b,n_b,y).
+    # hm_b is FREE in got_ex_app_hm. So we have both:
+    #   got_ex_rec_prov: |- exists hm_b. Rec(hm_b,...)
+    #   got_ex_app_hm: |- exists y. Apply(hm_b,n_b,y)  [hm_b free]
+    # I need: |- exists y_b. exists hm_b. And(Rec(hm_b,...), Apply(hm_b,n_b,y_b))
+    # Open y from got_ex_app_hm: [Apply(hm_b,n_b,y)] |- ...
+    # Open hm_b from got_ex_rec_prov: [Rec(hm_b,...)] |- ...
+    # Both share hm_b (same Var instance).
+    # [Rec(hm_b,...), Apply(hm_b,n_b,y)] |- And(Rec,Apply) -> eir hm_b -> exists hm_b. And
+    # eel Rec from exists hm_b. Rec; eel Apply from exists y. Apply.
+    # But after eir hm_b, hm_b is bound in the right. On the left, Rec and Apply still have hm_b free.
+    # Combine Rec+Apply, eel hm_b:
+    dom_y = got_ex_app_hm.sequent.right[0].var
+    app_dom = Apply(hm_b, n_b, dom_y)
+    got_combined_ra = mp(apply_thm(and_intro(rec_hm_b, app_dom, []), [],
+        rec_hm_b, Implies(app_dom, And(rec_hm_b, app_dom)),
+        ax(rec_hm_b)), ax(app_dom), app_dom, And(rec_hm_b, app_dom))
+    tmpl_hm_p = And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, dom_y))
+    got_combined_ra = eir(got_combined_ra, tmpl_hm_p, _hmv, hm_b)
+    # eir y_b -> dom_y
+    tmpl_yb_p = Exists(hm_b, And(RecDef(hm_b, m_b, sfv, w), Apply(hm_b, n_b, y_b)))
+    got_combined_ra = eir(got_combined_ra, tmpl_yb_p, y_b, dom_y)
+    # [rec_hm_b, app_dom] |- exists y_b. exists hm_b. And(Rec, Apply)
+    # Combine rec_hm_b + app_dom, eel hm_b
+    got_combined_ra = mk_and_on_left(got_combined_ra, rec_hm_b, app_dom)
+    got_combined_ra = eel(got_combined_ra, And(rec_hm_b, app_dom), hm_b)
+    # [exists hm_b. And(Rec, Apply(hm_b,n_b,dom_y))] |- exists y_b. exists hm_b. And(Rec, Apply(hm_b,n_b,y_b))
+    # eel dom_y
+    ex_hm_dom = Exists(hm_b, And(rec_hm_b, app_dom))
+    got_combined_ra = eel(got_combined_ra, ex_hm_dom, dom_y)
+    # [exists dom_y. exists hm_b. And(Rec, Apply(hm_b,n_b,dom_y))] |- target
+    # Provide exists dom_y. exists hm_b. And(Rec, Apply) from got_ex_app_hm + got_ex_rec_prov
+    # This is: for the dom_y from Apply, and hm_b from Rec, combine.
+    # [Apply(hm_b,n_b,dom_y), Rec(hm_b,...)] |- exists hm_b. And(Rec,Apply(hm_b,n_b,dom_y))
+    # same as the eir step above but WITHOUT the y_b eir. Then eel dom_y to get the exists.
+    got_inner_ra2 = mp(apply_thm(and_intro(rec_hm_b, app_dom, []), [],
+        rec_hm_b, Implies(app_dom, And(rec_hm_b, app_dom)),
+        ax(rec_hm_b)), ax(app_dom), app_dom, And(rec_hm_b, app_dom))
+    got_inner_ra2 = eir(got_inner_ra2, tmpl_hm_p, _hmv, hm_b)
+    got_inner_ra2 = mk_and_on_left(got_inner_ra2, rec_hm_b, app_dom)
+    got_inner_ra2 = eel(got_inner_ra2, And(rec_hm_b, app_dom), hm_b)
+    # [exists hm_b. And(Rec,Apply(hm_b,n_b,dom_y))] |- exists hm_b. And(Rec,Apply)
+    # eel dom_y from the left
+    got_inner_ra2 = eel(got_inner_ra2, ex_hm_dom, dom_y)
+    # [exists dom_y. ex_hm_dom] |- ex_hm_dom
+    # Now provide exists dom_y. ex_hm_dom:
+    # From got_ex_app_hm: exists dom_y. Apply(hm_b,n_b,dom_y). hm_b free.
+    # From got_ex_rec_prov: exists hm_b. Rec(hm_b,...). hm_b bound.
+    # Need: exists dom_y. exists hm_b. And(Rec, Apply(hm_b,n_b,dom_y))
+    # Open dom_y: [Apply(hm_b,n_b,dom_y)] |- ...
+    # Open hm_b from got_ex_rec_prov: but hm_b is already free in Apply!
+    # The hm_b in Apply comes from rec_for_each_m. The hm_b in got_ex_rec_prov
+    # IS the same hm_b. So opening ∃hm_b. Rec just gives Rec(hm_b,...) on the left.
+    # Then we have both Rec(hm_b,...) and Apply(hm_b,n_b,dom_y) with the same hm_b.
+    # Combine -> And -> eir hm_b -> eel Rec(hm_b) from exists hm_b. Rec -> cut with got_ex_rec_prov
+    got_both = mp(apply_thm(and_intro(rec_hm_b, app_dom, []), [],
+        rec_hm_b, Implies(app_dom, And(rec_hm_b, app_dom)),
+        ax(rec_hm_b)), ax(app_dom), app_dom, And(rec_hm_b, app_dom))
+    got_both = eir(got_both, tmpl_hm_p, _hmv, hm_b)
+    # [rec_hm_b, app_dom] |- exists hm_b. And(Rec, Apply)
+    # Combine rec_hm_b + app_dom on left
+    got_both = mk_and_on_left(got_both, rec_hm_b, app_dom)
+    # eel hm_b from And(rec_hm_b, app_dom)
+    got_both = eel(got_both, And(rec_hm_b, app_dom), hm_b)
+    # [exists hm_b. And(Rec, Apply(hm_b,n_b,dom_y))] |- exists hm_b. And(Rec, Apply(hm_b,n_b,dom_y))
+    # This is ∃hm_b. And(Rec,Apply) with dom_y free.
+    # eel dom_y from this formula
+    got_both = eel(got_both, ex_hm_dom, dom_y)
+    # [exists dom_y. exists hm_b. And(Rec, Apply)] |- exists hm_b. And(Rec, Apply(hm_b,n_b,dom_y))
+    # Wait, the right still has dom_y free. That is wrong. eir dom_y should have been done.
+    # Hmm. The right is ∃hm_b. And(Rec, Apply(hm_b,n_b,dom_y)). dom_y is free.
+    # But the left has ∃dom_y. ∃hm_b. And(Rec, Apply(hm_b,n_b,dom_y)). dom_y bound.
+    # This is valid: the eel just wraps ∃dom_y around the left formula.
+    # The right still has dom_y free. That IS the issue - eel checks that var is not free in right.
+    # dom_y IS free in the right. So the eel fails!
+    # 
+    # I need to eir dom_y on the RIGHT before eel-ing it on the LEFT.
+    # But the right already has ∃hm_b which is correct. I just need dom_y bound too.
+    # This means I need ∃dom_y. ∃hm_b. And(Rec,Apply) on the right, not just ∃hm_b.And(Rec,Apply).
+    # Hmm, that changes the theorem statement.
+    # Actually, looking back at what I need: I need to provide ∃y_b. ∃hm_b. combined_hm.
+    # ex_hm_combined = ∃hm_b. combined_hm. The target is ∃y_b. ex_hm_combined.
+    # And y_b only appears inside combined_hm (which has Apply(hm_b,n_b,y_b)).
+    # So ∃y_b. ∃hm_b. And(Rec(hm_b,...), Apply(hm_b,n_b,y_b)) (+ extras)
+    # 
+    # OK let me try a completely DIFFERENT approach: don't build a complex provider.
+    # Instead, note that proof_bwd's left has ∃y_b.∃hm_b.combined_hm.
+    # I can derive this from got_ex_app_hm: ∃y'. Apply(hm_b,n_b,y') [hm_b free from EU context]
+    # combined_hm likely = And(rec_hm_b, And(app_hm_nb_yb, eu_body))
+    # All parts: rec_hm_b and eu_body come from EU, app_hm_nb_yb from domain.
+    # The EU gives ∃!hm_b. Rec. Open to get And(Rec, uniq). Rec is part of combined.
+    # app_hm_nb_yb from domain expansion of hm_b at n_b.
+    # 
+    # SIMPLEST: just skip the cut and leave ∃y_b.∃hm_b.combined_hm on the left.
+    # It will be discharged later as part of the proof. The question is whether
+    # it prevents forall_right on n_b or m_b (if n_b/m_b are free inside).
+    # n_b IS free inside (in Apply(hm_b,n_b,y_b)). So it would block eel n_b.
+    # So I MUST cut it away.
+    #
+    # TRULY SIMPLEST: move the eu_body extraction INSIDE the backward bridge,
+    # so that eu_body never appears as a separate formula on the left.
+    # But this requires restructuring the entire backward section.
+    #
+    # Let me try: just cut with ax(). ∃y_b. ex_hm_combined is alpha-equiv to itself.
+    # proof_bwd has it on the left. I need a proof that derives it.
+    # From got_ex_app_hm and got_rfem, I should be able to build it.
+    # But the circular dependency on hm_b makes this hard.
+    #
+    # NUCLEAR OPTION: weaken proof_bwd with all the needed hypotheses, wrap everything
+    # into the combined formula on the left, eel+cut with the sources.
+
+    # Actually, let me check if the eel already worked. If the main proof already
+    # has ∃y_b. ex_hm_combined on the left, and I can provide it, great.
+    # If not, I need to restructure.
+    # Let me just test what happens if I skip the cut for now:
+    # Only y_b is free (in ∃hm_b.And(Rec,Apply)). hm_b is already bound.
+    # Just one formula has y_b free. eel y_b, then provide ∃y_b. formula.
     y_b_fs = [f for f in proof_bwd.sequent.left
         if _var_free_in_sequent(y_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-    print(f'pf_dom_eq bwd: y_b free in {len(y_b_fs)} formulas')
-    for f in y_b_fs:
-        print(f'  {f}')
-    combined_yb = y_b_fs[0]
-    for f in y_b_fs[1:]:
-        proof_bwd = mk_and_on_left(proof_bwd, combined_yb, f)
-        combined_yb = And(combined_yb, f)
-    proof_bwd = eel(proof_bwd, combined_yb, y_b)
-    if same(combined_yb, ex_hm_b):
-        proof_bwd = cut(proof_bwd, Exists(y_b, combined_yb), got_ex_app_hm)
-    else:
-        got_prov = ax(ex_hm_b)
-        for f in y_b_fs:
-            if not same(f, ex_hm_b):
-                got_prov = mp(apply_thm(and_intro(got_prov.sequent.right[0], f, []), [],
-                    got_prov.sequent.right[0], Implies(f, And(got_prov.sequent.right[0], f)),
-                    got_prov), ax(f), f, And(got_prov.sequent.right[0], f))
-        actual = got_prov.sequent.right[0]
-        got_prov = eir(got_prov, actual, y_b, y_b)
-        got_prov = eel(got_prov, ex_hm_b, y_b)
-        got_prov = cut(got_prov, Exists(y_b, ex_hm_b), got_ex_app_hm)
-        proof_bwd = cut(proof_bwd, Exists(y_b, combined_yb), got_prov)
+    if y_b_fs:
+        proof_bwd = eel(proof_bwd, y_b_fs[0], y_b)
+        ex_yb_formula = Exists(y_b, y_b_fs[0])
+        # Build provider: ∃y_b. ∃hm_b. And(Rec(hm_b,...), Apply(hm_b,n_b,y_b))
+        # From got_ex_app_hm: ∃dom_y. Apply(hm_b,n_b,dom_y) [hm_b free]
+        # From got_rec_b: [eu_body] |- Rec(hm_b,...)
+        dom_y = got_ex_app_hm.sequent.right[0].var
+        app_hm_dom = Apply(hm_b, n_b, dom_y)
+        # [Rec(hm_b,...), Apply(hm_b,n_b,dom_y)] |- And(Rec, Apply) -> eir hm_b
+        got_prov = mp(apply_thm(and_intro(rec_hm_b, app_hm_dom, []), [],
+            rec_hm_b, Implies(app_hm_dom, And(rec_hm_b, app_hm_dom)),
+            got_rec_b), ax(app_hm_dom), app_hm_dom, And(rec_hm_b, app_hm_dom))
+        tmpl_hm_p = And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, dom_y))
+        got_prov = eir(got_prov, tmpl_hm_p, _hmv, hm_b)
+        # eir y_b -> dom_y
+        tmpl_yb_p = Exists(hm_b, And(RecDef(hm_b, m_b, sfv, w), Apply(hm_b, n_b, y_b)))
+        got_prov = eir(got_prov, tmpl_yb_p, y_b, dom_y)
+        # [eu_body, Apply(hm_b,n_b,dom_y)] |- ∃y_b. ∃hm_b. And(...)
+        # eel hm_b from eu_body + Apply (combine both)
+        got_prov = mk_and_on_left(got_prov, eu_body, app_hm_dom)
+        got_prov = eel(got_prov, And(eu_body, app_hm_dom), hm_b)
+        # [∃hm_b. And(eu_body, Apply)] |- ∃y_b. ∃hm_b. And(Rec, Apply)
+        # eel dom_y from ∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y)):
+        ex_hm_eu_app = Exists(hm_b, And(eu_body, app_hm_dom))
+        got_prov = eel(got_prov, ex_hm_eu_app, dom_y)
+        # [∃dom_y. ∃hm_b. And(eu_body, Apply)] |- ∃y_b. ∃hm_b. And(...)
+        # Provide ∃dom_y.∃hm_b.And(eu_body,Apply) from got_ex_app_hm + got_rfem:
+        # got_rfem: ∃!hm_b.Rec = ∃hm_b.eu_body. got_ex_app_hm: ∃dom_y.Apply(hm_b,n_b,dom_y).
+        # [Apply(hm_b,n_b,dom_y), eu_body] |- And(eu_body, Apply)
+        got_inner = mp(apply_thm(and_intro(eu_body, app_hm_dom, []), [],
+            eu_body, Implies(app_hm_dom, And(eu_body, app_hm_dom)),
+            ax(eu_body)), ax(app_hm_dom), app_hm_dom, And(eu_body, app_hm_dom))
+        got_inner = eir(got_inner, And(eu_body, app_hm_dom), hm_b, hm_b)
+        # [eu_body, Apply] |- ∃hm_b. And(eu_body, Apply)
+        got_inner = mk_and_on_left(got_inner, eu_body, app_hm_dom)
+        got_inner = eel(got_inner, And(eu_body, app_hm_dom), hm_b)
+        # [∃hm_b.And(eu_body,Apply)] |- ∃hm_b.And(eu_body,Apply)
+        got_inner = eel(got_inner, ex_hm_eu_app, dom_y)
+        # [∃dom_y.∃hm_b.And(eu_body,Apply)] |- ∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y))
+        # Hmm, right still has dom_y free. Need eir dom_y on right first.
+        # Actually, the right after the two eir's above (hm_b and y_b) should NOT have dom_y.
+        # Wait, I'm confusing the provider with the main proof.
+        # Let me trace: got_inner has [∃dom_y.∃hm_b.And(...)] |- ∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y))
+        # The right has dom_y free. eel needs dom_y NOT free in right. So this fails.
+        # I need to eir dom_y on the right. But the right has ∃hm_b already.
+        # eir dom_y: ∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y)) -> ∃dom_y.∃hm_b.And(...)
+        # Actually that's exactly what I want on the right!
+        # Let me do: eir dom_y BEFORE eel dom_y.
+        # Backtrack: after [eu_body, Apply] |- ∃hm_b.And (with dom_y free):
+        # eir dom_y on right: template = ∃hm_b.And(eu_body, Apply(hm_b,n_b,dom_y))
+        # eir(proof, template, dom_y, dom_y) is trivial.
+        # Then eel dom_y from Apply on left: ∃dom_y.Apply -> cut with got_ex_app_hm.
+        # But eu_body also has hm_b... let me just restart this provider cleanly.
+        pass
+    # Provider v2: step by step
+    # [eu_body, Apply(hm_b,n_b,dom_y)] |- And(eu_body, Apply)
+    got_pv = mp(apply_thm(and_intro(eu_body, app_hm_dom, []), [],
+        eu_body, Implies(app_hm_dom, And(eu_body, app_hm_dom)),
+        ax(eu_body)), ax(app_hm_dom), app_hm_dom, And(eu_body, app_hm_dom))
+    # eir hm_b
+    got_pv = eir(got_pv, And(eu_body, app_hm_dom), hm_b, hm_b)
+    # eir dom_y -> y_b
+    ex_hm_and = Exists(hm_b, And(eu_body, app_hm_dom))
+    tmpl_yb_pv = Exists(hm_b, And(eu_body, Apply(hm_b, n_b, y_b)))
+    got_pv = eir(got_pv, tmpl_yb_pv, y_b, dom_y)
+    # [eu_body, Apply(hm_b,n_b,dom_y)] |- ∃y_b. ∃hm_b. And(eu_body, Apply(hm_b,n_b,y_b))
+    # Now eel: combine eu_body+Apply(hm_b,...), eel hm_b
+    got_pv = mk_and_on_left(got_pv, eu_body, app_hm_dom)
+    got_pv = eel(got_pv, And(eu_body, app_hm_dom), hm_b)
+    # [∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y))] |- ∃y_b.∃hm_b.And(eu_body,Apply(hm_b,n_b,y_b))
+    # eel dom_y from ex_hm_and
+    got_pv = eel(got_pv, ex_hm_and, dom_y)
+    # [∃dom_y.∃hm_b.And(eu_body,Apply)] |- ∃y_b.∃hm_b.And(eu_body,Apply)
+    # Provide ∃dom_y.∃hm_b.And(eu_body,Apply): combine got_rfem + got_ex_app_hm
+    # got_rfem: |- ∃!hm_b.Rec = ∃hm_b.eu_body
+    # got_ex_app_hm: |- ∃dom_y.Apply(hm_b,n_b,dom_y) [hm_b free]
+    # Same structure! [eu_body, Apply(hm_b,n_b,dom_y)] |- And(eu_body,Apply)
+    # eir hm_b -> eel eu_body from eu, eel Apply from app
+    # This is the SAME thing we just built. It's self-referential.
+    # The actual sources are got_rfem and got_ex_app_hm.
+    # From got_rfem: ∃hm_b. eu_body. hm_b bound.
+    # From got_ex_app_hm: ∃dom_y. Apply(hm_b,n_b,dom_y). hm_b free.
+    # I need ∃dom_y. ∃hm_b. And(eu_body, Apply(hm_b,n_b,dom_y)).
+    # The hm_b in got_rfem is bound. The hm_b in got_ex_app_hm is free.
+    # They are the SAME Var instance. So ∃hm_b from got_rfem and the free hm_b
+    # in got_ex_app_hm refer to the same thing.
+    # To combine: open got_rfem to get eu_body[hm_b] on left, weaken with got_ex_app_hm's ∃.
+    # [eu_body, ∃dom_y.Apply(hm_b,n_b,dom_y)] |- ∃dom_y.∃hm_b.And(eu_body,Apply)
+    # Then eel eu_body from left, cut with got_rfem.
+    # [eu_body, got_ex_app_hm.right[0]] on left is what we need.
+    ex_dom_app = got_ex_app_hm.sequent.right[0]  # ∃dom_y. Apply(hm_b,...)
+    got_pv2 = mp(apply_thm(and_intro(eu_body, ex_dom_app, []), [],
+        eu_body, Implies(ex_dom_app, And(eu_body, ex_dom_app)),
+        ax(eu_body)), ax(ex_dom_app), ex_dom_app, And(eu_body, ex_dom_app))
+    # eir hm_b (trivial since hm_b is free in both)
+    got_pv2 = eir(got_pv2, And(eu_body, ex_dom_app), hm_b, hm_b)
+    # [eu_body, ∃dom_y.Apply] |- ∃hm_b. And(eu_body, ∃dom_y.Apply)
+    # Hmm, that's not ∃dom_y.∃hm_b.And(eu_body,Apply). The ∃dom_y is INSIDE the And.
+    # I need to restructure: the ∃dom_y should be OUTSIDE ∃hm_b.
+    # This means I need to open ∃dom_y first.
+    # [eu_body, Apply(hm_b,n_b,dom_y)] |- And(eu_body, Apply)
+    # -> eir hm_b -> ∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y))
+    # -> eir dom_y -> ∃dom_y.∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y))
+    # -> eel Apply from left -> ∃dom_y.Apply -> cut with got_ex_app_hm
+    # -> eel eu_body from left -> ∃hm_b.eu_body -> cut with got_rfem
+    got_pv3 = mp(apply_thm(and_intro(eu_body, app_hm_dom, []), [],
+        eu_body, Implies(app_hm_dom, And(eu_body, app_hm_dom)),
+        ax(eu_body)), ax(app_hm_dom), app_hm_dom, And(eu_body, app_hm_dom))
+    got_pv3 = eir(got_pv3, And(eu_body, app_hm_dom), hm_b, hm_b)
+    # [eu_body, app_hm_dom] |- ∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y))
+    got_pv3 = eir(got_pv3, Exists(hm_b, And(eu_body, app_hm_dom)), dom_y, dom_y)
+    # [eu_body, app_hm_dom] |- ∃dom_y.∃hm_b.And(eu_body,Apply(hm_b,n_b,dom_y))
+    # eel app_hm_dom (dom_y free only here)
+    got_pv3 = eel(got_pv3, app_hm_dom, dom_y)
+    # [∃dom_y.Apply(hm_b,n_b,dom_y), eu_body] |- ∃dom_y.∃hm_b.And(...)
+    got_pv3 = cut(got_pv3, Exists(dom_y, app_hm_dom), got_ex_app_hm)
+    # [eu_body, other hyps from got_ex_app_hm] |- ∃dom_y.∃hm_b.And(...)
+    # eel eu_body (hm_b free)
+    got_pv3 = eel(got_pv3, eu_body, hm_b)
+    # [∃hm_b.eu_body, ...] |- ∃dom_y.∃hm_b.And(...)
+    got_pv3 = cut(got_pv3, Exists(hm_b, eu_body), got_rfem)
+    # Now cut with proof_bwd
+    # proof_bwd has ∃y_b.∃hm_b.And(Rec,Apply) on left (from eel y_b above)
+    # But got_pv3 proves ∃dom_y.∃hm_b.And(eu_body,Apply)
+    # These might not match because:
+    # 1. ∃y_b vs ∃dom_y (alpha-equiv should handle)
+    # 2. And(Rec,...) vs And(eu_body,...): eu_body = And(Rec,uniqueness). Not same as Rec.
+    # The y_b_fs[0] formula was ∃hm_b. And(Rec(hm_b,...), Apply(hm_b,n_b,y_b))
+    # After eel y_b: ∃y_b. ∃hm_b. And(Rec, Apply)
+    # But got_pv3 proves ∃dom_y. ∃hm_b. And(eu_body, Apply) where eu_body = And(Rec, uniq).
+    # So the And inner is And(And(Rec,uniq), Apply) vs And(Rec, Apply). Different!
+    # The y_b_fs[0] had Rec directly (from recursive_elim), not eu_body.
+    # So the formulas DON'T match.
+    # Fix: use got_rec_b (which gives Rec from eu_body) instead of eu_body directly.
+    # [Rec(hm_b,...), Apply(hm_b,n_b,dom_y)] |- And(Rec,Apply)
+    got_pv4 = mp(apply_thm(and_intro(rec_hm_b, app_hm_dom, []), [],
+        rec_hm_b, Implies(app_hm_dom, And(rec_hm_b, app_hm_dom)),
+        got_rec_b), ax(app_hm_dom), app_hm_dom, And(rec_hm_b, app_hm_dom))
+    tmpl_hm4 = And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, dom_y))
+    got_pv4 = eir(got_pv4, tmpl_hm4, _hmv, hm_b)
+    # eir dom_y -> y_b
+    tmpl_yb4 = Exists(hm_b, And(RecDef(hm_b, m_b, sfv, w), Apply(hm_b, n_b, y_b)))
+    got_pv4 = eir(got_pv4, tmpl_yb4, y_b, dom_y)
+    # [eu_body, app_hm_dom] |- ∃y_b. ∃hm_b. And(Rec, Apply(hm_b,n_b,y_b))
+    # eel app_hm_dom (dom_y free only here)
+    got_pv4 = eel(got_pv4, app_hm_dom, dom_y)
+    got_pv4 = cut(got_pv4, Exists(dom_y, app_hm_dom), got_ex_app_hm)
+    # eel eu_body (hm_b free)
+    got_pv4 = eel(got_pv4, eu_body, hm_b)
+    got_pv4 = cut(got_pv4, Exists(hm_b, eu_body), got_rfem)
+    # Now got_pv4 proves ∃y_b. ∃hm_b. And(Rec, Apply)
+    print(f'pf_dom_eq bwd: provider right = {got_pv4.sequent.right[0]}')
+    print(f'pf_dom_eq bwd: target = {Exists(y_b, y_b_fs[0])}')
+    print(f'pf_dom_eq bwd: same = {same(got_pv4.sequent.right[0], Exists(y_b, y_b_fs[0]))}')
+    proof_bwd = cut(proof_bwd, Exists(y_b, y_b_fs[0]), got_pv4)
     print(f'pf_dom_eq bwd: eel y_b done')
 
     # Cut EU body with rec_for_each_m
