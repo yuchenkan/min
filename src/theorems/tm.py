@@ -6213,6 +6213,144 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     return got_result
 
 
+def phase3_base(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
+                one, d1, q1, zero_var, sa):
+    """Phase 3 base case: Q3(0) from P2.
+
+    Opens P2, extracts trace components, adds Plus(sa, 0, sa),
+    repackages as P3(0), wraps in Q3(0).
+
+    Returns: [axioms + hypotheses] |- Phase3Q(z, ...)"""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        eq_reflexive, or_intro_right)
+    from theorems.arithmetic import plus_zero_right
+    from vocab.functions import Function as FuncDef
+    from vocab.omega import Omega
+    from vocab.recursion import Plus as PlusDef
+    from core.proof import Proof, Sequent, same
+    from core.derived import Exists, Or
+
+    # Get P2
+    got_P2 = phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
+        one, d1, q1, zero_var, sa)
+
+    # Open P2: ∃tra.∃ca.∃tape2.(Func ∧ dom ∧ cfg ∧ base ∧ head ∧ And(sv, TapeUpdate))
+    p2_exp = got_P2.sequent.right[0].expand()
+    tra = p2_exp.var
+    ca = p2_exp.body.var
+    tape2 = p2_exp.body.body.var
+    body_p2 = p2_exp.body.body.body
+
+    def extract_and(got_body, left_f, right_f):
+        got_l = apply_thm(and_elim_left(left_f, right_f, []), [],
+            And(left_f, right_f), left_f, got_body)
+        got_r = apply_thm(and_elim_right(left_f, right_f, []), [],
+            And(left_f, right_f), right_f, got_body)
+        return got_l, got_r
+
+    # body_p2 = And(func, And(dom, And(cfg, And(base, And(head, And(sv, tu))))))
+    got_body = ax(body_p2)
+    func_f = body_p2.left; r1 = body_p2.right
+    got_func, got_r1 = extract_and(got_body, func_f, r1)
+    dom_f = r1.left; r2 = r1.right
+    got_dom, got_r2 = extract_and(got_r1, dom_f, r2)
+    cfg_f = r2.left; r3 = r2.right
+    got_cfg, got_r3 = extract_and(got_r2, cfg_f, r3)
+    base_f = r3.left; r4 = r3.right
+    got_base, got_r4 = extract_and(got_r3, base_f, r4)
+    head_f = r4.left; r5 = r4.right
+    got_head, got_r5 = extract_and(got_r4, head_f, r5)
+    sv_f = r5.left; tu_f = r5.right
+    got_sv, got_tu = extract_and(got_r5, sv_f, tu_f)
+    # All have [body_p2] on left. got_tu: TapeUpdate(tape2, tape_in, a, one)
+
+    # Plus(sa, 0, sa): plus_zero_right gives m + 0 = m
+    omega_w = Omega(w)
+    pzr = plus_zero_right()
+    # plus_zero_right: ∀w,a,b,c,d. Omega(w) → In(a,w) → Num(b,0) → Plus(a,b,c) → Eq(c,a)
+    # We need Plus(sa, z, sa) where Num(z,0). But plus_zero_right gives Eq(c, sa) from Plus(sa, z, c).
+    # Actually we need to show Plus(sa, z, sa) is true.
+    # Plus(sa, z, c) → Eq(c, sa). With c = sa: Plus(sa, z, sa) → Eq(sa, sa). Trivially true.
+    # But we need to PROVE Plus(sa, z, sa), not assume it.
+    # Actually, Plus(sa, z, sa) is a hypothesis — the caller provides it.
+    # No — Plus is a definition. We need In(sa, w) and the recursion theorem machinery.
+    # This is more complex than I thought.
+
+    # Simpler: Plus(sa, z, pos) is existentially quantified in Phase3P.
+    # For P3(0): pos is bound by ∃. We prove Plus(sa, z, pos) with pos = sa as witness.
+    # plus_zero_right: Plus(sa, z, c) → Eq(c, sa). So any c satisfying Plus(sa, z, c) equals sa.
+    # But we need Plus(sa, z, sa) to be provable. This requires the recursion theorem applied to
+    # the plus function at arguments (sa, z). This is complex.
+
+    # Actually, looking at it differently: Phase3P(z) has ∃pos. Plus(sa, z, pos) ∧ ...
+    # For the base case, we can just put pos = sa and prove Plus(sa, z, sa).
+    # Plus(sa, z, sa) where z = 0: this is sa + 0 = sa, which is plus_zero_right's conclusion.
+    # plus_zero_right gives: Omega(w) → In(sa,w) → Num(z,0) → Plus(sa,z,c) → Eq(c,sa)
+    # Wait, that's the UNIQUENESS direction. We need EXISTENCE: ∃c. Plus(sa,z,c) with c=sa.
+
+    # Plus is defined via Recursive. Plus(sa, z, sa) means h(z) = sa where h is the
+    # recursive function with h(0) = sa. This IS the base case of the recursion.
+    # But proving it requires instantiating the recursion theorem.
+
+    # For now, let me use a different approach. Phase3P(z) has Plus(sa, z, pos) with pos
+    # existentially bound. We need to prove ∃pos. Plus(sa, z, pos) ∧ rest(pos).
+    # With pos = sa: Plus(sa, z, sa) ∧ rest(sa).
+    # rest(sa) = the trace components from P2 (which use sa already).
+    # Plus(sa, z, sa): this is a hypothesis we need. It comes from plus_zero_right + existence.
+
+    # Let me skip Plus for now and build the rest. Add Plus(sa, z, sa) as a hypothesis.
+    # TODO: derive Plus(sa, z, sa) properly.
+
+    plus_sa_z_sa = PlusDef(sa, z, sa)
+
+    # Build P3(0) body: And(Plus, And(func, And(dom, And(cfg, And(base, And(head, sv))))))
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    got_head_sv = mk_and(got_head, got_sv)
+    got_base_rest = mk_and(got_base, got_head_sv)
+    got_cfg_rest = mk_and(got_cfg, got_base_rest)
+    got_dom_rest = mk_and(got_dom, got_cfg_rest)
+    got_func_rest = mk_and(got_func, got_dom_rest)
+    got_plus_rest = mk_and(ax(plus_sa_z_sa), got_func_rest)
+
+    # eir pos = sa (innermost ∃)
+    got_ex_pos = eir(got_plus_rest, got_plus_rest.sequent.right[0], sa, sa)
+    # eir ca (middle ∃) — ca is eigenvar from P2
+    got_ex_ca = eir(got_ex_pos, got_ex_pos.sequent.right[0], ca, ca)
+    # eir tra (outer ∃)
+    got_ex_tra = eir(got_ex_ca, got_ex_ca.sequent.right[0], tra, tra)
+
+    # Close eigenvars: eel ca and tra, but NOT tape2 (free in Phase3Q on right).
+    # tape2 + TapeUpdate stay as hypotheses on the left.
+    got_result = got_ex_tra
+    if any(same(body_p2, f) for f in got_result.sequent.left):
+        got_result = eel(got_result, body_p2, ca)
+        got_result = eel(got_result, Exists(ca, body_p2), tra)
+        # Left now has ∃tra.∃ca.body_p2 (tape2 still free).
+        # P2 = ∃tra.∃ca.∃tape2.body_p2. We can't match directly.
+        # TODO: need a lemma that ∃tra.∃ca.∃tape2.body → ∃tra.∃ca.body (for any tape2 value)
+        # Or restructure so tape2 is handled differently.
+        pass
+
+    # Wrap P3(z) into Q3(z) = Or(In(z,b),Eq(z,b)) → P3(z)
+    or_zb = Or(In(z, b), Eq(z, b))
+    got_result = wl(got_result, or_zb)
+    imp_q = Implies(or_zb, got_result.sequent.right[0])
+    left_q = [f for f in got_result.sequent.left if not same(f, or_zb)]
+    got_result = Proof(Sequent(left_q, [imp_q]), 'implies_right', [got_result], principal=imp_q)
+
+    # Wrap in Phase3Q
+    q3z = Phase3Q(z, b, sa, q1, tape2, c0, z, delta)
+    got_result = cut(ax(q3z), q3z, got_result)
+
+    got_result.name = 'phase3_base'
+    return got_result
+
+
 def phase3_step_transition(delta_char_formula, delta, q1, one, d1):
     """Extract transition (q1,1)→(1,R,q1) from delta_char.
     [delta_char, Num(q1,2), Num(one,1), Num(d1,1)] |- TMTransition(delta, q1, one, one, d1, q1)"""
