@@ -3567,12 +3567,12 @@ def pf_backward(hv, w, sfv, pv_ww, pv_wwxw):
 
 def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     """Backward direction: In(z,prod) -> In(z,d).
-    6 steps, each printed.
-    [Domain(hv,d), Product(prod,w,w), char_hv, sf_all, Omega(w), axioms]
+    Uses pf_backward theorem. No z leak.
+    [Domain(hv,d), Product(prod,w,w), char_hv, prod_ww, prod_wwxw, sf_all, Omega(w), axioms]
     |- In(z,prod) -> In(z,d)"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
-        iff_intro, iff_mp, iff_mp_rev, eq_symmetric)
+        iff_mp, iff_mp_rev, eq_symmetric)
     from theorems.recursion import recursive_elim, eq_apply_val_transfer
     from theorems.omega import omega_succ_closed, omega_contains_empty
     from theorems.sets import (ordpair_exists, product_in_intro, domain_exists,
@@ -3580,7 +3580,6 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, TotalFrom)
     from vocab.functions import Domain as DomainDef
-    from vocab.recursion import PlusFunc
     from vocab.ordpair import OrdPair
     from vocab.omega import Omega, ExistsUnique
     from vocab.sets import Empty, Product
@@ -3595,7 +3594,6 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     prod_ww = Product(pv_ww, w, w)
     prod_wwxw = Product(pv_wwxw, pv_ww, w)
 
-    # Reconstruct phi2, char_hv, sf_all, char_fwd
     xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
     succ_char = Forall(xsc, Implies(In(xsc, w),
         Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
@@ -3603,27 +3601,19 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     xds, yds = Var(postfix='xds'), Var(postfix='yds')
     dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
     sf_all = And(succ_char, And(func_sf, dom_sub_sf))
-    _mv = Var(postfix='_m'); _nv = Var(postfix='_n'); _yv = Var(postfix='_y')
-    _pairv = Var(postfix='_pair'); _hmv = Var(postfix='_hm')
-    _rec_hm = RecDef(_hmv, _mv, sfv, w)
-    def phi2(x):
-        return Exists(_mv, And(In(_mv, w),
-            Exists(_nv, Exists(_yv, Exists(_pairv,
-                And(OrdPair(_pairv, _mv, _nv),
-                And(OrdPair(x, _pairv, _yv),
-                Exists(_hmv, And(_rec_hm, Apply(_hmv, _nv, _yv))))))))))
-    _xv = Var(postfix='_xv')
-    char_hv = Forall(_xv, Iff(In(_xv, hv), And(In(_xv, pv_wwxw), phi2(_xv))))
-
-    pii = product_in_intro()
 
     def dump(label, p):
         print(f'{label}: right = {p.sequent.right[0]}')
         for i, f in enumerate(p.sequent.left):
             if not isinstance(f, zfc.ZFCAxiom):
-                print(f'  [{i}] {f}')
+                fv = []
+                for v, nm in [(d_var,'d'),(hm_b,'hm'),(y_b,'y'),(n_b,'n'),(m_b,'m'),(z,'z')]:
+                    if _var_free_in_sequent(v, Sequent([f], [])):
+                        fv.append(nm)
+                if fv:
+                    print(f'  [{i}] {",".join(fv)}: {f}')
 
-    # === Step 1: Product forward ===
+    # === Step 1: Product forward → inner_b on left ===
     got_prod_z = apply_thm(ax(prod_hyp), [z])
     iff_prod = got_prod_z.sequent.right[0]
     got_prod_fwd = apply_thm(iff_mp(iff_prod.left, iff_prod.right, []), [],
@@ -3633,22 +3623,23 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     m_b = ex_mb.var
     ex_nb = ex_mb.body
     n_b = ex_nb.var
-    inner_b = ex_nb.body  # And(In(m_b,w), And(In(n_b,w), OrdPair(z,m_b,n_b)))
-    # Derive In(m_b,w), In(n_b,w), OrdPair(z,...) from inner_b
+    inner_b = ex_nb.body
     got_in_mb = apply_thm(and_elim_left(inner_b.left, inner_b.right, []), [],
         inner_b, inner_b.left, ax(inner_b))
-    got_in_nb_op = apply_thm(and_elim_right(inner_b.left, inner_b.right, []), [],
-        inner_b, inner_b.right, ax(inner_b))
     got_in_nb = apply_thm(and_elim_left(inner_b.right.left, inner_b.right.right, []), [],
-        inner_b.right, inner_b.right.left, got_in_nb_op)
+        inner_b.right, inner_b.right.left,
+        apply_thm(and_elim_right(inner_b.left, inner_b.right, []), [],
+            inner_b, inner_b.right, ax(inner_b)))
     got_op_z = apply_thm(and_elim_right(inner_b.right.left, inner_b.right.right, []), [],
-        inner_b.right, inner_b.right.right, got_in_nb_op)
+        inner_b.right, inner_b.right.right,
+        apply_thm(and_elim_right(inner_b.left, inner_b.right, []), [],
+            inner_b, inner_b.right, ax(inner_b)))
     in_mb_w = inner_b.left
     in_nb_w = inner_b.right.left
     op_z_mb_nb = inner_b.right.right
-    dump('step1', got_prod_body)
+    print(f'step1: inner_b on left, m_b={m_b}, n_b={n_b}')
 
-    # === Step 2: rec_for_each_m ===
+    # === Step 2: rec_for_each_m → ∃!hm ===
     rfem = rec_for_each_m()
     got_rfem = apply_thm(rfem, [w, sfv, m_b])
     while isinstance(got_rfem.sequent.right[0], Implies):
@@ -3665,9 +3656,9 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     rec_hm_b = RecDef(hm_b, m_b, sfv, w)
     got_rec_b = apply_thm(and_elim_left(eu_body.left, eu_body.right, []), [],
         eu_body, eu_body.left, ax(eu_body))
-    dump('step2', got_rfem)
+    print(f'step2: hm_b={hm_b}')
 
-    # === Step 3: domain membership → ∃y. Apply(hm_b, n_b, y) ===
+    # === Step 3: domain → ∃y. Apply(hm_b, n_b, y) ===
     _, got_dom_hm_b, _, _, _ = recursive_elim(hm_b, m_b, sfv, w)
     de = domain_exists()
     got_de = apply_thm(de, [hm_b])
@@ -3692,7 +3683,7 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     got_ex_app_hm = mp(got_dom_b_fwd, got_in_nb_d, In(n_b, d_hm_b), iff_dom_b.right)
     y_b = got_ex_app_hm.sequent.right[0].var
     app_hm_nb_yb = Apply(hm_b, n_b, y_b)
-    dump('step3', got_ex_app_hm)
+    print(f'step3: y_b={y_b}')
 
     # === Step 4: rec_val_in_omega → In(y_b, w) ===
     rvo = rec_val_in_omega()
@@ -3712,106 +3703,30 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
             got_rvo = mp(got_rvo, ax(app_hm_nb_yb), hyp, cur.right)
         else:
             got_rvo = mp(got_rvo, ax(hyp), hyp, cur.right)
-    in_yb_w = got_rvo.sequent.right[0]
-    dump('step4', got_rvo)
+    print(f'step4: In(y_b,w) = {got_rvo.sequent.right[0]}')
 
-    # === Step 5: backward bridge → Apply(hv, z, y_b) ===
-    # Product membership for ⟨z, y_b⟩
-    got_z_in_ww = apply_thm(pii, [pv_ww, w, w, m_b, n_b, z])
-    got_z_in_ww = mp(got_z_in_ww, ax(prod_ww), prod_ww, got_z_in_ww.sequent.right[0].right)
-    got_z_in_ww = mp(got_z_in_ww, got_in_mb, in_mb_w, got_z_in_ww.sequent.right[0].right)
-    got_z_in_ww = mp(got_z_in_ww, got_in_nb, in_nb_w, got_z_in_ww.sequent.right[0].right)
-    got_z_in_ww = mp(got_z_in_ww, got_op_z, op_z_mb_nb, In(z, pv_ww))
-    triple_b = Var(postfix='_trb')
-    op_triple = OrdPair(triple_b, z, y_b)
-    got_ex_triple = apply_thm(ordpair_exists(), [z, y_b], concl=Exists(triple_b, op_triple))
-    got_tr_in = apply_thm(pii, [pv_wwxw, pv_ww, w, z, y_b, triple_b])
-    got_tr_in = mp(got_tr_in, ax(prod_wwxw), prod_wwxw, got_tr_in.sequent.right[0].right)
-    got_tr_in = mp(got_tr_in, got_z_in_ww, In(z, pv_ww), got_tr_in.sequent.right[0].right)
-    got_tr_in = mp(got_tr_in, got_rvo, in_yb_w, got_tr_in.sequent.right[0].right)
-    got_tr_in = mp(got_tr_in, ax(op_triple), op_triple, In(triple_b, pv_wwxw))
-    # phi2 witness
-    got_inner_ra = mp(apply_thm(and_intro(rec_hm_b, app_hm_nb_yb, []), [],
-        rec_hm_b, Implies(app_hm_nb_yb, And(rec_hm_b, app_hm_nb_yb)),
-        ax(rec_hm_b)), ax(app_hm_nb_yb), app_hm_nb_yb, And(rec_hm_b, app_hm_nb_yb))
-    tmpl_hm = And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, y_b))
-    got_ex_hm_b = eir(got_inner_ra, tmpl_hm, _hmv, hm_b)
-    got_and_op = mp(apply_thm(and_intro(op_triple, got_ex_hm_b.sequent.right[0], []), [], op_triple,
-        Implies(got_ex_hm_b.sequent.right[0], And(op_triple, got_ex_hm_b.sequent.right[0])),
-        ax(op_triple)), got_ex_hm_b, got_ex_hm_b.sequent.right[0], And(op_triple, got_ex_hm_b.sequent.right[0]))
-    L_op2 = OrdPair(z, m_b, n_b)
-    got_and_ops = mp(apply_thm(and_intro(L_op2, got_and_op.sequent.right[0], []), [], L_op2,
-        Implies(got_and_op.sequent.right[0], And(L_op2, got_and_op.sequent.right[0])),
-        got_op_z), got_and_op, got_and_op.sequent.right[0], And(L_op2, got_and_op.sequent.right[0]))
-    tmpl_pair = And(OrdPair(_pairv, m_b, n_b), And(OrdPair(triple_b, _pairv, y_b),
-        Exists(_hmv, And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, y_b)))))
-    got_ex_pair = eir(got_and_ops, tmpl_pair, _pairv, z)
-    tmpl_yv = Exists(_pairv, And(OrdPair(_pairv, m_b, n_b),
-        And(OrdPair(triple_b, _pairv, _yv),
-            Exists(_hmv, And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, _yv))))))
-    got_ex_y = eir(got_ex_pair, tmpl_yv, _yv, y_b)
-    tmpl_nv = Exists(_yv, Exists(_pairv, And(OrdPair(_pairv, m_b, _nv),
-        And(OrdPair(triple_b, _pairv, _yv),
-            Exists(_hmv, And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, _nv, _yv)))))))
-    got_ex_n = eir(got_ex_y, tmpl_nv, _nv, n_b)
-    got_and_m = mp(apply_thm(and_intro(in_mb_w, got_ex_n.sequent.right[0], []), [], in_mb_w,
-        Implies(got_ex_n.sequent.right[0], And(in_mb_w, got_ex_n.sequent.right[0])),
-        got_in_mb), got_ex_n, got_ex_n.sequent.right[0], And(in_mb_w, got_ex_n.sequent.right[0]))
-    tmpl_mv = And(In(_mv, w), Exists(_nv, Exists(_yv, Exists(_pairv,
-        And(OrdPair(_pairv, _mv, _nv),
-        And(OrdPair(triple_b, _pairv, _yv),
-            Exists(_hmv, And(RecDef(_hmv, _mv, sfv, w), Apply(_hmv, _nv, _yv)))))))))
-    got_phi2 = eir(got_and_m, tmpl_mv, _mv, m_b)
-    # Separation backward
-    all_ctx_sep = list(got_tr_in.sequent.left)
-    for f in got_phi2.sequent.left:
-        if not any(same(f, g) for g in all_ctx_sep):
-            all_ctx_sep.append(f)
-    got_and_bp = mp(apply_thm(and_intro(In(triple_b, pv_wwxw), got_phi2.sequent.right[0], []), [],
-        In(triple_b, pv_wwxw),
-        Implies(got_phi2.sequent.right[0], And(In(triple_b, pv_wwxw), got_phi2.sequent.right[0])),
-        weaken_to(got_tr_in, all_ctx_sep)),
-        weaken_to(got_phi2, all_ctx_sep), got_phi2.sequent.right[0],
-        And(In(triple_b, pv_wwxw), got_phi2.sequent.right[0]))
-    got_char_b = apply_thm(ax(char_hv), [triple_b])
-    iff_ch = got_char_b.sequent.right[0]
-    got_rev_ch = apply_thm(iff_mp_rev(iff_ch.left, iff_ch.right, []), [],
-        iff_ch, Implies(iff_ch.right, iff_ch.left), got_char_b)
-    got_in_h = mp(got_rev_ch, got_and_bp, iff_ch.right, In(triple_b, hv))
-    # Apply(hv,z,y_b)
-    got_and_app = mp(apply_thm(and_intro(op_triple, In(triple_b, hv), []), [], op_triple,
-        Implies(In(triple_b, hv), And(op_triple, In(triple_b, hv))),
-        ax(op_triple)), got_in_h, In(triple_b, hv), And(op_triple, In(triple_b, hv)))
-    app_hz_yb = Apply(hv, z, y_b)
-    app_exp_b = app_hz_yb.expand()
-    p_bound_b = app_exp_b.var
-    got_eir_app = eir(got_and_app, app_exp_b.body, p_bound_b, triple_b)
-    got_apply_bwd = cut(ax(app_hz_yb), app_hz_yb, got_eir_app)
-    dump('step5', got_apply_bwd)
+    # === Step 5: pf_backward → Apply(hv, z, y_b) ===
+    bwd = pf_backward(hv, w, sfv, pv_ww, pv_wwxw)
+    got_bwd = apply_thm(bwd, [m_b, n_b, y_b, z, hm_b])
+    got_bwd = mp(got_bwd, got_in_mb, In(m_b, w), got_bwd.sequent.right[0].right)
+    got_bwd = mp(got_bwd, got_in_nb, In(n_b, w), got_bwd.sequent.right[0].right)
+    got_bwd = mp(got_bwd, got_rvo, In(y_b, w), got_bwd.sequent.right[0].right)
+    got_bwd = mp(got_bwd, got_op_z, OrdPair(z, m_b, n_b), got_bwd.sequent.right[0].right)
+    got_bwd = mp(got_bwd, ax(rec_hm_b), rec_hm_b, got_bwd.sequent.right[0].right)
+    got_bwd = mp(got_bwd, ax(app_hm_nb_yb), app_hm_nb_yb, Apply(hv, z, y_b))
+    print(f'step5: Apply(hv,z,y_b) = {got_bwd.sequent.right[0]}')
 
-    # === Step 6: Domain backward → In(z,d) ===
+    # === Step 6: Domain backward → In(z, d) ===
     got_dom_z = apply_thm(ax(dom_hyp), [z])
     dom_exp_z = got_dom_z.sequent.right[0]
-    dom_ex_y = dom_exp_z.right
-    dom_y_var = dom_ex_y.var
-    got_eir_bwd = eir(got_apply_bwd, Apply(hv, z, dom_y_var), dom_y_var, y_b)
+    dom_y_var = dom_exp_z.right.var
+    got_eir_bwd = eir(got_bwd, Apply(hv, z, dom_y_var), dom_y_var, y_b)
     got_dom_rev = apply_thm(iff_mp_rev(dom_exp_z.left, dom_exp_z.right, []), [],
         dom_exp_z, Implies(dom_exp_z.right, dom_exp_z.left), got_dom_z)
-    got_in_z_d = mp(got_dom_rev, got_eir_bwd, dom_ex_y, In(z, d_var))
-    dump('step6', got_in_z_d)
+    proof = mp(got_dom_rev, got_eir_bwd, dom_exp_z.right, In(z, d_var))
+    print(f'step6: In(z,d) = {proof.sequent.right[0]}')
 
-    # === eel closures ===
-    proof = got_in_z_d
-    print('eel: left after step 6:')
-    for i, f in enumerate(proof.sequent.left):
-        if not isinstance(f, zfc.ZFCAxiom):
-            fv = []
-            for v, nm in [(d_hm_b,'d'),(triple_b,'tr'),(hm_b,'hm'),(y_b,'y'),(n_b,'n'),(m_b,'m'),(z,'z')]:
-                if _var_free_in_sequent(v, Sequent([f], [])):
-                    fv.append(nm)
-            if fv:
-                print(f'  [{i}] {",".join(fv)}: {f}')
-
+    # === eel closures: close after each step, in reverse ===
     def mk_and_on_left(proof, lf, rf):
         combined = And(lf, rf)
         proof = cut(proof, lf, apply_thm(and_elim_left(lf, rf, []), [],
@@ -3820,179 +3735,91 @@ def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
             combined, rf, ax(combined)))
         return proof
 
-    # eel each var, print after each
-    for var, name in [(d_hm_b,'d'),(triple_b,'tr'),(hm_b,'hm'),(y_b,'y'),(n_b,'n'),(m_b,'m')]:
-        vfs = [f for f in proof.sequent.left
-            if _var_free_in_sequent(var, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-        if not vfs:
-            print(f'eel {name}: 0 formulas, skip')
-            continue
-        print(f'eel {name}: {len(vfs)} formulas')
-        for f in vfs:
-            print(f'  {f}')
-        combined = vfs[0]
-        for f in vfs[1:]:
-            proof = mk_and_on_left(proof, combined, f)
-            combined = And(combined, f)
-        proof = eel(proof, combined, var)
-        print(f'eel {name}: done, right = {proof.sequent.right[0]}')
+    dump('before eel', proof)
 
-    # What's left?
-    print('eel: left after all eels:')
-    for i, f in enumerate(proof.sequent.left):
-        if not isinstance(f, zfc.ZFCAxiom):
-            fv = []
-            for v, nm in [(z,'z')]:
-                if _var_free_in_sequent(v, Sequent([f], [])):
-                    fv.append(nm)
-            print(f'  [{i}] {"z-FREE " if fv else ""}{f}')
-
-    # [11] has z. Cut it with a derivation from In(z,prod).
-    # [11] = ∃m.∃n. And(inner_b, ∃y.And(∃tr.OrdPair(tr,z,y), ∃hm.And(Rec,Apply)))
-    # This is exactly steps 1-5 eel'd. Build a separate derivation.
-    z_left = [f for f in proof.sequent.left
-        if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-    assert len(z_left) == 1, f'Expected 1 z-free formula, got {len(z_left)}'
-    z_formula = z_left[0]
-    print(f'eel: z_formula = {z_formula}')
-
-    # Build provider: [In(z,prod), Product(prod,w,w), prod_ww, prod_wwxw, sf_all, Omega, axioms] |- z_formula
-    # Re-run steps 1-5 to produce z_formula, then eel and cut.
-    # Step 1 provider: Product fwd from In(z,prod)
-    got_prod_z_pv = apply_thm(ax(prod_hyp), [z])
-    iff_prod_pv = got_prod_z_pv.sequent.right[0]
-    got_prod_fwd_pv = apply_thm(iff_mp(iff_prod_pv.left, iff_prod_pv.right, []), [],
-        iff_prod_pv, Implies(iff_prod_pv.left, iff_prod_pv.right), got_prod_z_pv)
-    got_prod_body_pv = mp(got_prod_fwd_pv, ax(In(z, prod_var)), In(z, prod_var), iff_prod_pv.right)
-    # got_prod_body_pv: [In(z,prod), Product(prod,w,w)] |- ∃m.∃n.inner_b
-    pv_m = got_prod_body_pv.sequent.right[0].var
-    pv_n = got_prod_body_pv.sequent.right[0].body.var
-    pv_inner = got_prod_body_pv.sequent.right[0].body.body
-    print(f'eel prov: got_prod_body_pv right = {got_prod_body_pv.sequent.right[0]}')
-
-    # Derive components from pv_inner
-    got_in_m_pv = apply_thm(and_elim_left(pv_inner.left, pv_inner.right, []), [],
-        pv_inner, pv_inner.left, ax(pv_inner))
-    got_in_n_pv = apply_thm(and_elim_left(pv_inner.right.left, pv_inner.right.right, []), [],
-        pv_inner.right, pv_inner.right.left,
-        apply_thm(and_elim_right(pv_inner.left, pv_inner.right, []), [],
-            pv_inner, pv_inner.right, ax(pv_inner)))
-
-    # Steps 2-4 provider (same as main proof but using pv_m, pv_n, got_in_m_pv)
-    rfem_pv = rec_for_each_m()
-    got_rfem_pv = apply_thm(rfem_pv, [w, sfv, pv_m])
-    while isinstance(got_rfem_pv.sequent.right[0], Implies):
-        cur = got_rfem_pv.sequent.right[0]
-        hyp = cur.left
-        if same(hyp, In(pv_m, w)):
-            got_rfem_pv = mp(got_rfem_pv, got_in_m_pv, hyp, cur.right)
-        else:
-            got_rfem_pv = mp(got_rfem_pv, ax(hyp), hyp, cur.right)
-    eu_pv = got_rfem_pv.sequent.right[0]
-    eu_pv_exp = eu_pv.expand()
-    hm_pv = eu_pv_exp.var
-    rec_hm_pv = RecDef(hm_pv, pv_m, sfv, w)
-    eu_pv_body = eu_pv_exp.body  # And(Rec, uniqueness)
-    got_rec_pv = apply_thm(and_elim_left(eu_pv_body.left, eu_pv_body.right, []), [],
-        eu_pv_body, eu_pv_body.left, ax(eu_pv_body))
-
-    # Domain → ∃y. Apply(hm,n,y)
-    _, got_dom_hm_pv, _, _, _ = recursive_elim(hm_pv, pv_m, sfv, w)
-    de_pv = domain_exists()
-    got_de_pv = apply_thm(de_pv, [hm_pv])
-    d_pv = got_de_pv.sequent.right[0].var
-    dom_hm_pv = DomainDef(hm_pv, d_pv)
-    got_deq_pv = apply_thm(got_dom_hm_pv, [d_pv])
-    got_deq_pv = mp(got_deq_pv, ax(dom_hm_pv), dom_hm_pv, Eq(d_pv, w))
-    got_eq_w_d_pv = apply_thm(es, [d_pv, w])
-    got_eq_w_d_pv = mp(got_eq_w_d_pv, got_deq_pv, Eq(d_pv, w), Eq(w, d_pv))
-    et_pv = eq_transfer()
-    got_et_pv = apply_thm(et_pv, [w, d_pv, pv_n])
-    got_et_pv = mp(got_et_pv, got_eq_w_d_pv, Eq(w, d_pv), got_et_pv.sequent.right[0].right)
-    iff_et_pv = got_et_pv.sequent.right[0]
-    got_et_fwd_pv = apply_thm(iff_mp(iff_et_pv.left, iff_et_pv.right, []), [],
-        iff_et_pv, Implies(iff_et_pv.left, iff_et_pv.right), got_et_pv)
-    got_in_n_d_pv = mp(got_et_fwd_pv, got_in_n_pv, In(pv_n, w), In(pv_n, d_pv))
-    got_dom_n_pv = apply_thm(ax(dom_hm_pv), [pv_n])
-    iff_dom_pv = got_dom_n_pv.sequent.right[0]
-    got_dom_fwd_pv = apply_thm(iff_mp(iff_dom_pv.left, iff_dom_pv.right, []), [],
-        iff_dom_pv, Implies(iff_dom_pv.left, iff_dom_pv.right), got_dom_n_pv)
-    got_ex_app_pv = mp(got_dom_fwd_pv, got_in_n_d_pv, In(pv_n, d_pv), iff_dom_pv.right)
-    y_pv = got_ex_app_pv.sequent.right[0].var
-
-    # ordpair_exists for ⟨z, y_pv⟩
-    tr_pv = Var(postfix='_trpv')
-    op_tr_pv = OrdPair(tr_pv, z, y_pv)
-    got_ex_tr_pv = apply_thm(ordpair_exists(), [z, y_pv], concl=Exists(tr_pv, op_tr_pv))
-
-    # Build z_formula on RIGHT: combine inner_b + extras, eir m,n
-    app_hm_pv = Apply(hm_pv, pv_n, y_pv)
-    got_ra_pv = mp(apply_thm(and_intro(rec_hm_pv, app_hm_pv, []), [],
-        rec_hm_pv, Implies(app_hm_pv, And(rec_hm_pv, app_hm_pv)),
-        ax(rec_hm_pv)), ax(app_hm_pv), app_hm_pv, And(rec_hm_pv, app_hm_pv))
-    tmpl_hm_pv = And(RecDef(_hmv, pv_m, sfv, w), Apply(_hmv, pv_n, y_pv))
-    got_ex_hm_pv = eir(got_ra_pv, tmpl_hm_pv, _hmv, hm_pv)
-    got_and_tr = mp(apply_thm(and_intro(Exists(tr_pv, op_tr_pv), got_ex_hm_pv.sequent.right[0], []), [],
-        Exists(tr_pv, op_tr_pv),
-        Implies(got_ex_hm_pv.sequent.right[0], And(Exists(tr_pv, op_tr_pv), got_ex_hm_pv.sequent.right[0])),
-        ax(Exists(tr_pv, op_tr_pv))), got_ex_hm_pv, got_ex_hm_pv.sequent.right[0],
-        And(Exists(tr_pv, op_tr_pv), got_ex_hm_pv.sequent.right[0]))
-    tmpl_y_pv = And(Exists(tr_pv, OrdPair(tr_pv, z, _yv)),
-        Exists(_hmv, And(RecDef(_hmv, pv_m, sfv, w), Apply(_hmv, pv_n, _yv))))
-    got_ex_y_pv = eir(got_and_tr, tmpl_y_pv, _yv, y_pv)
-    got_and_inner = mp(apply_thm(and_intro(pv_inner, got_ex_y_pv.sequent.right[0], []), [],
-        pv_inner, Implies(got_ex_y_pv.sequent.right[0], And(pv_inner, got_ex_y_pv.sequent.right[0])),
-        ax(pv_inner)), got_ex_y_pv, got_ex_y_pv.sequent.right[0],
-        And(pv_inner, got_ex_y_pv.sequent.right[0]))
-    combined_body = got_and_inner.sequent.right[0]
-    got_ex_n_pv = eir(got_and_inner, combined_body, pv_n, pv_n)
-    got_ex_mn_pv = eir(got_ex_n_pv, Exists(pv_n, combined_body), pv_m, pv_m)
-    print(f'eel prov: got_ex_mn_pv right = {got_ex_mn_pv.sequent.right[0]}')
-    print(f'eel prov: same as z_formula = {same(got_ex_mn_pv.sequent.right[0], z_formula)}')
-
-    # eel vars from provider left, generic loop
-    for var_p, name_p in [(d_pv,'d'),(tr_pv,'tr'),(hm_pv,'hm'),(y_pv,'y'),(pv_n,'n'),(pv_m,'m')]:
-        vfs_p = [f for f in got_ex_mn_pv.sequent.left
-            if _var_free_in_sequent(var_p, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-        if not vfs_p:
-            continue
-        cp = vfs_p[0]
-        for f in vfs_p[1:]:
-            got_ex_mn_pv = mk_and_on_left(got_ex_mn_pv, cp, f)
-            cp = And(cp, f)
-        got_ex_mn_pv = eel(got_ex_mn_pv, cp, var_p)
-        print(f'eel prov {name_p}: done')
-
-    # Cut ∃m.∃n.pv_inner with got_prod_body_pv
-    for f in list(got_ex_mn_pv.sequent.left):
-        if not isinstance(f, zfc.ZFCAxiom) and same(f, got_prod_body_pv.sequent.right[0]):
-            got_ex_mn_pv = cut(got_ex_mn_pv, f, got_prod_body_pv)
-            print(f'eel prov: cut prod_body done')
-            break
-
-    # Check z on provider left
-    z_pv_left = [f for f in got_ex_mn_pv.sequent.left
-        if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-    print(f'eel prov: z free on left = {len(z_pv_left)}')
-    for f in z_pv_left:
+    # eel y_b FIRST (OrdPair(triple,z,y) is inside pf_backward — no z leak)
+    y_fs = [f for f in proof.sequent.left
+        if _var_free_in_sequent(y_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    print(f'eel y: {len(y_fs)} formulas')
+    for f in y_fs:
         print(f'  {f}')
+    if y_fs:
+        cy = y_fs[0]
+        for f in y_fs[1:]:
+            proof = mk_and_on_left(proof, cy, f)
+            cy = And(cy, f)
+        proof = eel(proof, cy, y_b)
+        proof = cut(proof, Exists(y_b, cy), got_ex_app_hm)
+        print(f'eel y: done')
 
-    # Cut main proof's z_formula with provider
-    proof = cut(proof, z_formula, got_ex_mn_pv)
-    print(f'eel: cut z_formula done')
+    # eel d_hm_b (entered from got_ex_app_hm cut above)
+    d_fs = [f for f in proof.sequent.left
+        if _var_free_in_sequent(d_hm_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    print(f'eel d: {len(d_fs)} formulas')
+    if d_fs:
+        cd = d_fs[0]
+        for f in d_fs[1:]:
+            proof = mk_and_on_left(proof, cd, f)
+            cd = And(cd, f)
+        proof = eel(proof, cd, d_hm_b)
+        proof = cut(proof, Exists(d_hm_b, cd), got_de)
+        print(f'eel d: done')
 
-    # Now discharge In(z,prod)
-    if not any(same(In(z, prod_var), f) for f in proof.sequent.left):
-        proof = wl(proof, In(z, prod_var))
+    # eel hm_b
+    hm_fs = [f for f in proof.sequent.left
+        if _var_free_in_sequent(hm_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    print(f'eel hm: {len(hm_fs)} formulas')
+    if hm_fs:
+        chm = hm_fs[0]
+        for f in hm_fs[1:]:
+            proof = mk_and_on_left(proof, chm, f)
+            chm = And(chm, f)
+        proof = eel(proof, chm, hm_b)
+        # Cut with ∃hm from EU
+        got_ex_rec = eir(got_rec_b, rec_hm_b, hm_b, hm_b)
+        got_ex_rec = eel(got_ex_rec, eu_body, hm_b)
+        got_ex_rec = cut(got_ex_rec, eu.expand(), got_rfem)
+        proof = cut(proof, Exists(hm_b, chm), got_ex_rec)
+        print(f'eel hm: done')
+
+    # eel n_b, m_b from inner_b
+    n_fs = [f for f in proof.sequent.left
+        if _var_free_in_sequent(n_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    print(f'eel n: {len(n_fs)} formulas')
+    if n_fs:
+        cn = n_fs[0]
+        for f in n_fs[1:]:
+            proof = mk_and_on_left(proof, cn, f)
+            cn = And(cn, f)
+        proof = eel(proof, cn, n_b)
+
+    m_fs = [f for f in proof.sequent.left
+        if _var_free_in_sequent(m_b, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+    print(f'eel m: {len(m_fs)} formulas')
+    if m_fs:
+        cm = m_fs[0]
+        for f in m_fs[1:]:
+            proof = mk_and_on_left(proof, cm, f)
+            cm = And(cm, f)
+        proof = eel(proof, cm, m_b)
+        proof = cut(proof, Exists(m_b, cm), got_prod_body)
+        print(f'eel m: done')
+
+    # Discharge In(z, prod_var)
+    proof = wl(proof, In(z, prod_var))
     imp_bwd = Implies(In(z, prod_var), proof.sequent.right[0])
     left_final = [f for f in proof.sequent.left if not same(f, In(z, prod_var))]
     proof = Proof(Sequent(left_final, [imp_bwd]), 'implies_right', [proof], principal=imp_bwd)
-    print(f'eel: final right = {proof.sequent.right[0]}')
 
     # Check z on left
-    z_final = [f for f in proof.sequent.left
+    z_left = [f for f in proof.sequent.left
         if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-    print(f'eel: z free in {len(z_final)} left formulas')
+    print(f'final: z free in {len(z_left)} left formulas')
+    print(f'final: right = {proof.sequent.right[0]}')
+    print(f'final: left:')
+    for i, f in enumerate(proof.sequent.left):
+        if not isinstance(f, zfc.ZFCAxiom):
+            print(f'  [{i}] {f}')
 
     proof.name = 'pf_dom_eq_bwd'
     return proof
