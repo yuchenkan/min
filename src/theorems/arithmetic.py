@@ -3384,6 +3384,187 @@ def pf_dom_eq_fwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     return proof_fwd
 
 
+def pf_backward(hv, w, sfv, pv_ww, pv_wwxw):
+    """Backward bridge: from Recursive info, build Apply(hv,pair,val).
+
+    hv, w: free in right. sfv, pv_ww, pv_wwxw: free in left only.
+
+    [char_hv, prod_ww, prod_wwxw, sf_all, Omega(w), Pairing, axioms]
+    |- ∀m,n,val,pair,hm. In(m,w) → In(n,w) → In(val,w) →
+       OrdPair(pair,m,n) → Recursive(hm,m,sf,w) → Apply(hm,n,val) →
+       Apply(hv,pair,val)
+
+    Internally builds OrdPair(triple,pair,val), Product membership,
+    phi2 witness, Separation backward. All internal vars (triple, etc.)
+    closed inside the theorem."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_mp, iff_mp_rev)
+    from theorems.sets import ordpair_exists, product_in_intro
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef)
+    from vocab.ordpair import OrdPair
+    from vocab.omega import Omega
+    from vocab.sets import Empty, Product
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Eq, And, Iff, Exists
+    import core.zfc as zfc
+
+    omega_w = Omega(w)
+
+    # Reconstruct phi2 and char_hv
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
+    _mv = Var(postfix='_m'); _nv = Var(postfix='_n'); _yv = Var(postfix='_y')
+    _pairv = Var(postfix='_pair'); _hmv = Var(postfix='_hm')
+    _rec_hm = RecDef(_hmv, _mv, sfv, w)
+    def phi2(x):
+        return Exists(_mv, And(In(_mv, w),
+            Exists(_nv, Exists(_yv, Exists(_pairv,
+                And(OrdPair(_pairv, _mv, _nv),
+                And(OrdPair(x, _pairv, _yv),
+                Exists(_hmv, And(_rec_hm, Apply(_hmv, _nv, _yv))))))))))
+    _xv = Var(postfix='_xv')
+    prod_ww = Product(pv_ww, w, w)
+    prod_wwxw = Product(pv_wwxw, pv_ww, w)
+    char_hv = Forall(_xv, Iff(In(_xv, hv), And(In(_xv, pv_wwxw), phi2(_xv))))
+    pii = product_in_intro()
+
+    # Universally quantified variables
+    m_v = Var(postfix='_mb')
+    n_v = Var(postfix='_nb')
+    val_v = Var(postfix='_vl')
+    pair_v = Var(postfix='_pr')
+    hm_v = Var(postfix='_hm')
+
+    in_m_w = In(m_v, w)
+    in_n_w = In(n_v, w)
+    in_val_w = In(val_v, w)
+    op_pair = OrdPair(pair_v, m_v, n_v)
+    rec_hm = RecDef(hm_v, m_v, sfv, w)
+    app_hm = Apply(hm_v, n_v, val_v)
+    app_hv_target = Apply(hv, pair_v, val_v)
+
+    # === Product membership: In(pair_v, pv_ww) ===
+    got_pair_ww = apply_thm(pii, [pv_ww, w, w, m_v, n_v, pair_v])
+    got_pair_ww = mp(got_pair_ww, ax(prod_ww), prod_ww, got_pair_ww.sequent.right[0].right)
+    got_pair_ww = mp(got_pair_ww, ax(in_m_w), in_m_w, got_pair_ww.sequent.right[0].right)
+    got_pair_ww = mp(got_pair_ww, ax(in_n_w), in_n_w, got_pair_ww.sequent.right[0].right)
+    got_pair_ww = mp(got_pair_ww, ax(op_pair), op_pair, In(pair_v, pv_ww))
+    print(f'pf_backward: In(pair,pv_ww) = {got_pair_ww.sequent.right[0]}')
+
+    # === OrdPair(triple, pair_v, val_v) from ordpair_exists ===
+    triple = Var(postfix='_tr')
+    op_triple = OrdPair(triple, pair_v, val_v)
+    got_ex_triple = apply_thm(ordpair_exists(), [pair_v, val_v],
+        concl=Exists(triple, op_triple))
+
+    # === In(triple, pv_wwxw) ===
+    got_tr_in = apply_thm(pii, [pv_wwxw, pv_ww, w, pair_v, val_v, triple])
+    got_tr_in = mp(got_tr_in, ax(prod_wwxw), prod_wwxw, got_tr_in.sequent.right[0].right)
+    got_tr_in = mp(got_tr_in, got_pair_ww, In(pair_v, pv_ww), got_tr_in.sequent.right[0].right)
+    got_tr_in = mp(got_tr_in, ax(in_val_w), in_val_w, got_tr_in.sequent.right[0].right)
+    got_tr_in = mp(got_tr_in, ax(op_triple), op_triple, In(triple, pv_wwxw))
+    print(f'pf_backward: In(triple,pv_wwxw) = {got_tr_in.sequent.right[0]}')
+
+    # === phi2(triple) witness ===
+    got_ra = mp(apply_thm(and_intro(rec_hm, app_hm, []), [],
+        rec_hm, Implies(app_hm, And(rec_hm, app_hm)),
+        ax(rec_hm)), ax(app_hm), app_hm, And(rec_hm, app_hm))
+    tmpl_hm = And(RecDef(_hmv, m_v, sfv, w), Apply(_hmv, n_v, val_v))
+    got_ex_hm = eir(got_ra, tmpl_hm, _hmv, hm_v)
+    got_and_op = mp(apply_thm(and_intro(op_triple, got_ex_hm.sequent.right[0], []), [], op_triple,
+        Implies(got_ex_hm.sequent.right[0], And(op_triple, got_ex_hm.sequent.right[0])),
+        ax(op_triple)), got_ex_hm, got_ex_hm.sequent.right[0],
+        And(op_triple, got_ex_hm.sequent.right[0]))
+    got_and_ops = mp(apply_thm(and_intro(op_pair, got_and_op.sequent.right[0], []), [], op_pair,
+        Implies(got_and_op.sequent.right[0], And(op_pair, got_and_op.sequent.right[0])),
+        ax(op_pair)), got_and_op, got_and_op.sequent.right[0],
+        And(op_pair, got_and_op.sequent.right[0]))
+    tmpl_pair = And(OrdPair(_pairv, m_v, n_v), And(OrdPair(triple, _pairv, val_v),
+        Exists(_hmv, And(RecDef(_hmv, m_v, sfv, w), Apply(_hmv, n_v, val_v)))))
+    got_ex_pair = eir(got_and_ops, tmpl_pair, _pairv, pair_v)
+    tmpl_yv = Exists(_pairv, And(OrdPair(_pairv, m_v, n_v),
+        And(OrdPair(triple, _pairv, _yv),
+            Exists(_hmv, And(RecDef(_hmv, m_v, sfv, w), Apply(_hmv, n_v, _yv))))))
+    got_ex_y = eir(got_ex_pair, tmpl_yv, _yv, val_v)
+    tmpl_nv = Exists(_yv, Exists(_pairv, And(OrdPair(_pairv, m_v, _nv),
+        And(OrdPair(triple, _pairv, _yv),
+            Exists(_hmv, And(RecDef(_hmv, m_v, sfv, w), Apply(_hmv, _nv, _yv)))))))
+    got_ex_n = eir(got_ex_y, tmpl_nv, _nv, n_v)
+    got_and_m = mp(apply_thm(and_intro(in_m_w, got_ex_n.sequent.right[0], []), [], in_m_w,
+        Implies(got_ex_n.sequent.right[0], And(in_m_w, got_ex_n.sequent.right[0])),
+        ax(in_m_w)), got_ex_n, got_ex_n.sequent.right[0],
+        And(in_m_w, got_ex_n.sequent.right[0]))
+    tmpl_mv = And(In(_mv, w), Exists(_nv, Exists(_yv, Exists(_pairv,
+        And(OrdPair(_pairv, _mv, _nv),
+        And(OrdPair(triple, _pairv, _yv),
+            Exists(_hmv, And(RecDef(_hmv, _mv, sfv, w), Apply(_hmv, _nv, _yv)))))))))
+    got_phi2 = eir(got_and_m, tmpl_mv, _mv, m_v)
+    print(f'pf_backward: phi2 same = {same(got_phi2.sequent.right[0], phi2(triple))}')
+
+    # === Separation backward ===
+    all_ctx = list(got_tr_in.sequent.left)
+    for f in got_phi2.sequent.left:
+        if not any(same(f, g) for g in all_ctx):
+            all_ctx.append(f)
+    got_and_bp = mp(apply_thm(and_intro(In(triple, pv_wwxw), got_phi2.sequent.right[0], []), [],
+        In(triple, pv_wwxw),
+        Implies(got_phi2.sequent.right[0], And(In(triple, pv_wwxw), got_phi2.sequent.right[0])),
+        weaken_to(got_tr_in, all_ctx)),
+        weaken_to(got_phi2, all_ctx), got_phi2.sequent.right[0],
+        And(In(triple, pv_wwxw), got_phi2.sequent.right[0]))
+    got_char = apply_thm(ax(char_hv), [triple])
+    iff_ch = got_char.sequent.right[0]
+    got_rev = apply_thm(iff_mp_rev(iff_ch.left, iff_ch.right, []), [],
+        iff_ch, Implies(iff_ch.right, iff_ch.left), got_char)
+    got_in_h = mp(got_rev, got_and_bp, iff_ch.right, In(triple, hv))
+
+    # === Apply(hv, pair_v, val_v) ===
+    got_and_app = mp(apply_thm(and_intro(op_triple, In(triple, hv), []), [], op_triple,
+        Implies(In(triple, hv), And(op_triple, In(triple, hv))),
+        ax(op_triple)), got_in_h, In(triple, hv), And(op_triple, In(triple, hv)))
+    app_exp = app_hv_target.expand()
+    p_bound = app_exp.var
+    got_eir_app = eir(got_and_app, app_exp.body, p_bound, triple)
+    got_apply = cut(ax(app_hv_target), app_hv_target, got_eir_app)
+    print(f'pf_backward: Apply(hv,pair,val) = {got_apply.sequent.right[0]}')
+
+    # === eel triple (internal, not visible to caller) ===
+    got_apply = eel(got_apply, op_triple, triple)
+    got_apply = cut(got_apply, Exists(triple, op_triple), got_ex_triple)
+    print(f'pf_backward: eel triple done')
+
+    # === Discharge hypotheses, close ∀ ===
+    proof = got_apply
+    for hyp in [app_hm, rec_hm, op_pair, in_val_w, in_n_w, in_m_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [hm_v, pair_v, val_v, n_v, m_v]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    print(f'pf_backward: result right = {proof.sequent.right[0]}')
+    print(f'pf_backward: left:')
+    for i, f in enumerate(proof.sequent.left):
+        if not isinstance(f, zfc.ZFCAxiom):
+            print(f'  [{i}] {f}')
+
+    proof.name = 'pf_backward'
+    return proof
+
+
 def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
     """Backward direction: In(z,prod) -> In(z,d).
     6 steps, each printed.
