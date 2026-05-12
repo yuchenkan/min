@@ -6019,10 +6019,111 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     got_ex = cut(got_ex, Exists(inner_new, op_inner_new), got_ex_inner)
     # [...] |- ∃ca_new. And(TMConfig(ca_new,q1,sa,tape2), TMStep(delta,ca,ca_new))
 
-    got_ex.name = 'phase2_tmstep'
-    # TODO: extend trace, add TapeUpdate clause, package as Phase2P
-    # For now, return the TMStep result for testing
-    return got_ex
+    # got_ex: [...] |- ∃ca_new. And(TMConfig(ca_new,q1,sa,tape2), TMStep(delta,ca,ca_new))
+    # Extract TMConfig and TMStep from the existential
+    and_cfg_step = And(cfg_new, TMStep(delta, ca, ca_new))
+    got_cfg_from_and = apply_thm(and_elim_left(cfg_new, TMStep(delta, ca, ca_new), []), [],
+        and_cfg_step, cfg_new, ax(and_cfg_step))
+    got_tmstep_from_and = apply_thm(and_elim_right(cfg_new, TMStep(delta, ca, ca_new), []), [],
+        and_cfg_step, TMStep(delta, ca, ca_new), ax(and_cfg_step))
+
+    # === 6. Extend trace ===
+    tra_new = Var(postfix='trn2')
+    got_extend = phase1_step_extend_trace(
+        tra, tra_new, sa, ca_new, z, c0, a, delta, ca, ja, sja, cja, cja1, w)
+    # Cut P1(a) body components from extend
+    app_f = head_f  # Apply(tra, a, ca)
+    for formula, proof in [(func_f, got_func), (dom_f, got_dom),
+                           (base_f, got_base), (app_f, got_head), (sv_f, got_sv)]:
+        while any(same(formula, f) for f in got_extend.sequent.left):
+            got_extend = cut(got_extend, formula, proof)
+    # Cut TMStep
+    tmstep_ca = TMStep(delta, ca, ca_new)
+    if any(same(tmstep_ca, f) for f in got_extend.sequent.left):
+        got_extend = cut(got_extend, tmstep_ca, got_tmstep_from_and)
+
+    # got_extend: [..., body_p1, and_cfg_step, Succ, Omega, In(a,w)] |- ∃tra_new. And(Func, And(dom, And(base, And(head, sv))))
+
+    # === 7. Build Phase2P body ===
+    # Phase2P = ∃tra.∃ca.∃tape2. And(Func, And(dom, And(cfg_q1, And(base, And(head, And(sv, TapeUpdate))))))
+    # extend gives: ∃tra_new. And(Func, And(dom, And(base, And(head, sv))))
+    # Need to insert cfg_new and TapeUpdate
+
+    ext_body = got_extend.sequent.right[0].body  # inside ∃tra_new
+    got_func_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
+        ext_body, ext_body.left, ax(ext_body))
+    rest_ext = ext_body.right
+    got_rest_ext = apply_thm(and_elim_right(ext_body.left, rest_ext, []), [],
+        ext_body, rest_ext, ax(ext_body))
+    dom_ext = rest_ext.left
+    rest2_ext = rest_ext.right
+    got_dom_ext = apply_thm(and_elim_left(dom_ext, rest2_ext, []), [],
+        rest_ext, dom_ext, got_rest_ext)
+    got_rest2_ext = apply_thm(and_elim_right(dom_ext, rest2_ext, []), [],
+        rest_ext, rest2_ext, got_rest_ext)
+    # rest2_ext = And(base, And(head, sv))
+
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    # Add TapeUpdate to the end: And(base, And(head, And(sv, TapeUpdate)))
+    base_ext = rest2_ext.left
+    rest3_ext = rest2_ext.right
+    got_base_ext = apply_thm(and_elim_left(base_ext, rest3_ext, []), [],
+        rest2_ext, base_ext, got_rest2_ext)
+    got_rest3_ext = apply_thm(and_elim_right(base_ext, rest3_ext, []), [],
+        rest2_ext, rest3_ext, got_rest2_ext)
+    head_ext = rest3_ext.left
+    sv_ext = rest3_ext.right
+    got_head_ext = apply_thm(and_elim_left(head_ext, sv_ext, []), [],
+        rest3_ext, head_ext, got_rest3_ext)
+    got_sv_ext = apply_thm(and_elim_right(head_ext, sv_ext, []), [],
+        rest3_ext, sv_ext, got_rest3_ext)
+
+    got_tu = ax(tu_tape2)
+    got_sv_tu = mk_and(got_sv_ext, got_tu)
+    got_head_sv_tu = mk_and(got_head_ext, got_sv_tu)
+    got_base_rest = mk_and(got_base_ext, got_head_sv_tu)
+    got_cfg_rest = mk_and(got_cfg_from_and, got_base_rest)
+    got_dom_rest = mk_and(got_dom_ext, got_cfg_rest)
+    got_full = mk_and(got_func_ext, got_dom_rest)
+
+    # === 8. Close existentials ===
+    # eir: tra_new first, then ca_new, then tape2
+    full_body = got_full.sequent.right[0]
+
+    # eir tape2 (innermost ∃)
+    body_for_tape2 = full_body  # tape2 is free, bind it
+    got_ex_t2 = eir(got_full, body_for_tape2, tape2, tape2)
+
+    # eir ca_new
+    body_for_ca = got_ex_t2.sequent.right[0].subst(ca_new, ca)
+    got_ex_ca2 = eir(got_ex_t2, body_for_ca, ca, ca_new)
+
+    # eir tra_new
+    body_for_tra = got_ex_ca2.sequent.right[0].subst(tra_new, tra)
+    got_ex_tra = eir(got_ex_ca2, body_for_tra, tra, tra_new)
+
+    # eel ext_body/tra_new from left, cut with got_extend
+    got_ex_tra = eel(got_ex_tra, ext_body, tra_new)
+    got_ex_tra = cut(got_ex_tra, Exists(tra_new, ext_body), got_extend)
+
+    # eel and_cfg_step/ca_new from left, cut with got_ex
+    if any(same(and_cfg_step, f) for f in got_ex_tra.sequent.left):
+        got_ex_tra = eel(got_ex_tra, and_cfg_step, ca_new)
+        got_ex_tra = cut(got_ex_tra, Exists(ca_new, and_cfg_step), got_ex)
+
+    # eel body_p1/ca/tra from left, cut with got_P1
+    p1_formula = got_P1.sequent.right[0]
+    if any(same(body_p1, f) for f in got_ex_tra.sequent.left):
+        got_ex_tra = eel(got_ex_tra, body_p1, ca)
+        got_ex_tra = eel(got_ex_tra, Exists(ca, body_p1), tra)
+        got_ex_tra = cut(got_ex_tra, p1_formula, got_P1)
+
+    got_ex_tra.name = 'phase2'
+    return got_ex_tra
 
 
 def tm_add_correct():
