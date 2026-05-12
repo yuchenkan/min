@@ -52,23 +52,57 @@ class Recursive:
         return f'Recursive({self.func}, {self.init}, {self.step}, {self.omega})'
 
 
+class PlusFunc:
+    """PlusFunc(h, w): h is the addition function over omega w.
+    h : ω×ω → ω with h(⟨m,0⟩) = m and h(⟨m,S(n)⟩) = S(h(⟨m,n⟩)).
+
+    And(Function(h),
+    And(∀m∈w. ∀z. Empty(z) → ∀pair. OrdPair(pair,m,z) → Apply(h,pair,m),
+        ∀m∈w. ∀n∈w. ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h,pair,p) →
+            ∀sn. Succ(sn,n) → ∀sp. Succ(sp,p) →
+                ∀pair2. OrdPair(pair2,m,sn) → Apply(h,pair2,sp)))"""
+    __match_args__ = ('func', 'omega')
+    def __init__(self, h, w):
+        self.func = h; self.omega = w
+    def expand(self):
+        from vocab.ordpair import OrdPair
+        m, n, z, p = Var(postfix='_m'), Var(postfix='_n'), Var(postfix='_z'), Var(postfix='_p')
+        pair, pair2 = Var(postfix='_pair'), Var(postfix='_pair2')
+        sn, sp = Var(postfix='_sn'), Var(postfix='_sp')
+        base = Forall(m, Implies(In(m, self.omega),
+            Forall(z, Implies(Empty(z),
+                Forall(pair, Implies(OrdPair(pair, m, z),
+                    Apply(self.func, pair, m)))))))
+        step = Forall(m, Implies(In(m, self.omega),
+            Forall(n, Implies(In(n, self.omega),
+                Forall(pair, Implies(OrdPair(pair, m, n),
+                    Forall(p, Implies(Apply(self.func, pair, p),
+                        Forall(sn, Implies(Successor(sn, n),
+                            Forall(sp, Implies(Successor(sp, p),
+                                Forall(pair2, Implies(OrdPair(pair2, m, sn),
+                                    Apply(self.func, pair2, sp)))))))))))))))
+        return And(Function(self.func), And(base, step))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return PlusFunc(r(self.func), r(self.omega))
+    def __str__(self):
+        return f'PlusFunc({self.func}, {self.omega})'
+
+
 class Plus:
     """Plus(m, n, p): m + n = p.
-    Forall w, h, sf. Omega(w) -> sf_props(sf,w) -> Recursive(h, m, sf, w) -> Apply(h, n, p).
-    sf_props(sf,w) = succ_char(sf,w) /\\ Function(sf) /\\ dom_sub(sf,w)."""
+    ∀w, h. Omega(w) → PlusFunc(h, w) → ∀pair. OrdPair(pair, m, n) → Apply(h, pair, p).
+    For any addition function h, h(⟨m,n⟩) = p."""
     __match_args__ = ('left', 'right', 'result')
     def __init__(self, m, n, p):
         self.left = m; self.right = n; self.result = p
     def expand(self):
-        w, h, sf, x, y, xd, yd = Var(), Var(), Var(), Var(), Var(), Var(), Var()
-        succ_char = Forall(x, Implies(In(x, w),
-            Forall(y, Iff(Apply(sf, x, y), Successor(y, x)))))
-        sf_all = And(succ_char, And(Function(sf),
-            Forall(xd, Implies(Exists(yd, Apply(sf, xd, yd)), In(xd, w)))))
+        from vocab.ordpair import OrdPair
+        w, h, pair = Var(postfix='_w'), Var(postfix='_h'), Var(postfix='_pair')
         return Forall(w, Implies(Omega(w),
-            Forall(h, Forall(sf, Implies(sf_all,
-                Implies(Recursive(h, self.left, sf, w),
-                    Apply(h, self.right, self.result)))))))
+            Forall(h, Implies(PlusFunc(h, w),
+                Forall(pair, Implies(OrdPair(pair, self.left, self.right),
+                    Apply(h, pair, self.result)))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return Plus(r(self.left), r(self.right), r(self.result))
