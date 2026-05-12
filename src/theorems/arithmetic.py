@@ -3579,7 +3579,9 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     got_in_z_d = mp(got_dom_rev, got_eir_bwd, dom_ex_y, In(z, d_var))
     print(f'pf_dom_eq bwd: In(z,d) done')
 
-    # === eel closures for backward ===
+    # === eel closures for backward: clean approach ===
+    # Strategy: discharge ALL z-containing formulas via implies_right,
+    # then forall_right z. Then eel the remaining m_b,n_b etc.
     proof_bwd = got_in_z_d
 
     def dump(label, p):
@@ -3593,430 +3595,227 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
                 if fv:
                     print(f'  [{i}] {",".join(fv)}: {f}')
 
-    dump('eel_0', proof_bwd)
+    dump('bwd_eel0', proof_bwd)
 
-    # Step 1: Discharge In(z,prod) early
-    if not any(same(In(z, prod_var), f) for f in proof_bwd.sequent.left):
-        proof_bwd = wl(proof_bwd, In(z, prod_var))
-    imp_bwd_inner = Implies(In(z, prod_var), proof_bwd.sequent.right[0])
-    left_tmp = [f for f in proof_bwd.sequent.left if not same(f, In(z, prod_var))]
-    proof_bwd = Proof(Sequent(left_tmp, [imp_bwd_inner]), 'implies_right', [proof_bwd], principal=imp_bwd_inner)
-    dump('eel_1', proof_bwd)
-
-    # Step 2: eel each var, skip cuts
-    for var, name in [(d_hm_b,'d'),(triple_b,'tr'),(hm_b,'hm'),(y_b,'y'),(n_b,'n'),(m_b,'m')]:
+    # Step 1: eel d_hm_b, triple_b, hm_b, y_b (non-z, non-Product vars)
+    for var, name in [(d_hm_b,'d'),(triple_b,'tr'),(hm_b,'hm'),(y_b,'y')]:
         vfs = [f for f in proof_bwd.sequent.left
             if _var_free_in_sequent(var, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
         if not vfs:
-            print(f'eel_{name}: 0 formulas, skip')
+            print(f'bwd_eel {name}: 0, skip')
             continue
-        print(f'eel_{name}: {len(vfs)} formulas')
+        print(f'bwd_eel {name}: {len(vfs)} formulas')
         combined = vfs[0]
         for f in vfs[1:]:
             proof_bwd = mk_and_on_left(proof_bwd, combined, f)
             combined = And(combined, f)
         proof_bwd = eel(proof_bwd, combined, var)
-        print(f'eel_{name}: done')
+        print(f'bwd_eel {name}: done')
 
-    dump('eel_2', proof_bwd)
+    dump('bwd_eel1 after d/tr/hm/y', proof_bwd)
 
-    # Step 3: Cut z-free formula with provider from In(z,prod)
+    # Step 2: Discharge ALL z-containing formulas from left.
+    # These are: inner_b (with z from OrdPair(z,m,n)) and the extras ∃ chain (with z from OrdPair(triple,z,y)).
+    # After discharge, z is only on the right (inside Implies). forall_right z works.
     z_fs = [f for f in proof_bwd.sequent.left
         if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-    print(f'eel_z: {len(z_fs)} formulas with z free')
+    print(f'bwd_eel2: z-free formulas = {len(z_fs)}')
     for f in z_fs:
         print(f'  {f}')
     if z_fs:
-        z_formula = z_fs[0]
-        print(f'eel_z: building provider for z_formula')
-        # Provider: [In(z,prod), Product, sf_all, Omega, axioms] |- z_formula
-        # 1. Product fwd → ∃m.∃n. inner_b
-        got_prod_z_pv = apply_thm(ax(prod_hyp), [z])
-        iff_prod_pv = got_prod_z_pv.sequent.right[0]
-        got_prod_fwd_pv = apply_thm(iff_mp(iff_prod_pv.left, iff_prod_pv.right, []), [],
-            iff_prod_pv, Implies(iff_prod_pv.left, iff_prod_pv.right), got_prod_z_pv)
-        got_prod_body_pv = mp(got_prod_fwd_pv, ax(In(z, prod_var)), In(z, prod_var), iff_prod_pv.right)
-        print(f'eel_z prov: got_prod_body right = {got_prod_body_pv.sequent.right[0]}')
-        # 2. Open m_b, n_b: inner_b on left
-        # inner_b comes from got_prod_body_pv's ∃. Use same m_b, n_b vars.
-        # The ∃ vars are from Product.expand() — they're the same structure.
-        pv_ex_m = got_prod_body_pv.sequent.right[0]
-        pv_m = pv_ex_m.var
-        pv_ex_n = pv_ex_m.body
-        pv_n = pv_ex_n.var
-        pv_inner = pv_ex_n.body  # And(In(pv_m,w), And(In(pv_n,w), OrdPair(z,pv_m,pv_n)))
-        # 3. Derive extras from pv_inner: rec_for_each_m → domain → ordpair_exists
-        got_in_m_pv = apply_thm(and_elim_left(pv_inner.left, pv_inner.right, []), [],
-            pv_inner, pv_inner.left, ax(pv_inner))
-        got_in_n_pv_op = apply_thm(and_elim_right(pv_inner.left, pv_inner.right, []), [],
-            pv_inner, pv_inner.right, ax(pv_inner))
-        got_in_n_pv = apply_thm(and_elim_left(pv_inner.right.left, pv_inner.right.right, []), [],
-            pv_inner.right, pv_inner.right.left, got_in_n_pv_op)
-        print(f'eel_z prov: In(pv_m,w) = {got_in_m_pv.sequent.right[0]}')
-        print(f'eel_z prov: In(pv_n,w) = {got_in_n_pv.sequent.right[0]}')
-        # rec_for_each_m
-        rfem_pv = rec_for_each_m()
-        got_rfem_pv = apply_thm(rfem_pv, [w, sfv, pv_m])
-        while isinstance(got_rfem_pv.sequent.right[0], Implies):
-            cur = got_rfem_pv.sequent.right[0]
-            hyp = cur.left
-            if same(hyp, In(pv_m, w)):
-                got_rfem_pv = mp(got_rfem_pv, got_in_m_pv, hyp, cur.right)
-            else:
-                got_rfem_pv = mp(got_rfem_pv, ax(hyp), hyp, cur.right)
-        eu_pv = got_rfem_pv.sequent.right[0]
-        eu_pv_exp = eu_pv.expand()
-        hm_pv = eu_pv_exp.var
-        eu_pv_body = eu_pv_exp.body
-        rec_hm_pv = RecDef(hm_pv, pv_m, sfv, w)
-        got_rec_pv = apply_thm(and_elim_left(eu_pv_body.left, eu_pv_body.right, []), [],
-            eu_pv_body, eu_pv_body.left, ax(eu_pv_body))
-        print(f'eel_z prov: Rec = {got_rec_pv.sequent.right[0]}')
-        # domain → ∃y. Apply(hm,n,y)
-        _, got_dom_hm_pv, _, _, _ = recursive_elim(hm_pv, pv_m, sfv, w)
-        de_pv = domain_exists()
-        got_de_pv = apply_thm(de_pv, [hm_pv])
-        d_pv = got_de_pv.sequent.right[0].var
-        dom_hm_pv = DomainDef(hm_pv, d_pv)
-        got_deq_pv = apply_thm(got_dom_hm_pv, [d_pv])
-        got_deq_pv = mp(got_deq_pv, ax(dom_hm_pv), dom_hm_pv, Eq(d_pv, w))
-        got_eq_w_d_pv = apply_thm(es, [d_pv, w])
-        got_eq_w_d_pv = mp(got_eq_w_d_pv, got_deq_pv, Eq(d_pv, w), Eq(w, d_pv))
-        et_pv = eq_transfer()
-        got_et_pv = apply_thm(et_pv, [w, d_pv, pv_n])
-        got_et_pv = mp(got_et_pv, got_eq_w_d_pv, Eq(w, d_pv), got_et_pv.sequent.right[0].right)
-        iff_et_pv = got_et_pv.sequent.right[0]
-        got_et_fwd_pv = apply_thm(iff_mp(iff_et_pv.left, iff_et_pv.right, []), [],
-            iff_et_pv, Implies(iff_et_pv.left, iff_et_pv.right), got_et_pv)
-        got_in_n_d_pv = mp(got_et_fwd_pv, got_in_n_pv, In(pv_n, w), In(pv_n, d_pv))
-        got_dom_n_pv = apply_thm(ax(dom_hm_pv), [pv_n])
-        iff_dom_pv = got_dom_n_pv.sequent.right[0]
-        got_dom_fwd_pv = apply_thm(iff_mp(iff_dom_pv.left, iff_dom_pv.right, []), [],
-            iff_dom_pv, Implies(iff_dom_pv.left, iff_dom_pv.right), got_dom_n_pv)
-        got_ex_app_pv = mp(got_dom_fwd_pv, got_in_n_d_pv, In(pv_n, d_pv), iff_dom_pv.right)
-        y_pv = got_ex_app_pv.sequent.right[0].var
-        app_hm_pv = Apply(hm_pv, pv_n, y_pv)
-        print(f'eel_z prov: ∃y. Apply = {got_ex_app_pv.sequent.right[0]}')
-        # ordpair_exists for <z, y_pv>
-        tr_pv = Var(postfix='_trpv')
-        op_tr_pv = OrdPair(tr_pv, z, y_pv)
-        got_ex_tr_pv = apply_thm(ordpair_exists(), [z, y_pv], concl=Exists(tr_pv, op_tr_pv))
-        print(f'eel_z prov: ∃triple = {got_ex_tr_pv.sequent.right[0]}')
-        # 4. Combine: same structure as z_formula
-        # Build from inside out, matching z_formula's structure:
-        # And(Rec, Apply) → eir hm → ∃hm. And(Rec,Apply)
-        got_ra_pv = mp(apply_thm(and_intro(rec_hm_pv, app_hm_pv, []), [],
-            rec_hm_pv, Implies(app_hm_pv, And(rec_hm_pv, app_hm_pv)),
-            ax(rec_hm_pv)), ax(app_hm_pv), app_hm_pv, And(rec_hm_pv, app_hm_pv))
-        tmpl_hm_zp = And(RecDef(_hmv, pv_m, sfv, w), Apply(_hmv, pv_n, y_pv))
-        got_ex_hm_pv = eir(got_ra_pv, tmpl_hm_zp, _hmv, hm_pv)
-        # And(∃triple, ∃hm)
-        L_tr = Exists(tr_pv, op_tr_pv)
-        got_and_tr_hm = mp(apply_thm(and_intro(L_tr, got_ex_hm_pv.sequent.right[0], []), [],
-            L_tr, Implies(got_ex_hm_pv.sequent.right[0], And(L_tr, got_ex_hm_pv.sequent.right[0])),
-            ax(L_tr)), got_ex_hm_pv, got_ex_hm_pv.sequent.right[0],
-            And(L_tr, got_ex_hm_pv.sequent.right[0]))
-        # eir y_pv
-        tmpl_y_zp = And(Exists(tr_pv, OrdPair(tr_pv, z, _yv)),
-            Exists(_hmv, And(RecDef(_hmv, pv_m, sfv, w), Apply(_hmv, pv_n, _yv))))
-        got_ex_y_pv = eir(got_and_tr_hm, tmpl_y_zp, _yv, y_pv)
-        # And(inner_b, ∃y)
-        got_and_inner_y = mp(apply_thm(and_intro(pv_inner, got_ex_y_pv.sequent.right[0], []), [],
-            pv_inner, Implies(got_ex_y_pv.sequent.right[0], And(pv_inner, got_ex_y_pv.sequent.right[0])),
-            ax(pv_inner)), got_ex_y_pv, got_ex_y_pv.sequent.right[0],
-            And(pv_inner, got_ex_y_pv.sequent.right[0]))
-        # eir n_b → pv_n, m_b → pv_m
-        combined_body = got_and_inner_y.sequent.right[0]
-        tmpl_n_zp = combined_body  # n_b → pv_n trivial since pv_n IS n in the formula
-        got_ex_n_pv = eir(got_and_inner_y, combined_body, pv_n, pv_n)
-        got_ex_mn_pv = eir(got_ex_n_pv, Exists(pv_n, combined_body), pv_m, pv_m)
-        print(f'eel_z prov: combined right = {got_ex_mn_pv.sequent.right[0]}')
-        print(f'eel_z prov: z_formula = {z_formula}')
-        print(f'eel_z prov: same = {same(got_ex_mn_pv.sequent.right[0], z_formula)}')
-        # 5. eel sources properly:
-        # First eel d,tr,hm,y (non-Product vars). Then discharge extras before eel n,m.
-        for var_p, name_p in [(d_pv,'d'),(tr_pv,'tr'),(hm_pv,'hm'),(y_pv,'y')]:
-            vfs_p = [f for f in got_ex_mn_pv.sequent.left
-                if _var_free_in_sequent(var_p, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-            if not vfs_p:
-                print(f'eel_z prov eel_{name_p}: 0, skip')
-                continue
-            print(f'eel_z prov eel_{name_p}: {len(vfs_p)} formulas')
-            for f in vfs_p:
-                print(f'  {f}')
-            cp = vfs_p[0]
-            for f in vfs_p[1:]:
-                got_ex_mn_pv = mk_and_on_left(got_ex_mn_pv, cp, f)
-                cp = And(cp, f)
-            got_ex_mn_pv = eel(got_ex_mn_pv, cp, var_p)
-            print(f'eel_z prov eel_{name_p}: done')
-        # Now eel n,m from pv_inner, with extras discharged first.
-        # Extras = all non-axiom formulas with pv_n or pv_m free that are NOT pv_inner.
-        extras_pv = [f for f in got_ex_mn_pv.sequent.left
-            if (_var_free_in_sequent(pv_n, Sequent([f], [])) or _var_free_in_sequent(pv_m, Sequent([f], [])))
-            and not same(f, pv_inner) and not isinstance(f, zfc.ZFCAxiom)]
-        print(f'eel_z prov: {len(extras_pv)} extras to discharge before n,m eel')
-        for f in extras_pv:
-            print(f'  {f}')
-        if extras_pv:
-            combined_extras_pv = extras_pv[0]
-            for f in extras_pv[1:]:
-                got_ex_mn_pv = mk_and_on_left(got_ex_mn_pv, combined_extras_pv, f)
-                combined_extras_pv = And(combined_extras_pv, f)
-            imp_extras_pv = Implies(combined_extras_pv, got_ex_mn_pv.sequent.right[0])
-            left_no_extras_pv = [f for f in got_ex_mn_pv.sequent.left if not same(f, combined_extras_pv)]
-            got_ex_mn_pv = Proof(Sequent(left_no_extras_pv, [imp_extras_pv]),
-                'implies_right', [got_ex_mn_pv], principal=imp_extras_pv)
-            print(f'eel_z prov: extras discharged')
-        # Now pv_inner is the only n,m-free formula. eel n,m, cut with got_prod_body_pv.
-        got_ex_mn_pv = eel(got_ex_mn_pv, pv_inner, pv_n)
-        print(f'eel_z prov: eel n done')
-        got_ex_mn_pv = eel(got_ex_mn_pv, Exists(pv_n, pv_inner), pv_m)
-        print(f'eel_z prov: eel m done')
-        ex_mn_inner = Exists(pv_m, Exists(pv_n, pv_inner))
-        print(f'eel_z prov: ex_mn_inner same as got_prod_body_pv.right = {same(ex_mn_inner, got_prod_body_pv.sequent.right[0])}')
-        got_ex_mn_pv = cut(got_ex_mn_pv, ex_mn_inner, got_prod_body_pv)
-        print(f'eel_z prov: cut prod_body done')
-        # Restore extras
-        if extras_pv:
-            got_ex_mn_pv = mp(got_ex_mn_pv, ax(combined_extras_pv), combined_extras_pv,
-                got_ex_mn_pv.sequent.right[0].right)
-            print(f'eel_z prov: extras restored')
-        print(f'eel_z prov: final right = {got_ex_mn_pv.sequent.right[0]}')
-        print(f'eel_z prov: same = {same(got_ex_mn_pv.sequent.right[0], z_formula)}')
-        # Check z on provider left
-        z_pv_left = [f for f in got_ex_mn_pv.sequent.left
+        combined_z = z_fs[0]
+        for f in z_fs[1:]:
+            proof_bwd = mk_and_on_left(proof_bwd, combined_z, f)
+            combined_z = And(combined_z, f)
+        imp_z = Implies(combined_z, proof_bwd.sequent.right[0])
+        left_no_z = [f for f in proof_bwd.sequent.left if not same(f, combined_z)]
+        proof_bwd = Proof(Sequent(left_no_z, [imp_z]), 'implies_right', [proof_bwd], principal=imp_z)
+    dump('bwd_eel2 after z discharge', proof_bwd)
+
+    # Step 3: Now eel n_b, m_b. They are free in the discharged z-formula (inside Implies on right)
+    # AND in other formulas on the left (extras without z).
+    for var, name in [(n_b,'n'),(m_b,'m')]:
+        vfs = [f for f in proof_bwd.sequent.left
+            if _var_free_in_sequent(var, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+        if not vfs:
+            print(f'bwd_eel3 {name}: 0, skip')
+            continue
+        print(f'bwd_eel3 {name}: {len(vfs)} formulas')
+        combined = vfs[0]
+        for f in vfs[1:]:
+            proof_bwd = mk_and_on_left(proof_bwd, combined, f)
+            combined = And(combined, f)
+        proof_bwd = eel(proof_bwd, combined, var)
+        print(f'bwd_eel3 {name}: done')
+
+    dump('bwd_eel3 after n/m', proof_bwd)
+
+    # Step 4: Combine fwd + bwd. proof_bwd right = z_formula → (In(z,prod) → In(z,d)) or similar.
+    # Actually right is: combined_z → (In(z,prod) → In(z,d)) where combined_z has z free.
+    # This is essentially: In(z,prod) ∧ extras(z) → In(z,d).
+    # For iff_intro, I need In(z,prod)→In(z,d). The backward has the extra condition.
+    # But the extra condition follows from In(z,prod)+Product. So:
+    # ∀z. (In(z,prod)→extras) → (extras→(In(z,prod)→In(z,d))) → (In(z,prod)→In(z,d))
+    # This is just modus ponens.
+    # Build In(z,prod)→In(z,d) by chaining In(z,prod)→extras and extras→(In(z,prod)→In(z,d)).
+    # The first chain (In(z,prod)→extras) needs to be derived from Product+sf_all+Omega.
+
+    # Actually: the backward right might be just In(z,prod)→In(z,d) if there were no z_fs!
+    # Or: combined_z → (In(z,prod) → In(z,d)).
+    # Let me check what the right actually is after all the steps.
+    bwd_right = proof_bwd.sequent.right[0]
+    print(f'bwd_eel4: bwd_right = {bwd_right}')
+
+    # If bwd_right is Implies(combined_z, Implies(In(z,prod), In(z,d))):
+    # Build provider for combined_z from In(z,prod):
+    # combined_z is the z-formula from the backward proof (inner_b + extras).
+    # From In(z,prod): Product gives ∃m.∃n.inner_b. Open → inner_b.
+    # From inner_b: derive extras (rec_for_each_m + domain + ordpair_exists).
+    # Combine into combined_z. This IS the provider I already built.
+    # Use got_ex_mn_pv from the provider section.
+    # got_ex_mn_pv: [In(z,prod), Product, sf_all, Omega, axioms, + z_leftover] |- z_formula
+    # The z_leftover on got_ex_mn_pv's left is the problem. But I can chain differently.
+    # From In(z,prod): derive combined_z. mp with bwd_right. Get In(z,prod)→In(z,d).
+    # Then implies_right In(z,prod). forall z. Eq.
+
+    # For now: just combine fwd+bwd with whatever bwd_right is.
+    imp_fwd_f = proof_fwd.sequent.right[0]  # In(z,d) → In(z,prod)
+    imp_bwd_f = bwd_right
+
+    # If bwd_right is simple In(z,prod)→In(z,d):
+    if isinstance(bwd_right, Implies) and same(bwd_right.left, In(z, prod_var)):
+        print(f'bwd_eel4: simple backward, good')
+        imp_bwd = bwd_right
+    else:
+        print(f'bwd_eel4: building In(z,prod)→In(z,d) from combined_z→In(z,d)')
+        # bwd_right = combined_z → In(z,d). m_b,n_b free in combined_z (not on left).
+        # mp with ax(combined_z) → In(z,d). Then eel m_b,n_b from combined_z.
+        # ∃m.∃n.combined_z on left. Cut with got_prod_body-based provider.
+        got_bwd_z = mp(proof_bwd, ax(combined_z), combined_z, In(z, d_var))
+        print(f'bwd_eel4: mp done, right = {got_bwd_z.sequent.right[0]}')
+        # eel n_b, m_b from combined_z on left (m_b,n_b only in combined_z now)
+        for var_e, name_e in [(n_b,'n'),(m_b,'m')]:
+            vfs_e = [f for f in got_bwd_z.sequent.left
+                if _var_free_in_sequent(var_e, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+            if vfs_e:
+                ce = vfs_e[0]
+                for f in vfs_e[1:]:
+                    got_bwd_z = mk_and_on_left(got_bwd_z, ce, f)
+                    ce = And(ce, f)
+                got_bwd_z = eel(got_bwd_z, ce, var_e)
+                print(f'bwd_eel4: eel {name_e} done')
+        # Now: [∃m.∃n.combined_z, axioms, char_hv, ...] |- In(z,d)
+        # ∃m.∃n.combined_z has z free. Also In(z,prod) from ax(combined_z) propagation.
+        # implies_right for In(z,prod) (if on left):
+        if any(same(In(z, prod_var), f) for f in got_bwd_z.sequent.left):
+            imp_tmp = Implies(In(z, prod_var), got_bwd_z.sequent.right[0])
+            left_tmp = [f for f in got_bwd_z.sequent.left if not same(f, In(z, prod_var))]
+            got_bwd_z = Proof(Sequent(left_tmp, [imp_tmp]), 'implies_right', [got_bwd_z], principal=imp_tmp)
+            print(f'bwd_eel4: discharge In(z,prod) done')
+        # ∃m.∃n.combined_z still on left with z. Cut with got_prod_body + extras.
+        # got_prod_body: [In(z,prod), Product, axioms] |- ∃m.∃n.inner_b
+        # From inner_b: derive extras. ∃m.∃n.(inner_b∧extras) = ∃m.∃n.combined_z.
+        # This requires building the extras from inner_b inside the ∃m.∃n scope.
+        # Key insight: the eel produced ∃m.∃n.combined_z from the combined_z on left.
+        # combined_z = And(inner_b, extras). The ∃m.∃n wraps the whole thing.
+        # got_prod_body gives ∃m.∃n.inner_b. I need ∃m.∃n.And(inner_b, extras).
+        # From [inner_b] derive extras: rec_for_each_m + domain + ordpair_exists.
+        # Then And(inner_b, extras). eir m,n → ∃m.∃n.And(inner_b,extras).
+        # eel inner_b from ∃m.∃n.inner_b (via got_prod_body). Cut.
+        # But inner_b has m_b,n_b free. After eel n from inner_b: ∃n.inner_b has m_b free.
+        # eel m: ∃m.∃n.inner_b. Cut with got_prod_body. CLEAN!
+        # The extras derivation uses sf_all+Omega+axioms — no z, no m_b, n_b.
+        # Wait: extras have m_b (from Rec(hm,m_b,...)) and n_b (from Apply(hm,n_b,y)).
+        # So extras DO have m_b, n_b free. After eir m,n: they're bound.
+        # But when building extras from inner_b, m_b,n_b come from inner_b.
+        # The eir m,n binds them in the ∃. The eel m,n from inner_b works because
+        # inner_b is the ONLY m_b,n_b-free formula (extras are already inside the eir result).
+        # No — extras are separate formulas derived from inner_b. They're on the left.
+        # After eir m,n on the RIGHT, extras are still on the left with m_b,n_b free.
+        # Hmm. The issue repeats.
+        # SIMPLEST: just leave ∃m.∃n.combined_z on left. It has z but after implies_right
+        # for In(z,prod), the only z is in the Implies and ∃m.∃n.combined_z.
+        # I'll chain: ∃m.∃n.combined_z follows from In(z,prod)+Product.
+        # So In(z,prod) → ∃m.∃n.combined_z. Combined with ∃m.∃n.combined_z → In(z,d).
+        # This gives In(z,prod) → In(z,d). But I need to formally derive
+        # In(z,prod) → ∃m.∃n.combined_z.
+        # Actually: I ALREADY have [∃m.∃n.combined_z] |- In(z,prod)→In(z,d) on the right.
+        # What I need for forall_right z: z not free on left.
+        # ∃m.∃n.combined_z has z (from OrdPair(z,...) inside).
+        # One more discharge: implies_right ∃m.∃n.combined_z.
+        # Right becomes: ∃m.∃n.combined_z → (In(z,prod)→In(z,d)).
+        # z is free on right (in all 3 parts). Not on left. forall_right z works!
+        # Then: ∀z. ∃m.∃n.combined_z(z) → (In(z,prod)→In(z,d)).
+        # Instantiate z. Derive ∃m.∃n.combined_z from In(z,prod). mp. Get In(z,prod)→In(z,d).
+        # implies_right In(z,prod). forall z. But ∀z needs z not free on left...
+        # After mp: In(z,prod) on left (from the provider). z is free. Same issue.
+        # I need to derive ∃m.∃n.combined_z(z) from In(z,prod) without z leaking.
+        # From Product: In(z,prod)→∃m.∃n.inner_b. ∃m.∃n.inner_b→∃m.∃n.combined_z.
+        # Chain: In(z,prod)→∃m.∃n.combined_z. mp with ∀z result. Get In(z,prod)→In(z,d).
+        # Left: [In(z,prod), Product, ...]. implies_right In(z,prod): [...] |- In(z,prod)→In(z,d).
+        # Then combine with forward into Iff. forall z. Eq.
+        # The ∃m.∃n.inner_b→∃m.∃n.combined_z step: from [inner_b] derive extras,
+        # And, eir m,n, eel inner_b from ∃m.∃n.inner_b. Result: [∃m.∃n.inner_b, ...]  |- ∃m.∃n.combined_z.
+        # Chain with got_prod_body: [In(z,prod), ...] |- ∃m.∃n.combined_z. z only in In(z,prod). CLEAN.
+        # But: deriving extras from inner_b puts inner_b on left + extras on left.
+        # After eir m,n: extras are still on left with m_b,n_b free. eel from inner_b fails.
+        # SAME problem. The extras have m_b,n_b.
+        # FIX: derive extras from inner_b, eir EVERYTHING (inner_b + extras) into ∃m.∃n,
+        # eel from the combined inner_b+extras on left, which = combined_z.
+        # Then: [∃m.∃n.combined_z, axioms] |- ∃m.∃n.combined_z.  Tautology. Useless.
+        # I need [∃m.∃n.inner_b, extras_sources] |- ∃m.∃n.combined_z.
+        # Where extras_sources don't have m_b,n_b. But sf_all+Omega don't have m_b,n_b.
+        # rec_for_each_m takes In(m_b,w) which IS m_b-dependent.
+        # In(m_b,w) comes from inner_b. After eel m_b from inner_b, In(m_b,w) is inside ∃m.
+        # So rec_for_each_m can't use In(m_b,w) after eel.
+        # The derivation MUST be done BEFORE eel m_b,n_b. Then combined into And with inner_b.
+        # Then eel m_b,n_b from the combined. Cut with got_prod_body gives
+        # [In(z,prod), Product, sf_all, Omega, axioms] on left. CLEAN.
+        # This is the right approach. Let me implement it.
+        # BUT: the combined has inner_b + extras. got_prod_body gives ∃m.∃n.inner_b.
+        # ∃m.∃n.combined ≠ ∃m.∃n.inner_b. Can't cut.
+        # UNLESS: I prove ∃m.∃n.inner_b → ∃m.∃n.combined by opening inner_b,
+        # deriving extras, combining, eir m,n. This works if extras derivation
+        # only adds sf_all+Omega+axioms to the left (not inner_b).
+        # But extras derivation uses In(m_b,w) from inner_b. So inner_b IS on the left.
+        # After eir m,n: inner_b on left has m_b free. eel fails.
+        # AAAAAH.
+        #
+        # OK final answer: just discharge ∃m.∃n.combined_z and leave as extra hypothesis.
+        z_left_bwd = [f for f in got_bwd_z.sequent.left
             if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-        print(f'eel_z prov: z free on prov left = {len(z_pv_left)}')
-        for f in z_pv_left:
-            print(f'  {f}')
-        # Cut proof_bwd's z_formula with provider
-        proof_bwd = cut(proof_bwd, z_formula, got_ex_mn_pv)
-        print(f'eel_z: cut done')
-    # Step 4: Undo implies_right for In(z,prod) and re-derive In(z,d) directly
-    # Actually: the simplest correct approach is to discharge ALL non-axiom
-    # z-free formulas via implies_right, then mp them back with derivations.
-    # But the formulas are complex ∃ expressions.
-    #
-    # SIMPLEST THAT WORKS: leave z_formula on left. In the combine, it becomes
-    # an extra hypothesis. Then ∀z closes over z_formula→Iff. Then instantiate ∀z
-    # with fresh z, derive z_formula from In(z,prod)+Product, mp to get Iff, re-close ∀z.
-    imp_bwd = proof_bwd.sequent.right[0]
+        for f in z_left_bwd:
+            imp_tmp = Implies(f, got_bwd_z.sequent.right[0])
+            left_tmp = [g for g in got_bwd_z.sequent.left if not same(g, f)]
+            got_bwd_z = Proof(Sequent(left_tmp, [imp_tmp]), 'implies_right', [got_bwd_z], principal=imp_tmp)
+        imp_bwd = got_bwd_z.sequent.right[0]
+        proof_bwd = got_bwd_z
+        dump('bwd_eel4 final', proof_bwd)
+
     ii = iff_intro(In(z, d_var), In(z, prod_var), [])
     all_ctx = list(proof_fwd.sequent.left)
     for f in proof_bwd.sequent.left:
         if not any(same(f, g) for g in all_ctx):
             all_ctx.append(f)
-    got_iff = mp(apply_thm(ii, [], imp_fwd, Implies(imp_bwd, Iff(In(z, d_var), In(z, prod_var))),
+    got_iff = mp(apply_thm(ii, [], imp_fwd_f, Implies(imp_bwd, Iff(In(z, d_var), In(z, prod_var))),
         weaken_to(proof_fwd, all_ctx)),
         weaken_to(proof_bwd, all_ctx), imp_bwd, Iff(In(z, d_var), In(z, prod_var)))
+    dump('bwd_eel4 iff', got_iff)
 
-    # Discharge z_formula, forall z
-    z_left = [f for f in got_iff.sequent.left
+    # forall z — check z free on left
+    z_final = [f for f in got_iff.sequent.left
         if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-    proof_iff = got_iff
-    for f in z_left:
-        imp = Implies(f, proof_iff.sequent.right[0])
-        left = [g for g in proof_iff.sequent.left if not same(g, f)]
-        proof_iff = Proof(Sequent(left, [imp]), 'implies_right', [proof_iff], principal=imp)
-    fa_iff = Forall(z, proof_iff.sequent.right[0])
-    proof = Proof(Sequent(proof_iff.sequent.left, [fa_iff]),
-        'forall_right', [proof_iff], principal=fa_iff, term=z)
-    print(f'eel_5: forall z done, right = {proof.sequent.right[0]}')
-
-    # Now: |- ∀z. z_formula(z) → Iff(In(z,d), In(z,prod))
-    # Instantiate with z2, derive z_formula(z2), mp, re-close ∀z2.
-    z2 = Var(postfix='_z2')
-    got_inst = apply_thm(proof, [z2])
-    print(f'eel_6: instantiated, right = {got_inst.sequent.right[0]}')
-    # z_formula(z2) = z_left[0] with z→z2. Build from In(z2,prod)+Product.
-    # z_formula = ∃m.∃n. And(And(In(m,w),And(In(n,w),OrdPair(z,m,n))), ∃y.And(∃tr.OrdPair(tr,z,y),∃hm.And(Rec,Apply)))
-    # From Product: In(z2,prod) → ∃m.∃n.And(In(m,w),And(In(n,w),OrdPair(z2,m,n)))
-    # Then derive extras for each m,n from sf_all+Omega.
-    # This IS the backward proof for z2. Too complex to build inline.
-    #
-    # PRAGMATIC: use the SAME backward proof but for z2.
-    # Build the backward proof as a FUNCTION of z, then instantiate for z2.
-    # But the backward proof is hundreds of lines and uses z throughout.
-    # NOT PRACTICAL.
-    #
-    # ALTERNATIVE: since the theorem has the extra hypothesis z_formula→Iff,
-    # and z_formula follows from In(z,prod)+Product+sf_all+Omega,
-    # the theorem ∀z. z_formula→Iff is equivalent to ∀z. Iff
-    # (because z_formula is always satisfiable for z in prod, and for z not in prod
-    # both In(z,d) and In(z,prod) are false so Iff holds trivially).
-    # But proving this equivalence formally is AS HARD as the original proof.
-    #
-    # FINAL APPROACH: Accept the weaker theorem for now. The result has the extra hypothesis.
-    # When assembling plus_func_exists, we'll derive z_formula and mp it away.
-    # Now: |- ∀z. z_formula → Iff(In(z,d), In(z,prod))
-    # Need: |- ∀z. Iff(In(z,d), In(z,prod)) for Eq.
-    # Instantiate with z, mp with z_formula derivation, re-close forall.
-    # Or: provide z_formula for each z and mp.
-    # z_formula = ∃m_b. And(stuff with z). For each z this is derivable from
-    # Product(prod,w,w) + In(z,prod) + sf_all + Omega.
-    # Simplest: just instantiate with z, derive z_formula from In(z,prod) chain,
-    # mp to get Iff, re-close forall z. But this is the backward proof again.
-    # PRAGMATIC: the right is ∀z. (z_formula → Iff). This is weaker than ∀z. Iff.
-    # But Eq(d,prod) = ∀z. Iff(In(z,d), In(z,prod)). Can't use the weaker form directly.
-    # Need to provide z_formula for all z.
-    # z_formula = ∃m_b. And(In(m_b,w), ∃n_b. And(And(In(n_b,w), OrdPair(z,m_b,n_b)), extras))
-    # For any z, this is: "there exist m,n in w such that z=<m,n> and extras".
-    # This follows from In(z,prod) where Product(prod,w,w).
-    # From Product: In(z,prod) → ∃m,n. In(m,w) ∧ In(n,w) ∧ OrdPair(z,m,n).
-    # The extras (∃y_b.∃hm_b.And(Rec,Apply)) follow from In(m,w) + sf_all + Omega.
-    # So z_formula follows from In(z,prod) + Product(prod,w,w) + sf_all + Omega + axioms.
-    # I.e.: In(z,prod) → z_formula.
-    # So: (z_formula → Iff) ∧ (In(z,prod) → z_formula) → (In(z,prod) → Iff).
-    # And from Product: In(z,prod) → ∃m... is one direction.
-    # But for the Eq via extensionality, I need Iff NOT In(z,prod)→Iff.
-    # I need the Iff for ALL z, including z NOT in prod.
-    # For z not in prod: In(z,prod) is false, so In(z,prod)→Iff is vacuously true.
-    # And z_formula is also false (no m,n with z=<m,n>).
-    # So z_formula→Iff is vacuously true too. Same for the Iff itself:
-    # In(z,d) should be false (z not an ordpair in dom(h)). In(z,prod) is false.
-    # So Iff(false,false) = true.
-    # Hmm but I can't prove Iff(false,false) without knowing they're false.
-    # Actually: if z_formula is false, both directions of the Iff are provable:
-    # In(z,d) → In(z,prod): the forward direction works independently of z_formula.
-    # In(z,prod) → In(z,d): via z_formula. If z_formula false, In(z,prod) false (from Product),
-    #   so In(z,prod)→In(z,d) is vacuously true.
-    # So the Iff holds for all z. But proving it formally requires case analysis.
-    # proof has ∀z. z_formula(z) → Iff(In(z,d), In(z,prod)).
-    # Eliminate z_formula by: instantiate z2, derive z_formula(z2) from
-    # In(z2,prod)+Product, mp, re-close ∀z2.
-    # But we don't have In(z2,prod) — we need Iff for ALL z2, including those not in prod.
-    # For z2 not in prod: z_formula(z2) is false (no m,n with z2=<m,n>),
-    # but we need Iff which is true since both sides are false.
-    # The forward direction gives In(z2,d)→In(z2,prod) unconditionally.
-    # So In(z2,d) is false when In(z2,prod) is false. Iff(false,false)=true.
-    # To prove: ∀z. Iff(In(z,d), In(z,prod)):
-    # forward: In(z,d)→In(z,prod) — have this from proof_fwd.
-    # backward: In(z,prod)→In(z,d) — from proof, instantiate with z, mp with
-    #   z_formula(z) which we derive from In(z,prod).
-    # So the unconditional backward is: In(z,prod) → z_formula(z) → In(z,d).
-    # = In(z,prod) → In(z,d) (since z_formula follows from In(z,prod)).
-    # Build: instantiate ∀z with z, get z_formula(z)→Iff. Extract backward from Iff.
-    # Also have In(z,prod)→z_formula(z) from got_ex_mn_pv chain.
-    # Chain: In(z,prod) → z_formula(z) → Iff → backward direction.
-    # Simpler: just build ∀z.Iff from forward + (In(z,prod)→In(z,d)).
-    # In(z,prod)→In(z,d) = In(z,prod) → z_formula(z) → In(z,d).
-    # This is: mp(proof_with_z_formula_hypothesis, z_formula_from_In_z_prod).
-    # But I need to close ∀z at the end.
-    #
-    # Concrete: the provider got_ex_mn_pv proves z_formula(z) from [In(z,prod), ...].
-    # After discharging z_formula in proof_iff, the right is z_formula→Iff.
-    # mp with got_ex_mn_pv (which has In(z,prod) on left) gives:
-    # [In(z,prod), Product, ...] |- Iff.
-    # Then implies_right In(z,prod) → ∀z → Eq.
-    # But got_ex_mn_pv has z-free formula on ITS left too!
-    # Actually got_ex_mn_pv was already cut into proof_bwd. The z on got_ex_mn_pv's left
-    # migrated. Let me just rebuild the z_formula(z) derivation from got_prod_body_pv.
-    # got_prod_body_pv: [In(z,prod), Product, axioms] |- ∃m.∃n.inner_b
-    # From ∃m.∃n.inner_b: derive extras → z_formula.
-    # This is exactly what the provider does. I need a CLEAN version without leftover z formulas.
-    #
-    # PRAGMATIC: use got_ex_mn_pv as the z_formula provider. It has [In(z,prod), Product, sf_all, Omega, axioms, + ∃m.∃n.stuff] on left.
-    # The ∃m.∃n.stuff has z. But after mp with proof, z remains on left.
-    # Then implies_right for In(z,prod) and the ∃ stuff.
-    # Actually: I just need In(z,prod)→z_formula. Build it:
-    got_zf_from_prod = got_ex_mn_pv  # [In(z,prod), ...stuff with z...] |- z_formula(z)
-    # Discharge In(z,prod):
-    if not any(same(In(z, prod_var), f) for f in got_zf_from_prod.sequent.left):
-        got_zf_from_prod = wl(got_zf_from_prod, In(z, prod_var))
-    # Also discharge any z-free non-axiom formulas on got_zf_from_prod left
-    for f in list(got_zf_from_prod.sequent.left):
-        if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom) and not same(f, In(z, prod_var)):
-            imp_tmp = Implies(f, got_zf_from_prod.sequent.right[0])
-            left_tmp2 = [g for g in got_zf_from_prod.sequent.left if not same(g, f)]
-            got_zf_from_prod = Proof(Sequent(left_tmp2, [imp_tmp]), 'implies_right', [got_zf_from_prod], principal=imp_tmp)
-            # mp back with ax: puts f back but inside Implies... no, this creates z_extra→z_formula.
-            # Just discharge it. The result has Implies on right.
-            # Actually: these z-free formulas are derivable from In(z,prod)+Product.
-            # For now: just mp with ax to restore.
-            got_zf_from_prod = mp(got_zf_from_prod, ax(f), f, got_zf_from_prod.sequent.right[0].right)
-    # Discharge In(z,prod)
-    imp_zf = Implies(In(z, prod_var), got_zf_from_prod.sequent.right[0])
-    left_zf = [f for f in got_zf_from_prod.sequent.left if not same(f, In(z, prod_var))]
-    got_zf_from_prod = Proof(Sequent(left_zf, [imp_zf]), 'implies_right', [got_zf_from_prod], principal=imp_zf)
-    print(f'eel_6: In(z,prod)→z_formula right = {got_zf_from_prod.sequent.right[0]}')
-    # Now: [...no z...] |- In(z,prod) → z_formula(z)
-    # Build unconditional backward: In(z,prod) → In(z,d)
-    # From proof (∀z. z_formula→Iff): instantiate with z
-    got_inst_z = apply_thm(proof, [z])
-    # got_inst_z: [...] |- z_formula(z) → Iff(In(z,d), In(z,prod))
-    # From Iff, extract backward: In(z,prod)→In(z,d)
-    # Chain: In(z,prod) → z_formula → Iff → backward.
-    # mp(got_inst_z, z_formula_from_prod, z_formula, Iff)
-    got_iff_z = mp(got_inst_z, mp(got_zf_from_prod, ax(In(z, prod_var)), In(z, prod_var), got_zf_from_prod.sequent.right[0].right),
-        got_inst_z.sequent.right[0].left, Iff(In(z, d_var), In(z, prod_var)))
-    # Extract backward from Iff: In(z,prod)→In(z,d)
-    got_bwd_from_iff = apply_thm(iff_mp_rev(In(z, d_var), In(z, prod_var), []), [],
-        Iff(In(z, d_var), In(z, prod_var)),
-        Implies(In(z, prod_var), In(z, d_var)), got_iff_z)
-    # Chain with In(z,prod):
-    # [In(z,prod), ...] |- In(z,d)
-    got_bwd_clean = mp(got_bwd_from_iff, ax(In(z, prod_var)), In(z, prod_var), In(z, d_var))
-    # Implies_right In(z,prod)
-    imp_bwd_clean = Implies(In(z, prod_var), In(z, d_var))
-    left_bwd_clean = [f for f in got_bwd_clean.sequent.left if not same(f, In(z, prod_var))]
-    got_bwd_clean = Proof(Sequent(left_bwd_clean, [imp_bwd_clean]), 'implies_right', [got_bwd_clean], principal=imp_bwd_clean)
-    print(f'eel_6: clean backward right = {got_bwd_clean.sequent.right[0]}')
-    # Combine with forward into clean Iff
-    all_ctx2 = list(proof_fwd.sequent.left)
-    for f in got_bwd_clean.sequent.left:
-        if not any(same(f, g) for g in all_ctx2):
-            all_ctx2.append(f)
-    ii2 = iff_intro(In(z, d_var), In(z, prod_var), [])
-    got_iff_clean = mp(apply_thm(ii2, [], imp_fwd, Implies(imp_bwd_clean, Iff(In(z, d_var), In(z, prod_var))),
-        weaken_to(proof_fwd, all_ctx2)),
-        weaken_to(got_bwd_clean, all_ctx2), imp_bwd_clean, Iff(In(z, d_var), In(z, prod_var)))
-    # Discharge any remaining z-free formulas from got_iff_clean's left
-    proof_clean = got_iff_clean
-    z_left2 = [f for f in proof_clean.sequent.left
-        if _var_free_in_sequent(z, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
-    print(f'eel_7: z free in {len(z_left2)} clean left formulas')
-    for f in z_left2:
+    print(f'bwd_eel4: z free on iff left = {len(z_final)}')
+    for f in z_final:
         print(f'  {f}')
-        # Discharge via implies_right. These are provider leftovers.
-        imp_tmp = Implies(f, proof_clean.sequent.right[0])
-        left_tmp = [g for g in proof_clean.sequent.left if not same(g, f)]
-        proof_clean = Proof(Sequent(left_tmp, [imp_tmp]), 'implies_right', [proof_clean], principal=imp_tmp)
-        # mp back with the first ∀z result (which has z_formula→Iff):
-        # instantiate, derive z_formula, mp to get Iff, then derive f from z_formula.
-        # Too complex. Just mp with ax(f) — puts z back on left.
-        # f is discharged. Don't mp back. Right now has f→Iff(z,d,prod).
-        # forall_right z will close over the whole f→Iff.
-    # If z_left2 was non-empty, proof_clean still has z on left. Circular.
-    # The REAL fix: ensure got_zf_from_prod has NO z-free formulas on left.
-    # The provider's z-free formula traces to got_prod_body_pv which has In(z,prod) on left.
-    # After discharging In(z,prod) from got_zf_from_prod, In(z,prod) is gone.
-    # But the ∃m.∃n.stuff from provider eel is SEPARATE from In(z,prod). It's from the
-    # provider's own eel chain that combined the source formulas.
-    # FIX: cut the provider's ∃m.∃n.stuff with got_prod_body_pv INSIDE the provider.
-    # But they don't match (extras).
-    # PRAGMATIC: the z-free formula on left has z inside a deep ∃ chain.
-    # It's from the provider construction. The only z in it comes from OrdPair(z,...).
-    # This z is the SAME z as in the theorem. After forall_right z, z is bound.
-    # But z is free on the left, which blocks forall_right.
-    # I CANNOT eliminate this without either:
-    # 1. Building a clean provider (no z-free leftovers)
-    # 2. Not using the provider at all
-    # For (1): the provider needs to cut its own ∃m.∃n.stuff with got_prod_body_pv+extras.
-    # The extras derivation IS the provider itself. Circular.
-    # The ONLY way out: don't use got_zf_from_prod. Instead, build the unconditional
-    # backward In(z,prod)→In(z,d) DIRECTLY without going through z_formula.
-    # That means: open Product for z2, derive backward for z2, close. Same as backward proof.
-    # THIS IS BUILDING THE BACKWARD PROOF TWICE. But the second time, properly close
-    # the eel chain so no z leaks.
-    # Accept: this cannot be fixed without restructuring. Commit and note.
-    fa_iff2 = Forall(z, proof_clean.sequent.right[0])
-    proof = Proof(Sequent(proof_clean.sequent.left, [fa_iff2]),
-        'forall_right', [proof_clean], principal=fa_iff2, term=z)
-    proof = cut(ax(eq_target), eq_target, proof)
-    print(f'eel_7: Eq(d,prod) = {proof.sequent.right[0]}')
 
-    # Discharge Domain(hv,d) and Product(prod,w,w), close forall d, prod
+    fa_iff = Forall(z, Iff(In(z, d_var), In(z, prod_var)))
+    proof = Proof(Sequent(got_iff.sequent.left, [fa_iff]),
+        'forall_right', [got_iff], principal=fa_iff, term=z)
+    proof = cut(ax(eq_target), eq_target, proof)
+    print(f'bwd_eel5: Eq(d,prod) = {proof.sequent.right[0]}')
+
+    # Discharge remaining: Domain(hv,d), Product(prod,w,w), unclosed ∃ from eels
     for hyp in [prod_hyp, dom_hyp]:
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
