@@ -1395,9 +1395,35 @@ def plus_func_exists():
     """The addition function exists.
     |- ∀w. Omega(w) → ∃h. PlusFunc(h, w)
 
-    Construction via Separation: collect Recursive outputs for each m."""
-    # TODO: implement
-    raise NotImplementedError("plus_func_exists proof under construction")
+    Construction: get sf from succ_func_exists, then for each m∈w get h_m from
+    recursion_theorem. Build h via Separation. Show PlusFunc conditions."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp, iff_mp_rev)
+    from theorems.recursion import succ_func_exists, recursion_theorem, recursive_elim
+    from theorems.omega import omega_succ_closed, func_unique_thm
+    from theorems.sets import ordpair_exists, successor_exists
+    from theorems.arithmetic import sf_props, rec_step_succ
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef, TotalFrom)
+    from vocab.recursion import PlusFunc
+    from vocab.ordpair import OrdPair
+    from vocab.omega import Omega, ExistsUnique
+    from vocab.sets import Empty
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    import core.zfc as zfc
+
+    w = Var(postfix='w')
+    omega_w = Omega(w)
+    hv = Var(postfix='_hpf')
+
+    # TODO: Full construction via Separation.
+    # For now, prove the simpler statement:
+    # ∀w. Omega(w) → ∃h. PlusFunc(h, w)
+    # by constructing h from the recursion theorem family.
+    # This requires Separation on (ω×ω)×ω which is ~200 lines.
+    # Leaving as NotImplementedError until the full construction is written.
+    raise NotImplementedError("plus_func_exists: Separation construction needed")
 
 
 def plus_func_unique():
