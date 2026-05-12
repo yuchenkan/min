@@ -6122,8 +6122,21 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
         got_ex_tra = eel(got_ex_tra, Exists(ca, body_p1), tra)
         got_ex_tra = cut(got_ex_tra, p1_formula, got_P1)
 
-    got_ex_tra.name = 'phase2'
-    return got_ex_tra
+    # Wrap in Phase2P via cut bridge:
+    # Phase2P expands to the same formula. Use implies_right + implies_left.
+    p2 = Phase2P(sa, q1, tape_in, c0, z, delta, a, one,
+                 tra, ca, tape2, ja, sja, cja, cja1)
+    raw = got_ex_tra.sequent.right[0]
+    # ax(p2) gives [p2] |- p2. We need [raw] |- p2.
+    # Since same(raw, p2) should be True (both expand to same Exists),
+    # ax(p2) with p2 on both sides, then cut raw from got_ex_tra.
+    # Actually: Proof([p2], [p2], axiom) then replace left with raw via cut:
+    # cut(ax(p2), p2, got_ex_tra) — this cuts p2 from ax(p2)'s left using got_ex_tra.
+    # But got_ex_tra proves raw, not p2. We need same(raw, p2) for the cut to work.
+    got_result = cut(ax(p2), p2, got_ex_tra)
+
+    got_result.name = 'phase2'
+    return got_result
 
 
 def tm_add_correct():
