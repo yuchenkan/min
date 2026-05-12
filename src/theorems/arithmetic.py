@@ -1047,7 +1047,7 @@ def plus_func_eq():
     Symmetry + extensionality → Eq."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
-        iff_intro, iff_mp, iff_mp_rev, eq_substitution)
+        iff_intro, iff_mp, iff_mp_rev, eq_substitution, eq_symmetric)
     from theorems.sets import ordpair_exists, ordpair_unique, domain_exists, product_exists
     from theorems.omega import func_unique_thm
     from vocab import (Function as FuncDef, Apply, Relation as RelDef)
@@ -1056,7 +1056,8 @@ def plus_func_eq():
     from vocab.functions import Domain
     from vocab.sets import Product
     from vocab.omega import Omega
-    from core.proof import Proof, Sequent, same
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    import core.zfc as zfc
 
     w = Var(postfix='w')
     h1 = Var(postfix='h1')
@@ -1065,9 +1066,14 @@ def plus_func_eq():
     pf1 = PlusFunc(h1, w)
     pf2 = PlusFunc(h2, w)
 
-    # === Helper: In(z, A) → In(z, B) given PlusFunc(A,w), PlusFunc(B,w) ===
-    def transfer(A, B, pf_A, pf_B):
-        """[pf_A, pf_B, Omega(w), In(z,A), axioms] |- In(z, B)"""
+    # values_agree: ∀m∈w.∀n∈w. R(m,n) for both directions
+    got_va_12 = plus_func_values_agree(h1, h2, w)
+    got_va_21 = plus_func_values_agree(h2, h1, w)
+    print(f'va_12 right: {got_va_12.sequent.right[0]}')
+    print(f'va_21 right: {got_va_21.sequent.right[0]}')
+
+    def _transfer(A, B, got_va):
+        """[PlusFunc(A,w), PlusFunc(B,w), Omega(w), In(z,A), axioms] |- In(z, B)"""
         zv = Var(postfix='_zt')
         xv = Var(postfix='_xt')
         yv = Var(postfix='_yt')
@@ -1075,24 +1081,24 @@ def plus_func_eq():
         in_z_B = In(zv, B)
         op_z = OrdPair(zv, xv, yv)
 
-        # Function(A) → Relation(A)
+        # 1. Relation(A) from Function(A) from PlusFunc(A):
         got_func_A, _, _, _, _ = plusfunc_elim(A, w)
-        func_A = FuncDef(A)
-        rel_A = RelDef(A)
-        func_exp = func_A.expand()
+        func_A_f = got_func_A.sequent.right[0]  # Function(A)
+        func_exp = func_A_f.expand()  # And(Relation, sv)
         got_rel_A = apply_thm(and_elim_left(func_exp.left, func_exp.right, []), [],
-            func_A, func_exp.left, got_func_A)
-        got_rel_A = cut(ax(rel_A), rel_A, got_rel_A)
-        print(f'transfer: got_rel_A right = {got_rel_A.sequent.right[0]}')
+            func_A_f, func_exp.left, got_func_A)
+        rel_A_f = RelDef(A)
+        got_rel_A = cut(ax(rel_A_f), rel_A_f, got_rel_A)
+        print(f'_transfer: got_rel_A right = {got_rel_A.sequent.right[0]}')
 
-        # Relation(A): In(z,A) → ∃x,y. OrdPair(z,x,y)
+        # 2. Relation(A): In(z,A) → ∃x,y. OrdPair(z,x,y)
         ex_y_op = Exists(yv, op_z)
         ex_xy_op = Exists(xv, ex_y_op)
         imp_rel = Implies(in_z_A, ex_xy_op)
-        got_ex_xy = mp(fl(rel_A, imp_rel, zv), ax(in_z_A), in_z_A, ex_xy_op)
-        print(f'transfer: got_ex_xy right = {got_ex_xy.sequent.right[0]}')
+        got_ex_xy = mp(fl(rel_A_f, imp_rel, zv), ax(in_z_A), in_z_A, ex_xy_op)
+        print(f'_transfer: got_ex_xy right = {got_ex_xy.sequent.right[0]}')
 
-        # Apply(A,x,y) from OrdPair(z,x,y) + In(z,A):
+        # 3. Apply(A,x,y) from OrdPair(z,x,y) + In(z,A):
         pv_app = Var(postfix='_papp')
         and_op_in = And(OrdPair(pv_app, xv, yv), In(pv_app, A))
         got_and_oi = mp(apply_thm(and_intro(op_z, in_z_A, []), [],
@@ -1101,53 +1107,38 @@ def plus_func_eq():
         got_app_A = eir(got_and_oi, and_op_in, pv_app, zv)
         app_A_xy = Apply(A, xv, yv)
         got_app_A = cut(ax(app_A_xy), app_A_xy, got_app_A)
-        print(f'transfer: got_app_A right = {got_app_A.sequent.right[0]}')
+        print(f'_transfer: got_app_A right = {got_app_A.sequent.right[0]}')
 
-        # dom(A) = ω×ω: from PlusFunc dom_eq.
-        # Apply(A,x,y) → x ∈ dom(A). dom(A) = ω×ω. x ∈ ω×ω → ∃m,n. In(m,w) ∧ In(n,w) ∧ OrdPair(x,m,n).
-        # Use domain_exists + plusfunc dom_eq + product_exists.
-        _, got_dom_eq_A, _, _, _ = plusfunc_elim(A, w)
+        # 4. Domain(A,d) → In(x,d): Apply(A,x,y) → x ∈ dom(A)
         dv = Var(postfix='_dv')
-        prodv = Var(postfix='_prodv')
         dom_Ad = Domain(A, dv)
-        prod_ww = Product(prodv, w, w)
-
-        # domain_exists: ∃d. Domain(A,d)
-        de = domain_exists()
-        got_ex_d = apply_thm(de, [A], concl=Exists(dv, dom_Ad))
-        # product_exists: ∃p. Product(p, w, w)
-        pe = product_exists()
-        got_ex_prod = apply_thm(pe, [w, w], concl=Exists(prodv, prod_ww))
-        print(f'transfer: got_ex_d right = {got_ex_d.sequent.right[0]}')
-        print(f'transfer: got_ex_prod right = {got_ex_prod.sequent.right[0]}')
-
-        # From Domain(A,d): In(x,d) ↔ ∃y.Apply(A,x,y). Reverse: Apply(A,x,y) → In(x,d).
         got_dom_inst = apply_thm(ax(dom_Ad), [xv])
         iff_dom = got_dom_inst.sequent.right[0]
         got_rev_dom = apply_thm(iff_mp_rev(iff_dom.left, iff_dom.right, []), [],
             iff_dom, Implies(iff_dom.right, iff_dom.left), got_dom_inst)
-        # Need ∃y.Apply(A,x,y) from Apply(A,x,y):
         got_ex_app = eir(got_app_A, got_app_A.sequent.right[0], yv, yv)
         got_in_x_d = mp(got_rev_dom, got_ex_app, iff_dom.right, In(xv, dv))
-        print(f'transfer: got_in_x_d right = {got_in_x_d.sequent.right[0]}')
+        print(f'_transfer: got_in_x_d right = {got_in_x_d.sequent.right[0]}')
 
-        # PlusFunc dom_eq: Domain(A,d) → Product(prodv,w,w) → Eq(d, prodv)
+        # 5. dom_eq: Domain(A,d) → Product(prodv,w,w) → Eq(d,prodv)
+        _, got_dom_eq_A, _, _, _ = plusfunc_elim(A, w)
+        prodv = Var(postfix='_prodv')
+        prod_ww = Product(prodv, w, w)
         eq_d_prod = Eq(dv, prodv)
-        got_dom_eq_inst = apply_thm(got_dom_eq_A, [dv])
+        got_dom_eq_inst = apply_thm(got_dom_eq_A, [dv, prodv])
         got_dom_eq_inst = mp(got_dom_eq_inst, ax(dom_Ad), dom_Ad, got_dom_eq_inst.sequent.right[0].right)
-        got_dom_eq_inst = apply_thm(got_dom_eq_inst, [prodv])
         got_dom_eq_inst = mp(got_dom_eq_inst, ax(prod_ww), prod_ww, eq_d_prod)
-        print(f'transfer: got_dom_eq_inst right = {got_dom_eq_inst.sequent.right[0]}')
+        print(f'_transfer: got_dom_eq_inst right = {got_dom_eq_inst.sequent.right[0]}')
 
-        # Eq(d,prodv): In(x,d) → In(x,prodv)
+        # 6. Eq(d,prodv) → In(x,d) → In(x,prodv)
         iff_d_prod = Iff(In(xv, dv), In(xv, prodv))
         got_iff_dp = cut(fl(eq_d_prod, iff_d_prod, xv), eq_d_prod, got_dom_eq_inst)
         got_in_x_prod = mp(apply_thm(iff_mp(In(xv, dv), In(xv, prodv), []), [],
             iff_d_prod, Implies(In(xv, dv), In(xv, prodv)), got_iff_dp),
             got_in_x_d, In(xv, dv), In(xv, prodv))
-        print(f'transfer: got_in_x_prod right = {got_in_x_prod.sequent.right[0]}')
+        print(f'_transfer: got_in_x_prod right = {got_in_x_prod.sequent.right[0]}')
 
-        # Product(prodv,w,w): In(x,prodv) → ∃m,n. In(m,w) ∧ In(n,w) ∧ OrdPair(x,m,n)
+        # 7. Product: In(x,prodv) → ∃m,n. In(m,w) ∧ In(n,w) ∧ OrdPair(x,m,n)
         mv = Var(postfix='_mt')
         nv = Var(postfix='_nt')
         got_prod_inst = apply_thm(ax(prod_ww), [xv])
@@ -1155,121 +1146,249 @@ def plus_func_eq():
         got_fwd_prod = apply_thm(iff_mp(iff_prod.left, iff_prod.right, []), [],
             iff_prod, Implies(In(xv, prodv), iff_prod.right), got_prod_inst)
         got_decomp = mp(got_fwd_prod, got_in_x_prod, In(xv, prodv), iff_prod.right)
-        print(f'transfer: got_decomp right = {got_decomp.sequent.right[0]}')
-        # got_decomp: [...] |- ∃m,n. In(m,w) ∧ In(n,w) ∧ OrdPair(x,m,n)
+        print(f'_transfer: got_decomp right = {got_decomp.sequent.right[0]}')
 
-        # Open ∃m,n to get In(m,w), In(n,w), OrdPair(x,m,n):
-        decomp_body_n = And(In(mv, w), And(In(nv, w), OrdPair(xv, mv, nv)))
-        decomp_body = Exists(nv, decomp_body_n)
-        # Extract from the And:
+        # 8. Open ∃m,n, extract In(m,w), In(n,w), OrdPair(x,m,n):
         in_mv_w = In(mv, w)
         in_nv_w = In(nv, w)
         op_x_mn = OrdPair(xv, mv, nv)
+        decomp_inner = And(in_mv_w, And(in_nv_w, op_x_mn))
         got_in_m = apply_thm(and_elim_left(in_mv_w, And(in_nv_w, op_x_mn), []), [],
-            decomp_body_n, in_mv_w, ax(decomp_body_n))
-        got_rest_mn = apply_thm(and_elim_right(in_mv_w, And(in_nv_w, op_x_mn), []), [],
-            decomp_body_n, And(in_nv_w, op_x_mn), ax(decomp_body_n))
+            decomp_inner, in_mv_w, ax(decomp_inner))
         got_in_n = apply_thm(and_elim_left(in_nv_w, op_x_mn, []), [],
-            And(in_nv_w, op_x_mn), in_nv_w, got_rest_mn)
+            And(in_nv_w, op_x_mn), in_nv_w,
+            apply_thm(and_elim_right(in_mv_w, And(in_nv_w, op_x_mn), []), [],
+                decomp_inner, And(in_nv_w, op_x_mn), ax(decomp_inner)))
         got_op_mn = apply_thm(and_elim_right(in_nv_w, op_x_mn, []), [],
-            And(in_nv_w, op_x_mn), op_x_mn, got_rest_mn)
-        print(f'transfer: got_in_m={got_in_m.sequent.right[0]}, got_in_n={got_in_n.sequent.right[0]}, got_op_mn={got_op_mn.sequent.right[0]}')
+            And(in_nv_w, op_x_mn), op_x_mn,
+            apply_thm(and_elim_right(in_mv_w, And(in_nv_w, op_x_mn), []), [],
+                decomp_inner, And(in_nv_w, op_x_mn), ax(decomp_inner)))
+        print(f'_transfer: got_in_m={got_in_m.sequent.right[0]}, got_in_n={got_in_n.sequent.right[0]}, got_op_mn={got_op_mn.sequent.right[0]}')
 
-        # plus_func_apply_transfer: Apply(A,x,y) + OrdPair(x,m,n) + In(m,w) + In(n,w) → Apply(B,x,y)
-        got_transfer = plus_func_apply_transfer(A, B, w)
-        print(f'transfer: got_transfer right = {got_transfer.sequent.right[0]}')
-        print(f'transfer: got_transfer left count = {len(got_transfer.sequent.left)}')
-        # got_transfer has In(mv,w) on left. Cut with got_in_m etc.
-        # But got_transfer uses its own mv, nv variables. Need to match.
-        # Actually, got_transfer returns a proof with specific variables from values_agree.
-        # Its left has In(_mv,w), OrdPair(_pair,_mv,_nv), Apply(A,_pair,_pv) etc.
-        # I need to instantiate/connect these with my local mv, nv, xv, yv.
-        # This is getting complex. Let me use a simpler approach.
+        # 9. Instantiate values_agree at m, n → R(m,n):
+        got_r_mn = apply_thm(got_va, [mv])
+        got_r_mn = mp(got_r_mn, got_in_m, in_mv_w, got_r_mn.sequent.right[0].right)
+        got_r_mn = apply_thm(got_r_mn, [nv])
+        got_r_mn = mp(got_r_mn, got_in_n, in_nv_w, got_r_mn.sequent.right[0].right)
+        print(f'_transfer: got_r_mn right = {got_r_mn.sequent.right[0]}')
+        # R(m,n) = ∃pair0,p0. OrdPair(pair0,m,n) ∧ Apply(A,pair0,p0) ∧ Apply(B,pair0,p0)
 
-        # Simpler: from values_agree, for our specific m,n:
-        # R(n) = ∃pair,p. OrdPair(pair,m,n) ∧ Apply(A,pair,p) ∧ Apply(B,pair,p)
-        got_r = plus_func_values_agree(A, B, w)
-        print(f'transfer: got_r right = {got_r.sequent.right[0]}')
-        # got_r: [PlusFunc(A), PlusFunc(B), Omega(w), In(mv_r,w), axioms] |- R(nv_r)
-        # R uses its own mv, nv from values_agree. I need to connect to my mv, nv.
-        # Actually, got_r has In(mv_r, w) on left where mv_r is values_agree's _mv.
-        # The R(nv_r) on right uses nv_r.
-        # For my transfer: I need R for MY m,n. I'll close values_agree's vars
-        # and reopen with my vars.
+        # 10. Open R: get pair0, p0, OrdPair(pair0,m,n), Apply(A,pair0,p0), Apply(B,pair0,p0)
+        pair0 = Var(postfix='_pr0')
+        p0 = Var(postfix='_p0')
+        op0 = OrdPair(pair0, mv, nv)
+        app_A_p0 = Apply(A, pair0, p0)
+        app_B_p0 = Apply(B, pair0, p0)
+        r_body = And(op0, And(app_A_p0, app_B_p0))
+        got_op0 = apply_thm(and_elim_left(op0, And(app_A_p0, app_B_p0), []), [],
+            r_body, op0, ax(r_body))
+        got_apps = apply_thm(and_elim_right(op0, And(app_A_p0, app_B_p0), []), [],
+            r_body, And(app_A_p0, app_B_p0), ax(r_body))
+        got_app_A_p0 = apply_thm(and_elim_left(app_A_p0, app_B_p0, []), [],
+            And(app_A_p0, app_B_p0), app_A_p0, got_apps)
+        got_app_B_p0 = apply_thm(and_elim_right(app_A_p0, app_B_p0, []), [],
+            And(app_A_p0, app_B_p0), app_B_p0, got_apps)
+        print(f'_transfer: got_app_B_p0 right = {got_app_B_p0.sequent.right[0]}')
 
-        # The values_agree result has In(_mv, w) and R(_nv) with _mv, _nv free.
-        # Also In(_nv, w) on left (from the omega induction).
-        # Close: ∀_nv. In(_nv,w) → R(_nv), then ∀_mv. In(_mv,w) → ...
-        # Then instantiate with my mv, nv.
+        # 11. ordpair_unique: OrdPair(x,m,n) ∧ OrdPair(pair0,m,n) → Eq(x,pair0)
+        ou = ordpair_unique()
+        eq_x_pair0 = Eq(xv, pair0)
+        got_eq_xp = apply_thm(ou, [mv, nv, xv, pair0])
+        got_eq_xp = mp(got_eq_xp, got_op_mn, op_x_mn, got_eq_xp.sequent.right[0].right)
+        got_eq_xp = mp(got_eq_xp, got_op0, op0, eq_x_pair0)
+        print(f'_transfer: got_eq_xp right = {got_eq_xp.sequent.right[0]}')
 
-        # Find the _mv, _nv from got_r. They're on the left as In(_mv, w) etc.
-        # The R formula on the right has specific vars. Let me just discharge In's and close.
-        from core.proof import _var_free_in_sequent
-        # Find vars that are free in both left and right:
-        r_formula = got_r.sequent.right[0]
-        # Discharge In(_nv, w) — it's the induction var:
-        # Actually, got_r comes from values_agree which already closed the induction.
-        # Let me check what's on got_r's left:
-        for i, ff in enumerate(got_r.sequent.left):
-            print(f'transfer: got_r L[{i}] = {ff}')
+        # 12. Transfer Apply(A,pair0,p0) to Apply(A,x,p0) via Eq(pair0,x):
+        from theorems.recursion import eq_apply_transfer, eq_apply_val_transfer
+        es = eq_symmetric()
+        eq_pair0_x = Eq(pair0, xv)
+        got_eq_p0x = apply_thm(es, [xv, pair0], eq_x_pair0, eq_pair0_x, got_eq_xp)
+        eat = eq_apply_transfer()
+        app_A_x_p0 = Apply(A, xv, p0)
+        got_app_A_xp0 = apply_thm(eat, [A, pair0, xv, p0])
+        got_app_A_xp0 = mp(got_app_A_xp0, got_eq_p0x, eq_pair0_x, got_app_A_xp0.sequent.right[0].right)
+        got_app_A_xp0 = mp(got_app_A_xp0, got_app_A_p0, app_A_p0, app_A_x_p0)
+        print(f'_transfer: got_app_A_xp0 right = {got_app_A_xp0.sequent.right[0]}')
 
-        # This approach is getting too complex. Let me use a completely different strategy.
-        # Instead of connecting variables, just CALL values_agree with fresh vars,
-        # then the R(n) gives the Apply transfer for those vars.
-        # The membership transfer doesn't need to go through values_agree directly.
-        # It goes: Apply(A,x,y) → need Apply(B,x,y).
-        # From Apply(A,x,y): x = ⟨m,n⟩ via Product decomp.
-        # Then: need Apply(B,x,y) where x=⟨m,n⟩.
-        # From PlusFunc(B) base/step: B is defined at ⟨m,n⟩ for all m,n∈w.
-        # PlusFunc(B) step gives B(⟨m,S(n)⟩) = S(B(⟨m,n⟩)).
-        # Both A and B compute the same recurrence → same values.
-        # Function(A) + Function(B) + same values → Apply(A,x,y) ↔ Apply(B,x,y).
+        # 13. func_unique(A): Apply(A,x,y) ∧ Apply(A,x,p0) → Eq(y,p0)
+        fu = func_unique_thm()
+        eq_y_p0 = Eq(yv, p0)
+        got_eq_yp0 = apply_thm(fu, [A, xv, yv, p0])
+        got_eq_yp0 = mp(got_eq_yp0, got_func_A, func_A_f, got_eq_yp0.sequent.right[0].right)
+        got_eq_yp0 = mp(got_eq_yp0, got_app_A, app_A_xy, got_eq_yp0.sequent.right[0].right)
+        got_eq_yp0 = mp(got_eq_yp0, got_app_A_xp0, app_A_x_p0, eq_y_p0)
+        print(f'_transfer: got_eq_yp0 right = {got_eq_yp0.sequent.right[0]}')
 
-        # But I already proved this in values_agree! The issue is connecting the vars.
+        # 14. Transfer Apply(B,pair0,p0) to Apply(B,x,y):
+        # First: Apply(B,pair0,p0) → Apply(B,x,p0) via Eq(pair0,x)
+        app_B_x_p0 = Apply(B, xv, p0)
+        got_app_B_xp0 = apply_thm(eat, [B, pair0, xv, p0])
+        got_app_B_xp0 = mp(got_app_B_xp0, got_eq_p0x, eq_pair0_x, got_app_B_xp0.sequent.right[0].right)
+        got_app_B_xp0 = mp(got_app_B_xp0, got_app_B_p0, app_B_p0, app_B_x_p0)
+        # Then: Apply(B,x,p0) → Apply(B,x,y) via Eq(p0,y)
+        eq_p0_y = Eq(p0, yv)
+        got_eq_p0y = apply_thm(es, [yv, p0], eq_y_p0, eq_p0_y, got_eq_yp0)
+        eavt = eq_apply_val_transfer()
+        app_B_xy = Apply(B, xv, yv)
+        got_app_B_xy = apply_thm(eavt, [B, xv, p0, yv])
+        got_app_B_xy = mp(got_app_B_xy, got_eq_p0y, eq_p0_y, got_app_B_xy.sequent.right[0].right)
+        got_app_B_xy = mp(got_app_B_xy, got_app_B_xp0, app_B_x_p0, app_B_xy)
+        print(f'_transfer: got_app_B_xy right = {got_app_B_xy.sequent.right[0]}')
 
-        # SIMPLEST: just use the proof directly. values_agree proves R(n) for specific
-        # _mv, _nv. I have mv, nv from Product decomp. Just close values_agree's vars
-        # and reopen with mine.
+        # 15. Apply(B,x,y) → ∃q. OrdPair(q,x,y) ∧ In(q,B). OrdPair(z,x,y) ∧ OrdPair(q,x,y) → z=q → In(z,B).
+        qv = Var(postfix='_qv')
+        op_q = OrdPair(qv, xv, yv)
+        in_q_B = In(qv, B)
+        and_oq_iq = And(op_q, in_q_B)
+        # ordpair_unique: OrdPair(z,x,y) ∧ OrdPair(q,x,y) → Eq(z,q)
+        eq_z_q = Eq(zv, qv)
+        got_eq_zq = apply_thm(ou, [xv, yv, zv, qv])
+        got_eq_zq = mp(got_eq_zq, ax(op_z), op_z, got_eq_zq.sequent.right[0].right)
+        got_eq_zq = mp(got_eq_zq, ax(op_q), op_q, eq_z_q)
+        # eq_substitution: Eq(z,q) → Iff(In(z,B), In(q,B))
+        esub = eq_substitution()
+        iff_zq = Iff(in_z_B, in_q_B)
+        got_iff_zq = apply_thm(esub, [zv, qv, B], eq_z_q, iff_zq, got_eq_zq)
+        got_in_z_B = mp(apply_thm(iff_mp_rev(in_z_B, in_q_B, []), [],
+            iff_zq, Implies(in_q_B, in_z_B), got_iff_zq),
+            ax(in_q_B), in_q_B, in_z_B)
+        print(f'_transfer: got_in_z_B right = {got_in_z_B.sequent.right[0]}')
 
-        # Actually, I realize the simpler approach is: don't use values_agree for the
-        # membership transfer. Instead, prove Apply(A,x,y) → Apply(B,x,y) directly
-        # from PlusFunc(A), PlusFunc(B), and the fact that x=⟨m,n⟩.
-        # This needs its own induction for each (m,n), which is what values_agree does.
-        # The induction result applies to ALL m,n — it's already universal.
+        # 16. Fold: cut OrdPair(q) and In(q,B) from And, eel q from Apply(B,x,y)
+        got_oq = apply_thm(and_elim_left(op_q, in_q_B, []), [], and_oq_iq, op_q, ax(and_oq_iq))
+        got_iq = apply_thm(and_elim_right(op_q, in_q_B, []), [], and_oq_iq, in_q_B, ax(and_oq_iq))
+        for pred, got_pred in [(op_q, got_oq), (in_q_B, got_iq)]:
+            if any(same(pred, f) for f in got_in_z_B.sequent.left):
+                got_in_z_B = cut(got_in_z_B, pred, got_pred)
+        got_in_z_B = eel(got_in_z_B, and_oq_iq, qv)
+        got_in_z_B = cut(got_in_z_B, Exists(qv, and_oq_iq), got_app_B_xy)
+        print(f'_transfer step 16: got_in_z_B right = {got_in_z_B.sequent.right[0]}')
 
-        # Let me check: values_agree's result has In(_mv,w) on left.
-        # If I discharge it and close ∀_mv, I get ∀_mv. In(_mv,w) → ∀_nv∈w. R(_nv).
-        # Then instantiate with mv, nv. This gives R(mv,nv) for my vars.
+        # 17. eel r_body (pair0, p0), cut with got_r_mn
+        got_in_z_B = eel(got_in_z_B, r_body, p0)
+        got_in_z_B = eel(got_in_z_B, Exists(p0, r_body), pair0)
+        r_mn_formula = got_r_mn.sequent.right[0]
+        got_in_z_B = cut(got_in_z_B, r_mn_formula, got_r_mn)
 
-        # But values_agree doesn't close _mv — it's a parameter of the function.
-        # values_agree(A, B, w) returns: [pf_A, pf_B, Omega(w), In(_mv,w), axioms] |- R(_nv)
-        # where _mv and _nv are the function's internal vars.
-        # I need to find them from the proof.
+        # 18. eel decomp_inner (mv, nv), cut with got_decomp
+        got_in_z_B = eel(got_in_z_B, decomp_inner, nv)
+        got_in_z_B = eel(got_in_z_B, Exists(nv, decomp_inner), mv)
+        got_in_z_B = cut(got_in_z_B, got_decomp.sequent.right[0], got_decomp)
 
-        # Hmm this is really getting tangled. Let me just accept that the membership
-        # transfer is complex and use a simpler proof strategy.
+        # 19. eel Domain(A,d), Product(prodv,w,w), cut with domain_exists, product_exists
+        if any(same(dom_Ad, f) for f in got_in_z_B.sequent.left):
+            got_in_z_B = eel(got_in_z_B, dom_Ad, dv)
+            de = domain_exists()
+            got_ex_d = apply_thm(de, [A], concl=Exists(dv, dom_Ad))
+            got_in_z_B = cut(got_in_z_B, Exists(dv, dom_Ad), got_ex_d)
+        if any(same(prod_ww, f) for f in got_in_z_B.sequent.left):
+            got_in_z_B = eel(got_in_z_B, prod_ww, prodv)
+            pe = product_exists()
+            got_ex_prod = apply_thm(pe, [w, w], concl=Exists(prodv, prod_ww))
+            got_in_z_B = cut(got_in_z_B, Exists(prodv, prod_ww), got_ex_prod)
 
-        # ALTERNATIVE STRATEGY: prove Eq(h1,h2) without membership transfer.
-        # Use: Function(h1) + Function(h2) + dom(h1) = dom(h2) + ∀x∈dom. h1(x) = h2(x).
-        # "∀x∈dom. h1(x) = h2(x)" from values_agree + func_unique.
-        # Then: h1 and h2 are functions with same dom and same values → same set.
-        # This is a standard result but needs to be proved.
+        # 20. eel OrdPair(z,x,y) (xv, yv), cut with got_ex_xy
+        got_in_z_B = eel(got_in_z_B, op_z, yv)
+        got_in_z_B = eel(got_in_z_B, Exists(yv, op_z), xv)
+        got_in_z_B = cut(got_in_z_B, ex_xy_op, got_ex_xy)
 
-        # Actually the simplest of all: SKIP the membership transfer.
-        # Just prove Eq(h1,h2) = ∀z. In(z,h1) ↔ In(z,h2) via a different route.
-        # An element z ∈ h1 is ⟨x,y⟩ (from Function). Apply(h1,x,y).
-        # The same ⟨x,y⟩ = z. If Apply(h2,x,y) also, then z ∈ h2.
-        # But the z might be a different OrdPair witness for h2.
-        # No — OrdPair is unique. z = ⟨x,y⟩ is the SAME set regardless.
-        # So Apply(h2,x,y) → ∃q. OrdPair(q,x,y) ∧ In(q,h2).
-        # OrdPair(z,x,y) ∧ OrdPair(q,x,y) → z = q. In(q,h2) → In(z,h2).
+        print(f'_transfer final: right = {got_in_z_B.sequent.right[0]}')
+        print(f'_transfer final: left count = {len(got_in_z_B.sequent.left)}')
+        return got_in_z_B, zv
 
-        # OK I'm going in circles. Let me just write it with the membership transfer.
-        # The variable connection issue: I'll close+reopen values_agree.
+    # === Forward: In(z,h1) → In(z,h2) ===
+    got_fwd_proof, zv1 = _transfer(h1, h2, got_va_12)
+    # === Backward: In(z,h2) → In(z,h1) ===
+    got_bwd_proof, zv2 = _transfer(h2, h1, got_va_21)
 
-        raise NotImplementedError("transfer implementation in progress")
+    # === Build Iff → Eq ===
+    zv = Var(postfix='_zeq')
+    in_z_h1 = In(zv, h1)
+    in_z_h2 = In(zv, h2)
 
-    raise NotImplementedError("plus_func_eq in progress")
+    # Discharge In(z,A) from each, close ∀z, build Iff:
+    # Forward:
+    imp_fwd = Implies(In(zv1, h1), got_fwd_proof.sequent.right[0])
+    left_fwd = [f for f in got_fwd_proof.sequent.left if not same(f, In(zv1, h1))]
+    got_imp_fwd = Proof(Sequent(left_fwd, [imp_fwd]), 'implies_right', [got_fwd_proof], principal=imp_fwd)
+    fa_fwd = Forall(zv1, imp_fwd)
+    got_fa_fwd = Proof(Sequent(got_imp_fwd.sequent.left, [fa_fwd]),
+        'forall_right', [got_imp_fwd], principal=fa_fwd, term=zv1)
+
+    # Backward:
+    imp_bwd = Implies(In(zv2, h2), got_bwd_proof.sequent.right[0])
+    left_bwd = [f for f in got_bwd_proof.sequent.left if not same(f, In(zv2, h2))]
+    got_imp_bwd = Proof(Sequent(left_bwd, [imp_bwd]), 'implies_right', [got_bwd_proof], principal=imp_bwd)
+    fa_bwd = Forall(zv2, imp_bwd)
+    got_fa_bwd = Proof(Sequent(got_imp_bwd.sequent.left, [fa_bwd]),
+        'forall_right', [got_imp_bwd], principal=fa_bwd, term=zv2)
+
+    # Instantiate both at zv:
+    got_fwd_z = apply_thm(got_fa_fwd, [zv], in_z_h1, in_z_h2, ax(in_z_h1))
+    got_bwd_z = apply_thm(got_fa_bwd, [zv], in_z_h2, in_z_h1, ax(in_z_h2))
+
+    # Iff:
+    iff_h1h2 = Iff(in_z_h1, in_z_h2)
+    imp_12 = Implies(in_z_h1, in_z_h2)
+    imp_21 = Implies(in_z_h2, in_z_h1)
+    left_12 = [f for f in got_fwd_z.sequent.left if not same(f, in_z_h1)]
+    got_imp12 = Proof(Sequent(left_12, [imp_12]), 'implies_right', [got_fwd_z], principal=imp_12)
+    left_21 = [f for f in got_bwd_z.sequent.left if not same(f, in_z_h2)]
+    got_imp21 = Proof(Sequent(left_21, [imp_21]), 'implies_right', [got_bwd_z], principal=imp_21)
+    ii = iff_intro(in_z_h1, in_z_h2, [])
+    got_iff = mp(apply_thm(ii, [], imp_12, Implies(imp_21, iff_h1h2), got_imp12),
+        got_imp21, imp_21, iff_h1h2)
+
+    # ∀z → Eq(h1,h2)
+    fa_iff = Forall(zv, iff_h1h2)
+    got_eq = Proof(Sequent(got_iff.sequent.left, [fa_iff]),
+        'forall_right', [got_iff], principal=fa_iff, term=zv)
+    eq_h1h2 = Eq(h1, h2)
+    got_eq = cut(ax(eq_h1h2), eq_h1h2, got_eq)
+
+    # Discharge and close:
+    proof = got_eq
+
+    # Cut Relation(h1/h2) BEFORE discharging PlusFunc (Relation derived from PlusFunc)
+    rel_h1 = RelDef(h1)
+    rel_h2 = RelDef(h2)
+    for rel in [rel_h1, rel_h2]:
+        if any(same(rel, f) for f in proof.sequent.left):
+            got_func, _, _, _, _ = plusfunc_elim(rel.set, w)
+            func_exp = got_func.sequent.right[0].expand()
+            got_rel = apply_thm(and_elim_left(func_exp.left, func_exp.right, []), [],
+                got_func.sequent.right[0], func_exp.left, got_func)
+            got_rel = cut(ax(rel), rel, got_rel)
+            proof = cut(proof, rel, got_rel)
+
+    # Discharge PlusFunc, Omega
+    for hyp in [pf2, pf1, omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    # Discharge any remaining h1/h2-free non-axiom formulas
+    for ff in list(proof.sequent.left):
+        if isinstance(ff, zfc.ZFCAxiom):
+            continue
+        if (_var_free_in_sequent(h1, Sequent([ff], [])) or _var_free_in_sequent(h2, Sequent([ff], []))):
+            proof = wl(proof, ff)
+            imp = Implies(ff, proof.sequent.right[0])
+            left = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+
+    for v in [h2, h1, w]:
+        for ff in proof.sequent.left:
+            if _var_free_in_sequent(v, Sequent([ff], [])):
+                print(f'{v} free in: {ff}')
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'plus_func_eq'
+    return proof
 
 
 def plus_func_exists():
