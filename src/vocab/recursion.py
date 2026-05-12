@@ -54,7 +54,7 @@ class Recursive:
 
 class Plus:
     """Plus(m, n, p): m + n = p.
-    Exists w, h, sf. Omega(w) and sf_props(sf,w) and Recursive(h, m, sf, w) and Apply(h, n, p).
+    Forall w, h, sf. Omega(w) -> sf_props(sf,w) -> Recursive(h, m, sf, w) -> Apply(h, n, p).
     sf_props(sf,w) = succ_char(sf,w) /\\ Function(sf) /\\ dom_sub(sf,w)."""
     __match_args__ = ('left', 'right', 'result')
     def __init__(self, m, n, p):
@@ -65,10 +65,9 @@ class Plus:
             Forall(y, Iff(Apply(sf, x, y), Successor(y, x)))))
         sf_all = And(succ_char, And(Function(sf),
             Forall(xd, Implies(Exists(yd, Apply(sf, xd, yd)), In(xd, w)))))
-        return Exists(w, And(Omega(w),
-            Exists(h, Exists(sf,
-                And(sf_all,
-                And(Recursive(h, self.left, sf, w),
+        return Forall(w, Implies(Omega(w),
+            Forall(h, Forall(sf, Implies(sf_all,
+                Implies(Recursive(h, self.left, sf, w),
                     Apply(h, self.right, self.result)))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
