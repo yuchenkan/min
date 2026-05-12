@@ -2084,16 +2084,15 @@ def pf_relation(hv, w, sfv, pv_ww, pv_wwxw):
     return proof
 
 
-def pf_forward(hv, w, sfv, pv_ww, pv_wwxw):
+def pf_forward(hv, w, sfv):
     """Forward bridge: from Apply(hv,key,val), extract Recursive and Apply(hm,n,val).
-    [Apply(hv,key,val), char_hv, axioms]
-    |- ∃m. And(In(m,w), ∃n. And(OrdPair(key,m,n),
-        ∃hm. And(Recursive(hm,m,sf,w), Apply(hm,n,val))))
 
-    From Apply(hv,key,val): ∃triple. OrdPair(triple,key,val) ∧ In(triple,hv).
-    From Separation forward: phi2(triple).
-    phi2 has OrdPair(triple,pair,y). tuple_injection: key=pair, val=y.
-    Transfer formulas, build clean result."""
+    [char_fwd(hv,sfv,w), Pairing]
+    |- ∀key,val. Apply(hv,key,val) →
+       ∃m. And(In(m,w), ∃n. And(OrdPair(key,m,n),
+           ∃hm. And(Recursive(hm,m,sfv,w), Apply(hm,n,val))))
+
+    char_fwd = ∀x. In(x,hv) → phi2(x). The forward-only part of Separation."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
         iff_mp, iff_mp_rev)
@@ -2133,8 +2132,7 @@ def pf_forward(hv, w, sfv, pv_ww, pv_wwxw):
                 Exists(hmv, And(rec_hm, Apply(hmv, nv, yv))))))))))
 
     xv = Var(postfix='_xv')
-    prod_wwxw = Product(pv_wwxw, pv_ww, w)
-    char_hv = Forall(xv, Iff(In(xv, hv), And(In(xv, pv_wwxw), phi2(xv))))
+    char_fwd = Forall(xv, Implies(In(xv, hv), phi2(xv)))
 
     # Variables for the proof
     key = Var(postfix='_key')
@@ -2158,14 +2156,9 @@ def pf_forward(hv, w, sfv, pv_ww, pv_wwxw):
     in_tv = app_body.right
     print(f'pf_forward: tv={tv}, op_tv={op_tv}, in_tv={in_tv}')
 
-    # === Step 2: Separation forward ===
-    got_char = apply_thm(ax(char_hv), [tv])
-    iff_f = got_char.sequent.right[0]
-    got_fwd = apply_thm(iff_mp(iff_f.left, iff_f.right, []), [],
-        iff_f, Implies(iff_f.left, iff_f.right), got_char)
-    got_sep = mp(got_fwd, ax(in_tv), in_tv, iff_f.right)
-    got_phi2 = apply_thm(and_elim_right(In(tv, pv_wwxw), phi2(tv), []), [],
-        got_sep.sequent.right[0], phi2(tv), got_sep)
+    # === Step 2: char_fwd forward: In(tv,hv) → phi2(tv) ===
+    got_char = apply_thm(ax(char_fwd), [tv])
+    got_phi2 = mp(got_char, ax(in_tv), in_tv, phi2(tv))
     print(f'pf_forward step2: phi2(tv) = {got_phi2.sequent.right[0]}')
 
     # === Step 3: Open phi2(tv) level by level ===
@@ -2424,7 +2417,7 @@ def pf_single_valued(hv, w, sfv, pv_ww, pv_wwxw):
     print(f'pf_sv: key={key_sv}, y1={y1_sv}, y2={y2_sv}')
 
     # === Step 1: pf_forward on Apply(hv,key,y1) ===
-    fwd = pf_forward(hv, w, sfv, pv_ww, pv_wwxw)
+    fwd = pf_forward(hv, w, sfv)
     got_fwd1 = apply_thm(fwd, [key_sv, y1_sv])
     got_fwd1 = mp(got_fwd1, ax(app1), app1, got_fwd1.sequent.right[0].right)
     fwd1_result = got_fwd1.sequent.right[0]
@@ -2445,7 +2438,7 @@ def pf_single_valued(hv, w, sfv, pv_ww, pv_wwxw):
 
     # === Step 2: pf_forward on Apply(hv,key,y2) ===
     # Call pf_forward again to get fresh bound vars (m2 != m1, etc.)
-    fwd2 = pf_forward(hv, w, sfv, pv_ww, pv_wwxw)
+    fwd2 = pf_forward(hv, w, sfv)
     got_fwd2 = apply_thm(fwd2, [key_sv, y2_sv])
     got_fwd2 = mp(got_fwd2, ax(app2), app2, got_fwd2.sequent.right[0].right)
     fwd2_result = got_fwd2.sequent.right[0]
@@ -2799,7 +2792,7 @@ def pf_step(hv, w, sfv, pv_ww, pv_wwxw):
     op_pair2 = OrdPair(pair2_s, m_s, sn_s)
 
     # === Step 1: pf_forward on Apply(hv, pair_s, p_s) ===
-    fwd = pf_forward(hv, w, sfv, pv_ww, pv_wwxw)
+    fwd = pf_forward(hv, w, sfv)
     got_fwd = apply_thm(fwd, [pair_s, p_s])
     got_fwd = mp(got_fwd, ax(app_h_p), app_h_p, got_fwd.sequent.right[0].right)
     fwd_result = got_fwd.sequent.right[0]
@@ -3235,7 +3228,7 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     app_hz_y = Apply(hv, z, y_fwd)
 
     # pf_forward: Apply(hv,z,y_fwd) -> exists m. In(m,w) & exists n. OrdPair(z,m,n) & exists hm. ...
-    fwd = pf_forward(hv, w, sfv, pv_ww, pv_wwxw)
+    fwd = pf_forward(hv, w, sfv)
     got_fwd = apply_thm(fwd, [z, y_fwd])
     got_fwd = mp(got_fwd, ax(app_hz_y), app_hz_y, got_fwd.sequent.right[0].right)
     fwd_result = got_fwd.sequent.right[0]
