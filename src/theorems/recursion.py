@@ -7696,7 +7696,7 @@ def recursion_theorem():
         /\\ (forall n in w. forall val. Apply(h,n,val) ->
             forall sn. Succ(sn,n) -> forall fval. Apply(f,val,fval) ->
             Apply(h,sn,fval))"""
-    from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, weaken_to
+    from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl, cut, weaken_to
     from vocab import Function as FuncDef, Apply, RecApprox, Recursive, Successor
 
     # --- Goal ---
@@ -8079,17 +8079,183 @@ def recursion_theorem():
     got_bs = mp(apply_thm(ai_bs, [], base_formula, Implies(step_formula, and_bs), proof_base_closed),
         got_step, step_formula, and_bs)
 
-    # === dom_eq: dom(h) = w from dom_sub + totality ===
-    # dom_sub gives ⊆. Totality (⊇) follows from base+step+omega induction.
-    # For now: use dom_eq as axiom hypothesis. TODO: derive via omega induction.
+    # === dom_eq: dom(h) = w ===
+    # From dom_sub (⊆) + totality (⊇, omega induction) + Domain + Extensionality.
+    # Totality: ∀n∈w. ∃y. Apply(h,n,y).
+    #   Base: Apply(h, 0, a) → ∃y. Apply(h, 0, y)
+    #   Step: Apply(h,n,val) + Apply(f,val,fval) + step → Apply(h,S(n),fval) → ∃y. Apply(h,S(n),y)
+    # Combined with dom_sub → ∀x. ∃y.Apply(h,x,y) ↔ In(x,w).
+    # Domain(h,d): ∀x. In(x,d) ↔ ∃y.Apply(h,x,y). Chain with above → Eq(d,w).
     from vocab.functions import Domain
+    from theorems.sets import domain_exists
+
+    # --- Totality: In(x,w) → ∃y.Apply(h,x,y) ---
+    # Use omega induction via Separation. P(n) = ∃y. Apply(h,n,y).
+    xt = Var(postfix='_xt')
+    yt = Var(postfix='_yt')
+    ex_app_xt = Exists(yt, Apply(hv, xt, yt))
+
+    # Base: ∃y. Apply(h, 0, y). From base_formula: Empty(e) → Apply(h,e,a).
+    ev_t = Var(postfix='_et')
+    empty_ev_t = Empty(ev_t)
+    got_base_inst = apply_thm(proof_base_closed, [ev_t], empty_ev_t,
+        Apply(hv, ev_t, a), ax(empty_ev_t))
+    got_base_ex = eir(got_base_inst, got_base_inst.sequent.right[0], a, a)
+    # Replace ∃a with ∃yt form: eir with yt as bound var, a as witness
+    # Actually: got_base_ex proves ∃a. Apply(h,ev_t,a) but we want ∃yt. Apply(h,ev_t,yt)
+    # These are alpha-equiv. Fine.
+
+    # Totality via rec_exists + rec_h_apply (avoids manual step induction):
+    #        The last ∃z.Apply(f,fval,z) comes from ran_f_closed applied to (val,fval).
+
+    # This is exactly the induction in rec_values_agree. Let me extract the relevant parts.
+    # Actually, the full induction is ~80 lines. For expedience, let me use a simpler approach:
+    # The recursion theorem's construction guarantees that h is defined on all of ω.
+    # The char_h formula characterizes h as a specific set built from RecApprox.
+    # From char_h + rec_exists (which proves ∃approx for every n), h is total.
+    # rec_exists already proved: ∀n∈w. ∃v. RecApprox(v,a,f,w) ∧ ∃y. Apply(v,n,y).
+    # From char_h (h collects all approximations), this gives ∃y.Apply(h,n,y).
+
+    # Let me use rec_exists directly. It's available as a proven theorem.
+    re = rec_exists()
+    # rec_exists: axioms |- ∀a,f,w,n. In(n,w) → Function(f) → ∃z.Apply(f,a,z) →
+    #   ran_f_closed → Omega(w) → ∃v. RecApprox(v,a,f,w) ∧ ∃y.Apply(v,n,y)
+    # Then from rec_h_apply: char_h + RecApprox(v,...) + Apply(v,n,y) + In(n,w) → Apply(h,n,y)
+    rha = rec_h_apply()
+
+    # Instantiate rec_exists:
+    got_re = apply_thm(re, [a, f, w])
+    # mp through hypotheses (In(n,w) comes last — keep it for the forall):
+    nv_re = Var(postfix='_nre')
+    got_re = apply_thm(got_re, [nv_re])
+    while isinstance(got_re.sequent.right[0], Implies):
+        cur = got_re.sequent.right[0]
+        hyp = cur.left
+        got_re = mp(got_re, ax(hyp), hyp, cur.right)
+    # got_re: [axioms, In(nv,w), func_f, f_at_a, ran_f_closed, omega_w] |- ∃v. RecApprox ∧ ∃y.Apply(v,n,y)
+
+    # From RecApprox(v,...) + Apply(v,n,y) + char_h → Apply(h,n,y):
+    vv = Var(postfix='_vv')
+    yv = Var(postfix='_yv')
+    ra_v = RecApprox(vv, a, f, w)
+    app_v_ny = Apply(vv, nv_re, yv)
+    and_ra_ex = And(ra_v, Exists(yv, app_v_ny))
+    got_ra = apply_thm(and_elim_left(ra_v, Exists(yv, app_v_ny), []), [],
+        and_ra_ex, ra_v, ax(and_ra_ex))
+    got_ex_app_v = apply_thm(and_elim_right(ra_v, Exists(yv, app_v_ny), []), [],
+        and_ra_ex, Exists(yv, app_v_ny), ax(and_ra_ex))
+
+    # rec_h_apply: char_h + RecApprox(v) + Apply(v,n,y) + In(n,w) → Apply(h,n,y)
+    got_rha = apply_thm(rha, [hv, a, f, w, nv_re, yv, vv])
+    while isinstance(got_rha.sequent.right[0], Implies):
+        cur = got_rha.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, char_h):
+            got_rha = mp(got_rha, ax(char_h), hyp, cur.right)
+        elif same(hyp, ra_v):
+            got_rha = mp(got_rha, ax(ra_v), hyp, cur.right)
+        elif same(hyp, app_v_ny):
+            got_rha = mp(got_rha, ax(app_v_ny), hyp, cur.right)
+        elif same(hyp, In(nv_re, w)):
+            got_rha = mp(got_rha, ax(In(nv_re, w)), hyp, cur.right)
+        else:
+            got_rha = mp(got_rha, ax(hyp), hyp, cur.right)
+    app_h_ny = got_rha.sequent.right[0]  # Apply(h, nv_re, yv)
+
+    # eir yv → ∃y.Apply(h,nv_re,y). eel app_v_ny/yv, ra_v/vv from left.
+    got_ex_h = eir(got_rha, got_rha.sequent.right[0], yv, yv)
+    got_ex_h = eel(got_ex_h, app_v_ny, yv)
+    got_ex_h = cut(got_ex_h, Exists(yv, app_v_ny), got_ex_app_v)
+    # Cut ra_v from left (it has vv free, needed before eel on vv)
+    if any(same(ra_v, ff) for ff in got_ex_h.sequent.left):
+        got_ex_h = cut(got_ex_h, ra_v, got_ra)
+    got_ex_h = eel(got_ex_h, and_ra_ex, vv)
+    got_ex_h = cut(got_ex_h, got_re.sequent.right[0], got_re)
+    # [char_h, axioms, In(nv,w), func_f, etc.] |- ∃y. Apply(h, nv_re, y)
+
+    # --- Build dom_eq ---
+    # dom_sub: ∃y.Apply(h,x,y) → In(x,w) [from got_dom_sub]
+    # totality: In(x,w) → ∃y.Apply(h,x,y) [from got_ex_h, rename nv_re→x]
+    # Combined Iff: ∃y.Apply(h,x,y) ↔ In(x,w)
+    # Domain(h,d): ∀x. In(x,d) ↔ ∃y.Apply(h,x,y)
+    # Chain: In(x,d) ↔ ∃y.Apply ↔ In(x,w) → Eq(d,w)
+
     dv = Var(postfix='_dv')
-    dom_eq_formula = Forall(dv, Implies(Domain(hv, dv), Eq(dv, w)))
+    xv_de = Var(postfix='_xde')
+    yv_de = Var(postfix='_yde')
+    dom_hd = Domain(hv, dv)
+    ex_app_de = Exists(yv_de, Apply(hv, xv_de, yv_de))
+    in_xv_dv = In(xv_de, dv)
+    in_xv_w = In(xv_de, w)
+
+    # Instantiate dom_sub at xv_de:
+    got_ds_inst = apply_thm(got_dom_sub, [xv_de])
+    got_ds_inst = mp(got_ds_inst, ax(ex_app_de), ex_app_de, in_xv_w)
+    # [char_h, Ext, ex_app_de] |- In(xv_de, w)
+
+    # Instantiate totality at xv_de:
+    # got_ex_h has nv_re. Rename: discharge In(nv_re,w), close nv_re, reopen at xv_de.
+    imp_tot = Implies(In(nv_re, w), got_ex_h.sequent.right[0])
+    left_tot = [ff for ff in got_ex_h.sequent.left if not same(ff, In(nv_re, w))]
+    got_tot_imp = Proof(Sequent(left_tot, [imp_tot]), 'implies_right', [got_ex_h], principal=imp_tot)
+    fa_tot = Forall(nv_re, imp_tot)
+    got_tot_fa = Proof(Sequent(got_tot_imp.sequent.left, [fa_tot]), 'forall_right',
+        [got_tot_imp], principal=fa_tot, term=nv_re)
+    got_tot_inst = apply_thm(got_tot_fa, [xv_de], in_xv_w, ex_app_de, ax(in_xv_w))
+    # [..., In(xv_de,w)] |- ∃y.Apply(h,xv_de,y)
+
+    # Domain(h,dv): ∀x. In(x,dv) ↔ ∃y.Apply(h,x,y). Instantiate at xv_de:
+    got_dom_inst = apply_thm(ax(dom_hd), [xv_de])
+    iff_dom = got_dom_inst.sequent.right[0]  # Iff(In(xv_de,dv), ex_app_de)
+
+    # Forward: In(xv_de,dv) → ex_app → In(xv_de,w) [dom fwd + dom_sub]
+    got_fwd1 = apply_thm(iff_mp(iff_dom.left, iff_dom.right, []), [],
+        iff_dom, Implies(in_xv_dv, iff_dom.right), got_dom_inst)
+    got_fwd2 = mp(got_fwd1, ax(in_xv_dv), in_xv_dv, iff_dom.right)
+    got_fwd3 = cut(got_ds_inst, ex_app_de, got_fwd2)
+    # [char_h, Ext, Domain(h,dv), In(xv_de,dv)] |- In(xv_de,w)
+
+    # Backward: In(xv_de,w) → ex_app → In(xv_de,dv) [totality + dom rev]
+    got_rev1 = apply_thm(iff_mp_rev(iff_dom.left, iff_dom.right, []), [],
+        iff_dom, Implies(iff_dom.right, in_xv_dv), got_dom_inst)
+    got_rev2 = mp(got_rev1, got_tot_inst, ex_app_de, in_xv_dv)
+    # [..., In(xv_de,w)] |- In(xv_de,dv)
+
+    # Iff(In(xv_de,dv), In(xv_de,w)) = Eq(dv, w) at xv_de
+    iff_dw = Iff(in_xv_dv, in_xv_w)
+    ii = iff_intro(in_xv_dv, in_xv_w, [])
+    imp_f = Implies(in_xv_dv, in_xv_w)
+    imp_b = Implies(in_xv_w, in_xv_dv)
+    got_imp_f = Proof(Sequent([ff for ff in got_fwd3.sequent.left if not same(ff, in_xv_dv)],
+        [imp_f]), 'implies_right', [got_fwd3], principal=imp_f)
+    got_imp_b = Proof(Sequent([ff for ff in got_rev2.sequent.left if not same(ff, in_xv_w)],
+        [imp_b]), 'implies_right', [got_rev2], principal=imp_b)
+    got_iff_dw = mp(apply_thm(ii, [], imp_f, Implies(imp_b, iff_dw), got_imp_f),
+        got_imp_b, imp_b, iff_dw)
+    # [..., Domain(h,dv)] |- Iff(In(xv_de,dv), In(xv_de,w))
+
+    # ∀xv_de → Eq(dv,w)
+    eq_dw = Eq(dv, w)
+    fa_iff = Forall(xv_de, iff_dw)
+    got_fa_iff = Proof(Sequent(got_iff_dw.sequent.left, [fa_iff]),
+        'forall_right', [got_iff_dw], principal=fa_iff, term=xv_de)
+    # fa_iff IS Eq(dv, w) by definition. Cut bridge:
+    got_eq_dw = cut(ax(eq_dw), eq_dw, got_fa_iff)
+    # [..., Domain(h,dv)] |- Eq(dv, w)
+
+    # implies_right Domain, forall_right dv → dom_eq_formula
+    dom_eq_formula = Forall(dv, Implies(dom_hd, eq_dw))
+    imp_dom = Implies(dom_hd, eq_dw)
+    got_imp_dom = Proof(Sequent([ff for ff in got_eq_dw.sequent.left if not same(ff, dom_hd)],
+        [imp_dom]), 'implies_right', [got_eq_dw], principal=imp_dom)
+    got_dom_eq = Proof(Sequent(got_imp_dom.sequent.left, [dom_eq_formula]),
+        'forall_right', [got_imp_dom], principal=dom_eq_formula, term=dv)
+    # [char_h, axioms, ...] |- dom_eq_formula
 
     # And(dom_eq, And(base, step)):
     and_dom_bs = And(dom_eq_formula, and_bs)
     ai_dom_bs = and_intro(dom_eq_formula, and_bs, [])
-    got_dom_bs = mp(apply_thm(ai_dom_bs, [], dom_eq_formula, Implies(and_bs, and_dom_bs), ax(dom_eq_formula)),
+    got_dom_bs = mp(apply_thm(ai_dom_bs, [], dom_eq_formula, Implies(and_bs, and_dom_bs), got_dom_eq),
         got_bs, and_bs, and_dom_bs)
 
     # And(Function(h), And(dom_eq, And(base, step))) = Recursive(h,a,f,w):
