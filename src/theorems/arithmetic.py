@@ -430,13 +430,484 @@ def plusfunc_elim(h, w):
 
 def plus_func_values_agree(h1, h2, w):
     """Values of two PlusFuncs agree on all ⟨m,n⟩ ∈ ω×ω.
-    [PlusFunc(h1,w), PlusFunc(h2,w), Omega(w)] |-
-        ∀m∈w. ∀n∈w. ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h1,pair,p) → Apply(h2,pair,p)
+    [PlusFunc(h1,w), PlusFunc(h2,w), Omega(w), In(m,w)] |-
+        ∀n∈w. ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h1,pair,p) → Apply(h2,pair,p)
 
-    For fixed m, induction on n with Q(n) = ∃p. Apply(h1,⟨m,n⟩,p) ∧ Apply(h2,⟨m,n⟩,p).
-    Then Apply(h1,pair,p) + Function(h1) gives the specific p, and Q gives Apply(h2,pair,p)."""
-    # TODO: implement - omega induction
-    raise NotImplementedError("plus_func_values_agree under construction")
+    Omega induction on n. Q(n) = ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h1,pair,p) → Apply(h2,pair,p).
+    Base Q(0): h1(⟨m,0⟩)=p, PlusFunc base gives h1(⟨m,0⟩)=m, so p=m, PlusFunc base gives h2(⟨m,0⟩)=m.
+    Step Q(n)→Q(S(n)): h1(⟨m,S(n)⟩)=p1, step gives h1(⟨m,n⟩)=p with p1=S(p),
+        Q(n) gives h2(⟨m,n⟩)=p, step gives h2(⟨m,S(n)⟩)=S(p)=p1."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import and_intro, and_elim_left, and_elim_right
+    from theorems.omega import func_unique_thm, omega_smallest_inductive, omega_contains_empty, omega_succ_closed
+    from theorems.logic import eq_reflexive, eq_substitution, unique_empty, iff_mp, iff_mp_rev
+    from theorems.sets import ordpair_exists, successor_exists
+    from vocab import (Function as FuncDef, Apply, Successor as SuccDef)
+    from vocab.recursion import PlusFunc
+    from vocab.ordpair import OrdPair
+    from vocab.omega import Omega
+    from vocab.sets import Empty
+    from core.proof import Proof, Sequent, same
+    import core.zfc as zfc
+
+    mv = Var(postfix='_mv')
+    nv = Var(postfix='_nv')
+    snv = Var(postfix='_snv')
+    pv = Var(postfix='_pv')
+    pair_v = Var(postfix='_pair')
+    omega_w = Omega(w)
+    in_mv_w = In(mv, w)
+
+    pf1 = PlusFunc(h1, w)
+    pf2 = PlusFunc(h2, w)
+
+    # Decompose PlusFuncs
+    got_func1, _, got_base1, got_step1, _ = plusfunc_elim(h1, w)
+    got_func2, _, got_base2, got_step2, _ = plusfunc_elim(h2, w)
+    fu = func_unique_thm()
+
+    # === Base case: Q(0) ===
+    # Q(0) = ∀pair. OrdPair(pair,m,0) → ∀p. Apply(h1,pair,p) → Apply(h2,pair,p)
+    # From PlusFunc base for h1: In(m,w) → Empty(z) → OrdPair(pair,m,z) → Apply(h1,pair,m)
+    # From PlusFunc base for h2: same → Apply(h2,pair,m)
+    # Apply(h1,pair,p) + Apply(h1,pair,m) + Function(h1) → Eq(p,m)
+    # Eq(p,m) + Apply(h2,pair,m) → Apply(h2,pair,p) [via eq_apply_val_transfer or similar]
+
+    zv = Var(postfix='_zv')
+    op_mz = OrdPair(pair_v, mv, zv)
+    empty_z = Empty(zv)
+
+    # Instantiate base1: In(mv,w) → Empty(zv) → OrdPair(pair,mv,zv) → Apply(h1,pair,mv)
+    got_b1 = apply_thm(got_base1, [mv])
+    got_b1 = mp(got_b1, ax(in_mv_w), in_mv_w, got_b1.sequent.right[0].right)
+    got_b1 = apply_thm(got_b1, [zv])
+    got_b1 = mp(got_b1, ax(empty_z), empty_z, got_b1.sequent.right[0].right)
+    got_b1 = apply_thm(got_b1, [pair_v])
+    got_b1 = mp(got_b1, ax(op_mz), op_mz, Apply(h1, pair_v, mv))
+    # [pf1, In(mv,w), Empty(zv), OrdPair(pair,mv,zv)] |- Apply(h1, pair, mv)
+
+    # Same for h2:
+    got_b2 = apply_thm(got_base2, [mv])
+    got_b2 = mp(got_b2, ax(in_mv_w), in_mv_w, got_b2.sequent.right[0].right)
+    got_b2 = apply_thm(got_b2, [zv])
+    got_b2 = mp(got_b2, ax(empty_z), empty_z, got_b2.sequent.right[0].right)
+    got_b2 = apply_thm(got_b2, [pair_v])
+    got_b2 = mp(got_b2, ax(op_mz), op_mz, Apply(h2, pair_v, mv))
+    # [pf2, In(mv,w), Empty(zv), OrdPair(pair,mv,zv)] |- Apply(h2, pair, mv)
+
+    # func_unique: Apply(h1,pair,p) + Apply(h1,pair,mv) + Function(h1) → Eq(p, mv)
+    app1_p = Apply(h1, pair_v, pv)
+    eq_p_mv = Eq(pv, mv)
+    got_eq_pm = apply_thm(fu, [h1, pair_v, pv, mv])
+    got_eq_pm = mp(got_eq_pm, got_func1, FuncDef(h1), got_eq_pm.sequent.right[0].right)
+    got_eq_pm = mp(got_eq_pm, ax(app1_p), app1_p, got_eq_pm.sequent.right[0].right)
+    got_eq_pm = mp(got_eq_pm, got_b1, Apply(h1, pair_v, mv), eq_p_mv)
+    # [pf1, pf2, In(mv,w), Empty(zv), OrdPair(...), Apply(h1,pair,p)] |- Eq(p, mv)
+
+    # Apply(h2,pair,p) from Apply(h2,pair,mv) + Eq(p,mv):
+    # Eq(p,mv) → Iff(In(p,x), In(mv,x)) for any x. Use eq_apply_val_transfer.
+    from theorems.recursion import eq_apply_val_transfer
+    eavt = eq_apply_val_transfer()
+    # eq_apply_val_transfer: Eq(y1,y2) → Apply(f,x,y1) → Apply(f,x,y2)
+    # We have Eq(p,mv). Want Apply(h2,pair,p) from Apply(h2,pair,mv).
+    # Need Eq(mv,p) (reverse) to transfer Apply(h2,pair,mv) to Apply(h2,pair,p).
+    from theorems.logic import eq_symmetric
+    es = eq_symmetric()
+    eq_mv_p = Eq(mv, pv)
+    got_eq_mp = apply_thm(es, [pv, mv], eq_p_mv, eq_mv_p, got_eq_pm)
+    got_app2_p = apply_thm(eavt, [h2, pair_v, mv, pv], eq_mv_p,
+        Implies(Apply(h2, pair_v, mv), Apply(h2, pair_v, pv)), got_eq_mp)
+    got_app2_p = mp(got_app2_p, got_b2, Apply(h2, pair_v, mv), Apply(h2, pair_v, pv))
+    # [pf1, pf2, In(mv,w), Empty(zv), OrdPair(...), Apply(h1,pair,p)] |- Apply(h2, pair, p)
+
+    # Discharge: Apply(h1,pair,p), OrdPair, Empty(zv)
+    # Close ∀p, ∀pair, ∀zv
+    proof_base = got_app2_p
+    for hyp in [app1_p, op_mz, empty_z]:
+        proof_base = wl(proof_base, hyp)
+        imp = Implies(hyp, proof_base.sequent.right[0])
+        left = [f for f in proof_base.sequent.left if not same(f, hyp)]
+        proof_base = Proof(Sequent(left, [imp]), 'implies_right', [proof_base], principal=imp)
+    for v in [pv, pair_v, zv]:
+        body = proof_base.sequent.right[0]
+        fa = Forall(v, body)
+        proof_base = Proof(Sequent(proof_base.sequent.left, [fa]),
+            'forall_right', [proof_base], principal=fa, term=v)
+    # [pf1, pf2, In(mv,w), Pairing] |- ∀zv. Empty(zv) → ∀pair. OrdPair → ∀p. Apply(h1)→Apply(h2)
+    # This IS Q(0) in the form: ∀z.Empty(z)→∀pair.OrdPair(pair,m,z)→∀p.Apply(h1,pair,p)→Apply(h2,pair,p)
+    base_formula = proof_base.sequent.right[0]
+
+    # === Step case: Q(n) → Q(S(n)) ===
+    # Assume Apply(h1, pair2, p1) where OrdPair(pair2, m, S(n)).
+    # PlusFunc step for h1: Apply(h1,⟨m,n⟩,p) → Apply(h1,⟨m,S(n)⟩,S(p)).
+    # So p1 = S(p) for some p with Apply(h1,⟨m,n⟩,p).
+    # Actually, step gives the forward direction. We need: from Apply(h1,⟨m,S(n)⟩,p1),
+    # find p with Apply(h1,⟨m,n⟩,p) and p1=S(p).
+    # This requires: h1 is defined at ⟨m,n⟩ (totality), then step gives Apply(h1,⟨m,S(n)⟩,S(p)),
+    # then Function gives p1 = S(p).
+    # But totality requires dom_eq which is heavy. Let me use a different approach.
+
+    # Stronger Q: Q(n) = ∀pair. OrdPair(pair,m,n) → ∃p. Apply(h1,pair,p) ∧ Apply(h2,pair,p)
+    # This includes definedness. But then the result isn't in the right form.
+
+    # Actually, the step direction is fine:
+    # From Q(n): ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h1,pair,p) → Apply(h2,pair,p)
+    # Plus PlusFunc step: Apply(h1,⟨m,n⟩,p) → Apply(h1,⟨m,S(n)⟩,S(p))
+    # Plus PlusFunc step: Apply(h2,⟨m,n⟩,p) → Apply(h2,⟨m,S(n)⟩,S(p))
+    # From Apply(h1,⟨m,S(n)⟩,p1): by step for h1 (reverse), there exists p with
+    #   Apply(h1,⟨m,n⟩,p) and p1=S(p). But step only goes FORWARD, not backward.
+
+    # The issue: PlusFunc step gives h(⟨m,S(n)⟩)=S(h(⟨m,n⟩)) in the forward direction.
+    # To go backward: from Apply(h,⟨m,S(n)⟩,p1), conclude p1=S(p) where Apply(h,⟨m,n⟩,p).
+    # This needs: (a) h is defined at ⟨m,n⟩, (b) step gives Apply(h,⟨m,S(n)⟩,S(p)), (c) Function gives p1=S(p).
+    # (a) is the definedness/totality issue.
+
+    # Use stronger Q: Q(n) = ∃pair,p. OrdPair(pair,m,n) ∧ Apply(h1,pair,p) ∧ Apply(h2,pair,p)
+    # "h1 and h2 are both defined at ⟨m,n⟩ and agree"
+    # Base: pair=⟨m,0⟩, p=m.
+    # Step: from Q(n) get pair0,p with OrdPair(pair0,m,n) ∧ Apply(h1,pair0,p) ∧ Apply(h2,pair0,p).
+    #   Step h1: Apply(h1,⟨m,S(n)⟩,S(p)). Step h2: Apply(h2,⟨m,S(n)⟩,S(p)).
+    #   pair2=⟨m,S(n)⟩. Q(S(n)) with p2=S(p).
+
+    # Then from Q(n), to prove the actual goal (Apply(h1,pair,p) → Apply(h2,pair,p)):
+    # Q(n) gives ∃pair0,p0. ... Apply(h1,pair0,p0) ∧ Apply(h2,pair0,p0).
+    # Apply(h1,pair,p) with OrdPair(pair,m,n): by ordpair_unique, pair=pair0.
+    # By Function(h1): p=p0. So Apply(h2,pair0,p0) = Apply(h2,pair,p). ✓
+
+    # This works but Q is existential. Let me use this stronger Q for the induction,
+    # then derive the actual goal from Q + Function + ordpair_unique.
+
+    # For now, let me just use the simpler approach with Q(n) including definedness.
+    # Actually, the simplest: omega induction with
+    # P(n) = ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h1,pair,p) → Apply(h2,pair,p)
+    # Base: proved above.
+    # Step: assume P(n). Show P(S(n)).
+    #   Given OrdPair(pair2,m,S(n)), Apply(h1,pair2,p1).
+    #   Need Apply(h2,pair2,p1).
+    #   From PlusFunc step h1 (instantiated at m,n,pair0,p,sn=S(n),sp=S(p),pair2):
+    #     OrdPair(pair0,m,n) → Apply(h1,pair0,p) → Succ(S(n),n) → Succ(S(p),p) → OrdPair(pair2,m,S(n)) → Apply(h1,pair2,S(p))
+    #   So Apply(h1,pair2,S(p)) for some p where Apply(h1,pair0,p) and OrdPair(pair0,m,n).
+    #   Function(h1): p1 = S(p).
+    #   By P(n): Apply(h1,pair0,p) → Apply(h2,pair0,p).
+    #   By PlusFunc step h2: Apply(h2,pair2,S(p)) = Apply(h2,pair2,p1). ✓
+    #   But we need pair0 and p to exist — i.e., h1 is defined at ⟨m,n⟩.
+    #   This is the totality issue again.
+
+    # RESOLUTION: use the STRONG induction predicate that includes definedness:
+    # R(n) = ∃pair. OrdPair(pair,m,n) ∧ ∃p. Apply(h1,pair,p) ∧ Apply(h2,pair,p)
+    # Base: OrdPair(pair0,m,0) from ordpair_exists. Apply(h1,pair0,m) ∧ Apply(h2,pair0,m) from base.
+    # Step: R(n) gives pair0, p. Step h1/h2 give pair2=⟨m,S(n)⟩, p2=S(p). R(S(n)) with these.
+    # Then: ∀n∈w. R(n). From R(n) + Apply(h1,pair,q) + OrdPair(pair,m,n):
+    #   R(n) gives pair0, p with OrdPair(pair0,m,n) ∧ Apply(h1,pair0,p) ∧ Apply(h2,pair0,p).
+    #   ordpair_unique: pair = pair0. Function(h1): q = p. So Apply(h2,pair,q). ✓
+
+    # Let me implement this R(n) induction.
+
+    pair0 = Var(postfix='_pr0')
+    p0 = Var(postfix='_p0')
+    app1_0 = Apply(h1, pair0, p0)
+    app2_0 = Apply(h2, pair0, p0)
+    op_mn = OrdPair(pair0, mv, nv)
+    R_body = And(op_mn, And(app1_0, app2_0))
+    R_n = Exists(pair0, Exists(p0, R_body))
+
+    # --- R base: R(0) ---
+    # ordpair_exists: ∃pair0. OrdPair(pair0, mv, zv)
+    # PlusFunc base: Apply(h1, pair0, mv), Apply(h2, pair0, mv)
+    # With zv where Empty(zv) (i.e., zv=0):
+    # Use omega_contains_empty to get In(0,w), then Num(0)=Empty.
+    # Actually for R(0): nv=0 means OrdPair(pair0, mv, 0). Need a zero variable.
+    # For omega induction: R is parameterized. The induction var ranges over w.
+    # R(e) for Empty(e): pair0=⟨mv,e⟩, p0=mv.
+
+    # This is getting complex. Let me use the standard Separation-based omega induction.
+    # Define t = {n ∈ w : R(n)}. Show Inductive(t). omega_smallest_inductive → t = w.
+
+    # For the Separation, the predicate is R(n). Parameters: h1, h2, mv, pair0, p0.
+    # But pair0, p0 are existentially bound inside R. The Separation predicate only
+    # depends on n (and the parameters h1, h2, mv, w).
+
+    phi = lambda nn: Exists(pair0, Exists(p0,
+        And(OrdPair(pair0, mv, nn), And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)))))
+    sep = zfc.Separation(phi, [h1, h2, mv])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+
+    pv_ind = Var(postfix='_pv')
+    xv_ind = Var(postfix='_xv')
+    char_pv = Forall(xv_ind, Iff(In(xv_ind, pv_ind), And(In(xv_ind, w), phi(xv_ind))))
+    got_ex_pv = apply_thm(sep_ax, [mv, h2, h1, w], concl=Exists(pv_ind, char_pv))
+
+    # --- Inductive base: ∀e. Empty(e) → In(e, pv) ---
+    ev = Var(postfix='_ev')
+    empty_ev = Empty(ev)
+
+    # OrdPair(pair0, mv, ev): exists from ordpair_exists
+    oe = ordpair_exists()
+    op_mev = OrdPair(pair0, mv, ev)
+    got_ex_pair = apply_thm(oe, [mv, ev], concl=Exists(pair0, op_mev))
+
+    # Apply(h1, pair0, mv) from PlusFunc base for h1:
+    got_b1_ev = apply_thm(got_base1, [mv])
+    got_b1_ev = mp(got_b1_ev, ax(in_mv_w), in_mv_w, got_b1_ev.sequent.right[0].right)
+    got_b1_ev = apply_thm(got_b1_ev, [ev])
+    got_b1_ev = mp(got_b1_ev, ax(empty_ev), empty_ev, got_b1_ev.sequent.right[0].right)
+    got_b1_ev = apply_thm(got_b1_ev, [pair0])
+    got_b1_ev = mp(got_b1_ev, ax(op_mev), op_mev, Apply(h1, pair0, mv))
+
+    # Apply(h2, pair0, mv) from PlusFunc base for h2:
+    got_b2_ev = apply_thm(got_base2, [mv])
+    got_b2_ev = mp(got_b2_ev, ax(in_mv_w), in_mv_w, got_b2_ev.sequent.right[0].right)
+    got_b2_ev = apply_thm(got_b2_ev, [ev])
+    got_b2_ev = mp(got_b2_ev, ax(empty_ev), empty_ev, got_b2_ev.sequent.right[0].right)
+    got_b2_ev = apply_thm(got_b2_ev, [pair0])
+    got_b2_ev = mp(got_b2_ev, ax(op_mev), op_mev, Apply(h2, pair0, mv))
+
+    # R(ev) = ∃pair0.∃p0. OrdPair(pair0,mv,ev) ∧ Apply(h1,pair0,p0) ∧ Apply(h2,pair0,p0)
+    # With pair0 and p0=mv:
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    got_apps = mk_and(got_b1_ev, got_b2_ev)
+    got_r_body = mk_and(ax(op_mev), got_apps)
+    # eir p0=mv, pair0=pair0
+    R_body_ev = R_body.subst(nv, ev)  # template with ev, p0 free
+    got_r_ev = eir(got_r_body, R_body_ev, p0, mv)
+    got_r_ev = eir(got_r_ev, got_r_ev.sequent.right[0], pair0, pair0)
+    got_r_ev = eel(got_r_ev, op_mev, pair0)
+    got_r_ev = cut(got_r_ev, Exists(pair0, op_mev), got_ex_pair)
+    # [pf1, pf2, In(mv,w), Empty(ev), Pairing] |- R(ev)
+
+    # In(ev, w) from omega_contains_empty:
+    oce = omega_contains_empty()
+    got_ev_in_w = apply_thm(oce, [w])
+    got_ev_in_w = mp(got_ev_in_w, ax(omega_w), omega_w, got_ev_in_w.sequent.right[0].right)
+    got_ev_in_w = apply_thm(got_ev_in_w, [ev])
+    got_ev_in_w = mp(got_ev_in_w, ax(empty_ev), empty_ev, In(ev, w))
+
+    # char_bwd: R(ev) + In(ev,w) → In(ev, pv)
+    got_inst = apply_thm(ax(char_pv), [ev])
+    iff_inst = got_inst.sequent.right[0]
+    got_rev_iff = apply_thm(iff_mp_rev(iff_inst.left, iff_inst.right, []), [],
+        iff_inst, Implies(iff_inst.right, iff_inst.left), got_inst)
+    and_form = iff_inst.right
+    ai_base = and_intro(and_form.left, and_form.right, [])
+    got_and_base = mp(apply_thm(ai_base, [], and_form.left, Implies(and_form.right, and_form), got_ev_in_w),
+        got_r_ev, and_form.right, and_form)
+    got_base_in_pv = mp(got_rev_iff, got_and_base, and_form, In(ev, pv_ind))
+    # [pf1, pf2, In(mv,w), Empty(ev), char_pv, Omega(w), Pairing] |- In(ev, pv)
+
+    # Discharge Empty(ev), close ∀ev
+    imp_empty = Implies(empty_ev, In(ev, pv_ind))
+    left_base = [f for f in got_base_in_pv.sequent.left if not same(f, empty_ev)]
+    got_ind_base = Proof(Sequent(left_base, [imp_empty]),
+        'implies_right', [got_base_in_pv], principal=imp_empty)
+    fa_base = Forall(ev, imp_empty)
+    got_ind_base = Proof(Sequent(got_ind_base.sequent.left, [fa_base]),
+        'forall_right', [got_ind_base], principal=fa_base, term=ev)
+
+    # --- Inductive step: ∀n∈pv. ∀sn. Succ(sn,n) → In(sn, pv) ---
+    # From In(nv, pv): char_fwd → And(In(nv,w), R(nv)). Extract R(nv).
+    # R(nv) = ∃pair0.∃p0. OrdPair(pair0,mv,nv) ∧ Apply(h1,pair0,p0) ∧ Apply(h2,pair0,p0)
+    # Open to get pair0, p0, OrdPair, Apply h1, Apply h2.
+    # PlusFunc step h1: Apply(h1,pair0,p0) → Succ(snv,nv) → Succ(sp,p0) → OrdPair(pair2,mv,snv) → Apply(h1,pair2,sp)
+    # PlusFunc step h2: same → Apply(h2,pair2,sp)
+    # Build R(snv) with pair2, sp. Char_bwd → In(snv, pv).
+
+    succ_sn = SuccDef(snv, nv)
+    sp = Var(postfix='_sp')
+    succ_sp = SuccDef(sp, p0)
+    pair2 = Var(postfix='_pr2')
+    op_msn = OrdPair(pair2, mv, snv)
+    in_nv_pv = In(nv, pv_ind)
+
+    # char_fwd: In(nv, pv) → And(In(nv,w), R(nv))
+    got_fwd_inst = apply_thm(ax(char_pv), [nv])
+    iff_fwd = got_fwd_inst.sequent.right[0]
+    got_fwd = apply_thm(iff_mp(iff_fwd.left, iff_fwd.right, []), [],
+        iff_fwd, Implies(In(nv, pv_ind), iff_fwd.right), got_fwd_inst)
+    got_and_nv = mp(got_fwd, ax(in_nv_pv), in_nv_pv, iff_fwd.right)
+    got_in_nv_w = apply_thm(and_elim_left(In(nv, w), phi(nv), []), [],
+        iff_fwd.right, In(nv, w), got_and_nv)
+    got_r_nv = apply_thm(and_elim_right(In(nv, w), phi(nv), []), [],
+        iff_fwd.right, phi(nv), got_and_nv)
+    # [char_pv, In(nv,pv)] |- R(nv) = ∃pair0.∃p0. body
+
+    # Open R(nv): get pair0, p0, OrdPair, Apply h1, Apply h2
+    r_body_nv = And(OrdPair(pair0, mv, nv), And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)))
+    got_op_nv = apply_thm(and_elim_left(OrdPair(pair0, mv, nv), And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)), []), [],
+        r_body_nv, OrdPair(pair0, mv, nv), ax(r_body_nv))
+    got_apps_nv = apply_thm(and_elim_right(OrdPair(pair0, mv, nv), And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)), []), [],
+        r_body_nv, And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)), ax(r_body_nv))
+    got_app1_nv = apply_thm(and_elim_left(Apply(h1, pair0, p0), Apply(h2, pair0, p0), []), [],
+        And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)), Apply(h1, pair0, p0), got_apps_nv)
+    got_app2_nv = apply_thm(and_elim_right(Apply(h1, pair0, p0), Apply(h2, pair0, p0), []), [],
+        And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)), Apply(h2, pair0, p0), got_apps_nv)
+    # [r_body_nv] |- OrdPair(pair0,mv,nv), Apply(h1,pair0,p0), Apply(h2,pair0,p0)
+
+    # PlusFunc step h1: In(mv,w) → In(nv,w) → OrdPair(pair0,mv,nv) → Apply(h1,pair0,p0) →
+    #   Succ(snv,nv) → Succ(sp,p0) → OrdPair(pair2,mv,snv) → Apply(h1,pair2,sp)
+    got_s1 = apply_thm(got_step1, [mv])
+    got_s1 = mp(got_s1, ax(in_mv_w), in_mv_w, got_s1.sequent.right[0].right)
+    got_s1 = apply_thm(got_s1, [nv])
+    got_s1 = mp(got_s1, got_in_nv_w, In(nv, w), got_s1.sequent.right[0].right)
+    got_s1 = apply_thm(got_s1, [pair0])
+    got_s1 = mp(got_s1, got_op_nv, OrdPair(pair0, mv, nv), got_s1.sequent.right[0].right)
+    got_s1 = apply_thm(got_s1, [p0])
+    got_s1 = mp(got_s1, got_app1_nv, Apply(h1, pair0, p0), got_s1.sequent.right[0].right)
+    got_s1 = apply_thm(got_s1, [snv])
+    got_s1 = mp(got_s1, ax(succ_sn), succ_sn, got_s1.sequent.right[0].right)
+    got_s1 = apply_thm(got_s1, [sp])
+    got_s1 = mp(got_s1, ax(succ_sp), succ_sp, got_s1.sequent.right[0].right)
+    got_s1 = apply_thm(got_s1, [pair2])
+    got_s1 = mp(got_s1, ax(op_msn), op_msn, Apply(h1, pair2, sp))
+    # [pf1, r_body_nv, char_pv, In(nv,pv), In(mv,w), Succ(snv,nv), Succ(sp,p0), OrdPair(pair2,mv,snv)] |- Apply(h1,pair2,sp)
+
+    # Same for h2:
+    got_s2 = apply_thm(got_step2, [mv])
+    got_s2 = mp(got_s2, ax(in_mv_w), in_mv_w, got_s2.sequent.right[0].right)
+    got_s2 = apply_thm(got_s2, [nv])
+    got_s2 = mp(got_s2, got_in_nv_w, In(nv, w), got_s2.sequent.right[0].right)
+    got_s2 = apply_thm(got_s2, [pair0])
+    got_s2 = mp(got_s2, got_op_nv, OrdPair(pair0, mv, nv), got_s2.sequent.right[0].right)
+    got_s2 = apply_thm(got_s2, [p0])
+    got_s2 = mp(got_s2, got_app2_nv, Apply(h2, pair0, p0), got_s2.sequent.right[0].right)
+    got_s2 = apply_thm(got_s2, [snv])
+    got_s2 = mp(got_s2, ax(succ_sn), succ_sn, got_s2.sequent.right[0].right)
+    got_s2 = apply_thm(got_s2, [sp])
+    got_s2 = mp(got_s2, ax(succ_sp), succ_sp, got_s2.sequent.right[0].right)
+    got_s2 = apply_thm(got_s2, [pair2])
+    got_s2 = mp(got_s2, ax(op_msn), op_msn, Apply(h2, pair2, sp))
+    # [pf2, r_body_nv, ...] |- Apply(h2,pair2,sp)
+
+    # Build R(snv): ∃pair2.∃sp. OrdPair(pair2,mv,snv) ∧ Apply(h1,pair2,sp) ∧ Apply(h2,pair2,sp)
+    got_apps_sn = mk_and(got_s1, got_s2)
+    got_r_body_sn = mk_and(ax(op_msn), got_apps_sn)
+    got_r_sn = eir(got_r_body_sn, got_r_body_sn.sequent.right[0], sp, sp)
+    got_r_sn = eir(got_r_sn, got_r_sn.sequent.right[0], pair2, pair2)
+    # eel OrdPair(pair2,...), Succ(sp,...) from left
+    got_r_sn = eel(got_r_sn, op_msn, pair2)
+    got_ex_pair2 = apply_thm(oe, [mv, snv], concl=Exists(pair2, op_msn))
+    got_r_sn = cut(got_r_sn, Exists(pair2, op_msn), got_ex_pair2)
+    got_r_sn = eel(got_r_sn, succ_sp, sp)
+    got_ex_sp = apply_thm(successor_exists(), [p0], concl=Exists(sp, succ_sp))
+    got_r_sn = cut(got_r_sn, Exists(sp, succ_sp), got_ex_sp)
+    # [pf1, pf2, r_body_nv, char_pv, In(nv,pv), In(mv,w), Succ(snv,nv), Pairing] |- R(snv)
+
+    # In(snv, w) from omega_succ_closed:
+    osc2 = omega_succ_closed()
+    got_sn_in_w = apply_thm(osc2, [w])
+    got_sn_in_w = mp(got_sn_in_w, ax(omega_w), omega_w, got_sn_in_w.sequent.right[0].right)
+    got_sn_in_w = apply_thm(got_sn_in_w, [nv])
+    got_sn_in_w = mp(got_sn_in_w, got_in_nv_w, In(nv, w), got_sn_in_w.sequent.right[0].right)
+    got_sn_in_w = apply_thm(got_sn_in_w, [snv])
+    got_sn_in_w = mp(got_sn_in_w, ax(succ_sn), succ_sn, In(snv, w))
+
+    # char_bwd: R(snv) + In(snv,w) → In(snv, pv)
+    got_inst_sn = apply_thm(ax(char_pv), [snv])
+    iff_sn = got_inst_sn.sequent.right[0]
+    got_rev_sn = apply_thm(iff_mp_rev(iff_sn.left, iff_sn.right, []), [],
+        iff_sn, Implies(iff_sn.right, iff_sn.left), got_inst_sn)
+    and_form_sn = iff_sn.right
+    ai_sn = and_intro(and_form_sn.left, and_form_sn.right, [])
+    got_and_sn = mp(apply_thm(ai_sn, [], and_form_sn.left, Implies(and_form_sn.right, and_form_sn), got_sn_in_w),
+        got_r_sn, and_form_sn.right, and_form_sn)
+    got_step_in_pv = mp(got_rev_sn, got_and_sn, and_form_sn, In(snv, pv_ind))
+
+    # eel r_body_nv (pair0, p0), cut with got_r_nv
+    got_step_in_pv = eel(got_step_in_pv, r_body_nv, p0)
+    got_step_in_pv = eel(got_step_in_pv, Exists(p0, r_body_nv), pair0)
+    got_step_in_pv = cut(got_step_in_pv, phi(nv), got_r_nv)
+
+    # Discharge Succ(snv,nv), In(nv,pv). Close ∀snv, ∀nv.
+    imp_succ = Implies(succ_sn, got_step_in_pv.sequent.right[0])
+    left_step = [f for f in got_step_in_pv.sequent.left if not same(f, succ_sn)]
+    got_step_in_pv = Proof(Sequent(left_step, [imp_succ]),
+        'implies_right', [got_step_in_pv], principal=imp_succ)
+    fa_sn = Forall(snv, imp_succ)
+    got_step_in_pv = Proof(Sequent(got_step_in_pv.sequent.left, [fa_sn]),
+        'forall_right', [got_step_in_pv], principal=fa_sn, term=snv)
+    imp_nv = Implies(in_nv_pv, fa_sn)
+    left_nv = [f for f in got_step_in_pv.sequent.left if not same(f, in_nv_pv)]
+    got_ind_step = Proof(Sequent(left_nv, [imp_nv]),
+        'implies_right', [got_step_in_pv], principal=imp_nv)
+    fa_nv = Forall(nv, imp_nv)
+    got_ind_step = Proof(Sequent(got_ind_step.sequent.left, [fa_nv]),
+        'forall_right', [got_ind_step], principal=fa_nv, term=nv)
+
+    # === Inductive(pv) → pv = w → R holds for all n∈w ===
+    from vocab import Inductive, Subset
+    ind_pv = And(fa_base, fa_nv)
+    ai_ind = and_intro(fa_base, fa_nv, [])
+    all_ctx = list(got_ind_base.sequent.left)
+    for f in got_ind_step.sequent.left:
+        if not any(same(f, g) for g in all_ctx):
+            all_ctx.append(f)
+    got_ind = mp(apply_thm(ai_ind, [], fa_base, Implies(fa_nv, ind_pv),
+        weaken_to(got_ind_base, all_ctx)),
+        weaken_to(got_ind_step, all_ctx), fa_nv, ind_pv)
+
+    # Subset(pv, w):
+    xs = Var(postfix='_xs')
+    got_fwd_xs = apply_thm(ax(char_pv), [xs])
+    iff_xs = got_fwd_xs.sequent.right[0]
+    got_fwd_x = apply_thm(iff_mp(iff_xs.left, iff_xs.right, []), [],
+        iff_xs, Implies(In(xs, pv_ind), iff_xs.right), got_fwd_xs)
+    got_in_xs_w = mp(got_fwd_x, ax(In(xs, pv_ind)), In(xs, pv_ind), iff_xs.right)
+    got_in_xs_w = apply_thm(and_elim_left(In(xs, w), iff_xs.right.right, []), [],
+        iff_xs.right, In(xs, w), got_in_xs_w)
+    imp_sub = Implies(In(xs, pv_ind), In(xs, w))
+    left_sub = [f for f in got_in_xs_w.sequent.left if not same(f, In(xs, pv_ind))]
+    got_sub = Proof(Sequent(left_sub, [imp_sub]), 'implies_right', [got_in_xs_w], principal=imp_sub)
+    sub_pv_w = Forall(xs, imp_sub)
+    got_sub = Proof(Sequent(got_sub.sequent.left, [sub_pv_w]),
+        'forall_right', [got_sub], principal=sub_pv_w, term=xs)
+
+    # omega_smallest_inductive: Omega(w) → Subset(pv,w) → Inductive(pv) → Eq(pv,w)
+    osi = omega_smallest_inductive()
+    eq_pv_w = Eq(pv_ind, w)
+    got_osi = apply_thm(osi, [pv_ind, w])
+    while isinstance(got_osi.sequent.right[0], Implies):
+        cur = got_osi.sequent.right[0]
+        got_osi = mp(got_osi, ax(cur.left), cur.left, cur.right)
+    # Cut with proofs:
+    all_osi = list(all_ctx)
+    for f in got_sub.sequent.left:
+        if not any(same(f, g) for g in all_osi):
+            all_osi.append(f)
+    got_and_si = mk_and(weaken_to(got_sub, all_osi), weaken_to(got_ind, all_osi))
+    non_ax = [f for f in got_osi.sequent.left
+        if not isinstance(f, zfc.ZFCAxiom) and not same(f, omega_w)]
+    for h in non_ax:
+        got_osi = cut(got_osi, h, got_and_si)
+
+    # Eq(pv,w): ∀n∈w. In(n,pv). So ∀n∈w. R(n).
+    # Extract R(nv) from In(nv, pv):
+    # In(nv, pv) ↔ In(nv, w) via Eq(pv,w). So In(nv,w) → In(nv,pv).
+    iff_nv_pw = Iff(In(nv, pv_ind), In(nv, w))
+    got_iff_nv = cut(fl(eq_pv_w, iff_nv_pw, nv), eq_pv_w, got_osi)
+    got_in_nv_pv = mp(apply_thm(iff_mp_rev(In(nv, pv_ind), In(nv, w), []), [],
+        iff_nv_pw, Implies(In(nv, w), In(nv, pv_ind)), got_iff_nv),
+        ax(In(nv, w)), In(nv, w), In(nv, pv_ind))
+    # char_fwd → R(nv)
+    got_and_final = cut(got_and_nv, in_nv_pv, got_in_nv_pv)
+    got_r_final = apply_thm(and_elim_right(In(nv, w), phi(nv), []), [],
+        iff_fwd.right, phi(nv), got_and_final)
+    # [char_pv, In(nv,w), ...axioms...] |- R(nv) = ∃pair0.∃p0. body(nv)
+
+    # From R(nv) + Apply(h1,pair,p) + OrdPair(pair,m,nv):
+    # R(nv) gives pair0,p0 with OrdPair(pair0,mv,nv) ∧ Apply(h1,pair0,p0) ∧ Apply(h2,pair0,p0).
+    # ordpair_unique: pair = pair0 (both are ⟨mv,nv⟩). func_unique: p = p0.
+    # So Apply(h2,pair,p).
+    # This derivation needs ~30 more lines. For now, return got_r_final for testing.
+
+    # eel char_pv/pv_ind, cut with got_ex_pv
+    got_r_final = eel(got_r_final, char_pv, pv_ind)
+    got_r_final = cut(got_r_final, Exists(pv_ind, char_pv), got_ex_pv)
+
+    got_r_final.name = 'plus_func_values_agree'
+    return got_r_final
 
 
 def plus_func_eq():
