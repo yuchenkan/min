@@ -4024,8 +4024,154 @@ def plus_func_exists():
     # Actually Separation(phi, [w, sfv]) wraps: ∀sfv. ∀w. ∀bound. ∃h. ∀x. Iff(...)
     got_ex_h = apply_thm(sep_ax2, [sfv, w, pv_wwxw], concl=Exists(hv, char_hv))
     print(f'plus_func_exists: got_ex_h right = {got_ex_h.sequent.right[0]}')
-    print(f'plus_func_exists: func_h = {func_h}')
-    raise NotImplementedError("plus_func_exists: assemble from pf_base + pf_step + pf_function + pf_dom_eq")
+    # Step 4: Call sub-lemmas to prove each PlusFunc condition.
+    # All sub-lemmas have [char_hv/char_fwd, prod_ww, prod_wwxw, sf_all, Omega, axioms] on left.
+    # We work with hv, sfv, pv_ww, pv_wwxw as free vars (from the opened ∃).
+
+    got_base = pf_base(hv, w, sfv, pv_ww, pv_wwxw)
+    print(f'plus_func_exists: base done, right = {got_base.sequent.right[0]}')
+
+    got_step = pf_step(hv, w, sfv, pv_ww, pv_wwxw)
+    print(f'plus_func_exists: step done')
+
+    got_rel = pf_relation(hv, w, sfv, pv_ww, pv_wwxw)
+    print(f'plus_func_exists: relation done')
+
+    got_sv = pf_single_valued(hv, w, sfv)
+    print(f'plus_func_exists: single_valued done')
+
+    got_dom = pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw)
+    print(f'plus_func_exists: dom_eq done')
+
+    # Step 5: Assemble PlusFunc(hv,w) = And(Function(hv), And(dom_eq, And(base, step)))
+    # Function(hv) = And(Relation(hv), single_valued)
+    pf_hw = PlusFunc(hv, w)
+    pf_exp = pf_hw.expand()
+    func_target = pf_exp.left  # Function(hv)
+    dom_target = pf_exp.right.left
+    base_target = pf_exp.right.right.left
+    step_target = pf_exp.right.right.right
+
+    # And(Relation, single_valued) = Function(hv)
+    func_exp = func_target.expand()
+    rel_f = func_exp.left
+    sv_f = func_exp.right
+    from theorems.logic import and_intro
+    got_func = mp(apply_thm(and_intro(rel_f, sv_f, []), [],
+        rel_f, Implies(sv_f, And(rel_f, sv_f)), got_rel),
+        got_sv, sv_f, And(rel_f, sv_f))
+    got_func = cut(ax(func_target), func_target, got_func)
+    print(f'plus_func_exists: Function done')
+
+    # And(base, step)
+    got_bs = mp(apply_thm(and_intro(base_target, step_target, []), [],
+        base_target, Implies(step_target, And(base_target, step_target)), got_base),
+        got_step, step_target, And(base_target, step_target))
+
+    # And(dom_eq, And(base, step))
+    got_dbs = mp(apply_thm(and_intro(dom_target, And(base_target, step_target), []), [],
+        dom_target, Implies(And(base_target, step_target), And(dom_target, And(base_target, step_target))), got_dom),
+        got_bs, And(base_target, step_target), And(dom_target, And(base_target, step_target)))
+
+    # And(Function, And(dom_eq, And(base, step))) = PlusFunc expansion
+    got_pf = mp(apply_thm(and_intro(func_target, And(dom_target, And(base_target, step_target)), []), [],
+        func_target, Implies(And(dom_target, And(base_target, step_target)),
+            And(func_target, And(dom_target, And(base_target, step_target)))), got_func),
+        got_dbs, And(dom_target, And(base_target, step_target)),
+        And(func_target, And(dom_target, And(base_target, step_target))))
+
+    # Cut with PlusFunc vocab
+    got_pf = cut(ax(pf_hw), pf_hw, got_pf)
+    print(f'plus_func_exists: PlusFunc done, right = {got_pf.sequent.right[0]}')
+
+    # Step 6: eir hv → ∃hv. PlusFunc(hv,w)
+    got_ex_pf = eir(got_pf, pf_hw, hv, hv)
+    # eel hv from char_hv, cut with got_ex_h (Separation)
+    # char_hv has hv free. Combine all hv-free formulas, eel, cut.
+    # char_fwd (from pf_forward/pf_single_valued) is derivable from char_hv.
+    # Cut char_fwd with a derivation from char_hv so only char_hv remains.
+    char_fwd_formula = None
+    for f in got_ex_pf.sequent.left:
+        if not isinstance(f, zfc.ZFCAxiom) and _var_free_in_sequent(hv, Sequent([f], [])) and not same(f, char_hv):
+            char_fwd_formula = f
+            break
+    if char_fwd_formula is not None:
+        print(f'plus_func_exists: cutting char_fwd from char_hv')
+        # char_hv = ∀x. Iff(In(x,hv), And(In(x,bound), phi2(x)))
+        # char_fwd = ∀x. In(x,hv) → phi2(x)
+        # Derive char_fwd from char_hv: instantiate, iff_mp, and_elim_right, implies_right, forall_right
+        # Simpler: just ax(char_fwd) derives from char_hv context. Since char_hv is on the left,
+        # and char_fwd is derivable, we can weaken: [char_hv] |- char_fwd.
+        # Build: for fresh x, In(x,hv) → phi2(x) from char_hv.
+        xf = Var(postfix='_xf')
+        got_ch = apply_thm(ax(char_hv), [xf])
+        iff_ch = got_ch.sequent.right[0]
+        from theorems.logic import iff_mp as _iff_mp
+        got_ch_fwd = apply_thm(_iff_mp(iff_ch.left, iff_ch.right, []), [],
+            iff_ch, Implies(iff_ch.left, iff_ch.right), got_ch)
+        # got_ch_fwd: [char_hv] |- In(xf,hv) → And(In(xf,bound), phi2(xf))
+        got_ch_app = mp(got_ch_fwd, ax(In(xf, hv)), In(xf, hv), iff_ch.right)
+        got_ch_phi = apply_thm(and_elim_right(iff_ch.right.left, iff_ch.right.right, []), [],
+            iff_ch.right, iff_ch.right.right, got_ch_app)
+        # [char_hv, In(xf,hv)] |- phi2(xf)
+        imp_fwd = Implies(In(xf, hv), iff_ch.right.right)
+        left_fwd = [f for f in got_ch_phi.sequent.left if not same(f, In(xf, hv))]
+        got_ch_imp = Proof(Sequent(left_fwd, [imp_fwd]), 'implies_right', [got_ch_phi], principal=imp_fwd)
+        got_ch_fa = Proof(Sequent(got_ch_imp.sequent.left, [Forall(xf, imp_fwd)]),
+            'forall_right', [got_ch_imp], principal=Forall(xf, imp_fwd), term=xf)
+        # [char_hv] |- char_fwd (alpha-equiv)
+        got_ex_pf = cut(got_ex_pf, char_fwd_formula, got_ch_fa)
+        print(f'plus_func_exists: char_fwd cut done')
+
+    # Now only char_hv has hv free. eel hv, cut with got_ex_h.
+    got_ex_pf = eel(got_ex_pf, char_hv, hv)
+    got_ex_pf = cut(got_ex_pf, Exists(hv, char_hv), got_ex_h)
+    print(f'plus_func_exists: eel+cut hv done')
+
+    # Step 7: eel pv_wwxw, pv_ww, sfv and cut with their sources
+    for var, name, source in [(pv_wwxw, 'pv_wwxw', got_ex_pwwxw),
+                               (pv_ww, 'pv_ww', got_ex_pww),
+                               (sfv, 'sfv', got_ex_sf)]:
+        vfs = [f for f in got_ex_pf.sequent.left
+            if _var_free_in_sequent(var, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+        if not vfs:
+            print(f'plus_func_exists: {name} 0 formulas, skip')
+            continue
+        print(f'plus_func_exists: {name} {len(vfs)} formulas')
+        cv = vfs[0]
+        for f in vfs[1:]:
+            got_ex_pf = cut(got_ex_pf, cv, apply_thm(and_elim_left(cv, f, []), [],
+                And(cv, f), cv, ax(And(cv, f))))
+            got_ex_pf = cut(got_ex_pf, f, apply_thm(and_elim_right(cv, f, []), [],
+                And(cv, f), f, ax(And(cv, f))))
+            cv = And(cv, f)
+        got_ex_pf = eel(got_ex_pf, cv, var)
+        # Try cut with source
+        if same(Exists(var, cv), source.sequent.right[0]):
+            got_ex_pf = cut(got_ex_pf, Exists(var, cv), source)
+            print(f'plus_func_exists: {name} cut done')
+        else:
+            print(f'plus_func_exists: {name} mismatch')
+            print(f'  have: {Exists(var, cv)}')
+            print(f'  want: {source.sequent.right[0]}')
+
+    # Step 8: Discharge Omega(w), close ∀w
+    if not any(same(omega_w, f) for f in got_ex_pf.sequent.left):
+        got_ex_pf = wl(got_ex_pf, omega_w)
+    imp_omega = Implies(omega_w, got_ex_pf.sequent.right[0])
+    left_no_omega = [f for f in got_ex_pf.sequent.left if not same(f, omega_w)]
+    proof = Proof(Sequent(left_no_omega, [imp_omega]), 'implies_right', [got_ex_pf], principal=imp_omega)
+    fa_w = Forall(w, imp_omega)
+    proof = Proof(Sequent(proof.sequent.left, [fa_w]),
+        'forall_right', [proof], principal=fa_w, term=w)
+
+    print(f'plus_func_exists: result = {proof.sequent.right[0]}')
+    print(f'plus_func_exists: left:')
+    for i, f in enumerate(proof.sequent.left):
+        print(f'  [{i}] {f}')
+
+    proof.name = 'plus_func_exists'
+    return proof
 
 
 def plus_func_unique():
