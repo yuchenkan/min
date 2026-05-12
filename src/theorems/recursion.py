@@ -1546,6 +1546,95 @@ def eq_apply_val_transfer():
     return proof
 
 
+def apply_set_transfer():
+    """Transfer Apply across Eq on the function (set) argument.
+    Ext |- ∀f1,f2,x,y. Eq(f1,f2) → Apply(f1,x,y) → Apply(f2,x,y)
+
+    Apply(f,x,y) = ∃p. OrdPair(p,x,y) ∧ In(p,f). Transfer In(p,f1)→In(p,f2) via Eq."""
+    from tactics import apply_thm, wl, wr, mp, ax, eel, eir, fl
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Eq, And, Iff, Exists
+    from core.proof import Proof, Sequent, same
+    from vocab import Apply
+    from vocab.ordpair import OrdPair
+    from theorems.sets import eq_transfer
+
+    f1, f2, x, y = Var(postfix='f1'), Var(postfix='f2'), Var(postfix='x'), Var(postfix='y')
+    eq_f = Eq(f1, f2)
+    app1 = Apply(f1, x, y)
+    app2 = Apply(f2, x, y)
+
+    # Expand Apply(f1,x,y) = ∃p. OrdPair(p,x,y) ∧ In(p,f1)
+    app1_exp = app1.expand()
+    pv = app1_exp.var
+    body1 = app1_exp.body  # And(OrdPair(pv,x,y), In(pv,f1))
+    op_p = body1.left  # OrdPair(pv,x,y)
+    in_p_f1 = body1.right  # In(pv,f1)
+    in_p_f2 = In(pv, f2)
+
+    # eq_transfer: Eq(f1,f2) → Iff(In(p,f1), In(p,f2))
+    et = eq_transfer()
+    got_et = apply_thm(et, [f1, f2, pv])
+    got_et = mp(got_et, ax(eq_f), eq_f, got_et.sequent.right[0].right)
+    iff_f = got_et.sequent.right[0]
+    from theorems.logic import iff_mp
+    got_fwd = apply_thm(iff_mp(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.left, iff_f.right), got_et)
+    got_in_f2 = mp(got_fwd, ax(in_p_f1), in_p_f1, in_p_f2)
+    # [Eq(f1,f2), In(p,f1), Ext] |- In(p,f2)
+
+    # Build And(OrdPair(pv,x,y), In(pv,f2))
+    from theorems.logic import and_intro
+    body2 = And(op_p, in_p_f2)
+    ai = and_intro(op_p, in_p_f2, [])
+    got_and = mp(apply_thm(ai, [], op_p, Implies(in_p_f2, body2), ax(op_p)),
+        got_in_f2, in_p_f2, body2)
+
+    # eir pv → app2 expansion var
+    app2_exp = app2.expand()
+    p2 = app2_exp.var
+    body2_tmpl = app2_exp.body  # And(OrdPair(p2,x,y), In(p2,f2))
+    got_eir = eir(got_and, body2_tmpl, p2, pv)
+    # cut with app2 vocab
+    from tactics import cut
+    got_app2 = cut(ax(app2), app2, got_eir)
+
+    # The left has OrdPair(pv,x,y) and In(pv,f1) separately.
+    # eel needs a single formula with pv. Combine them via and_intro on left,
+    # or restructure: start from body1 = And(op_p, in_p_f1) directly.
+    # Rebuild: from [And(op_p, in_p_f1), Eq, Ext] derive app2.
+    # Instead of using ax(op_p) and ax(in_p_f1) separately, derive from And.
+    got_and1_l = apply_thm(and_elim_left(op_p, in_p_f1, []), [],
+        body1, op_p, ax(body1))
+    got_and1_r = apply_thm(and_elim_right(op_p, in_p_f1, []), [],
+        body1, in_p_f1, ax(body1))
+    # Redo got_in_f2 from And on left instead of separate
+    got_in_f2_b = mp(got_fwd, got_and1_r, in_p_f1, in_p_f2)
+    body2 = And(op_p, in_p_f2)
+    got_and_b = mp(apply_thm(ai, [], op_p, Implies(in_p_f2, body2), got_and1_l),
+        got_in_f2_b, in_p_f2, body2)
+    got_eir_b = eir(got_and_b, body2_tmpl, p2, pv)
+    got_app2 = cut(ax(app2), app2, got_eir_b)
+    # Now eel pv from body1
+    got_app2 = eel(got_app2, body1, pv)
+    got_app2 = cut(got_app2, app1.expand(), ax(app1))
+
+    # Discharge and close
+    proof = got_app2
+    for hyp in [app1, eq_f]:
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [y, x, f2, f1]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'apply_set_transfer'
+    return proof
+
+
 
 def extend_function():
     """|- forall v, s, p, x0, y0, u.

@@ -5269,3 +5269,93 @@ def product_exists():
 
     proof.name = 'product_exists'
     return proof
+
+
+def product_in_intro():
+    """Membership introduction for Cartesian product.
+    |- ∀s,a,b,x,y,z. Product(s,a,b) → In(x,a) → In(y,b) → OrdPair(z,x,y) → In(z,s)
+
+    From Product characterization: In(z,s) ↔ ∃x',y'. In(x',a) ∧ In(y',b) ∧ OrdPair(z,x',y').
+    Witness with x,y."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from vocab.sets import Product
+    from vocab.ordpair import OrdPair
+    from core.proof import Proof, Sequent, same
+
+    s, a, b = Var(postfix='s'), Var(postfix='a'), Var(postfix='b')
+    x, y, z = Var(postfix='x'), Var(postfix='y'), Var(postfix='z')
+    prod = Product(s, a, b)
+    in_xa = In(x, a)
+    in_yb = In(y, b)
+    op_z = OrdPair(z, x, y)
+    in_zs = In(z, s)
+
+    # Expand Product: ∀z'. Iff(In(z',s), ∃x'.∃y'. And(In(x',a), And(In(y',b), OrdPair(z',x',y'))))
+    prod_exp = prod.expand()
+    print(f'product_in_intro: prod_exp = {prod_exp}')
+
+    # Instantiate with z
+    got_inst = apply_thm(ax(prod), [z])
+    iff_f = got_inst.sequent.right[0]
+    print(f'product_in_intro: iff_f = {iff_f}')
+    print(f'product_in_intro: iff_f.left = {iff_f.left}')
+    print(f'product_in_intro: iff_f.right = {iff_f.right}')
+
+    # iff_mp_rev: (∃...) → In(z,s)
+    got_rev = apply_thm(iff_mp_rev(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.right, iff_f.left), got_inst)
+    print(f'product_in_intro: got_rev right = {got_rev.sequent.right[0]}')
+
+    # Extract bound vars from iff_f.right = ∃x'.∃y'. body
+    ex_outer = iff_f.right
+    x_bound = ex_outer.var
+    ex_inner = ex_outer.body
+    y_bound = ex_inner.var
+    inner_body = ex_inner.body
+    print(f'product_in_intro: x_bound = {x_bound}, y_bound = {y_bound}')
+    print(f'product_in_intro: inner_body = {inner_body}')
+
+    # Build And(In(x,a), And(In(y,b), OrdPair(z,x,y)))
+    inner_pair = And(in_yb, op_z)
+    inner_all = And(in_xa, inner_pair)
+    ai_inner = and_intro(in_yb, op_z, [])
+    got_inner_pair = mp(apply_thm(ai_inner, [], in_yb, Implies(op_z, inner_pair), ax(in_yb)),
+        ax(op_z), op_z, inner_pair)
+    ai_outer = and_intro(in_xa, inner_pair, [])
+    got_inner_all = mp(apply_thm(ai_outer, [], in_xa, Implies(inner_pair, inner_all), ax(in_xa)),
+        got_inner_pair, inner_pair, inner_all)
+    print(f'product_in_intro: got_inner_all right = {got_inner_all.sequent.right[0]}')
+
+    # eir y → y_bound: ∃y_bound. And(In(x,a), And(In(y_bound,b), OrdPair(z,x,y_bound)))
+    tmpl_y = And(in_xa, And(In(y_bound, b), OrdPair(z, x, y_bound)))
+    got_ey = eir(got_inner_all, tmpl_y, y_bound, y)
+    print(f'product_in_intro: got_ey right = {got_ey.sequent.right[0]}')
+
+    # eir x → x_bound: ∃x_bound. ∃y_bound. And(In(x_bound,a), And(In(y_bound,b), OrdPair(z,x_bound,y_bound)))
+    tmpl_x = Exists(y_bound, And(In(x_bound, a), And(In(y_bound, b), OrdPair(z, x_bound, y_bound))))
+    got_exy = eir(got_ey, tmpl_x, x_bound, x)
+    print(f'product_in_intro: got_exy right = {got_exy.sequent.right[0]}')
+    print(f'product_in_intro: target = {iff_f.right}')
+    print(f'product_in_intro: same = {same(got_exy.sequent.right[0], iff_f.right)}')
+
+    # mp: In(z,s)
+    got_in_zs = mp(got_rev, got_exy, iff_f.right, in_zs)
+    print(f'product_in_intro: got_in_zs right = {got_in_zs.sequent.right[0]}')
+
+    # Discharge and close
+    proof = got_in_zs
+    for hyp in [op_z, in_yb, in_xa, prod]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+
+    for v in [z, y, x, b, a, s]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'product_in_intro'
+    return proof
