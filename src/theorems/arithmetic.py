@@ -16,6 +16,209 @@ from theorems.recursion import succ_func_exists
 from theorems.recursion import _tuple_inject
 
 
+def sf_total_from():
+    """TotalFrom(sf, m) from sf_props for any m ∈ w.
+    [sf_props(sf,w), In(m,w), Pairing] |- TotalFrom(sf, m)
+
+    TotalFrom = And(∃z.Apply(sf,m,z), ∀x,y.Apply(sf,x,y)→∃z.Apply(sf,y,z)).
+    First part: succ_char + successor_exists → Apply(sf,m,S(m)) → ∃z.Apply(sf,m,z).
+    Second part: Apply(sf,x,y) means y=S(x). Then Apply(sf,y,z) means z=S(y). Exists from successor_exists."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import and_intro, and_elim_left, and_elim_right, iff_mp, iff_mp_rev
+    from theorems.sets import successor_exists
+    from vocab import Function as FuncDef, Apply, Successor as SuccDef, TotalFrom
+    from vocab.omega import Omega
+    from core.proof import Proof, Sequent, same
+
+    w = Var(postfix='w')
+    sfv = Var(postfix='sf')
+    mv = Var(postfix='m')
+    omega_w = Omega(w)
+    in_mv_w = In(mv, w)
+
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
+
+    # Part 1: ∃z. Apply(sf, m, z)
+    sm = Var(postfix='sm')
+    succ_sm = SuccDef(sm, mv)
+    got_ex_sm = apply_thm(successor_exists(), [mv], concl=Exists(sm, succ_sm))
+    got_sc_m = apply_thm(ax(succ_char), [mv], in_mv_w,
+        Forall(ysc, Iff(Apply(sfv, mv, ysc), SuccDef(ysc, mv))), ax(in_mv_w))
+    got_sc_m = apply_thm(got_sc_m, [sm])
+    iff_f = got_sc_m.sequent.right[0]
+    print(f'sf_total_from: iff_f = {iff_f}')
+    got_rev = apply_thm(iff_mp_rev(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.right, iff_f.left), got_sc_m)
+    got_app_sf_m = mp(got_rev, ax(succ_sm), succ_sm, iff_f.left)
+    got_part1 = eir(got_app_sf_m, got_app_sf_m.sequent.right[0], sm, sm)
+    got_part1 = eel(got_part1, succ_sm, sm)
+    got_part1 = cut(got_part1, Exists(sm, succ_sm), got_ex_sm)
+    print(f'sf_total_from part1: {got_part1.sequent.right[0]}')
+    # [succ_char, In(m,w), Pairing] |- ∃z. Apply(sf, m, z)
+
+    # Part 2: ∀x,y. Apply(sf,x,y) → ∃z. Apply(sf,y,z)
+    # Apply(sf,x,y): from succ_char, y=S(x), and x∈w.
+    # Then Apply(sf,y,z) needs z=S(y) and y∈w.
+    # y∈w from omega_succ_closed (x∈w → S(x)∈w) — but we don't have Omega here.
+    # Actually, from dom_sub: Apply(sf,x,y) → x∈w. And from succ_char: y=S(x).
+    # S(x)∈w from omega context. But we don't have Omega in this function.
+    # We have sf_all which includes dom_sub. dom_sub gives x∈w from Apply(sf,x,y).
+    # But we need y∈w. From succ_char: Apply(sf,x,y) ↔ Succ(y,x). So y=S(x).
+    # S(x)∈w needs omega_succ_closed + Omega(w). Hmm.
+    # Let me add Omega(w) as a hypothesis.
+
+    # Actually, succ_char gives: In(x,w) → Iff(Apply(sf,x,y), Succ(y,x)).
+    # So Apply(sf,x,y) → In(x,w) [from dom_sub] → Succ(y,x) [from succ_char forward].
+    # Then Succ(y,x) + In(x,w) + Omega(w) → In(y,w) [omega_succ_closed].
+    # Then In(y,w) → succ_char gives: ∀z. Iff(Apply(sf,y,z), Succ(z,y)).
+    # successor_exists: ∃z. Succ(z,y). Then succ_char reverse: Apply(sf,y,z).
+
+    from theorems.omega import omega_succ_closed
+    xr, yr, zr = Var(postfix='xr'), Var(postfix='yr'), Var(postfix='zr')
+    app_xy = Apply(sfv, xr, yr)
+    app_yz = Apply(sfv, yr, zr)
+
+    # dom_sub: Apply(sf,x,y) → In(x,w)
+    got_ds = apply_thm(ax(dom_sub_sf), [xr])
+    got_ds = mp(got_ds, ax(Exists(yds, Apply(sfv, xr, yds))), Exists(yds, Apply(sfv, xr, yds)), In(xr, w))
+    # Need ∃yds.Apply(sf,xr,yds) from Apply(sf,xr,yr):
+    # Actually: got_ds expects Exists(yds, Apply(sf,xr,yds)). I have Apply(sf,xr,yr).
+    # eir yr → ∃yds.Apply(sf,xr,yds):
+    got_ex_app = eir(ax(app_xy), ax(app_xy).sequent.right[0], yr, yr)
+    # Hmm, this creates ∃yr.Apply(sf,xr,yr) but dom_sub uses yds.
+    # Alpha-equiv should handle it. Let me just use the formula from dom_sub:
+    ex_app_xr = Exists(yds, Apply(sfv, xr, yds))
+    # eir(proof, body, var, witness): proof |- body[var:=witness]. Result: |- ∃var.body
+    # body = Apply(sfv, xr, yds). var = yds. witness = yr.
+    # body[yds:=yr] = Apply(sfv, xr, yr) = app_xy. proof = ax(app_xy). ✓
+    template_app = Apply(sfv, xr, yds)
+    print(f'sf_total_from: template_app = {template_app}')
+    print(f'sf_total_from: template_app[yds:=yr] = {template_app.subst(yds, yr)}')
+    print(f'sf_total_from: app_xy = {app_xy}')
+    print(f'sf_total_from: same(subst, app_xy) = {same(template_app.subst(yds, yr), app_xy)}')
+    got_ex_app_xr = eir(ax(app_xy), template_app, yds, yr)
+    # Wait, Apply(sfv,xr,yds)[yds:=yr] = Apply(sfv,xr,yr) = app_xy. So eir template is Apply(sfv,xr,yds).
+    # Hmm, yds doesn't appear in Apply(sfv,xr,yds) as a specific var. It does — yds is the val.
+    # eir(ax(app_xy), Apply(sfv,xr,yds), yds, yr): template[yds:=yr] = Apply(sfv,xr,yr) = app_xy. ✓
+    got_ex_app_xr = eir(ax(app_xy), Apply(sfv, xr, yds), yds, yr)
+    print(f'sf_total_from: got_ex_app_xr right = {got_ex_app_xr.sequent.right[0]}')
+
+    got_in_xr_w = apply_thm(ax(dom_sub_sf), [xr])
+    got_in_xr_w = mp(got_in_xr_w, got_ex_app_xr, ex_app_xr, In(xr, w))
+    print(f'sf_total_from: got_in_xr_w right = {got_in_xr_w.sequent.right[0]}')
+    # [dom_sub_sf, Apply(sf,xr,yr)] |- In(xr, w)
+
+    # succ_char at xr: In(xr,w) → Iff(Apply(sf,xr,yr), Succ(yr,xr))
+    got_sc_xr = apply_thm(ax(succ_char), [xr], In(xr, w),
+        Forall(ysc, Iff(Apply(sfv, xr, ysc), SuccDef(ysc, xr))), got_in_xr_w)
+    got_sc_xr = apply_thm(got_sc_xr, [yr])
+    iff_xr = got_sc_xr.sequent.right[0]
+    got_succ_yr_xr = mp(apply_thm(iff_mp(iff_xr.left, iff_xr.right, []), [],
+        iff_xr, Implies(app_xy, iff_xr.right), got_sc_xr),
+        ax(app_xy), app_xy, iff_xr.right)
+    print(f'sf_total_from: got_succ_yr_xr right = {got_succ_yr_xr.sequent.right[0]}')
+    # [succ_char, dom_sub_sf, Apply(sf,xr,yr)] |- Succ(yr, xr)
+
+    # omega_succ_closed: Omega(w) → In(xr,w) → Succ(yr,xr) → In(yr,w)
+    osc = omega_succ_closed()
+    got_yr_in_w = apply_thm(osc, [w])
+    got_yr_in_w = mp(got_yr_in_w, ax(omega_w), omega_w, got_yr_in_w.sequent.right[0].right)
+    got_yr_in_w = apply_thm(got_yr_in_w, [xr])
+    got_yr_in_w = mp(got_yr_in_w, got_in_xr_w, In(xr, w), got_yr_in_w.sequent.right[0].right)
+    got_yr_in_w = apply_thm(got_yr_in_w, [yr])
+    succ_yr_xr = got_succ_yr_xr.sequent.right[0]
+    got_yr_in_w = mp(got_yr_in_w, got_succ_yr_xr, succ_yr_xr, In(yr, w))
+    print(f'sf_total_from: got_yr_in_w right = {got_yr_in_w.sequent.right[0]}')
+    # [..., Omega(w), Apply(sf,xr,yr)] |- In(yr, w)
+
+    # succ_char at yr: In(yr,w) → Iff(Apply(sf,yr,zr), Succ(zr,yr))
+    got_sc_yr = apply_thm(ax(succ_char), [yr], In(yr, w),
+        Forall(ysc, Iff(Apply(sfv, yr, ysc), SuccDef(ysc, yr))), got_yr_in_w)
+    got_sc_yr = apply_thm(got_sc_yr, [zr])
+    iff_yr = got_sc_yr.sequent.right[0]
+    # successor_exists: ∃zr. Succ(zr, yr)
+    # succ_zr uses zr (from succ_char instantiation) not a fresh var:
+    succ_zr = SuccDef(zr, yr)
+    got_ex_szr = apply_thm(successor_exists(), [yr], concl=Exists(zr, succ_zr))
+    got_rev_yr = apply_thm(iff_mp_rev(iff_yr.left, iff_yr.right, []), [],
+        iff_yr, Implies(iff_yr.right, iff_yr.left), got_sc_yr)
+    print(f'sf_total_from: got_rev_yr right = {got_rev_yr.sequent.right[0]}')
+    print(f'sf_total_from: succ_zr = {succ_zr}')
+    print(f'sf_total_from: iff_yr.left = {iff_yr.left}')
+    print(f'sf_total_from: iff_yr.right = {iff_yr.right}')
+    print(f'sf_total_from: same(got_rev_yr.right.left, succ_zr) = {same(got_rev_yr.sequent.right[0].left, succ_zr)}')
+    got_app_yz = mp(got_rev_yr, ax(succ_zr), succ_zr, iff_yr.left)
+    # eir szr→zr, eel succ_zr, cut with got_ex_szr:
+    got_ex_app_yz = eir(got_app_yz, got_app_yz.sequent.right[0], zr, zr)
+    got_ex_app_yz = eel(got_ex_app_yz, succ_zr, zr)
+    got_ex_app_yz = cut(got_ex_app_yz, Exists(zr, succ_zr), got_ex_szr)
+    print(f'sf_total_from part2: {got_ex_app_yz.sequent.right[0]}')
+    # [..., Apply(sf,xr,yr)] |- ∃zr. Apply(sf, yr, zr)
+
+    # Discharge Apply(sf,xr,yr), close ∀yr, ∀xr
+    imp_app = Implies(app_xy, got_ex_app_yz.sequent.right[0])
+    left_app = [f for f in got_ex_app_yz.sequent.left if not same(f, app_xy)]
+    got_part2 = Proof(Sequent(left_app, [imp_app]), 'implies_right', [got_ex_app_yz], principal=imp_app)
+    fa_yr = Forall(yr, imp_app)
+    got_part2 = Proof(Sequent(got_part2.sequent.left, [fa_yr]),
+        'forall_right', [got_part2], principal=fa_yr, term=yr)
+    fa_xr = Forall(xr, fa_yr)
+    got_part2 = Proof(Sequent(got_part2.sequent.left, [fa_xr]),
+        'forall_right', [got_part2], principal=fa_xr, term=xr)
+    print(f'sf_total_from part2 closed: {got_part2.sequent.right[0]}')
+
+    # And(part1, part2) = TotalFrom(sf, m)
+    total = TotalFrom(sfv, mv)
+    ai = and_intro(got_part1.sequent.right[0], got_part2.sequent.right[0], [])
+    all_ctx = list(got_part1.sequent.left)
+    for f in got_part2.sequent.left:
+        if not any(same(f, g) for g in all_ctx):
+            all_ctx.append(f)
+    got_total = mp(apply_thm(ai, [], got_part1.sequent.right[0],
+        Implies(got_part2.sequent.right[0], And(got_part1.sequent.right[0], got_part2.sequent.right[0])),
+        weaken_to(got_part1, all_ctx)),
+        weaken_to(got_part2, all_ctx), got_part2.sequent.right[0],
+        And(got_part1.sequent.right[0], got_part2.sequent.right[0]))
+    # Cut bridge to TotalFrom vocab:
+    got_total = cut(ax(total), total, got_total)
+
+    # Discharge and close
+    proof = got_total
+    for hyp in [in_mv_w, omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    # sf_all: discharge as one And
+    if any(same(sf_all, f) for f in proof.sequent.left):
+        imp = Implies(sf_all, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, sf_all)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    else:
+        # sf_all components may be separate — discharge each
+        for hyp in [dom_sub_sf, func_sf, succ_char]:
+            if any(same(hyp, f) for f in proof.sequent.left):
+                imp = Implies(hyp, proof.sequent.right[0])
+                left = [f for f in proof.sequent.left if not same(f, hyp)]
+                proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+
+    for v in [mv, sfv, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'sf_total_from'
+    return proof
+
+
 def sf_props():
     """Successor function exists with succ_char, Function, and dom_sub.
     Rep, Ext, Pairing |- forall w.
@@ -1395,15 +1598,17 @@ def plus_func_exists():
     """The addition function exists.
     |- ∀w. Omega(w) → ∃h. PlusFunc(h, w)
 
-    Construction: get sf from succ_func_exists, then for each m∈w get h_m from
-    recursion_theorem. Build h via Separation. Show PlusFunc conditions."""
+    Construction: h = {x ∈ P(P(P(P(w)))) : ∃m,n,y,pair.
+        m∈w ∧ n∈w ∧ OrdPair(pair,m,n) ∧ x=⟨pair,y⟩ ∧
+        ∃hm. Recursive(hm,m,sf,w) ∧ Apply(hm,n,y)}.
+    Show PlusFunc(h,w) from Recursive base/step/function/totality."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
         iff_intro, iff_mp, iff_mp_rev)
-    from theorems.recursion import succ_func_exists, recursion_theorem, recursive_elim
+    from theorems.recursion import (succ_func_exists, recursion_theorem,
+        recursive_elim, recursive_dom_sub)
     from theorems.omega import omega_succ_closed, func_unique_thm
     from theorems.sets import ordpair_exists, successor_exists
-    from theorems.arithmetic import sf_props, rec_step_succ
     from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
         Successor as SuccDef, TotalFrom)
     from vocab.recursion import PlusFunc
@@ -1415,14 +1620,13 @@ def plus_func_exists():
 
     w = Var(postfix='w')
     omega_w = Omega(w)
-    hv = Var(postfix='_hpf')
 
-    # TODO: Full construction via Separation.
-    # For now, prove the simpler statement:
-    # ∀w. Omega(w) → ∃h. PlusFunc(h, w)
-    # by constructing h from the recursion theorem family.
-    # This requires Separation on (ω×ω)×ω which is ~200 lines.
-    # Leaving as NotImplementedError until the full construction is written.
+    # TODO: Full Separation construction (~200 lines).
+    # The construction follows rec_graph_exists pattern but for the 2-arg plus function.
+    # Predicate: phi(x) = ∃m,n,y,pair,hm. m∈w ∧ n∈w ∧ OrdPair(pair,m,n) ∧
+    #   x=⟨pair,y⟩ ∧ Recursive(hm,m,sf,w) ∧ Apply(hm,n,y)
+    # Bound: P(P(P(P(w)))) from ordpair_bounded applied twice.
+    # Then show PlusFunc conditions from Recursive properties.
     raise NotImplementedError("plus_func_exists: Separation construction needed")
 
 
