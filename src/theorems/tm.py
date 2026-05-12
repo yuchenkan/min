@@ -5645,7 +5645,7 @@ def phase2_step_transition(delta_char_formula, delta, q0, zero_var, one, d1, q1)
 
 
 def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
-           tra, ca, ja, sja, cja, cja1, one, d1, q1, zero_var, sa):
+           one, d1, q1, zero_var, sa):
     """Phase 2: single TM step from (q0, a, tape_in) to (q1, S(a), tape2).
 
     Reads separator (0) at position a, writes 1, moves right, transitions to q1.
@@ -5695,7 +5695,11 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
 
     # === 2. Open P1(a) ===
     p1_exp = got_P1.sequent.right[0].expand()
-    body_p1 = p1_exp.body.body  # inside ∃tra.∃ca
+    tra = p1_exp.var              # ∃tra (eigenvariable)
+    ca = p1_exp.body.var          # ∃ca (eigenvariable)
+    body_p1 = p1_exp.body.body    # inside ∃tra.∃ca
+    ja, sja = Var(postfix='ja'), Var(postfix='sja')
+    cja, cja1 = Var(postfix='cja'), Var(postfix='cja1')
     # Decompose And: func ∧ (dom ∧ (cfg ∧ (base ∧ (head ∧ sv))))
     func_f = body_p1.left
     r1 = body_p1.right
