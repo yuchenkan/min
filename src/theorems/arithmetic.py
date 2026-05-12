@@ -401,19 +401,41 @@ def sf_props():
     return proof
 
 
+def plusfunc_elim(h, w):
+    """Decompose PlusFunc(h,w) into its components.
+    Returns (got_func, got_dom, got_base, got_step, pf_formula)
+    where each got_* has [PlusFunc(h,w)] on left."""
+    from tactics import apply_thm, ax
+    from vocab.recursion import PlusFunc
+
+    pf = PlusFunc(h, w)
+    exp = pf.expand()
+    # exp = And(Function(h), And(dom_eq, And(base, step)))
+    func_f = exp.left
+    r1 = exp.right
+    dom_f = r1.left
+    r2 = r1.right
+    base_f = r2.left
+    step_f = r2.right
+
+    got_func = apply_thm(and_elim_left(func_f, r1, []), [], pf, func_f, ax(pf))
+    got_r1 = apply_thm(and_elim_right(func_f, r1, []), [], pf, r1, ax(pf))
+    got_dom = apply_thm(and_elim_left(dom_f, r2, []), [], r1, dom_f, got_r1)
+    got_r2 = apply_thm(and_elim_right(dom_f, r2, []), [], r1, r2, got_r1)
+    got_base = apply_thm(and_elim_left(base_f, step_f, []), [], r2, base_f, got_r2)
+    got_step = apply_thm(and_elim_right(base_f, step_f, []), [], r2, step_f, got_r2)
+
+    return got_func, got_dom, got_base, got_step, pf
+
+
 def plus_func_eq():
     """Two PlusFuncs over the same omega are equal.
     |- ∀w,h1,h2. Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eq(h1,h2)
 
-    For fixed m∈w, induction on n∈w: Apply(h1,⟨m,n⟩,p) ↔ Apply(h2,⟨m,n⟩,p).
-    Base: h1(⟨m,0⟩) = m = h2(⟨m,0⟩) from PlusFunc base.
-    Step: h1(⟨m,n⟩)=p → h1(⟨m,S(n)⟩)=S(p) and h2(⟨m,n⟩)=p → h2(⟨m,S(n)⟩)=S(p).
-    Combined with Function: values agree. Extensionality: h1=h2.
-
-    Strategy: show dom(h1) = dom(h2) = ω×ω from PlusFunc.
-    Then show ∀pair∈dom. ∀p. Apply(h1,pair,p) → Apply(h2,pair,p) by induction.
-    By symmetry, also reverse. Extensionality: h1=h2."""
-    # TODO: implement - needs omega induction on n for each m
+    Induction on n for each m: Q(n) = ∃p. Apply(h1,⟨m,n⟩,p) ∧ Apply(h2,⟨m,n⟩,p).
+    Base from PlusFunc base, step from PlusFunc step.
+    Values agree → extensionality → Eq."""
+    # TODO: implement
     raise NotImplementedError("plus_func_eq proof under construction")
 
 
