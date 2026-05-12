@@ -428,15 +428,24 @@ def plusfunc_elim(h, w):
     return got_func, got_dom, got_base, got_step, pf
 
 
+def plus_func_values_agree(h1, h2, w):
+    """Values of two PlusFuncs agree on all ⟨m,n⟩ ∈ ω×ω.
+    [PlusFunc(h1,w), PlusFunc(h2,w), Omega(w)] |-
+        ∀m∈w. ∀n∈w. ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h1,pair,p) → Apply(h2,pair,p)
+
+    For fixed m, induction on n with Q(n) = ∃p. Apply(h1,⟨m,n⟩,p) ∧ Apply(h2,⟨m,n⟩,p).
+    Then Apply(h1,pair,p) + Function(h1) gives the specific p, and Q gives Apply(h2,pair,p)."""
+    # TODO: implement - omega induction
+    raise NotImplementedError("plus_func_values_agree under construction")
+
+
 def plus_func_eq():
     """Two PlusFuncs over the same omega are equal.
     |- ∀w,h1,h2. Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eq(h1,h2)
 
-    Induction on n for each m: Q(n) = ∃p. Apply(h1,⟨m,n⟩,p) ∧ Apply(h2,⟨m,n⟩,p).
-    Base from PlusFunc base, step from PlusFunc step.
-    Values agree → extensionality → Eq."""
-    # TODO: implement
-    raise NotImplementedError("plus_func_eq proof under construction")
+    From plus_func_values_agree (both directions) + extensionality."""
+    # TODO: implement using plus_func_values_agree
+    raise NotImplementedError("plus_func_eq under construction")
 
 
 def plus_func_exists():
