@@ -8079,17 +8079,24 @@ def recursion_theorem():
     got_bs = mp(apply_thm(ai_bs, [], base_formula, Implies(step_formula, and_bs), proof_base_closed),
         got_step, step_formula, and_bs)
 
-    # And(dom_sub, And(base, step)):
-    and_dom_bs = And(dom_sub_formula, and_bs)
-    ai_dom_bs = and_intro(dom_sub_formula, and_bs, [])
-    got_dom_bs = mp(apply_thm(ai_dom_bs, [], dom_sub_formula, Implies(and_bs, and_dom_bs), got_dom_sub),
+    # === dom_eq: dom(h) = w from dom_sub + totality ===
+    # dom_sub gives ⊆. Totality (⊇) follows from base+step+omega induction.
+    # For now: use dom_eq as axiom hypothesis. TODO: derive via omega induction.
+    from vocab.functions import Domain
+    dv = Var(postfix='_dv')
+    dom_eq_formula = Forall(dv, Implies(Domain(hv, dv), Eq(dv, w)))
+
+    # And(dom_eq, And(base, step)):
+    and_dom_bs = And(dom_eq_formula, and_bs)
+    ai_dom_bs = and_intro(dom_eq_formula, and_bs, [])
+    got_dom_bs = mp(apply_thm(ai_dom_bs, [], dom_eq_formula, Implies(and_bs, and_dom_bs), ax(dom_eq_formula)),
         got_bs, and_bs, and_dom_bs)
 
-    # And(Function(h), And(dom_sub, And(base, step))) = Recursive(h,a,f,w):
+    # And(Function(h), And(dom_eq, And(base, step))) = Recursive(h,a,f,w):
     ai_rec = and_intro(func_h, and_dom_bs, [])
     got_recursive = mp(apply_thm(ai_rec, [], func_h, Implies(and_dom_bs, recursive_h), got_func),
         got_dom_bs, and_dom_bs, recursive_h)
-    # got_recursive: [char_h, ...] |- Recursive(hv, a, f, w)
+    # got_recursive: [char_h, dom_eq_formula, ...] |- Recursive(hv, a, f, w)
 
     # === Uniqueness: forall h'. Recursive(h') -> Eq(hv, h') ===
     h2v = Var(postfix='h2v')

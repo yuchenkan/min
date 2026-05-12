@@ -1,7 +1,7 @@
 """Recursion vocabulary: TotalFrom, Recursive, RecApprox, Plus."""
 
 from core.lang import Var, In, Implies, Forall
-from core.derived import Exists, And, Iff
+from core.derived import Exists, And, Iff, Eq
 from vocab.sets import Empty
 from vocab.ordpair import Successor
 from vocab.functions import Apply, Function
