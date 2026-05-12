@@ -4854,3 +4854,163 @@ def omega_no_self_membership():
 
     proof.name = 'omega_no_self_membership'
     return proof
+
+
+def domain_exists():
+    """The domain of any set exists.
+    Sep, Union |- ∀h. ∃d. Domain(h, d)
+
+    d = {x ∈ ∪∪h : ∃y. Apply(h, x, y)}.
+    Separation gives In(x,d) ↔ (In(x,∪∪h) ∧ ∃y.Apply(h,x,y)).
+    apply_first_in_double_union: ∃y.Apply(h,x,y) → In(x,∪∪h).
+    So the ∧ is redundant: In(x,d) ↔ ∃y.Apply(h,x,y) = Domain(h,d)."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import and_intro, and_elim_left, and_elim_right, iff_intro, iff_mp, iff_mp_rev
+    from vocab.functions import Apply, Domain
+    from vocab.sets import BigUnion
+    from core.proof import Proof, Sequent
+
+    h = Var(postfix='h')
+    d = Var(postfix='d')
+    x = Var(postfix='x')
+    y = Var(postfix='y')
+    uf = Var(postfix='uf')
+    uuf = Var(postfix='uuf')
+
+    app_hxy = Apply(h, x, y)
+    ex_y_app = Exists(y, app_hxy)
+    in_x_d = In(x, d)
+    bu_uf = BigUnion(uf, h)
+    bu_uuf = BigUnion(uuf, uf)
+    in_x_uuf = In(x, uuf)
+
+    # === Separation: d = {x ∈ ∪∪h : ∃y. Apply(h,x,y)} ===
+    yb = Var(postfix='_yb')  # bound var for Exists inside phi
+    phi = lambda xv: Exists(yb, Apply(h, xv, yb))
+    sep = zfc.Separation(phi, [h])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    # Separation gives: ∀uuf. ∃d. ∀x. In(x,d) ↔ (In(x,uuf) ∧ ∃y.Apply(h,x,y))
+
+    iff_sep = Iff(in_x_d, And(in_x_uuf, ex_y_app))
+    char_d = Forall(x, iff_sep)
+    # Instantiate sep with [h, uuf] (h is the param, uuf is the set):
+    got_ex_d = apply_thm(sep_ax, [h, uuf], concl=Exists(d, char_d))
+
+    # === apply_first_in_double_union: ∃y.Apply(h,x,y) → In(x,∪∪h) ===
+    # apply_first_in_double_union: Apply(h,x,y) → BigUnion → BigUnion → In(x,uuf)
+    # We need: ∃y.Apply(h,x,y) → In(x,uuf). Open ∃y, apply afidu, close y.
+    afidu = apply_first_in_double_union()
+    pxy = Var(postfix='pxy')
+    got_afidu = apply_thm(afidu, [h, x, y, pxy, uf, uuf])
+    while isinstance(got_afidu.sequent.right[0], Implies):
+        cur = got_afidu.sequent.right[0]
+        got_afidu = mp(got_afidu, ax(cur.left), cur.left, cur.right)
+    # [Apply(h,x,y), PairSet(pxy,x,y), BigUnion(uf,h), BigUnion(uuf,uf), Pairing] |- In(x, uuf)
+    # Discharge Apply and PairSet via implies_right, close y, then instantiate:
+    from vocab.sets import PairSet
+    pxy_f = PairSet(pxy, x, y)
+    for premise in [pxy_f, app_hxy]:
+        if any(same(premise, ff) for ff in got_afidu.sequent.left):
+            got_afidu = wl(got_afidu, premise)
+            imp = Implies(premise, got_afidu.sequent.right[0])
+            left = [ff for ff in got_afidu.sequent.left if not same(ff, premise)]
+            got_afidu = Proof(Sequent(left, [imp]), 'implies_right', [got_afidu], principal=imp)
+    # close pxy, y via forall_right
+    for v in [pxy, y]:
+        body = got_afidu.sequent.right[0]
+        fa = Forall(v, body)
+        got_afidu = Proof(Sequent(got_afidu.sequent.left, [fa]), 'forall_right',
+            [got_afidu], principal=fa, term=v)
+    # [BigUnion(uf,h), BigUnion(uuf,uf), Pairing] |- ∀y,pxy. Apply→PairSet→In(x,uuf)
+    # Instantiate back with y, pxy and mp:
+    got_afidu = apply_thm(got_afidu, [y, pxy])
+    got_afidu = mp(got_afidu, ax(app_hxy), app_hxy, got_afidu.sequent.right[0].right)
+    got_afidu = mp(got_afidu, ax(pxy_f), pxy_f, in_x_uuf)
+    # [Apply(h,x,y), PairSet, BigUnion stuff, Pairing] |- In(x, uuf)
+    # Now eel y from Apply and PairSet:
+    got_afidu = eel(got_afidu, pxy_f, pxy)
+    # PairSet exists from Pairing: ∃pxy. PairSet(pxy,x,y)
+    # PairSet comes from Pairing axiom.
+    # Simpler: just use ax for the ∃pxy. The engine knows Pairing gives it.
+    # Actually, PairSet(pxy,x,y) = ∀z. In(z,pxy) ↔ Or(Eq(z,x), Eq(z,y)).
+    # ∃pxy. PairSet(pxy,x,y) is the Pairing axiom.
+    pairing_ax = zfc.Pairing()
+    got_ex_pxy = apply_thm(Proof(Sequent([pairing_ax], [pairing_ax]), 'axiom', principal=pairing_ax),
+        [x, y], concl=Exists(pxy, pxy_f))
+    got_afidu = cut(got_afidu, Exists(pxy, pxy_f), got_ex_pxy)
+    # Now eel y from Apply:
+    got_afidu_ex = eel(got_afidu, app_hxy, y)
+    # [∃y.Apply(h,x,y), BigUnion stuff, Pairing] |- In(x, uuf)
+    # [∃y.Apply, BigUnion(uf,h), BigUnion(uuf,uf), Union] |- In(x, uuf)
+
+    # === Build Domain(h, d) = ∀x. In(x,d) ↔ ∃y.Apply(h,x,y) ===
+    # Instantiate char_d at x to get iff_sep from char_d (not ax):
+    got_iff_sep = apply_thm(ax(char_d), [x])
+    # [char_d] |- iff_sep
+
+    # Forward: In(x,d) → ∃y.Apply(h,x,y)
+    got_fwd_sep = apply_thm(iff_mp(in_x_d, And(in_x_uuf, ex_y_app), []), [],
+        iff_sep, Implies(in_x_d, And(in_x_uuf, ex_y_app)), got_iff_sep)
+    got_and_from_d = mp(got_fwd_sep, ax(in_x_d), in_x_d, And(in_x_uuf, ex_y_app))
+    got_ex_from_d = apply_thm(and_elim_right(in_x_uuf, ex_y_app, []), [],
+        And(in_x_uuf, ex_y_app), ex_y_app, got_and_from_d)
+    # [char_d, In(x,d)] |- ∃y.Apply(h,x,y)
+
+    # Backward: ∃y.Apply(h,x,y) → In(x,d)
+    ai = and_intro(in_x_uuf, ex_y_app, [])
+    got_and = mp(apply_thm(ai, [], in_x_uuf, Implies(ex_y_app, And(in_x_uuf, ex_y_app)),
+        got_afidu_ex), ax(ex_y_app), ex_y_app, And(in_x_uuf, ex_y_app))
+    got_rev_sep = apply_thm(iff_mp_rev(in_x_d, And(in_x_uuf, ex_y_app), []), [],
+        iff_sep, Implies(And(in_x_uuf, ex_y_app), in_x_d), got_iff_sep)
+    got_d_from_ex = mp(got_rev_sep, got_and, And(in_x_uuf, ex_y_app), in_x_d)
+    # [char_d, ∃y.Apply, BigUnion stuff, Pairing, Union] |- In(x,d)
+
+    # Build Iff(In(x,d), ∃y.Apply(h,x,y)):
+    dom_iff = Iff(in_x_d, ex_y_app)
+    imp_fwd = Implies(in_x_d, ex_y_app)
+    fwd_left = [f for f in got_ex_from_d.sequent.left if not same(f, in_x_d)]
+    got_imp_fwd = Proof(Sequent(fwd_left, [imp_fwd]),
+        'implies_right', [got_ex_from_d], principal=imp_fwd)
+    imp_back = Implies(ex_y_app, in_x_d)
+    back_left = [f for f in got_d_from_ex.sequent.left if not same(f, ex_y_app)]
+    got_imp_back = Proof(Sequent(back_left, [imp_back]),
+        'implies_right', [got_d_from_ex], principal=imp_back)
+    ii = iff_intro(in_x_d, ex_y_app, [])
+    got_dom_iff = mp(apply_thm(ii, [], imp_fwd, Implies(imp_back, dom_iff), got_imp_fwd),
+        got_imp_back, imp_back, dom_iff)
+    # [char_d, BigUnion stuff, Union] |- Iff(In(x,d), ∃y.Apply(h,x,y))
+
+    # Close ∀x → Domain(h,d)
+    dom_hd = Domain(h, d)
+    fa_x = Forall(x, dom_iff)
+    got_fa = Proof(Sequent(got_dom_iff.sequent.left, [fa_x]),
+        'forall_right', [got_dom_iff], principal=fa_x, term=x)
+    # The engine checks same(fa_x, Domain(h,d)) via expansion. Cut bridge:
+    got_dom = cut(ax(dom_hd), dom_hd, got_fa)
+
+    # eir d, eel char_d, cut with got_ex_d
+    got_ex = eir(got_dom, got_dom.sequent.right[0], d, d)
+    got_ex = eel(got_ex, char_d, d)
+    got_ex = cut(got_ex, got_ex.sequent.left[-1], got_ex_d)
+
+    # eel BigUnion vars, cut with big_union_exists
+    bue = big_union_exists()
+    # BigUnion(uuf, uf) — eel uuf, cut with ∃uuf.BigUnion(uuf,uf)
+    if any(same(bu_uuf, f) for f in got_ex.sequent.left):
+        got_ex = eel(got_ex, bu_uuf, uuf)
+        got_ex_uuf = apply_thm(bue, [uf], concl=Exists(uuf, bu_uuf))
+        got_ex = cut(got_ex, Exists(uuf, bu_uuf), got_ex_uuf)
+    # BigUnion(uf, h) — eel uf, cut with ∃uf.BigUnion(uf,h)
+    if any(same(bu_uf, f) for f in got_ex.sequent.left):
+        got_ex = eel(got_ex, bu_uf, uf)
+        got_ex_uf = apply_thm(bue, [h], concl=Exists(uf, bu_uf))
+        got_ex = cut(got_ex, Exists(uf, bu_uf), got_ex_uf)
+
+    # Close ∀h
+    proof = got_ex
+    fa_h = Forall(h, proof.sequent.right[0])
+    proof = Proof(Sequent(proof.sequent.left, [fa_h]),
+        'forall_right', [proof], principal=fa_h, term=h)
+
+    proof.name = 'domain_exists'
+    return proof
