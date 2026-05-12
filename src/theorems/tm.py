@@ -2100,12 +2100,6 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w,
     or_ka_a = Or(In(ka, a), Eq(ka, a))
     in_ka_a = In(ka, a)
     q_ka = Phase1Q(ka, a, q0, tape_in, c0, z, delta)
-    tra = Var(postfix='tra')
-    ca = Var(postfix='ca')
-    ja = Var(postfix='ja')
-    sja = Var(postfix='sja')
-    cja = Var(postfix='cja')
-    cja1 = Var(postfix='cja1')
 
     # === Step 1: Assume Or(In(ska,a),Eq(ska,a)) for Q(S(ka)) ===
     # === Step 2: Derive Or(In(ka,a),Eq(ka,a)) via TransitiveSet(a) ===
@@ -2195,10 +2189,14 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w,
     # [q_ka, or_ska_a, succ_ska, ...] |- P1(ka)
 
     # === Step 4: Open P1(ka), run sub-helpers → P1(S(ka)) ===
-    # P1(ka) = ∃tra.∃ca.body. Extract body, then components.
+    # P1(ka) = ∃tra.∃ca.body. Extract bound vars and body.
     p1_ka_formula = got_P1_ka.sequent.right[0]
     p1_ka_exp = p1_ka_formula.expand() if hasattr(p1_ka_formula, 'expand') else p1_ka_formula
+    tra = p1_ka_exp.var           # ∃tra (eigenvariable)
+    ca = p1_ka_exp.body.var       # ∃ca (eigenvariable)
     body_ka = p1_ka_exp.body.body  # inside ∃tra.∃ca
+    ja, sja = Var(postfix='ja'), Var(postfix='sja')       # for step_valid
+    cja, cja1 = Var(postfix='cja'), Var(postfix='cja1')
 
     def extract_and(got_body, left_f, right_f):
         got_l = apply_thm(and_elim_left(left_f, right_f, []), [],
@@ -2325,6 +2323,10 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w,
         'implies_right', [got_p1_ska], principal=imp_q_ska)
 
     # Discharge Q(ka) → (Q(ka) → Q(S(ka)))
+    # Wrap Q(S(ka)) in Phase1Q
+    q_ska = Phase1Q(ska, a, q0, tape_in, c0, z, delta)
+    got_q_ska = cut(ax(q_ska), q_ska, got_q_ska)
+
     imp_qq = Implies(q_ka, got_q_ska.sequent.right[0])
     left_qq = [f for f in got_q_ska.sequent.left if not same(f, q_ka)]
     got_result = Proof(Sequent(left_qq, [imp_qq]),
@@ -5354,8 +5356,7 @@ class Phase1Q:
         return f'Q1({self.n}, {self.a}, {self.q0}, {self.tape_in}, {self.c0}, {self.z}, {self.delta})'
 
 
-def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
-                     tra, ca, ja, sja, cja, cja1, one, d1):
+def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1):
     """Phase 1: TM scans past first unary group of a ones.
 
     After a steps, head is at position a, state is q0, tape unchanged.
@@ -5393,7 +5394,7 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     sep = zfc.Separation(Q, [a, q0, tape_in, c0, z, delta])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), Q(xv))))
-    got_ex_pv = apply_thm(sep_ax, [a, q0, tape_in, c0, z, delta, w], concl=Exists(pv, char_pv))
+    got_ex_pv = apply_thm(sep_ax, [delta, z, c0, tape_in, q0, a, w], concl=Exists(pv, char_pv))
 
     def char_bwd(term, got_in_w, got_Q):
         """[ctx] |- In(term, pv) from In(term, w) and Q(term)."""
@@ -5690,8 +5691,7 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     tape2 = Var(postfix='t2')
 
     # === 1. Get P1(a) from phase1 ===
-    got_P1 = phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
-        tra, ca, ja, sja, cja, cja1, one, d1)
+    got_P1 = phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1)
 
     # === 2. Open P1(a) ===
     p1_exp = got_P1.sequent.right[0].expand()
