@@ -10,7 +10,8 @@ from core.proof import qed, same
 from core.zfc import ZFCAxiom
 from vocab import (OrdPair, Successor, Empty, Singleton, PairSet,
     Subset, Inductive, Omega, Function, Apply, RecApprox, Recursive,
-    ExistsUnique, Union, TotalFrom, Plus, PlusFunc, Num)
+    ExistsUnique, Union, TotalFrom, Plus, PlusFunc, Num,
+    Domain, Product)
 from tm import add_goal
 tm_add_goal = add_goal()
 
@@ -226,6 +227,12 @@ goals = [
     ('unique_num_2',
      lambda: theorems.unique_num(2),
      ExistsUnique(a, Num(a, 2))),
+    ('domain_exists',
+     lambda: theorems.domain_exists(),
+     Forall(h, Exists(d, Domain(h, d)))),
+    ('product_exists',
+     lambda: theorems.product_exists(),
+     Forall(a, Forall(b, Exists(p, Product(p, a, b))))),
     ('plus_func_unique',
      lambda: theorems.plus_func_unique(),
      Forall(w, Implies(Omega(w),

@@ -5154,86 +5154,74 @@ def product_exists():
     if any(same(in_y_uab, f) for f in got_ob.sequent.left):
         got_ob = cut(got_ob, in_y_uab, got_y_in_uab)
 
-    # Backward: phi(z) → In(z, p).
-    # From phi(z): open ∃x,y, get In(x,a), In(y,b), OrdPair(z,x,y).
-    # ordpair_bounded → In(z,ppuab). Build And(In(z,ppuab), phi(z)). Iff rev → In(z,p).
+    # Backward: phi(z) → In(z,p).
+    # From phi_body on left, derive In(z,ppuab) via ordpair_bounded.
+    # Then eel y,x to get phi_z on left. Build And, Iff rev.
     phi_z = phi(z)
     phi_body = And(in_x_a, And(in_y_b, op_z))
-
-    # got_ob has In(z,ppuab) on right with In(x,a), In(y,b), OrdPair, etc on left.
-    # Also has internal ordpair_bounded vars. Discharge ALL non-essential left formulas:
     from core.proof import _var_free_in_sequent
+
+    # got_ob has phi_body components + ordpair internals on left, In(z,ppuab) on right.
+    for i, ff in enumerate(got_ob.sequent.left):
+        has_x = _var_free_in_sequent(x, Sequent([ff], []))
+        has_y = _var_free_in_sequent(y, Sequent([ff], []))
+        tag = ''
+        if has_x: tag += ' [x]'
+        if has_y: tag += ' [y]'
+    # Replace separate components with phi_body:
     got_in_bound = got_ob
-    # Keep only: phi_body components (In(x,a), In(y,b), OrdPair) + non-x,y formulas
+    for pred, got_pred in [
+        (in_x_a, apply_thm(and_elim_left(in_x_a, And(in_y_b, op_z), []), [], phi_body, in_x_a, ax(phi_body))),
+        (in_y_b, apply_thm(and_elim_left(in_y_b, op_z, []), [], And(in_y_b, op_z), in_y_b,
+            apply_thm(and_elim_right(in_x_a, And(in_y_b, op_z), []), [], phi_body, And(in_y_b, op_z), ax(phi_body)))),
+        (op_z, apply_thm(and_elim_right(in_y_b, op_z, []), [], And(in_y_b, op_z), op_z,
+            apply_thm(and_elim_right(in_x_a, And(in_y_b, op_z), []), [], phi_body, And(in_y_b, op_z), ax(phi_body))))]:
+        if any(same(pred, f) for f in got_in_bound.sequent.left):
+            got_in_bound = cut(got_in_bound, pred, got_pred)
+
+    # eel ordpair_bounded internal vars (PairSet, Singleton) that have x,y free:
+    from vocab.sets import PairSet as _PS, Singleton as _Sing
     for ff in list(got_in_bound.sequent.left):
-        if (_var_free_in_sequent(x, Sequent([ff], [])) or _var_free_in_sequent(y, Sequent([ff], []))) \
-           and not same(ff, in_x_a) and not same(ff, in_y_b) and not same(ff, op_z):
-            got_in_bound = wl(got_in_bound, ff)
-            imp_f = Implies(ff, got_in_bound.sequent.right[0])
-            left_f = [f for f in got_in_bound.sequent.left if not same(f, ff)]
-            got_in_bound = Proof(Sequent(left_f, [imp_f]), 'implies_right', [got_in_bound], principal=imp_f)
-    # Discharge In(x,a), In(y,b), OrdPair, close y, x:
-    for hyp in [op_z, in_y_b, in_x_a]:
-        got_in_bound = wl(got_in_bound, hyp)
-        imp_h = Implies(hyp, got_in_bound.sequent.right[0])
-        left_h = [f for f in got_in_bound.sequent.left if not same(f, hyp)]
-        got_in_bound = Proof(Sequent(left_h, [imp_h]), 'implies_right', [got_in_bound], principal=imp_h)
-    for v in [y, x]:
-        body = got_in_bound.sequent.right[0]
-        fa = Forall(v, body)
-        got_in_bound = Proof(Sequent(got_in_bound.sequent.left, [fa]),
-            'forall_right', [got_in_bound], principal=fa, term=v)
-    # [...] |- ∀x.∀y. In(x,a) → In(y,b) → OrdPair(z,x,y) → (internal_discharged →) In(z,ppuab)
-    # This is complex to reopen. Instead, let me use a simpler approach:
-    # From phi(z) on left, derive In(z,ppuab) using the closed formula.
-    # Instantiate ∀x,∀y back, mp with phi_body components from phi(z):
-    # But phi(z) = ∃x.∃y.phi_body. Need to open it.
-    # From ax(phi_body) [In(x,a), In(y,b), OrdPair on left]:
-    # Instantiate got_in_bound at x,y:
-    got_inst = got_in_bound
-    got_inst = apply_thm(got_inst, [x, y])
-    # mp through all Implies:
-    while isinstance(got_inst.sequent.right[0], Implies):
-        cur = got_inst.sequent.right[0]
-        got_inst = mp(got_inst, ax(cur.left), cur.left, cur.right)
-    # [..., In(x,a), In(y,b), OrdPair, internal vars] |- In(z, ppuab)
-    # eel y from (In(y,b), OrdPair(z,x,y)):
-    and_yop = And(in_y_b, op_z)
-    for pred in [op_z, in_y_b]:
-        if any(same(pred, f) for f in got_inst.sequent.left):
-            got_pred = apply_thm(
-                and_elim_right(in_y_b, op_z, []) if same(pred, op_z)
-                else and_elim_left(in_y_b, op_z, []),
-                [], and_yop, pred, ax(and_yop))
-            got_inst = cut(got_inst, pred, got_pred)
-    got_inst = eel(got_inst, and_yop, y)
-    # eel x from (In(x,a), ∃y.And):
-    ex_y_and = Exists(y, and_yop)
-    and_x_ey = And(in_x_a, ex_y_and)
-    for pred in [in_x_a, ex_y_and]:
-        if any(same(pred, f) for f in got_inst.sequent.left):
-            got_pred = apply_thm(
-                and_elim_left(in_x_a, ex_y_and, []) if same(pred, in_x_a)
-                else and_elim_right(in_x_a, ex_y_and, []),
-                [], and_x_ey, pred, ax(and_x_ey))
-            got_inst = cut(got_inst, pred, got_pred)
-    got_inst = eel(got_inst, and_x_ey, x)
-    # [phi(z), ...] |- In(z, ppuab)
+        if hasattr(ff, 'set') and not same(ff, phi_body) and not same(ff, union_ab)            and not same(ff, ps_uab) and not same(ff, ps_puab):
+            v_eel = ff.set
+            if _var_free_in_sequent(v_eel, Sequent([], got_in_bound.sequent.right)):
+                continue
+            ex_ff = Exists(v_eel, ff)
+            # PairSet(v, x, y) → ∃v.PairSet from Pairing
+            if isinstance(ff, _PS):
+                pairing_pf = Proof(Sequent([zfc.Pairing()], [zfc.Pairing()]), 'axiom', principal=zfc.Pairing())
+                got_ex_ff = apply_thm(pairing_pf, [ff.left, ff.right], concl=ex_ff)
+                got_in_bound = eel(got_in_bound, ff, v_eel)
+                got_in_bound = cut(got_in_bound, ex_ff, got_ex_ff)
+            # Singleton(v, x) → ∃v.Singleton from singleton_exists
+            elif isinstance(ff, _Sing):
+                got_ex_ff = apply_thm(singleton_exists(), [ff.elem], concl=ex_ff)
+                got_in_bound = eel(got_in_bound, ff, v_eel)
+                got_in_bound = cut(got_in_bound, ex_ff, got_ex_ff)
 
-    # Build And(In(z,ppuab), phi(z)):
+    # Dump full state before eel:
+    for i, ff in enumerate(got_in_bound.sequent.left):
+        has_x = _var_free_in_sequent(x, Sequent([ff], []))
+        has_y = _var_free_in_sequent(y, Sequent([ff], []))
+        tag = ''
+        if has_x: tag += ' [x-free]'
+        if has_y: tag += ' [y-free]'
+    # [phi_body, axioms] |- In(z, ppuab). eel y, x:
+    got_in_bound = eel(got_in_bound, phi_body, y)
+    got_in_bound = eel(got_in_bound, Exists(y, phi_body), x)
+    # [phi_z, axioms] |- In(z, ppuab)
+
+    # Build And(In(z,ppuab), phi_z):
+    and_form_back = And(In(z, ppuab), phi_z)
     got_and_bphi = mp(apply_thm(and_intro(In(z, ppuab), phi_z, []), [],
-        In(z, ppuab), Implies(phi_z, And(In(z, ppuab), phi_z)), got_inst),
-        ax(phi_z), phi_z, And(In(z, ppuab), phi_z))
+        In(z, ppuab), Implies(phi_z, and_form_back), got_in_bound),
+        ax(phi_z), phi_z, and_form_back)
 
-    # Build And(In(z,ppuab), phi(z)):
-    got_and_bphi = mp(apply_thm(and_intro(In(z, ppuab), phi_z, []), [],
-        In(z, ppuab), Implies(phi_z, And(In(z, ppuab), phi_z)), got_in_bound),
-        ax(phi_z), phi_z, And(In(z, ppuab), phi_z))
-
-    # Iff reverse: And(In(z,ppuab), phi(z)) → In(z,p)
+    # Iff reverse: And → In(z,p)
     got_rev_iff = apply_thm(iff_mp_rev(In(z, p), And(In(z, ppuab), phi_z), []), [],
         iff_sep, Implies(And(In(z, ppuab), phi_z), In(z, p)), got_iff_inst)
-    got_back = mp(got_rev_iff, got_and_bphi, And(In(z, ppuab), phi_z), In(z, p))
+    got_back = mp(got_rev_iff, got_and_bphi, and_form_back, In(z, p))
+
     # [phi(z), char_p, union_ab, ps_uab, ps_puab, Ext] |- In(z,p)
 
     # Build Iff(In(z,p), phi(z)) = Product(p,a,b) at z:
