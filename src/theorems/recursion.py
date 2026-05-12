@@ -8324,53 +8324,16 @@ def rec_values_agree():
 
 
 
-    # --- Extract from Recursive(h) ---
+    # --- Extract from Recursive(h) via helpers ---
+    from theorems.recursion import recursive_elim, recursive_dom_sub
+    got_func_h, _, got_base_h, got_step_h, _ = recursive_elim(h, a, f, w)
+    got_func_h2, _, got_base_h2, got_step_h2, _ = recursive_elim(h2, a, f, w)
+    func_h2 = FuncDef(h2)
     ev = Var(postfix='ev')
     empty_ev = Empty(ev)
-    base_h = Forall(ev, Implies(empty_ev, Apply(h, ev, a)))
     nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
-    step_h = Forall(nst, Implies(In(nst, w),
-        Forall(valst, Implies(Apply(h, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(f, valst, fvalst),
-                    Apply(h, snst, fvalst)))))))))
-    xd_h, yd_h = Var(), Var()
-    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(h, xd_h, yd_h)), In(xd_h, w)))
-    and_bs_h = And(base_h, step_h)
-    and_dom_bs_h = And(dom_sub_h, and_bs_h)
-
-    got_dom_bs_h = apply_thm(and_elim_right(func_h, and_dom_bs_h, []), [],
-        rec_h, and_dom_bs_h, ax(rec_h))
-    got_bs_h = apply_thm(and_elim_right(dom_sub_h, and_bs_h, []), [],
-        and_dom_bs_h, and_bs_h, got_dom_bs_h)
-    got_base_h = apply_thm(and_elim_left(base_h, step_h, []), [],
-        and_bs_h, base_h, got_bs_h)
-    got_step_h = apply_thm(and_elim_right(base_h, step_h, []), [],
-        and_bs_h, step_h, got_bs_h)
-    got_func_h = apply_thm(and_elim_left(func_h, and_dom_bs_h, []), [],
-        rec_h, func_h, ax(rec_h))
-
-    # Same for h2:
-    base_h2 = Forall(ev, Implies(empty_ev, Apply(h2, ev, a)))
-    step_h2 = Forall(nst, Implies(In(nst, w),
-        Forall(valst, Implies(Apply(h2, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(f, valst, fvalst),
-                    Apply(h2, snst, fvalst)))))))))
-    xd_h2, yd_h2 = Var(), Var()
-    dom_sub_h2 = Forall(xd_h2, Implies(Exists(yd_h2, Apply(h2, xd_h2, yd_h2)), In(xd_h2, w)))
-    and_bs_h2 = And(base_h2, step_h2)
-    and_dom_bs_h2 = And(dom_sub_h2, and_bs_h2)
-    func_h2 = FuncDef(h2)
-
-    got_dom_bs_h2 = apply_thm(and_elim_right(func_h2, and_dom_bs_h2, []), [],
-        rec_h2, and_dom_bs_h2, ax(rec_h2))
-    got_bs_h2 = apply_thm(and_elim_right(dom_sub_h2, and_bs_h2, []), [],
-        and_dom_bs_h2, and_bs_h2, got_dom_bs_h2)
-    got_base_h2 = apply_thm(and_elim_left(base_h2, step_h2, []), [],
-        and_bs_h2, base_h2, got_bs_h2)
-    got_step_h2 = apply_thm(and_elim_right(base_h2, step_h2, []), [],
-        and_bs_h2, step_h2, got_bs_h2)
+    step_h = got_step_h.sequent.right[0]
+    step_h2 = got_step_h2.sequent.right[0]
 
     # Extract f_at_a and ran_f_closed:
     got_fat = apply_thm(and_elim_left(f_at_a, ran_f_closed, []), [],
@@ -9059,62 +9022,33 @@ def rec_unique():
         cur = cut(cur, cur.sequent.left[-1], got_ex_xy)
         return cur
 
-    # --- Extract Relation and dom_sub from Recursive ---
+    # --- Extract Relation and dom_sub from Recursive via helpers ---
+    from theorems.recursion import recursive_elim, recursive_dom_sub
+    from vocab.functions import Relation as RelDef2
+
+    got_func_h_proof, _, _, _, _ = recursive_elim(h, a, f, w)
+    got_ds_h = recursive_dom_sub(h, a, f, w)
+    # Extract Relation from Function:
     func_h = FuncDef(h)
+    rel_h = RelDef2(h)
+    func_exp = func_h.expand()  # And(Relation(h), single_valued)
+    got_rel_h = apply_thm(and_elim_left(func_exp.left, func_exp.right, []), [],
+        func_h, func_exp.left, got_func_h_proof)
+    # got_rel_h might have Relation as a raw Forall. Cut bridge:
+    got_rel_h = cut(ax(rel_h), rel_h, got_rel_h)
+    dom_sub_h = got_ds_h.sequent.right[0]
+    got_dom_sub_h = got_ds_h
+
+    got_func_h2_proof, _, _, _, _ = recursive_elim(h2, a, f, w)
+    got_ds_h2 = recursive_dom_sub(h2, a, f, w)
     func_h2 = FuncDef(h2)
-    rel_h = RelDef(h)
-    rel_h2 = RelDef(h2)
-
-    xd_h, yd_h = Var(), Var()
-    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(h, xd_h, yd_h)), In(xd_h, w)))
-    xd_h2, yd_h2 = Var(), Var()
-    dom_sub_h2 = Forall(xd_h2, Implies(Exists(yd_h2, Apply(h2, xd_h2, yd_h2)), In(xd_h2, w)))
-
-    ev_h = Var()
-    base_h = Forall(ev_h, Implies(Empty(ev_h), Apply(h, ev_h, a)))
-    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
-    step_h = Forall(nst, Implies(In(nst, w),
-        Forall(valst, Implies(Apply(h, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(f, valst, fvalst),
-                    Apply(h, snst, fvalst)))))))))
-    and_bs_h = And(base_h, step_h)
-    and_dom_bs_h = And(dom_sub_h, and_bs_h)
-
-    # Relation(h) from rec_h:
-    xsv, y1sv, y2sv = Var(), Var(), Var()
-    sv_h = Forall(xsv, Forall(y1sv, Forall(y2sv,
-        Implies(And(Apply(h, xsv, y1sv), Apply(h, xsv, y2sv)), Eq(y1sv, y2sv)))))
-    got_func_h = apply_thm(and_elim_left(func_h, and_dom_bs_h, []), [],
-        rec_h, func_h, ax(rec_h))
-    got_rel_h = apply_thm(and_elim_left(rel_h, sv_h, []), [],
-        func_h, rel_h, got_func_h)
-    # dom_sub_h from rec_h:
-    got_dom_bs = apply_thm(and_elim_right(func_h, and_dom_bs_h, []), [],
-        rec_h, and_dom_bs_h, ax(rec_h))
-    got_dom_sub_h = apply_thm(and_elim_left(dom_sub_h, and_bs_h, []), [],
-        and_dom_bs_h, dom_sub_h, got_dom_bs)
-
-    # Same for h2:
-    base_h2 = Forall(ev_h, Implies(Empty(ev_h), Apply(h2, ev_h, a)))
-    step_h2 = Forall(nst, Implies(In(nst, w),
-        Forall(valst, Implies(Apply(h2, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(f, valst, fvalst),
-                    Apply(h2, snst, fvalst)))))))))
-    and_bs_h2 = And(base_h2, step_h2)
-    and_dom_bs_h2 = And(dom_sub_h2, and_bs_h2)
-    xsv2, y1sv2, y2sv2 = Var(), Var(), Var()
-    sv_h2 = Forall(xsv2, Forall(y1sv2, Forall(y2sv2,
-        Implies(And(Apply(h2, xsv2, y1sv2), Apply(h2, xsv2, y2sv2)), Eq(y1sv2, y2sv2)))))
-    got_func_h2 = apply_thm(and_elim_left(func_h2, and_dom_bs_h2, []), [],
-        rec_h2, func_h2, ax(rec_h2))
-    got_rel_h2 = apply_thm(and_elim_left(rel_h2, sv_h2, []), [],
-        func_h2, rel_h2, got_func_h2)
-    got_dom_bs2 = apply_thm(and_elim_right(func_h2, and_dom_bs_h2, []), [],
-        rec_h2, and_dom_bs_h2, ax(rec_h2))
-    got_dom_sub_h2 = apply_thm(and_elim_left(dom_sub_h2, and_bs_h2, []), [],
-        and_dom_bs_h2, dom_sub_h2, got_dom_bs2)
+    rel_h2 = RelDef2(h2)
+    func_exp2 = func_h2.expand()
+    got_rel_h2 = apply_thm(and_elim_left(func_exp2.left, func_exp2.right, []), [],
+        func_h2, func_exp2.left, got_func_h2_proof)
+    got_rel_h2 = cut(ax(rel_h2), rel_h2, got_rel_h2)
+    dom_sub_h2 = got_ds_h2.sequent.right[0]
+    got_dom_sub_h2 = got_ds_h2
 
     # --- Forward and reverse ---
     zv = Var(postfix='z')
