@@ -401,6 +401,149 @@ def sf_props():
     return proof
 
 
+def plus_func_unique():
+    """The addition function exists and is unique.
+    |- ∀w. Omega(w) → ∃!h. PlusFunc(h, w)
+
+    Construction: h = {x ∈ bound : ∃m,n,p,pair,hm. x=⟨pair,p⟩ ∧ OrdPair(pair,m,n) ∧
+        m∈w ∧ n∈w ∧ p∈w ∧ Recursive(hm,m,sf,w) ∧ Apply(hm,n,p)}.
+    Existence from recursion_theorem for each m. Uniqueness by induction on n."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp, iff_mp_rev, eq_reflexive, eq_symmetric, eq_transitive)
+    from theorems.recursion import (succ_func_exists, recursion_theorem,
+        recursive_elim, recursive_dom_sub, rec_values_agree)
+    from theorems.omega import omega_succ_closed, func_unique_thm
+    from theorems.sets import ordpair_exists, successor_exists
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef, Plus as PlusDef, TotalFrom)
+    from vocab.recursion import PlusFunc
+    from vocab.ordpair import OrdPair
+    from vocab.omega import Omega, ExistsUnique
+    from vocab.functions import Domain
+    from core.proof import Proof, Sequent, same
+    from core.derived import Exists
+
+    w = Var(postfix='w')
+    omega_w = Omega(w)
+
+    # === Step 1: Get sf from succ_func_exists ===
+    osc = omega_succ_closed()
+    got_osc = apply_thm(osc, [w])
+    got_sc = mp(got_osc, ax(omega_w), omega_w, got_osc.sequent.right[0].right)
+
+    sfe = succ_func_exists()
+    got_sfe = apply_thm(sfe, [w])
+    got_ex_sf = mp(got_sfe, got_sc, got_sc.sequent.right[0], got_sfe.sequent.right[0].right)
+    # [axioms, Omega(w)] |- ∃sf. sf_props(sf, w)
+
+    # === Step 2: For each m∈w, recursion_theorem gives ∃!hm. Recursive(hm,m,sf,w) ===
+    # This is parameterized by m. We don't instantiate m yet.
+
+    # === Step 3: Build PlusFunc(h,w) for a specific h ===
+    # Rather than constructing h via Separation (complex), we can show PlusFunc
+    # is satisfiable by providing witnesses for each condition.
+    # PlusFunc(h,w) = Function(h) ∧ dom_eq ∧ base ∧ step
+    # Each condition follows from the Recursive properties of the h_m family.
+
+    # APPROACH: Define h implicitly. Show ∃h. PlusFunc(h,w).
+    # The h is the set {⟨⟨m,n⟩,p⟩ : m,n∈ω, hm(n)=p where Recursive(hm,m,sf,w)}.
+    # But constructing this set requires Separation on a bounding set.
+    # The bounding set: we need all ⟨⟨m,n⟩,p⟩ with m,n,p∈ω.
+    # By ordpair_bounded: ⟨m,n⟩ ∈ P(P(ω)). ⟨⟨m,n⟩,p⟩ ∈ P(P(P(P(ω)))).
+    # So h ⊆ P(P(P(P(ω)))). Separation on this bound.
+
+    # This is the same pattern as rec_graph_exists. Let me follow that pattern.
+
+    # For now, let me try a simpler approach: use rec_func_exists to get h_m for each m,
+    # then show the family satisfies PlusFunc conditions.
+    # But "the family" is not a single set h — it's many h_m's.
+    # PlusFunc needs a SINGLE h.
+
+    # SIMPLEST CORRECT APPROACH:
+    # 1. Use Separation to define h.
+    # 2. The predicate: ∃m,n,p. x = ⟨⟨m,n⟩,p⟩ ∧ m∈w ∧ n∈w ∧ ∃hm. Recursive(hm,m,sf,w) ∧ Apply(hm,n,p)
+    # 3. Bound: subset of P(P(P(P(w)))) or similar.
+    # 4. Show PlusFunc conditions from Recursive properties.
+
+    # This is ~200 lines. Let me write it step by step.
+
+    # For now, to make progress: prove ∃h.PlusFunc(h,w) by asserting the key properties
+    # and building PlusFunc from them. Skip the explicit Separation construction.
+    # Instead, assume the Separation axiom gives us the right set.
+
+    sfv = Var(postfix='_sf')
+    hv = Var(postfix='_h')
+    mv = Var(postfix='_m')
+
+    # sf_all: the sf_props formula (succ_char ∧ Function(sf) ∧ dom_sub)
+    # We'll work inside ∃sf scope.
+    xsc, ysc = Var(postfix='_xsc'), Var(postfix='_ysc')
+    xds, yds = Var(postfix='_xds'), Var(postfix='_yds')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
+
+    # TotalFrom(sf, m) for any m∈w: ∃y.Apply(sf,m,y) from succ_char + successor_exists
+    from theorems.logic import iff_mp_rev as _imr
+    sm = Var(postfix='_sm')
+    succ_sm = SuccDef(sm, mv)
+    got_ex_sm = apply_thm(successor_exists(), [mv], concl=Exists(sm, succ_sm))
+    got_sc_m = apply_thm(ax(succ_char), [mv], In(mv, w),
+        Forall(ysc, Iff(Apply(sfv, mv, ysc), SuccDef(ysc, mv))), ax(In(mv, w)))
+    got_sc_m = apply_thm(got_sc_m, [sm])
+    iff_f = got_sc_m.sequent.right[0]
+    got_rev = apply_thm(_imr(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.right, iff_f.left), got_sc_m)
+    got_app_sf = mp(got_rev, ax(succ_sm), succ_sm, iff_f.left)
+    got_total_part = eir(got_app_sf, got_app_sf.sequent.right[0], sm, sm)
+    got_total_part = eel(got_total_part, succ_sm, sm)
+    got_total_part = cut(got_total_part, Exists(sm, succ_sm), got_ex_sm)
+    # [succ_char, In(mv,w), Pairing] |- ∃y. Apply(sf, mv, y)
+
+    # Full TotalFrom(sf, mv) needs also ran_f_closed.
+    # TotalFrom = And(∃z.Apply(f,a,z), ∀x,y.Apply(f,x,y)→∃z.Apply(f,y,z))
+    # The ran_f_closed part: ∀x,y. Apply(sf,x,y) → ∃z.Apply(sf,y,z).
+    # For sf: Apply(sf,x,y) means y=S(x). Then Apply(sf,y,z) means z=S(y)=S(S(x)).
+    # This always exists from successor_exists.
+    # But proving it formally from succ_char is ~20 lines. Skip for now.
+    # Use ax(TotalFrom(sfv, mv)) and cut later.
+    total_sf_mv = TotalFrom(sfv, mv)
+
+    # Recursion theorem for m:
+    rt = recursion_theorem()
+    got_rt_m = apply_thm(rt, [mv, sfv, w])
+    while isinstance(got_rt_m.sequent.right[0], Implies):
+        cur = got_rt_m.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, func_sf):
+            got_func_sf = apply_thm(and_elim_left(succ_char, And(func_sf, dom_sub_sf), []), [],
+                sf_all, succ_char, ax(sf_all))
+            got_rest = apply_thm(and_elim_right(succ_char, And(func_sf, dom_sub_sf), []), [],
+                sf_all, And(func_sf, dom_sub_sf), ax(sf_all))
+            got_fsf = apply_thm(and_elim_left(func_sf, dom_sub_sf, []), [],
+                And(func_sf, dom_sub_sf), func_sf, got_rest)
+            got_rt_m = mp(got_rt_m, got_fsf, hyp, cur.right)
+        elif same(hyp, omega_w):
+            got_rt_m = mp(got_rt_m, ax(omega_w), hyp, cur.right)
+        elif same(hyp, total_sf_mv):
+            got_rt_m = mp(got_rt_m, ax(total_sf_mv), hyp, cur.right)
+        else:
+            got_rt_m = mp(got_rt_m, ax(hyp), hyp, cur.right)
+    # [axioms, sf_all, Omega(w), TotalFrom(sf,mv), In(mv,w)] |- ∃!hm. Recursive(hm, mv, sf, w)
+
+    # For now, return the structure. The full proof needs more work.
+    # Let me at least prove existence (skip uniqueness for now).
+    # ∃!hm gives ∃hm. Recursive(hm, mv, sf, w). From Recursive: hm is a function ω→ω.
+    # The PlusFunc construction from the family {hm : m∈ω} requires Separation.
+
+    # SHORTCUT for testing: build PlusFunc(h,w) axiomatically and see if structure works.
+    # TODO: replace with real construction.
+    raise NotImplementedError("plus_func_unique: construction in progress")
+
+
 def plus_setup():
     """Plus function setup: sf and h exist for any m ∈ ω.
     |- ∀w,m. Omega(w) → In(m,w) → ∃h,sf. sf_props(sf,w) ∧ Recursive(h,m,sf,w)
@@ -636,16 +779,27 @@ def plus_zero_right():
     got_ex_pair = apply_thm(oe, [a, b], concl=Exists(pair_ab, op_ab))
     got_eq = cut(got_eq, Exists(pair_ab, op_ab), got_ex_pair)
 
-    # === Discharge and close ===
+    # === Discharge PlusFunc(h,w) and close h first (internal) ===
     proof = got_eq
-    for hyp in [pf_hw, plus_abc, num_b_0, in_a_w, omega_w]:
+    if not any(same(pf_hw, f) for f in proof.sequent.left):
+        proof = wl(proof, pf_hw)
+    imp_pf = Implies(pf_hw, proof.sequent.right[0])
+    left_pf = [f for f in proof.sequent.left if not same(f, pf_hw)]
+    proof = Proof(Sequent(left_pf, [imp_pf]), 'implies_right', [proof], principal=imp_pf)
+    fa_h = Forall(hv, imp_pf)
+    proof = Proof(Sequent(proof.sequent.left, [fa_h]), 'forall_right',
+        [proof], principal=fa_h, term=hv)
+    # Now h is bound. The right side is ∀h. PlusFunc(h,w) → Eq(c,a).
+
+    # Discharge remaining hypotheses
+    for hyp in [plus_abc, num_b_0, in_a_w, omega_w]:
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
         imp = Implies(hyp, proof.sequent.right[0])
         left = [f for f in proof.sequent.left if not same(f, hyp)]
         proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
 
-    for v in [hv, c, b, a, w]:
+    for v in [c, b, a, w]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
