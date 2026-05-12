@@ -1040,10 +1040,10 @@ def plus_func_apply_transfer(h1, h2, w):
 
 def plus_func_eq():
     """Two PlusFuncs over the same omega are equal.
-    |- ∀w,h1,h2. Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eq(h1,h2)
+    axioms |- ∀w,h1,h2. Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eq(h1,h2)
 
     Transfer: In(z,h1) → Relation → OrdPair(z,x,y) → Apply(h1,x,y) →
-    dom∈ω×ω → Product decomp → apply_transfer → Apply(h2,x,y) → In(z,h2).
+    dom∈ω×ω → Product decomp → values_agree → Apply(h2,x,y) → In(z,h2).
     Symmetry + extensionality → Eq."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
