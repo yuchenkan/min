@@ -2375,7 +2375,7 @@ def pf_forward(hv, w, sfv):
     return proof
 
 
-def pf_single_valued(hv, w, sfv, pv_ww, pv_wwxw):
+def pf_single_valued(hv, w, sfv):
     """Prove single-valuedness of hv:
     [char_hv, sf_all, Omega(w), axioms]
     |- forall key,y1,y2. And(Apply(hv,key,y1), Apply(hv,key,y2)) -> Eq(y1,y2)
