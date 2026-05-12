@@ -5950,26 +5950,37 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # So the Or/And/Not/Exists structures are equivalent.
     # Therefore p∈tapen_s ↔ p∈tape2 → Eq(tapen_s, tape2).
 
-    # This is doable but verbose. Let me write a tape_update_transfer helper.
-    # For now, write phase2 with a TODO for this step and test the rest.
+    # 5e: Eq(tapen_s, tape2) via tape_update_eq_args
+    # p_upd = TapeUpdate(tapen_s, tape_s, h_s, w_s) (TMStep premise)
+    # tu_tape2 = TapeUpdate(tape2, tape_in, a, one) (will be hypothesis)
+    # With Eq(tape_s,tape_in), Eq(h_s,a), Eq(w_s,one) → Eq(tapen_s, tape2)
+    tu_tape2 = TapeUpdate(tape2, tape_in, a, one)
+    tuea = tape_update_eq_args()
+    eq_tapen_tape2 = Eq(tapen_s, tape2)
+    got_eq_tapen = apply_thm(tuea, [tapen_s, tape2, tape_s, h_s, w_s, tape_in, a, one])
+    got_eq_tapen = mp(got_eq_tapen, ax(p_upd), p_upd, got_eq_tapen.sequent.right[0].right)
+    got_eq_tapen = mp(got_eq_tapen, ax(tu_tape2), tu_tape2, got_eq_tapen.sequent.right[0].right)
+    got_eq_tapen = mp(got_eq_tapen, got_eq_t, eq_t, got_eq_tapen.sequent.right[0].right)
+    got_eq_tapen = mp(got_eq_tapen, got_eq_h, eq_h, got_eq_tapen.sequent.right[0].right)
+    got_eq_tapen = mp(got_eq_tapen, got_eq_w, eq_w, eq_tapen_tape2)
+    # [..., p_upd, tu_tape2] |- Eq(tapen_s, tape2)
 
-    # PLACEHOLDER: assume Eq(tape2, tapen_s) for now
-    eq_tape2_tapen = Eq(tape2, tapen_s)
-
-    # Step 5f: config_eq_transfer → TMConfig(ca_new, qn_s, hn_s, tapen_s)
+    # 5f: config_eq_transfer → TMConfig(ca_new, qn_s, hn_s, tapen_s)
     es = eq_symmetric()
     cet = config_eq_transfer()
     eq_q1_qn = Eq(q1, qn_s)
     got_eq_q1_qn = apply_thm(es, [qn_s, q1], eq_qn, eq_q1_qn, got_eq_qn)
     eq_sa_hn = Eq(sa, hn_s)
     got_eq_sa_hn = apply_thm(es, [hn_s, sa], eq_hn, eq_sa_hn, got_eq_hn)
+    eq_tape2_tapen = Eq(tape2, tapen_s)
+    got_eq_tape2_tapen = apply_thm(es, [tapen_s, tape2], eq_tapen_tape2, eq_tape2_tapen, got_eq_tapen)
 
     got_cfg_goal = apply_thm(cet, [ca_new, q1, sa, tape2, qn_s, hn_s, tapen_s])
     got_cfg_goal = mp(got_cfg_goal, got_cfg_new, cfg_new, got_cfg_goal.sequent.right[0].right)
     got_cfg_goal = mp(got_cfg_goal, got_eq_q1_qn, eq_q1_qn, got_cfg_goal.sequent.right[0].right)
     got_cfg_goal = mp(got_cfg_goal, got_eq_sa_hn, eq_sa_hn, got_cfg_goal.sequent.right[0].right)
-    got_cfg_goal = mp(got_cfg_goal, ax(eq_tape2_tapen), eq_tape2_tapen, p_goal)
-    # [..., Eq(tape2,tapen_s)] |- TMConfig(ca_new, qn_s, hn_s, tapen_s)
+    got_cfg_goal = mp(got_cfg_goal, got_eq_tape2_tapen, eq_tape2_tapen, p_goal)
+    # [...] |- TMConfig(ca_new, qn_s, hn_s, tapen_s)
 
     # === Discharge TMStep premises + close foralls ===
     proof_body = got_cfg_goal
