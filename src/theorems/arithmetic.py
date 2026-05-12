@@ -401,145 +401,307 @@ def sf_props():
     return proof
 
 
+def plus_setup():
+    """Plus function setup: sf and h exist for any m ∈ ω.
+    |- ∀w,m. Omega(w) → In(m,w) → ∃h,sf. sf_props(sf,w) ∧ Recursive(h,m,sf,w)
+
+    Combines succ_func_exists (∃sf) + recursion_theorem (∃!h).
+    Proved once; used by all Plus theorems to get h and sf."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import and_intro, and_elim_left, and_elim_right, iff_mp_rev
+    from theorems.recursion import succ_func_exists, recursion_theorem
+    from theorems.omega import omega_succ_closed
+    from theorems.sets import successor_exists
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef, Plus as PlusDef, TotalFrom)
+    from vocab.omega import ExistsUnique
+    from core.proof import Proof, Sequent, same
+
+    w = Var(postfix='w')
+    m = Var(postfix='m')
+    omega_w = Omega(w)
+    in_m_w = In(m, w)
+
+    # === Get sf from succ_func_exists ===
+    osc = omega_succ_closed()
+    got_osc = apply_thm(osc, [w])
+    got_sc = mp(got_osc, ax(omega_w), omega_w, got_osc.sequent.right[0].right)
+
+    sfe = succ_func_exists()
+    got_sfe = apply_thm(sfe, [w])
+    got_ex_sf = mp(got_sfe, got_sc, got_sc.sequent.right[0], got_sfe.sequent.right[0].right)
+    # [axioms, Omega(w)] |- ∃sf. sf_props(sf, w)
+
+    # Open ∃sf to get sf_all on left
+    sfv = Var(postfix='sfv')
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
+
+    got_func_sf = apply_thm(and_elim_left(func_sf, dom_sub_sf, []), [],
+        And(func_sf, dom_sub_sf), func_sf,
+        apply_thm(and_elim_right(succ_char, And(func_sf, dom_sub_sf), []), [],
+            sf_all, And(func_sf, dom_sub_sf), ax(sf_all)))
+
+    # === TotalFrom(sf, m) ===
+    sm = Var(postfix='sm')
+    succ_sm = SuccDef(sm, m)
+    got_ex_sm = apply_thm(successor_exists(), [m], concl=Exists(sm, succ_sm))
+    got_sc_m = apply_thm(ax(succ_char), [m], In(m, w),
+        Forall(ysc, Iff(Apply(sfv, m, ysc), SuccDef(ysc, m))), ax(In(m, w)))
+    got_sc_m = apply_thm(got_sc_m, [sm])
+    iff_f = got_sc_m.sequent.right[0]
+    got_rev = apply_thm(iff_mp_rev(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.right, iff_f.left), got_sc_m)
+    got_app_sf = mp(got_rev, ax(succ_sm), succ_sm, iff_f.left)
+    got_total = eir(got_app_sf, got_app_sf.sequent.right[0], sm, sm)
+    got_total = eel(got_total, succ_sm, sm)
+    got_total = cut(got_total, Exists(sm, succ_sm), got_ex_sm)
+    # [succ_char, In(m,w), Pairing] |- TotalFrom(sf, m)
+
+    # === Get h from recursion_theorem ===
+    rt = recursion_theorem()
+    got_rt = apply_thm(rt, [m, sfv, w])
+    while isinstance(got_rt.sequent.right[0], Implies):
+        cur = got_rt.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, func_sf):
+            got_rt = mp(got_rt, got_func_sf, hyp, cur.right)
+        elif same(hyp, omega_w):
+            got_rt = mp(got_rt, ax(omega_w), hyp, cur.right)
+        else:
+            # TotalFrom or other — try got_total or ax
+            if any(same(hyp, f) for f in got_total.sequent.left) or same(hyp, got_total.sequent.right[0]):
+                got_rt = mp(got_rt, got_total, hyp, cur.right)
+            else:
+                got_rt = mp(got_rt, ax(hyp), hyp, cur.right)
+    # [...] |- ∃!h. Recursive(h, m, sf, w)
+
+    # ExistsUnique → ∃h. Recursive(h, m, sf, w) (drop uniqueness)
+    eu = got_rt.sequent.right[0]
+    eu_exp = eu.expand()
+    eu_hv = eu_exp.var
+    eu_body = eu_exp.body  # And(Rec, ∀h'.Rec→Eq)
+    got_rec_only = apply_thm(and_elim_left(eu_body.left, eu_body.right, []), [],
+        eu_body, eu_body.left, ax(eu_body))
+    # [And(Rec,uniq)] |- Recursive(hv, m, sf, w)
+
+    # Build And(sf_all, Recursive)
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    got_sf_rec = mk_and(ax(sf_all), got_rec_only)
+    # [sf_all, And(Rec,uniq)] |- And(sf_all, Recursive)
+
+    # eir h (eu_hv), eel And(Rec,uniq), cut with got_rt
+    got_ex_h = eir(got_sf_rec, got_sf_rec.sequent.right[0], eu_hv, eu_hv)
+    got_ex_h = eel(got_ex_h, eu_body, eu_hv)
+    got_ex_h = cut(got_ex_h, eu.expand(), got_rt)
+
+    # eir sf (sfv), eel sf_all, cut with got_ex_sf
+    got_ex_sf_h = eir(got_ex_h, got_ex_h.sequent.right[0], sfv, sfv)
+    got_ex_sf_h = eel(got_ex_sf_h, sf_all, sfv)
+    got_ex_sf_h = cut(got_ex_sf_h, got_ex_sf.sequent.right[0], got_ex_sf)
+
+    # Cut TotalFrom if on left
+    total_sf_m = TotalFrom(sfv, m)
+    if any(same(total_sf_m, f) for f in got_ex_sf_h.sequent.left):
+        got_ex_sf_h = cut(got_ex_sf_h, total_sf_m, got_total)
+
+    # Discharge and close
+    proof = got_ex_sf_h
+    for hyp in [in_m_w, omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+
+    for v in [m, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'plus_setup'
+    return proof
+
+
 def plus_zero_right():
     """m + 0 = m: Given Plus(a,b,c) and Num(b,0), derive Eq(c,a).
-    |- forall w,a,b,c,d. Omega(w) -> In(a,w) -> Num(b,0) -> Plus(a,b,c) -> Eq(c,a)
-    Opens Plus to get Recursive(h,a,sf,w') and Apply(h,b,c).
-    From Recursive base + Empty(b): Apply(h,b,a).
-    From func_unique: Eq(c,a)."""
+    |- forall w,a,b,c. Omega(w) -> In(a,w) -> Num(b,0) -> Plus(a,b,c) -> Eq(c,a)
+
+    With Forall Plus: instantiate Plus(a,b,c) with w,h,sf from context.
+    Recursive base gives Apply(h,b,a). func_unique gives Eq(c,a).
+    h and sf come from succ_func_exists + recursion_theorem."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
-        Successor as SuccDef, Plus as PlusDef)
-    from theorems.omega import func_unique_thm
+        Successor as SuccDef, Plus as PlusDef, TotalFrom)
+    from theorems.logic import and_elim_left, and_elim_right
+    from theorems.omega import func_unique_thm, omega_succ_closed
+    from theorems.recursion import succ_func_exists, recursion_theorem
+    from theorems.sets import successor_exists
+    from theorems.logic import iff_mp_rev
+    from core.proof import Proof, Sequent, same
 
     w = Var(postfix='w')
     a = Var(postfix='a')
     b = Var(postfix='b')
     c = Var(postfix='c')
-    d = Var(postfix='d')
     omega_w = Omega(w)
     in_a_w = In(a, w)
-    num_b_0 = Num(b, 0)  # = Empty(b)
+    num_b_0 = Num(b, 0)
     plus_abc = PlusDef(a, b, c)
     eq_ca = Eq(c, a)
 
-    goal = Forall(w, Forall(a, Forall(b, Forall(c, Forall(d,
-        Implies(omega_w, Implies(in_a_w, Implies(num_b_0,
-            Implies(plus_abc, eq_ca)))))))))
+    # === Get sf from succ_func_exists ===
+    osc = omega_succ_closed()
+    got_sc = mp(apply_thm(osc, [w]), ax(omega_w), omega_w,
+        apply_thm(osc, [w]).sequent.right[0].right)
+    succ_closed_w = got_sc.sequent.right[0]
 
-    # Open Plus(a,b,c): get internal vars for the Plus expansion
-    wv = Var(postfix='wv')
-    hv = Var(postfix='hv')
+    sfe = succ_func_exists()
+    got_ex_sf = mp(apply_thm(sfe, [w]), got_sc, succ_closed_w,
+        apply_thm(sfe, [w]).sequent.right[0].right)
+    # [axioms, Omega(w)] |- ∃sf. sf_props(sf, w)
+
+    # Open ∃sf: work inside scope
     sfv = Var(postfix='sfv')
     xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
     xds, yds = Var(postfix='xds'), Var(postfix='yds')
-
-    omega_wv = Omega(wv)
-    succ_char = Forall(xsc, Implies(In(xsc, wv),
+    succ_char = Forall(xsc, Implies(In(xsc, w),
         Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
     func_sf = FuncDef(sfv)
-    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, wv)))
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
     sf_all = And(succ_char, And(func_sf, dom_sub_sf))
-    rec_h = RecDef(hv, a, sfv, wv)
-    app_h_bc = Apply(hv, b, c)
-    and_rec_app = And(rec_h, app_h_bc)
-    and_sf_ra = And(sf_all, and_rec_app)
-    ex_sf = Exists(sfv, and_sf_ra)
-    ex_h = Exists(hv, ex_sf)
-    and_omega_ex = And(omega_wv, ex_h)
 
-    # Extract components from the And-chain
-    from theorems.logic import and_elim_left, and_elim_right
+    got_func_sf = apply_thm(and_elim_left(succ_char, And(func_sf, dom_sub_sf), []), [],
+        sf_all, succ_char, ax(sf_all))
+    got_rest_sf = apply_thm(and_elim_right(succ_char, And(func_sf, dom_sub_sf), []), [],
+        sf_all, And(func_sf, dom_sub_sf), ax(sf_all))
+    got_func_sf_only = apply_thm(and_elim_left(func_sf, dom_sub_sf, []), [],
+        And(func_sf, dom_sub_sf), func_sf, got_rest_sf)
 
-    got_rec = apply_thm(and_elim_left(rec_h, app_h_bc, []), [],
-        and_rec_app, rec_h, ax(and_rec_app))
-    got_app_bc = apply_thm(and_elim_right(rec_h, app_h_bc, []), [],
-        and_rec_app, app_h_bc, ax(and_rec_app))
-    got_sf_all = apply_thm(and_elim_left(sf_all, and_rec_app, []), [],
-        and_sf_ra, sf_all, ax(and_sf_ra))
-    got_ra = apply_thm(and_elim_right(sf_all, and_rec_app, []), [],
-        and_sf_ra, and_rec_app, ax(and_sf_ra))
+    # === TotalFrom(sf, a): sf is defined at a ===
+    sm = Var(postfix='sm')
+    succ_sm = SuccDef(sm, a)
+    got_ex_sm = apply_thm(successor_exists(), [a], concl=Exists(sm, succ_sm))
+    got_sc_a = apply_thm(ax(succ_char), [a], In(a, w),
+        Forall(ysc, Iff(Apply(sfv, a, ysc), SuccDef(ysc, a))), ax(In(a, w)))
+    got_sc_a = apply_thm(got_sc_a, [sm])
+    iff_f = got_sc_a.sequent.right[0]
+    got_rev = apply_thm(iff_mp_rev(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.right, iff_f.left), got_sc_a)
+    got_app_sf = mp(got_rev, ax(succ_sm), succ_sm, iff_f.left)
+    got_total = eir(got_app_sf, got_app_sf.sequent.right[0], sm, sm)
+    got_total = eel(got_total, succ_sm, sm)
+    got_total = cut(got_total, Exists(sm, succ_sm), got_ex_sm)
 
-    # Extract Function(h) from Recursive(h,a,sf,wv)
+    # === Get h from recursion_theorem ===
+    rt = recursion_theorem()
+    got_rt = apply_thm(rt, [a, sfv, w])
+    # mp through: Function(sf), TotalFrom(sf,a), Omega(w)
+    while isinstance(got_rt.sequent.right[0], Implies):
+        cur = got_rt.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, func_sf):
+            got_rt = mp(got_rt, got_func_sf_only, hyp, cur.right)
+        elif same(hyp, omega_w):
+            got_rt = mp(got_rt, ax(omega_w), hyp, cur.right)
+        else:
+            got_rt = mp(got_rt, ax(hyp), hyp, cur.right)
+    # [...] |- ∃!h. Recursive(h, a, sf, w)
+
+    # Open ExistsUnique → get Recursive(h,a,sf,w)
+    from vocab.omega import ExistsUnique
+    eu = got_rt.sequent.right[0]
+    eu_exp = eu.expand()
+    eu_hv = eu_exp.var
+    eu_body = eu_exp.body  # And(Rec, ∀h'.Rec→Eq)
+    rec_h = eu_body.left
+    got_rec = apply_thm(and_elim_left(eu_body.left, eu_body.right, []), [],
+        eu_body, rec_h, ax(eu_body))
+
+    # Extract Function(h) and base from Recursive
+    hv = eu_hv
     func_h = FuncDef(hv)
-    ev = Var()
-    base_h = Forall(ev, Implies(Empty(ev), Apply(hv, ev, a)))
-    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
-    step_h = Forall(nst, Implies(In(nst, wv),
-        Forall(valst, Implies(Apply(hv, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
-                    Apply(hv, snst, fvalst)))))))))
-    xd_h, yd_h = Var(), Var()
-    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(hv, xd_h, yd_h)), In(xd_h, wv)))
-    and_bs = And(base_h, step_h)
-    and_dom_bs = And(dom_sub_h, and_bs)
+    rec_exp = rec_h.expand() if hasattr(rec_h, 'expand') else rec_h
+    got_func_h = apply_thm(and_elim_left(rec_exp.left, rec_exp.right, []), [],
+        rec_exp, rec_exp.left, ax(rec_exp))
+    got_func_h = cut(got_func_h, rec_exp, got_rec)
+    got_rest = apply_thm(and_elim_right(rec_exp.left, rec_exp.right, []), [],
+        rec_exp, rec_exp.right, ax(rec_exp))
+    got_rest = cut(got_rest, rec_exp, got_rec)
+    r2 = rec_exp.right.right
+    got_r2 = apply_thm(and_elim_right(rec_exp.right.left, r2, []), [],
+        rec_exp.right, r2, got_rest)
+    base_h = r2.left
+    got_base_h = apply_thm(and_elim_left(r2.left, r2.right, []), [],
+        r2, r2.left, got_r2)
 
-    got_func_h = apply_thm(and_elim_left(func_h, and_dom_bs, []), [],
-        rec_h, func_h, got_rec)
-    got_dom_bs = apply_thm(and_elim_right(func_h, and_dom_bs, []), [],
-        rec_h, and_dom_bs, got_rec)
-    got_bs = apply_thm(and_elim_right(dom_sub_h, and_bs, []), [],
-        and_dom_bs, and_bs, got_dom_bs)
-    got_base_h = apply_thm(and_elim_left(base_h, step_h, []), [],
-        and_bs, base_h, got_bs)
-
-    # From base: Empty(b) -> Apply(h, b, a)
+    # Apply base: Empty(b) → Apply(h, b, a)
     app_h_ba = Apply(hv, b, a)
     got_app_ba = apply_thm(got_base_h, [b], num_b_0, app_h_ba, ax(num_b_0))
-    # [and_rec_app, Num(b,0)] |- Apply(h, b, a)
 
-    # func_unique: Function(h) -> Apply(h,b,c) -> Apply(h,b,a) -> Eq(c,a)
+    # === Instantiate Plus(a,b,c) with w,h,sf ===
+    got_plus_inst = apply_thm(ax(plus_abc), [w], omega_w,
+        apply_thm(ax(plus_abc), [w]).sequent.right[0].right, ax(omega_w))
+    got_plus_inst = apply_thm(got_plus_inst, [hv])
+    got_plus_inst = apply_thm(got_plus_inst, [sfv])
+    # mp through sf_all, rec_h
+    while isinstance(got_plus_inst.sequent.right[0], Implies):
+        cur = got_plus_inst.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, sf_all):
+            got_plus_inst = mp(got_plus_inst, ax(sf_all), hyp, cur.right)
+        elif same(hyp, rec_h):
+            got_plus_inst = mp(got_plus_inst, got_rec, hyp, cur.right)
+        else:
+            got_plus_inst = mp(got_plus_inst, ax(hyp), hyp, cur.right)
+    app_h_bc = got_plus_inst.sequent.right[0]
+    # [plus_abc, sf_all, eu_body, Omega(w)] |- Apply(h, b, c)
+
+    # func_unique: Eq(c, a)
     fut = func_unique_thm()
-    got_eq = apply_thm(fut, [hv, b, c, a], func_h,
-        Implies(app_h_bc, Implies(app_h_ba, eq_ca)), got_func_h)
-    got_eq = mp(got_eq, got_app_bc, app_h_bc, Implies(app_h_ba, eq_ca))
+    got_eq = apply_thm(fut, [hv, b, c, a])
+    got_eq = mp(got_eq, got_func_h, func_h, got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_plus_inst, app_h_bc, got_eq.sequent.right[0].right)
     got_eq = mp(got_eq, got_app_ba, app_h_ba, eq_ca)
-    # [and_rec_app, Num(b,0), axioms] |- Eq(c, a)
 
-    # Now fold back: cut and_rec_app from got_ra, eel sfv, hv, fold omega
-    got_eq = cut(got_eq, and_rec_app, got_ra)
-    got_eq = eel(got_eq, and_sf_ra, sfv)
-    ex_sf_left = got_eq.sequent.left[-1]
-    got_eq = eel(got_eq, ex_sf_left, hv)
-    ex_h_left = got_eq.sequent.left[-1]
+    # === Close existentials: eel eu_body/hv, sf_all/sfv ===
+    # Cut TotalFrom from left if present
+    total_sf_a = TotalFrom(sfv, a)
+    if any(same(total_sf_a, f) for f in got_eq.sequent.left):
+        got_eq = cut(got_eq, total_sf_a, got_total)
 
-    got_omega_wv = apply_thm(and_elim_left(omega_wv, ex_h, []), [],
-        and_omega_ex, omega_wv, ax(and_omega_ex))
-    got_ex_h = apply_thm(and_elim_right(omega_wv, ex_h, []), [],
-        and_omega_ex, ex_h, ax(and_omega_ex))
-    got_eq = cut(got_eq, ex_h_left, got_ex_h)
-    got_eq = eel(got_eq, and_omega_ex, wv)
-    # Now left has: [Exists(wv, and_omega_ex) = Plus(a,b,c), Num(b,0), axioms]
+    # eel eu_body (hv), cut with got_rt
+    got_eq = eel(got_eq, eu_body, hv)
+    got_eq = cut(got_eq, eu.expand(), got_rt)
 
-    # Discharge hypotheses
+    # eel sf_all (sfv), cut with got_ex_sf
+    got_eq = eel(got_eq, sf_all, sfv)
+    got_eq = cut(got_eq, got_ex_sf.sequent.right[0], got_ex_sf)
+
+    # === Discharge and close ===
     proof = got_eq
-    g5 = goal.body.body.body.body  # Forall(d, ...)
-    g_imp = g5.body  # Implies chain
-    hyps_imps = []
-    cur_imp = g_imp
-    while isinstance(cur_imp, Implies):
-        hyps_imps.append((cur_imp.left, cur_imp))
-        cur_imp = cur_imp.right
+    for hyp in [plus_abc, num_b_0, in_a_w, omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
 
-    # Also add unused hypotheses that are in the goal but not in proof
-    for hh in [omega_w, in_a_w]:
-        if not any(same(hh, g) for g in proof.sequent.left):
-            proof = wl(proof, hh)
-
-    for hh, imp in reversed(hyps_imps):
-        if any(same(hh, g) for g in proof.sequent.left):
-            rem = [f_ for f_ in proof.sequent.left if not same(f_, hh)]
-            proof = Proof(Sequent(rem, [imp]), 'implies_right', [proof], principal=imp)
-
-    # Close foralls
-    for i, (var, fa_target) in enumerate([
-        (d, g5), (c, goal.body.body.body), (b, goal.body.body), (a, goal.body), (w, goal)]):
-        proof = Proof(Sequent(proof.sequent.left, [fa_target]), 'forall_right',
-            [proof], principal=fa_target, term=var)
-
-    proof.name = 'plus_zero_right'
-    return proof
+    for v in [c, b, a, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
 
     proof.name = 'plus_zero_right'
     return proof

@@ -28,17 +28,18 @@ class TotalFrom:
 
 class Recursive:
     """Recursive(h, a, f, w): isRecursive per book Thm 4.2.14.
-    Function(h) /\\ dom(h) <= w /\\ h(0) = a /\\
+    Function(h) /\\ dom(h) = w /\\ h(0) = a /\\
     forall n in w. h(S(n)) = f(h(n)). w is omega."""
     __match_args__ = ('func', 'init', 'step', 'omega')
     def __init__(self, h, a, f, w):
         self.func = h; self.init = a; self.step = f; self.omega = w
     def expand(self):
-        e, n, val, sn, fval, xd, yd = Var(), Var(), Var(), Var(), Var(), Var(), Var()
-        dom_sub = Forall(xd, Implies(Exists(yd, Apply(self.func, xd, yd)),
-                                     In(xd, self.omega)))
+        from vocab.functions import Domain
+        e, n, val, sn, fval = Var(), Var(), Var(), Var(), Var()
+        d = Var(postfix='_d')
+        dom_eq = Forall(d, Implies(Domain(self.func, d), Eq(d, self.omega)))
         return And(Function(self.func),
-               And(dom_sub,
+               And(dom_eq,
                And(Forall(e, Implies(Empty(e), Apply(self.func, e, self.init))),
                    Forall(n, Implies(In(n, self.omega),
                        Forall(val, Implies(Apply(self.func, n, val),
@@ -57,18 +58,24 @@ class PlusFunc:
     h : ω×ω → ω with h(⟨m,0⟩) = m and h(⟨m,S(n)⟩) = S(h(⟨m,n⟩)).
 
     And(Function(h),
+    And(∀d,p. Domain(h,d) → Product(p,w,w) → Eq(d,p),
     And(∀m∈w. ∀z. Empty(z) → ∀pair. OrdPair(pair,m,z) → Apply(h,pair,m),
         ∀m∈w. ∀n∈w. ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h,pair,p) →
             ∀sn. Succ(sn,n) → ∀sp. Succ(sp,p) →
-                ∀pair2. OrdPair(pair2,m,sn) → Apply(h,pair2,sp)))"""
+                ∀pair2. OrdPair(pair2,m,sn) → Apply(h,pair2,sp))))"""
     __match_args__ = ('func', 'omega')
     def __init__(self, h, w):
         self.func = h; self.omega = w
     def expand(self):
         from vocab.ordpair import OrdPair
+        from vocab.functions import Domain
+        from vocab.sets import Product
         m, n, z, p = Var(postfix='_m'), Var(postfix='_n'), Var(postfix='_z'), Var(postfix='_p')
         pair, pair2 = Var(postfix='_pair'), Var(postfix='_pair2')
         sn, sp = Var(postfix='_sn'), Var(postfix='_sp')
+        d, prod = Var(postfix='_d'), Var(postfix='_prod')
+        dom_eq = Forall(d, Forall(prod, Implies(Domain(self.func, d),
+            Implies(Product(prod, self.omega, self.omega), Eq(d, prod)))))
         base = Forall(m, Implies(In(m, self.omega),
             Forall(z, Implies(Empty(z),
                 Forall(pair, Implies(OrdPair(pair, m, z),
@@ -81,7 +88,7 @@ class PlusFunc:
                             Forall(sp, Implies(Successor(sp, p),
                                 Forall(pair2, Implies(OrdPair(pair2, m, sn),
                                     Apply(self.func, pair2, sp)))))))))))))))
-        return And(Function(self.func), And(base, step))
+        return And(Function(self.func), And(dom_eq, And(base, step)))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return PlusFunc(r(self.func), r(self.omega))
