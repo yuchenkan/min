@@ -1698,7 +1698,7 @@ class Phase1P:
         return Phase1P(r(self.n), r(self.q0), r(self.tape_in),
             r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
-        return f'P1({self.n})'
+        return f'P1({self.n}, {self.q0}, {self.tape_in}, {self.c0}, {self.z}, {self.delta})'
 
 
 
@@ -5266,7 +5266,7 @@ class Phase2P:
         return Phase2P(r(self.sa), r(self.q1), r(self.tape_in), r(self.c0),
             r(self.z), r(self.delta), r(self.a), r(self.one))
     def __str__(self):
-        return f'P2'
+        return f'P2({self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.z}, {self.delta}, {self.a}, {self.one})'
 
 
 class Phase3P:
@@ -5311,7 +5311,7 @@ class Phase3P:
         return Phase3P(r(self.j), r(self.sa), r(self.q1), r(self.tape2),
             r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
-        return f'P3({self.j})'
+        return f'P3({self.j}, {self.sa}, {self.q1}, {self.tape2}, {self.c0}, {self.z}, {self.delta})'
 
 
 class Phase3Q:
@@ -5331,7 +5331,7 @@ class Phase3Q:
         return Phase3Q(r(self.j), r(self.b), r(self.sa), r(self.q1),
             r(self.tape2), r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
-        return f'Q3({self.j})'
+        return f'Q3({self.j}, {self.b}, {self.sa}, {self.q1}, {self.tape2}, {self.c0}, {self.z}, {self.delta})'
 
 
 class Phase1Q:
@@ -5351,7 +5351,7 @@ class Phase1Q:
         return Phase1Q(r(self.n), r(self.a), r(self.q0), r(self.tape_in),
             r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
-        return f'Q1({self.n})'
+        return f'Q1({self.n}, {self.a}, {self.q0}, {self.tape_in}, {self.c0}, {self.z}, {self.delta})'
 
 
 def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
