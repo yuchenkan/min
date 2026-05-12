@@ -46,7 +46,7 @@ class TMConfig:
         r = lambda f: new if f is old else f
         return TMConfig(r(self.config), r(self.state), r(self.head), r(self.tape))
     def __str__(self):
-        return f'Config({self.state}, {self.head}, {self.tape})'
+        return f'{self.config} = Config({self.state}, {self.head}, {self.tape})'
 
 
 class TMTransition:
