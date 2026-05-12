@@ -8238,111 +8238,61 @@ def recursive_elim(h, a, f, w):
 
 def recursive_dom_sub(h, a, f, w):
     """Derive dom(h) ⊆ w from Recursive(h,a,f,w).
-    [Recursive(h,a,f,w)] |- ∀x. (∃y. Apply(h,x,y)) → In(x,w)
+    [Recursive(h,a,f,w), Sep, Pairing, Union] |- ∀x. (∃y. Apply(h,x,y)) → In(x,w)
 
-    From dom_eq: ∀d. Domain(h,d) → Eq(d,w).
-    Domain(h,d) = ∀x. In(x,d) ↔ ∃y.Apply(h,x,y).
-    Eq(d,w) = ∀x. In(x,d) ↔ In(x,w).
-    Chain: ∃y.Apply(h,x,y) ↔ In(x,d) [Domain] and In(x,d) ↔ In(x,w) [Eq].
-    So ∃y.Apply(h,x,y) → In(x,w)."""
-    from tactics import apply_thm, mp, ax, fl, eel, eir, cut
-    from vocab.functions import Domain
+    From dom_eq + domain_exists: get d with Domain(h,d), then Eq(d,w).
+    Chain: ∃y.Apply(h,x,y) ↔ In(x,d) [Domain] → In(x,w) [Eq]."""
+    from tactics import apply_thm, mp, ax, fl, eel, cut
+    from vocab.functions import Apply, Domain
+    from theorems.sets import domain_exists
 
     _, got_dom_eq, _, _, rec = recursive_elim(h, a, f, w)
-    # got_dom_eq: [rec] |- ∀d. Domain(h,d) → Eq(d,w)
 
     xd = Var(postfix='_xds')
     yd = Var(postfix='_yds')
     dv = Var(postfix='_dv')
     ex_app = Exists(yd, Apply(h, xd, yd))
     in_xd_w = In(xd, w)
-
-    # We need a specific d satisfying Domain(h,d). Domain(h,d) characterizes d.
-    # d = {x : ∃y. Apply(h,x,y)} exists by Separation (from some bounding set).
-    # But proving Domain existence is complex.
-    # Simpler: use the Iff directly.
-    # dom_eq gives: for any d with Domain(h,d), Eq(d,w).
-    # Domain(h,d): ∀x. In(x,d) ↔ ∃y.Apply(h,x,y).
-    # From ∃y.Apply(h,xd,yd): In(xd,d) via Domain reverse.
-    # From Eq(d,w): In(xd,w) via Eq forward.
-    # Assume Domain(h,dv) on left. Derive.
-
     dom_hd = Domain(h, dv)
+
     # Domain(h,dv) instantiated at xd: In(xd,dv) ↔ ∃y.Apply(h,xd,y)
     got_dom_inst = apply_thm(ax(dom_hd), [xd])
     iff_dom = got_dom_inst.sequent.right[0]
-    # Iff reverse: ∃y.Apply(h,xd,y) → In(xd,dv)
     got_rev = apply_thm(iff_mp_rev(iff_dom.left, iff_dom.right, []), [],
         iff_dom, Implies(iff_dom.right, iff_dom.left), got_dom_inst)
     got_in_d = mp(got_rev, ax(ex_app), ex_app, In(xd, dv))
-    # [Domain(h,dv), ∃y.Apply(h,xd,y)] |- In(xd, dv)
+    # [Domain(h,dv), ∃y.Apply] |- In(xd, dv)
 
     # From dom_eq: Domain(h,dv) → Eq(dv, w)
     eq_dw = Eq(dv, w)
     got_eq = apply_thm(got_dom_eq, [dv], dom_hd, eq_dw, ax(dom_hd))
     # [rec, Domain(h,dv)] |- Eq(dv, w)
 
-    # Eq(dv, w) = ∀z. In(z,dv) ↔ In(z,w). Instantiate at xd:
+    # Eq(dv,w) at xd: In(xd,dv) ↔ In(xd,w)
     iff_dw = Iff(In(xd, dv), In(xd, w))
-    got_iff_dw = fl(eq_dw, iff_dw, xd)
-    got_iff_dw = cut(got_iff_dw, eq_dw, got_eq)
-    # [rec, Domain(h,dv)] |- Iff(In(xd,dv), In(xd,w))
-
-    # Iff forward: In(xd,dv) → In(xd,w)
+    got_iff_dw = cut(fl(eq_dw, iff_dw, xd), eq_dw, got_eq)
     got_fwd = apply_thm(iff_mp(In(xd, dv), In(xd, w), []), [],
         iff_dw, Implies(In(xd, dv), In(xd, w)), got_iff_dw)
     got_in_w = mp(got_fwd, got_in_d, In(xd, dv), in_xd_w)
-    # [rec, Domain(h,dv), ∃y.Apply(h,xd,y)] |- In(xd, w)
+    # [rec, Domain(h,dv), ∃y.Apply] |- In(xd, w)
 
-    # Discharge Domain(h,dv) by eel + proving ∃d.Domain(h,d).
-    # Actually, Domain(h,dv) is just a characterization — any d works.
-    # For eel: dv not free on right (In(xd,w) doesn't have dv). Good.
-    # implies_right on Domain(h,dv), then forall_right on dv:
-    # OR: just eel dv from Domain(h,dv) → ∃dv.Domain(h,dv), then prove ∃d.Domain(h,d).
-    # ∃d.Domain(h,d) always holds (d = dom(h) from Separation).
-    # But proving it requires Separation...
+    # eel dv from Domain(h,dv), cut with domain_exists
+    got_in_w = eel(got_in_w, dom_hd, dv)
+    de = domain_exists()
+    got_ex_dom = apply_thm(de, [h], concl=Exists(dv, dom_hd))
+    got_in_w = cut(got_in_w, Exists(dv, dom_hd), got_ex_dom)
+    # [rec, ∃y.Apply, Sep, Pairing, Union] |- In(xd, w)
 
-    # Simpler: just discharge Domain(h,dv) via implies_right, then forall_right dv.
-    # Result: ∀dv. Domain(h,dv) → (∃y.Apply(h,xd,y) → In(xd,w))
-    # Then the caller can provide any d with Domain(h,d).
-    # But we want just: ∃y.Apply(h,xd,y) → In(xd,w) without the Domain premise.
-    # This needs ∃d.Domain(h,d) to be provable.
+    # implies_right + forall_right
+    imp = Implies(ex_app, in_xd_w)
+    left = [ff for ff in got_in_w.sequent.left if not same(ff, ex_app)]
+    proof = Proof(Sequent(left, [imp]), 'implies_right', [got_in_w], principal=imp)
+    dom_sub_formula = Forall(xd, imp)
+    proof = Proof(Sequent(proof.sequent.left, [dom_sub_formula]), 'forall_right',
+        [proof], principal=dom_sub_formula, term=xd)
 
-    # Actually, we don't need Domain at all for dom_sub!
-    # dom_eq says: ∀d. Domain(h,d) → Eq(d,w).
-    # We want: ∃y.Apply(h,x,y) → In(x,w).
-    # This is: x ∈ dom(h) → x ∈ w.
-    # From dom_eq: dom(h) = w. So x ∈ dom(h) ↔ x ∈ w. QED.
-    # But "dom(h) = w" is stated via Domain, not directly.
-
-    # Alternative approach: don't use Domain at all. dom_eq in Recursive gives
-    # ∀d. Domain(h,d) → Eq(d,w). But what we REALLY want is just the ⊆ direction.
-    # Since we're deriving ⊆ from =, and = was proved via Domain, we need Domain.
-
-    # For ∃d. Domain(h,d): Domain(h,d) means d = {x : ∃y. ⟨x,y⟩ ∈ h}.
-    # This set exists by Separation (from any superset of dom(h)).
-    # But proving it in ZFC requires Separation + bounding.
-
-    # PRAGMATIC: discharge Domain(h,dv) as an extra hypothesis.
-    # The caller provides it. This is acceptable — it's always provable.
-    imp_dom = Implies(dom_hd, Implies(ex_app, in_xd_w))
-    left_no_dom = [ff for ff in got_in_w.sequent.left if not same(ff, dom_hd)]
-    left_no_ex = [ff for ff in left_no_dom if not same(ff, ex_app)]
-    got_imp = Proof(Sequent([ff for ff in got_in_w.sequent.left if not same(ff, ex_app)],
-        [Implies(ex_app, in_xd_w)]), 'implies_right', [got_in_w], principal=Implies(ex_app, in_xd_w))
-    got_imp = Proof(Sequent([ff for ff in got_imp.sequent.left if not same(ff, dom_hd)],
-        [Implies(dom_hd, Implies(ex_app, in_xd_w))]), 'implies_right', [got_imp], principal=imp_dom)
-    # Close xd
-    fa_xd = Forall(xd, imp_dom)
-    got_imp = Proof(Sequent(got_imp.sequent.left, [fa_xd]), 'forall_right',
-        [got_imp], principal=fa_xd, term=xd)
-    # Close dv
-    fa_dv = Forall(dv, fa_xd)
-    got_result = Proof(Sequent(got_imp.sequent.left, [fa_dv]), 'forall_right',
-        [got_imp], principal=fa_dv, term=dv)
-
-    got_result.name = 'recursive_dom_sub'
-    return got_result
+    proof.name = 'recursive_dom_sub'
+    return proof
 
 
 def rec_values_agree():
