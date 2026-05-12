@@ -3136,6 +3136,261 @@ def pf_step(hv, w, sfv, pv_ww, pv_wwxw):
     return proof
 
 # pf_dom_eq placeholder
+def pf_dom_eq_fwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
+    """Forward direction: In(z,d) -> In(z,prod).
+    [Domain(hv,d), Product(prod,w,w), char_fwd, Pairing, axioms]
+    |- In(z,d) -> In(z,prod)"""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp, iff_mp_rev, eq_symmetric)
+    from theorems.recursion import recursive_elim, eq_apply_val_transfer
+    from theorems.omega import omega_succ_closed, omega_contains_empty
+    from theorems.sets import (ordpair_exists, product_in_intro, domain_exists,
+        eq_transfer, tuple_injection)
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef, TotalFrom)
+    from vocab.functions import Domain as DomainDef
+    from vocab.recursion import PlusFunc
+    from vocab.ordpair import OrdPair
+    from vocab.omega import Omega
+    from vocab.sets import Empty, Product
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    from core.lang import Var, In, Implies, Forall, Not
+    from core.derived import Eq, And, Iff, Exists
+    import core.zfc as zfc
+
+    omega_w = Omega(w)
+
+    # Reconstruct sf_all, phi2, char_hv
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
+
+    _mv = Var(postfix='_m')
+    _nv = Var(postfix='_n')
+    _yv = Var(postfix='_y')
+    _pairv = Var(postfix='_pair')
+    _hmv = Var(postfix='_hm')
+    _rec_hm = RecDef(_hmv, _mv, sfv, w)
+
+    def phi2(x):
+        return Exists(_mv, And(In(_mv, w),
+            Exists(_nv, Exists(_yv, Exists(_pairv,
+                And(OrdPair(_pairv, _mv, _nv),
+                And(OrdPair(x, _pairv, _yv),
+                Exists(_hmv, And(_rec_hm, Apply(_hmv, _nv, _yv))))))))))
+
+    _xv = Var(postfix='_xv')
+    prod_ww = Product(pv_ww, w, w)
+    prod_wwxw = Product(pv_wwxw, pv_ww, w)
+    char_hv = Forall(_xv, Iff(In(_xv, hv), And(In(_xv, pv_wwxw), phi2(_xv))))
+
+    pii = product_in_intro()
+
+    # === Get bound vars from PlusFunc dom_eq expansion ===
+    pf_exp = PlusFunc(hv, w).expand()
+    dom_eq_h = pf_exp.right.left
+    d_var = dom_eq_h.var
+    prod_var_fa = dom_eq_h.body
+    prod_var = prod_var_fa.var
+    dom_hyp = prod_var_fa.body.left   # Domain(hv, d_var)
+    prod_hyp = prod_var_fa.body.right.left  # Product(prod_var, w, w)
+    eq_target = prod_var_fa.body.right.right  # Eq(d_var, prod_var)
+    print(f'pf_dom_eq: d={d_var}, prod={prod_var}')
+    print(f'pf_dom_eq: dom_hyp={dom_hyp}, prod_hyp={prod_hyp}')
+    print(f'pf_dom_eq: target={dom_eq_h}')
+
+    # z for extensionality
+    z = Var(postfix='_z')
+
+
+    from vocab.functions import Domain as DomainDef
+    dom_hyp = DomainDef(hv, d_var)
+    prod_hyp = Product(prod_var, w, w)
+
+    # === FORWARD: In(z,d) -> In(z,prod) ===
+    # Domain(hv,d): In(z,d) <-> exists y. Apply(hv,z,y)
+    dom_exp = dom_hyp.expand()
+    got_dom_z = apply_thm(ax(dom_hyp), [z])
+    iff_dom = got_dom_z.sequent.right[0]
+    got_dom_fwd = apply_thm(iff_mp(iff_dom.left, iff_dom.right, []), [],
+        iff_dom, Implies(iff_dom.left, iff_dom.right), got_dom_z)
+    got_ex_app = mp(got_dom_fwd, ax(In(z, d_var)), In(z, d_var), iff_dom.right)
+    # [Domain(hv,d), In(z,d)] |- exists y. Apply(hv,z,y)
+    print(f'pf_dom_eq fwd: exists y. Apply(hv,z,y) = {got_ex_app.sequent.right[0]}')
+
+    # Open exists y: have Apply(hv,z,y_fwd) on left
+    y_fwd = got_ex_app.sequent.right[0].var
+    app_hz_y = Apply(hv, z, y_fwd)
+
+    # pf_forward: Apply(hv,z,y_fwd) -> exists m. In(m,w) & exists n. OrdPair(z,m,n) & exists hm. ...
+    fwd = pf_forward(hv, w, sfv)
+    got_fwd = apply_thm(fwd, [z, y_fwd])
+    got_fwd = mp(got_fwd, ax(app_hz_y), app_hz_y, got_fwd.sequent.right[0].right)
+    fwd_result = got_fwd.sequent.right[0]
+    print(f'pf_dom_eq fwd: fwd_result type = {type(fwd_result).__name__}')
+
+    # Extract m_fwd, n_fwd from fwd_result
+    m_fwd = fwd_result.var
+    in_m_fwd_w = fwd_result.body.left
+    n_fwd_ex = fwd_result.body.right
+    n_fwd = n_fwd_ex.var
+    op_z_m_n = n_fwd_ex.body.left  # OrdPair(z, m_fwd, n_fwd)
+    hm_ex = n_fwd_ex.body.right
+
+    # Need In(n_fwd, w) from Recursive dom + Apply(hm,n,y).
+    # Extract hm from hm_ex
+    hm_fwd = hm_ex.var
+    rec_hm_fwd = hm_ex.body.left
+    app_hm_n_y = hm_ex.body.right
+
+    # In(n_fwd, w): from Recursive dom_eq + domain_exists + Apply(hm,n,y)
+    _, got_dom_hm, _, _, _ = recursive_elim(hm_fwd, m_fwd, sfv, w)
+    # got_dom_hm: [Rec(hm,...)] |- forall d'. Domain(hm,d') -> Eq(d',w)
+    de = domain_exists()
+    got_de = apply_thm(de, [hm_fwd])
+    # [Sep,Union] |- exists d'. Domain(hm,d')
+    d_hm = got_de.sequent.right[0].var
+    dom_hm = DomainDef(hm_fwd, d_hm)
+
+    # Domain(hm,d_hm) -> Eq(d_hm,w)
+    got_dom_eq = apply_thm(got_dom_hm, [d_hm])
+    got_dom_eq = mp(got_dom_eq, ax(dom_hm), dom_hm, Eq(d_hm, w))
+    # [Rec, Domain(hm,d_hm)] |- Eq(d_hm, w)
+
+    # Domain(hm,d_hm): In(n,d_hm) <-> exists y'. Apply(hm,n,y')
+    got_dom_hm_n = apply_thm(ax(dom_hm), [n_fwd])
+    iff_dom_hm = got_dom_hm_n.sequent.right[0]
+    # iff_mp_rev: (exists y'. Apply(hm,n,y')) -> In(n,d_hm)
+    got_rev_dom = apply_thm(iff_mp_rev(iff_dom_hm.left, iff_dom_hm.right, []), [],
+        iff_dom_hm, Implies(iff_dom_hm.right, iff_dom_hm.left), got_dom_hm_n)
+    # Build exists y'. Apply(hm,n,y') from Apply(hm,n,y_fwd)... wait, y_fwd is the val for hv, not hm
+    # Actually app_hm_n_y = Apply(hm_fwd, n_fwd, y_fwd) — the y from pf_forward IS y_fwd
+    # Wait no: pf_forward's result has Apply(hm, n, val) where val = y_fwd.
+    # So app_hm_n_y = Apply(hm_fwd, n_fwd, y_fwd). Good.
+    ex_y_app_hm = Exists(y_fwd, Apply(hm_fwd, n_fwd, y_fwd))
+    # But the Domain expansion uses its own bound var for exists
+    dom_ex_var = iff_dom_hm.right.var
+    tmpl_app = Apply(hm_fwd, n_fwd, dom_ex_var)
+    got_eir_app = eir(ax(app_hm_n_y), tmpl_app, dom_ex_var, y_fwd)
+    got_in_n_dhm = mp(got_rev_dom, got_eir_app, iff_dom_hm.right, In(n_fwd, d_hm))
+    # [app_hm_n_y, Domain(hm,d_hm)] |- In(n_fwd, d_hm)
+
+    # Eq(d_hm, w) -> In(n,d_hm) -> In(n,w) via eq_transfer
+    et = eq_transfer()
+    got_et = apply_thm(et, [d_hm, w, n_fwd])
+    got_et = mp(got_et, got_dom_eq, Eq(d_hm, w), got_et.sequent.right[0].right)
+    iff_et = got_et.sequent.right[0]
+    got_et_fwd = apply_thm(iff_mp(iff_et.left, iff_et.right, []), [],
+        iff_et, Implies(iff_et.left, iff_et.right), got_et)
+    got_in_n_w = mp(got_et_fwd, got_in_n_dhm, In(n_fwd, d_hm), In(n_fwd, w))
+    print(f'pf_dom_eq fwd: In(n_fwd,w) = {got_in_n_w.sequent.right[0]}')
+
+    # Now build Product membership: In(m_fwd,w) & In(n_fwd,w) & OrdPair(z,m_fwd,n_fwd) -> In(z,prod)
+    # Product(prod,w,w): In(z,prod) <-> exists m,n. In(m,w) & In(n,w) & OrdPair(z,m,n)
+    got_prod_z = apply_thm(ax(prod_hyp), [z])
+    iff_prod = got_prod_z.sequent.right[0]
+    got_prod_rev = apply_thm(iff_mp_rev(iff_prod.left, iff_prod.right, []), [],
+        iff_prod, Implies(iff_prod.right, iff_prod.left), got_prod_z)
+
+    # Build the exists witness for Product
+    ex_prod = iff_prod.right  # exists m'. exists n'. And(In(m',w), And(In(n',w), OrdPair(z,m',n')))
+    m_p = ex_prod.var
+    n_p_ex = ex_prod.body
+    n_p = n_p_ex.var
+    inner_prod = n_p_ex.body  # And(In(m_p,w), And(In(n_p,w), OrdPair(z,m_p,n_p)))
+
+    # Build And(In(m_fwd,w), And(In(n_fwd,w), OrdPair(z,m_fwd,n_fwd)))
+    inner_pair = And(In(n_fwd, w), OrdPair(z, m_fwd, n_fwd))
+    inner_all = And(In(m_fwd, w), inner_pair)
+    got_ip = mp(apply_thm(and_intro(In(n_fwd, w), OrdPair(z, m_fwd, n_fwd), []), [],
+        In(n_fwd, w), Implies(OrdPair(z, m_fwd, n_fwd), inner_pair),
+        got_in_n_w), ax(op_z_m_n), OrdPair(z, m_fwd, n_fwd), inner_pair)
+    got_ia = mp(apply_thm(and_intro(In(m_fwd, w), inner_pair, []), [],
+        In(m_fwd, w), Implies(inner_pair, inner_all),
+        ax(in_m_fwd_w)), got_ip, inner_pair, inner_all)
+
+    # eir n_p -> n_fwd, m_p -> m_fwd
+    tmpl_np = And(In(m_fwd, w), And(In(n_p, w), OrdPair(z, m_fwd, n_p)))
+    got_en = eir(got_ia, tmpl_np, n_p, n_fwd)
+    tmpl_mp = Exists(n_p, And(In(m_p, w), And(In(n_p, w), OrdPair(z, m_p, n_p))))
+    got_emn = eir(got_en, tmpl_mp, m_p, m_fwd)
+
+    got_in_z_prod = mp(got_prod_rev, got_emn, iff_prod.right, In(z, prod_var))
+    print(f'pf_dom_eq fwd: In(z,prod) = {got_in_z_prod.sequent.right[0]}')
+
+    # Close eel's for hm_fwd, n_fwd, m_fwd, y_fwd
+    proof_fwd = got_in_z_prod
+
+    def mk_and_on_left(proof, lf, rf):
+        combined = And(lf, rf)
+        proof = cut(proof, lf, apply_thm(and_elim_left(lf, rf, []), [],
+            combined, lf, ax(combined)))
+        proof = cut(proof, rf, apply_thm(and_elim_right(lf, rf, []), [],
+            combined, rf, ax(combined)))
+        return proof
+
+    # eel d_hm from Domain(hm,d_hm)
+    if any(_var_free_in_sequent(d_hm, Sequent([f], [])) for f in proof_fwd.sequent.left
+           if not isinstance(f, zfc.ZFCAxiom)):
+        d_hm_fs = [f for f in proof_fwd.sequent.left
+            if _var_free_in_sequent(d_hm, Sequent([f], [])) and not isinstance(f, zfc.ZFCAxiom)]
+        combined = d_hm_fs[0]
+        for f in d_hm_fs[1:]:
+            proof_fwd = mk_and_on_left(proof_fwd, combined, f)
+            combined = And(combined, f)
+        proof_fwd = eel(proof_fwd, combined, d_hm)
+        proof_fwd = cut(proof_fwd, Exists(d_hm, combined), got_de)
+    print(f'pf_dom_eq fwd: eel d_hm done')
+
+    # eel hm_fwd
+    proof_fwd = mk_and_on_left(proof_fwd, rec_hm_fwd, app_hm_n_y)
+    proof_fwd = eel(proof_fwd, And(rec_hm_fwd, app_hm_n_y), hm_fwd)
+
+    # eel n_fwd
+    ex_hm = Exists(hm_fwd, And(rec_hm_fwd, app_hm_n_y))
+    proof_fwd = mk_and_on_left(proof_fwd, op_z_m_n, ex_hm)
+    proof_fwd = eel(proof_fwd, And(op_z_m_n, ex_hm), n_fwd)
+
+    # eel m_fwd
+    ex_n = Exists(n_fwd, And(op_z_m_n, ex_hm))
+    proof_fwd = mk_and_on_left(proof_fwd, in_m_fwd_w, ex_n)
+    and_m_main = And(in_m_fwd_w, ex_n)
+    m_extras = [f for f in proof_fwd.sequent.left
+        if _var_free_in_sequent(m_fwd, Sequent([f], [])) and not same(f, and_m_main)]
+    for extra in m_extras:
+        proof_fwd = mk_and_on_left(proof_fwd, and_m_main, extra)
+        and_m_main = And(and_m_main, extra)
+    proof_fwd = eel(proof_fwd, and_m_main, m_fwd)
+    proof_fwd = cut(proof_fwd, Exists(m_fwd, and_m_main), got_fwd)
+    print(f'pf_dom_eq fwd: eel m_fwd done')
+
+    # eel y_fwd from Apply(hv,z,y_fwd)
+    proof_fwd = eel(proof_fwd, app_hz_y, y_fwd)
+    proof_fwd = cut(proof_fwd, Exists(y_fwd, app_hz_y), got_ex_app)
+    print(f'pf_dom_eq fwd: eel y_fwd done')
+
+    # Forward direction: [Domain(hv,d), In(z,d), Product(prod,w,w), char_hv, axioms] |- In(z,prod)
+    imp_fwd = Implies(In(z, d_var), In(z, prod_var))
+    left_fwd = [f for f in proof_fwd.sequent.left if not same(f, In(z, d_var))]
+    proof_fwd = Proof(Sequent(left_fwd, [imp_fwd]), 'implies_right', [proof_fwd], principal=imp_fwd)
+    print(f'pf_dom_eq fwd: done = {proof_fwd.sequent.right[0]}')
+
+    proof_fwd.name = 'pf_dom_eq_fwd'
+    return proof_fwd
+
+
+def pf_dom_eq_bwd(hv, w, sfv, pv_ww, pv_wwxw, d_var, prod_var, z):
+    """Backward direction: In(z,prod) -> In(z,d).
+    [Domain(hv,d), Product(prod,w,w), char_hv, sf_all, Omega(w), axioms]
+    |- In(z,prod) -> In(z,d)"""
+    raise NotImplementedError("pf_dom_eq_bwd: TODO")
+
+
 def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     """Prove PlusFunc dom_eq: dom(hv) = w x w.
     [char_hv, prod_ww, prod_wwxw, sf_all, Omega(w), axioms]
