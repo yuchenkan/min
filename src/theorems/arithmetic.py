@@ -52,14 +52,12 @@ def sf_total_from():
         Forall(ysc, Iff(Apply(sfv, mv, ysc), SuccDef(ysc, mv))), ax(in_mv_w))
     got_sc_m = apply_thm(got_sc_m, [sm])
     iff_f = got_sc_m.sequent.right[0]
-    print(f'sf_total_from: iff_f = {iff_f}')
     got_rev = apply_thm(iff_mp_rev(iff_f.left, iff_f.right, []), [],
         iff_f, Implies(iff_f.right, iff_f.left), got_sc_m)
     got_app_sf_m = mp(got_rev, ax(succ_sm), succ_sm, iff_f.left)
     got_part1 = eir(got_app_sf_m, got_app_sf_m.sequent.right[0], sm, sm)
     got_part1 = eel(got_part1, succ_sm, sm)
     got_part1 = cut(got_part1, Exists(sm, succ_sm), got_ex_sm)
-    print(f'sf_total_from part1: {got_part1.sequent.right[0]}')
     # [succ_char, In(m,w), Pairing] |- ∃z. Apply(sf, m, z)
 
     # Part 2: ∀x,y. Apply(sf,x,y) → ∃z. Apply(sf,y,z)
@@ -94,24 +92,11 @@ def sf_total_from():
     # Hmm, this creates ∃yr.Apply(sf,xr,yr) but dom_sub uses yds.
     # Alpha-equiv should handle it. Let me just use the formula from dom_sub:
     ex_app_xr = Exists(yds, Apply(sfv, xr, yds))
-    # eir(proof, body, var, witness): proof |- body[var:=witness]. Result: |- ∃var.body
-    # body = Apply(sfv, xr, yds). var = yds. witness = yr.
-    # body[yds:=yr] = Apply(sfv, xr, yr) = app_xy. proof = ax(app_xy). ✓
     template_app = Apply(sfv, xr, yds)
-    print(f'sf_total_from: template_app = {template_app}')
-    print(f'sf_total_from: template_app[yds:=yr] = {template_app.subst(yds, yr)}')
-    print(f'sf_total_from: app_xy = {app_xy}')
-    print(f'sf_total_from: same(subst, app_xy) = {same(template_app.subst(yds, yr), app_xy)}')
     got_ex_app_xr = eir(ax(app_xy), template_app, yds, yr)
-    # Wait, Apply(sfv,xr,yds)[yds:=yr] = Apply(sfv,xr,yr) = app_xy. So eir template is Apply(sfv,xr,yds).
-    # Hmm, yds doesn't appear in Apply(sfv,xr,yds) as a specific var. It does — yds is the val.
-    # eir(ax(app_xy), Apply(sfv,xr,yds), yds, yr): template[yds:=yr] = Apply(sfv,xr,yr) = app_xy. ✓
-    got_ex_app_xr = eir(ax(app_xy), Apply(sfv, xr, yds), yds, yr)
-    print(f'sf_total_from: got_ex_app_xr right = {got_ex_app_xr.sequent.right[0]}')
 
     got_in_xr_w = apply_thm(ax(dom_sub_sf), [xr])
     got_in_xr_w = mp(got_in_xr_w, got_ex_app_xr, ex_app_xr, In(xr, w))
-    print(f'sf_total_from: got_in_xr_w right = {got_in_xr_w.sequent.right[0]}')
     # [dom_sub_sf, Apply(sf,xr,yr)] |- In(xr, w)
 
     # succ_char at xr: In(xr,w) → Iff(Apply(sf,xr,yr), Succ(yr,xr))
@@ -122,7 +107,6 @@ def sf_total_from():
     got_succ_yr_xr = mp(apply_thm(iff_mp(iff_xr.left, iff_xr.right, []), [],
         iff_xr, Implies(app_xy, iff_xr.right), got_sc_xr),
         ax(app_xy), app_xy, iff_xr.right)
-    print(f'sf_total_from: got_succ_yr_xr right = {got_succ_yr_xr.sequent.right[0]}')
     # [succ_char, dom_sub_sf, Apply(sf,xr,yr)] |- Succ(yr, xr)
 
     # omega_succ_closed: Omega(w) → In(xr,w) → Succ(yr,xr) → In(yr,w)
@@ -134,7 +118,6 @@ def sf_total_from():
     got_yr_in_w = apply_thm(got_yr_in_w, [yr])
     succ_yr_xr = got_succ_yr_xr.sequent.right[0]
     got_yr_in_w = mp(got_yr_in_w, got_succ_yr_xr, succ_yr_xr, In(yr, w))
-    print(f'sf_total_from: got_yr_in_w right = {got_yr_in_w.sequent.right[0]}')
     # [..., Omega(w), Apply(sf,xr,yr)] |- In(yr, w)
 
     # succ_char at yr: In(yr,w) → Iff(Apply(sf,yr,zr), Succ(zr,yr))
@@ -148,17 +131,11 @@ def sf_total_from():
     got_ex_szr = apply_thm(successor_exists(), [yr], concl=Exists(zr, succ_zr))
     got_rev_yr = apply_thm(iff_mp_rev(iff_yr.left, iff_yr.right, []), [],
         iff_yr, Implies(iff_yr.right, iff_yr.left), got_sc_yr)
-    print(f'sf_total_from: got_rev_yr right = {got_rev_yr.sequent.right[0]}')
-    print(f'sf_total_from: succ_zr = {succ_zr}')
-    print(f'sf_total_from: iff_yr.left = {iff_yr.left}')
-    print(f'sf_total_from: iff_yr.right = {iff_yr.right}')
-    print(f'sf_total_from: same(got_rev_yr.right.left, succ_zr) = {same(got_rev_yr.sequent.right[0].left, succ_zr)}')
     got_app_yz = mp(got_rev_yr, ax(succ_zr), succ_zr, iff_yr.left)
     # eir szr→zr, eel succ_zr, cut with got_ex_szr:
     got_ex_app_yz = eir(got_app_yz, got_app_yz.sequent.right[0], zr, zr)
     got_ex_app_yz = eel(got_ex_app_yz, succ_zr, zr)
     got_ex_app_yz = cut(got_ex_app_yz, Exists(zr, succ_zr), got_ex_szr)
-    print(f'sf_total_from part2: {got_ex_app_yz.sequent.right[0]}')
     # [..., Apply(sf,xr,yr)] |- ∃zr. Apply(sf, yr, zr)
 
     # Discharge Apply(sf,xr,yr), close ∀yr, ∀xr
@@ -171,7 +148,6 @@ def sf_total_from():
     fa_xr = Forall(xr, fa_yr)
     got_part2 = Proof(Sequent(got_part2.sequent.left, [fa_xr]),
         'forall_right', [got_part2], principal=fa_xr, term=xr)
-    print(f'sf_total_from part2 closed: {got_part2.sequent.right[0]}')
 
     # And(part1, part2) = TotalFrom(sf, m)
     total = TotalFrom(sfv, mv)
@@ -216,6 +192,99 @@ def sf_total_from():
             'forall_right', [proof], principal=fa, term=v)
 
     proof.name = 'sf_total_from'
+    return proof
+
+
+def rec_for_each_m():
+    """For each m∈w, the recursive function h_m exists (and is unique).
+    axioms |- ∀w,sf,m. Omega(w) → sf_props(sf,w) → In(m,w) → ∃!hm. Recursive(hm, m, sf, w)
+
+    Combines sf_total_from + recursion_theorem."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import and_elim_left, and_elim_right
+    from theorems.recursion import recursion_theorem
+    from vocab import Function as FuncDef, Apply, Recursive as RecDef, Successor as SuccDef, TotalFrom
+    from vocab.omega import Omega
+    from core.proof import Proof, Sequent, same
+
+    w = Var(postfix='w')
+    sfv = Var(postfix='sf')
+    mv = Var(postfix='m')
+    omega_w = Omega(w)
+    in_mv_w = In(mv, w)
+
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
+
+    # sf_total_from: sf_all → In(m,w) → Omega(w) → TotalFrom(sf, m)
+    stf = sf_total_from()
+    got_total = apply_thm(stf, [w, sfv, mv])
+    # mp through: sf_all (or its components), In(m,w), Omega(w)
+    while isinstance(got_total.sequent.right[0], Implies):
+        cur = got_total.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, sf_all) or same(hyp, succ_char) or same(hyp, And(func_sf, dom_sub_sf)):
+            got_total = mp(got_total, ax(hyp), hyp, cur.right)
+        elif same(hyp, in_mv_w):
+            got_total = mp(got_total, ax(in_mv_w), hyp, cur.right)
+        elif same(hyp, omega_w):
+            got_total = mp(got_total, ax(omega_w), hyp, cur.right)
+        else:
+            got_total = mp(got_total, ax(hyp), hyp, cur.right)
+    total_sf_m = got_total.sequent.right[0]  # TotalFrom(sf, m)
+
+    # recursion_theorem: Function(sf) → TotalFrom(sf,m) → Omega(w) → ∃!hm. Recursive(hm,m,sf,w)
+    rt = recursion_theorem()
+    got_rt = apply_thm(rt, [mv, sfv, w])
+    while isinstance(got_rt.sequent.right[0], Implies):
+        cur = got_rt.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, func_sf):
+            got_func_sf = apply_thm(and_elim_right(succ_char, And(func_sf, dom_sub_sf), []), [],
+                sf_all, And(func_sf, dom_sub_sf), ax(sf_all))
+            got_func_sf = apply_thm(and_elim_left(func_sf, dom_sub_sf, []), [],
+                And(func_sf, dom_sub_sf), func_sf, got_func_sf)
+            got_rt = mp(got_rt, got_func_sf, hyp, cur.right)
+        elif same(hyp, total_sf_m):
+            got_rt = mp(got_rt, got_total, hyp, cur.right)
+        elif same(hyp, omega_w):
+            got_rt = mp(got_rt, ax(omega_w), hyp, cur.right)
+        else:
+            got_rt = mp(got_rt, ax(hyp), hyp, cur.right)
+    # [..., sf_all, In(m,w), Omega(w)] |- ∃!hm. Recursive(hm, m, sf, w)
+
+    # Discharge and close
+    proof = got_rt
+    # Cut sf_all components with sf_all derivations:
+    got_sc_from_sf = apply_thm(and_elim_left(succ_char, And(func_sf, dom_sub_sf), []), [],
+        sf_all, succ_char, ax(sf_all))
+    got_rest_from_sf = apply_thm(and_elim_right(succ_char, And(func_sf, dom_sub_sf), []), [],
+        sf_all, And(func_sf, dom_sub_sf), ax(sf_all))
+    got_ds_from_sf = apply_thm(and_elim_right(func_sf, dom_sub_sf, []), [],
+        And(func_sf, dom_sub_sf), dom_sub_sf, got_rest_from_sf)
+    if any(same(succ_char, f) for f in proof.sequent.left):
+        proof = cut(proof, succ_char, got_sc_from_sf)
+    if any(same(dom_sub_sf, f) for f in proof.sequent.left):
+        proof = cut(proof, dom_sub_sf, got_ds_from_sf)
+
+    for hyp in [in_mv_w, sf_all, omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [mv, sfv, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'rec_for_each_m'
     return proof
 
 
