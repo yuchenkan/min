@@ -2708,6 +2708,440 @@ def pf_single_valued(hv, w, sfv, pv_ww, pv_wwxw):
     proof.name = 'pf_single_valued'
     return proof
 
+# pf_step inserted via file
+def pf_step(hv, w, sfv, pv_ww, pv_wwxw):
+    """Prove PlusFunc step condition: h(<<m,S(n)>>) = S(h(<<m,n>>)).
+    [char_hv, prod_ww, prod_wwxw, sf_all, Omega(w), axioms]
+    |- forall m in w. forall n in w. forall pair. OrdPair(pair,m,n) ->
+       forall p. Apply(hv,pair,p) -> forall sn. Succ(sn,n) ->
+       forall sp. Succ(sp,p) -> forall pair2. OrdPair(pair2,m,sn) -> Apply(hv,pair2,sp)
+
+    From pf_forward on Apply(hv,pair,p): get hm, Recursive(hm,m,sf,w), Apply(hm,n,p).
+    Recursive step: Apply(hm,n,p) + Succ(sn,n) + Apply(sf,p,sp) -> Apply(hm,sn,sp).
+    Apply(sf,p,sp) from succ_char + Succ(sp,p) + In(p,w).
+    Backward bridge: Apply(hm,sn,sp) -> Apply(hv,pair2,sp)."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_mp, iff_mp_rev)
+    from theorems.recursion import recursive_elim
+    from theorems.omega import omega_succ_closed, omega_contains_empty
+    from theorems.sets import ordpair_exists, product_in_intro
+    from vocab import (Function as FuncDef, Apply, Recursive as RecDef,
+        Successor as SuccDef, TotalFrom)
+    from vocab.recursion import PlusFunc
+    from vocab.ordpair import OrdPair
+    from vocab.omega import Omega
+    from vocab.sets import Empty, Product
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Eq, And, Iff, Exists
+    import core.zfc as zfc
+
+    omega_w = Omega(w)
+
+    # Reconstruct sf_all, phi2, char_hv (same as other pf_ functions)
+    xsc, ysc = Var(postfix='xsc'), Var(postfix='ysc')
+    succ_char = Forall(xsc, Implies(In(xsc, w),
+        Forall(ysc, Iff(Apply(sfv, xsc, ysc), SuccDef(ysc, xsc)))))
+    func_sf = FuncDef(sfv)
+    xds, yds = Var(postfix='xds'), Var(postfix='yds')
+    dom_sub_sf = Forall(xds, Implies(Exists(yds, Apply(sfv, xds, yds)), In(xds, w)))
+    sf_all = And(succ_char, And(func_sf, dom_sub_sf))
+
+    mv = Var(postfix='_m')
+    nv = Var(postfix='_n')
+    yv = Var(postfix='_y')
+    pairv = Var(postfix='_pair')
+    hmv = Var(postfix='_hm')
+    rec_hm_template = RecDef(hmv, mv, sfv, w)
+
+    def phi2(x):
+        return Exists(mv, And(In(mv, w),
+            Exists(nv, Exists(yv, Exists(pairv,
+                And(OrdPair(pairv, mv, nv),
+                And(OrdPair(x, pairv, yv),
+                Exists(hmv, And(rec_hm_template, Apply(hmv, nv, yv))))))))))
+
+    xv = Var(postfix='_xv')
+    prod_ww = Product(pv_ww, w, w)
+    prod_wwxw = Product(pv_wwxw, pv_ww, w)
+    char_hv = Forall(xv, Iff(In(xv, hv), And(In(xv, pv_wwxw), phi2(xv))))
+
+    pii = product_in_intro()
+
+    # === Get bound vars from PlusFunc step expansion ===
+    pf_exp = PlusFunc(hv, w).expand()
+    step_h = pf_exp.right.right.right
+    m_s = step_h.var
+    n_s_body = step_h.body.right
+    n_s = n_s_body.var
+    pair_s_body = n_s_body.body.right
+    pair_s = pair_s_body.var
+    p_s_body = pair_s_body.body.right
+    p_s = p_s_body.var
+    sn_s_body = p_s_body.body.right
+    sn_s = sn_s_body.var
+    sp_s_body = sn_s_body.body.right
+    sp_s = sp_s_body.var
+    pair2_s_body = sp_s_body.body.right
+    pair2_s = pair2_s_body.var
+    apply_target = pair2_s_body.body.right  # Apply(hv, pair2_s, sp_s)
+    print(f'pf_step: m={m_s}, n={n_s}, pair={pair_s}, p={p_s}, sn={sn_s}, sp={sp_s}, pair2={pair2_s}')
+    print(f'pf_step: target = {step_h}')
+
+    # Hypothesis formulas
+    in_m_w = In(m_s, w)
+    in_n_w = In(n_s, w)
+    op_pair = OrdPair(pair_s, m_s, n_s)
+    app_h_p = Apply(hv, pair_s, p_s)
+    succ_sn_n = SuccDef(sn_s, n_s)
+    succ_sp_p = SuccDef(sp_s, p_s)
+    op_pair2 = OrdPair(pair2_s, m_s, sn_s)
+
+    # === Step 1: pf_forward on Apply(hv, pair_s, p_s) ===
+    fwd = pf_forward(hv, w, sfv, pv_ww, pv_wwxw)
+    got_fwd = apply_thm(fwd, [pair_s, p_s])
+    got_fwd = mp(got_fwd, ax(app_h_p), app_h_p, got_fwd.sequent.right[0].right)
+    fwd_result = got_fwd.sequent.right[0]
+    print(f'pf_step step1: fwd result type = {type(fwd_result).__name__}')
+
+    # Extract bound vars
+    m_f = fwd_result.var
+    n_f_ex = fwd_result.body.right
+    n_f = n_f_ex.var
+    hm_f_ex = n_f_ex.body.right
+    hm_f = hm_f_ex.var
+    hm_f_body = hm_f_ex.body
+    rec_hm_f = hm_f_body.left   # Recursive(hm_f, m_f, sfv, w)
+    app_hm_n_p = hm_f_body.right  # Apply(hm_f, n_f, p_s)
+    op_pair_m_n = n_f_ex.body.left  # OrdPair(pair_s, m_f, n_f)
+    in_m_f_w = fwd_result.body.left  # In(m_f, w)
+    print(f'pf_step: m_f={m_f}, n_f={n_f}, hm_f={hm_f}')
+    print(f'pf_step: rec_hm_f={rec_hm_f}')
+    print(f'pf_step: app_hm_n_p={app_hm_n_p}')
+
+    # === Step 2: tuple_injection pair_s: Eq(m_s,m_f), Eq(n_s,n_f) ===
+    from theorems.sets import tuple_injection
+    ti = tuple_injection()
+    got_ti = apply_thm(ti, [m_s, n_s, m_f, n_f, pair_s])
+    got_ti = mp(got_ti, ax(op_pair), op_pair, got_ti.sequent.right[0].right)
+    got_ti = mp(got_ti, ax(op_pair_m_n), op_pair_m_n, got_ti.sequent.right[0].right)
+    eq_m = Eq(m_s, m_f)
+    eq_n = Eq(n_s, n_f)
+    got_eq_m = apply_thm(and_elim_left(eq_m, eq_n, []), [],
+        got_ti.sequent.right[0], eq_m, got_ti)
+    got_eq_n = apply_thm(and_elim_right(eq_m, eq_n, []), [],
+        got_ti.sequent.right[0], eq_n, got_ti)
+    print(f'pf_step step2: Eq(m_s,m_f)={got_eq_m.sequent.right[0]}')
+    print(f'pf_step step2: Eq(n_s,n_f)={got_eq_n.sequent.right[0]}')
+
+    # === Step 3: Transfer Succ(sn_s,n_s) -> Succ(sn_s,n_f) and Apply(hm_f,n_f,p) ===
+    # Actually we have Apply(hm_f,n_f,p_s) already from fwd. No transfer needed for Apply.
+    # For Recursive step, we need: Apply(hm_f,n_f,p_s) + Succ(sn_s,n_f) + Apply(sf,p_s,fval) -> Apply(hm_f,sn_s,fval)
+    # But we have Succ(sn_s,n_s). Transfer n_s->n_f via Eq(n_s,n_f):
+    # ordpair_val_transfer: Eq(n_s,n_f) -> Succ(sn_s,n_s) -> Succ(sn_s,n_f)? No, Succ is not OrdPair.
+    # Actually SuccDef(sn,n) is a vocab. Let me check how to transfer.
+    # Instead: transfer Apply(hm_f,n_f,...) to Apply(hm_f,n_s,...) and use Succ(sn_s,n_s) directly.
+    # eq_apply_transfer: Eq(n_f,n_s) -> Apply(hm_f,n_f,p_s) -> Apply(hm_f,n_s,p_s)
+    from theorems.logic import eq_symmetric
+    from theorems.recursion import eq_apply_transfer
+    es = eq_symmetric()
+    got_eq_nf_ns = apply_thm(es, [n_s, n_f])
+    got_eq_nf_ns = mp(got_eq_nf_ns, got_eq_n, eq_n, Eq(n_f, n_s))
+    eat = eq_apply_transfer()
+    got_app_hm_ns_p = apply_thm(eat, [hm_f, n_f, n_s, p_s])
+    got_app_hm_ns_p = mp(got_app_hm_ns_p, got_eq_nf_ns, Eq(n_f, n_s),
+        got_app_hm_ns_p.sequent.right[0].right)
+    got_app_hm_ns_p = mp(got_app_hm_ns_p, ax(app_hm_n_p), app_hm_n_p, Apply(hm_f, n_s, p_s))
+    print(f'pf_step step3: Apply(hm_f,n_s,p_s) = {got_app_hm_ns_p.sequent.right[0]}')
+
+    # === Step 4: Recursive step: Apply(hm_f,n_s,p_s) + Succ(sn_s,n_s) + Apply(sf,p_s,sp_s) -> Apply(hm_f,sn_s,sp_s) ===
+    _, _, _, got_step_hm, _ = recursive_elim(hm_f, m_f, sfv, w)
+    # Transfer m_f->m_s in the step: step uses In(n,w), not m directly.
+    # Actually step is: forall n in w. forall val. Apply(hm,n,val) -> forall sn. Succ(sn,n) -> forall fval. Apply(sf,val,fval) -> Apply(hm,sn,fval)
+    # No m in step! Good. Instantiate with n_s:
+    got_step_inst = apply_thm(got_step_hm, [n_s])
+    got_step_inst = mp(got_step_inst, ax(in_n_w), in_n_w, got_step_inst.sequent.right[0].right)
+    # forall val. Apply(hm_f,n_s,val) -> forall sn. Succ(sn,n_s) -> forall fval. Apply(sf,val,fval) -> Apply(hm_f,sn,fval)
+    got_step_inst = apply_thm(got_step_inst, [p_s])
+    got_step_inst = mp(got_step_inst, got_app_hm_ns_p, Apply(hm_f, n_s, p_s),
+        got_step_inst.sequent.right[0].right)
+    # forall sn. Succ(sn,n_s) -> forall fval. Apply(sf,p_s,fval) -> Apply(hm_f,sn,fval)
+    got_step_inst = apply_thm(got_step_inst, [sn_s])
+    got_step_inst = mp(got_step_inst, ax(succ_sn_n), succ_sn_n, got_step_inst.sequent.right[0].right)
+    # forall fval. Apply(sf,p_s,fval) -> Apply(hm_f,sn_s,fval)
+    got_step_inst = apply_thm(got_step_inst, [sp_s])
+    # Implies(Apply(sf,p_s,sp_s), Apply(hm_f,sn_s,sp_s))
+    print(f'pf_step step4: need Apply(sf,p_s,sp_s), have Succ(sp_s,p_s)')
+
+    # === Step 5: Get Apply(sf,p_s,sp_s) from succ_char + Succ(sp_s,p_s) + In(p_s,w) ===
+    # First: In(p_s,w) from rec_val_in_omega
+    # rec_val_in_omega: Omega(w) -> In(m_f,w) -> succ_char(sf,w) -> Recursive(hm_f,m_f,sf,w) -> In(n_s,w) -> Apply(hm_f,n_s,p_s) -> In(p_s,w)
+    rvo = rec_val_in_omega()
+    got_rvo = apply_thm(rvo, [w, m_f, sfv, hm_f, n_s, p_s])
+    while isinstance(got_rvo.sequent.right[0], Implies):
+        cur = got_rvo.sequent.right[0]
+        hyp = cur.left
+        print(f'pf_step step5 rvo: hyp = {hyp}')
+        if same(hyp, omega_w):
+            got_rvo = mp(got_rvo, ax(omega_w), hyp, cur.right)
+        elif same(hyp, in_m_f_w):
+            got_rvo = mp(got_rvo, ax(in_m_f_w), hyp, cur.right)
+        elif same(hyp, rec_hm_f):
+            got_rvo = mp(got_rvo, ax(rec_hm_f), hyp, cur.right)
+        elif same(hyp, in_n_w):
+            got_rvo = mp(got_rvo, ax(in_n_w), hyp, cur.right)
+        elif same(hyp, Apply(hm_f, n_s, p_s)):
+            got_rvo = mp(got_rvo, got_app_hm_ns_p, hyp, cur.right)
+        else:
+            print(f'pf_step step5 rvo: FALLBACK ax({hyp})')
+            got_rvo = mp(got_rvo, ax(hyp), hyp, cur.right)
+    in_p_w = got_rvo.sequent.right[0]  # In(p_s, w)
+    print(f'pf_step step5: In(p_s,w) = {in_p_w}')
+
+    # succ_char at p_s: In(p_s,w) -> forall y. Iff(Apply(sf,p_s,y), Succ(y,p_s))
+    got_sc = apply_thm(ax(succ_char), [p_s])
+    got_sc = mp(got_sc, got_rvo, in_p_w, got_sc.sequent.right[0].right)
+    got_sc = apply_thm(got_sc, [sp_s])
+    iff_f = got_sc.sequent.right[0]  # Iff(Apply(sf,p_s,sp_s), Succ(sp_s,p_s))
+    got_rev = apply_thm(iff_mp_rev(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.right, iff_f.left), got_sc)
+    got_app_sf = mp(got_rev, ax(succ_sp_p), succ_sp_p, Apply(sfv, p_s, sp_s))
+    print(f'pf_step step5: Apply(sf,p_s,sp_s) = {got_app_sf.sequent.right[0]}')
+
+    # Complete step 4: Apply(hm_f,sn_s,sp_s)
+    got_app_hm_sn_sp = mp(got_step_inst, got_app_sf, Apply(sfv, p_s, sp_s), Apply(hm_f, sn_s, sp_s))
+    print(f'pf_step step4: Apply(hm_f,sn_s,sp_s) = {got_app_hm_sn_sp.sequent.right[0]}')
+
+    # === Step 6: In(sn_s,w) and In(sp_s,w) from omega_succ_closed ===
+    osc = omega_succ_closed()
+    # In(sn_s,w): In(n_s,w) + Succ(sn_s,n_s) + Omega(w)
+    got_osc_n = apply_thm(osc, [w])
+    got_osc_n = mp(got_osc_n, ax(omega_w), omega_w, got_osc_n.sequent.right[0].right)
+    got_osc_n = apply_thm(got_osc_n, [n_s])
+    got_osc_n = mp(got_osc_n, ax(in_n_w), in_n_w, got_osc_n.sequent.right[0].right)
+    got_osc_n = apply_thm(got_osc_n, [sn_s])
+    got_in_sn_w = mp(got_osc_n, ax(succ_sn_n), succ_sn_n, In(sn_s, w))
+    print(f'pf_step step6: In(sn_s,w) = {got_in_sn_w.sequent.right[0]}')
+
+    # In(sp_s,w): In(p_s,w) + Succ(sp_s,p_s) + Omega(w)
+    got_osc_p = apply_thm(osc, [w])
+    got_osc_p = mp(got_osc_p, ax(omega_w), omega_w, got_osc_p.sequent.right[0].right)
+    got_osc_p = apply_thm(got_osc_p, [p_s])
+    got_osc_p = mp(got_osc_p, got_rvo, in_p_w, got_osc_p.sequent.right[0].right)
+    got_osc_p = apply_thm(got_osc_p, [sp_s])
+    got_in_sp_w = mp(got_osc_p, ax(succ_sp_p), succ_sp_p, In(sp_s, w))
+    print(f'pf_step step6: In(sp_s,w) = {got_in_sp_w.sequent.right[0]}')
+
+    # === Step 7: Backward bridge — Apply(hm_f,sn_s,sp_s) + OrdPair(pair2,m_s,sn_s) -> Apply(hv,pair2,sp_s) ===
+    # Same logic as pf_base: product_in_intro + Separation backward + Apply construction
+    # Need: In(pair2, pv_ww) from In(m_s,w) + In(sn_s,w) + OrdPair(pair2,m_s,sn_s)
+    got_p2_in_ww = apply_thm(pii, [pv_ww, w, w, m_s, sn_s, pair2_s])
+    got_p2_in_ww = mp(got_p2_in_ww, ax(prod_ww), prod_ww, got_p2_in_ww.sequent.right[0].right)
+    got_p2_in_ww = mp(got_p2_in_ww, ax(in_m_w), in_m_w, got_p2_in_ww.sequent.right[0].right)
+    got_p2_in_ww = mp(got_p2_in_ww, got_in_sn_w, In(sn_s, w), got_p2_in_ww.sequent.right[0].right)
+    got_p2_in_ww = mp(got_p2_in_ww, ax(op_pair2), op_pair2, In(pair2_s, pv_ww))
+    print(f'pf_step step7: In(pair2,pv_ww) = {got_p2_in_ww.sequent.right[0]}')
+
+    # triple = <<pair2, sp_s>> from ordpair_exists
+    triple_s = Var(postfix='_trs')
+    op_triple = OrdPair(triple_s, pair2_s, sp_s)
+    got_ex_triple = apply_thm(ordpair_exists(), [pair2_s, sp_s],
+        concl=Exists(triple_s, op_triple))
+
+    # In(triple, pv_wwxw) from product_in_intro
+    got_tr_in = apply_thm(pii, [pv_wwxw, pv_ww, w, pair2_s, sp_s, triple_s])
+    got_tr_in = mp(got_tr_in, ax(prod_wwxw), prod_wwxw, got_tr_in.sequent.right[0].right)
+    got_tr_in = mp(got_tr_in, got_p2_in_ww, In(pair2_s, pv_ww), got_tr_in.sequent.right[0].right)
+    got_tr_in = mp(got_tr_in, got_in_sp_w, In(sp_s, w), got_tr_in.sequent.right[0].right)
+    got_tr_in = mp(got_tr_in, ax(op_triple), op_triple, In(triple_s, pv_wwxw))
+    print(f'pf_step step7: In(triple,pv_wwxw) = {got_tr_in.sequent.right[0]}')
+
+    # Build phi2(triple_s) with witnesses: mv->m_s, nv->sn_s, yv->sp_s, pairv->pair2_s, hmv->hm_f
+    # But wait: phi2 uses mv for m, and the Recursive inside uses mv. We need m_s for the Recursive.
+    # Actually, phi2 witnesses: m=m_s means Rec(hm,m_s,sf,w). But we have Rec(hm_f,m_f,sf,w).
+    # Transfer: Eq(m_s,m_f) -> Rec(hm_f,m_f,...) -> Rec(hm_f,m_s,...)?
+    # Easier: use m_f as witness for mv. Then In(m_f,w) from in_m_f_w.
+    # And OrdPair(pair2_s,m_f,sn_s) from OrdPair(pair2_s,m_s,sn_s) + Eq(m_s,m_f)?
+    # Even easier: transfer OrdPair(pair2_s,m_s,sn_s) -> OrdPair(pair2_s,m_f,sn_s) is complex.
+    # Simplest: use m_s as witness, transfer Rec(hm_f,m_f,...) -> Rec(hm_f,m_s,...) via base transfer.
+    # OR: just use m_f for the phi2 witness, and OrdPair(pair2_s,m_f,sn_s) via ordpair_eq_transfer.
+
+    # Use m_f as witness. Need OrdPair(pair2_s,m_f,sn_s):
+    from theorems.sets import ordpair_eq_transfer
+    oet = ordpair_eq_transfer()
+    got_op_pair2_mf = apply_thm(oet, [m_s, sn_s, m_f, sn_s, pair2_s])
+    got_op_pair2_mf = mp(got_op_pair2_mf, got_eq_m, eq_m, got_op_pair2_mf.sequent.right[0].right)
+    from theorems.logic import eq_reflexive
+    er = eq_reflexive()
+    got_eq_sn_sn = apply_thm(er, [sn_s])
+    got_op_pair2_mf = mp(got_op_pair2_mf, got_eq_sn_sn, Eq(sn_s, sn_s),
+        got_op_pair2_mf.sequent.right[0].right)
+    got_op_pair2_mf = mp(got_op_pair2_mf, ax(op_pair2), op_pair2, OrdPair(pair2_s, m_f, sn_s))
+    print(f'pf_step step7: OrdPair(pair2,m_f,sn_s) = {got_op_pair2_mf.sequent.right[0]}')
+
+    op_pair2_mf = OrdPair(pair2_s, m_f, sn_s)
+    app_hm_sn_sp = Apply(hm_f, sn_s, sp_s)
+
+    # Inner: And(Rec(hm_f,m_f,...), Apply(hm_f,sn_s,sp_s))
+    got_inner = mp(apply_thm(and_intro(rec_hm_f, app_hm_sn_sp, []), [],
+        rec_hm_f, Implies(app_hm_sn_sp, And(rec_hm_f, app_hm_sn_sp)),
+        ax(rec_hm_f)), got_app_hm_sn_sp, app_hm_sn_sp, And(rec_hm_f, app_hm_sn_sp))
+
+    # eir hmv -> hm_f
+    tmpl_hm = And(RecDef(hmv, m_f, sfv, w), Apply(hmv, sn_s, sp_s))
+    got_ex_hm = eir(got_inner, tmpl_hm, hmv, hm_f)
+
+    # And(OrdPair(triple_s,pair2_s,sp_s), exists hmv. ...)
+    L_op = op_triple
+    R_ex = got_ex_hm.sequent.right[0]
+    got_and_op = mp(apply_thm(and_intro(L_op, R_ex, []), [], L_op,
+        Implies(R_ex, And(L_op, R_ex)), ax(L_op)), got_ex_hm, R_ex, And(L_op, R_ex))
+
+    # And(OrdPair(pair2_s,m_f,sn_s), And(...))
+    L_op2 = op_pair2_mf
+    R_and = got_and_op.sequent.right[0]
+    got_and_ops = mp(apply_thm(and_intro(L_op2, R_and, []), [], L_op2,
+        Implies(R_and, And(L_op2, R_and)), got_op_pair2_mf),
+        got_and_op, R_and, And(L_op2, R_and))
+
+    # eir pairv -> pair2_s
+    tmpl_pair = And(OrdPair(pairv, m_f, sn_s), And(OrdPair(triple_s, pairv, sp_s),
+        Exists(hmv, And(RecDef(hmv, m_f, sfv, w), Apply(hmv, sn_s, sp_s)))))
+    got_ex_pair = eir(got_and_ops, tmpl_pair, pairv, pair2_s)
+
+    # eir yv -> sp_s
+    tmpl_yv = Exists(pairv, And(OrdPair(pairv, m_f, sn_s),
+        And(OrdPair(triple_s, pairv, yv),
+            Exists(hmv, And(RecDef(hmv, m_f, sfv, w), Apply(hmv, sn_s, yv))))))
+    got_ex_y = eir(got_ex_pair, tmpl_yv, yv, sp_s)
+
+    # eir nv -> sn_s
+    tmpl_nv = Exists(yv, Exists(pairv, And(OrdPair(pairv, m_f, nv),
+        And(OrdPair(triple_s, pairv, yv),
+            Exists(hmv, And(RecDef(hmv, m_f, sfv, w), Apply(hmv, nv, yv)))))))
+    got_ex_n = eir(got_ex_y, tmpl_nv, nv, sn_s)
+
+    # And(In(m_f,w), exists nv. ...)
+    L_in = in_m_f_w
+    R_exn = got_ex_n.sequent.right[0]
+    got_and_m = mp(apply_thm(and_intro(L_in, R_exn, []), [], L_in,
+        Implies(R_exn, And(L_in, R_exn)), ax(L_in)),
+        got_ex_n, R_exn, And(L_in, R_exn))
+
+    # eir mv -> m_f
+    tmpl_mv = And(In(mv, w), Exists(nv, Exists(yv, Exists(pairv,
+        And(OrdPair(pairv, mv, nv),
+        And(OrdPair(triple_s, pairv, yv),
+            Exists(hmv, And(RecDef(hmv, mv, sfv, w), Apply(hmv, nv, yv)))))))))
+    got_phi2 = eir(got_and_m, tmpl_mv, mv, m_f)
+    print(f'pf_step step7: phi2(triple_s) same = {same(got_phi2.sequent.right[0], phi2(triple_s))}')
+
+    # Separation backward: char_hv -> In(triple_s, hv)
+    L_bound = In(triple_s, pv_wwxw)
+    R_phi = got_phi2.sequent.right[0]
+    all_ctx = list(got_tr_in.sequent.left)
+    for f in got_phi2.sequent.left:
+        if not any(same(f, g) for g in all_ctx):
+            all_ctx.append(f)
+    got_and_bp = mp(apply_thm(and_intro(L_bound, R_phi, []), [], L_bound,
+        Implies(R_phi, And(L_bound, R_phi)), weaken_to(got_tr_in, all_ctx)),
+        weaken_to(got_phi2, all_ctx), R_phi, And(L_bound, R_phi))
+    got_char = apply_thm(ax(char_hv), [triple_s])
+    iff_f = got_char.sequent.right[0]
+    got_rev = apply_thm(iff_mp_rev(iff_f.left, iff_f.right, []), [],
+        iff_f, Implies(iff_f.right, iff_f.left), got_char)
+    got_in_h = mp(got_rev, got_and_bp, iff_f.right, In(triple_s, hv))
+    print(f'pf_step step7: In(triple,hv) = {got_in_h.sequent.right[0]}')
+
+    # Build Apply(hv, pair2_s, sp_s)
+    L_app = op_triple
+    R_app = In(triple_s, hv)
+    got_and_app = mp(apply_thm(and_intro(L_app, R_app, []), [], L_app,
+        Implies(R_app, And(L_app, R_app)), ax(L_app)),
+        got_in_h, R_app, And(L_app, R_app))
+    app_f = Apply(hv, pair2_s, sp_s)
+    app_exp = app_f.expand()
+    p_bound = app_exp.var
+    p_body = app_exp.body
+    got_eir_app = eir(got_and_app, p_body, p_bound, triple_s)
+    got_apply = cut(ax(app_f), app_f, got_eir_app)
+    print(f'pf_step step7: Apply(hv,pair2,sp) = {got_apply.sequent.right[0]}')
+
+    # === Step 8: Close eel's for fwd vars (hm_f, n_f, m_f) ===
+    proof = got_apply
+    # Ensure all fwd vars' formulas are on left
+    for f in [in_m_f_w, op_pair_m_n]:
+        if not any(same(f, g) for g in proof.sequent.left):
+            proof = wl(proof, f)
+
+    def mk_and_on_left(proof, lf, rf):
+        combined = And(lf, rf)
+        proof = cut(proof, lf, apply_thm(and_elim_left(lf, rf, []), [],
+            combined, lf, ax(combined)))
+        proof = cut(proof, rf, apply_thm(and_elim_right(lf, rf, []), [],
+            combined, rf, ax(combined)))
+        return proof
+
+    # eel hm_f
+    proof = mk_and_on_left(proof, rec_hm_f, app_hm_n_p)
+    proof = eel(proof, And(rec_hm_f, app_hm_n_p), hm_f)
+
+    # eel n_f
+    ex_hm = Exists(hm_f, And(rec_hm_f, app_hm_n_p))
+    proof = mk_and_on_left(proof, op_pair_m_n, ex_hm)
+    proof = eel(proof, And(op_pair_m_n, ex_hm), n_f)
+
+    # eel m_f: combine all m_f-free formulas
+    ex_n = Exists(n_f, And(op_pair_m_n, ex_hm))
+    proof = mk_and_on_left(proof, in_m_f_w, ex_n)
+    and_m_main = And(in_m_f_w, ex_n)
+    m_extras = [f for f in proof.sequent.left
+        if _var_free_in_sequent(m_f, Sequent([f], [])) and not same(f, and_m_main)]
+    for extra in m_extras:
+        print(f'pf_step step8: m_f extra: {extra}')
+        proof = mk_and_on_left(proof, and_m_main, extra)
+        and_m_main = And(and_m_main, extra)
+    proof = eel(proof, and_m_main, m_f)
+    if len(m_extras) == 0:
+        proof = cut(proof, Exists(m_f, and_m_main), got_fwd)
+    else:
+        fwd_body = And(in_m_f_w, ex_n)
+        got_prov = ax(fwd_body)
+        for extra in m_extras:
+            got_prov = mp(apply_thm(and_intro(
+                got_prov.sequent.right[0], extra, []), [],
+                got_prov.sequent.right[0], Implies(extra, And(got_prov.sequent.right[0], extra)),
+                got_prov), ax(extra), extra, And(got_prov.sequent.right[0], extra))
+        got_prov = eir(got_prov, and_m_main, m_f, m_f)
+        got_prov = eel(got_prov, fwd_body, m_f)
+        got_prov = cut(got_prov, Exists(m_f, fwd_body), got_fwd)
+        proof = cut(proof, Exists(m_f, and_m_main), got_prov)
+
+    # eel triple_s
+    proof = eel(proof, op_triple, triple_s)
+    proof = cut(proof, Exists(triple_s, op_triple), got_ex_triple)
+    print(f'pf_step step8: eel done')
+
+    # === Step 9: Close quantifiers ===
+    for hyp, var in [(op_pair2, pair2_s), (succ_sp_p, sp_s), (succ_sn_n, sn_s),
+                     (app_h_p, p_s), (op_pair, pair_s), (in_n_w, n_s), (in_m_w, m_s)]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+        if var is not None:
+            fa = Forall(var, imp)
+            proof = Proof(Sequent(proof.sequent.left, [fa]),
+                'forall_right', [proof], principal=fa, term=var)
+
+    print(f'pf_step: result = {proof.sequent.right[0]}')
+    print(f'pf_step: same as target = {same(proof.sequent.right[0], step_h)}')
+
+    proof.name = 'pf_step'
+    return proof
+
 def plus_func_exists():
     """The addition function exists.
     |- ∀w. Omega(w) → ∃h. PlusFunc(h, w)
@@ -3161,27 +3595,21 @@ def rec_step_succ():
             Implies(succ_char, Implies(rec_h, Implies(app_h_np,
                 Implies(succ_sn_n, Implies(succ_sp_p, app_h_sn_sp))))))))))))))))
 
-    # === Extract Recursive step ===
-    ev_r = Var()
-    base_h = Forall(ev_r, Implies(Empty(ev_r), Apply(hv, ev_r, m)))
-    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
-    step_h = Forall(nst, Implies(In(nst, w),
-        Forall(valst, Implies(Apply(hv, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
-                    Apply(hv, snst, fvalst)))))))))
-    xd_h, yd_h = Var(), Var()
-    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(hv, xd_h, yd_h)), In(xd_h, w)))
-    func_h = FuncDef(hv)
-    and_bs = And(base_h, step_h)
-    and_dom_bs = And(dom_sub_h, and_bs)
-
-    got_dom_bs = apply_thm(and_elim_right(func_h, and_dom_bs, []), [],
-        rec_h, and_dom_bs, ax(rec_h))
-    got_bs = apply_thm(and_elim_right(dom_sub_h, and_bs, []), [],
-        and_dom_bs, and_bs, got_dom_bs)
-    got_step = apply_thm(and_elim_right(base_h, step_h, []), [],
-        and_bs, step_h, got_bs)
+    # === Extract Recursive step via recursive_elim ===
+    from theorems.recursion import recursive_elim as _relim
+    _, _, _, got_step, _ = _relim(hv, m, sfv, w)
+    step_h = got_step.sequent.right[0]
+    # step_h = Forall(nst, Implies(In(nst,w), Forall(valst, Implies(Apply(hv,nst,valst),
+    #   Forall(snst, Implies(Succ(snst,nst), Forall(fvalst, Implies(Apply(sf,valst,fvalst),
+    #       Apply(hv,snst,fvalst)))))))))
+    # Extract bound vars from step_h
+    nst = step_h.var
+    _sb1 = step_h.body.right  # Forall(valst, ...)
+    valst = _sb1.var
+    _sb2 = _sb1.body.right  # Forall(snst, ...)
+    snst = _sb2.var
+    _sb3 = _sb2.body.right  # Forall(fvalst, ...)
+    fvalst = _sb3.var
     # [rec_h] |- step_h
 
     # Peel step at (n, p, sn, sp):
@@ -6460,29 +6888,12 @@ def rec_val_in_omega():
     def P(x):
         return Forall(yind, Implies(Apply(hv, x, yind), In(yind, w)))
 
-    # === Extract Recursive base/step ===
-    ev = Var()
-    base_h = Forall(ev, Implies(Empty(ev), Apply(hv, ev, a)))
-    nst, valst, snst, fvalst = Var(), Var(), Var(), Var()
-    step_h = Forall(nst, Implies(In(nst, w),
-        Forall(valst, Implies(Apply(hv, nst, valst),
-            Forall(snst, Implies(SuccDef(snst, nst),
-                Forall(fvalst, Implies(Apply(sfv, valst, fvalst),
-                    Apply(hv, snst, fvalst)))))))))
-    func_h = FuncDef(hv)
-    xd_h, yd_h = Var(), Var()
-    dom_sub_h = Forall(xd_h, Implies(Exists(yd_h, Apply(hv, xd_h, yd_h)), In(xd_h, w)))
-    and_base_step = And(base_h, step_h)
-    and_dom_bs = And(dom_sub_h, and_base_step)
-
-    got_dom_bs = apply_thm(and_elim_right(func_h, and_dom_bs, []), [],
-        rec_h, and_dom_bs, ax(rec_h))
-    got_bs = apply_thm(and_elim_right(dom_sub_h, and_base_step, []), [],
-        and_dom_bs, and_base_step, got_dom_bs)
-    got_base_h = apply_thm(and_elim_left(base_h, step_h, []), [],
-        and_base_step, base_h, got_bs)
-    got_func_h = apply_thm(and_elim_left(func_h, and_dom_bs, []), [],
-        rec_h, func_h, ax(rec_h))
+    # === Extract Recursive base/step via recursive_elim ===
+    from theorems.recursion import recursive_elim
+    got_func_h, got_dom_h, got_base_h, got_step_h_raw, _ = recursive_elim(hv, a, sfv, w)
+    base_h = got_base_h.sequent.right[0]
+    step_h = got_step_h_raw.sequent.right[0]
+    func_h = got_func_h.sequent.right[0]
 
     # === Separation for induction set ===
     char_p = Forall(xind, Iff(In(xind, pv), And(In(xind, w), P(xind))))
