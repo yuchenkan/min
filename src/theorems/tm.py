@@ -5273,7 +5273,8 @@ class Phase2P:
 
 class Phase3P:
     """P3(j): after S(a)+j total steps, state q1, head at pos=S(a)+j, tape=tape2.
-    ∃tra, cj, pos.
+    ∃tape2, tra, cj, pos.
+      TapeUpdate(tape2, tape_in, a, one) ∧
       Plus(sa, j, pos) ∧
       Function(tra) ∧
       ∀x,y. Apply(tra,x,y) → Or(In(x,pos), Eq(x,pos)) ∧
@@ -5282,11 +5283,13 @@ class Phase3P:
       Apply(tra, pos, cj) ∧
       ∀ja < pos. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
           ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))"""
-    __match_args__ = ('j', 'sa', 'q1', 'tape2', 'c0', 'z', 'delta')
-    def __init__(self, j, sa, q1, tape2, c0, z, delta):
-        self.j = j; self.sa = sa; self.q1 = q1; self.tape2 = tape2
+    __match_args__ = ('j', 'sa', 'q1', 'tape_in', 'c0', 'z', 'delta', 'a', 'one')
+    def __init__(self, j, sa, q1, tape_in, c0, z, delta, a, one):
+        self.j = j; self.sa = sa; self.q1 = q1; self.tape_in = tape_in
         self.c0 = c0; self.z = z; self.delta = delta
+        self.a = a; self.one = one
     def expand(self):
+        tape2 = Var(postfix='_t2')
         tra, cj, pos = Var(postfix='_tra'), Var(postfix='_cj'), Var(postfix='_pos')
         ja, sja = Var(postfix='_ja'), Var(postfix='_sja')
         cja, cja1 = Var(postfix='_cja'), Var(postfix='_cja1')
@@ -5300,40 +5303,44 @@ class Phase3P:
             Forall(sja, Implies(Successor(sja, ja),
                 Forall(cja, Implies(Apply(tra, ja, cja),
                     Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
-        return Exists(tra, Exists(cj, Exists(pos, And(
-            PlusDef(self.sa, self.j, pos),
+        return Exists(tape2, Exists(tra, Exists(cj, Exists(pos, And(
+            TapeUpdate(tape2, self.tape_in, self.a, self.one),
+            And(PlusDef(self.sa, self.j, pos),
             And(FuncDef(tra),
             And(dom_bound,
-            And(TMConfig(cj, self.q1, pos, self.tape2),
+            And(TMConfig(cj, self.q1, pos, tape2),
             And(Forall(self.z, Implies(Empty(self.z), Apply(tra, self.z, self.c0))),
             And(Apply(tra, pos, cj),
-                step_valid)))))))))
+                step_valid)))))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase3P(r(self.j), r(self.sa), r(self.q1), r(self.tape2),
-            r(self.c0), r(self.z), r(self.delta))
+        return Phase3P(r(self.j), r(self.sa), r(self.q1), r(self.tape_in),
+            r(self.c0), r(self.z), r(self.delta), r(self.a), r(self.one))
     def __str__(self):
-        return f'P3({self.j}, {self.sa}, {self.q1}, {self.tape2}, {self.c0}, {self.z}, {self.delta})'
+        return f'P3({self.j}, {self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.z}, {self.delta}, {self.a}, {self.one})'
 
 
 class Phase3Q:
     """Q3(j) = Or(In(j,b), Eq(j,b)) → P3(j).
     Bounded Phase 3 predicate: "if j ≤ b then P3(j)."
     Used as the induction predicate for omega induction on phase 3 step count."""
-    __match_args__ = ('j', 'b', 'sa', 'q1', 'tape2', 'c0', 'z', 'delta')
-    def __init__(self, j, b, sa, q1, tape2, c0, z, delta):
+    __match_args__ = ('j', 'b', 'sa', 'q1', 'tape_in', 'c0', 'z', 'delta', 'a', 'one')
+    def __init__(self, j, b, sa, q1, tape_in, c0, z, delta, a, one):
         self.j = j; self.b = b; self.sa = sa; self.q1 = q1
-        self.tape2 = tape2; self.c0 = c0; self.z = z; self.delta = delta
+        self.tape_in = tape_in; self.c0 = c0; self.z = z; self.delta = delta
+        self.a = a; self.one = one
     def expand(self):
         from core.derived import Or, Eq
         return Implies(Or(In(self.j, self.b), Eq(self.j, self.b)),
-            Phase3P(self.j, self.sa, self.q1, self.tape2, self.c0, self.z, self.delta))
+            Phase3P(self.j, self.sa, self.q1, self.tape_in, self.c0, self.z,
+                self.delta, self.a, self.one))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return Phase3Q(r(self.j), r(self.b), r(self.sa), r(self.q1),
-            r(self.tape2), r(self.c0), r(self.z), r(self.delta))
+            r(self.tape_in), r(self.c0), r(self.z), r(self.delta),
+            r(self.a), r(self.one))
     def __str__(self):
-        return f'Q3({self.j}, {self.b}, {self.sa}, {self.q1}, {self.tape2}, {self.c0}, {self.z}, {self.delta})'
+        return f'Q3({self.j}, {self.b}, {self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.z}, {self.delta}, {self.a}, {self.one})'
 
 
 class Phase1Q:
@@ -6310,31 +6317,121 @@ def phase3_base(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
         return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
             got_r, R, And(L, R))
 
+    # Build P3(0) body: And(TU, And(Plus, And(func, And(dom, And(cfg, And(base, And(head, sv)))))))
     got_head_sv = mk_and(got_head, got_sv)
     got_base_rest = mk_and(got_base, got_head_sv)
     got_cfg_rest = mk_and(got_cfg, got_base_rest)
     got_dom_rest = mk_and(got_dom, got_cfg_rest)
     got_func_rest = mk_and(got_func, got_dom_rest)
     got_plus_rest = mk_and(ax(plus_sa_z_sa), got_func_rest)
+    got_tu_rest = mk_and(got_tu, got_plus_rest)
 
-    # eir pos = sa (innermost ∃)
-    got_ex_pos = eir(got_plus_rest, got_plus_rest.sequent.right[0], sa, sa)
-    # eir ca (middle ∃) — ca is eigenvar from P2
-    got_ex_ca = eir(got_ex_pos, got_ex_pos.sequent.right[0], ca, ca)
-    # eir tra (outer ∃)
-    got_ex_tra = eir(got_ex_ca, got_ex_ca.sequent.right[0], tra, tra)
+    # eir: bind eigenvars with ∃ (identity: var=witness for ca/tra/tape2)
+    # For pos, sa is both the position and a free var — can't use identity eir.
+    # eir(proof, right, sa, sa) would bind sa everywhere (shadowing the free sa in Plus etc.)
+    # Instead: use the whole body as-is. The ∃pos in Phase3P has pos=sa as witness.
+    # Since the body already has sa in the pos slots, just wrap with ∃ using a fresh var:
+    # Actually this is fundamentally hard. Skip eir for pos and use cut bridge at the end.
 
-    # Close eigenvars: eel ca and tra, but NOT tape2 (free in Phase3Q on right).
-    # tape2 + TapeUpdate stay as hypotheses on the left.
-    got_result = got_ex_tra
+    # Identity eir for ca, tra, tape2:
+    got_ex_cj = eir(got_tu_rest, got_tu_rest.sequent.right[0], ca, ca)
+    got_ex_tra = eir(got_ex_cj, got_ex_cj.sequent.right[0], tra, tra)
+    got_ex_t2 = eir(got_ex_tra, got_ex_tra.sequent.right[0], tape2, tape2)
+    # Right now: ∃tape2.∃tra.∃ca. And(TU, And(Plus(sa,z,sa), And(Func, ...)))
+    # Missing: ∃pos. Phase3P expects ∃tape2.∃tra.∃cj.∃pos. And(TU, And(Plus(sa,z,pos), ...))
+    # Since pos=sa in base case and sa is free, we can't easily bind it.
+    # Use cut bridge: Phase3P.expand() is alpha-equiv to what we have (modulo ∃pos).
+    # Actually it's NOT alpha-equiv — we're missing the ∃pos wrapper.
+    # We need to add ∃pos where pos=sa. eir with a body that has pos in place of sa.
+    # But sa appears in multiple roles.
+
+    # SIMPLEST: just wrap result in ∃pos using a trivial eir.
+    # The body has sa in pos slots. Create ∃pos. body[some_sa → pos].
+    # Since we can't selectively substitute, use the cut bridge:
+    # The raw ∃tape2.∃tra.∃ca.body (no ∃pos) implies Phase3P (which has ∃pos)
+    # because ∃pos.P(pos) is implied by P(sa) — just provide sa as witness.
+    # So: from body, derive ∃pos.body' where body' has pos in right places.
+    # This is exactly eir. We need a template body' where pos replaces sa in specific spots.
+    # Since body comes from P2 components (which use sa for head position),
+    # and Phase3P has pos in those spots, we need the Phase3P expansion's inner body.
+
+    # Use Phase3P expansion inner body as template, sa as witness for pos:
+    p3_for_template = Phase3P(z, sa, q1, tape_in, c0, z, delta, a, one)
+    p3_exp = p3_for_template.expand()
+    # p3_exp = ∃_t2.∃_tra.∃_cj.∃_pos. And(TU, And(Plus(sa,z,_pos), ...))
+    # We already have ∃tape2.∃tra.∃ca. And(TU, And(Plus(sa,z,sa), ...))
+    # These differ by: (1) ∃_pos wrapper, (2) _pos vs sa in body
+    # The cut bridge handles both: same(our_formula, Phase3P.expand()) via alpha-equiv
+    # after expansion. Our formula has no ∃pos but Phase3P has ∃pos.
+    # These are NOT the same — one has 3 ∃'s, the other has 4.
+
+    # The fix: add the ∃pos. Use eir with the Phase3P's pos var and sa as witness.
+    # Template: the innermost body from Phase3P expansion (with _pos free)
+    p3_inner = p3_exp.body.body.body.body  # innermost (with _pos, _cj, _tra, _t2 free)
+    # But this body uses Phase3P's fresh vars (_tra, _cj, _t2, _pos) ≠ our proof's vars
+    # Can't match.
+
+    # FINAL APPROACH: add ∃pos by wrapping the whole thing with one more eir.
+    # Create a body template from got_ex_t2.right by replacing sa with a pos var
+    # ONLY inside the Exists (where sa plays the role of pos).
+    # This is the subst problem — sa is used for multiple purposes.
+    # Resolution: DON'T use sa as the pos witness. Use an intermediate.
+
+    # Actually, the cleanest: build the body from scratch with pos_var in the pos slots.
+    # Rebuild: And(TU, And(Plus(sa,z,pos_var), And(Func(tra), And(dom(pos_var), And(cfg(pos_var), ...)))))
+    # This means re-extracting P2 components and rebuilding with pos_var instead of sa.
+    # But the P2 components use sa directly (cfg has sa, dom has sa, etc.)
+
+    # OK I think the real fix is: don't extract P2 components for phase3_base.
+    # Instead, recognize that P2 ≈ P3(0) after adding Plus and ∃pos.
+    # Use P2 proof directly, add Plus(sa,0,sa) as hypothesis, wrap in Phase3P via cut bridge.
+    # Phase3P(0).expand() = ∃t2.∃tra.∃cj.∃pos. And(TU, And(Plus(sa,0,pos), ...))
+    # With pos=sa: And(TU, And(Plus(sa,0,sa), ...)) — the And chain matches P2's body + Plus.
+    # The ∃t2.∃tra.∃cj from Phase3P match ∃tra.∃ca.∃tape2 from P2 (same structure, alpha-equiv).
+    # The extra ∃pos in Phase3P wraps the body. Our proof has the body without ∃pos.
+    # So we need one eir for pos.
+
+    # Simplification: don't decompose P2 at all. Work at the formula level.
+    # got_P2 proves P2. P2.expand() = ∃tra.∃ca.∃tape2. And(Func, And(dom, And(cfg, And(base, And(head, And(sv, TU))))))
+    # Phase3P(0).expand() = ∃t2.∃tra.∃cj.∃pos. And(TU, And(Plus, And(Func, And(dom, And(cfg, And(base, And(head, sv)))))))
+    # These have different And structures (TU at end in P2, at start in P3).
+    # So I DO need to decompose and rebuild. Just add the ∃pos properly.
+
+    # Let me just build without ∃pos and use the cut bridge to wrap in Phase3P.
+    # Phase3P.expand() has ∃pos. Our formula doesn't. They CAN'T be alpha-equiv.
+    # The cut bridge REQUIRES same(raw, vocab.expand()). If they're structurally different, it fails.
+
+    # The only way: add ∃pos to our formula. Use eir.
+    # Template for pos eir: body with pos_var replacing sa in SPECIFIC slots.
+    # Extract those slots from Phase3P's expansion and substitute our concrete vars.
+    # This is the template approach — just done carefully.
+
+    # I'll extract Phase3P's innermost body, substitute Phase3P's bound vars with our concrete vars,
+    # EXCEPT pos_var which stays. Then eir(proof, template, pos_var, sa).
+    p3_pos_var = p3_exp.body.body.body.var  # _pos from Phase3P
+    p3_inner_raw = p3_exp.body.body.body.body  # body with _t2, _tra, _cj, _pos free
+    # Substitute Phase3P's _t2→tape2, _tra→tra, _cj→ca (our eigenvars)
+    p3_t2_var = p3_exp.var
+    p3_tra_var = p3_exp.body.var
+    p3_cj_var = p3_exp.body.body.var
+    template_inner = p3_inner_raw.subst(p3_t2_var, tape2).subst(p3_tra_var, tra).subst(p3_cj_var, ca)
+    # template_inner has p3_pos_var free (for ∃ binding) and our eigenvars (tape2, tra, ca)
+    # got_tu_rest.right has sa where p3_pos_var should be
+    # template_inner[p3_pos_var := sa] should = got_tu_rest.right
+    got_ex_pos = eir(got_tu_rest, template_inner, p3_pos_var, sa)
+
+    # Now eir ca, tra, tape2 (identity)
+    got_ex_cj = eir(got_ex_pos, got_ex_pos.sequent.right[0], ca, ca)
+    got_ex_tra = eir(got_ex_cj, got_ex_cj.sequent.right[0], tra, tra)
+    got_ex_t2 = eir(got_ex_tra, got_ex_tra.sequent.right[0], tape2, tape2)
+
+    # eel body_p2 eigenvars, cut with P2
+    got_result = got_ex_t2
     if any(same(body_p2, f) for f in got_result.sequent.left):
-        got_result = eel(got_result, body_p2, ca)
-        got_result = eel(got_result, Exists(ca, body_p2), tra)
-        # Left now has ∃tra.∃ca.body_p2 (tape2 still free).
-        # P2 = ∃tra.∃ca.∃tape2.body_p2. We can't match directly.
-        # TODO: need a lemma that ∃tra.∃ca.∃tape2.body → ∃tra.∃ca.body (for any tape2 value)
-        # Or restructure so tape2 is handled differently.
-        pass
+        got_result = eel(got_result, body_p2, tape2)
+        got_result = eel(got_result, Exists(tape2, body_p2), ca)
+        got_result = eel(got_result, Exists(ca, Exists(tape2, body_p2)), tra)
+        got_result = cut(got_result, got_P2.sequent.right[0], got_P2)
 
     # Wrap P3(z) into Q3(z) = Or(In(z,b),Eq(z,b)) → P3(z)
     or_zb = Or(In(z, b), Eq(z, b))
@@ -6343,8 +6440,8 @@ def phase3_base(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     left_q = [f for f in got_result.sequent.left if not same(f, or_zb)]
     got_result = Proof(Sequent(left_q, [imp_q]), 'implies_right', [got_result], principal=imp_q)
 
-    # Wrap in Phase3Q
-    q3z = Phase3Q(z, b, sa, q1, tape2, c0, z, delta)
+    # Wrap in Phase3Q via cut bridge
+    q3z = Phase3Q(z, b, sa, q1, tape_in, c0, z, delta, a, one)
     got_result = cut(ax(q3z), q3z, got_result)
 
     got_result.name = 'phase3_base'
