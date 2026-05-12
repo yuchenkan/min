@@ -3404,12 +3404,31 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     in_nb_w = inner_b.right.left
     op_z_mb_nb = inner_b.right.right
 
-    # rec_for_each_m for m_b
+    # Derive In(m_b,w), In(n_b,w), OrdPair(z,...) FROM inner_b (not ax())
+    got_in_mb = apply_thm(and_elim_left(in_mb_w, inner_b.right, []), [],
+        inner_b, in_mb_w, ax(inner_b))
+    print(f'pf_dom_eq bwd derive: got_in_mb right = {got_in_mb.sequent.right[0]}')
+    print(f'pf_dom_eq bwd derive: got_in_mb left non-ax = {[str(f) for f in got_in_mb.sequent.left if not isinstance(f, zfc.ZFCAxiom)]}')
+    got_in_nb_op = apply_thm(and_elim_right(in_mb_w, inner_b.right, []), [],
+        inner_b, inner_b.right, ax(inner_b))
+    got_in_nb = apply_thm(and_elim_left(in_nb_w, op_z_mb_nb, []), [],
+        inner_b.right, in_nb_w, got_in_nb_op)
+    print(f'pf_dom_eq bwd derive: got_in_nb right = {got_in_nb.sequent.right[0]}')
+    got_op_z = apply_thm(and_elim_right(in_nb_w, op_z_mb_nb, []), [],
+        inner_b.right, op_z_mb_nb, got_in_nb_op)
+    print(f'pf_dom_eq bwd derive: got_op_z right = {got_op_z.sequent.right[0]}')
+    # All derived from [inner_b] on left. No standalone ax(in_mb_w) etc.
+
+    # rec_for_each_m for m_b — use got_in_mb instead of ax(In(m_b,w))
     rfem = rec_for_each_m()
     got_rfem = apply_thm(rfem, [w, sfv, m_b])
     while isinstance(got_rfem.sequent.right[0], Implies):
         cur = got_rfem.sequent.right[0]
-        got_rfem = mp(got_rfem, ax(cur.left), cur.left, cur.right)
+        hyp = cur.left
+        if same(hyp, in_mb_w):
+            got_rfem = mp(got_rfem, got_in_mb, hyp, cur.right)
+        else:
+            got_rfem = mp(got_rfem, ax(hyp), hyp, cur.right)
     eu = got_rfem.sequent.right[0]
     eu_exp = eu.expand()
     hm_b = eu_exp.var
@@ -3438,7 +3457,7 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     iff_et2 = got_et2.sequent.right[0]
     got_et2_fwd = apply_thm(iff_mp(iff_et2.left, iff_et2.right, []), [],
         iff_et2, Implies(iff_et2.left, iff_et2.right), got_et2)
-    got_in_nb_d = mp(got_et2_fwd, ax(in_nb_w), In(n_b, w), In(n_b, d_hm_b))
+    got_in_nb_d = mp(got_et2_fwd, got_in_nb, In(n_b, w), In(n_b, d_hm_b))
 
     # Domain(hm_b,d_hm_b): In(n_b,d_hm_b) -> exists y. Apply(hm_b,n_b,y)
     got_dom_nb = apply_thm(ax(dom_hm_b), [n_b])
@@ -3461,11 +3480,11 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
         if same(hyp, omega_w):
             got_rvo = mp(got_rvo, ax(omega_w), hyp, cur.right)
         elif same(hyp, In(m_b, w)):
-            got_rvo = mp(got_rvo, ax(in_mb_w), hyp, cur.right)
+            got_rvo = mp(got_rvo, got_in_mb, hyp, cur.right)
         elif same(hyp, rec_hm_b):
             got_rvo = mp(got_rvo, ax(rec_hm_b), hyp, cur.right)
         elif same(hyp, In(n_b, w)):
-            got_rvo = mp(got_rvo, ax(in_nb_w), hyp, cur.right)
+            got_rvo = mp(got_rvo, got_in_nb, hyp, cur.right)
         elif same(hyp, app_hm_nb_yb):
             got_rvo = mp(got_rvo, ax(app_hm_nb_yb), hyp, cur.right)
         else:
@@ -3475,9 +3494,9 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     # === Backward bridge: build Apply(hv,z,y_b) ===
     got_z_in_ww = apply_thm(pii, [pv_ww, w, w, m_b, n_b, z])
     got_z_in_ww = mp(got_z_in_ww, ax(prod_ww), prod_ww, got_z_in_ww.sequent.right[0].right)
-    got_z_in_ww = mp(got_z_in_ww, ax(in_mb_w), in_mb_w, got_z_in_ww.sequent.right[0].right)
-    got_z_in_ww = mp(got_z_in_ww, ax(in_nb_w), in_nb_w, got_z_in_ww.sequent.right[0].right)
-    got_z_in_ww = mp(got_z_in_ww, ax(op_z_mb_nb), op_z_mb_nb, In(z, pv_ww))
+    got_z_in_ww = mp(got_z_in_ww, got_in_mb, in_mb_w, got_z_in_ww.sequent.right[0].right)
+    got_z_in_ww = mp(got_z_in_ww, got_in_nb, in_nb_w, got_z_in_ww.sequent.right[0].right)
+    got_z_in_ww = mp(got_z_in_ww, got_op_z, op_z_mb_nb, In(z, pv_ww))
 
     triple_b = Var(postfix='_trb')
     op_triple = OrdPair(triple_b, z, y_b)
@@ -3502,7 +3521,7 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     L_op2 = OrdPair(z, m_b, n_b)
     got_and_ops = mp(apply_thm(and_intro(L_op2, got_and_op.sequent.right[0], []), [], L_op2,
         Implies(got_and_op.sequent.right[0], And(L_op2, got_and_op.sequent.right[0])),
-        ax(L_op2)), got_and_op, got_and_op.sequent.right[0], And(L_op2, got_and_op.sequent.right[0]))
+        got_op_z), got_and_op, got_and_op.sequent.right[0], And(L_op2, got_and_op.sequent.right[0]))
     tmpl_pair = And(OrdPair(_pairv, m_b, n_b), And(OrdPair(triple_b, _pairv, y_b),
         Exists(_hmv, And(RecDef(_hmv, m_b, sfv, w), Apply(_hmv, n_b, y_b)))))
     got_ex_pair = eir(got_and_ops, tmpl_pair, _pairv, z)
@@ -3516,7 +3535,7 @@ def pf_dom_eq(hv, w, sfv, pv_ww, pv_wwxw):
     got_ex_n = eir(got_ex_y, tmpl_nv, _nv, n_b)
     got_and_m = mp(apply_thm(and_intro(in_mb_w, got_ex_n.sequent.right[0], []), [], in_mb_w,
         Implies(got_ex_n.sequent.right[0], And(in_mb_w, got_ex_n.sequent.right[0])),
-        ax(in_mb_w)), got_ex_n, got_ex_n.sequent.right[0], And(in_mb_w, got_ex_n.sequent.right[0]))
+        got_in_mb), got_ex_n, got_ex_n.sequent.right[0], And(in_mb_w, got_ex_n.sequent.right[0]))
     tmpl_mv = And(In(_mv, w), Exists(_nv, Exists(_yv, Exists(_pairv,
         And(OrdPair(_pairv, _mv, _nv),
         And(OrdPair(triple_b, _pairv, _yv),
