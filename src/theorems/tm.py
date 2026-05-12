@@ -1940,45 +1940,28 @@ def extract_transition(delta_char_formula, index):
     Returns: [delta_char] |- t_index"""
     from tactics import apply_thm, ax
     from theorems.logic import and_elim_left, and_elim_right
-    # Navigate the nested And to extract the desired transition.
-    # There are 6 transitions. Index 0 is the innermost left.
-    # Peel from outside: and_elim_left gets the left (first 5), and_elim_right gets t5.
-    # Keep peeling left to get deeper.
-    cur = delta_char_formula
-    # Build path: to get t_index, we need to know the nesting depth.
-    # Flatten first:
-    transitions = []
+    # Flatten the left-nested And tree.
     def flatten(f):
         if hasattr(f, 'left') and hasattr(f, 'right') and type(f).__name__ == 'And':
-            flatten(f.left)
-            transitions.append(f.right)
-        else:
-            transitions.append(f)
-    flatten(delta_char_formula)
-    # transitions[0] = t0 (innermost left), transitions[5] = t5 (outermost right)
-    # To extract transitions[index]:
-    target = transitions[index]
-    # Build proof by peeling And from outside
+            return flatten(f.left) + [f.right]
+        return [f]
+    def count(f):
+        return len(flatten(f))
     got = ax(delta_char_formula)
     f = delta_char_formula
     while type(f).__name__ == 'And':
-        if index < len(transitions) - 1:
-            # target is in f.left — peel left
+        left_count = count(f.left)
+        if index < left_count:
+            # target is in f.left
             got = apply_thm(and_elim_left(f.left, f.right, []), [],
                 f, f.left, got)
             f = f.left
-            # Recalculate: count transitions in f
-            sub_trans = []
-            flatten_sub = lambda ff: (flatten_sub(ff.left) or sub_trans.append(ff.right) or True) if (hasattr(ff, 'left') and type(ff).__name__ == 'And') else sub_trans.append(ff)
-            sub_trans = []
-            flatten_sub(f)
-            if index >= len(sub_trans):
-                break
         else:
-            # target is f.right — peel right
+            # target is in f.right (or IS f.right)
             got = apply_thm(and_elim_right(f.left, f.right, []), [],
                 f, f.right, got)
-            break
+            f = f.right
+            index -= left_count
     return got
 
 
@@ -4825,6 +4808,50 @@ def phase1_step_extend_trace(tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja
     got_ex_trn.name = 'phase1_step_extend_trace'
     return got_ex_trn
 
+class Phase2P:
+    """P2(sa): after S(a) steps, state q1, head at S(a), tape updated.
+    ∃tra, ca, tape2.
+      Function(tra) ∧
+      ∀x,y. Apply(tra,x,y) → Or(In(x,sa), Eq(x,sa)) ∧
+      TMConfig(ca, q1, sa, tape2) ∧
+      ∀z'. Empty(z') → Apply(tra, z', c0) ∧
+      Apply(tra, sa, ca) ∧
+      ∀ja < sa. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
+          ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)) ∧
+      TapeUpdate(tape2, tape_in, a, one)"""
+    __match_args__ = ('sa',)
+    def __init__(self, sa, q1, tape_in, c0, z, delta, a, one,
+                 tra, ca, tape2, ja, sja, cja, cja1):
+        self.sa = sa
+        self._args = (q1, tape_in, c0, z, delta, a, one,
+                      tra, ca, tape2, ja, sja, cja, cja1)
+    def expand(self):
+        q1, tape_in, c0, z, delta, a, one, \
+            tra, ca, tape2, ja, sja, cja, cja1 = self._args
+        from vocab.functions import Function as FuncDef
+        from core.derived import Or
+        xd, yd = Var(postfix='xd'), Var(postfix='yd')
+        dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
+            Or(In(xd, self.sa), Eq(xd, self.sa)))))
+        step_valid = Forall(ja, Implies(In(ja, self.sa),
+            Forall(sja, Implies(Successor(sja, ja),
+                Forall(cja, Implies(Apply(tra, ja, cja),
+                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+        return Exists(tra, Exists(ca, Exists(tape2, And(
+            FuncDef(tra),
+            And(dom_bound,
+            And(TMConfig(ca, q1, self.sa, tape2),
+            And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+            And(Apply(tra, self.sa, ca),
+            And(step_valid,
+                TapeUpdate(tape2, tape_in, a, one))))))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Phase2P(r(self.sa), *(r(x) for x in self._args))
+    def __str__(self):
+        return f'P2({self.sa})'
+
+
 class Phase1Q:
     """Q(n) = Or(In(n,a), Eq(n,a)) → P1(n).
     "If n ≤ a then after n scanning steps, head at n, state q0, tape unchanged."
@@ -5119,6 +5146,36 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
 
     got_P1_a.name = 'phase1'
     return got_P1_a
+
+
+def phase2_step_transition(delta_char_formula, delta, q0, zero_var, one, d1, q1):
+    """Extract transition (q0,0)→(1,R,q1) from delta_char.
+    [delta_char] |- TMTransition(delta, q0, zero_var, one, d1, q1)
+    after instantiating with Num(q0,0), Num(zero_var,0), Num(one,1), Num(d1,1), Num(q1,2)."""
+    from tactics import apply_thm, mp, ax
+
+    # Extract second transition (index 1): (q0,0)→(1,R,q1)
+    got_t1 = extract_transition(delta_char_formula, 1)
+
+    # Instantiate with [q0, zero_var, one, d1, q1]:
+    got = apply_thm(got_t1, [q0, zero_var, one, d1, q1])
+    # mp through Num hypotheses:
+    while type(got.sequent.right[0]).__name__ == 'Implies':
+        cur = got.sequent.right[0]
+        got = mp(got, ax(cur.left), cur.left, cur.right)
+    return got
+
+
+def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
+           tra, ca, ja, sja, cja, cja1, one, d1, q1, zero_var, sa):
+    """Phase 2: single TM step from (q0, a, tape_in) to (q1, S(a), tape2).
+
+    Reads separator (0) at position a, writes 1, moves right, transitions to q1.
+    Extends the trace from P1(a) by one step.
+
+    Returns: [axioms + hypotheses] |- Phase2P(S(a))
+    where Phase2P captures the extended trace with new config."""
+    pass
 
 
 def tm_add_correct():
