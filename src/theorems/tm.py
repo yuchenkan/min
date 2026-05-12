@@ -5258,6 +5258,51 @@ class Phase2P:
         return f'P2({self.sa})'
 
 
+class Phase3P:
+    """P3(j): after S(a)+j total steps, state q1, head at pos=S(a)+j, tape=tape2.
+    ∃tra, cj, pos.
+      Plus(sa, j, pos) ∧
+      Function(tra) ∧
+      ∀x,y. Apply(tra,x,y) → Or(In(x,pos), Eq(x,pos)) ∧
+      TMConfig(cj, q1, pos, tape2) ∧
+      ∀z'. Empty(z') → Apply(tra, z', c0) ∧
+      Apply(tra, pos, cj) ∧
+      ∀ja < pos. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
+          ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))"""
+    __match_args__ = ('j',)
+    def __init__(self, j, sa, q1, tape2, c0, z, delta,
+                 tra, cj, pos, ja, sja, cja, cja1):
+        self.j = j
+        self._args = (sa, q1, tape2, c0, z, delta,
+                      tra, cj, pos, ja, sja, cja, cja1)
+    def expand(self):
+        sa, q1, tape2, c0, z, delta, \
+            tra, cj, pos, ja, sja, cja, cja1 = self._args
+        from vocab.functions import Function as FuncDef
+        from vocab.recursion import Plus as PlusDef
+        from core.derived import Or
+        xd, yd = Var(postfix='xd'), Var(postfix='yd')
+        dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
+            Or(In(xd, pos), Eq(xd, pos)))))
+        step_valid = Forall(ja, Implies(In(ja, pos),
+            Forall(sja, Implies(Successor(sja, ja),
+                Forall(cja, Implies(Apply(tra, ja, cja),
+                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+        return Exists(tra, Exists(cj, Exists(pos, And(
+            PlusDef(sa, self.j, pos),
+            And(FuncDef(tra),
+            And(dom_bound,
+            And(TMConfig(cj, q1, pos, tape2),
+            And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+            And(Apply(tra, pos, cj),
+                step_valid)))))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Phase3P(r(self.j), *(r(x) for x in self._args))
+    def __str__(self):
+        return f'P3({self.j})'
+
+
 class Phase1Q:
     """Q(n) = Or(In(n,a), Eq(n,a)) → P1(n).
     "If n ≤ a then after n scanning steps, head at n, state q0, tape unchanged."
@@ -6137,6 +6182,19 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
 
     got_result.name = 'phase2'
     return got_result
+
+
+def phase3_step_transition(delta_char_formula, delta, q1, one, d1):
+    """Extract transition (q1,1)→(1,R,q1) from delta_char.
+    [delta_char, Num(q1,2), Num(one,1), Num(d1,1)] |- TMTransition(delta, q1, one, one, d1, q1)"""
+    from tactics import apply_thm, mp, ax
+
+    got_t2 = extract_transition(delta_char_formula, 2)
+    got = apply_thm(got_t2, [q1, one, one, d1, q1])
+    while type(got.sequent.right[0]).__name__ == 'Implies':
+        cur = got.sequent.right[0]
+        got = mp(got, ax(cur.left), cur.left, cur.right)
+    return got
 
 
 def tm_add_correct():
