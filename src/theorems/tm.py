@@ -1669,31 +1669,34 @@ class Phase1P:
       Apply(tra, n, ca) ∧
       ∀ja < n. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
           ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))"""
-    __match_args__ = ('n',)
-    def __init__(self, n, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
-        self.n = n
-        self._args = (q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    __match_args__ = ('n', 'q0', 'tape_in', 'c0', 'z', 'delta')
+    def __init__(self, n, q0, tape_in, c0, z, delta):
+        self.n = n; self.q0 = q0; self.tape_in = tape_in
+        self.c0 = c0; self.z = z; self.delta = delta
     def expand(self):
-        q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1 = self._args
+        tra, ca = Var(postfix='_tra'), Var(postfix='_ca')
+        ja, sja = Var(postfix='_ja'), Var(postfix='_sja')
+        cja, cja1 = Var(postfix='_cja'), Var(postfix='_cja1')
+        xd, yd = Var(postfix='_xd'), Var(postfix='_yd')
         from vocab.functions import Function as FuncDef
         from core.derived import Or
-        xd, yd = Var(postfix='xd'), Var(postfix='yd')
         dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
             Or(In(xd, self.n), Eq(xd, self.n)))))
         step_valid = Forall(ja, Implies(In(ja, self.n),
             Forall(sja, Implies(Successor(sja, ja),
                 Forall(cja, Implies(Apply(tra, ja, cja),
-                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
         return Exists(tra, Exists(ca, And(
             FuncDef(tra),
             And(dom_bound,
-            And(TMConfig(ca, q0, self.n, tape_in),
-            And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+            And(TMConfig(ca, self.q0, self.n, self.tape_in),
+            And(Forall(self.z, Implies(Empty(self.z), Apply(tra, self.z, self.c0))),
             And(Apply(tra, self.n, ca),
                 step_valid)))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase1P(r(self.n), *(r(x) for x in self._args))
+        return Phase1P(r(self.n), r(self.q0), r(self.tape_in),
+            r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
         return f'P1({self.n})'
 
@@ -1701,13 +1704,18 @@ class Phase1P:
 
 
 
-def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1, a):
+def phase1_base(q0, tape_in, c0, z, delta, a):
     """Phase 1 base case: Q1(0).
     Returns: [TMConfig(c0,q0,z,tape_in), Num(z,0), Pairing] |- Phase1Q(z, a, ...)
     P1(0) proved unconditionally, Q1(0) by discharging the Or."""
 
     zero_var = z  # use z directly as base case ka (z has Num(z,0) = Empty(z))
-    p1_zero = Phase1P(zero_var, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1).expand()
+    # Extract bound vars from Phase1P expansion — use these throughout the proof
+    p1_zero = Phase1P(zero_var, q0, tape_in, c0, z, delta).expand()
+    tra = p1_zero.var             # ∃tra (eigenvariable, used throughout proof)
+    ca = p1_zero.body.var         # ∃ca (eigenvariable, witness is c0)
+    ja, sja = Var(postfix='ja'), Var(postfix='sja')       # bound in step_valid
+    cja, cja1 = Var(postfix='cja'), Var(postfix='cja1')   # bound in step_valid
     # P1(0) = ∃tra, ca. And(
     #   TMConfig(ca, q0, 0, tape_in),
     #   And(∀z'. Empty(z') → Apply(tra, z', c0),
@@ -2022,16 +2030,10 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1, a):
     got_gebcd = mk_and(got_1g, got_ebcd)     # And(dom, And(cfg, And(base, And(apply, sv))))
     got_all = mk_and(got_1f, got_gebcd)      # And(func, And(dom, And(cfg, ...)))
 
-    # eir ca = c0: body template must use ca (bound var), not c0 (witness).
-    # got_all.right has c0 everywhere. The template should have ca.
-    # Phase1P produces ∃tra.∃ca.inner where inner uses ca. Extract inner:
-    pred_formula = Phase1P(zero_var, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1).expand()
-    # pred_formula = ∃tra. ∃ca. inner_with_ca
-    inner_with_ca = pred_formula.body.body  # the And(...) with ca free
+    # eir ca (inner), then tra (outer) — bind eigenvars with ∃
+    inner_with_ca = p1_zero.body.body  # And(...) with ca free
+    inner_ex_ca = p1_zero.body         # ∃ca. And(...) with tra free
     got_ex_ca = eir(got_all, inner_with_ca, ca, c0)
-
-    # eir tra: template from pred_formula
-    inner_ex_ca = pred_formula.body  # ∃ca. inner_with_ca (with tra free)
     got_ex_tra_ca = eir(got_ex_ca, inner_ex_ca, tra, tra)
     # [..., sing_tra, op_p0] |- ∃tra. ∃ca. And(...)
 
@@ -2051,11 +2053,14 @@ def phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1, a):
     imp_q = Implies(or_za, got_p1.sequent.right[0])
     left_q = [f_ for f_ in got_p1.sequent.left if not same(f_, or_za)]
     proof = Proof(Sequent(left_q, [imp_q]), 'implies_right', [got_p1], principal=imp_q)
+    # Wrap in Phase1Q via cut bridge
+    q1z = Phase1Q(z, a, q0, tape_in, c0, z, delta)
+    proof = cut(ax(q1z), q1z, proof)
     proof.name = 'phase1_base'
     return proof
 
 
-def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja, sja, cja, cja1, ka, ska, w, one, d1):
+def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w, one, d1):
     """Phase 1 step case: Q1(ka) → Q1(S(ka)), fully self-contained.
     Q1(n) = Phase1Q(n) = Or(In(n,a),Eq(n,a)) → P1(n).
 
@@ -2094,7 +2099,13 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, tra, ca, ja
     or_ska_a = Or(In(ska, a), Eq(ska, a))
     or_ka_a = Or(In(ka, a), Eq(ka, a))
     in_ka_a = In(ka, a)
-    q_ka = Phase1Q(ka, a, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+    q_ka = Phase1Q(ka, a, q0, tape_in, c0, z, delta)
+    tra = Var(postfix='tra')
+    ca = Var(postfix='ca')
+    ja = Var(postfix='ja')
+    sja = Var(postfix='sja')
+    cja = Var(postfix='cja')
+    cja1 = Var(postfix='cja1')
 
     # === Step 1: Assume Or(In(ska,a),Eq(ska,a)) for Q(S(ka)) ===
     # === Step 2: Derive Or(In(ka,a),Eq(ka,a)) via TransitiveSet(a) ===
@@ -5225,35 +5236,35 @@ class Phase2P:
       ∀ja < sa. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
           ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)) ∧
       TapeUpdate(tape2, tape_in, a, one)"""
-    __match_args__ = ()
-    def __init__(self, sa, q1, tape_in, c0, z, delta, a, one,
-                 tra, ca, tape2, ja, sja, cja, cja1):
-        self.sa = sa
-        self._args = (q1, tape_in, c0, z, delta, a, one,
-                      tra, ca, tape2, ja, sja, cja, cja1)
+    __match_args__ = ('sa', 'q1', 'tape_in', 'c0', 'z', 'delta', 'a', 'one')
+    def __init__(self, sa, q1, tape_in, c0, z, delta, a, one):
+        self.sa = sa; self.q1 = q1; self.tape_in = tape_in; self.c0 = c0
+        self.z = z; self.delta = delta; self.a = a; self.one = one
     def expand(self):
-        q1, tape_in, c0, z, delta, a, one, \
-            tra, ca, tape2, ja, sja, cja, cja1 = self._args
+        tra, ca, tape2 = Var(postfix='_tra'), Var(postfix='_ca'), Var(postfix='_t2')
+        ja, sja = Var(postfix='_ja'), Var(postfix='_sja')
+        cja, cja1 = Var(postfix='_cja'), Var(postfix='_cja1')
+        xd, yd = Var(postfix='_xd'), Var(postfix='_yd')
         from vocab.functions import Function as FuncDef
         from core.derived import Or
-        xd, yd = Var(postfix='xd'), Var(postfix='yd')
         dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
             Or(In(xd, self.sa), Eq(xd, self.sa)))))
         step_valid = Forall(ja, Implies(In(ja, self.sa),
             Forall(sja, Implies(Successor(sja, ja),
                 Forall(cja, Implies(Apply(tra, ja, cja),
-                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
         return Exists(tra, Exists(ca, Exists(tape2, And(
             FuncDef(tra),
             And(dom_bound,
-            And(TMConfig(ca, q1, self.sa, tape2),
-            And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+            And(TMConfig(ca, self.q1, self.sa, tape2),
+            And(Forall(self.z, Implies(Empty(self.z), Apply(tra, self.z, self.c0))),
             And(Apply(tra, self.sa, ca),
             And(step_valid,
-                TapeUpdate(tape2, tape_in, a, one))))))))))
+                TapeUpdate(tape2, self.tape_in, self.a, self.one))))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase2P(r(self.sa), *(r(x) for x in self._args))
+        return Phase2P(r(self.sa), r(self.q1), r(self.tape_in), r(self.c0),
+            r(self.z), r(self.delta), r(self.a), r(self.one))
     def __str__(self):
         return f'P2'
 
@@ -5269,36 +5280,36 @@ class Phase3P:
       Apply(tra, pos, cj) ∧
       ∀ja < pos. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
           ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))"""
-    __match_args__ = ('j',)
-    def __init__(self, j, sa, q1, tape2, c0, z, delta,
-                 tra, cj, pos, ja, sja, cja, cja1):
-        self.j = j
-        self._args = (sa, q1, tape2, c0, z, delta,
-                      tra, cj, pos, ja, sja, cja, cja1)
+    __match_args__ = ('j', 'sa', 'q1', 'tape2', 'c0', 'z', 'delta')
+    def __init__(self, j, sa, q1, tape2, c0, z, delta):
+        self.j = j; self.sa = sa; self.q1 = q1; self.tape2 = tape2
+        self.c0 = c0; self.z = z; self.delta = delta
     def expand(self):
-        sa, q1, tape2, c0, z, delta, \
-            tra, cj, pos, ja, sja, cja, cja1 = self._args
+        tra, cj, pos = Var(postfix='_tra'), Var(postfix='_cj'), Var(postfix='_pos')
+        ja, sja = Var(postfix='_ja'), Var(postfix='_sja')
+        cja, cja1 = Var(postfix='_cja'), Var(postfix='_cja1')
+        xd, yd = Var(postfix='_xd'), Var(postfix='_yd')
         from vocab.functions import Function as FuncDef
         from vocab.recursion import Plus as PlusDef
         from core.derived import Or
-        xd, yd = Var(postfix='xd'), Var(postfix='yd')
         dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
             Or(In(xd, pos), Eq(xd, pos)))))
         step_valid = Forall(ja, Implies(In(ja, pos),
             Forall(sja, Implies(Successor(sja, ja),
                 Forall(cja, Implies(Apply(tra, ja, cja),
-                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)))))))))
+                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
         return Exists(tra, Exists(cj, Exists(pos, And(
-            PlusDef(sa, self.j, pos),
+            PlusDef(self.sa, self.j, pos),
             And(FuncDef(tra),
             And(dom_bound,
-            And(TMConfig(cj, q1, pos, tape2),
-            And(Forall(z, Implies(Empty(z), Apply(tra, z, c0))),
+            And(TMConfig(cj, self.q1, pos, self.tape2),
+            And(Forall(self.z, Implies(Empty(self.z), Apply(tra, self.z, self.c0))),
             And(Apply(tra, pos, cj),
                 step_valid)))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase3P(r(self.j), *(r(x) for x in self._args))
+        return Phase3P(r(self.j), r(self.sa), r(self.q1), r(self.tape2),
+            r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
         return f'P3({self.j})'
 
@@ -5307,19 +5318,18 @@ class Phase3Q:
     """Q3(j) = Or(In(j,b), Eq(j,b)) → P3(j).
     Bounded Phase 3 predicate: "if j ≤ b then P3(j)."
     Used as the induction predicate for omega induction on phase 3 step count."""
-    __match_args__ = ('j',)
-    def __init__(self, j, b, sa, q1, tape2, c0, z, delta,
-                 tra, cj, pos, ja, sja, cja, cja1):
-        self.j = j; self.b = b
-        self._args = (sa, q1, tape2, c0, z, delta,
-                      tra, cj, pos, ja, sja, cja, cja1)
+    __match_args__ = ('j', 'b', 'sa', 'q1', 'tape2', 'c0', 'z', 'delta')
+    def __init__(self, j, b, sa, q1, tape2, c0, z, delta):
+        self.j = j; self.b = b; self.sa = sa; self.q1 = q1
+        self.tape2 = tape2; self.c0 = c0; self.z = z; self.delta = delta
     def expand(self):
         from core.derived import Or, Eq
         return Implies(Or(In(self.j, self.b), Eq(self.j, self.b)),
-            Phase3P(self.j, *self._args))
+            Phase3P(self.j, self.sa, self.q1, self.tape2, self.c0, self.z, self.delta))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase3Q(r(self.j), r(self.b), *(r(x) for x in self._args))
+        return Phase3Q(r(self.j), r(self.b), r(self.sa), r(self.q1),
+            r(self.tape2), r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
         return f'Q3({self.j})'
 
@@ -5328,23 +5338,18 @@ class Phase1Q:
     """Q(n) = Or(In(n,a), Eq(n,a)) → P1(n).
     "If n ≤ a then after n scanning steps, head at n, state q0, tape unchanged."
     Wraps Phase1P with a boundedness condition so omega induction works."""
-    __match_args__ = ('n',)
-    def __init__(self, n, a, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1):
-        self.n = n; self.a = a
-        self.q0 = q0; self.tape_in = tape_in; self.c0 = c0; self.z = z
-        self.delta = delta; self.tra = tra; self.ca = ca
-        self.ja = ja; self.sja = sja; self.cja = cja; self.cja1 = cja1
+    __match_args__ = ('n', 'a', 'q0', 'tape_in', 'c0', 'z', 'delta')
+    def __init__(self, n, a, q0, tape_in, c0, z, delta):
+        self.n = n; self.a = a; self.q0 = q0; self.tape_in = tape_in
+        self.c0 = c0; self.z = z; self.delta = delta
     def expand(self):
-        from core.lang import In, Implies
         from core.derived import Or, Eq
         return Implies(Or(In(self.n, self.a), Eq(self.n, self.a)),
-            Phase1P(self.n, self.q0, self.tape_in, self.c0, self.z,
-                self.delta, self.tra, self.ca, self.ja, self.sja, self.cja, self.cja1))
+            Phase1P(self.n, self.q0, self.tape_in, self.c0, self.z, self.delta))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase1Q(r(self.n), r(self.a), r(self.q0), r(self.tape_in), r(self.c0),
-            r(self.z), r(self.delta), r(self.tra), r(self.ca), r(self.ja), r(self.sja),
-            r(self.cja), r(self.cja1))
+        return Phase1Q(r(self.n), r(self.a), r(self.q0), r(self.tape_in),
+            r(self.c0), r(self.z), r(self.delta))
     def __str__(self):
         return f'Q1({self.n})'
 
@@ -5379,10 +5384,10 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     xv = Var(postfix='ind_xv')
 
     def Q(nn):
-        return Phase1Q(nn, a, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+        return Phase1Q(nn, a, q0, tape_in, c0, z, delta)
 
     def P1(nn):
-        return Phase1P(nn, q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1)
+        return Phase1P(nn, q0, tape_in, c0, z, delta)
 
     # === Separation: pv = {nn ∈ w : Q(nn)} ===
     sep = zfc.Separation(Q, [a, q0, tape_in, c0, z, delta])
@@ -5414,7 +5419,7 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # === Base case: ∀zero. Empty(zero) → In(zero, pv) ===
     # Q(z) = Or(In(z,a), Eq(z,a)) → P1(z). P1(z) proved unconditionally.
     # So Q(z) holds by implies_right (discharge the Or).
-    got_base_Q = phase1_base(q0, tape_in, c0, z, delta, tra, ca, ja, sja, cja, cja1, a)
+    got_base_Q = phase1_base(q0, tape_in, c0, z, delta, a)
     # [Pairing, TMConfig, Num(z,0)] |- Q(z)
 
     # In(z, w) from omega_contains_empty:
@@ -5472,7 +5477,7 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # phase1_step returns Q(S(n)) with P1(n) components on its left.
     # These have n/sn free. Just call phase1_step and let components flow.
     got_step_imp = phase1_step(q0, tape_in, c0, z, delta, delta_char_formula,
-        a, b, tra, ca, ja, sja, cja, cja1, n, sn, w, one, d1)
+        a, b, n, sn, w, one, d1)
     # got_step_imp: [external hyps] |- Q(n) → Q(S(n))
 
     # mp: Q(n) → Q(S(n)) + Q(n) → Q(S(n))
@@ -6190,8 +6195,7 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
 
     # Wrap in Phase2P via cut bridge:
     # Phase2P expands to the same formula. Use implies_right + implies_left.
-    p2 = Phase2P(sa, q1, tape_in, c0, z, delta, a, one,
-                 tra, ca, tape2, ja, sja, cja, cja1)
+    p2 = Phase2P(sa, q1, tape_in, c0, z, delta, a, one)
     raw = got_ex_tra.sequent.right[0]
     # ax(p2) gives [p2] |- p2. We need [raw] |- p2.
     # Since same(raw, p2) should be True (both expand to same Exists),
