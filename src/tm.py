@@ -172,11 +172,12 @@ def add_goal():
 
 
 class UnaryTape:
-    """UnaryTape(tape, a, b): tape encodes 1^a 0 1^b.
+    """UnaryTape(tape, a, b): tape encodes 1^a 0 1^b 0.
     - i < a: tape(i) = 1
     - i = a: tape(i) = 0
-    - j < b: tape(a+1+j) = 1
-    Uses Plus to express a+1+j. Uses In(i, a) for i < a (ordinal membership)."""
+    - j < b: tape(S(a)+j) = 1
+    - tape(S(a)+b) = 0  (end marker)
+    Uses Plus to express S(a)+j. Uses In(i, a) for i < a (ordinal membership)."""
     __match_args__ = ('tape', 'left', 'right')
     def __init__(self, tape, a, b):
         self.tape = tape; self.left = a; self.right = b
@@ -188,6 +189,7 @@ class UnaryTape:
         from vocab.omega import Num
         from vocab.recursion import Plus
         i, one, zero, sa, j, pos = Var(), Var(), Var(), Var(), Var(), Var()
+        end_pos = Var()
         low = Forall(i, Implies(In(i, self.left),
             Forall(one, Implies(Num(one, 1), Apply(self.tape, i, one)))))
         sep = Forall(zero, Implies(Num(zero, 0), Apply(self.tape, self.left, zero)))
@@ -196,7 +198,11 @@ class UnaryTape:
                 Forall(pos, Implies(Plus(sa, j, pos),
                     Forall(one, Implies(Num(one, 1),
                         Apply(self.tape, pos, one)))))))))
-        return And(low, And(sep, high))
+        end = Forall(sa, Implies(Successor(sa, self.left),
+            Forall(end_pos, Implies(Plus(sa, self.right, end_pos),
+                Forall(zero, Implies(Num(zero, 0),
+                    Apply(self.tape, end_pos, zero)))))))
+        return And(low, And(sep, And(high, end)))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return UnaryTape(r(self.tape), r(self.left), r(self.right))

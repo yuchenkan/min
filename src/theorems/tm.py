@@ -471,16 +471,21 @@ def tape_read_high():
 
     exp = ut.expand()
     low_f = exp.left
-    rest_f = exp.right   # And(sep_f, high_f)
+    rest_f = exp.right   # And(sep_f, And(high_f, end_f))
     sep_f = rest_f.left
-    high_f = rest_f.right
+    high_end_f = rest_f.right  # And(high_f, end_f)
+    high_f = high_end_f.left
+    from theorems.logic import and_elim_left
 
-    # Extract rest then high
+    # Extract rest, then high_end, then high
     aer1 = and_elim_right(low_f, rest_f, [])
     got_rest = apply_thm(aer1, [], ut, rest_f, ax(ut))
 
-    aer2 = and_elim_right(sep_f, high_f, [])
-    got_high = apply_thm(aer2, [], rest_f, high_f, got_rest)
+    aer2 = and_elim_right(sep_f, high_end_f, [])
+    got_high_end = apply_thm(aer2, [], rest_f, high_end_f, got_rest)
+    aer3 = and_elim_left(high_f, high_end_f.right, [])
+    got_high_only = apply_thm(aer3, [], high_end_f, high_f, got_high_end)
+    got_high = got_high_only
     # [ut] |- high_f = Forall(j', In(j',b) -> Forall(sa', Succ(sa',a) -> ...))
 
     # Instantiate: j, then In(j,b), then sa, then Succ(sa,a), then pos, then Plus, then one, then Num
@@ -511,6 +516,63 @@ def tape_read_high():
             [proof], principal=fa, term=v)
 
     proof.name = 'tape_read_high'
+    return proof
+
+
+def tape_read_end():
+    """Read end marker: UnaryTape + Successor(sa,a) + Plus(sa,b,end_pos) + Num(zero,0)
+       -> Apply(tape,end_pos,zero).
+    |- ∀tape,a,b,sa,end_pos,zero.
+         UnaryTape(tape,a,b) → Successor(sa,a) → Plus(sa,b,end_pos) →
+         Num(zero,0) → Apply(tape,end_pos,zero)"""
+    from tactics import apply_thm, wl, mp, ax
+    from theorems.logic import and_elim_right, and_elim_left
+    from tm import UnaryTape
+    from vocab.recursion import Plus as PlusDef
+
+    tape, a, b, sa, end_pos, zero = Var(), Var(), Var(), Var(), Var(), Var()
+    ut = UnaryTape(tape, a, b)
+    succ_sa = Successor(sa, a)
+    plus_end = PlusDef(sa, b, end_pos)
+    num_zero = Num(zero, 0)
+    app_end = Apply(tape, end_pos, zero)
+
+    exp = ut.expand()
+    low_f = exp.left
+    rest_f = exp.right
+    sep_f = rest_f.left
+    high_end_f = rest_f.right
+    end_f = high_end_f.right
+
+    got_rest = apply_thm(and_elim_right(low_f, rest_f, []), [], ut, rest_f, ax(ut))
+    got_he = apply_thm(and_elim_right(sep_f, high_end_f, []), [], rest_f, high_end_f, got_rest)
+    got_end = apply_thm(and_elim_right(high_end_f.left, end_f, []), [], high_end_f, end_f, got_he)
+
+    got = apply_thm(got_end, [sa])
+    imp_cur = got.sequent.right[0]
+    got = mp(got, ax(succ_sa), imp_cur.left, imp_cur.right)
+    got = apply_thm(got, [end_pos])
+    imp_cur = got.sequent.right[0]
+    got = mp(got, ax(plus_end), imp_cur.left, imp_cur.right)
+    got = apply_thm(got, [zero])
+    imp_cur = got.sequent.right[0]
+    got = mp(got, ax(num_zero), imp_cur.left, imp_cur.right)
+
+    for premise in [num_zero, plus_end, succ_sa, ut]:
+        if not any(same(premise, f) for f in got.sequent.left):
+            got = wl(got, premise)
+        imp = Implies(premise, got.sequent.right[0])
+        left = [f for f in got.sequent.left if not same(f, premise)]
+        got = Proof(Sequent(left, [imp]), 'implies_right', [got], principal=imp)
+
+    proof = got
+    for v in [zero, end_pos, sa, b, a, tape]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_read_end'
     return proof
 
 
