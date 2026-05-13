@@ -311,45 +311,20 @@ def phase3_step():
     succ_spos = SuccDef(spos, pos_v)
     cj_new = Var(postfix='cjn')
 
-    # TapeUpdate(tape2, tape2, pos, one): writing one where one already is → tape unchanged.
-    # tape_update_eq: Function(tape) → Apply(tape,pos,val) → TapeUpdate(tape2,tape,pos,val) → t2=tape
-    # Hmm we need TapeUpdate(tape2_new, tape2, pos, one). But tape doesn't change.
-    # Actually TMStep expects TapeUpdate(tapen, tape, pos, write_sym).
-    # For transition (q1,one)→(one,R,q1): write_sym=one. So TapeUpdate(tape2, tape2, pos, one).
-    # This is "update tape2 at pos with one, result is tape2" — an identity update.
-    # We don't have a theorem for identity tape update.
-    # Simpler: phase1_step_tmstep handles this via tape_update_eq internally.
-    # But it needs Function(tape2).
+    # Function(tape2) from tape_update_function + got_tu + Function(tape_in)
+    from theorems.tm import tape_update_function
+    _tuf = tape_update_function()
+    got_func_t2 = apply_thm(_tuf, [tape2_v, tape_in, a, one])
+    got_func_t2 = mp(got_func_t2, got_tu, tu_f, got_func_t2.sequent.right[0].right)
+    got_func_t2 = mp(got_func_t2, ax(FuncDef(tape_in)), FuncDef(tape_in), FuncDef(tape2_v))
 
-    # Let me just use phase1_step_tmstep but derive Function(tape2) from tape_update_eq.
-    # tape_update_eq: Function(tape_in) → Apply(tape_in,pos,one) → TapeUpdate(tape2,...) → t2 ext= tape_in
-    # Hmm that gives extensional equality, not Function.
-
-    # Actually, tape_update_eq gives ∀ep. ep∈tape2 ↔ ep∈tape_in.
-    # From Function(tape_in): tape_in is a function. tape2 ext= tape_in → Function(tape2).
-    # Need func_eq_transfer: Eq(tape2, tape_in) → Function(tape_in) → Function(tape2).
-    from theorems.tm import tape_update_eq, func_eq_transfer
-    # tape_update_eq: Function(tape_in) → Apply(tape_in,a,one) → TapeUpdate(tape2,tape_in,a,one) → ∀ep. ep∈t2↔ep∈tin
-    tuq = tape_update_eq()
-    # Instantiate: tape_in already a function. We wrote one at position a.
-    # Apply(tape_in, a, one): from tape_read_sep — tape_in reads 0 at a, not one!
-    # Wait — we're writing one at position a, which had 0. So Apply(tape_in,a,0) not Apply(tape_in,a,one).
-    # tape_update_eq requires Apply(tape,pos,val) where val=write value. But tape_in(a)=0, not one.
-    # tape_update_eq only works when the write value equals the existing value (identity update).
-    # For a real update (changing 0→1), tape2 ≠ tape_in, so tape_update_eq doesn't apply.
-
-    # So Function(tape2) needs a different approach. TapeUpdate is Separation:
-    # tape2 = {x ∈ tape_in ∪ {(a,one)} : x is not (a,_) or x is (a,one)}
-    # This IS a function if tape_in is. But proving it is a substantial theorem.
-
-    # PRAGMATIC: Use phase1_step_tmstep which needs Function(tape2),
-    # and accept it as a hypothesis. Derive it when assembling phase3.
+    # phase1_step_tmstep
     _tmstep = phase1_step_tmstep()
     got_tmstep = apply_thm(_tmstep, [delta, q1, pos_v, spos, tape2_v, cj_v, one, d1])
     got_tmstep = mp(got_tmstep, ax(FuncDef(delta)), FuncDef(delta), got_tmstep.sequent.right[0].right)
     got_tmstep = mp(got_tmstep, ax(trans_q1), trans_q1, got_tmstep.sequent.right[0].right)
     got_tmstep = mp(got_tmstep, got_cfg, cfg_f, got_tmstep.sequent.right[0].right)
-    got_tmstep = mp(got_tmstep, ax(FuncDef(tape2_v)), FuncDef(tape2_v), got_tmstep.sequent.right[0].right)
+    got_tmstep = mp(got_tmstep, got_func_t2, FuncDef(tape2_v), got_tmstep.sequent.right[0].right)
     got_tmstep = mp(got_tmstep, got_read, app_tape_pos, got_tmstep.sequent.right[0].right)
     imp_cur = got_tmstep.sequent.right[0]
     got_tmstep = mp(got_tmstep, ax(imp_cur.left), imp_cur.left, imp_cur.right)  # Num(d1,1)
