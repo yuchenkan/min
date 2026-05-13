@@ -2028,25 +2028,14 @@ def phase1_base():
     return proof
 
 
-def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w, one, d1):
-    """Phase 1 step case: Q1(ka) → Q1(S(ka)), fully self-contained.
-    Q1(n) = Phase1Q(n) = Or(In(n,a),Eq(n,a)) → P1(n).
-
-    Takes Q1(ka) on the left. Produces Q1(S(ka)) on the right.
-    Internally:
-    1. Assumes Or(In(ska,a),Eq(ska,a)) for Q1(S(ka)) output
-    2. Derives Or(In(ka,a),Eq(ka,a)) from the Or + TransitiveSet(a)
-    3. mp Q1(ka) with the Or → P1(ka)
-    4. Opens P1(ka) → components → sub-helpers → P1(S(ka))
-    5. Discharges Or → Q1(S(ka))
-    6. Discharges Q1(ka) → (Q1(ka) → Q1(S(ka)))
-
-    Hypotheses on left: Q1(ka), Successor(ska,ka), Omega(w), In(a,w),
-    UnaryTape, delta_char, Num's, Function's, axioms.
-    No P1(ka) components leak.
-
-    Returns: [ctx] |- Implies(Phase1Q(ka), Phase1Q(S(ka)))
-    """
+def phase1_step():
+    """Phase 1 step case: Q1(ka) → Q1(S(ka)).
+    |- ∀delta,q0,tape_in,c0,z,a,b,ka,ska,w,one,d1.
+         TMTransition(delta,q0,one,one,d1,q0) → Omega(w) → In(a,w) →
+         Successor(ska,ka) → UnaryTape(tape_in,a,b) →
+         Function(delta) → Function(tape_in) →
+         Num(one,1) → Num(d1,1) → Num(z,0) → TMConfig(c0,q0,z,tape_in) →
+         Phase1Q(ka) → Phase1Q(ska)"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
         or_elim, or_intro_left, or_intro_right, eq_reflexive,
@@ -2059,6 +2048,19 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w,
     from core.proof import Proof, Sequent, same
     from core.derived import Exists, Or
     from tm import UnaryTape
+
+    delta = Var(postfix='delta')
+    q0 = Var(postfix='q0')
+    tape_in = Var(postfix='tin')
+    c0 = Var(postfix='c0')
+    z = Var(postfix='z')
+    a = Var(postfix='a')
+    b = Var(postfix='b')
+    ka = Var(postfix='ka')
+    ska = Var(postfix='ska')
+    w = Var(postfix='w')
+    one = Var(postfix='one')
+    d1 = Var(postfix='d1')
 
     succ_ska = Successor(ska, ka)
     omega_w = Omega(w)
@@ -2196,19 +2198,19 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w,
     if any(same(in_ka_a, f) for f in got_read.sequent.left):
         got_read = cut(got_read, in_ka_a, got_in_ka_a)
 
-    _t0 = extract_transition(delta_char_formula, 0)
-    got_trans = apply_thm(_t0, [q0, one, one, d1, q0])
-    while type(got_trans.sequent.right[0]).__name__ == 'Implies':
-        cur = got_trans.sequent.right[0]
-        got_trans = mp(got_trans, ax(cur.left), cur.left, cur.right)
+    # Transition (q0,1)→(1,R,q0) as hypothesis
+    trans_q0 = TMTransition(delta, q0, one, one, d1, q0)
+    got_trans = ax(trans_q0)
 
-    got_tmstep = phase1_step_tmstep(delta, q0, ka, ska, tape_in, ca, one, d1)
-    # Cut P1(ka) components from got_tmstep with extracted proofs
-    for formula, proof in [(func_f, got_func), (dom_f, got_dom), (cfg_f, got_cfg),
-                           (base_f, got_base), (app_f, got_app), (sv_f, got_sv)]:
-        while any(same(formula, f) for f in got_tmstep.sequent.left):
-            got_tmstep = cut(got_tmstep, formula, proof)
-    # body_ka stays on the left — will be eel'd at the end after P1(S(ka)) is fully built.
+    _tmstep_thm = phase1_step_tmstep()
+    got_tmstep = apply_thm(_tmstep_thm, [delta, q0, ka, ska, tape_in, ca, one, d1])
+    # mp through 7 hypotheses: Function(delta), trans, cfg, Function(tape_in), read, Num(d1,1), Succ(ska,ka)
+    func_delta = FuncDef(delta)
+    func_tape = FuncDef(tape_in)
+    num_d1 = Num(d1, 1)
+    tmstep_hyps = [ax(func_delta), got_trans, got_cfg, ax(func_tape), got_read, ax(num_d1), ax(succ_ska)]
+    for hyp_proof in tmstep_hyps:
+        got_tmstep = mp(got_tmstep, hyp_proof, hyp_proof.sequent.right[0], got_tmstep.sequent.right[0].right)
 
     # Open ∃ca_new from got_tmstep
     ca_new = Var(postfix='cn')
@@ -2221,20 +2223,18 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w,
         and_cfg_step, tmstep_ca, ax(and_cfg_step))
 
     # Extend trace
-    tra_new = Var(postfix='trn')
-    got_extend = phase1_step_extend_trace(
-        tra, tra_new, ska, ca_new, z, c0, ka, delta, ca, ja, sja, cja, cja1, w)
-    # Cut P1(ka) components from got_extend
-    for formula, proof in [(func_f, got_func), (dom_f, got_dom),
-                           (base_f, got_base), (app_f, got_app), (sv_f, got_sv)]:
-        while any(same(formula, f) for f in got_extend.sequent.left):
-            got_extend = cut(got_extend, formula, proof)
-    # body_ka stays on the left — eel'd at the end.
-    # Cut TMStep from extend
-    if any(same(tmstep_ca, f) for f in got_extend.sequent.left):
-        got_extend = cut(got_extend, tmstep_ca, got_tmstep_from_and)
+    _ext_thm = phase1_step_extend_trace()
+    got_extend = apply_thm(_ext_thm, [tra, ska, ca_new, c0, ka, delta, ca, w])
+    # mp through 9 hypotheses in order
+    in_ka_w = In(ka, w)
+    for hyp_proof in [got_func, got_dom, ax(omega_w), ax(in_ka_w), ax(succ_ska),
+                      got_base, got_sv, got_tmstep_from_and, got_app]:
+        got_extend = mp(got_extend, hyp_proof, hyp_proof.sequent.right[0],
+            got_extend.sequent.right[0].right)
 
     # Build full P1(S(ka)) body: insert cfg_new + dom into extend output
+    # got_extend right = ∃tra_new. body. Extract tra_new from the ∃.
+    tra_new = got_extend.sequent.right[0].var
     ext_body = got_extend.sequent.right[0].body
     got_func_from_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
         ext_body, ext_body.left, ax(ext_body))
@@ -2308,40 +2308,30 @@ def phase1_step(q0, tape_in, c0, z, delta, delta_char_formula, a, b, ka, ska, w,
     got_result = Proof(Sequent(left_qq, [imp_qq]),
         'implies_right', [got_q_ska], principal=imp_qq)
 
-    got_result.name = 'phase1_step'
-    return got_result
+    # Discharge hypotheses, close ∀
+    proof = got_result
+    utape = UnaryTape(tape_in, a, b)
+    cfg0 = TMConfig(c0, q0, z, tape_in)
+    hyps = [cfg0, Num(z, 0), Num(d1, 1), Num(one, 1),
+            FuncDef(tape_in), FuncDef(delta), utape,
+            succ_ska, in_ka_w, in_a_w, omega_w, trans_q0]
+    for hyp in hyps:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [d1, one, w, ska, ka, b, a, z, c0, tape_in, delta, q0]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'phase1_step'
+    return proof
 
 
 
-def extract_transition(delta_char_formula, index):
-    """Extract the index-th transition from delta_char (0-indexed).
-    delta_char = And(And(And(And(And(t0,t1),t2),t3),t4),t5).
-    Returns: [delta_char] |- t_index"""
-    from tactics import apply_thm, ax
-    from theorems.logic import and_elim_left, and_elim_right
-    # Flatten the left-nested And tree.
-    def flatten(f):
-        if hasattr(f, 'left') and hasattr(f, 'right') and type(f).__name__ == 'And':
-            return flatten(f.left) + [f.right]
-        return [f]
-    def count(f):
-        return len(flatten(f))
-    got = ax(delta_char_formula)
-    f = delta_char_formula
-    while type(f).__name__ == 'And':
-        left_count = count(f.left)
-        if index < left_count:
-            # target is in f.left
-            got = apply_thm(and_elim_left(f.left, f.right, []), [],
-                f, f.left, got)
-            f = f.left
-        else:
-            # target is in f.right (or IS f.right)
-            got = apply_thm(and_elim_right(f.left, f.right, []), [],
-                f, f.right, got)
-            f = f.right
-            index -= left_count
-    return got
 
 
 
@@ -5646,23 +5636,6 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1):
     return got_P1_a
 
 
-def phase2_step_transition(delta_char_formula, delta, q0, zero_var, one, d1, q1):
-    """Extract transition (q0,0)→(1,R,q1) from delta_char.
-    [delta_char] |- TMTransition(delta, q0, zero_var, one, d1, q1)
-    after instantiating with Num(q0,0), Num(zero_var,0), Num(one,1), Num(d1,1), Num(q1,2)."""
-    from tactics import apply_thm, mp, ax
-
-    # Extract second transition (index 1): (q0,0)→(1,R,q1)
-    got_t1 = extract_transition(delta_char_formula, 1)
-
-    # Instantiate with [q0, zero_var, one, d1, q1]:
-    got = apply_thm(got_t1, [q0, zero_var, one, d1, q1])
-    # mp through Num hypotheses:
-    while type(got.sequent.right[0]).__name__ == 'Implies':
-        cur = got.sequent.right[0]
-        got = mp(got, ax(cur.left), cur.left, cur.right)
-    return got
-
 
 def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
            one, d1, q1, zero_var, sa):
@@ -6368,18 +6341,6 @@ def phase3_base(got_P2, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     got_result.name = 'phase3_base'
     return got_result
 
-
-def phase3_step_transition(delta_char_formula, delta, q1, one, d1):
-    """Extract transition (q1,1)→(1,R,q1) from delta_char.
-    [delta_char, Num(q1,2), Num(one,1), Num(d1,1)] |- TMTransition(delta, q1, one, one, d1, q1)"""
-    from tactics import apply_thm, mp, ax
-
-    got_t2 = extract_transition(delta_char_formula, 2)
-    got = apply_thm(got_t2, [q1, one, one, d1, q1])
-    while type(got.sequent.right[0]).__name__ == 'Implies':
-        cur = got.sequent.right[0]
-        got = mp(got, ax(cur.left), cur.left, cur.right)
-    return got
 
 
 def tm_add_correct():
