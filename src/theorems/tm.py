@@ -5381,6 +5381,53 @@ class Phase3P:
         return f'P3({self.j}, {self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.delta}, {self.a}, {self.one})'
 
 
+class Phase4P:
+    """P4: after phase 4, state q2, head at c, tape=tape2, trace covers S(sc) steps.
+    ∃tape2, tra, cj.
+      TapeUpdate(tape2, tape_in, a, one) ∧
+      Function(tra) ∧
+      ∀x,y. Apply(tra,x,y) → Or(In(x,ssc), Eq(x,ssc)) ∧
+      TMConfig(cj, q2, c, tape2) ∧
+      ∀z'. Empty(z') → Apply(tra, z', c0) ∧
+      Apply(tra, ssc, cj) ∧
+      ∀ja < ssc. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
+          ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))"""
+    __match_args__ = ('q2', 'c', 'ssc', 'tape_in', 'c0', 'delta', 'a', 'one')
+    def __init__(self, q2, c, ssc, tape_in, c0, delta, a, one):
+        self.q2 = q2; self.c = c; self.ssc = ssc; self.tape_in = tape_in
+        self.c0 = c0; self.delta = delta
+        self.a = a; self.one = one
+    def expand(self):
+        tape2 = Var(postfix='_t2')
+        tra, cj = Var(postfix='_tra'), Var(postfix='_cj')
+        ja, sja = Var(postfix='_ja'), Var(postfix='_sja')
+        cja, cja1 = Var(postfix='_cja'), Var(postfix='_cja1')
+        xd, yd = Var(postfix='_xd'), Var(postfix='_yd')
+        zv = Var(postfix='_zv')
+        from vocab.functions import Function as FuncDef
+        from core.derived import Or
+        dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
+            Or(In(xd, self.ssc), Eq(xd, self.ssc)))))
+        step_valid = Forall(ja, Implies(In(ja, self.ssc),
+            Forall(sja, Implies(Successor(sja, ja),
+                Forall(cja, Implies(Apply(tra, ja, cja),
+                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
+        return Exists(tape2, Exists(tra, Exists(cj, And(
+            TapeUpdate(tape2, self.tape_in, self.a, self.one),
+            And(FuncDef(tra),
+            And(dom_bound,
+            And(TMConfig(cj, self.q2, self.c, tape2),
+            And(Forall(zv, Implies(Empty(zv), Apply(tra, zv, self.c0))),
+            And(Apply(tra, self.ssc, cj),
+                step_valid)))))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Phase4P(r(self.q2), r(self.c), r(self.ssc), r(self.tape_in),
+            r(self.c0), r(self.delta), r(self.a), r(self.one))
+    def __str__(self):
+        return f'P4({self.q2}, {self.c}, {self.ssc}, {self.tape_in}, {self.c0}, {self.delta}, {self.a}, {self.one})'
+
+
 class Phase3Q:
     """Q3(j) = Or(In(j,b), Eq(j,b)) → P3(j).
     Bounded Phase 3 predicate: "if j ≤ b then P3(j)."

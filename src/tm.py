@@ -127,16 +127,19 @@ def formalize(tm):
 def add_goal():
     """Correctness goal for the addition TM.
 
-    ∀ delta, q0, qH, z, tape_in, c0, a, b, c.
+    ∀ delta, q0, qH, tape_in, z, c0, w, a, b, c, n, hf, tf.
+      Omega(w) → In(a, w) → In(b, w) →
       Function(delta) → Function(tape_in) →
       delta_char → Num(q0, 0) → Num(qH, 1) → Num(z, 0) →
       UnaryTape(tape_in, a, b) → TMConfig(c0, q0, z, tape_in) →
-      Plus(a, b, c) →
-      ∃ n, tf. TMHalts(delta, c0, qH, n) ∧ UnaryOutput(tf, c)
+      Plus(a, b, c) → Successor(hf, c) →
+      UnaryOutput(tf, c) →
+      TMHalts(delta, c0, qH, n, hf, tf)
     """
-    from core.lang import Var, Implies, Forall
+    from core.lang import Var, In, Implies, Forall
     from core.derived import Exists, And
-    from vocab.omega import Num
+    from vocab.omega import Omega, Num
+    from vocab.ordpair import Successor
     from vocab.functions import Function as FuncDef
     from vocab.recursion import Plus as PlusDef
     from vocab.tm import TMConfig, TMHalts
@@ -145,51 +148,56 @@ def add_goal():
     delta, q0, qH = f['delta'], f['q0'], f['qH']
 
     a, b, c = Var(postfix='a'), Var(postfix='b'), Var(postfix='c')
+    w = Var(postfix='w')
     tape_in = Var(postfix='tin')
     c0 = Var(postfix='c0')
     zero_var = Var(postfix='z')
     n = Var(postfix='n')
+    hf = Var(postfix='hf')
     tf = Var(postfix='tf')
 
-    body = Implies(FuncDef(delta),
+    body = Implies(Omega(w),
+        Implies(In(a, w),
+        Implies(In(b, w),
+        Implies(FuncDef(delta),
         Implies(FuncDef(tape_in),
-        Implies(f['delta_char'],
-        Implies(Num(q0, f['q0_num']),
-        Implies(Num(qH, f['qH_num']),
+        Implies(f["delta_char"],
+        Implies(Num(q0, f["q0_num"]),
+        Implies(Num(qH, f["qH_num"]),
         Implies(Num(zero_var, 0),
         Implies(UnaryTape(tape_in, a, b),
         Implies(TMConfig(c0, q0, zero_var, tape_in),
         Implies(PlusDef(a, b, c),
-            Exists(n, Exists(tf, And(
-                TMHalts(delta, c0, qH, n),
-                UnaryOutput(tf, c)))))))))))))
+        Implies(Successor(hf, c),
+        Implies(UnaryOutput(tf, c),
+            TMHalts(delta, c0, qH, n, hf, tf)))))))))))))))
 
     goal = body
-    for v in [c, b, a, c0, zero_var, tape_in, qH, q0, delta]:
+    for v in [c, b, a, w, c0, zero_var, tape_in, tf, hf, n, qH, q0, delta]:
         goal = Forall(v, goal)
 
     return goal
 
 
 class UnaryTape:
-    """UnaryTape(tape, a, b): tape encodes 1^a 0 1^b 0.
-    - i < a: tape(i) = 1
-    - i = a: tape(i) = 0
-    - j < b: tape(S(a)+j) = 1
-    - tape(S(a)+b) = 0  (end marker)
-    Uses Plus to express S(a)+j. Uses In(i, a) for i < a (ordinal membership)."""
+    """UnaryTape(tape, a, b): tape is exactly 1^a 0 1^b then all 0.
+    - i ∈ a: tape(i) = 1                         (first group)
+    - tape(a) = 0                                 (separator)
+    - j ∈ b: tape(S(a)+j) = 1                    (second group)
+    - ¬In(i, S(S(a)+b)): tape(i) = 0             (beyond input: all 0)
+    Fully characterizes the tape on omega positions."""
     __match_args__ = ('tape', 'left', 'right')
     def __init__(self, tape, a, b):
         self.tape = tape; self.left = a; self.right = b
     def expand(self):
-        from core.lang import Var, In, Implies, Forall
+        from core.lang import Var, In, Not, Implies, Forall
         from core.derived import And
         from vocab.ordpair import Successor
         from vocab.functions import Apply
         from vocab.omega import Num
         from vocab.recursion import Plus
         i, one, zero, sa, j, pos = Var(), Var(), Var(), Var(), Var(), Var()
-        end_pos = Var()
+        end_pos, s_end = Var(), Var()
         low = Forall(i, Implies(In(i, self.left),
             Forall(one, Implies(Num(one, 1), Apply(self.tape, i, one)))))
         sep = Forall(zero, Implies(Num(zero, 0), Apply(self.tape, self.left, zero)))
@@ -198,11 +206,15 @@ class UnaryTape:
                 Forall(pos, Implies(Plus(sa, j, pos),
                     Forall(one, Implies(Num(one, 1),
                         Apply(self.tape, pos, one)))))))))
-        end = Forall(sa, Implies(Successor(sa, self.left),
+        # Beyond input: ∀sa. Succ(sa,a) → ∀end. Plus(sa,b,end) → ∀s_end. Succ(s_end,end) →
+        #   ∀i. ¬In(i, s_end) → ∀zero. Num(zero,0) → Apply(tape, i, zero)
+        beyond = Forall(sa, Implies(Successor(sa, self.left),
             Forall(end_pos, Implies(Plus(sa, self.right, end_pos),
-                Forall(zero, Implies(Num(zero, 0),
-                    Apply(self.tape, end_pos, zero)))))))
-        return And(low, And(sep, And(high, end)))
+                Forall(s_end, Implies(Successor(s_end, end_pos),
+                    Forall(i, Implies(Not(In(i, s_end)),
+                        Forall(zero, Implies(Num(zero, 0),
+                            Apply(self.tape, i, zero)))))))))))
+        return And(low, And(sep, And(high, beyond)))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return UnaryTape(r(self.tape), r(self.left), r(self.right))
@@ -211,22 +223,24 @@ class UnaryTape:
 
 
 class UnaryOutput:
-    """UnaryOutput(tape, c): tape starts with 1^c then 0.
+    """UnaryOutput(tape, c): tape is exactly 1^c then all 0.
     - i < c: tape(i) = 1
-    - tape(c) = 0"""
+    - ¬(i ∈ c): tape(i) = 0  (i.e., i ≥ c in omega)
+    Fully characterizes the tape."""
     __match_args__ = ('tape', 'count')
     def __init__(self, tape, c):
         self.tape = tape; self.count = c
     def expand(self):
-        from core.lang import Var, In, Implies, Forall
+        from core.lang import Var, In, Not, Implies, Forall
         from core.derived import And
         from vocab.functions import Apply
         from vocab.omega import Num
         i, one, zero = Var(), Var(), Var()
         ones = Forall(i, Implies(In(i, self.count),
             Forall(one, Implies(Num(one, 1), Apply(self.tape, i, one)))))
-        end = Forall(zero, Implies(Num(zero, 0), Apply(self.tape, self.count, zero)))
-        return And(ones, end)
+        zeros = Forall(i, Implies(Not(In(i, self.count)),
+            Forall(zero, Implies(Num(zero, 0), Apply(self.tape, i, zero)))))
+        return And(ones, zeros)
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return UnaryOutput(r(self.tape), r(self.count))
