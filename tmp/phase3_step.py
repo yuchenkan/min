@@ -464,6 +464,15 @@ def phase3_step():
     for i, f in enumerate(got_result.sequent.right):
         print(f'  RIGHT[{i}]: {str(f)[:80]}')
 
+    # Cut internal formulas that were derived from body_p3 components
+    # These are on the left from got_func_t2, got_pos_w, got_read derivations
+    if any(same(FuncDef(tape2_v), f) for f in got_result.sequent.left):
+        got_result = cut(got_result, FuncDef(tape2_v), got_func_t2)
+    if any(same(In(pos_v, w), f) for f in got_result.sequent.left):
+        got_result = cut(got_result, In(pos_v, w), got_pos_w)
+    if any(same(app_tape_pos, f) for f in got_result.sequent.left):
+        got_result = cut(got_result, app_tape_pos, got_read)
+
     # eel body_p3 (pos_v, cj_v, tra_v, tape2_v) from P3(j) opening
     got_result = eel(got_result, body_p3, pos_v)
     got_result = eel(got_result, Exists(pos_v, body_p3), cj_v)
@@ -486,8 +495,7 @@ def phase3_step():
 
     # Discharge all hypotheses, close ∀
     proof = got_result
-    hyps = [In(pos_v, w), app_tape_pos, FuncDef(tape2_v),
-            Num(d1, 1), Num(one, 1), FuncDef(tape_in), FuncDef(delta),
+    hyps = [Num(d1, 1), Num(one, 1), FuncDef(tape_in), FuncDef(delta),
             utape, succ_sa, in_sa_w, succ_sj, in_j_w, in_b_w, in_a_w, omega_w, trans_q1]
     for hyp in hyps:
         if not any(same(hyp, f) for f in proof.sequent.left):
