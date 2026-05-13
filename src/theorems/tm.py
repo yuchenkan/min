@@ -5687,15 +5687,17 @@ def phase1():
 
 
 
-def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
-           one, d1, q1, zero_var, sa):
+def phase2():
     """Phase 2: single TM step from (q0, a, tape_in) to (q1, S(a), tape2).
-
-    Takes got_P1 (phase1 result) as input.
-    Reads separator (0) at position a, writes 1, moves right, transitions to q1.
-    Extends the trace from P1(a) by one step.
-
-    Returns: [axioms + hypotheses] |- Phase2P(sa)"""
+    |- ∀delta,q0,tape_in,c0,z,a,b,w,one,d1,q1,zero_var,sa.
+         TMTransition(delta,q0,one,one,d1,q0) →
+         TMTransition(delta,q0,zero_var,one,d1,q1) →
+         Omega(w) → In(a,w) → Successor(sa,a) →
+         UnaryTape(tape_in,a,b) → Function(delta) → Function(tape_in) →
+         Num(one,1) → Num(d1,1) → Num(z,0) → Num(zero_var,0) → Num(q1,2) →
+         TMConfig(c0,q0,z,tape_in) →
+         Phase1P(a,q0,tape_in,c0,delta) →
+         Phase2P(sa,q1,tape_in,c0,delta,a,one)"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
         iff_mp, iff_mp_rev, eq_reflexive, eq_symmetric, eq_transitive)
@@ -5716,6 +5718,20 @@ def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     import core.zfc as zfc
     from tm import UnaryTape
 
+    delta = Var(postfix='delta')
+    q0 = Var(postfix='q0')
+    tape_in = Var(postfix='tin')
+    c0 = Var(postfix='c0')
+    z = Var(postfix='z')
+    a = Var(postfix='a')
+    b = Var(postfix='b')
+    w = Var(postfix='w')
+    one = Var(postfix='one')
+    d1 = Var(postfix='d1')
+    q1 = Var(postfix='q1')
+    zero_var = Var(postfix='zv')
+    sa = Var(postfix='sa')
+
     oe = ordpair_exists()
 
     succ_sa = Successor(sa, a)
@@ -5727,8 +5743,10 @@ def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     num_d1 = Num(d1, 1)
     tape2 = Var(postfix='t2')
 
-    # === 2. Open P1(a) ===
-    p1_exp = got_P1.sequent.right[0].expand()
+    # === 2. Open P1(a) — P1(a) is a hypothesis ===
+    p1_a = Phase1P(a, q0, tape_in, c0, delta)
+    got_P1 = ax(p1_a)
+    p1_exp = p1_a.expand()
     tra = p1_exp.var              # ∃tra (eigenvariable)
     ca = p1_exp.body.var          # ∃ca (eigenvariable)
     body_p1 = p1_exp.body.body    # inside ∃tra.∃ca
@@ -5769,10 +5787,9 @@ def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     got_read = mp(got_read, ax(Num(zero_var, 0)), Num(zero_var, 0), Apply(tape_in, a, zero_var))
     # [UnaryTape, Num(zero,0)] |- Apply(tape_in, a, zero_var)
 
-    # === 4. phase2_step_transition ===
-    got_trans = phase2_step_transition(delta_char_formula, delta, q0, zero_var, one, d1, q1)
-    # [delta_char, Num(q0,0), Num(zero,0), Num(one,1), Num(d1,1), Num(q1,2)] |- TMTransition(delta,q0,zero,one,d1,q1)
-    trans_p2 = got_trans.sequent.right[0]
+    # === 4. Transition (q0,0)→(1,R,q1) as hypothesis ===
+    trans_p2 = TMTransition(delta, q0, zero_var, one, d1, q1)
+    got_trans = ax(trans_p2)
 
     # === 5. Build TMStep ===
     # Build TMStep: discharge 6 components, close ∀ for internal vars.
@@ -6136,20 +6153,21 @@ def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     got_tmstep_from_and = apply_thm(and_elim_right(cfg_new, TMStep(delta, ca, ca_new), []), [],
         and_cfg_step, TMStep(delta, ca, ca_new), ax(and_cfg_step))
 
-    # === 6. Extend trace ===
-    tra_new = Var(postfix='trn2')
-    got_extend = phase1_step_extend_trace(
-        tra, tra_new, sa, ca_new, z, c0, a, delta, ca, ja, sja, cja, cja1, w)
-    # Cut P1(a) body components from extend
-    app_f = head_f  # Apply(tra, a, ca)
-    for formula, proof in [(func_f, got_func), (dom_f, got_dom),
-                           (base_f, got_base), (app_f, got_head), (sv_f, got_sv)]:
-        while any(same(formula, f) for f in got_extend.sequent.left):
-            got_extend = cut(got_extend, formula, proof)
-    # Cut TMStep
+    # === 6. Extend trace (theorem) ===
+    from theorems.tm import phase1_step_extend_trace
+    _ext_thm = phase1_step_extend_trace()
+    got_extend = apply_thm(_ext_thm, [tra, sa, ca_new, c0, a, delta, ca, w])
     tmstep_ca = TMStep(delta, ca, ca_new)
-    if any(same(tmstep_ca, f) for f in got_extend.sequent.left):
-        got_extend = cut(got_extend, tmstep_ca, got_tmstep_from_and)
+    # mp 9 hypotheses explicitly
+    got_extend = mp(got_extend, got_func, func_f, got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, got_dom, dom_f, got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, ax(omega_w), omega_w, got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, ax(In(a, w)), In(a, w), got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, ax(succ_sa), succ_sa, got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, got_base, base_f, got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, got_sv, sv_f, got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, got_tmstep_from_and, tmstep_ca, got_extend.sequent.right[0].right)
+    got_extend = mp(got_extend, got_head, head_f, got_extend.sequent.right[0].right)
 
     # got_extend: [..., body_p1, and_cfg_step, Succ, Omega, In(a,w)] |- ∃tra_new. And(Func, And(dom, And(base, And(head, sv))))
 
@@ -6158,6 +6176,7 @@ def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # extend gives: ∃tra_new. And(Func, And(dom, And(base, And(head, sv))))
     # Need to insert cfg_new and TapeUpdate
 
+    tra_new = got_extend.sequent.right[0].var  # ∃tra_new from extend result
     ext_body = got_extend.sequent.right[0].body  # inside ∃tra_new
     got_func_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
         ext_body, ext_body.left, ax(ext_body))
@@ -6243,8 +6262,27 @@ def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # But got_ex_tra proves raw, not p2. We need same(raw, p2) for the cut to work.
     got_result = cut(ax(p2), p2, got_ex_tra)
 
-    got_result.name = 'phase2'
-    return got_result
+    # Discharge hypotheses, close ∀
+    proof = got_result
+    trans_q0_f = TMTransition(delta, q0, one, one, d1, q0)
+    hyps = [p1_a, TMConfig(c0, q0, z, tape_in), Num(q1, 2), Num(zero_var, 0),
+            Num(z, 0), Num(d1, 1), Num(one, 1),
+            FuncDef(tape_in), FuncDef(delta), utape, tu_tape2,
+            succ_sa, In(a, w), omega_w, trans_p2, trans_q0_f]
+    for hyp in hyps:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [sa, zero_var, q1, d1, one, w, b, a, z, c0, tape_in, q0, delta]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'phase2'
+    return proof
 
 
 def phase3_base(got_P2, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
