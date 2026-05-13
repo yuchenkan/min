@@ -6385,11 +6385,17 @@ def phase3_base():
     # Plus(sa, z, sa): this is a hypothesis we need. It comes from plus_zero_right + existence.
 
     # Plus(sa, 0, sa): sa + 0 = sa. Hypothesis for now.
-    # Derivable from recursion_theorem + Recursive base case, but heavy.
-    # Will be discharged when composing final tm_add_correct.
+    # Derive Plus(sa, z, sa) from plus_zero_exists
+    from theorems.arithmetic import plus_zero_exists
+    omega_w = Omega(w)
+    _pze = plus_zero_exists()
+    got_plus_szs = apply_thm(_pze, [w, sa, z])
+    got_plus_szs = mp(got_plus_szs, ax(omega_w), omega_w, got_plus_szs.sequent.right[0].right)
+    got_plus_szs = mp(got_plus_szs, ax(In(sa, w)), In(sa, w), got_plus_szs.sequent.right[0].right)
+    imp_cur = got_plus_szs.sequent.right[0]
+    got_plus_szs = mp(got_plus_szs, ax(imp_cur.left), imp_cur.left, imp_cur.right)
     plus_sa_z_sa = PlusDef(sa, z, sa)
 
-    # Build P3(0) body: And(Plus, And(func, And(dom, And(cfg, And(base, And(head, sv))))))
     def mk_and(got_l, got_r):
         L, R = got_l.sequent.right[0], got_r.sequent.right[0]
         return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
@@ -6401,7 +6407,7 @@ def phase3_base():
     got_cfg_rest = mk_and(got_cfg, got_base_rest)
     got_dom_rest = mk_and(got_dom, got_cfg_rest)
     got_func_rest = mk_and(got_func, got_dom_rest)
-    got_plus_rest = mk_and(ax(plus_sa_z_sa), got_func_rest)
+    got_plus_rest = mk_and(got_plus_szs, got_func_rest)
     got_tu_rest = mk_and(got_tu, got_plus_rest)
 
     # eir: wrap in ∃pos.∃cj.∃tra.∃tape2 (matching Phase3P's quantifier structure)
@@ -6443,8 +6449,7 @@ def phase3_base():
     # Discharge hypotheses, close ∀
     proof = got_result
     omega_w = Omega(w)
-    plus_sa_z_sa = PlusDef(sa, z, sa)
-    hyps = [plus_sa_z_sa, Num(z, 0), In(sa, w), omega_w, p2_formula]
+    hyps = [Num(z, 0), In(sa, w), omega_w, p2_formula]
     for hyp in hyps:
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
