@@ -6285,15 +6285,12 @@ def phase2():
     return proof
 
 
-def phase3_base(got_P2, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
-                one, d1, q1, zero_var, sa):
+def phase3_base():
     """Phase 3 base case: Q3(0) from P2.
-
-    Takes got_P2 (phase2 result) as input.
-    Opens P2, extracts trace components, adds Plus(sa, 0, sa),
-    repackages as P3(0), wraps in Q3(0).
-
-    Returns: [axioms + hypotheses] |- Phase3Q(z, ...)"""
+    |- ∀delta,q0,tape_in,c0,z,a,b,w,one,d1,q1,sa.
+         Phase2P(sa,q1,tape_in,c0,delta,a,one) →
+         Omega(w) → In(sa,w) → Num(z,0) →
+         Phase3Q(z,b,sa,q1,tape_in,c0,delta,a,one)"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
         eq_reflexive, or_intro_right)
@@ -6306,8 +6303,25 @@ def phase3_base(got_P2, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     from core.lang import Var, In, Implies, Forall
     from core.derived import Exists, And, Or, Iff, Eq
 
+    delta = Var(postfix='delta')
+    q0 = Var(postfix='q0')
+    tape_in = Var(postfix='tin')
+    c0 = Var(postfix='c0')
+    z = Var(postfix='z')
+    a = Var(postfix='a')
+    b = Var(postfix='b')
+    w = Var(postfix='w')
+    one = Var(postfix='one')
+    d1 = Var(postfix='d1')
+    q1 = Var(postfix='q1')
+    sa = Var(postfix='sa')
+
+    # P2(sa) as hypothesis
+    p2_formula = Phase2P(sa, q1, tape_in, c0, delta, a, one)
+    got_P2 = ax(p2_formula)
+
     # Open P2: ∃tra.∃ca.∃tape2.(Func ∧ dom ∧ cfg ∧ base ∧ head ∧ And(sv, TapeUpdate))
-    p2_exp = got_P2.sequent.right[0].expand()
+    p2_exp = p2_formula.expand()
     tra = p2_exp.var
     ca = p2_exp.body.var
     tape2 = p2_exp.body.body.var
@@ -6426,8 +6440,25 @@ def phase3_base(got_P2, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     q3z = Phase3Q(z, b, sa, q1, tape_in, c0, delta, a, one)
     got_result = cut(ax(q3z), q3z, got_result)
 
-    got_result.name = 'phase3_base'
-    return got_result
+    # Discharge hypotheses, close ∀
+    proof = got_result
+    omega_w = Omega(w)
+    plus_sa_z_sa = PlusDef(sa, z, sa)
+    hyps = [plus_sa_z_sa, Num(z, 0), In(sa, w), omega_w, p2_formula]
+    for hyp in hyps:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [sa, d1, one, w, b, a, z, c0, tape_in, q1, q0, delta]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'phase3_base'
+    return proof
 
 
 
