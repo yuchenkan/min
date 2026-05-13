@@ -1650,11 +1650,17 @@ class Phase1P:
 
 
 
-def phase1_base(q0, tape_in, c0, z, delta, a):
+def phase1_base():
     """Phase 1 base case: Q1(0).
-    Returns: [TMConfig(c0,q0,z,tape_in), Num(z,0), Pairing] |- Phase1Q(z, a, ...)
-    P1(0) proved unconditionally, Q1(0) by discharging the Or."""
+    |- ∀q0,tape_in,c0,z,delta,a.
+         TMConfig(c0,q0,z,tape_in) → Num(z,0) → Phase1Q(z,a,q0,tape_in,c0,delta)"""
 
+    q0 = Var(postfix='q0')
+    tape_in = Var(postfix='tin')
+    c0 = Var(postfix='c0')
+    z = Var(postfix='z')
+    delta = Var(postfix='delta')
+    a = Var(postfix='a')
     zero_var = z  # use z directly as base case ka (z has Num(z,0) = Empty(z))
     # Extract bound vars from Phase1P expansion — use these throughout the proof
     p1_zero = Phase1P(zero_var, q0, tape_in, c0, delta).expand()
@@ -2002,6 +2008,22 @@ def phase1_base(q0, tape_in, c0, z, delta, a):
     # Wrap in Phase1Q via cut bridge
     q1z = Phase1Q(z, a, q0, tape_in, c0, delta)
     proof = cut(ax(q1z), q1z, proof)
+
+    # Discharge hypotheses, close ∀
+    cfg0 = TMConfig(c0, q0, z, tape_in)
+    num_z = Num(z, 0)
+    for hyp in [num_z, cfg0]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [a, delta, z, c0, tape_in, q0]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
     proof.name = 'phase1_base'
     return proof
 
