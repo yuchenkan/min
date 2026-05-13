@@ -200,53 +200,46 @@ def head_move_left():
     return proof
 
 
-def step_intro(delta, c1, c2, q, h, tape, sym, w, d, qn, hn, tapen,
-               p_cfg1, p_read, p_trans, p_update, p_move, p_cfg2):
-    """TMStep tactic: assemble TMStep(delta, c1, c2) from 6 component proofs.
-    |- forall delta, c1, c2, q, h, tape, sym, w, d, qn, hn, tapen.
-         TMConfig(c1,q,h,tape) ->
-         Apply(tape,h,sym) ->
-         TMTransition(delta,q,sym,w,d,qn) ->
-         TapeUpdate(tapen,tape,h,w) ->
-         HeadMove(h,hn,d) ->
-         TMConfig(c2,qn,hn,tapen) ->
-         TMStep(delta, c1, c2)
+def step_intro():
+    """TMStep introduction: from 6 components, derive TMStep.
+    |- ∀delta,c1,c2,q,h,tape,sym,w,d,qn,hn,tapen.
+         TMConfig(c1,q,h,tape) →
+         Apply(tape,h,sym) →
+         TMTransition(delta,q,sym,w,d,qn) →
+         TapeUpdate(tapen,tape,h,w) →
+         HeadMove(h,hn,d) →
+         TMConfig(c2,qn,hn,tapen) →
+         TMStep(delta, c1, c2)"""
+    from tactics import wl, ax, cut
 
-    NOTE: TMStep is Forall-based. Proving it requires forall_right on the
-    9 internal vars, which means they can't be free on the left.
-    In practice, TMStep is built during the correctness proof where
-    the internal vars are universally quantified by an enclosing induction.
-    This tactic handles the mechanical assembly once the context is right."""
-    from tactics import wl, weaken_to
+    delta, c1, c2 = Var(), Var(), Var()
+    q, h, tape, sym = Var(), Var(), Var(), Var()
+    w, d, qn, hn, tapen = Var(), Var(), Var(), Var(), Var()
 
     cfg1 = TMConfig(c1, q, h, tape)
     cfg2 = TMConfig(c2, qn, hn, tapen)
+    read = Apply(tape, h, sym)
+    trans = TMTransition(delta, q, sym, w, d, qn)
+    update = TapeUpdate(tapen, tape, h, w)
+    move = HeadMove(h, hn, d)
+    step = TMStep(delta, c1, c2)
 
-    # Merge all contexts
-    all_ctx = []
-    for p in [p_cfg1, p_read, p_trans, p_update, p_move, p_cfg2]:
-        for f in p.sequent.left:
-            if not any(same(f, g) for g in all_ctx):
-                all_ctx.append(f)
-
-    # Start from p_cfg2: all_ctx |- cfg2
-    proof = weaken_to(p_cfg2, all_ctx)
-
-    # Discharge each premise via implies_right (innermost first)
-    premises = [
-        HeadMove(h, hn, d),
-        TapeUpdate(tapen, tape, h, w),
-        TMTransition(delta, q, sym, w, d, qn),
-        Apply(tape, h, sym),
-        TMConfig(c1, q, h, tape),
-    ]
-    for premise in premises:
+    # ∀delta,c1,c2,q,...,tapen. cfg1→read→trans→update→move→cfg2→TMStep(delta,c1,c2)
+    # Start: [cfg2] |- cfg2. Discharge 5 premises, then cfg2. Close all 12 ∀ vars.
+    proof = ax(cfg2)
+    for premise in [move, update, trans, read, cfg1]:
+        proof = wl(proof, premise)
         imp = Implies(premise, proof.sequent.right[0])
-        proof = Proof(Sequent(proof.sequent.left, [imp]),
-            'implies_right', [wl(proof, premise)], principal=imp)
-
-    # Close with forall_right for 9 vars (must not be free on left)
-    for v in [tapen, hn, qn, d, w, sym, tape, h, q]:
+        left = [f for f in proof.sequent.left if not same(f, premise)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    # [cfg2] |- cfg1→read→trans→update→move→cfg2
+    # Close ∀ for 9 internal vars. cfg2 on left blocks qn,hn,tapen.
+    # So discharge cfg2 first, THEN close ∀.
+    imp = Implies(cfg2, proof.sequent.right[0])
+    left = [f for f in proof.sequent.left if not same(f, cfg2)]
+    proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    # [] |- cfg2→cfg1→read→trans→update→move→cfg2
+    for v in [tapen, hn, qn, d, w, sym, tape, h, q, c2, c1, delta]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]),
