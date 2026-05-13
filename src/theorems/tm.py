@@ -5697,8 +5697,47 @@ def phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     num_d1 = Num(d1, 1)
     tape2 = Var(postfix='t2')
 
-    # === 1. Get P1(a) from phase1 ===
+    # === 1. Get P1(a) ===
     got_P1 = phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1)
+    return _phase2_from_P1(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
+                           one, d1, q1, zero_var, sa)
+
+
+def _phase2_from_P1(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
+                     one, d1, q1, zero_var, sa):
+    """Phase 2 core: given P1(a), build P2(sa).
+    Separated so phase2() calls phase1 internally for backwards compat,
+    but callers can also pass got_P1 directly."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_mp, iff_mp_rev, eq_reflexive, eq_symmetric, eq_transitive)
+    from theorems.sets import ordpair_exists
+    from theorems.omega import func_unique_thm
+    from theorems.tm import (config_intro, config_decompose, apply_func_transfer,
+        transition_unique, headmove_right_elim, config_eq_transfer,
+        tape_update_unique, func_eq_transfer, tape_read_sep)
+    from theorems.recursion import eq_apply_transfer, eq_apply_val_transfer
+    from theorems.sets import ordpair_eq_transfer, ordpair_set_transfer, tuple_injection
+    from vocab.functions import Function as FuncDef
+    from vocab.ordpair import OrdPair, Successor
+    from vocab.sets import Empty
+    from vocab.omega import Omega, Num
+    from core.proof import Proof, Sequent, same
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Exists, And, Or, Iff, Eq
+    import core.zfc as zfc
+    from tm import UnaryTape
+
+    oe = ordpair_exists()
+
+    succ_sa = Successor(sa, a)
+    omega_w = Omega(w)
+    in_a_w = In(a, w)
+    utape = UnaryTape(tape_in, a, b)
+    func_delta = FuncDef(delta)
+    func_tape = FuncDef(tape_in)
+    num_d1 = Num(d1, 1)
+    tape2 = Var(postfix='t2')
 
     # === 2. Open P1(a) ===
     p1_exp = got_P1.sequent.right[0].expand()
@@ -6241,6 +6280,26 @@ def phase3_base(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     # Get P2
     got_P2 = phase2(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
         one, d1, q1, zero_var, sa)
+    return _phase3_base_from_P2(got_P2, q0, tape_in, c0, z, delta, delta_char_formula,
+                                 a, b, w, one, d1, q1, zero_var, sa)
+
+
+def _phase3_base_from_P2(got_P2, q0, tape_in, c0, z, delta, delta_char_formula,
+                          a, b, w, one, d1, q1, zero_var, sa):
+    """Phase 3 base core: given P2, build Q3(0).
+    Separated so phase3_base() calls phase2 internally for backwards compat,
+    but callers can also pass got_P2 directly."""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        eq_reflexive, or_intro_right)
+    from theorems.arithmetic import plus_zero_right
+    from vocab.functions import Function as FuncDef
+    from vocab.omega import Omega
+    from vocab.ordpair import OrdPair, Successor
+    from vocab.recursion import Plus as PlusDef
+    from core.proof import Proof, Sequent, same
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Exists, And, Or, Iff, Eq
 
     # Open P2: ∃tra.∃ca.∃tape2.(Func ∧ dom ∧ cfg ∧ base ∧ head ∧ And(sv, TapeUpdate))
     p2_exp = got_P2.sequent.right[0].expand()
