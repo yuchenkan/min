@@ -1,35 +1,28 @@
 def phase4():
-    """Phase 4: single step (q1, S(c)) → (q2, c, tape2).
-    Reads 0 at position S(c), writes 0, moves left to c.
+    """Phase 4: (q1, sc) → (q2, c) moving left. Single TM step.
 
-    |- ∀delta,q0,q1,q2,tape_in,c0,z,a,b,c,w,one,d0,d1,sa,sc,zero_var.
-         TMTransition(delta,q1,zero_var,zero_var,d0,q2) →
-         Omega(w) → In(a,w) → In(b,w) → In(sa,w) → In(c,w) →
-         Successor(sa,a) → Successor(sc,c) →
-         Plus(a,b,c) → Plus(sa,b,sc) →
-         UnaryTape(tape_in,a,b) → Function(delta) → Function(tape_in) →
-         Num(one,1) → Num(d0,0) → Num(d1,1) → Num(zero_var,0) → Num(q2,3) →
-         Phase3P(b,sa,q1,tape_in,c0,delta,a,one) →
-         ... TODO
-    """
-    # Phase 4 takes P3(b) which gives us:
-    # - TapeUpdate(tape2, tape_in, a, one)
-    # - Plus(sa, b, pos) where pos is the head position = sc = S(c)
-    # - TMConfig(cj, q1, pos, tape2)
-    # - trace function with all prior steps
-    #
-    # Then:
-    # 1. Read tape2 at pos: tape2(sc) = 0 (position after second group)
-    # 2. TMTransition(delta, q1, zero_var, zero_var, d0, q2)
-    # 3. TapeUpdate(tape2', tape2, sc, zero_var) — write 0 where 0 already is (identity)
-    # 4. HeadMove(sc, c, d0) — move left: Successor(sc, c) with d0=0
-    # 5. TMConfig(c_new, q2, c, tape2')
-    # 6. Extend trace
-    #
-    # This is essentially another phase2-like single step.
-    # It's a lot of plumbing but follows the established pattern.
+    Takes P3(b) + transitions. Extends trace by one step.
+    Output: trace with TMConfig(_, q2, c, tape2) at position S(sc).
 
-    raise NotImplementedError("phase4 TODO — single step (q1,0)→(0,L,q2)")
+    Hypotheses: Phase3P(b,...), TMTransition(delta,q1,zero,zero,d0,q2),
+    Plus(sa,b,sc), Successor(sc,c), Num(d0,0), Num(zero,0), Num(q2,3),
+    Omega(w), In(c,w), In(sc,w), Function(delta), Function(tape_in),
+    Successor(sa,a), UnaryTape(tape_in,a,b)."""
+
+    # Phase4 is structurally similar to phase3_step but:
+    # 1. Reads 0 (not 1) at position sc via tape_read_end + tape_update_other/LEM
+    # 2. Moves LEFT (d0=0, HeadMove uses Successor(sc,c) with Or right branch)
+    # 3. Transition to q2 (not staying in q1)
+    # 4. No Plus advancement (single step, not induction)
+    #
+    # For TMStep: trivial ∀ packaging. Just need cfg2 = TMConfig(cj_new, q2, c, tape2).
+    # For trace extension: phase1_step_extend_trace.
+    #
+    # Output structure: similar to P3 but at position S(sc) with state q2.
+    # Actually, for TMHalts we just need the trace function + final config.
+    # Let me produce something compatible with the next phase.
+
+    raise NotImplementedError("phase4 TODO")
 
 
 if __name__ == '__main__':
