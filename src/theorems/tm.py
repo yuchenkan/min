@@ -5362,14 +5362,13 @@ class Phase1Q:
         return f'Q1({self.n}, {self.a}, {self.q0}, {self.tape_in}, {self.c0}, {self.delta})'
 
 
-def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1):
+def phase1():
     """Phase 1: TM scans past first unary group of a ones.
-
-    After a steps, head is at position a, state is q0, tape unchanged.
-    Proved by omega induction on bounded Q(n) = Or(In(n,a),Eq(n,a)) → P1(n),
-    then extraction via Eq(a,a).
-
-    Returns: [axioms + hypotheses] |- P1(a)"""
+    |- ∀delta,q0,tape_in,c0,z,a,b,w,one,d1.
+         TMTransition(delta,q0,one,one,d1,q0) → Omega(w) → In(a,w) →
+         UnaryTape(tape_in,a,b) → Function(delta) → Function(tape_in) →
+         Num(one,1) → Num(d1,1) → Num(z,0) → TMConfig(c0,q0,z,tape_in) →
+         Phase1P(a,q0,tape_in,c0,delta)"""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
         iff_mp, iff_mp_rev, eq_reflexive, or_intro_right)
@@ -5382,6 +5381,18 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1):
     from core.proof import Proof, Sequent, same, _free_vars
     from core.derived import Exists, Or
     import core.zfc as zfc
+    from tm import UnaryTape
+
+    delta = Var(postfix='delta')
+    q0 = Var(postfix='q0')
+    tape_in = Var(postfix='tin')
+    c0 = Var(postfix='c0')
+    z = Var(postfix='z')
+    a = Var(postfix='a')
+    b = Var(postfix='b')
+    w = Var(postfix='w')
+    one = Var(postfix='one')
+    d1 = Var(postfix='d1')
 
     omega_w = Omega(w)
     in_a_w = In(a, w)
@@ -5487,8 +5498,27 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1):
     # Then: Q(n) + In(n,a) → P1(n). tape_read + phase1_step → P1(sn). Discharge.
     # phase1_step returns Q(S(n)) with P1(n) components on its left.
     # These have n/sn free. Just call phase1_step and let components flow.
-    got_step_imp = phase1_step(q0, tape_in, c0, z, delta, delta_char_formula,
-        a, b, n, sn, w, one, d1)
+    _p1s = phase1_step()
+    # phase1_step ∀-close order: [d1,one,w,ska,ka,b,a,z,c0,tape_in,delta,q0]
+    # Outermost is q0, then delta, then tape_in, ...
+    got_step_imp = apply_thm(_p1s, [q0, delta, tape_in, c0, z, a, b, n, sn, w, one, d1])
+    # mp 11 hypotheses explicitly (reverse of discharge order), stop before Q(n)→Q(sn)
+    trans_q0 = TMTransition(delta, q0, one, one, d1, q0)
+    utape = UnaryTape(tape_in, a, b)
+    cfg0 = TMConfig(c0, q0, z, tape_in)
+    in_n_w = In(n, w)
+    got_step_imp = mp(got_step_imp, ax(trans_q0), trans_q0, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(omega_w), omega_w, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(in_a_w), in_a_w, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(in_n_w), in_n_w, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(Successor(sn, n)), Successor(sn, n), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(utape), utape, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(FuncDef(delta)), FuncDef(delta), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(FuncDef(tape_in)), FuncDef(tape_in), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(Num(one, 1)), Num(one, 1), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(Num(d1, 1)), Num(d1, 1), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(Num(z, 0)), Num(z, 0), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(cfg0), cfg0, got_step_imp.sequent.right[0].right)
     # got_step_imp: [external hyps] |- Q(n) → Q(S(n))
 
     # mp: Q(n) → Q(S(n)) + Q(n) → Q(S(n))
@@ -5632,8 +5662,28 @@ def phase1(q0, tape_in, c0, z, delta, delta_char_formula, a, b, w, one, d1):
     got_P1_a = eel(got_P1_a, char_pv, pv)
     got_P1_a = cut(got_P1_a, Exists(pv, char_pv), got_ex_pv)
 
-    got_P1_a.name = 'phase1'
-    return got_P1_a
+    # Discharge hypotheses, close ∀
+    proof = got_P1_a
+    trans_q0_f = TMTransition(delta, q0, one, one, d1, q0)
+    utape_f = UnaryTape(tape_in, a, b)
+    cfg0_f = TMConfig(c0, q0, z, tape_in)
+    hyps = [cfg0_f, Num(z, 0), Num(d1, 1), Num(one, 1),
+            FuncDef(tape_in), FuncDef(delta), utape_f,
+            in_a_w, omega_w, trans_q0_f]
+    for hyp in hyps:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [d1, one, w, b, a, z, c0, tape_in, q0, delta]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'phase1'
+    return proof
 
 
 
