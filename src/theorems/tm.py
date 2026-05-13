@@ -200,54 +200,6 @@ def head_move_left():
     return proof
 
 
-def step_intro():
-    """TMStep introduction: from 6 components, derive TMStep.
-    |- ∀delta,c1,c2,q,h,tape,sym,w,d,qn,hn,tapen.
-         TMConfig(c1,q,h,tape) →
-         Apply(tape,h,sym) →
-         TMTransition(delta,q,sym,w,d,qn) →
-         TapeUpdate(tapen,tape,h,w) →
-         HeadMove(h,hn,d) →
-         TMConfig(c2,qn,hn,tapen) →
-         TMStep(delta, c1, c2)"""
-    from tactics import wl, ax, cut
-
-    delta, c1, c2 = Var(), Var(), Var()
-    q, h, tape, sym = Var(), Var(), Var(), Var()
-    w, d, qn, hn, tapen = Var(), Var(), Var(), Var(), Var()
-
-    cfg1 = TMConfig(c1, q, h, tape)
-    cfg2 = TMConfig(c2, qn, hn, tapen)
-    read = Apply(tape, h, sym)
-    trans = TMTransition(delta, q, sym, w, d, qn)
-    update = TapeUpdate(tapen, tape, h, w)
-    move = HeadMove(h, hn, d)
-    step = TMStep(delta, c1, c2)
-
-    # ∀delta,c1,c2,q,...,tapen. cfg1→read→trans→update→move→cfg2→TMStep(delta,c1,c2)
-    # Start: [cfg2] |- cfg2. Discharge 5 premises, then cfg2. Close all 12 ∀ vars.
-    proof = ax(cfg2)
-    for premise in [move, update, trans, read, cfg1]:
-        proof = wl(proof, premise)
-        imp = Implies(premise, proof.sequent.right[0])
-        left = [f for f in proof.sequent.left if not same(f, premise)]
-        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
-    # [cfg2] |- cfg1→read→trans→update→move→cfg2
-    # Close ∀ for 9 internal vars. cfg2 on left blocks qn,hn,tapen.
-    # So discharge cfg2 first, THEN close ∀.
-    imp = Implies(cfg2, proof.sequent.right[0])
-    left = [f for f in proof.sequent.left if not same(f, cfg2)]
-    proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
-    # [] |- cfg2→cfg1→read→trans→update→move→cfg2
-    for v in [tapen, hn, qn, d, w, sym, tape, h, q, c2, c1, delta]:
-        body = proof.sequent.right[0]
-        fa = Forall(v, body)
-        proof = Proof(Sequent(proof.sequent.left, [fa]),
-            'forall_right', [proof], principal=fa, term=v)
-
-    proof.name = 'step_intro'
-    return proof
-
 
 def step_elim():
     """TMStep elimination: from TMStep and all premises, get TMConfig(c2,...).
@@ -5732,7 +5684,7 @@ def phase2(got_P1, q0, tape_in, c0, z, delta, delta_char_formula, a, b, w,
     trans_p2 = got_trans.sequent.right[0]
 
     # === 5. Build TMStep ===
-    # Use step_intro: provide 6 component proofs with fresh internal vars.
+    # Build TMStep: discharge 6 components, close ∀ for internal vars.
     # Internal vars for TMStep: q_s, h_s, tape_s, sym_s, w_s, d_s, qn_s, hn_s, tapen_s
     q_s = Var(postfix='sq')
     h_s = Var(postfix='sh')
