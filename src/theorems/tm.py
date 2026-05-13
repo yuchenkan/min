@@ -6400,10 +6400,10 @@ def tm_add_correct():
 
     f = formalize(add_machine())
 
-    # Variables matching the goal
-    delta = Var(postfix='delta')
-    q0 = Var(postfix='q0')
-    qH = Var(postfix='qH')
+    # Variables from formalize — must use the same objects as delta_char
+    delta = f['delta']
+    q0 = f['q0']
+    qH = f['qH']
     z = Var(postfix='z')
     tape_in = Var(postfix='tin')
     c0 = Var(postfix='c0')
