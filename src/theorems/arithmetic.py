@@ -8052,7 +8052,7 @@ def prove_addition(m_val, n_val):
                     Forall(bot, Implies(Empty(bot), eq_m_bot)), ax(Empty(m_v)))
                 got_eq = apply_thm(got_eq, [bot], Empty(bot), eq_m_bot, ax(Empty(bot)))
             else:
-                prev_bot = succs[i-2][1] if i > 1 else vs[0]
+                prev_bot = succs[i-1][1] if i > 0 else vs[0]
                 prev_num_f = NumDef(prev_bot, i - 1)
                 got_prev_num = num_proofs[prev_bot]
                 succ_m_prev = SuccDef(m_v, prev_bot)
@@ -8065,7 +8065,15 @@ def prove_addition(m_val, n_val):
                 got_succ_bot = cut(got_succ_bot, num_bot_f, num_proofs[bot])
                 got_succ_bot = mp(got_succ_bot, got_prev_num, prev_num_f, succ_bot_prev)
                 eq_m_bot = Eq(m_v, bot)
-                got_eq = apply_thm(us, [prev_bot, m_v, bot])
+                # us: ∀x,s1,s2. Succ(s1,x) → Succ(s2,x) → Eq(s1,s2)
+                # Use fl+cut to avoid eigenvariable issues with chain vars in context
+                def _inst(thm, terms):
+                    for t in terms:
+                        fa = thm.sequent.right[0]
+                        inst = fa.body.subst(fa.var, t)
+                        thm = cut(fl(fa, inst, t), fa, thm)
+                    return thm
+                got_eq = _inst(unique_successor(), [prev_bot, m_v, bot])
                 got_eq = mp(got_eq, got_succ_m, succ_m_prev, got_eq.sequent.right[0].right)
                 got_eq = mp(got_eq, got_succ_bot, succ_bot_prev, eq_m_bot)
             eq_tt = Eq(top, top)
