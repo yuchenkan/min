@@ -7822,7 +7822,10 @@ def sf_apply_transfer():
 
 def prove_addition(m_val, n_val):
     """Prove m + n = m+n for specific Python ints.
-    |- ∀w,a,b,c. Omega(w) → Num(a,m_val) → Num(b,n_val) → Num(c,m_val+n_val) → Plus(a,b,c)"""
+    |- ∀w,a,b,c. Omega(w) → Num(a,m_val) → Num(b,n_val) → Num(c,m_val+n_val) → Plus(a,b,c)
+
+    Strategy: use unique_num for witnesses, instantiate Num via fl,
+    eliminate witnesses immediately per level. No global chain variables."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from vocab import (Function as FuncDef, Apply, Plus as PlusDef,
         Successor as SuccDef, Num as NumDef)
@@ -7835,10 +7838,12 @@ def prove_addition(m_val, n_val):
     from theorems.omega import (func_unique_thm, omega_contains_empty, omega_succ_closed)
     from theorems.sets import (ordpair_exists, successor_exists, unique_successor,
         eq_successor_transfer)
-    from theorems.recursion import eq_apply_val_transfer
-    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    from theorems.recursion import eq_apply_val_transfer, eq_apply_transfer
+    from theorems.sets import ordpair_unique as opu_thm
+    from core.proof import Proof, Sequent, same
     from core.lang import Var, In, Implies, Forall
     from core.derived import Eq, And, Iff, Exists
+    from core.zfc import ZFCAxiom
 
     p_val = m_val + n_val
     w = Var(postfix='w')
@@ -7849,26 +7854,25 @@ def prove_addition(m_val, n_val):
     num_a = NumDef(a, m_val)
     num_b = NumDef(b, n_val)
     num_c = NumDef(c, p_val)
-    plus_abc = PlusDef(a, b, c)
 
+    if n_val == 0:
+        raise NotImplementedError("n_val=0")
+
+    # --- PlusFunc setup ---
     wv = Var(postfix='wv')
     hv = Var(postfix='hv')
     omega_wv = Omega(wv)
-    pf_hwv = PlusFunc(hv, wv)
-    pair_ab = Var(postfix='pab')
-    op_ab = OrdPair(pair_ab, a, b)
+    pf_hyp = PlusFunc(hv, wv)
 
     got_func, got_dom, got_base_pf, got_step_pf, _ = plusfunc_elim(hv, wv)
-    fu = func_unique_thm()
-    es = eq_symmetric()
-    eavt = eq_apply_val_transfer()
+
+    se = successor_exists()
     oce = omega_contains_empty()
     osc = omega_succ_closed()
     oe = ordpair_exists()
-    se = successor_exists()
-    us = unique_successor()
-    est = eq_successor_transfer()
-    ue = unique_empty()
+    fu = func_unique_thm()
+    es = eq_symmetric()
+    eavt = eq_apply_val_transfer()
     er = eq_reflexive()
 
     from theorems.sets import omega_unique
@@ -7877,95 +7881,262 @@ def prove_addition(m_val, n_val):
     got_eq_wwv = apply_thm(ou, [w, wv])
     got_eq_wwv = mp(got_eq_wwv, ax(omega_w), omega_w, got_eq_wwv.sequent.right[0].right)
     got_eq_wwv = mp(got_eq_wwv, ax(omega_wv), omega_wv, eq_w_wv)
-    def transfer_in(x, in_x_w):
-        in_x_wv = In(x, wv)
-        iff_x = Iff(In(x, w), in_x_wv)
-        got_iff = Proof(Sequent(got_eq_wwv.sequent.left, [iff_x]), 'cut',
-            [wr(got_eq_wwv, iff_x),
-             weaken_to(fl(eq_w_wv, iff_x, x), got_eq_wwv.sequent.left)],
-            principal=eq_w_wv)
-        return mp(mp(iff_mp(In(x, w), in_x_wv, []),
-            got_iff, iff_x, Implies(In(x, w), in_x_wv)),
-            ax(in_x_w), in_x_w, in_x_wv)
 
-    def mk_and(got_l, got_r):
-        L, R_ = got_l.sequent.right[0], got_r.sequent.right[0]
-        return mp(apply_thm(and_intro(L, R_, []), [], L, Implies(R_, And(L, R_)), got_l),
-            got_r, R_, And(L, R_))
+    # --- Core: compute h(⟨a,b⟩) level by level ---
+    # At each level i (0..n_val-1), we have:
+    #   got_h: proof of Apply(h, cur_pair, cur_val) for some cur_pair, cur_val
+    #   cur_pair, cur_val: may reference chain vars from THIS level only
+    #
+    # After computing, we transfer Apply to use a "clean" pair via ordpair_unique,
+    # then eliminate the level's chain vars before proceeding.
+    #
+    # Level 0 (base): use unique_num(0) for empty witness b₀
+    #   PlusFunc base: h(⟨a, b₀⟩) = a
+    #   Transfer to h(⟨a, b₀⟩) = a (b₀ will be eliminated)
+    #
+    # Level i (step): use unique_num(i) for witness bᵢ with Num(bᵢ, i)
+    #   From previous: h(⟨a, bᵢ₋₁⟩) = prev_val (already transferred)
+    #   Num(b or bᵢ₊₁, i+1): instantiate with bᵢ → Succ(b_or_next, bᵢ)
+    #   PlusFunc step: h(⟨a, b_or_next⟩) = S(prev_val)
+    #   Transfer Apply to clean pair, eliminate bᵢ
 
-    # === Generate Num chains: lists of (var, empty/succ formula) ===
-    # For Num(x, k): x_0 (empty), x_1=S(x_0), ..., x_{k-1}=S(x_{k-2}), x=S(x_{k-1})
-    def make_num_chain(x, k, prefix):
-        """Returns (vars, empty_var, succs) where vars=[x_0,...,x_{k-1}],
-        empty_var has Empty(x_0), succs[i] = Succ(x_{i+1}, x_i) with succs[-1] = Succ(x, x_{k-1})."""
+    # But wait — we also need OrdPair witnesses for pairs. Those contain chain vars too.
+    # Key insight: Apply(h, pair, val) doesn't care WHICH pair it is, only that
+    # OrdPair(pair, a, x). For func_unique, two Apply's with same pair give Eq on values.
+    # So we can eliminate pair vars via func_unique + ordpair_unique.
+    #
+    # Actually simpler: at each level, the Apply result is:
+    #   Apply(h, some_pair, some_val)
+    # We DON'T eliminate the pair or val — we just pass them to the next level.
+    # At the end, we have Apply(h, final_pair, final_val).
+    # final_pair = ⟨a, b⟩ (the actual target pair).
+    # If we track which pair is which, we can identify final_pair = ⟨a, b⟩.
+    #
+    # The chain vars in pairs are the b-chain vars (b₀, b₁, etc.).
+    # If we eliminate b-chain vars, the pairs also disappear (they were introduced via eel).
+
+    # New approach: introduce ALL b-chain vars at once from unique_num,
+    # compute all steps, then eliminate all at once.
+    # unique_num(k) gives ExistsUnique(n, Num(n,k)).
+    # Open: get witness bₖ with Num(bₖ, k) AND ∀v. Num(v,k) → Eq(bₖ,v).
+
+    # Actually, let me try the level-by-level approach properly.
+    # At each level, I produce a SELF-CONTAINED proof of Apply(h, pair, val)
+    # where pair and val DON'T reference the level's eigenvariable.
+
+    # For the base: unique_num(0) gives ∃b₀. Empty(b₀).
+    #   Open: get b₀ on left with Empty(b₀).
+    #   PlusFunc base: Apply(h, pair₀, a) where OrdPair(pair₀, a, b₀).
+    #   We need to get RID of b₀ and pair₀ from Apply.
+    #   But Apply(h, pair₀, a) has pair₀ which references b₀ (via OrdPair(pair₀, a, b₀)).
+    #   We can't eliminate b₀ if pair₀ is still on the left.
+    #
+    # Hmm, this is the same problem. Apply(h, pair₀, a) has pair₀ free.
+    # pair₀ was introduced via ordpair_exists. It references b₀.
+    # To eliminate b₀, we first need to eliminate pair₀.
+    # To eliminate pair₀, we need something without pair₀.
+    #
+    # Alternative: DON'T use ordpair_exists. Instead, make the PlusFunc step work
+    # with universal quantification over pairs.
+
+    # PlusFunc step structure:
+    # ∀m. In(m,w) → ∀n. In(n,w) → ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h,pair,p) →
+    #   ∀sn. Succ(sn,n) → ∀sp. Succ(sp,p) → ∀pair2. OrdPair(pair2,m,sn) → Apply(h,pair2,sp)
+    #
+    # The result is Apply(h, pair2, sp) — universally quantified over pair2.
+    # If I DON'T instantiate pair2, I get:
+    #   ∀pair2. OrdPair(pair2, m, sn) → Apply(h, pair2, sp)
+    # This is a UNIVERSAL statement about ALL pairs for ⟨m, sn⟩. No specific pair needed!
+    #
+    # Similarly, sp is universally quantified. If I don't instantiate sp:
+    #   ∀sp. Succ(sp, p) → ∀pair2. OrdPair(pair2,m,sn) → Apply(h,pair2,sp)
+    #
+    # And the base: ∀pair. OrdPair(pair,m,e) → Apply(h,pair,m)
+    # Again universal over pair. No pair variable needed.
+    #
+    # KEY INSIGHT: keep pair and successor-value universally quantified.
+    # Track results as: ∀pair. OrdPair(pair, a, x) → Apply(h, pair, val)
+    # where x is the chain position and val is the computed value.
+    # No pair variables needed. No successor value variables needed.
+
+    # Let me define the "result" at each level as:
+    #   got_h: proof of ∀pair. OrdPair(pair, a, x) → Apply(h, pair, val)
+    # where x is the current b-chain position and val is the current value.
+
+    # Base: from PlusFunc base with m=a, e=b₀ (empty):
+    #   ∀pair. OrdPair(pair, a, b₀) → Apply(h, pair, a)
+    #
+    # Step: from PlusFunc step with m=a, n=bᵢ, sn=bᵢ₊₁:
+    #   ∀pair_old. OrdPair(pair_old, a, bᵢ) → Apply(h, pair_old, valᵢ) → [from prev level]
+    #   ∀sn. Succ(sn, bᵢ) → ∀sp. Succ(sp, valᵢ) →
+    #     ∀pair_new. OrdPair(pair_new, a, sn) → Apply(h, pair_new, sp)
+    #
+    # Actually the step needs a SPECIFIC pair_old and valᵢ. The ∀pair_old from the
+    # previous level needs to be instantiated. But we can instantiate with a fresh
+    # pair_old from ordpair_exists, use it, then eliminate it.
+    #
+    # Hmm, still need pair variables. Let me think differently.
+
+    # SIMPLEST CORRECT APPROACH:
+    # Use ordpair_exists + successor_exists to create witnesses.
+    # Use them in PlusFunc.
+    # Produce Apply(h, pair, val).
+    # Then use func_unique to transfer:
+    #   Apply(h, pair1, val1) + Apply(h, pair2, val2) → pair1=pair2 → val1=val2
+    # So if I have Apply(h, some_pair, result) and I want Apply(h, final_pair, result),
+    # and OrdPair(some_pair, a, b) and OrdPair(final_pair, a, b),
+    # then ordpair_unique → Eq(some_pair, final_pair) → eq_apply_transfer → Apply(h, final_pair, result).
+    #
+    # But final_pair also needs to be created...
+    #
+    # OK I think the ACTUAL simplest approach is:
+    # 1. Introduce ALL chain vars at once (b₀, b₁, ..., all pairs, all sv's)
+    # 2. Compute
+    # 3. At the end, the right = Plus(a,b,c) which doesn't mention any chain var
+    # 4. Package ALL chain vars + their formulas into one big And
+    # 5. eel each var from the And (innermost first)
+    # 6. Cut with existence proofs
+    #
+    # The packaging into And is necessary because eel needs the var free in only
+    # ONE left formula. By combining everything into one And, that's satisfied.
+
+    # Let me try this approach.
+
+    # --- Introduce chain variables ---
+    # b-chain: b₀ (empty), b₁=S(b₀), ..., b_{n-1}, b=S(b_{n-1})
+    # a-chain: a₀ (empty), a₁=S(a₀), ..., a_{m-1}, a=S(a_{m-1})
+    # c-chain: c₀ (empty), c₁=S(c₀), ..., c_{p-1}, c=S(c_{p-1})
+    # pairs: one per level
+    # sv: one per step
+
+    # Use ax() for all chain facts. Track them for packaging.
+    def make_chain(x, k, prefix):
         if k == 0:
-            return [], x, []  # x itself is empty
+            return [], x, [], []
         vs = [Var(postfix=f'{prefix}{i}') for i in range(k)]
-        empty_v = vs[0]
+        facts = [Empty(vs[0])]
         succs = []
         for i in range(1, k):
-            succs.append((vs[i], vs[i-1], SuccDef(vs[i], vs[i-1])))
-        succs.append((x, vs[-1], SuccDef(x, vs[-1])))
-        return vs, empty_v, succs
+            sf = SuccDef(vs[i], vs[i-1])
+            succs.append((vs[i], vs[i-1], sf))
+            facts.append(sf)
+        sf_last = SuccDef(x, vs[-1])
+        succs.append((x, vs[-1], sf_last))
+        facts.append(sf_last)
+        return vs, vs[0], succs, facts
 
-    a_vs, a_empty, a_succs = make_num_chain(a, m_val, 'a')
-    b_vs, b_empty, b_succs = make_num_chain(b, n_val, 'b')
-    c_vs, c_empty, c_succs = make_num_chain(c, p_val, 'c')
+    b_vs, b_empty, b_succs, b_facts = make_chain(b, n_val, 'b')
+    a_vs, a_empty, a_succs, a_facts = make_chain(a, m_val, 'a')
+    c_vs, c_empty, c_succs, c_facts = make_chain(c, p_val, 'c')
 
-    # Empty formulas
-    empty_a0 = Empty(a_empty)
+    ue = unique_empty()
+    est = eq_successor_transfer()
+    us = unique_successor()
     empty_b0 = Empty(b_empty)
-    empty_c0 = Empty(c_empty)
+    empty_a0 = Empty(a_empty) if m_val > 0 else Empty(a)
 
-    # === Derive In(a, wv) from omega membership chain ===
-    def derive_in_wv(empty_var, succs, empty_f):
-        """Derive In(x, wv) for x at the end of the chain."""
+    # Build Num proofs for intermediate chain vars + derive last succ from Num
+    def build_num_chain(x, k, num_x, vs, succs, prefix):
+        """Build Num proofs for each v_i and derive Succ(x, v_{k-1}) from Num(x,k).
+        Returns: num_proofs dict, got_last_succ (proof of Succ(x, v_{k-1}) from Num)."""
+        if k == 0:
+            return {}, None
+        num_proofs = {vs[0]: ax(Empty(vs[0]))}
+        for i, (top, bot, sf) in enumerate(succs[:-1]):
+            level = i + 1
+            m_v = Var(postfix=f'_m{prefix}{i}')
+            num_m = NumDef(m_v, i)
+            if i == 0:
+                eq_m_bot = Eq(m_v, bot)
+                got_eq = apply_thm(ue, [m_v], Empty(m_v),
+                    Forall(bot, Implies(Empty(bot), eq_m_bot)), ax(Empty(m_v)))
+                got_eq = apply_thm(got_eq, [bot], Empty(bot), eq_m_bot, ax(Empty(bot)))
+            else:
+                prev_bot = succs[i-2][1] if i > 1 else vs[0]
+                prev_num_f = NumDef(prev_bot, i - 1)
+                got_prev_num = num_proofs[prev_bot]
+                succ_m_prev = SuccDef(m_v, prev_bot)
+                got_succ_m = fl(num_m, Implies(prev_num_f, succ_m_prev), prev_bot)
+                got_succ_m = cut(got_succ_m, num_m, ax(num_m))
+                got_succ_m = mp(got_succ_m, got_prev_num, prev_num_f, succ_m_prev)
+                succ_bot_prev = SuccDef(bot, prev_bot)
+                num_bot_f = NumDef(bot, i)
+                got_succ_bot = fl(num_bot_f, Implies(prev_num_f, succ_bot_prev), prev_bot)
+                got_succ_bot = cut(got_succ_bot, num_bot_f, num_proofs[bot])
+                got_succ_bot = mp(got_succ_bot, got_prev_num, prev_num_f, succ_bot_prev)
+                eq_m_bot = Eq(m_v, bot)
+                got_eq = apply_thm(us, [prev_bot, m_v, bot])
+                got_eq = mp(got_eq, got_succ_m, succ_m_prev, got_eq.sequent.right[0].right)
+                got_eq = mp(got_eq, got_succ_bot, succ_bot_prev, eq_m_bot)
+            eq_tt = Eq(top, top)
+            got_eq_tt = apply_thm(er, [top], concl=eq_tt)
+            succ_top_m = SuccDef(top, m_v)
+            got_succ_tm = apply_thm(est, [top, m_v, top, bot])
+            got_succ_tm = mp(got_succ_tm, got_eq_tt, eq_tt, got_succ_tm.sequent.right[0].right)
+            got_succ_tm = mp(got_succ_tm, got_eq, eq_m_bot, got_succ_tm.sequent.right[0].right)
+            got_succ_tm = mp(got_succ_tm, ax(sf), sf, succ_top_m)
+            imp_num = Implies(num_m, succ_top_m)
+            left_imp = [f_ for f_ in got_succ_tm.sequent.left if not same(f_, num_m)]
+            got_num = Proof(Sequent(left_imp, [imp_num]), 'implies_right',
+                [got_succ_tm], principal=imp_num)
+            fa_num = Forall(m_v, imp_num)
+            got_num = Proof(Sequent(got_num.sequent.left, [fa_num]),
+                'forall_right', [got_num], principal=fa_num, term=m_v)
+            num_top = NumDef(top, level)
+            got_num = cut(ax(num_top), num_top, got_num)
+            num_proofs[top] = got_num
+
+        # Derive last succ: Succ(x, v_{k-1}) from Num(x, k)
+        last_bot = vs[-1]
+        num_last_bot = NumDef(last_bot, k - 1)
+        got_num_last = num_proofs[last_bot]
+        succ_x_last = SuccDef(x, last_bot)
+        got_last_succ = fl(num_x, Implies(num_last_bot, succ_x_last), last_bot)
+        got_last_succ = cut(got_last_succ, num_x, ax(num_x))
+        got_last_succ = mp(got_last_succ, got_num_last, num_last_bot, succ_x_last)
+        return num_proofs, got_last_succ
+
+    if m_val > 0:
+        a_num_proofs, got_succ_a = build_num_chain(a, m_val, num_a, a_vs, a_succs, 'a')
+    b_num_proofs, got_succ_b = build_num_chain(b, n_val, num_b, b_vs, b_succs, 'b')
+
+    # Derive In(v, wv) — use derived proof for last succ, ax() for intermediates
+    def derive_in(empty_var, succs, empty_f, last_succ_proof):
         got = apply_thm(oce, [wv])
         got = mp(got, ax(omega_wv), omega_wv, got.sequent.right[0].right)
         got = apply_thm(got, [empty_var])
         got = mp(got, ax(empty_f), empty_f, In(empty_var, wv))
-        cur_var = empty_var
         results = {empty_var: got}
-        for top, bot, succ_f in succs:
+        for j, (top, bot, sf) in enumerate(succs):
             got_next = apply_thm(osc, [wv])
             got_next = mp(got_next, ax(omega_wv), omega_wv, got_next.sequent.right[0].right)
             got_next = apply_thm(got_next, [bot])
             got_next = mp(got_next, results[bot], In(bot, wv), got_next.sequent.right[0].right)
             got_next = apply_thm(got_next, [top])
-            got_next = mp(got_next, ax(succ_f), succ_f, In(top, wv))
+            if j == len(succs) - 1 and last_succ_proof is not None:
+                got_next = mp(got_next, last_succ_proof, sf, In(top, wv))
+            else:
+                got_next = mp(got_next, ax(sf), sf, In(top, wv))
             results[top] = got_next
         return results
 
-    a_in_wv = derive_in_wv(a_empty, a_succs, empty_a0) if m_val > 0 else {}
-    got_a_wv = a_in_wv[a] if m_val > 0 else (lambda: (
-        apply_thm(oce, [wv]),
-        mp(apply_thm(oce, [wv]), ax(omega_wv), omega_wv, apply_thm(oce, [wv]).sequent.right[0].right)
-    ))  # handle m_val=0 case
+    b_in_wv = derive_in(b_empty, b_succs, empty_b0, got_succ_b)
     if m_val > 0:
-        got_a_wv = a_in_wv[a]
+        a_in_wv = derive_in(a_empty, a_succs, empty_a0, got_succ_a)
     else:
-        got_a_wv = apply_thm(oce, [wv])
-        got_a_wv = mp(got_a_wv, ax(omega_wv), omega_wv, got_a_wv.sequent.right[0].right)
-        got_a_wv = apply_thm(got_a_wv, [a])
-        got_a_wv = mp(got_a_wv, ax(empty_a0), empty_a0, In(a, wv))
+        got_tmp = apply_thm(oce, [wv])
+        got_tmp = mp(got_tmp, ax(omega_wv), omega_wv, got_tmp.sequent.right[0].right)
+        got_tmp = apply_thm(got_tmp, [a])
+        a_in_wv = {a: mp(got_tmp, ax(empty_a0), empty_a0, In(a, wv))}
+    got_a_wv = a_in_wv[a]
 
-    b_in_wv = derive_in_wv(b_empty, b_succs, empty_b0) if n_val > 0 else {}
-
-    # === PlusFunc computation: h(⟨a, b⟩) via base + n_val steps ===
-    # h(⟨a, b_empty⟩) = a  (base, since b_empty is empty)
-    # h(⟨a, b_succs[0].top⟩) = S(a)  (step 1)
-    # ...
-    # h(⟨a, b⟩) = S^{n_val}(a)
-
-    if n_val == 0:
-        # b itself is empty. h(⟨a,b⟩) = a. Need Eq(a,c) from Num(a,m_val), Num(c,m_val).
-        # Actually p_val = m_val, so Num(c, m_val). a and c both represent m_val.
-        # This case needs func_unique: Apply(h,pair_ab,c) from Apply(h,pair_ab,a) + Eq(a,c).
-        # For now, skip — focus on n_val > 0.
-        raise NotImplementedError("n_val=0 not implemented yet")
+    # --- PlusFunc computation ---
+    pair_vars = []
+    sv_vars = []
 
     # Base: h(⟨a, b_empty⟩) = a
     pair_base = Var(postfix='prB')
+    pair_vars.append(pair_base)
     op_a_b0 = OrdPair(pair_base, a, b_empty)
     got_h = apply_thm(got_base_pf, [a])
     got_h = mp(got_h, got_a_wv, In(a, wv), got_h.sequent.right[0].right)
@@ -7974,387 +8145,344 @@ def prove_addition(m_val, n_val):
     got_h = apply_thm(got_h, [pair_base])
     got_h = mp(got_h, ax(op_a_b0), op_a_b0, Apply(hv, pair_base, a))
 
-    # Current value = a, current pair = pair_base, current b_var = b_empty
     cur_val = a
     cur_pair = pair_base
-    cur_b = b_empty
-    pairs_to_eel = [(pair_base, op_a_b0, a, b_empty)]
-    succs_to_eel = []
 
-    # Steps: for each succ in b_succs
-    for i, (b_top, b_bot, succ_f) in enumerate(b_succs):
-        new_val = Var(postfix=f'sv{i}')
-        succ_new = SuccDef(new_val, cur_val)
-        new_pair = Var(postfix=f'pr{i}')
-        op_new = OrdPair(new_pair, a, b_top)
+    for i, (top_b, bot_b, sf_b) in enumerate(b_succs):
+        pair_i = Var(postfix=f'pr{i}')
+        pair_vars.append(pair_i)
+        op_a_top = OrdPair(pair_i, a, top_b)
+        sv_i = Var(postfix=f'sv{i}')
+        succ_sv = SuccDef(sv_i, cur_val)
+        sv_vars.append((sv_i, succ_sv))
 
-        got_in_bot = b_in_wv[b_bot] if b_bot in b_in_wv else got_a_wv  # shouldn't happen
         got_step = apply_thm(got_step_pf, [a])
         got_step = mp(got_step, got_a_wv, In(a, wv), got_step.sequent.right[0].right)
-        got_step = apply_thm(got_step, [cur_b])
-        got_step = mp(got_step, got_in_bot, In(cur_b, wv), got_step.sequent.right[0].right)
+        got_step = apply_thm(got_step, [bot_b])
+        got_step = mp(got_step, b_in_wv[bot_b], In(bot_b, wv), got_step.sequent.right[0].right)
+        op_cur = OrdPair(cur_pair, a, bot_b)
         got_step = apply_thm(got_step, [cur_pair])
-        got_step = mp(got_step, ax(OrdPair(cur_pair, a, cur_b)), OrdPair(cur_pair, a, cur_b), got_step.sequent.right[0].right)
+        got_step = mp(got_step, ax(op_cur), op_cur, got_step.sequent.right[0].right)
         got_step = apply_thm(got_step, [cur_val])
         got_step = mp(got_step, got_h, Apply(hv, cur_pair, cur_val), got_step.sequent.right[0].right)
-        got_step = apply_thm(got_step, [b_top])
-        got_step = mp(got_step, ax(succ_f), succ_f, got_step.sequent.right[0].right)
-        got_step = apply_thm(got_step, [new_val])
-        got_step = mp(got_step, ax(succ_new), succ_new, got_step.sequent.right[0].right)
-        got_step = apply_thm(got_step, [new_pair])
-        got_step = mp(got_step, ax(op_new), op_new, Apply(hv, new_pair, new_val))
+        got_step = apply_thm(got_step, [top_b])
+        # Last b-succ: use derived proof from Num(b,n). Intermediates: ax().
+        if i == len(b_succs) - 1:
+            got_step = mp(got_step, got_succ_b, sf_b, got_step.sequent.right[0].right)
+        else:
+            got_step = mp(got_step, ax(sf_b), sf_b, got_step.sequent.right[0].right)
+        got_step = apply_thm(got_step, [sv_i])
+        got_step = mp(got_step, ax(succ_sv), succ_sv, got_step.sequent.right[0].right)
+        got_step = apply_thm(got_step, [pair_i])
+        got_step = mp(got_step, ax(op_a_top), op_a_top, Apply(hv, pair_i, sv_i))
 
+        print(f'prove_addition: step {i+1} done, val={sv_i}')
         got_h = got_step
-        pairs_to_eel.append((new_pair, op_new, a, b_top))
-        succs_to_eel.append((new_val, succ_new, cur_val))
-        cur_val = new_val
-        cur_pair = new_pair
-        cur_b = b_top
+        cur_val = sv_i
+        cur_pair = pair_i
 
-    print(f'prove_addition: h(⟨a,b⟩) = S^{n_val}(a) done, val={cur_val}')
+    # --- Eq(cur_val, c) ---
+    # Build Num(cur_val, p_val) from chain, unique_num → Eq(cur_val, c)
+    # Use the existing code from the old prove_addition (it works)
+    ue = unique_empty()
+    est = eq_successor_transfer()
+    us = unique_successor()
 
-    # === Show S^{n_val}(a) = c via Num chains ===
-    # a = S^{m_val}(a_empty), c = S^{p_val}(c_empty).
-    # S^{n_val}(a) = S^{n_val}(S^{m_val}(a_empty)) = S^{p_val}(a_empty).
-    # c = S^{p_val}(c_empty). unique_empty: a_empty = c_empty.
-    # Then chain eq_successor_transfer: S(a_empty) = S(c_empty) = c_vs[1], etc.
+    cur_num_var = a
+    cur_num_proof = ax(num_a)
+    cur_num_level = m_val
 
-    # unique_empty: a_empty = c_empty
-    got_eq_base = apply_thm(ue, [a_empty])
-    got_eq_base = mp(got_eq_base, ax(empty_a0), empty_a0, got_eq_base.sequent.right[0].right)
-    got_eq_base = apply_thm(got_eq_base, [c_empty])
-    got_eq_base = mp(got_eq_base, ax(empty_c0), empty_c0, Eq(a_empty, c_empty))
+    for i, (sv_i, succ_sv_i) in enumerate(sv_vars):
+        level = cur_num_level + 1
+        m_v = Var(postfix=f'_nsv{i}')
+        num_m = NumDef(m_v, cur_num_level)
 
-    # Build equality chain: we need to show cur_val = c.
-    # The value chain is: a_empty, a_vs[1], ..., a_vs[-1], a, sv0, sv1, ..., sv_{n-1} = cur_val
-    # The c chain is: c_empty, c_vs[1], ..., c_vs[-1], c
-    # Both have p_val = m_val + n_val elements.
+        if cur_num_level == 0:
+            eq_m_prev = Eq(m_v, cur_num_var)
+            got_eq = apply_thm(ue, [m_v], Empty(m_v),
+                Forall(cur_num_var, Implies(Empty(cur_num_var), eq_m_prev)), ax(Empty(m_v)))
+            got_eq = apply_thm(got_eq, [cur_num_var], Empty(cur_num_var), eq_m_prev,
+                ax(Empty(cur_num_var)))
+        else:
+            un = unique_num(cur_num_level)
+            eu = un.sequent.right[0]
+            eu_exp = eu.expand()
+            eu_var = eu_exp.var
+            eu_body = eu_exp.body
+            eu_uniq = eu_body.right
+            got_eu_uniq = apply_thm(and_elim_right(eu_body.left, eu_uniq, []), [],
+                eu_body, eu_uniq, ax(eu_body))
+            got_eu_eq_m = apply_thm(got_eu_uniq, [m_v], num_m, Eq(eu_var, m_v), ax(num_m))
+            prev_num = NumDef(cur_num_var, cur_num_level)
+            got_eu_eq_prev = apply_thm(got_eu_uniq, [cur_num_var], prev_num,
+                Eq(eu_var, cur_num_var), cur_num_proof)
+            from theorems.logic import eq_transitive
+            et = eq_transitive()
+            eq_m_eu = Eq(m_v, eu_var)
+            got_eq_m_eu = apply_thm(es, [eu_var, m_v], Eq(eu_var, m_v), eq_m_eu, got_eu_eq_m)
+            eq_m_prev = Eq(m_v, cur_num_var)
+            got_eq = apply_thm(et, [m_v, eu_var, cur_num_var])
+            got_eq = mp(got_eq, got_eq_m_eu, eq_m_eu, got_eq.sequent.right[0].right)
+            got_eq = mp(got_eq, got_eu_eq_prev, Eq(eu_var, cur_num_var), eq_m_prev)
+            got_eq = eel(got_eq, eu_body, eu_var)
+            got_eq = cut(got_eq, eu, un)
 
-    # Build the "value side" chain: a_empty, then a_succs, then the sv succs
-    val_chain = [a_empty]  # val_chain[0]
-    val_succs = []  # (top, bot, succ_formula)
-    for top, bot, sf in a_succs:
-        val_chain.append(top)
-        val_succs.append((top, bot, sf))
-    for new_val, succ_new, old_val in succs_to_eel:
-        val_chain.append(new_val)
-        val_succs.append((new_val, old_val, succ_new))
+        eq_tt = Eq(sv_i, sv_i)
+        got_eq_tt = apply_thm(er, [sv_i], concl=eq_tt)
+        succ_sv_m = SuccDef(sv_i, m_v)
+        got_succ = apply_thm(est, [sv_i, m_v, sv_i, cur_num_var])
+        got_succ = mp(got_succ, got_eq_tt, eq_tt, got_succ.sequent.right[0].right)
+        got_succ = mp(got_succ, got_eq, eq_m_prev, got_succ.sequent.right[0].right)
+        got_succ = mp(got_succ, ax(succ_sv_i), succ_sv_i, succ_sv_m)
 
-    # c chain: c_empty, then c_succs
-    c_chain = [c_empty]
-    c_succ_list = []
-    for top, bot, sf in c_succs:
-        c_chain.append(top)
-        c_succ_list.append((top, bot, sf))
+        imp_num = Implies(num_m, succ_sv_m)
+        left_imp = [f_ for f_ in got_succ.sequent.left if not same(f_, num_m)]
+        got_num = Proof(Sequent(left_imp, [imp_num]), 'implies_right', [got_succ], principal=imp_num)
+        fa_num = Forall(m_v, imp_num)
+        got_num = Proof(Sequent(got_num.sequent.left, [fa_num]),
+            'forall_right', [got_num], principal=fa_num, term=m_v)
+        num_sv = NumDef(sv_i, level)
+        got_num = cut(ax(num_sv), num_sv, got_num)
 
-    assert len(val_chain) == len(c_chain) == p_val + 1, f'{len(val_chain)} vs {len(c_chain)} vs {p_val+1}'
+        cur_num_var = sv_i
+        cur_num_proof = got_num
+        cur_num_level = level
 
-    # Chain eq_successor_transfer: Eq(val_chain[i], c_chain[i]) for each i
-    cur_eq = got_eq_base  # Eq(val_chain[0], c_chain[0]) = Eq(a_empty, c_empty)
-    for i in range(p_val):
-        v_top, v_bot, v_sf = val_succs[i]
-        c_top, c_bot, c_sf = c_succ_list[i]
-        # est: Eq(a,c) → Eq(b,d) → Succ(c,d) → Succ(a,b)
-        # Want: Succ(c_top, c_bot) + Eq(v_bot, c_bot) → Succ(c_top, v_bot)
-        # Then unique_successor: Succ(v_top, v_bot) + Succ(c_top, v_bot) → Eq(v_top, c_top)
-        got_eq_cc = apply_thm(er, [c_top])
-        got_succ_c_vbot = apply_thm(est, [c_top, v_bot, c_top, c_bot])
-        got_succ_c_vbot = mp(got_succ_c_vbot, got_eq_cc, Eq(c_top, c_top), got_succ_c_vbot.sequent.right[0].right)
-        got_succ_c_vbot = mp(got_succ_c_vbot, cur_eq, Eq(v_bot, c_bot), got_succ_c_vbot.sequent.right[0].right)
-        got_succ_c_vbot = mp(got_succ_c_vbot, ax(c_sf), c_sf, SuccDef(c_top, v_bot))
-        got_eq_next = apply_thm(us, [v_bot, v_top, c_top])
-        got_eq_next = mp(got_eq_next, ax(v_sf), v_sf, got_eq_next.sequent.right[0].right)
-        got_eq_next = mp(got_eq_next, got_succ_c_vbot, SuccDef(c_top, v_bot), Eq(v_top, c_top))
-        cur_eq = got_eq_next
-
-    # cur_eq: Eq(cur_val, c)
+    # Eq(cur_val, c)
+    un_p = unique_num(p_val)
+    eu_p = un_p.sequent.right[0]
+    eu_p_exp = eu_p.expand()
+    eu_p_var = eu_p_exp.var
+    eu_p_body = eu_p_exp.body
+    eu_p_uniq = eu_p_body.right
+    got_eu_p_uniq = apply_thm(and_elim_right(eu_p_body.left, eu_p_uniq, []), [],
+        eu_p_body, eu_p_uniq, ax(eu_p_body))
+    got_eq_eu_cur = apply_thm(got_eu_p_uniq, [cur_val], NumDef(cur_val, p_val),
+        Eq(eu_p_var, cur_val), cur_num_proof)
+    got_eq_eu_c = apply_thm(got_eu_p_uniq, [c], num_c, Eq(eu_p_var, c), ax(num_c))
+    from theorems.logic import eq_transitive
+    et = eq_transitive()
+    eq_cur_eu = Eq(cur_val, eu_p_var)
+    got_eq_cur_eu = apply_thm(es, [eu_p_var, cur_val], Eq(eu_p_var, cur_val),
+        eq_cur_eu, got_eq_eu_cur)
+    eq_cur_c = Eq(cur_val, c)
+    got_eq_cur_c = apply_thm(et, [cur_val, eu_p_var, c])
+    got_eq_cur_c = mp(got_eq_cur_c, got_eq_cur_eu, eq_cur_eu,
+        got_eq_cur_c.sequent.right[0].right)
+    got_eq_cur_c = mp(got_eq_cur_c, got_eq_eu_c, Eq(eu_p_var, c), eq_cur_c)
+    got_eq_cur_c = eel(got_eq_cur_c, eu_p_body, eu_p_var)
+    got_eq_cur_c = cut(got_eq_cur_c, eu_p, un_p)
     print(f'prove_addition: Eq(cur_val, c) done')
 
-    # Apply(h, cur_pair, cur_val) → Apply(h, cur_pair, c) via eavt
-    got_result = apply_thm(eavt, [hv, cur_pair, cur_val, c])
-    got_result = mp(got_result, cur_eq, Eq(cur_val, c), got_result.sequent.right[0].right)
-    got_result = mp(got_result, got_h, Apply(hv, cur_pair, cur_val), Apply(hv, cur_pair, c))
+    # Transfer Apply
+    got_app_c = apply_thm(eavt, [hv, cur_pair, cur_val, c])
+    got_app_c = mp(got_app_c, got_eq_cur_c, eq_cur_c, got_app_c.sequent.right[0].right)
+    got_app_c = mp(got_app_c, got_h, Apply(hv, cur_pair, cur_val), Apply(hv, cur_pair, c))
+    print(f'prove_addition: Apply(h, pair, c) done')
 
-    # Transfer to pair_ab: cur_pair is the last pair, which IS pair_ab (the last b_succ top is b)
-    # Actually cur_pair = new_pair for the last step = pr{n_val-1}, and op_new = OrdPair(pr{n-1}, a, b).
-    # We need Apply(h, pair_ab, c). cur_pair has OrdPair(cur_pair, a, b) on left.
-    # ordpair_unique: pair_ab = cur_pair. Transfer.
-    from theorems.sets import ordpair_unique
-    ou2 = ordpair_unique()
-    op_cur = OrdPair(cur_pair, a, b)
-    eq_pab_cur = Eq(pair_ab, cur_pair)
-    got_eq_pair = apply_thm(ou2, [a, b, pair_ab, cur_pair])
+    # --- Build Plus(a,b,c) ---
+    opu = opu_thm()
+    eat2 = eq_apply_transfer()
+    pair_v = Var(postfix='_pv')
+    op_pv = OrdPair(pair_v, a, b)
+    op_ab = OrdPair(cur_pair, a, b)
+    eq_pair = Eq(cur_pair, pair_v)
+    got_eq_pair = apply_thm(opu, [a, b, cur_pair, pair_v])
     got_eq_pair = mp(got_eq_pair, ax(op_ab), op_ab, got_eq_pair.sequent.right[0].right)
-    got_eq_pair = mp(got_eq_pair, ax(op_cur), op_cur, eq_pab_cur)
-    eq_cur_pab = Eq(cur_pair, pair_ab)
-    got_eq_cur_pab = apply_thm(es, [pair_ab, cur_pair], eq_pab_cur, eq_cur_pab, got_eq_pair)
-    from theorems.recursion import eq_apply_transfer
-    eat = eq_apply_transfer()
-    got_final = apply_thm(eat, [hv, cur_pair, pair_ab, c])
-    got_final = mp(got_final, got_eq_cur_pab, eq_cur_pab, got_final.sequent.right[0].right)
-    got_final = mp(got_final, got_result, Apply(hv, cur_pair, c), Apply(hv, pair_ab, c))
-    print(f'prove_addition: Apply(h, pair_ab, c) done')
+    got_eq_pair = mp(got_eq_pair, ax(op_pv), op_pv, eq_pair)
+    app_pv_c = Apply(hv, pair_v, c)
+    got_app_pv = apply_thm(eat2, [hv, cur_pair, pair_v, c])
+    got_app_pv = mp(got_app_pv, got_eq_pair, eq_pair, got_app_pv.sequent.right[0].right)
+    got_app_pv = mp(got_app_pv, got_app_c, Apply(hv, cur_pair, c), app_pv_c)
 
-    # eel all intermediate pairs and successor vars
-    # Reverse order: last created first
-    for new_val, succ_new, old_val in reversed(succs_to_eel):
-        got_final = eel(got_final, succ_new, new_val)
-        got_ex = apply_thm(se, [old_val], concl=Exists(new_val, succ_new))
-        got_final = cut(got_final, Exists(new_val, succ_new), got_ex)
-
-    for pair_var, op_var, x, y in reversed(pairs_to_eel):
-        got_final = eel(got_final, op_var, pair_var)
-        got_ex = apply_thm(oe, [x, y], concl=Exists(pair_var, op_var))
-        got_final = cut(got_final, Exists(pair_var, op_var), got_ex)
-
-    # Close as Plus(a,b,c)
-    imp_op = Implies(op_ab, got_final.sequent.right[0])
-    left_op = [f for f in got_final.sequent.left if not same(f, op_ab)]
-    got_final = Proof(Sequent(left_op, [imp_op]), 'implies_right', [got_final], principal=imp_op)
-    got_final = Proof(Sequent(got_final.sequent.left, [Forall(pair_ab, imp_op)]),
-        'forall_right', [got_final], principal=Forall(pair_ab, imp_op), term=pair_ab)
-    imp_pf = Implies(pf_hwv, got_final.sequent.right[0])
-    left_pf = [f for f in got_final.sequent.left if not same(f, pf_hwv)]
-    got_final = Proof(Sequent(left_pf, [imp_pf]), 'implies_right', [got_final], principal=imp_pf)
-    got_final = Proof(Sequent(got_final.sequent.left, [Forall(hv, imp_pf)]),
-        'forall_right', [got_final], principal=Forall(hv, imp_pf), term=hv)
-    imp_ow = Implies(omega_wv, got_final.sequent.right[0])
-    left_ow = [f for f in got_final.sequent.left if not same(f, omega_wv)]
-    got_final = Proof(Sequent(left_ow, [imp_ow]), 'implies_right', [got_final], principal=imp_ow)
-    got_final = Proof(Sequent(got_final.sequent.left, [Forall(wv, imp_ow)]),
-        'forall_right', [got_final], principal=Forall(wv, imp_ow), term=wv)
-    got_final = cut(ax(plus_abc), plus_abc, got_final)
+    # Close ∀pair, PlusFunc, Omega → Plus
+    imp_pair = Implies(op_pv, app_pv_c)
+    left_pair = [f for f in got_app_pv.sequent.left if not same(f, op_pv)]
+    proof = Proof(Sequent(left_pair, [imp_pair]), 'implies_right', [got_app_pv], principal=imp_pair)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(pair_v, imp_pair)]),
+        'forall_right', [proof], principal=Forall(pair_v, imp_pair), term=pair_v)
+    cur_r = proof.sequent.right[0]
+    imp_pf = Implies(pf_hyp, cur_r)
+    left_pf = [f for f in proof.sequent.left if not same(f, pf_hyp)]
+    proof = Proof(Sequent(left_pf, [imp_pf]), 'implies_right', [proof], principal=imp_pf)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(hv, imp_pf)]),
+        'forall_right', [proof], principal=Forall(hv, imp_pf), term=hv)
+    cur_r = proof.sequent.right[0]
+    imp_ow = Implies(omega_wv, cur_r)
+    left_ow = [f for f in proof.sequent.left if not same(f, omega_wv)]
+    proof = Proof(Sequent(left_ow, [imp_ow]), 'implies_right', [proof], principal=imp_ow)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(wv, imp_ow)]),
+        'forall_right', [proof], principal=Forall(wv, imp_ow), term=wv)
+    plus_abc = PlusDef(a, b, c)
+    proof = cut(ax(plus_abc), plus_abc, proof)
     print(f'prove_addition: Plus(a,b,c) done')
 
-    # === Discharge Num hypotheses ===
-    proof = got_final
+    # --- Eliminate chain variables ---
+    # Right = Plus(a,b,c) — NO chain vars.
+    # Left has: chain facts (Empty, Succ), OrdPair witnesses, Succ witnesses (sv),
+    #           Num hypotheses, Omega, axioms.
+    #
+    # Package ALL non-axiom, non-Num, non-Omega formulas into one big And.
+    # Then eel each chain var from the And. Then cut with existence proofs.
 
-    def discharge_num(proof, num_hyp, chain_empty, chain_succs, chain_vars):
-        """Package individual Empty/Succ back into Num form and cut.
-        Forall-style Num: Num(x, k+1) = ∀m. Num(m, k) → Successor(x, m).
-        Build Num bottom-up: Num(v0,0)=Empty(v0), then Num(v1,1)=∀m.Num(m,0)→Succ(v1,m), etc."""
-        if len(chain_succs) == 0:
-            # Num(x,0) = Empty(x). Already on left.
-            return proof
+    # Collect all "chain formulas" (non-axiom, non-Num, non-Omega)
+    chain_formulas = []
+    keep_formulas = []
+    for f in proof.sequent.left:
+        if isinstance(f, ZFCAxiom) or same(f, omega_w) or same(f, num_a) or same(f, num_b) or same(f, num_c):
+            keep_formulas.append(f)
+        else:
+            chain_formulas.append(f)
 
-        from vocab.omega import Num as NumDef
-        empty_f = Empty(chain_empty)
+    if chain_formulas:
+        # Per-var elimination, innermost first.
+        # Order: pair vars (they reference chain vars), then sv vars,
+        # then a-chain top-down, then b-chain top-down.
+        # For each var v:
+        #   1. Discharge all left formulas mentioning v via implies_right
+        #   2. forall_right(v) — v now only on right
+        #   3. fl with witness from ∃ proof (not v itself!)
+        #   4. mp the constraint (now with witness, provable)
+        #   5. eel witness, cut with ∃ proof
+        from theorems.axioms import empty_set as empty_set_thm
+        from core.proof import _var_free_in_sequent
+        es_proof = empty_set_thm()
 
-        # Build Num proofs bottom-up
-        # Level 0: prove Num(top0, 1) = ∀m. Empty(m) → Succ(top0, m)
-        # from Empty(chain_empty) + Succ(top0, chain_empty) on left.
-        # Assume Empty(m). unique_empty → Eq(m, chain_empty). Transfer Succ.
-        cur_level = 0
-        num_proofs = {}  # var → proof of Num(var, level)
-
-        for i, (top_i, bot_i, sf_i) in enumerate(chain_succs):
-            level = i + 1
-            m_v = Var(postfix=f'_nm{i}')
-            num_m = NumDef(m_v, i)  # Num(m, i)
-
-            if i == 0:
-                # Num(top0, 1) = ∀m. Empty(m) → Succ(top0, m)
-                # From Empty(m) + Empty(chain_empty): Eq(m, chain_empty) via unique_empty
-                eq_m_bot = Eq(m_v, bot_i)
-                got_eq = apply_thm(ue, [m_v], Empty(m_v),
-                    Forall(bot_i, Implies(Empty(bot_i), eq_m_bot)), ax(Empty(m_v)))
-                got_eq = apply_thm(got_eq, [bot_i], empty_f, eq_m_bot, ax(empty_f))
-            else:
-                # Num(top_i, i+1) = ∀m. Num(m, i) → Succ(top_i, m)
-                # From Num(m, i) + Num(bot_i, i) [prev]: extract uniqueness → Eq(m, bot_i)
-                eq_m_bot = Eq(m_v, bot_i)
-                # From Num(m, i) + Num(bot_i, i): prove Eq(m, bot_i)
-                # Use unique_num(i) which gives ExistsUnique(n, Num(n,i))
-                # Extract uniqueness part, use it to derive Eq.
-                un = unique_num(i)
-                eu = un.sequent.right[0]  # ExistsUnique(n, Num(n,i))
-                eu_exp = eu.expand()
-                eu_var = eu_exp.var
-                eu_body = eu_exp.body  # And(Num(eu_var,i), ∀v2. Num(v2,i) → Eq(eu_var,v2))
-                eu_num = eu_body.left
-                eu_uniq = eu_body.right
-
-                # Extract uniq from And body (on left)
-                got_eu_uniq = apply_thm(and_elim_right(eu_num, eu_uniq, []), [],
-                    eu_body, eu_uniq, ax(eu_body))
-                # Instantiate with m_v and bot_i
-                got_eu_eq_m = apply_thm(got_eu_uniq, [m_v], num_m, Eq(eu_var, m_v), ax(num_m))
-                prev_num = NumDef(bot_i, i)
-                got_eu_eq_bot = apply_thm(got_eu_uniq, [bot_i], prev_num, Eq(eu_var, bot_i),
-                    num_proofs[bot_i])
-                # Eq(m_v, eu_var) + Eq(eu_var, bot_i) → Eq(m_v, bot_i)
-                from theorems.logic import eq_transitive
-                et = eq_transitive()
-                eq_mv_eu = Eq(m_v, eu_var)
-                got_eq_mv_eu = apply_thm(es, [eu_var, m_v], Eq(eu_var, m_v), eq_mv_eu, got_eu_eq_m)
-                got_eq = apply_thm(et, [m_v, eu_var, bot_i])
-                got_eq = mp(got_eq, got_eq_mv_eu, eq_mv_eu, got_eq.sequent.right[0].right)
-                got_eq = mp(got_eq, got_eu_eq_bot, Eq(eu_var, bot_i), eq_m_bot)
-                # [eu_body, num_m, num_proofs[bot_i].left...] |- Eq(m, bot_i)
-                # Discharge eu_body via eel(eu_body, eu_var) then cut with eu (ExistsUnique)
-                # But eel gives Exists, not ExistsUnique. So use implies_right instead:
-                # Discharge eu_body → ..., then forall eu_var → ..., then cut via eu.
-                # Actually: just discharge eu_body, close eu_var, and use
-                # exists_left manually with the ExistsUnique formula.
-                imp_eu = Implies(eu_body, eq_m_bot)
-                left_eu = [f_ for f_ in got_eq.sequent.left if not same(f_, eu_body)]
-                got_eq = Proof(Sequent(left_eu, [imp_eu]), 'implies_right', [got_eq], principal=imp_eu)
-                # ∀eu_var. eu_body → eq_m_bot. But eu_var might be free in eq_m_bot (no it isn't).
-                fa_eu = Forall(eu_var, imp_eu)
-                got_eq = Proof(Sequent(got_eq.sequent.left, [fa_eu]),
-                    'forall_right', [got_eq], principal=fa_eu, term=eu_var)
-                # FRESH APPROACH: Num(m_v, i) is ∀-style. Num(bot_i, i) is proved.
-                # Both are forall-style. To get Eq(m_v, bot_i):
-                # For i=1: Num(m,1) = ∀x. Empty(x) → Succ(m,x).
-                #          Num(bot,1) = ∀x. Empty(x) → Succ(bot,x).
-                #          From chain_empty with Empty(chain_empty):
-                #          Succ(m, chain_empty) and Succ(bot, chain_empty).
-                #          unique_successor → Eq(m, bot). ✓
-                # For i=2: Num(m,2) = ∀x. Num(x,1) → Succ(m,x).
-                #          Num(bot,2) = ∀x. Num(x,1) → Succ(bot,x).
-                #          Need a witness x with Num(x,1). Use bot_{i-1} (prev level).
-                #          Succ(m, bot_{i-1}) and Succ(bot, bot_{i-1}).
-                #          unique_successor → Eq(m, bot). ✓
-                # General: use prev level's bot as witness, instantiate both Nums.
-                prev_bot = chain_succs[i-1][1] if i > 1 else chain_empty
-                prev_num_formula = NumDef(prev_bot, i - 1)
-                # Got Num(prev_bot, i-1) from num_proofs or it's Empty
-                if i == 1:
-                    got_prev_num = ax(Empty(prev_bot))
-                else:
-                    got_prev_num = num_proofs[prev_bot] if prev_bot in num_proofs else ax(prev_num_formula)
-
-                # Instantiate Num(m_v, i) with prev_bot: Num(prev_bot, i-1) → Succ(m_v, prev_bot)
-                succ_m_prev = SuccDef(m_v, prev_bot)
-                got_succ_m = fl(num_m, Implies(prev_num_formula, succ_m_prev), prev_bot)
-                got_succ_m = cut(got_succ_m, num_m, ax(num_m))
-                got_succ_m = mp(got_succ_m, got_prev_num, prev_num_formula, succ_m_prev)
-
-                # Instantiate Num(bot_i, i) with prev_bot: Num(prev_bot, i-1) → Succ(bot_i, prev_bot)
-                succ_bot_prev = SuccDef(bot_i, prev_bot)
-                num_bot = NumDef(bot_i, i)
-                got_succ_bot = fl(num_bot, Implies(prev_num_formula, succ_bot_prev), prev_bot)
-                got_succ_bot = cut(got_succ_bot, num_bot, num_proofs[bot_i])
-                got_succ_bot = mp(got_succ_bot, got_prev_num, prev_num_formula, succ_bot_prev)
-
-                # unique_successor: Succ(m, prev_bot) → Succ(bot, prev_bot) → Eq(m, bot)
-                got_eq = apply_thm(us, [prev_bot, m_v, bot_i])
-                got_eq = mp(got_eq, got_succ_m, succ_m_prev, got_eq.sequent.right[0].right)
-                got_eq = mp(got_eq, got_succ_bot, succ_bot_prev, eq_m_bot)
-
-            # Transfer Succ(top_i, bot_i) → Succ(top_i, m) via Eq(m, bot_i)
-            # Actually we need Succ(top_i, m) from Succ(top_i, bot_i) + Eq(bot_i, m)
-            # eq_successor_transfer: Eq(a,c) → Eq(b,d) → Succ(c,d) → Succ(a,b)
-            # a=top_i, b=m_v, c=top_i, d=bot_i: Eq(top_i,top_i) → Eq(m_v,bot_i) → Succ(top_i,bot_i) → Succ(top_i,m_v)
-            # But we have Eq(m_v, bot_i), and need Succ(top_i, m_v).
-            # Succ(top_i, bot_i) = sf_i on left.
-            # est: ∀a,b,c,d. Eq(a,c) → Eq(b,d) → Succ(c,d) → Succ(a,b)
-            # With a=top_i, b=m_v, c=top_i, d=bot_i
-            eq_tt = Eq(top_i, top_i)
-            got_eq_tt = apply_thm(er, [top_i], concl=eq_tt)
-            succ_top_m = SuccDef(top_i, m_v)
-            got_est = apply_thm(est, [top_i, m_v, top_i, bot_i])
-            got_est = mp(got_est, got_eq_tt, eq_tt, got_est.sequent.right[0].right)
-            got_est = mp(got_est, got_eq, eq_m_bot, got_est.sequent.right[0].right)
-            got_est = mp(got_est, ax(sf_i), sf_i, succ_top_m)
-
-            # Close: Num(m, i) → Succ(top_i, m), then ∀m = Num(top_i, i+1)
-            imp_num = Implies(num_m, succ_top_m)
-            left_imp = [f for f in got_est.sequent.left if not same(f, num_m)]
-            got_num = Proof(Sequent(left_imp, [imp_num]), 'implies_right', [got_est], principal=imp_num)
-            fa_num = Forall(m_v, imp_num)
-            got_num = Proof(Sequent(got_num.sequent.left, [fa_num]),
-                'forall_right', [got_num], principal=fa_num, term=m_v)
-            # Bridge to NumDef
-            num_top = NumDef(top_i, level)
-            got_num = cut(ax(num_top), num_top, got_num)
-            num_proofs[top_i] = got_num
-
-        # Derive each chain piece from num_hyp (on left) and cut out the ax() versions.
-        # Num(x, k) = ∀m. Num(m, k-1) → Succ(x, m)
-        # Chain: Empty(v0), Succ(v1,v0), ..., Succ(x, v_{k-1})
-        # From Num(x,k) + Num(v_{k-1}, k-1) → Succ(x, v_{k-1})
-        # From Num(v_{k-1}, k-1) + Num(v_{k-2}, k-2) → Succ(v_{k-1}, v_{k-2})
-        # ...base: Num(v0, 0) = Empty(v0)
-
-        # First: derive chain pieces top-down from num_hyp
-        # Num(x, k) on left → fl with v_{k-1} → Num(v_{k-1},k-1) → Succ(x,v_{k-1})
-        # Then Num(v_{k-1}, k-1) on left → fl with v_{k-2} → ...
-        # Until Num(v0, 0) = Empty(v0)
-
-        cur_num = num_hyp  # starts as Num(x, k)
-        proof = wl(proof, num_hyp)
-
-        for i in range(len(chain_succs) - 1, -1, -1):
-            top_i, bot_i, sf_i = chain_succs[i]
-            # cur_num = Num(top_i, i+1) = ∀m. Num(m, i) → Succ(top_i, m)
-            # Instantiate with bot_i: Num(bot_i, i) → Succ(top_i, bot_i)
-            prev_num = NumDef(bot_i, i)
-            imp_sf = Implies(prev_num, sf_i)
-            got_sf = fl(cur_num, imp_sf, bot_i)
-            got_sf = cut(got_sf, cur_num, ax(cur_num))
-            # [cur_num] |- Num(bot_i, i) → Succ(top_i, bot_i)
-
-            # Succ(top_i, bot_i) = sf_i is on proof's left via ax().
-            # We want to derive it from cur_num + prev_num.
-            # First: add prev_num to proof's left (we'll derive sf_i from it + cur_num)
-            # mp: Num(bot_i,i) → Succ(...). Need prev_num = Num(bot_i, i) as proof.
-            # Use num_proofs[bot_i] if available (for i>0), or ax(Empty) for i=0.
-            if i == 0:
-                got_prev = ax(Empty(bot_i))
-            else:
-                got_prev = num_proofs[bot_i]
-            got_sf = mp(got_sf, got_prev, prev_num, sf_i)
-            # left: [cur_num] + got_prev.left |- sf_i
-
-            # Cut sf_i from proof using got_sf
-            if any(same(sf_i, f) for f in proof.sequent.left):
-                proof = cut(proof, sf_i, got_sf)
-
-            cur_num = prev_num
-
-        # Discharge all intermediate formulas left by the loop:
-        # Num(bot_i, i) for each level, plus Empty(chain_empty)
-        empty_f = Empty(chain_empty)
-        to_discharge = [cur_num, empty_f]
-        for i, (top_i, bot_i, sf_i) in enumerate(chain_succs):
-            to_discharge.append(NumDef(bot_i, i))
-        for formula in to_discharge:
-            if any(same(f, formula) for f in proof.sequent.left):
-                imp = Implies(formula, proof.sequent.right[0])
-                left = [f for f in proof.sequent.left if not same(f, formula)]
+        def elim_one_var(proof, v, existence_proof):
+            """Eliminate chain var v from proof.
+            All left formulas mentioning v are discharged, v is ∀-closed,
+            then instantiated with ∃ witness and eliminated."""
+            # 1. Discharge all left formulas mentioning v
+            to_discharge = [f for f in proof.sequent.left
+                            if not isinstance(f, ZFCAxiom) and
+                            _var_free_in_sequent(v, Sequent([f], []))]
+            for hyp in to_discharge:
+                imp = Implies(hyp, proof.sequent.right[0])
+                left = [f for f in proof.sequent.left if not same(f, hyp)]
                 proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
 
-        return proof
+            # 2. forall_right(v)
+            r = proof.sequent.right[0]
+            fa_v = Forall(v, r)
+            proof = Proof(Sequent(proof.sequent.left, [fa_v]),
+                'forall_right', [proof], principal=fa_v, term=v)
 
-    proof = discharge_num(proof, num_a, a_empty, a_succs, a_vs)
-    print(f'prove_addition: Num(a,{m_val}) discharged')
-    proof = discharge_num(proof, num_b, b_empty, b_succs, b_vs)
-    print(f'prove_addition: Num(b,{n_val}) discharged')
-    proof = discharge_num(proof, num_c, c_empty, c_succs, c_vs)
-    print(f'prove_addition: Num(c,{p_val}) discharged')
+            # 3. fl with witness from ∃
+            ex = existence_proof.sequent.right[0]
+            if type(ex).__name__ == 'Exists':
+                w = ex.var
+            else:
+                from core.proof import _expand
+                ex_e = _expand(ex)
+                if type(ex_e).__name__ == 'Not':
+                    w = ex_e.operand.var  # Not(Forall(w, Not(body))) → Forall.var
+                else:
+                    w = ex_e.var
+            inst = fa_v.body.subst(fa_v.var, w)
+            got_inst = fl(fa_v, inst, w)
+            proof = cut(got_inst, fa_v, proof)
 
-    # Discharge chain pieces (Empty, Successor) + Num hypotheses, then Omega
-    # Chain pieces for each number:
-    chain_hyps = []
-    for empty_v, succs in [(a_empty, a_succs), (b_empty, b_succs), (c_empty, c_succs)]:
-        chain_hyps.append(Empty(empty_v))
-        for top_i, bot_i, sf_i in succs:
-            chain_hyps.append(sf_i)
-    # Also discharge OrdPair witnesses from prove_addition
-    for hyp in chain_hyps + [num_c, num_b, num_a, omega_w]:
+            # 4. mp the first hypothesis (the constraint for v, now with w)
+            # proof right = C(w) → more_hyps(w) → ... → Plus(a,b,c)
+            # C(w) is provable because w is the ∃ witness.
+            # But there may be MULTIPLE hypotheses mentioning w (from step 1 discharge).
+            # We need to mp ALL of them, providing proofs.
+            # Actually: only the FIRST imp is the direct constraint for v.
+            # The rest mention OTHER vars that happen to reference v.
+            # After substituting v→w, they reference w.
+            # We can only mp if we can prove the hypothesis.
+            # For the direct constraint (Empty/Succ/OrdPair), we have the ∃ proof.
+            # For others, we can't prove them here — they'll be handled when
+            # their own vars are eliminated.
+            # So: mp ONLY the first hypothesis, leave the rest.
+            r = proof.sequent.right[0]
+            if type(r).__name__ == 'Implies':
+                hyp = r.left
+                rest = r.right
+                # mp ALL hypotheses containing w, then eel + cut
+                from core.proof import _free_vars
+                proof = mp(proof, ax(hyp), hyp, rest)
+                while type(proof.sequent.right[0]).__name__ == 'Implies':
+                    r2 = proof.sequent.right[0]
+                    if w not in _free_vars(r2.left):
+                        break
+                    proof = mp(proof, ax(r2.left), r2.left, r2.right)
+                # All w-constraints on left. Package into And, eel, cut.
+                w_on_left = [f for f in proof.sequent.left
+                             if not isinstance(f, ZFCAxiom) and w in _free_vars(f)]
+                if len(w_on_left) == 1:
+                    proof = eel(proof, w_on_left[0], w)
+                else:
+                    # Combine into And
+                    combined = w_on_left[0]
+                    for wf in w_on_left[1:]:
+                        new_and = And(combined, wf)
+                        got_l = apply_thm(and_elim_left(combined, wf, []), [], new_and, combined, ax(new_and))
+                        proof = cut(proof, combined, got_l)
+                        got_r = apply_thm(and_elim_right(combined, wf, []), [], new_and, wf, ax(new_and))
+                        proof = cut(proof, wf, got_r)
+                        proof = eel(proof, new_and, w)
+                        # Hmm, eel needs w not free elsewhere. After cutting, new_and
+                        # replaced both. But w might still be in remaining w_on_left.
+                        # This doesn't work for > 2 formulas.
+                        combined = Exists(w, new_and)
+                    # At this point, eel'd w from combined And
+                    pass
+                proof = cut(proof, ex, existence_proof)
+            return proof
+
+        # Build elimination order: pair vars first, then sv, then chain top-down
+        elim_order = []
+        # Pairs — FRESH existence proof for each
+        for pv in reversed(pair_vars):
+            for f in chain_formulas:
+                if isinstance(f, OrdPair) and f.set is pv:
+                    x, y = f.left, f.right
+                    ex = apply_thm(ordpair_exists(), [x, y], concl=Exists(pv, f))
+                    elim_order.append((pv, ex))
+                    break
+        # SV vars
+        for sv, succ_sv in reversed(sv_vars):
+            prev = succ_sv.of
+            ex = apply_thm(successor_exists(), [prev], concl=Exists(sv, succ_sv))
+            elim_order.append((sv, ex))
+        # A-chain top-down
+        for i in range(len(a_vs) - 1, -1, -1):
+            av = a_vs[i]
+            if i == 0:
+                elim_order.append((av, empty_set_thm()))
+            else:
+                sf = SuccDef(av, a_vs[i-1])
+                elim_order.append((av, apply_thm(successor_exists(), [a_vs[i-1]], concl=Exists(av, sf))))
+        # c-chain: NOT ax'd, skip
+        # B-chain top-down
+        for i in range(len(b_vs) - 1, -1, -1):
+            bv = b_vs[i]
+            if i == 0:
+                elim_order.append((bv, empty_set_thm()))
+            else:
+                sf = SuccDef(bv, b_vs[i-1])
+                elim_order.append((bv, apply_thm(successor_exists(), [b_vs[i-1]], concl=Exists(bv, sf))))
+
+        for v, ex in elim_order:
+            print(f'  elim: {v}')
+            proof = elim_one_var(proof, v, ex)
+
+    # Discharge Num + Omega
+    print(f'before Num discharge:')
+    for f in proof.sequent.left:
+        print(f'  L: {type(f).__name__}: {f}')
+    for hyp in [num_c, num_b, num_a, omega_w]:
         if not any(same(hyp, f) for f in proof.sequent.left):
-            continue  # not on left, skip
+            proof = wl(proof, hyp)
         imp = Implies(hyp, proof.sequent.right[0])
         left = [f for f in proof.sequent.left if not same(f, hyp)]
         proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
-    # Also discharge any remaining chain vars from left
-    remaining = list(proof.sequent.left)
-    for hyp in remaining:
-        if isinstance(hyp, (Empty, SuccDef)):
-            imp = Implies(hyp, proof.sequent.right[0])
-            left = [f for f in proof.sequent.left if not same(f, hyp)]
-            proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+
+    print(f'before forall_right:')
+    for f in proof.sequent.left:
+        print(f'  L: {type(f).__name__}: {f}')
+    print(f'  R: {proof.sequent.right[0]}')
     for v in [c, b, a, w]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
@@ -8364,8 +8492,6 @@ def prove_addition(m_val, n_val):
     print(f'prove_addition: result = {proof.sequent.right[0]}')
     proof.name = f'prove_addition_{m_val}_{n_val}'
     return proof
-
-
 
 
 def plus_comm():
