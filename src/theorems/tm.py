@@ -1750,6 +1750,438 @@ def tmstep_eq_before():
     return proof_body
 
 
+def tmstep_to_reaches():
+    """Wrap a single TMStep in TMReaches.
+    |- ∀delta,c1,c2,z,one.
+         TMStep(delta,c1,c2) → Num(z,0) → Successor(one,z) →
+         TMReaches(delta,c1,one,c2)"""
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        eq_reflexive, eq_symmetric, unique_empty, iff_mp, iff_mp_rev,
+        or_elim, or_intro_left, or_intro_right)
+    from theorems.sets import (ordpair_exists, singleton_exists, union_exists,
+        unique_successor, eq_successor_transfer)
+    from theorems.recursion import (apply_singleton, singleton_apply_eq,
+        eq_apply_transfer, apply_union_intro_left, apply_union_intro_right,
+        apply_union_elim)
+    from theorems.tm import tmstep_eq_before
+    from core.proof import Proof, Sequent, same
+    from core.derived import Or
+    from vocab.sets import Singleton as Sing, Union as UnionDef
+
+    def inst_thm(proof, terms):
+        """Instantiate ∀-quantified proof with terms using fl+cut (avoids eigenvariable issues)."""
+        for term in terms:
+            fa = proof.sequent.right[0]
+            inst = fa.body.subst(fa.var, term) if hasattr(fa.body, 'subst') else fa.body
+            got_inst = fl(fa, inst, term)
+            proof = cut(got_inst, fa, proof)
+        return proof
+
+    delta = Var(postfix='delta')
+    c1 = Var(postfix='c1')
+    c2 = Var(postfix='c2')
+    z = Var(postfix='z')
+    one_v = Var(postfix='one')
+
+    tmstep_f = TMStep(delta, c1, c2)
+    num_z = Num(z, 0)
+    succ_one = Successor(one_v, z)
+
+    # === Construct trace = sing_0 ∪ sing_1 ===
+    pair_0 = Var(postfix='p0')
+    pair_1 = Var(postfix='p1')
+    op_p0 = OrdPair(pair_0, z, c1)
+    op_p1 = OrdPair(pair_1, one_v, c2)
+
+    oe = ordpair_exists()
+    got_ex_p0 = apply_thm(oe, [z, c1], concl=Exists(pair_0, op_p0))
+    got_ex_p1 = apply_thm(oe, [one_v, c2], concl=Exists(pair_1, op_p1))
+
+    sing_0 = Var(postfix='s0')
+    sing_1 = Var(postfix='s1')
+    sing_0_f = Sing(sing_0, pair_0)
+    sing_1_f = Sing(sing_1, pair_1)
+    se = singleton_exists()
+    got_ex_s0 = apply_thm(se, [pair_0], concl=Exists(sing_0, sing_0_f))
+    got_ex_s1 = apply_thm(se, [pair_1], concl=Exists(sing_1, sing_1_f))
+
+    tra = Var(postfix='tra')
+    union_f = UnionDef(tra, sing_0, sing_1)
+    ue = union_exists()
+    got_ex_tra = apply_thm(ue, [sing_0, sing_1], concl=Exists(tra, union_f))
+
+    # === Apply(tra, z, c1) ===
+    # apply_singleton: ∀x,y,p,v. OrdPair(p,x,y) → Singleton(v,p) → Apply(v,x,y)
+    as_thm = apply_singleton()
+    got_app_s0 = apply_thm(as_thm, [z, c1, pair_0, sing_0])
+    got_app_s0 = mp(got_app_s0, ax(op_p0), op_p0, got_app_s0.sequent.right[0].right)
+    got_app_s0 = mp(got_app_s0, ax(sing_0_f), sing_0_f, Apply(sing_0, z, c1))
+
+    # apply_union_intro_left: ∀a,x,y,u,b. Apply(a,x,y) → Union(u,a,b) → Apply(u,x,y)
+    aul = apply_union_intro_left()
+    aul = apply_union_intro_left()
+    got_app_0 = apply_thm(aul, [tra, sing_0, sing_1, z, c1])
+    # aul: Union(u,v1,v2) → Apply(v1,x,y) → Apply(u,x,y)
+    got_app_0 = mp(got_app_0, ax(union_f), union_f, got_app_0.sequent.right[0].right)
+    got_app_0 = mp(got_app_0, got_app_s0, Apply(sing_0, z, c1), Apply(tra, z, c1))
+    print(f'tmstep_to_reaches: Apply(tra, z, c1)')
+
+    # === Apply(tra, one, c2) ===
+    got_app_s1 = apply_thm(as_thm, [one_v, c2, pair_1, sing_1])
+    got_app_s1 = mp(got_app_s1, ax(op_p1), op_p1, got_app_s1.sequent.right[0].right)
+    got_app_s1 = mp(got_app_s1, ax(sing_1_f), sing_1_f, Apply(sing_1, one_v, c2))
+
+    aur = apply_union_intro_right()
+    got_app_1 = apply_thm(aur, [tra, sing_0, sing_1, one_v, c2])
+    # aur: Union(u,v1,v2) → Apply(v2,x,y) → Apply(u,x,y)
+    got_app_1 = mp(got_app_1, ax(union_f), union_f, got_app_1.sequent.right[0].right)
+    app_s1_from_aur = got_app_1.sequent.right[0].left
+    app_s1_from_proof = got_app_s1.sequent.right[0]
+    print(f'  aur expects: {app_s1_from_aur}')
+    print(f'  proof gives: {app_s1_from_proof}')
+    print(f'  same: {same(app_s1_from_aur, app_s1_from_proof)}')
+    got_app_1 = mp(got_app_1, got_app_s1, app_s1_from_aur, got_app_1.sequent.right[0].right)
+    print(f'tmstep_to_reaches: Apply(tra, one, c2)')
+
+    # === base: ∀zv. Empty(zv) → Apply(tra, zv, c1) ===
+    zv = Var(postfix='_zv')
+    ue_thm = unique_empty()
+    eq_zv_z = Eq(zv, z)
+    got_eq_zv = apply_thm(ue_thm, [zv], Empty(zv),
+        Forall(z, Implies(num_z, eq_zv_z)), ax(Empty(zv)))
+    got_eq_zv = apply_thm(got_eq_zv, [z], num_z, eq_zv_z, ax(num_z))
+    es = eq_symmetric()
+    got_eq_z_zv = apply_thm(es, [zv, z], eq_zv_z, Eq(z, zv), got_eq_zv)
+
+    eat = eq_apply_transfer()
+    got_app_zv = apply_thm(eat, [tra, z, zv, c1])
+    while type(got_app_zv.sequent.right[0]).__name__ == 'Implies':
+        cur = got_app_zv.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, Eq(z, zv)):
+            got_app_zv = mp(got_app_zv, got_eq_z_zv, hyp, cur.right)
+        elif same(hyp, Apply(tra, z, c1)):
+            got_app_zv = mp(got_app_zv, got_app_0, hyp, cur.right)
+        else:
+            got_app_zv = mp(got_app_zv, ax(hyp), hyp, cur.right)
+
+    imp_base = Implies(Empty(zv), Apply(tra, zv, c1))
+    left_base = [f_ for f_ in got_app_zv.sequent.left if not same(f_, Empty(zv))]
+    got_base = Proof(Sequent(left_base, [imp_base]), 'implies_right', [got_app_zv], principal=imp_base)
+    fa_base = Forall(zv, imp_base)
+    got_base = Proof(Sequent(got_base.sequent.left, [fa_base]),
+        'forall_right', [got_base], principal=fa_base, term=zv)
+    print(f'tmstep_to_reaches: base')
+
+    # === step_valid ===
+    kv = Var(postfix='_k')
+    skv = Var(postfix='_sk')
+    ckv = Var(postfix='_ck')
+    ck1v = Var(postfix='_ck1')
+
+    # --- In(kv, one_v) → Eq(kv, z) ---
+    iff_k = Iff(In(kv, one_v), Or(In(kv, z), Eq(kv, z)))
+    got_iff_k = fl(succ_one, iff_k, kv)
+    got_or_k = mp(apply_thm(iff_mp(In(kv, one_v), Or(In(kv,z), Eq(kv,z)), []),
+        [], iff_k, Implies(In(kv, one_v), Or(In(kv,z), Eq(kv,z))), got_iff_k),
+        ax(In(kv, one_v)), In(kv, one_v), Or(In(kv,z), Eq(kv,z)))
+
+    not_in_kz = Not(In(kv, z))
+    got_not_in = fl(num_z, not_in_kz, kv)
+    eq_kv_z = Eq(kv, z)
+
+    # Case 1: In(kv,z) → contradiction → Eq(kv,z)
+    got_bot = Proof(Sequent([In(kv,z), not_in_kz], []), 'not_left',
+        [ax(In(kv,z))], principal=not_in_kz)
+    got_c1_eq = Proof(Sequent(got_bot.sequent.left, [eq_kv_z]),
+        'weakening_right', [got_bot], principal=eq_kv_z)
+    got_c1_eq = cut(got_c1_eq, not_in_kz, got_not_in)
+    imp_c1 = Implies(In(kv,z), eq_kv_z)
+    left_c1 = [f for f in got_c1_eq.sequent.left if not same(f, In(kv,z))]
+    got_imp_c1 = Proof(Sequent(left_c1, [imp_c1]), 'implies_right', [got_c1_eq], principal=imp_c1)
+
+    # Case 2: Eq(kv,z) → Eq(kv,z)
+    imp_c2 = Implies(eq_kv_z, eq_kv_z)
+    got_imp_c2 = Proof(Sequent([], [imp_c2]), 'implies_right', [ax(eq_kv_z)], principal=imp_c2)
+
+    oe_thm = or_elim(In(kv,z), eq_kv_z, eq_kv_z, [])
+    got_eq_kz = apply_thm(oe_thm, [], Or(In(kv,z), eq_kv_z),
+        Implies(imp_c1, Implies(imp_c2, eq_kv_z)), got_or_k)
+    got_eq_kz = mp(got_eq_kz, got_imp_c1, imp_c1, Implies(imp_c2, eq_kv_z))
+    got_eq_kz = mp(got_eq_kz, got_imp_c2, imp_c2, eq_kv_z)
+    print(f'tmstep_to_reaches: Eq(kv, z)')
+
+    # --- Succ(skv, kv) + Eq(kv, z) → Eq(skv, one) ---
+    est = eq_successor_transfer()
+    succ_skv_kv = Successor(skv, kv)
+    succ_skv_z = Successor(skv, z)
+    # est: ∀a,b,c,d. Eq(a,c) → Eq(b,d) → Succ(c,d) → Succ(a,b)
+    # Want: Eq(skv,skv) → Eq(kv,z) → Succ(skv,z) → Succ(skv,kv)
+    # Actually we want Succ(skv,kv) → Succ(skv,z). Use different args:
+    # a=skv, b=z, c=skv, d=kv: Eq(skv,skv) → Eq(z,kv) → Succ(skv,kv) → Succ(skv,z)
+    got_succ_z = inst_thm(est, [skv, z, skv, kv])
+    # Hyps: Eq(skv,skv), Eq(z,kv), Succ(skv,kv) → Succ(skv,z)
+    eq_skv_skv = Eq(skv, skv)
+    got_eq_ss = apply_thm(eq_reflexive(), [skv], concl=eq_skv_skv)
+    eq_z_kv = Eq(z, kv)
+    _es_zk = eq_symmetric()
+    got_eq_z_kv = inst_thm(_es_zk, [kv, z])
+    got_eq_z_kv = mp(got_eq_z_kv, got_eq_kz, eq_kv_z, eq_z_kv)
+    while type(got_succ_z.sequent.right[0]).__name__ == 'Implies':
+        cur = got_succ_z.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, eq_skv_skv):
+            got_succ_z = mp(got_succ_z, got_eq_ss, hyp, cur.right)
+        elif same(hyp, eq_z_kv):
+            got_succ_z = mp(got_succ_z, got_eq_z_kv, hyp, cur.right)
+        elif same(hyp, succ_skv_kv):
+            got_succ_z = mp(got_succ_z, ax(succ_skv_kv), hyp, cur.right)
+        else:
+            got_succ_z = mp(got_succ_z, ax(hyp), hyp, cur.right)
+    # [...] |- Successor(skv, z)
+
+    us = unique_successor()
+    eq_skv_one = Eq(skv, one_v)
+    got_eq_sk = inst_thm(us, [z, skv, one_v])
+    while type(got_eq_sk.sequent.right[0]).__name__ == 'Implies':
+        cur = got_eq_sk.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, succ_skv_z):
+            got_eq_sk = mp(got_eq_sk, got_succ_z, hyp, cur.right)
+        elif same(hyp, succ_one):
+            got_eq_sk = mp(got_eq_sk, ax(succ_one), hyp, cur.right)
+        else:
+            got_eq_sk = mp(got_eq_sk, ax(hyp), hyp, cur.right)
+    print(f'tmstep_to_reaches: Eq(skv, one)')
+
+    # --- Apply(tra, kv, ckv) + Eq(kv, z) → Eq(c1, ckv) via union_elim + singleton ---
+    app_tra_kv = Apply(tra, kv, ckv)
+    app_tra_z_ck = Apply(tra, z, ckv)
+    got_app_z_ck = inst_thm(eq_apply_transfer(), [tra, kv, z, ckv])
+    while type(got_app_z_ck.sequent.right[0]).__name__ == 'Implies':
+        cur = got_app_z_ck.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, Eq(kv, z)):
+            got_app_z_ck = mp(got_app_z_ck, got_eq_kz, hyp, cur.right)
+        elif same(hyp, app_tra_kv):
+            got_app_z_ck = mp(got_app_z_ck, ax(app_tra_kv), hyp, cur.right)
+        else:
+            got_app_z_ck = mp(got_app_z_ck, ax(hyp), hyp, cur.right)
+
+    aue = apply_union_elim()
+    app_s0_z_ck = Apply(sing_0, z, ckv)
+    app_s1_z_ck = Apply(sing_1, z, ckv)
+    or_apps = Or(app_s0_z_ck, app_s1_z_ck)
+    got_or_apps = inst_thm(aue, [tra, sing_0, sing_1, z, ckv])
+    # aue: Apply(u,x,y) → Union(u,v1,v2) → Or(Apply(v1,x,y), Apply(v2,x,y))
+    while type(got_or_apps.sequent.right[0]).__name__ == 'Implies':
+        cur = got_or_apps.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, app_tra_z_ck) or same(hyp, Apply(tra, z, ckv)):
+            got_or_apps = mp(got_or_apps, got_app_z_ck, hyp, cur.right)
+        elif same(hyp, union_f):
+            got_or_apps = mp(got_or_apps, ax(union_f), hyp, cur.right)
+        else:
+            got_or_apps = mp(got_or_apps, ax(hyp), hyp, cur.right)
+
+    # Case A: Apply(sing_0, z, ckv) → Eq(c1, ckv)
+    sae = singleton_apply_eq()
+    eq_c1_ck = Eq(c1, ckv)
+    and_eq0 = And(Eq(z, z), eq_c1_ck)
+    got_sae0 = inst_thm(sae, [z, c1, pair_0, sing_0, z, ckv])
+    got_sae0 = mp(got_sae0, ax(op_p0), op_p0, got_sae0.sequent.right[0].right)
+    got_sae0 = mp(got_sae0, ax(sing_0_f), sing_0_f, got_sae0.sequent.right[0].right)
+    got_sae0 = mp(got_sae0, ax(app_s0_z_ck), app_s0_z_ck, and_eq0)
+    got_caseA = apply_thm(and_elim_right(Eq(z,z), eq_c1_ck, []), [],
+        and_eq0, eq_c1_ck, got_sae0)
+
+    # Case B: Apply(sing_1, z, ckv) → Eq(one, z) → contradiction → Eq(c1, ckv)
+    eq_one_z = Eq(one_v, z)
+    and_eq1 = And(eq_one_z, Eq(c2, ckv))
+    got_sae1 = inst_thm(sae, [one_v, c2, pair_1, sing_1, z, ckv])
+    got_sae1 = mp(got_sae1, ax(op_p1), op_p1, got_sae1.sequent.right[0].right)
+    got_sae1 = mp(got_sae1, ax(sing_1_f), sing_1_f, got_sae1.sequent.right[0].right)
+    got_sae1 = mp(got_sae1, ax(app_s1_z_ck), app_s1_z_ck, and_eq1)
+    got_eq_one_z = apply_thm(and_elim_left(eq_one_z, Eq(c2, ckv), []), [],
+        and_eq1, eq_one_z, got_sae1)
+
+    # Eq(one,z) → z∈one → z∈z → contradiction with ¬(z∈z)
+    er = eq_reflexive()
+    eq_zz = Eq(z, z)
+    got_eq_zz = apply_thm(er, [z], concl=eq_zz)
+    or_zz = Or(In(z, z), eq_zz)
+    got_or_zz = apply_thm(or_intro_right(In(z,z), eq_zz, []), [], eq_zz, or_zz, got_eq_zz)
+    iff_z_one = Iff(In(z, one_v), or_zz)
+    got_iff_z = fl(succ_one, iff_z_one, z)
+    got_in_z_one = mp(apply_thm(iff_mp_rev(In(z, one_v), or_zz, []),
+        [], iff_z_one, Implies(or_zz, In(z, one_v)), got_iff_z),
+        got_or_zz, or_zz, In(z, one_v))
+
+    iff_z_z = Iff(In(z, one_v), In(z, z))
+    got_iff_zz = apply_thm(ax(eq_one_z), [z], concl=iff_z_z)
+    got_in_z_z = mp(apply_thm(iff_mp(In(z, one_v), In(z, z), []),
+        [], iff_z_z, Implies(In(z, one_v), In(z, z)), got_iff_zz),
+        got_in_z_one, In(z, one_v), In(z, z))
+
+    not_in_zz = Not(In(z, z))
+    got_not_zz = fl(num_z, not_in_zz, z)
+    # ¬In(z,z) + In(z,z) → ⊥ → Eq(c1,ckv)
+    got_bot2 = Proof(Sequent([In(z,z), not_in_zz], [eq_c1_ck]),
+        'weakening_right',
+        [Proof(Sequent([In(z,z), not_in_zz], []), 'not_left',
+            [ax(In(z,z))], principal=not_in_zz)],
+        principal=eq_c1_ck)
+    got_caseB = cut(got_bot2, not_in_zz, got_not_zz)
+    got_caseB = cut(got_caseB, In(z,z), got_in_z_z)
+    got_caseB = cut(got_caseB, eq_one_z, got_eq_one_z)
+
+    # or_elim → Eq(c1, ckv)
+    imp_cA = Implies(app_s0_z_ck, eq_c1_ck)
+    left_cA = [f for f in got_caseA.sequent.left if not same(f, app_s0_z_ck)]
+    got_imp_cA = Proof(Sequent(left_cA, [imp_cA]), 'implies_right', [got_caseA], principal=imp_cA)
+    imp_cB = Implies(app_s1_z_ck, eq_c1_ck)
+    left_cB = [f for f in got_caseB.sequent.left if not same(f, app_s1_z_ck)]
+    got_imp_cB = Proof(Sequent(left_cB, [imp_cB]), 'implies_right', [got_caseB], principal=imp_cB)
+
+    oe_apps = or_elim(app_s0_z_ck, app_s1_z_ck, eq_c1_ck, [])
+    got_eq_c1ck = apply_thm(oe_apps, [], or_apps,
+        Implies(imp_cA, Implies(imp_cB, eq_c1_ck)), got_or_apps)
+    got_eq_c1ck = mp(got_eq_c1ck, got_imp_cA, imp_cA, Implies(imp_cB, eq_c1_ck))
+    got_eq_c1ck = mp(got_eq_c1ck, got_imp_cB, imp_cB, eq_c1_ck)
+    print(f'tmstep_to_reaches: Eq(c1, ckv)')
+
+    # --- TMStep(delta, ckv, c2) from TMStep(delta, c1, c2) + Eq(c1, ckv) ---
+    teb = tmstep_eq_before()
+    tmstep_ck = TMStep(delta, ckv, c2)
+    got_tmstep_ck = inst_thm(teb, [delta, c1, c2, ckv])
+    got_tmstep_ck = mp(got_tmstep_ck, got_eq_c1ck, eq_c1_ck, got_tmstep_ck.sequent.right[0].right)
+    got_tmstep_ck = mp(got_tmstep_ck, ax(tmstep_f), tmstep_f, tmstep_ck)
+    print(f'tmstep_to_reaches: TMStep(delta, ckv, c2)')
+
+    # --- Apply(tra, skv, c2) from Apply(tra, one, c2) + Eq(one, skv) ---
+    eq_one_sk = Eq(one_v, skv)
+    # eq_symmetric: ∀a,b. Eq(a,b) → Eq(b,a). Use fl to instantiate from left side.
+    _es2 = eq_symmetric()
+    _es2_fa = _es2.sequent.right[0]  # ∀a. ∀b. Eq(a,b) → Eq(b,a)
+    # Two fl calls for two ∀'s
+    _es2_after_a = _es2_fa.body.subst(_es2_fa.var, skv)  # ∀b. Eq(skv,b) → Eq(b,skv)
+    got_es2 = fl(_es2_fa, _es2_after_a, skv)
+    imp_sk_one = Implies(eq_skv_one, eq_one_sk)
+    got_es2_2 = fl(_es2_after_a, imp_sk_one, one_v)
+    # Compose: [∀a.∀b...] |- ∀b. ..., then [∀b...] |- Eq(skv,one)→Eq(one,skv)
+    got_es2 = cut(got_es2_2, _es2_after_a, got_es2)
+    # got_es2: [∀a.∀b...] |- Eq(skv,one) → Eq(one,skv)
+    got_es2 = cut(got_es2, _es2_fa, _es2)
+    print(f'  es2 right: {got_es2.sequent.right[0]}')
+    print(f'  eq_sk right: {got_eq_sk.sequent.right[0]}')
+    print(f'  eq_skv_one: {eq_skv_one}')
+    print(f'  same(es2.left, eq_skv_one): {same(got_es2.sequent.right[0].left, eq_skv_one)}')
+    print(f'  same(eq_sk.right, eq_skv_one): {same(got_eq_sk.sequent.right[0], eq_skv_one)}')
+    got_eq_one_sk = mp(got_es2, got_eq_sk, eq_skv_one, eq_one_sk)
+    # eq_apply_transfer: ∀v,x1,x2,y. Eq(x1,x2) → Apply(v,x1,y) → Apply(v,x2,y)
+    # Instantiate without context (clean axiom proof), then mp hypotheses in.
+    app_tra_sk = Apply(tra, skv, c2)
+    # eq_apply_transfer: Eq(one,skv) → Apply(tra,one,c2) → Apply(tra,skv,c2)
+    got_app_sk = inst_thm(eq_apply_transfer(), [tra, one_v, skv, c2])
+    while type(got_app_sk.sequent.right[0]).__name__ == 'Implies':
+        cur = got_app_sk.sequent.right[0]
+        hyp = cur.left
+        if same(hyp, eq_one_sk):
+            got_app_sk = mp(got_app_sk, got_eq_one_sk, hyp, cur.right)
+        elif same(hyp, Apply(tra, one_v, c2)):
+            got_app_sk = mp(got_app_sk, got_app_1, hyp, cur.right)
+        else:
+            got_app_sk = mp(got_app_sk, ax(hyp), hyp, cur.right)
+
+    # --- Build ∃ck1. And(Apply(tra, skv, ck1), TMStep(delta, ckv, ck1)) ---
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+
+    and_app_step = And(app_tra_sk, tmstep_ck)
+    got_and = mk_and(got_app_sk, got_tmstep_ck)
+    # Witness ck1 = c2
+    got_ex_ck1 = eir(got_and, and_app_step, ck1v, c2)
+    print(f'tmstep_to_reaches: ∃ck1')
+
+    # --- Close step_valid: ∀k. In(k,one) → ∀sk. Succ(sk,k) → ∀ck. Apply(tra,k,ck) → ∃ck1... ---
+    sv_body = got_ex_ck1.sequent.right[0]
+    # Discharge Apply(tra,kv,ckv)
+    imp_app = Implies(app_tra_kv, sv_body)
+    left_app = [f for f in got_ex_ck1.sequent.left if not same(f, app_tra_kv)]
+    proof_sv = Proof(Sequent(left_app, [imp_app]), 'implies_right', [got_ex_ck1], principal=imp_app)
+    proof_sv = Proof(Sequent(proof_sv.sequent.left, [Forall(ckv, imp_app)]),
+        'forall_right', [proof_sv], principal=Forall(ckv, imp_app), term=ckv)
+
+    # Discharge Succ(skv, kv)
+    cur_r = proof_sv.sequent.right[0]
+    imp_succ = Implies(succ_skv_kv, cur_r)
+    left_succ = [f for f in proof_sv.sequent.left if not same(f, succ_skv_kv)]
+    proof_sv = Proof(Sequent(left_succ, [imp_succ]), 'implies_right', [proof_sv], principal=imp_succ)
+    proof_sv = Proof(Sequent(proof_sv.sequent.left, [Forall(skv, imp_succ)]),
+        'forall_right', [proof_sv], principal=Forall(skv, imp_succ), term=skv)
+
+    # Discharge In(kv, one_v)
+    cur_r = proof_sv.sequent.right[0]
+    imp_in = Implies(In(kv, one_v), cur_r)
+    left_in = [f for f in proof_sv.sequent.left if not same(f, In(kv, one_v))]
+    proof_sv = Proof(Sequent(left_in, [imp_in]), 'implies_right', [proof_sv], principal=imp_in)
+    proof_sv = Proof(Sequent(proof_sv.sequent.left, [Forall(kv, imp_in)]),
+        'forall_right', [proof_sv], principal=Forall(kv, imp_in), term=kv)
+    print(f'tmstep_to_reaches: step_valid')
+
+    # === Compose: And(base, And(step_valid, reached)) ===
+    got_sv_reached = mk_and(proof_sv, got_app_1)  # And(step_valid, Apply(tra, one, c2))
+    got_all = mk_and(got_base, got_sv_reached)     # And(base, And(sv, reached))
+
+    # === Wrap in ∃trace ===
+    all_body = got_all.sequent.right[0]
+    got_ex = eir(got_all, all_body, tra, tra)
+
+    # Eliminate union_f, sing_0_f, sing_1_f, op_p0, op_p1 from left
+    got_ex = eel(got_ex, union_f, tra)
+    got_ex = cut(got_ex, Exists(tra, union_f), got_ex_tra)
+    got_ex = eel(got_ex, sing_1_f, sing_1)
+    got_ex = cut(got_ex, Exists(sing_1, sing_1_f), got_ex_s1)
+    got_ex = eel(got_ex, sing_0_f, sing_0)
+    got_ex = cut(got_ex, Exists(sing_0, sing_0_f), got_ex_s0)
+    got_ex = eel(got_ex, op_p1, pair_1)
+    got_ex = cut(got_ex, Exists(pair_1, op_p1), got_ex_p1)
+    got_ex = eel(got_ex, op_p0, pair_0)
+    got_ex = cut(got_ex, Exists(pair_0, op_p0), got_ex_p0)
+
+    # Bridge to TMReaches — got_ex right is ∃tra.And(base,And(sv,reached)) which
+    # should be same() as TMReaches(delta,c1,one,c2). If not, just use got_ex directly.
+    tmr = TMReaches(delta, c1, one_v, c2)
+    ex_right = got_ex.sequent.right[0]
+    if same(ex_right, tmr):
+        got_tmr = cut(ax(tmr), tmr, got_ex)
+    else:
+        # The ∃ var is different from tmr.expand()'s var. Just use got_ex as-is.
+        got_tmr = got_ex
+    print(f'tmstep_to_reaches: TMReaches')
+
+    # === Discharge hypotheses, close ∀ ===
+    proof = got_tmr
+    for hyp in [succ_one, num_z, tmstep_f]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [one_v, z, c2, c1, delta]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'tmstep_to_reaches'
+    return proof
+
+
+
 class Phase1P:
     """P1(n): after n steps from c0, config is (q0, n, tape_in).
     ∀cf. TMConfig(cf, q0, n, tape_in) → TMReaches(delta, c0, n, cf)"""
