@@ -166,23 +166,21 @@ class TMRun:
         return f'Run({self.run}, {self.delta}, {self.init}, {self.steps})'
 
 
-class TMHalts:
-    """TMHalts(delta, c0, qhalt, n, hf, tf): TM halts in n steps from c0,
-    with final head position hf and final tape tf.
+class TMReaches:
+    """TMReaches(delta, c0, n, cf): TM reaches config cf in n steps from c0.
     Exists trace. And(
       Forall zero. Empty(zero) -> Apply(trace, zero, c0),          -- base
       And(
         Forall k. In(k,n) -> Forall sk. Succ(sk,k) ->             -- step valid
           Forall ck. Apply(trace,k,ck) ->
             Exists ck1. And(Apply(trace,sk,ck1), TMStep(delta,ck,ck1)),
-        Forall cf. Apply(trace, n, cf) ->                           -- halted
-          TMConfig(cf, qhalt, hf, tf)))"""
-    __match_args__ = ('delta', 'init', 'halt_state', 'steps', 'head', 'tape')
-    def __init__(self, delta, c0, qhalt, n, hf, tf):
-        self.delta = delta; self.init = c0; self.halt_state = qhalt
-        self.steps = n; self.head = hf; self.tape = tf
+        Apply(trace, n, cf)))                                       -- reached"""
+    __match_args__ = ('delta', 'init', 'steps', 'config')
+    def __init__(self, delta, c0, n, cf):
+        self.delta = delta; self.init = c0
+        self.steps = n; self.config = cf
     def expand(self):
-        trace, cf = Var(), Var()
+        trace = Var()
         zero, k, sk, ck, ck1 = Var(), Var(), Var(), Var(), Var()
         base = Forall(zero, Implies(Empty(zero), Apply(trace, zero, self.init)))
         step = Forall(k, Implies(In(k, self.steps),
@@ -190,12 +188,10 @@ class TMHalts:
                 Forall(ck, Implies(Apply(trace, k, ck),
                     Exists(ck1, And(Apply(trace, sk, ck1),
                         TMStep(self.delta, ck, ck1)))))))))
-        halted = Forall(cf, Implies(Apply(trace, self.steps, cf),
-            TMConfig(cf, self.halt_state, self.head, self.tape)))
-        return Exists(trace, And(base, And(step, halted)))
+        reached = Apply(trace, self.steps, self.config)
+        return Exists(trace, And(base, And(step, reached)))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return TMHalts(r(self.delta), r(self.init), r(self.halt_state),
-            r(self.steps), r(self.head), r(self.tape))
+        return TMReaches(r(self.delta), r(self.init), r(self.steps), r(self.config))
     def __str__(self):
-        return f'TM({self.delta}) halts from {self.init} in {self.steps} steps at state {self.halt_state}, head {self.head}, tape {self.tape}'
+        return f'(TM({self.delta}) reaches {self.config} from {self.init} in {self.steps} steps)'

@@ -127,14 +127,18 @@ def formalize(tm):
 def add_goal():
     """Correctness goal for the addition TM.
 
-    ∀ delta, q0, qH, tape_in, z, c0, w, a, b, c, n, hf, tf.
+    ∀ delta, q0, qH, tape_in, z, c0, w, a, b, c, hf, ssc, n, tf, cf.
       Omega(w) → In(a, w) → In(b, w) →
       Function(delta) → Function(tape_in) →
       delta_char → Num(q0, 0) → Num(qH, 1) → Num(z, 0) →
       UnaryTape(tape_in, a, b) → TMConfig(c0, q0, z, tape_in) →
-      Plus(a, b, c) → Successor(hf, c) →
+      Plus(a, b, c) →
+      Successor(hf, c) →           hf = S(c), final head position
+      Successor(ssc, hf) →         ssc = S(S(c))
+      Successor(n, ssc) →          n = S(S(S(c))) = a+b+3, total steps
       UnaryOutput(tf, c) →
-      TMHalts(delta, c0, qH, n, hf, tf)
+      TMConfig(cf, qH, hf, tf) →
+      TMReaches(delta, c0, n, cf)
     """
     from core.lang import Var, In, Implies, Forall
     from core.derived import Exists, And
@@ -142,7 +146,7 @@ def add_goal():
     from vocab.ordpair import Successor
     from vocab.functions import Function as FuncDef
     from vocab.recursion import Plus as PlusDef
-    from vocab.tm import TMConfig, TMHalts
+    from vocab.tm import TMConfig, TMReaches
 
     f = formalize(add_machine())
     delta, q0, qH = f['delta'], f['q0'], f['qH']
@@ -152,9 +156,11 @@ def add_goal():
     tape_in = Var(postfix='tin')
     c0 = Var(postfix='c0')
     zero_var = Var(postfix='z')
-    n = Var(postfix='n')
     hf = Var(postfix='hf')
+    ssc = Var(postfix='ssc')
+    n = Var(postfix='n')
     tf = Var(postfix='tf')
+    cf = Var(postfix='cf')
 
     body = Implies(Omega(w),
         Implies(In(a, w),
@@ -169,11 +175,14 @@ def add_goal():
         Implies(TMConfig(c0, q0, zero_var, tape_in),
         Implies(PlusDef(a, b, c),
         Implies(Successor(hf, c),
+        Implies(Successor(ssc, hf),
+        Implies(Successor(n, ssc),
         Implies(UnaryOutput(tf, c),
-            TMHalts(delta, c0, qH, n, hf, tf)))))))))))))))
+        Implies(TMConfig(cf, qH, hf, tf),
+            TMReaches(delta, c0, n, cf))))))))))))))))))
 
     goal = body
-    for v in [c, b, a, w, c0, zero_var, tape_in, tf, hf, n, qH, q0, delta]:
+    for v in [c, b, a, w, c0, zero_var, tape_in, cf, tf, n, ssc, hf, qH, q0, delta]:
         goal = Forall(v, goal)
 
     return goal
