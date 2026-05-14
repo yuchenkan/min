@@ -5306,48 +5306,33 @@ def phase1_step_extend_trace():
     return proof
 
 class Phase2P:
-    """P2: after 1 step of phase 2, state q1, head at S(a), tape updated.
-    ∃tra, ca, tape2.
-      Function(tra) ∧
-      ∀x,y. Apply(tra,x,y) → Or(In(x,sa), Eq(x,sa)) ∧
-      TMConfig(ca, q1, sa, tape2) ∧
-      ∀z'. Empty(z') → Apply(tra, z', c0) ∧
-      Apply(tra, sa, ca) ∧
-      ∀ja < sa. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
-          ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1)) ∧
-      TapeUpdate(tape2, tape_in, a, one)"""
-    __match_args__ = ('sa', 'q1', 'tape_in', 'c0', 'delta', 'a', 'one')
-    def __init__(self, sa, q1, tape_in, c0, delta, a, one):
-        self.sa = sa; self.q1 = q1; self.tape_in = tape_in; self.c0 = c0
+    """P2: 1 step from (q0, a, tape_in) to (q1, sa, tape2).
+    ∀q0,c1. TMConfig(c1, q0, a, tape_in) →
+      ∀tape2. TapeUpdate(tape2, tape_in, a, one) →
+        ∀c2. TMConfig(c2, q1, sa, tape2) →
+          TMReaches(delta, c1, one, c2)"""
+    __match_args__ = ('sa', 'q1', 'tape_in', 'delta', 'a', 'one')
+    def __init__(self, sa, q1, tape_in, delta, a, one):
+        self.sa = sa; self.q1 = q1; self.tape_in = tape_in
         self.delta = delta; self.a = a; self.one = one
     def expand(self):
-        tra, ca, tape2 = Var(postfix='_tra'), Var(postfix='_ca'), Var(postfix='_t2')
-        ja, sja = Var(postfix='_ja'), Var(postfix='_sja')
-        cja, cja1 = Var(postfix='_cja'), Var(postfix='_cja1')
-        xd, yd = Var(postfix='_xd'), Var(postfix='_yd')
-        zv = Var(postfix='_zv')
-        from vocab.functions import Function as FuncDef
-        from core.derived import Or
-        dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
-            Or(In(xd, self.sa), Eq(xd, self.sa)))))
-        step_valid = Forall(ja, Implies(In(ja, self.sa),
-            Forall(sja, Implies(Successor(sja, ja),
-                Forall(cja, Implies(Apply(tra, ja, cja),
-                    Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
-        return Exists(tra, Exists(ca, Exists(tape2, And(
-            FuncDef(tra),
-            And(dom_bound,
-            And(TMConfig(ca, self.q1, self.sa, tape2),
-            And(Forall(zv, Implies(Empty(zv), Apply(tra, zv, self.c0))),
-            And(Apply(tra, self.sa, ca),
-            And(step_valid,
-                TapeUpdate(tape2, self.tape_in, self.a, self.one))))))))))
+        q0 = Var(postfix='_q0')
+        c1 = Var(postfix='_c1')
+        c2 = Var(postfix='_c2')
+        tape2 = Var(postfix='_t2')
+        return Forall(q0, Forall(c1, Implies(
+            TMConfig(c1, q0, self.a, self.tape_in),
+            Forall(tape2, Implies(
+                TapeUpdate(tape2, self.tape_in, self.a, self.one),
+                Forall(c2, Implies(
+                    TMConfig(c2, self.q1, self.sa, tape2),
+                    TMReaches(self.delta, c1, self.one, c2))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase2P(r(self.sa), r(self.q1), r(self.tape_in), r(self.c0),
+        return Phase2P(r(self.sa), r(self.q1), r(self.tape_in),
             r(self.delta), r(self.a), r(self.one))
     def __str__(self):
-        return f'P2({self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.delta}, {self.a}, {self.one})'
+        return f'P2({self.sa}, {self.q1}, {self.tape_in}, {self.delta}, {self.a}, {self.one})'
 
 
 class Phase3P:
@@ -8013,13 +7998,15 @@ def tm_add_correct():
     unary_out = UnaryOutput(tf, c)
     cfg_final = TMConfig(cf, qH, hf, tf)  # final config
 
-    # === Phase sub-goals ===
+    # === Phase sub-goals (composed, global from c0) ===
     #
-    # All phases use TMReaches(delta, c0, BOUND, cf):
-    #   ∃trace. base(trace,c0) ∧ step_valid(trace,BOUND,delta) ∧ Apply(trace,BOUND,cf)
-    #
-    # Each phase: ∀cf. TMConfig(cf, STATE, HEAD, TAPE) → TMReaches(delta, c0, BOUND, cf)
-    # Phases 2-4 also: ∀tape2. TapeUpdate(tape2,...) → ...
+    # Each phase*_post = TMReaches(delta, c0, BOUND, cf) — accumulated from c0.
+    # Each Phase*P theorem is LOCAL (single phase). tm_add_correct composes them:
+    #   phase1_post = Phase1P directly
+    #   phase2_post = compose(phase1_post, Phase2P)  — extend by 1 step
+    #   phase3_post = compose(phase2_post, Phase3P)  — extend by b steps
+    #   phase4_post = compose(phase3_post, Phase4P)  — extend by 1 step
+    #   phase5_post = compose(phase4_post, Phase5P)  — extend by 1 step = final goal
     tape2 = Var(postfix='t2')
 
     # Phase 1: scan past a ones (a steps)
