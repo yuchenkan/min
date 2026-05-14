@@ -1666,6 +1666,90 @@ def config_intro():
     return proof
 
 
+def tmstep_eq_before():
+    """Transfer TMStep across Eq on the 'before' config.
+    |- ∀delta,c1,c2,ckv. Eq(c1,ckv) → TMStep(delta,c1,c2) → TMStep(delta,ckv,c2)
+
+    From Eq(c1,ckv): TMConfig(ckv,...) → TMConfig(c1,...) via ordpair_set_transfer.
+    Then TMStep(delta,c1,c2) with TMConfig(c1,...) gives the conclusion."""
+    from tactics import apply_thm, mp, ax, cut
+    from theorems.sets import ordpair_set_transfer
+
+    delta = Var(postfix='delta')
+    c1 = Var(postfix='c1')
+    c2 = Var(postfix='c2')
+    ckv = Var(postfix='ck')
+
+    eq_c1_ck = Eq(c1, ckv)
+    tmstep_c1 = TMStep(delta, c1, c2)
+    tmstep_ck = TMStep(delta, ckv, c2)
+
+    # Get variable structure from TMStep(delta,ckv,c2).expand()
+    ts_exp = tmstep_ck.expand()
+    vars_list = []
+    body = ts_exp
+    while type(body).__name__ == 'Forall':
+        vars_list.append(body.var)
+        body = body.body
+    q_v, h_v, tape_v, sym_v, w_v, d_v, qn_v, hn_v, tapen_v = vars_list
+    cfg_ck = body.left   # TMConfig(ckv, q, h, tape)
+    rest = body.right    # Apply → ... → TMConfig(c2,...)
+
+    cfg_c1 = TMConfig(c1, q_v, h_v, tape_v)
+
+    # TMConfig(ckv,...) → TMConfig(c1,...) via ordpair_set_transfer + Eq(c1,ckv)
+    inner_v = Var(postfix='_iv')
+    op_inner = OrdPair(inner_v, h_v, tape_v)
+    op_ck = OrdPair(ckv, q_v, inner_v)
+    op_c1 = OrdPair(c1, q_v, inner_v)
+
+    got_op_ck = apply_thm(ax(cfg_ck), [inner_v], op_inner, op_ck, ax(op_inner))
+    ost = ordpair_set_transfer()
+    got_op_c1 = apply_thm(ost, [c1, ckv, q_v, inner_v])
+    got_op_c1 = mp(got_op_c1, ax(eq_c1_ck), eq_c1_ck, got_op_c1.sequent.right[0].right)
+    got_op_c1 = mp(got_op_c1, got_op_ck, op_ck, op_c1)
+
+    imp_cfg = Implies(op_inner, op_c1)
+    left_cfg = [f for f in got_op_c1.sequent.left if not same(f, op_inner)]
+    got_cfg_c1 = Proof(Sequent(left_cfg, [imp_cfg]), 'implies_right', [got_op_c1], principal=imp_cfg)
+    fa_cfg = Forall(inner_v, imp_cfg)
+    got_cfg_c1 = Proof(Sequent(got_cfg_c1.sequent.left, [fa_cfg]),
+        'forall_right', [got_cfg_c1], principal=fa_cfg, term=inner_v)
+    got_cfg_c1 = cut(ax(cfg_c1), cfg_c1, got_cfg_c1)
+
+    # TMStep(delta,c1,c2) instantiated + mp with cfg_c1 → rest
+    got_ts = apply_thm(ax(tmstep_c1), vars_list)
+    got_ts = mp(got_ts, got_cfg_c1, cfg_c1, rest)
+
+    # Close: TMConfig(ckv,...) → rest, then ∀'s = TMStep(delta,ckv,c2)
+    proof_body = got_ts
+    imp_body = Implies(cfg_ck, rest)
+    left_body = [f for f in proof_body.sequent.left if not same(f, cfg_ck)]
+    proof_body = Proof(Sequent(left_body, [imp_body]), 'implies_right', [proof_body], principal=imp_body)
+    for v in reversed(vars_list):
+        cur = proof_body.sequent.right[0]
+        fa = Forall(v, cur)
+        proof_body = Proof(Sequent(proof_body.sequent.left, [fa]),
+            'forall_right', [proof_body], principal=fa, term=v)
+    proof_body = cut(ax(tmstep_ck), tmstep_ck, proof_body)
+
+    # Discharge hypotheses, close ∀
+    imp_ts = Implies(tmstep_c1, tmstep_ck)
+    left_ts = [f for f in proof_body.sequent.left if not same(f, tmstep_c1)]
+    proof_body = Proof(Sequent(left_ts, [imp_ts]), 'implies_right', [proof_body], principal=imp_ts)
+    imp_eq = Implies(eq_c1_ck, imp_ts)
+    left_eq = [f for f in proof_body.sequent.left if not same(f, eq_c1_ck)]
+    proof_body = Proof(Sequent(left_eq, [imp_eq]), 'implies_right', [proof_body], principal=imp_eq)
+    for v in [ckv, c2, c1, delta]:
+        cur = proof_body.sequent.right[0]
+        fa = Forall(v, cur)
+        proof_body = Proof(Sequent(proof_body.sequent.left, [fa]),
+            'forall_right', [proof_body], principal=fa, term=v)
+
+    proof_body.name = 'tmstep_eq_before'
+    return proof_body
+
+
 class Phase1P:
     """P1(n): after n steps from c0, config is (q0, n, tape_in).
     ∀cf. TMConfig(cf, q0, n, tape_in) → TMReaches(delta, c0, n, cf)"""
