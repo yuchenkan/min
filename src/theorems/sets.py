@@ -139,6 +139,35 @@ def singleton_exists():
     return s1
 
 
+def pairset_exists():
+    """Pairing |- forall a, b. exists s. PairSet(s, a, b)
+    i.e. forall a, b. exists s. forall z. Iff(In(z,s), Or(Eq(z,a), Eq(z,b)))"""
+    a, b = Var(), Var()
+    pairing_ax = zfc.Pairing()
+    from core.proof import _subst, _expand
+    pa_expand = _expand(pairing_ax)
+    pa_after_a = _subst(pa_expand.body, pa_expand.var, a)
+    pa_after_ab = _subst(pa_after_a.body, pa_after_a.var, b)
+    # pa_after_ab = Exists(s, Forall(z, Iff(In(z,s), Or(Eq(z,a), Eq(z,b)))))
+    sp = pa_after_ab.var
+    goal = Forall(a, Forall(b, Exists(sp, PairSetDef(sp, a, b))))
+    # Pairing directly gives this — just instantiate ∀x with a, ∀y with b
+    q1 = Proof(Sequent([pa_after_ab], [pa_after_ab]), 'axiom', principal=pa_after_ab)
+    q2 = Proof(Sequent([pa_after_a], [pa_after_ab]),
+               'forall_left', [q1], principal=pa_after_a, term=b)
+    q3 = Proof(Sequent([pairing_ax], [pa_after_ab]),
+               'forall_left', [q2], principal=pairing_ax, term=a)
+    # pa_after_ab and Exists(sp, PairSet(sp,a,b)) are the same formula via _eq.
+    # So q3 already proves the goal body — just close with ∀.
+    ps_sp = PairSetDef(sp, a, b)
+    E_ps = Exists(sp, ps_sp)
+    q5 = Proof(Sequent(q3.sequent.left, [Forall(b, E_ps)]),
+               'forall_right', [q3], principal=Forall(b, E_ps), term=b)
+    q6 = Proof(Sequent(q5.sequent.left, [goal]),
+               'forall_right', [q5], principal=goal, term=a)
+    q6.name = 'pairset_exists'
+    return q6
+
 
 def singleton_eq():
     """|- forall a, b, s. (forall z. Iff(In(z,s), Eq(z,a))) implies
