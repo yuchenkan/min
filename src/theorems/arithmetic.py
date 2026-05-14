@@ -8270,37 +8270,60 @@ def prove_addition(m_val, n_val):
             got_num = cut(ax(num_top), num_top, got_num)
             num_proofs[top_i] = got_num
 
-        # got_final proves Num(x, k) on the right, with chain pieces on the left.
-        # proof has chain pieces on the left too (via ax()).
-        # Replace chain pieces on proof's left with num_hyp:
-        # 1. Cut each chain piece from proof using got_final (which has them on left via ax())
-        # Actually got_final's left has: Empty(chain_empty), Successor formulas from chain.
-        # These are exactly what's on proof's left.
+        # Derive each chain piece from num_hyp (on left) and cut out the ax() versions.
+        # Num(x, k) = ∀m. Num(m, k-1) → Succ(x, m)
+        # Chain: Empty(v0), Succ(v1,v0), ..., Succ(x, v_{k-1})
+        # From Num(x,k) + Num(v_{k-1}, k-1) → Succ(x, v_{k-1})
+        # From Num(v_{k-1}, k-1) + Num(v_{k-2}, k-2) → Succ(v_{k-1}, v_{k-2})
+        # ...base: Num(v0, 0) = Empty(v0)
 
-        # Add num_hyp to proof's left, cut chain pieces out using got_final
-        final_var = chain_succs[-1][0]
-        got_final = num_proofs[final_var]
+        # First: derive chain pieces top-down from num_hyp
+        # Num(x, k) on left → fl with v_{k-1} → Num(v_{k-1},k-1) → Succ(x,v_{k-1})
+        # Then Num(v_{k-1}, k-1) on left → fl with v_{k-2} → ...
+        # Until Num(v0, 0) = Empty(v0)
 
-        # got_final: [Empty(chain_empty), Succ(v1,v0), Succ(v2,v1), ...] |- Num(x, k)
-        # We want: proof with Num(x,k) on left instead of the chain pieces.
-        # Strategy: for each chain piece, implies_right to get piece → Num(x,k) from got_final,
-        # then use that to replace piece on proof's left.
-        # Simpler: add num_hyp to left, cut chain pieces via got_final.
-
-        # Add num_hyp to left
+        cur_num = num_hyp  # starts as Num(x, k)
         proof = wl(proof, num_hyp)
 
-        # Now discharge chain pieces from proof's left.
-        # The chain pieces are: Empty(chain_empty) + all sf_i (Successor formulas).
-        # These were introduced via ax() throughout prove_addition.
-        # They're no longer needed since num_hyp subsumes them.
-        # But we can't just remove them — we need proper cuts.
-        # For now, leave them; they'll be discharged at the outer level
-        # alongside num_hyp, or they'll stay as extra hypotheses.
-        # The outer discharge loop only discharges num_a, num_b, num_c, omega_w.
-        # The chain pieces (Empty, Successor) will remain on the left.
-        # This is fine — they're implied by Num, and the theorem statement
-        # allows them as extra hypotheses (they strengthen the result).
+        for i in range(len(chain_succs) - 1, -1, -1):
+            top_i, bot_i, sf_i = chain_succs[i]
+            # cur_num = Num(top_i, i+1) = ∀m. Num(m, i) → Succ(top_i, m)
+            # Instantiate with bot_i: Num(bot_i, i) → Succ(top_i, bot_i)
+            prev_num = NumDef(bot_i, i)
+            imp_sf = Implies(prev_num, sf_i)
+            got_sf = fl(cur_num, imp_sf, bot_i)
+            got_sf = cut(got_sf, cur_num, ax(cur_num))
+            # [cur_num] |- Num(bot_i, i) → Succ(top_i, bot_i)
+
+            # Succ(top_i, bot_i) = sf_i is on proof's left via ax().
+            # We want to derive it from cur_num + prev_num.
+            # First: add prev_num to proof's left (we'll derive sf_i from it + cur_num)
+            # mp: Num(bot_i,i) → Succ(...). Need prev_num = Num(bot_i, i) as proof.
+            # Use num_proofs[bot_i] if available (for i>0), or ax(Empty) for i=0.
+            if i == 0:
+                got_prev = ax(Empty(bot_i))
+            else:
+                got_prev = num_proofs[bot_i]
+            got_sf = mp(got_sf, got_prev, prev_num, sf_i)
+            # left: [cur_num] + got_prev.left |- sf_i
+
+            # Cut sf_i from proof using got_sf
+            if any(same(sf_i, f) for f in proof.sequent.left):
+                proof = cut(proof, sf_i, got_sf)
+
+            cur_num = prev_num
+
+        # Discharge all intermediate formulas left by the loop:
+        # Num(bot_i, i) for each level, plus Empty(chain_empty)
+        empty_f = Empty(chain_empty)
+        to_discharge = [cur_num, empty_f]
+        for i, (top_i, bot_i, sf_i) in enumerate(chain_succs):
+            to_discharge.append(NumDef(bot_i, i))
+        for formula in to_discharge:
+            if any(same(f, formula) for f in proof.sequent.left):
+                imp = Implies(formula, proof.sequent.right[0])
+                left = [f for f in proof.sequent.left if not same(f, formula)]
+                proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
 
         return proof
 
