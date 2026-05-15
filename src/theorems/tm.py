@@ -194,6 +194,7 @@ class TMReachesCompose:
 # Helper theorems
 # ============================================================
 
+
 def config_exists():
     """∃c. TMConfig(c, q, h, t) — a config with given state/head/tape exists.
     Pairing |- ∀q,h,t. ∃c. TMConfig(c,q,h,t)"""
