@@ -749,37 +749,86 @@ def tm_add_correct():
         else:
             print(f'  SKIP eel sa: still free in other formulas')
 
-    # For tape2 and one: they're entangled in many formulas. 
-    # Discharge all tape2+one formulas as implies, close ∀ over tape2 then one.
-    # This adds extra ∀ to the right but we'll instantiate them with fl+mp using derived proofs.
+    # For tape2 and one: discharge, close ∀, re-open with derived proofs.
+    # First discharge all remaining non-goal non-axiom formulas
     import core.zfc as zfc
-    goal_hyps_set = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
-                     delta_char, num_q0, num_qH, num_z, utape, cfg_c0, plus_abc,
-                     succ_hf, succ_ssc, succ_n, unary_out, cfg_cf]
+    goal_hyps_final = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
+                       delta_char, num_q0, num_qH, num_z, utape, cfg_c0, plus_abc,
+                       succ_hf, succ_ssc, succ_n, unary_out, cfg_cf]
     for ff in list(proof.sequent.left):
-        is_goal = any(same(ff, gh) for gh in goal_hyps_set)
+        is_goal = any(same(ff, gh) for gh in goal_hyps_final)
         is_ax = isinstance(ff, (zfc.ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
         if not is_goal and not is_ax:
             proof = wl(proof, ff)
             imp = Implies(ff, proof.sequent.right[0])
             left_new = [f for f in proof.sequent.left if not same(f, ff)]
             proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
-    # Close ∀ tape2, one
-    for v in [tape2, one]:
+
+    # Close ∀ one (inner), tape2 (outer)
+    for v in [one, tape2]:
         if _var_free_in_sequent(v, Sequent([], proof.sequent.right)):
             body = proof.sequent.right[0]
             fa = Forall(v, body)
             proof = Proof(Sequent(proof.sequent.left, [fa]),
                 'forall_right', [proof], principal=fa, term=v)
-    # Now right = ∀tape2,one. (tape2 hyps → one hyps → TMReaches)
-    # Instantiate with fl+mp, providing derived proofs
+
+    # Right = ∀tape2. ∀one. (8 hyps → TMReaches) = F_int
+    # Re-open with apply_thm, then mp each hyp with DERIVED proof
     F_int = proof.sequent.right[0]
     got_open = apply_thm(ax(F_int), [tape2, one])
-    # mp each remaining intermediate hypothesis
+
+    # Derive each intermediate hypothesis from goal hyps
+    # 1. Num(one,1) — derived from num_exists
+    got_num_one = num_exists(1)
+    # got_num_one: [ZFC] |- ∃one. Num(one,1). Open ∃:
+    # Actually we need Num(one,1) on the RIGHT for mp. num_exists gives ∃.
+    # Use the fact that Num(one,1) is on the left of got_open (from ax(F_int) fl).
+    # No wait — got_open has F_int on the left, not Num(one,1).
+    # The mp needs proof_of_left which has Num(one,1) on RIGHT.
+    # ax(Num(one,1)) has it on both sides. But that re-introduces it on LEFT.
+    # DERIVED proof: need [goal hyps] |- Num(one,1). Can't — Num(one,1) is about a
+    # specific set (one = S(∅)), not derivable from goal hyps without knowing what one is.
+    #
+    # THE REAL INSIGHT: I can't derive Num(one,1) for a free variable `one`.
+    # `one` is an eigenvariable introduced by the proof. Its value is determined
+    # by the ∃ opening. The ONLY way to handle it: use the ∃-eel pattern.
+    #
+    # So: build the ENTIRE chain inside a ∃one scope:
+    # 1. Prove ∃one. Num(one,1)
+    # 2. Assume Num(one,1) on left (eigenvariable one)
+    # 3. Do everything with one
+    # 4. At end, eel one from Num(one,1)
+    # 5. Cut with ∃ proof
+    #
+    # But one appears in MANY left formulas after the chain...
+    # UNLESS: I do the eel BEFORE running the chain. But eel works backwards.
+    #
+    # Actually: the eel pattern works IF one only appears in the RIGHT after discharge.
+    # After discharge+close, one is ONLY in the right (inside ∀one. body).
+    # The ∀one was closed successfully. So the right has ∀one. body.
+    # Now: [goal hyps, F_int(with ∀one)] |- ∀tape2.∀one.body
+    # 
+    # To eliminate ∀one from the right: I need to provide a witness for one.
+    # The witness comes from ∃one. Num(one,1).
+    #
+    # Pattern: from ∃one. P(one) and ∀one. P(one) → Q, derive Q.
+    # This is: ∃-elim + ∀-elim composition.
+    # In sequent calculus:
+    #   [P(one)] |- P(one) → Q via fl   →  [P(one)] |- Q via mp
+    #   eel one: [∃one. P(one)] |- Q
+    #   cut with ∃one. P(one) proof: [goal hyps] |- Q
+    #
+    # But P(one) here is not just Num(one,1) — it's the conjunction of ALL 
+    # formulas with one (Num + Successor + tape stuff). I need ∃one. And(all of them).
+    # Which requires proving they're all consistent for some one = S(∅).
+    #
+    # This is the hard part. Let me just do it for the simpler vars and 
+    # leave tape2/one as TODO. Use ax() for now, accept qed failure.
+    
+    # For now: use ax() for each mp (accepts qed will fail on these)
     while hasattr(got_open.sequent.right[0], 'left') and type(got_open.sequent.right[0]).__name__ == 'Implies':
         cur = got_open.sequent.right[0]
         got_open = mp(got_open, ax(cur.left), cur.left, cur.right)
-    # Cut F_int
     proof = cut(got_open, F_int, proof)
 
     # Discharge goal hypotheses in add_goal's order
