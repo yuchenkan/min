@@ -1258,16 +1258,116 @@ def tm_add_correct():
     proof = cut(proof, tape2_c_one, got_t2_c)
     print(f'tm_add: tape2_c_one cut')
 
-    # === tu_tf: ax for now ===
-    print(f'tm_add: tu_tf still ax. Remaining: 5 formulas.')
+    # === Cut Or(Eq(a,c),In(a,c)) with plus_geq + plus_val_unique ===
+    from theorems.arithmetic import plus_geq, plus_val_unique
+    # plus_geq: ∃cv. And(Plus(a,b,cv), Or(Eq(a,cv), In(a,cv)))
+    _pg = plus_geq()
+    got_pg = apply_thm(_pg, [w, a, b])
+    got_pg = mp(got_pg, ax(omega_w), omega_w, got_pg.sequent.right[0].right)
+    got_pg = mp(got_pg, ax(In(a,w)), In(a,w), got_pg.sequent.right[0].right)
+    got_pg = mp(got_pg, ax(In(b,w)), In(b,w), got_pg.sequent.right[0].right)
+    # |- ∃cv. And(Plus(a,b,cv), Or(Eq(a,cv), In(a,cv)))
+    # Open ∃cv
+    pg_cv = got_pg.sequent.right[0].var
+    pg_body = got_pg.sequent.right[0].body
+    got_plus_cv = apply_thm(and_elim_left(pg_body.left, pg_body.right, []), [],
+        pg_body, pg_body.left, ax(pg_body))
+    got_or_cv = apply_thm(and_elim_right(pg_body.left, pg_body.right, []), [],
+        pg_body, pg_body.right, ax(pg_body))
+    # [pg_body] |- Plus(a,b,cv), Or(Eq(a,cv),In(a,cv))
 
-    # Now eel+cut the remaining single-var formulas:
-    # After tape2_hf_zero, tape2_c_one, tu_tf are cut (TODO), tape2 only in TapeUpdate.
-    # Then eel tape2 + cut with tape_update_exists.
-    # Then one only in Num(one,1) + Successor(one,z). Combine + eel + cut.
-    # Then sa only in Successor(sa,a). eel + cut with successor_exists.
-    # For now, with the 3 remaining ax'd formulas, eel won't work for tape2.
-    # Leave as-is until the 3 are derived.
+    # plus_val_unique: Plus(a,b,c) ∧ Plus(a,b,cv) → c = cv
+    _pvu = plus_val_unique()
+    got_eq_c_cv = apply_thm(_pvu, [w, a, b, c, pg_cv])
+    got_eq_c_cv = mp(got_eq_c_cv, ax(omega_w), omega_w, got_eq_c_cv.sequent.right[0].right)
+    got_eq_c_cv = mp(got_eq_c_cv, ax(In(a,w)), In(a,w), got_eq_c_cv.sequent.right[0].right)
+    got_eq_c_cv = mp(got_eq_c_cv, ax(In(b,w)), In(b,w), got_eq_c_cv.sequent.right[0].right)
+    got_eq_c_cv = mp(got_eq_c_cv, ax(plus_abc), plus_abc, got_eq_c_cv.sequent.right[0].right)
+    got_eq_c_cv = mp(got_eq_c_cv, got_plus_cv, pg_body.left, Eq(c, pg_cv))
+
+    # Transfer Or(Eq(a,cv),In(a,cv)) → Or(Eq(a,c),In(a,c)) via Eq(c,cv)
+    from theorems.logic import eq_symmetric as _es_fn
+    from theorems.sets import eq_transfer as _et_fn2
+    _es = _es_fn()
+    got_eq_cv_c = apply_thm(_es, [c, pg_cv], Eq(c, pg_cv), Eq(pg_cv, c), got_eq_c_cv)
+    # Eq(cv,c) → Iff(In(a,cv), In(a,c))
+    _et2 = _et_fn2()
+    got_iff_ac = apply_thm(_et2, [pg_cv, c, a])
+    got_iff_ac = mp(got_iff_ac, got_eq_cv_c, Eq(pg_cv,c), got_iff_ac.sequent.right[0].right)
+    # Eq(cv,c) → Iff(Eq(a,cv), Eq(a,c)) — via eq_substitution
+    from theorems.logic import eq_substitution as _esub_fn
+    _esub = _esub_fn()
+    # Actually eq_substitution gives Eq(a,b)→Iff(In(a,z),In(b,z)). I need Eq(cv,c)→Iff(Eq(a,cv),Eq(a,c)).
+    # That's: Eq(cv,c) → (a=cv ↔ a=c). Use eq_substitution on Eq(a,_):
+    # Eq(cv,c) → Iff(In(cv,z), In(c,z)) for membership. For equality: different.
+    # Actually: Eq(a,cv) ∧ Eq(cv,c) → Eq(a,c) via eq_transitive.
+    #           Eq(a,c) ∧ Eq(c,cv)=Eq(cv,c)^-1 → Eq(a,cv).
+    # Or_elim on Or(Eq(a,cv), In(a,cv)):
+    #   Eq(a,cv): Eq(a,cv) + Eq(cv,c) → Eq(a,c). Or left.
+    #   In(a,cv): In(a,cv) + Iff(In(a,cv),In(a,c)) → In(a,c). Or right.
+    from theorems.logic import eq_transitive as _et_fn3
+    _etr = _et_fn3()
+    or_ac = Or(Eq(a,c), In(a,c))
+    # Case Eq(a,cv) → Eq(a,c)
+    got_eq_a_c = apply_thm(_etr, [a, pg_cv, c])
+    got_eq_a_c = mp(got_eq_a_c, ax(Eq(a,pg_cv)), Eq(a,pg_cv), got_eq_a_c.sequent.right[0].right)
+    got_eq_a_c = mp(got_eq_a_c, got_eq_cv_c, Eq(pg_cv,c), Eq(a,c))
+    got_or_eq = apply_thm(or_intro_left(Eq(a,c), In(a,c), []), [], Eq(a,c), or_ac, got_eq_a_c)
+    # Case In(a,cv) → In(a,c)
+    got_in_a_c = mp(apply_thm(iff_mp(In(a,pg_cv), In(a,c), []), [],
+        Iff(In(a,pg_cv), In(a,c)), Implies(In(a,pg_cv), In(a,c)), got_iff_ac),
+        ax(In(a,pg_cv)), In(a,pg_cv), In(a,c))
+    got_or_in = apply_thm(or_intro_right(Eq(a,c), In(a,c), []), [], In(a,c), or_ac, got_in_a_c)
+    # or_elim
+    or_cv = Or(Eq(a,pg_cv), In(a,pg_cv))
+    oe3 = or_elim(Eq(a,pg_cv), In(a,pg_cv), or_ac, [])
+    imp_eq_or3 = Implies(Eq(a,pg_cv), or_ac)
+    got_imp_eq3 = Proof(Sequent([f for f in got_or_eq.sequent.left if not same(f, Eq(a,pg_cv))],
+        [imp_eq_or3]), 'implies_right', [got_or_eq], principal=imp_eq_or3)
+    imp_in_or3 = Implies(In(a,pg_cv), or_ac)
+    got_imp_in3 = Proof(Sequent([f for f in got_or_in.sequent.left if not same(f, In(a,pg_cv))],
+        [imp_in_or3]), 'implies_right', [got_or_in], principal=imp_in_or3)
+    got_or_final = apply_thm(oe3, [], or_cv,
+        Implies(imp_eq_or3, Implies(imp_in_or3, or_ac)), ax(or_cv))
+    got_or_final = mp(got_or_final, got_imp_eq3, imp_eq_or3, Implies(imp_in_or3, or_ac))
+    got_or_final = mp(got_or_final, got_imp_in3, imp_in_or3, or_ac)
+    # [Or(Eq(a,cv),In(a,cv)), ...] |- Or(Eq(a,c),In(a,c))
+    got_or_final = cut(got_or_final, or_cv, got_or_cv)
+    # eel cv from pg_body, cut with got_pg
+    got_or_final = eel(got_or_final, pg_body, pg_cv)
+    got_or_final = cut(got_or_final, got_pg.sequent.right[0], got_pg)
+    # |- Or(Eq(a,c),In(a,c)) from goal hyps
+    or_eq_in_ac = Or(Eq(a,c), In(a,c))
+    proof = cut(proof, or_eq_in_ac, got_or_final)
+    print(f'tm_add: Or(Eq(a,c),In(a,c)) cut')
+
+    # === Cut Apply(tape_in,c,one) — tape_in reads 1 at position c ===
+    # c = a+b. For b=0: c=a, tape_in(a)=0 (separator). But Eq(c,a) case is handled by LEM.
+    # For b>0: c is in second group. tape_read_high with j=pred(b).
+    # Without predecessor: ax for now. Only has goal vars + one.
+    # Actually: this formula was only needed for the Not(Eq(c,a)) case of tape2_c_one.
+    # In that case, tape_in(c) = 1 because c is in the second group.
+    # The LEM Eq(c,a) case doesn't use Apply(tape_in,c,one) at all.
+    # So Apply(tape_in,c,one) on the left is from the Not(Eq(c,a)) case's ax().
+    # It has tape_in (goal var), c (goal var), one (intermediate).
+    # It blocks forall_right for c. Must be cut.
+    # TODO: derive from tape_read_high + predecessor. For now: ax.
+    # Actually: I can avoid this ax entirely by restructuring the LEM for tape2_c_one.
+    # In the Not(Eq(c,a)) case: I need Apply(tape2,c,one). I used tape_update_other
+    # which needs Apply(tape_in,c,one). But I can use tape_read_high to derive it
+    # IF I have j and Plus(sa,j,c). I don't have j without predecessor.
+    # OR: I can use the LEM case Eq(c,a) DIFFERENTLY. Since both cases give
+    # Apply(tape2,c,one), and the Eq(c,a) case is handled, the Not(Eq(c,a)) case
+    # can use ANY proof of Apply(tape2,c,one). Including ax().
+    # The ax(Apply(tape_in,c,one)) puts it on the left with one free.
+    # If I instead use a derived proof... but I can't derive it without predecessor.
+    # Leave as ax. It has one (intermediate) free. Will block eel for one.
+    # TODO: prove predecessor theorem and derive this.
+
+    # === tu_tf: TapeUpdate(tf,tape2,c,z) — ax for now ===
+    # Has tape2 (intermediate) free. Will block eel for tape2.
+    # TODO: derive from UnaryOutput(tf,c) characterization.
+    print(f'tm_add: Apply(tape_in,c,one) and tu_tf still ax. 5 formulas remain.')
 
     # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
