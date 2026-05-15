@@ -5830,18 +5830,16 @@ class Phase3P:
 
 class Phase3Ind:
     """Strong induction predicate for phase 3 with LOCAL j-indexed trace.
-    c0 = phase3 starting config (NOT TM initial config).
-    ∃tape2, tra, cj, pos.
-      TapeUpdate(tape2, tape_in, a, one) ∧ Plus(sa, j, pos) ∧
-      Function(tra) ∧ dom_bound(tra, j) ∧ TMConfig(cj, q1, pos, tape2) ∧
+    tape2 and pos are parameters. Same structure as Phase1Ind.
+    ∃tra, cj.
+      Function(tra) ∧ dom_bound(tra, j) ∧
+      TMConfig(cj, q1, pos, tape2) ∧
       base(tra, c0) ∧ Apply(tra, j, cj) ∧ step_valid(tra, j, delta)"""
-    __match_args__ = ('j', 'sa', 'q1', 'tape_in', 'c0', 'delta', 'a', 'one')
-    def __init__(self, j, sa, q1, tape_in, c0, delta, a, one):
-        self.j = j; self.sa = sa; self.q1 = q1; self.tape_in = tape_in
-        self.c0 = c0; self.delta = delta
-        self.a = a; self.one = one
+    __match_args__ = ('j', 'sa', 'q1', 'pos', 'tape2', 'c0', 'delta')
+    def __init__(self, j, sa, q1, pos, tape2, c0, delta):
+        self.j = j; self.sa = sa; self.q1 = q1; self.pos = pos
+        self.tape2 = tape2; self.c0 = c0; self.delta = delta
     def expand(self):
-        tape2 = Var(postfix='_t2')
         tra, cj, pos = Var(postfix='_tra'), Var(postfix='_cj'), Var(postfix='_pos')
         ja, sja = Var(postfix='_ja'), Var(postfix='_sja')
         cja, cja1 = Var(postfix='_cja'), Var(postfix='_cja1')
@@ -5856,21 +5854,19 @@ class Phase3Ind:
             Forall(sja, Implies(Successor(sja, ja),
                 Forall(cja, Implies(Apply(tra, ja, cja),
                     Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
-        return Exists(tape2, Exists(tra, Exists(cj, Exists(pos, And(
-            TapeUpdate(tape2, self.tape_in, self.a, self.one),
-            And(PlusDef(self.sa, self.j, pos),
-            And(FuncDef(tra),
+        return Exists(tra, Exists(cj, And(
+            FuncDef(tra),
             And(dom_bound,
-            And(TMConfig(cj, self.q1, pos, tape2),
+            And(TMConfig(cj, self.q1, self.pos, self.tape2),
             And(Forall(zv, Implies(Empty(zv), Apply(tra, zv, self.c0))),
             And(Apply(tra, self.j, cj),
-                step_valid)))))))))))
+                step_valid)))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase3Ind(r(self.j), r(self.sa), r(self.q1), r(self.tape_in),
-            r(self.c0), r(self.delta), r(self.a), r(self.one))
+        return Phase3Ind(r(self.j), r(self.sa), r(self.q1), r(self.pos),
+            r(self.tape2), r(self.c0), r(self.delta))
     def __str__(self):
-        return f'P3Ind({self.j}, {self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.delta}, {self.a}, {self.one})'
+        return f'P3Ind({self.j}, {self.sa}, {self.q1}, {self.tape2}, {self.c0}, {self.delta})'
 
 
 class Phase4P:
@@ -5921,26 +5917,25 @@ class Phase4P:
 
 
 class Phase3Q:
-    """Q3(j) = Or(In(j,b), Eq(j,b)) → Phase3Ind(j).
-    Bounded Phase 3 predicate: "if j ≤ b then Phase3Ind(j)."
+    """Q3(j, pos) = Or(In(j,b), Eq(j,b)) → Plus(sa,j,pos) → Phase3Ind(j, pos).
+    Bounded Phase 3 predicate with Plus hypothesis.
     Wraps Phase3Ind (strong predicate) for omega induction."""
-    __match_args__ = ('j', 'b', 'sa', 'q1', 'tape_in', 'c0', 'delta', 'a', 'one')
-    def __init__(self, j, b, sa, q1, tape_in, c0, delta, a, one):
+    __match_args__ = ('j', 'b', 'sa', 'q1', 'pos', 'tape2', 'c0', 'delta')
+    def __init__(self, j, b, sa, q1, pos, tape2, c0, delta):
         self.j = j; self.b = b; self.sa = sa; self.q1 = q1
-        self.tape_in = tape_in; self.c0 = c0; self.delta = delta
-        self.a = a; self.one = one
+        self.pos = pos; self.tape2 = tape2; self.c0 = c0; self.delta = delta
     def expand(self):
         from core.derived import Or, Eq
+        from vocab.recursion import Plus as PlusDef
         return Implies(Or(In(self.j, self.b), Eq(self.j, self.b)),
-            Phase3Ind(self.j, self.sa, self.q1, self.tape_in, self.c0,
-                self.delta, self.a, self.one))
+            Implies(PlusDef(self.sa, self.j, self.pos),
+                Phase3Ind(self.j, self.sa, self.q1, self.pos, self.tape2, self.c0, self.delta)))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return Phase3Q(r(self.j), r(self.b), r(self.sa), r(self.q1),
-            r(self.tape_in), r(self.c0), r(self.delta),
-            r(self.a), r(self.one))
+            r(self.pos), r(self.tape2), r(self.c0), r(self.delta))
     def __str__(self):
-        return f'Q3({self.j}, {self.b}, {self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.delta}, {self.a}, {self.one})'
+        return f'Q3({self.j}, {self.b}, {self.sa}, {self.q1}, {self.pos}, {self.tape2}, {self.c0}, {self.delta})'
 
 
 class Phase1Q:
