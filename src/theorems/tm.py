@@ -520,7 +520,9 @@ def tm_add_correct():
     from vocab.functions import Function as FuncDef, Apply
     from vocab.recursion import Plus as PlusDef
     from tm import UnaryTape, UnaryOutput, formalize, add_machine
-    from theorems.logic import and_elim_left, and_elim_right
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        or_intro_left, or_intro_right, or_elim, eq_reflexive,
+        iff_mp, iff_mp_rev)
 
     # Use formalize to get delta_char with the right structure
     f = formalize(add_machine())
@@ -833,6 +835,33 @@ def tm_add_correct():
     got_plus_ss1n = mp(got_plus_ss1n, ax(Successor(one,z)), Successor(one,z), got_plus_ss1n.sequent.right[0].right)
     got_plus_ss1n = mp(got_plus_ss1n, ax(succ_n), succ_n, got_plus_ss1n.sequent.right[0].right)
 
+
+    # Plus(sa,b,hf) from plus_comm + plus_succ_right
+    from theorems.arithmetic import plus_comm
+    _pc = plus_comm()
+    got_pba = apply_thm(_pc, [w, a, b, c])
+    got_pba = mp(got_pba, ax(omega_w), omega_w, got_pba.sequent.right[0].right)
+    got_pba = mp(got_pba, ax(In(a,w)), In(a,w), got_pba.sequent.right[0].right)
+    got_pba = mp(got_pba, ax(In(b,w)), In(b,w), got_pba.sequent.right[0].right)
+    got_pba = mp(got_pba, ax(plus_abc), plus_abc, got_pba.sequent.right[0].right)
+    # Plus(b,a,c)
+    got_pbsh = apply_thm(_psr, [w, b, a, c, sa, hf])
+    got_pbsh = mp(got_pbsh, ax(omega_w), omega_w, got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(In(b,w)), In(b,w), got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(In(a,w)), In(a,w), got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, got_pba, got_pba.sequent.right[0], got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(succ_sa), succ_sa, got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(succ_hf), succ_hf, got_pbsh.sequent.right[0].right)
+    # Plus(b,sa,hf) → Plus(sa,b,hf) via comm
+    got_psbh = apply_thm(_pc, [w, b, sa, hf])
+    got_psbh = mp(got_psbh, ax(omega_w), omega_w, got_psbh.sequent.right[0].right)
+    got_psbh = mp(got_psbh, ax(In(b,w)), In(b,w), got_psbh.sequent.right[0].right)
+    got_psbh = mp(got_psbh, got_sa_w, In(sa,w), got_psbh.sequent.right[0].right)
+    got_psbh = mp(got_psbh, got_pbsh, got_pbsh.sequent.right[0], got_psbh.sequent.right[0].right)
+    # got_psbh: [...] |- Plus(sa,b,hf)
+    if any(same(plus_sa_b_hf, f) for f in proof.sequent.left):
+        proof = cut(proof, plus_sa_b_hf, got_psbh)
+
     # In(hf,w) — hf is a goal var, but In(hf,w) is NOT a goal hyp
     # Derive from Plus(sa,b,hf) via plus_val_in_omega
     from theorems.arithmetic import plus_val_in_omega
@@ -841,7 +870,7 @@ def tm_add_correct():
     got_hf_w = mp(got_hf_w, ax(omega_w), omega_w, got_hf_w.sequent.right[0].right)
     got_hf_w = mp(got_hf_w, got_sa_w, In(sa,w), got_hf_w.sequent.right[0].right)
     got_hf_w = mp(got_hf_w, ax(In(b,w)), In(b,w), got_hf_w.sequent.right[0].right)
-    got_hf_w = mp(got_hf_w, ax(plus_sa_b_hf), plus_sa_b_hf, In(hf,w))
+    got_hf_w = mp(got_hf_w, got_psbh, plus_sa_b_hf, In(hf,w))
 
     # In(ssc,w) from omega_succ_closed + In(hf,w) + Successor(ssc,hf)
     got_ssc_w = apply_thm(_osc, [w], omega_w,
@@ -937,31 +966,6 @@ def tm_add_correct():
     #   Function(tape2), tape_read, Plus(sa,b,hf), Apply(tape2,hf,z), Apply(tape2,c,one),
     #   TapeUpdate(tf,tape2,c,z)
 
-    # Plus(sa,b,hf) from plus_comm + plus_succ_right
-    from theorems.arithmetic import plus_comm
-    _pc = plus_comm()
-    got_pba = apply_thm(_pc, [w, a, b, c])
-    got_pba = mp(got_pba, ax(omega_w), omega_w, got_pba.sequent.right[0].right)
-    got_pba = mp(got_pba, ax(In(a,w)), In(a,w), got_pba.sequent.right[0].right)
-    got_pba = mp(got_pba, ax(In(b,w)), In(b,w), got_pba.sequent.right[0].right)
-    got_pba = mp(got_pba, ax(plus_abc), plus_abc, got_pba.sequent.right[0].right)
-    # Plus(b,a,c)
-    got_pbsh = apply_thm(_psr, [w, b, a, c, sa, hf])
-    got_pbsh = mp(got_pbsh, ax(omega_w), omega_w, got_pbsh.sequent.right[0].right)
-    got_pbsh = mp(got_pbsh, ax(In(b,w)), In(b,w), got_pbsh.sequent.right[0].right)
-    got_pbsh = mp(got_pbsh, ax(In(a,w)), In(a,w), got_pbsh.sequent.right[0].right)
-    got_pbsh = mp(got_pbsh, got_pba, got_pba.sequent.right[0], got_pbsh.sequent.right[0].right)
-    got_pbsh = mp(got_pbsh, ax(succ_sa), succ_sa, got_pbsh.sequent.right[0].right)
-    got_pbsh = mp(got_pbsh, ax(succ_hf), succ_hf, got_pbsh.sequent.right[0].right)
-    # Plus(b,sa,hf) → Plus(sa,b,hf) via comm
-    got_psbh = apply_thm(_pc, [w, b, sa, hf])
-    got_psbh = mp(got_psbh, ax(omega_w), omega_w, got_psbh.sequent.right[0].right)
-    got_psbh = mp(got_psbh, ax(In(b,w)), In(b,w), got_psbh.sequent.right[0].right)
-    got_psbh = mp(got_psbh, got_sa_w, In(sa,w), got_psbh.sequent.right[0].right)
-    got_psbh = mp(got_psbh, got_pbsh, got_pbsh.sequent.right[0], got_psbh.sequent.right[0].right)
-    # got_psbh: [...] |- Plus(sa,b,hf)
-    if any(same(plus_sa_b_hf, f) for f in proof.sequent.left):
-        proof = cut(proof, plus_sa_b_hf, got_psbh)
 
     # TapeUpdate(tape2,...), Function(tape2), tape_read, tape values, tu_tf:
     # These are all tape2-related. Need tape_update_exists, tape_update_function, 
@@ -1154,142 +1158,108 @@ def tm_add_correct():
     proof = cut(proof, tape_read, got_tape2_read)
     print(f'tm_add: tape_read cut')
 
-    # tape2_hf_zero: Apply(tape2,hf,z) — tape2 reads 0 at hf
-    # hf = S(c) = S(a+b). Position hf is past all ones. tape_in(hf) = 0.
-    # tape_read_end would give this but it's broken. Derive from tape_read_sep-like logic.
-    # tape_in has 1^a 0 1^b then 0s. hf = S(a+b) = S(c). tape_in(hf) = 0.
-    # tape_update_other: tape2(hf) = tape_in(hf) since hf ≠ a.
-    # Need: Apply(tape_in,hf,z) and Not(Eq(hf,a)).
-    # Apply(tape_in,hf,z): tape_in reads 0 past input. From UnaryTape end-of-input property.
-    # Not(Eq(hf,a)): hf = S(c) = S(a+b) ≥ S(a) > a. Same ordering issue.
-    # But again, use LEM: Eq(hf,a) ∨ Not(Eq(hf,a)).
-    # Case Eq(hf,a): tape_update_at → Apply(tape2,hf,one). But we want Apply(tape2,hf,z).
-    #   one ≠ z (since Num(one,1) and Num(z,0)). Contradiction? No — both could hold.
-    #   Actually tape2 is a function. Apply(tape2,hf,one) and Apply(tape2,hf,z) → one=z.
-    #   But one≠z. So Apply(tape2,hf,z) can't hold simultaneously with Apply(tape2,hf,one).
-    #   But we're trying to PROVE Apply(tape2,hf,z). If Eq(hf,a) gives Apply(tape2,hf,one),
-    #   we can't get Apply(tape2,hf,z) from that — they contradict.
-    #   So Eq(hf,a) must be impossible. Back to needing Not(Eq(hf,a)).
-    # For tape2_hf_zero, I DO need the ordering. Can't use LEM here.
-    # TODO: prove Not(Eq(hf,a)) from hf=S(c), c=a+b.
-    # For now: ax(tape2_hf_zero).
+    # === tape2_hf_zero: Apply(tape2,hf,z) ===
+    # 1. Or(Eq(a,c), In(a,c)) from plus_geq (ax for now — needs Plus uniqueness to extract from ∃)
+    or_eq_in_ac = Or(Eq(a,c), In(a,c))
+    # 2. In(a,hf) from Successor(hf,c) + Or(Eq(a,c), In(a,c))
+    or_a_c = Or(In(a,c), Eq(a,c))
+    iff_a_hf = Iff(In(a,hf), or_a_c)
+    got_iff_ahf = fl(succ_hf, iff_a_hf, a)
+    # Rearrange Or
+    got_or_rearranged2 = apply_thm(or_intro_right(In(a,c), Eq(a,c), []), [], Eq(a,c), or_a_c, ax(Eq(a,c)))
+    got_or_rearranged3 = apply_thm(or_intro_left(In(a,c), Eq(a,c), []), [], In(a,c), or_a_c, ax(In(a,c)))
+    oe2 = or_elim(Eq(a,c), In(a,c), or_a_c, [])
+    imp_eq_or2 = Implies(Eq(a,c), or_a_c)
+    got_imp_eq2 = Proof(Sequent([], [imp_eq_or2]), 'implies_right', [got_or_rearranged2], principal=imp_eq_or2)
+    imp_in_or2 = Implies(In(a,c), or_a_c)
+    got_imp_in2 = Proof(Sequent([], [imp_in_or2]), 'implies_right', [got_or_rearranged3], principal=imp_in_or2)
+    got_or_ac = apply_thm(oe2, [], or_eq_in_ac,
+        Implies(imp_eq_or2, Implies(imp_in_or2, or_a_c)), ax(or_eq_in_ac))
+    got_or_ac = mp(got_or_ac, got_imp_eq2, imp_eq_or2, Implies(imp_in_or2, or_a_c))
+    got_or_ac = mp(got_or_ac, got_imp_in2, imp_in_or2, or_a_c)
+    # [Or(Eq(a,c),In(a,c))] |- Or(In(a,c),Eq(a,c))
+    got_in_a_hf = mp(apply_thm(iff_mp_rev(In(a,hf), or_a_c, []), [],
+        iff_a_hf, Implies(or_a_c, In(a,hf)), got_iff_ahf),
+        got_or_ac, or_a_c, In(a,hf))
+    # 3. Not(Eq(hf,a)) from In(a,hf) + omega
+    from theorems.sets import eq_transfer as _et_fn, omega_no_self_membership as _onsm_fn
+    _onsm = _onsm_fn()
+    got_not_aa = apply_thm(_onsm, [w, a])
+    got_not_aa = mp(got_not_aa, ax(omega_w), omega_w, got_not_aa.sequent.right[0].right)
+    got_not_aa = mp(got_not_aa, ax(In(a,w)), In(a,w), Not(In(a,a)))
+    _et = _et_fn()
+    got_iff_ha = apply_thm(_et, [hf, a, a])
+    got_iff_ha = mp(got_iff_ha, ax(Eq(hf,a)), Eq(hf,a), got_iff_ha.sequent.right[0].right)
+    got_in_a_a = mp(apply_thm(iff_mp(In(a,hf), In(a,a), []), [],
+        Iff(In(a,hf), In(a,a)), Implies(In(a,hf), In(a,a)), got_iff_ha),
+        got_in_a_hf, In(a,hf), In(a,a))
+    # Bottom + (A→¬A)→¬A
+    not_eq_hf_a = Not(Eq(hf,a))
+    got_bot = Proof(Sequent([In(a,a), Not(In(a,a))], []), 'not_left', [ax(In(a,a))], principal=Not(In(a,a)))
+    got_bot = Proof(Sequent(got_bot.sequent.left, [not_eq_hf_a]), 'weakening_right', [got_bot], principal=not_eq_hf_a)
+    got_bot = wl(got_bot, Eq(hf,a))
+    got_bot = cut(got_bot, Not(In(a,a)), got_not_aa)
+    got_bot = cut(got_bot, In(a,a), got_in_a_a)
+    rest_hfa = [f for f in got_bot.sequent.left if not same(f, Eq(hf,a))]
+    imp_eq_neq = Implies(Eq(hf,a), not_eq_hf_a)
+    got_imp_hfa = Proof(Sequent(rest_hfa, [imp_eq_neq]), 'implies_right', [got_bot], principal=imp_eq_neq)
+    got_lem_hfa = Proof(Sequent([], [not_eq_hf_a, Eq(hf,a)]), 'not_right', [ax(Eq(hf,a))], principal=not_eq_hf_a)
+    got_use_hfa = Proof(Sequent([imp_eq_neq], [not_eq_hf_a]), 'implies_left', [got_lem_hfa, ax(not_eq_hf_a)], principal=imp_eq_neq)
+    got_not_hfa = cut(got_use_hfa, imp_eq_neq, got_imp_hfa)
+    # 4. Apply(tape_in,hf,z) from UnaryTape beyond
+    exp_ut = utape.expand()
+    got_rest1 = apply_thm(and_elim_right(exp_ut.left, exp_ut.right, []), [], utape, exp_ut.right, ax(utape))
+    got_rest2 = apply_thm(and_elim_right(exp_ut.right.left, exp_ut.right.right, []), [], exp_ut.right, exp_ut.right.right, got_rest1)
+    got_beyond = apply_thm(and_elim_right(exp_ut.right.right.left, exp_ut.right.right.right, []), [], exp_ut.right.right, exp_ut.right.right.right, got_rest2)
+    got_tin_hf = apply_thm(got_beyond, [sa])
+    got_tin_hf = mp(got_tin_hf, ax(succ_sa), succ_sa, got_tin_hf.sequent.right[0].right)
+    got_tin_hf = apply_thm(got_tin_hf, [hf])
+    got_tin_hf = mp(got_tin_hf, got_psbh, plus_sa_b_hf, got_tin_hf.sequent.right[0].right)
+    got_tin_hf = apply_thm(got_tin_hf, [hf])
+    got_not_hfhf = apply_thm(_onsm, [w, hf])
+    got_not_hfhf = mp(got_not_hfhf, ax(omega_w), omega_w, got_not_hfhf.sequent.right[0].right)
+    got_not_hfhf = mp(got_not_hfhf, got_hf_w, In(hf,w), Not(In(hf,hf)))
+    got_tin_hf = mp(got_tin_hf, got_not_hfhf, Not(In(hf,hf)), got_tin_hf.sequent.right[0].right)
+    got_tin_hf = apply_thm(got_tin_hf, [z])
+    got_tin_hf = mp(got_tin_hf, ax(num_z), num_z, got_tin_hf.sequent.right[0].right)
+    # 5. Apply(tape2,hf,z) from tape_update_other + Not(Eq(hf,a))
+    got_t2_hf = apply_thm(_tuo, [tape2, tape_in, a, one, hf, z])
+    got_t2_hf = mp(got_t2_hf, ax(tu_tape2), tu_tape2, got_t2_hf.sequent.right[0].right)
+    got_t2_hf = mp(got_t2_hf, got_tin_hf, Apply(tape_in,hf,z), got_t2_hf.sequent.right[0].right)
+    got_t2_hf = mp(got_t2_hf, got_not_hfa, not_eq_hf_a, got_t2_hf.sequent.right[0].right)
+    got_t2_hf = cut(ax(tape2_hf_zero), tape2_hf_zero, got_t2_hf)
+    proof = cut(proof, tape2_hf_zero, got_t2_hf)
+    print(f'tm_add: tape2_hf_zero cut')
 
-    # tape2_c_one: Apply(tape2,c,one) — tape2 reads 1 at c
-    # c = a+b. If c=a (b=0 edge case): tape_update_at gives Apply(tape2,a,one). Done.
-    # If c≠a: tape_update_other + Apply(tape_in,c,one). tape_in(c) = 1 from tape_read_high.
-    # Use LEM on Eq(c,a):
-    # Case Eq(c,a): tape_update_at → Apply(tape2,c,one). Done!
-    # Case Not(Eq(c,a)): tape_read_high on tape_in at position c + tape_update_other. Done!
-    # But tape_read_high needs In(j,b) and Plus(sa,j,c) for some j.
-    # c = a+b. Plus(sa,j,c) = Plus(S(a),j,a+b). j = b-1? Not directly.
-    # Actually c = a+b. sa = S(a). Plus(sa,j,c): S(a)+j = a+b. j = b-1.
-    # Need j∈b and Plus(sa,j,c). j = b-1 isn't a formal concept without predecessor.
-    # Hmm. tape_read_high: UnaryTape → In(j,b) → Succ(sa,a) → Plus(sa,j,pos) → Num(one,1) → Apply(tape_in,pos,one)
-    # I need Apply(tape_in,c,one) where c = a+b. Plus(sa,j,c) needs j such that sa+j=c=a+b.
-    # sa = S(a). S(a)+j = a+b. j = b-1. For b>0: j = pred(b) ∈ b. But I can't extract pred.
-    # For b=0: c=a. Eq(c,a). tape_update_at handles this.
-    # For b>0: need ∃j. In(j,b) ∧ Plus(sa,j,c). This is derivable from Plus(a,b,c) + commutativity.
-    # But complex.
-    # For now: ax(tape2_c_one).
+    # === tape2_c_one: Apply(tape2,c,one) via LEM ===
+    app_t2_c_one = Apply(tape2, c, one)
+    got_c1_case1 = apply_thm(_tua, [tape2, tape_in, a, one, c, one])
+    got_c1_case1 = mp(got_c1_case1, ax(tu_tape2), tu_tape2, got_c1_case1.sequent.right[0].right)
+    got_c1_case1 = mp(got_c1_case1, ax(Eq(c,a)), Eq(c,a), got_c1_case1.sequent.right[0].right)
+    got_eq_oo2 = apply_thm(eq_reflexive(), [one])
+    got_c1_case1 = mp(got_c1_case1, got_eq_oo2, Eq(one,one), got_c1_case1.sequent.right[0].right)
+    got_c1_case1 = cut(ax(app_t2_c_one), app_t2_c_one, got_c1_case1)
+    # Case2: Not(Eq(c,a)): ax Apply(tape_in,c,one) for now
+    got_c1_case2 = apply_thm(_tuo, [tape2, tape_in, a, one, c, one])
+    got_c1_case2 = mp(got_c1_case2, ax(tu_tape2), tu_tape2, got_c1_case2.sequent.right[0].right)
+    got_c1_case2 = mp(got_c1_case2, ax(Apply(tape_in,c,one)), Apply(tape_in,c,one), got_c1_case2.sequent.right[0].right)
+    not_eq_ca = Not(Eq(c,a))
+    got_c1_case2 = mp(got_c1_case2, ax(not_eq_ca), not_eq_ca, got_c1_case2.sequent.right[0].right)
+    got_c1_case2 = cut(ax(app_t2_c_one), app_t2_c_one, got_c1_case2)
+    left_c1_clean = [f for f in got_c1_case1.sequent.left if not same(f, Eq(c,a))]
+    got_lem_c = Proof(Sequent(left_c1_clean, [not_eq_ca, app_t2_c_one]), 'not_right', [got_c1_case1], principal=not_eq_ca)
+    all_ctx_c = list(got_lem_c.sequent.left)
+    for f in got_c1_case2.sequent.left:
+        if not same(f, not_eq_ca) and not any(same(f, g) for g in all_ctx_c):
+            all_ctx_c.append(f)
+    got_t2_c = Proof(Sequent(all_ctx_c, [app_t2_c_one]), 'cut',
+        [weaken_to(got_lem_c, all_ctx_c), weaken_to(got_c1_case2, all_ctx_c + [not_eq_ca])],
+        principal=not_eq_ca)
+    proof = cut(proof, tape2_c_one, got_t2_c)
+    print(f'tm_add: tape2_c_one cut')
 
-    # tu_tf: TapeUpdate(tf,tape2,c,z)
-    # This says tf = tape2[c := 0]. From UnaryOutput(tf,c): tf is the output tape 1^c.
-    # And tape2 has 1^(c+1) then 0s (after tape_update at position a).
-    # tf = tape2 with last 1 erased. This is exactly TapeUpdate(tf,tape2,c,z).
-    # Need to connect UnaryOutput(tf,c) with TapeUpdate(tf,tape2,c,z).
-    # UnaryOutput defines tf by its characteristic: ∀i. i∈c → Apply(tf,i,one), etc.
-    # TapeUpdate defines tf by construction: tf = tape2 but with position c set to 0.
-    # These are different characterizations of the same set.
-    # Proving they're the same requires showing tape2[c:=0] has the output tape properties.
-    # For now: ax(tu_tf).
-    # tape2_c_one: Apply(tape2,c,one) via same LEM trick
-    # Case Eq(c,a): tape_update_at → Apply(tape2,c,one)
-    # Case Not(Eq(c,a)): need Apply(tape_in,c,one) from tape_read_high
-    #   tape_read_high needs In(j,b) and Plus(sa,j,c) for some j.
-    #   From Plus(a,b,c) + comm → Plus(b,a,c). Plus(b,a,c) + Succ(sa,a) + Succ(?,c)?
-    #   No — Plus(sa,j,c) means S(a)+j=a+b=c. j=b-1. Hard to get j formally.
-    #   But for Eq(c,a) case: LEM gives Apply(tape2,c,one) directly.
-    #   For Not(Eq(c,a)) case: tape_in(c)=one from UnaryTape.
-    #   Actually: UnaryTape says tape_in has 1^a then 0 then 1^b.
-    #   c = a+b. Position c is past the 1^a0 and 1^b. So tape_in(c) = 0, not 1!
-    #   Wait: positions 0..a-1 have 1 (first group). Position a has 0.
-    #   Positions sa..sa+b-1 have 1 (second group, starting at S(a)).
-    #   c = a+b. sa+b-1 = S(a)+b-1 = a+b = c. So position c IS the last 1!
-    #   tape_in(c) = 1 (it's sa+(b-1) where b-1 ∈ b). But formally: In(b-1, b)?
-    #   For b>0: b-1 = pred(b) ∈ b. For b=0: c=a, handled by Eq(c,a) case.
-    #   tape_read_high: UnaryTape → In(j,b) → Succ(sa,a) → Plus(sa,j,pos) → Num(one,1) → Apply(tape_in,pos,one)
-    #   With j=pred(b), pos=c. But I need pred(b) and Plus(sa,pred(b),c).
-    #   This is complex without a predecessor theorem.
-    #
-    #   ALTERNATIVE: use tape_read_low. c = a+b. If c < a (impossible for b≥0), use tape_read_low.
-    #   Actually the correct analysis: c = a+b ≥ a. Position c ≥ a.
-    #   For c = a (b=0): handled by Eq(c,a) → tape_update_at → Apply(tape2,c,one).
-    #   For c > a: c is in the range of the second group or beyond.
-    #   BUT the second group starts at sa=S(a)=a+1 and goes to sa+b-1=a+b=c.
-    #   So position c = sa + (b-1). If b>0: In(b-1, b) and Plus(sa, b-1, c).
-    #   Need predecessor: ∃j. Successor(b, j) ∧ In(j,b).
-    #   From b∈ω and b≠0: b has a predecessor. But b could be 0.
-    #
-    #   For now: ax(tape2_c_one). It's provable but needs predecessor + tape_read_high.
-    # For now: leave tape2_hf_zero, tape2_c_one, tu_tf as ax().
-    # tape2_hf_zero: Apply(tape2,hf,z) via LEM on Eq(hf,a)
-    # Case Eq(hf,a): tape_update_at → Apply(tape2,hf,one). But we want zero, not one.
-    #   If hf=a and tape2(hf)=one, then we need tape2(hf)=zero — contradiction.
-    #   So Eq(hf,a) is actually impossible (hf = S(c) > a). But to avoid ordering,
-    #   just use the beyond clause: Apply(tape_in,hf,zero) + tape_update_other.
-    #   tape_update_other needs Not(Eq(hf,a)). Use LEM:
-    #   Case Eq(hf,a): tape_update_at → Apply(tape2,hf,one). But also Apply(tape_in,hf,zero)
-    #     → tape_update_other needs Not(Eq(hf,a)) which we don't have in this case.
-    #   Hmm, LEM doesn't help cleanly here since the two cases give different values.
-    #   Let me derive Apply(tape_in,hf,zero) first, then transfer via tape_update_other
-    #   using LEM on Eq(hf,a):
-    #   Case Eq(hf,a): tape_update_at gives Apply(tape2,hf,one). But Function(tape2) +
-    #     Apply(tape2,hf,one) + Apply(tape2,hf,zero) → one=zero → contradiction (0≠1).
-    #     So this case is impossible, giving Apply(tape2,hf,zero) vacuously.
-    #   Case Not(Eq(hf,a)): tape_update_other + Apply(tape_in,hf,zero) → Apply(tape2,hf,zero).
-    #
-    # Actually simpler: just derive Not(Eq(hf,a)) from the structure.
-    # hf = S(c) from Successor(hf,c). If Eq(hf,a) then S(c)=a. But c=a+b.
-    # In(a,S(a)) from Successor. If S(c)=a: In(c,S(c))=In(c,a). And In(a,S(c))=In(a,a).
-    # Not(In(a,a)) → contradiction. So Not(Eq(hf,a)).
-    # Wait: In(a,S(c))=In(a,hf). Eq(hf,a)→In(a,hf)=In(a,a). Not(In(a,a)). Contradiction!
-    # But I need In(a,hf). From what?
-    # In(a, sa) from Successor(sa,a). sa ≤ hf (sa+b=hf).
-    # If b=0: hf=sa. In(a,sa)=In(a,hf). Eq(hf,a)→In(a,a). Contradiction.
-    # If b>0: In(sa,hf) from Plus ordering. TransitiveSet(hf): In(a,sa)+In(sa,hf)→In(a,hf).
-    #   Then Eq(hf,a)→In(a,a). Contradiction.
-    # Again needs plus_geq. Avoid this:
-    #
-    # SIMPLEST: Successor(hf,c). In(c,hf) (c ∈ S(c)). Eq(hf,a)→In(c,a).
-    # Plus(a,b,c): c=a+b. In(a,c) if b>0, Eq(a,c) if b=0.
-    # For b=0: c=a. In(c,hf)=In(a,hf). Eq(hf,a)→In(a,a). Not(In(a,a)). Done!
-    # For b>0: In(c,a) from Eq(hf,a). But c=a+b>a. In(c,a) means c<a. Contradiction.
-    # But formalizing "c>a when b>0" needs ordering again.
-    #
-    # For b=0: In(c,hf)=In(a,S(a)). Eq(hf,a)→In(a,a). Contradiction. Works!
-    # For general b: In(c,hf) from Successor(hf,c). Eq(hf,a)→In(c,a).
-    #   And Plus(a,b,c) means c=a+b. In(c,a)=In(a+b,a). For b∈ω: a+b≥a, so In(a+b,a)
-    #   means a+b<a. Contradiction. But needs plus_geq.
-    #
-    # I'll just use the LEM + vacuous contradiction approach:
-    # Case Eq(hf,a): In(c,hf) from Successor(hf,c). Eq(hf,a) → Iff(In(c,hf),In(c,a)).
-    #   In(c,hf) → In(c,a). Also from Successor(hf,c): hf=S(c). Eq(hf,a)→S(c)=a.
-    #   In(c,S(c))=In(c,hf)=In(c,a). And Plus(a,b,c)→c=a+b.
-    #   We DON'T need to show contradiction. We just need Apply(tape2,hf,zero).
-    #   From Eq(hf,a) and tape_update_at: Apply(tape2,hf,one) (NOT zero!).
-    #   If we also derive Apply(tape2,hf,zero), that contradicts Function(tape2).
-    #   So in the Eq(hf,a) case, we have bottom, and from bottom anything follows.
-    #   INCLUDING Apply(tape2,hf,zero).
-    #   But to derive bottom from Eq(hf,a): need In(a,a) which needs In(a,hf).
-    #   In(a,hf): from In(a,sa) + (sa ≤ hf). Back to plus_geq.
-    #   OR: from Successor(hf,c) + Eq(hf,a): In(c,hf)=In(c,a).
-    #   From plus_abc=Plus(a,b,c): if c=a (b=0), In(c,a)=In(a,a)→contradiction.
-    #   But we can't case-split on b=0 vs b>0 without more machinery.
-    #
-    # I think the cleanest path is to just prove plus_geq and use it.
-    # But for now: just ax(tape2_hf_zero).
-    # TODO: prove Not(Eq(hf,a)) or plus_geq.
-    print(f'tm_add: tape2_hf_zero, tape2_c_one, tu_tf still as ax().')
+    # === tu_tf: ax for now ===
+    print(f'tm_add: tu_tf still ax. Remaining: 5 formulas.')
 
     # Now eel+cut the remaining single-var formulas:
     # After tape2_hf_zero, tape2_c_one, tu_tf are cut (TODO), tape2 only in TapeUpdate.
