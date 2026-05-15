@@ -1220,7 +1220,45 @@ def tm_add_correct():
     # These are different characterizations of the same set.
     # Proving they're the same requires showing tape2[c:=0] has the output tape properties.
     # For now: ax(tu_tf).
-    print(f'tm_add: tape2_hf_zero, tape2_c_one, tu_tf still as ax(). Need ordering + tape proofs.')
+    # tape2_c_one: Apply(tape2,c,one) via same LEM trick
+    # Case Eq(c,a): tape_update_at → Apply(tape2,c,one)
+    # Case Not(Eq(c,a)): need Apply(tape_in,c,one) from tape_read_high
+    #   tape_read_high needs In(j,b) and Plus(sa,j,c) for some j.
+    #   From Plus(a,b,c) + comm → Plus(b,a,c). Plus(b,a,c) + Succ(sa,a) + Succ(?,c)?
+    #   No — Plus(sa,j,c) means S(a)+j=a+b=c. j=b-1. Hard to get j formally.
+    #   But for Eq(c,a) case: LEM gives Apply(tape2,c,one) directly.
+    #   For Not(Eq(c,a)) case: tape_in(c)=one from UnaryTape.
+    #   Actually: UnaryTape says tape_in has 1^a then 0 then 1^b.
+    #   c = a+b. Position c is past the 1^a0 and 1^b. So tape_in(c) = 0, not 1!
+    #   Wait: positions 0..a-1 have 1 (first group). Position a has 0.
+    #   Positions sa..sa+b-1 have 1 (second group, starting at S(a)).
+    #   c = a+b. sa+b-1 = S(a)+b-1 = a+b = c. So position c IS the last 1!
+    #   tape_in(c) = 1 (it's sa+(b-1) where b-1 ∈ b). But formally: In(b-1, b)?
+    #   For b>0: b-1 = pred(b) ∈ b. For b=0: c=a, handled by Eq(c,a) case.
+    #   tape_read_high: UnaryTape → In(j,b) → Succ(sa,a) → Plus(sa,j,pos) → Num(one,1) → Apply(tape_in,pos,one)
+    #   With j=pred(b), pos=c. But I need pred(b) and Plus(sa,pred(b),c).
+    #   This is complex without a predecessor theorem.
+    #
+    #   ALTERNATIVE: use tape_read_low. c = a+b. If c < a (impossible for b≥0), use tape_read_low.
+    #   Actually the correct analysis: c = a+b ≥ a. Position c ≥ a.
+    #   For c = a (b=0): handled by Eq(c,a) → tape_update_at → Apply(tape2,c,one).
+    #   For c > a: c is in the range of the second group or beyond.
+    #   BUT the second group starts at sa=S(a)=a+1 and goes to sa+b-1=a+b=c.
+    #   So position c = sa + (b-1). If b>0: In(b-1, b) and Plus(sa, b-1, c).
+    #   Need predecessor: ∃j. Successor(b, j) ∧ In(j,b).
+    #   From b∈ω and b≠0: b has a predecessor. But b could be 0.
+    #
+    #   For now: ax(tape2_c_one). It's provable but needs predecessor + tape_read_high.
+    # For now: leave tape2_hf_zero, tape2_c_one, tu_tf as ax().
+    print(f'tm_add: tape2_hf_zero, tape2_c_one, tu_tf still as ax(). Need predecessor + tape proofs.')
+
+    # Now eel+cut the remaining single-var formulas:
+    # After tape2_hf_zero, tape2_c_one, tu_tf are cut (TODO), tape2 only in TapeUpdate.
+    # Then eel tape2 + cut with tape_update_exists.
+    # Then one only in Num(one,1) + Successor(one,z). Combine + eel + cut.
+    # Then sa only in Successor(sa,a). eel + cut with successor_exists.
+    # For now, with the 3 remaining ax'd formulas, eel won't work for tape2.
+    # Leave as-is until the 3 are derived.
 
     # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
