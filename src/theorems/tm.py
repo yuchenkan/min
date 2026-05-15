@@ -290,7 +290,7 @@ def tm_add_correct():
     # We need specific Var instances for the state/symbol params.
     # Create intermediate vars
     one = Var(postfix='one')
-    zero = Var(postfix='zv')
+    zero = z  # Num(z,0) is a goal hypothesis, reuse it
     q1 = Var(postfix='q1')
     q2 = Var(postfix='q2')
     sa = Var(postfix='sa')
@@ -298,7 +298,7 @@ def tm_add_correct():
     c1,c2,c3,c4 = Var(postfix='c1'), Var(postfix='c2'), Var(postfix='c3'), Var(postfix='c4')
 
     num_one = Num(one, 1)
-    num_zero = Num(zero, 0)
+    num_zero = num_z  # zero = z, reuse
     num_q1 = Num(q1, 2)
     num_q2 = Num(q2, 3)
 
@@ -447,19 +447,18 @@ def tm_add_correct():
     # All of these must be discharged (implies_right) then ∀-closed over intermediates.
 
     proof = got_all
+    # RIGHT: TMReaches(delta,c0,n,cf) — no intermediate vars
+    # LEFT: goal hyps + intermediate hyps (from ax) + Phase*P + ZFC axioms
+    # Strategy: cut intermediate hyps from left. They contain intermediate vars
+    # (c1-c4, one, q1, q2, sa, tape2, etc.) but those vars are NOT in the right.
+    # So we can eel each intermediate var, then cut with existence proof.
+    # But many vars appear in MULTIPLE left formulas.
+    # Simpler: discharge intermediates as implies, close ∀, then fl+mp to eliminate.
 
-    # Discharge ALL intermediate hypotheses (those containing intermediate vars)
-    # Order: discharge innermost vars first
-    from core.proof import _var_free_in_sequent
-
-    # The goal vars (must NOT be discharged, only at the end):
-    goal_vars = {id(v) for v in [delta, q0, qH, hf, ssc, n, tf, cf, tape_in, z, c0, w, a, b, c]}
-    # The goal hyps (must stay):
+    # Step 1: Discharge all non-goal, non-axiom formulas from left
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
                  delta_char, num_q0, num_qH, num_z, utape, cfg_c0, plus_abc,
                  succ_hf, succ_ssc, succ_n, unary_out, cfg_cf]
-
-    # Discharge everything on the left that's NOT a goal hyp and NOT a Phase*P/ZFC axiom
     import core.zfc as zfc
     for ff in list(proof.sequent.left):
         is_goal = any(same(ff, gh) for gh in goal_hyps)
@@ -470,8 +469,9 @@ def tm_add_correct():
             left_new = [f for f in proof.sequent.left if not same(f, ff)]
             proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
 
-    # Now close ∀ over intermediate vars (they're only on the right, inside implications)
-    intermediate_vars = [c4, c3, c2, c1, one, zero, q2, q1, sa, tape2, tp]
+    # Step 2: Close ∀ over intermediate vars
+    from core.proof import _var_free_in_sequent
+    intermediate_vars = [c4, c3, c2, c1, one, q2, q1, sa, tape2]
     for v in intermediate_vars:
         if _var_free_in_sequent(v, Sequent([], proof.sequent.right)):
             body = proof.sequent.right[0]
@@ -479,20 +479,20 @@ def tm_add_correct():
             proof = Proof(Sequent(proof.sequent.left, [fa]),
                 'forall_right', [proof], principal=fa, term=v)
 
-    # Discharge intermediate ∀s: they're now ∀v. (... → TMReaches).
-    # These ∀s are vacuously satisfiable. We need to instantiate them with witnesses.
-    # Actually, we CAN'T have extra ∀ vars — the goal has exactly 15.
-    # The ∀ vars are now on the RIGHT inside the Implies chain. When we discharge
-    # goal hyps via implies_right and close ∀ over goal vars, the intermediate ∀s
-    # will be INSIDE the goal's Implies chain. That won't match add_goal.
-    #
-    # REAL FIX: instead of discharging intermediates as implies then ∀,
-    # we need to ELIMINATE them via eel+cut with existence proofs.
-    # But that requires existence theorems for each intermediate.
-    #
-    # For now: just check if same() passes despite the extra structure.
+    # Step 3: proof right = F_int = ∀(int vars). (int hyps) → TMReaches
+    # Build [F_int] |- TMReaches by apply_thm + mp, then cut.
+    F_int = proof.sequent.right[0]
+    got_open = apply_thm(ax(F_int), [tape2, sa, q1, q2, one, c1, c2, c3, c4])
+    # mp each intermediate hypothesis
+    while hasattr(got_open.sequent.right[0], 'left') and type(got_open.sequent.right[0]).__name__ == 'Implies':
+        cur = got_open.sequent.right[0]
+        got_open = mp(got_open, ax(cur.left), cur.left, cur.right)
+    # got_open: [F_int, int hyps on left] |- TMReaches
+    # Cut F_int
+    proof = cut(got_open, F_int, proof)
+    # Now: [goal hyps, axioms, int hyps] |- TMReaches
 
-    # Discharge goal hypotheses in add_goal's order (reversed)
+    # Step 4: Discharge goal hypotheses in add_goal's order
     for hyp in reversed(goal_hyps):
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
@@ -500,7 +500,7 @@ def tm_add_correct():
         left_new = [f for f in proof.sequent.left if not same(f, hyp)]
         proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
 
-    # Close ∀ over goal vars in add_goal's order
+    # Step 5: Close ∀ over goal vars in add_goal's order
     for v in [c, b, a, w, c0, z, tape_in, cf, tf, n, ssc, hf, qH, q0, delta]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
@@ -509,4 +509,3 @@ def tm_add_correct():
 
     proof.name = 'tm_add_correct'
     return proof
-
