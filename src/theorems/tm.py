@@ -5796,36 +5796,28 @@ class Phase2P:
 
 
 class Phase3P:
-    """P3(b): b steps from (q1, sa, tape2) to (q1, pos, tape2) where Plus(sa, b, pos). Local.
-    ∀tape2. TapeUpdate(tape2, tape_in, a, one) →
-      ∀c2. TMConfig(c2, q1, sa, tape2) →
-        ∀c3. TMConfig(c3, q1, pos, tape2) →
-          ∀pos. Plus(sa, b, pos) → TMReaches(delta, c2, b, c3)"""
-    __match_args__ = ('b', 'sa', 'q1', 'tape_in', 'delta', 'a', 'one')
-    def __init__(self, b, sa, q1, tape_in, delta, a, one):
-        self.b = b; self.sa = sa; self.q1 = q1; self.tape_in = tape_in
-        self.delta = delta; self.a = a; self.one = one
+    """P3: b steps from (q1, sa, tape2) to (q1, pos, tape2). LOCAL.
+    ∀c1. TMConfig(c1,q1,sa,tape2) → ∀c2. TMConfig(c2,q1,pos,tape2) →
+      TMReaches(delta,c1,b,c2)
+    Same pattern as Phase2P. pos is a parameter; caller provides Plus(sa,b,pos)."""
+    __match_args__ = ('b', 'sa', 'q1', 'pos', 'tape2', 'delta')
+    def __init__(self, b, sa, q1, pos, tape2, delta):
+        self.b = b; self.sa = sa; self.q1 = q1; self.pos = pos
+        self.tape2 = tape2; self.delta = delta
     def expand(self):
-        from vocab.recursion import Plus as PlusDef
-        tape2 = Var(postfix='_t2')
+        c1 = Var(postfix='_c1')
         c2 = Var(postfix='_c2')
-        c3 = Var(postfix='_c3')
-        pos = Var(postfix='_pos')
-        return Forall(tape2, Implies(
-            TapeUpdate(tape2, self.tape_in, self.a, self.one),
+        return Forall(c1, Implies(
+            TMConfig(c1, self.q1, self.sa, self.tape2),
             Forall(c2, Implies(
-                TMConfig(c2, self.q1, self.sa, tape2),
-                Forall(c3, Implies(
-                    TMConfig(c3, self.q1, pos, tape2),
-                    Forall(pos, Implies(
-                        PlusDef(self.sa, self.b, pos),
-                        TMReaches(self.delta, c2, self.b, c3)))))))))
+                TMConfig(c2, self.q1, self.pos, self.tape2),
+                TMReaches(self.delta, c1, self.b, c2)))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase3P(r(self.b), r(self.sa), r(self.q1), r(self.tape_in),
-            r(self.delta), r(self.a), r(self.one))
+        return Phase3P(r(self.b), r(self.sa), r(self.q1), r(self.pos),
+            r(self.tape2), r(self.delta))
     def __str__(self):
-        return f'P3({self.b}, {self.sa}, {self.q1}, {self.tape_in}, {self.delta}, {self.a}, {self.one})'
+        return f'P3({self.b}, {self.sa}, {self.q1}, {self.pos}, {self.tape2}, {self.delta})'
 
 
 class Phase3Ind:
@@ -7907,7 +7899,7 @@ def phase3():
         got_osi = cut(got_osi, h, got_and_si)
     print(f'phase3: osi done')
 
-    # === Extract Q3(b) ===
+    # === Extract Q3(b) → open Or → ∃pos. And(Plus, Phase3Ind) ===
     iff_b = Iff(In(b, pv), In(b, w))
     got_iff_b = cut(fl(eq_pv_w, iff_b, b), eq_pv_w, got_osi)
     got_in_bpv = mp(apply_thm(iff_mp_rev(In(b, pv), In(b, w), []),
@@ -7917,16 +7909,138 @@ def phase3():
     q_b_formula = got_and_b.sequent.right[0].right
     got_Q_b = apply_thm(and_elim_right(In(b, w), q_b_formula, []), [],
         got_and_b.sequent.right[0], q_b_formula, got_and_b)
-    # |- Q3(b) = Or(In(b,b),Eq(b,b)) → ∃pos. And(Plus(sa,b,pos), Phase3Ind(b,...))
-    print(f'phase3: Q3(b) extracted')
+
+    # mp Q3(b) with Or(Eq(b,b))
+    er = eq_reflexive()
+    got_eq_bb = apply_thm(er, [b])
+    or_bb = Or(In(b, b), Eq(b, b))
+    got_or_bb = apply_thm(or_intro_right(In(b,b), Eq(b,b), []), [], Eq(b,b), or_bb, got_eq_bb)
+    q3b_exp = got_Q_b.sequent.right[0].expand()
+    ctx_qb = list(got_Q_b.sequent.left)
+    ps0_b = wr(weaken_to(got_or_bb, ctx_qb), q3b_exp.right)
+    ps1_b = wl(ax(q3b_exp.right), *ctx_qb)
+    got_ex_b = Proof(Sequent(ctx_qb + [q3b_exp], [q3b_exp.right]),
+        'implies_left', [ps0_b, ps1_b], principal=q3b_exp)
+    got_ex_b = cut(got_ex_b, q3b_exp, ax(got_Q_b.sequent.right[0]))
+    got_ex_b = cut(got_ex_b, got_Q_b.sequent.right[0], got_Q_b)
+    # |- ∃pos. And(Plus(sa,b,pos), Phase3Ind(b,...,pos,...))
+    print(f'phase3: Q3(b) opened')
 
     # === Eliminate pv ===
-    got_Q_b = eel(got_Q_b, char_pv, pv)
-    got_Q_b = cut(got_Q_b, Exists(pv, char_pv), got_ex_pv)
-    print(f'phase3: pv eliminated')
+    got_ex_b = eel(got_ex_b, char_pv, pv)
+    got_ex_b = cut(got_ex_b, Exists(pv, char_pv), got_ex_pv)
+
+    # === Open ∃pos, And → get Plus and Phase3Ind ===
+    pos_b = got_ex_b.sequent.right[0].var
+    and_body_b = got_ex_b.sequent.right[0].body
+    plus_b = and_body_b.left
+    p3ind_b_formula = and_body_b.right
+    got_plus_b = apply_thm(and_elim_left(plus_b, p3ind_b_formula, []), [],
+        and_body_b, plus_b, ax(and_body_b))
+    got_p3ind_b = apply_thm(and_elim_right(plus_b, p3ind_b_formula, []), [],
+        and_body_b, p3ind_b_formula, ax(and_body_b))
+
+    # === Convert Phase3Ind → TMReaches (same as phase1) ===
+    from theorems.sets import ordpair_unique, ordpair_exists
+    from theorems.recursion import eq_apply_val_transfer
+    p3ind_b = Phase3Ind(b, sa, q1, pos_b, tape2, c0, delta)
+    ind_exp = p3ind_b.expand()
+    tra_v = ind_exp.var
+    ca_v = ind_exp.body.var
+    ind_body = ind_exp.body.body
+
+    func_f = ind_body.left; r1 = ind_body.right
+    dom_f = r1.left; r2 = r1.right
+    cfg_f = r2.left; r3 = r2.right
+    base_f = r3.left; r4 = r3.right
+    app_f = r4.left; sv_f = r4.right
+
+    def _ael(got, l, r):
+        return (apply_thm(and_elim_left(l, r, []), [], And(l,r), l, got),
+                apply_thm(and_elim_right(l, r, []), [], And(l,r), r, got))
+    _, got_r1 = _ael(ax(ind_body), func_f, r1)
+    _, got_r2 = _ael(got_r1, dom_f, r2)
+    got_cfg_b, got_r3 = _ael(got_r2, cfg_f, r3)
+    got_base_f, got_r4 = _ael(got_r3, base_f, r4)
+    got_app_f, got_sv_f = _ael(got_r4, app_f, sv_f)
+
+    # Eq(ca_v, cf) from TMConfig(ca_v,...) + TMConfig(cf,...)
+    cf_v = Var(postfix='_cf')
+    cfg_cf = TMConfig(cf_v, q1, pos_b, tape2)
+    inner_v = Var(postfix='_inn')
+    op_inn = OrdPair(inner_v, pos_b, tape2)
+    op_ca = OrdPair(ca_v, q1, inner_v)
+    op_cfv = OrdPair(cf_v, q1, inner_v)
+    got_op_ca = apply_thm(ax(cfg_f), [inner_v], op_inn, op_ca, ax(op_inn))
+    got_op_cf = apply_thm(ax(cfg_cf), [inner_v], op_inn, op_cfv, ax(op_inn))
+    ou = ordpair_unique()
+    oe = ordpair_exists()
+    got_eq_ca_cf = apply_thm(ou, [q1, inner_v, ca_v, cf_v])
+    got_eq_ca_cf = mp(got_eq_ca_cf, got_op_ca, op_ca, got_eq_ca_cf.sequent.right[0].right)
+    got_eq_ca_cf = mp(got_eq_ca_cf, got_op_cf, op_cfv, Eq(ca_v, cf_v))
+    got_ex_inn = apply_thm(oe, [pos_b, tape2], concl=Exists(inner_v, op_inn))
+    got_eq_ca_cf = eel(got_eq_ca_cf, op_inn, inner_v)
+    got_eq_ca_cf = cut(got_eq_ca_cf, Exists(inner_v, op_inn), got_ex_inn)
+
+    # Apply(tra, b, ca) → Apply(tra, b, cf)
+    eavt = eq_apply_val_transfer()
+    got_app_cf = apply_thm(eavt, [tra_v, b, ca_v, cf_v])
+    got_app_cf = mp(got_app_cf, got_eq_ca_cf, Eq(ca_v, cf_v), got_app_cf.sequent.right[0].right)
+    got_app_cf = mp(got_app_cf, got_app_f, app_f, Apply(tra_v, b, cf_v))
+
+    # TMReaches body: And(base, And(sv, Apply(tra, b, cf)))
+    def _mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+    got_sv_app = _mk_and(got_sv_f, got_app_cf)
+    got_tmr_body = _mk_and(got_base_f, got_sv_app)
+
+    # ∃tra = TMReaches
+    got_ex_tmr = eir(got_tmr_body, got_tmr_body.sequent.right[0], tra_v, tra_v)
+
+    # eel cfg_f, ca_v, tra_v from left; cut with Phase3Ind
+    if any(same(cfg_f, f_) for f_ in got_ex_tmr.sequent.left):
+        got_ex_tmr = cut(got_ex_tmr, cfg_f, got_cfg_b)
+    got_ex_tmr = eel(got_ex_tmr, ind_body, ca_v)
+    got_ex_tmr = eel(got_ex_tmr, Exists(ca_v, ind_body), tra_v)
+    got_ex_tmr = cut(got_ex_tmr, p3ind_b_formula, got_p3ind_b)
+
+    # Bridge to TMReaches
+    tmr_b = TMReaches(delta, c0, b, cf_v)
+    got_tmr = cut(ax(tmr_b), tmr_b, got_ex_tmr)
+    print(f'phase3: TMReaches built')
+
+    # Close ∀cf. TMConfig → TMReaches
+    imp_cf = Implies(cfg_cf, tmr_b)
+    left_cf = [f_ for f_ in got_tmr.sequent.left if not same(f_, cfg_cf)]
+    proof = Proof(Sequent(left_cf, [imp_cf]), 'implies_right', [got_tmr], principal=imp_cf)
+    fa_cf = Forall(cf_v, imp_cf)
+    proof = Proof(Sequent(proof.sequent.left, [fa_cf]),
+        'forall_right', [proof], principal=fa_cf, term=cf_v)
+
+    # Discharge Plus(sa,b,pos_b) → ∀cf. ...
+    if not any(same(plus_b, f_) for f_ in proof.sequent.left):
+        proof = wl(proof, plus_b)
+    imp_plus = Implies(plus_b, proof.sequent.right[0])
+    left_plus = [f_ for f_ in proof.sequent.left if not same(f_, plus_b)]
+    proof = Proof(Sequent(left_plus, [imp_plus]), 'implies_right', [proof], principal=imp_plus)
+
+    # eel and_body_b (pos_b from ∃ opening), cut with got_ex_b
+    proof = eel(proof, and_body_b, pos_b)
+    proof = cut(proof, got_ex_b.sequent.right[0], got_ex_b)
+
+    # Close ∀pos_b (now free on right only)
+    fa_pos = Forall(pos_b, proof.sequent.right[0])
+    proof = Proof(Sequent(proof.sequent.left, [fa_pos]),
+        'forall_right', [proof], principal=fa_pos, term=pos_b)
+
+    # Bridge to Phase3P
+    p3p_b = Phase3P(b, sa, q1, tape2, c0, delta)
+    proof = cut(ax(p3p_b), p3p_b, proof)
+    print(f'phase3: Phase3P done')
 
     # Discharge hypotheses, close ∀
-    proof = got_Q_b
     hyps = [tape_hyp, plus0, cfg0,
             num_z, Num(d1, 1), Num(one, 1),
             FuncDef(tape2), FuncDef(delta),
