@@ -193,7 +193,7 @@ class UnaryTape:
     - i ∈ a: tape(i) = 1                         (first group)
     - tape(a) = 0                                 (separator)
     - j ∈ b: tape(S(a)+j) = 1                    (second group)
-    - ¬In(i, S(S(a)+b)): tape(i) = 0             (beyond input: all 0)
+    - ¬In(i, S(a)+b): tape(i) = 0               (beyond input: all 0)
     Fully characterizes the tape on omega positions."""
     __match_args__ = ('tape', 'left', 'right')
     def __init__(self, tape, a, b):
@@ -215,14 +215,15 @@ class UnaryTape:
                 Forall(pos, Implies(Plus(sa, j, pos),
                     Forall(one, Implies(Num(one, 1),
                         Apply(self.tape, pos, one)))))))))
-        # Beyond input: ∀sa. Succ(sa,a) → ∀end. Plus(sa,b,end) → ∀s_end. Succ(s_end,end) →
-        #   ∀i. ¬In(i, s_end) → ∀zero. Num(zero,0) → Apply(tape, i, zero)
+        # Beyond input: ∀sa. Succ(sa,a) → ∀end. Plus(sa,b,end) →
+        #   ∀i. ¬In(i, end) → ∀zero. Num(zero,0) → Apply(tape, i, zero)
+        # end = sa+b. Positions ≥ end (i.e. not in end) read 0.
+        # Includes end itself since Not(In(end,end)) by omega no-self-membership.
         beyond = Forall(sa, Implies(Successor(sa, self.left),
             Forall(end_pos, Implies(Plus(sa, self.right, end_pos),
-                Forall(s_end, Implies(Successor(s_end, end_pos),
-                    Forall(i, Implies(Not(In(i, s_end)),
-                        Forall(zero, Implies(Num(zero, 0),
-                            Apply(self.tape, i, zero)))))))))))
+                Forall(i, Implies(Not(In(i, end_pos)),
+                    Forall(zero, Implies(Num(zero, 0),
+                        Apply(self.tape, i, zero)))))))))
         return And(low, And(sep, And(high, beyond)))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
