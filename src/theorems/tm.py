@@ -1240,13 +1240,102 @@ def tm_add_correct():
     got_c1_case1 = mp(got_c1_case1, got_eq_oo2, Eq(one,one), got_c1_case1.sequent.right[0].right)
     got_c1_case1 = cut(ax(app_t2_c_one), app_t2_c_one, got_c1_case1)
 
-    # Case2: Not(Eq(c,a))
-    got_c1_case2 = apply_thm(_tuo, [tape2, tape_in, a, one, c, one])
-    got_c1_case2 = mp(got_c1_case2, ax(tu_tape2), tu_tape2, got_c1_case2.sequent.right[0].right)
-    got_c1_case2 = mp(got_c1_case2, ax(Apply(tape_in,c,one)), Apply(tape_in,c,one), got_c1_case2.sequent.right[0].right)
+    # Case2: Not(Eq(c,a)) — derive Apply(tape2,c,one) via full chain
+    from theorems.sets import omega_pred as _op_fn, succ_injection as _si_fn, omega_transitive as _ot_fn
+    from theorems.arithmetic import plus_pred as _pp_fn, plus_zero_right as _pzr_fn, plus_val_in_omega as _pvi_fn
+    from theorems.recursion import eq_apply_transfer as _eat_fn
     not_eq_ca = Not(Eq(c,a))
-    got_c1_case2 = mp(got_c1_case2, ax(not_eq_ca), not_eq_ca, got_c1_case2.sequent.right[0].right)
-    got_c1_case2 = cut(ax(app_t2_c_one), app_t2_c_one, got_c1_case2)
+
+    _op2 = _op_fn()
+    got_op2 = apply_thm(_op2, [w, b])
+    got_op2 = mp(got_op2, ax(omega_w), omega_w, got_op2.sequent.right[0].right)
+    got_op2 = mp(got_op2, ax(In(b,w)), In(b,w), got_op2.sequent.right[0].right)
+    or_pred = got_op2.sequent.right[0]
+    empty_b = or_pred.left; ex_k = or_pred.right
+
+    # Case Empty(b) → contradiction → Apply(tape2,c,one)
+    _pzr3 = _pzr_fn()
+    got_ca = apply_thm(_pzr3, [w, a, b, c])
+    got_ca = mp(got_ca, ax(omega_w), omega_w, got_ca.sequent.right[0].right)
+    got_ca = mp(got_ca, ax(In(a,w)), In(a,w), got_ca.sequent.right[0].right)
+    got_ca = mp(got_ca, ax(empty_b), empty_b, got_ca.sequent.right[0].right)
+    got_ca = mp(got_ca, ax(plus_abc), plus_abc, Eq(c,a))
+    got_bot_b0 = Proof(Sequent([Eq(c,a), not_eq_ca], []), 'not_left', [ax(Eq(c,a))], principal=not_eq_ca)
+    got_bot_b0 = Proof(Sequent(got_bot_b0.sequent.left, [app_t2_c_one]), 'weakening_right', [got_bot_b0], principal=app_t2_c_one)
+    got_bot_b0 = cut(got_bot_b0, Eq(c,a), got_ca)
+
+    # Case ∃k: full derivation chain
+    kv2 = Var(postfix='kv2')
+    succ_b_k = Successor(b, kv2); in_k_b = In(kv2, b)
+    and_sk = And(succ_b_k, in_k_b)
+    got_succ_k = apply_thm(and_elim_left(succ_b_k, in_k_b, []), [], and_sk, succ_b_k, ax(and_sk))
+    got_in_k = apply_thm(and_elim_right(succ_b_k, in_k_b, []), [], and_sk, in_k_b, ax(and_sk))
+    _ot = _ot_fn()
+    got_kv2_w = apply_thm(_ot, [w, b, kv2])
+    got_kv2_w = mp(got_kv2_w, ax(omega_w), omega_w, got_kv2_w.sequent.right[0].right)
+    got_kv2_w = mp(got_kv2_w, ax(In(b,w)), In(b,w), got_kv2_w.sequent.right[0].right)
+    got_kv2_w = mp(got_kv2_w, got_in_k, in_k_b, In(kv2,w))
+    _pp2 = _pp_fn()
+    got_pp = apply_thm(_pp2, [w, sa, kv2, b, hf])
+    got_pp = mp(got_pp, ax(omega_w), omega_w, got_pp.sequent.right[0].right)
+    got_pp = mp(got_pp, got_succ_k, succ_b_k, got_pp.sequent.right[0].right)
+    got_pp = mp(got_pp, ax(In(sa,w)), In(sa,w), got_pp.sequent.right[0].right)
+    got_pp = mp(got_pp, got_kv2_w, In(kv2,w), got_pp.sequent.right[0].right)
+    got_pp = mp(got_pp, got_psbh, plus_sa_b_hf, got_pp.sequent.right[0].right)
+    pp_var = got_pp.sequent.right[0].var
+    pp_body = got_pp.sequent.right[0].body
+    got_plus_skq = apply_thm(and_elim_left(pp_body.left, pp_body.right, []), [], pp_body, pp_body.left, ax(pp_body))
+    got_succ_hfq = apply_thm(and_elim_right(pp_body.left, pp_body.right, []), [], pp_body, pp_body.right, ax(pp_body))
+    _si = _si_fn()
+    _pvi2 = _pvi_fn()
+    got_ppv_w = apply_thm(_pvi2, [w, sa, kv2, pp_var])
+    got_ppv_w = mp(got_ppv_w, ax(omega_w), omega_w, got_ppv_w.sequent.right[0].right)
+    got_ppv_w = mp(got_ppv_w, ax(In(sa,w)), In(sa,w), got_ppv_w.sequent.right[0].right)
+    got_ppv_w = mp(got_ppv_w, got_kv2_w, In(kv2,w), got_ppv_w.sequent.right[0].right)
+    got_ppv_w = mp(got_ppv_w, got_plus_skq, pp_body.left, In(pp_var,w))
+    got_c_w = apply_thm(_pvi2, [w, a, b, c])
+    got_c_w = mp(got_c_w, ax(omega_w), omega_w, got_c_w.sequent.right[0].right)
+    got_c_w = mp(got_c_w, ax(In(a,w)), In(a,w), got_c_w.sequent.right[0].right)
+    got_c_w = mp(got_c_w, ax(In(b,w)), In(b,w), got_c_w.sequent.right[0].right)
+    got_c_w = mp(got_c_w, ax(plus_abc), plus_abc, In(c,w))
+    got_si = apply_thm(_si, [hf, w, pp_var, c])
+    got_si = mp(got_si, got_succ_hfq, pp_body.right, got_si.sequent.right[0].right)
+    got_si = mp(got_si, ax(succ_hf), succ_hf, got_si.sequent.right[0].right)
+    got_si = mp(got_si, ax(omega_w), omega_w, got_si.sequent.right[0].right)
+    got_si = mp(got_si, got_ppv_w, In(pp_var,w), got_si.sequent.right[0].right)
+    got_si = mp(got_si, got_c_w, In(c,w), Eq(pp_var, c))
+    got_tin_ppv = apply_thm(_trh, [tape_in, a, b, kv2, sa, pp_var, one])
+    got_tin_ppv = mp(got_tin_ppv, ax(utape), utape, got_tin_ppv.sequent.right[0].right)
+    got_tin_ppv = mp(got_tin_ppv, got_in_k, in_k_b, got_tin_ppv.sequent.right[0].right)
+    got_tin_ppv = mp(got_tin_ppv, ax(succ_sa), succ_sa, got_tin_ppv.sequent.right[0].right)
+    got_tin_ppv = mp(got_tin_ppv, got_plus_skq, pp_body.left, got_tin_ppv.sequent.right[0].right)
+    got_tin_ppv = mp(got_tin_ppv, ax(num_one), num_one, got_tin_ppv.sequent.right[0].right)
+    _eat = _eat_fn()
+    got_tin_c = apply_thm(_eat, [tape_in, pp_var, c, one])
+    got_tin_c = mp(got_tin_c, got_si, Eq(pp_var,c), got_tin_c.sequent.right[0].right)
+    got_tin_c = mp(got_tin_c, got_tin_ppv, Apply(tape_in,pp_var,one), Apply(tape_in,c,one))
+    got_c1_inner = apply_thm(_tuo, [tape2, tape_in, a, one, c, one])
+    got_c1_inner = mp(got_c1_inner, ax(tu_tape2), tu_tape2, got_c1_inner.sequent.right[0].right)
+    got_c1_inner = mp(got_c1_inner, got_tin_c, Apply(tape_in,c,one), got_c1_inner.sequent.right[0].right)
+    got_c1_inner = mp(got_c1_inner, ax(not_eq_ca), not_eq_ca, got_c1_inner.sequent.right[0].right)
+    got_c1_inner = cut(ax(app_t2_c_one), app_t2_c_one, got_c1_inner)
+    got_c1_inner = eel(got_c1_inner, pp_body, pp_var)
+    got_c1_inner = cut(got_c1_inner, got_pp.sequent.right[0], got_pp)
+    got_c1_inner = eel(got_c1_inner, and_sk, kv2)
+
+    # or_elim: combine Empty case + ∃k case
+    imp_empty = Implies(empty_b, app_t2_c_one)
+    left_empty = [f for f in got_bot_b0.sequent.left if not same(f, empty_b)]
+    got_imp_empty = Proof(Sequent(left_empty, [imp_empty]), 'implies_right', [got_bot_b0], principal=imp_empty)
+    imp_exk = Implies(Exists(kv2, and_sk), app_t2_c_one)
+    left_exk = [f for f in got_c1_inner.sequent.left if not same(f, Exists(kv2, and_sk))]
+    got_imp_exk = Proof(Sequent(left_exk, [imp_exk]), 'implies_right', [got_c1_inner], principal=imp_exk)
+    oe3 = or_elim(empty_b, ex_k, app_t2_c_one, [])
+    got_c1_combined = apply_thm(oe3, [], or_pred,
+        Implies(imp_empty, Implies(imp_exk, app_t2_c_one)), ax(or_pred))
+    got_c1_combined = mp(got_c1_combined, got_imp_empty, imp_empty, Implies(imp_exk, app_t2_c_one))
+    got_c1_combined = mp(got_c1_combined, got_imp_exk, imp_exk, app_t2_c_one)
+    got_c1_case2 = cut(got_c1_combined, or_pred, got_op2)
     left_c1_clean = [f for f in got_c1_case1.sequent.left if not same(f, Eq(c,a))]
     got_lem_c = Proof(Sequent(left_c1_clean, [not_eq_ca, app_t2_c_one]), 'not_right', [got_c1_case1], principal=not_eq_ca)
     all_ctx_c = list(got_lem_c.sequent.left)
@@ -1258,6 +1347,10 @@ def tm_add_correct():
         principal=not_eq_ca)
     proof = cut(proof, tape2_c_one, got_t2_c)
     print(f'tm_add: tape2_c_one cut')
+
+    # Cut In(sa,w) re-introduced by tape2_c_one derivation
+    if any(same(In(sa,w), f) for f in proof.sequent.left):
+        proof = cut(proof, In(sa,w), got_sa_w)
 
     # === Cut Or(Eq(a,c),In(a,c)) with plus_geq + plus_val_unique ===
     from theorems.arithmetic import plus_geq, plus_val_unique
