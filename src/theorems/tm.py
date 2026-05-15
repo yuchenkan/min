@@ -1447,6 +1447,580 @@ def config_exists():
 
 
 # ============================================================
+# derive_tu_tf: derive TapeUpdate(tf,tape2,c,z) from UnaryOutput + func_ext
+# ============================================================
+
+def derive_tu_tf(tf, tape2, tape_in, c, z, a, b, w, sa, one, hf,
+                 utape, tu_tape2, unary_out, succ_sa, succ_hf,
+                 plus_abc, num_one, num_z, omega_w,
+                 got_sa_w, got_hf_w, got_psbh, got_c_w):
+    """Derive TapeUpdate(tf, tape2, c, z) from UnaryOutput(tf,c) + tape semantics via func_ext.
+
+    Returns proof of TapeUpdate(tf,tape2,c,z) with goal hyps + ZFC on left.
+    """
+    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
+    from core.proof import Proof, Sequent, same
+    from core.lang import Var, In, Implies, Forall, Not
+    from core.derived import Exists, And, Or, Iff, Eq
+    from vocab.ordpair import Successor
+    from vocab.omega import Num
+    from vocab.tm import TapeUpdate
+    from vocab.functions import Function as FuncDef, Apply
+    from vocab.recursion import Plus as PlusDef
+    from tm import UnaryTape, UnaryOutput
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        or_intro_left, or_intro_right, or_elim, eq_reflexive, eq_symmetric,
+        eq_transitive, iff_mp, iff_mp_rev, iff_intro, eq_substitution)
+    from theorems.sets import (omega_no_self_membership, eq_transfer as eq_transfer_fn,
+        omega_transitive, func_ext)
+    from theorems.omega import func_unique_thm
+    from theorems.recursion import eq_apply_transfer, eq_apply_val_transfer
+    from theorems.arithmetic import plus_bounded_exists, plus_geq, plus_val_unique
+
+    tu_tf_formula = TapeUpdate(tf, tape2, c, z)
+    _tua = tape_update_at()
+    _tuo = tape_update_other()
+    _tuor = tape_update_other_rev()
+    _trh = tape_read_high()
+    _fut = func_unique_thm()
+    _onsm = omega_no_self_membership()
+    _et = eq_transfer_fn()
+    _esub = eq_substitution()
+    _es = eq_symmetric()
+    _eavt = eq_apply_val_transfer()
+    _eat = eq_apply_transfer()
+
+    # --- Step 1: ∃t2'. TapeUpdate(t2', tape2, c, z) ---
+    _tue = tape_update_exists()
+    got_tue = apply_thm(_tue, [tape2, c, z])
+    t2p = got_tue.sequent.right[0].var
+    t2p_body = got_tue.sequent.right[0].body
+    print(f'tu_tf: step 1 tape_update_exists OK')
+
+    # --- Step 2: Function(t2') ---
+    _tuf = tape_update_function()
+    got_func_t2p = apply_thm(_tuf, [t2p, tape2, c, z])
+    got_func_t2p = mp(got_func_t2p, ax(t2p_body), t2p_body, got_func_t2p.sequent.right[0].right)
+    got_func_t2_inner = apply_thm(tape_update_function(), [tape2, tape_in, a, one])
+    got_func_t2_inner = mp(got_func_t2_inner, ax(tu_tape2), tu_tape2, got_func_t2_inner.sequent.right[0].right)
+    got_func_t2_inner = mp(got_func_t2_inner, ax(FuncDef(tape_in)), FuncDef(tape_in), FuncDef(tape2))
+    got_func_t2p = mp(got_func_t2p, got_func_t2_inner, FuncDef(tape2), FuncDef(t2p))
+
+    # --- Step 3: Function(tf) + UO ones/zeros ---
+    uo_exp = unary_out.expand()
+    got_func_tf = apply_thm(and_elim_left(uo_exp.left, uo_exp.right, []), [],
+        unary_out, uo_exp.left, ax(unary_out))
+    got_uo_rest = apply_thm(and_elim_right(uo_exp.left, uo_exp.right, []), [],
+        unary_out, uo_exp.right, ax(unary_out))
+    ones_f = uo_exp.right.left
+    zeros_f = uo_exp.right.right
+    got_ones = apply_thm(and_elim_left(ones_f, zeros_f, []), [],
+        uo_exp.right, ones_f, got_uo_rest)
+    got_zeros = apply_thm(and_elim_right(ones_f, zeros_f, []), [],
+        uo_exp.right, zeros_f, got_uo_rest)
+
+    # Extract UnaryTape components
+    ut_exp = utape.expand()
+    got_ut_rest = apply_thm(and_elim_right(ut_exp.left, ut_exp.right, []), [],
+        utape, ut_exp.right, ax(utape))
+    low_f = ut_exp.right.left
+    got_ut_low = apply_thm(and_elim_left(low_f, ut_exp.right.right, []), [],
+        ut_exp.right, low_f, got_ut_rest)
+    # beyond
+    got_ut_rest2 = apply_thm(and_elim_right(ut_exp.left, ut_exp.right, []), [],
+        utape, ut_exp.right, ax(utape))
+    r1 = ut_exp.right.right
+    got_r1 = apply_thm(and_elim_right(ut_exp.right.left, r1, []), [],
+        ut_exp.right, r1, got_ut_rest2)
+    r2 = r1.right
+    got_r2 = apply_thm(and_elim_right(r1.left, r2, []), [], r1, r2, got_r1)
+    beyond_f = r2.right
+    got_beyond = apply_thm(and_elim_right(r2.left, beyond_f, []), [], r2, beyond_f, got_r2)
+    print(f'tu_tf: step 3 UO + UT decomposed')
+
+    # Helper: derive Or(Eq(a,c),In(a,c)) from plus_geq + plus_val_unique
+    def derive_or_ac():
+        _pg = plus_geq()
+        got_pg = apply_thm(_pg, [w, a, b])
+        got_pg = mp(got_pg, ax(omega_w), omega_w, got_pg.sequent.right[0].right)
+        got_pg = mp(got_pg, ax(In(a,w)), In(a,w), got_pg.sequent.right[0].right)
+        got_pg = mp(got_pg, ax(In(b,w)), In(b,w), got_pg.sequent.right[0].right)
+        pg_cv = got_pg.sequent.right[0].var
+        pg_bd = got_pg.sequent.right[0].body
+        got_plus_cv = apply_thm(and_elim_left(pg_bd.left, pg_bd.right, []), [],
+            pg_bd, pg_bd.left, ax(pg_bd))
+        got_or_cv = apply_thm(and_elim_right(pg_bd.left, pg_bd.right, []), [],
+            pg_bd, pg_bd.right, ax(pg_bd))
+        _pvu = plus_val_unique()
+        got_eq_c_cv = apply_thm(_pvu, [w, a, b, c, pg_cv])
+        got_eq_c_cv = mp(got_eq_c_cv, ax(omega_w), omega_w, got_eq_c_cv.sequent.right[0].right)
+        got_eq_c_cv = mp(got_eq_c_cv, ax(In(a,w)), In(a,w), got_eq_c_cv.sequent.right[0].right)
+        got_eq_c_cv = mp(got_eq_c_cv, ax(In(b,w)), In(b,w), got_eq_c_cv.sequent.right[0].right)
+        got_eq_c_cv = mp(got_eq_c_cv, ax(plus_abc), plus_abc, got_eq_c_cv.sequent.right[0].right)
+        got_eq_c_cv = mp(got_eq_c_cv, got_plus_cv, pg_bd.left, Eq(c, pg_cv))
+        got_eq_cv_c = apply_thm(_es, [c, pg_cv], Eq(c, pg_cv), Eq(pg_cv, c), got_eq_c_cv)
+        _et2 = eq_transfer_fn()
+        got_iff_ac = apply_thm(_et2, [pg_cv, c, a])
+        got_iff_ac = mp(got_iff_ac, got_eq_cv_c, Eq(pg_cv,c), got_iff_ac.sequent.right[0].right)
+        _etr = eq_transitive()
+        or_ac = Or(Eq(a,c), In(a,c))
+        got_eq_a_c = apply_thm(_etr, [a, pg_cv, c])
+        got_eq_a_c = mp(got_eq_a_c, ax(Eq(a,pg_cv)), Eq(a,pg_cv), got_eq_a_c.sequent.right[0].right)
+        got_eq_a_c = mp(got_eq_a_c, got_eq_cv_c, Eq(pg_cv,c), Eq(a,c))
+        got_or_eq = apply_thm(or_intro_left(Eq(a,c), In(a,c), []), [], Eq(a,c), or_ac, got_eq_a_c)
+        got_in_a_c = mp(apply_thm(iff_mp(In(a,pg_cv), In(a,c), []), [],
+            Iff(In(a,pg_cv), In(a,c)), Implies(In(a,pg_cv), In(a,c)), got_iff_ac),
+            ax(In(a,pg_cv)), In(a,pg_cv), In(a,c))
+        got_or_in = apply_thm(or_intro_right(Eq(a,c), In(a,c), []), [], In(a,c), or_ac, got_in_a_c)
+        or_cv = Or(Eq(a,pg_cv), In(a,pg_cv))
+        oe = or_elim(Eq(a,pg_cv), In(a,pg_cv), or_ac, [])
+        imp_eq_or = Implies(Eq(a,pg_cv), or_ac)
+        got_imp_eq = Proof(Sequent([f for f in got_or_eq.sequent.left if not same(f, Eq(a,pg_cv))],
+            [imp_eq_or]), 'implies_right', [got_or_eq], principal=imp_eq_or)
+        imp_in_or = Implies(In(a,pg_cv), or_ac)
+        got_imp_in = Proof(Sequent([f for f in got_or_in.sequent.left if not same(f, In(a,pg_cv))],
+            [imp_in_or]), 'implies_right', [got_or_in], principal=imp_in_or)
+        got_or_final = apply_thm(oe, [], or_cv,
+            Implies(imp_eq_or, Implies(imp_in_or, or_ac)), ax(or_cv))
+        got_or_final = mp(got_or_final, got_imp_eq, imp_eq_or, Implies(imp_in_or, or_ac))
+        got_or_final = mp(got_or_final, got_imp_in, imp_in_or, or_ac)
+        got_or_final = cut(got_or_final, or_cv, got_or_cv)
+        got_or_final = eel(got_or_final, pg_bd, pg_cv)
+        got_or_final = cut(got_or_final, got_pg.sequent.right[0], got_pg)
+        return got_or_final
+
+    got_or_ac = derive_or_ac()
+    or_ac = Or(Eq(a,c), In(a,c))
+    # Derive In(a,hf) from Or(Eq(a,c),In(a,c)) + Successor(hf,c)
+    or_a_c_2 = Or(In(a,c), Eq(a,c))
+    got_or_rearr2 = apply_thm(or_intro_right(In(a,c), Eq(a,c), []), [], Eq(a,c), or_a_c_2, ax(Eq(a,c)))
+    got_or_rearr3 = apply_thm(or_intro_left(In(a,c), Eq(a,c), []), [], In(a,c), or_a_c_2, ax(In(a,c)))
+    oe_rearr = or_elim(Eq(a,c), In(a,c), or_a_c_2, [])
+    imp_eq_or_r = Implies(Eq(a,c), or_a_c_2)
+    got_imp_eq_r = Proof(Sequent([], [imp_eq_or_r]), 'implies_right', [got_or_rearr2], principal=imp_eq_or_r)
+    imp_in_or_r = Implies(In(a,c), or_a_c_2)
+    got_imp_in_r = Proof(Sequent([], [imp_in_or_r]), 'implies_right', [got_or_rearr3], principal=imp_in_or_r)
+    got_or_ac_rearr = apply_thm(oe_rearr, [], or_ac,
+        Implies(imp_eq_or_r, Implies(imp_in_or_r, or_a_c_2)), ax(or_ac))
+    got_or_ac_rearr = mp(got_or_ac_rearr, got_imp_eq_r, imp_eq_or_r, Implies(imp_in_or_r, or_a_c_2))
+    got_or_ac_rearr = mp(got_or_ac_rearr, got_imp_in_r, imp_in_or_r, or_a_c_2)
+    got_or_ac_rearr = cut(got_or_ac_rearr, or_ac, got_or_ac)
+    got_iff_ahf = fl(succ_hf, Iff(In(a,hf), or_a_c_2), a)
+    got_in_a_hf = mp(apply_thm(iff_mp_rev(In(a,hf), or_a_c_2, []), [],
+        got_iff_ahf.sequent.right[0], Implies(or_a_c_2, In(a,hf)), got_iff_ahf),
+        got_or_ac_rearr, or_a_c_2, In(a,hf))
+
+    got_eq_oo = apply_thm(eq_reflexive(), [one])
+
+    # Helper: LEM pattern for ¬P from (P → ¬P)
+    def lem_not(got_imp_p_notp, p_formula, notp_formula):
+        rest = [f for f in got_imp_p_notp.sequent.left if not same(f, p_formula)]
+        imp = Implies(p_formula, notp_formula)
+        got_imp = Proof(Sequent(rest, [imp]), 'implies_right', [got_imp_p_notp], principal=imp)
+        got_lem = Proof(Sequent([], [notp_formula, p_formula]), 'not_right', [ax(p_formula)], principal=notp_formula)
+        got_use = Proof(Sequent([imp], [notp_formula]), 'implies_left', [got_lem, ax(notp_formula)], principal=imp)
+        return cut(got_use, imp, got_imp)
+
+    # Helper: derive ¬Eq(xv,c) from In(xv,c) via omega no self membership
+    def derive_not_eq_xvc(xv):
+        not_eq = Not(Eq(xv,c))
+        got_xv_w = apply_thm(omega_transitive(), [w, c, xv])
+        got_xv_w = mp(got_xv_w, ax(omega_w), omega_w, got_xv_w.sequent.right[0].right)
+        got_xv_w = mp(got_xv_w, got_c_w, In(c,w), got_xv_w.sequent.right[0].right)
+        got_xv_w = mp(got_xv_w, ax(In(xv,c)), In(xv,c), In(xv,w))
+        got_not_xx = apply_thm(_onsm, [w, xv])
+        got_not_xx = mp(got_not_xx, ax(omega_w), omega_w, got_not_xx.sequent.right[0].right)
+        got_not_xx = mp(got_not_xx, got_xv_w, In(xv,w), Not(In(xv,xv)))
+        got_iff = apply_thm(_et, [c, xv, xv])
+        got_iff = mp(got_iff, ax(Eq(c,xv)), Eq(c,xv), got_iff.sequent.right[0].right)
+        got_in_xx = mp(apply_thm(iff_mp(In(xv,c), In(xv,xv), []), [],
+            Iff(In(xv,c), In(xv,xv)), Implies(In(xv,c), In(xv,xv)), got_iff),
+            ax(In(xv,c)), In(xv,c), In(xv,xv))
+        got_bot = Proof(Sequent([In(xv,xv), Not(In(xv,xv))], []), 'not_left', [ax(In(xv,xv))], principal=Not(In(xv,xv)))
+        got_bot = Proof(Sequent(got_bot.sequent.left, [not_eq]), 'weakening_right', [got_bot], principal=not_eq)
+        got_bot = cut(got_bot, Not(In(xv,xv)), got_not_xx)
+        got_bot = cut(got_bot, In(xv,xv), got_in_xx)
+        got_eq_cxv = apply_thm(_es, [xv, c], Eq(xv,c), Eq(c,xv), ax(Eq(xv,c)))
+        got_bot = cut(got_bot, Eq(c,xv), got_eq_cxv)
+        return lem_not(got_bot, Eq(xv,c), not_eq)
+
+    # Helper: derive ¬In(xv,hf) from ¬In(xv,c) ∧ ¬Eq(xv,c) via Successor(hf,c)
+    def derive_not_in_xvhf(xv):
+        not_in_xvc = Not(In(xv,c)); not_eq_xvc = Not(Eq(xv,c)); not_in_xvhf = Not(In(xv,hf))
+        got_iff = fl(succ_hf, Iff(In(xv,hf), Or(In(xv,c), Eq(xv,c))), xv)
+        got_mp_fwd = apply_thm(iff_mp(In(xv,hf), Or(In(xv,c), Eq(xv,c)), []), [],
+            got_iff.sequent.right[0], Implies(In(xv,hf), Or(In(xv,c), Eq(xv,c))), got_iff)
+        got_or = mp(got_mp_fwd, ax(In(xv,hf)), In(xv,hf), Or(In(xv,c), Eq(xv,c)))
+        or_ie = Or(In(xv,c), Eq(xv,c))
+        bot_in = Proof(Sequent([In(xv,c), not_in_xvc], []), 'not_left', [ax(In(xv,c))], principal=not_in_xvc)
+        bot_in = Proof(Sequent(bot_in.sequent.left, [not_in_xvhf]), 'weakening_right', [bot_in], principal=not_in_xvhf)
+        bot_eq = Proof(Sequent([Eq(xv,c), not_eq_xvc], []), 'not_left', [ax(Eq(xv,c))], principal=not_eq_xvc)
+        bot_eq = Proof(Sequent(bot_eq.sequent.left, [not_in_xvhf]), 'weakening_right', [bot_eq], principal=not_in_xvhf)
+        oe = or_elim(In(xv,c), Eq(xv,c), not_in_xvhf, [])
+        imp_in = Implies(In(xv,c), not_in_xvhf)
+        got_imp_in = Proof(Sequent([not_in_xvc], [imp_in]), 'implies_right', [bot_in], principal=imp_in)
+        imp_eq = Implies(Eq(xv,c), not_in_xvhf)
+        got_imp_eq = Proof(Sequent([not_eq_xvc], [imp_eq]), 'implies_right', [bot_eq], principal=imp_eq)
+        got_oe = apply_thm(oe, [], or_ie, Implies(imp_in, Implies(imp_eq, not_in_xvhf)), ax(or_ie))
+        got_oe = mp(got_oe, got_imp_in, imp_in, Implies(imp_eq, not_in_xvhf))
+        got_oe = mp(got_oe, got_imp_eq, imp_eq, not_in_xvhf)
+        got_oe = cut(got_oe, or_ie, got_or)
+        rest = [f for f in got_oe.sequent.left if not same(f, In(xv,hf))]
+        imp_inhf = Implies(In(xv,hf), not_in_xvhf)
+        got_imp_inhf = Proof(Sequent(rest, [imp_inhf]), 'implies_right', [got_oe], principal=imp_inhf)
+        got_lem = Proof(Sequent([], [not_in_xvhf, In(xv,hf)]), 'not_right', [ax(In(xv,hf))], principal=not_in_xvhf)
+        got_use = Proof(Sequent([imp_inhf], [not_in_xvhf]), 'implies_left', [got_lem, ax(not_in_xvhf)], principal=imp_inhf)
+        return cut(got_use, imp_inhf, got_imp_inhf)
+
+    # Helper: derive ¬Eq(xv,a) from ¬In(xv,hf) + In(a,hf)
+    def derive_not_eq_xva(xv, got_not_in_xvhf):
+        not_eq_xva = Not(Eq(xv,a))
+        got_iff = apply_thm(_esub, [xv, a, hf])
+        got_iff = mp(got_iff, ax(Eq(xv,a)), Eq(xv,a), got_iff.sequent.right[0].right)
+        got_in_xvhf = mp(apply_thm(iff_mp_rev(In(xv,hf), In(a,hf), []), [],
+            Iff(In(xv,hf), In(a,hf)), Implies(In(a,hf), In(xv,hf)), got_iff),
+            got_in_a_hf, In(a,hf), In(xv,hf))
+        not_in_xvhf = Not(In(xv,hf))
+        bot = Proof(Sequent([In(xv,hf), not_in_xvhf], []), 'not_left', [ax(In(xv,hf))], principal=not_in_xvhf)
+        bot = Proof(Sequent(bot.sequent.left, [not_eq_xva]), 'weakening_right', [bot], principal=not_eq_xva)
+        bot = cut(bot, In(xv,hf), got_in_xvhf)
+        bot = cut(bot, not_in_xvhf, got_not_in_xvhf)
+        return lem_not(bot, Eq(xv,a), not_eq_xva)
+
+    # Helper: Apply(tape2,xv,one) for In(xv,c) via 3-case LEM
+    def derive_tape2_xv_one(xv):
+        app_t2_xv_one = Apply(tape2, xv, one)
+        # Case Eq(xv,a): tape_update_at
+        c1 = apply_thm(_tua, [tape2, tape_in, a, one, xv, one])
+        c1 = mp(c1, ax(tu_tape2), tu_tape2, c1.sequent.right[0].right)
+        c1 = mp(c1, ax(Eq(xv,a)), Eq(xv,a), c1.sequent.right[0].right)
+        c1 = mp(c1, got_eq_oo, Eq(one,one), c1.sequent.right[0].right)
+        c1 = cut(ax(app_t2_xv_one), app_t2_xv_one, c1)
+        # Case In(xv,a): tape_read_low + tape_update_other
+        got_tin_low = apply_thm(got_ut_low, [xv])
+        got_tin_low = mp(got_tin_low, ax(In(xv,a)), In(xv,a), got_tin_low.sequent.right[0].right)
+        got_tin_low = apply_thm(got_tin_low, [one])
+        got_tin_low = mp(got_tin_low, ax(num_one), num_one, Apply(tape_in,xv,one))
+        c2_low = apply_thm(_tuo, [tape2, tape_in, a, one, xv, one])
+        c2_low = mp(c2_low, ax(tu_tape2), tu_tape2, c2_low.sequent.right[0].right)
+        c2_low = mp(c2_low, got_tin_low, Apply(tape_in,xv,one), c2_low.sequent.right[0].right)
+        c2_low = mp(c2_low, ax(Not(Eq(xv,a))), Not(Eq(xv,a)), c2_low.sequent.right[0].right)
+        c2_low = cut(ax(app_t2_xv_one), app_t2_xv_one, c2_low)
+        # Case ¬In(xv,a) ∧ ¬Eq(xv,a): plus_bounded_exists + tape_read_high + tape_update_other
+        _pbe = plus_bounded_exists()
+        got_pbe = apply_thm(_pbe, [w, a, sa, b])
+        got_pbe = mp(got_pbe, ax(omega_w), omega_w, got_pbe.sequent.right[0].right)
+        got_pbe = mp(got_pbe, ax(In(a,w)), In(a,w), got_pbe.sequent.right[0].right)
+        got_pbe = mp(got_pbe, ax(In(b,w)), In(b,w), got_pbe.sequent.right[0].right)
+        got_pbe = mp(got_pbe, ax(succ_sa), succ_sa, got_pbe.sequent.right[0].right)
+        got_pbe = apply_thm(got_pbe, [c])
+        got_pbe = mp(got_pbe, ax(plus_abc), plus_abc, got_pbe.sequent.right[0].right)
+        got_pbe = apply_thm(got_pbe, [xv])
+        got_pbe = mp(got_pbe, ax(In(xv,c)), In(xv,c), got_pbe.sequent.right[0].right)
+        got_pbe = mp(got_pbe, ax(Not(In(xv,a))), Not(In(xv,a)), got_pbe.sequent.right[0].right)
+        got_pbe = mp(got_pbe, ax(Not(Eq(xv,a))), Not(Eq(xv,a)), got_pbe.sequent.right[0].right)
+        jv = got_pbe.sequent.right[0].var
+        jv_body = got_pbe.sequent.right[0].body
+        got_in_jv = apply_thm(and_elim_left(jv_body.left, jv_body.right, []), [],
+            jv_body, jv_body.left, ax(jv_body))
+        got_plus_jv = apply_thm(and_elim_right(jv_body.left, jv_body.right, []), [],
+            jv_body, jv_body.right, ax(jv_body))
+        got_tin_high = apply_thm(_trh, [tape_in, a, b, jv, sa, xv, one])
+        got_tin_high = mp(got_tin_high, ax(utape), utape, got_tin_high.sequent.right[0].right)
+        got_tin_high = mp(got_tin_high, got_in_jv, jv_body.left, got_tin_high.sequent.right[0].right)
+        got_tin_high = mp(got_tin_high, ax(succ_sa), succ_sa, got_tin_high.sequent.right[0].right)
+        got_tin_high = mp(got_tin_high, got_plus_jv, jv_body.right, got_tin_high.sequent.right[0].right)
+        got_tin_high = mp(got_tin_high, ax(num_one), num_one, Apply(tape_in,xv,one))
+        c2_high = apply_thm(_tuo, [tape2, tape_in, a, one, xv, one])
+        c2_high = mp(c2_high, ax(tu_tape2), tu_tape2, c2_high.sequent.right[0].right)
+        c2_high = mp(c2_high, got_tin_high, Apply(tape_in,xv,one), c2_high.sequent.right[0].right)
+        c2_high = mp(c2_high, ax(Not(Eq(xv,a))), Not(Eq(xv,a)), c2_high.sequent.right[0].right)
+        c2_high = cut(ax(app_t2_xv_one), app_t2_xv_one, c2_high)
+        c2_high = eel(c2_high, jv_body, jv)
+        c2_high = cut(c2_high, Exists(jv, jv_body), got_pbe)
+        # LEM In(xv,a) to combine c2_low and c2_high
+        not_in_xva = Not(In(xv,a))
+        l1 = [f for f in c2_low.sequent.left if not same(f, In(xv,a))]
+        g1 = Proof(Sequent(l1, [not_in_xva, app_t2_xv_one]), 'not_right', [c2_low], principal=not_in_xva)
+        ac = list(g1.sequent.left)
+        for f in c2_high.sequent.left:
+            if not same(f, not_in_xva) and not any(same(f, g) for g in ac): ac.append(f)
+        c2 = Proof(Sequent(ac, [app_t2_xv_one]), 'cut',
+            [weaken_to(g1, ac), weaken_to(c2_high, ac + [not_in_xva])], principal=not_in_xva)
+        # LEM Eq(xv,a) to combine c1 and c2
+        not_eq_xva = Not(Eq(xv,a))
+        l2 = [f for f in c1.sequent.left if not same(f, Eq(xv,a))]
+        g2 = Proof(Sequent(l2, [not_eq_xva, app_t2_xv_one]), 'not_right', [c1], principal=not_eq_xva)
+        ac2 = list(g2.sequent.left)
+        for f in c2.sequent.left:
+            if not same(f, not_eq_xva) and not any(same(f, g) for g in ac2): ac2.append(f)
+        return Proof(Sequent(ac2, [app_t2_xv_one]), 'cut',
+            [weaken_to(g2, ac2), weaken_to(c2, ac2 + [not_eq_xva])], principal=not_eq_xva)
+
+    # Helper: derive Apply(tape_in,xv,z) from beyond + ¬In(xv,hf)
+    def derive_tape_in_xv_zero(xv, got_not_in_xvhf):
+        got = apply_thm(got_beyond, [sa])
+        got = mp(got, ax(succ_sa), succ_sa, got.sequent.right[0].right)
+        got = apply_thm(got, [hf])
+        got = mp(got, got_psbh, PlusDef(sa,b,hf), got.sequent.right[0].right)
+        got = apply_thm(got, [xv])
+        got = mp(got, got_not_in_xvhf, Not(In(xv,hf)), got.sequent.right[0].right)
+        got = apply_thm(got, [z])
+        got = mp(got, ax(num_z), num_z, Apply(tape_in,xv,z))
+        return got
+
+    # Helper: LEM on formula F to combine two proofs
+    def lem_combine(got_with_f, got_with_not_f, f_formula, target):
+        not_f = Not(f_formula)
+        l = [ff for ff in got_with_f.sequent.left if not same(ff, f_formula)]
+        g = Proof(Sequent(l, [not_f, target]), 'not_right', [got_with_f], principal=not_f)
+        ac = list(g.sequent.left)
+        for ff in got_with_not_f.sequent.left:
+            if not same(ff, not_f) and not any(same(ff, gg) for gg in ac): ac.append(ff)
+        return Proof(Sequent(ac, [target]), 'cut',
+            [weaken_to(g, ac), weaken_to(got_with_not_f, ac + [not_f])], principal=not_f)
+
+    # ====== Forward direction: ∀x,y. Apply(tf,x,y) → Apply(t2',x,y) ======
+    xv = Var(postfix='_xfe'); yv = Var(postfix='_yfe')
+    app_tf_xy = Apply(tf, xv, yv)
+    app_t2p_xy = Apply(t2p, xv, yv)
+
+    # Case A: In(xv,c)
+    got_tf_xv_one = apply_thm(got_ones, [xv])
+    got_tf_xv_one = mp(got_tf_xv_one, ax(In(xv,c)), In(xv,c), got_tf_xv_one.sequent.right[0].right)
+    got_tf_xv_one = apply_thm(got_tf_xv_one, [one])
+    got_tf_xv_one = mp(got_tf_xv_one, ax(num_one), num_one, Apply(tf,xv,one))
+    got_y_eq_one = apply_thm(_fut, [tf, xv, yv, one])
+    got_y_eq_one = mp(got_y_eq_one, got_func_tf, FuncDef(tf), got_y_eq_one.sequent.right[0].right)
+    got_y_eq_one = mp(got_y_eq_one, ax(app_tf_xy), app_tf_xy, got_y_eq_one.sequent.right[0].right)
+    got_y_eq_one = mp(got_y_eq_one, got_tf_xv_one, Apply(tf,xv,one), Eq(yv,one))
+    got_not_xvc = derive_not_eq_xvc(xv)
+    got_t2_xv_one = derive_tape2_xv_one(xv)
+    got_t2p_xv_one = apply_thm(_tuo, [t2p, tape2, c, z, xv, one])
+    got_t2p_xv_one = mp(got_t2p_xv_one, ax(t2p_body), t2p_body, got_t2p_xv_one.sequent.right[0].right)
+    got_t2p_xv_one = mp(got_t2p_xv_one, got_t2_xv_one, Apply(tape2,xv,one), got_t2p_xv_one.sequent.right[0].right)
+    got_t2p_xv_one = mp(got_t2p_xv_one, got_not_xvc, Not(Eq(xv,c)), got_t2p_xv_one.sequent.right[0].right)
+    got_t2p_xv_one = cut(ax(Apply(t2p,xv,one)), Apply(t2p,xv,one), got_t2p_xv_one)
+    got_eq_one_yv = apply_thm(_es, [yv, one], Eq(yv,one), Eq(one,yv), got_y_eq_one)
+    got_caseA = apply_thm(_eavt, [t2p, xv, one, yv])
+    got_caseA = mp(got_caseA, got_eq_one_yv, Eq(one,yv), got_caseA.sequent.right[0].right)
+    got_caseA = mp(got_caseA, got_t2p_xv_one, Apply(t2p,xv,one), app_t2p_xy)
+    print(f'tu_tf: forward case A (In(xv,c)) OK')
+
+    # Case B: ¬In(xv,c)
+    got_tf_xv_z = apply_thm(got_zeros, [xv])
+    got_tf_xv_z = mp(got_tf_xv_z, ax(Not(In(xv,c))), Not(In(xv,c)), got_tf_xv_z.sequent.right[0].right)
+    got_tf_xv_z = apply_thm(got_tf_xv_z, [z])
+    got_tf_xv_z = mp(got_tf_xv_z, ax(num_z), num_z, Apply(tf,xv,z))
+    got_y_eq_z = apply_thm(_fut, [tf, xv, yv, z])
+    got_y_eq_z = mp(got_y_eq_z, got_func_tf, FuncDef(tf), got_y_eq_z.sequent.right[0].right)
+    got_y_eq_z = mp(got_y_eq_z, ax(app_tf_xy), app_tf_xy, got_y_eq_z.sequent.right[0].right)
+    got_y_eq_z = mp(got_y_eq_z, got_tf_xv_z, Apply(tf,xv,z), Eq(yv,z))
+
+    # Sub-case Eq(xv,c): tape_update_at → Apply(t2p,c,z) → transfer
+    got_t2p_c_z = apply_thm(_tua, [t2p, tape2, c, z, c, z])
+    got_t2p_c_z = mp(got_t2p_c_z, ax(t2p_body), t2p_body, got_t2p_c_z.sequent.right[0].right)
+    got_t2p_c_z = mp(got_t2p_c_z, apply_thm(eq_reflexive(), [c]), Eq(c,c), got_t2p_c_z.sequent.right[0].right)
+    got_t2p_c_z = mp(got_t2p_c_z, apply_thm(eq_reflexive(), [z]), Eq(z,z), got_t2p_c_z.sequent.right[0].right)
+    got_t2p_c_z = cut(ax(Apply(t2p,c,z)), Apply(t2p,c,z), got_t2p_c_z)
+    got_eq_c_xv = apply_thm(_es, [xv, c], Eq(xv,c), Eq(c,xv), ax(Eq(xv,c)))
+    got_t2p_xv_z_eq = apply_thm(_eat, [t2p, c, xv, z])
+    got_t2p_xv_z_eq = mp(got_t2p_xv_z_eq, got_eq_c_xv, Eq(c,xv), got_t2p_xv_z_eq.sequent.right[0].right)
+    got_t2p_xv_z_eq = mp(got_t2p_xv_z_eq, got_t2p_c_z, Apply(t2p,c,z), Apply(t2p,xv,z))
+
+    # Sub-case ¬Eq(xv,c): beyond → tape_in(xv)=z → tape2(xv)=z → t2p(xv)=z
+    got_not_xvhf = derive_not_in_xvhf(xv)
+    got_tin_xv_z = derive_tape_in_xv_zero(xv, got_not_xvhf)
+    got_not_xva = derive_not_eq_xva(xv, got_not_xvhf)
+    got_t2_xv_z = apply_thm(_tuo, [tape2, tape_in, a, one, xv, z])
+    got_t2_xv_z = mp(got_t2_xv_z, ax(tu_tape2), tu_tape2, got_t2_xv_z.sequent.right[0].right)
+    got_t2_xv_z = mp(got_t2_xv_z, got_tin_xv_z, Apply(tape_in,xv,z), got_t2_xv_z.sequent.right[0].right)
+    got_t2_xv_z = mp(got_t2_xv_z, got_not_xva, Not(Eq(xv,a)), got_t2_xv_z.sequent.right[0].right)
+    got_t2_xv_z = cut(ax(Apply(tape2,xv,z)), Apply(tape2,xv,z), got_t2_xv_z)
+    got_t2p_xv_z_neq = apply_thm(_tuo, [t2p, tape2, c, z, xv, z])
+    got_t2p_xv_z_neq = mp(got_t2p_xv_z_neq, ax(t2p_body), t2p_body, got_t2p_xv_z_neq.sequent.right[0].right)
+    got_t2p_xv_z_neq = mp(got_t2p_xv_z_neq, got_t2_xv_z, Apply(tape2,xv,z), got_t2p_xv_z_neq.sequent.right[0].right)
+    got_t2p_xv_z_neq = mp(got_t2p_xv_z_neq, ax(Not(Eq(xv,c))), Not(Eq(xv,c)), got_t2p_xv_z_neq.sequent.right[0].right)
+    got_t2p_xv_z_neq = cut(ax(Apply(t2p,xv,z)), Apply(t2p,xv,z), got_t2p_xv_z_neq)
+
+    got_t2p_xv_z_full = lem_combine(got_t2p_xv_z_eq, got_t2p_xv_z_neq, Eq(xv,c), Apply(t2p,xv,z))
+    got_eq_z_yv = apply_thm(_es, [yv, z], Eq(yv,z), Eq(z,yv), got_y_eq_z)
+    got_caseB = apply_thm(_eavt, [t2p, xv, z, yv])
+    got_caseB = mp(got_caseB, got_eq_z_yv, Eq(z,yv), got_caseB.sequent.right[0].right)
+    got_caseB = mp(got_caseB, got_t2p_xv_z_full, Apply(t2p,xv,z), app_t2p_xy)
+    print(f'tu_tf: forward case B (¬In(xv,c)) OK')
+
+    got_fwd_one = lem_combine(got_caseA, got_caseB, In(xv,c), app_t2p_xy)
+    # Discharge, close ∀
+    imp_fwd = Implies(app_tf_xy, app_t2p_xy)
+    l = [f for f in got_fwd_one.sequent.left if not same(f, app_tf_xy)]
+    got_fwd_one = wl(got_fwd_one, app_tf_xy)
+    got_fwd = Proof(Sequent(l, [imp_fwd]), 'implies_right', [got_fwd_one], principal=imp_fwd)
+    fa_yv = Forall(yv, imp_fwd)
+    got_fwd = Proof(Sequent(got_fwd.sequent.left, [fa_yv]), 'forall_right', [got_fwd], principal=fa_yv, term=yv)
+    fa_xv = Forall(xv, fa_yv)
+    got_fwd = Proof(Sequent(got_fwd.sequent.left, [fa_xv]), 'forall_right', [got_fwd], principal=fa_xv, term=xv)
+    print(f'tu_tf: forward ∀ closed')
+
+    # ====== Backward direction: ∀x,y. Apply(t2',x,y) → Apply(tf,x,y) ======
+    xv2 = Var(postfix='_xbe'); yv2 = Var(postfix='_ybe')
+    app_t2p_xy2 = Apply(t2p, xv2, yv2)
+    app_tf_xy2 = Apply(tf, xv2, yv2)
+
+    # Sub-case Eq(xv2,c): t2p(c)=z → yv2=z → ¬In(xv2,c) → Apply(tf,xv2,z) → transfer
+    got_t2p_c_z_2 = apply_thm(_tua, [t2p, tape2, c, z, c, z])
+    got_t2p_c_z_2 = mp(got_t2p_c_z_2, ax(t2p_body), t2p_body, got_t2p_c_z_2.sequent.right[0].right)
+    got_t2p_c_z_2 = mp(got_t2p_c_z_2, apply_thm(eq_reflexive(), [c]), Eq(c,c), got_t2p_c_z_2.sequent.right[0].right)
+    got_t2p_c_z_2 = mp(got_t2p_c_z_2, apply_thm(eq_reflexive(), [z]), Eq(z,z), got_t2p_c_z_2.sequent.right[0].right)
+    got_t2p_c_z_2 = cut(ax(Apply(t2p,c,z)), Apply(t2p,c,z), got_t2p_c_z_2)
+    got_eq_c_xv2 = apply_thm(_es, [xv2, c], Eq(xv2,c), Eq(c,xv2), ax(Eq(xv2,c)))
+    got_t2p_xv2_z = apply_thm(_eat, [t2p, c, xv2, z])
+    got_t2p_xv2_z = mp(got_t2p_xv2_z, got_eq_c_xv2, Eq(c,xv2), got_t2p_xv2_z.sequent.right[0].right)
+    got_t2p_xv2_z = mp(got_t2p_xv2_z, got_t2p_c_z_2, Apply(t2p,c,z), Apply(t2p,xv2,z))
+    got_yv2_eq_z = apply_thm(_fut, [t2p, xv2, yv2, z])
+    got_yv2_eq_z = mp(got_yv2_eq_z, got_func_t2p, FuncDef(t2p), got_yv2_eq_z.sequent.right[0].right)
+    got_yv2_eq_z = mp(got_yv2_eq_z, ax(app_t2p_xy2), app_t2p_xy2, got_yv2_eq_z.sequent.right[0].right)
+    got_yv2_eq_z = mp(got_yv2_eq_z, got_t2p_xv2_z, Apply(t2p,xv2,z), Eq(yv2,z))
+    # ¬In(xv2,c) from Eq(xv2,c) + omega_no_self
+    got_not_cc = apply_thm(_onsm, [w, c])
+    got_not_cc = mp(got_not_cc, ax(omega_w), omega_w, got_not_cc.sequent.right[0].right)
+    got_not_cc = mp(got_not_cc, got_c_w, In(c,w), Not(In(c,c)))
+    got_iff_xv2c = apply_thm(_esub, [xv2, c, c])
+    got_iff_xv2c = mp(got_iff_xv2c, ax(Eq(xv2,c)), Eq(xv2,c), got_iff_xv2c.sequent.right[0].right)
+    got_in_xv2c_cc = mp(apply_thm(iff_mp(In(xv2,c), In(c,c), []), [],
+        Iff(In(xv2,c), In(c,c)), Implies(In(xv2,c), In(c,c)), got_iff_xv2c),
+        ax(In(xv2,c)), In(xv2,c), In(c,c))
+    not_in_xv2c = Not(In(xv2,c))
+    bot = Proof(Sequent([In(c,c), Not(In(c,c))], []), 'not_left', [ax(In(c,c))], principal=Not(In(c,c)))
+    bot = Proof(Sequent(bot.sequent.left, [not_in_xv2c]), 'weakening_right', [bot], principal=not_in_xv2c)
+    bot = cut(bot, Not(In(c,c)), got_not_cc)
+    bot = cut(bot, In(c,c), got_in_xv2c_cc)
+    got_not_in_xv2c = lem_not(bot, In(xv2,c), not_in_xv2c)
+    got_tf_xv2_z = apply_thm(got_zeros, [xv2])
+    got_tf_xv2_z = mp(got_tf_xv2_z, got_not_in_xv2c, not_in_xv2c, got_tf_xv2_z.sequent.right[0].right)
+    got_tf_xv2_z = apply_thm(got_tf_xv2_z, [z])
+    got_tf_xv2_z = mp(got_tf_xv2_z, ax(num_z), num_z, Apply(tf,xv2,z))
+    got_eq_z_yv2 = apply_thm(_es, [yv2, z], Eq(yv2,z), Eq(z,yv2), got_yv2_eq_z)
+    got_bwd_eq = apply_thm(_eavt, [tf, xv2, z, yv2])
+    got_bwd_eq = mp(got_bwd_eq, got_eq_z_yv2, Eq(z,yv2), got_bwd_eq.sequent.right[0].right)
+    got_bwd_eq = mp(got_bwd_eq, got_tf_xv2_z, Apply(tf,xv2,z), app_tf_xy2)
+    print(f'tu_tf: backward Eq(xv2,c) OK')
+
+    # Sub-case ¬Eq(xv2,c): tape_update_other_rev → Apply(tape2,xv2,yv2)
+    got_t2_xv2_yv2 = apply_thm(_tuor, [t2p, tape2, c, z, xv2, yv2])
+    got_t2_xv2_yv2 = mp(got_t2_xv2_yv2, ax(t2p_body), t2p_body, got_t2_xv2_yv2.sequent.right[0].right)
+    got_t2_xv2_yv2 = mp(got_t2_xv2_yv2, ax(app_t2p_xy2), app_t2p_xy2, got_t2_xv2_yv2.sequent.right[0].right)
+    got_t2_xv2_yv2 = mp(got_t2_xv2_yv2, ax(Not(Eq(xv2,c))), Not(Eq(xv2,c)), got_t2_xv2_yv2.sequent.right[0].right)
+    app_t2_xv2_yv2 = Apply(tape2, xv2, yv2)
+    got_t2_xv2_yv2 = cut(ax(app_t2_xv2_yv2), app_t2_xv2_yv2, got_t2_xv2_yv2)
+
+    # LEM In(xv2,c):
+    # Case In(xv2,c): tape2(xv2)=one → yv2=one → tf(xv2)=one → transfer
+    got_t2_xv2_one = derive_tape2_xv_one(xv2)
+    got_yv2_eq_one = apply_thm(_fut, [tape2, xv2, yv2, one])
+    got_yv2_eq_one = mp(got_yv2_eq_one, got_func_t2_inner, FuncDef(tape2), got_yv2_eq_one.sequent.right[0].right)
+    got_yv2_eq_one = mp(got_yv2_eq_one, got_t2_xv2_yv2, app_t2_xv2_yv2, got_yv2_eq_one.sequent.right[0].right)
+    got_yv2_eq_one = mp(got_yv2_eq_one, got_t2_xv2_one, Apply(tape2,xv2,one), Eq(yv2,one))
+    got_tf_xv2_one = apply_thm(got_ones, [xv2])
+    got_tf_xv2_one = mp(got_tf_xv2_one, ax(In(xv2,c)), In(xv2,c), got_tf_xv2_one.sequent.right[0].right)
+    got_tf_xv2_one = apply_thm(got_tf_xv2_one, [one])
+    got_tf_xv2_one = mp(got_tf_xv2_one, ax(num_one), num_one, Apply(tf,xv2,one))
+    got_eq_one_yv2 = apply_thm(_es, [yv2, one], Eq(yv2,one), Eq(one,yv2), got_yv2_eq_one)
+    got_bwd_in = apply_thm(_eavt, [tf, xv2, one, yv2])
+    got_bwd_in = mp(got_bwd_in, got_eq_one_yv2, Eq(one,yv2), got_bwd_in.sequent.right[0].right)
+    got_bwd_in = mp(got_bwd_in, got_tf_xv2_one, Apply(tf,xv2,one), app_tf_xy2)
+
+    # Case ¬In(xv2,c): tape2(xv2)=z → yv2=z → tf(xv2)=z → transfer
+    got_not_xv2hf = derive_not_in_xvhf(xv2)
+    got_tin_xv2_z = derive_tape_in_xv_zero(xv2, got_not_xv2hf)
+    got_not_xv2a = derive_not_eq_xva(xv2, got_not_xv2hf)
+    got_t2_xv2_z = apply_thm(_tuo, [tape2, tape_in, a, one, xv2, z])
+    got_t2_xv2_z = mp(got_t2_xv2_z, ax(tu_tape2), tu_tape2, got_t2_xv2_z.sequent.right[0].right)
+    got_t2_xv2_z = mp(got_t2_xv2_z, got_tin_xv2_z, Apply(tape_in,xv2,z), got_t2_xv2_z.sequent.right[0].right)
+    got_t2_xv2_z = mp(got_t2_xv2_z, got_not_xv2a, Not(Eq(xv2,a)), got_t2_xv2_z.sequent.right[0].right)
+    got_t2_xv2_z = cut(ax(Apply(tape2,xv2,z)), Apply(tape2,xv2,z), got_t2_xv2_z)
+    got_yv2_eq_z_notin = apply_thm(_fut, [tape2, xv2, yv2, z])
+    got_yv2_eq_z_notin = mp(got_yv2_eq_z_notin, got_func_t2_inner, FuncDef(tape2), got_yv2_eq_z_notin.sequent.right[0].right)
+    got_yv2_eq_z_notin = mp(got_yv2_eq_z_notin, got_t2_xv2_yv2, app_t2_xv2_yv2, got_yv2_eq_z_notin.sequent.right[0].right)
+    got_yv2_eq_z_notin = mp(got_yv2_eq_z_notin, got_t2_xv2_z, Apply(tape2,xv2,z), Eq(yv2,z))
+    got_tf_xv2_z_notin = apply_thm(got_zeros, [xv2])
+    got_tf_xv2_z_notin = mp(got_tf_xv2_z_notin, ax(Not(In(xv2,c))), Not(In(xv2,c)), got_tf_xv2_z_notin.sequent.right[0].right)
+    got_tf_xv2_z_notin = apply_thm(got_tf_xv2_z_notin, [z])
+    got_tf_xv2_z_notin = mp(got_tf_xv2_z_notin, ax(num_z), num_z, Apply(tf,xv2,z))
+    got_eq_z_yv2_notin = apply_thm(_es, [yv2, z], Eq(yv2,z), Eq(z,yv2), got_yv2_eq_z_notin)
+    got_bwd_notin = apply_thm(_eavt, [tf, xv2, z, yv2])
+    got_bwd_notin = mp(got_bwd_notin, got_eq_z_yv2_notin, Eq(z,yv2), got_bwd_notin.sequent.right[0].right)
+    got_bwd_notin = mp(got_bwd_notin, got_tf_xv2_z_notin, Apply(tf,xv2,z), app_tf_xy2)
+
+    got_bwd_neq = lem_combine(got_bwd_in, got_bwd_notin, In(xv2,c), app_tf_xy2)
+    print(f'tu_tf: backward ¬Eq(xv2,c) OK')
+
+    got_bwd_one = lem_combine(got_bwd_eq, got_bwd_neq, Eq(xv2,c), app_tf_xy2)
+    # Discharge, close ∀
+    imp_bwd = Implies(app_t2p_xy2, app_tf_xy2)
+    l = [f for f in got_bwd_one.sequent.left if not same(f, app_t2p_xy2)]
+    got_bwd_one = wl(got_bwd_one, app_t2p_xy2)
+    got_bwd = Proof(Sequent(l, [imp_bwd]), 'implies_right', [got_bwd_one], principal=imp_bwd)
+    fa_yv2 = Forall(yv2, imp_bwd)
+    got_bwd = Proof(Sequent(got_bwd.sequent.left, [fa_yv2]), 'forall_right', [got_bwd], principal=fa_yv2, term=yv2)
+    fa_xv2 = Forall(xv2, fa_yv2)
+    got_bwd = Proof(Sequent(got_bwd.sequent.left, [fa_xv2]), 'forall_right', [got_bwd], principal=fa_xv2, term=xv2)
+    print(f'tu_tf: backward ∀ closed')
+
+    # ====== func_ext → Eq(tf, t2') ======
+    _fe = func_ext()
+    got_eq = apply_thm(_fe, [tf, t2p])
+    got_eq = mp(got_eq, got_func_tf, FuncDef(tf), got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_func_t2p, FuncDef(t2p), got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_fwd, fa_xv, got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_bwd, fa_xv2, Eq(tf, t2p))
+    print(f'tu_tf: Eq(tf, t2p) OK')
+
+    # ====== Transfer TapeUpdate via Iff chain ======
+    tu_t2p_exp = t2p_body.expand()
+    pv_tu = tu_t2p_exp.var
+    iff_t2p = tu_t2p_exp.body
+    in_pv_t2p = iff_t2p.left
+    rhs_pv = iff_t2p.right
+    in_pv_tf = In(pv_tu, tf)
+    _et2 = eq_transfer_fn()
+    got_iff_tf_t2p = apply_thm(_et2, [tf, t2p, pv_tu])
+    got_iff_tf_t2p = mp(got_iff_tf_t2p, got_eq, Eq(tf,t2p), got_iff_tf_t2p.sequent.right[0].right)
+    got_iff_t2p_rhs = fl(t2p_body, iff_t2p, pv_tu)
+    # Chain: In(pv,tf) ↔ In(pv,t2p) ↔ RHS
+    got_fwd_tf_t2p = apply_thm(iff_mp(in_pv_tf, in_pv_t2p, []), [],
+        Iff(in_pv_tf, in_pv_t2p), Implies(in_pv_tf, in_pv_t2p), got_iff_tf_t2p)
+    got_fwd_t2p_rhs = apply_thm(iff_mp(in_pv_t2p, rhs_pv, []), [],
+        iff_t2p, Implies(in_pv_t2p, rhs_pv), got_iff_t2p_rhs)
+    got_tf_to_rhs = mp(got_fwd_t2p_rhs, mp(got_fwd_tf_t2p, ax(in_pv_tf), in_pv_tf, in_pv_t2p),
+        in_pv_t2p, rhs_pv)
+    got_bwd_t2p_rhs = apply_thm(iff_mp_rev(in_pv_t2p, rhs_pv, []), [],
+        iff_t2p, Implies(rhs_pv, in_pv_t2p), got_iff_t2p_rhs)
+    got_bwd_tf_t2p = apply_thm(iff_mp_rev(in_pv_tf, in_pv_t2p, []), [],
+        Iff(in_pv_tf, in_pv_t2p), Implies(in_pv_t2p, in_pv_tf), got_iff_tf_t2p)
+    got_rhs_to_tf = mp(got_bwd_tf_t2p, mp(got_bwd_t2p_rhs, ax(rhs_pv), rhs_pv, in_pv_t2p),
+        in_pv_t2p, in_pv_tf)
+    iff_tf_rhs = Iff(in_pv_tf, rhs_pv)
+    imp_tf_rhs = Implies(in_pv_tf, rhs_pv)
+    imp_rhs_tf = Implies(rhs_pv, in_pv_tf)
+    l_fwd = [f for f in got_tf_to_rhs.sequent.left if not same(f, in_pv_tf)]
+    got_imp_fwd = Proof(Sequent(l_fwd, [imp_tf_rhs]), 'implies_right', [got_tf_to_rhs], principal=imp_tf_rhs)
+    l_bwd = [f for f in got_rhs_to_tf.sequent.left if not same(f, rhs_pv)]
+    got_imp_bwd = Proof(Sequent(l_bwd, [imp_rhs_tf]), 'implies_right', [got_rhs_to_tf], principal=imp_rhs_tf)
+    got_iff_final = mp(apply_thm(iff_intro(in_pv_tf, rhs_pv, []), [],
+        imp_tf_rhs, Implies(imp_rhs_tf, iff_tf_rhs), got_imp_fwd),
+        got_imp_bwd, imp_rhs_tf, iff_tf_rhs)
+    fa_pv = Forall(pv_tu, iff_tf_rhs)
+    got_fa = Proof(Sequent(got_iff_final.sequent.left, [fa_pv]),
+        'forall_right', [got_iff_final], principal=fa_pv, term=pv_tu)
+    got_tu_tf = cut(ax(tu_tf_formula), tu_tf_formula, got_fa)
+    got_tu_tf = eel(got_tu_tf, t2p_body, t2p)
+    got_tu_tf = cut(got_tu_tf, Exists(t2p, t2p_body), got_tue)
+    print(f'tu_tf: DONE — TapeUpdate(tf,tape2,c,z) derived')
+    return got_tu_tf
+
+
+# ============================================================
 # tm_add_correct: chain Phase1P..Phase5P via TMReachesCompose
 # ============================================================
 
@@ -2389,33 +2963,89 @@ def tm_add_correct():
     proof = cut(proof, or_eq_in_ac, got_or_final)
     print(f'tm_add: Or(Eq(a,c),In(a,c)) cut')
 
-    # === Cut Apply(tape_in,c,one) — tape_in reads 1 at position c ===
-    # c = a+b. For b=0: c=a, tape_in(a)=0 (separator). But Eq(c,a) case is handled by LEM.
-    # For b>0: c is in second group. tape_read_high with j=pred(b).
-    # Without predecessor: ax for now. Only has goal vars + one.
-    # Actually: this formula was only needed for the Not(Eq(c,a)) case of tape2_c_one.
-    # In that case, tape_in(c) = 1 because c is in the second group.
-    # The LEM Eq(c,a) case doesn't use Apply(tape_in,c,one) at all.
-    # So Apply(tape_in,c,one) on the left is from the Not(Eq(c,a)) case's ax().
-    # It has tape_in (goal var), c (goal var), one (intermediate).
-    # It blocks forall_right for c. Must be cut.
-    # TODO: derive from tape_read_high + predecessor. For now: ax.
-    # Actually: I can avoid this ax entirely by restructuring the LEM for tape2_c_one.
-    # In the Not(Eq(c,a)) case: I need Apply(tape2,c,one). I used tape_update_other
-    # which needs Apply(tape_in,c,one). But I can use tape_read_high to derive it
-    # IF I have j and Plus(sa,j,c). I don't have j without predecessor.
-    # OR: I can use the LEM case Eq(c,a) DIFFERENTLY. Since both cases give
-    # Apply(tape2,c,one), and the Eq(c,a) case is handled, the Not(Eq(c,a)) case
-    # can use ANY proof of Apply(tape2,c,one). Including ax().
-    # The ax(Apply(tape_in,c,one)) puts it on the left with one free.
-    # If I instead use a derived proof... but I can't derive it without predecessor.
-    # Leave as ax. It has one (intermediate) free. Will block eel for one.
-    # TODO: prove predecessor theorem and derive this.
+    # === Derive TapeUpdate(tf,tape2,c,z) via func_ext ===
+    got_tu_tf = derive_tu_tf(
+        tf=tf, tape2=tape2, tape_in=tape_in, c=c, z=z, a=a, b=b, w=w,
+        sa=sa, one=one, hf=hf,
+        utape=utape, tu_tape2=tu_tape2, unary_out=unary_out,
+        succ_sa=succ_sa, succ_hf=succ_hf, plus_abc=plus_abc,
+        num_one=num_one, num_z=num_z, omega_w=omega_w,
+        got_sa_w=got_sa_w, got_hf_w=got_hf_w, got_psbh=got_psbh, got_c_w=got_c_w)
+    proof = cut(proof, tu_tf, got_tu_tf)
+    print(f'tm_add: tu_tf cut')
 
-    # === tu_tf: TapeUpdate(tf,tape2,c,z) — ax for now ===
-    # Has tape2 (intermediate) free. Will block eel for tape2.
-    # TODO: derive from UnaryOutput(tf,c) characterization.
-    print(f'tm_add: Apply(tape_in,c,one) and tu_tf still ax. 5 formulas remain.')
+    # === eel+cut for sa (only in Successor(sa,a) now) ===
+    if any(same(succ_sa, f) for f in proof.sequent.left):
+        other_left = [f for f in proof.sequent.left if not same(f, succ_sa)]
+        if not any(_var_free_in_sequent(sa, Sequent([f], [])) for f in other_left):
+            proof = eel(proof, succ_sa, sa)
+            from theorems.sets import successor_exists as _se
+            got_ex_sa = apply_thm(_se(), [a], concl=Exists(sa, succ_sa))
+            proof = cut(proof, Exists(sa, succ_sa), got_ex_sa)
+            print(f'tm_add: sa eel+cut done')
+        else:
+            print(f'tm_add: SKIP eel sa — still free elsewhere')
+
+    # === eel+cut for tape2 (only in TapeUpdate(tape2,tape_in,a,one) now) ===
+    if any(same(tu_tape2, f) for f in proof.sequent.left):
+        other_left = [f for f in proof.sequent.left if not same(f, tu_tape2)]
+        if not any(_var_free_in_sequent(tape2, Sequent([f], [])) for f in other_left):
+            proof = eel(proof, tu_tape2, tape2)
+            got_ex_t2 = apply_thm(tape_update_exists(), [tape_in, a, one])
+            proof = cut(proof, Exists(tape2, tu_tape2), got_ex_t2)
+            print(f'tm_add: tape2 eel+cut done')
+        else:
+            print(f'tm_add: SKIP eel tape2 — still free elsewhere')
+
+    # === eel+cut for one (in Num(one,1) and Successor(one,z)) ===
+    # Combine the two formulas into And, eel one, cut with existence proof
+    succ_one_z = Successor(one, z)
+    and_one = And(num_one, succ_one_z)
+    if any(same(num_one, f) for f in proof.sequent.left) and \
+       any(same(succ_one_z, f) for f in proof.sequent.left):
+        # Cut Num(one,1) with And left component
+        got_num_from_and = apply_thm(and_elim_left(num_one, succ_one_z, []), [],
+            and_one, num_one, ax(and_one))
+        proof = cut(proof, num_one, got_num_from_and)
+        # Cut Successor(one,z) with And right component
+        got_succ_from_and = apply_thm(and_elim_right(num_one, succ_one_z, []), [],
+            and_one, succ_one_z, ax(and_one))
+        proof = cut(proof, succ_one_z, got_succ_from_and)
+        # Now And(num_one, succ_one_z) on left. eel one.
+        other_left = [f for f in proof.sequent.left if not same(f, and_one)]
+        if not any(_var_free_in_sequent(one, Sequent([f], [])) for f in other_left):
+            proof = eel(proof, and_one, one)
+            # Prove ∃one. And(Num(one,1), Successor(one,z)) from Num(z,0) + ZFC.
+            # Num(one,1).expand() = ∀v. Num(v,0) → Successor(one,v).
+            # Instantiate v=z: Num(z,0) → Successor(one,z). mp with Num(z,0).
+            from theorems.arithmetic import num_exists
+            got_ex_num = num_exists(1)
+            nv = got_ex_num.sequent.right[0].var
+            num_nv = Num(nv, 1)
+            succ_nv_z2 = Successor(nv, z)
+            num_nv_exp = num_nv.expand()
+            inst_body = Implies(Num(z,0), succ_nv_z2)
+            got_succ_nv = fl(num_nv, inst_body, z)
+            got_succ_nv = mp(got_succ_nv, ax(num_z), num_z, succ_nv_z2)
+            and_nv = And(num_nv, succ_nv_z2)
+            got_and_nv = mp(apply_thm(and_intro(num_nv, succ_nv_z2, []), [],
+                num_nv, Implies(succ_nv_z2, and_nv), ax(num_nv)),
+                got_succ_nv, succ_nv_z2, and_nv)
+            got_ex_and = eir(got_and_nv, and_nv, nv, nv)
+            got_ex_and = eel(got_ex_and, num_nv, nv)
+            got_ex_and = cut(got_ex_and, Exists(nv, num_nv), got_ex_num)
+            proof = cut(proof, Exists(one, and_one), got_ex_and)
+            print(f'tm_add: one eel+cut done')
+        else:
+            print(f'tm_add: SKIP eel one — still free elsewhere')
+
+    # Debug: print remaining non-axiom formulas
+    from core.zfc import ZFCAxiom
+    non_ax = [f for f in proof.sequent.left
+              if not isinstance(f, (ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))]
+    print(f'tm_add: {len(non_ax)} non-axiom formulas remain before discharge')
+    for f in non_ax:
+        print(f'  {str(f)[:80]}')
 
     # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
@@ -2436,7 +3066,6 @@ def tm_add_correct():
             proof = Proof(Sequent(proof.sequent.left, [fa]),
                 'forall_right', [proof], principal=fa, term=v)
         except ValueError:
-            # Find which left formula has v free
             for f in proof.sequent.left:
                 if _var_free_in_sequent(v, Sequent([f], [])):
                     print(f'  forall_right BLOCKED: {v} free in {str(f)[:60]}')
