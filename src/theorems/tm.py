@@ -1286,6 +1286,114 @@ def tape_update_at():
     return proof
 
 
+def tape_update_other_rev():
+    """Reverse read at other position: TapeUpdate(tape',tape,h,w) + Apply(tape',x,y) + Not(Eq(x,h))
+       -> Apply(tape,x,y).
+    Pairing |- forall tape', tape, h, w, x, y.
+         TapeUpdate(tape',tape,h,w) -> Apply(tape',x,y) -> Not(Eq(x,h)) -> Apply(tape,x,y)
+
+    Apply(tape',x,y) = ∃p. And(OrdPair(p,x,y), In(p,tape')).
+    Open ∃: assume And(OrdPair(p,x,y), In(p,tape')). From In(p,tape') + TapeUpdate Iff fwd:
+    Or(OrdPair(p,h,w), And(In(p,tape), ¬∃y'.OrdPair(p,h,y'))).
+    Case OrdPair(p,h,w): tuple_injection → Eq(x,h). But Not(Eq(x,h)). Contradiction.
+    Case In(p,tape): And(OrdPair(p,x,y), In(p,tape)) → Apply(tape,x,y).
+    Close ∃p, cut with Apply(tape',x,y)."""
+    from tactics import apply_thm, mp, ax, wl, wr, eir, eel, cut
+    from core.proof import Proof, Sequent, same
+    from theorems.logic import (iff_mp, or_elim, and_elim_left, and_elim_right, and_intro)
+    from theorems.sets import tuple_injection
+
+    tapen, tape, h, w_v, x, y = Var(), Var(), Var(), Var(), Var(), Var()
+    p = Var(postfix='p')
+    tu = TapeUpdate(tapen, tape, h, w_v)
+    app_new = Apply(tapen, x, y)
+    not_eq_xh = Not(Eq(x, h))
+    app_old = Apply(tape, x, y)
+
+    op_pxy = OrdPair(p, x, y)
+    in_p_tape = In(p, tape)
+    in_p_tapen = In(p, tapen)
+
+    yv = Var(postfix='yv')
+    not_ex = Not(Exists(yv, OrdPair(p, h, yv)))
+    right_and = And(in_p_tape, not_ex)
+    op_phw = OrdPair(p, h, w_v)
+    or_form = Or(op_phw, right_and)
+    iff_form = Iff(in_p_tapen, or_form)
+
+    # TapeUpdate Iff forward: In(p,tape') → Or(...)
+    got_iff = apply_thm(ax(tu), [p], concl=iff_form)
+    got_fwd = apply_thm(iff_mp(in_p_tapen, or_form, []), [],
+        iff_form, Implies(in_p_tapen, or_form), got_iff)
+
+    # Open Apply(tape',x,y) = ∃p. And(OrdPair(p,x,y), In(p,tape'))
+    # Start from and_apply = And(OrdPair(p,x,y), In(p,tapen))
+    and_apply = And(op_pxy, in_p_tapen)
+    got_opxy = apply_thm(and_elim_left(op_pxy, in_p_tapen, []), [],
+        and_apply, op_pxy, ax(and_apply))
+    got_in_ptn = apply_thm(and_elim_right(op_pxy, in_p_tapen, []), [],
+        and_apply, in_p_tapen, ax(and_apply))
+
+    # In(p,tape') + TapeUpdate → Or
+    got_or = mp(got_fwd, got_in_ptn, in_p_tapen, or_form)
+
+    # Case 1: OrdPair(p,h,w) → contradiction
+    ti = tuple_injection()
+    eq_xh_and = And(Eq(x, h), Eq(y, w_v))
+    got_ti = apply_thm(ti, [x, y, h, w_v, p])
+    got_ti = mp(got_ti, got_opxy, op_pxy, got_ti.sequent.right[0].right)
+    got_ti = mp(got_ti, ax(op_phw), op_phw, eq_xh_and)
+    got_eq_xh = apply_thm(and_elim_left(Eq(x,h), Eq(y,w_v), []), [],
+        eq_xh_and, Eq(x,h), got_ti)
+    got_bot = Proof(Sequent([Eq(x,h), not_eq_xh], []), 'not_left', [ax(Eq(x,h))], principal=not_eq_xh)
+    got_bot = Proof(Sequent(got_bot.sequent.left, [app_old]), 'weakening_right', [got_bot], principal=app_old)
+    got_bot = cut(got_bot, Eq(x,h), got_eq_xh)
+
+    # Case 2: And(In(p,tape), ¬∃y'...) → Apply(tape,x,y)
+    got_in_pt = apply_thm(and_elim_left(in_p_tape, not_ex, []), [],
+        right_and, in_p_tape, ax(right_and))
+    and_app_old = And(op_pxy, in_p_tape)
+    got_and_old = mp(apply_thm(and_intro(op_pxy, in_p_tape, []), [],
+        op_pxy, Implies(in_p_tape, and_app_old), got_opxy),
+        got_in_pt, in_p_tape, and_app_old)
+    got_app_old = eir(got_and_old, and_app_old, p, p)
+
+    # or_elim on Or(OrdPair(p,h,w), And(In(p,tape), ¬∃...))
+    imp_c1 = Implies(op_phw, app_old)
+    left_c1 = [f for f in got_bot.sequent.left if not same(f, op_phw)]
+    got_imp_c1 = Proof(Sequent(left_c1, [imp_c1]), 'implies_right', [got_bot], principal=imp_c1)
+    imp_c2 = Implies(right_and, app_old)
+    left_c2 = [f for f in got_app_old.sequent.left if not same(f, right_and)]
+    got_imp_c2 = Proof(Sequent(left_c2, [imp_c2]), 'implies_right', [got_app_old], principal=imp_c2)
+    oe = or_elim(op_phw, right_and, app_old, [])
+    got_result = apply_thm(oe, [], or_form,
+        Implies(imp_c1, Implies(imp_c2, app_old)), ax(or_form))
+    got_result = mp(got_result, got_imp_c1, imp_c1, Implies(imp_c2, app_old))
+    got_result = mp(got_result, got_imp_c2, imp_c2, app_old)
+    got_result = cut(got_result, or_form, got_or)
+    # [and_apply, tu, ¬Eq(x,h), Pairing] |- Apply(tape,x,y)
+
+    # eel p from and_apply, cut with Apply(tape',x,y)
+    got_result = eel(got_result, and_apply, p)
+    got_result = cut(got_result, Exists(p, and_apply), ax(app_new))
+
+    # Close
+    for premise in [not_eq_xh, app_new, tu]:
+        got_result = wl(got_result, premise)
+        imp = Implies(premise, got_result.sequent.right[0])
+        left = [f for f in got_result.sequent.left if not same(f, premise)]
+        got_result = Proof(Sequent(left, [imp]), 'implies_right', [got_result], principal=imp)
+
+    proof = got_result
+    for v in [y, x, w_v, h, tape, tapen]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_update_other_rev'
+    return proof
+
 
 def config_exists():
     """∃c. TMConfig(c, q, h, t) — a config with given state/head/tape exists.
