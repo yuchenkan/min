@@ -217,6 +217,249 @@ def num_exists(k):
     return got
 
 
+def tape_update_exists():
+    """∃t2. TapeUpdate(t2, t, pos, val).
+    [Pairing, Union, Separation] |- ∀t,pos,val. ∃t2. TapeUpdate(t2,t,pos,val)
+
+    Construction: t2 = {z ∈ t ∪ {⟨pos,val⟩} : z=⟨pos,val⟩ ∨ (z∈t ∧ ¬∃y.z=⟨pos,y⟩)}
+    From Separation on t ∪ {⟨pos,val⟩} with the TapeUpdate predicate.
+    Then show z∈(t∪{⟨pos,val⟩}) is redundant given the predicate."""
+    from core.lang import Var, In, Not, Implies, Forall
+    from core.derived import Exists, And, Or, Iff, Eq
+    from core.proof import Proof, Sequent, same
+    from vocab.tm import TapeUpdate
+    from vocab.ordpair import OrdPair
+    from vocab.sets import Singleton, Union as UnionDef
+    from tactics import apply_thm, mp, ax, fl, eir, eel, cut, wl, wr
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp, iff_mp_rev,
+        or_intro_left, or_intro_right, or_elim,
+        eq_substitution, eq_symmetric)
+    from theorems.sets import (ordpair_exists, singleton_exists, union_exists,
+        ordpair_unique)
+    import core.zfc as zfc
+
+    t = Var(postfix='t')
+    pos = Var(postfix='pos')
+    val = Var(postfix='val')
+    t2 = Var(postfix='t2')
+    zv = Var(postfix='zv')
+    yv = Var(postfix='yv')
+
+    # φ(z) = OrdPair(z,pos,val) ∨ (In(z,t) ∧ ¬∃y.OrdPair(z,pos,y))
+    def phi(x):
+        return Or(OrdPair(x, pos, val), And(In(x, t), Not(Exists(yv, OrdPair(x, pos, yv)))))
+
+    # Separation: ∃t2. ∀z. z∈t2 ↔ (z∈base ∧ φ(z))
+    # where base = t ∪ {⟨pos,val⟩}
+    pair = Var(postfix='pair')
+    sing = Var(postfix='sing')
+    base = Var(postfix='base')
+    op_pair = OrdPair(pair, pos, val)
+    sing_pair = Singleton(sing, pair)
+    union_base = UnionDef(base, t, sing)
+
+    # Existence of pair, sing, base
+    got_ex_pair = apply_thm(ordpair_exists(), [pos, val], concl=Exists(pair, op_pair))
+    got_ex_sing = apply_thm(singleton_exists(), [pair], concl=Exists(sing, sing_pair))
+    got_ex_base = apply_thm(union_exists(), [t, sing], concl=Exists(base, union_base))
+
+    sep = zfc.Separation(phi, [pos, val, t, yv])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    char_body = Iff(In(zv, t2), And(In(zv, base), phi(zv)))
+    char = Forall(zv, char_body)
+    got_sep = apply_thm(sep_ax, [yv, t, val, pos, base], concl=Exists(t2, char))
+
+    # TapeUpdate body: ∀z. z∈t2 ↔ φ(z)
+    tu = TapeUpdate(t2, t, pos, val)
+    tu_body = tu.expand()  # ∀z'. z'∈t2 ↔ φ(z')
+    tu_zv = tu_body.var  # the bound var in TapeUpdate's forall
+
+    # Need to prove: char → tu (under [op_pair, sing_pair, union_base])
+    # i.e., (z∈t2 ↔ z∈base ∧ φ(z)) → (z∈t2 ↔ φ(z))
+    # Key lemma: φ(z) → z∈base
+    #   Case OrdPair(z,pos,val): z=pair → z∈sing → z∈base
+    #   Case In(z,t): z∈t → z∈base (union left)
+
+    # === Prove φ(z) → z∈base ===
+
+    # Case 1: OrdPair(zv,pos,val) → In(zv,base)
+    # OrdPair(zv,pos,val) ∧ OrdPair(pair,pos,val) → Eq(zv,pair) via ordpair_unique
+    ou = ordpair_unique()
+    got_eq_zv_pair = apply_thm(ou, [pos, val, zv, pair])
+    got_eq_zv_pair = mp(got_eq_zv_pair, ax(OrdPair(zv, pos, val)),
+        OrdPair(zv, pos, val), got_eq_zv_pair.sequent.right[0].right)
+    got_eq_zv_pair = mp(got_eq_zv_pair, ax(op_pair), op_pair, Eq(zv, pair))
+    # [OrdPair(zv,pos,val), op_pair, Pairing] |- Eq(zv, pair)
+
+    # Eq(zv,pair) → In(zv,sing) via Singleton characterization
+    # Singleton(sing,pair): ∀x. x∈sing ↔ x=pair
+    iff_zv_sing = Iff(In(zv, sing), Eq(zv, pair))
+    got_iff_zv = fl(sing_pair, iff_zv_sing, zv)
+    got_in_zv_sing = mp(apply_thm(iff_mp_rev(In(zv,sing), Eq(zv,pair), []), [],
+        iff_zv_sing, Implies(Eq(zv,pair), In(zv,sing)), got_iff_zv),
+        got_eq_zv_pair, Eq(zv,pair), In(zv,sing))
+    # [OrdPair(zv,pos,val), op_pair, sing_pair, Pairing] |- In(zv, sing)
+
+    # In(zv,sing) → In(zv,base) via Union characterization
+    # Union(base,t,sing): ∀x. x∈base ↔ (x∈t ∨ x∈sing)
+    or_zv_base = Or(In(zv, t), In(zv, sing))
+    iff_zv_base = Iff(In(zv, base), or_zv_base)
+    got_iff_zv_base = fl(union_base, iff_zv_base, zv)
+    got_or_zv = apply_thm(or_intro_right(In(zv,t), In(zv,sing), []), [],
+        In(zv,sing), or_zv_base, got_in_zv_sing)
+    got_in_zv_base_c1 = mp(apply_thm(iff_mp_rev(In(zv,base), or_zv_base, []), [],
+        iff_zv_base, Implies(or_zv_base, In(zv,base)), got_iff_zv_base),
+        got_or_zv, or_zv_base, In(zv,base))
+    # Case 1 done: [OrdPair(zv,pos,val), op_pair, sing_pair, union_base, Pairing] |- In(zv,base)
+
+    # Case 2: In(zv,t) → In(zv,base) via Union (left side)
+    got_or_zv_2 = apply_thm(or_intro_left(In(zv,t), In(zv,sing), []), [],
+        In(zv,t), or_zv_base, ax(In(zv,t)))
+    got_in_zv_base_c2 = mp(apply_thm(iff_mp_rev(In(zv,base), or_zv_base, []), [],
+        iff_zv_base, Implies(or_zv_base, In(zv,base)), got_iff_zv_base),
+        got_or_zv_2, or_zv_base, In(zv,base))
+    # Case 2: [In(zv,t), union_base] |- In(zv,base)
+
+    # or_elim: φ(z) → In(zv,base)
+    phi_zv = phi(zv)
+    oe = or_elim(OrdPair(zv,pos,val), And(In(zv,t), Not(Exists(yv, OrdPair(zv,pos,yv)))),
+        In(zv,base), [])
+    # Discharge case 1 hypothesis
+    imp_c1 = Implies(OrdPair(zv,pos,val), In(zv,base))
+    left_c1 = [f for f in got_in_zv_base_c1.sequent.left if not same(f, OrdPair(zv,pos,val))]
+    got_imp_c1 = Proof(Sequent(left_c1, [imp_c1]), 'implies_right',
+        [got_in_zv_base_c1], principal=imp_c1)
+    # Discharge case 2: And(In(zv,t), ...) → In(zv,base)
+    and_c2 = And(In(zv,t), Not(Exists(yv, OrdPair(zv,pos,yv))))
+    got_in_t_from_and = apply_thm(and_elim_left(In(zv,t), Not(Exists(yv,OrdPair(zv,pos,yv))), []),
+        [], and_c2, In(zv,t), ax(and_c2))
+    got_in_base_from_and = cut(got_in_zv_base_c2, In(zv,t), got_in_t_from_and)
+    imp_c2 = Implies(and_c2, In(zv,base))
+    left_c2 = [f for f in got_in_base_from_and.sequent.left if not same(f, and_c2)]
+    got_imp_c2 = Proof(Sequent(left_c2, [imp_c2]), 'implies_right',
+        [got_in_base_from_and], principal=imp_c2)
+    # or_elim
+    got_phi_base = apply_thm(oe, [], phi_zv,
+        Implies(imp_c1, Implies(imp_c2, In(zv,base))), ax(phi_zv))
+    got_phi_base = mp(got_phi_base, got_imp_c1, imp_c1, Implies(imp_c2, In(zv,base)))
+    got_phi_base = mp(got_phi_base, got_imp_c2, imp_c2, In(zv,base))
+    # [phi_zv, op_pair, sing_pair, union_base, Pairing] |- In(zv,base)
+    print(f'φ(z) → z∈base: OK')
+
+    # === Now prove: char → TapeUpdate ===
+    # char: z∈t2 ↔ (z∈base ∧ φ(z))
+    # Want: z∈t2 ↔ φ(z)
+    # Forward: z∈t2 → z∈base ∧ φ(z) → φ(z) (and_elim_right)
+    # Backward: φ(z) → z∈base (proved above) → z∈base ∧ φ(z) → z∈t2
+
+    and_base_phi = And(In(zv,base), phi_zv)
+
+    # Forward: char → z∈t2 → φ(z)
+    got_char_fwd = apply_thm(iff_mp(In(zv,t2), and_base_phi, []), [],
+        char_body, Implies(In(zv,t2), and_base_phi), ax(char_body))
+    # [char_body] |- In(zv,t2) → And(In(zv,base), φ(zv))
+    got_fwd_1 = mp(got_char_fwd, ax(In(zv,t2)), In(zv,t2), and_base_phi)
+    got_fwd = apply_thm(and_elim_right(In(zv,base), phi_zv, []), [],
+        and_base_phi, phi_zv, got_fwd_1)
+    # [char_body, In(zv,t2)] |- φ(zv)
+    imp_fwd = Implies(In(zv,t2), phi_zv)
+    left_fwd = [f for f in got_fwd.sequent.left if not same(f, In(zv,t2))]
+    got_imp_fwd = Proof(Sequent(left_fwd, [imp_fwd]), 'implies_right', [got_fwd], principal=imp_fwd)
+
+    # Backward: char → φ(z) → z∈t2
+    got_and_base_phi = mp(apply_thm(and_intro(In(zv,base), phi_zv, []), [],
+        In(zv,base), Implies(phi_zv, and_base_phi), got_phi_base),
+        ax(phi_zv), phi_zv, and_base_phi)
+    # [phi_zv, op_pair, sing_pair, union_base, Pairing] |- And(In(zv,base), φ(zv))
+    got_char_rev = apply_thm(iff_mp_rev(In(zv,t2), and_base_phi, []), [],
+        char_body, Implies(and_base_phi, In(zv,t2)), ax(char_body))
+    got_bwd = mp(got_char_rev, got_and_base_phi, and_base_phi, In(zv,t2))
+    # [char_body, phi_zv, op_pair, sing_pair, union_base, Pairing] |- In(zv,t2)
+    imp_bwd = Implies(phi_zv, In(zv,t2))
+    left_bwd = [f for f in got_bwd.sequent.left if not same(f, phi_zv)]
+    got_imp_bwd = Proof(Sequent(left_bwd, [imp_bwd]), 'implies_right', [got_bwd], principal=imp_bwd)
+
+    # Iff: z∈t2 ↔ φ(z)
+    tu_iff = Iff(In(zv,t2), phi_zv)
+    got_tu_iff = apply_thm(iff_intro(In(zv,t2), phi_zv, []), [],
+        imp_fwd, Implies(imp_bwd, tu_iff), got_imp_fwd)
+    got_tu_iff = mp(got_tu_iff, got_imp_bwd, imp_bwd, tu_iff)
+    # [char_body, op_pair, sing_pair, union_base, Pairing] |- Iff(In(zv,t2), φ(zv))
+    print(f'z∈t2 ↔ φ(z): OK')
+
+    # Close ∀zv → TapeUpdate body
+    fa_tu = Forall(zv, tu_iff)
+    left_fa = [f for f in got_tu_iff.sequent.left if not same(f, char_body)]
+    # Need to discharge char_body from left first? No — need ∀zv over the iff.
+    # But char_body has zv free. Discharge it first? No, char_body = Iff(In(zv,t2), And(In(zv,base),φ(zv)))
+    # which has zv free. Can't close ∀zv while char_body is on left.
+    # Instead: get char_body from char (which is ∀zv. char_body) via fl.
+    # Replace ax(char_body) usage with fl(char, char_body, zv).
+    # Actually, I used ax(char_body) in got_char_fwd and got_char_rev.
+    # Let me re-derive using fl instead.
+
+    # Re-derive forward from char (not char_body)
+    got_char_body_from_char = fl(char, char_body, zv)
+    # [char] |- char_body
+    got_fwd2 = apply_thm(iff_mp(In(zv,t2), and_base_phi, []), [],
+        char_body, Implies(In(zv,t2), and_base_phi), got_char_body_from_char)
+    got_fwd2 = mp(got_fwd2, ax(In(zv,t2)), In(zv,t2), and_base_phi)
+    got_fwd2 = apply_thm(and_elim_right(In(zv,base), phi_zv, []), [],
+        and_base_phi, phi_zv, got_fwd2)
+    imp_fwd2 = Implies(In(zv,t2), phi_zv)
+    left_fwd2 = [f for f in got_fwd2.sequent.left if not same(f, In(zv,t2))]
+    got_imp_fwd2 = Proof(Sequent(left_fwd2, [imp_fwd2]), 'implies_right', [got_fwd2], principal=imp_fwd2)
+
+    # Re-derive backward from char
+    got_char_body_from_char2 = fl(char, char_body, zv)
+    got_char_rev2 = apply_thm(iff_mp_rev(In(zv,t2), and_base_phi, []), [],
+        char_body, Implies(and_base_phi, In(zv,t2)), got_char_body_from_char2)
+    got_bwd2 = mp(got_char_rev2, got_and_base_phi, and_base_phi, In(zv,t2))
+    imp_bwd2 = Implies(phi_zv, In(zv,t2))
+    left_bwd2 = [f for f in got_bwd2.sequent.left if not same(f, phi_zv)]
+    got_imp_bwd2 = Proof(Sequent(left_bwd2, [imp_bwd2]), 'implies_right', [got_bwd2], principal=imp_bwd2)
+
+    got_tu_iff2 = apply_thm(iff_intro(In(zv,t2), phi_zv, []), [],
+        imp_fwd2, Implies(imp_bwd2, tu_iff), got_imp_fwd2)
+    got_tu_iff2 = mp(got_tu_iff2, got_imp_bwd2, imp_bwd2, tu_iff)
+    # [char, op_pair, sing_pair, union_base, Pairing] |- Iff(In(zv,t2), φ(zv))
+
+    # Close ∀zv — char doesn't have zv free (it's ∀zv. ...)
+    fa_tu2 = Forall(zv, tu_iff)
+    got_fa_tu = Proof(Sequent(got_tu_iff2.sequent.left, [fa_tu2]),
+        'forall_right', [got_tu_iff2], principal=fa_tu2, term=zv)
+    # [char, op_pair, sing_pair, union_base, Pairing] |- ∀zv. z∈t2 ↔ φ(z) = TapeUpdate(t2,...)
+
+    # Bridge to TapeUpdate vocab
+    got_tu = cut(ax(tu), tu, got_fa_tu)
+    # eir t2
+    got_ex_tu = eir(got_tu, tu, t2, t2)
+    # eel t2 from char
+    got_ex_tu = eel(got_ex_tu, char, t2)
+    got_ex_tu = cut(got_ex_tu, Exists(t2, char), got_sep)
+    # eel base from union_base
+    got_ex_tu = eel(got_ex_tu, union_base, base)
+    got_ex_tu = cut(got_ex_tu, Exists(base, union_base), got_ex_base)
+    # eel sing from sing_pair
+    got_ex_tu = eel(got_ex_tu, sing_pair, sing)
+    got_ex_tu = cut(got_ex_tu, Exists(sing, sing_pair), got_ex_sing)
+    # eel pair from op_pair
+    got_ex_tu = eel(got_ex_tu, op_pair, pair)
+    got_ex_tu = cut(got_ex_tu, Exists(pair, op_pair), got_ex_pair)
+
+    # Close ∀
+    proof = got_ex_tu
+    for v in [val, pos, t]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'tape_update_exists'
+    return proof
+
+
 def config_exists():
     """∃c. TMConfig(c, q, h, t) — a config with given state/head/tape exists.
     Pairing |- ∀q,h,t. ∃c. TMConfig(c,q,h,t)"""
@@ -466,6 +709,10 @@ def tm_add_correct():
          num_one, num_zero, succ_sa, tu_tape2, cfg_c1, cfg_c2])
 
     # Phase3P ∀ order: d,q1,sa,b,pos,tape2,w,one,c1,c2
+    # tape_read now: ∀j.In(j,b)→∀pp.Plus(sa,j,pp)→Apply(tape2,pp,one)
+    tp = Var(postfix='tp')
+    tpp = Var(postfix='tpp')
+    tape_read = Forall(tp, Implies(In(tp,b), Forall(tpp, Implies(PlusDef(sa,tp,tpp), Apply(tape2,tpp,one)))))
     got_p3 = mp_hyps(
         apply_thm(ax(Phase3P()), [delta, q1, sa, b, hf, tape2, w, one, c2, c3]),
         [trans_q1_1.sequent.right[0], omega_w, In(b,w), In(sa,w),
