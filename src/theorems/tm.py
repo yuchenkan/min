@@ -4784,97 +4784,42 @@ def headmove_right_elim():
     # [left_and, Eq(h,ka), Succ(ska,ka)] |- Eq(hn,ska)
 
     # --- Right case: And(Num(d,0), Succ(h,hn)) → contradiction → Eq(hn,ska) ---
-    # Num(d,0) = Empty(d). Num(d1,1) expands to ∃m. And(Empty(m), Successor(d1,m)).
-    # From Eq(d,d1): Empty(d) → Empty(d1) (via eq transfer).
-    # zero_neq_one: Empty(d) → Successor(d1,m) → ¬Eq(d,d1). But we have Eq(d,d1). ⊥.
+    # Num(d,0) = Empty(d). Num(d1,1) = ∀m. Empty(m) → Succ(d1,m).
+    # Instantiate Num(d1,1) with d: Empty(d) → Succ(d1,d).
+    # zero_neq_one(d, d1, d): Empty(d) → Succ(d1,d) → ¬Eq(d,d1). Contradiction.
 
-    # Extract Num(d,0) from right_and
     got_numd0 = apply_thm(and_elim_left(Num(d,0), Successor(h,hn), []), [],
         right_and, Num(d,0), ax(right_and))
     # [right_and] |- Empty(d)
 
-    # Num(d1,1) = ∃m. And(Empty(m), Successor(d1,m)).
-    # Instantiate zero_neq_one: Empty(d) → Successor(d1,m) → ¬Eq(d,d1)
+    succ_d1_d = Successor(d1, d)
+    got_succ_d1 = fl(num_d1, Implies(Num(d,0), succ_d1_d), d)
+    got_succ_d1 = cut(got_succ_d1, num_d1, ax(num_d1))
+    got_succ_d1 = mp(got_succ_d1, got_numd0, Num(d,0), succ_d1_d)
+    # [right_and, Num(d1,1)] |- Succ(d1, d)
+
     zno = zero_neq_one()
-    m = Var(postfix='hm')
     not_eq_d_d1 = Not(eq_d_d1)
-
-    # From Num(d1,1), expand: ∃m. And(Num(m,0), Successor(d1,m))
-    # = ∃m. And(Empty(m), Successor(d1,m))
-    # Instantiate with m: [Empty(m), Successor(d1,m)] on left.
-    # Then zero_neq_one(d, d1, m): Empty(d) → Successor(d1,m) → ¬Eq(d,d1)
-    got_zno = apply_thm(zno, [d, d1, m])
+    got_zno = apply_thm(zno, [d, d1, d])
     got_zno = mp(got_zno, got_numd0, Num(d,0), got_zno.sequent.right[0].right)
-    # [right_and] |- Successor(d1,m) → ¬Eq(d,d1)
-
-    succ_d1_m = Successor(d1, m)
-    got_zno = mp(got_zno, ax(succ_d1_m), succ_d1_m, not_eq_d_d1)
-    # [right_and, Successor(d1,m)] |- ¬Eq(d,d1)
-
-    # Contradiction with Eq(d,d1):
-    got_zno_w = wl(got_zno, eq_d_d1)
-    # not_left: from [ctx] |- [Eq(d,d1), eq_hn_ska] get [ctx, ¬Eq(d,d1)] |- [eq_hn_ska]
-    # Actually, I need ⊥ (or target). Let me add eq_hn_ska to right first.
-    got_zno_wr = wr(got_zno, eq_hn_ska)
-    # [right_and, Succ(d1,m)] |- [¬Eq(d,d1), eq_hn_ska]
-    # not_left on Eq(d,d1): from [ctx] |- [Eq(d,d1), ...] ... no, ¬Eq is on the RIGHT.
-    # I need: [ctx, Eq(d,d1)] |- [eq_hn_ska] from [ctx] |- [¬Eq(d,d1), eq_hn_ska]
-    # not_left: from [G] |- [D, A] get [G, ¬A] |- [D]. With A=Eq(d,d1), ¬A=¬Eq(d,d1):
-    # from [G] |- [eq_hn_ska, Eq(d,d1)] get [G, ¬Eq(d,d1)] |- [eq_hn_ska]
-    # But I have [G] |- [¬Eq(d,d1), eq_hn_ska], not [G] |- [eq_hn_ska, Eq(d,d1)].
-    # ¬Eq is NOT the same as Eq. Let me restructure.
-
-    # Better: I have [right_and, Succ(d1,m)] |- ¬Eq(d,d1).
-    # Eq(d,d1) is a separate hypothesis. Contradiction:
-    # [right_and, Succ(d1,m), Eq(d,d1)] |- ⊥
-    # Then weaken_right to get eq_hn_ska.
+    got_zno = mp(got_zno, got_succ_d1, succ_d1_d, not_eq_d_d1)
+    # [right_and, Num(d1,1)] |- ¬Eq(d, d1)
 
     got_eq_dd1 = ax(eq_d_d1)
-    # [Eq(d,d1)] |- Eq(d,d1)
     got_eq_dd1_w = wl(got_eq_dd1, *got_zno.sequent.left)
-    got_zno_w2 = wl(got_zno, eq_d_d1)
-    # not_left: from [ctx] |- [Eq(d,d1)] get [ctx, ¬Eq(d,d1)] |- []
     ctx_right = list(got_eq_dd1_w.sequent.left)
     got_bot_r = Proof(Sequent(ctx_right + [not_eq_d_d1], []),
         'not_left', [got_eq_dd1_w], principal=not_eq_d_d1)
-    # cut ¬Eq(d,d1) with got_zno_w2:
     from tactics import weaken_to
-    ps0 = weaken_to(got_zno_w2, ctx_right)
+    ps0 = weaken_to(got_zno, ctx_right)
     got_bot_r = Proof(Sequent(ctx_right, []), 'cut',
         [ps0, got_bot_r], principal=not_eq_d_d1)
-    # [right_and, Succ(d1,m), Eq(d,d1)] |- []
-
-    # weaken_right eq_hn_ska
     got_right_case = Proof(Sequent(got_bot_r.sequent.left, [eq_hn_ska]),
         'weakening_right', [got_bot_r], principal=eq_hn_ska)
-
-    # Eliminate Succ(d1,m): comes from Num(d1,1) = ∃m. And(Empty(m), Successor(d1,m))
-    # We have Succ(d1,m) on left. Also need Empty(m) from Num expansion.
-    # Actually, Num(d1,1) expands to ∃m. And(Num(m,0), Successor(d1,m))
-    # = ∃m. And(Empty(m), Successor(d1,m))
-    # We need to eel m from both Succ(d1,m) and Empty(m)... but we only used Succ(d1,m).
-    # Actually zero_neq_one only needs Empty(d) and Successor(d1,m), not Empty(m).
-    # So we just need to extract Successor(d1,m) from Num(d1,1).
-
-    # Num(d1,1) = ∃m. And(Empty(m), Successor(d1,m))
-    # Extract Successor: from And(Empty(m), Succ(d1,m)) → Succ(d1,m) via and_elim_right
-    empty_m = Num(m, 0)  # = Empty(m)
-    and_num = And(empty_m, succ_d1_m)
-    got_succ_from_and = apply_thm(and_elim_right(empty_m, succ_d1_m, []), [],
-        and_num, succ_d1_m, ax(and_num))
-    # [And(Empty(m), Succ(d1,m))] |- Succ(d1,m)
-
-    # Replace Succ(d1,m) on left of got_right_case with and_num, then eel m
-    got_right_case = cut(got_right_case, succ_d1_m, got_succ_from_and)
-    # [right_and, And(Empty(m),Succ(d1,m)), Eq(d,d1)] |- eq_hn_ska
-    from tactics import eel
-    got_right_case = eel(got_right_case, and_num, m)
-    # [right_and, ∃m.And(Empty(m),Succ(d1,m)), Eq(d,d1)] |- eq_hn_ska
-    # ∃m.And(Empty(m),Succ(d1,m)) = Num(d1,1)
+    # [right_and, Num(d1,1), Eq(d,d1)] |- eq_hn_ska
 
     # --- Or-elim to combine both cases ---
     oe = or_elim(left_and, right_and, eq_hn_ska, [])
-    # |- Or(A,B) → (A→C) → (B→C) → C
 
     # Build A→C (left case)
     imp_left = Implies(left_and, eq_hn_ska)
@@ -5823,29 +5768,28 @@ def phase1_step_extend_trace():
 
 class Phase2P:
     """P2: 1 step from (q0, a, tape_in) to (q1, sa, tape2).
-    ∀q0,c1. TMConfig(c1, q0, a, tape_in) →
+    ∀c1. TMConfig(c1, q0, a, tape_in) →
       ∀tape2. TapeUpdate(tape2, tape_in, a, one) →
         ∀c2. TMConfig(c2, q1, sa, tape2) →
           TMReaches(delta, c1, one, c2)"""
-    __match_args__ = ('sa', 'q1', 'tape_in', 'delta', 'a', 'one')
-    def __init__(self, sa, q1, tape_in, delta, a, one):
-        self.sa = sa; self.q1 = q1; self.tape_in = tape_in
+    __match_args__ = ('sa', 'q0', 'q1', 'tape_in', 'delta', 'a', 'one')
+    def __init__(self, sa, q0, q1, tape_in, delta, a, one):
+        self.sa = sa; self.q0 = q0; self.q1 = q1; self.tape_in = tape_in
         self.delta = delta; self.a = a; self.one = one
     def expand(self):
-        q0 = Var(postfix='_q0')
         c1 = Var(postfix='_c1')
         c2 = Var(postfix='_c2')
         tape2 = Var(postfix='_t2')
-        return Forall(q0, Forall(c1, Implies(
-            TMConfig(c1, q0, self.a, self.tape_in),
+        return Forall(c1, Implies(
+            TMConfig(c1, self.q0, self.a, self.tape_in),
             Forall(tape2, Implies(
                 TapeUpdate(tape2, self.tape_in, self.a, self.one),
                 Forall(c2, Implies(
                     TMConfig(c2, self.q1, self.sa, tape2),
-                    TMReaches(self.delta, c1, self.one, c2))))))))
+                    TMReaches(self.delta, c1, self.one, c2)))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase2P(r(self.sa), r(self.q1), r(self.tape_in),
+        return Phase2P(r(self.sa), r(self.q0), r(self.q1), r(self.tape_in),
             r(self.delta), r(self.a), r(self.one))
     def __str__(self):
         return f'P2({self.sa}, {self.q1}, {self.tape_in}, {self.delta}, {self.a}, {self.one})'
@@ -6408,24 +6352,27 @@ def phase1():
 
 
 def phase2():
-    """Phase 2: single TM step from (q0, a, tape_in) to (q1, S(a), tape2).
-    |- ∀delta,q0,tape_in,c0,z,a,b,w,one,d1,q1,zero_var,sa.
-         TMTransition(delta,q0,one,one,d1,q0) →
-         TMTransition(delta,q0,zero_var,one,d1,q1) →
-         Omega(w) → In(a,w) → Successor(sa,a) →
+    """Phase 2: single TM step from (q0, a, tape_in) to (q1, S(a), tape2). Local.
+    |- ∀delta,tape_in,a,b,one,d1,q1,zero_var,sa.
+         TMTransition(delta,q0_v,zero_var,one,d1,q1) →
+         Successor(sa,a) →
          UnaryTape(tape_in,a,b) → Function(delta) → Function(tape_in) →
-         Num(one,1) → Num(d1,1) → Num(z,0) → Num(zero_var,0) → Num(q1,2) →
-         TMConfig(c0,q0,z,tape_in) →
-         Phase1P(a,q0,tape_in,c0,delta) →
-         Phase2P(sa,q1,tape_in,c0,delta,a,one)"""
+         Num(one,1) → Num(d1,1) → Num(zero_var,0) → Num(q1,2) →
+         Phase2P(sa,q1,tape_in,delta,a,one)
+
+    Phase2P = ∀q0,c1. TMConfig(c1,q0,a,tape_in) → ∀tape2. TapeUpdate(tape2,tape_in,a,one) →
+              ∀c2. TMConfig(c2,q1,sa,tape2) → TMReaches(delta,c1,one,c2)
+
+    Proves TMStep(delta,c1,c2) from transition + tape_read + config,
+    then wraps via tmstep_to_reaches."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
         iff_mp, iff_mp_rev, eq_reflexive, eq_symmetric, eq_transitive)
     from theorems.sets import ordpair_exists
     from theorems.omega import func_unique_thm
-    from theorems.tm import (config_intro, config_decompose, apply_func_transfer,
+    from theorems.tm import (config_decompose, apply_func_transfer,
         transition_unique, headmove_right_elim, config_eq_transfer,
-        tape_update_unique, func_eq_transfer, tape_read_sep)
+        tape_update_eq_args, tape_read_sep, tmstep_to_reaches)
     from theorems.recursion import eq_apply_transfer, eq_apply_val_transfer
     from theorems.sets import ordpair_eq_transfer, ordpair_set_transfer, tuple_injection
     from vocab.functions import Function as FuncDef
@@ -6435,85 +6382,45 @@ def phase2():
     from core.proof import Proof, Sequent, same
     from core.lang import Var, In, Implies, Forall
     from core.derived import Exists, And, Or, Iff, Eq
-    import core.zfc as zfc
     from tm import UnaryTape
 
     delta = Var(postfix='delta')
-    q0 = Var(postfix='q0')
+    q0_v = Var(postfix='q0')
     tape_in = Var(postfix='tin')
-    c0 = Var(postfix='c0')
-    z = Var(postfix='z')
     a = Var(postfix='a')
     b = Var(postfix='b')
-    w = Var(postfix='w')
     one = Var(postfix='one')
     d1 = Var(postfix='d1')
     q1 = Var(postfix='q1')
     zero_var = Var(postfix='zv')
     sa = Var(postfix='sa')
 
-    oe = ordpair_exists()
+    # Phase2P bound variables
+    c1 = Var(postfix='c1')
+    c2 = Var(postfix='c2')
+    tape2 = Var(postfix='t2')
 
+    oe = ordpair_exists()
     succ_sa = Successor(sa, a)
-    omega_w = Omega(w)
-    in_a_w = In(a, w)
     utape = UnaryTape(tape_in, a, b)
     func_delta = FuncDef(delta)
     func_tape = FuncDef(tape_in)
     num_d1 = Num(d1, 1)
-    tape2 = Var(postfix='t2')
 
-    # === 2. Open P1(a) — P1(a) is a hypothesis ===
-    p1_a = Phase1P(a, q0, tape_in, c0, delta)
-    got_P1 = ax(p1_a)
-    p1_exp = p1_a.expand()
-    tra = p1_exp.var              # ∃tra (eigenvariable)
-    ca = p1_exp.body.var          # ∃ca (eigenvariable)
-    body_p1 = p1_exp.body.body    # inside ∃tra.∃ca
-    ja, sja = Var(postfix='ja'), Var(postfix='sja')
-    cja, cja1 = Var(postfix='cja'), Var(postfix='cja1')
-    # Decompose And: func ∧ (dom ∧ (cfg ∧ (base ∧ (head ∧ sv))))
-    func_f = body_p1.left
-    r1 = body_p1.right
-    dom_f = r1.left
-    r2 = r1.right
-    cfg_f = r2.left  # TMConfig(ca, q0, a, tape_in)
-    r3 = r2.right
-    base_f = r3.left
-    r4 = r3.right
-    head_f = r4.left  # Apply(tra, a, ca)
-    sv_f = r4.right    # step_valid
+    cfg_c1 = TMConfig(c1, q0_v, a, tape_in)
+    tu_tape2 = TapeUpdate(tape2, tape_in, a, one)
+    cfg_c2 = TMConfig(c2, q1, sa, tape2)
 
-    def extract_and(got_body, left_f, right_f):
-        got_l = apply_thm(and_elim_left(left_f, right_f, []), [],
-            And(left_f, right_f), left_f, got_body)
-        got_r = apply_thm(and_elim_right(left_f, right_f, []), [],
-            And(left_f, right_f), right_f, got_body)
-        return got_l, got_r
-
-    # Assume body on left, derive components, do work, then eel+cut at end.
-    got_body = ax(body_p1)
-    got_func, got_rest1 = extract_and(got_body, func_f, r1)
-    got_dom, got_rest2 = extract_and(got_rest1, dom_f, r2)
-    got_cfg, got_rest3 = extract_and(got_rest2, cfg_f, r3)
-    got_base, got_rest4 = extract_and(got_rest3, base_f, r4)
-    got_head, got_sv = extract_and(got_rest4, head_f, sv_f)
-    # All have [body_p1] on left
-
-    # === 3. tape_read_sep → Apply(tape_in, a, zero_var) ===
+    # === 1. tape_read_sep → Apply(tape_in, a, zero_var) ===
     trs = tape_read_sep()
     got_read = apply_thm(trs, [tape_in, a, b, zero_var])
     got_read = mp(got_read, ax(utape), utape, got_read.sequent.right[0].right)
     got_read = mp(got_read, ax(Num(zero_var, 0)), Num(zero_var, 0), Apply(tape_in, a, zero_var))
-    # [UnaryTape, Num(zero,0)] |- Apply(tape_in, a, zero_var)
 
-    # === 4. Transition (q0,0)→(1,R,q1) as hypothesis ===
-    trans_p2 = TMTransition(delta, q0, zero_var, one, d1, q1)
-    got_trans = ax(trans_p2)
+    # === 2. Transition (q0,0)→(1,R,q1) as hypothesis ===
+    trans_p2 = TMTransition(delta, q0_v, zero_var, one, d1, q1)
 
-    # === 5. Build TMStep ===
-    # Build TMStep: discharge 6 components, close ∀ for internal vars.
-    # Internal vars for TMStep: q_s, h_s, tape_s, sym_s, w_s, d_s, qn_s, hn_s, tapen_s
+    # === 3. Build TMStep(delta, c1, c2) ===
     q_s = Var(postfix='sq')
     h_s = Var(postfix='sh')
     tape_s = Var(postfix='st')
@@ -6524,41 +6431,22 @@ def phase2():
     hn_s = Var(postfix='shn')
     tapen_s = Var(postfix='stn')
 
-    # Build ca_new = (q1, (sa, tape2))
-    oe = ordpair_exists()
-    ca_new = Var(postfix='cn2')
-    inner_new = Var(postfix='in2')
-    op_inner_new = OrdPair(inner_new, sa, tape2)
-    op_ca_new = OrdPair(ca_new, q1, inner_new)
-    got_ex_inner = apply_thm(oe, [sa, tape2], concl=Exists(inner_new, op_inner_new))
-    got_ex_ca = apply_thm(oe, [q1, inner_new], concl=Exists(ca_new, op_ca_new))
-
-    # p_cfg2: TMConfig(ca_new, q1, sa, tape2)
-    ci = config_intro()
-    cfg_new = TMConfig(ca_new, q1, sa, tape2)
-    got_cfg_new = apply_thm(ci, [ca_new, q1, sa, tape2, inner_new])
-    got_cfg_new = mp(got_cfg_new, ax(op_inner_new), op_inner_new,
-        Implies(op_ca_new, cfg_new))
-    got_cfg_new = mp(got_cfg_new, ax(op_ca_new), op_ca_new, cfg_new)
-    # [Pairing, OrdPair(inner_new,...), OrdPair(ca_new,...)] |- TMConfig(ca_new,q1,sa,tape2)
-
-    # Now build the TMStep body: for all 9 vars, if premises hold, then TMConfig(ca_new, qn_s, hn_s, tapen_s)
-    p_cfg = TMConfig(ca, q_s, h_s, tape_s)
+    p_cfg = TMConfig(c1, q_s, h_s, tape_s)
     p_read = Apply(tape_s, h_s, sym_s)
     p_trans = TMTransition(delta, q_s, sym_s, w_s, d_s, qn_s)
     p_upd = TapeUpdate(tapen_s, tape_s, h_s, w_s)
     p_move = HeadMove(h_s, hn_s, d_s)
-    p_goal = TMConfig(ca_new, qn_s, hn_s, tapen_s)
+    p_goal = TMConfig(c2, qn_s, hn_s, tapen_s)
 
-    # Step 5a: config_decompose → Eq(q_s,q0), Eq(h_s,a), Eq(tape_s,tape_in)
+    # 3a: config_decompose → Eq(q_s,q0), Eq(h_s,a), Eq(tape_s,tape_in)
     cd = config_decompose()
-    eq_q = Eq(q_s, q0)
+    eq_q = Eq(q_s, q0_v)
     eq_h = Eq(h_s, a)
     eq_t = Eq(tape_s, tape_in)
     and_3eq = And(eq_q, And(eq_h, eq_t))
-    got_3eq = apply_thm(cd, [ca, q_s, h_s, tape_s, q0, a, tape_in])
-    got_3eq = mp(got_3eq, ax(p_cfg), p_cfg, Implies(cfg_f, and_3eq))
-    got_3eq = mp(got_3eq, got_cfg, cfg_f, and_3eq)
+    got_3eq = apply_thm(cd, [c1, q_s, h_s, tape_s, q0_v, a, tape_in])
+    got_3eq = mp(got_3eq, ax(p_cfg), p_cfg, Implies(cfg_c1, and_3eq))
+    got_3eq = mp(got_3eq, ax(cfg_c1), cfg_c1, and_3eq)
 
     got_eq_q = apply_thm(and_elim_left(eq_q, And(eq_h, eq_t), []), [],
         and_3eq, eq_q, got_3eq)
@@ -6569,8 +6457,7 @@ def phase2():
     got_eq_t = apply_thm(and_elim_right(eq_h, eq_t, []), [],
         And(eq_h, eq_t), eq_t, got_eq_ht)
 
-    # Step 5b: func_unique → Eq(sym_s, zero_var)
-    # Transfer Apply(tape_s,h_s,sym_s) to Apply(tape_in,a,sym_s) via Eq(tape_s,tape_in), Eq(h_s,a)
+    # 3b: func_unique → Eq(sym_s, zero_var)
     aft = apply_func_transfer()
     app_tin_h_sym = Apply(tape_in, h_s, sym_s)
     got_app_tin = apply_thm(aft, [tape_s, tape_in, h_s, sym_s])
@@ -6591,8 +6478,7 @@ def phase2():
     got_fu = mp(got_fu, got_app_a_sym, app_tin_a_sym, got_fu.sequent.right[0].right)
     got_eq_sym = mp(got_fu, got_read, app_tape_a_zero, eq_sym)
 
-    # Step 5c: transition_unique → Eq(w_s,one), Eq(d_s,d1), Eq(qn_s,q1)
-    # Same approach as phase1_step_tmstep but with trans_p2 = TMTransition(delta,q0,zero_var,one,d1,q1)
+    # 3c: transition_unique → Eq(w_s,one), Eq(d_s,d1), Eq(qn_s,q1)
     inp = Var(postfix='inp')
     op_inp_qs = OrdPair(inp, q_s, sym_s)
     got_ex_inp = apply_thm(oe, [q_s, sym_s], concl=Exists(inp, op_inp_qs))
@@ -6611,10 +6497,9 @@ def phase2():
         Forall(out1, Implies(op_out1, app_d_out1)), ax(op_dp1))
     got_t1 = apply_thm(got_t1, [out1], op_out1, app_d_out1, ax(op_out1))
 
-    # Transfer trans_p2's OrdPair(inp,q0,zero_var) from OrdPair(inp,q_s,sym_s) via Eq(q_s,q0), Eq(sym_s,zero_var)
     oet = ordpair_eq_transfer()
-    op_inp_q0z = OrdPair(inp, q0, zero_var)
-    got_inp_transfer = apply_thm(oet, [q_s, sym_s, q0, zero_var, inp])
+    op_inp_q0z = OrdPair(inp, q0_v, zero_var)
+    got_inp_transfer = apply_thm(oet, [q_s, sym_s, q0_v, zero_var, inp])
     got_inp_transfer = mp(got_inp_transfer, got_eq_q, eq_q, got_inp_transfer.sequent.right[0].right)
     got_inp_transfer = mp(got_inp_transfer, got_eq_sym, eq_sym, got_inp_transfer.sequent.right[0].right)
     got_inp_transfer = mp(got_inp_transfer, ax(op_inp_qs), op_inp_qs, op_inp_q0z)
@@ -6635,14 +6520,12 @@ def phase2():
     got_t2 = apply_thm(got_t2, [out2], op_out2, app_d_out2, ax(op_out2))
     got_t2 = cut(got_t2, op_inp_q0z, got_inp_transfer)
 
-    # func_unique on delta: Eq(out1, out2)
     eq_out = Eq(out1, out2)
     got_eq_out = apply_thm(fu, [delta, inp, out1, out2])
     got_eq_out = mp(got_eq_out, ax(func_delta), func_delta, got_eq_out.sequent.right[0].right)
     got_eq_out = mp(got_eq_out, got_t1, app_d_out1, got_eq_out.sequent.right[0].right)
     got_eq_out = mp(got_eq_out, got_t2, app_d_out2, eq_out)
 
-    # tuple_injection on out: Eq(w_s,one), Eq(dp1,dp2)
     ti = tuple_injection()
     ost = ordpair_set_transfer()
 
@@ -6658,7 +6541,6 @@ def phase2():
     got_eq_w = apply_thm(and_elim_left(eq_w, eq_dp12, []), [], And(eq_w, eq_dp12), eq_w, got_ti_out)
     got_eq_dp = apply_thm(and_elim_right(eq_w, eq_dp12, []), [], And(eq_w, eq_dp12), eq_dp12, got_ti_out)
 
-    # tuple_injection on dp: Eq(d_s,d1), Eq(qn_s,q1)
     op_dp1_from2 = OrdPair(dp1, d1, q1)
     got_dp1_from2 = mp(apply_thm(ost, [dp1, dp2, d1, q1], eq_dp12,
         Implies(op_dp2, op_dp1_from2), got_eq_dp),
@@ -6671,7 +6553,6 @@ def phase2():
     got_eq_d = apply_thm(and_elim_left(eq_d, eq_qn, []), [], And(eq_d, eq_qn), eq_d, got_ti_dp)
     got_eq_qn = apply_thm(and_elim_right(eq_d, eq_qn, []), [], And(eq_d, eq_qn), eq_qn, got_ti_dp)
 
-    # Eliminate existential witnesses (inp, dp1, dp2, out1, out2)
     def elim(proof, formula, var, ex_proof):
         if any(same(formula, ff) for ff in proof.sequent.left):
             p = eel(proof, formula, var)
@@ -6686,7 +6567,7 @@ def phase2():
         got_eq_d = elim(got_eq_d, formula, var, ex_p)
         got_eq_qn = elim(got_eq_qn, formula, var, ex_p)
 
-    # Step 5d: headmove_right_elim → Eq(hn_s, sa)
+    # 3d: headmove_right_elim → Eq(hn_s, sa)
     hre = headmove_right_elim()
     eq_hn = Eq(hn_s, sa)
     got_eq_hn = apply_thm(hre, [h_s, hn_s, d_s, a, sa, d1])
@@ -6696,111 +6577,7 @@ def phase2():
     got_eq_hn = mp(got_eq_hn, ax(num_d1), num_d1, got_eq_hn.sequent.right[0].right)
     got_eq_hn = mp(got_eq_hn, ax(succ_sa), succ_sa, eq_hn)
 
-    # Step 5e: Eq(tapen_s, tape2) via tape_update_unique
-    # TapeUpdate(tapen_s, tape_s, h_s, w_s) is p_upd (premise)
-    # We need TapeUpdate(tape2, tape_in, a, one).
-    # From p_upd + Eq(tape_s,tape_in) + Eq(h_s,a) + Eq(w_s,one),
-    # derive TapeUpdate(tapen_s, tape_in, a, one) — but this needs TapeUpdate Eq transfer.
-    # Simpler: assume TapeUpdate(tape2, tape_in, a, one) from outside,
-    # transfer p_upd to TapeUpdate(tapen_s, tape_in, a, one) via Extensionality on the Iff,
-    # then tape_update_unique gives Eq(tapen_s, tape2).
-
-    # Actually, we can't easily transfer TapeUpdate's args via Eq.
-    # TapeUpdate is a definition: ∀p. p∈tapen ↔ Or(OrdPair(p,h,w), And(p∈tape, ¬∃y.OrdPair(p,h,y)))
-    # With Eq(tape_s,tape_in), In(p,tape_s)↔In(p,tape_in). With Eq(h_s,a), OrdPair(p,h_s,w)↔OrdPair(p,a,w).
-    # With Eq(w_s,one), OrdPair(p,h_s,w_s)↔OrdPair(p,a,one).
-    # So TapeUpdate(tapen_s, tape_s, h_s, w_s) ↔ TapeUpdate(tapen_s, tape_in, a, one).
-    # Then tape_update_unique(tapen_s, tape2, tape_in, a, one) → Eq(tapen_s, tape2).
-
-    # For now, let's take the direct approach:
-    # Instead of transferring TapeUpdate, build TapeUpdate(tapen_s, tape_in, a, one) from p_upd + Eq's.
-    # This requires expanding TapeUpdate and transferring each In/OrdPair.
-    # That's complex. Alternative: just build Eq(tapen_s, tape2) from first principles.
-
-    # PRAGMATIC: The TMStep body has tapen_s universally quantified. The conclusion
-    # needs TMConfig(ca_new, qn_s, hn_s, tapen_s). ca_new = (q1, (sa, tape2)).
-    # So TMConfig(ca_new, qn_s, hn_s, tapen_s) needs Eq(qn_s,q1), Eq(hn_s,sa), Eq(tapen_s,tape2).
-    # The first two are done. For the third: assume TapeUpdate(tape2, tape_in, a, one) on the left,
-    # and use tape_update_unique after transferring p_upd.
-
-    # Actually, let me just use a different approach for the conclusion:
-    # Build TMConfig(ca_new, q1, sa, tape2) — this we already have (got_cfg_new).
-    # Then config_eq_transfer from TMConfig(ca_new, q1, sa, tape2) to TMConfig(ca_new, qn_s, hn_s, tapen_s)
-    # needs Eq(q1, qn_s), Eq(sa, hn_s), Eq(tape2, tapen_s).
-    # We have Eq(qn_s, q1) → reverse: Eq(q1, qn_s). Same for hn_s.
-    # For Eq(tape2, tapen_s): assume TapeUpdate(tape2, tape_in, a, one) on left,
-    # derive TapeUpdate(tapen_s, tape_in, a, one) from p_upd via Eq transfers,
-    # then tape_update_unique → Eq(tape2, tapen_s)? No, tape_update_unique gives Eq(t1,t2)
-    # for same TapeUpdate args. We'd need both TapeUpdate(tape2,...) and TapeUpdate(tapen_s,...)
-    # with SAME args. We have p_upd = TapeUpdate(tapen_s, tape_s, h_s, w_s) with DIFFERENT args.
-
-    # OK I think the cleanest approach: don't try to transfer TapeUpdate.
-    # Instead, prove Eq(tapen_s, tape2) by showing they have same membership.
-    # From p_upd: ∀p. p∈tapen_s ↔ Or(OrdPair(p,h_s,w_s), And(p∈tape_s, ...))
-    # From TapeUpdate(tape2,tape_in,a,one): ∀p. p∈tape2 ↔ Or(OrdPair(p,a,one), And(p∈tape_in,...))
-    # With Eq(h_s,a), Eq(w_s,one), Eq(tape_s,tape_in): the RHS's are the same.
-    # So p∈tapen_s ↔ p∈tape2 → Eq(tapen_s, tape2).
-
-    # This is essentially tape_update_unique with the Eq transfers inlined.
-    # Let me just accept TapeUpdate(tape2, tape_in, a, one) as a hypothesis here
-    # and derive Eq(tapen_s, tape2) inside the TMStep body.
-
-    tu_tape2 = TapeUpdate(tape2, tape_in, a, one)
-
-    # Build TapeUpdate(tapen_s, tape_in, a, one) from p_upd + Eq's
-    # by expanding both and showing same membership via Iff chain.
-    # This is the same as tape_update_unique but with Eq transfers on args.
-
-    # Actually, the simplest way: instantiate tape_update_unique with
-    # [tapen_s, tape2, tape_in, a, one], then provide:
-    # - TapeUpdate(tapen_s, tape_in, a, one) — derived from p_upd + Eq's
-    # - TapeUpdate(tape2, tape_in, a, one) — assumed
-
-    # To derive TapeUpdate(tapen_s, tape_in, a, one) from p_upd = TapeUpdate(tapen_s, tape_s, h_s, w_s):
-    # TapeUpdate expands to ∀p. Iff(In(p,tapen_s), Or(OrdPair(p,h_s,w_s), And(In(p,tape_s),...)))
-    # With Eq(h_s,a), Eq(w_s,one), Eq(tape_s,tape_in), transfer each component:
-    # OrdPair(p,h_s,w_s) ↔ OrdPair(p,a,one) via eq_substitution
-    # In(p,tape_s) ↔ In(p,tape_in) via eq_substitution
-    # This gives ∀p. Iff(In(p,tapen_s), Or(OrdPair(p,a,one), And(In(p,tape_in),...)))
-    # which IS TapeUpdate(tapen_s, tape_in, a, one).
-
-    # This Eq-based TapeUpdate transfer is about 30-40 lines. Let me skip the transfer
-    # and instead prove Eq(tapen_s, tape2) directly from the two Iff characterizations.
-
-    # Direct approach: from p_upd and tu_tape2, with Eq(h_s,a), Eq(w_s,one), Eq(tape_s,tape_in),
-    # show ∀p. In(p,tapen_s) ↔ In(p,tape2).
-
-    # This is getting very long. For now, let me use config_eq_transfer in the reverse direction:
-    # We already have TMConfig(ca_new, q1, sa, tape2). We need TMConfig(ca_new, qn_s, hn_s, tapen_s).
-    # config_eq_transfer: TMConfig(c, a1, a2, a3) + Eq(a1,b1) + Eq(a2,b2) + Eq(a3,b3) → TMConfig(c, b1, b2, b3)
-    # Provide Eq(q1, qn_s), Eq(sa, hn_s), Eq(tape2, tapen_s).
-    # First two: reverse of got_eq_qn, got_eq_hn.
-    # Third: Eq(tape2, tapen_s). This is the hard one.
-
-    # I'll assume TapeUpdate(tape2, tape_in, a, one) as a hypothesis and prove
-    # Eq(tape2, tapen_s) inline via the membership Iff chain.
-    # This requires expanding both TapeUpdates and chaining through Or/And/OrdPair with Eq transfers.
-
-    # For now, to make progress, let me use a HELPER that does this transfer:
-    # tape_update_eq_transfer(tapen_s, tape_s, h_s, w_s, tape2, tape_in, a, one,
-    #                         eq_t, eq_h, eq_w, tu_tape2)
-    # |- Eq(tapen_s, tape2)
-
-    # I'll write this as an inline proof. The key insight:
-    # p_upd gives: p∈tapen_s ↔ Or(OrdPair(p,h_s,w_s), And(p∈tape_s, ¬∃y.OrdPair(p,h_s,y)))
-    # tu_tape2 gives: p∈tape2 ↔ Or(OrdPair(p,a,one), And(p∈tape_in, ¬∃y.OrdPair(p,a,y)))
-    # With Eq(h_s,a), Eq(w_s,one), Eq(tape_s,tape_in):
-    #   OrdPair(p,h_s,w_s) ↔ OrdPair(p,a,one) (by eq_substitution on the args)
-    #   p∈tape_s ↔ p∈tape_in (by eq_substitution)
-    #   OrdPair(p,h_s,y) ↔ OrdPair(p,a,y) (by eq_substitution on h_s)
-    # So the Or/And/Not/Exists structures are equivalent.
-    # Therefore p∈tapen_s ↔ p∈tape2 → Eq(tapen_s, tape2).
-
-    # 5e: Eq(tapen_s, tape2) via tape_update_eq_args
-    # p_upd = TapeUpdate(tapen_s, tape_s, h_s, w_s) (TMStep premise)
-    # tu_tape2 = TapeUpdate(tape2, tape_in, a, one) (will be hypothesis)
-    # With Eq(tape_s,tape_in), Eq(h_s,a), Eq(w_s,one) → Eq(tapen_s, tape2)
-    tu_tape2 = TapeUpdate(tape2, tape_in, a, one)
+    # 3e: Eq(tapen_s, tape2) via tape_update_eq_args
     tuea = tape_update_eq_args()
     eq_tapen_tape2 = Eq(tapen_s, tape2)
     got_eq_tapen = apply_thm(tuea, [tapen_s, tape2, tape_s, h_s, w_s, tape_in, a, one])
@@ -6809,9 +6586,8 @@ def phase2():
     got_eq_tapen = mp(got_eq_tapen, got_eq_t, eq_t, got_eq_tapen.sequent.right[0].right)
     got_eq_tapen = mp(got_eq_tapen, got_eq_h, eq_h, got_eq_tapen.sequent.right[0].right)
     got_eq_tapen = mp(got_eq_tapen, got_eq_w, eq_w, eq_tapen_tape2)
-    # [..., p_upd, tu_tape2] |- Eq(tapen_s, tape2)
 
-    # 5f: config_eq_transfer → TMConfig(ca_new, qn_s, hn_s, tapen_s)
+    # 3f: config_eq_transfer → TMConfig(c2, qn_s, hn_s, tapen_s)
     es = eq_symmetric()
     cet = config_eq_transfer()
     eq_q1_qn = Eq(q1, qn_s)
@@ -6821,14 +6597,13 @@ def phase2():
     eq_tape2_tapen = Eq(tape2, tapen_s)
     got_eq_tape2_tapen = apply_thm(es, [tapen_s, tape2], eq_tapen_tape2, eq_tape2_tapen, got_eq_tapen)
 
-    got_cfg_goal = apply_thm(cet, [ca_new, q1, sa, tape2, qn_s, hn_s, tapen_s])
-    got_cfg_goal = mp(got_cfg_goal, got_cfg_new, cfg_new, got_cfg_goal.sequent.right[0].right)
+    got_cfg_goal = apply_thm(cet, [c2, q1, sa, tape2, qn_s, hn_s, tapen_s])
+    got_cfg_goal = mp(got_cfg_goal, ax(cfg_c2), cfg_c2, got_cfg_goal.sequent.right[0].right)
     got_cfg_goal = mp(got_cfg_goal, got_eq_q1_qn, eq_q1_qn, got_cfg_goal.sequent.right[0].right)
     got_cfg_goal = mp(got_cfg_goal, got_eq_sa_hn, eq_sa_hn, got_cfg_goal.sequent.right[0].right)
     got_cfg_goal = mp(got_cfg_goal, got_eq_tape2_tapen, eq_tape2_tapen, p_goal)
-    # [...] |- TMConfig(ca_new, qn_s, hn_s, tapen_s)
 
-    # === Discharge TMStep premises + close foralls ===
+    # === 4. Close TMStep: discharge premises + foralls ===
     proof_body = got_cfg_goal
     for premise in [p_move, p_upd, p_trans, p_read, p_cfg]:
         proof_body = wl(proof_body, premise)
@@ -6836,166 +6611,83 @@ def phase2():
         left = [f for f in proof_body.sequent.left if not same(f, premise)]
         proof_body = Proof(Sequent(left, [imp]), 'implies_right', [proof_body], principal=imp)
 
-    # Discharge Eq(tape2, tapen_s) — tapen_s must not be free on left for forall_right
-    if any(same(eq_tape2_tapen, f) for f in proof_body.sequent.left):
-        proof_body = wl(proof_body, eq_tape2_tapen)
-        imp_eq = Implies(eq_tape2_tapen, proof_body.sequent.right[0])
-        left_eq = [f for f in proof_body.sequent.left if not same(f, eq_tape2_tapen)]
-        proof_body = Proof(Sequent(left_eq, [imp_eq]),
-            'implies_right', [proof_body], principal=imp_eq)
-
     for v in [tapen_s, hn_s, qn_s, d_s, w_s, sym_s, tape_s, h_s, q_s]:
         body = proof_body.sequent.right[0]
         fa = Forall(v, body)
         proof_body = Proof(Sequent(proof_body.sequent.left, [fa]),
             'forall_right', [proof_body], principal=fa, term=v)
-    # [...] |- TMStep(delta, ca, ca_new)
+    got_tmstep = proof_body
+    tmstep_f = TMStep(delta, c1, c2)
+    got_tmstep = cut(ax(tmstep_f), tmstep_f, got_tmstep)
+    print(f'phase2: TMStep(delta, c1, c2) proved')
 
-    # === And(TMConfig, TMStep) + existentials ===
-    tmstep = TMStep(delta, ca, ca_new)
-    ai = and_intro(cfg_new, tmstep, [])
-    got_and = mp(apply_thm(ai, [], cfg_new, Implies(tmstep, And(cfg_new, tmstep)), got_cfg_new),
-        proof_body, tmstep, And(cfg_new, tmstep))
+    # === 5. TMStep → TMReaches via tmstep_to_reaches ===
+    ttr = tmstep_to_reaches()
+    # Instantiate with fl+cut (inst_thm pattern)
+    got_reaches = ttr
+    for term in [delta, c1, c2, zero_var, one]:
+        fa = got_reaches.sequent.right[0]
+        inst = fa.body.subst(fa.var, term)
+        got_inst = fl(fa, inst, term)
+        got_reaches = cut(got_inst, fa, got_reaches)
+    # mp: TMStep → Num(zero_var,0) → Successor(one, zero_var) → TMReaches
+    got_reaches = mp(got_reaches, got_tmstep, tmstep_f, got_reaches.sequent.right[0].right)
+    got_reaches = mp(got_reaches, ax(Num(zero_var, 0)), Num(zero_var, 0), got_reaches.sequent.right[0].right)
+    # Successor(one, zero_var) from Num(one, 1):
+    # Num(one,1) = ∀m. Num(m,0) → Succ(one,m). Instantiate with zero_var.
+    num_one = Num(one, 1)
+    succ_one_zv = Successor(one, zero_var)
+    imp_succ = Implies(Num(zero_var, 0), succ_one_zv)
+    got_succ = fl(num_one, imp_succ, zero_var)
+    got_succ = cut(got_succ, num_one, ax(num_one))
+    got_succ = mp(got_succ, ax(Num(zero_var, 0)), Num(zero_var, 0), succ_one_zv)
+    got_reaches = mp(got_reaches, got_succ, succ_one_zv, got_reaches.sequent.right[0].right)
+    print(f'phase2: TMReaches proved')
 
-    # eir ca_new, then eel OrdPair witnesses
-    got_ex = eir(got_and, And(cfg_new, tmstep), ca_new, ca_new)
-    got_ex = eel(got_ex, op_ca_new, ca_new)
-    got_ex = cut(got_ex, Exists(ca_new, op_ca_new), got_ex_ca)
-    got_ex = eel(got_ex, op_inner_new, inner_new)
-    got_ex = cut(got_ex, Exists(inner_new, op_inner_new), got_ex_inner)
-    # [...] |- ∃ca_new. And(TMConfig(ca_new,q1,sa,tape2), TMStep(delta,ca,ca_new))
+    # === 6. Close Phase2P ===
+    proof = got_reaches
 
-    # got_ex: [...] |- ∃ca_new. And(TMConfig(ca_new,q1,sa,tape2), TMStep(delta,ca,ca_new))
-    # Extract TMConfig and TMStep from the existential
-    and_cfg_step = And(cfg_new, TMStep(delta, ca, ca_new))
-    got_cfg_from_and = apply_thm(and_elim_left(cfg_new, TMStep(delta, ca, ca_new), []), [],
-        and_cfg_step, cfg_new, ax(and_cfg_step))
-    got_tmstep_from_and = apply_thm(and_elim_right(cfg_new, TMStep(delta, ca, ca_new), []), [],
-        and_cfg_step, TMStep(delta, ca, ca_new), ax(and_cfg_step))
+    # ∀c2. TMConfig(c2,...) → TMReaches
+    imp_c2 = Implies(cfg_c2, proof.sequent.right[0])
+    left_c2 = [f for f in proof.sequent.left if not same(f, cfg_c2)]
+    proof = Proof(Sequent(left_c2, [imp_c2]), 'implies_right', [proof], principal=imp_c2)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(c2, imp_c2)]),
+        'forall_right', [proof], principal=Forall(c2, imp_c2), term=c2)
 
-    # === 6. Extend trace (theorem) ===
-    from theorems.tm import phase1_step_extend_trace
-    _ext_thm = phase1_step_extend_trace()
-    got_extend = apply_thm(_ext_thm, [tra, sa, ca_new, c0, a, delta, ca, w])
-    tmstep_ca = TMStep(delta, ca, ca_new)
-    # mp 9 hypotheses explicitly
-    got_extend = mp(got_extend, got_func, func_f, got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, got_dom, dom_f, got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, ax(omega_w), omega_w, got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, ax(In(a, w)), In(a, w), got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, ax(succ_sa), succ_sa, got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, got_base, base_f, got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, got_sv, sv_f, got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, got_tmstep_from_and, tmstep_ca, got_extend.sequent.right[0].right)
-    got_extend = mp(got_extend, got_head, head_f, got_extend.sequent.right[0].right)
+    # ∀tape2. TapeUpdate → ...
+    cur_r = proof.sequent.right[0]
+    imp_tu = Implies(tu_tape2, cur_r)
+    left_tu = [f for f in proof.sequent.left if not same(f, tu_tape2)]
+    proof = Proof(Sequent(left_tu, [imp_tu]), 'implies_right', [proof], principal=imp_tu)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(tape2, imp_tu)]),
+        'forall_right', [proof], principal=Forall(tape2, imp_tu), term=tape2)
 
-    # got_extend: [..., body_p1, and_cfg_step, Succ, Omega, In(a,w)] |- ∃tra_new. And(Func, And(dom, And(base, And(head, sv))))
+    # ∀c1. TMConfig(c1,...) → ...
+    cur_r = proof.sequent.right[0]
+    imp_c1 = Implies(cfg_c1, cur_r)
+    left_c1 = [f for f in proof.sequent.left if not same(f, cfg_c1)]
+    proof = Proof(Sequent(left_c1, [imp_c1]), 'implies_right', [proof], principal=imp_c1)
+    proof = Proof(Sequent(proof.sequent.left, [Forall(c1, imp_c1)]),
+        'forall_right', [proof], principal=Forall(c1, imp_c1), term=c1)
 
-    # === 7. Build Phase2P body ===
-    # Phase2P = ∃tra.∃ca.∃tape2. And(Func, And(dom, And(cfg_q1, And(base, And(head, And(sv, TapeUpdate))))))
-    # extend gives: ∃tra_new. And(Func, And(dom, And(base, And(head, sv))))
-    # Need to insert cfg_new and TapeUpdate
+    # Bridge raw ∃ to TMReaches before Phase2P
+    # The right has ∀c1. TMConfig → ∀tape2. TapeUpdate → ∀c2. TMConfig → ∃trace.And(...)
+    # Need to replace ∃trace.And(...) with TMReaches(delta, c1, one, c2)
+    # Since the ∃ was built by tmstep_to_reaches, it IS TMReaches (same expansion).
+    # Bridge by cutting ax(TMReaches) with the raw ∃.
+    # proof.right is already same() as Phase2P — no bridge needed
+    print(f'phase2: Phase2P proved')
 
-    tra_new = got_extend.sequent.right[0].var  # ∃tra_new from extend result
-    ext_body = got_extend.sequent.right[0].body  # inside ∃tra_new
-    got_func_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
-        ext_body, ext_body.left, ax(ext_body))
-    rest_ext = ext_body.right
-    got_rest_ext = apply_thm(and_elim_right(ext_body.left, rest_ext, []), [],
-        ext_body, rest_ext, ax(ext_body))
-    dom_ext = rest_ext.left
-    rest2_ext = rest_ext.right
-    got_dom_ext = apply_thm(and_elim_left(dom_ext, rest2_ext, []), [],
-        rest_ext, dom_ext, got_rest_ext)
-    got_rest2_ext = apply_thm(and_elim_right(dom_ext, rest2_ext, []), [],
-        rest_ext, rest2_ext, got_rest_ext)
-    # rest2_ext = And(base, And(head, sv))
-
-    def mk_and(got_l, got_r):
-        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
-        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
-            got_r, R, And(L, R))
-
-    # Add TapeUpdate to the end: And(base, And(head, And(sv, TapeUpdate)))
-    base_ext = rest2_ext.left
-    rest3_ext = rest2_ext.right
-    got_base_ext = apply_thm(and_elim_left(base_ext, rest3_ext, []), [],
-        rest2_ext, base_ext, got_rest2_ext)
-    got_rest3_ext = apply_thm(and_elim_right(base_ext, rest3_ext, []), [],
-        rest2_ext, rest3_ext, got_rest2_ext)
-    head_ext = rest3_ext.left
-    sv_ext = rest3_ext.right
-    got_head_ext = apply_thm(and_elim_left(head_ext, sv_ext, []), [],
-        rest3_ext, head_ext, got_rest3_ext)
-    got_sv_ext = apply_thm(and_elim_right(head_ext, sv_ext, []), [],
-        rest3_ext, sv_ext, got_rest3_ext)
-
-    got_tu = ax(tu_tape2)
-    got_sv_tu = mk_and(got_sv_ext, got_tu)
-    got_head_sv_tu = mk_and(got_head_ext, got_sv_tu)
-    got_base_rest = mk_and(got_base_ext, got_head_sv_tu)
-    got_cfg_rest = mk_and(got_cfg_from_and, got_base_rest)
-    got_dom_rest = mk_and(got_dom_ext, got_cfg_rest)
-    got_full = mk_and(got_func_ext, got_dom_rest)
-
-    # === 8. Close existentials ===
-    # eir: tra_new first, then ca_new, then tape2
-    full_body = got_full.sequent.right[0]
-
-    # eir tape2 (innermost ∃)
-    body_for_tape2 = full_body  # tape2 is free, bind it
-    got_ex_t2 = eir(got_full, body_for_tape2, tape2, tape2)
-
-    # eir ca_new
-    body_for_ca = got_ex_t2.sequent.right[0].subst(ca_new, ca)
-    got_ex_ca2 = eir(got_ex_t2, body_for_ca, ca, ca_new)
-
-    # eir tra_new
-    body_for_tra = got_ex_ca2.sequent.right[0].subst(tra_new, tra)
-    got_ex_tra = eir(got_ex_ca2, body_for_tra, tra, tra_new)
-
-    # eel ext_body/tra_new from left, cut with got_extend
-    got_ex_tra = eel(got_ex_tra, ext_body, tra_new)
-    got_ex_tra = cut(got_ex_tra, Exists(tra_new, ext_body), got_extend)
-
-    # eel and_cfg_step/ca_new from left, cut with got_ex
-    if any(same(and_cfg_step, f) for f in got_ex_tra.sequent.left):
-        got_ex_tra = eel(got_ex_tra, and_cfg_step, ca_new)
-        got_ex_tra = cut(got_ex_tra, Exists(ca_new, and_cfg_step), got_ex)
-
-    # eel body_p1/ca/tra from left, cut with got_P1
-    p1_formula = got_P1.sequent.right[0]
-    if any(same(body_p1, f) for f in got_ex_tra.sequent.left):
-        got_ex_tra = eel(got_ex_tra, body_p1, ca)
-        got_ex_tra = eel(got_ex_tra, Exists(ca, body_p1), tra)
-        got_ex_tra = cut(got_ex_tra, p1_formula, got_P1)
-
-    # Wrap in Phase2P via cut bridge:
-    # Phase2P expands to the same formula. Use implies_right + implies_left.
-    p2 = Phase2P(sa, q1, tape_in, c0, delta, a, one)
-    raw = got_ex_tra.sequent.right[0]
-    # ax(p2) gives [p2] |- p2. We need [raw] |- p2.
-    # Since same(raw, p2) should be True (both expand to same Exists),
-    # ax(p2) with p2 on both sides, then cut raw from got_ex_tra.
-    # Actually: Proof([p2], [p2], axiom) then replace left with raw via cut:
-    # cut(ax(p2), p2, got_ex_tra) — this cuts p2 from ax(p2)'s left using got_ex_tra.
-    # But got_ex_tra proves raw, not p2. We need same(raw, p2) for the cut to work.
-    got_result = cut(ax(p2), p2, got_ex_tra)
-
-    # Discharge hypotheses, close ∀
-    proof = got_result
-    trans_q0_f = TMTransition(delta, q0, one, one, d1, q0)
-    hyps = [p1_a, TMConfig(c0, q0, z, tape_in), Num(q1, 2), Num(zero_var, 0),
-            Num(z, 0), Num(d1, 1), Num(one, 1),
-            FuncDef(tape_in), FuncDef(delta), utape, tu_tape2,
-            succ_sa, In(a, w), omega_w, trans_p2, trans_q0_f]
+    # === 7. Discharge hypotheses, close ∀ ===
+    hyps = [Num(q1, 2), Num(zero_var, 0), Num(d1, 1), num_one,
+            func_tape, func_delta, utape, succ_sa, trans_p2]
     for hyp in hyps:
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
         imp = Implies(hyp, proof.sequent.right[0])
         left = [f for f in proof.sequent.left if not same(f, hyp)]
         proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
-    for v in [sa, zero_var, q1, d1, one, w, b, a, z, c0, tape_in, q0, delta]:
+    for v in [sa, zero_var, q1, d1, one, b, a, tape_in, q0_v, delta]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]),
