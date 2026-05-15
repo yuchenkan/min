@@ -191,6 +191,62 @@ class TMReachesCompose:
 
 
 # ============================================================
+# Helper theorems
+# ============================================================
+
+def config_exists():
+    """∃c. TMConfig(c, q, h, t) — a config with given state/head/tape exists.
+    Pairing |- ∀q,h,t. ∃c. TMConfig(c,q,h,t)"""
+    from tactics import apply_thm, mp, ax, eir, eel, cut
+    from theorems.sets import ordpair_exists
+    from theorems.tm_backup import config_intro
+    from core.proof import Proof, Sequent, same
+
+    q, h, t = Var(postfix='_q'), Var(postfix='_h'), Var(postfix='_t')
+    c = Var(postfix='_c')
+    inner = Var(postfix='_inn')
+
+    # config_intro: ∀c,q,h,t,inner. OrdPair(inner,h,t) → OrdPair(c,q,inner) → TMConfig(c,q,h,t)
+    ci = config_intro()
+    got = apply_thm(ci, [c, q, h, t, inner])
+    # got: [Pairing] |- OrdPair(inner,h,t) → OrdPair(c,q,inner) → TMConfig(c,q,h,t)
+
+    op_inner = OrdPair(inner, h, t)
+    op_c = OrdPair(c, q, inner)
+    cfg = TMConfig(c, q, h, t)
+
+    # ordpair_exists: ∀a,b. ∃p. OrdPair(p,a,b)
+    oe = ordpair_exists()
+    got_ex_inner = apply_thm(oe, [h, t], concl=Exists(inner, op_inner))
+    got_ex_c = apply_thm(oe, [q, inner], concl=Exists(c, op_c))
+
+    # mp: provide OrdPair(inner,h,t) and OrdPair(c,q,inner) → TMConfig(c,q,h,t)
+    got = mp(got, ax(op_inner), op_inner, Implies(op_c, cfg))
+    got = mp(got, ax(op_c), op_c, cfg)
+    # [op_inner, op_c, Pairing] |- TMConfig(c,q,h,t)
+
+    # eir c → ∃c. TMConfig(c,q,h,t)
+    got = eir(got, cfg, c, c)
+    # eel c from op_c, cut with got_ex_c
+    got = eel(got, op_c, c)
+    got = cut(got, Exists(c, op_c), got_ex_c)
+    # eel inner from op_inner, cut with got_ex_inner
+    got = eel(got, op_inner, inner)
+    got = cut(got, Exists(inner, op_inner), got_ex_inner)
+    # [Pairing] |- ∃c. TMConfig(c,q,h,t)
+
+    proof = got
+    for v in [t, h, q]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'config_exists'
+    return proof
+
+
+# ============================================================
 # tm_add_correct: chain Phase1P..Phase5P via TMReachesCompose
 # ============================================================
 
