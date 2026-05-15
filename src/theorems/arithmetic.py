@@ -10716,3 +10716,25 @@ def plus_geq():
     
     proof.name = 'plus_geq'
     return proof
+
+def num_exists(k):
+    """∃n. Num(n,k) — a numeral k exists.
+    ZFC |- ∃n. Num(n,k)"""
+    from tactics import apply_thm, ax, eir, eel, cut
+    from theorems.logic import and_elim_left
+    from theorems.arithmetic import unique_num
+    from core.derived import Exists, And
+
+    p = unique_num(k)
+    eu_exp = p.sequent.right[0].expand()
+    n_var = eu_exp.var
+    num_part = eu_exp.body.left
+    uniq_part = eu_exp.body.right
+    got = apply_thm(and_elim_left(num_part, uniq_part, []), [],
+        eu_exp.body, num_part, ax(eu_exp.body))
+    got = eir(got, num_part, n_var, n_var)
+    got = eel(got, eu_exp.body, n_var)
+    got = cut(got, eu_exp, p)
+    got.name = f'num_exists_{k}'
+    return got
+
