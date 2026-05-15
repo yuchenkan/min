@@ -10738,3 +10738,70 @@ def num_exists(k):
     got.name = f'num_exists_{k}'
     return got
 
+
+
+def plus_val_unique():
+    """Plus(a,b,c) ∧ Plus(a,b,c') → c=c'.
+    ∀w,a,b,c,c'. Omega→In(a,w)→In(b,w)→Plus(a,b,c)→Plus(a,b,c')→Eq(c,c')"""
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Exists, And, Or, Eq
+    from core.proof import Proof, Sequent, same
+    from vocab.omega import Omega
+    from vocab.ordpair import OrdPair
+    from vocab.recursion import Plus as PlusDef, PlusFunc
+    from vocab.functions import Function as FuncDef, Apply
+    from tactics import apply_thm, mp, ax, fl, cut, eel, wl
+    from theorems.omega import func_unique_thm
+    from theorems.arithmetic import plus_func_exists, plusfunc_elim
+    from theorems.sets import ordpair_exists
+
+    a = Var(postfix='a'); b = Var(postfix='b')
+    c = Var(postfix='c'); c2 = Var(postfix='c2')
+    w = Var(postfix='w'); h = Var(postfix='h'); pair = Var(postfix='pair')
+    omega_w = Omega(w); op = OrdPair(pair, a, b); pf = PlusFunc(h, w)
+
+    got_1 = apply_thm(ax(PlusDef(a,b,c)), [w])
+    got_1 = mp(got_1, ax(omega_w), omega_w, got_1.sequent.right[0].right)
+    got_1 = apply_thm(got_1, [h])
+    got_1 = mp(got_1, ax(pf), pf, got_1.sequent.right[0].right)
+    got_1 = apply_thm(got_1, [pair])
+    got_1 = mp(got_1, ax(op), op, Apply(h,pair,c))
+
+    got_2 = apply_thm(ax(PlusDef(a,b,c2)), [w])
+    got_2 = mp(got_2, ax(omega_w), omega_w, got_2.sequent.right[0].right)
+    got_2 = apply_thm(got_2, [h])
+    got_2 = mp(got_2, ax(pf), pf, got_2.sequent.right[0].right)
+    got_2 = apply_thm(got_2, [pair])
+    got_2 = mp(got_2, ax(op), op, Apply(h,pair,c2))
+
+    func_h = plusfunc_elim(h, w)[0]
+    fut = func_unique_thm()
+    got_eq = apply_thm(fut, [h, pair, c, c2])
+    got_eq = mp(got_eq, func_h, FuncDef(h), got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_1, Apply(h,pair,c), got_eq.sequent.right[0].right)
+    got_eq = mp(got_eq, got_2, Apply(h,pair,c2), Eq(c,c2))
+
+    got_ex_pair = apply_thm(ordpair_exists(), [a,b], concl=Exists(pair, op))
+    got_eq = eel(got_eq, op, pair)
+    got_eq = cut(got_eq, Exists(pair, op), got_ex_pair)
+
+    pfe = plus_func_exists()
+    got_ex_h = apply_thm(pfe, [w])
+    got_ex_h = mp(got_ex_h, ax(omega_w), omega_w, got_ex_h.sequent.right[0].right)
+    got_eq = eel(got_eq, pf, h)
+    got_eq = cut(got_eq, Exists(h, pf), got_ex_h)
+
+    proof = got_eq
+    for hyp in [PlusDef(a,b,c2), PlusDef(a,b,c), In(b,w), In(a,w), omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [c2, c, b, a, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+    proof.name = 'plus_val_unique'
+    return proof
