@@ -5796,17 +5796,45 @@ class Phase2P:
 
 
 class Phase3P:
-    """P3(j): after S(a)+j total steps, state q1, head at pos=S(a)+j, tape=tape2.
+    """P3(b): b steps from (q1, sa, tape2) to (q1, pos, tape2) where Plus(sa, b, pos). Local.
+    ∀tape2. TapeUpdate(tape2, tape_in, a, one) →
+      ∀c2. TMConfig(c2, q1, sa, tape2) →
+        ∀c3. TMConfig(c3, q1, pos, tape2) →
+          ∀pos. Plus(sa, b, pos) → TMReaches(delta, c2, b, c3)"""
+    __match_args__ = ('b', 'sa', 'q1', 'tape_in', 'delta', 'a', 'one')
+    def __init__(self, b, sa, q1, tape_in, delta, a, one):
+        self.b = b; self.sa = sa; self.q1 = q1; self.tape_in = tape_in
+        self.delta = delta; self.a = a; self.one = one
+    def expand(self):
+        from vocab.recursion import Plus as PlusDef
+        tape2 = Var(postfix='_t2')
+        c2 = Var(postfix='_c2')
+        c3 = Var(postfix='_c3')
+        pos = Var(postfix='_pos')
+        return Forall(tape2, Implies(
+            TapeUpdate(tape2, self.tape_in, self.a, self.one),
+            Forall(c2, Implies(
+                TMConfig(c2, self.q1, self.sa, tape2),
+                Forall(c3, Implies(
+                    TMConfig(c3, self.q1, pos, tape2),
+                    Forall(pos, Implies(
+                        PlusDef(self.sa, self.b, pos),
+                        TMReaches(self.delta, c2, self.b, c3)))))))))
+    def subst(self, old, new):
+        r = lambda f: new if f is old else f
+        return Phase3P(r(self.b), r(self.sa), r(self.q1), r(self.tape_in),
+            r(self.delta), r(self.a), r(self.one))
+    def __str__(self):
+        return f'P3({self.b}, {self.sa}, {self.q1}, {self.tape_in}, {self.delta}, {self.a}, {self.one})'
+
+
+class Phase3Ind:
+    """Strong induction predicate for phase 3 with LOCAL j-indexed trace.
+    c0 = phase3 starting config (NOT TM initial config).
     ∃tape2, tra, cj, pos.
-      TapeUpdate(tape2, tape_in, a, one) ∧
-      Plus(sa, j, pos) ∧
-      Function(tra) ∧
-      ∀x,y. Apply(tra,x,y) → Or(In(x,pos), Eq(x,pos)) ∧
-      TMConfig(cj, q1, pos, tape2) ∧
-      ∀z'. Empty(z') → Apply(tra, z', c0) ∧
-      Apply(tra, pos, cj) ∧
-      ∀ja < pos. ∀sja. Succ(sja,ja) → ∀cja. Apply(tra, ja, cja) →
-          ∃cja1. And(Apply(tra, sja, cja1), TMStep(delta, cja, cja1))"""
+      TapeUpdate(tape2, tape_in, a, one) ∧ Plus(sa, j, pos) ∧
+      Function(tra) ∧ dom_bound(tra, j) ∧ TMConfig(cj, q1, pos, tape2) ∧
+      base(tra, c0) ∧ Apply(tra, j, cj) ∧ step_valid(tra, j, delta)"""
     __match_args__ = ('j', 'sa', 'q1', 'tape_in', 'c0', 'delta', 'a', 'one')
     def __init__(self, j, sa, q1, tape_in, c0, delta, a, one):
         self.j = j; self.sa = sa; self.q1 = q1; self.tape_in = tape_in
@@ -5823,8 +5851,8 @@ class Phase3P:
         from vocab.recursion import Plus as PlusDef
         from core.derived import Or
         dom_bound = Forall(xd, Forall(yd, Implies(Apply(tra, xd, yd),
-            Or(In(xd, pos), Eq(xd, pos)))))
-        step_valid = Forall(ja, Implies(In(ja, pos),
+            Or(In(xd, self.j), Eq(xd, self.j)))))
+        step_valid = Forall(ja, Implies(In(ja, self.j),
             Forall(sja, Implies(Successor(sja, ja),
                 Forall(cja, Implies(Apply(tra, ja, cja),
                     Exists(cja1, And(Apply(tra, sja, cja1), TMStep(self.delta, cja, cja1)))))))))
@@ -5835,14 +5863,14 @@ class Phase3P:
             And(dom_bound,
             And(TMConfig(cj, self.q1, pos, tape2),
             And(Forall(zv, Implies(Empty(zv), Apply(tra, zv, self.c0))),
-            And(Apply(tra, pos, cj),
+            And(Apply(tra, self.j, cj),
                 step_valid)))))))))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
-        return Phase3P(r(self.j), r(self.sa), r(self.q1), r(self.tape_in),
+        return Phase3Ind(r(self.j), r(self.sa), r(self.q1), r(self.tape_in),
             r(self.c0), r(self.delta), r(self.a), r(self.one))
     def __str__(self):
-        return f'P3({self.j}, {self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.delta}, {self.a}, {self.one})'
+        return f'P3Ind({self.j}, {self.sa}, {self.q1}, {self.tape_in}, {self.c0}, {self.delta}, {self.a}, {self.one})'
 
 
 class Phase4P:
@@ -5893,9 +5921,9 @@ class Phase4P:
 
 
 class Phase3Q:
-    """Q3(j) = Or(In(j,b), Eq(j,b)) → P3(j).
-    Bounded Phase 3 predicate: "if j ≤ b then P3(j)."
-    Used as the induction predicate for omega induction on phase 3 step count."""
+    """Q3(j) = Or(In(j,b), Eq(j,b)) → Phase3Ind(j).
+    Bounded Phase 3 predicate: "if j ≤ b then Phase3Ind(j)."
+    Wraps Phase3Ind (strong predicate) for omega induction."""
     __match_args__ = ('j', 'b', 'sa', 'q1', 'tape_in', 'c0', 'delta', 'a', 'one')
     def __init__(self, j, b, sa, q1, tape_in, c0, delta, a, one):
         self.j = j; self.b = b; self.sa = sa; self.q1 = q1
@@ -5904,7 +5932,7 @@ class Phase3Q:
     def expand(self):
         from core.derived import Or, Eq
         return Implies(Or(In(self.j, self.b), Eq(self.j, self.b)),
-            Phase3P(self.j, self.sa, self.q1, self.tape_in, self.c0,
+            Phase3Ind(self.j, self.sa, self.q1, self.tape_in, self.c0,
                 self.delta, self.a, self.one))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
