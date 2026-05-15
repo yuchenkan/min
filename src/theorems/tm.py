@@ -5917,25 +5917,26 @@ class Phase4P:
 
 
 class Phase3Q:
-    """Q3(j, pos) = Or(In(j,b), Eq(j,b)) → Plus(sa,j,pos) → Phase3Ind(j, pos).
-    Bounded Phase 3 predicate with Plus hypothesis.
-    Wraps Phase3Ind (strong predicate) for omega induction."""
-    __match_args__ = ('j', 'b', 'sa', 'q1', 'pos', 'tape2', 'c0', 'delta')
-    def __init__(self, j, b, sa, q1, pos, tape2, c0, delta):
+    """Q3(j) = Or(In(j,b),Eq(j,b)) → ∃pos. And(Plus(sa,j,pos), Phase3Ind(j,...,pos,...)).
+    Bounded Phase 3 induction predicate. Single variable j for Separation.
+    ∃pos bundles Plus with Phase3Ind — step goes forward via plus_succ_right."""
+    __match_args__ = ('j', 'b', 'sa', 'q1', 'tape2', 'c0', 'delta')
+    def __init__(self, j, b, sa, q1, tape2, c0, delta):
         self.j = j; self.b = b; self.sa = sa; self.q1 = q1
-        self.pos = pos; self.tape2 = tape2; self.c0 = c0; self.delta = delta
+        self.tape2 = tape2; self.c0 = c0; self.delta = delta
     def expand(self):
         from core.derived import Or, Eq
         from vocab.recursion import Plus as PlusDef
+        pos = Var(postfix='_qpos')
         return Implies(Or(In(self.j, self.b), Eq(self.j, self.b)),
-            Implies(PlusDef(self.sa, self.j, self.pos),
-                Phase3Ind(self.j, self.sa, self.q1, self.pos, self.tape2, self.c0, self.delta)))
+            Exists(pos, And(PlusDef(self.sa, self.j, pos),
+                Phase3Ind(self.j, self.sa, self.q1, pos, self.tape2, self.c0, self.delta))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return Phase3Q(r(self.j), r(self.b), r(self.sa), r(self.q1),
-            r(self.pos), r(self.tape2), r(self.c0), r(self.delta))
+            r(self.tape2), r(self.c0), r(self.delta))
     def __str__(self):
-        return f'Q3({self.j}, {self.b}, {self.sa}, {self.q1}, {self.pos}, {self.tape2}, {self.c0}, {self.delta})'
+        return f'Q3({self.j}, {self.b}, {self.sa}, {self.q1}, {self.tape2}, {self.c0}, {self.delta})'
 
 
 class Phase1Q:
@@ -6722,11 +6723,11 @@ def phase2():
 
 def phase3_base():
     """Phase 3 base case: Q3(0).
-    |- ∀delta,q1,c0,z,sa,b,w,tape2,pos.
+    |- ∀delta,q1,c0,z,sa,b,tape2,pos.
          TMConfig(c0,q1,pos,tape2) → Num(z,0) → Plus(sa,z,pos) →
-         Phase3Q(z,b,sa,q1,pos,tape2,c0,delta)
+         Phase3Q(z,b,sa,q1,tape2,c0,delta)
 
-    Structurally identical to phase1_base with different parameters."""
+    Q3 = Or → ∃pos. And(Plus, Phase3Ind). Caller provides TMConfig + Plus."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut
     from theorems.logic import (and_intro, and_elim_left, eq_reflexive, eq_symmetric,
         unique_empty, iff_mp_rev, or_intro_right)
@@ -6886,21 +6887,33 @@ def phase3_base():
     # Bridge to Phase3Ind
     got_p3 = cut(ax(p3ind_z), p3ind_z, got_ex_tra_ca)
 
-    # Wrap in Q3: Or(In(z,b),Eq(z,b)) → Plus(sa,z,pos) → Phase3Ind(z)
+    # Wrap in Q3: Or → ∃pos. And(Plus, Phase3Ind)
     or_zb = Or(In(z, b), Eq(z, b))
-    got_p3 = wl(got_p3, plus_hyp)
-    imp_plus = Implies(plus_hyp, got_p3.sequent.right[0])
-    left_plus = [f_ for f_ in got_p3.sequent.left if not same(f_, plus_hyp)]
-    got_p3 = Proof(Sequent(left_plus, [imp_plus]), 'implies_right', [got_p3], principal=imp_plus)
-    got_p3 = wl(got_p3, or_zb)
-    imp_q = Implies(or_zb, imp_plus)
-    left_q = [f_ for f_ in got_p3.sequent.left if not same(f_, or_zb)]
-    proof = Proof(Sequent(left_q, [imp_q]), 'implies_right', [got_p3], principal=imp_q)
-    q3z = Phase3Q(z, b, sa, q1, pos, tape2, c0, delta)
+
+    # got_p3: [cfg0, num_z, Pairing] |- Phase3Ind(z,...,pos,...)
+    # Build And(Plus(sa,z,pos), Phase3Ind(z,...,pos,...))
+    got_and_body = mk_and(ax(plus_hyp), got_p3)
+    # [plus_hyp, cfg0, num_z, Pairing] |- And(Plus, Phase3Ind)
+
+    # ∃pos via eir — use Q3's expand to get the ∃ var
+    q3z = Phase3Q(z, b, sa, q1, tape2, c0, delta)
+    q3z_exp = q3z.expand()  # Or → ∃pos. And(Plus, Phase3Ind)
+    ex_body = q3z_exp.right  # ∃pos. And(...)
+    pos_ev = ex_body.var
+    got_ex = eir(got_and_body, ex_body.body, pos_ev, pos)
+    # [plus_hyp, cfg0, ...] |- ∃pos. And(Plus, Phase3Ind)
+
+    # Discharge Or
+    got_ex = wl(got_ex, or_zb)
+    imp_or = Implies(or_zb, got_ex.sequent.right[0])
+    left_or = [f_ for f_ in got_ex.sequent.left if not same(f_, or_zb)]
+    proof = Proof(Sequent(left_or, [imp_or]), 'implies_right', [got_ex], principal=imp_or)
+
+    # Bridge to Q3
     proof = cut(ax(q3z), q3z, proof)
 
     # Discharge hypotheses, close ∀
-    for hyp in [num_z, cfg0]:
+    for hyp in [num_z, plus_hyp, cfg0]:
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
         imp = Implies(hyp, proof.sequent.right[0])
@@ -7505,286 +7518,6 @@ def phase3_core_step():
     return proof
 
 
-def phase3_step():
-    """Phase 3 step: Q3(j,pos) → Q3(sj,spos).
-    |- ∀delta,q1,c0,j,sj,sa,b,w,tape2,pos,spos,one,d1.
-         TMTransition(delta,q1,one,one,d1,q1) →
-         Omega(w) → In(b,w) → In(pos,w) →
-         Successor(sj,j) → Successor(spos,pos) →
-         Function(delta) → Function(tape2) →
-         Apply(tape2,pos,one) →
-         Num(one,1) → Num(d1,1) →
-         Plus(sa,j,pos) →
-         Phase3Q(j,b,sa,q1,pos,tape2,c0,delta) →
-         Phase3Q(sj,b,sa,q1,spos,tape2,c0,delta)
-
-    Structurally identical to phase1_step with different parameters.
-    Key differences: Q3 wraps Or → Plus → Phase3Ind (vs Q1 wraps Or → Phase1Ind).
-    So we need Plus(sa,j,pos) to open Q3(j), and discharge Plus(sa,sj,spos) for Q3(sj)."""
-    from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
-        or_elim, or_intro_left, or_intro_right, eq_reflexive,
-        iff_mp, iff_mp_rev)
-    from theorems.tm import (phase1_step_tmstep, phase1_step_extend_trace)
-    from theorems.sets import omega_transitive_set
-    from vocab.functions import Function as FuncDef
-    from vocab.sets import TransitiveSet
-    from vocab.omega import Omega
-    from vocab.recursion import Plus as PlusDef
-    from core.proof import Proof, Sequent, same
-    from core.derived import Exists, Or
-
-    delta = Var(postfix='delta')
-    q1 = Var(postfix='q1')
-    c0 = Var(postfix='c0')
-    j = Var(postfix='j')
-    sj = Var(postfix='sj')
-    sa = Var(postfix='sa')
-    b = Var(postfix='b')
-    w = Var(postfix='w')
-    tape2 = Var(postfix='t2')
-    pos = Var(postfix='pos')
-    spos = Var(postfix='spos')
-    one = Var(postfix='one')
-    d1 = Var(postfix='d1')
-
-    succ_sj = Successor(sj, j)
-    succ_spos = Successor(spos, pos)
-    omega_w = Omega(w)
-    in_b_w = In(b, w)
-    in_pos_w = In(pos, w)
-    or_sj_b = Or(In(sj, b), Eq(sj, b))
-    or_j_b = Or(In(j, b), Eq(j, b))
-    trans_q1 = TMTransition(delta, q1, one, one, d1, q1)
-    plus_j_pos = PlusDef(sa, j, pos)
-    plus_sj_spos = PlusDef(sa, sj, spos)
-
-    q3_j = Phase3Q(j, b, sa, q1, pos, tape2, c0, delta)
-    q3_sj = Phase3Q(sj, b, sa, q1, spos, tape2, c0, delta)
-
-    # === Step 1: Derive Or(In(j,b),Eq(j,b)) from Or(In(sj,b),Eq(sj,b)) ===
-    # TransitiveSet(b) from Omega(w) + In(b,w)
-    ots = omega_transitive_set()
-    got_trans_b = apply_thm(ots, [w, b])
-    got_trans_b = mp(got_trans_b, ax(omega_w), omega_w, Implies(in_b_w, TransitiveSet(b)))
-    got_trans_b = mp(got_trans_b, ax(in_b_w), in_b_w, TransitiveSet(b))
-
-    # In(j, sj) from Successor(sj, j)
-    er = eq_reflexive()
-    eq_jj = Eq(j, j)
-    got_eq_jj = apply_thm(er, [j], concl=eq_jj)
-    in_j_sj = In(j, sj)
-    iff_j_sj = Iff(in_j_sj, Or(In(j, j), eq_jj))
-    got_or_jj = apply_thm(or_intro_right(In(j,j), eq_jj, []), [],
-        eq_jj, Or(In(j,j), eq_jj), got_eq_jj)
-    got_in_j_sj = mp(apply_thm(iff_mp_rev(in_j_sj, Or(In(j,j), eq_jj), []),
-        [], iff_j_sj, Implies(Or(In(j,j), eq_jj), in_j_sj),
-        fl(succ_sj, iff_j_sj, j)),
-        got_or_jj, Or(In(j,j), eq_jj), in_j_sj)
-
-    # Case In(sj,b) → In(j,b) via TransitiveSet(b)
-    yv = Var(postfix='yv')
-    got_sj_sub = apply_thm(got_trans_b, [sj], In(sj, b),
-        Forall(yv, Implies(In(yv, sj), In(yv, b))), ax(In(sj, b)))
-    got_in_j_b_from_sj = apply_thm(got_sj_sub, [j], in_j_sj, In(j, b), got_in_j_sj)
-
-    # Case Eq(sj,b) → In(j,b) via eq_transfer
-    iff_j_sjb = Iff(In(j, sj), In(j, b))
-    got_iff_j = apply_thm(ax(Eq(sj, b)), [j], concl=iff_j_sjb)
-    got_fwd_j = apply_thm(iff_mp(In(j,sj), In(j,b), []),
-        [], iff_j_sjb, Implies(In(j,sj), In(j,b)), got_iff_j)
-    got_in_j_b_from_eq = mp(got_fwd_j, got_in_j_sj, In(j,sj), In(j,b))
-
-    # or_elim → In(j,b)
-    in_j_b = In(j, b)
-    oe = or_elim(In(sj, b), Eq(sj, b), in_j_b, [])
-    got_imp_l = Proof(Sequent([f for f in got_in_j_b_from_sj.sequent.left if not same(f, In(sj,b))],
-        [Implies(In(sj,b), in_j_b)]), 'implies_right', [got_in_j_b_from_sj],
-        principal=Implies(In(sj,b), in_j_b))
-    got_imp_r = Proof(Sequent([f for f in got_in_j_b_from_eq.sequent.left if not same(f, Eq(sj,b))],
-        [Implies(Eq(sj,b), in_j_b)]), 'implies_right', [got_in_j_b_from_eq],
-        principal=Implies(Eq(sj,b), in_j_b))
-    got_in_j_b = apply_thm(oe, [], or_sj_b,
-        Implies(Implies(In(sj,b),in_j_b), Implies(Implies(Eq(sj,b),in_j_b), in_j_b)),
-        ax(or_sj_b))
-    got_in_j_b = mp(got_in_j_b, got_imp_l, Implies(In(sj,b),in_j_b),
-        Implies(Implies(Eq(sj,b),in_j_b), in_j_b))
-    got_in_j_b = mp(got_in_j_b, got_imp_r, Implies(Eq(sj,b),in_j_b), in_j_b)
-
-    # Or(In(j,b),Eq(j,b)) from In(j,b)
-    got_or_j_b = apply_thm(or_intro_left(in_j_b, Eq(j,b), []), [],
-        in_j_b, or_j_b, got_in_j_b)
-
-    # === Step 2: mp Q3(j) with Or and Plus → Phase3Ind(j) ===
-    # Q3(j).expand() = Or → Plus → Phase3Ind(j)
-    q3_j_exp = q3_j.expand()
-    inner_imp = q3_j_exp.right  # Implies(Plus, Phase3Ind)
-    Q_ind = inner_imp.right     # Phase3Ind(j)
-
-    # implies_left on outer: Or → (Plus → P3Ind). Provide Or, get Plus → P3Ind.
-    ctx_a = list(got_or_j_b.sequent.left)
-    ps0 = wr(got_or_j_b, inner_imp)
-    ps1 = wl(ax(inner_imp), *ctx_a)
-    got_inner = Proof(Sequent(ctx_a + [q3_j_exp], [inner_imp]),
-        'implies_left', [ps0, ps1], principal=q3_j_exp)
-    got_inner = cut(got_inner, q3_j_exp, ax(q3_j))
-
-    # mp inner: Plus → P3Ind with Plus hypothesis
-    got_P3Ind = mp(got_inner, ax(plus_j_pos), inner_imp.left, Q_ind)
-
-    # === Step 3: Open Phase3Ind(j) ===
-    p3ind_j = Phase3Ind(j, sa, q1, pos, tape2, c0, delta)
-    p3_exp = p3ind_j.expand()
-    tra = p3_exp.var
-    ca = p3_exp.body.var
-    body_j = p3_exp.body.body
-
-    def extract_and(got_body, left_f, right_f):
-        got_l = apply_thm(and_elim_left(left_f, right_f, []), [],
-            And(left_f, right_f), left_f, got_body)
-        got_r = apply_thm(and_elim_right(left_f, right_f, []), [],
-            And(left_f, right_f), right_f, got_body)
-        return got_l, got_r
-
-    func_f = body_j.left; r1 = body_j.right
-    dom_f = r1.left; r2 = r1.right
-    cfg_f = r2.left; r3 = r2.right
-    base_f = r3.left; r4 = r3.right
-    app_f = r4.left; sv_f = r4.right
-
-    got_func, got_r1 = extract_and(ax(body_j), func_f, r1)
-    got_dom, got_r2 = extract_and(got_r1, dom_f, r2)
-    got_cfg, got_r3 = extract_and(got_r2, cfg_f, r3)
-    got_base, got_r4 = extract_and(got_r3, base_f, r4)
-    got_app, got_sv = extract_and(got_r4, app_f, sv_f)
-
-    # === Step 4: TMStep via phase1_step_tmstep ===
-    _tmstep_thm = phase1_step_tmstep()
-    got_tmstep = apply_thm(_tmstep_thm, [delta, q1, pos, spos, tape2, ca, one, d1])
-    func_delta = FuncDef(delta)
-    func_tape2 = FuncDef(tape2)
-    app_tape2_pos_one = Apply(tape2, pos, one)
-    num_d1 = Num(d1, 1)
-    tmstep_hyps = [ax(func_delta), ax(trans_q1), got_cfg, ax(func_tape2),
-                   ax(app_tape2_pos_one), ax(num_d1), ax(succ_spos)]
-    for hyp_proof in tmstep_hyps:
-        got_tmstep = mp(got_tmstep, hyp_proof, hyp_proof.sequent.right[0],
-            got_tmstep.sequent.right[0].right)
-
-    # Open ∃ca_new from got_tmstep
-    ca_new = Var(postfix='cn')
-    cfg_new = TMConfig(ca_new, q1, spos, tape2)
-    tmstep_ca = TMStep(delta, ca, ca_new)
-    and_cfg_step = And(cfg_new, tmstep_ca)
-    got_cfg_new_from_and = apply_thm(and_elim_left(cfg_new, tmstep_ca, []), [],
-        and_cfg_step, cfg_new, ax(and_cfg_step))
-    got_tmstep_from_and = apply_thm(and_elim_right(cfg_new, tmstep_ca, []), [],
-        and_cfg_step, tmstep_ca, ax(and_cfg_step))
-
-    # === Step 5: Extend trace ===
-    _ext_thm = phase1_step_extend_trace()
-    got_extend = apply_thm(_ext_thm, [tra, sj, ca_new, c0, j, delta, ca, w])
-    in_j_w = In(j, w)
-    for hyp_proof in [got_func, got_dom, ax(omega_w), ax(in_j_w), ax(succ_sj),
-                      got_base, got_sv, got_tmstep_from_and, got_app]:
-        got_extend = mp(got_extend, hyp_proof, hyp_proof.sequent.right[0],
-            got_extend.sequent.right[0].right)
-
-    # === Step 6: Build Phase3Ind(sj,...,spos,...) ===
-    tra_new = got_extend.sequent.right[0].var
-    ext_body = got_extend.sequent.right[0].body
-
-    got_func_from_ext = apply_thm(and_elim_left(ext_body.left, ext_body.right, []), [],
-        ext_body, ext_body.left, ax(ext_body))
-    rest_ext = ext_body.right
-    got_rest_from_ext = apply_thm(and_elim_right(ext_body.left, rest_ext, []), [],
-        ext_body, rest_ext, ax(ext_body))
-    dom_from_ext = rest_ext.left
-    rest_after_dom = rest_ext.right
-    got_dom_from_ext = apply_thm(and_elim_left(dom_from_ext, rest_after_dom, []), [],
-        rest_ext, dom_from_ext, got_rest_from_ext)
-    got_rest_after_dom = apply_thm(and_elim_right(dom_from_ext, rest_after_dom, []), [],
-        rest_ext, rest_after_dom, got_rest_from_ext)
-
-    def mk_and(got_l, got_r):
-        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
-        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
-            got_r, R, And(L, R))
-
-    got_cfg_rest = mk_and(got_cfg_new_from_and, got_rest_after_dom)
-    got_dom_cfg_rest = mk_and(got_dom_from_ext, got_cfg_rest)
-    got_full_body = mk_and(got_func_from_ext, got_dom_cfg_rest)
-
-    # eir: ca→ca_new, tra→tra_new
-    p3ind_sj = Phase3Ind(sj, sa, q1, spos, tape2, c0, delta)
-    p3_sj_exp = p3ind_sj.expand()
-    tra_ev = p3_sj_exp.var
-    ca_ev = p3_sj_exp.body.var
-
-    full_body_formula = got_full_body.sequent.right[0]
-    body_for_ca = full_body_formula.subst(ca_new, ca_ev)
-    got_ex_ca = eir(got_full_body, body_for_ca, ca_ev, ca_new)
-    body_for_tra = Exists(ca_ev, body_for_ca).subst(tra_new, tra_ev)
-    got_ex_tra_ca = eir(got_ex_ca, body_for_tra, tra_ev, tra_new)
-
-    # eel ext_body/tra_new, cut with got_extend
-    got_ex_tra_ca = eel(got_ex_tra_ca, ext_body, tra_new)
-    got_ex_tra_ca = cut(got_ex_tra_ca, Exists(tra_new, ext_body), got_extend)
-
-    # eel and_cfg_step/ca_new, cut with got_tmstep
-    if any(same(and_cfg_step, f) for f in got_ex_tra_ca.sequent.left):
-        got_ex_tra_ca = eel(got_ex_tra_ca, and_cfg_step, ca_new)
-        got_ex_tra_ca = cut(got_ex_tra_ca, Exists(ca_new, and_cfg_step), got_tmstep)
-
-    # Bridge to Phase3Ind(sj)
-    got_p3_sj = cut(ax(p3ind_sj), p3ind_sj, got_ex_tra_ca)
-
-    # === Step 7: eel body_j from left ===
-    got_result = got_p3_sj
-    got_result = eel(got_result, body_j, ca)
-    got_result = eel(got_result, Exists(ca, body_j), tra)
-    got_result = cut(got_result, p3ind_j, got_P3Ind)
-
-    # === Step 8: Wrap in Q3(sj) ===
-    # Discharge Plus(sa,sj,spos) then Or(In(sj,b),Eq(sj,b))
-    got_result = wl(got_result, plus_sj_spos)
-    imp_plus = Implies(plus_sj_spos, got_result.sequent.right[0])
-    left_plus = [f for f in got_result.sequent.left if not same(f, plus_sj_spos)]
-    got_result = Proof(Sequent(left_plus, [imp_plus]), 'implies_right', [got_result], principal=imp_plus)
-
-    got_result = wl(got_result, or_sj_b)
-    imp_or = Implies(or_sj_b, imp_plus)
-    left_or = [f for f in got_result.sequent.left if not same(f, or_sj_b)]
-    got_result = Proof(Sequent(left_or, [imp_or]), 'implies_right', [got_result], principal=imp_or)
-
-    got_result = cut(ax(q3_sj), q3_sj, got_result)
-
-    # Discharge Q3(j) → result
-    imp_qq = Implies(q3_j, got_result.sequent.right[0])
-    left_qq = [f for f in got_result.sequent.left if not same(f, q3_j)]
-    got_result = Proof(Sequent(left_qq, [imp_qq]),
-        'implies_right', [got_result], principal=imp_qq)
-
-    # Discharge all hypotheses, close ∀
-    proof = got_result
-    hyps = [plus_j_pos, num_d1, Num(one, 1),
-            app_tape2_pos_one, func_tape2, func_delta,
-            succ_spos, succ_sj,
-            in_j_w, in_pos_w, in_b_w, omega_w, trans_q1]
-    for hyp in hyps:
-        if not any(same(hyp, f) for f in proof.sequent.left):
-            proof = wl(proof, hyp)
-        imp = Implies(hyp, proof.sequent.right[0])
-        left = [f for f in proof.sequent.left if not same(f, hyp)]
-        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
-    for v in [d1, one, spos, pos, tape2, w, sj, j, b, sa, c0, q1, delta]:
-        body = proof.sequent.right[0]
-        fa = Forall(v, body)
-        proof = Proof(Sequent(proof.sequent.left, [fa]),
-            'forall_right', [proof], principal=fa, term=v)
-
-    proof.name = 'phase3_step'
-    return proof
 
 
 
