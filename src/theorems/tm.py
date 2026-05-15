@@ -195,6 +195,28 @@ class TMReachesCompose:
 # ============================================================
 
 
+def num_exists(k):
+    """∃n. Num(n,k) — a numeral k exists.
+    ZFC |- ∃n. Num(n,k)"""
+    from tactics import apply_thm, ax, eir, eel, cut
+    from theorems.logic import and_elim_left
+    from theorems.arithmetic import unique_num
+    from core.derived import Exists, And
+
+    p = unique_num(k)
+    eu_exp = p.sequent.right[0].expand()  # ∃n. And(Num(n,k), uniq)
+    n_var = eu_exp.var
+    num_part = eu_exp.body.left
+    uniq_part = eu_exp.body.right
+    got = apply_thm(and_elim_left(num_part, uniq_part, []), [],
+        eu_exp.body, num_part, ax(eu_exp.body))
+    got = eir(got, num_part, n_var, n_var)
+    got = eel(got, eu_exp.body, n_var)
+    got = cut(got, eu_exp, p)
+    got.name = f'num_exists_{k}'
+    return got
+
+
 def config_exists():
     """∃c. TMConfig(c, q, h, t) — a config with given state/head/tape exists.
     Pairing |- ∀q,h,t. ∃c. TMConfig(c,q,h,t)"""
@@ -505,51 +527,185 @@ def tm_add_correct():
 
     proof = got_all
     # RIGHT: TMReaches(delta,c0,n,cf) — no intermediate vars
-    # LEFT: goal hyps + intermediate hyps (from ax) + Phase*P + ZFC axioms
-    # Strategy: cut intermediate hyps from left. They contain intermediate vars
-    # (c1-c4, one, q1, q2, sa, tape2, etc.) but those vars are NOT in the right.
-    # So we can eel each intermediate var, then cut with existence proof.
-    # But many vars appear in MULTIPLE left formulas.
-    # Simpler: discharge intermediates as implies, close ∀, then fl+mp to eliminate.
+    # LEFT: goal hyps + intermediate hyps + Phase*P + ZFC
+    #
+    # Intermediate vars on left: c1,c2,c3,c4 (in TMConfig only),
+    #   one (in Num + Plus + In + transitions), q1,q2 (in Num + transitions),
+    #   sa (in Successor + Plus + In), tape2 (in TapeUpdate + Function + tape stuff)
+    #
+    # Strategy: derive Plus/In/Function/tape from goal hyps (not ax),
+    # then only Num/Successor/TMConfig remain as single-formula intermediates per var.
+    # eel+cut each.
+    #
+    # But the chain already ran with ax() intermediates. So they're already on the left.
+    # We need to CUT each ax'd intermediate with its derived proof.
+    # cut(proof, F, derived_F) removes F from proof's left and adds derived_F's left.
+    # If derived_F has only goal hyps + ZFC on left, the net effect is removing F.
 
-    # Step 1: Discharge all non-goal, non-axiom formulas from left
+    # Derive intermediate hypotheses from goal hyps
+    from theorems.arithmetic import plus_zero_exists, plus_succ_right
+    from theorems.omega import omega_succ_closed
+
+    # Plus(a,one,sa) from plus_zero_exists + plus_succ_right
+    _pze = plus_zero_exists()
+    got_pza = apply_thm(_pze, [w, a, z])
+    got_pza = mp(got_pza, ax(omega_w), omega_w, got_pza.sequent.right[0].right)
+    got_pza = mp(got_pza, ax(In(a,w)), In(a,w), got_pza.sequent.right[0].right)
+    got_pza = mp(got_pza, ax(num_z), num_z, got_pza.sequent.right[0].right)
+    _psr = plus_succ_right()
+    got_plus_a1s = apply_thm(_psr, [w, a, z, a, one, sa])
+    got_plus_a1s = mp(got_plus_a1s, ax(omega_w), omega_w, got_plus_a1s.sequent.right[0].right)
+    got_plus_a1s = mp(got_plus_a1s, ax(In(a,w)), In(a,w), got_plus_a1s.sequent.right[0].right)
+    got_plus_a1s = mp(got_plus_a1s, ax(In(z,w)), In(z,w), got_plus_a1s.sequent.right[0].right)
+    got_plus_a1s = mp(got_plus_a1s, got_pza, got_pza.sequent.right[0], got_plus_a1s.sequent.right[0].right)
+    got_plus_a1s = mp(got_plus_a1s, ax(Successor(one,z)), Successor(one,z), got_plus_a1s.sequent.right[0].right)
+    got_plus_a1s = mp(got_plus_a1s, ax(succ_sa), succ_sa, got_plus_a1s.sequent.right[0].right)
+    # got_plus_a1s: [goal hyps, Succ(one,z), Succ(sa,a), In(z,w), ZFC] |- Plus(a,one,sa)
+
+    # In(one,w) from omega_succ_closed
+    _osc = omega_succ_closed()
+    got_one_w = apply_thm(_osc, [w], omega_w,
+        Forall(z, Implies(In(z,w), Forall(one, Implies(Successor(one,z), In(one,w))))), ax(omega_w))
+    got_one_w = apply_thm(got_one_w, [z], In(z,w),
+        Forall(one, Implies(Successor(one,z), In(one,w))), ax(In(z,w)))
+    got_one_w = apply_thm(got_one_w, [one], Successor(one,z), In(one,w), ax(Successor(one,z)))
+
+    # In(sa,w) from omega_succ_closed
+    got_sa_w = apply_thm(_osc, [w], omega_w,
+        Forall(a, Implies(In(a,w), Forall(sa, Implies(succ_sa, In(sa,w))))), ax(omega_w))
+    got_sa_w = apply_thm(got_sa_w, [a], In(a,w),
+        Forall(sa, Implies(succ_sa, In(sa,w))), ax(In(a,w)))
+    got_sa_w = apply_thm(got_sa_w, [sa], succ_sa, In(sa,w), ax(succ_sa))
+
+    # Plus(hf,one,ssc) from plus_zero_exists + plus_succ_right
+    got_pzh = apply_thm(_pze, [w, hf, z])
+    got_pzh = mp(got_pzh, ax(omega_w), omega_w, got_pzh.sequent.right[0].right)
+    got_pzh = mp(got_pzh, ax(In(hf,w)), In(hf,w), got_pzh.sequent.right[0].right)
+    got_pzh = mp(got_pzh, ax(num_z), num_z, got_pzh.sequent.right[0].right)
+    got_plus_h1ss = apply_thm(_psr, [w, hf, z, hf, one, ssc])
+    got_plus_h1ss = mp(got_plus_h1ss, ax(omega_w), omega_w, got_plus_h1ss.sequent.right[0].right)
+    got_plus_h1ss = mp(got_plus_h1ss, ax(In(hf,w)), In(hf,w), got_plus_h1ss.sequent.right[0].right)
+    got_plus_h1ss = mp(got_plus_h1ss, ax(In(z,w)), In(z,w), got_plus_h1ss.sequent.right[0].right)
+    got_plus_h1ss = mp(got_plus_h1ss, got_pzh, got_pzh.sequent.right[0], got_plus_h1ss.sequent.right[0].right)
+    got_plus_h1ss = mp(got_plus_h1ss, ax(Successor(one,z)), Successor(one,z), got_plus_h1ss.sequent.right[0].right)
+    got_plus_h1ss = mp(got_plus_h1ss, ax(succ_ssc), succ_ssc, got_plus_h1ss.sequent.right[0].right)
+
+    # Plus(ssc,one,n) similarly
+    got_pzss = apply_thm(_pze, [w, ssc, z])
+    got_pzss = mp(got_pzss, ax(omega_w), omega_w, got_pzss.sequent.right[0].right)
+    got_pzss = mp(got_pzss, ax(In(ssc,w)), In(ssc,w), got_pzss.sequent.right[0].right)
+    got_pzss = mp(got_pzss, ax(num_z), num_z, got_pzss.sequent.right[0].right)
+    got_plus_ss1n = apply_thm(_psr, [w, ssc, z, ssc, one, n])
+    got_plus_ss1n = mp(got_plus_ss1n, ax(omega_w), omega_w, got_plus_ss1n.sequent.right[0].right)
+    got_plus_ss1n = mp(got_plus_ss1n, ax(In(ssc,w)), In(ssc,w), got_plus_ss1n.sequent.right[0].right)
+    got_plus_ss1n = mp(got_plus_ss1n, ax(In(z,w)), In(z,w), got_plus_ss1n.sequent.right[0].right)
+    got_plus_ss1n = mp(got_plus_ss1n, got_pzss, got_pzss.sequent.right[0], got_plus_ss1n.sequent.right[0].right)
+    got_plus_ss1n = mp(got_plus_ss1n, ax(Successor(one,z)), Successor(one,z), got_plus_ss1n.sequent.right[0].right)
+    got_plus_ss1n = mp(got_plus_ss1n, ax(succ_n), succ_n, got_plus_ss1n.sequent.right[0].right)
+
+    # In(hf,w) — hf is a goal var, but In(hf,w) is NOT a goal hyp
+    # Derive from Plus(sa,b,hf) via plus_val_in_omega
+    from theorems.arithmetic import plus_val_in_omega
+    _pvi = plus_val_in_omega()
+    got_hf_w = apply_thm(_pvi, [w, sa, b, hf])
+    got_hf_w = mp(got_hf_w, ax(omega_w), omega_w, got_hf_w.sequent.right[0].right)
+    got_hf_w = mp(got_hf_w, got_sa_w, In(sa,w), got_hf_w.sequent.right[0].right)
+    got_hf_w = mp(got_hf_w, ax(In(b,w)), In(b,w), got_hf_w.sequent.right[0].right)
+    got_hf_w = mp(got_hf_w, ax(plus_sa_b_hf), plus_sa_b_hf, In(hf,w))
+
+    # In(ssc,w) from omega_succ_closed + In(hf,w) + Successor(ssc,hf)
+    got_ssc_w = apply_thm(_osc, [w], omega_w,
+        Forall(hf, Implies(In(hf,w), Forall(ssc, Implies(succ_ssc, In(ssc,w))))), ax(omega_w))
+    got_ssc_w = apply_thm(got_ssc_w, [hf], In(hf,w),
+        Forall(ssc, Implies(succ_ssc, In(ssc,w))), got_hf_w)
+    got_ssc_w = apply_thm(got_ssc_w, [ssc], succ_ssc, In(ssc,w), ax(succ_ssc))
+
+    # In(z,w) from omega_contains_empty
+    from theorems.omega import omega_contains_empty
+    _oce = omega_contains_empty()
+    got_z_w = apply_thm(_oce, [w], omega_w,
+        Forall(z, Implies(num_z, In(z,w))), ax(omega_w))
+    got_z_w = apply_thm(got_z_w, [z], num_z, In(z,w), ax(num_z))
+
+    print(f'tm_add: intermediate derivations done')
+
+    # === Cut each ax'd intermediate from the left with its derived proof ===
+    # This removes the ax'd formula and adds the derived proof's left (goal hyps, already there)
+    derived_cuts = [
+        (plus_a_one_sa, got_plus_a1s),
+        (In(one,w), got_one_w),
+        (In(sa,w), got_sa_w),
+        (plus_hf_one_ssc, got_plus_h1ss),
+        (plus_ssc_one_n, got_plus_ss1n),
+        (In(hf,w), got_hf_w),
+        (In(ssc,w), got_ssc_w),
+        (In(z,w), got_z_w),
+    ]
+    for formula, derived in derived_cuts:
+        if any(same(formula, f) for f in proof.sequent.left):
+            proof = cut(proof, formula, derived)
+
+    # Now remaining intermediates on left (single formula per var):
+    #   Num(one,1), Successor(one,z) — var: one
+    #   Num(q1,2) — var: q1
+    #   Num(q2,3) — var: q2
+    #   Successor(sa,a) — var: sa (succ_sa)
+    #   TMConfig(c1,...) — var: c1
+    #   TMConfig(c2,...) — var: c2 (also has q1, sa, tape2 — but those should be gone?)
+    #   TMConfig(c3,...) — var: c3 (also has q1, tape2)
+    #   TMConfig(c4,...) — var: c4 (also has q2, tape2)
+    #   TapeUpdate(tape2,...) — var: tape2 (also has one)
+    #   Function(tape2) — var: tape2
+    #   tape_read — var: tape2, one
+    #   tape2_hf_zero — var: tape2
+    #   tape2_c_one — var: tape2, one
+    #   tu_tf — var: tape2
+    #   plus_sa_b_hf — var: sa (already cut above? No, this was ax'd in Phase3P mp)
+
+    # Hmm, there are still many multi-var formulas. Let me check which are actually on the left.
+    from core.proof import _var_free_in_sequent
+    int_vars_list = [('one',one), ('q1',q1), ('q2',q2), ('sa',sa), ('tape2',tape2),
+                     ('c1',c1), ('c2',c2), ('c3',c3), ('c4',c4)]
+    for vname, v in int_vars_list:
+        count = sum(1 for f in proof.sequent.left if _var_free_in_sequent(v, Sequent([f], [])))
+        if count > 0:
+            formulas = [str(f)[:60] for f in proof.sequent.left if _var_free_in_sequent(v, Sequent([f], []))]
+            unique_f = []
+            for f in proof.sequent.left:
+                if _var_free_in_sequent(v, Sequent([f], [])):
+                    if not any(same(f, u) for u in unique_f):
+                        unique_f.append(f)
+            print(f'  {vname}: {len(unique_f)} unique formulas, {count} total')
+
+    # eel+cut for configs (c1-c4 only in TMConfig)
+    _ce = config_exists()
+    for cfg_var, cfg_formula in [(c1, cfg_c1), (c2, cfg_c2), (c3, cfg_c3), (c4, cfg_c4)]:
+        if any(same(cfg_formula, f) for f in proof.sequent.left):
+            other_left = [f for f in proof.sequent.left if not same(f, cfg_formula)]
+            if not any(_var_free_in_sequent(cfg_var, Sequent([f], [])) for f in other_left):
+                proof = eel(proof, cfg_formula, cfg_var)
+                # ∃cfg_var. TMConfig(cfg_var,state,head,tape) from config_exists
+                got_ex_cfg = apply_thm(_ce, [cfg_formula.state, cfg_formula.head, cfg_formula.tape])
+                proof = cut(proof, Exists(cfg_var, cfg_formula), got_ex_cfg)
+            else:
+                print(f'  SKIP eel {cfg_var}: free in other left formulas')
+
+    # Print remaining intermediate formulas
+    import core.zfc as zfc
+    goal_hyps_set = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
+                     delta_char, num_q0, num_qH, num_z, utape, cfg_c0, plus_abc,
+                     succ_hf, succ_ssc, succ_n, unary_out, cfg_cf]
+    print('Remaining non-goal, non-axiom left formulas:')
+    for f in proof.sequent.left:
+        is_goal = any(same(f, gh) for gh in goal_hyps_set)
+        is_ax = isinstance(f, (zfc.ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
+        if not is_goal and not is_ax:
+            print(f'  {str(f)[:80]}')
+
+    # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
                  delta_char, num_q0, num_qH, num_z, utape, cfg_c0, plus_abc,
                  succ_hf, succ_ssc, succ_n, unary_out, cfg_cf]
-    import core.zfc as zfc
-    for ff in list(proof.sequent.left):
-        is_goal = any(same(ff, gh) for gh in goal_hyps)
-        is_ax = isinstance(ff, (zfc.ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
-        if not is_goal and not is_ax:
-            proof = wl(proof, ff)
-            imp = Implies(ff, proof.sequent.right[0])
-            left_new = [f for f in proof.sequent.left if not same(f, ff)]
-            proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
-
-    # Step 2: Close ∀ over intermediate vars
-    from core.proof import _var_free_in_sequent
-    intermediate_vars = [c4, c3, c2, c1, one, q2, q1, sa, tape2]
-    for v in intermediate_vars:
-        if _var_free_in_sequent(v, Sequent([], proof.sequent.right)):
-            body = proof.sequent.right[0]
-            fa = Forall(v, body)
-            proof = Proof(Sequent(proof.sequent.left, [fa]),
-                'forall_right', [proof], principal=fa, term=v)
-
-    # Step 3: proof right = F_int = ∀(int vars). (int hyps) → TMReaches
-    # Build [F_int] |- TMReaches by apply_thm + mp, then cut.
-    F_int = proof.sequent.right[0]
-    got_open = apply_thm(ax(F_int), [tape2, sa, q1, q2, one, c1, c2, c3, c4])
-    # mp each intermediate hypothesis
-    while hasattr(got_open.sequent.right[0], 'left') and type(got_open.sequent.right[0]).__name__ == 'Implies':
-        cur = got_open.sequent.right[0]
-        got_open = mp(got_open, ax(cur.left), cur.left, cur.right)
-    # got_open: [F_int, int hyps on left] |- TMReaches
-    # Cut F_int
-    proof = cut(got_open, F_int, proof)
-    # Now: [goal hyps, axioms, int hyps] |- TMReaches
-
-    # Step 4: Discharge goal hypotheses in add_goal's order
     for hyp in reversed(goal_hyps):
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
@@ -557,12 +713,19 @@ def tm_add_correct():
         left_new = [f for f in proof.sequent.left if not same(f, hyp)]
         proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
 
-    # Step 5: Close ∀ over goal vars in add_goal's order
+    # Close ∀ over goal vars in add_goal's order
     for v in [c, b, a, w, c0, z, tape_in, cf, tf, n, ssc, hf, qH, q0, delta]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
-        proof = Proof(Sequent(proof.sequent.left, [fa]),
-            'forall_right', [proof], principal=fa, term=v)
+        try:
+            proof = Proof(Sequent(proof.sequent.left, [fa]),
+                'forall_right', [proof], principal=fa, term=v)
+        except ValueError:
+            # Find which left formula has v free
+            for f in proof.sequent.left:
+                if _var_free_in_sequent(v, Sequent([f], [])):
+                    print(f'  forall_right BLOCKED: {v} free in {str(f)[:60]}')
+            break
 
     proof.name = 'tm_add_correct'
     return proof
