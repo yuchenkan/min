@@ -194,7 +194,6 @@ class TMReachesCompose:
 # Helper theorems
 # ============================================================
 
-
 def num_exists(k):
     """∃n. Num(n,k) — a numeral k exists.
     ZFC |- ∃n. Num(n,k)"""
@@ -204,7 +203,7 @@ def num_exists(k):
     from core.derived import Exists, And
 
     p = unique_num(k)
-    eu_exp = p.sequent.right[0].expand()  # ∃n. And(Num(n,k), uniq)
+    eu_exp = p.sequent.right[0].expand()
     n_var = eu_exp.var
     num_part = eu_exp.body.left
     uniq_part = eu_exp.body.right
@@ -285,10 +284,11 @@ def tm_add_correct():
       TMReaches(delta,c0,n,cf)
     """
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
-    from core.proof import Proof, Sequent, same
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
     from core.lang import Var, In, Implies, Forall
     from core.derived import Exists, And, Or, Iff, Eq
     from vocab.ordpair import OrdPair, Successor
+    # num_exists and config_exists are defined above in this module
     from vocab.omega import Omega, Num
     from vocab.tm import TMConfig, TMTransition, TMStep, TapeUpdate, TMReaches
     from vocab.functions import Function as FuncDef, Apply
@@ -749,87 +749,46 @@ def tm_add_correct():
         else:
             print(f'  SKIP eel sa: still free in other formulas')
 
-    # For tape2 and one: discharge, close ∀, re-open with derived proofs.
-    # First discharge all remaining non-goal non-axiom formulas
-    import core.zfc as zfc
-    goal_hyps_final = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
-                       delta_char, num_q0, num_qH, num_z, utape, cfg_c0, plus_abc,
-                       succ_hf, succ_ssc, succ_n, unary_out, cfg_cf]
-    for ff in list(proof.sequent.left):
-        is_goal = any(same(ff, gh) for gh in goal_hyps_final)
-        is_ax = isinstance(ff, (zfc.ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
-        if not is_goal and not is_ax:
-            proof = wl(proof, ff)
-            imp = Implies(ff, proof.sequent.right[0])
-            left_new = [f for f in proof.sequent.left if not same(f, ff)]
-            proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
+    # === Cut each tape2 formula with derived proof ===
+    # Each derived proof has [TapeUpdate(tape2,...), goal_hyps, ZFC] on left.
+    # When cut, TapeUpdate stays (already there), the specific formula is removed.
+    from theorems.tm_backup import tape_update_function
 
-    # Close ∀ one (inner), tape2 (outer)
-    for v in [one, tape2]:
-        if _var_free_in_sequent(v, Sequent([], proof.sequent.right)):
-            body = proof.sequent.right[0]
-            fa = Forall(v, body)
-            proof = Proof(Sequent(proof.sequent.left, [fa]),
-                'forall_right', [proof], principal=fa, term=v)
+    # Function(tape2) from TapeUpdate + Function(tape_in)
+    _tuf = tape_update_function()
+    got_func_t2 = apply_thm(_tuf, [tape2, tape_in, a, one])
+    got_func_t2 = mp(got_func_t2, ax(tu_tape2), tu_tape2, got_func_t2.sequent.right[0].right)
+    got_func_t2 = mp(got_func_t2, ax(FuncDef(tape_in)), FuncDef(tape_in), FuncDef(tape2))
+    # [tu_tape2, Function(tape_in), ZFC] |- Function(tape2)
+    proof = cut(proof, FuncDef(tape2), got_func_t2)
 
-    # Right = ∀tape2. ∀one. (8 hyps → TMReaches) = F_int
-    # Re-open with apply_thm, then mp each hyp with DERIVED proof
-    F_int = proof.sequent.right[0]
-    got_open = apply_thm(ax(F_int), [tape2, one])
-
-    # Derive each intermediate hypothesis from goal hyps
-    # 1. Num(one,1) — derived from num_exists
-    got_num_one = num_exists(1)
-    # got_num_one: [ZFC] |- ∃one. Num(one,1). Open ∃:
-    # Actually we need Num(one,1) on the RIGHT for mp. num_exists gives ∃.
-    # Use the fact that Num(one,1) is on the left of got_open (from ax(F_int) fl).
-    # No wait — got_open has F_int on the left, not Num(one,1).
-    # The mp needs proof_of_left which has Num(one,1) on RIGHT.
-    # ax(Num(one,1)) has it on both sides. But that re-introduces it on LEFT.
-    # DERIVED proof: need [goal hyps] |- Num(one,1). Can't — Num(one,1) is about a
-    # specific set (one = S(∅)), not derivable from goal hyps without knowing what one is.
+    # tape_read, tape2_hf_zero, tape2_c_one, tu_tf: these require tape_read_* theorems.
+    # For now, derive what we can. The rest stays as ax() on left (TODO).
+    # Actually: these formulas contain tape2 AND goal vars. After cutting them,
+    # tape2 only remains in TapeUpdate(tape2,...). Then eel tape2 + cut with existence.
     #
-    # THE REAL INSIGHT: I can't derive Num(one,1) for a free variable `one`.
-    # `one` is an eigenvariable introduced by the proof. Its value is determined
-    # by the ∃ opening. The ONLY way to handle it: use the ∃-eel pattern.
+    # But I don't have tape_read derivations yet. Let me check what I need:
+    # - tape_read = ∀tp. In(tp,w) → Apply(tape2,tp,one): tape2 reads one everywhere in omega
+    #   This is WRONG for the actual tape — tape2 only has ones in the unary groups.
+    #   Phase3P assumes this but it's too strong. The real tape has 0 at position hf.
+    #   TODO: fix Phase3P's tape_read assumption.
+    # - tape2_hf_zero = Apply(tape2,hf,zero): tape2 reads 0 at position hf
+    # - tape2_c_one = Apply(tape2,c,one): tape2 reads 1 at position c
+    # - tu_tf = TapeUpdate(tf,tape2,c,zero): tf = tape2[c := 0]
     #
-    # So: build the ENTIRE chain inside a ∃one scope:
-    # 1. Prove ∃one. Num(one,1)
-    # 2. Assume Num(one,1) on left (eigenvariable one)
-    # 3. Do everything with one
-    # 4. At end, eel one from Num(one,1)
-    # 5. Cut with ∃ proof
+    # For tu_tf: this connects tf (goal var) to tape2. UnaryOutput(tf,c) characterizes tf.
+    # The connection: tf is tape2 with position c erased (written 0).
+    # This requires proving TapeUpdate(tf,tape2,c,zero) from UnaryOutput(tf,c) + tape2 properties.
+    # That's a real theorem about the tape structure.
     #
-    # But one appears in MANY left formulas after the chain...
-    # UNLESS: I do the eel BEFORE running the chain. But eel works backwards.
-    #
-    # Actually: the eel pattern works IF one only appears in the RIGHT after discharge.
-    # After discharge+close, one is ONLY in the right (inside ∀one. body).
-    # The ∀one was closed successfully. So the right has ∀one. body.
-    # Now: [goal hyps, F_int(with ∀one)] |- ∀tape2.∀one.body
-    # 
-    # To eliminate ∀one from the right: I need to provide a witness for one.
-    # The witness comes from ∃one. Num(one,1).
-    #
-    # Pattern: from ∃one. P(one) and ∀one. P(one) → Q, derive Q.
-    # This is: ∃-elim + ∀-elim composition.
-    # In sequent calculus:
-    #   [P(one)] |- P(one) → Q via fl   →  [P(one)] |- Q via mp
-    #   eel one: [∃one. P(one)] |- Q
-    #   cut with ∃one. P(one) proof: [goal hyps] |- Q
-    #
-    # But P(one) here is not just Num(one,1) — it's the conjunction of ALL 
-    # formulas with one (Num + Successor + tape stuff). I need ∃one. And(all of them).
-    # Which requires proving they're all consistent for some one = S(∅).
-    #
-    # This is the hard part. Let me just do it for the simpler vars and 
-    # leave tape2/one as TODO. Use ax() for now, accept qed failure.
+    # For now: skip these derivations. Leave tape2/one formulas on left.
+    # Accept that qed will fail on them. Focus on getting same() to pass first.
+    # Then prove the tape theorems.
     
-    # For now: use ax() for each mp (accepts qed will fail on these)
-    while hasattr(got_open.sequent.right[0], 'left') and type(got_open.sequent.right[0]).__name__ == 'Implies':
-        cur = got_open.sequent.right[0]
-        got_open = mp(got_open, ax(cur.left), cur.left, cur.right)
-    proof = cut(got_open, F_int, proof)
+    # eel tape2 from TapeUpdate(tape2,...) — ONLY if tape2 is not free elsewhere
+    # After cutting Function(tape2), tape2 is still in: tu_tape2, tape_read, 
+    # tape2_hf_zero, tape2_c_one, tu_tf. Can't eel yet.
+    print(f'tm_add: Function(tape2) cut. tape2 still in 5 formulas.')
 
     # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
