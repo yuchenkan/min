@@ -10364,3 +10364,355 @@ def plus_assoc():
 
 
 
+
+
+def plus_geq():
+    """a ≤ a+b in omega.
+    ∀w,a,b. Omega(w) → In(a,w) → In(b,w) → ∃c. And(Plus(a,b,c), Or(Eq(a,c), In(a,c)))
+
+    Omega induction on b. Base b=0: Plus(a,0,a), Eq(a,a).
+    Step: IH Or(Eq(a,p),In(a,p)) + Successor(sp,p) → In(a,sp)."""
+    import sys; sys.path.insert(0, 'src')
+    from core.lang import Var, In, Not, Implies, Forall
+    from core.derived import Exists, And, Or, Iff, Eq
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    from vocab.ordpair import Successor
+    from vocab.omega import Omega, Num
+    from vocab.sets import Empty, Subset
+    from vocab import Inductive
+    from vocab.functions import Apply
+    from vocab.recursion import Plus as PlusDef
+    from tactics import apply_thm, mp, ax, fl, eir, eel, cut, wl, wr, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        or_intro_left, or_intro_right, or_elim, eq_reflexive, eq_symmetric,
+        iff_mp, iff_mp_rev, unique_empty, eq_substitution)
+    from theorems.sets import successor_exists
+    from theorems.omega import omega_smallest_inductive, omega_contains_empty, omega_succ_closed
+    from theorems.arithmetic import plus_zero_right, plus_succ_right, plus_zero_exists
+    import core.zfc as zfc
+
+    a = Var(postfix='a'); w = Var(postfix='w'); z = Var(postfix='z')
+    cv = Var(postfix='cv')
+    n = Var(postfix='ind_n'); sn = Var(postfix='ind_sn')
+    pv = Var(postfix='ind_pv'); xv = Var(postfix='ind_xv')
+    omega_w = Omega(w); num_z = Num(z, 0)
+    
+    # P(b) = ∃c. And(Plus(a,b,c), Or(Eq(a,c), In(a,c)))
+    def P(bb):
+        return Exists(cv, And(PlusDef(a, bb, cv), Or(Eq(a, cv), In(a, cv))))
+    
+    # === Separation ===
+    sep = zfc.Separation(P, [a, cv])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
+    got_ex_pv = apply_thm(sep_ax, [cv, a, w], concl=Exists(pv, char_pv))
+    
+    def char_bwd(term, got_in_w, got_P):
+        got_inst = apply_thm(ax(char_pv), [term])
+        iff_inst = got_inst.sequent.right[0]
+        and_form = iff_inst.right
+        got_rev = apply_thm(iff_mp_rev(iff_inst.left, iff_inst.right, []),
+            [], iff_inst, Implies(and_form, iff_inst.left), got_inst)
+        ai = and_intro(and_form.left, and_form.right, [])
+        got_ai = apply_thm(ai, [], and_form.left, Implies(and_form.right, and_form), got_in_w)
+        got_and = mp(got_ai, got_P, and_form.right, and_form)
+        return mp(got_rev, got_and, and_form, iff_inst.left)
+    
+    def char_fwd(term):
+        got_inst = apply_thm(ax(char_pv), [term])
+        iff_inst = got_inst.sequent.right[0]
+        got_imp = apply_thm(iff_mp(iff_inst.left, iff_inst.right, []),
+            [], iff_inst, Implies(iff_inst.left, iff_inst.right), got_inst)
+        return mp(got_imp, ax(In(term, pv)), In(term, pv), iff_inst.right)
+    
+    def mk_and(got_l, got_r):
+        L, R = got_l.sequent.right[0], got_r.sequent.right[0]
+        return mp(apply_thm(and_intro(L, R, []), [], L, Implies(R, And(L, R)), got_l),
+            got_r, R, And(L, R))
+    
+    # === Base: P(z) ===
+    # Plus(a,z,a) from plus_zero_exists
+    _pze = plus_zero_exists()
+    got_plus_z = apply_thm(_pze, [w, a, z])
+    got_plus_z = mp(got_plus_z, ax(omega_w), omega_w, got_plus_z.sequent.right[0].right)
+    got_plus_z = mp(got_plus_z, ax(In(a,w)), In(a,w), got_plus_z.sequent.right[0].right)
+    got_plus_z = mp(got_plus_z, ax(num_z), num_z, got_plus_z.sequent.right[0].right)
+    # |- Plus(a,z,a)
+    plus_aza = got_plus_z.sequent.right[0]
+    
+    # Eq(a,a) → Or(Eq(a,a), In(a,a))
+    er = eq_reflexive()
+    got_eq_aa = apply_thm(er, [a])
+    or_aa = Or(Eq(a, a), In(a, a))
+    got_or = apply_thm(or_intro_left(Eq(a,a), In(a,a), []), [], Eq(a,a), or_aa, got_eq_aa)
+    
+    # And(Plus(a,z,a), Or(Eq(a,a), In(a,a)))
+    got_and_base = mk_and(got_plus_z, got_or)
+    # ∃cv with cv=a
+    pz_body = P(z).body
+    got_P_z = eir(got_and_base, pz_body, cv, a)
+    # |- P(z) = ∃cv. And(Plus(a,z,cv), Or(Eq(a,cv), In(a,cv)))
+    
+    # In(z,w)
+    oce = omega_contains_empty()
+    got_z_w = apply_thm(oce, [w], omega_w, Forall(z, Implies(num_z, In(z,w))), ax(omega_w))
+    got_z_w = apply_thm(got_z_w, [z], num_z, In(z,w), ax(num_z))
+    
+    got_base = char_bwd(z, got_z_w, got_P_z)
+    
+    # Inductive base
+    zero_v = Var(postfix='ind_zero')
+    ue = unique_empty()
+    empty_zero = Empty(zero_v)
+    eq_zero_z = Eq(zero_v, z)
+    got_eq_zz = apply_thm(ue, [zero_v], empty_zero,
+        Forall(z, Implies(num_z, eq_zero_z)), ax(empty_zero))
+    got_eq_zz = apply_thm(got_eq_zz, [z], num_z, eq_zero_z, ax(num_z))
+    es_thm = eq_substitution()
+    iff_in = Iff(In(zero_v, pv), In(z, pv))
+    got_iff_zz = apply_thm(es_thm, [zero_v, z, pv], eq_zero_z, iff_in, got_eq_zz)
+    got_in_zero_pv = mp(apply_thm(iff_mp_rev(In(zero_v, pv), In(z, pv), []),
+        [], iff_in, Implies(In(z, pv), In(zero_v, pv)), got_iff_zz),
+        got_base, In(z, pv), In(zero_v, pv))
+    imp_ez = Implies(empty_zero, In(zero_v, pv))
+    left_ez = [f_ for f_ in got_in_zero_pv.sequent.left if not same(f_, empty_zero)]
+    got_ind_base = Proof(Sequent(left_ez, [imp_ez]),
+        'implies_right', [got_in_zero_pv], principal=imp_ez)
+    fa_ind_base = Forall(zero_v, imp_ez)
+    got_ind_base = Proof(Sequent(got_ind_base.sequent.left, [fa_ind_base]),
+        'forall_right', [got_ind_base], principal=fa_ind_base, term=zero_v)
+    print('plus_geq: base done')
+    
+    # === Step: P(n) → P(sn) ===
+    succ_sn = Successor(sn, n)
+    got_and_n = char_fwd(n)
+    got_in_n_w = apply_thm(and_elim_left(In(n, w), P(n), []), [],
+        got_and_n.sequent.right[0], In(n, w), got_and_n)
+    got_P_n = apply_thm(and_elim_right(In(n, w), P(n), []), [],
+        got_and_n.sequent.right[0], P(n), got_and_n)
+    
+    osc = omega_succ_closed()
+    got_sn_w = apply_thm(osc, [w], omega_w,
+        Forall(n, Implies(In(n,w), Forall(sn, Implies(succ_sn, In(sn,w))))), ax(omega_w))
+    got_sn_w = apply_thm(got_sn_w, [n], In(n,w),
+        Forall(sn, Implies(succ_sn, In(sn,w))), got_in_n_w)
+    got_sn_w = apply_thm(got_sn_w, [sn], succ_sn, In(sn,w), ax(succ_sn))
+    
+    # P(n) = ∃cv. And(Plus(a,n,cv), Or(Eq(a,cv), In(a,cv)))
+    # Open ∃cv: get Plus(a,n,cv) and Or(Eq(a,cv), In(a,cv))
+    p_body = P(n).body  # And(Plus(a,n,cv), Or(Eq(a,cv), In(a,cv)))
+    got_plus_n = apply_thm(and_elim_left(p_body.left, p_body.right, []), [],
+        p_body, p_body.left, ax(p_body))
+    got_or_n = apply_thm(and_elim_right(p_body.left, p_body.right, []), [],
+        p_body, p_body.right, ax(p_body))
+    # [And(Plus,Or)] |- Plus(a,n,cv)
+    # [And(Plus,Or)] |- Or(Eq(a,cv), In(a,cv))
+    
+    # Successor(sp, cv) from successor_exists
+    sp = Var(postfix='sp')
+    succ_sp = Successor(sp, cv)
+    se = successor_exists()
+    got_ex_sp = apply_thm(se, [cv], concl=Exists(sp, succ_sp))
+    
+    # In(a,sp) from Or(Eq(a,cv), In(a,cv)) and Successor(sp,cv)
+    # Case Eq(a,cv): a=cv. In(a,S(a))=In(a,S(cv))=In(a,sp).
+    #   In(a,sp) from: Eq(a,cv) → In(cv,sp) (from Succ) → via eq_subst: In(a,sp).
+    #   Actually: Successor(sp,cv): ∀x. x∈sp ↔ (x∈cv ∨ x=cv). At x=a:
+    #   a∈sp ↔ (a∈cv ∨ a=cv). From Eq(a,cv): a=cv → Or right → a∈sp.
+    # Case In(a,cv): a∈cv → Or left → a∈sp.
+    # Both cases: a∈sp.
+    
+    in_a_sp = In(a, sp)
+    or_a_cv = Or(In(a, cv), Eq(a, cv))
+    iff_a_sp = Iff(in_a_sp, or_a_cv)
+    got_iff_sp = fl(succ_sp, iff_a_sp, a)
+    # [Succ(sp,cv)] |- Iff(In(a,sp), Or(In(a,cv), Eq(a,cv)))
+    
+    # From Or(Eq(a,cv), In(a,cv)): rearrange to Or(In(a,cv), Eq(a,cv))
+    or_eq_in = Or(Eq(a,cv), In(a,cv))
+    # Case Eq(a,cv) → Or(In(a,cv), Eq(a,cv)) right
+    got_eq_to_or = apply_thm(or_intro_right(In(a,cv), Eq(a,cv), []), [],
+        Eq(a,cv), or_a_cv, ax(Eq(a,cv)))
+    # Case In(a,cv) → Or(In(a,cv), Eq(a,cv)) left
+    got_in_to_or = apply_thm(or_intro_left(In(a,cv), Eq(a,cv), []), [],
+        In(a,cv), or_a_cv, ax(In(a,cv)))
+    # or_elim
+    oe = or_elim(Eq(a,cv), In(a,cv), or_a_cv, [])
+    imp_eq_or = Implies(Eq(a,cv), or_a_cv)
+    left_eq = [f for f in got_eq_to_or.sequent.left if not same(f, Eq(a,cv))]
+    got_imp_eq = Proof(Sequent(left_eq, [imp_eq_or]), 'implies_right', [got_eq_to_or], principal=imp_eq_or)
+    imp_in_or = Implies(In(a,cv), or_a_cv)
+    left_in = [f for f in got_in_to_or.sequent.left if not same(f, In(a,cv))]
+    got_imp_in = Proof(Sequent(left_in, [imp_in_or]), 'implies_right', [got_in_to_or], principal=imp_in_or)
+    got_or_rearranged = apply_thm(oe, [], or_eq_in,
+        Implies(imp_eq_or, Implies(imp_in_or, or_a_cv)), ax(or_eq_in))
+    got_or_rearranged = mp(got_or_rearranged, got_imp_eq, imp_eq_or, Implies(imp_in_or, or_a_cv))
+    got_or_rearranged = mp(got_or_rearranged, got_imp_in, imp_in_or, or_a_cv)
+    # [Or(Eq(a,cv), In(a,cv))] |- Or(In(a,cv), Eq(a,cv))
+    
+    # In(a,sp) from iff + Or
+    got_in_a_sp = mp(apply_thm(iff_mp_rev(in_a_sp, or_a_cv, []), [],
+        iff_a_sp, Implies(or_a_cv, in_a_sp), got_iff_sp),
+        got_or_rearranged, or_a_cv, in_a_sp)
+    # [Or(Eq(a,cv), In(a,cv)), Succ(sp,cv)] |- In(a,sp)
+    
+    # Cut Or from got_or_n
+    got_in_a_sp = cut(got_in_a_sp, or_eq_in, got_or_n)
+    # [And(Plus,Or), Succ(sp,cv)] |- In(a,sp)
+    
+    # Or(Eq(a,sp), In(a,sp)) via or_intro_right
+    or_a_sp = Or(Eq(a, sp), In(a, sp))
+    got_or_sp = apply_thm(or_intro_right(Eq(a,sp), In(a,sp), []), [],
+        In(a,sp), or_a_sp, got_in_a_sp)
+    
+    # Plus(a,sn,sp) from plus_succ_right
+    _psr = plus_succ_right()
+    got_plus_sn = apply_thm(_psr, [w, a, n, cv, sn, sp])
+    got_plus_sn = mp(got_plus_sn, ax(omega_w), omega_w, got_plus_sn.sequent.right[0].right)
+    got_plus_sn = mp(got_plus_sn, ax(In(a,w)), In(a,w), got_plus_sn.sequent.right[0].right)
+    got_plus_sn = mp(got_plus_sn, got_in_n_w, In(n,w), got_plus_sn.sequent.right[0].right)
+    got_plus_sn = mp(got_plus_sn, got_plus_n, p_body.left, got_plus_sn.sequent.right[0].right)
+    got_plus_sn = mp(got_plus_sn, ax(succ_sn), succ_sn, got_plus_sn.sequent.right[0].right)
+    got_plus_sn = mp(got_plus_sn, ax(succ_sp), succ_sp, got_plus_sn.sequent.right[0].right)
+    # [And(Plus,Or), Succ(sp,cv), Succ(sn,n), ...] |- Plus(a,sn,sp)
+    
+    # And(Plus(a,sn,sp), Or(Eq(a,sp), In(a,sp)))
+    got_and_sn = mk_and(got_plus_sn, got_or_sp)
+    
+    # ∃sp. And(Plus(a,sn,sp), Or(...))  — this is ∃ with sp as witness
+    # Actually P(sn) = ∃cv. And(Plus(a,sn,cv), Or(Eq(a,cv), In(a,cv)))
+    # My sp plays the role of cv. eir sp → cv:
+    p_sn_body = P(sn).body  # And(Plus(a,sn,cv), Or(Eq(a,cv), In(a,cv)))
+    got_P_sn = eir(got_and_sn, p_sn_body, cv, sp)
+    
+    # eel sp from Succ(sp,cv)
+    got_P_sn = eel(got_P_sn, succ_sp, sp)
+    got_P_sn = cut(got_P_sn, Exists(sp, succ_sp), got_ex_sp)
+    
+    # eel cv from p_body (the And from P(n))
+    got_P_sn = eel(got_P_sn, p_body, cv)
+    got_P_sn = cut(got_P_sn, P(n), got_P_n)
+    # [char_pv, In(n,pv), Succ(sn,n), Omega(w), In(a,w), ...] |- P(sn)
+    
+    # In(sn, pv) from P(sn) + In(sn,w)
+    got_step_in_pv = char_bwd(sn, got_sn_w, got_P_sn)
+    
+    # Discharge sn-dependent, n-dependent
+    proof = got_step_in_pv
+    if any(same(In(n,w), f) for f in proof.sequent.left):
+        proof = cut(proof, In(n,w), got_in_n_w)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(sn, Sequent([ff], [])) and not same(ff, succ_sn):
+            proof = wl(proof, ff)
+            imp = Implies(ff, proof.sequent.right[0])
+            left = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    imp_sn = Implies(succ_sn, proof.sequent.right[0])
+    left_sn = [f_ for f_ in proof.sequent.left if not same(f_, succ_sn)]
+    proof = Proof(Sequent(left_sn, [imp_sn]), 'implies_right', [proof], principal=imp_sn)
+    fa_sn = Forall(sn, imp_sn)
+    proof = Proof(Sequent(proof.sequent.left, [fa_sn]),
+        'forall_right', [proof], principal=fa_sn, term=sn)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(n, Sequent([ff], [])) and not same(ff, In(n, pv)):
+            proof = wl(proof, ff)
+            imp = Implies(ff, proof.sequent.right[0])
+            left = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    imp_npv = Implies(In(n, pv), proof.sequent.right[0])
+    left_npv = [f_ for f_ in proof.sequent.left if not same(f_, In(n, pv))]
+    got_ind_step = Proof(Sequent(left_npv, [imp_npv]),
+        'implies_right', [proof], principal=imp_npv)
+    fa_n_step = Forall(n, imp_npv)
+    got_ind_step = Proof(Sequent(got_ind_step.sequent.left, [fa_n_step]),
+        'forall_right', [got_ind_step], principal=fa_n_step, term=n)
+    print('plus_geq: step done')
+    
+    # === Inductive + Subset + osi ===
+    all_ctx = list(got_ind_base.sequent.left)
+    for f_ in got_ind_step.sequent.left:
+        if not any(same(f_, g) for g in all_ctx):
+            all_ctx.append(f_)
+    got_ind_base_w = weaken_to(got_ind_base, all_ctx)
+    got_ind_step_w = weaken_to(got_ind_step, all_ctx)
+    ind_base_f = got_ind_base_w.sequent.right[0]
+    ind_step_f = got_ind_step_w.sequent.right[0]
+    and_ind_full = And(ind_base_f, ind_step_f)
+    got_ind = mp(apply_thm(and_intro(ind_base_f, ind_step_f, []), [],
+        ind_base_f, Implies(ind_step_f, and_ind_full), got_ind_base_w),
+        got_ind_step_w, ind_step_f, and_ind_full)
+    
+    xs = Var(postfix='ind_xs')
+    got_fwd_xs = char_fwd(xs)
+    in_xs_w = got_fwd_xs.sequent.right[0].left
+    got_xs_in_w = apply_thm(and_elim_left(in_xs_w, got_fwd_xs.sequent.right[0].right, []), [],
+        got_fwd_xs.sequent.right[0], in_xs_w, got_fwd_xs)
+    imp_sub = Implies(In(xs, pv), in_xs_w)
+    left_sub = [f_ for f_ in got_xs_in_w.sequent.left if not same(f_, In(xs, pv))]
+    got_sub = Proof(Sequent(left_sub, [imp_sub]), 'implies_right', [got_xs_in_w], principal=imp_sub)
+    sub_pv_w_f = Forall(xs, imp_sub)
+    got_sub = Proof(Sequent(got_sub.sequent.left, [sub_pv_w_f]),
+        'forall_right', [got_sub], principal=sub_pv_w_f, term=xs)
+    
+    osi = omega_smallest_inductive()
+    eq_pv_w = Eq(pv, w)
+    got_osi = apply_thm(osi, [pv, w])
+    while not same(got_osi.sequent.right[0], eq_pv_w):
+        cur = got_osi.sequent.right[0]
+        got_osi = mp(got_osi, ax(cur.left), cur.left, cur.right)
+    all_osi = list(all_ctx)
+    for f_ in got_sub.sequent.left:
+        if not any(same(f_, g) for g in all_osi):
+            all_osi.append(f_)
+    got_sub_w = weaken_to(got_sub, all_osi)
+    got_ind_w = weaken_to(got_ind, all_osi)
+    got_and_si = mp(apply_thm(and_intro(sub_pv_w_f, and_ind_full, []), [],
+        sub_pv_w_f, Implies(and_ind_full, And(sub_pv_w_f, and_ind_full)), got_sub_w),
+        got_ind_w, and_ind_full, And(sub_pv_w_f, and_ind_full))
+    non_ax_on_eq = [f_ for f_ in got_osi.sequent.left
+        if not isinstance(f_, zfc.ZFCAxiom) and not same(f_, omega_w)]
+    for h in non_ax_on_eq:
+        got_osi = cut(got_osi, h, got_and_si)
+    print('plus_geq: osi done')
+    
+    # === Extract P(b) for specific b ===
+    b = Var(postfix='b')
+    iff_b = Iff(In(b, pv), In(b, w))
+    got_iff_b = cut(fl(eq_pv_w, iff_b, b), eq_pv_w, got_osi)
+    got_in_bpv = mp(apply_thm(iff_mp_rev(In(b, pv), In(b, w), []),
+        [], iff_b, Implies(In(b, w), In(b, pv)), got_iff_b),
+        ax(In(b,w)), In(b,w), In(b, pv))
+    got_and_b = cut(char_fwd(b), In(b, pv), got_in_bpv)
+    p_b_formula = got_and_b.sequent.right[0].right
+    got_P_b = apply_thm(and_elim_right(In(b, w), p_b_formula, []), [],
+        got_and_b.sequent.right[0], p_b_formula, got_and_b)
+    # |- P(b) = ∃cv. And(Plus(a,b,cv), Or(Eq(a,cv), In(a,cv)))
+    
+    # Eliminate pv
+    got_P_b = eel(got_P_b, char_pv, pv)
+    got_P_b = cut(got_P_b, Exists(pv, char_pv), got_ex_pv)
+    print('plus_geq: P(b) extracted')
+    
+    # === Convert ∃ to ∀ ===
+    # P(b) = ∃cv. And(Plus(a,b,cv), Or(Eq(a,cv), In(a,cv)))
+    # Want: ∀cv. Plus(a,b,cv) → Or(Eq(a,cv), In(a,cv))
+    # From P(b): open ∃cv. Get Plus(a,b,cv) and Or(Eq(a,cv), In(a,cv)).
+    # For the ∀cv version: need Plus uniqueness. Skip for now.
+    # Just output P(b) as ∃.
+    
+    # Discharge and close ∀
+    proof = got_P_b
+    for hyp in [In(b,w), In(a,w), omega_w]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [b, a, w]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+    
+    proof.name = 'plus_geq'
+    return proof

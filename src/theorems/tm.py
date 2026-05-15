@@ -461,6 +461,7 @@ def tape_update_exists():
 
 
 
+
 def succ_neq():
     """Successor(hf,c) → Omega(w) → In(a,w) → In(a,c) → Not(Eq(hf,a))
     ZFC |- ∀hf,c,w,a. Successor(hf,c) → Omega(w) → In(a,w) → In(a,c) → Not(Eq(hf,a))
