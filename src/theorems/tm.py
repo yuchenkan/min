@@ -460,6 +460,101 @@ def tape_update_exists():
     return proof
 
 
+
+def succ_neq():
+    """Successor(hf,c) → Omega(w) → In(a,w) → In(a,c) → Not(Eq(hf,a))
+    ZFC |- ∀hf,c,w,a. Successor(hf,c) → Omega(w) → In(a,w) → In(a,c) → Not(Eq(hf,a))
+
+    If hf = S(c) and a ∈ c and a ∈ ω, then hf ≠ a.
+    Proof: In(c,hf) from Successor. Eq(hf,a) → In(c,a) via eq_transfer.
+    TransitiveSet(a) + In(c,a) + In(a,c) → In(a,a). Contradiction."""
+    from core.lang import Var, In, Not, Implies, Forall
+    from core.derived import Or, Iff, Eq
+    from core.proof import Proof, Sequent, same
+    from vocab.ordpair import Successor
+    from vocab.omega import Omega
+    from vocab.functions import Apply
+    from tactics import apply_thm, mp, ax, fl, cut, wl, wr
+    from theorems.logic import or_intro_right, iff_mp, iff_mp_rev, eq_reflexive
+    from theorems.sets import omega_no_self_membership, omega_transitive_set, eq_transfer
+    from vocab.sets import TransitiveSet
+
+    hf = Var(postfix='hf'); c = Var(postfix='c'); a = Var(postfix='a'); w = Var(postfix='w')
+    succ_hf_c = Successor(hf, c); omega_w = Omega(w)
+    not_eq_hf_a = Not(Eq(hf, a))
+
+    # In(c,hf) from Successor(hf,c)
+    er = eq_reflexive()
+    got_eq_cc = apply_thm(er, [c])
+    or_cc = Or(In(c,c), Eq(c,c))
+    got_or_cc = apply_thm(or_intro_right(In(c,c), Eq(c,c), []), [], Eq(c,c), or_cc, got_eq_cc)
+    iff_c_hf = Iff(In(c,hf), or_cc)
+    got_iff = fl(succ_hf_c, iff_c_hf, c)
+    got_in_c_hf = mp(apply_thm(iff_mp_rev(In(c,hf), or_cc, []), [],
+        iff_c_hf, Implies(or_cc, In(c,hf)), got_iff), got_or_cc, or_cc, In(c,hf))
+
+    # Eq(hf,a) → In(c,a) via eq_transfer
+    et = eq_transfer()
+    got_iff_t = apply_thm(et, [hf, a, c])
+    got_iff_t = mp(got_iff_t, ax(Eq(hf,a)), Eq(hf,a), got_iff_t.sequent.right[0].right)
+    got_in_c_a = mp(apply_thm(iff_mp(In(c,hf), In(c,a), []), [],
+        Iff(In(c,hf), In(c,a)), Implies(In(c,hf), In(c,a)), got_iff_t),
+        got_in_c_hf, In(c,hf), In(c,a))
+
+    # TransitiveSet(a) + In(c,a) + In(a,c) → In(a,a)
+    ots = omega_transitive_set()
+    got_trans_a = apply_thm(ots, [w, a])
+    got_trans_a = mp(got_trans_a, ax(omega_w), omega_w, got_trans_a.sequent.right[0].right)
+    got_trans_a = mp(got_trans_a, ax(In(a,w)), In(a,w), TransitiveSet(a))
+    yv = Var(postfix='yv')
+    got_trans_inst = apply_thm(got_trans_a, [c], In(c,a),
+        Forall(yv, Implies(In(yv,c), In(yv,a))), got_in_c_a)
+    got_a_in_a = apply_thm(got_trans_inst, [a], In(a,c), In(a,a), ax(In(a,c)))
+
+    # Not(In(a,a))
+    onsm = omega_no_self_membership()
+    got_not_aa = apply_thm(onsm, [w, a])
+    got_not_aa = mp(got_not_aa, ax(omega_w), omega_w, got_not_aa.sequent.right[0].right)
+    got_not_aa = mp(got_not_aa, ax(In(a,w)), In(a,w), Not(In(a,a)))
+
+    # Bottom + weaken + cuts
+    got_bot = Proof(Sequent([In(a,a), Not(In(a,a))], []), 'not_left',
+        [ax(In(a,a))], principal=Not(In(a,a)))
+    got_bot = Proof(Sequent(got_bot.sequent.left, [not_eq_hf_a]),
+        'weakening_right', [got_bot], principal=not_eq_hf_a)
+    got_bot = wl(got_bot, Eq(hf,a))
+    got_bot = cut(got_bot, Not(In(a,a)), got_not_aa)
+    got_bot = cut(got_bot, In(a,a), got_a_in_a)
+    # [Eq(hf,a), rest] |- [Not(Eq(hf,a))]
+
+    # Discharge Eq(hf,a) via (A→¬A)→¬A
+    rest = [f for f in got_bot.sequent.left if not same(f, Eq(hf,a))]
+    imp_eq_neq = Implies(Eq(hf,a), not_eq_hf_a)
+    got_imp = Proof(Sequent(rest, [imp_eq_neq]),
+        'implies_right', [got_bot], principal=imp_eq_neq)
+    got_lem = Proof(Sequent([], [not_eq_hf_a, Eq(hf,a)]),
+        'not_right', [ax(Eq(hf,a))], principal=not_eq_hf_a)
+    got_use = Proof(Sequent([imp_eq_neq], [not_eq_hf_a]),
+        'implies_left', [got_lem, ax(not_eq_hf_a)], principal=imp_eq_neq)
+    got_final = cut(got_use, imp_eq_neq, got_imp)
+
+    proof = got_final
+    for hyp in [In(a,c), In(a,w), omega_w, succ_hf_c]:
+        if not any(same(hyp, f) for f in proof.sequent.left):
+            proof = wl(proof, hyp)
+        imp = Implies(hyp, proof.sequent.right[0])
+        left = [f for f in proof.sequent.left if not same(f, hyp)]
+        proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
+    for v in [a, w, c, hf]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]),
+            'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'succ_neq'
+    return proof
+
+
 def config_exists():
     """∃c. TMConfig(c, q, h, t) — a config with given state/head/tape exists.
     Pairing |- ∀q,h,t. ∃c. TMConfig(c,q,h,t)"""
