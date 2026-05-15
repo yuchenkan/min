@@ -14,9 +14,13 @@ is_axiom = lambda f: isinstance(f, (ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P
 
 def test():
     from theorems.tm import tm_add_correct
+    from tm import add_goal
     proof = tm_add_correct()
+    goal = add_goal()
     assert qed(proof, is_axiom), 'qed failed'
-    print('tm_add_correct VERIFIED')
+    assert same(proof.sequent.right[0], goal, expand=False), \
+        f'conclusion mismatch:\n  got:  {proof.sequent.right[0]}\n  want: {goal}'
+    print('tm_add_correct VERIFIED — matches add_goal')
 
 if __name__ == '__main__':
     test()
