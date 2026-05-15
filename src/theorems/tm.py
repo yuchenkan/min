@@ -1010,33 +1010,108 @@ def tm_add_correct():
     # [tu_tape2, Function(tape_in), ZFC] |- Function(tape2)
     proof = cut(proof, FuncDef(tape2), got_func_t2)
 
-    # tape_read, tape2_hf_zero, tape2_c_one, tu_tf: these require tape_read_* theorems.
-    # For now, derive what we can. The rest stays as ax() on left (TODO).
-    # Actually: these formulas contain tape2 AND goal vars. After cutting them,
-    # tape2 only remains in TapeUpdate(tape2,...). Then eel tape2 + cut with existence.
-    #
-    # But I don't have tape_read derivations yet. Let me check what I need:
-    # - tape_read = ∀tp. In(tp,w) → Apply(tape2,tp,one): tape2 reads one everywhere in omega
-    #   This is WRONG for the actual tape — tape2 only has ones in the unary groups.
-    #   Phase3P assumes this but it's too strong. The real tape has 0 at position hf.
-    #   TODO: fix Phase3P's tape_read assumption.
-    # - tape2_hf_zero = Apply(tape2,hf,zero): tape2 reads 0 at position hf
-    # - tape2_c_one = Apply(tape2,c,one): tape2 reads 1 at position c
-    # - tu_tf = TapeUpdate(tf,tape2,c,zero): tf = tape2[c := 0]
-    #
-    # For tu_tf: this connects tf (goal var) to tape2. UnaryOutput(tf,c) characterizes tf.
-    # The connection: tf is tape2 with position c erased (written 0).
-    # This requires proving TapeUpdate(tf,tape2,c,zero) from UnaryOutput(tf,c) + tape2 properties.
-    # That's a real theorem about the tape structure.
-    #
-    # For now: skip these derivations. Leave tape2/one formulas on left.
-    # Accept that qed will fail on them. Focus on getting same() to pass first.
-    # Then prove the tape theorems.
-    
-    # eel tape2 from TapeUpdate(tape2,...) — ONLY if tape2 is not free elsewhere
-    # After cutting Function(tape2), tape2 is still in: tu_tape2, tape_read, 
-    # tape2_hf_zero, tape2_c_one, tu_tf. Can't eel yet.
-    print(f'tm_add: Function(tape2) cut. tape2 still in 5 formulas.')
+    # tape_read: ∀j.In(j,b)→∀pp.Plus(sa,j,pp)→Apply(tape2,pp,one)
+    # Derive from tape_read_high + tape_update_other:
+    #   tape_read_high: UnaryTape(tin,a,b) → In(j,b) → Succ(sa,a) → Plus(sa,j,pp) → Num(one,1) → Apply(tin,pp,one)
+    #   tape_update_other: TapeUpdate(t2,t,pos,val) → Apply(t,x,y) → Not(Eq(x,pos)) → Apply(t2,x,y)
+    # Need: Apply(tape_in,pp,one) + Not(Eq(pp,a)) → Apply(tape2,pp,one)
+    # Not(Eq(pp,a)): pp = sa+j where j∈b. pp ≥ sa = S(a) > a. So pp ≠ a.
+    # This requires omega ordering. For now, derive tape_read from goal hyps + ax for the hard parts.
+    # TODO: prove Not(Eq(pp,a)) from omega ordering.
+    # For now: ax(tape_read) — it's the Phase3P hypothesis, provable from tape structure.
+
+    # tape2_hf_zero: Apply(tape2,hf,zero) — tape2 reads 0 at hf (past all ones)
+    # tape2_c_one: Apply(tape2,c,one) — tape2 reads 1 at c (last 1 in second group)
+    # tu_tf: TapeUpdate(tf,tape2,c,zero) — tf = tape2 with position c erased
+    # These all need tape semantics proofs. TODO: derive from UnaryTape + TapeUpdate.
+
+    # For now: cut tape_read, tape2_hf_zero, tape2_c_one, tu_tf with ax-based derived proofs.
+    # These ax() proofs have the formula on both sides, so cut is a no-op for the left.
+    # But we can cut the DUPLICATE copies (from mp_hyps) — eel removes ALL copies.
+    # After cutting Function(tape2) and Plus(sa,b,hf), tape2 formulas remaining:
+    # tu_tape2, tape_read, tape2_hf_zero, tape2_c_one, tu_tf (5 formulas)
+    # All have tape2 free. Can't eel tape2 until all are gone.
+    # Must cut each with a derived proof that has tape2 on left only via tu_tape2.
+
+    # tape_read: derived from tape_read_high + tape_update_other
+    from theorems.tm_backup import tape_read_high, tape_update_other
+    # tape_read_high: ∀tape,a,b,j,sa,pos,one. UnaryTape → In(j,b) → Succ(sa,a) → Plus(sa,j,pos) → Num(one,1) → Apply(tape,pos,one)
+    # tape_update_other: ∀t2,t,pos,val,x,y. TapeUpdate(t2,t,pos,val) → Apply(t,x,y) → Not(Eq(x,pos)) → Apply(t2,x,y)
+    _trh = tape_read_high()
+    _tuo = tape_update_other()
+
+    # Build: [UnaryTape, In(j,b), Succ(sa,a), Plus(sa,j,pp), Num(one,1), TapeUpdate(tape2,tin,a,one), Not(Eq(pp,a))]
+    #   |- Apply(tape2,pp,one)
+    jv = Var(postfix='jv')
+    ppv = Var(postfix='ppv')
+    got_read_tin = apply_thm(_trh, [tape_in, a, b, jv, sa, ppv, one])
+    got_read_tin = mp(got_read_tin, ax(utape), utape, got_read_tin.sequent.right[0].right)
+    got_read_tin = mp(got_read_tin, ax(In(jv,b)), In(jv,b), got_read_tin.sequent.right[0].right)
+    got_read_tin = mp(got_read_tin, ax(succ_sa), succ_sa, got_read_tin.sequent.right[0].right)
+    got_read_tin = mp(got_read_tin, ax(PlusDef(sa,jv,ppv)), PlusDef(sa,jv,ppv), got_read_tin.sequent.right[0].right)
+    got_read_tin = mp(got_read_tin, ax(num_one), num_one, got_read_tin.sequent.right[0].right)
+    # [UnaryTape, In(jv,b), Succ(sa,a), Plus(sa,jv,ppv), Num(one,1)] |- Apply(tape_in,ppv,one)
+
+    got_read_t2 = apply_thm(_tuo, [tape2, tape_in, a, one, ppv, one])
+    got_read_t2 = mp(got_read_t2, ax(tu_tape2), tu_tape2, got_read_t2.sequent.right[0].right)
+    got_read_t2 = mp(got_read_t2, got_read_tin, Apply(tape_in,ppv,one), got_read_t2.sequent.right[0].right)
+    got_read_t2 = mp(got_read_t2, ax(Not(Eq(ppv,a))), Not(Eq(ppv,a)), Apply(tape2,ppv,one))
+    # [tu_tape2, UnaryTape, ..., Not(Eq(ppv,a))] |- Apply(tape2,ppv,one)
+
+    # Discharge Plus(sa,jv,ppv), Not(Eq(ppv,a)), close ∀ppv
+    imp_plus_pp = Implies(PlusDef(sa,jv,ppv), Apply(tape2,ppv,one))
+    # Need to discharge Not(Eq(ppv,a)) — TODO: derive from omega ordering
+    # For now: discharge as hypothesis (will be an extra formula on the left)
+    # Actually: let me skip the Not(Eq(ppv,a)) issue and just ax the tape_read for now.
+    # The tape_read formula has jv and ppv bound by ∀ inside, so it won't block eel for tape2
+    # IF I can derive it with only [tu_tape2, goal_hyps] on the left.
+    # But Not(Eq(ppv,a)) is hard to derive without omega ordering theorems.
+
+    # PRAGMATIC: derive tape_read from [tu_tape2, UnaryTape, Succ(sa,a), Num(one,1), Not(Eq(ppv,a))]
+    # The Not(Eq(ppv,a)) will stay on left — but it's ∀-bound (ppv is closed by forall_right).
+    # Actually ppv is free. Let me discharge it.
+    got_tr = got_read_t2
+    # Discharge Not(Eq(ppv,a)) — as implies_right
+    not_eq = Not(Eq(ppv,a))
+    got_tr = wl(got_tr, not_eq)
+    imp_not = Implies(not_eq, got_tr.sequent.right[0])
+    left_not = [f for f in got_tr.sequent.left if not same(f, not_eq)]
+    got_tr = Proof(Sequent(left_not, [imp_not]), 'implies_right', [got_tr], principal=imp_not)
+    # Discharge Plus(sa,jv,ppv)
+    plus_jv = PlusDef(sa,jv,ppv)
+    got_tr = wl(got_tr, plus_jv)
+    imp_pjv = Implies(plus_jv, got_tr.sequent.right[0])
+    left_pjv = [f for f in got_tr.sequent.left if not same(f, plus_jv)]
+    got_tr = Proof(Sequent(left_pjv, [imp_pjv]), 'implies_right', [got_tr], principal=imp_pjv)
+    # Close ∀ppv
+    fa_ppv = Forall(ppv, imp_pjv)
+    got_tr = Proof(Sequent(got_tr.sequent.left, [fa_ppv]),
+        'forall_right', [got_tr], principal=fa_ppv, term=ppv)
+    # Discharge In(jv,b)
+    got_tr = wl(got_tr, In(jv,b))
+    imp_jb = Implies(In(jv,b), fa_ppv)
+    left_jb = [f for f in got_tr.sequent.left if not same(f, In(jv,b))]
+    got_tr = Proof(Sequent(left_jb, [imp_jb]), 'implies_right', [got_tr], principal=imp_jb)
+    # Close ∀jv
+    fa_jv = Forall(jv, imp_jb)
+    got_tr = Proof(Sequent(got_tr.sequent.left, [fa_jv]),
+        'forall_right', [got_tr], principal=fa_jv, term=jv)
+    # got_tr: [tu_tape2, UnaryTape, Succ(sa,a), Num(one,1), ZFC] |- ∀j.In(j,b)→∀pp.(Plus→Not→Apply)
+    # But this has an extra Not(Eq) inside — doesn't match tape_read exactly.
+    # tape_read = ∀j.In(j,b)→∀pp.Plus(sa,j,pp)→Apply(tape2,pp,one)
+    # got_tr = ∀j.In(j,b)→∀pp.Plus(sa,j,pp)→Not(Eq(pp,a))→Apply(tape2,pp,one)
+    # These are DIFFERENT — got_tr has an extra Not hypothesis.
+    # So this derived proof can't cut tape_read directly.
+
+    # The issue: I need Not(Eq(pp,a)) to use tape_update_other.
+    # Without it, I can't prove tape_read for tape2.
+    # I need an omega ordering theorem: pp ≥ sa > a implies pp ≠ a.
+    # This is a real theorem to prove. For now, just ax(tape_read).
+    print(f'tm_add: tape_read derivation blocked on Not(Eq(pp,a)). Using ax() for now.')
+
+    # For tape2_hf_zero, tape2_c_one, tu_tf: same issue — need tape semantics.
+    # These are the 4 hardest derivations. Leave as ax() and accept qed failure.
+    print(f'tm_add: 4 tape formulas still on left as ax(). Remaining work.')
 
     # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
