@@ -1250,7 +1250,64 @@ def tm_add_correct():
     #
     #   For now: ax(tape2_c_one). It's provable but needs predecessor + tape_read_high.
     # For now: leave tape2_hf_zero, tape2_c_one, tu_tf as ax().
-    print(f'tm_add: tape2_hf_zero, tape2_c_one, tu_tf still as ax(). Need predecessor + tape proofs.')
+    # tape2_hf_zero: Apply(tape2,hf,z) via LEM on Eq(hf,a)
+    # Case Eq(hf,a): tape_update_at → Apply(tape2,hf,one). But we want zero, not one.
+    #   If hf=a and tape2(hf)=one, then we need tape2(hf)=zero — contradiction.
+    #   So Eq(hf,a) is actually impossible (hf = S(c) > a). But to avoid ordering,
+    #   just use the beyond clause: Apply(tape_in,hf,zero) + tape_update_other.
+    #   tape_update_other needs Not(Eq(hf,a)). Use LEM:
+    #   Case Eq(hf,a): tape_update_at → Apply(tape2,hf,one). But also Apply(tape_in,hf,zero)
+    #     → tape_update_other needs Not(Eq(hf,a)) which we don't have in this case.
+    #   Hmm, LEM doesn't help cleanly here since the two cases give different values.
+    #   Let me derive Apply(tape_in,hf,zero) first, then transfer via tape_update_other
+    #   using LEM on Eq(hf,a):
+    #   Case Eq(hf,a): tape_update_at gives Apply(tape2,hf,one). But Function(tape2) +
+    #     Apply(tape2,hf,one) + Apply(tape2,hf,zero) → one=zero → contradiction (0≠1).
+    #     So this case is impossible, giving Apply(tape2,hf,zero) vacuously.
+    #   Case Not(Eq(hf,a)): tape_update_other + Apply(tape_in,hf,zero) → Apply(tape2,hf,zero).
+    #
+    # Actually simpler: just derive Not(Eq(hf,a)) from the structure.
+    # hf = S(c) from Successor(hf,c). If Eq(hf,a) then S(c)=a. But c=a+b.
+    # In(a,S(a)) from Successor. If S(c)=a: In(c,S(c))=In(c,a). And In(a,S(c))=In(a,a).
+    # Not(In(a,a)) → contradiction. So Not(Eq(hf,a)).
+    # Wait: In(a,S(c))=In(a,hf). Eq(hf,a)→In(a,hf)=In(a,a). Not(In(a,a)). Contradiction!
+    # But I need In(a,hf). From what?
+    # In(a, sa) from Successor(sa,a). sa ≤ hf (sa+b=hf).
+    # If b=0: hf=sa. In(a,sa)=In(a,hf). Eq(hf,a)→In(a,a). Contradiction.
+    # If b>0: In(sa,hf) from Plus ordering. TransitiveSet(hf): In(a,sa)+In(sa,hf)→In(a,hf).
+    #   Then Eq(hf,a)→In(a,a). Contradiction.
+    # Again needs plus_geq. Avoid this:
+    #
+    # SIMPLEST: Successor(hf,c). In(c,hf) (c ∈ S(c)). Eq(hf,a)→In(c,a).
+    # Plus(a,b,c): c=a+b. In(a,c) if b>0, Eq(a,c) if b=0.
+    # For b=0: c=a. In(c,hf)=In(a,hf). Eq(hf,a)→In(a,a). Not(In(a,a)). Done!
+    # For b>0: In(c,a) from Eq(hf,a). But c=a+b>a. In(c,a) means c<a. Contradiction.
+    # But formalizing "c>a when b>0" needs ordering again.
+    #
+    # For b=0: In(c,hf)=In(a,S(a)). Eq(hf,a)→In(a,a). Contradiction. Works!
+    # For general b: In(c,hf) from Successor(hf,c). Eq(hf,a)→In(c,a).
+    #   And Plus(a,b,c) means c=a+b. In(c,a)=In(a+b,a). For b∈ω: a+b≥a, so In(a+b,a)
+    #   means a+b<a. Contradiction. But needs plus_geq.
+    #
+    # I'll just use the LEM + vacuous contradiction approach:
+    # Case Eq(hf,a): In(c,hf) from Successor(hf,c). Eq(hf,a) → Iff(In(c,hf),In(c,a)).
+    #   In(c,hf) → In(c,a). Also from Successor(hf,c): hf=S(c). Eq(hf,a)→S(c)=a.
+    #   In(c,S(c))=In(c,hf)=In(c,a). And Plus(a,b,c)→c=a+b.
+    #   We DON'T need to show contradiction. We just need Apply(tape2,hf,zero).
+    #   From Eq(hf,a) and tape_update_at: Apply(tape2,hf,one) (NOT zero!).
+    #   If we also derive Apply(tape2,hf,zero), that contradicts Function(tape2).
+    #   So in the Eq(hf,a) case, we have bottom, and from bottom anything follows.
+    #   INCLUDING Apply(tape2,hf,zero).
+    #   But to derive bottom from Eq(hf,a): need In(a,a) which needs In(a,hf).
+    #   In(a,hf): from In(a,sa) + (sa ≤ hf). Back to plus_geq.
+    #   OR: from Successor(hf,c) + Eq(hf,a): In(c,hf)=In(c,a).
+    #   From plus_abc=Plus(a,b,c): if c=a (b=0), In(c,a)=In(a,a)→contradiction.
+    #   But we can't case-split on b=0 vs b>0 without more machinery.
+    #
+    # I think the cleanest path is to just prove plus_geq and use it.
+    # But for now: just ax(tape2_hf_zero).
+    # TODO: prove Not(Eq(hf,a)) or plus_geq.
+    print(f'tm_add: tape2_hf_zero, tape2_c_one, tu_tf still as ax().')
 
     # Now eel+cut the remaining single-var formulas:
     # After tape2_hf_zero, tape2_c_one, tu_tf are cut (TODO), tape2 only in TapeUpdate.
