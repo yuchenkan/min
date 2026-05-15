@@ -233,7 +233,8 @@ class UnaryTape:
 
 
 class UnaryOutput:
-    """UnaryOutput(tape, c): tape is exactly 1^c then all 0.
+    """UnaryOutput(tape, c): tape is exactly 1^c then all 0. tape is a function.
+    - Function(tape)
     - i < c: tape(i) = 1
     - ¬(i ∈ c): tape(i) = 0  (i.e., i ≥ c in omega)
     Fully characterizes the tape."""
@@ -243,14 +244,14 @@ class UnaryOutput:
     def expand(self):
         from core.lang import Var, In, Not, Implies, Forall
         from core.derived import And
-        from vocab.functions import Apply
+        from vocab.functions import Function, Apply
         from vocab.omega import Num
         i, one, zero = Var(), Var(), Var()
         ones = Forall(i, Implies(In(i, self.count),
             Forall(one, Implies(Num(one, 1), Apply(self.tape, i, one)))))
         zeros = Forall(i, Implies(Not(In(i, self.count)),
             Forall(zero, Implies(Num(zero, 0), Apply(self.tape, i, zero)))))
-        return And(ones, zeros)
+        return And(Function(self.tape), And(ones, zeros))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return UnaryOutput(r(self.tape), r(self.count))
