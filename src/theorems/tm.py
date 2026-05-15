@@ -1103,15 +1103,124 @@ def tm_add_correct():
     # These are DIFFERENT — got_tr has an extra Not hypothesis.
     # So this derived proof can't cut tape_read directly.
 
-    # The issue: I need Not(Eq(pp,a)) to use tape_update_other.
-    # Without it, I can't prove tape_read for tape2.
-    # I need an omega ordering theorem: pp ≥ sa > a implies pp ≠ a.
-    # This is a real theorem to prove. For now, just ax(tape_read).
-    print(f'tm_add: tape_read derivation blocked on Not(Eq(pp,a)). Using ax() for now.')
+    # Don't need Not(Eq(pp,a))! Use LEM: Eq(pp,a) ∨ Not(Eq(pp,a)).
+    # Case Eq(pp,a): tape_update_at gives Apply(tape2,pp,one) (wrote one at a, pp=a)
+    # Case Not(Eq(pp,a)): tape_update_other + tape_read_high gives Apply(tape2,pp,one)
+    # Both produce the same Apply(tape2,pp,one). Cut on Not(Eq(pp,a)).
 
-    # For tape2_hf_zero, tape2_c_one, tu_tf: same issue — need tape semantics.
-    # These are the 4 hardest derivations. Leave as ax() and accept qed failure.
-    print(f'tm_add: 4 tape formulas still on left as ax(). Remaining work.')
+    from theorems.tm_backup import tape_update_at
+    _tua = tape_update_at()
+
+    # Case 1: Eq(pp,a) → Apply(tape2,pp,one) via tape_update_at
+    from theorems.logic import eq_reflexive as _er
+    got_case1 = apply_thm(_tua, [tape2, tape_in, a, one, ppv, one])
+    got_case1 = mp(got_case1, ax(tu_tape2), tu_tape2, got_case1.sequent.right[0].right)
+    got_case1 = mp(got_case1, ax(Eq(ppv,a)), Eq(ppv,a), got_case1.sequent.right[0].right)
+    got_eq_oo = apply_thm(_er(), [one])
+    got_case1 = mp(got_case1, got_eq_oo, Eq(one,one), got_case1.sequent.right[0].right)
+    # got_case1 has Apply(tape2,ppv,one) on right — but it returns ∃p.And(OrdPair,In)
+    # which IS Apply(tape2,ppv,one). Let me check.
+    app_t2_pp_one = Apply(tape2, ppv, one)
+    got_case1 = cut(ax(app_t2_pp_one), app_t2_pp_one, got_case1)
+    # [Eq(ppv,a), tu_tape2, Pairing] |- Apply(tape2,ppv,one)
+
+    # Case 2: Not(Eq(ppv,a)) → Apply(tape2,ppv,one)
+    got_case2 = apply_thm(_tuo, [tape2, tape_in, a, one, ppv, one])
+    got_case2 = mp(got_case2, ax(tu_tape2), tu_tape2, got_case2.sequent.right[0].right)
+    got_case2 = mp(got_case2, got_read_tin, Apply(tape_in,ppv,one), got_case2.sequent.right[0].right)
+    not_eq = Not(Eq(ppv,a))
+    got_case2 = mp(got_case2, ax(not_eq), not_eq, got_case2.sequent.right[0].right)
+    got_case2 = cut(ax(app_t2_pp_one), app_t2_pp_one, got_case2)
+    # [Not(Eq(ppv,a)), tu_tape2, UnaryTape, ...] |- Apply(tape2,ppv,one)
+
+    # LEM: combine via not_right + cut
+    # Case1: [Eq(ppv,a), ctx1] |- Apply. not_right: [ctx1] |- Not(Eq), Apply.
+    # Case2: [Not(Eq), ctx2] |- Apply. Cut on Not(Eq): [ctx1,ctx2] |- Apply.
+    left_c1_clean = [f for f in got_case1.sequent.left if not same(f, Eq(ppv,a))]
+    got_lem = Proof(Sequent(left_c1_clean, [not_eq, app_t2_pp_one]),
+        'not_right', [got_case1], principal=not_eq)
+    from tactics import weaken_to
+    all_ctx = list(got_lem.sequent.left)
+    for f in got_case2.sequent.left:
+        if not same(f, not_eq) and not any(same(f, g) for g in all_ctx):
+            all_ctx.append(f)
+    got_tape2_read = Proof(Sequent(all_ctx, [app_t2_pp_one]), 'cut',
+        [weaken_to(got_lem, all_ctx),
+         weaken_to(got_case2, all_ctx + [not_eq])],
+        principal=not_eq)
+    # [tu_tape2, UnaryTape, Succ(sa,a), Plus(sa,jv,ppv), Num(one,1), Pairing] |- Apply(tape2,ppv,one)
+    print(f'tm_add: tape2 read at pp via LEM: OK')
+
+    # Discharge Plus, close ∀ppv, discharge In(jv,b), close ∀jv → tape_read formula
+    plus_jv = PlusDef(sa,jv,ppv)
+    imp_plus_pp = Implies(plus_jv, app_t2_pp_one)
+    left_pjv = [f for f in got_tape2_read.sequent.left if not same(f, plus_jv)]
+    got_tape2_read = Proof(Sequent(left_pjv, [imp_plus_pp]),
+        'implies_right', [got_tape2_read], principal=imp_plus_pp)
+    fa_ppv = Forall(ppv, imp_plus_pp)
+    got_tape2_read = Proof(Sequent(got_tape2_read.sequent.left, [fa_ppv]),
+        'forall_right', [got_tape2_read], principal=fa_ppv, term=ppv)
+    in_jv_b = In(jv,b)
+    imp_jb = Implies(in_jv_b, fa_ppv)
+    left_jb = [f for f in got_tape2_read.sequent.left if not same(f, in_jv_b)]
+    got_tape2_read = Proof(Sequent(left_jb, [imp_jb]),
+        'implies_right', [got_tape2_read], principal=imp_jb)
+    fa_jv = Forall(jv, imp_jb)
+    got_tape2_read = Proof(Sequent(got_tape2_read.sequent.left, [fa_jv]),
+        'forall_right', [got_tape2_read], principal=fa_jv, term=jv)
+    # got_tape2_read: [...] |- tape_read
+    proof = cut(proof, tape_read, got_tape2_read)
+    print(f'tm_add: tape_read cut')
+
+    # tape2_hf_zero: Apply(tape2,hf,z) — tape2 reads 0 at hf
+    # hf = S(c) = S(a+b). Position hf is past all ones. tape_in(hf) = 0.
+    # tape_read_end would give this but it's broken. Derive from tape_read_sep-like logic.
+    # tape_in has 1^a 0 1^b then 0s. hf = S(a+b) = S(c). tape_in(hf) = 0.
+    # tape_update_other: tape2(hf) = tape_in(hf) since hf ≠ a.
+    # Need: Apply(tape_in,hf,z) and Not(Eq(hf,a)).
+    # Apply(tape_in,hf,z): tape_in reads 0 past input. From UnaryTape end-of-input property.
+    # Not(Eq(hf,a)): hf = S(c) = S(a+b) ≥ S(a) > a. Same ordering issue.
+    # But again, use LEM: Eq(hf,a) ∨ Not(Eq(hf,a)).
+    # Case Eq(hf,a): tape_update_at → Apply(tape2,hf,one). But we want Apply(tape2,hf,z).
+    #   one ≠ z (since Num(one,1) and Num(z,0)). Contradiction? No — both could hold.
+    #   Actually tape2 is a function. Apply(tape2,hf,one) and Apply(tape2,hf,z) → one=z.
+    #   But one≠z. So Apply(tape2,hf,z) can't hold simultaneously with Apply(tape2,hf,one).
+    #   But we're trying to PROVE Apply(tape2,hf,z). If Eq(hf,a) gives Apply(tape2,hf,one),
+    #   we can't get Apply(tape2,hf,z) from that — they contradict.
+    #   So Eq(hf,a) must be impossible. Back to needing Not(Eq(hf,a)).
+    # For tape2_hf_zero, I DO need the ordering. Can't use LEM here.
+    # TODO: prove Not(Eq(hf,a)) from hf=S(c), c=a+b.
+    # For now: ax(tape2_hf_zero).
+
+    # tape2_c_one: Apply(tape2,c,one) — tape2 reads 1 at c
+    # c = a+b. If c=a (b=0 edge case): tape_update_at gives Apply(tape2,a,one). Done.
+    # If c≠a: tape_update_other + Apply(tape_in,c,one). tape_in(c) = 1 from tape_read_high.
+    # Use LEM on Eq(c,a):
+    # Case Eq(c,a): tape_update_at → Apply(tape2,c,one). Done!
+    # Case Not(Eq(c,a)): tape_read_high on tape_in at position c + tape_update_other. Done!
+    # But tape_read_high needs In(j,b) and Plus(sa,j,c) for some j.
+    # c = a+b. Plus(sa,j,c) = Plus(S(a),j,a+b). j = b-1? Not directly.
+    # Actually c = a+b. sa = S(a). Plus(sa,j,c): S(a)+j = a+b. j = b-1.
+    # Need j∈b and Plus(sa,j,c). j = b-1 isn't a formal concept without predecessor.
+    # Hmm. tape_read_high: UnaryTape → In(j,b) → Succ(sa,a) → Plus(sa,j,pos) → Num(one,1) → Apply(tape_in,pos,one)
+    # I need Apply(tape_in,c,one) where c = a+b. Plus(sa,j,c) needs j such that sa+j=c=a+b.
+    # sa = S(a). S(a)+j = a+b. j = b-1. For b>0: j = pred(b) ∈ b. But I can't extract pred.
+    # For b=0: c=a. Eq(c,a). tape_update_at handles this.
+    # For b>0: need ∃j. In(j,b) ∧ Plus(sa,j,c). This is derivable from Plus(a,b,c) + commutativity.
+    # But complex.
+    # For now: ax(tape2_c_one).
+
+    # tu_tf: TapeUpdate(tf,tape2,c,z)
+    # This says tf = tape2[c := 0]. From UnaryOutput(tf,c): tf is the output tape 1^c.
+    # And tape2 has 1^(c+1) then 0s (after tape_update at position a).
+    # tf = tape2 with last 1 erased. This is exactly TapeUpdate(tf,tape2,c,z).
+    # Need to connect UnaryOutput(tf,c) with TapeUpdate(tf,tape2,c,z).
+    # UnaryOutput defines tf by its characteristic: ∀i. i∈c → Apply(tf,i,one), etc.
+    # TapeUpdate defines tf by construction: tf = tape2 but with position c set to 0.
+    # These are different characterizations of the same set.
+    # Proving they're the same requires showing tape2[c:=0] has the output tape properties.
+    # For now: ax(tu_tf).
+    print(f'tm_add: tape2_hf_zero, tape2_c_one, tu_tf still as ax(). Need ordering + tape proofs.')
 
     # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
