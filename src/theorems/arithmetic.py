@@ -10805,3 +10805,100 @@ def plus_val_unique():
             'forall_right', [proof], principal=fa, term=v)
     proof.name = 'plus_val_unique'
     return proof
+
+
+def plus_pred():
+    """Plus(m,S(k),p) → ∃q. Plus(m,k,q) ∧ Successor(p,q).
+    ∀w,m,k,sk,p. Omega→In(m,w)→In(k,w)→Succ(sk,k)→Plus(m,sk,p) → ∃q. And(Plus(m,k,q), Successor(p,q))"""
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Exists, And, Eq, Or, Iff
+    from core.proof import Proof, Sequent, same
+    from vocab.ordpair import Successor
+    from vocab.omega import Omega
+    from vocab.recursion import Plus as PlusDef
+    from tactics import apply_thm, mp, ax, fl, eir, eel, cut, wl
+    from theorems.logic import and_intro, and_elim_left, iff_mp, iff_mp_rev, iff_intro
+    from theorems.sets import successor_exists, eq_transfer
+    from theorems.arithmetic import plus_geq, plus_succ_right, plus_val_unique
+    from theorems.omega import omega_succ_closed
+
+    m=Var(postfix='m'); k=Var(postfix='k'); sk=Var(postfix='sk')
+    p=Var(postfix='p'); sp=Var(postfix='sp'); w=Var(postfix='w'); xv=Var(postfix='xv')
+    omega_w=Omega(w); succ_sk_k=Successor(sk,k); plus_mskp=PlusDef(m,sk,p)
+
+    _pg=plus_geq()
+    got_pg=apply_thm(_pg,[w,m,k])
+    got_pg=mp(got_pg,ax(omega_w),omega_w,got_pg.sequent.right[0].right)
+    got_pg=mp(got_pg,ax(In(m,w)),In(m,w),got_pg.sequent.right[0].right)
+    got_pg=mp(got_pg,ax(In(k,w)),In(k,w),got_pg.sequent.right[0].right)
+    q=got_pg.sequent.right[0].var; pg_body=got_pg.sequent.right[0].body
+    got_plus_mkq=apply_thm(and_elim_left(pg_body.left,pg_body.right,[]),[],pg_body,pg_body.left,ax(pg_body))
+    plus_mkq=PlusDef(m,k,q)
+
+    se=successor_exists(); got_ex_sp=apply_thm(se,[q],concl=Exists(sp,Successor(sp,q)))
+    _psr=plus_succ_right()
+    got_pms=apply_thm(_psr,[w,m,k,q,sk,sp])
+    got_pms=mp(got_pms,ax(omega_w),omega_w,got_pms.sequent.right[0].right)
+    got_pms=mp(got_pms,ax(In(m,w)),In(m,w),got_pms.sequent.right[0].right)
+    got_pms=mp(got_pms,ax(In(k,w)),In(k,w),got_pms.sequent.right[0].right)
+    got_pms=mp(got_pms,got_plus_mkq,plus_mkq,got_pms.sequent.right[0].right)
+    got_pms=mp(got_pms,ax(succ_sk_k),succ_sk_k,got_pms.sequent.right[0].right)
+    got_pms=mp(got_pms,ax(Successor(sp,q)),Successor(sp,q),got_pms.sequent.right[0].right)
+
+    _osc=omega_succ_closed()
+    got_sk_w=apply_thm(_osc,[w],omega_w,Forall(k,Implies(In(k,w),Forall(sk,Implies(succ_sk_k,In(sk,w))))),ax(omega_w))
+    got_sk_w=apply_thm(got_sk_w,[k],In(k,w),Forall(sk,Implies(succ_sk_k,In(sk,w))),ax(In(k,w)))
+    got_sk_w=apply_thm(got_sk_w,[sk],succ_sk_k,In(sk,w),ax(succ_sk_k))
+    _pvu=plus_val_unique()
+    got_eq=apply_thm(_pvu,[w,m,sk,sp,p])
+    got_eq=mp(got_eq,ax(omega_w),omega_w,got_eq.sequent.right[0].right)
+    got_eq=mp(got_eq,ax(In(m,w)),In(m,w),got_eq.sequent.right[0].right)
+    got_eq=mp(got_eq,got_sk_w,In(sk,w),got_eq.sequent.right[0].right)
+    got_eq=mp(got_eq,got_pms,PlusDef(m,sk,sp),got_eq.sequent.right[0].right)
+    got_eq=mp(got_eq,ax(plus_mskp),plus_mskp,Eq(sp,p))
+
+    or_xq=Or(In(xv,q),Eq(xv,q))
+    iff_x_sp=Iff(In(xv,sp),or_xq)
+    got_iff_xsp=fl(Successor(sp,q),iff_x_sp,xv)
+    _et=eq_transfer()
+    got_iff_xsp_p=apply_thm(_et,[sp,p,xv])
+    got_iff_xsp_p=mp(got_iff_xsp_p,got_eq,Eq(sp,p),got_iff_xsp_p.sequent.right[0].right)
+    got_f1=apply_thm(iff_mp_rev(In(xv,sp),In(xv,p),[]),[],Iff(In(xv,sp),In(xv,p)),Implies(In(xv,p),In(xv,sp)),got_iff_xsp_p)
+    got_f2=apply_thm(iff_mp(In(xv,sp),or_xq,[]),[],iff_x_sp,Implies(In(xv,sp),or_xq),got_iff_xsp)
+    got_fwd=mp(got_f2,mp(got_f1,ax(In(xv,p)),In(xv,p),In(xv,sp)),In(xv,sp),or_xq)
+    imp_fwd=Implies(In(xv,p),or_xq)
+    got_imp_fwd=Proof(Sequent([f for f in got_fwd.sequent.left if not same(f,In(xv,p))],[imp_fwd]),'implies_right',[got_fwd],principal=imp_fwd)
+    got_b1=apply_thm(iff_mp_rev(In(xv,sp),or_xq,[]),[],iff_x_sp,Implies(or_xq,In(xv,sp)),got_iff_xsp)
+    got_b2=apply_thm(iff_mp(In(xv,sp),In(xv,p),[]),[],Iff(In(xv,sp),In(xv,p)),Implies(In(xv,sp),In(xv,p)),got_iff_xsp_p)
+    got_bwd=mp(got_b2,mp(got_b1,ax(or_xq),or_xq,In(xv,sp)),In(xv,sp),In(xv,p))
+    imp_bwd=Implies(or_xq,In(xv,p))
+    got_imp_bwd=Proof(Sequent([f for f in got_bwd.sequent.left if not same(f,or_xq)],[imp_bwd]),'implies_right',[got_bwd],principal=imp_bwd)
+    iff_xp=Iff(In(xv,p),or_xq)
+    got_iff_xp=apply_thm(iff_intro(In(xv,p),or_xq,[]),[],imp_fwd,Implies(imp_bwd,iff_xp),got_imp_fwd)
+    got_iff_xp=mp(got_iff_xp,got_imp_bwd,imp_bwd,iff_xp)
+    fa_xv=Forall(xv,iff_xp)
+    got_spq=Proof(Sequent(got_iff_xp.sequent.left,[fa_xv]),'forall_right',[got_iff_xp],principal=fa_xv,term=xv)
+    succ_pq=Successor(p,q)
+    got_spq=cut(ax(succ_pq),succ_pq,got_spq)
+
+    def mk_and(gl,gr):
+        L,R=gl.sequent.right[0],gr.sequent.right[0]
+        return mp(apply_thm(and_intro(L,R,[]),[],L,Implies(R,And(L,R)),gl),gr,R,And(L,R))
+    got_and=mk_and(got_plus_mkq,got_spq)
+    got_ex=eir(got_and,And(plus_mkq,succ_pq),q,q)
+    got_ex=eel(got_ex,Successor(sp,q),sp)
+    got_ex=cut(got_ex,Exists(sp,Successor(sp,q)),got_ex_sp)
+    got_ex=eel(got_ex,pg_body,q)
+    got_ex=cut(got_ex,got_pg.sequent.right[0],got_pg)
+
+    proof=got_ex
+    for hyp in [plus_mskp,In(k,w),In(m,w),succ_sk_k,omega_w]:
+        if not any(same(hyp,f) for f in proof.sequent.left): proof=wl(proof,hyp)
+        imp=Implies(hyp,proof.sequent.right[0])
+        left=[f for f in proof.sequent.left if not same(f,hyp)]
+        proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    for v in [p,sk,k,m,w]:
+        body=proof.sequent.right[0]; fa=Forall(v,body)
+        proof=Proof(Sequent(proof.sequent.left,[fa]),'forall_right',[proof],principal=fa,term=v)
+    proof.name='plus_pred'
+    return proof
