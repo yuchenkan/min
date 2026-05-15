@@ -202,11 +202,12 @@ class UnaryTape:
         from core.lang import Var, In, Not, Implies, Forall
         from core.derived import And
         from vocab.ordpair import Successor
-        from vocab.functions import Apply
+        from vocab.functions import Function, Apply
         from vocab.omega import Num
         from vocab.recursion import Plus
         i, one, zero, sa, j, pos = Var(), Var(), Var(), Var(), Var(), Var()
         end_pos, s_end = Var(), Var()
+        func = Function(self.tape)
         low = Forall(i, Implies(In(i, self.left),
             Forall(one, Implies(Num(one, 1), Apply(self.tape, i, one)))))
         sep = Forall(zero, Implies(Num(zero, 0), Apply(self.tape, self.left, zero)))
@@ -224,7 +225,7 @@ class UnaryTape:
                 Forall(i, Implies(Not(In(i, end_pos)),
                     Forall(zero, Implies(Num(zero, 0),
                         Apply(self.tape, i, zero)))))))))
-        return And(low, And(sep, And(high, beyond)))
+        return And(func, And(low, And(sep, And(high, beyond))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return UnaryTape(r(self.tape), r(self.left), r(self.right))

@@ -301,7 +301,7 @@ def tape_read_low():
     # and_elim_left(A, B, []) proves And(A,B) -> A.
     # But we need the exact A and B from ut.expand().
 
-    ut_exp = ut.expand()  # And(low_actual, And(sep_actual, high_actual))
+    ut_exp = ut.expand()  # And(func, And(low_actual, And(sep_actual, ...)))
     # low_actual uses fresh Vars from expand(). Not our i, one.
     # Extract it:
     low_actual = ut_exp.left if hasattr(ut_exp, 'left') else None
@@ -412,8 +412,9 @@ def tape_read_sep():
     num_zero = Num(zero, 0)
     app = Apply(tape, a, zero)
 
-    exp = ut.expand()
-    low_f = exp.left
+    exp = ut.expand()  # And(func, And(low, And(sep, And(high, beyond))))
+    func_f2 = exp.left; exp_body2 = exp.right
+    low_f = exp_body2.left
     rest_f = exp.right  # And(sep_f, high_f)
 
     # Extract rest from ut
@@ -470,16 +471,21 @@ def tape_read_high():
     app = Apply(tape, pos, one)
 
     exp = ut.expand()
-    low_f = exp.left
-    rest_f = exp.right   # And(sep_f, And(high_f, end_f))
+    # exp = And(func, And(low, And(sep, And(high, beyond))))
+    func_f = exp.left
+    rest0 = exp.right  # And(low, And(sep, And(high, beyond)))
+    low_f = rest0.left
+    rest_f = rest0.right   # And(sep_f, And(high_f, end_f))
     sep_f = rest_f.left
     high_end_f = rest_f.right  # And(high_f, end_f)
     high_f = high_end_f.left
     from theorems.logic import and_elim_left
 
-    # Extract rest, then high_end, then high
+    # Skip func, extract rest0, then rest, then high_end, then high
+    aer0 = and_elim_right(func_f, rest0, [])
+    got_rest0 = apply_thm(aer0, [], ut, rest0, ax(ut))
     aer1 = and_elim_right(low_f, rest_f, [])
-    got_rest = apply_thm(aer1, [], ut, rest_f, ax(ut))
+    got_rest = apply_thm(aer1, [], rest0, rest_f, got_rest0)
 
     aer2 = and_elim_right(sep_f, high_end_f, [])
     got_high_end = apply_thm(aer2, [], rest_f, high_end_f, got_rest)
