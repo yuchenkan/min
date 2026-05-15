@@ -10714,6 +10714,15 @@ def plus_geq():
         proof = Proof(Sequent(proof.sequent.left, [fa]),
             'forall_right', [proof], principal=fa, term=v)
     
+    # Clean Num(z,0) from left
+    for f in list(proof.sequent.left):
+        if type(f).__name__ == 'Num' and f.value == 0:
+            from theorems.arithmetic import num_exists
+            from tactics import eel, cut
+            from core.derived import Exists
+            proof = eel(proof, f, f.elem)
+            proof = cut(proof, Exists(f.elem, f), num_exists(0))
+            break
     proof.name = 'plus_geq'
     return proof
 
@@ -10900,5 +10909,14 @@ def plus_pred():
     for v in [p,sk,k,m,w]:
         body=proof.sequent.right[0]; fa=Forall(v,body)
         proof=Proof(Sequent(proof.sequent.left,[fa]),'forall_right',[proof],principal=fa,term=v)
+    # Clean Num from left
+    for f in list(proof.sequent.left):
+        if type(f).__name__ == 'Num' and f.value == 0:
+            from theorems.arithmetic import num_exists
+            from tactics import eel, cut
+            from core.derived import Exists
+            proof = eel(proof, f, f.elem)
+            proof = cut(proof, Exists(f.elem, f), num_exists(0))
+            break
     proof.name='plus_pred'
     return proof
