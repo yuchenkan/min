@@ -1239,7 +1239,8 @@ def tm_add_correct():
     got_eq_oo2 = apply_thm(eq_reflexive(), [one])
     got_c1_case1 = mp(got_c1_case1, got_eq_oo2, Eq(one,one), got_c1_case1.sequent.right[0].right)
     got_c1_case1 = cut(ax(app_t2_c_one), app_t2_c_one, got_c1_case1)
-    # Case2: Not(Eq(c,a)): ax Apply(tape_in,c,one) for now
+
+    # Case2: Not(Eq(c,a))
     got_c1_case2 = apply_thm(_tuo, [tape2, tape_in, a, one, c, one])
     got_c1_case2 = mp(got_c1_case2, ax(tu_tape2), tu_tape2, got_c1_case2.sequent.right[0].right)
     got_c1_case2 = mp(got_c1_case2, ax(Apply(tape_in,c,one)), Apply(tape_in,c,one), got_c1_case2.sequent.right[0].right)
