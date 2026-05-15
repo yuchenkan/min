@@ -36,22 +36,22 @@ from tm import UnaryTape, UnaryOutput
 
 class Phase1P:
     """Phase 1: scan right past a ones. a steps.
-    ∀d,q0,z,a,tape,c0,c1,w,one,d1,b.
-      TMTransition(d,q0,one,one,d1,q0) →
+    ∀d,q0,z,a,tape,c0,c1,w,one,b.
+      TMTransition(d,q0,one,one,one,q0) →
       Omega(w) → In(a,w) → Function(d) → Function(tape) →
-      Num(one,1) → Num(d1,1) → Num(z,0) → UnaryTape(tape,a,b) →
+      Num(one,1) → Num(z,0) → UnaryTape(tape,a,b) →
       TMConfig(c0,q0,z,tape) → TMConfig(c1,q0,a,tape) →
       TMReaches(d,c0,a,c1)"""
     def expand(self):
         d,q0,z,a,tape = Var(postfix='_d'), Var(postfix='_q0'), Var(postfix='_z'), Var(postfix='_a'), Var(postfix='_tape')
         c0,c1 = Var(postfix='_c0'), Var(postfix='_c1')
-        w,one,d1,b = Var(postfix='_w'), Var(postfix='_one'), Var(postfix='_d1'), Var(postfix='_b')
-        body = Implies(TMTransition(d,q0,one,one,d1,q0),
+        w,one,b = Var(postfix='_w'), Var(postfix='_one'), Var(postfix='_b')
+        body = Implies(TMTransition(d,q0,one,one,one,q0),
             Implies(Omega(w), Implies(In(a,w), Implies(FuncDef(d), Implies(FuncDef(tape),
-            Implies(Num(one,1), Implies(Num(d1,1), Implies(Num(z,0), Implies(UnaryTape(tape,a,b),
+            Implies(Num(one,1), Implies(Num(z,0), Implies(UnaryTape(tape,a,b),
             Implies(TMConfig(c0,q0,z,tape), Implies(TMConfig(c1,q0,a,tape),
-            TMReaches(d,c0,a,c1))))))))))))
-        for v in [c1,c0,b,d1,one,w,tape,a,z,q0,d]:
+            TMReaches(d,c0,a,c1)))))))))))
+        for v in [c1,c0,b,one,w,tape,a,z,q0,d]:
             body = Forall(v, body)
         return body
     def __str__(self): return 'Phase1P'
@@ -59,25 +59,25 @@ class Phase1P:
 
 class Phase2P:
     """Phase 2: write 1 over separator, move R, change state. 1 step.
-    ∀d,q0,q1,a,sa,one,d1,zero,tape,tape2,c1,c2.
-      TMTransition(d,q0,zero,one,d1,q1) →
+    ∀d,q0,q1,a,sa,one,zero,tape,tape2,c1,c2.
+      TMTransition(d,q0,zero,one,one,q1) →
       Function(d) → Function(tape) →
-      Num(one,1) → Num(d1,1) → Num(zero,0) →
+      Num(one,1) → Num(zero,0) →
       Successor(sa,a) → TapeUpdate(tape2,tape,a,one) →
       TMConfig(c1,q0,a,tape) → TMConfig(c2,q1,sa,tape2) →
       TMReaches(d,c1,one,c2)"""
     def expand(self):
-        d,q0,q1,a,sa,one,d1 = Var(postfix='_d'), Var(postfix='_q0'), Var(postfix='_q1'), Var(postfix='_a'), Var(postfix='_sa'), Var(postfix='_one'), Var(postfix='_d1')
+        d,q0,q1,a,sa,one = Var(postfix='_d'), Var(postfix='_q0'), Var(postfix='_q1'), Var(postfix='_a'), Var(postfix='_sa'), Var(postfix='_one')
         tape,tape2 = Var(postfix='_tape'), Var(postfix='_t2')
         c1,c2 = Var(postfix='_c1'), Var(postfix='_c2')
         zero = Var(postfix='_z')
-        body = Implies(TMTransition(d,q0,zero,one,d1,q1),
+        body = Implies(TMTransition(d,q0,zero,one,one,q1),
             Implies(FuncDef(d), Implies(FuncDef(tape),
-            Implies(Num(one,1), Implies(Num(d1,1), Implies(Num(zero,0),
+            Implies(Num(one,1), Implies(Num(zero,0),
             Implies(Successor(sa,a), Implies(TapeUpdate(tape2,tape,a,one),
             Implies(TMConfig(c1,q0,a,tape), Implies(TMConfig(c2,q1,sa,tape2),
-            TMReaches(d,c1,one,c2)))))))))))
-        for v in [c2,c1,tape2,tape,zero,d1,one,sa,a,q1,q0,d]:
+            TMReaches(d,c1,one,c2))))))))))
+        for v in [c2,c1,tape2,tape,zero,one,sa,a,q1,q0,d]:
             body = Forall(v, body)
         return body
     def __str__(self): return 'Phase2P'
@@ -85,11 +85,11 @@ class Phase2P:
 
 class Phase3P:
     """Phase 3: scan right past b ones. b steps.
-    ∀d,q1,sa,b,pos,tape2,c1,c2,w,one,d1.
-      TMTransition(d,q1,one,one,d1,q1) →
+    ∀d,q1,sa,b,pos,tape2,c1,c2,w,one.
+      TMTransition(d,q1,one,one,one,q1) →
       Omega(w) → In(b,w) → In(sa,w) →
       Function(d) → Function(tape2) →
-      Num(one,1) → Num(d1,1) →
+      Num(one,1) →
       (∀p. In(p,w) → Apply(tape2,p,one)) →
       Plus(sa,b,pos) →
       TMConfig(c1,q1,sa,tape2) → TMConfig(c2,q1,pos,tape2) →
@@ -98,17 +98,17 @@ class Phase3P:
         d,q1,sa,b,pos = Var(postfix='_d'), Var(postfix='_q1'), Var(postfix='_sa'), Var(postfix='_b'), Var(postfix='_pos')
         tape2 = Var(postfix='_t2')
         c1,c2 = Var(postfix='_c1'), Var(postfix='_c2')
-        w,one,d1 = Var(postfix='_w'), Var(postfix='_one'), Var(postfix='_d1')
+        w,one = Var(postfix='_w'), Var(postfix='_one')
         p = Var(postfix='_p')
         tape_read = Forall(p, Implies(In(p,w), Apply(tape2,p,one)))
-        body = Implies(TMTransition(d,q1,one,one,d1,q1),
+        body = Implies(TMTransition(d,q1,one,one,one,q1),
             Implies(Omega(w), Implies(In(b,w), Implies(In(sa,w),
             Implies(FuncDef(d), Implies(FuncDef(tape2),
-            Implies(Num(one,1), Implies(Num(d1,1), Implies(tape_read,
+            Implies(Num(one,1), Implies(tape_read,
             Implies(PlusDef(sa,b,pos),
             Implies(TMConfig(c1,q1,sa,tape2), Implies(TMConfig(c2,q1,pos,tape2),
-            TMReaches(d,c1,b,c2)))))))))))))
-        for v in [c2,c1,d1,one,w,tape2,pos,b,sa,q1,d]:
+            TMReaches(d,c1,b,c2))))))))))))
+        for v in [c2,c1,one,w,tape2,pos,b,sa,q1,d]:
             body = Forall(v, body)
         return body
     def __str__(self): return 'Phase3P'
@@ -116,25 +116,25 @@ class Phase3P:
 
 class Phase4P:
     """Phase 4: read 0 past ones, write 0, move L. 1 step.
-    ∀d,q1,q2,hf,c,one,d0,zero,tape2,c1,c2.
-      TMTransition(d,q1,zero,zero,d0,q2) →
+    ∀d,q1,q2,hf,c,one,zero,tape2,c1,c2.
+      TMTransition(d,q1,zero,zero,zero,q2) →
       Function(d) → Function(tape2) →
-      Num(one,1) → Num(d0,0) → Num(zero,0) →
+      Num(one,1) → Num(zero,0) →
       Successor(hf,c) → Apply(tape2,hf,zero) →
       TMConfig(c1,q1,hf,tape2) → TMConfig(c2,q2,c,tape2) →
       TMReaches(d,c1,one,c2)"""
     def expand(self):
-        d,q1,q2,hf,c,one,d0 = Var(postfix='_d'), Var(postfix='_q1'), Var(postfix='_q2'), Var(postfix='_hf'), Var(postfix='_c'), Var(postfix='_one'), Var(postfix='_d0')
+        d,q1,q2,hf,c,one = Var(postfix='_d'), Var(postfix='_q1'), Var(postfix='_q2'), Var(postfix='_hf'), Var(postfix='_c'), Var(postfix='_one')
         zero = Var(postfix='_z')
         tape2 = Var(postfix='_t2')
         c1,c2 = Var(postfix='_c1'), Var(postfix='_c2')
-        body = Implies(TMTransition(d,q1,zero,zero,d0,q2),
+        body = Implies(TMTransition(d,q1,zero,zero,zero,q2),
             Implies(FuncDef(d), Implies(FuncDef(tape2),
-            Implies(Num(one,1), Implies(Num(d0,0), Implies(Num(zero,0),
+            Implies(Num(one,1), Implies(Num(zero,0),
             Implies(Successor(hf,c), Implies(Apply(tape2,hf,zero),
             Implies(TMConfig(c1,q1,hf,tape2), Implies(TMConfig(c2,q2,c,tape2),
-            TMReaches(d,c1,one,c2)))))))))))
-        for v in [c2,c1,tape2,zero,d0,one,c,hf,q2,q1,d]:
+            TMReaches(d,c1,one,c2))))))))))
+        for v in [c2,c1,tape2,zero,one,c,hf,q2,q1,d]:
             body = Forall(v, body)
         return body
     def __str__(self): return 'Phase4P'
@@ -142,27 +142,27 @@ class Phase4P:
 
 class Phase5P:
     """Phase 5: erase last 1, move R, halt. 1 step.
-    ∀d,q2,qH,c,hf,one,d1,zero,tape2,tf,c1,c2.
-      TMTransition(d,q2,one,zero,d1,qH) →
+    ∀d,q2,qH,c,hf,one,zero,tape2,tf,c1,c2.
+      TMTransition(d,q2,one,zero,one,qH) →
       Function(d) → Function(tape2) →
-      Num(one,1) → Num(d1,1) → Num(zero,0) →
+      Num(one,1) → Num(zero,0) →
       Successor(hf,c) → Apply(tape2,c,one) →
       TapeUpdate(tf,tape2,c,zero) →
       TMConfig(c1,q2,c,tape2) → TMConfig(c2,qH,hf,tf) →
       TMReaches(d,c1,one,c2)"""
     def expand(self):
-        d,q2,qH,c,hf,one,d1 = Var(postfix='_d'), Var(postfix='_q2'), Var(postfix='_qH'), Var(postfix='_c'), Var(postfix='_hf'), Var(postfix='_one'), Var(postfix='_d1')
+        d,q2,qH,c,hf,one = Var(postfix='_d'), Var(postfix='_q2'), Var(postfix='_qH'), Var(postfix='_c'), Var(postfix='_hf'), Var(postfix='_one')
         zero = Var(postfix='_z')
         tape2,tf = Var(postfix='_t2'), Var(postfix='_tf')
         c1,c2 = Var(postfix='_c1'), Var(postfix='_c2')
-        body = Implies(TMTransition(d,q2,one,zero,d1,qH),
+        body = Implies(TMTransition(d,q2,one,zero,one,qH),
             Implies(FuncDef(d), Implies(FuncDef(tape2),
-            Implies(Num(one,1), Implies(Num(d1,1), Implies(Num(zero,0),
+            Implies(Num(one,1), Implies(Num(zero,0),
             Implies(Successor(hf,c), Implies(Apply(tape2,c,one),
             Implies(TapeUpdate(tf,tape2,c,zero),
             Implies(TMConfig(c1,q2,c,tape2), Implies(TMConfig(c2,qH,hf,tf),
-            TMReaches(d,c1,one,c2))))))))))))
-        for v in [c2,c1,tf,tape2,zero,d1,one,hf,c,qH,q2,d]:
+            TMReaches(d,c1,one,c2)))))))))))
+        for v in [c2,c1,tf,tape2,zero,one,hf,c,qH,q2,d]:
             body = Forall(v, body)
         return body
     def __str__(self): return 'Phase5P'
@@ -290,7 +290,6 @@ def tm_add_correct():
     # We need specific Var instances for the state/symbol params.
     # Create intermediate vars
     one = Var(postfix='one')
-    d1 = Var(postfix='d1')
     zero = Var(postfix='zv')
     q1 = Var(postfix='q1')
     q2 = Var(postfix='q2')
@@ -299,7 +298,6 @@ def tm_add_correct():
     c1,c2,c3,c4 = Var(postfix='c1'), Var(postfix='c2'), Var(postfix='c3'), Var(postfix='c4')
 
     num_one = Num(one, 1)
-    num_d1 = Num(d1, 1)
     num_zero = Num(zero, 0)
     num_q1 = Num(q1, 2)
     num_q2 = Num(q2, 3)
@@ -313,27 +311,25 @@ def tm_add_correct():
             got = mp(got, ax(num), num, got.sequent.right[0].right)
         return got
 
-    # t0: q0,1→1,R,q0: ∀s0,r1,w1,d1,s0'. Num(s0,0)→Num(r1,1)→Num(w1,1)→Num(d1,1)→Num(s0',0)→TMTrans
-    trans_q0_1 = inst_transition(got_t0, [q0, one, one, d1, q0],
-        [num_q0, num_one, num_one, num_d1, num_q0])
+    # t0: q0,1→1,R,q0
+    trans_q0_1 = inst_transition(got_t0, [q0, one, one, one, q0],
+        [num_q0, num_one, num_one, num_one, num_q0])
 
-    # t1: q0,0→1,R,q1: ∀s0,r0,w1,d1,s2. Num(s0,0)→Num(r0,0)→Num(w1,1)→Num(d1,1)→Num(s2,2)→TMTrans
-    trans_q0_0 = inst_transition(got_t1, [q0, zero, one, d1, q1],
-        [num_q0, num_zero, num_one, num_d1, num_q1])
+    # t1: q0,0→1,R,q1
+    trans_q0_0 = inst_transition(got_t1, [q0, zero, one, one, q1],
+        [num_q0, num_zero, num_one, num_one, num_q1])
 
-    # t2: q1,1→1,R,q1: ∀s2,r1,w1,d1,s2'. Num(s2,2)→...
-    trans_q1_1 = inst_transition(got_t2, [q1, one, one, d1, q1],
-        [num_q1, num_one, num_one, num_d1, num_q1])
+    # t2: q1,1→1,R,q1
+    trans_q1_1 = inst_transition(got_t2, [q1, one, one, one, q1],
+        [num_q1, num_one, num_one, num_one, num_q1])
 
-    # t3: q1,0→0,L,q2: ∀s2,r0,w0,d0,s3. Num(s2,2)→Num(r0,0)→Num(w0,0)→Num(d0,0)→Num(s3,3)→TMTrans
-    d0 = Var(postfix='d0')
-    num_d0 = Num(d0, 0)
-    trans_q1_0 = inst_transition(got_t3, [q1, zero, zero, d0, q2],
-        [num_q1, num_zero, num_zero, num_d0, num_q2])
+    # t3: q1,0→0,L,q2 (direction=0=zero)
+    trans_q1_0 = inst_transition(got_t3, [q1, zero, zero, zero, q2],
+        [num_q1, num_zero, num_zero, num_zero, num_q2])
 
-    # t4: q2,1→0,R,qH: ∀s3,r1,w0,d1,s1. Num(s3,3)→Num(r1,1)→Num(w0,0)→Num(d1,1)→Num(s1,1)→TMTrans
-    trans_q2_1 = inst_transition(got_t4, [q2, one, zero, d1, qH],
-        [num_q2, num_one, num_zero, num_d1, num_qH])
+    # t4: q2,1→0,R,qH
+    trans_q2_1 = inst_transition(got_t4, [q2, one, zero, one, qH],
+        [num_q2, num_one, num_zero, num_one, num_qH])
 
     # t5: q2,0→0,R,qH (edge case, not needed for main proof but let's derive it)
     # Skip for now — not used in the 5 phases
@@ -342,6 +338,7 @@ def tm_add_correct():
     # === Intermediate formulas ===
     succ_sa = Successor(sa, a)
     tu_tape2 = TapeUpdate(tape2, tape_in, a, one)
+    num_zero_z = Num(z, 0)  # alias for the goal's Num(z,0) — same as num_z but named differently
     tu_tf = TapeUpdate(tf, tape2, c, zero)
     cfg_c1 = TMConfig(c1, q0, a, tape_in)
     cfg_c2 = TMConfig(c2, q1, sa, tape2)
@@ -376,32 +373,37 @@ def tm_add_correct():
         return got
 
     # === Instantiate Phase1P..Phase5P ===
+    # Phase1P ∀ order: d,q0,z,a,tape,w,one,b,c0,c1
     got_p1 = mp_hyps(
-        apply_thm(ax(Phase1P()), [delta, q0, z, a, tape_in, w, one, d1, b, c0, c1]),
+        apply_thm(ax(Phase1P()), [delta, q0, z, a, tape_in, w, one, b, c0, c1]),
         [trans_q0_1.sequent.right[0], omega_w, In(a,w), FuncDef(delta), FuncDef(tape_in),
-         num_one, num_d1, num_z, utape, cfg_c0, cfg_c1])
+         num_one, num_z, utape, cfg_c0, cfg_c1])
 
+    # Phase2P ∀ order: d,q0,q1,a,sa,one,zero,tape,tape2,c1,c2
     got_p2 = mp_hyps(
-        apply_thm(ax(Phase2P()), [delta, q0, q1, a, sa, one, d1, zero, tape_in, tape2, c1, c2]),
+        apply_thm(ax(Phase2P()), [delta, q0, q1, a, sa, one, zero, tape_in, tape2, c1, c2]),
         [trans_q0_0.sequent.right[0], FuncDef(delta), FuncDef(tape_in),
-         num_one, num_d1, num_zero, succ_sa, tu_tape2, cfg_c1, cfg_c2])
+         num_one, num_zero, succ_sa, tu_tape2, cfg_c1, cfg_c2])
 
+    # Phase3P ∀ order: d,q1,sa,b,pos,tape2,w,one,c1,c2
     got_p3 = mp_hyps(
-        apply_thm(ax(Phase3P()), [delta, q1, sa, b, hf, tape2, w, one, d1, c2, c3]),
+        apply_thm(ax(Phase3P()), [delta, q1, sa, b, hf, tape2, w, one, c2, c3]),
         [trans_q1_1.sequent.right[0], omega_w, In(b,w), In(sa,w),
          FuncDef(delta), FuncDef(tape2),
-         num_one, num_d1, tape_read,
+         num_one, tape_read,
          plus_sa_b_hf, cfg_c2, cfg_c3])
 
+    # Phase4P ∀ order: d,q1,q2,hf,c,one,zero,tape2,c1,c2
     got_p4 = mp_hyps(
-        apply_thm(ax(Phase4P()), [delta, q1, q2, hf, c, one, d0, zero, tape2, c3, c4]),
+        apply_thm(ax(Phase4P()), [delta, q1, q2, hf, c, one, zero, tape2, c3, c4]),
         [trans_q1_0.sequent.right[0], FuncDef(delta), FuncDef(tape2),
-         num_one, Num(d0,0), num_zero, succ_hf, tape2_hf_zero, cfg_c3, cfg_c4])
+         num_one, num_zero, succ_hf, tape2_hf_zero, cfg_c3, cfg_c4])
 
+    # Phase5P ∀ order: d,q2,qH,c,hf,one,zero,tape2,tf,c1,c2
     got_p5 = mp_hyps(
-        apply_thm(ax(Phase5P()), [delta, q2, qH, c, hf, one, d1, zero, tape2, tf, c4, cf]),
+        apply_thm(ax(Phase5P()), [delta, q2, qH, c, hf, one, zero, tape2, tf, c4, cf]),
         [trans_q2_1.sequent.right[0], FuncDef(delta), FuncDef(tape2),
-         num_one, num_d1, num_zero, succ_hf, tape2_c_one, tu_tf, cfg_c4, cfg_cf])
+         num_one, num_zero, succ_hf, tape2_c_one, tu_tf, cfg_c4, cfg_cf])
     print(f'tm_add: phases instantiated')
 
     # === Compose via TMReachesCompose ===
@@ -469,7 +471,7 @@ def tm_add_correct():
             proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
 
     # Now close ∀ over intermediate vars (they're only on the right, inside implications)
-    intermediate_vars = [c4, c3, c2, c1, d0, d1, one, zero, q2, q1, sa, tape2, tp]
+    intermediate_vars = [c4, c3, c2, c1, one, zero, q2, q1, sa, tape2, tp]
     for v in intermediate_vars:
         if _var_free_in_sequent(v, Sequent([], proof.sequent.right)):
             body = proof.sequent.right[0]
