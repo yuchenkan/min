@@ -100,7 +100,8 @@ class Phase3P:
         c1,c2 = Var(postfix='_c1'), Var(postfix='_c2')
         w,one = Var(postfix='_w'), Var(postfix='_one')
         p = Var(postfix='_p')
-        tape_read = Forall(p, Implies(In(p,w), Apply(tape2,p,one)))
+        pp = Var(postfix='_pp')
+        tape_read = Forall(p, Implies(In(p,b), Forall(pp, Implies(PlusDef(sa,p,pp), Apply(tape2,pp,one)))))
         body = Implies(TMTransition(d,q1,one,one,one,q1),
             Implies(Omega(w), Implies(In(b,w), Implies(In(sa,w),
             Implies(FuncDef(d), Implies(FuncDef(tape2),
