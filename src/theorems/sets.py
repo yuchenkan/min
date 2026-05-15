@@ -5733,3 +5733,93 @@ def omega_pred():
             break
     proof.name = 'omega_pred'
     return proof
+
+
+def succ_injection():
+    """Successor injection: Succ(s,a) ∧ Succ(s,b) → a=b in omega.
+    ∀s,w,a,b. Succ(s,a)→Succ(s,b)→Omega(w)→In(a,w)→In(b,w)→Eq(a,b)"""
+    from core.lang import Var, In, Not, Implies, Forall
+    from core.derived import Or, Iff, Eq
+    from core.proof import Proof, Sequent, same
+    from vocab.ordpair import Successor
+    from vocab.omega import Omega
+    from vocab.sets import TransitiveSet
+    from tactics import apply_thm, mp, ax, fl, cut, wl
+    from theorems.logic import (or_intro_right, or_elim, eq_reflexive, eq_symmetric,
+        iff_mp, iff_mp_rev)
+    from theorems.sets import omega_transitive_set, omega_no_self_membership
+
+    s=Var(postfix='s'); a=Var(postfix='a'); b=Var(postfix='b'); w=Var(postfix='w')
+    omega_w=Omega(w); succ_sa=Successor(s,a); succ_sb=Successor(s,b)
+    er=eq_reflexive()
+
+    # In(a,s) from Succ(s,a)
+    got_or_aa=apply_thm(or_intro_right(In(a,a),Eq(a,a),[]),[],Eq(a,a),Or(In(a,a),Eq(a,a)),apply_thm(er,[a]))
+    got_in_a_s=mp(apply_thm(iff_mp_rev(In(a,s),Or(In(a,a),Eq(a,a)),[]),[],
+        Iff(In(a,s),Or(In(a,a),Eq(a,a))),Implies(Or(In(a,a),Eq(a,a)),In(a,s)),
+        fl(succ_sa,Iff(In(a,s),Or(In(a,a),Eq(a,a))),a)),
+        got_or_aa,Or(In(a,a),Eq(a,a)),In(a,s))
+    # Or(In(a,b),Eq(a,b)) from Succ(s,b) at x=a
+    or_ab=Or(In(a,b),Eq(a,b))
+    got_or_ab=mp(apply_thm(iff_mp(In(a,s),or_ab,[]),[],Iff(In(a,s),or_ab),
+        Implies(In(a,s),or_ab),fl(succ_sb,Iff(In(a,s),or_ab),a)),got_in_a_s,In(a,s),or_ab)
+    # In(b,s) from Succ(s,b)
+    got_or_bb=apply_thm(or_intro_right(In(b,b),Eq(b,b),[]),[],Eq(b,b),Or(In(b,b),Eq(b,b)),apply_thm(er,[b]))
+    got_in_b_s=mp(apply_thm(iff_mp_rev(In(b,s),Or(In(b,b),Eq(b,b)),[]),[],
+        Iff(In(b,s),Or(In(b,b),Eq(b,b))),Implies(Or(In(b,b),Eq(b,b)),In(b,s)),
+        fl(succ_sb,Iff(In(b,s),Or(In(b,b),Eq(b,b))),b)),
+        got_or_bb,Or(In(b,b),Eq(b,b)),In(b,s))
+    or_ba=Or(In(b,a),Eq(b,a))
+    got_or_ba=mp(apply_thm(iff_mp(In(b,s),or_ba,[]),[],Iff(In(b,s),or_ba),
+        Implies(In(b,s),or_ba),fl(succ_sa,Iff(In(b,s),or_ba),b)),got_in_b_s,In(b,s),or_ba)
+
+    # In(a,b)+In(b,a)→In(a,a)→contradiction→Eq(a,b)
+    ots=omega_transitive_set()
+    got_ta=apply_thm(ots,[w,a])
+    got_ta=mp(got_ta,ax(omega_w),omega_w,got_ta.sequent.right[0].right)
+    got_ta=mp(got_ta,ax(In(a,w)),In(a,w),TransitiveSet(a))
+    yv=Var(postfix='yv')
+    got_aa=apply_thm(got_ta,[b],In(b,a),Forall(yv,Implies(In(yv,b),In(yv,a))),ax(In(b,a)))
+    got_aa=apply_thm(got_aa,[a],In(a,b),In(a,a),ax(In(a,b)))
+    onsm=omega_no_self_membership()
+    got_naa=apply_thm(onsm,[w,a])
+    got_naa=mp(got_naa,ax(omega_w),omega_w,got_naa.sequent.right[0].right)
+    got_naa=mp(got_naa,ax(In(a,w)),In(a,w),Not(In(a,a)))
+    got_bot=Proof(Sequent([In(a,a),Not(In(a,a))],[]),'not_left',[ax(In(a,a))],principal=Not(In(a,a)))
+    got_bot=Proof(Sequent(got_bot.sequent.left,[Eq(a,b)]),'weakening_right',[got_bot],principal=Eq(a,b))
+    got_bot=cut(got_bot,Not(In(a,a)),got_naa)
+    got_bot=cut(got_bot,In(a,a),got_aa)
+
+    _es=eq_symmetric()
+    got_ba2ab=apply_thm(_es,[b,a],Eq(b,a),Eq(a,b),ax(Eq(b,a)))
+    oe_ba=or_elim(In(b,a),Eq(b,a),Eq(a,b),[])
+    imp1=Implies(In(b,a),Eq(a,b))
+    got_i1=Proof(Sequent([f for f in got_bot.sequent.left if not same(f,In(b,a))],[imp1]),'implies_right',[got_bot],principal=imp1)
+    imp2=Implies(Eq(b,a),Eq(a,b))
+    got_i2=Proof(Sequent([],[imp2]),'implies_right',[got_ba2ab],principal=imp2)
+    got_from_inab=apply_thm(oe_ba,[],or_ba,Implies(imp1,Implies(imp2,Eq(a,b))),ax(or_ba))
+    got_from_inab=mp(got_from_inab,got_i1,imp1,Implies(imp2,Eq(a,b)))
+    got_from_inab=mp(got_from_inab,got_i2,imp2,Eq(a,b))
+    got_from_inab=cut(got_from_inab,or_ba,got_or_ba)
+
+    oe_ab=or_elim(In(a,b),Eq(a,b),Eq(a,b),[])
+    imp3=Implies(In(a,b),Eq(a,b))
+    got_i3=Proof(Sequent([f for f in got_from_inab.sequent.left if not same(f,In(a,b))],[imp3]),'implies_right',[got_from_inab],principal=imp3)
+    imp4=Implies(Eq(a,b),Eq(a,b))
+    got_i4=Proof(Sequent([],[imp4]),'implies_right',[ax(Eq(a,b))],principal=imp4)
+    got_final=apply_thm(oe_ab,[],or_ab,Implies(imp3,Implies(imp4,Eq(a,b))),ax(or_ab))
+    got_final=mp(got_final,got_i3,imp3,Implies(imp4,Eq(a,b)))
+    got_final=mp(got_final,got_i4,imp4,Eq(a,b))
+    got_final=cut(got_final,or_ab,got_or_ab)
+
+    proof=got_final
+    for hyp in [In(b,w),In(a,w),omega_w,succ_sb,succ_sa]:
+        if not any(same(hyp,f) for f in proof.sequent.left): proof=wl(proof,hyp)
+        imp=Implies(hyp,proof.sequent.right[0])
+        left=[f for f in proof.sequent.left if not same(f,hyp)]
+        proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    for v in [b,a,w,s]:
+        body=proof.sequent.right[0]; fa=Forall(v,body)
+        proof=Proof(Sequent(proof.sequent.left,[fa]),'forall_right',[proof],principal=fa,term=v)
+    proof.name='succ_injection'
+    return proof
