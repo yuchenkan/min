@@ -7646,59 +7646,50 @@ def phase3_step():
 
 def phase3():
     """Phase 3: TM scans past second unary group of b ones.
-    |- ∀delta,q0,q1,tape_in,c0,z,a,b,w,one,d1,sa.
-         TMTransition(delta,q0,one,one,d1,q0) →
+    |- ∀delta,q1,c0,sa,b,w,tape2,one,d1,pos0.
          TMTransition(delta,q1,one,one,d1,q1) →
-         Omega(w) → In(a,w) → In(b,w) → In(sa,w) → Successor(sa,a) →
-         UnaryTape(tape_in,a,b) → Function(delta) → Function(tape_in) →
-         Num(one,1) → Num(d1,1) → Num(z,0) → Num(q1,2) →
-         TMConfig(c0,q0,z,tape_in) →
-         Phase2P(sa,q1,tape_in,c0,delta,a,one) →
-         Phase3P(b,sa,q1,tape_in,c0,delta,a,one)
+         Omega(w) → In(b,w) → In(sa,w) →
+         Function(delta) → Function(tape2) →
+         Num(one,1) → Num(d1,1) → Num(z,0) →
+         TMConfig(c0,q1,pos0,tape2) → Plus(sa,z,pos0) →
+         (∀p. In(p,w) → Apply(tape2,p,one)) →
+         Phase3Q(b,b,sa,q1,tape2,c0,delta)
 
-    Omega induction on j with Q3(j) = Or(In(j,b),Eq(j,b)) → P3(j).
-    Base: phase3_base. Step: phase3_step. Extract P3(b) via Eq(b,b)."""
+    Omega induction on j with Q3(j) = Or → ∃pos. And(Plus, Phase3Ind).
+    Base: phase3_base. Step: phase3_step. Extract Q3(b) via Eq(b,b)."""
     from tactics import apply_thm, wl, wr, mp, ax, fl, eir, eel, cut, weaken_to
     from theorems.logic import (and_intro, and_elim_left, and_elim_right,
-        iff_mp, iff_mp_rev, eq_reflexive, or_intro_right)
+        iff_mp, iff_mp_rev, eq_reflexive, or_intro_right, unique_empty, eq_substitution)
     from theorems.omega import omega_smallest_inductive, omega_contains_empty, omega_succ_closed
-    from theorems.sets import omega_transitive_set
     from vocab.sets import TransitiveSet, Subset
     from vocab import Omega, Inductive
     from vocab.ordpair import Successor as SuccDef
     from vocab.omega import Num
-    from vocab.functions import Function as FuncDef
-    from vocab.tm import TMTransition
+    from vocab.functions import Function as FuncDef, Apply
+    from vocab.recursion import Plus as PlusDef
     from core.proof import Proof, Sequent, same, _var_free_in_sequent
     from core.lang import Var, In, Not, Implies, Forall
     from core.derived import Exists, And, Or, Iff, Eq
-    from tm import UnaryTape
-    from theorems.tm import (Phase3P, Phase3Q, Phase2P,
-        phase3_base, phase3_step)
     import core.zfc as zfc
 
     delta = Var(postfix='delta')
-    q0 = Var(postfix='q0')
     q1 = Var(postfix='q1')
-    tape_in = Var(postfix='tin')
     c0 = Var(postfix='c0')
-    z = Var(postfix='z')
-    a = Var(postfix='a')
+    sa = Var(postfix='sa')
     b = Var(postfix='b')
     w = Var(postfix='w')
+    tape2 = Var(postfix='t2')
     one = Var(postfix='one')
     d1 = Var(postfix='d1')
-    sa = Var(postfix='sa')
+    z = Var(postfix='z')
+    pos0 = Var(postfix='pos0')
 
     omega_w = Omega(w)
-    in_a_w = In(a, w)
     in_b_w = In(b, w)
     in_sa_w = In(sa, w)
-    succ_sa = SuccDef(sa, a)
-    utape = UnaryTape(tape_in, a, b)
-    trans_q0 = TMTransition(delta, q0, one, one, d1, q0)
     trans_q1 = TMTransition(delta, q1, one, one, d1, q1)
-    p2_formula = Phase2P(sa, q1, tape_in, c0, delta, a, one)
+    tp = Var(postfix='tp')
+    tape_hyp = Forall(tp, Implies(In(tp, w), Apply(tape2, tp, one)))
 
     n = Var(postfix='ind_n')
     sn = Var(postfix='ind_sn')
@@ -7706,13 +7697,13 @@ def phase3():
     xv = Var(postfix='ind_xv')
 
     def Q3(nn):
-        return Phase3Q(nn, b, sa, q1, tape_in, c0, delta, a, one)
+        return Phase3Q(nn, b, sa, q1, tape2, c0, delta)
 
     # === Separation: pv = {nn ∈ w : Q3(nn)} ===
-    sep = zfc.Separation(Q3, [b, sa, q1, tape_in, c0, delta, a, one])
+    sep = zfc.Separation(Q3, [b, sa, q1, tape2, c0, delta])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), Q3(xv))))
-    got_ex_pv = apply_thm(sep_ax, [one, a, delta, c0, tape_in, q1, sa, b, w],
+    got_ex_pv = apply_thm(sep_ax, [delta, c0, tape2, q1, sa, b, w],
         concl=Exists(pv, char_pv))
     print(f'phase3: separation done')
 
@@ -7720,12 +7711,12 @@ def phase3():
         got_inst = apply_thm(ax(char_pv), [term])
         iff_inst = got_inst.sequent.right[0]
         and_form = iff_inst.right
+        q_sep = and_form.right
         got_rev = apply_thm(iff_mp_rev(iff_inst.left, iff_inst.right, []),
             [], iff_inst, Implies(and_form, iff_inst.left), got_inst)
-        ai = and_intro(and_form.left, and_form.right, [])
-        got_and = mp(apply_thm(ai, [], and_form.left,
-            Implies(and_form.right, and_form), got_in_w),
-            got_Q, and_form.right, and_form)
+        ai = and_intro(and_form.left, q_sep, [])
+        got_ai = apply_thm(ai, [], and_form.left, Implies(q_sep, and_form), got_in_w)
+        got_and = mp(got_ai, got_Q, q_sep, and_form)
         return mp(got_rev, got_and, and_form, iff_inst.left)
 
     def char_fwd(term):
@@ -7737,218 +7728,216 @@ def phase3():
 
     # === Base: Q3(z) ===
     _p3b = phase3_base()
-    got_base_Q = apply_thm(_p3b, [delta, q0, q1, tape_in, c0, z, a, b, w, one, d1, sa])
-    # Print to see hypothesis order
-    cur = got_base_Q.sequent.right[0]
-    i = 0
-    while hasattr(cur, 'left') and type(cur).__name__ == 'Implies':
-        print(f'  base hyp[{i}]: {cur.left}')
-        cur = cur.right
-        i += 1
-    print(f'  base concl: {cur}')
-    # mp through hypotheses explicitly
-    got_base_Q = mp(got_base_Q, ax(p2_formula), p2_formula, got_base_Q.sequent.right[0].right)
-    got_base_Q = mp(got_base_Q, ax(omega_w), omega_w, got_base_Q.sequent.right[0].right)
-    got_base_Q = mp(got_base_Q, ax(in_sa_w), in_sa_w, got_base_Q.sequent.right[0].right)
-    imp_cur = got_base_Q.sequent.right[0]
-    got_base_Q = mp(got_base_Q, ax(imp_cur.left), imp_cur.left, imp_cur.right)  # Num(z,0)
-    print(f'phase3: base Q3(z) right = {got_base_Q.sequent.right[0]}')
+    # phase3_base: ∀delta,q1,tape2,c0,z,sa,b,pos. TMConfig → Plus → Num → Q3(z,...)
+    got_base_Q = apply_thm(_p3b, [delta, q1, tape2, c0, z, sa, b, pos0])
+    cfg0 = TMConfig(c0, q1, pos0, tape2)
+    plus0 = PlusDef(sa, z, pos0)
+    num_z = Num(z, 0)
+    got_base_Q = mp(got_base_Q, ax(cfg0), cfg0, got_base_Q.sequent.right[0].right)
+    got_base_Q = mp(got_base_Q, ax(plus0), plus0, got_base_Q.sequent.right[0].right)
+    got_base_Q = mp(got_base_Q, ax(num_z), num_z, got_base_Q.sequent.right[0].right)
+    print(f'phase3: Q3(z) done')
 
     # In(z, w) from omega_contains_empty
     oce = omega_contains_empty()
-    empty_z = Num(z, 0)
-    got_z_in_w = apply_thm(oce, [w])
-    got_z_in_w = mp(got_z_in_w, ax(omega_w), omega_w, got_z_in_w.sequent.right[0].right)
-    got_z_in_w = apply_thm(got_z_in_w, [z])
-    imp_cur = got_z_in_w.sequent.right[0]
-    got_z_in_w = mp(got_z_in_w, ax(imp_cur.left), imp_cur.left, imp_cur.right)
+    got_z_in_w = apply_thm(oce, [w], omega_w,
+        Forall(z, Implies(num_z, In(z, w))), ax(omega_w))
+    got_z_in_w = apply_thm(got_z_in_w, [z], num_z, In(z, w), ax(num_z))
 
     got_base = char_bwd(z, got_z_in_w, got_base_Q)
-    print(f'phase3: base In(z,pv) done')
 
-    # Discharge Empty(z)/Num(z,0), close ∀z → base part of Inductive
-    imp_e = Implies(Num(z, 0), In(z, pv))
-    left_e = [f for f in got_base.sequent.left if not same(f, Num(z, 0))]
-    got_base_ind = Proof(Sequent(left_e, [imp_e]), 'implies_right', [got_base], principal=imp_e)
-    fa_base = Forall(z, imp_e)
-    got_base_ind = Proof(Sequent(got_base_ind.sequent.left, [fa_base]),
-        'forall_right', [got_base_ind], principal=fa_base, term=z)
+    # Inductive base: ∀zero. Empty(zero) → In(zero, pv)
+    zero = Var(postfix='ind_zero')
+    ue = unique_empty()
+    empty_zero = Empty(zero)
+    eq_zero_z = Eq(zero, z)
+    got_eq_zz = apply_thm(ue, [zero], empty_zero,
+        Forall(z, Implies(num_z, eq_zero_z)), ax(empty_zero))
+    got_eq_zz = apply_thm(got_eq_zz, [z], num_z, eq_zero_z, ax(num_z))
+    es_thm = eq_substitution()
+    iff_in = Iff(In(zero, pv), In(z, pv))
+    got_iff_zz = apply_thm(es_thm, [zero, z, pv], eq_zero_z, iff_in, got_eq_zz)
+    got_in_zero_pv = mp(apply_thm(iff_mp_rev(In(zero, pv), In(z, pv), []),
+        [], iff_in, Implies(In(z, pv), In(zero, pv)), got_iff_zz),
+        got_base, In(z, pv), In(zero, pv))
+    imp_ez = Implies(empty_zero, In(zero, pv))
+    left_ez = [f_ for f_ in got_in_zero_pv.sequent.left if not same(f_, empty_zero)]
+    got_ind_base = Proof(Sequent(left_ez, [imp_ez]),
+        'implies_right', [got_in_zero_pv], principal=imp_ez)
+    fa_ind_base = Forall(zero, imp_ez)
+    got_ind_base = Proof(Sequent(got_ind_base.sequent.left, [fa_ind_base]),
+        'forall_right', [got_ind_base], principal=fa_ind_base, term=zero)
+    print(f'phase3: inductive base done')
 
     # === Step: Q3(n) → Q3(sn) ===
+    succ_sn = SuccDef(sn, n)
+    got_and_n = char_fwd(n)
+    got_in_n_w = apply_thm(and_elim_left(In(n, w), Q3(n), []), [],
+        got_and_n.sequent.right[0], In(n, w), got_and_n)
+    got_Q_n = apply_thm(and_elim_right(In(n, w), Q3(n), []), [],
+        got_and_n.sequent.right[0], Q3(n), got_and_n)
+
+    # In(sn, w) from omega_succ_closed
+    osc = omega_succ_closed()
+    got_sn_in_w = apply_thm(osc, [w], omega_w,
+        Forall(n, Implies(In(n, w), Forall(sn, Implies(succ_sn, In(sn, w))))), ax(omega_w))
+    got_sn_in_w = apply_thm(got_sn_in_w, [n], In(n, w),
+        Forall(sn, Implies(succ_sn, In(sn, w))), got_in_n_w)
+    got_sn_in_w = apply_thm(got_sn_in_w, [sn], succ_sn, In(sn, w), ax(succ_sn))
+
+    # phase3_step: ∀delta,q1,c0,sa,j,sj,b,w,tape2,one,d1.
+    #   trans → Omega → In(b,w) → In(j,w) → In(sa,w) → Succ(sj,j) →
+    #   Func(delta) → Func(tape2) → tape_hyp → Num(one,1) → Num(d1,1) →
+    #   Q3(j) → Q3(sj)
     _p3s = phase3_step()
-    # phase3_step ∀-close: [sj,j,sa,d1,one,w,b,a,z,c0,tape_in,q1,q0,delta]
-    # Outermost first: delta,q0,q1,tape_in,c0,z,a,b,w,one,d1,sa,j,sj
-    got_step_imp = apply_thm(_p3s, [delta, q0, q1, tape_in, c0, z, a, b, w, one, d1, sa, n, sn])
-    # mp through hypotheses using imp_cur.left pattern
-    # 13 hypotheses before Q3(n) → Q3(sn)
-    for _ in range(13):
-        imp_cur = got_step_imp.sequent.right[0]
-        got_step_imp = mp(got_step_imp, ax(imp_cur.left), imp_cur.left, imp_cur.right)
-    # Right should now be: Q3(n) → Q3(sn)
-    print(f'phase3: step right = {got_step_imp.sequent.right[0]}')
+    got_step_imp = apply_thm(_p3s, [delta, q1, c0, sa, b, n, sn, w, tape2, one, d1])
+    # mp through hypotheses
+    got_step_imp = mp(got_step_imp, ax(trans_q1), trans_q1, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(omega_w), omega_w, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(in_b_w), in_b_w, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, got_in_n_w, In(n, w), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(in_sa_w), in_sa_w, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(succ_sn), succ_sn, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(FuncDef(delta)), FuncDef(delta), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(FuncDef(tape2)), FuncDef(tape2), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(tape_hyp), tape_hyp, got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(Num(one, 1)), Num(one, 1), got_step_imp.sequent.right[0].right)
+    got_step_imp = mp(got_step_imp, ax(Num(d1, 1)), Num(d1, 1), got_step_imp.sequent.right[0].right)
+    # got_step_imp: [...] |- Q3(n) → Q3(sn)
+    print(f'phase3: step instantiated')
 
-    # mp Q3(n) from char_fwd
-    got_Q_n = char_fwd(n)
-    q_n_formula = got_Q_n.sequent.right[0].right  # Q3(n) from And
-    got_Q_n_only = apply_thm(and_elim_right(In(n, w), q_n_formula, []), [],
-        got_Q_n.sequent.right[0], q_n_formula, got_Q_n)
-
-    # implies_left: Q3(n) → Q3(sn) with Q3(n) → Q3(sn)
-    q3n = Q3(n)
-    q3sn = Q3(sn)
-    q3n_exp = q3n.expand()
-    q3sn_f = got_step_imp.sequent.right[0].right  # Q3(sn)
-
-    all_ctx_step = list(got_step_imp.sequent.left)
-    for f in got_Q_n_only.sequent.left:
-        if not any(same(f, g) for g in all_ctx_step):
-            all_ctx_step.append(f)
-    ps0 = wr(weaken_to(got_Q_n_only, all_ctx_step), q3sn_f)
-    ps1 = wl(ax(q3sn_f), *all_ctx_step)
-    q_imp = got_step_imp.sequent.right[0]  # Implies(Q3(n), Q3(sn))
-    got_step_Q = Proof(Sequent(all_ctx_step + [q_imp], [q3sn_f]),
-        'implies_left', [ps0, ps1], principal=q_imp)
-    got_step_Q = cut(got_step_Q, q_imp, weaken_to(got_step_imp, all_ctx_step))
+    # implies_left: Q3(n) + (Q3(n)→Q3(sn)) → Q3(sn)
+    q_n_exp = got_step_imp.sequent.right[0]
+    q_sn_formula = q_n_exp.right
+    ctx_step = list(got_step_imp.sequent.left)
+    ctx_q = list(got_Q_n.sequent.left)
+    all_ctx_step = ctx_step[:]
+    for f_ in ctx_q:
+        if not any(same(f_, g) for g in all_ctx_step):
+            all_ctx_step.append(f_)
+    ps0 = wr(wl(got_Q_n, *[f_ for f_ in ctx_step if not any(same(f_, g) for g in ctx_q)]), q_sn_formula)
+    ps1 = wl(ax(q_sn_formula), *all_ctx_step)
+    got_step_Q = Proof(Sequent(all_ctx_step + [q_n_exp], [q_sn_formula]),
+        'implies_left', [ps0, ps1], principal=q_n_exp)
+    got_step_Q = cut(got_step_Q, q_n_exp, got_step_imp)
 
     # In(sn, pv) from Q3(sn) + In(sn,w)
-    osc = omega_succ_closed()
-    got_sn_w = apply_thm(osc, [w])
-    got_sn_w = mp(got_sn_w, ax(omega_w), omega_w, got_sn_w.sequent.right[0].right)
-    got_sn_w = apply_thm(got_sn_w, [n])
-    got_sn_w = mp(got_sn_w, ax(In(n, w)), In(n, w), got_sn_w.sequent.right[0].right)
-    got_sn_w = apply_thm(got_sn_w, [sn])
-    got_sn_w = mp(got_sn_w, ax(SuccDef(sn, n)), SuccDef(sn, n), In(sn, w))
+    got_step_in_pv = char_bwd(sn, got_sn_in_w, got_step_Q)
 
-    got_step_in = char_bwd(sn, got_sn_w, got_step_Q)
+    # Cut In(n,w) derived from char_fwd
+    proof = got_step_in_pv
+    if any(same(In(n, w), f) for f in proof.sequent.left):
+        proof = cut(proof, In(n, w), got_in_n_w)
 
-    # Discharge Succ(sn,n), ∀sn. In(n,pv), In(n,w), ∀n.
-    imp_succ = Implies(SuccDef(sn, n), In(sn, pv))
-    left_succ = [f for f in got_step_in.sequent.left if not same(f, SuccDef(sn, n))]
-    got_step_in = Proof(Sequent(left_succ, [imp_succ]), 'implies_right', [got_step_in], principal=imp_succ)
-    got_step_in = Proof(Sequent(got_step_in.sequent.left, [Forall(sn, imp_succ)]),
-        'forall_right', [got_step_in], principal=Forall(sn, imp_succ), term=sn)
-    imp_in_n = Implies(In(n, pv), Forall(sn, imp_succ))
-    left_n = [f for f in got_step_in.sequent.left if not same(f, In(n, pv))]
-    got_step_in = Proof(Sequent(left_n, [imp_in_n]), 'implies_right', [got_step_in], principal=imp_in_n)
-    if not any(same(In(n, w), f) for f in got_step_in.sequent.left):
-        got_step_in = wl(got_step_in, In(n, w))
-    imp_nw = Implies(In(n, w), imp_in_n)
-    left_nw = [f for f in got_step_in.sequent.left if not same(f, In(n, w))]
-    got_step_in = Proof(Sequent(left_nw, [imp_nw]), 'implies_right', [got_step_in], principal=imp_nw)
-    got_step_in = Proof(Sequent(got_step_in.sequent.left, [Forall(n, imp_nw)]),
-        'forall_right', [got_step_in], principal=Forall(n, imp_nw), term=n)
-    print(f'phase3: step done')
+    # Discharge sn-dependent (except Succ)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(sn, Sequent([ff], [])) and not same(ff, succ_sn):
+            proof = wl(proof, ff)
+            imp_ff = Implies(ff, proof.sequent.right[0])
+            left_ff = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left_ff, [imp_ff]), 'implies_right', [proof], principal=imp_ff)
+    imp_sn = Implies(succ_sn, proof.sequent.right[0])
+    left_sn = [f_ for f_ in proof.sequent.left if not same(f_, succ_sn)]
+    proof = Proof(Sequent(left_sn, [imp_sn]), 'implies_right', [proof], principal=imp_sn)
+    fa_sn = Forall(sn, imp_sn)
+    proof = Proof(Sequent(proof.sequent.left, [fa_sn]),
+        'forall_right', [proof], principal=fa_sn, term=sn)
+    # Discharge n-dependent (except In(n,pv))
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(n, Sequent([ff], [])) and not same(ff, In(n, pv)):
+            proof = wl(proof, ff)
+            imp_ff = Implies(ff, proof.sequent.right[0])
+            left_ff = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left_ff, [imp_ff]), 'implies_right', [proof], principal=imp_ff)
+    imp_npv = Implies(In(n, pv), proof.sequent.right[0])
+    left_npv = [f_ for f_ in proof.sequent.left if not same(f_, In(n, pv))]
+    got_ind_step = Proof(Sequent(left_npv, [imp_npv]),
+        'implies_right', [proof], principal=imp_npv)
+    fa_n_step = Forall(n, imp_npv)
+    got_ind_step = Proof(Sequent(got_ind_step.sequent.left, [fa_n_step]),
+        'forall_right', [got_ind_step], principal=fa_n_step, term=n)
+    print(f'phase3: inductive step done')
 
-    # === Subset + Inductive → osi ===
-    xs = Var(postfix='xsub')
-    got_sub = char_fwd(xs)
-    got_sub = apply_thm(and_elim_left(In(xs, w), Q3(xs), []), [],
-        got_sub.sequent.right[0], In(xs, w), got_sub)
-    imp_sub = Implies(In(xs, pv), In(xs, w))
-    left_sub = [f for f in got_sub.sequent.left if not same(f, In(xs, pv))]
-    got_sub = Proof(Sequent(left_sub, [imp_sub]), 'implies_right', [got_sub], principal=imp_sub)
-    got_sub = Proof(Sequent(got_sub.sequent.left, [Forall(xs, imp_sub)]),
-        'forall_right', [got_sub], principal=Forall(xs, imp_sub), term=xs)
-    sub_pv_w = Subset(pv, w)
-    got_sub = cut(ax(sub_pv_w), sub_pv_w, got_sub)
+    # === Inductive(pv) ===
+    all_ctx = list(got_ind_base.sequent.left)
+    for f_ in got_ind_step.sequent.left:
+        if not any(same(f_, g) for g in all_ctx):
+            all_ctx.append(f_)
+    got_ind_base_w = weaken_to(got_ind_base, all_ctx)
+    got_ind_step_w = weaken_to(got_ind_step, all_ctx)
+    ind_base_f = got_ind_base_w.sequent.right[0]
+    ind_step_f = got_ind_step_w.sequent.right[0]
+    and_ind_full = And(ind_base_f, ind_step_f)
+    got_ind = mp(apply_thm(and_intro(ind_base_f, ind_step_f, []), [],
+        ind_base_f, Implies(ind_step_f, and_ind_full), got_ind_base_w),
+        got_ind_step_w, ind_step_f, and_ind_full)
 
-    xi = Var(postfix='xi')
-    got_xi_w = mp(apply_thm(ax(sub_pv_w), [xi]),
-        ax(In(xi, pv)), In(xi, pv), In(xi, w))
-    got_si = apply_thm(got_step_in, [xi])
-    got_si = mp(got_si, got_xi_w, In(xi, w), got_si.sequent.right[0].right)
-    got_si = mp(got_si, ax(In(xi, pv)), In(xi, pv), got_si.sequent.right[0].right)
-    imp_ind = Implies(In(xi, pv), got_si.sequent.right[0])
-    left_ind = [f for f in got_si.sequent.left if not same(f, In(xi, pv))]
-    got_si = Proof(Sequent(left_ind, [imp_ind]), 'implies_right', [got_si], principal=imp_ind)
-    got_si = Proof(Sequent(got_si.sequent.left, [Forall(xi, imp_ind)]),
-        'forall_right', [got_si], principal=Forall(xi, imp_ind), term=xi)
+    # === Subset(pv, w) ===
+    xs = Var(postfix='ind_xs')
+    got_fwd_xs = char_fwd(xs)
+    in_xs_w = got_fwd_xs.sequent.right[0].left
+    got_xs_in_w = apply_thm(and_elim_left(in_xs_w, got_fwd_xs.sequent.right[0].right, []), [],
+        got_fwd_xs.sequent.right[0], in_xs_w, got_fwd_xs)
+    imp_sub = Implies(In(xs, pv), in_xs_w)
+    left_sub = [f_ for f_ in got_xs_in_w.sequent.left if not same(f_, In(xs, pv))]
+    got_sub = Proof(Sequent(left_sub, [imp_sub]), 'implies_right', [got_xs_in_w], principal=imp_sub)
+    sub_pv_w_f = Forall(xs, imp_sub)
+    got_sub = Proof(Sequent(got_sub.sequent.left, [sub_pv_w_f]),
+        'forall_right', [got_sub], principal=sub_pv_w_f, term=xs)
 
-    ind_pv = Inductive(pv)
-    got_ind = mp(apply_thm(and_intro(got_base_ind.sequent.right[0], got_si.sequent.right[0], []), [],
-        got_base_ind.sequent.right[0],
-        Implies(got_si.sequent.right[0], And(got_base_ind.sequent.right[0], got_si.sequent.right[0])),
-        weaken_to(got_base_ind, list(got_si.sequent.left) + [f for f in got_base_ind.sequent.left if not any(same(f,g) for g in got_si.sequent.left)])),
-        got_si, got_si.sequent.right[0], And(got_base_ind.sequent.right[0], got_si.sequent.right[0]))
-    got_ind = cut(ax(ind_pv), ind_pv, got_ind)
-
-    all_ctx = list(got_sub.sequent.left)
-    for f in got_ind.sequent.left:
-        if not any(same(f, g) for g in all_ctx):
-            all_ctx.append(f)
-    got_sub_ind = mp(apply_thm(and_intro(sub_pv_w, ind_pv, []), [],
-        sub_pv_w, Implies(ind_pv, And(sub_pv_w, ind_pv)),
-        weaken_to(got_sub, all_ctx)),
-        weaken_to(got_ind, all_ctx), ind_pv, And(sub_pv_w, ind_pv))
-
+    # === omega_smallest_inductive ===
     osi = omega_smallest_inductive()
+    eq_pv_w = Eq(pv, w)
     got_osi = apply_thm(osi, [pv, w])
-    got_osi = mp(got_osi, ax(omega_w), omega_w, got_osi.sequent.right[0].right)
-    got_osi = mp(got_osi, got_sub_ind, And(sub_pv_w, ind_pv), Eq(pv, w))
+    while not same(got_osi.sequent.right[0], eq_pv_w):
+        cur = got_osi.sequent.right[0]
+        got_osi = mp(got_osi, ax(cur.left), cur.left, cur.right)
+    all_osi = list(all_ctx)
+    for f_ in got_sub.sequent.left:
+        if not any(same(f_, g) for g in all_osi):
+            all_osi.append(f_)
+    got_sub_w = weaken_to(got_sub, all_osi)
+    got_ind_w = weaken_to(got_ind, all_osi)
+    got_and_si = mp(apply_thm(and_intro(sub_pv_w_f, and_ind_full, []), [],
+        sub_pv_w_f, Implies(and_ind_full, And(sub_pv_w_f, and_ind_full)), got_sub_w),
+        got_ind_w, and_ind_full, And(sub_pv_w_f, and_ind_full))
+    non_ax_on_eq = [f_ for f_ in got_osi.sequent.left
+        if not isinstance(f_, zfc.ZFCAxiom) and not same(f_, omega_w)]
+    for h in non_ax_on_eq:
+        got_osi = cut(got_osi, h, got_and_si)
     print(f'phase3: osi done')
 
-    # Extract Q3(b) → P3(b) via Eq(b,b)
-    from theorems.logic import eq_symmetric
-    from theorems.sets import eq_transfer
-    es = eq_symmetric()
-    got_eq_wp = apply_thm(es, [pv, w], Eq(pv, w), Eq(w, pv), got_osi)
-    et = eq_transfer()
-    got_et = apply_thm(et, [w, pv, b])
-    got_et = mp(got_et, got_eq_wp, Eq(w, pv), got_et.sequent.right[0].right)
-    iff_et = got_et.sequent.right[0]
-    got_et_fwd = apply_thm(iff_mp(iff_et.left, iff_et.right, []), [],
-        iff_et, Implies(iff_et.left, iff_et.right), got_et)
-    got_in_b_pv = mp(got_et_fwd, ax(in_b_w), in_b_w, In(b, pv))
-    got_and_b = char_fwd(b)
-    got_and_b = cut(got_and_b, In(b, pv), got_in_b_pv)
+    # === Extract Q3(b) ===
+    iff_b = Iff(In(b, pv), In(b, w))
+    got_iff_b = cut(fl(eq_pv_w, iff_b, b), eq_pv_w, got_osi)
+    got_in_bpv = mp(apply_thm(iff_mp_rev(In(b, pv), In(b, w), []),
+        [], iff_b, Implies(In(b, w), In(b, pv)), got_iff_b),
+        ax(in_b_w), in_b_w, In(b, pv))
+    got_and_b = cut(char_fwd(b), In(b, pv), got_in_bpv)
     q_b_formula = got_and_b.sequent.right[0].right
     got_Q_b = apply_thm(and_elim_right(In(b, w), q_b_formula, []), [],
         got_and_b.sequent.right[0], q_b_formula, got_and_b)
+    # |- Q3(b) = Or(In(b,b),Eq(b,b)) → ∃pos. And(Plus(sa,b,pos), Phase3Ind(b,...))
+    print(f'phase3: Q3(b) extracted')
 
-    # Q3(b) = Or(In(b,b),Eq(b,b)) → P3(b). mp with Eq(b,b).
-    er = eq_reflexive()
-    got_eq_bb = apply_thm(er, [b])
-    or_bb = Or(In(b, b), Eq(b, b))
-    got_or_bb = apply_thm(or_intro_right(In(b, b), Eq(b, b), []), [],
-        Eq(b, b), or_bb, got_eq_bb)
-    q3b_exp = got_Q_b.sequent.right[0].expand() if hasattr(got_Q_b.sequent.right[0], 'expand') else got_Q_b.sequent.right[0]
-    p3_b = Phase3P(b, sa, q1, tape_in, c0, delta, a, one)
-    # mp Q3(b) with or_bb
-    all_ctx_q = list(got_Q_b.sequent.left)
-    got_P3_b = Proof(Sequent(all_ctx_q + [q3b_exp], [p3_b]),
-        'implies_left',
-        [wr(weaken_to(got_or_bb, all_ctx_q), p3_b),
-         wl(ax(p3_b), *all_ctx_q)],
-        principal=q3b_exp)
-    got_P3_b = cut(got_P3_b, q3b_exp, ax(got_Q_b.sequent.right[0]))
-    got_P3_b = cut(got_P3_b, got_Q_b.sequent.right[0], got_Q_b)
-    print(f'phase3: P3(b) extracted')
-
-    # eel pv, cut with separation
-    for f in list(got_P3_b.sequent.left):
-        if _var_free_in_sequent(pv, Sequent([f], [])) and not same(f, char_pv) and not isinstance(f, zfc.ZFCAxiom):
-            if same(f, sub_pv_w):
-                got_P3_b = cut(got_P3_b, f, got_sub)
-            elif same(f, ind_pv):
-                got_P3_b = cut(got_P3_b, f, got_ind)
-    got_P3_b = eel(got_P3_b, char_pv, pv)
-    got_P3_b = cut(got_P3_b, Exists(pv, char_pv), got_ex_pv)
+    # === Eliminate pv ===
+    got_Q_b = eel(got_Q_b, char_pv, pv)
+    got_Q_b = cut(got_Q_b, Exists(pv, char_pv), got_ex_pv)
     print(f'phase3: pv eliminated')
 
     # Discharge hypotheses, close ∀
-    proof = got_P3_b
-    from vocab.tm import TMConfig
-    cfg0 = TMConfig(c0, q0, z, tape_in)
-    hyps = [p2_formula, cfg0, Num(q1, 2), Num(z, 0), Num(d1, 1), Num(one, 1),
-            FuncDef(tape_in), FuncDef(delta), utape,
-            succ_sa, in_sa_w, in_b_w, in_a_w, omega_w, trans_q1, trans_q0]
+    proof = got_Q_b
+    hyps = [tape_hyp, plus0, cfg0,
+            num_z, Num(d1, 1), Num(one, 1),
+            FuncDef(tape2), FuncDef(delta),
+            in_sa_w, in_b_w, omega_w, trans_q1]
     for hyp in hyps:
         if not any(same(hyp, f) for f in proof.sequent.left):
             proof = wl(proof, hyp)
         imp = Implies(hyp, proof.sequent.right[0])
         left = [f for f in proof.sequent.left if not same(f, hyp)]
         proof = Proof(Sequent(left, [imp]), 'implies_right', [proof], principal=imp)
-    for v in [sa, d1, one, w, b, a, z, c0, tape_in, q1, q0, delta]:
+    for v in [pos0, d1, one, tape2, w, b, sa, c0, q1, delta]:
         body = proof.sequent.right[0]
         fa = Forall(v, body)
         proof = Proof(Sequent(proof.sequent.left, [fa]),
@@ -7956,7 +7945,6 @@ def phase3():
 
     proof.name = 'phase3'
     return proof
-
 
 
 
