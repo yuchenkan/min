@@ -5823,3 +5823,249 @@ def succ_injection():
         proof=Proof(Sequent(proof.sequent.left,[fa]),'forall_right',[proof],principal=fa,term=v)
     proof.name='succ_injection'
     return proof
+
+
+def omega_transitive():
+    """Omega is a transitive set: ∀w,b,k. Omega(w) → In(b,w) → In(k,b) → In(k,w)"""
+    from core.proof import Proof, Sequent, same, _var_free_in_sequent
+    from vocab.ordpair import Successor
+    from vocab.omega import Omega, Num
+    from vocab.sets import Empty, Subset
+    from vocab import Inductive
+    from tactics import apply_thm, mp, ax, fl, eir, eel, cut, wl, wr, weaken_to
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        or_intro_left, or_intro_right, or_elim, eq_reflexive, eq_substitution,
+        iff_mp, iff_mp_rev, unique_empty)
+    from theorems.sets import successor_exists, eq_transfer
+    from theorems.omega import omega_smallest_inductive, omega_contains_empty, omega_succ_closed
+    import core.zfc as zfc
+
+    w = Var(postfix='w'); kv = Var(postfix='kv')
+    n = Var(postfix='ind_n'); sn = Var(postfix='ind_sn')
+    pv = Var(postfix='ind_pv'); xv = Var(postfix='ind_xv')
+    omega_w = Omega(w)
+    
+    # P(b) = ∀k. In(k,b) → In(k,w)
+    def P(bb):
+        return Forall(kv, Implies(In(kv, bb), In(kv, w)))
+    
+    # Separation
+    sep = zfc.Separation(P, [kv, w])
+    sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
+    char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
+    got_ex_pv = apply_thm(sep_ax, [w, kv, w], concl=Exists(pv, char_pv))
+    
+    def char_bwd(term, got_in_w, got_P):
+        got_inst = apply_thm(ax(char_pv), [term])
+        iff_inst = got_inst.sequent.right[0]
+        and_form = iff_inst.right
+        got_rev = apply_thm(iff_mp_rev(iff_inst.left, iff_inst.right, []),
+            [], iff_inst, Implies(and_form, iff_inst.left), got_inst)
+        ai = and_intro(and_form.left, and_form.right, [])
+        got_ai = apply_thm(ai, [], and_form.left, Implies(and_form.right, and_form), got_in_w)
+        got_and = mp(got_ai, got_P, and_form.right, and_form)
+        return mp(got_rev, got_and, and_form, iff_inst.left)
+    
+    def char_fwd(term):
+        got_inst = apply_thm(ax(char_pv), [term])
+        iff_inst = got_inst.sequent.right[0]
+        got_imp = apply_thm(iff_mp(iff_inst.left, iff_inst.right, []),
+            [], iff_inst, Implies(iff_inst.left, iff_inst.right), got_inst)
+        return mp(got_imp, ax(In(term, pv)), In(term, pv), iff_inst.right)
+    
+    # Base: P(z) = ∀k. In(k,∅) → In(k,w). Vacuously true.
+    z = Var(postfix='z'); num_z = Num(z, 0)
+    # ∀k. In(k,z) → In(k,w). In(k,z) is false for z=∅. Discharge via empty set.
+    # Num(z,0) = Empty(z). fl: ∀x.Not(In(x,z)). At x=kv: Not(In(kv,z)).
+    # [In(kv,z), Not(In(kv,z))] |- []. weakening_right In(kv,w).
+    # Discharge In(kv,z), close ∀kv.
+    got_not_kz = fl(num_z, Not(In(kv, z)), kv)
+    got_bot = Proof(Sequent([In(kv,z), Not(In(kv,z))], []), 'not_left', [ax(In(kv,z))], principal=Not(In(kv,z)))
+    got_bot = Proof(Sequent(got_bot.sequent.left, [In(kv,w)]), 'weakening_right', [got_bot], principal=In(kv,w))
+    got_bot = cut(got_bot, Not(In(kv,z)), got_not_kz)
+    imp_kz = Implies(In(kv,z), In(kv,w))
+    left_kz = [f for f in got_bot.sequent.left if not same(f, In(kv,z))]
+    got_P_z = Proof(Sequent(left_kz, [imp_kz]), 'implies_right', [got_bot], principal=imp_kz)
+    fa_kv_z = Forall(kv, imp_kz)
+    got_P_z = Proof(Sequent(got_P_z.sequent.left, [fa_kv_z]), 'forall_right', [got_P_z], principal=fa_kv_z, term=kv)
+    # [Num(z,0)] |- P(z)
+    
+    oce = omega_contains_empty()
+    got_z_w = apply_thm(oce, [w], omega_w, Forall(z, Implies(num_z, In(z,w))), ax(omega_w))
+    got_z_w = apply_thm(got_z_w, [z], num_z, In(z,w), ax(num_z))
+    got_base = char_bwd(z, got_z_w, got_P_z)
+    
+    zero_v = Var(postfix='ind_zero')
+    ue = unique_empty()
+    empty_zero = Empty(zero_v); eq_zero_z = Eq(zero_v, z)
+    got_eq_zz = apply_thm(ue, [zero_v], empty_zero, Forall(z, Implies(num_z, eq_zero_z)), ax(empty_zero))
+    got_eq_zz = apply_thm(got_eq_zz, [z], num_z, eq_zero_z, ax(num_z))
+    es_thm = eq_substitution()
+    iff_in = Iff(In(zero_v, pv), In(z, pv))
+    got_iff_zz = apply_thm(es_thm, [zero_v, z, pv], eq_zero_z, iff_in, got_eq_zz)
+    got_in_zero_pv = mp(apply_thm(iff_mp_rev(In(zero_v, pv), In(z, pv), []),
+        [], iff_in, Implies(In(z, pv), In(zero_v, pv)), got_iff_zz),
+        got_base, In(z, pv), In(zero_v, pv))
+    imp_ez = Implies(empty_zero, In(zero_v, pv))
+    left_ez = [f_ for f_ in got_in_zero_pv.sequent.left if not same(f_, empty_zero)]
+    got_ind_base = Proof(Sequent(left_ez, [imp_ez]), 'implies_right', [got_in_zero_pv], principal=imp_ez)
+    fa_ind_base = Forall(zero_v, imp_ez)
+    got_ind_base = Proof(Sequent(got_ind_base.sequent.left, [fa_ind_base]),
+        'forall_right', [got_ind_base], principal=fa_ind_base, term=zero_v)
+    
+    # Step: P(n) → P(sn)
+    # P(sn) = ∀k. In(k,S(n)) → In(k,w).
+    # In(k,S(n)) ↔ In(k,n) ∨ Eq(k,n) from Successor(sn,n).
+    # Case In(k,n): P(n) gives In(k,w).
+    # Case Eq(k,n): k=n. In(n,w) from hypothesis.
+    succ_sn = Successor(sn, n)
+    got_and_n = char_fwd(n)
+    got_in_n_w = apply_thm(and_elim_left(In(n, w), P(n), []), [],
+        got_and_n.sequent.right[0], In(n, w), got_and_n)
+    got_P_n = apply_thm(and_elim_right(In(n, w), P(n), []), [],
+        got_and_n.sequent.right[0], P(n), got_and_n)
+    
+    osc = omega_succ_closed()
+    got_sn_w = apply_thm(osc, [w], omega_w,
+        Forall(n, Implies(In(n,w), Forall(sn, Implies(succ_sn, In(sn,w))))), ax(omega_w))
+    got_sn_w = apply_thm(got_sn_w, [n], In(n,w),
+        Forall(sn, Implies(succ_sn, In(sn,w))), got_in_n_w)
+    got_sn_w = apply_thm(got_sn_w, [sn], succ_sn, In(sn,w), ax(succ_sn))
+    
+    # In(kv,sn) ↔ In(kv,n) ∨ Eq(kv,n) from Successor(sn,n)
+    or_kn = Or(In(kv,n), Eq(kv,n))
+    iff_k_sn = Iff(In(kv,sn), or_kn)
+    got_iff_ksn = fl(succ_sn, iff_k_sn, kv)
+    got_or_kn = mp(apply_thm(iff_mp(In(kv,sn), or_kn, []), [],
+        iff_k_sn, Implies(In(kv,sn), or_kn), got_iff_ksn),
+        ax(In(kv,sn)), In(kv,sn), or_kn)
+    # [In(kv,sn), Succ(sn,n)] |- Or(In(kv,n), Eq(kv,n))
+    
+    # Case In(kv,n) → In(kv,w) from P(n)
+    got_k_w_case1 = apply_thm(got_P_n, [kv], In(kv,n), In(kv,w), ax(In(kv,n)))
+    
+    # Case Eq(kv,n) → In(kv,w): Eq(kv,n)+In(n,w)→In(kv,w) via eq_transfer
+    from theorems.logic import eq_substitution as _esub
+    _es2 = _esub()
+    got_iff_kn2 = apply_thm(_es2, [kv, n, w])
+    got_iff_kn2 = mp(got_iff_kn2, ax(Eq(kv,n)), Eq(kv,n), got_iff_kn2.sequent.right[0].right)
+    got_k_w_case2 = mp(apply_thm(iff_mp_rev(In(kv,w), In(n,w), []), [],
+        Iff(In(kv,w), In(n,w)), Implies(In(n,w), In(kv,w)), got_iff_kn2),
+        got_in_n_w, In(n,w), In(kv,w))
+    
+    # or_elim
+    oe_kn = or_elim(In(kv,n), Eq(kv,n), In(kv,w), [])
+    imp_c1 = Implies(In(kv,n), In(kv,w))
+    got_ic1 = Proof(Sequent([f for f in got_k_w_case1.sequent.left if not same(f,In(kv,n))],[imp_c1]),
+        'implies_right',[got_k_w_case1],principal=imp_c1)
+    imp_c2 = Implies(Eq(kv,n), In(kv,w))
+    got_ic2 = Proof(Sequent([f for f in got_k_w_case2.sequent.left if not same(f,Eq(kv,n))],[imp_c2]),
+        'implies_right',[got_k_w_case2],principal=imp_c2)
+    got_k_w = apply_thm(oe_kn,[],or_kn,Implies(imp_c1,Implies(imp_c2,In(kv,w))),ax(or_kn))
+    got_k_w = mp(got_k_w,got_ic1,imp_c1,Implies(imp_c2,In(kv,w)))
+    got_k_w = mp(got_k_w,got_ic2,imp_c2,In(kv,w))
+    got_k_w = cut(got_k_w,or_kn,got_or_kn)
+    # [In(kv,sn), Succ(sn,n), char_pv, In(n,pv)] |- In(kv,w)
+    
+    # Discharge In(kv,sn), close ∀kv → P(sn)
+    imp_ksn = Implies(In(kv,sn), In(kv,w))
+    left_ksn = [f for f in got_k_w.sequent.left if not same(f,In(kv,sn))]
+    got_P_sn = Proof(Sequent(left_ksn,[imp_ksn]),'implies_right',[got_k_w],principal=imp_ksn)
+    fa_kv_sn = Forall(kv, imp_ksn)
+    got_P_sn = Proof(Sequent(got_P_sn.sequent.left,[fa_kv_sn]),'forall_right',[got_P_sn],principal=fa_kv_sn,term=kv)
+    
+    got_step_in_pv = char_bwd(sn, got_sn_w, got_P_sn)
+    proof = got_step_in_pv
+    if any(same(In(n,w),f) for f in proof.sequent.left):
+        proof = cut(proof, In(n,w), got_in_n_w)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(sn, Sequent([ff],[])) and not same(ff, succ_sn):
+            proof=wl(proof,ff); imp=Implies(ff,proof.sequent.right[0])
+            left=[f for f in proof.sequent.left if not same(f,ff)]
+            proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    imp_sn=Implies(succ_sn,proof.sequent.right[0])
+    left_sn=[f_ for f_ in proof.sequent.left if not same(f_,succ_sn)]
+    proof=Proof(Sequent(left_sn,[imp_sn]),'implies_right',[proof],principal=imp_sn)
+    fa_sn=Forall(sn,imp_sn)
+    proof=Proof(Sequent(proof.sequent.left,[fa_sn]),'forall_right',[proof],principal=fa_sn,term=sn)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(n, Sequent([ff],[])) and not same(ff, In(n,pv)):
+            proof=wl(proof,ff); imp=Implies(ff,proof.sequent.right[0])
+            left=[f for f in proof.sequent.left if not same(f,ff)]
+            proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    imp_npv=Implies(In(n,pv),proof.sequent.right[0])
+    left_npv=[f_ for f_ in proof.sequent.left if not same(f_,In(n,pv))]
+    got_ind_step=Proof(Sequent(left_npv,[imp_npv]),'implies_right',[proof],principal=imp_npv)
+    fa_n_step=Forall(n,imp_npv)
+    got_ind_step=Proof(Sequent(got_ind_step.sequent.left,[fa_n_step]),'forall_right',[got_ind_step],principal=fa_n_step,term=n)
+    
+    # Inductive + Subset + osi (same boilerplate)
+    all_ctx=list(got_ind_base.sequent.left)
+    for f_ in got_ind_step.sequent.left:
+        if not any(same(f_,g) for g in all_ctx): all_ctx.append(f_)
+    got_ind_base_w=weaken_to(got_ind_base,all_ctx)
+    got_ind_step_w=weaken_to(got_ind_step,all_ctx)
+    ind_base_f=got_ind_base_w.sequent.right[0]; ind_step_f=got_ind_step_w.sequent.right[0]
+    and_ind_full=And(ind_base_f,ind_step_f)
+    got_ind=mp(apply_thm(and_intro(ind_base_f,ind_step_f,[]),[],ind_base_f,Implies(ind_step_f,and_ind_full),got_ind_base_w),
+        got_ind_step_w,ind_step_f,and_ind_full)
+    xs=Var(postfix='ind_xs')
+    got_fwd_xs=char_fwd(xs)
+    in_xs_w=got_fwd_xs.sequent.right[0].left
+    got_xs_in_w=apply_thm(and_elim_left(in_xs_w,got_fwd_xs.sequent.right[0].right,[]),[],
+        got_fwd_xs.sequent.right[0],in_xs_w,got_fwd_xs)
+    imp_sub=Implies(In(xs,pv),in_xs_w)
+    left_sub=[f_ for f_ in got_xs_in_w.sequent.left if not same(f_,In(xs,pv))]
+    got_sub=Proof(Sequent(left_sub,[imp_sub]),'implies_right',[got_xs_in_w],principal=imp_sub)
+    sub_pv_w_f=Forall(xs,imp_sub)
+    got_sub=Proof(Sequent(got_sub.sequent.left,[sub_pv_w_f]),'forall_right',[got_sub],principal=sub_pv_w_f,term=xs)
+    osi=omega_smallest_inductive()
+    eq_pv_w=Eq(pv,w)
+    got_osi=apply_thm(osi,[pv,w])
+    while not same(got_osi.sequent.right[0],eq_pv_w):
+        cur=got_osi.sequent.right[0]; got_osi=mp(got_osi,ax(cur.left),cur.left,cur.right)
+    all_osi=list(all_ctx)
+    for f_ in got_sub.sequent.left:
+        if not any(same(f_,g) for g in all_osi): all_osi.append(f_)
+    got_sub_w=weaken_to(got_sub,all_osi); got_ind_w=weaken_to(got_ind,all_osi)
+    got_and_si=mp(apply_thm(and_intro(sub_pv_w_f,and_ind_full,[]),[],sub_pv_w_f,Implies(and_ind_full,And(sub_pv_w_f,and_ind_full)),got_sub_w),
+        got_ind_w,and_ind_full,And(sub_pv_w_f,and_ind_full))
+    non_ax_on_eq=[f_ for f_ in got_osi.sequent.left if not isinstance(f_,zfc.ZFCAxiom) and not same(f_,omega_w)]
+    for h in non_ax_on_eq: got_osi=cut(got_osi,h,got_and_si)
+    
+    # Extract P(b) for specific b
+    b=Var(postfix='b')
+    iff_b=Iff(In(b,pv),In(b,w))
+    got_iff_b=cut(fl(eq_pv_w,iff_b,b),eq_pv_w,got_osi)
+    got_in_bpv=mp(apply_thm(iff_mp_rev(In(b,pv),In(b,w),[]),[],iff_b,Implies(In(b,w),In(b,pv)),got_iff_b),
+        ax(In(b,w)),In(b,w),In(b,pv))
+    got_and_b=cut(char_fwd(b),In(b,pv),got_in_bpv)
+    p_b_formula=got_and_b.sequent.right[0].right
+    got_P_b=apply_thm(and_elim_right(In(b,w),p_b_formula,[]),[],got_and_b.sequent.right[0],p_b_formula,got_and_b)
+    got_P_b=eel(got_P_b,char_pv,pv)
+    got_P_b=cut(got_P_b,Exists(pv,char_pv),got_ex_pv)
+    # |- P(b) = ∀k. In(k,b) → In(k,w)
+    
+    # Instantiate at kv, mp In(kv,b) → In(kv,w)
+    got_result = apply_thm(got_P_b, [kv])
+    got_result = mp(got_result, ax(In(kv,b)), In(kv,b), In(kv,w))
+    
+    # Clean Num leak
+    for f in list(got_result.sequent.left):
+        if type(f).__name__ == 'Num' and f.value == 0:
+            from theorems.arithmetic import num_exists
+            got_result = eel(got_result, f, f.elem)
+            got_result = cut(got_result, Exists(f.elem, f), num_exists(0))
+            break
+    
+    proof = got_result
+    for hyp in [In(kv,b), In(b,w), omega_w]:
+        if not any(same(hyp,f) for f in proof.sequent.left): proof=wl(proof,hyp)
+        imp=Implies(hyp,proof.sequent.right[0])
+        left=[f for f in proof.sequent.left if not same(f,hyp)]
+        proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    for v in [kv,b,w]:
+        body=proof.sequent.right[0]; fa=Forall(v,body)
+        proof=Proof(Sequent(proof.sequent.left,[fa]),'forall_right',[proof],principal=fa,term=v)
+    proof.name='omega_transitive'
+    return proof
