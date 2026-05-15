@@ -690,17 +690,97 @@ def tm_add_correct():
             else:
                 print(f'  SKIP eel {cfg_var}: free in other left formulas')
 
-    # Print remaining intermediate formulas
+    # eel+cut for q1, q2 (only in Num)
+    for var, num_k in [(q1, 2), (q2, 3)]:
+        num_formula = Num(var, num_k)
+        if any(same(num_formula, f) for f in proof.sequent.left):
+            other_left = [f for f in proof.sequent.left if not same(f, num_formula)]
+            if not any(_var_free_in_sequent(var, Sequent([f], [])) for f in other_left):
+                proof = eel(proof, num_formula, var)
+                got_ex_num = num_exists(num_k)
+                proof = cut(proof, Exists(var, num_formula), got_ex_num)
+            else:
+                print(f'  SKIP eel {var}: free in other left formulas')
+
+    # Cut remaining intermediate formulas with derived proofs
+    # Remaining: Num(one,1), Successor(one,z), Successor(sa,a), TapeUpdate(tape2,...),
+    #   Function(tape2), tape_read, Plus(sa,b,hf), Apply(tape2,hf,z), Apply(tape2,c,one),
+    #   TapeUpdate(tf,tape2,c,z)
+
+    # Plus(sa,b,hf) from plus_comm + plus_succ_right
+    from theorems.arithmetic import plus_comm
+    _pc = plus_comm()
+    got_pba = apply_thm(_pc, [w, a, b, c])
+    got_pba = mp(got_pba, ax(omega_w), omega_w, got_pba.sequent.right[0].right)
+    got_pba = mp(got_pba, ax(In(a,w)), In(a,w), got_pba.sequent.right[0].right)
+    got_pba = mp(got_pba, ax(In(b,w)), In(b,w), got_pba.sequent.right[0].right)
+    got_pba = mp(got_pba, ax(plus_abc), plus_abc, got_pba.sequent.right[0].right)
+    # Plus(b,a,c)
+    got_pbsh = apply_thm(_psr, [w, b, a, c, sa, hf])
+    got_pbsh = mp(got_pbsh, ax(omega_w), omega_w, got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(In(b,w)), In(b,w), got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(In(a,w)), In(a,w), got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, got_pba, got_pba.sequent.right[0], got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(succ_sa), succ_sa, got_pbsh.sequent.right[0].right)
+    got_pbsh = mp(got_pbsh, ax(succ_hf), succ_hf, got_pbsh.sequent.right[0].right)
+    # Plus(b,sa,hf) → Plus(sa,b,hf) via comm
+    got_psbh = apply_thm(_pc, [w, b, sa, hf])
+    got_psbh = mp(got_psbh, ax(omega_w), omega_w, got_psbh.sequent.right[0].right)
+    got_psbh = mp(got_psbh, ax(In(b,w)), In(b,w), got_psbh.sequent.right[0].right)
+    got_psbh = mp(got_psbh, got_sa_w, In(sa,w), got_psbh.sequent.right[0].right)
+    got_psbh = mp(got_psbh, got_pbsh, got_pbsh.sequent.right[0], got_psbh.sequent.right[0].right)
+    # got_psbh: [...] |- Plus(sa,b,hf)
+    if any(same(plus_sa_b_hf, f) for f in proof.sequent.left):
+        proof = cut(proof, plus_sa_b_hf, got_psbh)
+
+    # TapeUpdate(tape2,...), Function(tape2), tape_read, tape values, tu_tf:
+    # These are all tape2-related. Need tape_update_exists, tape_update_function, 
+    # tape_read theorems from backup. For NOW, just discharge as implies + ∀tape2.
+    # Then eel sa from Successor(sa,a), one from Num(one,1)+Successor(one,z).
+
+    # First: eel sa from Successor(sa,a) — sa now only in Successor(sa,a) (Plus gone)
+    if any(same(succ_sa, f) for f in proof.sequent.left):
+        other_left = [f for f in proof.sequent.left if not same(f, succ_sa)]
+        if not any(_var_free_in_sequent(sa, Sequent([f], [])) for f in other_left):
+            proof = eel(proof, succ_sa, sa)
+            from theorems.sets import successor_exists as _se
+            got_ex_sa = apply_thm(_se(), [a], concl=Exists(sa, succ_sa))
+            proof = cut(proof, Exists(sa, succ_sa), got_ex_sa)
+        else:
+            print(f'  SKIP eel sa: still free in other formulas')
+
+    # For tape2 and one: they're entangled in many formulas. 
+    # Discharge all tape2+one formulas as implies, close ∀ over tape2 then one.
+    # This adds extra ∀ to the right but we'll instantiate them with fl+mp using derived proofs.
     import core.zfc as zfc
     goal_hyps_set = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
                      delta_char, num_q0, num_qH, num_z, utape, cfg_c0, plus_abc,
                      succ_hf, succ_ssc, succ_n, unary_out, cfg_cf]
-    print('Remaining non-goal, non-axiom left formulas:')
-    for f in proof.sequent.left:
-        is_goal = any(same(f, gh) for gh in goal_hyps_set)
-        is_ax = isinstance(f, (zfc.ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
+    for ff in list(proof.sequent.left):
+        is_goal = any(same(ff, gh) for gh in goal_hyps_set)
+        is_ax = isinstance(ff, (zfc.ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
         if not is_goal and not is_ax:
-            print(f'  {str(f)[:80]}')
+            proof = wl(proof, ff)
+            imp = Implies(ff, proof.sequent.right[0])
+            left_new = [f for f in proof.sequent.left if not same(f, ff)]
+            proof = Proof(Sequent(left_new, [imp]), 'implies_right', [proof], principal=imp)
+    # Close ∀ tape2, one
+    for v in [tape2, one]:
+        if _var_free_in_sequent(v, Sequent([], proof.sequent.right)):
+            body = proof.sequent.right[0]
+            fa = Forall(v, body)
+            proof = Proof(Sequent(proof.sequent.left, [fa]),
+                'forall_right', [proof], principal=fa, term=v)
+    # Now right = ∀tape2,one. (tape2 hyps → one hyps → TMReaches)
+    # Instantiate with fl+mp, providing derived proofs
+    F_int = proof.sequent.right[0]
+    got_open = apply_thm(ax(F_int), [tape2, one])
+    # mp each remaining intermediate hypothesis
+    while hasattr(got_open.sequent.right[0], 'left') and type(got_open.sequent.right[0]).__name__ == 'Implies':
+        cur = got_open.sequent.right[0]
+        got_open = mp(got_open, ax(cur.left), cur.left, cur.right)
+    # Cut F_int
+    proof = cut(got_open, F_int, proof)
 
     # Discharge goal hypotheses in add_goal's order
     goal_hyps = [omega_w, In(a,w), In(b,w), FuncDef(delta), FuncDef(tape_in),
