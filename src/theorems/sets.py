@@ -6069,3 +6069,69 @@ def omega_transitive():
         proof=Proof(Sequent(proof.sequent.left,[fa]),'forall_right',[proof],principal=fa,term=v)
     proof.name='omega_transitive'
     return proof
+
+
+def func_ext():
+    """Functions with same values are equal.
+    ∀f,g. Function(f)→Function(g)→(∀x,y.Apply(f,x,y)→Apply(g,x,y))→(∀x,y.Apply(g,x,y)→Apply(f,x,y))→Eq(f,g)"""
+    from core.lang import Var, In, Implies, Forall
+    from core.derived import Exists, And, Iff, Eq
+    from core.proof import Proof, Sequent, same
+    from vocab.functions import Function as FuncDef, Apply, Relation as RelDef
+    from vocab.ordpair import OrdPair
+    from tactics import apply_thm, mp, ax, fl, eir, eel, cut, wl
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp_rev, eq_substitution)
+    from theorems.sets import ordpair_unique
+
+    f=Var(postfix='f');g=Var(postfix='g')
+    xv=Var(postfix='x');yv=Var(postfix='y')
+    pv=Var(postfix='p');av=Var(postfix='a');bv=Var(postfix='b')
+    qv=Var(postfix='q');qv2=Var(postfix='q2')
+    func_f=FuncDef(f);func_g=FuncDef(g);rel_f=RelDef(f);rel_g=RelDef(g)
+    fwd_hyp=Forall(xv,Forall(yv,Implies(Apply(f,xv,yv),Apply(g,xv,yv))))
+    bwd_hyp=Forall(xv,Forall(yv,Implies(Apply(g,xv,yv),Apply(f,xv,yv))))
+    got_rel_f=apply_thm(and_elim_left(rel_f,func_f.expand().right,[]),[],func_f,rel_f,ax(func_f))
+    got_rel_g=apply_thm(and_elim_left(rel_g,func_g.expand().right,[]),[],func_g,rel_g,ax(func_g))
+    ou=ordpair_unique();es=eq_substitution()
+    op_pab=OrdPair(pv,av,bv)
+
+    def direction(got_rel,hyp,src_set,dst_set,q_var):
+        got_ri=apply_thm(got_rel,[pv],In(pv,src_set),Exists(av,Exists(bv,op_pab)),ax(In(pv,src_set)))
+        got_app=eir(mp(apply_thm(and_intro(op_pab,In(pv,src_set),[]),[],op_pab,Implies(In(pv,src_set),And(op_pab,In(pv,src_set))),ax(op_pab)),
+            ax(In(pv,src_set)),In(pv,src_set),And(op_pab,In(pv,src_set))),And(op_pab,In(pv,src_set)),pv,pv)
+        got_app=cut(ax(Apply(src_set,av,bv)),Apply(src_set,av,bv),got_app)
+        got_app2=mp(apply_thm(ax(hyp),[av,bv]),got_app,Apply(src_set,av,bv),Apply(dst_set,av,bv))
+        op_q=OrdPair(q_var,av,bv);and_q=And(op_q,In(q_var,dst_set))
+        got_oq=apply_thm(and_elim_left(op_q,In(q_var,dst_set),[]),[],and_q,op_q,ax(and_q))
+        got_iq=apply_thm(and_elim_right(op_q,In(q_var,dst_set),[]),[],and_q,In(q_var,dst_set),ax(and_q))
+        got_eq=mp(mp(apply_thm(ou,[av,bv,pv,q_var]),ax(op_pab),op_pab,Implies(op_q,Eq(pv,q_var))),got_oq,op_q,Eq(pv,q_var))
+        got_iff=mp(apply_thm(es,[pv,q_var,dst_set]),got_eq,Eq(pv,q_var),Iff(In(pv,dst_set),In(q_var,dst_set)))
+        got_in=mp(apply_thm(iff_mp_rev(In(pv,dst_set),In(q_var,dst_set),[]),[],Iff(In(pv,dst_set),In(q_var,dst_set)),Implies(In(q_var,dst_set),In(pv,dst_set)),got_iff),got_iq,In(q_var,dst_set),In(pv,dst_set))
+        got_in=eel(got_in,and_q,q_var)
+        got_in=cut(got_in,Exists(q_var,and_q),got_app2)
+        got_in=eel(got_in,op_pab,bv)
+        got_in=eel(got_in,Exists(bv,op_pab),av)
+        got_in=cut(got_in,Exists(av,Exists(bv,op_pab)),got_ri)
+        imp=Implies(In(pv,src_set),In(pv,dst_set))
+        return Proof(Sequent([ff for ff in got_in.sequent.left if not same(ff,In(pv,src_set))],[imp]),'implies_right',[got_in],principal=imp)
+
+    got_fwd=direction(got_rel_f,fwd_hyp,f,g,qv)
+    got_bwd=direction(got_rel_g,bwd_hyp,g,f,qv2)
+    imp_fg=Implies(In(pv,f),In(pv,g));imp_gf=Implies(In(pv,g),In(pv,f))
+    iff_fg=Iff(In(pv,f),In(pv,g))
+    got_iff=mp(apply_thm(iff_intro(In(pv,f),In(pv,g),[]),[],imp_fg,Implies(imp_gf,iff_fg),got_fwd),got_bwd,imp_gf,iff_fg)
+    fa_pv=Forall(pv,iff_fg)
+    got_fa=Proof(Sequent(got_iff.sequent.left,[fa_pv]),'forall_right',[got_iff],principal=fa_pv,term=pv)
+    got_eq=cut(ax(Eq(f,g)),Eq(f,g),got_fa)
+    proof=got_eq
+    for hyp in [bwd_hyp,fwd_hyp,func_g,func_f]:
+        if not any(same(hyp,ff) for ff in proof.sequent.left): proof=wl(proof,hyp)
+        imp=Implies(hyp,proof.sequent.right[0])
+        left=[ff for ff in proof.sequent.left if not same(ff,hyp)]
+        proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    for v in [g,f]:
+        body=proof.sequent.right[0];fa=Forall(v,body)
+        proof=Proof(Sequent(proof.sequent.left,[fa]),'forall_right',[proof],principal=fa,term=v)
+    proof.name='func_ext'
+    return proof
