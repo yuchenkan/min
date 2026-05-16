@@ -306,5 +306,143 @@ def phase1():
     print(f'Q(z) done. same(Q(z), target)? {same(got_Q_z.sequent.right[0], Q(z))}')
 
 
+    # === Step case: Q(n) → Q(sn) ===
+    # From In(n,pv): extract In(n,w) and Q(n). Then given Or(In(sn,a),Eq(sn,a)):
+    # derive In(k,a) → tape_read_low → Apply(tape,k,one) → phase1_step_tmstep → TMStep
+    # → phase1_step_extend_trace → P(sn).
+
+    succ_sn = Successor(sn, n)
+    got_and_n = char_fwd(n)
+    got_in_n_w = apply_thm(and_elim_left(In(n, w), Q(n), []), [],
+        got_and_n.sequent.right[0], In(n, w), got_and_n)
+    got_Q_n = apply_thm(and_elim_right(In(n, w), Q(n), []), [],
+        got_and_n.sequent.right[0], Q(n), got_and_n)
+
+    # In(sn,w) from omega_succ_closed
+    osc = omega_succ_closed()
+    got_sn_w = apply_thm(osc, [w], omega_w,
+        Forall(n, Implies(In(n, w), Forall(sn, Implies(succ_sn, In(sn, w))))), ax(omega_w))
+    got_sn_w = apply_thm(got_sn_w, [n], In(n, w),
+        Forall(sn, Implies(succ_sn, In(sn, w))), got_in_n_w)
+    got_sn_w = apply_thm(got_sn_w, [sn], succ_sn, In(sn, w), ax(succ_sn))
+
+    # Derive In(n,sn) from Successor(sn,n): z∈sn ↔ z∈n∨z=n. Right disjunct z=n.
+    or_nsn = Or(In(n, n), Eq(n, n))
+    iff_nsn = Iff(In(n, sn), or_nsn)
+    got_iff_nsn = apply_thm(ax(succ_sn), [n], concl=iff_nsn)
+    got_eq_nn = apply_thm(eq_reflexive(), [n])
+    got_or_nsn = apply_thm(or_intro_right(In(n, n), Eq(n, n), []), [],
+        Eq(n, n), or_nsn, got_eq_nn)
+    got_in_n_sn = mp(apply_thm(iff_mp_rev(In(n, sn), or_nsn, []), [],
+        iff_nsn, Implies(or_nsn, In(n, sn)), got_iff_nsn),
+        got_or_nsn, or_nsn, In(n, sn))
+
+    # Derive In(n,a) from Or(In(sn,a), Eq(sn,a)):
+    or_sna = Or(In(sn, a), Eq(sn, a))
+
+    # Case In(sn,a): a is transitive (omega_transitive_set), so In(sn,a)∧In(n,sn)→In(n,a)
+    from theorems.sets import omega_transitive_set as ots_fn
+    from vocab.sets import TransitiveSet
+    _ots = ots_fn()
+    got_trans_a = apply_thm(_ots, [w, a])
+    got_trans_a = mp(got_trans_a, ax(omega_w), omega_w, got_trans_a.sequent.right[0].right)
+    got_trans_a = mp(got_trans_a, ax(in_a_w), in_a_w, TransitiveSet(a))
+    got_in_n_a_c1 = apply_thm(got_trans_a, [sn])
+    cur = got_in_n_a_c1.sequent.right[0]
+    got_in_n_a_c1 = mp(got_in_n_a_c1, ax(In(sn, a)), cur.left, cur.right)
+    got_in_n_a_c1 = apply_thm(got_in_n_a_c1, [n])
+    cur = got_in_n_a_c1.sequent.right[0]
+    got_in_n_a_c1 = mp(got_in_n_a_c1, got_in_n_sn, cur.left, cur.right)
+    # [In(sn,a), Succ(sn,n), Omega(w), In(a,w), ZFC] |- In(n,a)
+
+    # Case Eq(sn,a): In(n,sn) + eq_transfer(sn,a) → In(n,a)
+    _et = eq_transfer()
+    got_iff_sna = apply_thm(_et, [sn, a, n])
+    got_iff_sna = mp(got_iff_sna, ax(Eq(sn, a)), Eq(sn, a), got_iff_sna.sequent.right[0].right)
+    got_in_n_a_c2 = mp(apply_thm(iff_mp(In(n, sn), In(n, a), []), [],
+        Iff(In(n, sn), In(n, a)), Implies(In(n, sn), In(n, a)), got_iff_sna),
+        got_in_n_sn, In(n, sn), In(n, a))
+    # [Eq(sn,a), Succ(sn,n)] |- In(n,a)
+
+    # Or_elim: Or(In(sn,a), Eq(sn,a)) → In(n,a)
+    imp_c1_na = Implies(In(sn, a), In(n, a))
+    left_c1_na = [f for f in got_in_n_a_c1.sequent.left if not same(f, In(sn, a))]
+    got_imp_c1_na = Proof(Sequent(left_c1_na, [imp_c1_na]), 'implies_right', [got_in_n_a_c1], principal=imp_c1_na)
+    imp_c2_na = Implies(Eq(sn, a), In(n, a))
+    left_c2_na = [f for f in got_in_n_a_c2.sequent.left if not same(f, Eq(sn, a))]
+    got_imp_c2_na = Proof(Sequent(left_c2_na, [imp_c2_na]), 'implies_right', [got_in_n_a_c2], principal=imp_c2_na)
+    oe_na = or_elim(In(sn, a), Eq(sn, a), In(n, a), [])
+    got_in_n_a = apply_thm(oe_na, [], or_sna, Implies(imp_c1_na, Implies(imp_c2_na, In(n, a))), ax(or_sna))
+    got_in_n_a = mp(got_in_n_a, got_imp_c1_na, imp_c1_na, Implies(imp_c2_na, In(n, a)))
+    got_in_n_a = mp(got_in_n_a, got_imp_c2_na, imp_c2_na, In(n, a))
+    # [Or(In(sn,a),Eq(sn,a)), Succ(sn,n), Omega, In(a,w), ZFC] |- In(n,a)
+    print(f'step: In(n,a) from Or(In(sn,a),Eq(sn,a)) done')
+
+    # Also: Or(In(n,a),Eq(n,a)) for Q(n)'s guard — needed to apply Q(n)→P(n)
+    # In(n,a) → Or(In(n,a),Eq(n,a)) via or_intro_left
+    or_na = Or(In(n, a), Eq(n, a))
+    got_or_na = apply_thm(or_intro_left(In(n, a), Eq(n, a), []), [],
+        In(n, a), or_na, got_in_n_a)
+
+    # Apply Q(n): Q(n) = Or(In(n,a),Eq(n,a)) → P(n). mp with got_or_na.
+    got_P_n = mp(got_Q_n, got_or_na, or_na, P(n))
+    # Now open P(n): ∃trace,cn. And(Function(trace), And(base_cond, And(TMConfig(cn,q0,n,tape), And(Apply(trace,n,cn), step_valid(trace,n)))))
+    pn = P(n)
+    pn_body_trace = pn.body  # Exists(cn, ...)
+    pn_body_cn = pn_body_trace.body  # And(Function(trace), ...)
+
+    # Decompose P(n) components
+    got_func_tr = apply_thm(and_elim_left(pn_body_cn.left, pn_body_cn.right, []), [],
+        pn_body_cn, pn_body_cn.left, ax(pn_body_cn))
+    rest1 = pn_body_cn.right
+    got_rest1 = apply_thm(and_elim_right(pn_body_cn.left, rest1, []), [],
+        pn_body_cn, rest1, ax(pn_body_cn))
+    got_base_tr = apply_thm(and_elim_left(rest1.left, rest1.right, []), [],
+        rest1, rest1.left, got_rest1)
+    rest2 = rest1.right
+    got_rest2 = apply_thm(and_elim_right(rest1.left, rest2, []), [],
+        rest1, rest2, got_rest1)
+    got_cfg_cn = apply_thm(and_elim_left(rest2.left, rest2.right, []), [],
+        rest2, rest2.left, got_rest2)
+    rest3 = rest2.right
+    got_rest3 = apply_thm(and_elim_right(rest2.left, rest3, []), [],
+        rest2, rest3, got_rest2)
+    got_app_tr_n = apply_thm(and_elim_left(rest3.left, rest3.right, []), [],
+        rest3, rest3.left, got_rest3)
+    got_sv_n = apply_thm(and_elim_right(rest3.left, rest3.right, []), [],
+        rest3, rest3.right, got_rest3)
+    print(f'step: P(n) decomposed')
+    print(f'  Function(trace): {str(got_func_tr.sequent.right[0])[:40]}')
+    print(f'  TMConfig(cn,...): {str(got_cfg_cn.sequent.right[0])[:40]}')
+    print(f'  Apply(trace,n,cn): {str(got_app_tr_n.sequent.right[0])[:40]}')
+
+    # tape_read_low: In(n,a) → Apply(tape,n,one)
+    _trl = tape_read_low()
+    got_app_tape_n = apply_thm(_trl, [tape, a, b, n, one])
+    got_app_tape_n = mp(got_app_tape_n, ax(utape), utape, got_app_tape_n.sequent.right[0].right)
+    got_app_tape_n = mp(got_app_tape_n, got_in_n_a, In(n, a), got_app_tape_n.sequent.right[0].right)
+    got_app_tape_n = mp(got_app_tape_n, ax(num_one), num_one, Apply(tape, n, one))
+    print(f'step: Apply(tape,n,one) done')
+
+    # phase1_step_tmstep: Function(d)→TMTransition(d,q0,one,one,d1,q0)→TMConfig(cn,q0,n,tape)→
+    #   Function(tape)→Apply(tape,n,one)→Num(d1,1)→Successor(sn,n)→
+    #   ∃cn_new. And(TMConfig(cn_new,q0,sn,tape), TMStep(d,cn,cn_new))
+    # Note: d1=one for Phase1P (direction is one)
+    _pst = phase1_step_tmstep()
+    got_tmstep = apply_thm(_pst, [d, q0, n, sn, tape, cn, one, one])
+    # Order: Function(d), TMTransition, TMConfig(cn,q0,n,tape), Function(tape), Apply(tape,n,one), Num(one,1), Succ(sn,n)
+    got_tmstep = mp(got_tmstep, ax(func_d), func_d, got_tmstep.sequent.right[0].right)
+    got_tmstep = mp(got_tmstep, ax(trans), trans, got_tmstep.sequent.right[0].right)
+    got_tmstep = mp(got_tmstep, got_cfg_cn, got_cfg_cn.sequent.right[0], got_tmstep.sequent.right[0].right)
+    got_tmstep = mp(got_tmstep, ax(func_tape), func_tape, got_tmstep.sequent.right[0].right)
+    got_tmstep = mp(got_tmstep, got_app_tape_n, Apply(tape, n, one), got_tmstep.sequent.right[0].right)
+    got_tmstep = mp(got_tmstep, ax(num_one), num_one, got_tmstep.sequent.right[0].right)
+    got_tmstep = mp(got_tmstep, ax(succ_sn), succ_sn, got_tmstep.sequent.right[0].right)
+    print(f'step: phase1_step_tmstep done: {str(got_tmstep.sequent.right[0])[:80]}')
+
+    # TODO: phase1_step_extend_trace, then assemble P(sn), close Q(sn)
+    print('step: CHECKPOINT — tmstep built, extend_trace next')
+
+
 if __name__ == '__main__':
     phase1()
