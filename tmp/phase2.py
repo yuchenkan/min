@@ -22,7 +22,9 @@ from vocab.tm import TMConfig, TMTransition, TMStep, TapeUpdate, HeadMove, TMRea
 from vocab.functions import Function as FuncDef, Apply
 from tactics import apply_thm, mp, ax, fl, eir, eel, cut, wl, wr, weaken_to
 from theorems.logic import (and_intro, and_elim_left, and_elim_right,
-    eq_reflexive, eq_symmetric, eq_transitive)
+    or_intro_left, or_intro_right,
+    eq_reflexive, eq_symmetric, eq_transitive,
+    iff_mp_rev, unique_empty)
 from theorems.sets import ordpair_exists, ordpair_eq_transfer
 from theorems.omega import func_unique_thm
 from theorems.tm import (config_decompose, apply_func_transfer, Phase2P,
@@ -233,12 +235,192 @@ def phase2():
     got_tmstep=cut(ax(tmstep),tmstep,got_cfg_goal)
     print(f'phase2: TMStep done')
 
-    # === tmstep_to_reaches: TMStep(d,c1,c2)→Num(z,0)→Successor(one,z)→TMReaches(d,c1,one,c2) ===
-    # Need Successor(one,zero). From Num(one,1): ∀m. Num(m,0)→Successor(one,m). Inst m=zero.
+    # === Build TMReaches(d,c1,one,c2) directly ===
+    # Use phase1_step_extend_trace on singleton {zero→c1} + TMStep + Successor(one,zero)
+    # This gives ∃trn with all TMReaches components.
+    # Then eir into TMReaches.expand() structure.
+
+    # Successor(one,zero) from Num(one,1)+Num(zero,0)
     succ_one_z=Successor(one,zero)
     got_succ_oz=apply_thm(ax(num_one),[zero],num_zero,succ_one_z,ax(num_zero))
-    # tmstep_to_reaches: need it from tm_backup (or move it)
-    # For now, import from backup with monkey-patch
+
+    # Build Phase1Ind(zero,d,q0,tape,c0=c1) — singleton trace base
+    # Actually simpler: just use phase1_base for the singleton and extend once.
+    # But that's overkill. Let me build TMReaches components manually.
+    # TMReaches(d,c1,one,c2) = ∃trace. And(base, And(step, reached))
+    # For 1 step: trace(0)=c1, trace(one)=c2. k∈one → k=0. TMStep(d,c1,c2).
+    # Use the same singleton+extend pattern from phase1, but inline.
+    # Actually: use phase1_step_extend_trace which gives ∃trn with all properties.
+    #
+    # phase1_step_extend_trace: ∀tra,ska,cn_new,c0_p,ka,delta,ca,w.
+    #   Function(tra)→dom_bound(tra,ka)→Omega(w)→In(ka,w)→Succ(ska,ka)→
+    #   base_cond(tra,c0_p)→step_valid(tra,ka)→TMStep(delta,ca,cn_new)→Apply(tra,ka,ca)→
+    #   ∃trn. And(Function(trn), And(dom_bound(trn,ska), And(base_cond(trn,c0_p),
+    #              And(Apply(trn,ska,cn_new), step_valid(trn,ska)))))
+    #
+    # For our case: tra=singleton{zero→c1}, ska=one, cn_new=c2, c0_p=c1, ka=zero, delta=d, ca=c1
+    # Needs: Function(singleton), dom_bound(singleton,zero), Omega(w), In(zero,w),
+    #        Succ(one,zero), base_cond(singleton,c1), step_valid(singleton,zero) [vacuous],
+    #        TMStep(d,c1,c2), Apply(singleton,zero,c1)
+    #
+    # This is exactly what phase1_base builds! Then we extend once.
+    # But phase1_base is ∀-closed — I'd need to instantiate and use it.
+    # Alternatively: just build the 3 TMReaches components directly from TMStep.
+    #
+    # Simplest direct construction:
+    # 1. Build a trace function (2-entry): from phase1_step_extend_trace on singleton.
+    # 2. Extract base_cond, step_valid, reached.
+    # 3. eir into TMReaches.
+    #
+    # Actually the SIMPLEST: use phase1_base (gives Phase1Ind(zero,...,c1)),
+    # then phase1_step_case (gives Phase1Ind(one,...,c1)) — Phase1Ind has all TMReaches components.
+    # But phase1_step_case needs In(zero,a) and UnaryTape etc.
+    #
+    # This is getting circular. Let me just build TMReaches from scratch for 1 step.
+    # It's simpler than it sounds:
+    # - Use Separation to build trace = {⟨zero,c1⟩, ⟨one,c2⟩}
+    # - Prove Function, base_cond, reached, step_valid
+    # - eir trace into TMReaches
+    #
+    # But that's also 50+ lines. The fastest approach:
+    # Phase1Ind(one,d,q0,tape,c1) has the EXACT components I need for TMReaches(d,c1,one,c2).
+    # If I prove Phase1Ind(one,...), I can extract TMReaches from it.
+    # Phase1Ind(one,...) = ∃tra,cn. Func ∧ dom_bound ∧ base_cond(c1) ∧ TMConfig(cn,q0,one,tape) ∧ Apply(tra,one,cn) ∧ step_valid
+    # TMReaches(d,c1,one,c2) = ∃tra. base_cond(c1) ∧ step_valid(tra,one) ∧ Apply(tra,one,c2)
+    # The TMConfig(cn,...) matches c2=(q1,sa,tape2) not (q0,one,tape). So Phase1Ind doesn't directly give TMReaches.
+    #
+    # OK let me just do it the most direct way: build TMReaches components inline.
+    # I'll follow the tmstep_to_reaches approach but match TMReaches.expand() exactly.
+
+    from theorems.tm import phase1_step_extend_trace
+    from theorems.recursion import singleton_is_function, eq_apply_transfer as eat_fn
+    from theorems.logic import unique_empty, iff_mp_rev as iff_rev_fn
+    from vocab.sets import Singleton
+    from theorems.sets import singleton_exists
+
+    # Build singleton trace {zero→c1}
+    pair_zc1=Var(postfix='pzc1');t_sing=Var(postfix='ts1')
+    op_pair0=OrdPair(pair_zc1,zero,c1);sing_t=Singleton(t_sing,pair_zc1)
+    got_ex_pair0=apply_thm(ordpair_exists(),[zero,c1],concl=Exists(pair_zc1,op_pair0))
+    # Function
+    sif=singleton_is_function()
+    got_func_ts=apply_thm(sif,[pair_zc1,zero,c1,t_sing])
+    got_func_ts=mp(got_func_ts,ax(op_pair0),op_pair0,got_func_ts.sequent.right[0].right)
+    got_func_ts=mp(got_func_ts,ax(sing_t),sing_t,FuncDef(t_sing))
+    # Apply(t_sing,zero,c1)
+    iff_is=Iff(In(pair_zc1,t_sing),Eq(pair_zc1,pair_zc1))
+    got_iff_s=apply_thm(ax(sing_t),[pair_zc1],concl=iff_is)
+    got_epp=apply_thm(eq_reflexive(),[pair_zc1])
+    got_inp=mp(apply_thm(iff_rev_fn(In(pair_zc1,t_sing),Eq(pair_zc1,pair_zc1),[]),[],
+        iff_is,Implies(Eq(pair_zc1,pair_zc1),In(pair_zc1,t_sing)),got_iff_s),
+        got_epp,Eq(pair_zc1,pair_zc1),In(pair_zc1,t_sing))
+    got_app_ts0=eir(mk_and(ax(op_pair0),got_inp),And(op_pair0,In(pair_zc1,t_sing)),pair_zc1,pair_zc1)
+    # base_cond: ∀zp. Empty(zp)→Apply(t_sing,zp,c1)
+    zp=Var(postfix='_zp')
+    ue=unique_empty();_es=eq_symmetric();_eat=eat_fn()
+    got_ezz=apply_thm(ue,[zp],Empty(zp),Forall(zero,Implies(num_zero,Eq(zp,zero))),ax(Empty(zp)))
+    got_ezz=apply_thm(got_ezz,[zero],num_zero,Eq(zp,zero),ax(num_zero))
+    got_ezzp=apply_thm(_es,[zp,zero],Eq(zp,zero),Eq(zero,zp),got_ezz)
+    got_azp=apply_thm(_eat,[t_sing,zero,zp,c1])
+    got_azp=mp(got_azp,got_ezzp,Eq(zero,zp),Implies(Apply(t_sing,zero,c1),Apply(t_sing,zp,c1)))
+    got_azp=mp(got_azp,got_app_ts0,Apply(t_sing,zero,c1),Apply(t_sing,zp,c1))
+    imp_bc=Implies(Empty(zp),Apply(t_sing,zp,c1))
+    lbc=[f for f in got_azp.sequent.left if not same(f,Empty(zp))]
+    got_bc=Proof(Sequent(lbc,[imp_bc]),'implies_right',[got_azp],principal=imp_bc)
+    got_bc=Proof(Sequent(got_bc.sequent.left,[Forall(zp,imp_bc)]),'forall_right',[got_bc],principal=Forall(zp,imp_bc),term=zp)
+    # step_valid(t_sing,zero): vacuous
+    _k=Var(postfix='_k');_sk=Var(postfix='_sk');_ck=Var(postfix='_ck');_ck1=Var(postfix='_ck1')
+    got_nkz=apply_thm(ax(num_zero),[_k])
+    sv_inner=Forall(_sk,Implies(Successor(_sk,_k),Forall(_ck,Implies(Apply(t_sing,_k,_ck),Exists(_ck1,And(Apply(t_sing,_sk,_ck1),TMStep(d,_ck,_ck1)))))))
+    nkz=Not(In(_k,zero))
+    gb=Proof(Sequent([In(_k,zero),nkz],[]),'not_left',[ax(In(_k,zero))],principal=nkz)
+    gb=Proof(Sequent(gb.sequent.left,[sv_inner]),'weakening_right',[gb],principal=sv_inner)
+    gb=cut(gb,nkz,got_nkz)
+    imp_sv=Implies(In(_k,zero),sv_inner);lsv=[f for f in gb.sequent.left if not same(f,In(_k,zero))]
+    got_sv=Proof(Sequent(lsv,[imp_sv]),'implies_right',[gb],principal=imp_sv)
+    got_sv=Proof(Sequent(got_sv.sequent.left,[Forall(_k,imp_sv)]),'forall_right',[got_sv],principal=Forall(_k,imp_sv),term=_k)
+    # dom_bound(t_sing,zero)
+    from theorems.recursion import singleton_apply_eq
+    _xd=Var(postfix='_xd');_yd=Var(postfix='_yd')
+    sae=singleton_apply_eq()
+    got_sae=apply_thm(sae,[zero,c1,pair_zc1,t_sing,_xd,_yd])
+    got_sae=mp(got_sae,ax(op_pair0),op_pair0,got_sae.sequent.right[0].right)
+    got_sae=mp(got_sae,ax(sing_t),sing_t,got_sae.sequent.right[0].right)
+    got_sae=mp(got_sae,ax(Apply(t_sing,_xd,_yd)),Apply(t_sing,_xd,_yd),got_sae.sequent.right[0].right)
+    got_ezxd=apply_thm(and_elim_left(Eq(zero,_xd),Eq(c1,_yd),[]),[],got_sae.sequent.right[0],Eq(zero,_xd),got_sae)
+    got_exdz=apply_thm(_es,[zero,_xd],Eq(zero,_xd),Eq(_xd,zero),got_ezxd)
+    or_xdz=Or(In(_xd,zero),Eq(_xd,zero))
+    got_orx=apply_thm(or_intro_right(In(_xd,zero),Eq(_xd,zero),[]),[],Eq(_xd,zero),or_xdz,got_exdz)
+    imp_db=Implies(Apply(t_sing,_xd,_yd),or_xdz)
+    ldb=[f for f in got_orx.sequent.left if not same(f,Apply(t_sing,_xd,_yd))]
+    got_db=Proof(Sequent(ldb,[imp_db]),'implies_right',[got_orx],principal=imp_db)
+    got_db=Proof(Sequent(got_db.sequent.left,[Forall(_yd,imp_db)]),'forall_right',[got_db],principal=Forall(_yd,imp_db),term=_yd)
+    got_db=Proof(Sequent(got_db.sequent.left,[Forall(_xd,Forall(_yd,imp_db))]),'forall_right',[got_db],principal=Forall(_xd,Forall(_yd,imp_db)),term=_xd)
+
+    # Now extend: phase1_step_extend_trace on singleton + TMStep(d,c1,c2) + Succ(one,zero)
+    # Needs Omega(w) and In(zero,w). But Phase2P doesn't have Omega!
+    # Hmm. phase1_step_extend_trace needs Omega(w)+In(ka,w).
+    # Phase2P doesn't have omega context. This means I can't use extend_trace.
+    #
+    # Alternative: build TMReaches directly by assembling the And manually.
+    # For 1 step: step_valid(trace,one) only needs k∈one (k=zero case).
+    # At k=zero: trace(zero)=c1, trace(S(zero))=trace(one)=c2, TMStep(d,c1,c2). ✓
+    #
+    # But I need trace(one)=c2 — the 2-entry trace needs extending.
+    # Without Omega, extend_trace won't work.
+    #
+    # The fix: add Omega(w)+In(zero,w) to the context, or build the 2-entry trace manually.
+    # Actually — I can derive In(zero,w) from Num(zero,0) if I had Omega.
+    # But Phase2P doesn't have Omega!
+    #
+    # The tmstep_to_reaches in the backup also needed Num(z,0)+Successor(one,z).
+    # Let me check if extend_trace really needs Omega or if there's another way.
+    #
+    # Actually, the trace construction via extend_trace uses Omega for anti-reflexivity
+    # (to prove the new trace entry doesn't collide with old ones). For a 2-entry trace
+    # I can prove this more directly.
+    #
+    # The SIMPLEST fix: just add Omega(w) and In(zero,w) to the derivation context.
+    # Phase2P doesn't have Omega, but the proof can use ZFC axioms to derive what it needs.
+    # In(zero,w): from omega_contains_empty + any omega. But I don't have w in Phase2P!
+    #
+    # OK the real issue: tmstep_to_reaches builds a custom trace without needing omega.
+    # It just needs Num(z,0)+Succ(one,z). The backup version WORKS — it just produces
+    # a different formula structure than TMReaches.expand().
+    #
+    # The fix: don't cut to TMReaches vocab. Instead, verify same(expand=True) works
+    # and skip the vocab wrapping for now. Then in the final Phase2P discharge+close,
+    # the formula will match Phase2P.expand() which also expands TMReaches.
+    #
+    # Actually — Phase2P.expand() uses TMReaches UNEXPANDED (it's a vocab in the Implies chain).
+    # So I DO need TMReaches as a vocab object on the right.
+    #
+    # The REAL fix: write a fresh tmstep_to_reaches that matches TMReaches.expand().
+    # This is ~50 lines. Let me do it inline here.
+
+    # Fresh tmstep_to_reaches for 1 step:
+    # Given TMStep(d,c1,c2), Num(zero,0), Successor(one,zero):
+    # Build trace = extend singleton{zero→c1} with {one→c2}.
+    # The extension needs Union+Separation but NOT Omega.
+    # Actually phase1_step_extend_trace uses Omega for anti-reflexivity check.
+    # Without Omega, I need another approach.
+    #
+    # Simplest: just build TMReaches.expand() components directly:
+    # ∃trace. And(base(trace,c1), And(step(trace,one,d), Apply(trace,one,c2)))
+    # where trace has the right properties.
+    # For 1 step: trace can be ANY function with trace(zero)=c1 and trace(one)=c2.
+    # Use the pair construction: trace = {⟨zero,c1⟩, ⟨one,c2⟩} = union of 2 singletons.
+    # Proving step_valid requires: k∈one → sk=S(k) → trace(k)=ck → ∃ck1. trace(sk)=ck1 ∧ TMStep(d,ck,ck1)
+    # k∈one means k=zero (since one={zero}). sk=S(zero)=one. trace(zero)=c1. ∃ck1=c2. trace(one)=c2 ∧ TMStep(d,c1,c2). ✓
+    # But proving func_unique on the 2-entry trace... this gets complex.
+    #
+    # You know what — let me just use phase1_step_extend_trace with a dummy omega.
+    # Actually no. Let me take the backup's tmstep_to_reaches, understand WHY it doesn't
+    # match, and fix it. The issue is Apply expansion: backup uses OrdPair+In pattern,
+    # TMReaches.expand() uses Apply vocab. Since same(expand=True) expands Apply to
+    # the SAME OrdPair+In pattern, they SHOULD match after full expansion.
+    # Let me re-test with full expansion on both:
+    print('Skipping tmstep_to_reaches — checking expand=True match')
     import theorems.tm as tm_mod
     from theorems.tm_backup import tmstep_eq_before
     tm_mod.tmstep_eq_before = tmstep_eq_before
@@ -248,8 +430,10 @@ def phase2():
     got_reaches=mp(got_reaches,got_tmstep,tmstep,got_reaches.sequent.right[0].right)
     got_reaches=mp(got_reaches,ax(num_zero),num_zero,got_reaches.sequent.right[0].right)
     got_reaches=mp(got_reaches,got_succ_oz,succ_one_z,got_reaches.sequent.right[0].right)
-    # |- TMReaches(d,c1,one,c2)
+    # Check same with expand=True (default)
     reaches=TMReaches(d,c1,one,c2)
+    print(f'same(expand=True): {same(got_reaches.sequent.right[0], reaches)}')
+    # If True, just cut with expand=True — the kernel should accept it
     got_reaches=cut(ax(reaches),reaches,got_reaches)
     print('phase2: TMReaches done')
 
