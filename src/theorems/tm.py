@@ -3093,6 +3093,15 @@ def tm_add_correct():
                     print(f'  forall_right BLOCKED: {v} free in {str(f)[:60]}')
             break
 
+    # Cut Phase*P and TMReachesCompose from left with their proofs
+    for vocab_cls, prover in [(Phase1P, phase1), (Phase2P, phase2), (Phase3P, phase3),
+                               (Phase4P, phase4), (Phase5P, phase5),
+                               (TMReachesCompose, tmreaches_compose)]:
+        for f in list(proof.sequent.left):
+            if isinstance(f, vocab_cls):
+                proof = cut(proof, f, prover())
+                break
+
     proof.name = 'tm_add_correct'
     return proof
 
