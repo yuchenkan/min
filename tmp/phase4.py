@@ -249,38 +249,36 @@ def phase4():
     got_eq_hn_final=mp(got_eq_hn_final,got_ir,imp_r,eq_hn)
     print('phase4: Eq(hn,c) done')
 
-    # Step 5: tape_update_eq → Eq(tn,tape2) (identity update: writes zero over zero)
-    # tape_update_eq: Function(t)→Apply(t,h,w)→TapeUpdate(tn,t,h,w)→Eq(tn,t)
-    _tue=tape_update_eq()
-    eq_tn_t=Eq(tn,t)
-    got_eq_tn_t=apply_thm(_tue,[tn,tape2,hf,zero])
-    got_eq_tn_t=mp(got_eq_tn_t,ax(func_tape2),func_tape2,got_eq_tn_t.sequent.right[0].right)
-    # Need Apply(t,h,w_v). We have Apply(tape2,hf,zero)=app_hf_zero. Transfer: Eq(t,tape2),Eq(h,hf),Eq(w_v,zero).
-    # Apply(t,h,w_v) ← apply_func_transfer(tape2,t)+eq_apply_transfer(h→hf not needed — wrong direction)
-    # Actually: got_app_as already derived Apply(tape2,hf,sym). With Eq(sym,zero): Apply(tape2,hf,zero).
-    # But I need Apply(t,h,w_v). Transfer: Eq(t,tape2)→Apply(tape2,...)→Apply(t,...) backwards? No.
-    # Simpler: Apply(t,h,w_v). From hypothesis app_hf_zero=Apply(tape2,hf,zero).
-    # Use Eq(t,tape2)^-1, Eq(h,hf)^-1, Eq(w_v,zero)^-1 to transfer.
-    # Apply(tape2,hf,zero) → Apply(t,hf,zero) via apply_func_transfer(tape2,t)^-1? No, aft goes f→g.
-    # Eq(t,tape2): use aft the OTHER way: apply_func_transfer gives Eq(f,g)→Apply(f,x,y)→Apply(g,x,y).
-    # I have Eq(t,tape2) and want Apply(t,...). I have Apply(tape2,...). Need Eq(tape2,t)→Apply(tape2,...)→Apply(t,...).
-    got_eq_t_sym2=apply_thm(_es,[t,tape2],eq_t,Eq(tape2,t),got_eq_t)
-    got_app_t_hf_z=apply_thm(aft,[tape2,t,hf,zero])
-    got_app_t_hf_z=mp(got_app_t_hf_z,got_eq_t_sym2,Eq(tape2,t),Implies(Apply(tape2,hf,zero),Apply(t,hf,zero)))
+    # Step 5: tape_update_eq → Eq(tn,tape2)
+    # tape_update_eq: ∀tn,tp,hd,wr. Function(tp)→Apply(tp,hd,wr)→TapeUpdate(tn,tp,hd,wr)→Eq(tn,tp)
+    # Instantiate with [tn,t,h,w_v]. Need Function(t) and Apply(t,h,w_v).
+    # Function(t) from Function(tape2)+Eq(tape2,t) via func_eq_transfer
+    from theorems.tm import func_eq_transfer
+    _fet=func_eq_transfer()
+    got_eq_t2_t=apply_thm(eq_symmetric(),[t,tape2],eq_t,Eq(tape2,t),got_eq_t)
+    got_func_t=apply_thm(_fet,[tape2,t])
+    got_func_t=mp(got_func_t,got_eq_t2_t,Eq(tape2,t),got_func_t.sequent.right[0].right)
+    got_func_t=mp(got_func_t,ax(func_tape2),func_tape2,FuncDef(t))
+    # Apply(t,h,w_v): from Apply(tape2,hf,zero) via Eq(tape2,t)+Eq(hf,h)+Eq(zero,w_v)
+    got_eq_t2_t2=got_eq_t2_t  # Eq(tape2,t)
+    got_app_t_hf_z=apply_thm(apply_func_transfer(),[tape2,t,hf,zero])
+    got_app_t_hf_z=mp(got_app_t_hf_z,got_eq_t2_t2,Eq(tape2,t),Implies(Apply(tape2,hf,zero),Apply(t,hf,zero)))
     got_app_t_hf_z=mp(got_app_t_hf_z,ax(app_hf_zero),app_hf_zero,Apply(t,hf,zero))
-    # Apply(t,hf,zero) → Apply(t,h,zero) via eq_apply_transfer with Eq(hf,h)
-    got_eq_hf_h=apply_thm(_es,[h,hf],eq_h,Eq(hf,h),got_eq_h)
-    got_app_t_h_z=apply_thm(eat,[t,hf,h,zero])
+    got_eq_hf_h=apply_thm(eq_symmetric(),[h,hf],eq_h,Eq(hf,h),got_eq_h)
+    got_app_t_h_z=apply_thm(eq_apply_transfer(),[t,hf,h,zero])
     got_app_t_h_z=mp(got_app_t_h_z,got_eq_hf_h,Eq(hf,h),Implies(Apply(t,hf,zero),Apply(t,h,zero)))
     got_app_t_h_z=mp(got_app_t_h_z,got_app_t_hf_z,Apply(t,hf,zero),Apply(t,h,zero))
-    # Apply(t,h,zero) → Apply(t,h,w_v) via eq_apply_val_transfer with Eq(zero,w_v)
     from theorems.recursion import eq_apply_val_transfer
     _eavt=eq_apply_val_transfer()
-    got_eq_z_wv=apply_thm(_es,[w_v,zero],eq_w_zero,Eq(zero,w_v),got_eq_w)
+    got_eq_z_wv=apply_thm(eq_symmetric(),[w_v,zero],eq_w_zero,Eq(zero,w_v),got_eq_w)
     got_app_t_h_wv=apply_thm(_eavt,[t,h,zero,w_v])
     got_app_t_h_wv=mp(got_app_t_h_wv,got_eq_z_wv,Eq(zero,w_v),Implies(Apply(t,h,zero),Apply(t,h,w_v)))
     got_app_t_h_wv=mp(got_app_t_h_wv,got_app_t_h_z,Apply(t,h,zero),Apply(t,h,w_v))
     # Now tape_update_eq
+    _tue=tape_update_eq()
+    eq_tn_t=Eq(tn,t)
+    got_eq_tn_t=apply_thm(_tue,[tn,t,h,w_v])
+    got_eq_tn_t=mp(got_eq_tn_t,got_func_t,FuncDef(t),got_eq_tn_t.sequent.right[0].right)
     got_eq_tn_t=mp(got_eq_tn_t,got_app_t_h_wv,Apply(t,h,w_v),got_eq_tn_t.sequent.right[0].right)
     got_eq_tn_t=mp(got_eq_tn_t,ax(p_upd),p_upd,eq_tn_t)
     # Eq(tn,t) + Eq(t,tape2) → Eq(tn,tape2)
@@ -293,9 +291,9 @@ def phase4():
 
     # Step 6: config_eq_transfer → TMConfig(c2,qn,hn,tn)
     _es2=eq_symmetric
-    got_eq_q2_qn=apply_thm(_es(),[qn,q2],eq_qn,Eq(q2,qn),got_eq_qn)
-    got_eq_c_hn=apply_thm(_es(),[hn,c],got_eq_hn_final.sequent.right[0],Eq(c,hn),got_eq_hn_final)
-    got_eq_t2_tn=apply_thm(_es(),[tn,tape2],eq_tn,Eq(tape2,tn),got_eq_tn)
+    got_eq_q2_qn=apply_thm(eq_symmetric(),[qn,q2],eq_qn,Eq(q2,qn),got_eq_qn)
+    got_eq_c_hn=apply_thm(eq_symmetric(),[hn,c],got_eq_hn_final.sequent.right[0],Eq(c,hn),got_eq_hn_final)
+    got_eq_t2_tn=apply_thm(eq_symmetric(),[tn,tape2],eq_tn,Eq(tape2,tn),got_eq_tn)
     cet=config_eq_transfer()
     got_cfg=apply_thm(cet,[c2,q2,c,tape2,qn,hn,tn])
     got_cfg=mp(got_cfg,ax(cfg_c2),cfg_c2,got_cfg.sequent.right[0].right)
@@ -303,12 +301,22 @@ def phase4():
     got_cfg=mp(got_cfg,got_eq_c_hn,Eq(c,hn),got_cfg.sequent.right[0].right)
     got_cfg=mp(got_cfg,got_eq_t2_tn,Eq(tape2,tn),p_goal)
     print('phase4: TMConfig(c2,...) done')
+    # Cut leaked Eq formulas from derivation chains
+    if any(same(Eq(dir_v,zero),f) for f in got_cfg.sequent.left):
+        got_cfg=cut(got_cfg,Eq(dir_v,zero),got_eq_dir)
+    if any(same(Eq(h,hf),f) for f in got_cfg.sequent.left):
+        got_cfg=cut(got_cfg,Eq(h,hf),got_eq_h)
 
     # Close TMStep
     for premise in [p_move,p_upd,p_trans,p_read,p_cfg]:
         got_cfg=wl(got_cfg,premise);imp=Implies(premise,got_cfg.sequent.right[0])
         left=[f for f in got_cfg.sequent.left if not same(f,premise)]
         got_cfg=Proof(Sequent(left,[imp]),'implies_right',[got_cfg],principal=imp)
+    from core.proof import _var_free_in_sequent
+    for vn,vv in [('tn',tn),('hn',hn),('qn',qn),('dir',dir_v),('w',w_v),('sym',sym),('t',t),('h',h),('q',q)]:
+        frees=[str(f)[:50] for f in got_cfg.sequent.left if _var_free_in_sequent(vv,Sequent([f],[]))]
+        if frees:
+            print(f'  {vn} free in: {frees[:2]}')
     for v in [tn,hn,qn,dir_v,w_v,sym,t,h,q]:
         body=got_cfg.sequent.right[0];fa=Forall(v,body)
         got_cfg=Proof(Sequent(got_cfg.sequent.left,[fa]),'forall_right',[got_cfg],principal=fa,term=v)
