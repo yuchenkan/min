@@ -7577,6 +7577,7 @@ def phase1():
     b0=pa_and
     gft=apply_thm(and_elim_left(b0.left,b0.right,[]),[],b0,b0.left,ax(b0))
     b1=b0.right;gb1=apply_thm(and_elim_right(b0.left,b1,[]),[],b0,b1,ax(b0))
+    gdb_a=apply_thm(and_elim_left(b1.left,b1.right,[]),[],b1,b1.left,gb1)
     b2=b1.right;gb2=apply_thm(and_elim_right(b1.left,b2,[]),[],b1,b2,gb1)
     gbt=apply_thm(and_elim_left(b2.left,b2.right,[]),[],b2,b2.left,gb2)
     b3=b2.right;gb3=apply_thm(and_elim_right(b2.left,b3,[]),[],b2,b3,gb2)
@@ -7621,7 +7622,7 @@ def phase1():
     # Build TMReaches(d,c0,a,c1) = ∃trace. And(base, And(step, Apply(trace,a,c1)))
     reaches=TMReaches(d,c0,a,c1)
     rexp=reaches.expand();r_tra=rexp.var;r_body=rexp.body
-    r_and=mk_and(gsva,got_at_c1);r_and=mk_and(gbt,r_and);r_and=mk_and(gft,r_and)
+    r_and=mk_and(gsva,got_at_c1);r_and=mk_and(gbt,r_and);r_and=mk_and(gdb_a,r_and);r_and=mk_and(gft,r_and)
     got_reaches=eir(r_and,r_body,r_tra,pa_tra)
     got_reaches=cut(ax(reaches),reaches,got_reaches)
     # [pa_and, TMConfig(c1,...), Pairing] |- TMReaches(d,c0,a,c1)
@@ -7771,10 +7772,11 @@ def tmstep_to_reaches():
     ext_ex=got_ext.sequent.right[0]; trn=ext_ex.var; ext_body=ext_ex.body
     # ext_body = And(Func(trn), And(db(trn,one), And(bc(trn,c1), And(Apply(trn,one,c2), sv(trn,one)))))
     e0=ext_body
-    # extract Function, skip dom_bound, extract base_cond, Apply, step_valid
+    # extract Function, dom_bound, base_cond, Apply, step_valid
     g_func=apply_thm(and_elim_left(e0.left,e0.right,[]),[],e0,e0.left,ax(e0))
     gb1=apply_thm(and_elim_right(e0.left,e0.right,[]),[],e0,e0.right,ax(e0))
     e1=e0.right
+    g_db=apply_thm(and_elim_left(e1.left,e1.right,[]),[],e1,e1.left,gb1)
     gb2=apply_thm(and_elim_right(e1.left,e1.right,[]),[],e1,e1.right,gb1)
     e2=e1.right  # And(base_cond, And(Apply, step_valid))
     g_bc=apply_thm(and_elim_left(e2.left,e2.right,[]),[],e2,e2.left,gb2)
@@ -7783,12 +7785,11 @@ def tmstep_to_reaches():
     g_app=apply_thm(and_elim_left(e3.left,e3.right,[]),[],e3,e3.left,gb3)
     g_sv=apply_thm(and_elim_right(e3.left,e3.right,[]),[],e3,e3.right,gb3)
 
-    # TMReaches(d,c1,one,c2).expand() = ∃trace. And(func, And(base, And(step, reached)))
+    # TMReaches(d,c1,one,c2).expand() = ∃trace. And(func, And(db, And(base, And(step, reached))))
     reaches=TMReaches(d,c1,one,c2)
     rexp=reaches.expand(); r_tra=rexp.var; r_body=rexp.body
-    # r_body = And(func_r, And(base_r, And(step_r, reached_r)))
     # Assemble with trn as witness
-    r_and=mk_and(g_sv,g_app); r_and=mk_and(g_bc,r_and); r_and=mk_and(g_func,r_and)
+    r_and=mk_and(g_sv,g_app); r_and=mk_and(g_bc,r_and); r_and=mk_and(g_db,r_and); r_and=mk_and(g_func,r_and)
     # eir r_tra=trn into TMReaches body
     got_reaches=eir(r_and,r_body,r_tra,trn)
     got_reaches=cut(ax(reaches),reaches,got_reaches)
@@ -9269,6 +9270,7 @@ def phase3():
     b0=pb_and
     gft=apply_thm(and_elim_left(b0.left,b0.right,[]),[],b0,b0.left,ax(b0))
     b1=b0.right;gb1=apply_thm(and_elim_right(b0.left,b1,[]),[],b0,b1,ax(b0))
+    gdb_b=apply_thm(and_elim_left(b1.left,b1.right,[]),[],b1,b1.left,gb1)
     b2=b1.right;gb2=apply_thm(and_elim_right(b1.left,b2,[]),[],b1,b2,gb1)
     gbt=apply_thm(and_elim_left(b2.left,b2.right,[]),[],b2,b2.left,gb2)
     b3=b2.right;gb3=apply_thm(and_elim_right(b2.left,b3,[]),[],b2,b3,gb2)
@@ -9315,7 +9317,7 @@ def phase3():
     got_at_c2=mp(got_at_c2,gatnb,gatnb.sequent.right[0],Apply(pb_tra,b,c2v))
     # Build TMReaches
     reaches=TMReaches(d,c1v,b,c2v);rexp=reaches.expand();r_tra=rexp.var;r_body=rexp.body
-    r_and=mk_and(gsvb,got_at_c2);r_and=mk_and(gbt,r_and);r_and=mk_and(gft,r_and)
+    r_and=mk_and(gsvb,got_at_c2);r_and=mk_and(gbt,r_and);r_and=mk_and(gdb_b,r_and);r_and=mk_and(gft,r_and)
     got_reaches=eir(r_and,r_body,r_tra,pb_tra)
     got_reaches=cut(ax(reaches),reaches,got_reaches)
     # eel eigenvars back into Phase3Ind
