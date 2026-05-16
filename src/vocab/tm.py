@@ -11,7 +11,7 @@ from core.lang import Var, Not, In, Implies, Forall
 from core.derived import Exists, And, Or, Iff, Eq
 from vocab.sets import Empty
 from vocab.ordpair import OrdPair, Successor
-from vocab.functions import Apply
+from vocab.functions import Apply, Function
 from vocab.omega import Num
 
 
@@ -189,7 +189,8 @@ class TMReaches:
                     Exists(ck1, And(Apply(trace, sk, ck1),
                         TMStep(self.delta, ck, ck1)))))))))
         reached = Apply(trace, self.steps, self.config)
-        return Exists(trace, And(base, And(step, reached)))
+        func = Function(trace)
+        return Exists(trace, And(func, And(base, And(step, reached))))
     def subst(self, old, new):
         r = lambda f: new if f is old else f
         return TMReaches(r(self.delta), r(self.init), r(self.steps), r(self.config))
