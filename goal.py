@@ -105,6 +105,9 @@ goals = [
     ('forall_implies_exists',
      lambda: theorems.forall_implies_exists(A, B, x, [y,z]),
      Forall(z, Forall(y, Implies(Forall(x, Implies(A,B)), Implies(Exists(x,A), Exists(x,B)))))),
+    ('exists_unique_bridge',
+     lambda: theorems.exists_unique_bridge(In(x,y), In(x,z), x, [z,y]),
+     Forall(y, Forall(z, Implies(ExistsUnique(h, In(h,y)), Iff(Forall(x, Implies(In(x,y),In(x,z))), Exists(x, And(In(x,y),In(x,z)))))))),
     # --- sets ---
     ('unique_singleton',
      lambda: theorems.unique_singleton(),
