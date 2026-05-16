@@ -120,10 +120,10 @@ class Phase3P:
 
 class Phase4P:
     """Phase 4: read 0 past ones, write 0, move L. 1 step.
-    ∀d,q1,q2,hf,c,one,zero,tape2,c1,c2.
+    ∀d,q1,q2,hf,c,one,zero,tape2,c1,c2,w.
       TMTransition(d,q1,zero,zero,zero,q2) →
       Function(d) → Function(tape2) →
-      Num(one,1) → Num(zero,0) →
+      Num(one,1) → Num(zero,0) → Omega(w) → In(c,w) →
       Successor(hf,c) → Apply(tape2,hf,zero) →
       TMConfig(c1,q1,hf,tape2) → TMConfig(c2,q2,c,tape2) →
       TMReaches(d,c1,one,c2)"""
@@ -133,13 +133,14 @@ class Phase4P:
         zero = Var(postfix='_z')
         tape2 = Var(postfix='_t2')
         c1,c2 = Var(postfix='_c1'), Var(postfix='_c2')
+        w = Var(postfix='_w')
         body = Implies(TMTransition(d,q1,zero,zero,zero,q2),
             Implies(FuncDef(d), Implies(FuncDef(tape2),
-            Implies(Num(one,1), Implies(Num(zero,0),
+            Implies(Num(one,1), Implies(Num(zero,0), Implies(Omega(w), Implies(In(c,w),
             Implies(Successor(hf,c), Implies(Apply(tape2,hf,zero),
             Implies(TMConfig(c1,q1,hf,tape2), Implies(TMConfig(c2,q2,c,tape2),
-            TMReaches(d,c1,one,c2))))))))))
-        for v in [c2,c1,tape2,zero,one,c,hf,q2,q1,d]:
+            TMReaches(d,c1,one,c2))))))))))))
+        for v in [w,c2,c1,tape2,zero,one,c,hf,q2,q1,d]:
             body = Forall(v, body)
         return body
     def __str__(self): return 'Phase4P'
@@ -2198,8 +2199,17 @@ def tm_add_correct():
     got_app_a_zero = mp(got_app_a_zero, ax(utape), utape, got_app_a_zero.sequent.right[0].right)
     got_app_a_zero = mp(got_app_a_zero, ax(num_z), num_z, Apply(tape_in, a, zero))
 
+    # Derive In(c,w) from plus_val_in_omega
+    from theorems.arithmetic import plus_val_in_omega as _pvi_early
+    _pvi_e = _pvi_early()
+    got_c_w_early = apply_thm(_pvi_e, [w, a, b, c])
+    got_c_w_early = mp(got_c_w_early, ax(omega_w), omega_w, got_c_w_early.sequent.right[0].right)
+    got_c_w_early = mp(got_c_w_early, ax(In(a,w)), In(a,w), got_c_w_early.sequent.right[0].right)
+    got_c_w_early = mp(got_c_w_early, ax(In(b,w)), In(b,w), got_c_w_early.sequent.right[0].right)
+    got_c_w_early = mp(got_c_w_early, ax(plus_abc), plus_abc, In(c,w))
+
     # === Helper: mp through hypothesis list, using derived proofs where available ===
-    derived_proofs = [trans_q0_1, trans_q0_0, trans_q1_1, trans_q1_0, trans_q2_1, got_app_a_zero]
+    derived_proofs = [trans_q0_1, trans_q0_0, trans_q1_1, trans_q1_0, trans_q2_1, got_app_a_zero, got_c_w_early]
     def mp_hyps(got, hyps):
         for h in hyps:
             src = None
@@ -2244,9 +2254,9 @@ def tm_add_correct():
 
     # Phase4P ∀ order: d,q1,q2,hf,c,one,zero,tape2,c1,c2
     got_p4 = mp_hyps(
-        apply_thm(ax(Phase4P()), [delta, q1, q2, hf, c, one, zero, tape2, c3, c4]),
+        apply_thm(ax(Phase4P()), [delta, q1, q2, hf, c, one, zero, tape2, c3, c4, w]),
         [trans_q1_0.sequent.right[0], FuncDef(delta), FuncDef(tape2),
-         num_one, num_zero, succ_hf, tape2_hf_zero, cfg_c3, cfg_c4])
+         num_one, num_zero, omega_w, In(c,w), succ_hf, tape2_hf_zero, cfg_c3, cfg_c4])
 
     # Phase5P ∀ order: d,q2,qH,c,hf,one,zero,tape2,tf,c1,c2
     got_p5 = mp_hyps(
