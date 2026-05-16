@@ -145,10 +145,126 @@ def phase1_base():
     return proof
 
 
+def phase1_step_case():
+    """Prove P(n) → P(sn) given In(n,a) and hypotheses.
+    Left: [P(n), In(n,a), Succ(sn,n), TMTransition, Omega, In(a,w), In(n,w),
+           Function(d), Function(tape), Num(one,1), UnaryTape, ZFC]
+    Right: P(sn)"""
+    n = Var(postfix='ind_n'); sn = Var(postfix='ind_sn')
+    trans = TMTransition(d, q0, one, one, one, q0)
+    omega_w = Omega(w); in_a_w = In(a, w)
+    func_d = FuncDef(d); func_tape = FuncDef(tape)
+    num_one = Num(one, 1); utape = UnaryTape(tape, a, b)
+    succ_sn = Successor(sn, n)
+
+    # Decompose P(n)
+    pn = P(n); pntb = pn.body; pncb = pntb.body
+    b0 = pncb
+    gft = apply_thm(and_elim_left(b0.left, b0.right, []), [], b0, b0.left, ax(b0))
+    b1 = b0.right; gb1 = apply_thm(and_elim_right(b0.left, b1, []), [], b0, b1, ax(b0))
+    gdb = apply_thm(and_elim_left(b1.left, b1.right, []), [], b1, b1.left, gb1)
+    b2 = b1.right; gb2 = apply_thm(and_elim_right(b1.left, b2, []), [], b1, b2, gb1)
+    gbt = apply_thm(and_elim_left(b2.left, b2.right, []), [], b2, b2.left, gb2)
+    b3 = b2.right; gb3 = apply_thm(and_elim_right(b2.left, b3, []), [], b2, b3, gb2)
+    gcn = apply_thm(and_elim_left(b3.left, b3.right, []), [], b3, b3.left, gb3)
+    b4 = b3.right; gb4 = apply_thm(and_elim_right(b3.left, b4, []), [], b3, b4, gb3)
+    gatn = apply_thm(and_elim_left(b4.left, b4.right, []), [], b4, b4.left, gb4)
+    gsvn = apply_thm(and_elim_right(b4.left, b4.right, []), [], b4, b4.right, gb4)
+
+    # tape_read_low: In(n,a) → Apply(tape,n,one)
+    _trl = tape_read_low()
+    gat = apply_thm(_trl, [tape, a, b, n, one])
+    gat = mp(gat, ax(utape), utape, gat.sequent.right[0].right)
+    gat = mp(gat, ax(In(n, a)), In(n, a), gat.sequent.right[0].right)
+    gat = mp(gat, ax(num_one), num_one, Apply(tape, n, one))
+
+    # phase1_step_tmstep: ∃cn_new. And(TMConfig(cn_new,q0,sn,tape), TMStep(d,cn,cn_new))
+    _pst = phase1_step_tmstep()
+    gts = apply_thm(_pst, [d, q0, n, sn, tape, cn, one, one])
+    gts = mp(gts, ax(func_d), func_d, gts.sequent.right[0].right)
+    gts = mp(gts, ax(trans), trans, gts.sequent.right[0].right)
+    gts = mp(gts, gcn, gcn.sequent.right[0], gts.sequent.right[0].right)
+    gts = mp(gts, ax(func_tape), func_tape, gts.sequent.right[0].right)
+    gts = mp(gts, gat, Apply(tape, n, one), gts.sequent.right[0].right)
+    gts = mp(gts, ax(num_one), num_one, gts.sequent.right[0].right)
+    gts = mp(gts, ax(succ_sn), succ_sn, gts.sequent.right[0].right)
+
+    # Open ∃cn_new
+    tsx = gts.sequent.right[0]; cnw = tsx.var; tsb = tsx.body
+    gcfn = apply_thm(and_elim_left(tsb.left, tsb.right, []), [], tsb, tsb.left, ax(tsb))
+    gstn = apply_thm(and_elim_right(tsb.left, tsb.right, []), [], tsb, tsb.right, ax(tsb))
+
+    # phase1_step_extend_trace
+    from theorems.omega import omega_succ_closed
+    osc = omega_succ_closed()
+    # Need In(n,w) for extend_trace
+    got_in_nw = ax(In(n, w))
+
+    _pet = phase1_step_extend_trace()
+    gext = apply_thm(_pet, [trace, sn, cnw, c0, n, d, cn, w])
+    gext = mp(gext, gft, gft.sequent.right[0], gext.sequent.right[0].right)
+    gext = mp(gext, gdb, gdb.sequent.right[0], gext.sequent.right[0].right)
+    gext = mp(gext, ax(omega_w), omega_w, gext.sequent.right[0].right)
+    gext = mp(gext, got_in_nw, In(n, w), gext.sequent.right[0].right)
+    gext = mp(gext, ax(succ_sn), succ_sn, gext.sequent.right[0].right)
+    gext = mp(gext, gbt, gbt.sequent.right[0], gext.sequent.right[0].right)
+    gext = mp(gext, gsvn, gsvn.sequent.right[0], gext.sequent.right[0].right)
+    gext = mp(gext, gstn, gstn.sequent.right[0], gext.sequent.right[0].right)
+    gext = mp(gext, gatn, gatn.sequent.right[0], gext.sequent.right[0].right)
+
+    # Open ∃trn, decompose, insert TMConfig, reassemble P(sn)
+    extx = gext.sequent.right[0]; trn = extx.var; extb = extx.body
+    e0 = extb
+    gef = apply_thm(and_elim_left(e0.left, e0.right, []), [], e0, e0.left, ax(e0))
+    e1 = e0.right; ge1 = apply_thm(and_elim_right(e0.left, e1, []), [], e0, e1, ax(e0))
+    gedb = apply_thm(and_elim_left(e1.left, e1.right, []), [], e1, e1.left, ge1)
+    e2 = e1.right; ge2 = apply_thm(and_elim_right(e1.left, e2, []), [], e1, e2, ge1)
+    gebc = apply_thm(and_elim_left(e2.left, e2.right, []), [], e2, e2.left, ge2)
+    e3 = e2.right; ge3 = apply_thm(and_elim_right(e2.left, e3, []), [], e2, e3, ge2)
+    geap = apply_thm(and_elim_left(e3.left, e3.right, []), [], e3, e3.left, ge3)
+    gesv = apply_thm(and_elim_right(e3.left, e3.right, []), [], e3, e3.right, ge3)
+
+    # Reassemble with TMConfig inserted
+    psna = mk_and(geap, gesv)
+    psna = mk_and(gcfn, psna)
+    psna = mk_and(gebc, psna)
+    psna = mk_and(gedb, psna)
+    psna = mk_and(gef, psna)
+
+    # eir cn=cnw, trace=trn → P(sn)
+    bfcn = And(FuncDef(trn), And(dom_bound(trn, sn), And(base_cond(trn),
+        And(TMConfig(cn, q0, sn, tape), And(Apply(trn, sn, cn), step_valid(trn, sn))))))
+    got_ecn2 = eir(psna, bfcn, cn, cnw)
+    got_etr2 = eir(got_ecn2, P(sn).body, trace, trn)
+    assert same(got_etr2.sequent.right[0], P(sn)), 'P(sn) mismatch'
+
+    # eel eigenvars: trn from extb, cnw from tsb, cn and trace from P(n)
+    got_etr2 = eel(got_etr2, extb, trn)
+    got_etr2 = cut(got_etr2, extx, gext)
+    got_etr2 = eel(got_etr2, tsb, cnw)
+    got_etr2 = cut(got_etr2, tsx, gts)
+    got_etr2 = eel(got_etr2, pncb, cn)
+    # After eel cn: left has Exists(cn, pncb) = pntb. Now eel trace:
+    got_etr2 = eel(got_etr2, pntb, trace)
+    # After eel trace: left has Exists(trace, pntb) = P(n). Cut with ax(P(n)):
+    got_etr2 = cut(got_etr2, pn, ax(pn))
+
+    proof = got_etr2
+    proof.name = 'phase1_step_case'
+    return proof
+
+
 if __name__ == '__main__':
+    print('=== phase1_base ===')
     p = phase1_base()
-    print(f'phase1_base: OK')
-    print(f'  Right: same(P(z))? {same(p.sequent.right[0], P(z))}')
-    print(f'  Left ({len(p.sequent.left)}):')
-    for f in p.sequent.left:
+    print(f'  OK, same(P(z))? {same(p.sequent.right[0], P(z))}')
+
+    print('=== phase1_step_case ===')
+    p2 = phase1_step_case()
+    # P(sn) uses the sn Var from inside the function. Check structurally:
+    r = p2.sequent.right[0]
+    print(f'  Right: {str(r)[:80]}')
+    print(f'  Is Exists? {type(r).__name__}')
+    print(f'  Left ({len(p2.sequent.left)}):')
+    for f in p2.sequent.left:
         print(f'    {str(f)[:60]}')
