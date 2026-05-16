@@ -478,96 +478,167 @@ def tmreaches_compose():
     # Discharge all hypotheses with pos_b and cb free. Close ∀ including pos_b and cb.
     # The ∀ order in TMReachesCompose is [w,n,b,a,z,y,x,d]. n and z correspond to pos_b and cb.
 
-    got_final = got_qb_reaches  # TMReaches(d,x,qb_pos,qb_cj) — qb_pos,qb_cj free on right
-    # DON'T eel qb_pos/qb_cj — they become ∀-bound vars (playing role of nv,zv)
-    # Just cut qb_body from left (it has qb_pos,qb_cj free but so does right)
-    # Actually qb_body is from ax(qb_body) in decomposition. It stays on left.
-    # After forall_right on qb_pos and qb_cj, they'll be bound.
-    # But first need to clean: qb_body, qb_inner (from Q_inner(b) decomposition) are on left.
-    # Cut them back into Q_inner(b):
-    from theorems.logic import and_elim_right as _aer2
-    got_inner_from_qb=_aer2(qb_body.left,qb_body.right,[])
-    got_inner_from_qb=apply_thm(got_inner_from_qb,[],qb_body,qb_body.right,ax(qb_body))
-    # qb_body has both qb_pos and qb_cj free. Can't eel either. Leave them.
-    # Actually I need to get rid of qb_body from the left so forall_right works.
-    # qb_body on the left has qb_pos and qb_cj free. forall_right on qb_pos requires
-    # qb_pos not free on left. So I MUST remove qb_body.
-    # But I can't eel qb_cj (free on right). And can't eel qb_pos (free on right).
-    # The only option: implies_right on qb_body. This puts it as hypothesis in the formula.
-    # Then forall_right on qb_cj and qb_pos binds them in both the hypothesis and conclusion.
-    # ∀qb_pos.∀qb_cj. qb_body → TMReaches(d,x,qb_pos,qb_cj) — this IS what we want!
-    # Because qb_body = And(Plus(a,b,qb_pos), And(Apply(tr2,b,qb_cj), TMReaches(d,x,qb_pos,qb_cj)))
-    # No wait — qb_reaches comes from And_elim of qb_body. qb_body is on the left.
-    # I need qb_body discharged as implies_right. But the right is TMReaches(d,x,qb_pos,qb_cj).
-    # After implies_right: right = qb_body → TMReaches(...).
-    # Then ∀qb_cj.∀qb_pos: ∀qb_cj.∀qb_pos. qb_body → TMReaches(d,x,qb_pos,qb_cj).
-    # Hmm, but TMReachesCompose conclusion is just TMReaches(d,x,nv,zv), not qb_body→TMReaches.
-    # So this won't match.
-    #
-    # THE REAL FIX: I shouldn't have decomposed Q_inner(b) at all.
-    # Instead, from got_Qb_val (which proves Q_inner(b) = ∃qb_pos.∃qb_cj.qb_body):
-    # The TMReaches I need is inside the ∃. I just extract it via eel.
-    # But eel requires the var NOT free on right. qb_pos IS free in TMReaches on right!
-    #
-    # So I CANNOT extract TMReaches(d,x,qb_pos,qb_cj) from Q_inner(b) via eel
-    # while keeping qb_pos/qb_cj as the result variables.
-    #
-    # ACTUAL SOLUTION: change the approach. Instead of trying to use qb_pos/qb_cj as result vars,
-    # derive TMReaches(d,x,nv,zv) using Plus(a,b,nv) and Apply(tr2,b,zv):
-    # From Q_inner(b): ∃qb_pos,qb_cj. And(Plus(a,b,qb_pos), And(Apply(tr2,b,qb_cj), TMReaches(d,x,qb_pos,qb_cj)))
-    # Plus(a,b,nv) [hypothesis] + plus_val_unique → qb_pos=nv.
-    # Apply(tr2,b,zv)=r2_reached + func_unique(tr2) → qb_cj=zv.
-    # Transfer TMReaches(d,x,qb_pos,qb_cj) → TMReaches(d,x,nv,zv).
-    # This requires the structural transfer I discussed earlier.
-    # But since TMReaches is a VOCAB type, I can't easily transfer.
+    # Transfer TMReaches(d,x,qb_pos,qb_cj) → TMReaches(d,x,nv,zv) via Eq(qb_pos,nv)+Eq(qb_cj,zv)
+    # Derive Eq(qb_pos,nv) from plus_val_unique
+    from theorems.arithmetic import plus_val_unique
+    _pvu=plus_val_unique()
+    got_eq_pos=apply_thm(_pvu,[w,a,b,qb_pos,nv])
+    got_eq_pos=mp(got_eq_pos,ax(omega_w),omega_w,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,ax(in_a_w),in_a_w,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,ax(in_b_w),in_b_w,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,got_qb_plus,qb_body.left,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,ax(plus_abn),plus_abn,Eq(qb_pos,nv))
+    # Derive Eq(qb_cj,zv) from func_unique(tr2)
+    _fu=func_unique_thm()
+    got_eq_cj=apply_thm(_fu,[tr2,b,qb_cj,zv])
+    got_eq_cj=mp(got_eq_cj,ax(r2_func),r2_func,got_eq_cj.sequent.right[0].right)
+    got_eq_cj=mp(got_eq_cj,got_qb_app,qb_body.right.left,got_eq_cj.sequent.right[0].right)
+    got_eq_cj=mp(got_eq_cj,ax(r2_reached),r2_reached,Eq(qb_cj,zv))
+    # Open TMReaches(d,x,qb_pos,qb_cj), transfer components, close as TMReaches(d,x,nv,zv)
+    rq=got_qb_reaches.sequent.right[0];rq_exp=rq.expand()
+    rq_tra=rq_exp.var;rq_body=rq_exp.body
+    # rq_body=And(Func(rq_tra),And(db(rq_tra,qb_pos),And(base(rq_tra,x),And(step(rq_tra,qb_pos),Apply(rq_tra,qb_pos,qb_cj)))))
+    rq_func=rq_body.left;rq_r1=rq_body.right;rq_db=rq_r1.left
+    rq_r2=rq_r1.right;rq_base=rq_r2.left;rq_r3=rq_r2.right;rq_step=rq_r3.left;rq_reached=rq_r3.right
+    g_rq_func=apply_thm(and_elim_left(rq_func,rq_r1,[]),[],rq_body,rq_func,ax(rq_body))
+    g_rq_r1=apply_thm(and_elim_right(rq_func,rq_r1,[]),[],rq_body,rq_r1,ax(rq_body))
+    g_rq_db=apply_thm(and_elim_left(rq_db,rq_r2,[]),[],rq_r1,rq_db,g_rq_r1)
+    g_rq_r2=apply_thm(and_elim_right(rq_db,rq_r2,[]),[],rq_r1,rq_r2,g_rq_r1)
+    g_rq_base=apply_thm(and_elim_left(rq_base,rq_r3,[]),[],rq_r2,rq_base,g_rq_r2)
+    g_rq_r3=apply_thm(and_elim_right(rq_base,rq_r3,[]),[],rq_r2,rq_r3,g_rq_r2)
+    g_rq_step=apply_thm(and_elim_left(rq_step,rq_reached,[]),[],rq_r3,rq_step,g_rq_r3)
+    g_rq_reached=apply_thm(and_elim_right(rq_step,rq_reached,[]),[],rq_r3,rq_reached,g_rq_r3)
+    # Transfer reached: Apply(rq_tra,qb_pos,qb_cj)→Apply(rq_tra,nv,zv)
+    _eat=eq_apply_transfer();_eavt=eq_apply_val_transfer()
+    got_app_nv=apply_thm(_eat,[rq_tra,qb_pos,nv,qb_cj])
+    got_app_nv=mp(got_app_nv,got_eq_pos,Eq(qb_pos,nv),got_app_nv.sequent.right[0].right)
+    got_app_nv=mp(got_app_nv,g_rq_reached,rq_reached,Apply(rq_tra,nv,qb_cj))
+    got_app_nv_zv=apply_thm(_eavt,[rq_tra,nv,qb_cj,zv])
+    got_app_nv_zv=mp(got_app_nv_zv,got_eq_cj,Eq(qb_cj,zv),got_app_nv_zv.sequent.right[0].right)
+    got_app_nv_zv=mp(got_app_nv_zv,got_app_nv,Apply(rq_tra,nv,qb_cj),Apply(rq_tra,nv,zv))
+    # Transfer dom_bound: ∀xd,yd.Apply(rq_tra,xd,yd)→Or(In(xd,qb_pos),Eq(xd,qb_pos))
+    # → ∀xd,yd.Apply(rq_tra,xd,yd)→Or(In(xd,nv),Eq(xd,nv))
+    # Use: Eq(qb_pos,nv)→Iff(In(xd,qb_pos),In(xd,nv)) via eq_transfer. Transfer Or.
+    # Simpler: just cut with eq-transferred version inline.
+    # For step_valid: ∀k.In(k,qb_pos)→... → ∀k.In(k,nv)→...
+    # Use: Eq(qb_pos,nv)→Iff(In(k,qb_pos),In(k,nv)).
+    # For both db and step: the formula structure uses qb_pos. Transfer via eq.
+    # Actually both db and step are formulas with qb_pos as a parameter.
+    # If I build TMReaches(d,x,nv,zv).expand() and eir rq_tra, the body needs nv,zv.
+    # My components have qb_pos,qb_cj. I've transferred reached. Now transfer db and step.
+    # db transfer: Or(In(xd,qb_pos),Eq(xd,qb_pos)) → Or(In(xd,nv),Eq(xd,nv))
+    # From eq_transfer(qb_pos,nv,xd): Iff(In(xd,qb_pos),In(xd,nv)).
+    # From eq_in_eq or eq_substitution: Iff(Eq(xd,qb_pos),Eq(xd,nv)) via char_transfer.
+    # Then or_iff_compat.
+    # This is 20+ lines just for db. And step is similar.
     # 
-    # SIMPLEST SOLUTION: DON'T open Q_inner(b). Instead prove TMReaches(d,x,nv,zv) directly.
-    # Got Q_inner(b) proved. It contains TMReaches(d,x,_,_) inside ∃.
-    # I want TMReaches(d,x,nv,zv) where nv=a+b [from Plus] and zv from reaches2.
-    # The CLEANEST: make the induction Q_inner use nv and zv directly.
-    # Q_inner(j) should give TMReaches(d,x,a+j,trace2(j)) exactly.
-    # At j=b: TMReaches(d,x,a+b,trace2(b)) = TMReaches(d,x,nv,zv).
+    # MUCH SIMPLER: since TMReaches(d,x,nv,zv) and TMReaches(d,x,qb_pos,qb_cj) differ only
+    # in the last two args, and I have Eq(qb_pos,nv)+Eq(qb_cj,zv), I can use the
+    # TMReaches.subst mechanism conceptually. In practice: build TMReaches(d,x,nv,zv).expand()
+    # body with rq_tra, then show each component matches after Eq transfer.
+    # The func and base components DON'T use qb_pos or qb_cj — they're the same! ✓
+    # Only db, step, and reached use qb_pos (and reached uses qb_cj too).
+    # So func and base transfer trivially (they're identical).
     #
-    # But Q_inner currently uses ∃pos_j,cj as witnesses. With nv and zv as SPECIFIC vars
-    # that match Plus(a,b,nv) and Apply(tr2,b,zv), I can instantiate Q_inner's ∃ with them.
-    # But eel doesn't work because they're on the right.
+    # For db and step: I'll use a single transfer lemma approach.
+    # eq_transfer(qb_pos,nv,k): ∀k. Iff(In(k,qb_pos),In(k,nv)).
+    # This lets me convert In(k,qb_pos)→In(k,nv) and In(xd,qb_pos)→In(xd,nv).
+    # For the Or: Or(In(xd,qb_pos),Eq(xd,qb_pos))→Or(In(xd,nv),Eq(xd,nv))
+    # via eq_transfer + eq_substitution.
+    # But proving this for ALL xd (inside the ∀) requires opening the ∀.
+    # That's complex. Let me use a DIFFERENT approach:
     #
-    # The FINAL solution: Don't use ∃ in Q_inner for the extraction step.
-    # Instead, just APPLY Q_inner(b) with specific witnesses nv and zv.
-    # Q_inner(b) = ∃pos_j.∃cj.qb_body. After opening ∃, we get qb_body with qb_pos,qb_cj eigen.
-    # From qb_body: Plus(a,b,qb_pos) ∧ Apply(tr2,b,qb_cj) ∧ TMReaches(d,x,qb_pos,qb_cj).
-    # plus_val_unique: Plus(a,b,qb_pos)∧Plus(a,b,nv)→Eq(qb_pos,nv).
-    # func_unique(tr2): Apply(tr2,b,qb_cj)∧Apply(tr2,b,zv)→Eq(qb_cj,zv).
-    # Transfer: TMReaches.subst(qb_pos→nv, qb_cj→zv) via eq expansion. BUT TMReaches is vocab.
-    # For vocab transfer: cut(ax(TMReaches(d,x,nv,zv)), TMReaches(d,x,nv,zv), proof_of_expanded_match).
-    # The expanded form: ∃tra.And(Func,And(db(tra,qb_pos),And(base,And(step(tra,qb_pos),Apply(tra,qb_pos,qb_cj)))))
-    # After transfer with Eq(qb_pos,nv) and Eq(qb_cj,zv):
-    #   db(tra,nv), step(tra,nv), Apply(tra,nv,zv). Each transfer via eq_transfer/iff_chain.
+    # Actually the kernel's same() with expand=True handles the Eq-transferred versions
+    # IF I can provide a proof of the transferred formula. The key insight:
+    # TMReaches(d,x,nv,zv).expand() and TMReaches(d,x,qb_pos,qb_cj).expand() are
+    # DIFFERENT formulas (different free vars). But if I have Eq(qb_pos,nv)+Eq(qb_cj,zv),
+    # I can show membership equivalence ∀p.p∈rq_tra→... for both.
+    # This IS doable but requires ~40 lines.
     #
-    # This is ~40 lines of mechanical eq transfer. Given context, let me just do it.
-    # Actually the eel issue is that qb_pos and qb_cj are free on right.
-    # But if I DON'T put TMReaches on the right yet — instead put something ELSE...
-    # 
-    # CLEANEST: just open Q_inner(b) normally, derive Eq(qb_pos,nv) and Eq(qb_cj,zv),
-    # then the TMReaches conclusion uses nv and zv (not qb_pos/qb_cj).
-    # TMReaches(d,x,nv,zv) has nv,zv free on right. qb_pos,qb_cj only on left.
-    # Then eel qb_pos, qb_cj from left. ✓
-    #
-    # So: from TMReaches(d,x,qb_pos,qb_cj) + Eq(qb_pos,nv) + Eq(qb_cj,zv):
-    # Open TMReaches, transfer Apply(tra,qb_pos,qb_cj)→Apply(tra,nv,zv) etc.
-    # Close as TMReaches(d,x,nv,zv). Then eel qb_pos,qb_cj. ✓
-    #
-    # But this is the 40-line transfer I keep avoiding. Given this is literally the LAST step,
-    # let me just do it. Or even simpler: use eq_apply_transfer on the TMReaches formulas.
-    # TMReaches is ∃tra. And(func, And(db, And(base, And(step, reached)))).
-    # Open: get tra with all components. Transfer reached: Apply(tra,qb_pos,qb_cj)→Apply(tra,nv,zv).
-    # Transfer db: Or(In(xd,qb_pos),Eq(xd,qb_pos))→Or(In(xd,nv),Eq(xd,nv)) via eq_transfer.
-    # Transfer step: In(k,qb_pos)→In(k,nv) via eq_transfer.
-    # Reassemble. eir tra. Cut with TMReaches(d,x,nv,zv) vocab.
-    # Then eel qb_pos,qb_cj.
-    # This is the path. But very long. Let me commit what we have and note this as the last fix.
-    pass
-    print('compose: TMReaches extracted')
+    # ABSOLUTE SIMPLEST: Just use func/base from the old trace (unchanged),
+    # use the eq-transferred reached, and for db+step, derive them from Eq.
+    # TMReaches(d,x,nv,zv) needs: ∃tra. Func(tra)∧db(tra,nv)∧base(tra,x)∧step(tra,nv)∧Apply(tra,nv,zv).
+    # I have: Func(rq_tra)✓, base(rq_tra,x)✓, Apply(rq_tra,nv,zv)✓.
+    # Need: db(rq_tra,nv) and step(rq_tra,nv).
+    # db(rq_tra,nv)=∀xd,yd.Apply(rq_tra,xd,yd)→Or(In(xd,nv),Eq(xd,nv)).
+    # From db(rq_tra,qb_pos)=∀xd,yd.Apply(rq_tra,xd,yd)→Or(In(xd,qb_pos),Eq(xd,qb_pos)):
+    # Open ∀xd,yd. Get Or(In(xd,qb_pos),Eq(xd,qb_pos)).
+    # eq_transfer(qb_pos,nv,xd): In(xd,qb_pos)↔In(xd,nv). Transfer Or left.
+    # eq_substitution(qb_pos,nv): Eq(xd,qb_pos)↔Eq(xd,nv). Transfer Or right? No,
+    # eq_substitution gives Iff(In(qb_pos,z),In(nv,z)), not Iff(Eq(xd,qb_pos),Eq(xd,nv)).
+    # For Eq(xd,qb_pos)→Eq(xd,nv): Eq(xd,qb_pos)∧Eq(qb_pos,nv)→Eq(xd,nv) via eq_transitive. ✓
+    # For In(xd,qb_pos)→In(xd,nv): from eq_transfer(qb_pos,nv,xd), iff_mp forward. ✓
+    # Then Or(In,Eq)→Or(In,Eq) via or cases. ~10 lines.
+    # Close ∀xd,yd: db(rq_tra,nv). ~15 lines total for db.
+    # step is similar but with In(k,qb_pos)→In(k,nv) only. ~10 lines.
+    # Total: ~25 lines. Let me do it.
+    from theorems.logic import eq_transitive as _etr_fn, or_intro_left as _oil, or_intro_right as _oir
+    _etr=_etr_fn()
+    _et3=eq_transfer()
+    # db transfer
+    xd2=Var(postfix='_xd2');yd2=Var(postfix='_yd2')
+    got_db_inst=apply_thm(g_rq_db,[xd2]);got_db_inst=apply_thm(got_db_inst,[yd2])
+    cur=got_db_inst.sequent.right[0]  # Apply(rq_tra,xd2,yd2)→Or(In(xd2,qb_pos),Eq(xd2,qb_pos))
+    got_db_inst=mp(got_db_inst,ax(Apply(rq_tra,xd2,yd2)),cur.left,cur.right)
+    # got_db_inst: |- Or(In(xd2,qb_pos),Eq(xd2,qb_pos))
+    or_old=got_db_inst.sequent.right[0]
+    or_new=Or(In(xd2,nv),Eq(xd2,nv))
+    # Case In(xd2,qb_pos)→In(xd2,nv) via eq_transfer
+    got_iff_xd=apply_thm(_et3,[qb_pos,nv,xd2]);got_iff_xd=mp(got_iff_xd,got_eq_pos,Eq(qb_pos,nv),got_iff_xd.sequent.right[0].right)
+    got_in_xd_nv=mp(apply_thm(iff_mp(In(xd2,qb_pos),In(xd2,nv),[]),[],
+        Iff(In(xd2,qb_pos),In(xd2,nv)),Implies(In(xd2,qb_pos),In(xd2,nv)),got_iff_xd),
+        ax(In(xd2,qb_pos)),In(xd2,qb_pos),In(xd2,nv))
+    got_or_in=apply_thm(_oil(In(xd2,nv),Eq(xd2,nv),[]),[],In(xd2,nv),or_new,got_in_xd_nv)
+    # Case Eq(xd2,qb_pos)→Eq(xd2,nv) via eq_transitive
+    got_eq_xd_nv=apply_thm(_etr,[xd2,qb_pos,nv])
+    got_eq_xd_nv=mp(got_eq_xd_nv,ax(Eq(xd2,qb_pos)),Eq(xd2,qb_pos),got_eq_xd_nv.sequent.right[0].right)
+    got_eq_xd_nv=mp(got_eq_xd_nv,got_eq_pos,Eq(qb_pos,nv),Eq(xd2,nv))
+    got_or_eq=apply_thm(_oir(In(xd2,nv),Eq(xd2,nv),[]),[],Eq(xd2,nv),or_new,got_eq_xd_nv)
+    # or_elim
+    imp1=Implies(In(xd2,qb_pos),or_new);l1=[f for f in got_or_in.sequent.left if not same(f,In(xd2,qb_pos))]
+    gi1=Proof(Sequent(l1,[imp1]),'implies_right',[got_or_in],principal=imp1)
+    imp2=Implies(Eq(xd2,qb_pos),or_new);l2=[f for f in got_or_eq.sequent.left if not same(f,Eq(xd2,qb_pos))]
+    gi2=Proof(Sequent(l2,[imp2]),'implies_right',[got_or_eq],principal=imp2)
+    oe=or_elim(In(xd2,qb_pos),Eq(xd2,qb_pos),or_new,[])
+    got_or_new=apply_thm(oe,[],or_old,Implies(imp1,Implies(imp2,or_new)),ax(or_old))
+    got_or_new=mp(got_or_new,gi1,imp1,Implies(imp2,or_new));got_or_new=mp(got_or_new,gi2,imp2,or_new)
+    got_or_new=cut(got_or_new,or_old,got_db_inst)
+    # Close: ∀xd2,yd2. Apply(rq_tra,xd2,yd2)→Or(In(xd2,nv),Eq(xd2,nv))
+    imp_db=Implies(Apply(rq_tra,xd2,yd2),or_new)
+    ldb=[f for f in got_or_new.sequent.left if not same(f,Apply(rq_tra,xd2,yd2))]
+    got_db_new=Proof(Sequent(ldb,[imp_db]),'implies_right',[got_or_new],principal=imp_db)
+    got_db_new=Proof(Sequent(got_db_new.sequent.left,[Forall(yd2,imp_db)]),'forall_right',[got_db_new],principal=Forall(yd2,imp_db),term=yd2)
+    got_db_new=Proof(Sequent(got_db_new.sequent.left,[Forall(xd2,Forall(yd2,imp_db))]),'forall_right',[got_db_new],principal=Forall(xd2,Forall(yd2,imp_db)),term=xd2)
+    # step transfer: ∀k.In(k,qb_pos)→... → ∀k.In(k,nv)→...
+    # Open step at k, transfer In(k,qb_pos)→In(k,nv) via eq_transfer, close.
+    kv=Var(postfix='_kv')
+    got_step_inst=apply_thm(g_rq_step,[kv])
+    cur_step=got_step_inst.sequent.right[0]  # In(kv,qb_pos)→∀sk...
+    # From In(kv,nv): eq_transfer_rev(qb_pos,nv,kv) gives In(kv,nv)→In(kv,qb_pos).
+    got_iff_kv=apply_thm(_et3,[qb_pos,nv,kv]);got_iff_kv=mp(got_iff_kv,got_eq_pos,Eq(qb_pos,nv),got_iff_kv.sequent.right[0].right)
+    got_in_kv_pos=mp(apply_thm(iff_mp_rev(In(kv,qb_pos),In(kv,nv),[]),[],
+        Iff(In(kv,qb_pos),In(kv,nv)),Implies(In(kv,nv),In(kv,qb_pos)),got_iff_kv),
+        ax(In(kv,nv)),In(kv,nv),In(kv,qb_pos))
+    got_step_nv=mp(got_step_inst,got_in_kv_pos,cur_step.left,cur_step.right)
+    # Close: ∀kv. In(kv,nv)→...
+    imp_step_nv=Implies(In(kv,nv),got_step_nv.sequent.right[0])
+    lstep=[f for f in got_step_nv.sequent.left if not same(f,In(kv,nv))]
+    got_step_new=Proof(Sequent(lstep,[imp_step_nv]),'implies_right',[got_step_nv],principal=imp_step_nv)
+    got_step_new=Proof(Sequent(got_step_new.sequent.left,[Forall(kv,imp_step_nv)]),'forall_right',[got_step_new],principal=Forall(kv,imp_step_nv),term=kv)
+    # Assemble TMReaches(d,x,nv,zv)
+    reaches_final=TMReaches(d,x,nv,zv)
+    rf_exp=reaches_final.expand();rf_tra=rf_exp.var;rf_body=rf_exp.body
+    rf_and=mk_and(got_step_new,got_app_nv_zv);rf_and=mk_and(g_rq_base,rf_and)
+    rf_and=mk_and(got_db_new,rf_and);rf_and=mk_and(g_rq_func,rf_and)
+    got_final=eir(rf_and,rf_body,rf_tra,rq_tra)
+    got_final=cut(ax(reaches_final),reaches_final,got_final)
+    # eel rq_tra from rq_body, then qb_cj, qb_pos from qb_body/qb_inner
+    got_final=eel(got_final,rq_body,rq_tra)
+    got_final=cut(got_final,rq_exp,got_qb_reaches)
+    got_final=eel(got_final,qb_body,qb_cj)
+    got_final=eel(got_final,qb_inner,qb_pos)
+    got_final=cut(got_final,qib,got_Qb_val)
+    print('compose: TMReaches(d,x,nv,zv) extracted')
 
     # Discharge hypotheses + eel tr2 + close ∀ → TMReachesCompose
     # Hypotheses on left: reaches1, r2_body (from opening reaches2), plus_abn, omega_w, in_a_w, in_b_w, ZFC
@@ -620,11 +691,14 @@ def tmreaches_compose():
     # eel only moves them from left to ∃ on left. They remain free on right.
     # So qb_pos and qb_cj ARE free on right, playable as ∀-bound vars.
     # I close ∀ over them as the n and z variables.
-    for v in [w, qb_pos, b, a, qb_cj, y, x, d]:
+    for v in [w, nv, b, a, zv, y, x, d]:
         body=got_final.sequent.right[0];fa=Forall(v,body)
         got_final=Proof(Sequent(got_final.sequent.left,[fa]),'forall_right',[got_final],principal=fa,term=v)
 
     goal=TMReachesCompose()
+    print(f'  right: {str(got_final.sequent.right[0])[:200]}')
+    from core.proof import _expand
+    print(f'  goal:  {str(_expand(goal))[:200]}')
     got_final=cut(ax(goal),goal,got_final)
     assert same(got_final.sequent.right[0],goal,expand=False),'TMReachesCompose mismatch'
     # Clean Num leak if any
