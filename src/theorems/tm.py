@@ -63,7 +63,7 @@ class Phase2P:
     ∀d,q0,q1,a,sa,one,zero,tape,tape2,c1,c2.
       TMTransition(d,q0,zero,one,one,q1) →
       Function(d) → Function(tape) →
-      Num(one,1) → Num(zero,0) →
+      Num(one,1) → Num(zero,0) → Apply(tape,a,zero) →
       Successor(sa,a) → TapeUpdate(tape2,tape,a,one) →
       TMConfig(c1,q0,a,tape) → TMConfig(c2,q1,sa,tape2) →
       TMReaches(d,c1,one,c2)"""
@@ -75,10 +75,10 @@ class Phase2P:
         zero = Var(postfix='_z')
         body = Implies(TMTransition(d,q0,zero,one,one,q1),
             Implies(FuncDef(d), Implies(FuncDef(tape),
-            Implies(Num(one,1), Implies(Num(zero,0),
+            Implies(Num(one,1), Implies(Num(zero,0), Implies(Apply(tape,a,zero),
             Implies(Successor(sa,a), Implies(TapeUpdate(tape2,tape,a,one),
             Implies(TMConfig(c1,q0,a,tape), Implies(TMConfig(c2,q1,sa,tape2),
-            TMReaches(d,c1,one,c2))))))))))
+            TMReaches(d,c1,one,c2)))))))))))
         for v in [c2,c1,tape2,tape,zero,one,sa,a,q1,q0,d]:
             body = Forall(v, body)
         return body
@@ -2192,8 +2192,14 @@ def tm_add_correct():
     plus_hf_one_ssc = PlusDef(hf, one, ssc)
     plus_ssc_one_n = PlusDef(ssc, one, n)
 
+    # Derive Apply(tape_in, a, zero) from tape_read_sep + UnaryTape + Num(zero,0)
+    _trs = tape_read_sep()
+    got_app_a_zero = apply_thm(_trs, [tape_in, a, b, zero])
+    got_app_a_zero = mp(got_app_a_zero, ax(utape), utape, got_app_a_zero.sequent.right[0].right)
+    got_app_a_zero = mp(got_app_a_zero, ax(num_z), num_z, Apply(tape_in, a, zero))
+
     # === Helper: mp through hypothesis list, using derived proofs where available ===
-    derived_proofs = [trans_q0_1, trans_q0_0, trans_q1_1, trans_q1_0, trans_q2_1]
+    derived_proofs = [trans_q0_1, trans_q0_0, trans_q1_1, trans_q1_0, trans_q2_1, got_app_a_zero]
     def mp_hyps(got, hyps):
         for h in hyps:
             src = None
@@ -2222,7 +2228,7 @@ def tm_add_correct():
     got_p2 = mp_hyps(
         apply_thm(ax(Phase2P()), [delta, q0, q1, a, sa, one, zero, tape_in, tape2, c1, c2]),
         [trans_q0_0.sequent.right[0], FuncDef(delta), FuncDef(tape_in),
-         num_one, num_zero, succ_sa, tu_tape2, cfg_c1, cfg_c2])
+         num_one, num_zero, Apply(tape_in, a, zero), succ_sa, tu_tape2, cfg_c1, cfg_c2])
 
     # Phase3P ∀ order: d,q1,sa,b,pos,tape2,w,one,c1,c2
     # tape_read now: ∀j.In(j,b)→∀pp.Plus(sa,j,pp)→Apply(tape2,pp,one)
@@ -6963,6 +6969,51 @@ def phase1_step_extend_trace():
     return proof
 
 
+
+
+
+def tape_read_sep():
+    """|- ∀tape,a,b,zero. UnaryTape(tape,a,b) → Num(zero,0) → Apply(tape,a,zero)"""
+    from tactics import apply_thm, mp, ax
+    from core.proof import Proof, Sequent, same
+    from theorems.logic import and_elim_left, and_elim_right
+    from tm import UnaryTape
+
+    tape, a, b, zero = Var(), Var(), Var(), Var()
+    ut = UnaryTape(tape, a, b)
+    num_zero = Num(zero, 0)
+    app = Apply(tape, a, zero)
+
+    exp = ut.expand()
+    func_f = exp.left
+    rest0 = exp.right
+    low_f = rest0.left
+    rest1 = rest0.right
+    sep_f = rest1.left
+
+    aer0 = and_elim_right(func_f, rest0, [])
+    got_rest0 = apply_thm(aer0, [], ut, rest0, ax(ut))
+    aer1 = and_elim_right(low_f, rest1, [])
+    got_rest1 = apply_thm(aer1, [], rest0, rest1, got_rest0)
+    ael1 = and_elim_left(sep_f, rest1.right, [])
+    got_sep = apply_thm(ael1, [], rest1, sep_f, got_rest1)
+
+    got = apply_thm(got_sep, [zero], num_zero, app, ax(num_zero))
+
+    for premise in [num_zero, ut]:
+        imp = Implies(premise, got.sequent.right[0])
+        left = [f for f in got.sequent.left if not same(f, premise)]
+        got = Proof(Sequent(left, [imp]), 'implies_right', [got], principal=imp)
+
+    proof = got
+    for v in [zero, b, a, tape]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_read_sep'
+    return proof
 
 
 def tape_read_low():

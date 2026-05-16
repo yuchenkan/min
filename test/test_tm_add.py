@@ -10,7 +10,7 @@ from core.zfc import ZFCAxiom
 from theorems.tm import Phase1P, Phase2P, Phase3P, Phase4P, Phase5P
 
 from theorems.tm import TMReachesCompose
-is_axiom = lambda f: isinstance(f, (ZFCAxiom, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
+is_axiom = lambda f: isinstance(f, (ZFCAxiom, Phase1P, Phase2P, Phase3P, Phase4P, Phase5P, TMReachesCompose))
 
 def test():
     from theorems.tm import tm_add_correct
