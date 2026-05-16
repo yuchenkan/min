@@ -183,8 +183,223 @@ def phase3_base():
     return got_epos
 
 
+def phase3_step_case():
+    """ZFC |- ∀d,q1,sa,tape2,c1,n,sn,w,one,b.
+        TMTransition(d,q1,one,one,one,q1) → Omega(w) → In(b,w) → In(sa,w) → In(n,w) →
+        Function(d) → Function(tape2) → Num(one,1) →
+        (∀p∈b.∀pp.Plus(sa,p,pp)→Apply(tape2,pp,one)) →
+        Successor(sn,n) → In(n,b) →
+        Phase3Ind(n,d,q1,sa,tape2,c1) → Phase3Ind(sn,d,q1,sa,tape2,c1)"""
+    from core.proof import Proof, Sequent, same, _subst
+
+    def mk_and(gl,gr):
+        L,R=gl.sequent.right[0],gr.sequent.right[0]
+        return mp(apply_thm(and_intro(L,R,[]),[],L,Implies(R,And(L,R)),gl),gr,R,And(L,R))
+
+    d=Var(postfix='d');q1=Var(postfix='q1');sa=Var(postfix='sa')
+    tape2=Var(postfix='t2');c1=Var(postfix='c1')
+    n=Var(postfix='n');sn=Var(postfix='sn');w=Var(postfix='w');one=Var(postfix='one')
+    b=Var(postfix='b')
+    trans=TMTransition(d,q1,one,one,one,q1)
+    omega_w=Omega(w);in_b_w=In(b,w);in_sa_w=In(sa,w);in_n_w=In(n,w)
+    func_d=FuncDef(d);func_tape2=FuncDef(tape2);num_one=Num(one,1)
+    succ_sn=Successor(sn,n)
+    pn=Phase3Ind(n,d,q1,sa,tape2,c1);psn=Phase3Ind(sn,d,q1,sa,tape2,c1)
+
+    # tape_read hypothesis: ∀p∈b.∀pp.Plus(sa,p,pp)→Apply(tape2,pp,one)
+    p_var=Var(postfix='_p');pp_var=Var(postfix='_pp')
+    tape_read=Forall(p_var,Implies(In(p_var,b),Forall(pp_var,Implies(PlusDef(sa,p_var,pp_var),Apply(tape2,pp_var,one)))))
+
+    # Open Phase3Ind(n,...): ∃pos_n.And(Plus(sa,n,pos_n), ∃tra,cn.(...))
+    pn_exp=pn.expand();pos_n_var=pn_exp.var;pn_body=pn_exp.body
+    # pn_body = And(Plus(sa,n,pos_n), inner_exists)
+    plus_sa_n=pn_body.left  # Plus(sa,n,pos_n_var)
+    inner_exists=pn_body.right  # ∃tra.∃cn.(...)
+    tra_var=inner_exists.var
+    inner_cn=inner_exists.body  # ∃cn.(And(Function,...))
+    cn_var=inner_cn.var
+    inner_and=inner_cn.body
+
+    # Decompose inner_and
+    b0=inner_and
+    gft=apply_thm(and_elim_left(b0.left,b0.right,[]),[],b0,b0.left,ax(b0))
+    b1=b0.right;gb1=apply_thm(and_elim_right(b0.left,b1,[]),[],b0,b1,ax(b0))
+    gdb=apply_thm(and_elim_left(b1.left,b1.right,[]),[],b1,b1.left,gb1)
+    b2=b1.right;gb2=apply_thm(and_elim_right(b1.left,b2,[]),[],b1,b2,gb1)
+    gbt=apply_thm(and_elim_left(b2.left,b2.right,[]),[],b2,b2.left,gb2)
+    b3=b2.right;gb3=apply_thm(and_elim_right(b2.left,b3,[]),[],b2,b3,gb2)
+    gcn=apply_thm(and_elim_left(b3.left,b3.right,[]),[],b3,b3.left,gb3)
+    b4=b3.right;gb4=apply_thm(and_elim_right(b3.left,b4,[]),[],b3,b4,gb3)
+    gatn=apply_thm(and_elim_left(b4.left,b4.right,[]),[],b4,b4.left,gb4)
+    gsvn=apply_thm(and_elim_right(b4.left,b4.right,[]),[],b4,b4.right,gb4)
+    # Also extract Plus(sa,n,pos_n) from pn_body
+    got_plus_n=apply_thm(and_elim_left(plus_sa_n,inner_exists,[]),[],pn_body,plus_sa_n,ax(pn_body))
+
+    # tape_read at position pos_n: In(n,b) → Plus(sa,n,pos_n) → Apply(tape2,pos_n,one)
+    got_tr=apply_thm(ax(tape_read),[n])
+    cur=got_tr.sequent.right[0]
+    got_tr=mp(got_tr,ax(In(n,b)),cur.left,cur.right)
+    got_tr=apply_thm(got_tr,[pos_n_var])
+    cur=got_tr.sequent.right[0]
+    got_tr=mp(got_tr,got_plus_n,cur.left,cur.right)
+    # [tape_read, In(n,b), pn_body, inner_and] |- Apply(tape2,pos_n,one)
+    got_app_pos=got_tr
+    print('phase3 step: Apply(tape2,pos_n,one) done')
+
+    # phase1_step_tmstep: builds TMStep for q1,one→one,right,q1
+    # Same transition as Phase1P! d1=one.
+    _pst=phase1_step_tmstep()
+    got_tmstep=apply_thm(_pst,[d,q1,pos_n_var,sn,tape2,cn_var,one,one])
+    # Order: Function(d)→TMTransition→TMConfig(cn,q1,pos_n,tape2)→Function(tape2)→Apply(tape2,pos_n,one)→Num(one,1)→Succ(sn,pos_n)
+    # Wait — phase1_step_tmstep's Successor is Succ(ska,ka) where ska=sn and ka=pos_n.
+    # But Succ(sn,pos_n) is NOT Succ(sn,n)! sn=S(n), not S(pos_n).
+    # I need Succ(s_pos, pos_n) where s_pos = pos_n + 1 = sa + n + 1 = sa + sn.
+    # From Plus(sa,n,pos_n) + Succ(sn,n): Plus(sa,sn,s_pos) via plus_succ_right.
+    # And Succ(s_pos, pos_n) from the Plus step.
+    # But phase1_step_tmstep expects Successor(ska,ka) where ska is the new head position.
+    # The new head = pos_n + 1 = S(pos_n). I need a Successor(s_pos, pos_n) where
+    # s_pos is the new position. And Plus(sa,sn,s_pos) for Phase3Ind(sn,...).
+    #
+    # Let me use successor_exists to get ∃s_pos. Succ(s_pos,pos_n).
+    from theorems.sets import successor_exists
+    s_pos=Var(postfix='sp')
+    succ_sp=Successor(s_pos,pos_n_var)
+    got_ex_sp=apply_thm(successor_exists(),[pos_n_var],concl=Exists(s_pos,succ_sp))
+
+    got_tmstep=apply_thm(_pst,[d,q1,pos_n_var,s_pos,tape2,cn_var,one,one])
+    got_tmstep=mp(got_tmstep,ax(func_d),func_d,got_tmstep.sequent.right[0].right)
+    got_tmstep=mp(got_tmstep,ax(trans),trans,got_tmstep.sequent.right[0].right)
+    got_tmstep=mp(got_tmstep,gcn,gcn.sequent.right[0],got_tmstep.sequent.right[0].right)
+    got_tmstep=mp(got_tmstep,ax(func_tape2),func_tape2,got_tmstep.sequent.right[0].right)
+    got_tmstep=mp(got_tmstep,got_app_pos,Apply(tape2,pos_n_var,one),got_tmstep.sequent.right[0].right)
+    got_tmstep=mp(got_tmstep,ax(num_one),num_one,got_tmstep.sequent.right[0].right)
+    got_tmstep=mp(got_tmstep,ax(succ_sp),succ_sp,got_tmstep.sequent.right[0].right)
+    # ∃cn_new. And(TMConfig(cn_new,q1,s_pos,tape2), TMStep(d,cn_var,cn_new))
+    print('phase3 step: tmstep done')
+
+    # Derive Plus(sa,sn,s_pos) from Plus(sa,n,pos_n) + Succ(sn,n) + Succ(s_pos,pos_n)
+    # plus_succ_right: ∀w,m,n,p,sn,sp. Omega→In(m,w)→In(n,w)→Plus(m,n,p)→Succ(sn,n)→Succ(sp,p)→Plus(m,sn,sp)
+    _psr=plus_succ_right()
+    got_plus_sn=apply_thm(_psr,[w,sa,n,pos_n_var,sn,s_pos])
+    got_plus_sn=mp(got_plus_sn,ax(omega_w),omega_w,got_plus_sn.sequent.right[0].right)
+    got_plus_sn=mp(got_plus_sn,ax(in_sa_w),in_sa_w,got_plus_sn.sequent.right[0].right)
+    got_plus_sn=mp(got_plus_sn,ax(in_n_w),in_n_w,got_plus_sn.sequent.right[0].right)
+    got_plus_sn=mp(got_plus_sn,got_plus_n,plus_sa_n,got_plus_sn.sequent.right[0].right)
+    got_plus_sn=mp(got_plus_sn,ax(succ_sn),succ_sn,got_plus_sn.sequent.right[0].right)
+    got_plus_sn=mp(got_plus_sn,ax(succ_sp),succ_sp,got_plus_sn.sequent.right[0].right)
+    # |- Plus(sa,sn,s_pos)
+    print('phase3 step: Plus(sa,sn,s_pos) done')
+
+    # phase1_step_extend_trace
+    _pet=phase1_step_extend_trace()
+    tsx=got_tmstep.sequent.right[0];cnw=tsx.var;tsb=tsx.body
+    gcfn=apply_thm(and_elim_left(tsb.left,tsb.right,[]),[],tsb,tsb.left,ax(tsb))
+    gstn=apply_thm(and_elim_right(tsb.left,tsb.right,[]),[],tsb,tsb.right,ax(tsb))
+    gext=apply_thm(_pet,[tra_var,sn,cnw,c1,n,d,cn_var,w])
+    gext=mp(gext,gft,gft.sequent.right[0],gext.sequent.right[0].right)
+    gext=mp(gext,gdb,gdb.sequent.right[0],gext.sequent.right[0].right)
+    gext=mp(gext,ax(omega_w),omega_w,gext.sequent.right[0].right)
+    gext=mp(gext,ax(in_n_w),in_n_w,gext.sequent.right[0].right)
+    gext=mp(gext,ax(succ_sn),succ_sn,gext.sequent.right[0].right)
+    gext=mp(gext,gbt,gbt.sequent.right[0],gext.sequent.right[0].right)
+    gext=mp(gext,gsvn,gsvn.sequent.right[0],gext.sequent.right[0].right)
+    gext=mp(gext,gstn,gstn.sequent.right[0],gext.sequent.right[0].right)
+    gext=mp(gext,gatn,gatn.sequent.right[0],gext.sequent.right[0].right)
+    print('phase3 step: extend_trace done')
+
+    # Decompose extended trace, insert TMConfig(cnw,...) and Plus, build Phase3Ind(sn,...)
+    extx=gext.sequent.right[0];trn=extx.var;extb=extx.body
+    e0=extb
+    gef=apply_thm(and_elim_left(e0.left,e0.right,[]),[],e0,e0.left,ax(e0))
+    e1=e0.right;ge1=apply_thm(and_elim_right(e0.left,e1,[]),[],e0,e1,ax(e0))
+    gedb=apply_thm(and_elim_left(e1.left,e1.right,[]),[],e1,e1.left,ge1)
+    e2=e1.right;ge2=apply_thm(and_elim_right(e1.left,e2,[]),[],e1,e2,ge1)
+    gebc=apply_thm(and_elim_left(e2.left,e2.right,[]),[],e2,e2.left,ge2)
+    e3=e2.right;ge3=apply_thm(and_elim_right(e2.left,e3,[]),[],e2,e3,ge2)
+    geap=apply_thm(and_elim_left(e3.left,e3.right,[]),[],e3,e3.left,ge3)
+    gesv=apply_thm(and_elim_right(e3.left,e3.right,[]),[],e3,e3.right,ge3)
+
+    # Reassemble with TMConfig(cnw,q1,s_pos,tape2) from tmstep
+    psna=mk_and(geap,gesv);psna=mk_and(gcfn,psna);psna=mk_and(gebc,psna)
+    psna=mk_and(gedb,psna);psna=mk_and(gef,psna)
+
+    # eir into Phase3Ind(sn,...) structure: ∃pos_sn. And(Plus(sa,sn,pos_sn), ∃tra.∃cn.(...))
+    psn_exp=psn.expand();psn_pos=psn_exp.var;psn_body=psn_exp.body
+    psn_plus=psn_body.left;psn_inner=psn_body.right
+    psn_tra=psn_inner.var;psn_cn_ex=psn_inner.body
+    psn_cn=psn_cn_ex.var;psn_and=psn_cn_ex.body
+
+    # eir cn=cnw, tra=trn (substituting pos_sn→s_pos in body)
+    from core.proof import _subst
+    body_cn=_subst(_subst(psn_and,psn_tra,trn),psn_pos,s_pos)
+    got_ecn=eir(psna,body_cn,psn_cn,cnw)
+    inner_cn_sp=_subst(psn_cn_ex,psn_pos,s_pos)
+    got_etr=eir(got_ecn,inner_cn_sp,psn_tra,trn)
+    # And with Plus(sa,sn,s_pos)
+    got_and_plus=mk_and(got_plus_sn,got_etr)
+    got_epos=eir(got_and_plus,psn_body,psn_pos,s_pos)
+    assert same(got_epos.sequent.right[0],psn),'Phase3Ind(sn) mismatch'
+    print('phase3 step: Phase3Ind(sn) assembled')
+
+    # eel eigenvars: trn from extb, cnw from tsb, s_pos from succ_sp,
+    # cn_var and tra_var from inner_and, pos_n_var from pn_body
+    got_epos=eel(got_epos,extb,trn);got_epos=cut(got_epos,extx,gext)
+    got_epos=eel(got_epos,tsb,cnw);got_epos=cut(got_epos,tsx,got_tmstep)
+    got_epos=eel(got_epos,succ_sp,s_pos);got_epos=cut(got_epos,Exists(s_pos,succ_sp),got_ex_sp)
+    # eel cn_var, tra_var, pos_n_var — reform pn_body then pn_exp, cut with ax(pn)
+    got_epos=eel(got_epos,inner_and,cn_var)
+    # left now has Exists(cn_var,inner_and)=inner_cn instead of inner_and. eel tra_var:
+    got_epos=eel(got_epos,inner_cn,tra_var)
+    # left now has Exists(tra_var,inner_cn)=inner_exists. Combine with plus into pn_body:
+    # pn_body=And(plus_sa_n,inner_exists). Both are on the left.
+    # Actually inner_exists was produced by eel — it replaced inner_cn.
+    # And plus_sa_n came from ax(pn_body) decomposition — pn_body is still on left too.
+    # pn_body has pos_n_var free. inner_exists (from eel) also has pos_n_var free.
+    # But plus_sa_n (from and_elim_left on pn_body) also has pn_body on its left.
+    # The issue: after all the cuts and eels, pn_body is on the left (from the original ax).
+    # inner_exists is ALSO on the left (from the eel of tra_var).
+    # Both have pos_n_var. I need to cut inner_exists with something to remove it.
+    # inner_exists is a sub-formula of pn_body. So if I eel pos_n_var from pn_body,
+    # inner_exists (separately on left) would block it.
+    # Fix: combine them. inner_exists on left came from eel(inner_cn, tra_var).
+    # The eel replaced inner_cn with Exists(tra_var, inner_cn) = inner_exists.
+    # Before that, inner_cn came from eel(inner_and, cn_var).
+    # Before that, inner_and came from ax(pn_body) decomposition.
+    # So the chain is: pn_body → inner_and (via And decomposition) → inner_cn (eel cn) → inner_exists (eel tra).
+    # All of these put pn_body on their left via ax(pn_body).
+    # So pn_body IS on the left, AND inner_exists IS on the left.
+    # The inner_exists is REDUNDANT (it's contained in pn_body).
+    # Cut it: inner_exists on left is same as pn_body.right (And_elim_right).
+    # Or simpler: just cut inner_exists with and_elim_right from pn_body.
+    got_inner_from_pn = apply_thm(and_elim_right(plus_sa_n,inner_exists,[]),[],pn_body,inner_exists,ax(pn_body))
+    got_epos = cut(got_epos, inner_exists, got_inner_from_pn)
+    # Now only pn_body has pos_n_var on left. eel it.
+    got_epos=eel(got_epos,pn_body,pos_n_var)
+    got_epos=cut(got_epos,pn_exp,ax(pn))
+    print('phase3 step: eigenvars cleaned')
+
+    # Discharge + ∀-close
+    hyps=[pn,In(n,b),succ_sn,num_one,tape_read,func_tape2,func_d,in_n_w,in_sa_w,in_b_w,omega_w,trans]
+    for hyp in hyps:
+        got_epos=wl(got_epos,hyp);imp=Implies(hyp,got_epos.sequent.right[0])
+        left=[f for f in got_epos.sequent.left if not same(f,hyp)]
+        got_epos=Proof(Sequent(left,[imp]),'implies_right',[got_epos],principal=imp)
+    for v in [one,w,b,sn,n,c1,tape2,sa,q1,d]:
+        body=got_epos.sequent.right[0];fa=Forall(v,body)
+        got_epos=Proof(Sequent(got_epos.sequent.left,[fa]),'forall_right',[got_epos],principal=fa,term=v)
+    got_epos.name='phase3_step_case'
+    return got_epos
+
+
 if __name__=='__main__':
+    print('=== phase3_base ===')
     p=phase3_base()
     from core.zfc import ZFCAxiom
     non=[f for f in p.sequent.left if not isinstance(f,ZFCAxiom)]
+    print(f'  OK, non-ZFC={len(non)}')
+
+    print('=== phase3_step_case ===')
+    p2=phase3_step_case()
+    non2=[f for f in p2.sequent.left if not isinstance(f,ZFCAxiom)]
+    print(f'  OK, non-ZFC={len(non2)}')
     print(f'phase3_base: OK, non-ZFC={len(non)}')
