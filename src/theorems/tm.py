@@ -3073,3 +3073,1574 @@ def tm_add_correct():
 
     proof.name = 'tm_add_correct'
     return proof
+
+# ============================================================
+# Helper theorems moved from tm_backup.py
+# ============================================================
+
+
+def config_elim():
+    """TMConfig elimination: from TMConfig and OrdPair(inner,h,tape), get OrdPair(c,q,inner).
+    |- forall c, q, h, tape, inner.
+         TMConfig(c,q,h,tape) -> OrdPair(inner,h,tape) -> OrdPair(c,q,inner)"""
+    from core.proof import Proof, Sequent, same
+    from tactics import fl, mp, ax
+    c, q, h, tape, inner = Var(), Var(), Var(), Var(), Var()
+
+    cfg = TMConfig(c, q, h, tape)
+    op_inner = OrdPair(inner, h, tape)
+    op_c = OrdPair(c, q, inner)
+
+    # cfg expands to Forall(v, OrdPair(v,h,tape) -> OrdPair(c,q,v))
+    # Instantiate with inner: OrdPair(inner,h,tape) -> OrdPair(c,q,inner)
+    target = Implies(op_inner, op_c)
+    p0 = fl(cfg, target, inner)
+    # [cfg] |- OrdPair(inner,h,tape) -> OrdPair(c,q,inner)
+
+    p1 = mp(p0, ax(op_inner), op_inner, op_c)
+    # [cfg, op_inner] |- OrdPair(c,q,inner)
+
+    # Close
+    imp1 = Implies(op_inner, op_c)
+    p2 = Proof(Sequent([cfg], [imp1]), 'implies_right', [p1], principal=imp1)
+    imp2 = Implies(cfg, imp1)
+    p3 = Proof(Sequent([], [imp2]), 'implies_right', [p2], principal=imp2)
+
+    proof = p3
+    for v in [inner, tape, h, q, c]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'config_elim'
+    return proof
+
+
+
+
+def transition_apply():
+    """TMTransition elimination: instantiate with concrete inp pair.
+    |- forall delta, q, r, w, d, qn, inp.
+         TMTransition(delta,q,r,w,d,qn) -> OrdPair(inp,q,r) ->
+         forall dp. OrdPair(dp,d,qn) -> forall out. OrdPair(out,w,dp) -> Apply(delta,inp,out)"""
+    from core.proof import Proof, Sequent, same
+    from tactics import fl, mp, ax
+
+    delta, q, r, w, d, qn, inp = Var(), Var(), Var(), Var(), Var(), Var(), Var()
+    dp, out = Var(), Var()
+
+    trans = TMTransition(delta, q, r, w, d, qn)
+    op_inp = OrdPair(inp, q, r)
+    inner = Forall(dp, Implies(OrdPair(dp, d, qn),
+        Forall(out, Implies(OrdPair(out, w, dp), Apply(delta, inp, out)))))
+
+    # fl: [trans] |- OrdPair(inp,q,r) -> inner
+    target = Implies(op_inp, inner)
+    p0 = fl(trans, target, inp)
+
+    # mp: [trans, op_inp] |- inner
+    p1 = mp(p0, ax(op_inp), op_inp, inner)
+
+    # Close with implies_right then foralls
+    imp1 = Implies(op_inp, inner)
+    p2 = Proof(Sequent([trans], [imp1]), 'implies_right', [p1], principal=imp1)
+    imp2 = Implies(trans, imp1)
+    p3 = Proof(Sequent([], [imp2]), 'implies_right', [p2], principal=imp2)
+
+    proof = p3
+    for v in [inp, qn, d, w, r, q, delta]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'transition_apply'
+    return proof
+
+
+
+
+def head_move_right():
+    """Moving right: Num(d,1) + Successor(h',h) -> HeadMove(h,h',d).
+    |- forall h, h', d. Num(d,1) -> Successor(h',h) -> HeadMove(h,h',d)
+
+    HeadMove(h,h',d) = Or(And(Num(d,1),Succ(h',h)), And(Num(d,0),Succ(h,h')))
+    Or(A,B) = Implies(Not(A), B). We prove the left disjunct."""
+    from core.proof import Proof, Sequent, same
+    from vocab.tm import HeadMove
+    from tactics import ax, wl
+    h, hn, d = Var(), Var(), Var()
+
+    num_d = Num(d, 1)
+    succ = Successor(hn, h)
+    left_and = And(num_d, succ)
+    right_and = And(Num(d, 0), Successor(h, hn))
+    or_form = Implies(Not(left_and), right_and)  # Or(A,B) = Implies(Not(A), B)
+
+    # Step 1: [num_d, succ] |- left_and
+    # And(A,B) = Not(Implies(A, Not(B)))
+    # not_right: [num_d, succ] |- Not(Implies(num_d, Not(succ)))
+    #   premise: [num_d, succ, Implies(num_d, Not(succ))] |- []
+    #   implies_left on Implies(num_d, Not(succ)):
+    #     branch1: [num_d, succ] |- num_d  (axiom + weaken)
+    #     branch2: [num_d, succ, Not(succ)] |- []
+    #       not_left on Not(succ): premise [num_d, succ] |- succ (axiom + weaken)
+
+    b2_premise = Proof(Sequent([num_d, succ], [succ]), 'axiom', principal=succ)
+    b2 = Proof(Sequent([num_d, succ, Not(succ)], []), 'not_left',
+        [b2_premise], principal=Not(succ))
+
+    b1 = wl(ax(num_d), succ)  # [num_d, succ] |- num_d
+
+    imp_inner = Implies(num_d, Not(succ))
+    il = Proof(Sequent([num_d, succ, imp_inner], []), 'implies_left',
+        [b1, b2], principal=imp_inner)
+
+    p_and = Proof(Sequent([num_d, succ], [left_and]), 'not_right',
+        [il], principal=left_and)
+
+    # Step 2: [num_d, succ] |- Or(left_and, right_and)
+    # Or = Implies(Not(left_and), right_and)
+    # implies_right: premise [num_d, succ, Not(left_and)] |- right_and
+    # not_left on Not(left_and): premise [num_d, succ] |- right_and, left_and
+    p_with_and = Proof(Sequent([num_d, succ], [right_and, left_and]), 'weakening_right',
+        [p_and], principal=right_and)
+    p_not_left = Proof(Sequent([num_d, succ, Not(left_and)], [right_and]), 'not_left',
+        [p_with_and], principal=Not(left_and))
+    p_or = Proof(Sequent([num_d, succ], [or_form]), 'implies_right',
+        [p_not_left], principal=or_form)
+
+    # Close
+    imp1 = Implies(succ, or_form)
+    p1 = Proof(Sequent([num_d], [imp1]), 'implies_right', [p_or], principal=imp1)
+    imp2 = Implies(num_d, imp1)
+    p2 = Proof(Sequent([], [imp2]), 'implies_right', [p1], principal=imp2)
+
+    proof = p2
+    for v in [d, hn, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'head_move_right'
+    return proof
+
+
+
+
+def head_move_left():
+    """Moving left: Num(d,0) + Successor(h,h') -> HeadMove(h,h',d).
+    |- forall h, h', d. Num(d,0) -> Successor(h,h') -> HeadMove(h,h',d)
+
+    HeadMove = Or(And(Num(d,1),Succ(h',h)), And(Num(d,0),Succ(h,h')))
+    We prove the right disjunct."""
+    from core.proof import Proof, Sequent, same
+    from vocab.tm import HeadMove
+    from tactics import ax, wl
+    h, hn, d = Var(), Var(), Var()
+
+    num_d = Num(d, 0)
+    succ = Successor(h, hn)  # h = S(h') i.e. h' is predecessor
+    left_and = And(Num(d, 1), Successor(hn, h))
+    right_and = And(num_d, succ)
+    or_form = Implies(Not(left_and), right_and)  # Or(A,B) = Implies(Not(A), B)
+
+    # [num_d, succ] |- right_and
+    # And(A,B) = Not(Implies(A, Not(B)))
+    b2_premise = Proof(Sequent([num_d, succ], [succ]), 'axiom', principal=succ)
+    b2 = Proof(Sequent([num_d, succ, Not(succ)], []), 'not_left',
+        [b2_premise], principal=Not(succ))
+    b1 = wl(ax(num_d), succ)
+    imp_inner = Implies(num_d, Not(succ))
+    il = Proof(Sequent([num_d, succ, imp_inner], []), 'implies_left',
+        [b1, b2], principal=imp_inner)
+    p_and = Proof(Sequent([num_d, succ], [right_and]), 'not_right',
+        [il], principal=right_and)
+
+    # [num_d, succ] |- Or(left_and, right_and) = Implies(Not(left_and), right_and)
+    # implies_right: premise [num_d, succ, Not(left_and)] |- right_and
+    # weaken_left Not(left_and) onto p_and
+    p_or = Proof(Sequent([num_d, succ], [or_form]), 'implies_right',
+        [wl(p_and, Not(left_and))], principal=or_form)
+
+    # Close
+    imp1 = Implies(succ, or_form)
+    p1 = Proof(Sequent([num_d], [imp1]), 'implies_right', [p_or], principal=imp1)
+    imp2 = Implies(num_d, imp1)
+    p2 = Proof(Sequent([], [imp2]), 'implies_right', [p1], principal=imp2)
+
+    proof = p2
+    for v in [d, hn, h]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent([], [fa]), 'forall_right', [proof], principal=fa, term=v)
+
+    proof.name = 'head_move_left'
+    return proof
+
+
+
+
+
+def step_elim():
+    """TMStep elimination: from TMStep and all premises, get TMConfig(c2,...).
+    |- forall delta, c1, c2, q, h, tape, sym, w, d, qn, hn, tapen.
+         TMStep(delta,c1,c2) ->
+         TMConfig(c1,q,h,tape) -> Apply(tape,h,sym) ->
+         TMTransition(delta,q,sym,w,d,qn) ->
+         TapeUpdate(tapen,tape,h,w) -> HeadMove(h,hn,d) ->
+         TMConfig(c2,qn,hn,tapen)"""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax
+
+    delta, c1, c2 = Var(), Var(), Var()
+    q, h, tape, sym = Var(), Var(), Var(), Var()
+    w, d, qn, hn, tapen = Var(), Var(), Var(), Var(), Var()
+
+    step = TMStep(delta, c1, c2)
+    cfg1 = TMConfig(c1, q, h, tape)
+    app_read = Apply(tape, h, sym)
+    trans = TMTransition(delta, q, sym, w, d, qn)
+    tupd = TapeUpdate(tapen, tape, h, w)
+    hmov = HeadMove(h, hn, d)
+    cfg2 = TMConfig(c2, qn, hn, tapen)
+
+    # TMStep has 9 foralls. Instantiate with [q,h,tape,sym,w,d,qn,hn,tapen].
+    # After instantiation: cfg1 -> app -> trans -> tupd -> hmov -> cfg2
+    # Then mp through 5 premises.
+    imp_chain = Implies(cfg1, Implies(app_read, Implies(trans,
+        Implies(tupd, Implies(hmov, cfg2)))))
+
+    p = apply_thm(ax(step), [q, h, tape, sym, w, d, qn, hn, tapen],
+        cfg1, Implies(app_read, Implies(trans, Implies(tupd, Implies(hmov, cfg2)))),
+        ax(cfg1))
+    p = mp(p, ax(app_read), app_read, Implies(trans, Implies(tupd, Implies(hmov, cfg2))))
+    p = mp(p, ax(trans), trans, Implies(tupd, Implies(hmov, cfg2)))
+    p = mp(p, ax(tupd), tupd, Implies(hmov, cfg2))
+    p = mp(p, ax(hmov), hmov, cfg2)
+
+    # p: [step, cfg1, app, trans, tupd, hmov] |- cfg2
+    # Close with implies_right + forall_right
+    for premise in [hmov, tupd, trans, app_read, cfg1, step]:
+        imp = Implies(premise, p.sequent.right[0])
+        left = [f for f in p.sequent.left if not same(f, premise)]
+        p = Proof(Sequent(left, [imp]), 'implies_right', [p], principal=imp)
+
+    for v in [tapen, hn, qn, d, w, sym, tape, h, q, c2, c1, delta]:
+        body = p.sequent.right[0]
+        fa = Forall(v, body)
+        p = Proof(Sequent(p.sequent.left, [fa]), 'forall_right', [p], principal=fa, term=v)
+
+    p.name = 'step_elim'
+    return p
+
+
+
+
+def zero_neq_one():
+    """Empty and Successor are incompatible.
+    |- ∀x,y,z. Empty(x) → Successor(y,z) → Not(Eq(x,y))
+
+    Successor(y,z): ∀v. In(v,y) ↔ Or(In(v,z), Eq(v,z)). Instantiate v=z:
+    In(z,y) ↔ Or(In(z,z), Eq(z,z)). Eq(z,z) true → In(z,y).
+    Eq(x,y) + Empty(x) = ∀v.¬In(v,x) → ¬In(z,x). But Eq(x,y) → In(z,x)↔In(z,y).
+    So In(z,x) from In(z,y). Contradiction with ¬In(z,x)."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, fl, wl
+    from theorems.logic import eq_reflexive, eq_substitution, iff_mp_rev, or_intro_right
+    from core.proof import Proof, Sequent
+
+    x, y, z = Var(postfix='zx'), Var(postfix='zy'), Var(postfix='zz')
+    empty_x = Empty(x)
+    succ_yz = Successor(y, z)
+    eq_xy = Eq(x, y)
+
+    # Step 1: From Successor(y,z), get In(z,y).
+    # Successor(y,z) = ∀v. In(v,y) ↔ Or(In(v,z), Eq(v,z))
+    # Instantiate v=z: In(z,y) ↔ Or(In(z,z), Eq(z,z))
+    in_zy = In(z, y)
+    or_form = Or(In(z, z), Eq(z, z))
+    iff_succ = Iff(in_zy, or_form)
+    got_iff = apply_thm(ax(succ_yz), [z], concl=iff_succ)
+    # [succ_yz] |- Iff(In(z,y), Or(In(z,z),Eq(z,z)))
+
+    # Iff reverse: Or → In(z,y)
+    got_imp_rev = apply_thm(iff_mp_rev(in_zy, or_form, []), [],
+        iff_succ, Implies(or_form, in_zy), got_iff)
+
+    # Build Or(In(z,z), Eq(z,z)) via right disjunct Eq(z,z)
+    er = eq_reflexive()
+    eq_zz = Eq(z, z)
+    got_eq_zz = apply_thm(er, [z], concl=eq_zz)
+    oil = or_intro_right(In(z, z), eq_zz, [])
+    got_or = apply_thm(oil, [], eq_zz, or_form, got_eq_zz)
+
+    got_in_zy = mp(got_imp_rev, got_or, or_form, in_zy)
+    # [succ_yz] |- In(z, y)
+
+    # Step 2: From Eq(x,y), transfer In(z,y) to In(z,x).
+    # Eq(x,y) = ∀v. Iff(In(v,x), In(v,y)). Instantiate v=z:
+    in_zx = In(z, x)
+    iff_in = Iff(in_zx, in_zy)
+    got_iff_in = apply_thm(ax(eq_xy), [z], concl=iff_in)
+    # [Eq(x,y)] |- Iff(In(z,x), In(z,y))
+
+    # Iff reverse: In(z,y) → In(z,x)
+    got_imp_back = apply_thm(iff_mp_rev(in_zx, in_zy, []), [],
+        iff_in, Implies(in_zy, in_zx), got_iff_in)
+    got_in_zx = mp(got_imp_back, got_in_zy, in_zy, in_zx)
+    # [Eq(x,y), succ_yz] |- In(z, x)
+
+    # Step 3: From Empty(x), get ¬In(z,x).
+    not_in_zx = Not(in_zx)
+    got_not_in = fl(empty_x, not_in_zx, z)
+    # [Empty(x)] |- ¬In(z, x)
+
+    # Contradiction: build [Eq(x,y), succ_yz, Empty(x)] |- [] via not_left + cut
+    got_in_zx_w = wl(got_in_zx, empty_x)
+    # [Eq(x,y), succ_yz, Empty(x)] |- In(z,x)
+    got_not_in_w = wl(got_not_in, eq_xy, succ_yz)
+    # [Empty(x), Eq(x,y), succ_yz] |- ¬In(z,x)
+
+    # not_left: [ctx, ¬In(z,x)] |- [] from [ctx] |- [In(z,x)]
+    ctx_all = list(got_in_zx_w.sequent.left)
+    got_bot_nl = Proof(Sequent(ctx_all + [not_in_zx], []),
+        'not_left', [got_in_zx_w], principal=not_in_zx)
+    # [Eq(x,y), succ_yz, Empty(x), ¬In(z,x)] |- []
+
+    # cut ¬In(z,x): ps0 = [G] |- [¬In(z,x)], ps1 = [G, ¬In(z,x)] |- []
+    from tactics import weaken_to
+    ps0 = weaken_to(got_not_in_w, ctx_all)
+    got_bot = Proof(Sequent(ctx_all, []), 'cut',
+        [ps0, got_bot_nl], principal=not_in_zx)
+    # [Eq(x,y), succ_yz, Empty(x)] |- []
+
+    # not_right on Eq(x,y): [succ_yz, Empty(x)] |- Not(Eq(x,y))
+    not_eq = Not(eq_xy)
+    got_not_eq = Proof(Sequent([f for f in got_bot.sequent.left if not same(f, eq_xy)],
+        [not_eq]), 'not_right', [got_bot], principal=not_eq)
+
+    # Close: implies_right + forall_right
+    for premise in [succ_yz, empty_x]:
+        imp = Implies(premise, got_not_eq.sequent.right[0])
+        left = [f for f in got_not_eq.sequent.left if not same(f, premise)]
+        got_not_eq = Proof(Sequent(left, [imp]), 'implies_right', [got_not_eq], principal=imp)
+
+    proof = got_not_eq
+    for v in [z, y, x]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'zero_neq_one'
+    return proof
+
+
+
+
+def tape_update_eq():
+    """Identity tape update: writing the same value gives the same tape.
+    Extensionality, Pairing |- forall tapen, tape, h, w.
+        Function(tape) -> Apply(tape,h,w) -> TapeUpdate(tapen,tape,h,w) -> Eq(tapen, tape)
+
+    From TapeUpdate (In-based), show ∀p. In(p,tapen) ↔ In(p,tape), then Extensionality.
+    Forward: In(p,tapen) → Or(OrdPair(p,h,w), And(In(p,tape),...)) → In(p,tape).
+      Left: OrdPair(p,h,w) + Apply(tape,h,w) → ordpair_unique → In(p,tape).
+      Right: In(p,tape) directly.
+    Backward: In(p,tape) → Or(OrdPair(p,h,w), And(In(p,tape),¬∃y.OrdPair(p,h,y))).
+      Or = Implies(Not(left), right). Assume ¬OrdPair(p,h,w). Prove ¬∃y.OrdPair(p,h,y):
+      Assume OrdPair(p,h,y). From In(p,tape)+OrdPair(p,h,y) → Apply(tape,h,y).
+      func_unique + Apply(tape,h,w) → Eq(y,w). Transfer → OrdPair(p,h,w). Contradiction."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, wl, wr, fl, eir, eel, cut
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp, iff_mp_rev, or_elim, eq_substitution)
+    from theorems.sets import ordpair_exists, ordpair_unique, ordpair_val_transfer
+    from vocab.functions import Function as FuncDef
+    from core.proof import Proof, Sequent
+
+    tapen, tape, h, w = Var(postfix='tn'), Var(postfix='tp'), Var(postfix='hd'), Var(postfix='wr')
+    p = Var(postfix='ep')
+    yv = Var(postfix='ey')
+    tu = TapeUpdate(tapen, tape, h, w)
+    func_tape = FuncDef(tape)
+    app_hw = Apply(tape, h, w)
+
+    # TapeUpdate expanded components
+    in_p_tn = In(p, tapen)
+    in_p_tp = In(p, tape)
+    op_phw = OrdPair(p, h, w)
+    op_phy = OrdPair(p, h, yv)
+    not_ex_y = Not(Exists(yv, op_phy))
+    right_and = And(in_p_tp, not_ex_y)
+    or_form = Or(op_phw, right_and)
+    iff_tu = Iff(in_p_tn, or_form)
+
+    # === Forward: In(p, tapen) → In(p, tape) ===
+
+    # Step F1: [tu] |- Iff(In(p,tapen), Or(...))
+    got_iff = apply_thm(ax(tu), [p], concl=iff_tu)
+
+    # Step F2: Iff forward → In(p,tapen) → Or(...)
+    iff_fwd = iff_mp(in_p_tn, or_form, [])
+    got_fwd = apply_thm(iff_fwd, [], iff_tu, Implies(in_p_tn, or_form), got_iff)
+    # [tu] |- In(p,tapen) → Or(...)
+
+    # Step F3: Or-elim. Left case: OrdPair(p,h,w) → In(p,tape).
+    # From Apply(tape,h,w) = ∃q. OrdPair(q,h,w) ∧ In(q,tape).
+    # OrdPair(p,h,w) ∧ OrdPair(q,h,w) → Eq(p,q) → In(p,tape).
+
+    q = Var(postfix='eq')
+    op_qhw = OrdPair(q, h, w)
+    in_q_tp = In(q, tape)
+    and_q = And(op_qhw, in_q_tp)
+
+    # ordpair_unique: Pairing |- ∀a,b,t,s. OrdPair(t,a,b) → OrdPair(s,a,b) → Eq(t,s)
+    ou = ordpair_unique()
+    eq_pq = Eq(p, q)
+    got_eq_pq = mp(apply_thm(ou, [h, w, p, q], op_phw,
+        Implies(op_qhw, eq_pq), ax(op_phw)),
+        ax(op_qhw), op_qhw, eq_pq)
+    # [Pairing, OrdPair(p,h,w), OrdPair(q,h,w)] |- Eq(p,q)
+
+    # eq_substitution: Eq(p,q) → Iff(In(p,tape), In(q,tape))
+    from theorems.logic import eq_substitution
+    es = eq_substitution()
+    iff_in = Iff(In(p, tape), In(q, tape))
+    got_iff_in = apply_thm(es, [p, q, tape], eq_pq, iff_in, got_eq_pq)
+    # [..., OrdPair(p,h,w), OrdPair(q,h,w)] |- Iff(In(p,tape), In(q,tape))
+
+    # Iff reverse: In(q,tape) → In(p,tape)
+    iff_rev_in = iff_mp_rev(In(p, tape), In(q, tape), [])
+    got_imp_in = apply_thm(iff_rev_in, [], iff_in,
+        Implies(in_q_tp, in_p_tp), got_iff_in)
+    got_in_from_q = mp(got_imp_in, ax(in_q_tp), in_q_tp, in_p_tp)
+    # [..., OrdPair(p,h,w), OrdPair(q,h,w), In(q,tape)] |- In(p,tape)
+
+    # Combine OrdPair(q,h,w) and In(q,tape) from And(op_qhw, in_q_tp):
+    ael_q = and_elim_left(op_qhw, in_q_tp, [])
+    aer_q = and_elim_right(op_qhw, in_q_tp, [])
+    got_opq_from_and = apply_thm(ael_q, [], and_q, op_qhw, ax(and_q))
+    got_inq_from_and = apply_thm(aer_q, [], and_q, in_q_tp, ax(and_q))
+    got_in_left = cut(got_in_from_q, op_qhw, got_opq_from_and)
+    got_in_left = cut(got_in_left, in_q_tp, got_inq_from_and)
+    # [..., OrdPair(p,h,w), And(op_qhw, in_q_tp)] |- In(p,tape)
+
+    # eel q from And(op_qhw, in_q_tp) → Exists(q, And(...)) = Apply(tape,h,w)
+    got_in_left = eel(got_in_left, and_q, q)
+    # [..., OrdPair(p,h,w), Apply(tape,h,w)] |- In(p,tape)
+
+    # Step F4: Right case: And(In(p,tape), ¬∃y.OrdPair(p,h,y)) → In(p,tape)
+    ael_r = and_elim_left(in_p_tp, not_ex_y, [])
+    got_in_right = apply_thm(ael_r, [], right_and, in_p_tp, ax(right_and))
+    # [right_and] |- In(p, tape)
+
+    # Step F5: Or-elim: Or(A,B) → (A→C) → (B→C) → C
+    oe = or_elim(op_phw, right_and, in_p_tp, [])
+    # or_elim: |- Or(A,B) → (A→C) → (B→C) → C
+
+    # Build A → C and B → C
+    imp_ac = Implies(op_phw, in_p_tp)
+    left_no_op = [f for f in got_in_left.sequent.left if not same(f, op_phw)]
+    got_imp_ac = Proof(Sequent(left_no_op, [imp_ac]),
+        'implies_right', [got_in_left], principal=imp_ac)
+
+    imp_bc = Implies(right_and, in_p_tp)
+    got_imp_bc = Proof(Sequent([], [imp_bc]),
+        'implies_right', [got_in_right], principal=imp_bc)
+
+    # mp chain: Or → (A→C) → (B→C) → C
+    # First get Or from fwd: In(p,tapen) → Or
+    got_fwd_final = mp(got_fwd, ax(in_p_tn), in_p_tn, or_form)
+    # [tu, In(p,tapen)] |- Or(...)
+
+    got_oe = apply_thm(oe, [], or_form,
+        Implies(imp_ac, Implies(imp_bc, in_p_tp)), got_fwd_final)
+    got_oe = mp(got_oe, got_imp_ac, imp_ac, Implies(imp_bc, in_p_tp))
+    got_oe = mp(got_oe, got_imp_bc, imp_bc, in_p_tp)
+    got_fwd_result = got_oe
+    # [tu, In(p,tapen), Apply(tape,h,w), Pairing] |- In(p,tape)
+
+    # === Backward: In(p, tape) → In(p, tapen) ===
+
+    # Or = Implies(Not(left), right). So Or(op_phw, right_and) = Implies(Not(op_phw), right_and).
+    # Assume Not(OrdPair(p,h,w)). Prove And(In(p,tape), ¬∃y.OrdPair(p,h,y)).
+    # In(p,tape) we have.
+    # ¬∃y.OrdPair(p,h,y): assume OrdPair(p,h,yv).
+    #   From In(p,tape) + OrdPair(p,h,yv): Apply(tape,h,yv) (eir with witness p).
+    #   func_unique + Apply(tape,h,w) → Eq(yv,w).
+    #   ordpair_val_transfer + OrdPair(p,h,yv) + Eq(yv,w) → OrdPair(p,h,w).
+    #   Contradicts Not(OrdPair(p,h,w)).
+
+    # Build Apply(tape,h,yv) from OrdPair(p,h,yv) + In(p,tape):
+    ai_app = and_intro(op_phy, in_p_tp, [])
+    got_and_app = mp(apply_thm(ai_app, [], op_phy,
+        Implies(in_p_tp, And(op_phy, in_p_tp)), ax(op_phy)),
+        ax(in_p_tp), in_p_tp, And(op_phy, in_p_tp))
+    got_app_hy = eir(got_and_app, And(op_phy, in_p_tp), p, p)
+    # [OrdPair(p,h,yv), In(p,tape)] |- Apply(tape, h, yv)
+
+    # func_unique: Function(tape) → Apply(tape,h,yv) → Apply(tape,h,w) → Eq(yv,w)
+    from theorems.omega import func_unique_thm
+    fu = func_unique_thm()
+    eq_yw = Eq(yv, w)
+    got_fu = apply_thm(fu, [tape, h, yv, w])
+    got_fu = mp(got_fu, ax(func_tape), func_tape, got_fu.sequent.right[0].right)
+    got_fu = mp(got_fu, got_app_hy, Apply(tape, h, yv), got_fu.sequent.right[0].right)
+    got_fu = mp(got_fu, ax(app_hw), app_hw, eq_yw)
+    # [Function(tape), OrdPair(p,h,yv), In(p,tape), Apply(tape,h,w)] |- Eq(yv, w)
+
+    # ordpair_val_transfer: Eq(b,c) → OrdPair(t,a,b) → OrdPair(t,a,c)
+    from theorems.sets import ordpair_val_transfer
+    ovt = ordpair_val_transfer()
+    got_ophw2 = mp(apply_thm(ovt, [p, h, yv, w], eq_yw,
+        Implies(op_phy, op_phw), got_fu),
+        ax(op_phy), op_phy, op_phw)
+    # [..., OrdPair(p,h,yv), In(p,tape)] |- OrdPair(p,h,w)
+
+    # Contradiction with Not(OrdPair(p,h,w)):
+    not_ophw = Not(op_phw)
+    got_bot = Proof(Sequent(list(got_ophw2.sequent.left) + [not_ophw], []),
+        'not_left', [got_ophw2], principal=not_ophw)
+
+    # not_right on OrdPair(p,h,yv) → ¬OrdPair(p,h,yv)
+    not_ophy = Not(op_phy)
+    got_not_ophy = Proof(Sequent([f for f in got_bot.sequent.left if not same(f, op_phy)],
+        [not_ophy]), 'not_right', [got_bot], principal=not_ophy)
+
+    # forall_right yv → ∀yv. ¬OrdPair(p,h,yv) then convert to ¬∃yv.OrdPair(p,h,yv)
+    fa_not_ophy = Forall(yv, not_ophy)
+    got_fa_not = Proof(Sequent(got_not_ophy.sequent.left, [fa_not_ophy]),
+        'forall_right', [got_not_ophy], principal=fa_not_ophy, term=yv)
+    # Convert: ∀yv.¬P → ¬∃yv.P
+    ex_phy = Exists(yv, op_phy)
+    got_bot3 = Proof(Sequent(list(got_fa_not.sequent.left) + [ex_phy], []),
+        'not_left', [got_fa_not], principal=ex_phy)
+    got_not_ex = Proof(Sequent([f for f in got_bot3.sequent.left if not same(f, ex_phy)],
+        [not_ex_y]), 'not_right', [got_bot3], principal=not_ex_y)
+    # [Function(tape), In(p,tape), Apply(tape,h,w), Not(OrdPair(p,h,w))] |- ¬∃yv.OrdPair(p,h,yv)
+
+    # And(In(p,tape), not_ex_y)
+    ai_back = and_intro(in_p_tp, not_ex_y, [])
+    got_back_and = mp(apply_thm(ai_back, [], in_p_tp,
+        Implies(not_ex_y, right_and), ax(in_p_tp)),
+        got_not_ex, not_ex_y, right_and)
+    # [..., In(p,tape), Not(OrdPair(p,h,w))] |- And(In(p,tape), ¬∃yv.OrdPair(p,h,yv))
+
+    # This IS Or(OrdPair(p,h,w), right_and) via implies_right on Not(OrdPair(p,h,w))
+    # Or(A,B) = Implies(Not(A), B)
+    got_or_back = Proof(Sequent(
+        [f for f in got_back_and.sequent.left if not same(f, not_ophw)],
+        [or_form]), 'implies_right', [got_back_and], principal=or_form)
+    # [Function(tape), In(p,tape), Apply(tape,h,w)] |- Or(OrdPair(p,h,w), right_and)
+
+    # Iff reverse: Or → In(p,tapen)
+    got_iff2 = apply_thm(ax(tu), [p], concl=iff_tu)
+    iff_rev2 = iff_mp_rev(in_p_tn, or_form, [])
+    got_imp_rev = apply_thm(iff_rev2, [], iff_tu,
+        Implies(or_form, in_p_tn), got_iff2)
+    got_back_result = mp(got_imp_rev, got_or_back, or_form, in_p_tn)
+    # [tu, Function(tape), In(p,tape), Apply(tape,h,w)] |- In(p,tapen)
+
+    # === Iff: In(p,tape) ↔ In(p,tapen) then Extensionality → Eq(tapen, tape) ===
+
+    # Build Iff(In(p,tapen), In(p,tape)):
+    # Forward: [ctx, In(p,tapen)] |- In(p,tape)
+    # Backward: [ctx, In(p,tape)] |- In(p,tapen)
+    ii = iff_intro(in_p_tn, in_p_tp, [])
+    # iff_intro: (A→B) → (B→A) → Iff(A,B)
+    imp_fwd = Implies(in_p_tn, in_p_tp)
+    fwd_left = [f for f in got_fwd_result.sequent.left if not same(f, in_p_tn)]
+    got_imp_fwd = Proof(Sequent(fwd_left, [imp_fwd]),
+        'implies_right', [got_fwd_result], principal=imp_fwd)
+    imp_back = Implies(in_p_tp, in_p_tn)
+    back_left = [f for f in got_back_result.sequent.left if not same(f, in_p_tp)]
+    got_imp_back = Proof(Sequent(back_left, [imp_back]),
+        'implies_right', [got_back_result], principal=imp_back)
+
+    iff_ptn_ptp = Iff(in_p_tn, in_p_tp)
+    got_iff_final = mp(apply_thm(ii, [], imp_fwd,
+        Implies(imp_back, iff_ptn_ptp), got_imp_fwd),
+        got_imp_back, imp_back, iff_ptn_ptp)
+    # [tu, Apply(tape,h,w), Pairing, Function(tape)] |- Iff(In(p,tapen), In(p,tape))
+
+    # forall_right on p
+    fa_iff = Forall(p, iff_ptn_ptp)
+    got_fa_iff = Proof(Sequent(got_iff_final.sequent.left, [fa_iff]),
+        'forall_right', [got_iff_final], principal=fa_iff, term=p)
+    # [...] |- ∀p. Iff(In(p,tapen), In(p,tape))
+
+    # ∀p. In(p,tapen) ↔ In(p,tape) IS Eq(tapen,tape) by definition (extensional equality).
+    # No Extensionality axiom needed!
+    got_eq = got_fa_iff
+    # [tu, Apply(tape,h,w), Pairing, Function(tape)] |- Eq(tapen, tape)
+
+    # Close: implies_right for tu, app_hw, func_tape; forall_right for tapen, tape, h, w
+    for premise in [tu, app_hw, func_tape]:
+        imp = Implies(premise, got_eq.sequent.right[0])
+        left = [f for f in got_eq.sequent.left if not same(f, premise)]
+        got_eq = Proof(Sequent(left, [imp]), 'implies_right', [got_eq], principal=imp)
+
+    proof = got_eq
+    for v in [w, h, tape, tapen]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_update_eq'
+    return proof
+
+
+
+
+def config_eq():
+    """Two TMConfigs of the same set imply component equality.
+    |- forall c, q1, h1, t1, q2, h2, t2.
+         TMConfig(c,q1,h1,t1) -> TMConfig(c,q2,h2,t2) ->
+         And(Eq(q1,q2), And(Eq(h1,h2), Eq(t1,t2)))
+
+    Uses ordpair_set_transfer + tuple_injection twice."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, eel, cut
+    from theorems.logic import and_elim_left, and_elim_right, and_intro
+    from theorems.sets import ordpair_set_transfer
+    import theorems
+
+    c = Var(postfix='c')
+    q1, h1, t1 = Var(postfix='q1'), Var(postfix='h1'), Var(postfix='t1')
+    q2, h2, t2 = Var(postfix='q2'), Var(postfix='h2'), Var(postfix='t2')
+    inner1, inner2 = Var(postfix='i1'), Var(postfix='i2')
+
+    cfg1 = TMConfig(c, q1, h1, t1)
+    cfg2 = TMConfig(c, q2, h2, t2)
+    ce = config_elim()
+    ti = theorems.tuple_injection()
+    oe = theorems.ordpair_exists()
+    ost = ordpair_set_transfer()
+
+    op1 = OrdPair(inner1, h1, t1)
+    op2 = OrdPair(inner2, h2, t2)
+
+    # Witnesses: exists inner1. OrdPair(inner1,h1,t1), exists inner2. OrdPair(inner2,h2,t2)
+    got_ex1 = apply_thm(oe, [h1, t1], concl=Exists(inner1, op1))
+    got_ex2 = apply_thm(oe, [h2, t2], concl=Exists(inner2, op2))
+
+    # config_elim: cfg + OrdPair -> OrdPair(c,q,inner)
+    oc1 = OrdPair(c, q1, inner1)
+    got_oc1 = mp(apply_thm(ce, [c,q1,h1,t1,inner1], cfg1, Implies(op1,oc1), ax(cfg1)),
+        ax(op1), op1, oc1)
+    oc2 = OrdPair(c, q2, inner2)
+    got_oc2 = mp(apply_thm(ce, [c,q2,h2,t2,inner2], cfg2, Implies(op2,oc2), ax(cfg2)),
+        ax(op2), op2, oc2)
+
+    # tuple_injection outer: Eq(q1,q2), Eq(inner1,inner2)
+    eq_q = Eq(q1, q2)
+    eq_ii = Eq(inner1, inner2)
+    and_outer = And(eq_q, eq_ii)
+    got_outer = mp(apply_thm(ti, [q1,inner1,q2,inner2,c], oc1,
+        Implies(oc2, and_outer), got_oc1), got_oc2, oc2, and_outer)
+    got_eq_q = apply_thm(and_elim_left(eq_q, eq_ii, []), [], and_outer, eq_q, got_outer)
+    got_eq_ii = apply_thm(and_elim_right(eq_q, eq_ii, []), [], and_outer, eq_ii, got_outer)
+
+    # ordpair_set_transfer: Eq(inner1,inner2) + OrdPair(inner2,h2,t2) -> OrdPair(inner1,h2,t2)
+    op1_h2t2 = OrdPair(inner1, h2, t2)
+    got_op1_h2t2 = mp(apply_thm(ost, [inner1,inner2,h2,t2], eq_ii,
+        Implies(op2, op1_h2t2), got_eq_ii), ax(op2), op2, op1_h2t2)
+
+    # tuple_injection inner: Eq(h1,h2), Eq(t1,t2)
+    eq_h = Eq(h1, h2)
+    eq_t = Eq(t1, t2)
+    and_inner = And(eq_h, eq_t)
+    got_inner = mp(apply_thm(ti, [h1,t1,h2,t2,inner1], op1,
+        Implies(op1_h2t2, and_inner), ax(op1)),
+        got_op1_h2t2, op1_h2t2, and_inner)
+    got_eq_h = apply_thm(and_elim_left(eq_h, eq_t, []), [], and_inner, eq_h, got_inner)
+    got_eq_t = apply_thm(and_elim_right(eq_h, eq_t, []), [], and_inner, eq_t, got_inner)
+
+    # Assemble: And(Eq(q1,q2), And(Eq(h1,h2), Eq(t1,t2)))
+    ht_and = And(eq_h, eq_t)
+    got_ht = mp(apply_thm(and_intro(eq_h, eq_t, []), [], eq_h,
+        Implies(eq_t, ht_and), got_eq_h), got_eq_t, eq_t, ht_and)
+    result = And(eq_q, ht_and)
+    got_result = mp(apply_thm(and_intro(eq_q, ht_and, []), [], eq_q,
+        Implies(ht_and, result), got_eq_q), got_ht, ht_and, result)
+
+    # Eliminate existential witnesses
+    got_result = eel(got_result, op1, inner1)
+    got_result = cut(got_result, got_result.sequent.left[-1], got_ex1)
+    got_result = eel(got_result, op2, inner2)
+    got_result = cut(got_result, got_result.sequent.left[-1], got_ex2)
+
+    # Close
+    for premise in [cfg2, cfg1]:
+        imp = Implies(premise, got_result.sequent.right[0])
+        left = [f for f in got_result.sequent.left if not same(f, premise)]
+        got_result = Proof(Sequent(left, [imp]), 'implies_right', [got_result], principal=imp)
+
+    proof = got_result
+    for v in [t2, h2, q2, t1, h1, q1, c]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'config_eq'
+    return proof
+
+
+
+
+def config_eq_transfer():
+    """Transfer TMConfig across Eq's on components.
+    Pairing |- ∀c,q1,h1,t1,q2,h2,t2.
+        TMConfig(c,q1,h1,t1) → Eq(q1,q2) → Eq(h1,h2) → Eq(t1,t2) →
+        TMConfig(c,q2,h2,t2)
+
+    Strategy: TMConfig(c,q2,h2,t2) = ∀v. OrdPair(v,h2,t2) → OrdPair(c,q2,v).
+    From TMConfig(c,q1,h1,t1) with inner pair + Eq transfers + config_intro."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, wl, eir, eel, cut
+    from theorems.logic import (and_elim_left, and_elim_right, eq_symmetric,
+        iff_chain, iff_mp, iff_mp_rev, iff_sym, eq_substitution)
+    from theorems.sets import eq_in_eq, ordpair_exists
+    from theorems.logic import or_iff_compat
+    from theorems.tm import config_intro
+    from core.proof import Proof, Sequent
+    from core.derived import Exists
+
+    c = Var(postfix='ec')
+    q1, h1, t1 = Var(postfix='eq1'), Var(postfix='eh1'), Var(postfix='et1')
+    q2, h2, t2 = Var(postfix='eq2'), Var(postfix='eh2'), Var(postfix='et2')
+
+    cfg1 = TMConfig(c, q1, h1, t1)
+    cfg2 = TMConfig(c, q2, h2, t2)
+    eq_q = Eq(q1, q2)
+    eq_h = Eq(h1, h2)
+    eq_t = Eq(t1, t2)
+
+    # Strategy: Config(c,q2,h2,t2) = ∀v. OrdPair(v,h2,t2) → OrdPair(c,q2,v).
+    # From Config(c,q1,h1,t1): ∀v. OrdPair(v,h1,t1) → OrdPair(c,q1,v).
+    # For a given v with OrdPair(v,h2,t2):
+    #   Eq(h1,h2)+Eq(t1,t2) → OrdPair(v,h2,t2) ↔ OrdPair(v,h1,t1) (via Eq transfers on pair elements)
+    #   Actually simpler: from OrdPair(v,h2,t2), use ordpair_eq_transfer backwards:
+    #     Eq(h2,h1)+Eq(t2,t1) → OrdPair(v,h2,t2) → OrdPair(v,h1,t1)
+    #   Then Config(c,q1,h1,t1) gives OrdPair(c,q1,v).
+    #   Then Eq(q1,q2) → OrdPair(c,q2,v) via ordpair_eq_transfer.
+    #   OrdPair(v,h2,t2) → OrdPair(c,q2,v) for all v = Config(c,q2,h2,t2).
+
+    from theorems.sets import ordpair_eq_transfer
+    oet = ordpair_eq_transfer()
+    es = eq_symmetric()
+
+    v = Var(postfix='ev')
+    op_v_h2t2 = OrdPair(v, h2, t2)
+    op_v_h1t1 = OrdPair(v, h1, t1)
+    op_c_q1_v = OrdPair(c, q1, v)
+    op_c_q2_v = OrdPair(c, q2, v)
+
+    # Eq(h2,h1) and Eq(t2,t1) from symmetry
+    eq_h_sym = Eq(h2, h1)
+    eq_t_sym = Eq(t2, t1)
+    got_eq_h_sym = apply_thm(es, [h1, h2], eq_h, eq_h_sym, ax(eq_h))
+    got_eq_t_sym = apply_thm(es, [t1, t2], eq_t, eq_t_sym, ax(eq_t))
+
+    # OrdPair(v,h2,t2) → OrdPair(v,h1,t1) via ordpair_eq_transfer(h2,t2,h1,t1,v)
+    got_op_v_h1t1 = apply_thm(oet, [h2, t2, h1, t1, v])
+    got_op_v_h1t1 = mp(got_op_v_h1t1, got_eq_h_sym, eq_h_sym, got_op_v_h1t1.sequent.right[0].right)
+    got_op_v_h1t1 = mp(got_op_v_h1t1, got_eq_t_sym, eq_t_sym, got_op_v_h1t1.sequent.right[0].right)
+    got_op_v_h1t1 = mp(got_op_v_h1t1, ax(op_v_h2t2), op_v_h2t2, op_v_h1t1)
+    # [Eq(h1,h2), Eq(t1,t2), OrdPair(v,h2,t2)] |- OrdPair(v,h1,t1)
+
+    # Config(c,q1,h1,t1) instantiated with v: OrdPair(v,h1,t1) → OrdPair(c,q1,v)
+    got_cfg_inst = apply_thm(ax(cfg1), [v], op_v_h1t1, op_c_q1_v, got_op_v_h1t1)
+    # [cfg1, Eq(h1,h2), Eq(t1,t2), OrdPair(v,h2,t2)] |- OrdPair(c,q1,v)
+
+    # Eq(q1,q2) → OrdPair(c,q1,v) → OrdPair(c,q2,v)
+    # ordpair_eq_transfer(q1,v,q2,v,c): Eq(q1,q2) → Eq(v,v) → OrdPair(c,q1,v) → OrdPair(c,q2,v)
+    # We need Eq(v,v) too. Use eq_reflexive.
+    from theorems.logic import eq_reflexive
+    er = eq_reflexive()
+    eq_vv = Eq(v, v)
+    got_eq_vv = apply_thm(er, [v], concl=eq_vv)
+
+    got_op_c_q2_v = apply_thm(oet, [q1, v, q2, v, c])
+    got_op_c_q2_v = mp(got_op_c_q2_v, ax(eq_q), eq_q, got_op_c_q2_v.sequent.right[0].right)
+    got_op_c_q2_v = mp(got_op_c_q2_v, got_eq_vv, eq_vv, got_op_c_q2_v.sequent.right[0].right)
+    got_op_c_q2_v = mp(got_op_c_q2_v, got_cfg_inst, op_c_q1_v, op_c_q2_v)
+    # [cfg1, Eq(q1,q2), Eq(h1,h2), Eq(t1,t2), OrdPair(v,h2,t2)] |- OrdPair(c,q2,v)
+
+    # Close: implies_right on OrdPair(v,h2,t2), forall_right on v → TMConfig(c,q2,h2,t2)
+    imp = Implies(op_v_h2t2, op_c_q2_v)
+    left = [f for f in got_op_c_q2_v.sequent.left if not same(f, op_v_h2t2)]
+    got_cfg2_body = Proof(Sequent(left, [imp]), 'implies_right', [got_op_c_q2_v], principal=imp)
+    fa = Forall(v, imp)
+    got_cfg2 = Proof(Sequent(got_cfg2_body.sequent.left, [fa]),
+        'forall_right', [got_cfg2_body], principal=fa, term=v)
+    # [cfg1, Eq(q1,q2), Eq(h1,h2), Eq(t1,t2)] |- TMConfig(c,q2,h2,t2)
+
+    # Close outer implies + foralls
+    for premise in [eq_t, eq_h, eq_q, cfg1]:
+        imp = Implies(premise, got_cfg2.sequent.right[0])
+        left = [f for f in got_cfg2.sequent.left if not same(f, premise)]
+        got_cfg2 = Proof(Sequent(left, [imp]), 'implies_right', [got_cfg2], principal=imp)
+
+    proof = got_cfg2
+    for vv in [t2, h2, q2, t1, h1, q1, c]:
+        body = proof.sequent.right[0]
+        fa = Forall(vv, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=vv)
+
+    proof.name = 'config_eq_transfer'
+    return proof
+
+
+
+
+def transition_unique():
+    """Extract Eq's from two TMTransitions on the same input via Function(delta).
+    Pairing |- ∀delta,q,sym,w,d,qn,w2,d2,qn2.
+        Function(delta) →
+        TMTransition(delta,q,sym,w,d,qn) → TMTransition(delta,q,sym,w2,d2,qn2) →
+        And(Eq(w,w2), And(Eq(d,d2), Eq(qn,qn2)))
+
+    Instantiate both with same inp pair, func_unique → Eq(out1,out2),
+    tuple_injection on output structure → Eq's on (w,dp) then (d,qn)."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, wl, eir, eel, cut
+    from theorems.logic import and_intro, and_elim_left, and_elim_right, eq_symmetric
+    from theorems.sets import ordpair_exists, ordpair_set_transfer, tuple_injection
+    from theorems.omega import func_unique_thm
+    from vocab.functions import Function as FuncDef
+    from core.proof import Proof, Sequent
+    from core.derived import Exists
+
+    delta = Var(postfix='td')
+    q, sym = Var(postfix='tq'), Var(postfix='ts')
+    w, d, qn = Var(postfix='tw'), Var(postfix='tdd'), Var(postfix='tqn')
+    w2, d2, qn2 = Var(postfix='tw2'), Var(postfix='td2'), Var(postfix='tqn2')
+
+    func_d = FuncDef(delta)
+    trans1 = TMTransition(delta, q, sym, w, d, qn)
+    trans2 = TMTransition(delta, q, sym, w2, d2, qn2)
+
+    oe = ordpair_exists()
+    ti = tuple_injection()
+    fu = func_unique_thm()
+    es = eq_symmetric()
+    ost = ordpair_set_transfer()
+
+    # Create pair witnesses
+    inp = Var(postfix='tinp')
+    dp1, dp2 = Var(postfix='tdp1'), Var(postfix='tdp2')
+    out1, out2 = Var(postfix='to1'), Var(postfix='to2')
+
+    op_inp = OrdPair(inp, q, sym)
+    op_dp1 = OrdPair(dp1, d, qn)
+    op_dp2 = OrdPair(dp2, d2, qn2)
+    op_out1 = OrdPair(out1, w, dp1)
+    op_out2 = OrdPair(out2, w2, dp2)
+
+    got_ex_inp = apply_thm(oe, [q, sym], concl=Exists(inp, op_inp))
+    got_ex_dp1 = apply_thm(oe, [d, qn], concl=Exists(dp1, op_dp1))
+    got_ex_dp2 = apply_thm(oe, [d2, qn2], concl=Exists(dp2, op_dp2))
+    got_ex_out1 = apply_thm(oe, [w, dp1], concl=Exists(out1, op_out1))
+    got_ex_out2 = apply_thm(oe, [w2, dp2], concl=Exists(out2, op_out2))
+
+    # Instantiate trans1 with inp, dp1, out1 → Apply(delta, inp, out1)
+    app_d1 = Apply(delta, inp, out1)
+    got_t1 = apply_thm(ax(trans1), [inp], op_inp,
+        Forall(dp1, Implies(op_dp1, Forall(out1, Implies(op_out1, app_d1)))), ax(op_inp))
+    got_t1 = apply_thm(got_t1, [dp1], op_dp1,
+        Forall(out1, Implies(op_out1, app_d1)), ax(op_dp1))
+    got_t1 = apply_thm(got_t1, [out1], op_out1, app_d1, ax(op_out1))
+
+    # Instantiate trans2 with inp, dp2, out2 → Apply(delta, inp, out2)
+    app_d2 = Apply(delta, inp, out2)
+    got_t2 = apply_thm(ax(trans2), [inp], op_inp,
+        Forall(dp2, Implies(op_dp2, Forall(out2, Implies(op_out2, app_d2)))), ax(op_inp))
+    got_t2 = apply_thm(got_t2, [dp2], op_dp2,
+        Forall(out2, Implies(op_out2, app_d2)), ax(op_dp2))
+    got_t2 = apply_thm(got_t2, [out2], op_out2, app_d2, ax(op_out2))
+
+    # func_unique: Function(delta) → Apply(delta,inp,out1) → Apply(delta,inp,out2) → Eq(out1,out2)
+    eq_out = Eq(out1, out2)
+    got_eq_out = apply_thm(fu, [delta, inp, out1, out2])
+    got_eq_out = mp(got_eq_out, ax(func_d), func_d, got_eq_out.sequent.right[0].right)
+    got_eq_out = mp(got_eq_out, got_t1, app_d1, got_eq_out.sequent.right[0].right)
+    got_eq_out = mp(got_eq_out, got_t2, app_d2, eq_out)
+
+    # tuple_injection on out1 vs out2: OrdPair(out1,w,dp1) and OrdPair(out2,w2,dp2)
+    # Transfer out2→out1 via ordpair_set_transfer: Eq(s1,s2) → OrdPair(s2,..) → OrdPair(s1,..)
+    # With s1=out1, s2=out2: Eq(out1,out2) → OrdPair(out2,w2,dp2) → OrdPair(out1,w2,dp2)
+    op_out1_w2 = OrdPair(out1, w2, dp2)
+    got_out1_w2 = mp(apply_thm(ost, [out1, out2, w2, dp2], eq_out,
+        Implies(op_out2, op_out1_w2), got_eq_out),
+        ax(op_out2), op_out2, op_out1_w2)
+
+    eq_w = Eq(w, w2)
+    eq_dp = Eq(dp1, dp2)
+    got_ti1 = apply_thm(ti, [w, dp1, w2, dp2, out1])
+    got_ti1 = mp(got_ti1, ax(op_out1), op_out1, Implies(op_out1_w2, And(eq_w, eq_dp)))
+    got_ti1 = mp(got_ti1, got_out1_w2, op_out1_w2, And(eq_w, eq_dp))
+    got_eq_w = apply_thm(and_elim_left(eq_w, eq_dp, []), [], And(eq_w, eq_dp), eq_w, got_ti1)
+    got_eq_dp = apply_thm(and_elim_right(eq_w, eq_dp, []), [], And(eq_w, eq_dp), eq_dp, got_ti1)
+
+    # tuple_injection on dp1 vs dp2: OrdPair(dp1,d,qn) and OrdPair(dp2,d2,qn2)
+    # ordpair_set_transfer: Eq(dp1,dp2) → OrdPair(dp2,d2,qn2) → OrdPair(dp1,d2,qn2)
+    op_dp1_d2 = OrdPair(dp1, d2, qn2)
+    got_dp1_d2 = mp(apply_thm(ost, [dp1, dp2, d2, qn2], eq_dp,
+        Implies(op_dp2, op_dp1_d2), got_eq_dp),
+        ax(op_dp2), op_dp2, op_dp1_d2)
+
+    eq_d = Eq(d, d2)
+    eq_qn = Eq(qn, qn2)
+    got_ti2 = apply_thm(ti, [d, qn, d2, qn2, dp1])
+    got_ti2 = mp(got_ti2, ax(op_dp1), op_dp1, Implies(op_dp1_d2, And(eq_d, eq_qn)))
+    got_ti2 = mp(got_ti2, got_dp1_d2, op_dp1_d2, And(eq_d, eq_qn))
+    got_eq_d = apply_thm(and_elim_left(eq_d, eq_qn, []), [], And(eq_d, eq_qn), eq_d, got_ti2)
+    got_eq_qn = apply_thm(and_elim_right(eq_d, eq_qn, []), [], And(eq_d, eq_qn), eq_qn, got_ti2)
+
+    # Eliminate existential witnesses: out2, dp2, out1, dp1, inp
+    def elim_var(proof, formula, var, ex_proof):
+        if any(same(formula, ff) for ff in proof.sequent.left):
+            p = eel(proof, formula, var)
+            return cut(p, Exists(var, formula), ex_proof)
+        return proof
+
+    elim_list = [
+        (out2, op_out2, got_ex_out2), (dp2, op_dp2, got_ex_dp2),
+        (out1, op_out1, got_ex_out1), (dp1, op_dp1, got_ex_dp1),
+        (inp, op_inp, got_ex_inp)]
+    for var, formula, ex_p in elim_list:
+        got_eq_w = elim_var(got_eq_w, formula, var, ex_p)
+        got_eq_d = elim_var(got_eq_d, formula, var, ex_p)
+        got_eq_qn = elim_var(got_eq_qn, formula, var, ex_p)
+
+    # Build And(Eq(d,d2), Eq(qn,qn2))
+    ai1 = and_intro(eq_d, eq_qn, [])
+    got_dqn = mp(apply_thm(ai1, [], eq_d, Implies(eq_qn, And(eq_d, eq_qn)), got_eq_d),
+        got_eq_qn, eq_qn, And(eq_d, eq_qn))
+    # Build And(Eq(w,w2), And(Eq(d,d2), Eq(qn,qn2)))
+    result = And(eq_w, And(eq_d, eq_qn))
+    ai2 = and_intro(eq_w, And(eq_d, eq_qn), [])
+    got_result = mp(apply_thm(ai2, [], eq_w, Implies(And(eq_d, eq_qn), result), got_eq_w),
+        got_dqn, And(eq_d, eq_qn), result)
+
+    # Close
+    for premise in [trans2, trans1, func_d]:
+        imp = Implies(premise, got_result.sequent.right[0])
+        left = [ff for ff in got_result.sequent.left if not same(ff, premise)]
+        got_result = Proof(Sequent(left, [imp]), 'implies_right', [got_result], principal=imp)
+
+    proof = got_result
+    for v in [qn2, d2, w2, qn, d, w, sym, q, delta]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'transition_unique'
+    return proof
+
+
+
+
+def config_decompose():
+    """From two TMConfigs on the same set, derive Eq's on components.
+    Pairing |- ∀c,q,h,tape,q2,h2,tape2.
+        TMConfig(c,q,h,tape) → TMConfig(c,q2,h2,tape2) →
+        And(Eq(q,q2), And(Eq(h,h2), Eq(tape,tape2)))
+
+    Uses ordpair_exists to construct inner pair, tuple_injection on both configs."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, wl, wr, eir, eel, cut
+    from theorems.logic import and_intro, and_elim_left, and_elim_right, eq_symmetric
+    from theorems.sets import ordpair_exists, ordpair_set_transfer, tuple_injection
+    from core.proof import Proof, Sequent
+    from core.derived import Exists
+
+    c = Var(postfix='cc')
+    q, h, tape = Var(postfix='cq'), Var(postfix='ch'), Var(postfix='ct')
+    q2, h2, tape2 = Var(postfix='cq2'), Var(postfix='ch2'), Var(postfix='ct2')
+
+    cfg1 = TMConfig(c, q, h, tape)
+    cfg2 = TMConfig(c, q2, h2, tape2)
+
+    # ordpair_exists for both inner pairs
+    oe = ordpair_exists()
+    v1 = Var(postfix='cv1')
+    v2 = Var(postfix='cv2')
+    op_v1 = OrdPair(v1, h, tape)
+    op_v2 = OrdPair(v2, h2, tape2)
+    got_ex_v1 = apply_thm(oe, [h, tape], concl=Exists(v1, op_v1))
+    got_ex_v2 = apply_thm(oe, [h2, tape2], concl=Exists(v2, op_v2))
+
+    # Instantiate configs: cfg1 with v1, cfg2 with v2
+    op_c_q_v1 = OrdPair(c, q, v1)
+    op_c_q2_v2 = OrdPair(c, q2, v2)
+    got_inst1 = apply_thm(ax(cfg1), [v1], op_v1, op_c_q_v1, ax(op_v1))
+    got_inst2 = apply_thm(ax(cfg2), [v2], op_v2, op_c_q2_v2, ax(op_v2))
+    # [cfg1, op_v1] |- OrdPair(c,q,v1)
+    # [cfg2, op_v2] |- OrdPair(c,q2,v2)
+
+    # tuple_injection on OrdPair(c,q,v1) and OrdPair(c,q2,v2)
+    ti = tuple_injection()
+    eq_q = Eq(q, q2)
+    eq_v = Eq(v1, v2)
+    got_ti1 = apply_thm(ti, [q, v1, q2, v2, c])
+    got_ti1 = mp(got_ti1, got_inst1, op_c_q_v1, Implies(op_c_q2_v2, And(eq_q, eq_v)))
+    got_ti1 = mp(got_ti1, got_inst2, op_c_q2_v2, And(eq_q, eq_v))
+
+    got_eq_q = apply_thm(and_elim_left(eq_q, eq_v, []), [], And(eq_q, eq_v), eq_q, got_ti1)
+    got_eq_v = apply_thm(and_elim_right(eq_q, eq_v, []), [], And(eq_q, eq_v), eq_v, got_ti1)
+
+    # Transfer OrdPair(v1,h,tape) → OrdPair(v2,h,tape) via Eq(v1,v2)
+    # ordpair_set_transfer: Eq(s1,s2) → OrdPair(s2,a,b) → OrdPair(s1,a,b)
+    # Need Eq(v2,v1) for ordpair_set_transfer(v2, v1, h, tape)
+    es = eq_symmetric()
+    eq_v_sym = Eq(v2, v1)
+    got_eq_v_sym = apply_thm(es, [v1, v2], eq_v, eq_v_sym, got_eq_v)
+    ost = ordpair_set_transfer()
+    op_v2_ht = OrdPair(v2, h, tape)
+    got_op_v2_ht = mp(apply_thm(ost, [v2, v1, h, tape], eq_v_sym,
+        Implies(op_v1, op_v2_ht), got_eq_v_sym),
+        ax(op_v1), op_v1, op_v2_ht)
+
+    # tuple_injection on OrdPair(v2,h,tape) and OrdPair(v2,h2,tape2)
+    eq_h = Eq(h, h2)
+    eq_t = Eq(tape, tape2)
+    got_ti2 = apply_thm(ti, [h, tape, h2, tape2, v2])
+    got_ti2 = mp(got_ti2, got_op_v2_ht, op_v2_ht, Implies(op_v2, And(eq_h, eq_t)))
+    got_ti2 = mp(got_ti2, ax(op_v2), op_v2, And(eq_h, eq_t))
+
+    got_eq_h = apply_thm(and_elim_left(eq_h, eq_t, []), [], And(eq_h, eq_t), eq_h, got_ti2)
+    got_eq_t = apply_thm(and_elim_right(eq_h, eq_t, []), [], And(eq_h, eq_t), eq_t, got_ti2)
+
+    # Eliminate v1 and v2 existentials from all three Eq proofs
+    def elim_var(proof, formula, var, ex_proof):
+        p = eel(proof, formula, var)
+        return cut(p, Exists(var, formula), ex_proof)
+
+    for ref in [got_eq_q, got_eq_h, got_eq_t]:
+        pass  # need to process each
+
+    # Process got_eq_q: has op_v1, op_v2 on left
+    got_eq_q = elim_var(got_eq_q, op_v1, v1, got_ex_v1)
+    got_eq_q = elim_var(got_eq_q, op_v2, v2, got_ex_v2)
+    got_eq_h = elim_var(got_eq_h, op_v1, v1, got_ex_v1)
+    got_eq_h = elim_var(got_eq_h, op_v2, v2, got_ex_v2)
+    got_eq_t = elim_var(got_eq_t, op_v1, v1, got_ex_v1)
+    got_eq_t = elim_var(got_eq_t, op_v2, v2, got_ex_v2)
+
+    # Build And(Eq(h,h2), Eq(tape,tape2))
+    ai1 = and_intro(eq_h, eq_t, [])
+    got_ht = mp(apply_thm(ai1, [], eq_h, Implies(eq_t, And(eq_h, eq_t)), got_eq_h),
+        got_eq_t, eq_t, And(eq_h, eq_t))
+    # Build And(Eq(q,q2), And(Eq(h,h2), Eq(tape,tape2)))
+    result_and = And(eq_q, And(eq_h, eq_t))
+    ai2 = and_intro(eq_q, And(eq_h, eq_t), [])
+    got_result = mp(apply_thm(ai2, [], eq_q, Implies(And(eq_h, eq_t), result_and), got_eq_q),
+        got_ht, And(eq_h, eq_t), result_and)
+
+    # Close: implies_right + forall_right
+    for premise in [cfg2, cfg1]:
+        imp = Implies(premise, got_result.sequent.right[0])
+        left = [f for f in got_result.sequent.left if not same(f, premise)]
+        got_result = Proof(Sequent(left, [imp]), 'implies_right', [got_result], principal=imp)
+
+    proof = got_result
+    for v in [tape2, h2, q2, tape, h, q, c]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'config_decompose'
+    return proof
+
+
+
+
+def apply_func_transfer():
+    """Transfer Apply across function-position Eq.
+    Extensionality |- ∀f,g,x,y. Eq(f,g) → Apply(f,x,y) → Apply(g,x,y)
+
+    Apply(f,x,y) = ∃p. OrdPair(p,x,y) ∧ In(p,f). Eq(f,g) via eq_substitution
+    gives In(p,f) ↔ In(p,g). Transfer and rebuild."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, wl, eir, eel, cut
+    from theorems.logic import and_intro, and_elim_left, and_elim_right
+    from theorems.logic import eq_substitution, iff_mp
+    from core.proof import Proof, Sequent
+    from core.derived import Exists
+
+    f, g, x, y = Var(postfix='af'), Var(postfix='ag'), Var(postfix='ax'), Var(postfix='ay')
+    p = Var(postfix='ap')
+    eq_fg = Eq(f, g)
+    app_f = Apply(f, x, y)
+    app_g = Apply(g, x, y)
+    op_p = OrdPair(p, x, y)
+    in_p_f = In(p, f)
+    in_p_g = In(p, g)
+
+    # eq_substitution: Extensionality |- Eq(a,b) → Iff(In(a,z), In(b,z))
+    # But we need In(p,f) → In(p,g), which is Iff(In(f,p), In(g,p))... no.
+    # eq_substitution gives Leibniz: In(f,z) ↔ In(g,z). We need In(p,f) ↔ In(p,g).
+    # Eq(f,g) = ∀z. In(z,f) ↔ In(z,g) by definition. Instantiate z=p directly.
+    iff_in = Iff(in_p_f, in_p_g)
+    got_iff = apply_thm(ax(eq_fg), [p], concl=iff_in)
+    # [Eq(f,g)] |- Iff(In(p,f), In(p,g))
+
+    got_fwd = apply_thm(iff_mp(in_p_f, in_p_g, []), [],
+        iff_in, Implies(in_p_f, in_p_g), got_iff)
+    got_in_g = mp(got_fwd, ax(in_p_f), in_p_f, in_p_g)
+    # [Eq(f,g), In(p,f)] |- In(p,g)
+
+    # Build And(OrdPair(p,x,y), In(p,g)) → eir → Apply(g,x,y)
+    ai = and_intro(op_p, in_p_g, [])
+    got_and = mp(apply_thm(ai, [], op_p, Implies(in_p_g, And(op_p, in_p_g)), ax(op_p)),
+        got_in_g, in_p_g, And(op_p, in_p_g))
+    got_app_g = eir(got_and, And(op_p, in_p_g), p, p)
+    # [Eq(f,g), In(p,f), OrdPair(p,x,y)] |- Apply(g,x,y)
+
+    # Merge OrdPair(p,x,y) + In(p,f) into And, eel p
+    and_pf = And(op_p, in_p_f)
+    got_op = apply_thm(and_elim_left(op_p, in_p_f, []), [], and_pf, op_p, ax(and_pf))
+    got_in = apply_thm(and_elim_right(op_p, in_p_f, []), [], and_pf, in_p_f, ax(and_pf))
+    got_app_g = cut(got_app_g, op_p, got_op)
+    got_app_g = cut(got_app_g, in_p_f, got_in)
+    got_app_g = eel(got_app_g, and_pf, p)
+    # [Eq(f,g), Apply(f,x,y)] |- Apply(g,x,y)
+
+    # Close
+    for premise in [app_f, eq_fg]:
+        imp = Implies(premise, got_app_g.sequent.right[0])
+        left = [ff for ff in got_app_g.sequent.left if not same(ff, premise)]
+        got_app_g = Proof(Sequent(left, [imp]), 'implies_right', [got_app_g], principal=imp)
+
+    proof = got_app_g
+    for v in [y, x, g, f]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'apply_func_transfer'
+    return proof
+
+
+
+
+def tape_update_unique():
+    """Two TapeUpdates with same args give equal tapes.
+    |- forall t1, t2, tape, h, w.
+        TapeUpdate(t1, tape, h, w) -> TapeUpdate(t2, tape, h, w) -> Eq(t1, t2)
+
+    Both TapeUpdates give same Iff characterization. Chain Iffs to get
+    In(p,t1) ↔ In(p,t2), which IS Eq(t1,t2)."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax
+    from theorems.logic import iff_mp, iff_mp_rev, iff_intro
+    from core.proof import Proof, Sequent
+
+    t1, t2, tape, h, w = Var(postfix='tu1'), Var(postfix='tu2'), Var(postfix='tp'), Var(postfix='hd'), Var(postfix='wr')
+    p = Var(postfix='ep')
+    yv = Var(postfix='ey')
+    tu1 = TapeUpdate(t1, tape, h, w)
+    tu2 = TapeUpdate(t2, tape, h, w)
+
+    in_p_t1 = In(p, t1)
+    in_p_t2 = In(p, t2)
+    op_phw = OrdPair(p, h, w)
+    op_phy = OrdPair(p, h, yv)
+    not_ex_y = Not(Exists(yv, op_phy))
+    right_and = And(In(p, tape), not_ex_y)
+    or_form = Or(op_phw, right_and)
+    iff1 = Iff(in_p_t1, or_form)
+    iff2 = Iff(in_p_t2, or_form)
+
+    # From tu1: In(p,t1) ↔ Or(...)
+    got_iff1 = apply_thm(ax(tu1), [p], concl=iff1)
+    # From tu2: In(p,t2) ↔ Or(...)
+    got_iff2 = apply_thm(ax(tu2), [p], concl=iff2)
+
+    # Forward: In(p,t1) → Or → In(p,t2)
+    got_fwd1 = apply_thm(iff_mp(in_p_t1, or_form, []), [],
+        iff1, Implies(in_p_t1, or_form), got_iff1)
+    got_or = mp(got_fwd1, ax(in_p_t1), in_p_t1, or_form)
+    got_rev2 = apply_thm(iff_mp_rev(in_p_t2, or_form, []), [],
+        iff2, Implies(or_form, in_p_t2), got_iff2)
+    got_fwd = mp(got_rev2, got_or, or_form, in_p_t2)
+    # [tu1, tu2, In(p,t1)] |- In(p,t2)
+
+    # Backward: In(p,t2) → Or → In(p,t1)
+    got_fwd2 = apply_thm(iff_mp(in_p_t2, or_form, []), [],
+        iff2, Implies(in_p_t2, or_form), got_iff2)
+    got_or2 = mp(got_fwd2, ax(in_p_t2), in_p_t2, or_form)
+    got_rev1 = apply_thm(iff_mp_rev(in_p_t1, or_form, []), [],
+        iff1, Implies(or_form, in_p_t1), got_iff1)
+    got_back = mp(got_rev1, got_or2, or_form, in_p_t1)
+    # [tu1, tu2, In(p,t2)] |- In(p,t1)
+
+    # Iff(In(p,t1), In(p,t2))
+    ii = iff_intro(in_p_t1, in_p_t2, [])
+    imp_fwd = Implies(in_p_t1, in_p_t2)
+    fwd_left = [f for f in got_fwd.sequent.left if not same(f, in_p_t1)]
+    got_imp_fwd = Proof(Sequent(fwd_left, [imp_fwd]),
+        'implies_right', [got_fwd], principal=imp_fwd)
+    imp_back = Implies(in_p_t2, in_p_t1)
+    back_left = [f for f in got_back.sequent.left if not same(f, in_p_t2)]
+    got_imp_back = Proof(Sequent(back_left, [imp_back]),
+        'implies_right', [got_back], principal=imp_back)
+
+    iff_t1t2 = Iff(in_p_t1, in_p_t2)
+    got_iff_final = mp(apply_thm(ii, [], imp_fwd,
+        Implies(imp_back, iff_t1t2), got_imp_fwd),
+        got_imp_back, imp_back, iff_t1t2)
+
+    # forall_right p → Eq(t1, t2)
+    fa_iff = Forall(p, iff_t1t2)
+    got_eq = Proof(Sequent(got_iff_final.sequent.left, [fa_iff]),
+        'forall_right', [got_iff_final], principal=fa_iff, term=p)
+    # [tu1, tu2] |- Eq(t1, t2)
+
+    # Close
+    for premise in [tu2, tu1]:
+        imp = Implies(premise, got_eq.sequent.right[0])
+        left = [f for f in got_eq.sequent.left if not same(f, premise)]
+        got_eq = Proof(Sequent(left, [imp]), 'implies_right', [got_eq], principal=imp)
+
+    proof = got_eq
+    for v in [w, h, tape, t2, t1]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_update_unique'
+    return proof
+
+
+
+
+def tape_update_eq_args():
+    """TapeUpdate transfers across Eq on args.
+    |- forall t1, t2, tape1, h1, w1, tape2, h2, w2.
+        TapeUpdate(t1, tape1, h1, w1) -> TapeUpdate(t2, tape2, h2, w2) ->
+        Eq(tape1, tape2) -> Eq(h1, h2) -> Eq(w1, w2) ->
+        Eq(t1, t2)
+
+    Both TapeUpdates give Iff characterizations. With Eq on args,
+    the RHS's are equivalent. Chain to get In(p,t1) ↔ In(p,t2)."""
+    from core.proof import Proof, Sequent, same
+    from tactics import apply_thm, mp, ax, wl, wr, fl, eir, eel, cut
+    from theorems.logic import (and_intro, and_elim_left, and_elim_right,
+        iff_intro, iff_mp, iff_mp_rev, eq_substitution)
+    from theorems.sets import ordpair_eq_transfer
+    from core.proof import Proof, Sequent
+
+    t1, t2 = Var(postfix='tu1'), Var(postfix='tu2')
+    tape1, h1, w1 = Var(postfix='tp1'), Var(postfix='hd1'), Var(postfix='wr1')
+    tape2, h2, w2 = Var(postfix='tp2'), Var(postfix='hd2'), Var(postfix='wr2')
+    pv = Var(postfix='ep')
+    yv = Var(postfix='ey')
+
+    tu1 = TapeUpdate(t1, tape1, h1, w1)
+    tu2 = TapeUpdate(t2, tape2, h2, w2)
+    eq_tp = Eq(tape1, tape2)
+    eq_hd = Eq(h1, h2)
+    eq_wr = Eq(w1, w2)
+
+    in_pv_t1 = In(pv, t1)
+    in_pv_t2 = In(pv, t2)
+
+    # tu1 Iff components
+    op1 = OrdPair(pv, h1, w1)
+    op1y = OrdPair(pv, h1, yv)
+    not_ex1 = Not(Exists(yv, op1y))
+    right1 = And(In(pv, tape1), not_ex1)
+    or1 = Or(op1, right1)
+    iff1 = Iff(in_pv_t1, or1)
+    got_iff1 = apply_thm(ax(tu1), [pv], concl=iff1)
+
+    # tu2 Iff components
+    op2 = OrdPair(pv, h2, w2)
+    yv2 = Var(postfix='ey2')
+    op2y = OrdPair(pv, h2, yv2)
+    not_ex2 = Not(Exists(yv2, op2y))
+    right2 = And(In(pv, tape2), not_ex2)
+    or2 = Or(op2, right2)
+    iff2 = Iff(in_pv_t2, or2)
+    got_iff2 = apply_thm(ax(tu2), [pv], concl=iff2)
+
+    # === Forward: In(pv,t1) → In(pv,t2) ===
+    # In(pv,t1) → or1 → or2 → In(pv,t2)
+    # or1 → or2: transfer OrdPair(pv,h1,w1) to OrdPair(pv,h2,w2) via Eq(h1,h2), Eq(w1,w2)
+    #            transfer In(pv,tape1) to In(pv,tape2) via Eq(tape1,tape2)
+    #            transfer OrdPair(pv,h1,yv) to OrdPair(pv,h2,yv) via Eq(h1,h2)
+
+    # or1 = Implies(Not(op1), right1). Assume Not(op1) and right1.
+    # Need or2 = Implies(Not(op2), right2). Need to show right2 under assumption Not(op2).
+
+    # Direction: or1 → or2 is hard to do directly via Or = Implies(Not,.).
+    # Easier: use the Iff characterizations.
+    # In(pv,t1) → or1 (via iff1 fwd). From or1, derive or2 (via Eq transfers). or2 → In(pv,t2) (via iff2 rev).
+    # or1 → or2: Or(A1,B1) → Or(A2,B2) where A1↔A2 and B1↔B2.
+    # Or(A,B) = Implies(Not(A),B). Assume Not(A2). Need B2.
+    # From Not(A2): Not(OrdPair(pv,h2,w2)).
+    # Transfer to Not(OrdPair(pv,h1,w1))? No — we need the REVERSE: Not(A2) + A1↔A2 → Not(A1).
+    # From Eq(h1,h2)+Eq(w1,w2): OrdPair(pv,h1,w1) ↔ OrdPair(pv,h2,w2).
+    # ordpair_eq_transfer: Eq(a,c)+Eq(b,d) → OrdPair(t,a,b) → OrdPair(t,c,d)
+    # So OrdPair(pv,h1,w1) → OrdPair(pv,h2,w2). Contrapositive: Not(OrdPair(pv,h2,w2)) → Not(OrdPair(pv,h1,w1)).
+
+    # Forward: Not(OrdPair(pv,h2,w2)) → Not(OrdPair(pv,h1,w1))
+    # Proof: assume OrdPair(pv,h1,w1). Transfer → OrdPair(pv,h2,w2). Contradiction.
+    oet = ordpair_eq_transfer()
+    got_op_transfer = apply_thm(oet, [h1, w1, h2, w2, pv])
+    got_op_transfer = mp(got_op_transfer, ax(eq_hd), eq_hd, got_op_transfer.sequent.right[0].right)
+    got_op_transfer = mp(got_op_transfer, ax(eq_wr), eq_wr, Implies(op1, op2))
+    # [Eq(h1,h2), Eq(w1,w2)] |- OrdPair(pv,h1,w1) → OrdPair(pv,h2,w2)
+
+    got_op12 = mp(got_op_transfer, ax(op1), op1, op2)
+    # Contrapositive: Not(op2) + op1 → ⊥
+    not_op2 = Not(op2)
+    got_bot = Proof(Sequent(list(got_op12.sequent.left) + [not_op2], []),
+        'not_left', [got_op12], principal=not_op2)
+    not_op1 = Not(op1)
+    got_not_op1 = Proof(Sequent([f for f in got_bot.sequent.left if not same(f, op1)],
+        [not_op1]), 'not_right', [got_bot], principal=not_op1)
+    # [Eq(h1,h2), Eq(w1,w2), Not(op2)] |- Not(op1)
+
+    # or1 = Implies(Not(op1), right1). With Not(op1), get right1.
+    # But or1 comes from In(pv,t1). Let me chain properly:
+    # In(pv,t1) → iff1 fwd → or1. Or1 = Implies(Not(op1), right1).
+    # With Not(op1): mp(or1, Not(op1)) → right1.
+    got_fwd1 = apply_thm(iff_mp(in_pv_t1, or1, []), [],
+        iff1, Implies(in_pv_t1, or1), got_iff1)
+    got_or1 = mp(got_fwd1, ax(in_pv_t1), in_pv_t1, or1)
+    # [tu1, In(pv,t1)] |- or1
+
+    # or1 + Not(op1) → right1 = And(In(pv,tape1), not_ex1)
+    got_right1 = mp(got_or1, got_not_op1, not_op1, right1)
+    # [tu1, In(pv,t1), Eq(h1,h2), Eq(w1,w2), Not(op2)] |- right1
+
+    # From right1, build right2:
+    # right1 = And(In(pv,tape1), Not(Exists(yv, OrdPair(pv,h1,yv))))
+    # right2 = And(In(pv,tape2), Not(Exists(yv2, OrdPair(pv,h2,yv2))))
+    got_in_tape1 = apply_thm(and_elim_left(In(pv, tape1), not_ex1, []), [],
+        right1, In(pv, tape1), got_right1)
+    got_not_ex1 = apply_thm(and_elim_right(In(pv, tape1), not_ex1, []), [],
+        right1, not_ex1, got_right1)
+
+    # In(pv,tape1) → In(pv,tape2) via eq_substitution
+    es = eq_substitution()
+    iff_in_tp = Iff(In(pv, tape1), In(pv, tape2))
+    got_iff_tp = apply_thm(es, [tape1, tape2, pv])  # Eq(tape1,tape2) → Iff
+    # Wait, eq_substitution is Eq(a,b) → Iff(In(a,c), In(b,c)).
+    # That's membership IN a set. I need In(pv, tape1) → In(pv, tape2).
+    # That's Eq(tape1,tape2) → Iff(In(pv,tape1), In(pv,tape2)).
+    # eq_substitution: ∀a,b,c. Eq(a,b) → Iff(In(a,c), In(b,c)).
+    # This gives In(tape1,c) ↔ In(tape2,c). Not what I need.
+    # I need In(pv,tape1) ↔ In(pv,tape2). That's just Eq(tape1,tape2) expanded!
+    # Eq(tape1,tape2) = ∀x. In(x,tape1) ↔ In(x,tape2). Instantiate with pv.
+
+    got_iff_tp = fl(eq_tp, Iff(In(pv, tape1), In(pv, tape2)), pv)
+    # [Eq(tape1,tape2)] |- Iff(In(pv,tape1), In(pv,tape2))
+    got_in_tape2 = mp(apply_thm(iff_mp(In(pv, tape1), In(pv, tape2), []), [],
+        Iff(In(pv, tape1), In(pv, tape2)),
+        Implies(In(pv, tape1), In(pv, tape2)), got_iff_tp),
+        got_in_tape1, In(pv, tape1), In(pv, tape2))
+
+    # Not(Exists(yv,OrdPair(pv,h1,yv))) → Not(Exists(yv2,OrdPair(pv,h2,yv2)))
+    # Contrapositive: Exists(yv2,OrdPair(pv,h2,yv2)) → Exists(yv,OrdPair(pv,h1,yv))
+    # From OrdPair(pv,h2,yv2) + Eq(h2,h1) = reverse(Eq(h1,h2)):
+    from theorems.logic import eq_symmetric as eq_sym_thm
+    esym = eq_sym_thm()
+    eq_hd_rev = Eq(h2, h1)
+    got_eq_hd_rev = apply_thm(esym, [h1, h2], eq_hd, eq_hd_rev, ax(eq_hd))
+
+    # ordpair_eq_transfer: Eq(h2,h1) + Eq(yv2,yv2) → OrdPair(pv,h2,yv2) → OrdPair(pv,h1,yv2)
+    # Wait, I need OrdPair with h1 not h2. And yv2 stays.
+    # ordpair_eq_transfer transfers first+second components: Eq(a,c)+Eq(b,d) → OrdPair(t,a,b) → OrdPair(t,c,d)
+    # Here: Eq(h2,h1) + Eq(yv2,yv2) → OrdPair(pv,h2,yv2) → OrdPair(pv,h1,yv2)
+    from theorems.logic import eq_reflexive
+    er = eq_reflexive()
+    eq_yy = Eq(yv2, yv2)
+    got_eq_yy = apply_thm(er, [yv2], concl=eq_yy)
+    op_pv_h1_yv2 = OrdPair(pv, h1, yv2)
+    got_op_rev = apply_thm(oet, [h2, yv2, h1, yv2, pv])
+    got_op_rev = mp(got_op_rev, got_eq_hd_rev, eq_hd_rev, got_op_rev.sequent.right[0].right)
+    r = got_op_rev.sequent.right[0]
+    got_op_rev = mp(got_op_rev, got_eq_yy, r.left, r.right)
+    r = got_op_rev.sequent.right[0]
+    got_op_h1 = mp(got_op_rev, ax(r.left), r.left, r.right)
+    # [Eq(h1,h2), OrdPair(pv,h2,yv2)] |- OrdPair(pv,h1,yv2)
+
+    # eir(proof, body, var, witness): body has var, proof proves body[var:=witness], result is ∃var.body
+    got_ex_h1 = eir(got_op_h1, op1y, yv, yv2)
+    # But we need ex_h1 = Exists(yv, OrdPair(pv,h1,yv)). eir gives Exists(yv, op1y) ✓.
+
+    # eel yv2 from OrdPair(pv,h2,yv2) on left
+    got_ex_h1 = eel(got_ex_h1, op2y, yv2)
+    # [..., Exists(yv2, OrdPair(pv,h2,yv2))] |- Exists(yv, OrdPair(pv,h1,yv))
+
+    # Contrapositive: Not(Exists(yv,...)) → Not(Exists(yv2,...))
+    ex_h2 = Exists(yv2, op2y)
+    # got_ex_h1: [Eq(h1,h2), Exists(yv2,...)] |- Exists(yv,...)
+    # Want: Not(Exists(yv,...)) + Exists(yv2,...) → ⊥
+    got_bot2 = Proof(Sequent(list(got_ex_h1.sequent.left) + [not_ex1], []),
+        'not_left', [got_ex_h1], principal=not_ex1)
+    got_not_ex2 = Proof(Sequent([f for f in got_bot2.sequent.left if not same(f, ex_h2)],
+        [not_ex2]), 'not_right', [got_bot2], principal=not_ex2)
+    # [Eq(h1,h2), Not(Exists(yv,OrdPair(pv,h1,yv)))] |- Not(Exists(yv2,OrdPair(pv,h2,yv2)))
+
+    # Combine: got_not_ex2 uses got_not_ex1 from right1
+    got_not_ex2_from = cut(got_not_ex2, not_ex1, got_not_ex1)
+    # [tu1, In(pv,t1), Eq(h1,h2), Eq(w1,w2), Not(op2)] |- not_ex2
+
+    # Build right2 = And(In(pv,tape2), not_ex2)
+    ai = and_intro(In(pv, tape2), not_ex2, [])
+    got_right2 = mp(apply_thm(ai, [], In(pv, tape2), Implies(not_ex2, right2), got_in_tape2),
+        got_not_ex2_from, not_ex2, right2)
+
+    # or2 = Implies(Not(op2), right2). Discharge Not(op2):
+    got_or2 = Proof(Sequent(
+        [f for f in got_right2.sequent.left if not same(f, not_op2)],
+        [or2]), 'implies_right', [got_right2], principal=or2)
+
+    # or2 → In(pv,t2) via iff2 rev
+    got_rev2 = apply_thm(iff_mp_rev(in_pv_t2, or2, []), [],
+        iff2, Implies(or2, in_pv_t2), got_iff2)
+    got_fwd_final = mp(got_rev2, got_or2, or2, in_pv_t2)
+    # [tu1, tu2, In(pv,t1), Eq(h1,h2), Eq(w1,w2), Eq(tape1,tape2)] |- In(pv,t2)
+
+    # === Backward: In(pv,t2) → In(pv,t1) ===
+    # Symmetric: swap 1↔2 roles. Transfer or2 → or1 using reverse Eq's.
+    # For brevity, I'll use the same structure but reversed.
+
+    # Reverse Eq's
+    eq_hd_12 = eq_hd  # Eq(h1,h2) — for the reverse direction, need Eq(h2,h1)
+    # But we already have got_eq_hd_rev = Eq(h2,h1). And eq_wr reverse:
+    eq_wr_rev = Eq(w2, w1)
+    got_eq_wr_rev = apply_thm(esym, [w1, w2], eq_wr, eq_wr_rev, ax(eq_wr))
+    eq_tp_rev = Eq(tape2, tape1)
+    got_eq_tp_rev = apply_thm(esym, [tape1, tape2], eq_tp, eq_tp_rev, ax(eq_tp))
+
+    # Not(op1) from Not(op2) + OrdPair(pv,h2,w2)→OrdPair(pv,h1,w1)
+    got_op_rev2 = apply_thm(oet, [h2, w2, h1, w1, pv])
+    got_op_rev2 = mp(got_op_rev2, got_eq_hd_rev, eq_hd_rev, got_op_rev2.sequent.right[0].right)
+    r = got_op_rev2.sequent.right[0]
+    got_op_rev2 = mp(got_op_rev2, got_eq_wr_rev, r.left, r.right)
+    r = got_op_rev2.sequent.right[0]
+    got_op21 = mp(got_op_rev2, ax(r.left), r.left, r.right)
+    not_op1_f = Not(op1)
+    got_bot3 = Proof(Sequent(list(got_op21.sequent.left) + [not_op1_f], []),
+        'not_left', [got_op21], principal=not_op1_f)
+    not_op2_f = Not(op2)
+    got_not_op2 = Proof(Sequent([f for f in got_bot3.sequent.left if not same(f, op2)],
+        [not_op2_f]), 'not_right', [got_bot3], principal=not_op2_f)
+
+    # In(pv,t2) → or2 → right2 (with Not(op2))
+    got_fwd2 = apply_thm(iff_mp(in_pv_t2, or2, []), [],
+        iff2, Implies(in_pv_t2, or2), got_iff2)
+    got_or2_back = mp(got_fwd2, ax(in_pv_t2), in_pv_t2, or2)
+    got_right2_back = mp(got_or2_back, got_not_op2, not_op2_f, right2)
+
+    got_in_tape2_back = apply_thm(and_elim_left(In(pv, tape2), not_ex2, []), [],
+        right2, In(pv, tape2), got_right2_back)
+    got_not_ex2_back = apply_thm(and_elim_right(In(pv, tape2), not_ex2, []), [],
+        right2, not_ex2, got_right2_back)
+
+    # In(pv,tape2) → In(pv,tape1) via Eq(tape2,tape1)
+    got_iff_tp_rev = fl(eq_tp_rev, Iff(In(pv, tape2), In(pv, tape1)), pv)
+    got_in_tape1_back = mp(apply_thm(iff_mp(In(pv, tape2), In(pv, tape1), []), [],
+        Iff(In(pv, tape2), In(pv, tape1)),
+        Implies(In(pv, tape2), In(pv, tape1)), got_iff_tp_rev),
+        got_in_tape2_back, In(pv, tape2), In(pv, tape1))
+
+    # Not(Exists(yv2,OrdPair(pv,h2,yv2))) → Not(Exists(yv,OrdPair(pv,h1,yv)))
+    eq_hd_fwd = eq_hd  # Eq(h1,h2)
+    eq_yy_back = apply_thm(er, [yv], concl=Eq(yv, yv))
+    op_pv_h2_yv = OrdPair(pv, h2, yv)
+    got_op_h2 = apply_thm(oet, [h1, yv, h2, yv, pv])
+    got_op_h2 = mp(got_op_h2, ax(eq_hd), eq_hd, got_op_h2.sequent.right[0].right)
+    r = got_op_h2.sequent.right[0]
+    got_op_h2 = mp(got_op_h2, eq_yy_back, r.left, r.right)
+    r = got_op_h2.sequent.right[0]
+    got_op_h2_from1 = mp(got_op_h2, ax(r.left), r.left, r.right)
+    # eir yv as yv2
+    got_ex_h2_back = eir(got_op_h2_from1, op2y, yv2, yv)
+    got_ex_h2_back = eel(got_ex_h2_back, op1y, yv)
+    # [Eq(h1,h2), Exists(yv,...)] |- Exists(yv2,...)
+
+    ex_h1_f = Exists(yv, op1y)
+    got_bot4 = Proof(Sequent(list(got_ex_h2_back.sequent.left) + [not_ex2], []),
+        'not_left', [got_ex_h2_back], principal=not_ex2)
+    got_not_ex1_back = Proof(Sequent([f for f in got_bot4.sequent.left if not same(f, ex_h1_f)],
+        [not_ex1]), 'not_right', [got_bot4], principal=not_ex1)
+    got_not_ex1_from = cut(got_not_ex1_back, not_ex2, got_not_ex2_back)
+
+    # Build right1 = And(In(pv,tape1), not_ex1)
+    ai_back = and_intro(In(pv, tape1), not_ex1, [])
+    got_right1_back = mp(apply_thm(ai_back, [], In(pv, tape1), Implies(not_ex1, right1), got_in_tape1_back),
+        got_not_ex1_from, not_ex1, right1)
+
+    # or1 = Implies(Not(op1), right1). Discharge Not(op1):
+    got_or1_back = Proof(Sequent(
+        [f for f in got_right1_back.sequent.left if not same(f, not_op1_f)],
+        [or1]), 'implies_right', [got_right1_back], principal=or1)
+
+    got_rev1 = apply_thm(iff_mp_rev(in_pv_t1, or1, []), [],
+        iff1, Implies(or1, in_pv_t1), got_iff1)
+    got_back_final = mp(got_rev1, got_or1_back, or1, in_pv_t1)
+    # [tu1, tu2, In(pv,t2), Eq(...)] |- In(pv,t1)
+
+    # === Iff(In(pv,t1), In(pv,t2)) ===
+    ii = iff_intro(in_pv_t1, in_pv_t2, [])
+    imp_fwd = Implies(in_pv_t1, in_pv_t2)
+    fwd_left = [f for f in got_fwd_final.sequent.left if not same(f, in_pv_t1)]
+    got_imp_fwd = Proof(Sequent(fwd_left, [imp_fwd]),
+        'implies_right', [got_fwd_final], principal=imp_fwd)
+    imp_back = Implies(in_pv_t2, in_pv_t1)
+    back_left = [f for f in got_back_final.sequent.left if not same(f, in_pv_t2)]
+    got_imp_back = Proof(Sequent(back_left, [imp_back]),
+        'implies_right', [got_back_final], principal=imp_back)
+
+    iff_t1t2 = Iff(in_pv_t1, in_pv_t2)
+    got_iff_final = mp(apply_thm(ii, [], imp_fwd,
+        Implies(imp_back, iff_t1t2), got_imp_fwd),
+        got_imp_back, imp_back, iff_t1t2)
+
+    # forall_right pv → Eq(t1, t2)
+    fa_iff = Forall(pv, iff_t1t2)
+    got_eq = Proof(Sequent(got_iff_final.sequent.left, [fa_iff]),
+        'forall_right', [got_iff_final], principal=fa_iff, term=pv)
+
+    # Cut reverse Eq's with forward Eq proofs
+    if any(same(eq_tp_rev, f) for f in got_eq.sequent.left):
+        got_eq = cut(got_eq, eq_tp_rev, got_eq_tp_rev)
+    if any(same(eq_hd_rev, f) for f in got_eq.sequent.left):
+        got_eq = cut(got_eq, eq_hd_rev, got_eq_hd_rev)
+    if any(same(eq_wr_rev, f) for f in got_eq.sequent.left):
+        got_eq = cut(got_eq, eq_wr_rev, got_eq_wr_rev)
+
+    # Close: implies_right for all premises, forall_right for all vars
+    for premise in [eq_wr, eq_hd, eq_tp, tu2, tu1]:
+        imp = Implies(premise, got_eq.sequent.right[0])
+        left = [f for f in got_eq.sequent.left if not same(f, premise)]
+        got_eq = Proof(Sequent(left, [imp]), 'implies_right', [got_eq], principal=imp)
+
+    proof = got_eq
+    for v in [w2, h2, tape2, w1, h1, tape1, t2, t1]:
+        body = proof.sequent.right[0]
+        fa = Forall(v, body)
+        proof = Proof(Sequent(proof.sequent.left, [fa]), 'forall_right',
+            [proof], principal=fa, term=v)
+
+    proof.name = 'tape_update_eq_args'
+    return proof
+
+
+
