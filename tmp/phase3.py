@@ -391,15 +391,292 @@ def phase3_step_case():
     return got_epos
 
 
+def phase3():
+    """ZFC |- Phase3P(). Omega induction using phase3_base + phase3_step_case."""
+    from core.proof import Proof,Sequent,same,_var_free_in_sequent,_subst
+    from theorems.omega import omega_smallest_inductive,omega_contains_empty,omega_succ_closed
+    from theorems.tm import Phase3P,config_eq
+    from theorems.recursion import eq_apply_val_transfer
+    from theorems.sets import ordpair_exists as _oe_fn,ordpair_unique as _ou_fn
+    from vocab.sets import TransitiveSet
+    import core.zfc as zfc
+
+    def mk_and(gl,gr):
+        L,R=gl.sequent.right[0],gr.sequent.right[0]
+        return mp(apply_thm(and_intro(L,R,[]),[],L,Implies(R,And(L,R)),gl),gr,R,And(L,R))
+
+    d=Var(postfix='d');q1=Var(postfix='q1');sa=Var(postfix='sa')
+    b=Var(postfix='b');pos=Var(postfix='pos');tape2=Var(postfix='t2')
+    c1v=Var(postfix='c1');c2v=Var(postfix='c2');w=Var(postfix='w');one=Var(postfix='one')
+    z=Var(postfix='z');n=Var(postfix='ind_n');sn=Var(postfix='ind_sn')
+    pv=Var(postfix='ind_pv');xv=Var(postfix='ind_xv')
+    trans=TMTransition(d,q1,one,one,one,q1);omega_w=Omega(w)
+    in_b_w=In(b,w);in_sa_w=In(sa,w);func_d=FuncDef(d);func_tape2=FuncDef(tape2)
+    num_one=Num(one,1);num_z=Num(z,0)
+    p_var=Var(postfix='_p');pp_var=Var(postfix='_pp')
+    tape_read=Forall(p_var,Implies(In(p_var,b),Forall(pp_var,Implies(PlusDef(sa,p_var,pp_var),Apply(tape2,pp_var,one)))))
+    plus_sab=PlusDef(sa,b,pos);cfg_c1=TMConfig(c1v,q1,sa,tape2);cfg_c2=TMConfig(c2v,q1,pos,tape2)
+    succ_sn=Successor(sn,n)
+    pind_n=Phase3Ind(n,d,q1,sa,tape2,c1v)
+
+    def Q(nn): return Implies(Or(In(nn,b),Eq(nn,b)),Phase3Ind(nn,d,q1,sa,tape2,c1v))
+
+    # === Separation ===
+    sep=zfc.Separation(Q,[b,d,q1,sa,tape2,c1v])
+    sep_ax=Proof(Sequent([sep],[sep]),'axiom',principal=sep)
+    char_pv=Forall(xv,Iff(In(xv,pv),And(In(xv,w),Q(xv))))
+    got_ex_pv=apply_thm(sep_ax,[c1v,tape2,sa,q1,d,b,w],concl=Exists(pv,char_pv))
+    def char_bwd(term,got_in_w,got_Q):
+        gi=apply_thm(ax(char_pv),[term]);ii=gi.sequent.right[0];af=ii.right
+        gr=apply_thm(iff_mp_rev(ii.left,ii.right,[]),[],ii,Implies(af,ii.left),gi)
+        ai2=and_intro(af.left,af.right,[]);ga=apply_thm(ai2,[],af.left,Implies(af.right,af),got_in_w)
+        gand=mp(ga,got_Q,af.right,af);return mp(gr,gand,af,ii.left)
+    def char_fwd(term):
+        gi=apply_thm(ax(char_pv),[term]);ii=gi.sequent.right[0]
+        gimp=apply_thm(iff_mp(ii.left,ii.right,[]),[],ii,Implies(ii.left,ii.right),gi)
+        return mp(gimp,ax(In(term,pv)),In(term,pv),ii.right)
+    print('phase3: sep done')
+
+    # === BASE ===
+    oce=omega_contains_empty()
+    got_z_w=apply_thm(oce,[w],omega_w,Forall(z,Implies(num_z,In(z,w))),ax(omega_w))
+    got_z_w=apply_thm(got_z_w,[z],num_z,In(z,w),ax(num_z))
+    _pb=phase3_base()
+    got_pb=apply_thm(_pb,[d,q1,sa,tape2,c1v,z,w])
+    got_pb=mp(got_pb,ax(num_z),num_z,got_pb.sequent.right[0].right)
+    got_pb=mp(got_pb,ax(omega_w),omega_w,got_pb.sequent.right[0].right)
+    got_pb=mp(got_pb,ax(in_sa_w),in_sa_w,got_pb.sequent.right[0].right)
+    got_pb=mp(got_pb,ax(cfg_c1),cfg_c1,got_pb.sequent.right[0].right)
+    or_zb=Or(In(z,b),Eq(z,b))
+    got_Qz=wl(got_pb,or_zb);imp_qz=Implies(or_zb,got_Qz.sequent.right[0])
+    lqz=[f for f in got_Qz.sequent.left if not same(f,or_zb)]
+    got_Qz=Proof(Sequent(lqz,[imp_qz]),'implies_right',[got_Qz],principal=imp_qz)
+    got_base_pv=char_bwd(z,got_z_w,got_Qz)
+    # Inductive base
+    zero_v=Var(postfix='ind_zero');ue=unique_empty();es_thm=eq_substitution()
+    got_eq=apply_thm(ue,[zero_v],Empty(zero_v),Forall(z,Implies(num_z,Eq(zero_v,z))),ax(Empty(zero_v)))
+    got_eq=apply_thm(got_eq,[z],num_z,Eq(zero_v,z),ax(num_z))
+    iff_zv=Iff(In(zero_v,pv),In(z,pv))
+    got_iff=apply_thm(es_thm,[zero_v,z,pv],Eq(zero_v,z),iff_zv,got_eq)
+    got_zv_pv=mp(apply_thm(iff_mp_rev(In(zero_v,pv),In(z,pv),[]),[],iff_zv,Implies(In(z,pv),In(zero_v,pv)),got_iff),
+        got_base_pv,In(z,pv),In(zero_v,pv))
+    imp_ez=Implies(Empty(zero_v),In(zero_v,pv))
+    lez=[f for f in got_zv_pv.sequent.left if not same(f,Empty(zero_v))]
+    got_ind_base=Proof(Sequent(lez,[imp_ez]),'implies_right',[got_zv_pv],principal=imp_ez)
+    got_ind_base=Proof(Sequent(got_ind_base.sequent.left,[Forall(zero_v,imp_ez)]),'forall_right',[got_ind_base],principal=Forall(zero_v,imp_ez),term=zero_v)
+    print('phase3: ind_base done')
+
+    # === STEP ===
+    got_an=char_fwd(n)
+    got_in_nw=apply_thm(and_elim_left(In(n,w),Q(n),[]),[],got_an.sequent.right[0],In(n,w),got_an)
+    got_Qn=apply_thm(and_elim_right(In(n,w),Q(n),[]),[],got_an.sequent.right[0],Q(n),got_an)
+    osc=omega_succ_closed()
+    got_snw=apply_thm(osc,[w],omega_w,Forall(n,Implies(In(n,w),Forall(sn,Implies(succ_sn,In(sn,w))))),ax(omega_w))
+    got_snw=apply_thm(got_snw,[n],In(n,w),Forall(sn,Implies(succ_sn,In(sn,w))),got_in_nw)
+    got_snw=apply_thm(got_snw,[sn],succ_sn,In(sn,w),ax(succ_sn))
+    # In(n,b) from Or(In(sn,b),Eq(sn,b)) via TransitiveSet(b)
+    or_snb=Or(In(sn,b),Eq(sn,b))
+    or_nsn=Or(In(n,n),Eq(n,n))
+    iff_nsn=Iff(In(n,sn),or_nsn)
+    got_insn=apply_thm(ax(succ_sn),[n],concl=iff_nsn)
+    got_orn=apply_thm(or_intro_right(In(n,n),Eq(n,n),[]),[],Eq(n,n),or_nsn,apply_thm(eq_reflexive(),[n]))
+    got_insn=mp(apply_thm(iff_mp_rev(In(n,sn),or_nsn,[]),[],iff_nsn,Implies(or_nsn,In(n,sn)),got_insn),got_orn,or_nsn,In(n,sn))
+    _ots=ots_fn();gta=apply_thm(_ots,[w,b]);gta=mp(gta,ax(omega_w),omega_w,gta.sequent.right[0].right)
+    gta=mp(gta,ax(in_b_w),in_b_w,TransitiveSet(b))
+    gc1=apply_thm(gta,[sn]);cur=gc1.sequent.right[0];gc1=mp(gc1,ax(In(sn,b)),cur.left,cur.right)
+    gc1=apply_thm(gc1,[n]);cur=gc1.sequent.right[0];gc1=mp(gc1,got_insn,cur.left,cur.right)
+    _et=eq_transfer();gis=apply_thm(_et,[sn,b,n]);gis=mp(gis,ax(Eq(sn,b)),Eq(sn,b),gis.sequent.right[0].right)
+    gc2=mp(apply_thm(iff_mp(In(n,sn),In(n,b),[]),[],Iff(In(n,sn),In(n,b)),Implies(In(n,sn),In(n,b)),gis),got_insn,In(n,sn),In(n,b))
+    ic1=Implies(In(sn,b),In(n,b));lc1=[f for f in gc1.sequent.left if not same(f,In(sn,b))]
+    gic1=Proof(Sequent(lc1,[ic1]),'implies_right',[gc1],principal=ic1)
+    ic2=Implies(Eq(sn,b),In(n,b));lc2=[f for f in gc2.sequent.left if not same(f,Eq(sn,b))]
+    gic2=Proof(Sequent(lc2,[ic2]),'implies_right',[gc2],principal=ic2)
+    oena=or_elim(In(sn,b),Eq(sn,b),In(n,b),[])
+    got_inb=apply_thm(oena,[],or_snb,Implies(ic1,Implies(ic2,In(n,b))),ax(or_snb))
+    got_inb=mp(got_inb,gic1,ic1,Implies(ic2,In(n,b)));got_inb=mp(got_inb,gic2,ic2,In(n,b))
+    # Q(n)→P(n)
+    or_nb=Or(In(n,b),Eq(n,b))
+    got_ornb=apply_thm(or_intro_left(In(n,b),Eq(n,b),[]),[],In(n,b),or_nb,got_inb)
+    got_Pn=mp(got_Qn,got_ornb,or_nb,pind_n)
+    # phase3_step_case
+    _psc=phase3_step_case()
+    got_psc=apply_thm(_psc,[d,q1,sa,tape2,c1v,n,sn,b,w,one])
+    # Order from step_case: trans,omega,In(b,w),In(sa,w),In(n,w),func_d,func_tape2,num_one,tape_read,succ_sn,In(n,b),Phase3Ind(n,...)
+    got_psc=mp(got_psc,ax(trans),trans,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(omega_w),omega_w,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(in_b_w),in_b_w,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(in_sa_w),in_sa_w,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,got_in_nw,In(n,w),got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(func_d),func_d,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(func_tape2),func_tape2,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(tape_read),tape_read,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(num_one),num_one,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,ax(succ_sn),succ_sn,got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,got_inb,In(n,b),got_psc.sequent.right[0].right)
+    got_psc=mp(got_psc,got_Pn,pind_n,got_psc.sequent.right[0].right)
+    pind_sn=Phase3Ind(sn,d,q1,sa,tape2,c1v)
+    imp_qsn=Implies(or_snb,pind_sn)
+    lqsn=[f for f in wl(got_psc,or_snb).sequent.left if not same(f,or_snb)]
+    got_Qsn=Proof(Sequent(lqsn,[imp_qsn]),'implies_right',[wl(got_psc,or_snb)],principal=imp_qsn)
+    got_step_pv=char_bwd(sn,got_snw,got_Qsn)
+    if any(same(In(n,w),f) for f in got_step_pv.sequent.left):
+        got_step_pv=cut(got_step_pv,In(n,w),got_in_nw)
+    print('phase3: step In(sn,pv) done')
+
+    # Discharge sn,n
+    proof=got_step_pv
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(sn,Sequent([ff],[])) and not same(ff,succ_sn):
+            proof=wl(proof,ff);imp=Implies(ff,proof.sequent.right[0])
+            left=[f for f in proof.sequent.left if not same(f,ff)];proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    imp_sn=Implies(succ_sn,proof.sequent.right[0]);left_sn=[f for f in proof.sequent.left if not same(f,succ_sn)]
+    proof=Proof(Sequent(left_sn,[imp_sn]),'implies_right',[proof],principal=imp_sn)
+    proof=Proof(Sequent(proof.sequent.left,[Forall(sn,imp_sn)]),'forall_right',[proof],principal=Forall(sn,imp_sn),term=sn)
+    for ff in list(proof.sequent.left):
+        if _var_free_in_sequent(n,Sequent([ff],[])) and not same(ff,In(n,pv)):
+            proof=wl(proof,ff);imp=Implies(ff,proof.sequent.right[0])
+            left=[f for f in proof.sequent.left if not same(f,ff)];proof=Proof(Sequent(left,[imp]),'implies_right',[proof],principal=imp)
+    imp_npv=Implies(In(n,pv),proof.sequent.right[0]);left_npv=[f for f in proof.sequent.left if not same(f,In(n,pv))]
+    got_ind_step=Proof(Sequent(left_npv,[imp_npv]),'implies_right',[proof],principal=imp_npv)
+    got_ind_step=Proof(Sequent(got_ind_step.sequent.left,[Forall(n,imp_npv)]),'forall_right',[got_ind_step],principal=Forall(n,imp_npv),term=n)
+    print('phase3: ind_step done')
+
+    # === OSI ===
+    all_ctx=list(got_ind_base.sequent.left)
+    for f_ in got_ind_step.sequent.left:
+        if not any(same(f_,g) for g in all_ctx):all_ctx.append(f_)
+    gib_w=weaken_to(got_ind_base,all_ctx);gis_w=weaken_to(got_ind_step,all_ctx)
+    ibf=gib_w.sequent.right[0];isf=gis_w.sequent.right[0];ai=And(ibf,isf)
+    got_ind=mp(apply_thm(and_intro(ibf,isf,[]),[],ibf,Implies(isf,ai),gib_w),gis_w,isf,ai)
+    xs2=Var(postfix='xs2');got_fwd=char_fwd(xs2);inxw=got_fwd.sequent.right[0].left
+    got_xw=apply_thm(and_elim_left(inxw,got_fwd.sequent.right[0].right,[]),[],got_fwd.sequent.right[0],inxw,got_fwd)
+    imp_sub=Implies(In(xs2,pv),inxw);ls=[f for f in got_xw.sequent.left if not same(f,In(xs2,pv))]
+    got_sub=Proof(Sequent(ls,[imp_sub]),'implies_right',[got_xw],principal=imp_sub)
+    spw=Forall(xs2,imp_sub);got_sub=Proof(Sequent(got_sub.sequent.left,[spw]),'forall_right',[got_sub],principal=spw,term=xs2)
+    osi=omega_smallest_inductive();eq_pw=Eq(pv,w)
+    got_osi=apply_thm(osi,[pv,w])
+    while not same(got_osi.sequent.right[0],eq_pw):
+        cur=got_osi.sequent.right[0];got_osi=mp(got_osi,ax(cur.left),cur.left,cur.right)
+    all_osi=list(all_ctx)
+    for f_ in got_sub.sequent.left:
+        if not any(same(f_,g) for g in all_osi):all_osi.append(f_)
+    gsw=weaken_to(got_sub,all_osi);giw=weaken_to(got_ind,all_osi)
+    gas=mp(apply_thm(and_intro(spw,ai,[]),[],spw,Implies(ai,And(spw,ai)),gsw),giw,ai,And(spw,ai))
+    for h in [f_ for f_ in got_osi.sequent.left if not isinstance(f_,zfc.ZFCAxiom) and not same(f_,omega_w)]:
+        got_osi=cut(got_osi,h,gas)
+    print('phase3: osi done')
+
+    # === Extract Q(b) → Phase3Ind(b,...) ===
+    iff_bpv=Iff(In(b,pv),In(b,w))
+    got_iff_b=cut(fl(eq_pw,iff_bpv,b),eq_pw,got_osi)
+    got_bpv=mp(apply_thm(iff_mp_rev(In(b,pv),In(b,w),[]),[],iff_bpv,Implies(In(b,w),In(b,pv)),got_iff_b),ax(in_b_w),in_b_w,In(b,pv))
+    got_andb=cut(char_fwd(b),In(b,pv),got_bpv)
+    got_Qb=apply_thm(and_elim_right(In(b,w),Q(b),[]),[],got_andb.sequent.right[0],Q(b),got_andb)
+    or_bb=Or(In(b,b),Eq(b,b));got_orbb=apply_thm(or_intro_right(In(b,b),Eq(b,b),[]),[],Eq(b,b),or_bb,apply_thm(eq_reflexive(),[b]))
+    pind_b=Phase3Ind(b,d,q1,sa,tape2,c1v)
+    got_Pb=mp(got_Qb,got_orbb,or_bb,pind_b)
+    got_Pb=eel(got_Pb,char_pv,pv);got_Pb=cut(got_Pb,Exists(pv,char_pv),got_ex_pv)
+    print('phase3: P(b) extracted')
+
+    # === Phase3Ind(b,...) → TMReaches(d,c1v,b,c2v) ===
+    # Open Phase3Ind: ∃pos_b.And(Plus(sa,b,pos_b), ∃tra,cn.(...with TMConfig(cn,q1,pos_b,tape2)...))
+    # TMConfig(c2v,q1,pos,tape2) with Plus(sa,b,pos): plus_val_unique → pos_b=pos → config_eq → cn=c2v
+    # Then TMReaches from trace components.
+    pb_exp=pind_b.expand();pb_pos=pb_exp.var;pb_body=pb_exp.body
+    pb_plus=pb_body.left;pb_inner=pb_body.right
+    pb_tra=pb_inner.var;pb_cn_ex=pb_inner.body;pb_cn=pb_cn_ex.var;pb_and=pb_cn_ex.body
+    # Decompose pb_and
+    b0=pb_and
+    gft=apply_thm(and_elim_left(b0.left,b0.right,[]),[],b0,b0.left,ax(b0))
+    b1=b0.right;gb1=apply_thm(and_elim_right(b0.left,b1,[]),[],b0,b1,ax(b0))
+    b2=b1.right;gb2=apply_thm(and_elim_right(b1.left,b2,[]),[],b1,b2,gb1)
+    gbt=apply_thm(and_elim_left(b2.left,b2.right,[]),[],b2,b2.left,gb2)
+    b3=b2.right;gb3=apply_thm(and_elim_right(b2.left,b3,[]),[],b2,b3,gb2)
+    gcnb=apply_thm(and_elim_left(b3.left,b3.right,[]),[],b3,b3.left,gb3)
+    b4=b3.right;gb4=apply_thm(and_elim_right(b3.left,b4,[]),[],b3,b4,gb3)
+    gatnb=apply_thm(and_elim_left(b4.left,b4.right,[]),[],b4,b4.left,gb4)
+    gsvb=apply_thm(and_elim_right(b4.left,b4.right,[]),[],b4,b4.right,gb4)
+    got_plus_b=apply_thm(and_elim_left(pb_plus,pb_inner,[]),[],pb_body,pb_plus,ax(pb_body))
+    # Plus(sa,b,pos_b) and Plus(sa,b,pos): plus_val_unique → pos_b=pos
+    from theorems.arithmetic import plus_val_unique
+    _pvu=plus_val_unique()
+    got_eq_pos=apply_thm(_pvu,[w,sa,b,pb_pos,pos])
+    got_eq_pos=mp(got_eq_pos,ax(omega_w),omega_w,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,ax(in_sa_w),in_sa_w,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,ax(in_b_w),in_b_w,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,got_plus_b,pb_plus,got_eq_pos.sequent.right[0].right)
+    got_eq_pos=mp(got_eq_pos,ax(plus_sab),plus_sab,Eq(pb_pos,pos))
+    # TMConfig(cn,q1,pos_b,tape2) + TMConfig(c2v,q1,pos,tape2) + Eq(pos_b,pos) → Eq(cn,c2v)
+    # config_eq_transfer + ordpair_unique: TMConfig(cn,...pos_b...) → transfer pos_b→pos via Eq → same as c2v
+    # Actually: Eq(pos_b,pos) → TMConfig(cn,q1,pos,tape2) via config_eq_transfer.
+    # Then TMConfig(cn,q1,pos,tape2) + TMConfig(c2v,q1,pos,tape2) → Eq(cn,c2v) via config_eq/ordpair.
+    from theorems.tm import config_eq_transfer
+    _cet=config_eq_transfer()
+    got_cfg_cn_pos=apply_thm(_cet,[pb_cn,q1,pb_pos,tape2,q1,pos,tape2])
+    got_cfg_cn_pos=mp(got_cfg_cn_pos,gcnb,gcnb.sequent.right[0],got_cfg_cn_pos.sequent.right[0].right)
+    got_cfg_cn_pos=mp(got_cfg_cn_pos,apply_thm(eq_reflexive(),[q1]),Eq(q1,q1),got_cfg_cn_pos.sequent.right[0].right)
+    got_cfg_cn_pos=mp(got_cfg_cn_pos,got_eq_pos,Eq(pb_pos,pos),got_cfg_cn_pos.sequent.right[0].right)
+    got_cfg_cn_pos=mp(got_cfg_cn_pos,apply_thm(eq_reflexive(),[tape2]),Eq(tape2,tape2),got_cfg_cn_pos.sequent.right[0].right)
+    # TMConfig(pb_cn,q1,pos,tape2). config_eq → Eq(pb_cn,c2v) via ordpair_unique
+    inner_v=Var(postfix='_iv');op_iv=OrdPair(inner_v,pos,tape2)
+    got_ex_iv=apply_thm(_oe_fn(),[pos,tape2],concl=Exists(inner_v,op_iv))
+    op_cn=OrdPair(pb_cn,q1,inner_v);op_c2=OrdPair(c2v,q1,inner_v)
+    got_op_cn=apply_thm(got_cfg_cn_pos,[inner_v],op_iv,op_cn,ax(op_iv))
+    got_op_c2=apply_thm(ax(cfg_c2),[inner_v],op_iv,op_c2,ax(op_iv))
+    _ou=_ou_fn()
+    got_eq_cn_c2=apply_thm(_ou,[q1,inner_v,pb_cn,c2v])
+    got_eq_cn_c2=mp(got_eq_cn_c2,got_op_cn,op_cn,got_eq_cn_c2.sequent.right[0].right)
+    got_eq_cn_c2=mp(got_eq_cn_c2,got_op_c2,op_c2,Eq(pb_cn,c2v))
+    got_eq_cn_c2=eel(got_eq_cn_c2,op_iv,inner_v);got_eq_cn_c2=cut(got_eq_cn_c2,Exists(inner_v,op_iv),got_ex_iv)
+    # Apply(tra,b,c2v) from Apply(tra,b,cn)+Eq(cn,c2v)
+    _eavt=eq_apply_val_transfer()
+    got_at_c2=apply_thm(_eavt,[pb_tra,b,pb_cn,c2v])
+    got_at_c2=mp(got_at_c2,got_eq_cn_c2,Eq(pb_cn,c2v),got_at_c2.sequent.right[0].right)
+    got_at_c2=mp(got_at_c2,gatnb,gatnb.sequent.right[0],Apply(pb_tra,b,c2v))
+    # Build TMReaches
+    reaches=TMReaches(d,c1v,b,c2v);rexp=reaches.expand();r_tra=rexp.var;r_body=rexp.body
+    r_and=mk_and(gsvb,got_at_c2);r_and=mk_and(gbt,r_and)
+    got_reaches=eir(r_and,r_body,r_tra,pb_tra)
+    got_reaches=cut(ax(reaches),reaches,got_reaches)
+    # eel eigenvars back into Phase3Ind
+    got_reaches=eel(got_reaches,pb_and,pb_cn)
+    got_reaches=eel(got_reaches,pb_cn_ex,pb_tra)
+    # pn_body has pb_plus and pb_inner. inner was reformed via eel cn+tra above.
+    # But pb_inner might still be separate on left. Cut it:
+    got_inner_from_pb=apply_thm(and_elim_right(pb_plus,pb_inner,[]),[],pb_body,pb_inner,ax(pb_body))
+    if any(same(pb_inner,f) for f in got_reaches.sequent.left):
+        got_reaches=cut(got_reaches,pb_inner,got_inner_from_pb)
+    got_reaches=eel(got_reaches,pb_body,pb_pos)
+    got_reaches=cut(got_reaches,pind_b,got_Pb)
+    print('phase3: TMReaches derived')
+
+    # === Discharge + close → Phase3P ===
+    goal_hyps=[trans,omega_w,in_b_w,in_sa_w,func_d,func_tape2,num_one,tape_read,plus_sab,cfg_c1,cfg_c2]
+    for hyp in reversed(goal_hyps):
+        got_reaches=wl(got_reaches,hyp);imp=Implies(hyp,got_reaches.sequent.right[0])
+        left=[f for f in got_reaches.sequent.left if not same(f,hyp)]
+        got_reaches=Proof(Sequent(left,[imp]),'implies_right',[got_reaches],principal=imp)
+    for v in [c2v,c1v,one,w,tape2,pos,b,sa,q1,d]:
+        body=got_reaches.sequent.right[0];fa=Forall(v,body)
+        got_reaches=Proof(Sequent(got_reaches.sequent.left,[fa]),'forall_right',[got_reaches],principal=fa,term=v)
+    goal=Phase3P()
+    got_reaches=cut(ax(goal),goal,got_reaches)
+    # Clean Num(z,0) leak
+    from theorems.arithmetic import num_exists
+    for f in list(got_reaches.sequent.left):
+        if type(f).__name__=='Num' and f.value==0:
+            got_reaches=eel(got_reaches,f,f.elem)
+            got_reaches=cut(got_reaches,Exists(f.elem,f),num_exists(0))
+            break
+    assert same(got_reaches.sequent.right[0],goal,expand=False),'Phase3P mismatch'
+    print('phase3: VERIFIED — proves Phase3P')
+    got_reaches.name='phase3'
+    return got_reaches
+
+
 if __name__=='__main__':
-    print('=== phase3_base ===')
-    p=phase3_base()
+    p=phase3()
     from core.zfc import ZFCAxiom
     non=[f for f in p.sequent.left if not isinstance(f,ZFCAxiom)]
-    print(f'  OK, non-ZFC={len(non)}')
-
-    print('=== phase3_step_case ===')
-    p2=phase3_step_case()
-    non2=[f for f in p2.sequent.left if not isinstance(f,ZFCAxiom)]
-    print(f'  OK, non-ZFC={len(non2)}')
+    print(f'Left: {len(p.sequent.left)} total, {len(non)} non-ZFC')
     print(f'phase3_base: OK, non-ZFC={len(non)}')
