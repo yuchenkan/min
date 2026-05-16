@@ -15,7 +15,9 @@ from vocab import (OrdPair, Successor, Empty, Singleton, PairSet,
 from tm import add_goal
 tm_add_goal = add_goal()
 
-is_axiom = lambda f: isinstance(f, ZFCAxiom)
+from core.zfc import Extensionality, EmptySet, Pairing, Union, PowerSet, Separation, Infinity
+Z_axioms = (Extensionality, EmptySet, Pairing, Union, PowerSet, Separation, Infinity)
+is_axiom = lambda f: isinstance(f, Z_axioms)
 
 import theorems
 
