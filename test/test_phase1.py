@@ -7,7 +7,6 @@ from core.proof import qed, same
 from core.zfc import ZFCAxiom
 from theorems.tm import Phase1P
 
-
 def test():
     from theorems.tm import phase1
     proof = phase1()
