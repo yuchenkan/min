@@ -343,9 +343,31 @@ basic set operations, ordered pairs, functions) and 4.2 (natural numbers,
 recursion). The Turing machine correctness proof extends beyond the textbook's
 content.
 
+\subsection{Example: The Recursion Theorem}
+
+The formalization of the recursion theorem (Theorem~4.2.14 of the textbook)
+illustrates the book-guided pipeline concretely. The textbook specifies both the theorem
+statement and the proof strategy: construct the recursive function $h$ by
+taking the union of approximation functions, bounded within
+$\mathcal{P}(\mathcal{P}(\omega \cup \bigcup\bigcup f))$.
+
+The LLM's first attempt used a simpler bounding set
+($\mathcal{P}(\mathcal{P}(\omega))$) that required additional hypotheses not
+present in the textbook's formulation. When this approach proved unwieldy, the
+human architect directed the LLM to follow the book's specific bounding
+strategy. The LLM reimplemented the proof using
+$\mathcal{P}(\mathcal{P}(\omega \cup \bigcup\bigcup f))$, which eliminated
+the extra hypotheses and preserved the textbook's clean API.
+
+During this process, the formalization uncovered a definition error in the
+textbook (described below). The full cycle --- book provides strategy, LLM
+implements, kernel rejects, book's alternative approach adopted, LLM
+reimplements, kernel catches a book error --- is recorded in the git history
+across 12 commits.
+
 \subsection{The Formalization Caught a Textbook Error}
 
-Theorem~4.2.14 of the textbook defines a recursive function as follows:
+The textbook's definition of a recursive function is as follows:
 
 \begin{definition}[Textbook version]
 $\text{isRecursive}(h, a, f)$ iff $\text{isFunction}(h) \land h(0) = a

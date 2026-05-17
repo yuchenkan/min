@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=pdflatex 2026.4.6)  17 MAY 2026 15:10
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=pdflatex 2026.4.6)  17 MAY 2026 15:18
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -475,14 +475,14 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 33.
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [1
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] [3] [4]
-Overfull \hbox (4.05603pt too wide) in paragraph at lines 429--436
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] [3] [4] [5]
+Overfull \hbox (4.05603pt too wide) in paragraph at lines 451--458
 \OT1/cmr/m/n/10 AlphaZero-style re-in-force-ment learn-ing to solve com-pe-ti-t
 ion math-e-mat-ics in Lean. GPT-f [[][]Polu and Sutskever[][],
  []
 
-[5]
-Overfull \hbox (0.39221pt too wide) in paragraph at lines 438--444
+
+Overfull \hbox (0.39221pt too wide) in paragraph at lines 460--466
  []\OT1/cmr/bx/n/10 Interactive the-o-rem provers.[] \OT1/cmr/m/n/10 Lean/-Math
 -lib [[][]The math-lib Com-mu-nity[][], [][]2020[][]], Coq [[][]Bertot and Cast
 ^^Seran[][],
@@ -502,13 +502,13 @@ ttps : / / deepmind . google / discover / blog /
 
 ) [7] (output/paper.aux)
 Package rerunfilecheck Info: File `paper.out' has not changed.
-(rerunfilecheck)             Checksum: 787765C7C857075A1F57E6342746C93E;2390.
+(rerunfilecheck)             Checksum: F370A2783B228A9B39A1885A1E0DF1FA;2607.
  ) 
 Here is how much of TeX's memory you used:
- 12297 strings out of 476091
- 186092 string characters out of 5794082
+ 12299 strings out of 476091
+ 186122 string characters out of 5794082
  1864330 words of memory out of 5000000
- 32463 multiletter control sequences out of 15000+600000
+ 32464 multiletter control sequences out of 15000+600000
  522649 words of font info for 71 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  75i,9n,76p,323b,515s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -528,10 +528,10 @@ exlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive
 -dist/fonts/type1/public/amsfonts/cm/cmti9.pfb></usr/share/texlive/texmf-dist/f
 onts/type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texmf/fonts/type1/public/c
 m-super/sfrm1000.pfb>
-Output written on output/paper.pdf (7 pages, 238768 bytes).
+Output written on output/paper.pdf (7 pages, 239856 bytes).
 PDF statistics:
- 254 PDF objects out of 1000 (max. 8388607)
- 210 compressed objects within 3 object streams
- 59 named destinations out of 1000 (max. 500000)
- 121 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 258 PDF objects out of 1000 (max. 8388607)
+ 214 compressed objects within 3 object streams
+ 60 named destinations out of 1000 (max. 500000)
+ 129 words of extra memory for PDF output out of 10000 (max. 10000000)
 
