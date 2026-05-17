@@ -53,8 +53,8 @@ def choice():
 
 
 
-def replacement(phi, vars: list[Var]):
-    ax = zfc.Replacement(phi, vars)
+def replacement(phi, x, y, vars: list[Var]):
+    ax = zfc.Replacement(phi, x, y, vars)
     return Proof(Sequent([ax], [ax]), 'axiom', principal=ax, name='replacement')
 
 

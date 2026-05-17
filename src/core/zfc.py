@@ -53,26 +53,27 @@ class PowerSet(ZFCAxiom):
 
 
 class Separation(ZFCAxiom):
-    _str_x = Var()
-
-    def __init__(self, phi, vars: list):
+    def __init__(self, phi, x, vars: list):
+        """phi: formula with x free (the separation predicate).
+        x: the separation variable.
+        vars: other free variables in phi."""
         self.phi = phi
+        self.x = x
         self.vars = vars
         from core.proof import _free_vars
-        for v in _free_vars(phi(Separation._str_x)) - {Separation._str_x}:
+        for v in _free_vars(phi) - {x}:
             assert v in vars, f'Separation: free var {v} in phi not in vars'
 
     def expand(self):
-        a, b, x = Var(), Var(), Var()
-        body = Forall(a, Exists(b, Forall(x,
-            Iff(In(x, b), And(In(x, a), self.phi(x))))))
+        a, b = Var(), Var()
+        body = Forall(a, Exists(b, Forall(self.x,
+            Iff(In(self.x, b), And(In(self.x, a), self.phi)))))
         for v in self.vars:
             body = Forall(v, body)
         return body
 
     def __str__(self):
-        x = Separation._str_x
-        return f'Separation({x} => {self.phi(x)})'
+        return f'Separation({self.x} => {self.phi})'
 
 
 class Infinity(ZFCAxiom):
@@ -97,32 +98,36 @@ class Choice(ZFCAxiom):
 
 
 class Replacement(ZFCAxiom):
-    _str_x = Var()
-    _str_y = Var()
-
-    def __init__(self, phi, vars: list):
+    def __init__(self, phi, x, y, vars: list):
+        """phi: formula with x,y free (the functional relation).
+        x: domain variable. y: range variable.
+        vars: other free variables in phi."""
         self.phi = phi
+        self.x = x
+        self.y = y
         self.vars = vars
         from core.proof import _free_vars
-        for v in _free_vars(phi(Replacement._str_x, Replacement._str_y)) - {Replacement._str_x, Replacement._str_y}:
+        for v in _free_vars(phi) - {x, y}:
             assert v in vars, f'Replacement: free var {v} in phi not in vars'
 
     def expand(self):
-        a, b, x, y, y1, y2 = Var(), Var(), Var(), Var(), Var(), Var()
-        functional = Forall(x, Implies(In(x, a),
+        from core.proof import _subst
+        a, b, y1, y2 = Var(), Var(), Var(), Var()
+        phi_xy1 = _subst(self.phi, self.y, y1)
+        phi_xy2 = _subst(self.phi, self.y, y2)
+        functional = Forall(self.x, Implies(In(self.x, a),
             Forall(y1, Forall(y2, Implies(
-                And(self.phi(x, y1), self.phi(x, y2)),
+                And(phi_xy1, phi_xy2),
                 Eq(y1, y2))))))
-        image = Exists(b, Forall(y,
-            Iff(In(y, b), Exists(x, And(In(x, a), self.phi(x, y))))))
+        image = Exists(b, Forall(self.y,
+            Iff(In(self.y, b), Exists(self.x, And(In(self.x, a), self.phi)))))
         body = Forall(a, Implies(functional, image))
         for v in self.vars:
             body = Forall(v, body)
         return body
 
     def __str__(self):
-        x, y = Replacement._str_x, Replacement._str_y
-        return f'Replacement({x},{y} => {self.phi(x, y)})'
+        return f'Replacement({self.x},{self.y} => {self.phi})'
 
 
 class Regularity(ZFCAxiom):
