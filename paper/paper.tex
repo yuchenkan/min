@@ -33,7 +33,7 @@ Formal Proof Construction from ZFC Axioms to Program Correctness}
 
 \begin{abstract}
 Formal proofs are too large for humans to write, read, or verify by inspection.
-A two-line definition of addition on natural numbers expands to over 11,500 lines
+A two-line definition of addition on natural numbers expands to over 10,000 lines
 of formal proof from ZFC axioms. This 1000:1 ratio is not a tooling limitation
 --- it is the inherent nature of formal verification.
 
@@ -45,7 +45,7 @@ correctness (\emph{kernel-verified}).
 
 We demonstrate this pipeline by constructing a verified proof chain from ZFC
 set theory axioms to the correctness of a Turing machine that computes addition
---- spanning 10 abstraction levels, 203 theorems, and 39,059 lines of proof,
+--- spanning 10 abstraction levels, 199 theorems, and 38,247 lines of proof,
 all verified by a 334-line sequent calculus kernel. During formalization, the
 kernel caught a definition error in the guiding textbook that three years of
 human review had missed.
@@ -113,10 +113,10 @@ in ZFC set theory.
 
 \paragraph{Formal proof.} The proof that this function exists, is unique,
 commutes, associates, and computes concrete results such as $4+3=7$ occupies
-11,532 lines of formal proof code. This covers a single arithmetic operation
+10,720 lines of formal proof code. This covers a single arithmetic operation
 --- addition --- and does not include the prerequisite infrastructure (ordered
 pairs, functions, natural numbers, the recursion theorem) which adds
-approximately 28,000 more lines.
+approximately 27,500 more lines.
 
 The ratio is roughly 1000:1. A page of textbook mathematics becomes a
 thousand lines of formal proof. This ratio is not specific to our system; it
@@ -129,7 +129,7 @@ At this scale, three human limitations become absolute:
 
 \begin{itemize}
   \item \textbf{Humans cannot write these proofs.} The sheer volume of
-    mechanical proof steps exceeds what a person can sustain. Writing 39,059
+    mechanical proof steps exceeds what a person can sustain. Writing 38,247
     lines of correct proof code by hand, where each line must satisfy a proof
     kernel's rule checking, is not difficult --- it is infeasible.
   \item \textbf{Humans cannot read these proofs.} The proof of a single
@@ -137,7 +137,7 @@ At this scale, three human limitations become absolute:
     variable instantiations, and cut compositions. No human can hold this in
     working memory or extract meaning from it by inspection.
   \item \textbf{Humans cannot verify these proofs.} Without a mechanical
-    checker, there is no way to confirm that 39,059 lines of proof are
+    checker, there is no way to confirm that 38,247 lines of proof are
     correct. The proof exists beyond human verification capacity.
 \end{itemize}
 
@@ -309,8 +309,8 @@ Table~\ref{tab:summary} summarizes the proof chain.
 \midrule
 ZFC axioms & 10 defined, 7 used (Z only) \\
 Proof kernel / trusted core & 334 / 685 lines \\
-Total theorems & 203 \\
-Total proof code & 39,059 lines \\
+Total theorems & 199 \\
+Total proof code & 38,247 lines \\
 Abstraction levels crossed & 10 \\
 Development time & $\sim$25 days \\
 \midrule
@@ -433,7 +433,7 @@ reproved via transitive sets (Lemma~4.2.4 of the textbook) rather than
 Regularity, and the recursion theorem's graph construction used power set
 bounding ($\mathcal{P}(\mathcal{P}(\omega \cup \bigcup\bigcup f))$) rather
 than Replacement. The result is a tighter axiom dependency than is typical
-even in dedicated set theory formalizations --- all 203 theorems use only
+even in dedicated set theory formalizations --- all 199 theorems use only
 Extensionality, Empty Set, Pairing, Union, Power Set, Separation, and
 Infinity.
 
