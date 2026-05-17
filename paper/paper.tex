@@ -245,6 +245,13 @@ use it, and correcting the instantiation when the kernel rejects the first
 attempt. This pattern of semantic guessing followed by mechanical error
 correction proved effective as the theorem library grew.
 
+When the LLM encountered missing lemmas during TM proof construction ---
+for example, that addition values are unique, or that addition produces
+values no smaller than its inputs --- it dropped to the arithmetic layer,
+proved the needed theorems, and resumed the TM proof. Cross-abstraction
+reasoning occurred not only in the final proof but in the development
+process itself.
+
 % ============================================================
 \section{Demonstration: ZFC to Program Correctness}
 \label{sec:demo}

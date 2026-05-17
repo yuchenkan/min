@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=pdflatex 2026.4.6)  17 MAY 2026 17:18
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=pdflatex 2026.4.6)  17 MAY 2026 17:31
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -475,14 +475,18 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 33.
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [1
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] [3] [4] [5]
-Overfull \hbox (4.05603pt too wide) in paragraph at lines 451--458
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] [3]
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+[4] [5]
+Overfull \hbox (4.05603pt too wide) in paragraph at lines 458--465
 \OT1/cmr/m/n/10 AlphaZero-style re-in-force-ment learn-ing to solve com-pe-ti-t
 ion math-e-mat-ics in Lean. GPT-f [[][]Polu and Sutskever[][],
  []
 
 
-Overfull \hbox (0.39221pt too wide) in paragraph at lines 460--466
+Overfull \hbox (0.39221pt too wide) in paragraph at lines 467--473
  []\OT1/cmr/bx/n/10 Interactive the-o-rem provers.[] \OT1/cmr/m/n/10 Lean/-Math
 -lib [[][]The math-lib Com-mu-nity[][], [][]2020[][]], Coq [[][]Bertot and Cast
 ^^Seran[][],
@@ -511,7 +515,7 @@ Here is how much of TeX's memory you used:
  32464 multiletter control sequences out of 15000+600000
  522649 words of font info for 71 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,9n,76p,323b,515s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,9n,76p,323b,439s stack positions out of 10000i,1000n,20000p,200000b,200000s
 {/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc}</usr/share/texli
 ve/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/texlive/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texmf-dis
@@ -528,7 +532,7 @@ exlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive
 -dist/fonts/type1/public/amsfonts/cm/cmti9.pfb></usr/share/texlive/texmf-dist/f
 onts/type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texmf/fonts/type1/public/c
 m-super/sfrm1000.pfb>
-Output written on output/paper.pdf (7 pages, 239972 bytes).
+Output written on output/paper.pdf (7 pages, 240371 bytes).
 PDF statistics:
  258 PDF objects out of 1000 (max. 8388607)
  214 compressed objects within 3 object streams
