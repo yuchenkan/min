@@ -2351,8 +2351,8 @@ def intersect_exists():
     """Separation |- forall a, b. exists s. Intersect(s, a, b)
     Binary intersection exists."""
     from vocab import Intersect
-    a, b, s = Var(), Var(), Var()
-    sep = zfc.Separation(lambda x: In(x, b), [b])
+    a, b, s, x = Var(), Var(), Var(), Var()
+    sep = zfc.Separation(In(x, b), x, [b])
     goal = Forall(b, Forall(a, Exists(s, Intersect(s, a, b))))
     proof = Proof(Sequent([sep], [goal]), 'axiom', principal=sep)
     proof.name = 'intersect_exists'
@@ -3810,11 +3810,12 @@ def omega_transitive_set():
     xv = Var(postfix='xv')
     omega_w = Omega(w)
 
+    sep_v = Var(postfix='sv')
     def P(nn):
         return TransitiveSet(nn)
 
     # === Separation: inductive set ===
-    sep = zfc.Separation(P, [])
+    sep = zfc.Separation(TransitiveSet(sep_v), sep_v, [])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
     got_ex_pv = apply_thm(sep_ax, [w], concl=Exists(pv, char_pv))
@@ -4618,11 +4619,12 @@ def omega_no_self_membership():
     xv = Var(postfix='xv')
     omega_w = Omega(w)
 
+    sep_v = Var(postfix='sv')
     def P(nn):
         return Not(In(nn, nn))
 
     # === Separation: inductive set ===
-    sep = zfc.Separation(P, [])
+    sep = zfc.Separation(Not(In(sep_v, sep_v)), sep_v, [])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
     got_ex_pv = apply_thm(sep_ax, [w], concl=Exists(pv, char_pv))
@@ -4915,8 +4917,8 @@ def domain_exists():
 
     # === Separation: d = {x ∈ ∪∪h : ∃y. Apply(h,x,y)} ===
     yb = Var(postfix='_yb')  # bound var for Exists inside phi
-    phi = lambda xv: Exists(yb, Apply(h, xv, yb))
-    sep = zfc.Separation(phi, [h])
+    sep_v = Var(postfix='_sv')
+    sep = zfc.Separation(Exists(yb, Apply(h, sep_v, yb)), sep_v, [h])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     # Separation gives: ∀uuf. ∃d. ∀x. In(x,d) ↔ (In(x,uuf) ∧ ∃y.Apply(h,x,y))
 
@@ -5057,7 +5059,8 @@ def product_exists():
     x, y, z = Var(postfix='x'), Var(postfix='y'), Var(postfix='z')
 
     # The predicate for Separation: ∃x∈a.∃y∈b. OrdPair(z,x,y)
-    phi = lambda zv: Exists(x, Exists(y, And(In(x, a), And(In(y, b), OrdPair(zv, x, y)))))
+    sep_v = Var(postfix='_sv')
+    phi = Exists(x, Exists(y, And(In(x, a), And(In(y, b), OrdPair(sep_v, x, y)))))
 
     # Separation on P(P(a∪b)) with phi gives:
     # ∃p. ∀z. In(z,p) ↔ (In(z, P(P(a∪b))) ∧ ∃x∈a.∃y∈b. OrdPair(z,x,y))
@@ -5079,7 +5082,7 @@ def product_exists():
     # Then prove: ∀z. ∃x∈a.∃y∈b.OrdPair(z,x,y) → In(z, bound). Discharge the ∧.
 
     # For now, let me try the direct Separation approach and see if more work is needed.
-    sep = zfc.Separation(phi, [a, b])
+    sep = zfc.Separation(phi, sep_v, [a, b])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
 
     prod = Product(p, a, b)
@@ -5115,7 +5118,7 @@ def product_exists():
     got_ex_ppuab = apply_thm(ps_ax_proof, [puab], concl=Exists(ppuab, ps_puab))
 
     # Separation on ppuab with phi:
-    sep2 = zfc.Separation(phi, [a, b])
+    sep2 = zfc.Separation(phi, sep_v, [a, b])
     sep_ax2 = Proof(Sequent([sep2], [sep2]), 'axiom', principal=sep2)
     # Instantiate with a, b, ppuab:
     iff_sep = Iff(In(z, p), And(In(z, ppuab), phi(z)))
@@ -5515,11 +5518,12 @@ def omega_pred():
             got_r, R, And(L, R))
     
     # P(b) = Or(Empty(b), ∃k. And(Successor(b,k), In(k,b)))
+    sep_v = Var(postfix='sv')
     def P(bb):
         return Or(Empty(bb), Exists(kv, And(Successor(bb, kv), In(kv, bb))))
-    
+
     # Separation
-    sep = zfc.Separation(P, [kv])
+    sep = zfc.Separation(P(sep_v), sep_v, [kv])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
     got_ex_pv = apply_thm(sep_ax, [kv, w], concl=Exists(pv, char_pv))
@@ -5846,11 +5850,12 @@ def omega_transitive():
     omega_w = Omega(w)
     
     # P(b) = ∀k. In(k,b) → In(k,w)
+    sep_v = Var(postfix='sv')
     def P(bb):
         return Forall(kv, Implies(In(kv, bb), In(kv, w)))
-    
+
     # Separation
-    sep = zfc.Separation(P, [kv, w])
+    sep = zfc.Separation(P(sep_v), sep_v, [kv, w])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
     got_ex_pv = apply_thm(sep_ax, [w, kv, w], concl=Exists(pv, char_pv))
