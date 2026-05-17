@@ -431,6 +431,22 @@ proof construction --- for example, that addition values are unique, or
 that addition produces values no smaller than its inputs --- it dropped to
 the arithmetic layer, proved the needed theorems, and resumed the TM proof.
 
+Figure~\ref{fig:growth} shows the development trajectory. The first two
+weeks were spent on foundational infrastructure (logic, sets, ordered pairs,
+the recursion theorem) with slow growth. Once the recursion theorem was
+proved, arithmetic development accelerated sharply, and the TM correctness
+proof followed within days. The flat-then-steep curve illustrates how foundational work
+establishes patterns that accelerate higher-layer development.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\columnwidth]{growth.pdf}
+\caption{Total lines of proof code over the development period. The
+  inflection point at the recursion theorem (May~10) shows how
+  foundational depth enables rapid higher-level development.}
+\label{fig:growth}
+\end{figure}
+
 % ============================================================
 \section{Related Work}
 \label{sec:related}
