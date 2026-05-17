@@ -901,7 +901,7 @@ def plus_func_values_agree(h1, h2, w):
 
     phi = lambda nn: Exists(pair0, Exists(p0,
         And(OrdPair(pair0, mv, nn), And(Apply(h1, pair0, p0), Apply(h2, pair0, p0)))))
-    sep = zfc.Separation(phi, [h1, h2, mv])
+    sep_v=Var();sep = zfc.Separation(phi(sep_v), sep_v, [h1, h2, mv])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
 
     pv_ind = Var(postfix='_pv')
@@ -3949,7 +3949,7 @@ def plus_func_exists():
                 And(OrdPair(x, pairv, yv),
                 Exists(hmv, And(rec_hm, Apply(hmv, nv, yv))))))))))
 
-    sep = zfc.Separation(phi, [w, sfv])
+    sep_v=Var();sep = zfc.Separation(phi(sep_v), sep_v, [w, sfv])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
 
     # Instantiate with w, sfv, and bounding set.
@@ -4014,7 +4014,7 @@ def plus_func_exists():
             And(OrdPair(xv, pairv, yv),
             Exists(hmv, And(rec_hm, Apply(hmv, nv, yv))))))))))
 
-    sep2 = zfc.Separation(phi2, [w, sfv])
+    sep_v2=Var();sep2 = zfc.Separation(phi2(sep_v2), sep_v2, [w, sfv])
     sep_ax2 = Proof(Sequent([sep2], [sep2]), 'axiom', principal=sep2)
 
     char_hv = Forall(xv, Iff(In(xv, hv), And(In(xv, pv_wwxw), phi2(xv))))
@@ -10402,7 +10402,7 @@ def plus_geq():
         return Exists(cv, And(PlusDef(a, bb, cv), Or(Eq(a, cv), In(a, cv))))
     
     # === Separation ===
-    sep = zfc.Separation(P, [a, cv])
+    sep_v=Var();sep = zfc.Separation(P(sep_v), sep_v, [a, cv])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xv, Iff(In(xv, pv), And(In(xv, w), P(xv))))
     got_ex_pv = apply_thm(sep_ax, [cv, a, w], concl=Exists(pv, char_pv))
@@ -10970,7 +10970,7 @@ def plus_bounded_exists():
                 Exists(j, And(In(j, nn), PlusDef(sm, j, x)))))))))
 
     # === Separation ===
-    sep = zfc.Separation(P, [m, sm, c, x, j])
+    sep_v=Var();sep = zfc.Separation(P(sep_v), sep_v, [m, sm, c, x, j])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_pv = Forall(xs, Iff(In(xs, pv), And(In(xs, w), P(xs))))
     got_ex_pv = apply_thm(sep_ax, [j, x, c, sm, m, w], concl=Exists(pv, char_pv))

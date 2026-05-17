@@ -696,7 +696,7 @@ def rec_agree():
                        'forall_right', [proof_step], principal=fa_nv, term=nv)
 
     # === Induction wrapping ===
-    sep = zfc.Separation(Q, [a, f, w])
+    sep_v=Var();sep = zfc.Separation(Q(sep_v), sep_v, [a, f, w])
     ext_ax = zfc.Extensionality()
     inf_ax = zfc.Infinity()
     t = Var()
@@ -4184,8 +4184,8 @@ def rec_exists():
     # === SEPARATION + INDUCTION (following rec_agree pattern) ===
     from core.proof import _subst
 
-    sep_phi = lambda x: Q(x)
-    sep = zfc.Separation(sep_phi, [a, f, w])
+    sep_v=Var()
+    sep = zfc.Separation(Q(sep_v), sep_v, [a, f, w])
     sep_body = sep.expand()
     cur_sep = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     # Peel foralls for a, f, w:
@@ -4752,7 +4752,7 @@ def rec_approx_val_in_w():
         return Forall(y, Implies(Apply(v, x, y), In(y, w)))
 
     # === Separation: define inductive set pv ===
-    sep = zfc.Separation(P, [v, w])
+    sep_v=Var();sep = zfc.Separation(P(sep_v), sep_v, [v, w])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     # Sep: ∀v,w. ∀domain. ∃pv. ∀x. In(x,pv) ↔ (In(x,domain) ∧ P(x))
     # Instantiate with [w, v, w] (outer foralls are [w,v] from vars, then domain=w):
@@ -5354,7 +5354,7 @@ def rec_graph_exists():
     # === Separation on ppb ===
     def sep_phi(p):
         return Exists(nf, And(In(nf, w), phi(nf, p)))
-    sep = zfc.Separation(sep_phi, [a, f, w])
+    sep_v=Var();sep = zfc.Separation(sep_phi(sep_v), sep_v, [a, f, w])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     in_pv_hv = In(pv, hv)
     in_pv_ppb = In(pv, ppb)
@@ -6696,7 +6696,7 @@ def succ_func_exists():
     got_ex_ppw = apply_thm(ps_ax, [pw], concl=Exists(ppw, ppw_char))
 
     # === Get Separation witness ===
-    sep = zfc.Separation(phi, [w])
+    sep_v=Var();sep = zfc.Separation(phi(sep_v), sep_v, [w])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     got_ex_sf = apply_thm(sep_ax, [w, ppw], concl=Exists(sf, sf_sep_char))
 

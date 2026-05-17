@@ -35,8 +35,8 @@ def power_set():
 
 
 
-def separation(phi, vars: list[Var]):
-    ax = zfc.Separation(phi, vars)
+def separation(phi, x, vars: list[Var]):
+    ax = zfc.Separation(phi, x, vars)
     return Proof(Sequent([ax], [ax]), 'axiom', principal=ax, name='separation')
 
 

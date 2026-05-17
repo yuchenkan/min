@@ -250,7 +250,8 @@ def tape_update_exists():
     got_ex_sing = apply_thm(singleton_exists(), [pair], concl=Exists(sing, sing_pair))
     got_ex_base = apply_thm(union_exists(), [t, sing], concl=Exists(base, union_base))
 
-    sep = zfc.Separation(phi, [pos, val, t, yv])
+    sep_v = Var(postfix='sep_v')
+    sep = zfc.Separation(phi(sep_v), sep_v, [pos, val, t, yv])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
     char_body = Iff(In(zv, t2), And(In(zv, base), phi(zv)))
     char = Forall(zv, char_body)
@@ -7386,7 +7387,8 @@ def phase1():
     # Separation
     # Q has free vars: a, d, q0, tape, c0 (plus nn which is the separation var)
     # Phase1Ind(nn,...).expand() introduces bound vars internally
-    sep=zfc.Separation(Q,[a,d,q0,tape,c0])
+    sep_v=Var(postfix='sv')
+    sep=zfc.Separation(Q(sep_v),sep_v,[a,d,q0,tape,c0])
     sep_ax=Proof(Sequent([sep],[sep]),'axiom',principal=sep)
     char_pv=Forall(xv,Iff(In(xv,pv),And(In(xv,w),Q(xv))))
     got_ex_pv=apply_thm(sep_ax,[c0,tape,q0,d,a,w],concl=Exists(pv,char_pv))
@@ -9112,7 +9114,8 @@ def phase3():
     def Q(nn): return Implies(Or(In(nn,b),Eq(nn,b)),Phase3Ind(nn,d,q1,sa,tape2,c1v))
 
     # === Separation ===
-    sep=zfc.Separation(Q,[b,d,q1,sa,tape2,c1v])
+    sep_v=Var(postfix='sv')
+    sep=zfc.Separation(Q(sep_v),sep_v,[b,d,q1,sa,tape2,c1v])
     sep_ax=Proof(Sequent([sep],[sep]),'axiom',principal=sep)
     char_pv=Forall(xv,Iff(In(xv,pv),And(In(xv,w),Q(xv))))
     got_ex_pv=apply_thm(sep_ax,[c1v,tape2,sa,q1,d,b,w],concl=Exists(pv,char_pv))
@@ -9422,8 +9425,8 @@ def tmreaches_compose():
         return Implies(Or(In(jj,b),Eq(jj,b)), Q_inner(jj))
 
     # Separation
-    pv=Var(postfix='ind_pv');xv=Var(postfix='ind_xv')
-    sep=zfc.Separation(Q,[a,b,d,x,tr2,pos_j,cj])
+    pv=Var(postfix='ind_pv');xv=Var(postfix='ind_xv');sep_v=Var(postfix='sv')
+    sep=zfc.Separation(Q(sep_v),sep_v,[a,b,d,x,tr2,pos_j,cj])
     sep_ax=Proof(Sequent([sep],[sep]),'axiom',principal=sep)
     char_pv=Forall(xv,Iff(In(xv,pv),And(In(xv,w),Q(xv))))
     got_ex_pv=apply_thm(sep_ax,[cj,pos_j,tr2,x,d,b,a,w],concl=Exists(pv,char_pv))
