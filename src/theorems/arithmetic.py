@@ -11097,14 +11097,17 @@ def plus_bounded_exists():
     got_pp = mp(got_pp, ax(In(m, w)), In(m, w), got_pp.sequent.right[0].right)
     got_pp = mp(got_pp, got_in_n_w, In(n, w), got_pp.sequent.right[0].right)
     got_pp = mp(got_pp, ax(PlusDef(m, sn, c_s)), PlusDef(m, sn, c_s), got_pp.sequent.right[0].right)
-    pp_var = got_pp.sequent.right[0].var
-    pp_body = got_pp.sequent.right[0].body
-    got_plus_mncp = apply_thm(and_elim_left(pp_body.left, pp_body.right, []), [],
-        pp_body, pp_body.left, ax(pp_body))
-    got_succ_cscp = apply_thm(and_elim_right(pp_body.left, pp_body.right, []), [],
-        pp_body, pp_body.right, ax(pp_body))
+    cp = Var(postfix='cp')
+    pp_var = cp
+    pp_ex = got_pp.sequent.right[0]
+    pp_body_raw = pp_ex.body.subst(pp_ex.var, cp)
+    got_plus_mncp = apply_thm(and_elim_left(pp_body_raw.left, pp_body_raw.right, []), [],
+        pp_body_raw, pp_body_raw.left, ax(pp_body_raw))
+    got_succ_cscp = apply_thm(and_elim_right(pp_body_raw.left, pp_body_raw.right, []), [],
+        pp_body_raw, pp_body_raw.right, ax(pp_body_raw))
     succ_cs_cp = got_succ_cscp.sequent.right[0]
     plus_mn_cp = got_plus_mncp.sequent.right[0]
+    pp_body = pp_body_raw
 
     # In(x,c_s) → In(x,cp) ∨ Eq(x,cp)
     or_xcp = Or(In(x, pp_var), Eq(x, pp_var))
@@ -11153,8 +11156,10 @@ def plus_bounded_exists():
     got_pg = mp(got_pg, ax(omega_w), omega_w, got_pg.sequent.right[0].right)
     got_pg = mp(got_pg, ax(In(m, w)), In(m, w), got_pg.sequent.right[0].right)
     got_pg = mp(got_pg, got_in_n_w, In(n, w), got_pg.sequent.right[0].right)
+    cv = Var(postfix='cv')
+    pg_cv = cv
     pg_ex = got_pg.sequent.right[0]
-    pg_cv = pg_ex.var; pg_body = pg_ex.body
+    pg_body = pg_ex.body.subst(pg_ex.var, cv)
     got_pg_plus = apply_thm(and_elim_left(pg_body.left, pg_body.right, []), [],
         pg_body, pg_body.left, ax(pg_body))
     got_pg_or = apply_thm(and_elim_right(pg_body.left, pg_body.right, []), [],

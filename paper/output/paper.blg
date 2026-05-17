@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2022/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: output/paper.aux
+The style file: plainnat.bst
+Database file #1: refs.bib
+Warning--empty journal in alphaproof2024
+You've used 8 entries,
+            2773 wiz_defined-function locations,
+            629 strings with 6006 characters,
+and the built_in function-call counts, 2883 in all, are:
+= -- 236
+> -- 153
+< -- 7
++ -- 53
+- -- 45
+* -- 175
+:= -- 459
+add.period$ -- 25
+call.type$ -- 8
+change.case$ -- 35
+chr.to.int$ -- 8
+cite$ -- 17
+duplicate$ -- 159
+empty$ -- 268
+format.name$ -- 61
+if$ -- 605
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 9
+newline$ -- 49
+num.names$ -- 32
+pop$ -- 97
+preamble$ -- 1
+purify$ -- 29
+quote$ -- 0
+skip$ -- 118
+stack$ -- 0
+substring$ -- 16
+swap$ -- 9
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 78
+warning$ -- 1
+while$ -- 24
+width$ -- 0
+write$ -- 104
+(There was 1 warning)

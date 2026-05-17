@@ -1,0 +1,53 @@
+\begin{thebibliography}{8}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bancerek et~al.(2015)]{mizar}
+Grzegorz Bancerek et~al.
+\newblock Mizar: State-of-the-art and beyond.
+\newblock \emph{Intelligent Computer Mathematics}, 2015.
+
+\bibitem[Bertot and Cast{\'e}ran(2004)]{coq}
+Yves Bertot and Pierre Cast{\'e}ran.
+\newblock \emph{Interactive Theorem Proving and Program Development: Coq'Art:
+  The Calculus of Inductive Constructions}.
+\newblock Springer, 2004.
+
+\bibitem[{Google DeepMind}(2024)]{alphaproof2024}
+{Google DeepMind}.
+\newblock Ai achieves silver-medal standard solving international mathematical
+  olympiad problems.
+\newblock 2024.
+\newblock
+  \url{https://deepmind.google/discover/blog/ai-solves-imo-problems-at-silver-medal-level/}.
+
+\bibitem[Megill and Wheeler(2019)]{metamath}
+Norman Megill and David~A. Wheeler.
+\newblock Metamath: A computer language for mathematical proofs, 2019.
+\newblock \url{http://us.metamath.org/}.
+
+\bibitem[Nipkow et~al.(2002)Nipkow, Paulson, and Wenzel]{isabelle}
+Tobias Nipkow, Lawrence~C. Paulson, and Markus Wenzel.
+\newblock \emph{Isabelle/HOL: A Proof Assistant for Higher-Order Logic}.
+\newblock Springer, 2002.
+
+\bibitem[Polu and Sutskever(2020)]{polu2020generative}
+Stanislas Polu and Ilya Sutskever.
+\newblock Generative language modeling for automated theorem proving.
+\newblock In \emph{arXiv preprint arXiv:2009.03393}, 2020.
+
+\bibitem[Selsam et~al.(2019)]{selsam2019learning}
+Daniel Selsam et~al.
+\newblock Learning a sat solver from single-bit supervision.
+\newblock In \emph{International Conference on Learning Representations}, 2019.
+
+\bibitem[{The mathlib Community}(2020)]{mathlib2020}
+{The mathlib Community}.
+\newblock The lean mathematical library.
+\newblock \emph{Proceedings of the 9th ACM SIGPLAN International Conference on
+  Certified Programs and Proofs}, 2020.
+
+\end{thebibliography}
