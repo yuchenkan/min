@@ -90,20 +90,11 @@ humanly impossible to read (too detailed), and humanly impossible to verify by
 inspection (too complex). The textbook is the human interface. The LLM is the
 translator. The kernel is the guarantor.
 
-We demonstrate this pipeline by constructing a complete formal proof that a
-specific Turing machine correctly computes addition in unary representation,
-starting from the axioms of Zermelo set theory (Z).
-The proof chain spans 10 abstraction levels --- from pure logic through set
-theory, ordered pairs, functions, natural numbers, recursion, arithmetic,
-Turing machine semantics, tape operations, and program correctness. It
-comprises 203 theorems in 39,059 lines of Python, all verified by a 334-line
-sequent calculus kernel.
-
-During the formalization process, the kernel caught a definition error in the
-guiding textbook (written by the first author three years prior): the
-recursion theorem's definition of ``recursive function'' lacked a domain
-constraint, making uniqueness unprovable. Three years of human review had
-missed this. The kernel rejected the proof mechanically.
+We demonstrate this pipeline by constructing a verified proof chain from
+Zermelo set theory axioms to Turing machine correctness, spanning
+10 abstraction levels (Section~\ref{sec:demo}). During formalization, the
+kernel caught a definition error in the guiding textbook that three years of
+human review had missed (Section~\ref{sec:book}).
 
 % ============================================================
 \section{The Scale of Formal Proof}
@@ -308,7 +299,7 @@ The proof chain crosses the following levels, each building on the previous:
     (41 theorems)
 \end{enumerate}
 
-\subsection{Summary}
+Table~\ref{tab:summary} summarizes the proof chain.
 
 \begin{table}[h]
 \centering
@@ -316,20 +307,17 @@ The proof chain crosses the following levels, each building on the previous:
 \toprule
 \textbf{Metric} & \textbf{Value} \\
 \midrule
-ZFC axioms defined & 10 \\
-Axioms actually used & 7 (Z only) \\
-Proof rules in kernel & 11 \\
-Proof kernel & 334 lines \\
-Trusted core (kernel + language + axioms + derived) & 685 lines \\
+ZFC axioms & 10 defined, 7 used (Z only) \\
+Proof kernel / trusted core & 334 / 685 lines \\
 Total theorems & 203 \\
 Total proof code & 39,059 lines \\
-Unique theorems in plus\_comm & 30 \\
-Kernel proof steps for plus\_comm (DAG) & 11,593 \\
-Unique theorems in tm\_add\_correct & 150 \\
-Kernel proof steps for tm\_add\_correct (DAG) & 134,089 \\
-Proof-to-kernel ratio & 117:1 \\
-Development time & $\sim$25 days \\
 Abstraction levels crossed & 10 \\
+Development time & $\sim$25 days \\
+\midrule
+\multicolumn{2}{l}{\emph{Per-theorem proof statistics (DAG)}} \\
+\midrule
+plus\_comm & 30 theorems, 11,593 steps \\
+tm\_add\_correct & 150 theorems, 134,089 steps \\
 \bottomrule
 \end{tabular}
 \caption{Summary statistics of the ZFC-to-TM-correctness proof chain.}
@@ -494,12 +482,11 @@ steps in a textbook are exactly what LLMs are good at filling in --- and the
 kernel catches the cases where ``easy to see'' is wrong.
 
 \paragraph{Why ZFC.}
-Physics, engineering, and applied mathematics express themselves in sets,
-functions, and real numbers. These are native objects in ZFC. Encoding them
-in dependent type theory is possible but introduces a translation layer that
-adds complexity without expanding the class of problems that can be addressed.
-For a system targeting the formalization of scientific knowledge broadly, ZFC
-is the natural choice.
+Beyond the proof-theoretic arguments of Section~\ref{sec:arch}, ZFC is the
+native language of scientific modeling. A system targeting the formalization
+of knowledge across physics, engineering, and applied mathematics benefits
+from a foundation where sets, functions, and real numbers are first-class
+objects rather than encodings.
 
 \paragraph{Depth as the hard direction.}
 The demonstration in this paper prioritized depth (axioms to program
@@ -513,26 +500,17 @@ incrementally once the depth is established.
 \label{sec:conclusion}
 % ============================================================
 
-Formal proofs are too large for humans. This is not a temporary limitation of
-current tools --- it is the nature of formal verification. The gap between a
-two-line definition and its 11,500-line formal proof is inherent.
-
-We have presented a pipeline that addresses this gap: textbooks provide
-strategy, LLMs provide mechanical detail, and a minimal kernel provides
-correctness guarantees. We demonstrated this pipeline by constructing a
-verified proof chain from ZFC axioms to Turing machine correctness ---
-203 theorems, 39,059 lines of proof, 10 abstraction levels, verified by
-685 lines of trusted code.
-
-The kernel caught a definition error in the guiding textbook that three years
-of human review had missed. This is what formal verification is for: not
-trusting humans, not trusting LLMs, but trusting a small, auditable kernel.
+The gap between informal mathematics and formal proof is inherent, not a
+tooling limitation. The book-guided, LLM-detailed, kernel-verified pipeline
+addresses this gap by assigning each role to the component best suited for
+it: humans write textbooks, LLMs produce mechanical detail, and a small
+kernel guarantees correctness.
 
 The formalized knowledge base --- the theorems, their dependencies, the
 verified reasoning chains --- is a cumulative asset. Each theorem makes
 future proofs easier. The library grows, and the LLM navigates it more
-effectively as it grows. This is the beginning of a scalable approach to
-formalizing the mathematical knowledge that underlies science and engineering.
+effectively as it grows. Any scientific textbook that models its content
+mathematically is a potential input to this pipeline.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
