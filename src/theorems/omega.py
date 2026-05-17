@@ -938,7 +938,7 @@ def omega_exists():
         return Forall(cv, Implies(Inductive(cv), In(x, cv)))
 
     # Separation: forall bv. exists wv. forall xv. xv in wv iff (xv in bv and phi(xv))
-    sep = separation(phi, [])
+    sep_v=Var();sep = separation(phi(sep_v), sep_v, [])
     from core.proof import _expand
     # Peel forall a_set = bv:
     got_sep = sep

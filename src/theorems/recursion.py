@@ -8051,7 +8051,7 @@ def rec_values_agree():
             And(Apply(h2, x, yv), Exists(z_ind, Apply(f, yv, z_ind))))
 
     # === Separation: p = {x in w : P(x)} ===
-    sep = separation(P, [h, h2, f])
+    sep_v=Var();sep = separation(P(sep_v), sep_v, [h, h2, f])
     pv = Var(postfix='p')
     xv = Var(postfix='xv')
     char_p_body = Iff(In(xv, pv), And(In(xv, w), P(xv)))

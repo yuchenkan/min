@@ -2,7 +2,7 @@
 
 from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Eq, Iff, And, Or, Exists
-from core.proof import Sequent, Proof
+from core.proof import Sequent, Proof, _expand, _subst
 from core import same
 from core import zfc
 from vocab import Empty, OrdPair, Omega, Singleton as SingletonDef, PairSet as PairSetDef, Successor as SuccessorDef
@@ -15,7 +15,6 @@ def singleton_exists():
 
     # Use the cached expansion so bound-variable comparisons work correctly:
     # _expand caches pairing_ax.expand() and reuses same Python objects.
-    from core.proof import _subst, _expand
     pa_expand = _expand(pairing_ax)           # Forall(x_p, Forall(y_p, Exists(b_p, Forall(z_p, Iff(...)))))
     pa_after_a  = _subst(pa_expand.body, pa_expand.var, a)   # Forall(y_p, Exists(b_p, Forall(z_p, Iff(...a...))))
     pa_after_aa = _subst(pa_after_a.body, pa_after_a.var, a) # Exists(b_p, Forall(z_p, Iff(...a...a...)))
@@ -144,7 +143,6 @@ def pairset_exists():
     i.e. forall a, b. exists s. forall z. Iff(In(z,s), Or(Eq(z,a), Eq(z,b)))"""
     a, b = Var(), Var()
     pairing_ax = zfc.Pairing()
-    from core.proof import _subst, _expand
     pa_expand = _expand(pairing_ax)
     pa_after_a = _subst(pa_expand.body, pa_expand.var, a)
     pa_after_ab = _subst(pa_after_a.body, pa_after_a.var, b)
@@ -2511,7 +2509,6 @@ def ordpair_exists():
     Every ordered pair exists as a set."""
     from tactics import apply_thm, wl, wr, mp, eel, eir, fl, cut
     from vocab import Singleton, PairSet
-    from core.proof import _subst, _expand
     import sys
 
     x, y, p = Var(), Var(), Var()
@@ -2758,7 +2755,6 @@ def succ_not_empty():
     # Build or_in_eq from eq_nn (eq_reflexive)
     er = eq_reflexive()
     er_body = er.sequent.right[0]  # forall x. Eq(x, x)
-    from core.proof import _subst
     got_eq = Proof(Sequent([], [Eq(n, n)]), 'cut',
         [wr(er, Eq(n, n)), wl(fl(er_body, _subst(er_body.body, er_body.var, n), n))],
         principal=er_body)
@@ -5060,7 +5056,8 @@ def product_exists():
 
     # The predicate for Separation: ∃x∈a.∃y∈b. OrdPair(z,x,y)
     sep_v = Var(postfix='_sv')
-    phi = Exists(x, Exists(y, And(In(x, a), And(In(y, b), OrdPair(sep_v, x, y)))))
+    def phi(zv):
+        return Exists(x, Exists(y, And(In(x, a), And(In(y, b), OrdPair(zv, x, y)))))
 
     # Separation on P(P(a∪b)) with phi gives:
     # ∃p. ∀z. In(z,p) ↔ (In(z, P(P(a∪b))) ∧ ∃x∈a.∃y∈b. OrdPair(z,x,y))
@@ -5082,7 +5079,7 @@ def product_exists():
     # Then prove: ∀z. ∃x∈a.∃y∈b.OrdPair(z,x,y) → In(z, bound). Discharge the ∧.
 
     # For now, let me try the direct Separation approach and see if more work is needed.
-    sep = zfc.Separation(phi, sep_v, [a, b])
+    sep = zfc.Separation(phi(sep_v), sep_v, [a, b])
     sep_ax = Proof(Sequent([sep], [sep]), 'axiom', principal=sep)
 
     prod = Product(p, a, b)
@@ -5118,7 +5115,7 @@ def product_exists():
     got_ex_ppuab = apply_thm(ps_ax_proof, [puab], concl=Exists(ppuab, ps_puab))
 
     # Separation on ppuab with phi:
-    sep2 = zfc.Separation(phi, sep_v, [a, b])
+    sep2 = zfc.Separation(phi(sep_v), sep_v, [a, b])
     sep_ax2 = Proof(Sequent([sep2], [sep2]), 'axiom', principal=sep2)
     # Instantiate with a, b, ppuab:
     iff_sep = Iff(In(z, p), And(In(z, ppuab), phi(z)))

@@ -5075,7 +5075,7 @@ def rec_h_zero_identity():
     char_p_body = Iff(In(xv, pv), And(In(xv, w), P(xv)))
     char_p = Forall(xv, char_p_body)
 
-    sep = separation(P, [hv])
+    sep_v=Var();sep = separation(P(sep_v), sep_v, [hv])
     got_sep = sep
     for term in [hv]:
         actual = got_sep.sequent.right[0]
@@ -5455,7 +5455,7 @@ def h_zero_identity():
     # Separation: induction set {a∈w : P(a)}
     pv_ind = Var(postfix='_pi')
     char_p = Forall(a_v, Iff(In(a_v, pv_ind), And(In(a_v, w), And(In(a_v, w), P(a_v)))))
-    sep = separation(lambda x: And(In(x, w), P(x)), [w, hv])
+    sep_v=Var();sep = separation(And(In(sep_v, w), P(sep_v)), sep_v, [w, hv])
     # Separation params [w, hv], bound = w. Apply: [hv, w, w] (outermost param first)
     got_sep = apply_thm(sep, [hv, w, w], concl=Exists(pv_ind, char_p))
     print(f'h_zero_identity: separation done')
@@ -5879,7 +5879,7 @@ def h_succ_left():
 
     # === Separation ===
     pv_ind = Var(postfix='_pi')
-    sep = separation(lambda x: R(x), [w, hv, mv, smv])
+    sep_v=Var();sep = separation(R(sep_v), sep_v, [w, hv, mv, smv])
     got_sep = apply_thm(sep, [smv, mv, hv, w, w], concl=Exists(pv_ind,
         Forall(nv, Iff(In(nv, pv_ind), And(In(nv, w), R(nv))))))
     char_p = Forall(nv, Iff(In(nv, pv_ind), And(In(nv, w), R(nv))))
@@ -6436,7 +6436,7 @@ def h_comm_identity():
 
     # === Separation ===
     pv_ind = Var(postfix='_pi')
-    sep = separation(lambda x: R(x), [w, hv, mv])
+    sep_v=Var();sep = separation(R(sep_v), sep_v, [w, hv, mv])
     got_sep = apply_thm(sep, [mv, hv, w, w], concl=Exists(pv_ind,
         Forall(nv, Iff(In(nv, pv_ind), And(In(nv, w), R(nv))))))
     char_p = Forall(nv, Iff(In(nv, pv_ind), And(In(nv, w), R(nv))))
@@ -6934,7 +6934,7 @@ def h_val_in_omega():
 
     # === Separation ===
     pv_ind = Var(postfix='_pi')
-    sep = separation(lambda x: R(x), [w, hv, mv])
+    sep_v=Var();sep = separation(R(sep_v), sep_v, [w, hv, mv])
     got_sep = apply_thm(sep, [mv, hv, w, w], concl=Exists(pv_ind,
         Forall(nv, Iff(In(nv, pv_ind), And(In(nv, w), R(nv))))))
     char_p = Forall(nv, Iff(In(nv, pv_ind), And(In(nv, w), R(nv))))
@@ -9084,7 +9084,7 @@ def rec_val_in_omega():
 
     # === Separation for induction set ===
     char_p = Forall(xind, Iff(In(xind, pv), And(In(xind, w), P(xind))))
-    sep = separation(lambda x: And(In(x, w), P(x)), [w, hv])
+    sep_v=Var();sep = separation(And(In(sep_v, w), P(sep_v)), sep_v, [w, hv])
     got_sep = apply_thm(sep, [w, hv, pv], concl=char_p)
 
     def char_p_fwd(term_x):
@@ -9220,7 +9220,7 @@ def rec_val_in_omega():
 
     # Redo char_p with new P:
     char_p = Forall(xind, Iff(In(xind, pv), And(In(xind, w), P(xind))))
-    sep = separation(P, [w, hv])
+    sep_v=Var();sep = separation(P(sep_v), sep_v, [w, hv])
     got_sep = sep
     for term in [hv, w]:
         actual = got_sep.sequent.right[0]
@@ -9612,7 +9612,7 @@ def h_assoc_identity():
 
     # === Separation ===
     pv_ind = Var(postfix='_pi')
-    sep = separation(lambda x: R(x), [w, hv, av, bv, dv, pair_ab])
+    sep_v=Var();sep = separation(R(sep_v), sep_v, [w, hv, av, bv, dv, pair_ab])
     got_sep = apply_thm(sep, [pair_ab, dv, bv, av, hv, w, w], concl=Exists(pv_ind,
         Forall(cv, Iff(In(cv, pv_ind), And(In(cv, w), R(cv))))))
     char_p = Forall(cv, Iff(In(cv, pv_ind), And(In(cv, w), R(cv))))
