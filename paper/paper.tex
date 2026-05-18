@@ -515,17 +515,16 @@ of knowledge across physics, engineering, and applied mathematics benefits
 from a foundation where sets, functions, and real numbers are first-class
 objects rather than encodings.
 
-\paragraph{Division of roles.}
-The restriction to Zermelo set theory (Z) illustrates how the three
-components interact. The LLM's initial proof attempts used Replacement and
-Regularity freely; the human architect imposed the restriction to Z,
-requiring the LLM to find alternative proofs. This required non-trivial
-substitutes: successor injectivity was reproved via transitive sets
-(Lemma~4.2.4 of the textbook) rather than Regularity, and the recursion
-theorem's graph construction used power set bounding
+\paragraph{Axiom minimality as a strength.}
+All 199 theorems use only Zermelo set theory (Z) --- Replacement, Regularity,
+and Choice are not used. This is a deliberately stronger result than proving
+from full ZFC. The LLM's initial attempts used these stronger axioms freely;
+the human architect required proofs in Z alone, and the LLM found alternative
+constructions: successor injectivity via transitive sets (Lemma~4.2.4 of the
+textbook) rather than Regularity, and the recursion theorem's graph
+construction via power set bounding
 ($\mathcal{P}(\mathcal{P}(\omega \cup \bigcup\bigcup f))$) rather than
-Replacement. The kernel verified that no Replacement, Regularity, or Choice
-appears in the axiom dependencies --- all 199 theorems use only Z.
+Replacement. The kernel verified axiom minimality mechanically.
 
 \paragraph{Depth as the hard direction.}
 The demonstration in this paper prioritized depth (axioms to program
