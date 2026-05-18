@@ -25,7 +25,7 @@
 \title{Book-Guided, LLM-Detailed, Kernel-Verified:\\
 Formal Proof Construction from ZFC Axioms to Program Correctness}
 
-\author{Y}
+\author{Yu Chenkan}
 \date{2026}
 
 \begin{document}
@@ -209,6 +209,7 @@ one formula on the right (the theorem) and only ZFC axiom instances on the
 left.
 
 \subsection{Vocabulary Expansion}
+\label{sec:vocab}
 
 Between the kernel and the theorems sits a vocabulary layer: named predicates
 that expand to first-order formulas. For example:
@@ -243,7 +244,10 @@ In practice, we observed that the LLM navigates the theorem library by
 \texttt{plus\_val\_unique} proves uniqueness of addition values, attempting to
 use it, and correcting the instantiation when the kernel rejects the first
 attempt. This pattern of semantic guessing followed by mechanical error
-correction proved effective as the theorem library grew.
+correction proved effective as the theorem library grew. The vocabulary
+layer (Section~\ref{sec:vocab}) serves the same role: the LLM writes
+\texttt{Plus(m,n,p)} rather than its first-order expansion, using
+vocabulary names as semantic handles for reasoning.
 
 % ============================================================
 \section{Demonstration: ZFC to Program Correctness}
@@ -329,7 +333,7 @@ tm\_add\_correct & 150 theorems, 134,089 steps \\
 \label{sec:book}
 % ============================================================
 
-The proof development followed a textbook written by the first author over
+The proof development followed a textbook written by the author over
 three years: a 219-page treatment of mathematical logic and software
 engineering covering propositional logic, first-order logic (including sequent
 calculus, cut elimination, and completeness), computability, first-order
@@ -397,7 +401,7 @@ works because the reader implicitly restricts attention to the ``intended''
 function $h$. The kernel does not permit implicit restrictions. The
 definition must be self-contained.
 
-The textbook was written by the first author and reviewed over three years.
+The textbook was written by the author and reviewed over three years.
 The error was caught mechanically, in minutes, by a 334-line kernel during an
 LLM-driven formalization attempt.
 
