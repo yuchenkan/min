@@ -43,12 +43,18 @@ a mathematical textbook provides proof strategy and development order
 formal proof steps (\emph{LLM-detailed}); and a minimal proof kernel guarantees
 correctness (\emph{kernel-verified}).
 
-We demonstrate this pipeline by constructing a verified proof chain from ZFC
-set theory axioms to the correctness of a Turing machine that computes addition
---- spanning 10 abstraction levels, 199 theorems, and 38,247 lines of proof,
-all verified by a 334-line sequent calculus kernel. During formalization, the
-kernel caught a definition error in the guiding textbook that three years of
-human review had missed.
+We demonstrate this pipeline by constructing a verified proof chain from
+Zermelo set theory axioms to the correctness of a Turing machine that computes
+addition --- spanning 10 abstraction levels, 199 theorems, and 38,247 lines
+of proof, all verified by a 334-line sequent calculus kernel.
+Three aspects of this result are notable: the proof uses only Zermelo set
+theory (Z), achieving tighter axiom bounds than typical formalizations;
+the proof chain connects arithmetic directly to computation within a single
+verified environment, demonstrating cross-abstraction reasoning; and the
+choice of ZFC over dependent type theory aligns the system with the native
+language of scientific textbooks. During formalization, the kernel caught a
+definition error in the guiding textbook that three years of human review
+had missed.
 \end{abstract}
 
 % ============================================================
@@ -90,11 +96,22 @@ humanly impossible to read (too detailed), and humanly impossible to verify by
 inspection (too complex). The textbook is the human interface. The LLM is the
 translator. The kernel is the guarantor.
 
-We demonstrate this pipeline by constructing a verified proof chain from
-Zermelo set theory axioms to Turing machine correctness, spanning
-10 abstraction levels (Section~\ref{sec:demo}). During formalization, the
-kernel caught a definition error in the guiding textbook that three years of
-human review had missed (Section~\ref{sec:book}).
+We build on ZFC set theory rather than the dependent type theories used by
+Coq and Lean. ZFC is the native foundation of working mathematics and
+scientific modeling --- sets, functions, and real numbers are first-class
+objects, not encodings. This makes the pipeline directly applicable to
+standard scientific textbooks.
+
+We demonstrate the pipeline by constructing a verified proof chain from
+Zermelo set theory (Z) axioms to Turing machine correctness, spanning
+10 abstraction levels (Section~\ref{sec:demo}). The proof connects
+arithmetic ($\text{Plus}(a,b,c)$) directly to computation
+($\text{TMReaches}(\delta, c_0, n, c_f)$) within a single verified
+environment --- cross-abstraction reasoning that existing single-level
+tools cannot express. The proof achieves axiom minimality: only Z is
+needed, without Replacement, Regularity, or Choice. During formalization,
+the kernel caught a definition error in the guiding textbook that three
+years of human review had missed (Section~\ref{sec:book}).
 
 % ============================================================
 \section{The Scale of Formal Proof}
