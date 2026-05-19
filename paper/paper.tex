@@ -69,8 +69,9 @@ and Metamath~\citep{metamath} are orders of magnitude longer than their
 textbook counterparts, requiring extensive manual effort from trained experts.
 
 Large language models (LLMs) offer a potential solution --- recent work on
-LLM-driven theorem proving~\citep{alphaproof2024,polu2020generative} has
-demonstrated that LLMs can generate plausible proof steps at scale. But LLMs
+LLM-driven theorem
+proving~\citep{alphaproof2024,polu2020generative,deepseekprover2024,dsp2023}
+has demonstrated that LLMs can generate plausible proof steps at scale. But LLMs
 are unreliable --- they hallucinate, make logical errors, and produce subtly
 wrong proofs. Used alone, they cannot be trusted for formal verification.
 
@@ -476,11 +477,16 @@ establishes patterns that accelerate higher-layer development.
 
 \paragraph{LLM-driven theorem proving.}
 AlphaProof~\citep{alphaproof2024} combines a language model with AlphaZero-style
-reinforcement learning to solve competition mathematics in Lean. GPT-f~\citep{polu2020generative}
-and follow-up work demonstrate LLM-based proof step generation in formal
-systems. These approaches use LLMs within existing proof assistants (Lean, Isabelle)
-and focus on search within a fixed logical framework. Our work differs in
-building the logical framework itself, using ZFC rather than dependent type theory,
+reinforcement learning to solve competition mathematics in Lean.
+GPT-f~\citep{polu2020generative} demonstrated LLM-based proof step generation;
+subsequent work has scaled this approach:
+DeepSeek-Prover~\citep{deepseekprover2024} uses large-scale synthetic data,
+Lean Copilot~\citep{leancopilot2024} integrates LLMs directly into the Lean
+editor, Draft-Sketch-Prove~\citep{dsp2023} translates informal proofs to
+formal ones, and LEGO-Prover~\citep{legoprover2023} grows reusable lemma
+libraries. All of these operate within existing type-theory-based proof
+assistants (Lean, Isabelle). Our work differs in building the logical framework
+itself, using ZFC and sequent calculus rather than dependent type theory,
 and targeting cross-abstraction reasoning rather than single-level proof search.
 
 \paragraph{Interactive theorem provers.}

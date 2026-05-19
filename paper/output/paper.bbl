@@ -1,4 +1,4 @@
-\begin{thebibliography}{8}
+\begin{thebibliography}{12}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -24,6 +24,14 @@ Yves Bertot and Pierre Cast{\'e}ran.
 \newblock
   \url{https://deepmind.google/discover/blog/ai-solves-imo-problems-at-silver-medal-level/}.
 
+\bibitem[Jiang et~al.(2023)Jiang, Welleck, Zhou, Li, Liu, Jamnik, Lacroix, Li,
+  and Lample]{dsp2023}
+Albert~Q. Jiang, Sean Welleck, Jin~Peng Zhou, Wenda Li, Jiacheng Liu, Mateja
+  Jamnik, Timoth{\'e}e Lacroix, Yuhuai Li, and Guillaume Lample.
+\newblock Draft, sketch, and prove: Guiding formal theorem provers with
+  informal proofs.
+\newblock In \emph{International Conference on Learning Representations}, 2023.
+
 \bibitem[Megill and Wheeler(2019)]{metamath}
 Norman Megill and David~A. Wheeler.
 \newblock Metamath: A computer language for mathematical proofs, 2019.
@@ -44,10 +52,30 @@ Daniel Selsam et~al.
 \newblock Learning a sat solver from single-bit supervision.
 \newblock In \emph{International Conference on Learning Representations}, 2019.
 
+\bibitem[Song et~al.(2024)Song, Yang, and Anandkumar]{leancopilot2024}
+Peiyang Song, Kaiyu Yang, and Anima Anandkumar.
+\newblock Lean copilot: Llms as copilots for theorem proving in lean.
+\newblock \emph{arXiv preprint arXiv:2404.12534}, 2024.
+
 \bibitem[{The mathlib Community}(2020)]{mathlib2020}
 {The mathlib Community}.
 \newblock The lean mathematical library.
 \newblock \emph{Proceedings of the 9th ACM SIGPLAN International Conference on
   Certified Programs and Proofs}, 2020.
+
+\bibitem[Wang et~al.(2023)Wang, Xin, Zheng, Li, Liu, Cao, Huang, Xiong, Shi,
+  Xie, et~al.]{legoprover2023}
+Haiming Wang, Huajian Xin, Chuanyang Zheng, Lin Li, Zhengying Liu, Qingxing
+  Cao, Yinya Huang, Jing Xiong, Han Shi, Enze Xie, et~al.
+\newblock Lego-prover: Neural theorem proving with growing libraries.
+\newblock \emph{arXiv preprint arXiv:2310.00656}, 2023.
+
+\bibitem[Xin et~al.(2024)Xin, Guo, Shao, Ren, Zhu, Liu, Ruan, Li, and
+  Liang]{deepseekprover2024}
+Huajian Xin, Daya Guo, Zhihong Shao, Zhizhou Ren, Qihao Zhu, Bo~Liu, Chong
+  Ruan, Wenda Li, and Xiaodan Liang.
+\newblock Deepseek-prover: Advancing theorem proving in llms through
+  large-scale synthetic data.
+\newblock \emph{arXiv preprint arXiv:2405.14333}, 2024.
 
 \end{thebibliography}
