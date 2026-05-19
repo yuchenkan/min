@@ -63,15 +63,16 @@ had missed.
 % ============================================================
 
 The promise of formal verification is absolute correctness: if a proof checks,
-the theorem holds. The barrier is cost. Formal proofs in systems like Coq,
-Lean, Isabelle, and Metamath are orders of magnitude longer than their textbook
-counterparts, requiring extensive manual effort from trained experts.
+the theorem holds. The barrier is cost. Formal proofs in systems like
+Coq~\citep{coq}, Lean/Mathlib~\citep{mathlib2020}, Isabelle~\citep{isabelle},
+and Metamath~\citep{metamath} are orders of magnitude longer than their
+textbook counterparts, requiring extensive manual effort from trained experts.
 
-Large language models (LLMs) offer a potential solution. They can generate
-large volumes of plausible formal text, and they can work at a scale of
-mechanical detail that humans cannot sustain. But LLMs are unreliable ---
-they hallucinate, make logical errors, and produce subtly wrong proofs. Used
-alone, they cannot be trusted for formal verification.
+Large language models (LLMs) offer a potential solution --- recent work on
+LLM-driven theorem proving~\citep{alphaproof2024,polu2020generative} has
+demonstrated that LLMs can generate plausible proof steps at scale. But LLMs
+are unreliable --- they hallucinate, make logical errors, and produce subtly
+wrong proofs. Used alone, they cannot be trusted for formal verification.
 
 We propose a pipeline that combines three components:
 
