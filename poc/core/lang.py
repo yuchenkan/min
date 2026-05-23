@@ -2,12 +2,12 @@
 
 Var(bound=True) marks a binding variable.
 All Var compared by identity (is).
+No names — display is a separate layer.
 """
 
 
 class Var:
-    def __init__(self, name=None, bound=False):
-        self.name = name
+    def __init__(self, bound=False):
         self.bound = bound
 
 
@@ -35,7 +35,7 @@ class Implies:
 
 class Forall:
     def __init__(self, var, body):
-        assert isinstance(var, Var) and var.bound, f'Forall.var must be Var(bound=True), got {var}'
+        assert isinstance(var, Var) and var.bound, f'Forall.var must be Var(bound=True)'
         assert isinstance(body, (In, Not, Implies, Forall)), f'Forall.body must be formula, got {type(body).__name__}'
         self.var = var
         self.body = body
