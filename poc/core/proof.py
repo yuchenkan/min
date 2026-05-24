@@ -89,7 +89,7 @@ def _eq(a, b, env):
     if isinstance(a, Implies):
         return _eq(a.left, b.left, env) and _eq(a.right, b.right, env)
     if isinstance(a, Forall):
-        return _eq(a.body, b.body, env + [(a.var, b.var)])
+        return _eq(a.body, b.body, [(a.var, b.var)] + env)
     return False
 
 
