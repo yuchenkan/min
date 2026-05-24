@@ -83,8 +83,8 @@ BUILTINS = {
     'proof': lambda s, r, p=None, pr=None, t=None: proof(
         s.value, r.value,
         [a.value for a in p.value] if p else None,
-        t.value if t else None,
-        pr.value if pr else None),
+        pr.value if pr else None,
+        t.value if t else None),
     'same': lambda a, b: same(a.value, b.value),
 }
 

@@ -157,7 +157,7 @@ def sequent(left, right):
     return _Sequent(left, right)
 
 
-def proof(seq, rule, premises=None, term=None, principal=None):
+def proof(seq, rule, premises=None, principal=None, term=None):
     """Validate and create a proof step.
 
     Rules (G = left context, D = right context, A/B = formulas):
