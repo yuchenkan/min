@@ -3,7 +3,8 @@
 Strict evaluation, lazy only for if-branches.
 """
 
-from parser import parse, Import, Let, Fn as FnAST, Call, Ref, Lit, Block, If
+from parser import parse, Import, Bind, Fn as FnAST, Call, Ref, Lit, List as ListAST, Block, If
+from proof import var, mem, neg, implies, forall, sequent, proof, same
 import os
 
 
@@ -13,14 +14,6 @@ class Traced:
     def __init__(self, value, ast):
         self.value = value
         self.ast = ast
-
-
-class Rest:
-    def __init__(self, args):
-        self.args = args
-
-    def __repr__(self):
-        return ', '.join(repr(a) for a in self.args)
 
 
 # === Env ===
@@ -44,9 +37,8 @@ class Env:
 # === Fn: runtime function (closure) ===
 
 class Fn:
-    def __init__(self, params, rest, body_ast, env):
+    def __init__(self, params, body_ast, env):
         self.params = params
-        self.rest = rest
         self.body_ast = body_ast
         self.env = env
 
@@ -54,65 +46,10 @@ class Fn:
         child = Env(self.env)
         for p, a in zip(self.params, args):
             child.set(p, a)
-        if self.rest:
-            rest = args[len(self.params):]
-            child.set(self.rest, Traced(rest, Rest(rest)))
         return evaluate(self.body_ast, child)
 
 
 # === Builtins ===
-# All receive Traced args via __call__.
-# Return Traced = pass through, return non-Traced = evaluator wraps.
-
-from proof import Var as KVar, In as KIn, Not as KNot, Implies as KImplies, Forall as KForall, Sequent as KSequent, Proof as KProof
-
-
-# --- Kernel wrappers (store Traced args + kernel objects) ---
-
-class EVar:
-    def __init__(self):
-        self.kernel = KVar()
-
-class EIn:
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        self.kernel = KIn(left.value.kernel, right.value.kernel)
-
-class ENot:
-    def __init__(self, operand):
-        self.operand = operand
-        self.kernel = KNot(operand.value.kernel)
-
-class EImplies:
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        self.kernel = KImplies(left.value.kernel, right.value.kernel)
-
-class EForall:
-    def __init__(self, var, body):
-        self.var = var
-        self.body = body
-        self.kernel = KForall(var.value.kernel, body.value.kernel)
-
-class ESequent:
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        self.kernel = KSequent([a.value.kernel for a in left.value],
-                               [a.value.kernel for a in right.value])
-
-class EProof:
-    def __init__(self, sequent, rule, premises=None, term=None, principal=None):
-        self.sequent = sequent
-        self.rule = rule
-        s = sequent.value.kernel
-        r = rule.value
-        p = [a.value.kernel for a in premises.value] if premises else []
-        t = term.value.kernel if term else None
-        pr = principal.value.kernel if principal else None
-        self.kernel = KProof(s, r, p, t, pr)
 
 BUILTINS = {
     # Arithmetic
@@ -136,13 +73,18 @@ BUILTINS = {
     'append': lambda l, x: l.value + [x],
     'concat': lambda a, b: a.value + b.value,
     # Kernel
-    'Var': lambda: EVar(),
-    'In': lambda l, r: EIn(l, r),
-    'Not': lambda o: ENot(o),
-    'Implies': lambda l, r: EImplies(l, r),
-    'Forall': lambda v, b: EForall(v, b),
-    'Sequent': lambda l, r: ESequent(l, r),
-    'Proof': lambda s, r, p=None, t=None, pr=None: EProof(s, r, p, t, pr),
+    'var': lambda: var(),
+    'mem': lambda l, r: mem(l.value, r.value),
+    'neg': lambda o: neg(o.value),
+    'implies': lambda l, r: implies(l.value, r.value),
+    'forall': lambda v, b: forall(v.value, b.value),
+    'sequent': lambda l, r: sequent(l.value, r.value),
+    'proof': lambda s, r, p=None, t=None, pr=None: proof(
+        s.value, r.value,
+        [a.value for a in p.value] if p else None,
+        t.value if t else None,
+        pr.value if pr else None),
+    'same': lambda a, b: same(a.value, b.value),
 }
 
 
@@ -159,7 +101,11 @@ def evaluate(node, env):
         raise NameError(f'{node.line}:{node.col}: undefined: {node.name}')
 
     if isinstance(node, FnAST):
-        return Traced(Fn(node.params, node.rest, node.body, env), node)
+        return Traced(Fn(node.params, node.body, env), node)
+
+    if isinstance(node, ListAST):
+        items = [evaluate(item, env) for item in node.items]
+        return Traced(items, node)
 
     if isinstance(node, If):
         cond = evaluate(node.cond, env)
@@ -181,8 +127,8 @@ def evaluate(node, env):
 
     if isinstance(node, Block):
         child = Env(env)
-        for let in node.bindings:
-            child.set(let.name, evaluate(let.expr, child))
+        for b in node.bindings:
+            child.set(b.name, evaluate(b.expr, child))
         return evaluate(node.expr, child)
 
     raise ValueError(f'cannot evaluate: {type(node).__name__}')
@@ -219,7 +165,7 @@ def load_file(filepath):
     for node in nodes:
         if isinstance(node, Import):
             _load_import(node)
-        elif isinstance(node, Let):
+        elif isinstance(node, Bind):
             _global_env.set(node.name, evaluate(node.expr, _global_env))
             exports[node.name] = _global_env.get(node.name)
 
@@ -245,48 +191,47 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         filepath = sys.argv[1]
     else:
-        src = """
-let x = 5
-let y = add(x, 1)
-let double = [n : mul(n, 2)]
-let result = double(y)
+        src = r"""
+=(x 5)
+=(y add(x, 1))
+=(double \(n : mul(n, 2)))
+=(result double(y))
 
-let factorial = [n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
-let fact5 = factorial(5)
+=(factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))))
+=(fact5 factorial(5))
 
-let list = [items... : items]
-let mylist = list(1, 2, 3)
-let first = head(mylist)
-let rest = tail(mylist)
-let empty = nil(rest)
-let length = len(mylist)
+=(mylist [1, 2, 3])
+=(first head(mylist))
+=(rest tail(mylist))
+=(empty nil(rest))
+=(length len(mylist))
 
-let blk = {
-    let a = 10
-    let b = 20
+=(blk {
+    =(a 10)
+    =(b 20)
     add(a, b)
-}
+})
 
-let compose = [f, g : [x : f(g(x))]]
-let double_then_add1 = compose([n : add(n, 1)], [n : mul(n, 2)])
-let r1 = double_then_add1(3)
-let callnow = [a, b : add(a, b)](10, 20)
-let thunk = [: 42]
-let t1 = thunk()
-let nested = [a : [b : add(a, b)]]
-let n1 = nested(10)(20)
+=(compose \(f g : \(x : f(g(x)))))
+=(double_then_add1 compose(\(n : add(n, 1)), \(n : mul(n, 2))))
+=(r1 double_then_add1(3))
+=(callnow \(a b : add(a, b))(10, 20))
+=(thunk \(: 42))
+=(t1 thunk())
+=(nested \(a : \(b : add(a, b))))
+=(n1 nested(10)(20))
 
-let va = Var()
-let vx = Var()
-let f = Forall(vx, In(vx, va))
+=(va var())
+=(vx var())
+=(f forall(vx, mem(vx, va)))
 """
         nodes = parse(src, '<test>')
         env = _make_global_env()
         for node in nodes:
-            if isinstance(node, Let):
+            if isinstance(node, Bind):
                 env.set(node.name, evaluate(node.expr, env))
 
-        for name in ['x', 'y', 'result', 'fact5', 'list', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
+        for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
                       'r1', 'callnow', 't1', 'n1', 'va', 'vx', 'f']:
             t = env.get(name)
             print(f'{name} = {t.value} <- {t.ast}')
