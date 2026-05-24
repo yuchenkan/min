@@ -65,6 +65,7 @@ def _subst(formula, old, new):
     raise ValueError(f'cannot subst: {type(formula).__name__}')
 
 
+
 # === Alpha-equivalence ===
 
 def same(a, b):

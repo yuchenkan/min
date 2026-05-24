@@ -159,6 +159,8 @@ def _check_forall_left(s, ps, principal, t):
         return False
     if not _in(principal, s.left):
         return False
+    if _var_bound_in(t, principal.body):
+        return False
     G = _remove(s.left, principal)
     substituted = principal.body.subst(principal.var, t)
     return _eq_sequent(ps[0], Sequent(_set_add(G, substituted), s.right))
