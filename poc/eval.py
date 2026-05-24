@@ -82,15 +82,6 @@ BUILTINS = {
     'Pair': lambda a, b: (a, b),
     'fst': lambda p: p[0],
     'snd': lambda p: p[1],
-    # List (from pairs)
-    'Nil': None,
-    'Cons': lambda h, t: (h, t),
-    'head': lambda l: l[0],
-    'tail': lambda l: l[1],
-    'nil': lambda l: l is None,
-    # String
-    'concat': lambda a, b: a + b,
-    'len': lambda s: len(s),
 }
 
 
