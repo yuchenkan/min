@@ -218,7 +218,14 @@ def _evaluate(node, env):
         return Traced(items, node)
 
     if isinstance(node, Show):
-        return _evaluate(node.expr, env)
+        depth = 0
+        inner = node
+        while isinstance(inner, Show):
+            depth += 1
+            inner = inner.expr
+        result = _evaluate(inner, env)
+        print(show(result, depth - 1))
+        return result
 
     if isinstance(node, If):
         cond = _evaluate(node.cond, env)
