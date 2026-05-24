@@ -58,32 +58,35 @@ def _v(t):
     return t.value
 
 def _kernel(x):
+    while isinstance(x, Traced):
+        x = x.value
     return x.kernel
 
 def show(t, depth):
-    """Show a Traced value. depth=0: show AST. depth>0: expand eval types."""
-    if depth <= 0:
-        return repr(t.ast)
-    v = t.value
-    if isinstance(v, Var):
-        return repr(t.ast)
-    if isinstance(v, Mem):
-        return f'mem({show(v.left, depth - 1)}, {show(v.right, depth - 1)})'
-    if isinstance(v, Neg):
-        return f'neg({show(v.operand, depth - 1)})'
-    if isinstance(v, Implies):
-        return f'implies({show(v.left, depth - 1)}, {show(v.right, depth - 1)})'
-    if isinstance(v, Forall):
-        return f'forall({show(v.var, depth - 1)}, {show(v.body, depth - 1)})'
-    if isinstance(v, Sequent):
-        l = ', '.join(show(a, depth - 1) for a in _v(v.left))
-        r = ', '.join(show(a, depth - 1) for a in _v(v.right))
+    """Show a value. Peels Traced layers based on depth.
+    Doesn't peel if value is Var or primitive."""
+    if isinstance(t, Traced):
+        if depth <= 0:
+            return repr(t.ast)
+        if not isinstance(t.value, (Traced, Mem, Neg, Implies, Forall, Sequent, Proof, list)):
+            return repr(t.ast)
+        return show(t.value, depth - 1)
+    if isinstance(t, Mem):
+        return f'mem({show(t.left, depth)}, {show(t.right, depth)})'
+    if isinstance(t, Neg):
+        return f'neg({show(t.operand, depth)})'
+    if isinstance(t, Implies):
+        return f'implies({show(t.left, depth)}, {show(t.right, depth)})'
+    if isinstance(t, Forall):
+        return f'forall({show(t.var, depth)}, {show(t.body, depth)})'
+    if isinstance(t, Sequent):
+        l = ', '.join(show(a, depth) for a in _v(t.left))
+        r = ', '.join(show(a, depth) for a in _v(t.right))
         return f'[{l}] |- [{r}]'
-    if isinstance(v, Proof):
-        return f'proof({show(v.seq, depth - 1)})'
-    if isinstance(v, list):
-        return f'[{", ".join(show(a, depth - 1) for a in v)}]'
-    return str(v)
+    if isinstance(t, Proof):
+        return f'proof({show(t.seq, depth)})'
+    if isinstance(t, list):
+        return f'[{", ".join(show(a, depth) for a in t)}]'
 
 
 # === Eval-level formula types ===
@@ -151,11 +154,11 @@ BUILTINS = {
     'False': False,
     'not': lambda a: not _v(a),
     # List
-    'head': lambda l: _v(l)[0].value,
+    'head': lambda l: _v(l)[0],
     'tail': lambda l: _v(l)[1:],
     'nil': lambda l: len(_v(l)) == 0,
     'len': lambda l: len(_v(l)),
-    'nth': lambda l, n: _v(l)[_v(n)].value,
+    'nth': lambda l, n: _v(l)[_v(n)],
     'append': lambda l, x: _v(l) + [x],
     'concat': lambda a, b: _v(a) + _v(b),
     # Kernel
@@ -241,7 +244,7 @@ def _evaluate(node, env):
 
         if isinstance(fn, Fn):
             result = fn.call(args)
-            return Traced(result.value, node)
+            return Traced(result, node)
 
         raise EvalError('not callable', node)
 
