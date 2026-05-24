@@ -29,8 +29,8 @@ If an object is unreachable, its trace is also unreachable — collect both.
 - Int — integers
 - Bool — True/False
 - String — text
-- Pair — the only compound type. fst/snd for access.
-  All structured data built from nested pairs. No dots.
+- List — the only compound type. Built via varargs.
+  head/tail/nil for access. No dots.
 
 ## 6. Everything is a function call
 
