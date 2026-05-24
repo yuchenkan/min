@@ -14,8 +14,13 @@ class Traced:
         self.value = value
         self.ast = ast
 
+
+class Rest:
+    def __init__(self, args):
+        self.args = args
+
     def __repr__(self):
-        return f'{self.value} <- {self.ast}'
+        return ', '.join(repr(a) for a in self.args)
 
 
 # === Env ===
@@ -50,8 +55,73 @@ class Fn:
         for p, a in zip(self.params, args):
             child.set(p, a)
         if self.rest:
-            child.set(self.rest, Traced(args[len(self.params):], None))
+            rest = args[len(self.params):]
+            child.set(self.rest, Traced(rest, Rest(rest)))
         return evaluate(self.body_ast, child)
+
+
+# === Kernel type wrappers ===
+
+from proof import Var as KVar, In as KIn, Not as KNot, Implies as KImplies, Forall as KForall, Sequent as KSequent, Proof as KProof
+
+class Form:
+    pass
+
+class EVar(Form):
+    def __init__(self):
+        self.kernel = KVar()
+
+class EIn(Form):
+    def __init__(self, left, right):
+        self.left = left    # Traced
+        self.right = right  # Traced
+        self.kernel = KIn(left.value, right.value)
+
+class ENot(Form):
+    def __init__(self, operand):
+        self.operand = operand  # Traced
+        self.kernel = KNot(operand.value)
+
+class EImplies(Form):
+    def __init__(self, left, right):
+        self.left = left    # Traced
+        self.right = right  # Traced
+        self.kernel = KImplies(left.value, right.value)
+
+class EForall(Form):
+    def __init__(self, fn):
+        self.fn = fn  # Traced Fn
+        v = KVar()
+        body = fn.value.call([Traced(v, None)])
+        self.kernel = KForall(v, body.value)
+
+class ESequent(Form):
+    def __init__(self, left, right):
+        self.left = left    # Traced (list of Traced)
+        self.right = right  # Traced (list of Traced)
+        self.kernel = KSequent([a.value.kernel for a in left.value],
+                               [a.value.kernel for a in right.value])
+
+class EProof(Form):
+    def __init__(self, sequent, rule, premises=None, term=None, principal=None):
+        self.sequent = sequent  # Traced
+        self.rule = rule        # Traced
+        s = sequent.value.kernel
+        r = rule.value
+        p = [a.value.kernel for a in premises.value] if premises else []
+        t = term.value.kernel if term else None
+        pr = principal.value.kernel if principal else None
+        self.kernel = KProof(s, r, p, t, pr)
+
+
+# === Accessors (Traced in, Traced out) ===
+
+class Accessor:
+    pass
+
+class ABody(Accessor):
+    def __call__(self, f):
+        return f.value.fn  # original Traced Fn
 
 
 # === Builtins ===
@@ -77,6 +147,15 @@ BUILTINS = {
     'nth': lambda l, n: l[n],
     'append': lambda l, x: l + [x],
     'concat': lambda a, b: a + b,
+    # Kernel types
+    'Var': EVar,
+    'In': EIn,
+    'Not': ENot,
+    'Implies': EImplies,
+    'Forall': EForall,
+    'Sequent': ESequent,
+    'Proof': EProof,
+    'body': ABody(),
 }
 
 
@@ -103,12 +182,20 @@ def evaluate(node, env):
         fn = evaluate(node.callee, env).value
         args = [evaluate(a, env) for a in node.args]
 
+        if isinstance(fn, type) and issubclass(fn, Form):
+            result = fn(*args)
+            return Traced(result, node)
+
+        if isinstance(fn, Accessor):
+            return fn(*args)
+
         if callable(fn):
             result = fn(*[a.value for a in args])
             return Traced(result, node)
 
         if isinstance(fn, Fn):
-            return fn.call(args)
+            result = fn.call(args)
+            return Traced(result.value, node)
 
         raise TypeError(f'{node.line}:{node.col}: not callable')
 
@@ -208,6 +295,10 @@ let thunk = [: 42]
 let t1 = thunk()
 let nested = [a : [b : add(a, b)]]
 let n1 = nested(10)(20)
+
+let a = Var()
+let f = Forall([x : In(x, a)])
+let fb = body(f)
 """
         nodes = parse(src, '<test>')
         env = _make_global_env()
@@ -215,6 +306,7 @@ let n1 = nested(10)(20)
             if isinstance(node, Let):
                 env.set(node.name, evaluate(node.expr, env))
 
-        for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
-                      'r1', 'callnow', 't1', 'n1']:
-            print(f'{name} = {env.get(name)}')
+        for name in ['x', 'y', 'result', 'fact5', 'list', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
+                      'r1', 'callnow', 't1', 'n1', 'a', 'f', 'fb']:
+            t = env.get(name)
+            print(f'{name} = {t.value} <- {t.ast}')
