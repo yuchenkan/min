@@ -60,52 +60,54 @@ class Fn:
         return evaluate(self.body_ast, child)
 
 
-# === Kernel type wrappers ===
+# === Builtins ===
+# All receive Traced args via __call__.
+# Return Traced = pass through, return non-Traced = evaluator wraps.
 
 from proof import Var as KVar, In as KIn, Not as KNot, Implies as KImplies, Forall as KForall, Sequent as KSequent, Proof as KProof
 
-class Form:
-    pass
 
-class EVar(Form):
+# --- Kernel wrappers (store Traced args + kernel objects) ---
+
+class EVar:
     def __init__(self):
         self.kernel = KVar()
 
-class EIn(Form):
+class EIn:
     def __init__(self, left, right):
-        self.left = left    # Traced
-        self.right = right  # Traced
+        self.left = left
+        self.right = right
         self.kernel = KIn(left.value.kernel, right.value.kernel)
 
-class ENot(Form):
+class ENot:
     def __init__(self, operand):
-        self.operand = operand  # Traced
+        self.operand = operand
         self.kernel = KNot(operand.value.kernel)
 
-class EImplies(Form):
+class EImplies:
     def __init__(self, left, right):
-        self.left = left    # Traced
-        self.right = right  # Traced
+        self.left = left
+        self.right = right
         self.kernel = KImplies(left.value.kernel, right.value.kernel)
 
-class EForall(Form):
+class EForall:
     def __init__(self, fn):
-        self.fn = fn  # Traced Fn
+        self.fn = fn
         ev = EVar()
         body = fn.value.call([Traced(ev, None)])
         self.kernel = KForall(ev.kernel, body.value.kernel)
 
-class ESequent(Form):
+class ESequent:
     def __init__(self, left, right):
-        self.left = left    # Traced (list of Traced)
-        self.right = right  # Traced (list of Traced)
+        self.left = left
+        self.right = right
         self.kernel = KSequent([a.value.kernel for a in left.value],
                                [a.value.kernel for a in right.value])
 
-class EProof(Form):
+class EProof:
     def __init__(self, sequent, rule, premises=None, term=None, principal=None):
-        self.sequent = sequent  # Traced
-        self.rule = rule        # Traced
+        self.sequent = sequent
+        self.rule = rule
         s = sequent.value.kernel
         r = rule.value
         p = [a.value.kernel for a in premises.value] if premises else []
@@ -113,49 +115,37 @@ class EProof(Form):
         pr = principal.value.kernel if principal else None
         self.kernel = KProof(s, r, p, t, pr)
 
-
-# === Accessors (Traced in, Traced out) ===
-
-class Accessor:
-    pass
-
-class ABody(Accessor):
-    def __call__(self, f):
-        return f.value.fn  # original Traced Fn
-
-
-# === Builtins ===
-
 BUILTINS = {
     # Arithmetic
-    'add': lambda a, b: a + b,
-    'sub': lambda a, b: a - b,
-    'mul': lambda a, b: a * b,
+    'add': lambda a, b: a.value + b.value,
+    'sub': lambda a, b: a.value - b.value,
+    'mul': lambda a, b: a.value * b.value,
     # Comparison
-    'eq': lambda a, b: a == b,
-    'lt': lambda a, b: a < b,
-    'gt': lambda a, b: a > b,
+    'eq': lambda a, b: a.value == b.value,
+    'lt': lambda a, b: a.value < b.value,
+    'gt': lambda a, b: a.value > b.value,
     # Bool
     'True': True,
     'False': False,
-    'not': lambda a: not a,
+    'not': lambda a: not a.value,
     # List
-    'head': lambda l: l[0],
-    'tail': lambda l: l[1:],
-    'nil': lambda l: len(l) == 0,
-    'len': lambda l: len(l),
-    'nth': lambda l, n: l[n],
-    'append': lambda l, x: l + [x],
-    'concat': lambda a, b: a + b,
-    # Kernel types
-    'Var': EVar,
-    'In': EIn,
-    'Not': ENot,
-    'Implies': EImplies,
-    'Forall': EForall,
-    'Sequent': ESequent,
-    'Proof': EProof,
-    'body': ABody(),
+    'head': lambda l: l.value[0],
+    'tail': lambda l: l.value[1:],
+    'nil': lambda l: len(l.value) == 0,
+    'len': lambda l: len(l.value),
+    'nth': lambda l, n: l.value[n.value],
+    'append': lambda l, x: l.value + [x],
+    'concat': lambda a, b: a.value + b.value,
+    # Kernel
+    'Var': lambda: EVar(),
+    'In': lambda l, r: EIn(l, r),
+    'Not': lambda o: ENot(o),
+    'Implies': lambda l, r: EImplies(l, r),
+    'Forall': lambda fn: EForall(fn),
+    'Sequent': lambda l, r: ESequent(l, r),
+    'Proof': lambda s, r, p=None, t=None, pr=None: EProof(s, r, p, t, pr),
+    'body': lambda f: f.value.fn.value,
+    'nparams': lambda f: len(f.value.params),
 }
 
 
@@ -182,15 +172,8 @@ def evaluate(node, env):
         fn = evaluate(node.callee, env).value
         args = [evaluate(a, env) for a in node.args]
 
-        if isinstance(fn, type) and issubclass(fn, Form):
-            result = fn(*args)
-            return Traced(result, node)
-
-        if isinstance(fn, Accessor):
-            return fn(*args)
-
         if callable(fn):
-            result = fn(*[a.value for a in args])
+            result = fn(*args)
             return Traced(result, node)
 
         if isinstance(fn, Fn):
