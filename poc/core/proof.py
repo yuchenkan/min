@@ -157,6 +157,37 @@ def sequent(left, right):
     return _Sequent(left, right)
 
 
+import weakref
+_axiom_registry = weakref.WeakSet()
+
+
+def axiom(f):
+    """Register a closed formula as an axiom. Returns f."""
+    if not isinstance(f, _Formula):
+        raise TypeError(f'axiom: must be formula, got {type(f).__name__}')
+    if _free_vars(f):
+        raise ValueError(f'axiom: formula has free variables')
+    _axiom_registry.add(f)
+    return f
+
+
+def qed(p):
+    """Check a completed proof.
+    - Exactly one formula on the right (the theorem)
+    - That formula is closed (no free vars)
+    - All left formulas are registered axioms
+    Returns the theorem formula, or raises."""
+    s = p.sequent
+    if len(s.right) != 1:
+        raise ValueError(f'qed: expected 1 formula on right, got {len(s.right)}')
+    if _free_vars(s.right[0]):
+        raise ValueError(f'qed: theorem has free variables')
+    for f in s.left:
+        if not any(same(f, a) for a in _axiom_registry):
+            raise ValueError(f'qed: non-axiom on left')
+    return s.right[0]
+
+
 def proof(seq, rule, premises=None, principal=None, term=None):
     """Validate and create a proof step.
 

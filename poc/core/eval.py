@@ -4,7 +4,7 @@ Strict evaluation, lazy only for if-branches.
 """
 
 from parser import parse, Import, Bind, Fn as FnAST, Call, Ref, Lit, List as ListAST, Block, If, Show
-from proof import var, mem, neg, implies, forall, sequent, proof, same
+from proof import var, mem, neg, implies, forall, sequent, proof, same, axiom, qed
 import os
 
 
@@ -86,6 +86,8 @@ BUILTINS = {
         pr.value if pr else None,
         t.value if t else None),
     'same': lambda a, b: same(a.value, b.value),
+    'axiom': lambda f: axiom(f.value),
+    'qed': lambda p: qed(p.value),
 }
 
 
