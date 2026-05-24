@@ -1,0 +1,31 @@
+# Raw kernel rules
+# proof(sequent, rule, premises, principal[, term])
+
+$ax \(f : proof(sequent([f], [f]), "axiom", [], f))
+
+$nl \(premise seq principal :
+    proof(seq, "neg_left", [premise], principal))
+
+$nr \(premise seq principal :
+    proof(seq, "neg_right", [premise], principal))
+
+$il \(prem0 prem1 seq principal :
+    proof(seq, "implies_left", [prem0, prem1], principal))
+
+$ir \(premise seq principal :
+    proof(seq, "implies_right", [premise], principal))
+
+$fl \(premise seq principal term :
+    proof(seq, "forall_left", [premise], principal, term))
+
+$fr \(premise seq principal term :
+    proof(seq, "forall_right", [premise], principal, term))
+
+$ct \(prem0 prem1 seq principal :
+    proof(seq, "cut", [prem0, prem1], principal))
+
+$wl \(premise seq principal :
+    proof(seq, "weakening_left", [premise], principal))
+
+$wr \(premise seq principal :
+    proof(seq, "weakening_right", [premise], principal))

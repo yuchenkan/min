@@ -79,8 +79,8 @@ BUILTINS = {
     'neg': lambda o: neg(o.value),
     'implies': lambda l, r: implies(l.value, r.value),
     'forall': lambda v, b: forall(v.value, b.value),
-    'sequent': lambda l, r: sequent(l.value, r.value),
-    'proof': lambda s, r, p=None, t=None, pr=None: proof(
+    'sequent': lambda l, r: sequent([a.value for a in l.value], [a.value for a in r.value]),
+    'proof': lambda s, r, p=None, pr=None, t=None: proof(
         s.value, r.value,
         [a.value for a in p.value] if p else None,
         t.value if t else None,
