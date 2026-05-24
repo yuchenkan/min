@@ -1,4 +1,4 @@
-from tactics import ax, wl, wr, nl, il, nr, ir, close
+from tactics import ax, wl, wr, nl, nr, il, ir, ct, close
 
 # |- Iff(A, B) -> B -> A
 # Iff(A, B) = neg(implies(implies(A, B), neg(implies(B, A))))
@@ -8,76 +8,31 @@ $iff_elim_right \(A B : {
     $not_bwd neg(bwd)
     $imp_fwd_not_bwd implies(fwd, not_bwd)
     $iff_AB neg(imp_fwd_not_bwd)
-    # Get bwd from iff_AB:
-    # ax(not_bwd): not_bwd |- not_bwd
-    # nl on not_bwd needs bwd on right: |- bwd, not_bwd ... no
-    # ax(bwd): bwd |- bwd, nr: |- neg(bwd), bwd
-    $s1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
-    # wl fwd: fwd |- neg(bwd), bwd ... we need fwd on left for il
-    # ax(fwd) + wr: fwd |- fwd, neg(bwd) ... hmm
-    # Actually: to extract bwd from iff_AB:
-    # not_bwd |- not_bwd, wl: fwd, not_bwd |- not_bwd
-    $s2 wl(ax(not_bwd), sequent([fwd, not_bwd], [not_bwd]), fwd)
-    # ir: not_bwd |- imp_fwd_not_bwd, not_bwd ... no
-    # fwd |- fwd, wr: fwd |- fwd, not_bwd (for il prem0)
-    $s3 wr(ax(fwd), sequent([fwd], [fwd, not_bwd]), not_bwd)
-    # il on imp_fwd_not_bwd: fwd, imp_fwd_not_bwd |- not_bwd
-    # wait, prem0: G |- D, A. prem1: G, B |- D. principal: A->B on left
-    # il(prem0, prem1, seq, principal) where principal = implies(fwd, not_bwd)
-    # prem0: fwd |- fwd, not_bwd (s3) ... no, G should not have fwd if principal has it
-    # principal is imp_fwd_not_bwd, on left. G = remove left - principal.
-    # seq: [imp_fwd_not_bwd] |- [not_bwd]
-    # prem0: [] |- [fwd, not_bwd]  (G=[], D=[not_bwd], A=fwd)
-    # prem1: [not_bwd] |- [not_bwd]  (G=[], B=not_bwd, D=[not_bwd])
-    $s4a nr(ax(bwd), sequent([], [not_bwd, fwd]), not_bwd)
-    # swap order on right for s4a: need [] |- [fwd, not_bwd]
-    # hmm, sequent is set — order doesn't matter for check
-    $s4b ax(not_bwd)
-    $s4 il(s4a, s4b, sequent([imp_fwd_not_bwd], [not_bwd]), imp_fwd_not_bwd)
-    # nl: iff_AB, imp_fwd_not_bwd |- [] ... no
-    # nl on iff_AB: need imp_fwd_not_bwd on right
-    # iff_AB = neg(imp_fwd_not_bwd)
-    # nl: from G |- D, imp_fwd_not_bwd derive G, iff_AB |- D
-    # s4: imp_fwd_not_bwd |- not_bwd
-    # wr: imp_fwd_not_bwd |- not_bwd, imp_fwd_not_bwd ... dup? no
-    # hmm, need |- imp_fwd_not_bwd somewhere to use nl
-    # Actually from s4: [imp_fwd_not_bwd] |- [not_bwd]
-    # We want [iff_AB] |- [not_bwd] ... but iff_AB = neg(imp_fwd_not_bwd)
-    # nr(ax(bwd)): |- not_bwd, bwd. So |- not_bwd, bwd.
-    # We want bwd from iff_AB somehow.
-    #
-    # Simpler approach: and_elim_right pattern
-    # iff_AB = neg(imp_fwd_not_bwd)
-    # imp_fwd_not_bwd = implies(fwd, not_bwd)
-    # To get bwd: show |- imp_fwd_not_bwd, bwd then nl to get iff_AB |- bwd
-    # |- imp_fwd_not_bwd, bwd:
-    # bwd |- bwd, nr: |- neg(bwd), bwd = |- not_bwd, bwd
-    $u1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
-    # ir: need fwd on left for implies_right
-    # fwd is left of imp_fwd_not_bwd. We want |- imp_fwd_not_bwd, bwd
-    # ir premise: fwd |- not_bwd, bwd. We have |- not_bwd, bwd (u1).
-    # wl: fwd |- not_bwd, bwd
-    $u2 wl(u1, sequent([fwd], [not_bwd, bwd]), fwd)
-    # ir: |- imp_fwd_not_bwd, bwd
-    $u3 ir(u2, sequent([], [imp_fwd_not_bwd, bwd]), imp_fwd_not_bwd)
-    # nl: iff_AB |- bwd
-    $u4 nl(u3, sequent([iff_AB], [bwd]), iff_AB)
 
-    # Now use bwd = B -> A with B to get A
-    $u5 wr(ax(B), sequent([B], [B, A]), A)
-    $u6 wl(ax(A), sequent([B, A], [A]), B)
-    $u7 il(u5, u6, sequent([B, bwd], [A]), bwd)
+    # Extract bwd from iff_AB:
+    # |- not_bwd, bwd  (nr from ax(bwd))
+    $s1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
+    # fwd |- not_bwd, bwd  (wl)
+    $s2 wl(s1, sequent([fwd], [not_bwd, bwd]), fwd)
+    # |- imp_fwd_not_bwd, bwd  (ir)
+    $s3 ir(s2, sequent([], [imp_fwd_not_bwd, bwd]), imp_fwd_not_bwd)
+    # iff_AB |- bwd  (nl)
+    $s4 nl(s3, sequent([iff_AB], [bwd]), iff_AB)
+
+    # Use bwd = B -> A: B, bwd |- A
+    $s5 wr(ax(B), sequent([B], [B, A]), A)
+    $s6 wl(ax(A), sequent([B, A], [A]), B)
+    $s7 il(s5, s6, sequent([B, bwd], [A]), bwd)
 
     # Combine: B, iff_AB |- A via cut on bwd
-    $u8 wl(u4, sequent([B, iff_AB], [bwd]), B)
-    $u9 wr(u8, sequent([B, iff_AB], [bwd, A]), A)
-    $u10 wl(u7, sequent([B, iff_AB, bwd], [A]), iff_AB)
-    $u11 ct(u9, u10, sequent([B, iff_AB], [A]), bwd)
+    $s8 wr(wl(s4, sequent([B, iff_AB], [bwd]), B), sequent([B, iff_AB], [bwd, A]), A)
+    $s9 wl(s7, sequent([B, iff_AB, bwd], [A]), iff_AB)
+    $s10 ct(s8, s9, sequent([B, iff_AB], [A]), bwd)
 
     $i1 implies(B, A)
-    $u12 ir(u11, sequent([iff_AB], [i1]), i1)
+    $s11 ir(s10, sequent([iff_AB], [i1]), i1)
     $top implies(iff_AB, i1)
-    ir(u12, sequent([], [top]), top)
+    ir(s11, sequent([], [top]), top)
 })
 
 $iff_elim_right_example {
