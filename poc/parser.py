@@ -1,14 +1,14 @@
 """Parser for the min language.
 
-program  = (import | let)*
+program  = (import :let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
-expr     = '[' params '|' expr ']'
-         | '{' let* expr '}'
-         | expr '(' args ')'
-         | name
-         | INT
-         | STRING
+expr     = '[' params ':' expr ']'
+         :'{' let* expr '}'
+         :expr '(' args ')'
+         :name
+         :INT
+         :STRING
 args     = (expr (',' expr)*)?
 params   = (name (',' name)* (',' name '...')? )?
 """
@@ -17,7 +17,7 @@ params   = (name (',' name)* (',' name '...')? )?
 # === Tokens ===
 
 KEYWORDS = {'from', 'import', 'let'}
-PUNCTUATION = set('(){}[]=,.|')
+PUNCTUATION = set('(){}[]=,.:')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
@@ -133,7 +133,7 @@ class Fn:
         p = ', '.join(self.params)
         if self.rest:
             p = f'{p}, {self.rest}...' if p else f'{self.rest}...'
-        return f'[{p} | {self.body}]'
+        return f'[{p} : {self.body}]'
 
 class Call:
     def __init__(self, callee, args, line, col):
@@ -265,7 +265,7 @@ class Parser:
     def parse_fn(self):
         tok = self.expect('PUNCT', '[')
         params, rest = self.parse_params()
-        self.expect('PUNCT', '|')
+        self.expect('PUNCT', ':')
         body = self.parse_expr()
         self.expect('PUNCT', ']')
         return Fn(params, rest, body, tok[2], tok[3])
@@ -273,7 +273,7 @@ class Parser:
     def parse_params(self):
         params = []
         rest = None
-        if self.peek()[1] == '|':
+        if self.peek()[1] == ':':
             return params, rest
         params.append(self.expect('NAME')[1])
         while self.peek()[1] == ',':
@@ -318,8 +318,8 @@ from core.axioms import Extensionality
 
 let x = 5
 let y = add(x, 1)
-let f = [a, b | add(a, b)]
-let g = [a, b, rest... | head(rest)]
+let f = [a, b :add(a, b)]
+let g = [a, b, rest... :head(rest)]
 
 let result = {
     let p = In(z, a)
@@ -327,10 +327,18 @@ let result = {
     ForallRight(s1, q, z)
 }
 
-let list = [items... | items]
-let factorial = [n | if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
+let list = [items... :items]
+let factorial = [n :if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
 let test = if(eq(x, 0), x, mul(x, 2))
-let apply = [f | f(1)(2)]
+let apply = [f :f(1)(2)]
+
+# deep nested inline function with call
+let compose = [f, g :[x :f(g(x))]]
+let twice = compose(compose, compose)
+let callnow = [f, g :[x :f(g(x))]](add)(mul)(3)
+let nested = [a :[b :[c :a(b(c))]]]
+let thunk = [: 42]
+let deep = [f :[g :f(g)(1)(2)]]([x :[y :add(x, y)]])([n :mul(n, 3)])
 """
 
     ast = parse(src, '<test>')

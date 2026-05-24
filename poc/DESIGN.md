@@ -26,7 +26,7 @@ if(cond, a, b) only evaluates chosen branch.
 program  = (import | let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
-expr     = '[' params '|' expr ']'
+expr     = '[' params ':' expr ']'
          | '{' let* expr '}'
          | expr '(' args ')'
          | name
@@ -36,9 +36,9 @@ args     = (expr (',' expr)*)?
 params   = (name (',' name)* (',' name '...')? )?
 ```
 
-`let` always binds `name = expr`. Functions are expressions: `[a, b | body]`.
-`[` opens function, `|` separates params from body, `]` closes — no ambiguity.
+`let` always binds `name = expr`. Functions are expressions: `[a, b : body]`.
+`[` opens function, `:` separates params from body, `]` closes — no ambiguity.
 Any expression can be called: `f(1)(2)` = chained calls.
 Call holds callee expr, not just name.
 Last parameter may be `name...` — rest parameter, collects into list.
-Zero-param function: `[| body]`.
+Zero-param function: `[: body]`.
