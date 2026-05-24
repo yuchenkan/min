@@ -52,44 +52,98 @@ class Fn:
         return _evaluate(self.body_ast, child)
 
 
+# === Eval-level formula types ===
+# Wrap kernel objects. Carry display via __repr__.
+# .kernel extracts the kernel object for verification.
+
+def _kernel(x):
+    return x.kernel
+
+class Var:
+    def __init__(self, kernel):
+        self.kernel = kernel
+
+class Mem:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self.kernel = mem(_kernel(left), _kernel(right))
+
+class Neg:
+    def __init__(self, operand):
+        self.operand = operand
+        self.kernel = neg(_kernel(operand))
+
+class Implies:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self.kernel = implies(_kernel(left), _kernel(right))
+
+class Forall:
+    def __init__(self, v, body):
+        self.var = v
+        self.body = body
+        self.kernel = forall(_kernel(v), _kernel(body))
+
+class Sequent:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self.kernel = sequent([_kernel(a) for a in left], [_kernel(a) for a in right])
+
+class Proof:
+    def __init__(self, seq, rule, premises=None, principal=None, term=None):
+        self.seq = seq
+        self.kernel = proof(
+            _kernel(seq), rule,
+            [_kernel(a) for a in premises] if premises else None,
+            _kernel(principal) if principal else None,
+            _kernel(term) if term else None)
+
+
 # === Builtins ===
-# All receive Traced args. Return raw values. Evaluator wraps result.
+# All receive Traced args. Return eval-level values. Evaluator wraps result.
+
+def _v(t):
+    """Extract eval-level value from Traced."""
+    return t.value
 
 BUILTINS = {
     # Arithmetic
-    'add': lambda a, b: a.value + b.value,
-    'sub': lambda a, b: a.value - b.value,
-    'mul': lambda a, b: a.value * b.value,
+    'add': lambda a, b: _v(a) + _v(b),
+    'sub': lambda a, b: _v(a) - _v(b),
+    'mul': lambda a, b: _v(a) * _v(b),
     # Comparison
-    'eq': lambda a, b: a.value == b.value,
-    'lt': lambda a, b: a.value < b.value,
-    'gt': lambda a, b: a.value > b.value,
+    'eq': lambda a, b: _v(a) == _v(b),
+    'lt': lambda a, b: _v(a) < _v(b),
+    'gt': lambda a, b: _v(a) > _v(b),
     # Bool
     'True': True,
     'False': False,
-    'not': lambda a: not a.value,
+    'not': lambda a: not _v(a),
     # List
-    'head': lambda l: l.value[0].value,
-    'tail': lambda l: l.value[1:],
-    'nil': lambda l: len(l.value) == 0,
-    'len': lambda l: len(l.value),
-    'nth': lambda l, n: l.value[n.value].value,
-    'append': lambda l, x: l.value + [x],
-    'concat': lambda a, b: a.value + b.value,
+    'head': lambda l: _v(l)[0].value,
+    'tail': lambda l: _v(l)[1:],
+    'nil': lambda l: len(_v(l)) == 0,
+    'len': lambda l: len(_v(l)),
+    'nth': lambda l, n: _v(l)[_v(n)].value,
+    'append': lambda l, x: _v(l) + [x],
+    'concat': lambda a, b: _v(a) + _v(b),
     # Kernel
-    'mem': lambda l, r: mem(l.value, r.value),
-    'neg': lambda o: neg(o.value),
-    'implies': lambda l, r: implies(l.value, r.value),
-    'forall': lambda v, b: forall(v.value, b.value),
-    'sequent': lambda l, r: sequent([a.value for a in l.value], [a.value for a in r.value]),
-    'proof': lambda s, r, p=None, pr=None, t=None: proof(
-        s.value, r.value,
-        [a.value for a in p.value] if p else None,
-        pr.value if pr else None,
-        t.value if t else None),
-    'same': lambda a, b: same(a.value, b.value),
-    'axiom': lambda f: axiom(f.value),
-    'qed': lambda p: qed(p.value),
+    'mem': lambda l, r: Mem(_v(l), _v(r)),
+    'neg': lambda o: Neg(_v(o)),
+    'implies': lambda l, r: Implies(_v(l), _v(r)),
+    'forall': lambda v, b: Forall(_v(v), _v(b)),
+    'sequent': lambda l, r: Sequent([_v(a) for a in _v(l)], [_v(a) for a in _v(r)]),
+    'proof': lambda s, r, p=None, pr=None, t=None: Proof(
+        _v(s), _v(r),
+        [_v(a) for a in _v(p)] if p else None,
+        _v(pr) if pr else None,
+        _v(t) if t else None),
+    'same': lambda a, b: same(_kernel(_v(a)), _kernel(_v(b))),
+    'axiom': lambda f: axiom(_kernel(_v(f))),
+    'qed': lambda p: qed(_kernel(_v(p))),
 }
 
 
@@ -128,7 +182,7 @@ def _evaluate(node, env):
         val = env.get(node.name)
         if val is not None:
             return val
-        v = Traced(var(), node)
+        v = Traced(Var(var()), node)
         env.set(node.name, v)
         return v
 
