@@ -98,7 +98,10 @@ def evaluate(node, env):
         val = env.get(node.name)
         if val is not None:
             return val
-        raise NameError(f'{node.line}:{node.col}: undefined: {node.name}')
+        # Unknown name becomes a fresh Var, stored in env
+        v = Traced(var(), node)
+        env.set(node.name, v)
+        return v
 
     if isinstance(node, FnAST):
         return Traced(Fn(node.params, node.body, env), node)
@@ -221,8 +224,6 @@ $t1 thunk()
 $nested \(a : \(b : add(a, b)))
 $n1 nested(10)(20)
 
-$va var()
-$vx var()
 $f forall(vx, mem(vx, va))
 """
         nodes = parse(src, '<test>')
@@ -232,6 +233,6 @@ $f forall(vx, mem(vx, va))
                 env.set(node.name, evaluate(node.expr, env))
 
         for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
-                      'r1', 'callnow', 't1', 'n1', 'va', 'vx', 'f']:
+                      'r1', 'callnow', 't1', 'n1', 'f']:
             t = env.get(name)
             print(f'{name} = {t.value} <- {t.ast}')
