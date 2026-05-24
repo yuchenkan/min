@@ -67,11 +67,11 @@ BUILTINS = {
     'False': False,
     'not': lambda a: not a.value,
     # List
-    'head': lambda l: l.value[0],
+    'head': lambda l: l.value[0].value,
     'tail': lambda l: l.value[1:],
     'nil': lambda l: len(l.value) == 0,
     'len': lambda l: len(l.value),
-    'nth': lambda l, n: l.value[n.value],
+    'nth': lambda l, n: l.value[n.value].value,
     'append': lambda l, x: l.value + [x],
     'concat': lambda a, b: a.value + b.value,
     # Kernel
@@ -89,6 +89,53 @@ BUILTINS = {
     'axiom': lambda f: axiom(f.value),
     'qed': lambda p: qed(p.value),
 }
+
+
+# === AST expansion for display ===
+
+def _expand_ast(ast, env):
+    """Recursively expand Ref nodes to their values' ASTs.
+    Stops at: functions, builtins, auto-vars, literals."""
+    if isinstance(ast, Ref):
+        val = env.get(ast.name)
+        if val is None:
+            return repr(ast)
+        # Don't expand functions or builtins
+        if isinstance(val.value, Fn) or callable(val.value):
+            return ast.name
+        # Expand to the value's AST
+        if val.ast is not None and val.ast is not ast:
+            return _expand_ast(val.ast, env)
+        return ast.name
+    if isinstance(ast, Call):
+        callee = _expand_ast(ast.callee, env)
+        args = ', '.join(_expand_ast(a, env) for a in ast.args)
+        return f'{callee}({args})'
+    if isinstance(ast, FnAST):
+        params = ' '.join(ast.params)
+        body = _expand_ast(ast.body, env)
+        return f'\\({params} : {body})'
+    if isinstance(ast, ListAST):
+        items = ', '.join(_expand_ast(i, env) for i in ast.items)
+        return f'[{items}]'
+    if isinstance(ast, If):
+        c = _expand_ast(ast.cond, env)
+        t = _expand_ast(ast.then, env)
+        e = _expand_ast(ast.else_, env)
+        return f'?({c}, {t}, {e})'
+    if isinstance(ast, Block):
+        parts = []
+        for b in ast.bindings:
+            parts.append(f'${b.name} {_expand_ast(b.expr, env)}')
+        parts.append(_expand_ast(ast.expr, env))
+        return '{ ' + ' '.join(parts) + ' }'
+    if isinstance(ast, Lit):
+        return repr(ast)
+    if isinstance(ast, Bind):
+        return f'${ast.name} {_expand_ast(ast.expr, env)}'
+    if isinstance(ast, Show):
+        return f'!{_expand_ast(ast.expr, env)}'
+    return repr(ast)
 
 
 # === Evaluate ===
@@ -138,7 +185,7 @@ def _evaluate(node, env):
 
     if isinstance(node, Show):
         result = _evaluate(node.expr, env)
-        print(result.ast)
+        print(_expand_ast(result.ast, env))
         return result
 
     if isinstance(node, If):

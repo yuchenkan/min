@@ -1,4 +1,4 @@
-from tactics import ax, wl, wr, il, ir, fr
+from tactics import ax, wl, wr, il, ir, close
 
 # |- A -> (A -> B) -> B
 $modus_ponens \(A B : {
@@ -18,7 +18,5 @@ $modus_ponens_example {
     $B mem(b, a)
     $thm modus_ponens(A, B)
     $imp implies(A, implies(implies(A, B), B))
-    $s1 fr(thm, sequent([], [forall(b, imp)]), forall(b, imp), b)
-    $result fr(s1, sequent([], [forall(a, forall(b, imp))]), forall(a, forall(b, imp)), a)
-    !qed(result)
+    !qed(close(thm, imp, [b, a]))
 }

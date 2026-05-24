@@ -30,6 +30,21 @@ $wl \(premise seq principal :
 $wr \(premise seq principal :
     proof(seq, "weakening_right", [premise], principal))
 
+# Close free vars with forall_right
+# prf: [] |- [formula]  (formula has free vars)
+# formula: current formula on the right
+# vars: [v1, v2, ...] vars to close (outermost first)
+# Result: [] |- [forall(v1, forall(v2, ... formula ...))]
+$close \(prf formula vars :
+    ?(nil(vars), prf, {
+        $v head(vars)
+        $closed forall(v, formula)
+        close(
+            fr(prf, sequent([], [closed]), closed, v),
+            closed,
+            tail(vars))
+    }))
+
 # === Higher tactics ===
 
 from lib.list import contains, remove, diff, fold
