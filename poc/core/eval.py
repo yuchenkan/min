@@ -71,9 +71,9 @@ def show(t, depth):
     if isinstance(t, Traced):
         if depth <= 0:
             return repr(t.ast)
-        if not isinstance(t.value, (Traced, Mem, Neg, Implies, Forall, Sequent, Proof, list)):
-            return repr(t.ast)
         return show(t.value, depth - 1)
+    if isinstance(t, Var):
+        return t.name
     if isinstance(t, Mem):
         return f'mem({show(t.left, depth)}, {show(t.right, depth)})'
     if isinstance(t, Neg):
@@ -90,13 +90,15 @@ def show(t, depth):
         return f'proof({show(t.seq, depth)})'
     if isinstance(t, list):
         return f'[{", ".join(show(a, depth) for a in t)}]'
+    return str(t)
 
 
 # === Eval-level formula types ===
 
 class Var:
-    def __init__(self, kernel):
+    def __init__(self, kernel, name):
         self.kernel = kernel
+        self.name = name
 
 class Mem:
     def __init__(self, left, right):
@@ -150,17 +152,17 @@ class _notrace:
 
 BUILTINS = {
     # Arithmetic
-    'add': lambda a, b: _v(a) + _v(b),
-    'sub': lambda a, b: _v(a) - _v(b),
-    'mul': lambda a, b: _v(a) * _v(b),
+    'add': _notrace(lambda a, b: _v(a) + _v(b)),
+    'sub': _notrace(lambda a, b: _v(a) - _v(b)),
+    'mul': _notrace(lambda a, b: _v(a) * _v(b)),
     # Comparison
-    'eq': lambda a, b: _v(a) == _v(b),
-    'lt': lambda a, b: _v(a) < _v(b),
-    'gt': lambda a, b: _v(a) > _v(b),
+    'eq': _notrace(lambda a, b: _v(a) == _v(b)),
+    'lt': _notrace(lambda a, b: _v(a) < _v(b)),
+    'gt': _notrace(lambda a, b: _v(a) > _v(b)),
     # Bool
     'True': True,
     'False': False,
-    'not': lambda a: not _v(a),
+    'not': _notrace(lambda a: not _v(a)),
     # List
     'head': _notrace(lambda l: _v(l)[0]),
     'tail': _notrace(lambda l: _v(l)[1:]),
@@ -217,7 +219,7 @@ def _evaluate(node, env):
         val = env.get(node.name)
         if val is not None:
             return val
-        v = Traced(Var(var()), node)
+        v = Traced(Var(var(), node.name), node)
         env.set(node.name, v)
         return v
 
