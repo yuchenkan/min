@@ -49,3 +49,8 @@ No thunks, no auto-calling.
 x = expr — binding, evaluated immediately.
 f(a, b) = body — function, evaluated when called.
 No mutation — once bound, x never changes.
+
+## 9. Top level
+
+A file contains only imports and bindings.
+No bare expressions. No side effects at top level.
