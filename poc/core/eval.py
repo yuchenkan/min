@@ -60,7 +60,7 @@ def _v(t):
 def _kernel(x):
     return x.kernel
 
-def show(t, depth=0):
+def show(t, depth):
     """Show a Traced value. depth=0: show AST. depth>0: expand eval types."""
     if depth <= 0:
         return repr(t.ast)
