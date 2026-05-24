@@ -31,6 +31,8 @@ class Env:
         return None
 
     def set(self, name, value):
+        if name in self.bindings:
+            raise NameError(f'cannot reassign: {name}')
         self.bindings[name] = value
 
 
