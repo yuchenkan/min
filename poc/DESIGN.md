@@ -7,8 +7,8 @@ Recursion replaces loops. Everything is an expression.
 
 ## 2. Computation traces
 
-Every function call records (fn, args, result).
-Display at any depth for debugging.
+Every `let name = expr` binding records its AST.
+`repr(ast)` reconstructs the source. Display at any depth.
 
 ## 3. Everything is a function call
 
@@ -26,8 +26,8 @@ if(cond, a, b) only evaluates chosen branch.
 program  = (import | let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
-         | 'let' name '(' params ')' '=' expr
-expr     = name '(' args ')'
+expr     = '(' params ')' expr
+         | name '(' args ')'
          | name
          | INT
          | STRING
@@ -36,8 +36,6 @@ args     = (expr (',' expr)*)?
 params   = (name (',' name)* (',' name '...')? )?
 ```
 
-`let` keyword marks all bindings. No ambiguity:
-- `let name(...)` = function definition (params are bare names)
-- `name(...)` in expr = function call (args are expressions)
-Last parameter may be `name...` — rest parameter.
-Collects remaining args into list.
+`let` always binds `name = expr`. Functions are expressions: `(a, b) body`.
+Last parameter may be `name...` — rest parameter, collects into list.
+`(` at start of expr = function. `name(` = call. Unambiguous.

@@ -1,13 +1,10 @@
 """Evaluator for the min language.
 
 Strict evaluation, lazy only for if-branches.
-Every value carries its computation trace.
-Name fallback creates Var and stores in env.
 """
 
-from parser import parse, Import, Bind, Call, Ref, Lit, Block
+from parser import parse, Import, Let, Fn as FnAST, Call, Ref, Lit, Block
 import os
-
 
 
 # === Env ===
@@ -28,13 +25,12 @@ class Env:
         self.bindings[name] = value
 
 
-# === Fn: user-defined function ===
+# === Fn: runtime function (closure) ===
 
 class Fn:
-    def __init__(self, name, params, rest, body_ast, env):
-        self.name = name
+    def __init__(self, params, rest, body_ast, env):
         self.params = params
-        self.rest = rest  # None or name of rest param
+        self.rest = rest
         self.body_ast = body_ast
         self.env = env
 
@@ -48,9 +44,6 @@ class Fn:
 
 
 # === Builtins ===
-
-def _builtin(name, fn):
-    return (name, fn)
 
 BUILTINS = {
     # Arithmetic
@@ -86,18 +79,15 @@ def evaluate(node, env):
         val = env.get(node.name)
         if val is not None:
             return val
-        # Name fallback: create Var-like object, store in env
-        # (For formula layer — bare names become variables)
         raise NameError(f'{node.line}:{node.col}: undefined: {node.name}')
 
+    if isinstance(node, FnAST):
+        return Fn(node.params, node.rest, node.body, env)
+
     if isinstance(node, Call):
-        # Special form: if (lazy branches)
         if node.name == 'if':
             cond = evaluate(node.args[0], env)
-            if cond:
-                return evaluate(node.args[1], env)
-            else:
-                return evaluate(node.args[2], env)
+            return evaluate(node.args[1], env) if cond else evaluate(node.args[2], env)
 
         fn = env.get(node.name)
         if fn is None:
@@ -105,12 +95,9 @@ def evaluate(node, env):
 
         args = [evaluate(a, env) for a in node.args]
 
-        # Builtin function
         if callable(fn):
-            result = fn(*args)
-            return result
+            return fn(*args)
 
-        # User-defined Fn
         if isinstance(fn, Fn):
             return fn.call(args)
 
@@ -118,24 +105,15 @@ def evaluate(node, env):
 
     if isinstance(node, Block):
         child = Env(env)
-        for binding in node.bindings:
-            _eval_binding(binding, child)
+        for let in node.bindings:
+            child.set(let.name, evaluate(let.expr, child))
         return evaluate(node.expr, child)
 
-    if isinstance(node, Bind):
-        _eval_binding(node, env)
+    if isinstance(node, Let):
+        env.set(node.name, evaluate(node.expr, env))
         return None
 
     raise ValueError(f'cannot evaluate: {type(node).__name__}')
-
-
-def _eval_binding(node, env):
-    if node.params or node.rest:
-        fn = Fn(node.name, node.params, node.rest, node.body, env)
-        env.set(node.name, fn)
-    else:
-        val = evaluate(node.body, env)
-        env.set(node.name, val)
 
 
 # === File loading ===
@@ -169,8 +147,8 @@ def load_file(filepath):
     for node in nodes:
         if isinstance(node, Import):
             _load_import(node)
-        elif isinstance(node, Bind):
-            _eval_binding(node, _global_env)
+        elif isinstance(node, Let):
+            _global_env.set(node.name, evaluate(node.expr, _global_env))
             exports[node.name] = _global_env.get(node.name)
 
     return exports
@@ -195,17 +173,16 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         filepath = sys.argv[1]
     else:
-        # Inline test
         src = """
 let x = 5
 let y = add(x, 1)
-let double(n) = mul(n, 2)
+let double = (n) mul(n, 2)
 let result = double(y)
 
-let factorial(n) = if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
+let factorial = (n) if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
 let fact5 = factorial(5)
 
-let list(items...) = items
+let list = (items...) items
 let mylist = list(1, 2, 3)
 let first = head(mylist)
 let rest = tail(mylist)
@@ -221,7 +198,8 @@ let blk = {
         nodes = parse(src, '<test>')
         env = _make_global_env()
         for node in nodes:
-            _eval_binding(node, env)
+            if isinstance(node, Let):
+                env.set(node.name, evaluate(node.expr, env))
 
         for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk']:
             print(f'{name} = {env.get(name)}')

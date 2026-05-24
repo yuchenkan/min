@@ -3,8 +3,8 @@
 program  = (import | let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
-         | 'let' name '(' params ')' '=' expr
-expr     = name '(' args ')'
+expr     = '(' params ')' expr
+         | name '(' args ')'
          | name
          | INT
          | STRING
@@ -33,7 +33,6 @@ def tokenize(source, filepath='<input>'):
     while pos < len(source):
         c = source[pos]
 
-        # Whitespace
         if c in ' \t\r\n':
             if c == '\n':
                 line += 1
@@ -41,7 +40,6 @@ def tokenize(source, filepath='<input>'):
             pos += 1
             continue
 
-        # Comment
         if c == '#':
             while pos < len(source) and source[pos] != '\n':
                 pos += 1
@@ -49,13 +47,11 @@ def tokenize(source, filepath='<input>'):
 
         col = pos - col_start + 1
 
-        # Ellipsis
         if source[pos:pos+3] == '...':
             tokens.append(('PUNCT', '...', line, col))
             pos += 3
             continue
 
-        # String
         if c == '"':
             pos += 1
             s = []
@@ -77,7 +73,6 @@ def tokenize(source, filepath='<input>'):
             tokens.append(('STR', ''.join(s), line, col))
             continue
 
-        # Name or keyword
         if c.isalpha() or c == '_':
             start = pos
             while pos < len(source) and (source[pos].isalnum() or source[pos] == '_'):
@@ -89,7 +84,6 @@ def tokenize(source, filepath='<input>'):
                 tokens.append(('NAME', word, line, col))
             continue
 
-        # Integer
         if c.isdigit():
             start = pos
             while pos < len(source) and source[pos].isdigit():
@@ -97,7 +91,6 @@ def tokenize(source, filepath='<input>'):
             tokens.append(('INT', int(source[start:pos]), line, col))
             continue
 
-        # Punctuation
         if c in PUNCTUATION:
             tokens.append(('PUNCT', c, line, col))
             pos += 1
@@ -120,21 +113,27 @@ class Import:
     def __repr__(self):
         return f'from {self.module} import {", ".join(self.names)}'
 
-class Bind:
-    def __init__(self, name, params, rest, body, line, col):
+class Let:
+    def __init__(self, name, expr, line, col):
         self.name = name
+        self.expr = expr
+        self.line = line
+        self.col = col
+    def __repr__(self):
+        return f'let {self.name} = {self.expr}'
+
+class Fn:
+    def __init__(self, params, rest, body, line, col):
         self.params = params
         self.rest = rest
         self.body = body
         self.line = line
         self.col = col
     def __repr__(self):
-        if self.params or self.rest:
-            p = ', '.join(self.params)
-            if self.rest:
-                p = f'{p}, {self.rest}...' if p else f'{self.rest}...'
-            return f'let {self.name}({p}) = {self.body}'
-        return f'let {self.name} = {self.body}'
+        p = ', '.join(self.params)
+        if self.rest:
+            p = f'{p}, {self.rest}...' if p else f'{self.rest}...'
+        return f'({p}) {self.body}'
 
 class Call:
     def __init__(self, name, args, line, col):
@@ -231,24 +230,50 @@ class Parser:
 
     def parse_let(self):
         tok = self.expect('KW', 'let')
-        name_tok = self.expect('NAME')
-        name = name_tok[1]
-        line = tok[2]
-        col = tok[3]
+        name = self.expect('NAME')[1]
+        self.expect('PUNCT', '=')
+        expr = self.parse_expr()
+        return Let(name, expr, tok[2], tok[3])
 
-        if self.peek()[1] == '(':
-            # let name(params) = expr
-            self.advance()
-            params, rest = self.parse_params()
-            self.expect('PUNCT', ')')
-            self.expect('PUNCT', '=')
-            body = self.parse_expr()
-            return Bind(name, params, rest, body, line, col)
-        else:
-            # let name = expr
-            self.expect('PUNCT', '=')
-            body = self.parse_expr()
-            return Bind(name, [], None, body, line, col)
+    def parse_expr(self):
+        tok = self.peek()
+
+        # Function literal: (params) body
+        if tok[1] == '(':
+            return self.parse_fn()
+
+        # Block: { let* expr }
+        if tok[1] == '{':
+            return self.parse_block()
+
+        # Int
+        if tok[0] == 'INT':
+            t = self.advance()
+            return Lit(t[1], t[2], t[3])
+
+        # String
+        if tok[0] == 'STR':
+            t = self.advance()
+            return Lit(t[1], t[2], t[3])
+
+        # Name — call or reference
+        if tok[0] == 'NAME':
+            name_tok = self.advance()
+            if self.peek()[1] == '(':
+                self.advance()
+                args = self.parse_args()
+                self.expect('PUNCT', ')')
+                return Call(name_tok[1], args, name_tok[2], name_tok[3])
+            return Ref(name_tok[1], name_tok[2], name_tok[3])
+
+        self.error(f'expected expression, got {tok[1]!r}')
+
+    def parse_fn(self):
+        tok = self.expect('PUNCT', '(')
+        params, rest = self.parse_params()
+        self.expect('PUNCT', ')')
+        body = self.parse_expr()
+        return Fn(params, rest, body, tok[2], tok[3])
 
     def parse_params(self):
         params = []
@@ -263,31 +288,6 @@ class Parser:
             rest = params.pop()
             self.advance()
         return params, rest
-
-    def parse_expr(self):
-        tok = self.peek()
-
-        if tok[1] == '{':
-            return self.parse_block()
-
-        if tok[0] == 'INT':
-            t = self.advance()
-            return Lit(t[1], t[2], t[3])
-
-        if tok[0] == 'STR':
-            t = self.advance()
-            return Lit(t[1], t[2], t[3])
-
-        if tok[0] == 'NAME':
-            name_tok = self.advance()
-            if self.peek()[1] == '(':
-                self.advance()
-                args = self.parse_args()
-                self.expect('PUNCT', ')')
-                return Call(name_tok[1], args, name_tok[2], name_tok[3])
-            return Ref(name_tok[1], name_tok[2], name_tok[3])
-
-        self.error(f'expected expression, got {tok[1]!r}')
 
     def parse_block(self):
         tok = self.expect('PUNCT', '{')
@@ -323,8 +323,8 @@ from core.axioms import Extensionality
 
 let x = 5
 let y = add(x, 1)
-let f(a, b) = add(a, b)
-let g(a, b, rest...) = head(rest)
+let f = (a, b) add(a, b)
+let g = (a, b, rest...) head(rest)
 
 let result = {
     let p = In(z, a)
@@ -332,7 +332,8 @@ let result = {
     ForallRight(s1, q, z)
 }
 
-let list(items...) = items
+let list = (items...) items
+let factorial = (n) if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
 let test = if(eq(x, 0), x, mul(x, 2))
 """
 
