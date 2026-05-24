@@ -218,7 +218,7 @@ def _evaluate(node, env):
     if isinstance(node, Ref):
         val = env.get(node.name)
         if val is not None:
-            return val
+            return Traced(val, node)
         v = Traced(Var(var(), node.name), node)
         env.set(node.name, v)
         return v
