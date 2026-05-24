@@ -91,11 +91,10 @@ class EImplies:
         self.kernel = KImplies(left.value.kernel, right.value.kernel)
 
 class EForall:
-    def __init__(self, fn):
-        self.fn = fn
-        ev = EVar()
-        body = fn.value.call([Traced(ev, None)])
-        self.kernel = KForall(ev.kernel, body.value.kernel)
+    def __init__(self, var, body):
+        self.var = var
+        self.body = body
+        self.kernel = KForall(var.value.kernel, body.value.kernel)
 
 class ESequent:
     def __init__(self, left, right):
@@ -141,11 +140,9 @@ BUILTINS = {
     'In': lambda l, r: EIn(l, r),
     'Not': lambda o: ENot(o),
     'Implies': lambda l, r: EImplies(l, r),
-    'Forall': lambda fn: EForall(fn),
+    'Forall': lambda v, b: EForall(v, b),
     'Sequent': lambda l, r: ESequent(l, r),
     'Proof': lambda s, r, p=None, t=None, pr=None: EProof(s, r, p, t, pr),
-    'body': lambda f: f.value.fn.value,
-    'nparams': lambda f: len(f.value.params),
 }
 
 
@@ -279,9 +276,9 @@ let t1 = thunk()
 let nested = [a : [b : add(a, b)]]
 let n1 = nested(10)(20)
 
-let a = Var()
-let f = Forall([x : In(x, a)])
-let fb = body(f)
+let va = Var()
+let vx = Var()
+let f = Forall(vx, In(vx, va))
 """
         nodes = parse(src, '<test>')
         env = _make_global_env()
@@ -290,6 +287,6 @@ let fb = body(f)
                 env.set(node.name, evaluate(node.expr, env))
 
         for name in ['x', 'y', 'result', 'fact5', 'list', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
-                      'r1', 'callnow', 't1', 'n1', 'a', 'f', 'fb']:
+                      'r1', 'callnow', 't1', 'n1', 'va', 'vx', 'f']:
             t = env.get(name)
             print(f'{name} = {t.value} <- {t.ast}')

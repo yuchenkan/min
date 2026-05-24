@@ -1,76 +1,132 @@
 # ZFC axioms
-# Each is a function that returns a closed formula.
 # Uses derived connectives from derived.min.
 
 from derived import And, Or, Iff, Exists, Eq
 
 # Extensionality: forall x,y. (forall z. z in x <-> z in y) -> (forall z. x in z <-> y in z)
-let Extensionality = Forall([x : Forall([y :
-    Implies(
-        Forall([z : Iff(In(z, x), In(z, y))]),
-        Forall([z : Iff(In(x, z), In(y, z))]))])])
+let Extensionality = {
+    let x = Var()
+    let y = Var()
+    let z = Var()
+    Forall(x, Forall(y,
+        Implies(
+            Forall(z, Iff(In(z, x), In(z, y))),
+            Forall(z, Iff(In(x, z), In(y, z))))))
+}
 
 # EmptySet: exists b. forall x. not(x in b)
-let EmptySet = Exists([b : Forall([x : Not(In(x, b))])])
+let EmptySet = {
+    let b = Var()
+    let x = Var()
+    Exists(b, Forall(x, Not(In(x, b))))
+}
 
 # Pairing: forall x,y. exists b. forall z. z in b <-> (z=x or z=y)
-let Pairing = Forall([x : Forall([y :
-    Exists([b : Forall([z :
-        Iff(In(z, b), Or(Eq(z, x), Eq(z, y)))])])])])
+let Pairing = {
+    let x = Var()
+    let y = Var()
+    let z = Var()
+    let b = Var()
+    Forall(x, Forall(y,
+        Exists(b, Forall(z,
+            Iff(In(z, b), Or(Eq(z, x), Eq(z, y)))))))
+}
 
 # Union: forall a. exists b. forall x. x in b <-> exists y. (y in a and x in y)
-let Union = Forall([a :
-    Exists([b : Forall([x :
-        Iff(In(x, b), Exists([y : And(In(y, a), In(x, y))]))])])])
+let Union = {
+    let a = Var()
+    let b = Var()
+    let x = Var()
+    let y = Var()
+    Forall(a,
+        Exists(b, Forall(x,
+            Iff(In(x, b), Exists(y, And(In(y, a), In(x, y)))))))
+}
 
 # PowerSet: forall a. exists b. forall x. x in b <-> forall y. (y in x -> y in a)
-let PowerSet = Forall([a :
-    Exists([b : Forall([x :
-        Iff(In(x, b), Forall([y : Implies(In(y, x), In(y, a))]))])])])
+let PowerSet = {
+    let a = Var()
+    let b = Var()
+    let x = Var()
+    let y = Var()
+    Forall(a,
+        Exists(b, Forall(x,
+            Iff(In(x, b), Forall(y, Implies(In(y, x), In(y, a)))))))
+}
 
-# Separation(phi): forall a. exists b. forall x. x in b <-> (x in a and phi(x))
-# phi is [x : formula] or [p, x : formula] (extra vars first, separation var last)
-# Extra vars get universally quantified.
-let Separation = [phi :
-    ?(eq(nparams(phi), 1),
-      Forall([a : Exists([b : Forall([x :
-          Iff(In(x, b), And(In(x, a), phi(x)))])])]),
-      Forall([v : Separation([x : phi(v, x)])]))]
+# Separation(phi, x, vars): forall vars. forall a. exists b. forall x. x in b <-> (x in a and phi)
+# phi is a formula with x free. vars are extra free vars to quantify.
+let sep_core = [phi, x :
+    {
+        let a = Var()
+        let b = Var()
+        Forall(a, Exists(b, Forall(x,
+            Iff(In(x, b), And(In(x, a), phi)))))
+    }]
 
-# Infinity: exists b. (exists e. e in b and forall z. not(z in e))
-#           and forall y. y in b -> exists s. s in b and forall w. w in s <-> (w in y or w=y)
-let Infinity = Exists([b : And(
-    Exists([e : And(In(e, b), Forall([z : Not(In(z, e))]))]),
-    Forall([y : Implies(In(y, b),
-        Exists([s : And(In(s, b),
-            Forall([w : Iff(In(w, s), Or(In(w, y), Eq(w, y)))]))]))]))])
+let wrap_forall = [body, vars :
+    ?(nil(vars), body, Forall(head(vars), wrap_forall(body, tail(vars))))]
 
-# Choice: forall x. (forall y. y in x -> exists z. z in y)
-#         -> exists c. forall y. y in x -> exists z. (z in y and z in c and forall w. (w in y and w in c) -> w=z)
-let Choice = Forall([x :
-    Implies(
-        Forall([y : Implies(In(y, x), Exists([z : In(z, y)]))]),
-        Exists([c : Forall([y : Implies(In(y, x),
-            Exists([z : And(And(In(z, y), In(z, c)),
-                Forall([w : Implies(And(In(w, y), In(w, c)), Eq(w, z))]))]))])]))])
+let Separation = [phi, x, vars :
+    wrap_forall(sep_core(phi, x), vars)]
 
-# Replacement(phi): phi is [x, y : formula] or [p, x, y : formula]
-# Extra vars first, domain var x and range var y last.
-# forall a. (forall x. x in a -> forall y1,y2. (phi(x,y1) and phi(x,y2)) -> y1=y2)
-#           -> exists b. forall y. y in b <-> exists x. (x in a and phi(x,y))
-let Replacement = [phi :
-    ?(eq(nparams(phi), 2),
-      Forall([a :
-          Implies(
-              Forall([x : Implies(In(x, a),
-                  Forall([y1 : Forall([y2 :
-                      Implies(And(phi(x, y1), phi(x, y2)), Eq(y1, y2))])]))]),
-              Exists([b : Forall([y :
-                  Iff(In(y, b), Exists([x : And(In(x, a), phi(x, y))]))])]))]),
-      Forall([v : Replacement([x, y : phi(v, x, y)])]))]
+# Infinity
+let Infinity = {
+    let b = Var()
+    let e = Var()
+    let y = Var()
+    let z = Var()
+    let s = Var()
+    let w = Var()
+    Exists(b, And(
+        Exists(e, And(In(e, b), Forall(z, Not(In(z, e))))),
+        Forall(y, Implies(In(y, b),
+            Exists(s, And(In(s, b),
+                Forall(w, Iff(In(w, s), Or(In(w, y), Eq(w, y))))))))))
+}
 
-# Regularity: forall a. (exists y. y in a) -> exists y. (y in a and not(exists z. z in a and z in y))
-let Regularity = Forall([a :
-    Implies(
-        Exists([y : In(y, a)]),
-        Exists([y : And(In(y, a), Not(Exists([z : And(In(z, a), In(z, y))])))]))])
+# Choice
+let Choice = {
+    let x = Var()
+    let y = Var()
+    let z = Var()
+    let c = Var()
+    let w = Var()
+    Forall(x,
+        Implies(
+            Forall(y, Implies(In(y, x), Exists(z, In(z, y)))),
+            Exists(c, Forall(y, Implies(In(y, x),
+                Exists(z, And(And(In(z, y), In(z, c)),
+                    Forall(w, Implies(And(In(w, y), In(w, c)), Eq(w, z))))))))))
+}
+
+# Replacement(phi, x, y, vars): phi is formula with x,y free.
+# x: domain var, y: range var, vars: extra free vars to quantify.
+let rep_core = [phi, x, y :
+    {
+        let a = Var()
+        let b = Var()
+        let y1 = Var()
+        let y2 = Var()
+        Forall(a,
+            Implies(
+                Forall(x, Implies(In(x, a),
+                    Forall(y1, Forall(y2, Implies(
+                        And(phi, phi), Eq(y1, y2)))))),
+                Exists(b, Forall(y,
+                    Iff(In(y, b), Exists(x, And(In(x, a), phi)))))))
+    }]
+
+let Replacement = [phi, x, y, vars :
+    wrap_forall(rep_core(phi, x, y), vars)]
+
+# Regularity
+let Regularity = {
+    let a = Var()
+    let y = Var()
+    let z = Var()
+    Forall(a,
+        Implies(
+            Exists(y, In(y, a)),
+            Exists(y, And(In(y, a), Not(Exists(z, And(In(z, a), In(z, y))))))))
+}
