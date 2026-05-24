@@ -176,7 +176,7 @@ def qed(p):
     - Exactly one formula on the right (the theorem)
     - That formula is closed (no free vars)
     - All left formulas are registered axioms
-    Returns the theorem formula, or raises."""
+    Raises on failure."""
     s = p.sequent
     if len(s.right) != 1:
         raise ValueError(f'qed: expected 1 formula on right, got {len(s.right)}')
@@ -185,7 +185,6 @@ def qed(p):
     for f in s.left:
         if not any(same(f, a) for a in _axiom_registry):
             raise ValueError(f'qed: non-axiom on left')
-    return s.right[0]
 
 
 def proof(seq, rule, premises=None, principal=None, term=None):

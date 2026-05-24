@@ -167,7 +167,7 @@ BUILTINS = {
     'proof': lambda s, r, p=None, pr=None, t=None: Proof(s, r, p, pr, t),
     'same': lambda a, b: same(_kernel(_v(a)), _kernel(_v(b))),
     'axiom': lambda f: axiom(_kernel(_v(f))),
-    'qed': lambda p: qed(_kernel(_v(p))),
+    'qed': lambda p: qed(_kernel(_v(p))) or _v(p),
 }
 
 
