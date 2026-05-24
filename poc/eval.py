@@ -213,24 +213,24 @@ if __name__ == '__main__':
     else:
         # Inline test
         src = """
-x = 5
-y = add(x, 1)
-double(n) = mul(n, 2)
-result = double(y)
+let x = 5
+let y = add(x, 1)
+let double(n) = mul(n, 2)
+let result = double(y)
 
-factorial(n) = if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
-fact5 = factorial(5)
+let factorial(n) = if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
+let fact5 = factorial(5)
 
-list(items...) = items
-mylist = list(1, 2, 3)
-first = head(mylist)
-rest = tail(mylist)
-empty = nil(rest)
-length = len(mylist)
+let list(items...) = items
+let mylist = list(1, 2, 3)
+let first = head(mylist)
+let rest = tail(mylist)
+let empty = nil(rest)
+let length = len(mylist)
 
-blk = {
-    a = 10
-    b = 20
+let blk = {
+    let a = 10
+    let b = 20
     add(a, b)
 }
 """
