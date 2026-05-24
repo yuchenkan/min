@@ -3,7 +3,7 @@
 program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
 bind     = '$' name expr
-expr     = '\' '(' params ':' expr ')'
+expr     = '\\' '(' params ':' expr ')'
          | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
          | '{' bind* expr '}'
@@ -106,8 +106,6 @@ class Import:
         self.names = names
         self.line = line
         self.col = col
-    def __repr__(self):
-        return f'from {self.module} import {", ".join(self.names)}'
 
 class Bind:
     def __init__(self, name, expr, line, col):
@@ -115,8 +113,6 @@ class Bind:
         self.expr = expr
         self.line = line
         self.col = col
-    def __repr__(self):
-        return f'${self.name} {self.expr}'
 
 class Fn:
     def __init__(self, params, body, line, col):
@@ -124,9 +120,6 @@ class Fn:
         self.body = body
         self.line = line
         self.col = col
-    def __repr__(self):
-        p = ' '.join(self.params)
-        return f'\\({p} : {self.body})'
 
 class Call:
     def __init__(self, callee, args, line, col):
@@ -134,34 +127,24 @@ class Call:
         self.args = args
         self.line = line
         self.col = col
-    def __repr__(self):
-        return f'{self.callee}({", ".join(repr(a) for a in self.args)})'
 
 class Ref:
     def __init__(self, name, line, col):
         self.name = name
         self.line = line
         self.col = col
-    def __repr__(self):
-        return self.name
 
 class Lit:
     def __init__(self, value, line, col):
         self.value = value
         self.line = line
         self.col = col
-    def __repr__(self):
-        if isinstance(self.value, str):
-            return f'"{self.value}"'
-        return str(self.value)
 
 class List:
     def __init__(self, items, line, col):
         self.items = items
         self.line = line
         self.col = col
-    def __repr__(self):
-        return f'[{", ".join(repr(i) for i in self.items)}]'
 
 class Block:
     def __init__(self, bindings, expr, line, col):
@@ -169,9 +152,6 @@ class Block:
         self.expr = expr
         self.line = line
         self.col = col
-    def __repr__(self):
-        parts = [repr(b) for b in self.bindings] + [repr(self.expr)]
-        return '{ ' + ' '.join(parts) + ' }'
 
 class If:
     def __init__(self, cond, then, else_, line, col):
@@ -180,16 +160,12 @@ class If:
         self.else_ = else_
         self.line = line
         self.col = col
-    def __repr__(self):
-        return f'?({self.cond}, {self.then}, {self.else_})'
 
 class Show:
     def __init__(self, expr, line, col):
         self.expr = expr
         self.line = line
         self.col = col
-    def __repr__(self):
-        return f'!{self.expr}'
 
 
 # === Parser ===
@@ -349,40 +325,3 @@ def parse(source, filepath='<input>'):
     tokens = tokenize(source, filepath)
     parser = Parser(tokens, filepath)
     return parser.parse_program()
-
-
-# === Test ===
-
-if __name__ == '__main__':
-    src = r"""
-from core.axioms import Extensionality
-
-$x 5
-$y add(x, 1)
-$f \(a b : add(a, b))
-
-$result {
-    $p mem(z, a)
-    $q implies(p, p)
-    forall_right(s1, q, z)
-}
-
-$factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1)))))
-$test ?(eq(x, 0), x, mul(x, 2))
-$apply \(f : f(1)(2))
-
-# lists
-$xs [1, 2, 3]
-$empty []
-$nested [1, [2, 3], 4]
-
-# deep nested function with call
-$compose \(f g : \(x : f(g(x))))
-$callnow \(f g : \(x : f(g(x))))(add)(mul)(3)
-$thunk \(: 42)
-$deep \(f : \(g : f(g)(1, 2)))(\(x : \(y : add(x, y))))(\(n : mul(n, 3)))
-"""
-
-    ast = parse(src, '<test>')
-    for node in ast:
-        print(repr(node))
