@@ -106,6 +106,8 @@ class Import:
         self.names = names
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'from {self.module} import {", ".join(self.names)}'
 
 class Bind:
     def __init__(self, name, expr, line, col):
@@ -113,6 +115,8 @@ class Bind:
         self.expr = expr
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'${self.name} {self.expr!r}'
 
 class Fn:
     def __init__(self, params, body, line, col):
@@ -120,6 +124,8 @@ class Fn:
         self.body = body
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'\\({" ".join(self.params)} : {self.body!r})'
 
 class Call:
     def __init__(self, callee, args, line, col):
@@ -127,24 +133,34 @@ class Call:
         self.args = args
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'{self.callee!r}({", ".join(repr(a) for a in self.args)})'
 
 class Ref:
     def __init__(self, name, line, col):
         self.name = name
         self.line = line
         self.col = col
+    def __repr__(self):
+        return self.name
 
 class Lit:
     def __init__(self, value, line, col):
         self.value = value
         self.line = line
         self.col = col
+    def __repr__(self):
+        if isinstance(self.value, str):
+            return f'"{self.value}"'
+        return str(self.value)
 
 class List:
     def __init__(self, items, line, col):
         self.items = items
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'[{", ".join(repr(i) for i in self.items)}]'
 
 class Block:
     def __init__(self, bindings, expr, line, col):
@@ -152,6 +168,9 @@ class Block:
         self.expr = expr
         self.line = line
         self.col = col
+    def __repr__(self):
+        parts = [repr(b) for b in self.bindings] + [repr(self.expr)]
+        return '{ ' + ' '.join(parts) + ' }'
 
 class If:
     def __init__(self, cond, then, else_, line, col):
@@ -160,6 +179,8 @@ class If:
         self.else_ = else_
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'?({self.cond!r}, {self.then!r}, {self.else_!r})'
 
 class Show:
     def __init__(self, expr, line, col):

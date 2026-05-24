@@ -93,37 +93,6 @@ BUILTINS = {
 }
 
 
-# === Show ===
-
-def _show_ast(ast):
-    """Format an AST node as readable string."""
-    if isinstance(ast, Call):
-        callee = _show_ast(ast.callee)
-        args = ', '.join(_show_ast(a) for a in ast.args)
-        return f'{callee}({args})'
-    if isinstance(ast, Ref):
-        return ast.name
-    if isinstance(ast, Lit):
-        if isinstance(ast.value, str):
-            return f'"{ast.value}"'
-        return str(ast.value)
-    if isinstance(ast, FnAST):
-        p = ' '.join(ast.params)
-        return f'\\({p} : {_show_ast(ast.body)})'
-    if isinstance(ast, ListAST):
-        return f'[{", ".join(_show_ast(i) for i in ast.items)}]'
-    if isinstance(ast, If):
-        return f'?({_show_ast(ast.cond)}, {_show_ast(ast.then)}, {_show_ast(ast.else_)})'
-    if isinstance(ast, Block):
-        parts = [f'${b.name} {_show_ast(b.expr)}' for b in ast.bindings]
-        parts.append(_show_ast(ast.expr))
-        return '{ ' + ' '.join(parts) + ' }'
-    if isinstance(ast, Show):
-        return f'!{_show_ast(ast.expr)}'
-    if isinstance(ast, Traced):
-        return _show_ast(ast.ast)
-    return str(ast)
-
 
 # === Evaluate ===
 
@@ -136,7 +105,7 @@ class EvalError(Exception):
         loc = f'{node.line}:{node.col}' if (node := self.node) else '?'
         s = f'{loc}: {self.msg}'
         if self.node:
-            s += f'\n  at {_show_ast(self.node)}'
+            s += f'\n  at {self.node!r}'
         if self.cause:
             s += f'\n  caused by: {self.cause}'
         return s
