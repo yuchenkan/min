@@ -29,10 +29,13 @@ let PowerSet = Forall([a :
         Iff(In(x, b), Forall([y : Implies(In(y, x), In(y, a))]))])])])
 
 # Separation(phi): forall a. exists b. forall x. x in b <-> (x in a and phi(x))
-# phi is a predicate [x : formula]
+# phi is [x : formula] or [p, x : formula] (extra vars first, separation var last)
+# Extra vars get universally quantified.
 let Separation = [phi :
-    Forall([a : Exists([b : Forall([x :
-        Iff(In(x, b), And(In(x, a), phi(x)))])])])]
+    ?(eq(nparams(phi), 1),
+      Forall([a : Exists([b : Forall([x :
+          Iff(In(x, b), And(In(x, a), phi(x)))])])]),
+      Forall([v : Separation([x : phi(v, x)])]))]
 
 # Infinity: exists b. (exists e. e in b and forall z. not(z in e))
 #           and forall y. y in b -> exists s. s in b and forall w. w in s <-> (w in y or w=y)
@@ -51,17 +54,20 @@ let Choice = Forall([x :
             Exists([z : And(And(In(z, y), In(z, c)),
                 Forall([w : Implies(And(In(w, y), In(w, c)), Eq(w, z))]))]))])]))])
 
-# Replacement(phi): phi is [x, y : formula]
+# Replacement(phi): phi is [x, y : formula] or [p, x, y : formula]
+# Extra vars first, domain var x and range var y last.
 # forall a. (forall x. x in a -> forall y1,y2. (phi(x,y1) and phi(x,y2)) -> y1=y2)
 #           -> exists b. forall y. y in b <-> exists x. (x in a and phi(x,y))
 let Replacement = [phi :
-    Forall([a :
-        Implies(
-            Forall([x : Implies(In(x, a),
-                Forall([y1 : Forall([y2 :
-                    Implies(And(phi(x, y1), phi(x, y2)), Eq(y1, y2))])]))]),
-            Exists([b : Forall([y :
-                Iff(In(y, b), Exists([x : And(In(x, a), phi(x, y))]))])]))])]
+    ?(eq(nparams(phi), 2),
+      Forall([a :
+          Implies(
+              Forall([x : Implies(In(x, a),
+                  Forall([y1 : Forall([y2 :
+                      Implies(And(phi(x, y1), phi(x, y2)), Eq(y1, y2))])]))]),
+              Exists([b : Forall([y :
+                  Iff(In(y, b), Exists([x : And(In(x, a), phi(x, y))]))])]))]),
+      Forall([v : Replacement([x, y : phi(v, x, y)])]))]
 
 # Regularity: forall a. (exists y. y in a) -> exists y. (y in a and not(exists z. z in a and z in y))
 let Regularity = Forall([a :

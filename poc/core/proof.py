@@ -183,6 +183,8 @@ def _check_rule(sequent, rule, premises, principal, term):
                 return False
             if not _fin(principal, s.left):
                 return False
+            if _var_bound_in(term, principal.body):
+                return False
             G = _remove(s.left, principal)
             substituted = _subst(principal.body, principal.var, term)
             return _eq_sequent(ps[0], Sequent(_set_add(G, substituted), s.right))
@@ -193,6 +195,8 @@ def _check_rule(sequent, rule, premises, principal, term):
                 return False
             D = _remove(s.right, principal)
             if _var_free_in_sequent(term, Sequent(s.left, D)):
+                return False
+            if _var_bound_in(term, principal.body):
                 return False
             substituted = _subst(principal.body, principal.var, term)
             return _eq_sequent(ps[0], Sequent(s.left, _set_add(D, substituted)))
@@ -275,6 +279,19 @@ def _free_vars(formula, bound=None):
         return _free_vars(formula.body, bound | {formula.var})
     return set()
 
+
+def _var_bound_in(var, formula):
+    if isinstance(formula, In):
+        return False
+    if isinstance(formula, Not):
+        return _var_bound_in(var, formula.operand)
+    if isinstance(formula, Implies):
+        return _var_bound_in(var, formula.left) or _var_bound_in(var, formula.right)
+    if isinstance(formula, Forall):
+        if formula.var is var:
+            return True
+        return _var_bound_in(var, formula.body)
+    return False
 
 def _var_free_in_sequent(var, s):
     return any(var in _free_vars(f) for f in s.left + s.right)
