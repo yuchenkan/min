@@ -146,6 +146,51 @@ class Proof:
 # === Proof rules ===
 
 def _check_rule(sequent, rule, premises, principal, term):
+    """Validate a proof rule application.
+
+    Rules (G = left context, D = right context, A/B = formulas):
+
+    axiom:           A |- A
+                     No premises. Principal A must be on both sides.
+
+    not_left:        G, ~A |- D
+                     From: G |- D, A
+                     Principal ~A on left; premise moves A to right.
+
+    not_right:       G |- D, ~A
+                     From: G, A |- D
+                     Principal ~A on right; premise moves A to left.
+
+    implies_left:    G, A->B |- D
+                     From: G |- D, A  and  G, B |- D
+                     Principal A->B on left; prem0 proves A, prem1 uses B.
+
+    implies_right:   G |- D, A->B
+                     From: G, A |- D, B
+                     Principal A->B on right; premise assumes A, proves B.
+
+    forall_left:     G, Forall(x,A) |- D
+                     From: G, A[x:=t] |- D
+                     Instantiate x with term t. Rejects if t is bound in A
+                     (prevents variable capture in substitution).
+
+    forall_right:    G |- D, Forall(x,A)
+                     From: G |- D, A[x:=y]
+                     y is eigenvariable: must not be free in G or D,
+                     must not be bound in A (prevents variable capture).
+
+    cut:             G |- D
+                     From: G |- D, C  and  G, C |- D
+                     Cut formula C appears on prem0 right and prem1 left.
+
+    weakening_left:  G, A |- D
+                     From: G |- D
+                     Adds A to left. No-op if A already present.
+
+    weakening_right: G |- D, A
+                     From: G |- D
+                     Adds A to right. No-op if A already present.
+    """
     s = sequent
     ps = [p.sequent for p in premises]
 
