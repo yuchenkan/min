@@ -38,15 +38,14 @@ Uniform syntax: Name(args). No operators, no infix.
 if(cond, a, b), add(1, 2), Pair(a, b) — all function calls.
 Parsing is trivial — one syntax rule.
 
-## 7. Lazy evaluation
+## 7. Strict evaluation, lazy branches
 
-All expressions are thunks. Evaluated on first use, cached.
-No special forms needed — if(cond, a, b) is lazy naturally.
-Trace IS the thunk: (fn, args) = recipe to compute + debug info.
-Value computed on first access, cached alongside trace.
+Strict by default — expressions evaluate immediately.
+if(cond, a, b) is lazy — only evaluates chosen branch.
+No thunks, no auto-calling.
 
-## 8. No assignment, only function binding
+## 8. Bindings and functions
 
-No `x = expr`. Only `x() = body` and `f(a, b) = body`.
-Values are zero-arg functions. Everything is a function definition.
-One construct. Uniform.
+x = expr — binding, evaluated immediately.
+f(a, b) = body — function, evaluated when called.
+No mutation — once bound, x never changes.
