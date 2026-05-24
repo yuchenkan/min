@@ -90,7 +90,16 @@ def show(t, depth):
         return f'proof({show(t.seq, depth)})'
     if isinstance(t, list):
         return f'[{", ".join(show(a, depth) for a in t)}]'
-    return str(t)
+    if isinstance(t, bool):
+        return str(t)
+    if isinstance(t, (int, float)):
+        return str(t)
+    if isinstance(t, str):
+        return '"' + t.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\t', '\\t') + '"'
+    if isinstance(t, Fn):
+        s = '\\\\' if t.traced else '\\'
+        return f'{s}({" ".join(t.params)} : {t.body_ast!r})'
+    raise ValueError(f'show: unexpected {type(t).__name__}')
 
 
 # === Eval-level formula types ===
