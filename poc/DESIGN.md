@@ -31,3 +31,20 @@ If an object is unreachable, its trace is also unreachable — collect both.
 - String — text
 - Pair — the only compound type. fst/snd for access.
   All structured data built from nested pairs. No dots.
+
+## 6. Everything is a function call
+
+Uniform syntax: Name(args). No operators, no infix.
+if(cond, a, b), add(1, 2), Pair(a, b) — all function calls.
+Parsing is trivial — one syntax rule.
+
+## 7. Lazy evaluation
+
+All expressions are thunks. Evaluated on first use, cached.
+No special forms needed — if(cond, a, b) is lazy naturally.
+
+## 8. No assignment, only function binding
+
+No `x = expr`. Only `x() = body` and `f(a, b) = body`.
+Values are zero-arg functions. Everything is a function definition.
+One construct. Uniform.
