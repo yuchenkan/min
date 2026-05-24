@@ -1,7 +1,7 @@
 """Evaluator for the min language.
 
-Strict evaluation, lazy only for if-branches.
-No Traced — values are raw, env tracks ASTs separately for display.
+Every value is Traced(value, ast). The ast is the Call/Ref/Lit node
+that produced the value — the vocab-level display.
 """
 
 from parser import parse, Import, Bind, Fn as FnAST, Call, Ref, Lit, List as ListAST, Block, If, Show
@@ -9,12 +9,19 @@ from proof import var, mem, neg, implies, forall, sequent, proof, same, axiom, q
 import os
 
 
+# === Traced ===
+
+class Traced:
+    def __init__(self, value, ast):
+        self.value = value
+        self.ast = ast
+
+
 # === Env ===
 
 class Env:
     def __init__(self, parent=None):
         self.bindings = {}
-        self.asts = {}
         self.parent = parent
 
     def get(self, name):
@@ -24,22 +31,13 @@ class Env:
             return self.parent.get(name)
         return None
 
-    def get_ast(self, name):
-        if name in self.asts:
-            return self.asts[name]
-        if self.parent:
-            return self.parent.get_ast(name)
-        return None
-
-    def set(self, name, value, ast=None):
+    def set(self, name, value):
         if name in self.bindings:
             raise NameError(f'cannot reassign: {name}')
         self.bindings[name] = value
-        if ast is not None:
-            self.asts[name] = ast
 
 
-# === Fn: runtime function (closure) ===
+# === Fn ===
 
 class Fn:
     def __init__(self, params, body_ast, env):
@@ -55,40 +53,76 @@ class Fn:
 
 
 # === Builtins ===
+# All receive Traced args. Return raw values. Evaluator wraps result.
 
 BUILTINS = {
     # Arithmetic
-    'add': lambda a, b: a + b,
-    'sub': lambda a, b: a - b,
-    'mul': lambda a, b: a * b,
+    'add': lambda a, b: a.value + b.value,
+    'sub': lambda a, b: a.value - b.value,
+    'mul': lambda a, b: a.value * b.value,
     # Comparison
-    'eq': lambda a, b: a == b,
-    'lt': lambda a, b: a < b,
-    'gt': lambda a, b: a > b,
+    'eq': lambda a, b: a.value == b.value,
+    'lt': lambda a, b: a.value < b.value,
+    'gt': lambda a, b: a.value > b.value,
     # Bool
     'True': True,
     'False': False,
-    'not': lambda a: not a,
+    'not': lambda a: not a.value,
     # List
-    'head': lambda l: l[0],
-    'tail': lambda l: l[1:],
-    'nil': lambda l: len(l) == 0,
-    'len': lambda l: len(l),
-    'nth': lambda l, n: l[n],
-    'append': lambda l, x: l + [x],
-    'concat': lambda a, b: a + b,
+    'head': lambda l: l.value[0].value,
+    'tail': lambda l: l.value[1:],
+    'nil': lambda l: len(l.value) == 0,
+    'len': lambda l: len(l.value),
+    'nth': lambda l, n: l.value[n.value].value,
+    'append': lambda l, x: l.value + [x],
+    'concat': lambda a, b: a.value + b.value,
     # Kernel
-    'mem': lambda l, r: mem(l, r),
-    'neg': lambda o: neg(o),
-    'implies': lambda l, r: implies(l, r),
-    'forall': lambda v, b: forall(v, b),
-    'sequent': lambda l, r: sequent(l, r),
-    'proof': lambda s, r, p=None, pr=None, t=None: proof(s, r, p, pr, t),
-    'same': lambda a, b: same(a, b),
-    'axiom': lambda f: axiom(f),
-    'qed': lambda p: qed(p),
+    'mem': lambda l, r: mem(l.value, r.value),
+    'neg': lambda o: neg(o.value),
+    'implies': lambda l, r: implies(l.value, r.value),
+    'forall': lambda v, b: forall(v.value, b.value),
+    'sequent': lambda l, r: sequent([a.value for a in l.value], [a.value for a in r.value]),
+    'proof': lambda s, r, p=None, pr=None, t=None: proof(
+        s.value, r.value,
+        [a.value for a in p.value] if p else None,
+        pr.value if pr else None,
+        t.value if t else None),
+    'same': lambda a, b: same(a.value, b.value),
+    'axiom': lambda f: axiom(f.value),
+    'qed': lambda p: qed(p.value),
 }
 
+
+# === Show ===
+
+def _show_ast(ast):
+    """Format an AST node as readable string."""
+    if isinstance(ast, Call):
+        callee = _show_ast(ast.callee)
+        args = ', '.join(_show_ast(a) for a in ast.args)
+        return f'{callee}({args})'
+    if isinstance(ast, Ref):
+        return ast.name
+    if isinstance(ast, Lit):
+        if isinstance(ast.value, str):
+            return f'"{ast.value}"'
+        return str(ast.value)
+    if isinstance(ast, FnAST):
+        p = ' '.join(ast.params)
+        return f'\\({p} : {_show_ast(ast.body)})'
+    if isinstance(ast, ListAST):
+        return f'[{", ".join(_show_ast(i) for i in ast.items)}]'
+    if isinstance(ast, If):
+        return f'?({_show_ast(ast.cond)}, {_show_ast(ast.then)}, {_show_ast(ast.else_)})'
+    if isinstance(ast, Block):
+        parts = [f'${b.name} {_show_ast(b.expr)}' for b in ast.bindings]
+        parts.append(_show_ast(ast.expr))
+        return '{ ' + ' '.join(parts) + ' }'
+    if isinstance(ast, Show):
+        return f'!{_show_ast(ast.expr)}'
+    if isinstance(ast, Traced):
+        return _show_ast(ast.ast)
+    return str(ast)
 
 
 # === Evaluate ===
@@ -100,8 +134,9 @@ class EvalError(Exception):
         self.cause = cause
     def __str__(self):
         loc = f'{node.line}:{node.col}' if (node := self.node) else '?'
-        ast = repr(self.node) if self.node else '?'
-        s = f'{loc}: {self.msg}\n  at {ast}'
+        s = f'{loc}: {self.msg}'
+        if self.node:
+            s += f'\n  at {_show_ast(self.node)}'
         if self.cause:
             s += f'\n  caused by: {self.cause}'
         return s
@@ -118,46 +153,48 @@ def evaluate(node, env):
 
 def _evaluate(node, env):
     if isinstance(node, Lit):
-        return node.value
+        return Traced(node.value, node)
 
     if isinstance(node, Ref):
         val = env.get(node.name)
         if val is not None:
             return val
-        # Unknown name becomes a fresh Var, stored in env
-        v = var()
-        env.set(node.name, v, node)
+        v = Traced(var(), node)
+        env.set(node.name, v)
         return v
 
     if isinstance(node, FnAST):
-        return Fn(node.params, node.body, env)
+        return Traced(Fn(node.params, node.body, env), node)
 
     if isinstance(node, ListAST):
-        return [_evaluate(item, env) for item in node.items]
+        items = [_evaluate(item, env) for item in node.items]
+        return Traced(items, node)
 
     if isinstance(node, Show):
         return _evaluate(node.expr, env)
 
     if isinstance(node, If):
         cond = _evaluate(node.cond, env)
-        return _evaluate(node.then, env) if cond else _evaluate(node.else_, env)
+        return _evaluate(node.then, env) if cond.value else _evaluate(node.else_, env)
 
     if isinstance(node, Call):
-        fn = _evaluate(node.callee, env)
+        fn = _evaluate(node.callee, env).value
         args = [_evaluate(a, env) for a in node.args]
 
         if callable(fn):
-            return fn(*args)
+            result = fn(*args)
+            return Traced(result, node)
 
         if isinstance(fn, Fn):
-            return fn.call(args)
+            result = fn.call(args)
+            return Traced(result.value, node)
 
         raise EvalError('not callable', node)
 
     if isinstance(node, Block):
         child = Env(env)
         for b in node.bindings:
-            child.set(b.name, _evaluate(b.expr, child), b.expr)
+            child.set(b.name, _evaluate(b.expr, child))
         return _evaluate(node.expr, child)
 
     raise EvalError(f'unknown node: {type(node).__name__}', node)
@@ -172,7 +209,7 @@ _loaded = {}
 def _make_global_env():
     env = Env()
     for name, val in BUILTINS.items():
-        env.set(name, val)
+        env.set(name, Traced(val, None))
     return env
 
 _global_env = _make_global_env()
@@ -195,9 +232,8 @@ def load_file(filepath):
         if isinstance(node, Import):
             _load_import(node)
         elif isinstance(node, Bind):
-            val = evaluate(node.expr, _global_env)
-            _global_env.set(node.name, val, node.expr)
-            exports[node.name] = val
+            _global_env.set(node.name, evaluate(node.expr, _global_env))
+            exports[node.name] = _global_env.get(node.name)
 
     return exports
 
@@ -211,55 +247,3 @@ def _load_import(node):
     for name in node.names:
         if name in imported and _global_env.get(name) is None:
             _global_env.set(name, imported[name])
-
-
-# === Entry point ===
-
-if __name__ == '__main__':
-    import sys
-
-    if len(sys.argv) > 1:
-        filepath = sys.argv[1]
-    else:
-        src = r"""
-$x 5
-$y add(x, 1)
-$double \(n : mul(n, 2))
-$result double(y)
-
-$factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1)))))
-$fact5 factorial(5)
-
-$mylist [1, 2, 3]
-$first head(mylist)
-$rest tail(mylist)
-$empty nil(rest)
-$length len(mylist)
-
-$blk {
-    $a 10
-    $b 20
-    add(a, b)
-}
-
-$compose \(f g : \(x : f(g(x))))
-$double_then_add1 compose(\(n : add(n, 1)), \(n : mul(n, 2)))
-$r1 double_then_add1(3)
-$callnow \(a b : add(a, b))(10, 20)
-$thunk \(: 42)
-$t1 thunk()
-$nested \(a : \(b : add(a, b)))
-$n1 nested(10)(20)
-
-$f forall(vx, mem(vx, va))
-"""
-        nodes = parse(src, '<test>')
-        env = _make_global_env()
-        for node in nodes:
-            if isinstance(node, Bind):
-                val = evaluate(node.expr, env)
-                env.set(node.name, val, node.expr)
-
-        for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
-                      'r1', 'callnow', 't1', 'n1', 'f']:
-            print(f'{name} = {env.get(name)}')
