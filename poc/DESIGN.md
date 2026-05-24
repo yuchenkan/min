@@ -42,6 +42,8 @@ Parsing is trivial — one syntax rule.
 
 All expressions are thunks. Evaluated on first use, cached.
 No special forms needed — if(cond, a, b) is lazy naturally.
+Trace IS the thunk: (fn, args) = recipe to compute + debug info.
+Value computed on first access, cached alongside trace.
 
 ## 8. No assignment, only function binding
 
