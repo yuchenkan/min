@@ -54,3 +54,19 @@ No mutation — once bound, x never changes.
 
 A file contains only imports and bindings.
 No bare expressions. No side effects at top level.
+
+## 10. Syntax
+
+```
+program  = (import | binding)*
+import   = 'from' dotted_name 'import' names
+binding  = name '=' expr
+         | name '(' params ')' '=' expr
+expr     = name '(' args ')'
+         | name
+         | INT
+         | STRING
+         | '{' binding* expr '}'
+args     = (expr (',' expr)*)?
+params   = (name (',' name)*)?
+```
