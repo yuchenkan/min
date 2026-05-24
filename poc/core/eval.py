@@ -142,6 +142,11 @@ class Proof:
 
 # === Builtins ===
 
+class _notrace:
+    """Builtin whose result is not wrapped in Traced by evaluator."""
+    def __init__(self, fn): self.fn = fn
+    def __call__(self, *args): return self.fn(*args)
+
 BUILTINS = {
     # Arithmetic
     'add': lambda a, b: _v(a) + _v(b),
@@ -156,11 +161,11 @@ BUILTINS = {
     'False': False,
     'not': lambda a: not _v(a),
     # List
-    'head': lambda l: _v(l)[0],
+    'head': _notrace(lambda l: _v(l)[0]),
     'tail': lambda l: _v(l)[1:],
     'nil': lambda l: len(_v(l)) == 0,
     'len': lambda l: len(_v(l)),
-    'nth': lambda l, n: _v(l)[_v(n)],
+    'nth': _notrace(lambda l, n: _v(l)[_v(n)]),
     'append': lambda l, x: _v(l) + [x],
     'concat': lambda a, b: _v(a) + _v(b),
     # Kernel
@@ -242,6 +247,8 @@ def _evaluate(node, env):
 
         if callable(fn):
             result = fn(*args)
+            if isinstance(fn, _notrace):
+                return result
             return Traced(result, node)
 
         if isinstance(fn, Fn):
