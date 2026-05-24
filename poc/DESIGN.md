@@ -17,3 +17,9 @@ Every value records how it was computed: function name + arguments.
 This is immutable metadata, not side effect.
 Display at any depth: trace name → one step → full expansion.
 Wrap/provenance is first-class, not bolted on.
+
+## 4. Garbage collection
+
+Traces and objects accumulate. GC reclaims unreferenced objects.
+Pure functional = no mutation = no dangling references = GC-safe.
+If an object is unreachable, its trace is also unreachable — collect both.
