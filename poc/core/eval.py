@@ -3,7 +3,7 @@
 Strict evaluation, lazy only for if-branches.
 """
 
-from parser import parse, Import, Bind, Fn as FnAST, Call, Ref, Lit, List as ListAST, Block, If
+from parser import parse, Import, Bind, Fn as FnAST, Call, Ref, Lit, List as ListAST, Block, If, Show
 from proof import var, mem, neg, implies, forall, sequent, proof, same
 import os
 
@@ -86,7 +86,6 @@ BUILTINS = {
         t.value if t else None,
         pr.value if pr else None),
     'same': lambda a, b: same(a.value, b.value),
-    'show': lambda a: print(a.ast) or a.value,
 }
 
 
@@ -111,6 +110,11 @@ def evaluate(node, env):
     if isinstance(node, ListAST):
         items = [evaluate(item, env) for item in node.items]
         return Traced(items, node)
+
+    if isinstance(node, Show):
+        result = evaluate(node.expr, env)
+        print(result.ast)
+        return result
 
     if isinstance(node, If):
         cond = evaluate(node.cond, env)

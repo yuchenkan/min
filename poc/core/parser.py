@@ -18,7 +18,7 @@ params   = name*
 # === Tokens ===
 
 KEYWORDS = {'from', 'import'}
-PUNCTUATION = set('(){}[]$,.:?\\')
+PUNCTUATION = set('(){}[]$,.:?\\!')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
@@ -183,6 +183,14 @@ class If:
     def __repr__(self):
         return f'?({self.cond}, {self.then}, {self.else_})'
 
+class Show:
+    def __init__(self, expr, line, col):
+        self.expr = expr
+        self.line = line
+        self.col = col
+    def __repr__(self):
+        return f'!{self.expr}'
+
 
 # === Parser ===
 
@@ -248,7 +256,11 @@ class Parser:
     def parse_expr(self):
         tok = self.peek()
 
-        if tok[1] == '\\':
+        if tok[1] == '!':
+            t = self.advance()
+            node = Show(self.parse_expr(), t[2], t[3])
+            return node
+        elif tok[1] == '\\':
             node = self.parse_fn()
         elif tok[1] == '[':
             node = self.parse_list()
