@@ -3,7 +3,7 @@
 Strict evaluation, lazy only for if-branches.
 """
 
-from parser import parse, Import, Let, Fn as FnAST, Call, Ref, Lit, Block
+from parser import parse, Import, Let, Fn as FnAST, Call, Ref, Lit, Block, If
 import os
 
 
@@ -95,11 +95,11 @@ def evaluate(node, env):
     if isinstance(node, FnAST):
         return Traced(Fn(node.params, node.rest, node.body, env), node)
 
-    if isinstance(node, Call):
-        if isinstance(node.callee, Ref) and node.callee.name == 'if':
-            cond = evaluate(node.args[0], env)
-            return evaluate(node.args[1], env) if cond.value else evaluate(node.args[2], env)
+    if isinstance(node, If):
+        cond = evaluate(node.cond, env)
+        return evaluate(node.then, env) if cond.value else evaluate(node.else_, env)
 
+    if isinstance(node, Call):
         fn = evaluate(node.callee, env).value
         args = [evaluate(a, env) for a in node.args]
 
@@ -184,7 +184,7 @@ let y = add(x, 1)
 let double = [n : mul(n, 2)]
 let result = double(y)
 
-let factorial = [n : if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
+let factorial = [n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
 let fact5 = factorial(5)
 
 let list = [items... : items]

@@ -27,6 +27,7 @@ program  = (import | let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
 expr     = '[' params ':' expr ']'
+         | '?' '(' expr ',' expr ',' expr ')'
          | '{' let* expr '}'
          | expr '(' args ')'
          | name
@@ -42,3 +43,4 @@ Any expression can be called: `f(1)(2)` = chained calls.
 Call holds callee expr, not just name.
 Last parameter may be `name...` — rest parameter, collects into list.
 Zero-param function: `[: body]`.
+`?(cond, then, else)` — special form, lazy branches. Not a function, not assignable.

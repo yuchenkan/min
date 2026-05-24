@@ -4,6 +4,7 @@ program  = (import :let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
 expr     = '[' params ':' expr ']'
+         :'?' '(' expr ',' expr ',' expr ')'
          :'{' let* expr '}'
          :expr '(' args ')'
          :name
@@ -17,7 +18,7 @@ params   = (name (',' name)* (',' name '...')? )?
 # === Tokens ===
 
 KEYWORDS = {'from', 'import', 'let'}
-PUNCTUATION = set('(){}[]=,.:')
+PUNCTUATION = set('(){}[]=,.:?')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
@@ -172,6 +173,16 @@ class Block:
         parts = [repr(b) for b in self.bindings] + [repr(self.expr)]
         return '{ ' + ' '.join(parts) + ' }'
 
+class If:
+    def __init__(self, cond, then, else_, line, col):
+        self.cond = cond
+        self.then = then
+        self.else_ = else_
+        self.line = line
+        self.col = col
+    def __repr__(self):
+        return f'?({self.cond}, {self.then}, {self.else_})'
+
 
 # === Parser ===
 
@@ -238,7 +249,9 @@ class Parser:
     def parse_expr(self):
         tok = self.peek()
 
-        if tok[1] == '[':
+        if tok[1] == '?':
+            node = self.parse_if()
+        elif tok[1] == '[':
             node = self.parse_fn()
         elif tok[1] == '{':
             node = self.parse_block()
@@ -261,6 +274,17 @@ class Parser:
             node = Call(node, args, node.line, node.col)
 
         return node
+
+    def parse_if(self):
+        tok = self.expect('PUNCT', '?')
+        self.expect('PUNCT', '(')
+        cond = self.parse_expr()
+        self.expect('PUNCT', ',')
+        then = self.parse_expr()
+        self.expect('PUNCT', ',')
+        else_ = self.parse_expr()
+        self.expect('PUNCT', ')')
+        return If(cond, then, else_, tok[2], tok[3])
 
     def parse_fn(self):
         tok = self.expect('PUNCT', '[')
@@ -328,8 +352,8 @@ let result = {
 }
 
 let list = [items... :items]
-let factorial = [n :if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
-let test = if(eq(x, 0), x, mul(x, 2))
+let factorial = [n :?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
+let test = ?(eq(x, 0), x, mul(x, 2))
 let apply = [f :f(1)(2)]
 
 # deep nested inline function with call
