@@ -117,6 +117,8 @@ class Import:
         self.names = names
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'from {self.module} import {", ".join(self.names)}'
 
 class Bind:
     def __init__(self, name, params, rest, body, line, col):
@@ -126,6 +128,13 @@ class Bind:
         self.body = body
         self.line = line
         self.col = col
+    def __repr__(self):
+        if self.params or self.rest:
+            p = ', '.join(self.params)
+            if self.rest:
+                p = f'{p}, {self.rest}...' if p else f'{self.rest}...'
+            return f'let {self.name}({p}) = {self.body}'
+        return f'let {self.name} = {self.body}'
 
 class Call:
     def __init__(self, name, args, line, col):
@@ -133,18 +142,26 @@ class Call:
         self.args = args
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'{self.name}({", ".join(repr(a) for a in self.args)})'
 
 class Ref:
     def __init__(self, name, line, col):
         self.name = name
         self.line = line
         self.col = col
+    def __repr__(self):
+        return self.name
 
 class Lit:
     def __init__(self, value, line, col):
         self.value = value
         self.line = line
         self.col = col
+    def __repr__(self):
+        if isinstance(self.value, str):
+            return f'"{self.value}"'
+        return str(self.value)
 
 class Block:
     def __init__(self, bindings, expr, line, col):
@@ -152,6 +169,9 @@ class Block:
         self.expr = expr
         self.line = line
         self.col = col
+    def __repr__(self):
+        parts = [repr(b) for b in self.bindings] + [repr(self.expr)]
+        return '{ ' + ' '.join(parts) + ' }'
 
 
 # === Parser ===
@@ -318,9 +338,4 @@ let test = if(eq(x, 0), x, mul(x, 2))
 
     ast = parse(src, '<test>')
     for node in ast:
-        if isinstance(node, Import):
-            print(f'import {node.module}: {node.names}')
-        elif isinstance(node, Bind):
-            rest = f', {node.rest}...' if node.rest else ''
-            params = f'({", ".join(node.params)}{rest})' if node.params or node.rest else ''
-            print(f'let {node.name}{params} = {type(node.body).__name__}')
+        print(repr(node))
