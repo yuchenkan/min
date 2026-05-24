@@ -225,8 +225,7 @@ def _evaluate(node, env):
         return Traced(Fn(node.params, node.body, env, node.traced), node)
 
     if isinstance(node, ListAST):
-        items = [_evaluate(item, env) for item in node.items]
-        return Traced(items, node)
+        return [_evaluate(item, env) for item in node.items]
 
     if isinstance(node, Show):
         depth = 0
