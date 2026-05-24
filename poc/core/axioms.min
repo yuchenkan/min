@@ -29,7 +29,7 @@ $sep_core \(phi x : {
 $wrap_forall \(body vars :
     ?(nil(vars), body, forall(head(vars), wrap_forall(body, tail(vars)))))
 
-$Separation \(phi x vars :
+$Separation \\(phi x vars :
     axiom(wrap_forall(sep_core(phi, x), vars)))
 
 $Infinity axiom(exists(b, and(
@@ -55,7 +55,7 @@ $rep_core \(phi x y : {
                 iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))
 })
 
-$Replacement \(phi x y vars :
+$Replacement \\(phi x y vars :
     axiom(wrap_forall(rep_core(phi, x, y), vars)))
 
 $Regularity axiom(forall(a,

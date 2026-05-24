@@ -3,7 +3,8 @@
 program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
 bind     = '$' name expr
-expr     = '\\' '(' params ':' expr ')'
+expr     = '\\' '(' params ':' expr ')'      # function (no trace)
+         | '\\\\' '(' params ':' expr ')'   # function (traced calls)
          | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
          | '{' bind* expr '}'
@@ -119,13 +120,15 @@ class Bind:
         return f'${self.name} {self.expr!r}'
 
 class Fn:
-    def __init__(self, params, body, line, col):
+    def __init__(self, params, body, line, col, traced=False):
         self.params = params
         self.body = body
         self.line = line
+        self.traced = traced
         self.col = col
     def __repr__(self):
-        return f'\\({" ".join(self.params)} : {self.body!r})'
+        s = '\\\\' if self.traced else '\\'
+        return f'{s}({" ".join(self.params)} : {self.body!r})'
 
 class Call:
     def __init__(self, callee, args, line, col):
@@ -287,12 +290,15 @@ class Parser:
 
     def parse_fn(self):
         tok = self.expect('PUNCT', '\\')
+        traced = self.peek()[1] == '\\'
+        if traced:
+            self.advance()
         self.expect('PUNCT', '(')
         params = self.parse_params()
         self.expect('PUNCT', ':')
         body = self.parse_expr()
         self.expect('PUNCT', ')')
-        return Fn(params, body, tok[2], tok[3])
+        return Fn(params, body, tok[2], tok[3], traced)
 
     def parse_params(self):
         params = []

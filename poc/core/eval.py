@@ -40,10 +40,11 @@ class Env:
 # === Fn ===
 
 class Fn:
-    def __init__(self, params, body_ast, env):
+    def __init__(self, params, body_ast, env, traced=False):
         self.params = params
         self.body_ast = body_ast
         self.env = env
+        self.traced = traced
 
     def call(self, args):
         child = Env(self.env)
@@ -221,7 +222,7 @@ def _evaluate(node, env):
         return v
 
     if isinstance(node, FnAST):
-        return Traced(Fn(node.params, node.body, env), node)
+        return Traced(Fn(node.params, node.body, env, node.traced), node)
 
     if isinstance(node, ListAST):
         items = [_evaluate(item, env) for item in node.items]
@@ -253,7 +254,7 @@ def _evaluate(node, env):
 
         if isinstance(fn, Fn):
             result = fn.call(args)
-            return Traced(result, node)
+            return Traced(result, node) if fn.traced else result
 
         raise EvalError('not callable', node)
 
