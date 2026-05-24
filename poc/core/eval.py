@@ -7,6 +7,17 @@ from parser import parse, Import, Let, Fn as FnAST, Call, Ref, Lit, Block
 import os
 
 
+# === Traced: every value carries its AST ===
+
+class Traced:
+    def __init__(self, value, ast):
+        self.value = value
+        self.ast = ast
+
+    def __repr__(self):
+        return f'{self.value} <- {self.ast}'
+
+
 # === Env ===
 
 class Env:
@@ -39,7 +50,7 @@ class Fn:
         for p, a in zip(self.params, args):
             child.set(p, a)
         if self.rest:
-            child.set(self.rest, args[len(self.params):])
+            child.set(self.rest, Traced(args[len(self.params):], None))
         return evaluate(self.body_ast, child)
 
 
@@ -73,7 +84,7 @@ BUILTINS = {
 
 def evaluate(node, env):
     if isinstance(node, Lit):
-        return node.value
+        return Traced(node.value, node)
 
     if isinstance(node, Ref):
         val = env.get(node.name)
@@ -82,36 +93,30 @@ def evaluate(node, env):
         raise NameError(f'{node.line}:{node.col}: undefined: {node.name}')
 
     if isinstance(node, FnAST):
-        return Fn(node.params, node.rest, node.body, env)
+        return Traced(Fn(node.params, node.rest, node.body, env), node)
 
     if isinstance(node, Call):
-        if node.name == 'if':
+        if isinstance(node.callee, Ref) and node.callee.name == 'if':
             cond = evaluate(node.args[0], env)
-            return evaluate(node.args[1], env) if cond else evaluate(node.args[2], env)
+            return evaluate(node.args[1], env) if cond.value else evaluate(node.args[2], env)
 
-        fn = env.get(node.name)
-        if fn is None:
-            raise NameError(f'{node.line}:{node.col}: undefined: {node.name}')
-
+        fn = evaluate(node.callee, env).value
         args = [evaluate(a, env) for a in node.args]
 
         if callable(fn):
-            return fn(*args)
+            result = fn(*[a.value for a in args])
+            return Traced(result, node)
 
         if isinstance(fn, Fn):
             return fn.call(args)
 
-        raise TypeError(f'{node.line}:{node.col}: {node.name} is not callable')
+        raise TypeError(f'{node.line}:{node.col}: not callable')
 
     if isinstance(node, Block):
         child = Env(env)
         for let in node.bindings:
             child.set(let.name, evaluate(let.expr, child))
         return evaluate(node.expr, child)
-
-    if isinstance(node, Let):
-        env.set(node.name, evaluate(node.expr, env))
-        return None
 
     raise ValueError(f'cannot evaluate: {type(node).__name__}')
 
@@ -125,7 +130,7 @@ _loaded = {}
 def _make_global_env():
     env = Env()
     for name, val in BUILTINS.items():
-        env.set(name, val)
+        env.set(name, Traced(val, None))
     return env
 
 _global_env = _make_global_env()
@@ -176,13 +181,13 @@ if __name__ == '__main__':
         src = """
 let x = 5
 let y = add(x, 1)
-let double = (n) mul(n, 2)
+let double = [n : mul(n, 2)]
 let result = double(y)
 
-let factorial = (n) if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
+let factorial = [n : if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
 let fact5 = factorial(5)
 
-let list = (items...) items
+let list = [items... : items]
 let mylist = list(1, 2, 3)
 let first = head(mylist)
 let rest = tail(mylist)
@@ -194,6 +199,15 @@ let blk = {
     let b = 20
     add(a, b)
 }
+
+let compose = [f, g : [x : f(g(x))]]
+let double_then_add1 = compose([n : add(n, 1)], [n : mul(n, 2)])
+let r1 = double_then_add1(3)
+let callnow = [a, b : add(a, b)](10, 20)
+let thunk = [: 42]
+let t1 = thunk()
+let nested = [a : [b : add(a, b)]]
+let n1 = nested(10)(20)
 """
         nodes = parse(src, '<test>')
         env = _make_global_env()
@@ -201,5 +215,6 @@ let blk = {
             if isinstance(node, Let):
                 env.set(node.name, evaluate(node.expr, env))
 
-        for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk']:
+        for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
+                      'r1', 'callnow', 't1', 'n1']:
             print(f'{name} = {env.get(name)}')
