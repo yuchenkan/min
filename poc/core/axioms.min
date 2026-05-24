@@ -2,24 +2,24 @@
 
 from derived import and, or, iff, exists, eq
 
-$Extensionality forall(x, forall(y,
+$Extensionality axiom(forall(x, forall(y,
     implies(
         forall(z, iff(mem(z, x), mem(z, y))),
-        forall(z, iff(mem(x, z), mem(y, z))))))
+        forall(z, iff(mem(x, z), mem(y, z)))))))
 
-$EmptySet exists(b, forall(x, neg(mem(x, b))))
+$EmptySet axiom(exists(b, forall(x, neg(mem(x, b)))))
 
-$Pairing forall(x, forall(y,
+$Pairing axiom(forall(x, forall(y,
     exists(b, forall(z,
-        iff(mem(z, b), or(eq(z, x), eq(z, y)))))))
+        iff(mem(z, b), or(eq(z, x), eq(z, y))))))))
 
-$Union forall(a,
+$Union axiom(forall(a,
     exists(b, forall(x,
-        iff(mem(x, b), exists(y, and(mem(y, a), mem(x, y)))))))
+        iff(mem(x, b), exists(y, and(mem(y, a), mem(x, y))))))))
 
-$PowerSet forall(a,
+$PowerSet axiom(forall(a,
     exists(b, forall(x,
-        iff(mem(x, b), forall(y, implies(mem(y, x), mem(y, a)))))))
+        iff(mem(x, b), forall(y, implies(mem(y, x), mem(y, a))))))))
 
 $sep_core \(phi x : {
     forall(a, exists(b, forall(x,
@@ -30,20 +30,20 @@ $wrap_forall \(body vars :
     ?(nil(vars), body, forall(head(vars), wrap_forall(body, tail(vars)))))
 
 $Separation \(phi x vars :
-    wrap_forall(sep_core(phi, x), vars))
+    axiom(wrap_forall(sep_core(phi, x), vars)))
 
-$Infinity exists(b, and(
+$Infinity axiom(exists(b, and(
     exists(e, and(mem(e, b), forall(z, neg(mem(z, e))))),
     forall(y, implies(mem(y, b),
         exists(s, and(mem(s, b),
-            forall(w, iff(mem(w, s), or(mem(w, y), eq(w, y))))))))))
+            forall(w, iff(mem(w, s), or(mem(w, y), eq(w, y)))))))))))
 
-$Choice forall(x,
+$Choice axiom(forall(x,
     implies(
         forall(y, implies(mem(y, x), exists(z, mem(z, y)))),
         exists(c, forall(y, implies(mem(y, x),
             exists(z, and(and(mem(z, y), mem(z, c)),
-                forall(w, implies(and(mem(w, y), mem(w, c)), eq(w, z))))))))))
+                forall(w, implies(and(mem(w, y), mem(w, c)), eq(w, z)))))))))))
 
 $rep_core \(phi x y : {
     forall(a,
@@ -56,9 +56,9 @@ $rep_core \(phi x y : {
 })
 
 $Replacement \(phi x y vars :
-    wrap_forall(rep_core(phi, x, y), vars))
+    axiom(wrap_forall(rep_core(phi, x, y), vars)))
 
-$Regularity forall(a,
+$Regularity axiom(forall(a,
     implies(
         exists(y, mem(y, a)),
-        exists(y, and(mem(y, a), neg(exists(z, and(mem(z, a), mem(z, y))))))))
+        exists(y, and(mem(y, a), neg(exists(z, and(mem(z, a), mem(z, y)))))))))
