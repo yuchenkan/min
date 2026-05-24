@@ -13,58 +13,97 @@ args     = (expr (',' expr)*)?
 params   = (name (',' name)* (',' name '...')? )?
 """
 
-import re
-
-
 # === Tokens ===
 
-TOKEN_RE = re.compile(r"""
-    (\s+)                     |  # whitespace
-    (\#[^\n]*)                |  # comment
-    (from|import)             |  # keywords
-    ([a-zA-Z_][a-zA-Z_0-9]*) |  # NAME
-    ([0-9]+)                  |  # INT
-    ("(?:[^"\\]|\\.)*")       |  # STRING
-    (\.\.\.)                   |  # ellipsis
-    ([(){}=,.])                  # punctuation
-""", re.VERBOSE)
+KEYWORDS = {'from', 'import'}
+PUNCTUATION = set('(){}=,.')
+ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
 def tokenize(source, filepath='<input>'):
     tokens = []
     pos = 0
     line = 1
-    col_offset = 0
+    col_start = 0
+
+    def err(msg):
+        raise SyntaxError(f'{filepath}:{line}:{pos - col_start + 1}: {msg}')
+
     while pos < len(source):
-        m = TOKEN_RE.match(source, pos)
-        if not m:
-            col = pos - col_offset + 1
-            raise SyntaxError(f'{filepath}:{line}:{col}: unexpected char: {source[pos]!r}')
-        start = pos
-        pos = m.end()
-        col = start - col_offset + 1
-        ws, comment, kw, name, num, string, ellipsis, punct = m.groups()
-        if ws:
-            last_nl = ws.rfind('\n')
-            if last_nl >= 0:
-                line += ws.count('\n')
-                col_offset = start + last_nl + 1
+        c = source[pos]
+
+        # Whitespace
+        if c in ' \t\r\n':
+            if c == '\n':
+                line += 1
+                col_start = pos + 1
+            pos += 1
             continue
-        if comment:
+
+        # Comment
+        if c == '#':
+            while pos < len(source) and source[pos] != '\n':
+                pos += 1
             continue
-        if ellipsis:
+
+        col = pos - col_start + 1
+
+        # Ellipsis
+        if source[pos:pos+3] == '...':
             tokens.append(('PUNCT', '...', line, col))
+            pos += 3
             continue
-        if kw:
-            tokens.append(('KW', kw, line, col))
-        elif name:
-            tokens.append(('NAME', name, line, col))
-        elif num:
-            tokens.append(('INT', int(num), line, col))
-        elif string:
-            tokens.append(('STR', string[1:-1], line, col))
-        elif punct:
-            tokens.append(('PUNCT', punct, line, col))
+
+        # String
+        if c == '"':
+            pos += 1
+            s = []
+            while pos < len(source) and source[pos] != '"':
+                if source[pos] == '\\':
+                    pos += 1
+                    if pos >= len(source):
+                        err('unterminated string escape')
+                    esc = ESCAPES.get(source[pos])
+                    if esc is None:
+                        err(f'invalid escape: \\{source[pos]}')
+                    s.append(esc)
+                else:
+                    s.append(source[pos])
+                pos += 1
+            if pos >= len(source):
+                err('unterminated string')
+            pos += 1  # skip closing "
+            tokens.append(('STR', ''.join(s), line, col))
+            continue
+
+        # Name or keyword
+        if c.isalpha() or c == '_':
+            start = pos
+            while pos < len(source) and (source[pos].isalnum() or source[pos] == '_'):
+                pos += 1
+            word = source[start:pos]
+            if word in KEYWORDS:
+                tokens.append(('KW', word, line, col))
+            else:
+                tokens.append(('NAME', word, line, col))
+            continue
+
+        # Integer
+        if c.isdigit():
+            start = pos
+            while pos < len(source) and source[pos].isdigit():
+                pos += 1
+            tokens.append(('INT', int(source[start:pos]), line, col))
+            continue
+
+        # Punctuation
+        if c in PUNCTUATION:
+            tokens.append(('PUNCT', c, line, col))
+            pos += 1
+            continue
+
+        err(f'unexpected char: {c!r}')
+
     tokens.append(('EOF', None, line, 1))
     return tokens
 
