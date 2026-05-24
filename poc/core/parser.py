@@ -3,7 +3,7 @@
 program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
 bind     = '=' '(' name expr ')'
-expr     = '*' '(' params ':' expr ')'
+expr     = '\' '(' params ':' expr ')'
          | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
          | '{' bind* expr '}'
@@ -18,7 +18,7 @@ params   = name*
 # === Tokens ===
 
 KEYWORDS = {'from', 'import'}
-PUNCTUATION = set('(){}[]=,.:?*')
+PUNCTUATION = set('(){}[]=,.:?\\')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
@@ -126,7 +126,7 @@ class Fn:
         self.col = col
     def __repr__(self):
         p = ' '.join(self.params)
-        return f'*({p} : {self.body})'
+        return f'\\({p} : {self.body})'
 
 class Call:
     def __init__(self, callee, args, line, col):
@@ -250,7 +250,7 @@ class Parser:
     def parse_expr(self):
         tok = self.peek()
 
-        if tok[1] == '*':
+        if tok[1] == '\\':
             node = self.parse_fn()
         elif tok[1] == '[':
             node = self.parse_list()
@@ -279,7 +279,7 @@ class Parser:
         return node
 
     def parse_fn(self):
-        tok = self.expect('PUNCT', '*')
+        tok = self.expect('PUNCT', '\\')
         self.expect('PUNCT', '(')
         params = self.parse_params()
         self.expect('PUNCT', ':')
@@ -344,12 +344,12 @@ def parse(source, filepath='<input>'):
 # === Test ===
 
 if __name__ == '__main__':
-    src = """
+    src = r"""
 from core.axioms import Extensionality
 
 =(x 5)
 =(y add(x, 1))
-=(f *(a b : add(a, b)))
+=(f \(a b : add(a, b)))
 
 =(result {
     =(p mem(z, a))
@@ -357,9 +357,9 @@ from core.axioms import Extensionality
     forall_right(s1, q, z)
 })
 
-=(factorial *(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))))
+=(factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))))
 =(test ?(eq(x, 0), x, mul(x, 2)))
-=(apply *(f : f(1)(2)))
+=(apply \(f : f(1)(2)))
 
 # lists
 =(xs [1, 2, 3])
@@ -367,10 +367,10 @@ from core.axioms import Extensionality
 =(nested [1, [2, 3], 4])
 
 # deep nested function with call
-=(compose *(f g : *(x : f(g(x)))))
-=(callnow *(f g : *(x : f(g(x))))(add)(mul)(3))
-=(thunk *(: 42))
-=(deep *(f : *(g : f(g)(1, 2)))(*(x : *(y : add(x, y))))(*(n : mul(n, 3))))
+=(compose \(f g : \(x : f(g(x)))))
+=(callnow \(f g : \(x : f(g(x))))(add)(mul)(3))
+=(thunk \(: 42))
+=(deep \(f : \(g : f(g)(1, 2)))(\(x : \(y : add(x, y))))(\(n : mul(n, 3))))
 """
 
     ast = parse(src, '<test>')
