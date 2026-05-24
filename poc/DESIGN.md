@@ -23,23 +23,20 @@ if(cond, a, b) only evaluates chosen branch.
 ## 5. Syntax
 
 ```
-program  = (import | let)*
+program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
-let      = 'let' name '=' expr
+bind     = '=' '(' name expr ')'
 expr     = '*' '(' params ':' expr ')'
-         | '[' args ']'
+         | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
-         | '{' let* expr '}'
-         | expr '(' args ')'
+         | '{' bind* expr '}'
+         | expr '(' (expr (',' expr)*)? ')'
          | name
          | INT
          | STRING
-args     = (expr (',' expr)*)?
-params   = (name (',' name)*)?
+params   = name*
 ```
 
-`let` always binds `name = expr`. Functions: `*(a, b : body)`.
-Lists: `[1, 2, 3]`, `[]`.
-`?(cond, then, else)` — special form, lazy branches.
-Any expression can be called: `f(1)(2)` = chained calls.
-Zero-param function: `*(: body)`.
+`=(name expr)` bind. `*(a b : body)` function. `f(x, y)` call.
+`[1, 2, 3]` list. `?(cond, then, else)` conditional.
+No commas in binds and params.
