@@ -2,9 +2,37 @@
 These are mechanical assembly — no formula inspection, no cleverness."""
 
 from core.proof import Sequent, Proof
-from core.lang import Var, Not, Implies, Forall
+from core.lang import Var, In, Not, Implies, Forall
 from core.derived import Exists, And, Eq
 from core import same
+
+
+def _rename_binder(formula, var):
+    """Alpha-rename every Forall that binds `var` in formula to a fresh Var.
+    Works on expanded formulas."""
+    from core.proof import _expand
+    formula = _expand(formula)
+    match formula:
+        case In():
+            return formula
+        case Not(operand):
+            new_op = _rename_binder(operand, var)
+            return Not(new_op) if new_op is not operand else formula
+        case Implies(left, right):
+            new_left = _rename_binder(left, var)
+            new_right = _rename_binder(right, var)
+            if new_left is not left or new_right is not right:
+                return Implies(new_left, new_right)
+            return formula
+        case Forall(v, body):
+            new_body = _rename_binder(body, var)
+            if v is var:
+                fresh = Var()
+                return Forall(fresh, new_body.subst(var, fresh))
+            if new_body is not body:
+                return Forall(v, new_body)
+            return formula
+    return formula
 
 
 def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
@@ -15,7 +43,7 @@ def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
     concl: the conclusion after instantiation (= body when hyp is None)
     hyp_proof: proof of hyp_ctx |- hyp (None when hyp is None)
     Returns: proof of thm_ctx |- concl (pure) or thm_ctx + hyp_ctx |- concl (with hyp)"""
-    from core.proof import _expand, _subst
+    from core.proof import _expand, _subst, _var_bound_in
     body = Implies(hyp, concl) if hyp is not None else concl
     # Peel theorem's actual Foralls, compute partial instantiations
     thm_concl = thm.sequent.right[0]
@@ -23,6 +51,9 @@ def apply_thm(thm, terms, hyp=None, concl=None, hyp_proof=None):
     f = thm_concl
     for t in terms:
         f = _expand(f)
+        # Alpha-rename if term is bound in the body (avoids variable capture)
+        if isinstance(t, Var) and _var_bound_in(t, f.body):
+            f = Forall(f.var, _rename_binder(f.body, t))
         foralls.append(f)
         f = _subst(f.body, f.var, t)
     # f is now the fully instantiated body (via _expand + _subst chain)
@@ -87,18 +118,28 @@ def ax(formula):
 
 def fl(parent, body, term):
     """Forall left: from parent = Forall(x, ...) on left, instantiate x with term to get body."""
+    from core.proof import _expand, _var_bound_in
+    p = _expand(parent)
+    if isinstance(term, Var) and _var_bound_in(term, p.body):
+        p = Forall(p.var, _rename_binder(p.body, term))
+        body = p.body.subst(p.var, term)
     return Proof(Sequent([parent], [body]), 'forall_left',
         [Proof(Sequent([body], [body]), 'axiom', principal=body)],
-        principal=parent, term=term)
+        principal=p, term=term)
 
 
 def eir(proof, body, var, witness):
     """Exists intro right: from proof |- body[var:=witness], derive |- Exists(var, body)."""
+    from core.proof import _var_bound_in
     ctx = list(proof.sequent.left)
     body_inst = proof.sequent.right[0]
     nl = Proof(Sequent(ctx + [Not(body_inst)], []), 'not_left', [proof], principal=Not(body_inst))
+    principal_body = Not(body)
+    if isinstance(witness, Var) and _var_bound_in(witness, principal_body):
+        principal_body = Not(_rename_binder(body, witness))
+    principal = Forall(var, principal_body)
     f = Proof(Sequent(ctx + [Forall(var, Not(body))], []), 'forall_left', [nl],
-              principal=Forall(var, Not(body)), term=witness)
+              principal=principal, term=witness)
     return Proof(Sequent(ctx, [Exists(var, body)]), 'not_right', [f],
                  principal=Exists(var, body))
 

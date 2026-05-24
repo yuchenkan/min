@@ -10,7 +10,7 @@ class Var:
         self._postfix = postfix
 
     def eq(self, other, env, expand, eq):
-        for v1, v2 in env:
+        for v1, v2 in reversed(env):
             if self is v1: return other is v2
             if other is v2: return False
         return self is other
