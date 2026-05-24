@@ -23,3 +23,11 @@ Wrap/provenance is first-class, not bolted on.
 Traces and objects accumulate. GC reclaims unreferenced objects.
 Pure functional = no mutation = no dangling references = GC-safe.
 If an object is unreachable, its trace is also unreachable — collect both.
+
+## 5. Builtin types
+
+- Int — integers
+- Bool — True/False
+- String — text
+- Pair — the only compound type. fst/snd for access.
+  All structured data built from nested pairs. No dots.
