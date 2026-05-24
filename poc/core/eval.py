@@ -192,38 +192,38 @@ if __name__ == '__main__':
         filepath = sys.argv[1]
     else:
         src = r"""
-=(x 5)
-=(y add(x, 1))
-=(double \(n : mul(n, 2)))
-=(result double(y))
+$x 5
+$y add(x, 1)
+$double \(n : mul(n, 2))
+$result double(y)
 
-=(factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))))
-=(fact5 factorial(5))
+$factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1)))))
+$fact5 factorial(5)
 
-=(mylist [1, 2, 3])
-=(first head(mylist))
-=(rest tail(mylist))
-=(empty nil(rest))
-=(length len(mylist))
+$mylist [1, 2, 3]
+$first head(mylist)
+$rest tail(mylist)
+$empty nil(rest)
+$length len(mylist)
 
-=(blk {
-    =(a 10)
-    =(b 20)
+$blk {
+    $a 10
+    $b 20
     add(a, b)
-})
+}
 
-=(compose \(f g : \(x : f(g(x)))))
-=(double_then_add1 compose(\(n : add(n, 1)), \(n : mul(n, 2))))
-=(r1 double_then_add1(3))
-=(callnow \(a b : add(a, b))(10, 20))
-=(thunk \(: 42))
-=(t1 thunk())
-=(nested \(a : \(b : add(a, b))))
-=(n1 nested(10)(20))
+$compose \(f g : \(x : f(g(x))))
+$double_then_add1 compose(\(n : add(n, 1)), \(n : mul(n, 2)))
+$r1 double_then_add1(3)
+$callnow \(a b : add(a, b))(10, 20)
+$thunk \(: 42)
+$t1 thunk()
+$nested \(a : \(b : add(a, b)))
+$n1 nested(10)(20)
 
-=(va var())
-=(vx var())
-=(f forall(vx, mem(vx, va)))
+$va var()
+$vx var()
+$f forall(vx, mem(vx, va))
 """
         nodes = parse(src, '<test>')
         env = _make_global_env()

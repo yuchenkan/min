@@ -1,19 +1,10 @@
 # Derived connectives: expand to primitives (neg, implies, forall, mem)
 
-# and(a, b) = neg(implies(a, neg(b)))
-=(and \(a b : neg(implies(a, neg(b)))))
-
-# or(a, b) = implies(neg(a), b)
-=(or \(a b : implies(neg(a), b)))
-
-# iff(a, b) = and(implies(a, b), implies(b, a))
-=(iff \(a b : neg(implies(implies(a, b), neg(implies(b, a))))))
-
-# exists(x, body) = neg(forall(x, neg(body)))
-=(exists \(x body : neg(forall(x, neg(body)))))
-
-# eq(a, b) = forall(z, iff(mem(z, a), mem(z, b)))
-=(eq \(a b : {
-    =(z var())
+$and \(a b : neg(implies(a, neg(b))))
+$or \(a b : implies(neg(a), b))
+$iff \(a b : neg(implies(implies(a, b), neg(implies(b, a)))))
+$exists \(x body : neg(forall(x, neg(body))))
+$eq \(a b : {
+    $z var()
     forall(z, neg(implies(implies(mem(z, a), mem(z, b)), neg(implies(mem(z, b), mem(z, a))))))
-}))
+})

@@ -2,7 +2,7 @@
 
 program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
-bind     = '=' '(' name expr ')'
+bind     = '$' name expr
 expr     = '\' '(' params ':' expr ')'
          | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
@@ -18,7 +18,7 @@ params   = name*
 # === Tokens ===
 
 KEYWORDS = {'from', 'import'}
-PUNCTUATION = set('(){}[]=,.:?\\')
+PUNCTUATION = set('(){}[]$,.:?\\')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
@@ -116,7 +116,7 @@ class Bind:
         self.line = line
         self.col = col
     def __repr__(self):
-        return f'=({self.name} {self.expr})'
+        return f'${self.name} {self.expr}'
 
 class Fn:
     def __init__(self, params, body, line, col):
@@ -216,7 +216,7 @@ class Parser:
         while self.peek()[0] != 'EOF':
             if self.peek()[1] == 'from':
                 items.append(self.parse_import())
-            elif self.peek()[1] == '=':
+            elif self.peek()[1] == '$':
                 items.append(self.parse_bind())
             else:
                 self.error(f'expected import or bind, got {self.peek()[1]!r}')
@@ -240,11 +240,9 @@ class Parser:
         return '.'.join(parts)
 
     def parse_bind(self):
-        tok = self.expect('PUNCT', '=')
-        self.expect('PUNCT', '(')
+        tok = self.expect('PUNCT', '$')
         name = self.expect('NAME')[1]
         expr = self.parse_expr()
-        self.expect('PUNCT', ')')
         return Bind(name, expr, tok[2], tok[3])
 
     def parse_expr(self):
@@ -318,7 +316,7 @@ class Parser:
     def parse_block(self):
         tok = self.expect('PUNCT', '{')
         bindings = []
-        while self.peek()[1] == '=':
+        while self.peek()[1] == '$':
             bindings.append(self.parse_bind())
         expr = self.parse_expr()
         self.expect('PUNCT', '}')
@@ -347,30 +345,30 @@ if __name__ == '__main__':
     src = r"""
 from core.axioms import Extensionality
 
-=(x 5)
-=(y add(x, 1))
-=(f \(a b : add(a, b)))
+$x 5
+$y add(x, 1)
+$f \(a b : add(a, b))
 
-=(result {
-    =(p mem(z, a))
-    =(q implies(p, p))
+$result {
+    $p mem(z, a)
+    $q implies(p, p)
     forall_right(s1, q, z)
-})
+}
 
-=(factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))))
-=(test ?(eq(x, 0), x, mul(x, 2)))
-=(apply \(f : f(1)(2)))
+$factorial \(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1)))))
+$test ?(eq(x, 0), x, mul(x, 2))
+$apply \(f : f(1)(2))
 
 # lists
-=(xs [1, 2, 3])
-=(empty [])
-=(nested [1, [2, 3], 4])
+$xs [1, 2, 3]
+$empty []
+$nested [1, [2, 3], 4]
 
 # deep nested function with call
-=(compose \(f g : \(x : f(g(x)))))
-=(callnow \(f g : \(x : f(g(x))))(add)(mul)(3))
-=(thunk \(: 42))
-=(deep \(f : \(g : f(g)(1, 2)))(\(x : \(y : add(x, y))))(\(n : mul(n, 3))))
+$compose \(f g : \(x : f(g(x))))
+$callnow \(f g : \(x : f(g(x))))(add)(mul)(3)
+$thunk \(: 42)
+$deep \(f : \(g : f(g)(1, 2)))(\(x : \(y : add(x, y))))(\(n : mul(n, 3)))
 """
 
     ast = parse(src, '<test>')

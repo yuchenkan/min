@@ -25,7 +25,7 @@ if(cond, a, b) only evaluates chosen branch.
 ```
 program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
-bind     = '=' '(' name expr ')'
+bind     = '$' name expr
 expr     = '\' '(' params ':' expr ')'
          | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
@@ -37,6 +37,5 @@ expr     = '\' '(' params ':' expr ')'
 params   = name*
 ```
 
-`=(name expr)` bind. `\(a b : body)` function. `f(x, y)` call.
+`$name expr` bind. `\(a b : body)` function. `f(x, y)` call.
 `[1, 2, 3]` list. `?(cond, then, else)` conditional.
-No commas in binds and params.
