@@ -1,69 +1,75 @@
 """Proof kernel: formula types, sequent calculus, proof rules.
 
-No dependency on eval. Pure logic."""
+Public API: var, mem, neg, implies, forall, sequent, proof, same
+All are factory functions. Internal classes are private."""
 
 
-class Var:
+# === Internal classes (not exported) ===
+
+class _Var:
     pass
 
 
-class Formula:
+class _Formula:
     pass
 
 
-class In(Formula):
+class _Mem(_Formula):
     def __init__(self, left, right):
-        if not isinstance(left, Var):
-            raise TypeError(f'In.left must be Var, got {type(left).__name__}')
-        if not isinstance(right, Var):
-            raise TypeError(f'In.right must be Var, got {type(right).__name__}')
         self.left = left
         self.right = right
 
 
-class Not(Formula):
+class _Neg(_Formula):
     def __init__(self, operand):
-        if not isinstance(operand, Formula):
-            raise TypeError(f'Not.operand must be Formula, got {type(operand).__name__}')
         self.operand = operand
 
 
-class Implies(Formula):
+class _Implies(_Formula):
     def __init__(self, left, right):
-        if not isinstance(left, Formula):
-            raise TypeError(f'Implies.left must be Formula, got {type(left).__name__}')
-        if not isinstance(right, Formula):
-            raise TypeError(f'Implies.right must be Formula, got {type(right).__name__}')
         self.left = left
         self.right = right
 
 
-class Forall(Formula):
+class _Forall(_Formula):
     def __init__(self, var, body):
-        if not isinstance(var, Var):
-            raise TypeError(f'Forall.var must be Var, got {type(var).__name__}')
-        if not isinstance(body, Formula):
-            raise TypeError(f'Forall.body must be Formula, got {type(body).__name__}')
         self.var = var
         self.body = body
 
 
-# === Substitution ===
+class _Sequent:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+
+class _Proof:
+    def __init__(self, sequent):
+        self.sequent = sequent
+
+    def theorem(self):
+        s = self.sequent
+        result = s.right[0] if len(s.right) == 1 else None
+        for f in reversed(s.left):
+            result = _Implies(f, result)
+        return result
+
+
+# === Substitution (internal, uses raw constructors) ===
 
 def _subst(formula, old, new):
-    if isinstance(formula, In):
-        return In(new if formula.left is old else formula.left,
-                  new if formula.right is old else formula.right)
-    if isinstance(formula, Not):
-        return Not(_subst(formula.operand, old, new))
-    if isinstance(formula, Implies):
-        return Implies(_subst(formula.left, old, new), _subst(formula.right, old, new))
-    if isinstance(formula, Forall):
+    if isinstance(formula, _Mem):
+        return _Mem(new if formula.left is old else formula.left,
+                    new if formula.right is old else formula.right)
+    if isinstance(formula, _Neg):
+        return _Neg(_subst(formula.operand, old, new))
+    if isinstance(formula, _Implies):
+        return _Implies(_subst(formula.left, old, new), _subst(formula.right, old, new))
+    if isinstance(formula, _Forall):
         if formula.var is old:
             return formula
-        return Forall(formula.var, _subst(formula.body, old, new))
+        return _Forall(formula.var, _subst(formula.body, old, new))
     raise ValueError(f'cannot subst: {type(formula).__name__}')
-
 
 
 # === Alpha-equivalence ===
@@ -77,120 +83,116 @@ def _eq(a, b, env):
         return True
     if type(a) is not type(b):
         return False
-    if isinstance(a, Var):
+    if isinstance(a, _Var):
         for v1, v2 in env:
             if a is v1: return b is v2
             if b is v2: return False
         return a is b
-    if isinstance(a, In):
+    if isinstance(a, _Mem):
         return _eq(a.left, b.left, env) and _eq(a.right, b.right, env)
-    if isinstance(a, Not):
+    if isinstance(a, _Neg):
         return _eq(a.operand, b.operand, env)
-    if isinstance(a, Implies):
+    if isinstance(a, _Implies):
         return _eq(a.left, b.left, env) and _eq(a.right, b.right, env)
-    if isinstance(a, Forall):
+    if isinstance(a, _Forall):
         return _eq(a.body, b.body, [(a.var, b.var)] + env)
     return False
 
 
-# === Sequent ===
+# === Public factories ===
 
-class Sequent:
-    def __init__(self, left, right):
-        self.left = list(left)
-        self.right = list(right)
-        for f in self.left:
-            if not isinstance(f, Formula):
-                raise TypeError(f'Sequent.left must contain Formula, got {type(f).__name__}')
-        for f in self.right:
-            if not isinstance(f, Formula):
-                raise TypeError(f'Sequent.right must contain Formula, got {type(f).__name__}')
-        for i in range(len(self.left)):
-            for j in range(i + 1, len(self.left)):
-                if _eq(self.left[i], self.left[j], []):
-                    raise ValueError('duplicate on left')
-        for i in range(len(self.right)):
-            for j in range(i + 1, len(self.right)):
-                if _eq(self.right[i], self.right[j], []):
-                    raise ValueError('duplicate on right')
+def var():
+    return _Var()
 
 
-# === Proof ===
+def mem(left, right):
+    if not isinstance(left, _Var):
+        raise TypeError(f'mem: left must be var, got {type(left).__name__}')
+    if not isinstance(right, _Var):
+        raise TypeError(f'mem: right must be var, got {type(right).__name__}')
+    return _Mem(left, right)
 
-class Proof:
-    def __init__(self, sequent, rule, premises=None, term=None, principal=None):
-        if not isinstance(sequent, Sequent):
-            raise TypeError(f'Proof.sequent must be Sequent, got {type(sequent).__name__}')
-        if not isinstance(rule, str):
-            raise TypeError(f'Proof.rule must be str, got {type(rule).__name__}')
-        premises = premises or []
-        for p in premises:
-            if not isinstance(p, Proof):
-                raise TypeError(f'Proof.premises must contain Proof, got {type(p).__name__}')
-        if term is not None and not isinstance(term, Var):
-            raise TypeError(f'Proof.term must be Var, got {type(term).__name__}')
-        if principal is not None and not isinstance(principal, Formula):
-            raise TypeError(f'Proof.principal must be Formula, got {type(principal).__name__}')
-        if not _check_rule(sequent, rule, premises, principal, term):
-            raise ValueError(f'invalid proof step: {rule}')
-        self.sequent = sequent
 
-    def theorem(self):
-        s = self.sequent
-        result = s.right[0] if len(s.right) == 1 else None
-        for f in reversed(s.left):
-            result = Implies(f, result)
-        return result
+def neg(operand):
+    if not isinstance(operand, _Formula):
+        raise TypeError(f'neg: operand must be formula, got {type(operand).__name__}')
+    return _Neg(operand)
+
+
+def implies(left, right):
+    if not isinstance(left, _Formula):
+        raise TypeError(f'implies: left must be formula, got {type(left).__name__}')
+    if not isinstance(right, _Formula):
+        raise TypeError(f'implies: right must be formula, got {type(right).__name__}')
+    return _Implies(left, right)
+
+
+def forall(v, body):
+    """Creates forall with a fresh bound var. The user's var is substituted out."""
+    if not isinstance(v, _Var):
+        raise TypeError(f'forall: var must be var, got {type(v).__name__}')
+    if not isinstance(body, _Formula):
+        raise TypeError(f'forall: body must be formula, got {type(body).__name__}')
+    fresh = _Var()
+    return _Forall(fresh, _subst(body, v, fresh))
+
+
+def sequent(left, right):
+    left = list(left)
+    right = list(right)
+    for f in left:
+        if not isinstance(f, _Formula):
+            raise TypeError(f'sequent: left must contain formula, got {type(f).__name__}')
+    for f in right:
+        if not isinstance(f, _Formula):
+            raise TypeError(f'sequent: right must contain formula, got {type(f).__name__}')
+    for i in range(len(left)):
+        for j in range(i + 1, len(left)):
+            if _eq(left[i], left[j], []):
+                raise ValueError('duplicate on left')
+    for i in range(len(right)):
+        for j in range(i + 1, len(right)):
+            if _eq(right[i], right[j], []):
+                raise ValueError('duplicate on right')
+    return _Sequent(left, right)
+
+
+def proof(seq, rule, premises=None, term=None, principal=None):
+    """Validate and create a proof step.
+
+    Rules (G = left context, D = right context, A/B = formulas):
+
+    axiom:           A |- A
+    neg_left:        G, neg(A) |- D          from  G |- D, A
+    neg_right:       G |- D, neg(A)          from  G, A |- D
+    implies_left:    G, A->B |- D            from  G |- D, A  and  G, B |- D
+    implies_right:   G |- D, A->B            from  G, A |- D, B
+    forall_left:     G, forall(x,A) |- D     from  G, A[x:=t] |- D
+    forall_right:    G |- D, forall(x,A)     from  G |- D, A[x:=y]  (y fresh)
+    cut:             G |- D                  from  G |- D, C  and  G, C |- D
+    weakening_left:  G, A |- D               from  G |- D
+    weakening_right: G |- D, A               from  G |- D
+    """
+    if not isinstance(seq, _Sequent):
+        raise TypeError(f'proof: sequent required, got {type(seq).__name__}')
+    if not isinstance(rule, str):
+        raise TypeError(f'proof: rule must be str, got {type(rule).__name__}')
+    premises = premises or []
+    for p in premises:
+        if not isinstance(p, _Proof):
+            raise TypeError(f'proof: premises must contain proof, got {type(p).__name__}')
+    if term is not None and not isinstance(term, _Var):
+        raise TypeError(f'proof: term must be var, got {type(term).__name__}')
+    if principal is not None and not isinstance(principal, _Formula):
+        raise TypeError(f'proof: principal must be formula, got {type(principal).__name__}')
+    if not _check_rule(seq, rule, premises, principal, term):
+        raise ValueError(f'invalid proof step: {rule}')
+    return _Proof(seq)
 
 
 # === Proof rules ===
 
 def _check_rule(sequent, rule, premises, principal, term):
-    """Validate a proof rule application.
-
-    Rules (G = left context, D = right context, A/B = formulas):
-
-    axiom:           A |- A
-                     No premises. Principal A must be on both sides.
-
-    not_left:        G, ~A |- D
-                     From: G |- D, A
-                     Principal ~A on left; premise moves A to right.
-
-    not_right:       G |- D, ~A
-                     From: G, A |- D
-                     Principal ~A on right; premise moves A to left.
-
-    implies_left:    G, A->B |- D
-                     From: G |- D, A  and  G, B |- D
-                     Principal A->B on left; prem0 proves A, prem1 uses B.
-
-    implies_right:   G |- D, A->B
-                     From: G, A |- D, B
-                     Principal A->B on right; premise assumes A, proves B.
-
-    forall_left:     G, Forall(x,A) |- D
-                     From: G, A[x:=t] |- D
-                     Instantiate x with term t. Rejects if t is bound in A
-                     (prevents variable capture in substitution).
-
-    forall_right:    G |- D, Forall(x,A)
-                     From: G |- D, A[x:=y]
-                     y is eigenvariable: must not be free in G or D,
-                     must not be bound in A (prevents variable capture).
-
-    cut:             G |- D
-                     From: G |- D, C  and  G, C |- D
-                     Cut formula C appears on prem0 right and prem1 left.
-
-    weakening_left:  G, A |- D
-                     From: G |- D
-                     Adds A to left. No-op if A already present.
-
-    weakening_right: G |- D, A
-                     From: G |- D
-                     Adds A to right. No-op if A already present.
-    """
     s = sequent
     ps = [p.sequent for p in premises]
 
@@ -198,58 +200,54 @@ def _check_rule(sequent, rule, premises, principal, term):
         case "axiom":
             return (len(ps) == 0 and principal is not None
                     and _fin(principal, s.left) and _fin(principal, s.right))
-        case "not_left":
-            return (len(ps) == 1 and isinstance(principal, Not)
+        case "neg_left":
+            return (len(ps) == 1 and isinstance(principal, _Neg)
                     and _fin(principal, s.left)
-                    and _eq_sequent(ps[0], Sequent(
+                    and _eq_sequent(ps[0], _Sequent(
                         _remove(s.left, principal), _set_add(s.right, principal.operand))))
-        case "not_right":
-            return (len(ps) == 1 and isinstance(principal, Not)
+        case "neg_right":
+            return (len(ps) == 1 and isinstance(principal, _Neg)
                     and _fin(principal, s.right)
-                    and _eq_sequent(ps[0], Sequent(
+                    and _eq_sequent(ps[0], _Sequent(
                         _set_add(s.left, principal.operand), _remove(s.right, principal))))
         case "implies_left":
-            if len(ps) != 2 or not isinstance(principal, Implies):
+            if len(ps) != 2 or not isinstance(principal, _Implies):
                 return False
             if not _fin(principal, s.left):
                 return False
             G = _remove(s.left, principal)
-            return (_eq_sequent(ps[0], Sequent(G, _set_add(s.right, principal.left)))
-                    and _eq_sequent(ps[1], Sequent(_set_add(G, principal.right), s.right)))
+            return (_eq_sequent(ps[0], _Sequent(G, _set_add(s.right, principal.left)))
+                    and _eq_sequent(ps[1], _Sequent(_set_add(G, principal.right), s.right)))
         case "implies_right":
-            if len(ps) != 1 or not isinstance(principal, Implies):
+            if len(ps) != 1 or not isinstance(principal, _Implies):
                 return False
             if not _fin(principal, s.right):
                 return False
             D = _remove(s.right, principal)
-            return _eq_sequent(ps[0], Sequent(
+            return _eq_sequent(ps[0], _Sequent(
                 _set_add(s.left, principal.left), _set_add(D, principal.right)))
         case "forall_left":
-            if len(ps) != 1 or term is None or not isinstance(principal, Forall):
+            if len(ps) != 1 or term is None or not isinstance(principal, _Forall):
                 return False
             if not _fin(principal, s.left):
                 return False
-            if _var_bound_in(term, principal.body):
-                return False
             G = _remove(s.left, principal)
             substituted = _subst(principal.body, principal.var, term)
-            return _eq_sequent(ps[0], Sequent(_set_add(G, substituted), s.right))
+            return _eq_sequent(ps[0], _Sequent(_set_add(G, substituted), s.right))
         case "forall_right":
-            if len(ps) != 1 or term is None or not isinstance(principal, Forall):
+            if len(ps) != 1 or term is None or not isinstance(principal, _Forall):
                 return False
             if not _fin(principal, s.right):
                 return False
             D = _remove(s.right, principal)
-            if _var_free_in_sequent(term, Sequent(s.left, D)):
-                return False
-            if _var_bound_in(term, principal.body):
+            if _var_free_in_sequent(term, _Sequent(s.left, D)):
                 return False
             substituted = _subst(principal.body, principal.var, term)
-            return _eq_sequent(ps[0], Sequent(s.left, _set_add(D, substituted)))
+            return _eq_sequent(ps[0], _Sequent(s.left, _set_add(D, substituted)))
         case "cut":
             return (len(ps) == 2 and principal is not None
-                    and _eq_sequent(ps[0], Sequent(s.left, _set_add(s.right, principal)))
-                    and _eq_sequent(ps[1], Sequent(_set_add(s.left, principal), s.right)))
+                    and _eq_sequent(ps[0], _Sequent(s.left, _set_add(s.right, principal)))
+                    and _eq_sequent(ps[1], _Sequent(_set_add(s.left, principal), s.right)))
         case "weakening_left":
             if len(ps) != 1 or principal is None:
                 return False
@@ -257,7 +255,7 @@ def _check_rule(sequent, rule, premises, principal, term):
                 return False
             if _fin(principal, ps[0].left):
                 return _eq_sequent(ps[0], s)
-            return _eq_sequent(ps[0], Sequent(_remove(s.left, principal), s.right))
+            return _eq_sequent(ps[0], _Sequent(_remove(s.left, principal), s.right))
         case "weakening_right":
             if len(ps) != 1 or principal is None:
                 return False
@@ -265,7 +263,7 @@ def _check_rule(sequent, rule, premises, principal, term):
                 return False
             if _fin(principal, ps[0].right):
                 return _eq_sequent(ps[0], s)
-            return _eq_sequent(ps[0], Sequent(s.left, _remove(s.right, principal)))
+            return _eq_sequent(ps[0], _Sequent(s.left, _remove(s.right, principal)))
     return False
 
 
@@ -310,34 +308,20 @@ def _is_permutation(a, b):
 def _free_vars(formula, bound=None):
     if bound is None:
         bound = set()
-    if isinstance(formula, In):
+    if isinstance(formula, _Mem):
         result = set()
         if formula.left not in bound:
             result.add(formula.left)
         if formula.right not in bound:
             result.add(formula.right)
         return result
-    if isinstance(formula, Not):
+    if isinstance(formula, _Neg):
         return _free_vars(formula.operand, bound)
-    if isinstance(formula, Implies):
+    if isinstance(formula, _Implies):
         return _free_vars(formula.left, bound) | _free_vars(formula.right, bound)
-    if isinstance(formula, Forall):
+    if isinstance(formula, _Forall):
         return _free_vars(formula.body, bound | {formula.var})
     return set()
-
-
-def _var_bound_in(var, formula):
-    if isinstance(formula, In):
-        return False
-    if isinstance(formula, Not):
-        return _var_bound_in(var, formula.operand)
-    if isinstance(formula, Implies):
-        return _var_bound_in(var, formula.left) or _var_bound_in(var, formula.right)
-    if isinstance(formula, Forall):
-        if formula.var is var:
-            return True
-        return _var_bound_in(var, formula.body)
-    return False
 
 def _var_free_in_sequent(var, s):
     return any(var in _free_vars(f) for f in s.left + s.right)
