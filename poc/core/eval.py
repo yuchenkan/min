@@ -86,6 +86,7 @@ BUILTINS = {
         t.value if t else None,
         pr.value if pr else None),
     'same': lambda a, b: same(a.value, b.value),
+    'show': lambda a: print(a.ast) or a.value,
 }
 
 
