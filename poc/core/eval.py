@@ -52,12 +52,17 @@ class Fn:
         return _evaluate(self.body_ast, child)
 
 
-# === Eval-level formula types ===
-# Wrap kernel objects. Carry display via __repr__.
-# .kernel extracts the kernel object for verification.
+# === Helpers ===
+
+def _v(t):
+    """Extract eval-level value from Traced."""
+    return t.value
 
 def _kernel(x):
     return x.kernel
+
+
+# === Eval-level formula types ===
 
 class Var:
     def __init__(self, kernel):
@@ -65,49 +70,48 @@ class Var:
 
 class Mem:
     def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        self.kernel = mem(_kernel(left), _kernel(right))
+        self.left = left    # Traced
+        self.right = right  # Traced
+        self.kernel = mem(_kernel(_v(left)), _kernel(_v(right)))
 
 class Neg:
     def __init__(self, operand):
-        self.operand = operand
-        self.kernel = neg(_kernel(operand))
+        self.operand = operand  # Traced
+        self.kernel = neg(_kernel(_v(operand)))
 
 class Implies:
     def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        self.kernel = implies(_kernel(left), _kernel(right))
+        self.left = left    # Traced
+        self.right = right  # Traced
+        self.kernel = implies(_kernel(_v(left)), _kernel(_v(right)))
 
 class Forall:
     def __init__(self, v, body):
-        self.var = v
-        self.body = body
-        self.kernel = forall(_kernel(v), _kernel(body))
+        self.var = v      # Traced
+        self.body = body  # Traced
+        self.kernel = forall(_kernel(_v(v)), _kernel(_v(body)))
 
 class Sequent:
     def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        self.kernel = sequent([_kernel(a) for a in left], [_kernel(a) for a in right])
+        self.left = left    # Traced list of Traced
+        self.right = right  # Traced list of Traced
+        self.kernel = sequent([_kernel(_v(a)) for a in _v(left)], [_kernel(_v(a)) for a in _v(right)])
 
 class Proof:
     def __init__(self, seq, rule, premises=None, principal=None, term=None):
-        self.seq = seq
+        self.seq = seq          # Traced
+        self.rule = rule        # Traced
+        self.premises = premises  # list of Traced
+        self.principal = principal  # Traced or None
+        self.term = term        # Traced or None
         self.kernel = proof(
-            _kernel(seq), rule,
-            [_kernel(a) for a in premises] if premises else None,
-            _kernel(principal) if principal else None,
-            _kernel(term) if term else None)
+            _kernel(_v(seq)), _v(rule),
+            [_kernel(_v(a)) for a in _v(premises)] if premises else None,
+            _kernel(_v(principal)) if principal else None,
+            _kernel(_v(term)) if term else None)
 
 
 # === Builtins ===
-# All receive Traced args. Return eval-level values. Evaluator wraps result.
-
-def _v(t):
-    """Extract eval-level value from Traced."""
-    return t.value
 
 BUILTINS = {
     # Arithmetic
@@ -131,16 +135,12 @@ BUILTINS = {
     'append': lambda l, x: _v(l) + [x],
     'concat': lambda a, b: _v(a) + _v(b),
     # Kernel
-    'mem': lambda l, r: Mem(_v(l), _v(r)),
-    'neg': lambda o: Neg(_v(o)),
-    'implies': lambda l, r: Implies(_v(l), _v(r)),
-    'forall': lambda v, b: Forall(_v(v), _v(b)),
-    'sequent': lambda l, r: Sequent([_v(a) for a in _v(l)], [_v(a) for a in _v(r)]),
-    'proof': lambda s, r, p=None, pr=None, t=None: Proof(
-        _v(s), _v(r),
-        [_v(a) for a in _v(p)] if p else None,
-        _v(pr) if pr else None,
-        _v(t) if t else None),
+    'mem': lambda l, r: Mem(l, r),
+    'neg': lambda o: Neg(o),
+    'implies': lambda l, r: Implies(l, r),
+    'forall': lambda v, b: Forall(v, b),
+    'sequent': lambda l, r: Sequent(l, r),
+    'proof': lambda s, r, p=None, pr=None, t=None: Proof(s, r, p, pr, t),
     'same': lambda a, b: same(_kernel(_v(a)), _kernel(_v(b))),
     'axiom': lambda f: axiom(_kernel(_v(f))),
     'qed': lambda p: qed(_kernel(_v(p))),
