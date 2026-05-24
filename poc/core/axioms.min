@@ -1,0 +1,101 @@
+# ZFC axioms
+# Uses derived connectives from derived.min.
+
+from derived import and, or, iff, exists, eq
+
+# Extensionality: forall x y. (forall z. z in x <-> z in y) -> (forall z. x in z <-> y in z)
+=(Extensionality {
+    =(x var()) =(y var()) =(z var())
+    forall(x, forall(y,
+        implies(
+            forall(z, iff(mem(z, x), mem(z, y))),
+            forall(z, iff(mem(x, z), mem(y, z))))))
+})
+
+# EmptySet: exists b. forall x. neg(x in b)
+=(EmptySet {
+    =(b var()) =(x var())
+    exists(b, forall(x, neg(mem(x, b))))
+})
+
+# Pairing: forall x y. exists b. forall z. z in b <-> (z=x or z=y)
+=(Pairing {
+    =(x var()) =(y var()) =(z var()) =(b var())
+    forall(x, forall(y,
+        exists(b, forall(z,
+            iff(mem(z, b), or(eq(z, x), eq(z, y)))))))
+})
+
+# Union: forall a. exists b. forall x. x in b <-> exists y. (y in a and x in y)
+=(Union {
+    =(a var()) =(b var()) =(x var()) =(y var())
+    forall(a,
+        exists(b, forall(x,
+            iff(mem(x, b), exists(y, and(mem(y, a), mem(x, y)))))))
+})
+
+# PowerSet: forall a. exists b. forall x. x in b <-> forall y. (y in x -> y in a)
+=(PowerSet {
+    =(a var()) =(b var()) =(x var()) =(y var())
+    forall(a,
+        exists(b, forall(x,
+            iff(mem(x, b), forall(y, implies(mem(y, x), mem(y, a)))))))
+})
+
+# Separation(phi, x, vars): forall vars. forall a. exists b. forall x. x in b <-> (x in a and phi)
+=(sep_core \(phi x : {
+    =(a var()) =(b var())
+    forall(a, exists(b, forall(x,
+        iff(mem(x, b), and(mem(x, a), phi)))))
+}))
+
+=(wrap_forall \(body vars :
+    ?(nil(vars), body, forall(head(vars), wrap_forall(body, tail(vars))))))
+
+=(Separation \(phi x vars :
+    wrap_forall(sep_core(phi, x), vars)))
+
+# Infinity
+=(Infinity {
+    =(b var()) =(e var()) =(y var()) =(z var()) =(s var()) =(w var())
+    exists(b, and(
+        exists(e, and(mem(e, b), forall(z, neg(mem(z, e))))),
+        forall(y, implies(mem(y, b),
+            exists(s, and(mem(s, b),
+                forall(w, iff(mem(w, s), or(mem(w, y), eq(w, y))))))))))
+})
+
+# Choice
+=(Choice {
+    =(x var()) =(y var()) =(z var()) =(c var()) =(w var())
+    forall(x,
+        implies(
+            forall(y, implies(mem(y, x), exists(z, mem(z, y)))),
+            exists(c, forall(y, implies(mem(y, x),
+                exists(z, and(and(mem(z, y), mem(z, c)),
+                    forall(w, implies(and(mem(w, y), mem(w, c)), eq(w, z))))))))))
+})
+
+# Replacement(phi, x, y, vars)
+=(rep_core \(phi x y : {
+    =(a var()) =(b var()) =(y1 var()) =(y2 var())
+    forall(a,
+        implies(
+            forall(x, implies(mem(x, a),
+                forall(y1, forall(y2, implies(
+                    and(phi, phi), eq(y1, y2)))))),
+            exists(b, forall(y,
+                iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))
+}))
+
+=(Replacement \(phi x y vars :
+    wrap_forall(rep_core(phi, x, y), vars)))
+
+# Regularity
+=(Regularity {
+    =(a var()) =(y var()) =(z var())
+    forall(a,
+        implies(
+            exists(y, mem(y, a)),
+            exists(y, and(mem(y, a), neg(exists(z, and(mem(z, a), mem(z, y))))))))
+})
