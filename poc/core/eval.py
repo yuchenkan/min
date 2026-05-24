@@ -170,7 +170,7 @@ def _evaluate(node, env):
 
 # === File loading ===
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _loaded = {}
 
 
@@ -213,7 +213,7 @@ def _load_import(node):
         return
     imported = load_file(filepath)
     for name in node.names:
-        if name in imported:
+        if name in imported and _global_env.get(name) is None:
             _global_env.set(name, imported[name])
 
 
