@@ -48,7 +48,7 @@ class Fn:
         child = Env(self.env)
         for p, a in zip(self.params, args):
             child.set(p, a)
-        return evaluate(self.body_ast, child)
+        return _evaluate(self.body_ast, child)
 
 
 # === Builtins ===
@@ -91,7 +91,30 @@ BUILTINS = {
 
 # === Evaluate ===
 
+class EvalError(Exception):
+    def __init__(self, msg, node, cause=None):
+        self.msg = msg
+        self.node = node
+        self.cause = cause
+    def __str__(self):
+        loc = f'{node.line}:{node.col}' if (node := self.node) else '?'
+        ast = repr(self.node) if self.node else '?'
+        s = f'{loc}: {self.msg}\n  at {ast}'
+        if self.cause:
+            s += f'\n  caused by: {self.cause}'
+        return s
+
+
 def evaluate(node, env):
+    try:
+        return _evaluate(node, env)
+    except EvalError:
+        raise
+    except Exception as e:
+        raise EvalError(str(e), node, e) from e
+
+
+def _evaluate(node, env):
     if isinstance(node, Lit):
         return Traced(node.value, node)
 
@@ -108,21 +131,21 @@ def evaluate(node, env):
         return Traced(Fn(node.params, node.body, env), node)
 
     if isinstance(node, ListAST):
-        items = [evaluate(item, env) for item in node.items]
+        items = [_evaluate(item, env) for item in node.items]
         return Traced(items, node)
 
     if isinstance(node, Show):
-        result = evaluate(node.expr, env)
+        result = _evaluate(node.expr, env)
         print(result.ast)
         return result
 
     if isinstance(node, If):
-        cond = evaluate(node.cond, env)
-        return evaluate(node.then, env) if cond.value else evaluate(node.else_, env)
+        cond = _evaluate(node.cond, env)
+        return _evaluate(node.then, env) if cond.value else _evaluate(node.else_, env)
 
     if isinstance(node, Call):
-        fn = evaluate(node.callee, env).value
-        args = [evaluate(a, env) for a in node.args]
+        fn = _evaluate(node.callee, env).value
+        args = [_evaluate(a, env) for a in node.args]
 
         if callable(fn):
             result = fn(*args)
@@ -132,15 +155,15 @@ def evaluate(node, env):
             result = fn.call(args)
             return Traced(result.value, node)
 
-        raise TypeError(f'{node.line}:{node.col}: not callable')
+        raise EvalError('not callable', node)
 
     if isinstance(node, Block):
         child = Env(env)
         for b in node.bindings:
-            child.set(b.name, evaluate(b.expr, child))
-        return evaluate(node.expr, child)
+            child.set(b.name, _evaluate(b.expr, child))
+        return _evaluate(node.expr, child)
 
-    raise ValueError(f'cannot evaluate: {type(node).__name__}')
+    raise EvalError(f'unknown node: {type(node).__name__}', node)
 
 
 # === File loading ===
