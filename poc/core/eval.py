@@ -75,25 +75,25 @@ class EIn(Form):
     def __init__(self, left, right):
         self.left = left    # Traced
         self.right = right  # Traced
-        self.kernel = KIn(left.value, right.value)
+        self.kernel = KIn(left.value.kernel, right.value.kernel)
 
 class ENot(Form):
     def __init__(self, operand):
         self.operand = operand  # Traced
-        self.kernel = KNot(operand.value)
+        self.kernel = KNot(operand.value.kernel)
 
 class EImplies(Form):
     def __init__(self, left, right):
         self.left = left    # Traced
         self.right = right  # Traced
-        self.kernel = KImplies(left.value, right.value)
+        self.kernel = KImplies(left.value.kernel, right.value.kernel)
 
 class EForall(Form):
     def __init__(self, fn):
         self.fn = fn  # Traced Fn
-        v = KVar()
-        body = fn.value.call([Traced(v, None)])
-        self.kernel = KForall(v, body.value)
+        ev = EVar()
+        body = fn.value.call([Traced(ev, None)])
+        self.kernel = KForall(ev.kernel, body.value.kernel)
 
 class ESequent(Form):
     def __init__(self, left, right):

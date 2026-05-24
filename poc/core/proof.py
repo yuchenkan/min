@@ -7,25 +7,43 @@ class Var:
     pass
 
 
-class In:
+class Formula:
+    pass
+
+
+class In(Formula):
     def __init__(self, left, right):
+        if not isinstance(left, Var):
+            raise TypeError(f'In.left must be Var, got {type(left).__name__}')
+        if not isinstance(right, Var):
+            raise TypeError(f'In.right must be Var, got {type(right).__name__}')
         self.left = left
         self.right = right
 
 
-class Not:
+class Not(Formula):
     def __init__(self, operand):
+        if not isinstance(operand, Formula):
+            raise TypeError(f'Not.operand must be Formula, got {type(operand).__name__}')
         self.operand = operand
 
 
-class Implies:
+class Implies(Formula):
     def __init__(self, left, right):
+        if not isinstance(left, Formula):
+            raise TypeError(f'Implies.left must be Formula, got {type(left).__name__}')
+        if not isinstance(right, Formula):
+            raise TypeError(f'Implies.right must be Formula, got {type(right).__name__}')
         self.left = left
         self.right = right
 
 
-class Forall:
+class Forall(Formula):
     def __init__(self, var, body):
+        if not isinstance(var, Var):
+            raise TypeError(f'Forall.var must be Var, got {type(var).__name__}')
+        if not isinstance(body, Formula):
+            raise TypeError(f'Forall.body must be Formula, got {type(body).__name__}')
         self.var = var
         self.body = body
 
@@ -80,6 +98,12 @@ class Sequent:
     def __init__(self, left, right):
         self.left = list(left)
         self.right = list(right)
+        for f in self.left:
+            if not isinstance(f, Formula):
+                raise TypeError(f'Sequent.left must contain Formula, got {type(f).__name__}')
+        for f in self.right:
+            if not isinstance(f, Formula):
+                raise TypeError(f'Sequent.right must contain Formula, got {type(f).__name__}')
         for i in range(len(self.left)):
             for j in range(i + 1, len(self.left)):
                 if _eq(self.left[i], self.left[j], []):
@@ -94,7 +118,18 @@ class Sequent:
 
 class Proof:
     def __init__(self, sequent, rule, premises=None, term=None, principal=None):
+        if not isinstance(sequent, Sequent):
+            raise TypeError(f'Proof.sequent must be Sequent, got {type(sequent).__name__}')
+        if not isinstance(rule, str):
+            raise TypeError(f'Proof.rule must be str, got {type(rule).__name__}')
         premises = premises or []
+        for p in premises:
+            if not isinstance(p, Proof):
+                raise TypeError(f'Proof.premises must contain Proof, got {type(p).__name__}')
+        if term is not None and not isinstance(term, Var):
+            raise TypeError(f'Proof.term must be Var, got {type(term).__name__}')
+        if principal is not None and not isinstance(principal, Formula):
+            raise TypeError(f'Proof.principal must be Formula, got {type(principal).__name__}')
         if not _check_rule(sequent, rule, premises, principal, term):
             raise ValueError(f'invalid proof step: {rule}')
         self.sequent = sequent
