@@ -3,12 +3,12 @@
 program  = (import | let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
-expr     = '(' params ')' expr
-         | name '(' args ')'
+expr     = '[' params '|' expr ']'
+         | '{' let* expr '}'
+         | expr '(' args ')'
          | name
          | INT
          | STRING
-         | '{' let* expr '}'
 args     = (expr (',' expr)*)?
 params   = (name (',' name)* (',' name '...')? )?
 """
@@ -17,7 +17,7 @@ params   = (name (',' name)* (',' name '...')? )?
 # === Tokens ===
 
 KEYWORDS = {'from', 'import', 'let'}
-PUNCTUATION = set('(){}=,.')
+PUNCTUATION = set('(){}[]=,.|')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
@@ -133,16 +133,16 @@ class Fn:
         p = ', '.join(self.params)
         if self.rest:
             p = f'{p}, {self.rest}...' if p else f'{self.rest}...'
-        return f'({p}) {self.body}'
+        return f'[{p} | {self.body}]'
 
 class Call:
-    def __init__(self, name, args, line, col):
-        self.name = name
+    def __init__(self, callee, args, line, col):
+        self.callee = callee
         self.args = args
         self.line = line
         self.col = col
     def __repr__(self):
-        return f'{self.name}({", ".join(repr(a) for a in self.args)})'
+        return f'{self.callee}({", ".join(repr(a) for a in self.args)})'
 
 class Ref:
     def __init__(self, name, line, col):
@@ -238,47 +238,42 @@ class Parser:
     def parse_expr(self):
         tok = self.peek()
 
-        # Function literal: (params) body
-        if tok[1] == '(':
-            return self.parse_fn()
-
-        # Block: { let* expr }
-        if tok[1] == '{':
-            return self.parse_block()
-
-        # Int
-        if tok[0] == 'INT':
+        if tok[1] == '[':
+            node = self.parse_fn()
+        elif tok[1] == '{':
+            node = self.parse_block()
+        elif tok[0] == 'INT':
             t = self.advance()
-            return Lit(t[1], t[2], t[3])
-
-        # String
-        if tok[0] == 'STR':
+            node = Lit(t[1], t[2], t[3])
+        elif tok[0] == 'STR':
             t = self.advance()
-            return Lit(t[1], t[2], t[3])
+            node = Lit(t[1], t[2], t[3])
+        elif tok[0] == 'NAME':
+            t = self.advance()
+            node = Ref(t[1], t[2], t[3])
+        else:
+            self.error(f'expected expression, got {tok[1]!r}')
 
-        # Name — call or reference
-        if tok[0] == 'NAME':
-            name_tok = self.advance()
-            if self.peek()[1] == '(':
-                self.advance()
-                args = self.parse_args()
-                self.expect('PUNCT', ')')
-                return Call(name_tok[1], args, name_tok[2], name_tok[3])
-            return Ref(name_tok[1], name_tok[2], name_tok[3])
+        while self.peek()[1] == '(':
+            self.advance()
+            args = self.parse_args()
+            self.expect('PUNCT', ')')
+            node = Call(node, args, node.line, node.col)
 
-        self.error(f'expected expression, got {tok[1]!r}')
+        return node
 
     def parse_fn(self):
-        tok = self.expect('PUNCT', '(')
+        tok = self.expect('PUNCT', '[')
         params, rest = self.parse_params()
-        self.expect('PUNCT', ')')
+        self.expect('PUNCT', '|')
         body = self.parse_expr()
+        self.expect('PUNCT', ']')
         return Fn(params, rest, body, tok[2], tok[3])
 
     def parse_params(self):
         params = []
         rest = None
-        if self.peek()[1] == ')':
+        if self.peek()[1] == '|':
             return params, rest
         params.append(self.expect('NAME')[1])
         while self.peek()[1] == ',':
@@ -323,8 +318,8 @@ from core.axioms import Extensionality
 
 let x = 5
 let y = add(x, 1)
-let f = (a, b) add(a, b)
-let g = (a, b, rest...) head(rest)
+let f = [a, b | add(a, b)]
+let g = [a, b, rest... | head(rest)]
 
 let result = {
     let p = In(z, a)
@@ -332,9 +327,10 @@ let result = {
     ForallRight(s1, q, z)
 }
 
-let list = (items...) items
-let factorial = (n) if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
+let list = [items... | items]
+let factorial = [n | if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
 let test = if(eq(x, 0), x, mul(x, 2))
+let apply = [f | f(1)(2)]
 """
 
     ast = parse(src, '<test>')
