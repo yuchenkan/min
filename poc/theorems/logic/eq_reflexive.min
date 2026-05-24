@@ -1,0 +1,40 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, fr, close
+
+# |- forall a. Eq(a, a)
+# Eq(a, b) = forall(z, Iff(mem(z, a), mem(z, b)))
+# When a = b: forall(z, Iff(mem(z, a), mem(z, a)))
+# Iff(P, P) = neg(implies(implies(P, P), neg(implies(P, P))))
+$eq_reflexive {
+    $P mem(z, a)
+    $imp_PP implies(P, P)
+    $not_imp neg(imp_PP)
+    $imp_top implies(imp_PP, not_imp)
+    $iff_PP neg(imp_top)
+    # Prove |- Iff(P, P) = |- neg(implies(implies(P,P), neg(implies(P,P))))
+    # Step 1: |- implies(P, P)
+    $s1 ir(ax(P), sequent([], [imp_PP]), imp_PP)
+    # Step 2: imp_PP |- imp_PP, wl nothing needed. wr: imp_PP |- imp_PP, not_imp
+    $s2 wr(ax(imp_PP), sequent([imp_PP], [imp_PP, not_imp]), not_imp)
+    # Step 3: ir: |- imp_top, imp_PP
+    $s3 ir(s2, sequent([], [imp_top, imp_PP]), imp_top)
+    # Step 4: nl: iff_PP |- imp_PP
+    $s4 nl(s3, sequent([iff_PP], [imp_PP]), iff_PP)
+    # But we want |- iff_PP, not iff_PP |- something
+    # Different approach:
+    # imp_PP |- imp_PP (ax), nl on not_imp: imp_PP, not_imp |- []
+    $t1 nl(ax(imp_PP), sequent([imp_PP, not_imp], []), not_imp)
+    # il on imp_top: imp_PP, imp_top |- [] needs prem0: imp_PP |- imp_PP
+    # prem0: imp_PP |- imp_PP, [] -> wr not needed, il needs G |- D, A
+    # il(prem0, prem1, seq, principal) where principal = imp_top = implies(imp_PP, not_imp)
+    # prem0: G |- D, imp_PP. G=[], D=[]. So |- imp_PP
+    $t2 il(s1, t1, sequent([imp_top], []), imp_top)
+    # nr: |- iff_PP
+    $t3 nr(t2, sequent([], [iff_PP]), iff_PP)
+    # forall z: |- forall(z, iff_PP)
+    $eq_aa forall(z, iff_PP)
+    $t4 fr(t3, sequent([], [eq_aa]), eq_aa, z)
+    # forall a: |- forall(a, forall(z, iff_PP))
+    $goal forall(a, eq_aa)
+    $result fr(t4, sequent([], [goal]), goal, a)
+    !qed(result)
+}

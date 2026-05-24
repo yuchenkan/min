@@ -1,0 +1,60 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, close
+
+# |- Or(A, B) -> (A -> C) -> (B -> C) -> C
+# Or(A, B) = implies(neg(A), B)
+$or_elim \(A B C : {
+    $or_AB implies(neg(A), B)
+    $imp_AC implies(A, C)
+    $imp_BC implies(B, C)
+    # Branch 1: A |- C  (via imp_AC)
+    # A |- A, weaken: A, imp_AC |- A
+    $b1a wl(ax(A), sequent([A, imp_AC], [A]), imp_AC)
+    # C |- C, weaken: A, imp_AC, C |- C
+    $b1b wl(wl(ax(C), sequent([C, A], [C]), A), sequent([A, imp_AC, C], [C]), imp_AC)
+    # implies_left on imp_AC: A, imp_AC |- C
+    # wait, need A on right for first premise
+    $b1c wr(b1a, sequent([A, imp_AC], [A, C]), C)
+    $b1d wl(ax(C), sequent([A, imp_AC, C], [C]), A)
+    $b1e wl(b1d, sequent([A, imp_AC, C], [C]), imp_AC)
+    # actually simpler:
+    # ax(A): A |- A, wr: A |- A, C
+    $p1a wr(ax(A), sequent([A], [A, C]), C)
+    # ax(C): C |- C, wl: A, C |- C
+    $p1b wl(ax(C), sequent([A, C], [C]), A)
+    # il: A, imp_AC |- C
+    $p1 il(p1a, p1b, sequent([A, imp_AC], [C]), imp_AC)
+
+    # Branch 2: B |- C  (via imp_BC)
+    $p2a wr(ax(B), sequent([B], [B, C]), C)
+    $p2b wl(ax(C), sequent([B, C], [C]), B)
+    $p2 il(p2a, p2b, sequent([B, imp_BC], [C]), imp_BC)
+
+    # Combine: or_AB, imp_AC, imp_BC |- C
+    # or_AB = implies(neg(A), B)
+    # neg(A) on right, A on left: use not_right
+    # From p1: A, imp_AC |- C, weaken with imp_BC: A, imp_AC, imp_BC |- C
+    $p3 wl(p1, sequent([A, imp_AC, imp_BC], [C]), imp_BC)
+    # nr: imp_AC, imp_BC |- neg(A), C
+    $p4 nr(p3, sequent([imp_AC, imp_BC], [neg(A), C]), neg(A))
+    # From p2: B, imp_BC |- C, weaken with imp_AC: imp_AC, B, imp_BC |- C
+    $p5 wl(p2, sequent([imp_AC, B, imp_BC], [C]), imp_AC)
+    # il on or_AB: imp_AC, imp_BC, or_AB |- C
+    $p6 il(p4, p5, sequent([imp_AC, imp_BC, or_AB], [C]), or_AB)
+
+    # implies_right three times
+    $i1 implies(imp_BC, C)
+    $s1 ir(p6, sequent([imp_AC, or_AB], [i1]), i1)
+    $i2 implies(imp_AC, i1)
+    $s2 ir(s1, sequent([or_AB], [i2]), i2)
+    $top implies(or_AB, i2)
+    ir(s2, sequent([], [top]), top)
+})
+
+$or_elim_example {
+    $A mem(a, b)
+    $B mem(b, a)
+    $C mem(a, a)
+    $thm or_elim(A, B, C)
+    $formula implies(implies(neg(A), B), implies(implies(A, C), implies(implies(B, C), C)))
+    !qed(close(thm, formula, [b, a]))
+}

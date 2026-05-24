@@ -1,0 +1,57 @@
+from tactics import ax, wl, wr, nl, il, ir, close
+
+# |- Iff(A, B) -> A -> B
+# Iff(A, B) = neg(implies(implies(A, B), neg(implies(B, A))))
+$iff_elim_left \(A B : {
+    $fwd implies(A, B)
+    $bwd implies(B, A)
+    $not_bwd neg(bwd)
+    $imp_fwd_not_bwd implies(fwd, not_bwd)
+    $iff_AB neg(imp_fwd_not_bwd)
+    # Get fwd from iff_AB:
+    # ax(fwd): fwd |- fwd, wr: fwd |- fwd, not_bwd
+    $s1 wr(ax(fwd), sequent([fwd], [fwd, not_bwd]), not_bwd)
+    # ir: |- imp_fwd_not_bwd, fwd
+    $s2 ir(s1, sequent([], [imp_fwd_not_bwd, fwd]), imp_fwd_not_bwd)
+    # nl: iff_AB |- fwd
+    $s3 nl(s2, sequent([iff_AB], [fwd]), iff_AB)
+    # Now use fwd = A -> B with A to get B
+    # ax(A): A |- A, wr: A |- A, B
+    $s4 wr(ax(A), sequent([A], [A, B]), B)
+    # ax(B): B |- B, wl: A, B |- B
+    $s5 wl(ax(B), sequent([A, B], [B]), A)
+    # il on fwd: A, fwd |- B
+    $s6 il(s4, s5, sequent([A, fwd], [B]), fwd)
+    # wl iff_AB: A, fwd, iff_AB |- B ... no, need to combine s3 and s6
+    # s3: iff_AB |- fwd, s6: A, fwd |- B
+    # weaken s3: A, iff_AB |- fwd, B
+    $s7 wl(wr(s3, sequent([iff_AB], [fwd, B]), B), sequent([A, iff_AB], [fwd, B]), A)
+    # weaken s6: A, iff_AB, fwd |- B
+    $s8 wl(s6, sequent([A, iff_AB, fwd], [B]), iff_AB)
+    # cut on fwd: A, iff_AB |- B
+    # actually use implies_left approach instead
+    # s3 gives iff_AB |- fwd. We need A, iff_AB |- B.
+    # wl s3 with A: A, iff_AB |- fwd
+    $t1 wl(s3, sequent([A, iff_AB], [fwd]), A)
+    # wl s6 with iff_AB: A, iff_AB, fwd |- B ... hmm still need cut
+    # Let's just use cut directly
+    $t2 wl(s6, sequent([A, iff_AB, fwd], [B]), iff_AB)
+    # wr t1: A, iff_AB |- fwd, B
+    $t3 wr(t1, sequent([A, iff_AB], [fwd, B]), B)
+    # cut on fwd: A, iff_AB |- B
+    $t4 ct(t3, t2, sequent([A, iff_AB], [B]), fwd)
+    # ir twice
+    $i1 implies(A, B)
+    $t5 ir(t4, sequent([iff_AB], [i1]), i1)
+    $top implies(iff_AB, i1)
+    ir(t5, sequent([], [top]), top)
+})
+
+$iff_elim_left_example {
+    $A mem(a, b)
+    $B mem(b, a)
+    $thm iff_elim_left(A, B)
+    $iff_AB neg(implies(implies(A, B), neg(implies(B, A))))
+    $formula implies(iff_AB, implies(A, B))
+    !qed(close(thm, formula, [b, a]))
+}
