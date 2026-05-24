@@ -55,7 +55,9 @@ class Fn:
 # === Helpers ===
 
 def _v(t):
-    return t.value
+    while isinstance(t, Traced):
+        t = t.value
+    return t
 
 def _kernel(x):
     while isinstance(x, Traced):
@@ -232,10 +234,10 @@ def _evaluate(node, env):
 
     if isinstance(node, If):
         cond = _evaluate(node.cond, env)
-        return _evaluate(node.then, env) if cond.value else _evaluate(node.else_, env)
+        return _evaluate(node.then, env) if _v(cond) else _evaluate(node.else_, env)
 
     if isinstance(node, Call):
-        fn = _evaluate(node.callee, env).value
+        fn = _v(_evaluate(node.callee, env))
         args = [_evaluate(a, env) for a in node.args]
 
         if callable(fn):
