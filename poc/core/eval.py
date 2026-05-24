@@ -1,6 +1,7 @@
 """Evaluator for the min language.
 
 Strict evaluation, lazy only for if-branches.
+No Traced — values are raw, env tracks ASTs separately for display.
 """
 
 from parser import parse, Import, Bind, Fn as FnAST, Call, Ref, Lit, List as ListAST, Block, If, Show
@@ -8,19 +9,12 @@ from proof import var, mem, neg, implies, forall, sequent, proof, same, axiom, q
 import os
 
 
-# === Traced: every value carries its AST ===
-
-class Traced:
-    def __init__(self, value, ast):
-        self.value = value
-        self.ast = ast
-
-
 # === Env ===
 
 class Env:
     def __init__(self, parent=None):
         self.bindings = {}
+        self.asts = {}
         self.parent = parent
 
     def get(self, name):
@@ -30,10 +24,19 @@ class Env:
             return self.parent.get(name)
         return None
 
-    def set(self, name, value):
+    def get_ast(self, name):
+        if name in self.asts:
+            return self.asts[name]
+        if self.parent:
+            return self.parent.get_ast(name)
+        return None
+
+    def set(self, name, value, ast=None):
         if name in self.bindings:
             raise NameError(f'cannot reassign: {name}')
         self.bindings[name] = value
+        if ast is not None:
+            self.asts[name] = ast
 
 
 # === Fn: runtime function (closure) ===
@@ -55,77 +58,37 @@ class Fn:
 
 BUILTINS = {
     # Arithmetic
-    'add': lambda a, b: a.value + b.value,
-    'sub': lambda a, b: a.value - b.value,
-    'mul': lambda a, b: a.value * b.value,
+    'add': lambda a, b: a + b,
+    'sub': lambda a, b: a - b,
+    'mul': lambda a, b: a * b,
     # Comparison
-    'eq': lambda a, b: a.value == b.value,
-    'lt': lambda a, b: a.value < b.value,
-    'gt': lambda a, b: a.value > b.value,
+    'eq': lambda a, b: a == b,
+    'lt': lambda a, b: a < b,
+    'gt': lambda a, b: a > b,
     # Bool
     'True': True,
     'False': False,
-    'not': lambda a: not a.value,
+    'not': lambda a: not a,
     # List
-    'head': lambda l: l.value[0].value,
-    'tail': lambda l: l.value[1:],
-    'nil': lambda l: len(l.value) == 0,
-    'len': lambda l: len(l.value),
-    'nth': lambda l, n: l.value[n.value].value,
-    'append': lambda l, x: l.value + [x],
-    'concat': lambda a, b: a.value + b.value,
+    'head': lambda l: l[0],
+    'tail': lambda l: l[1:],
+    'nil': lambda l: len(l) == 0,
+    'len': lambda l: len(l),
+    'nth': lambda l, n: l[n],
+    'append': lambda l, x: l + [x],
+    'concat': lambda a, b: a + b,
     # Kernel
-    'mem': lambda l, r: mem(l.value, r.value),
-    'neg': lambda o: neg(o.value),
-    'implies': lambda l, r: implies(l.value, r.value),
-    'forall': lambda v, b: forall(v.value, b.value),
-    'sequent': lambda l, r: sequent([a.value for a in l.value], [a.value for a in r.value]),
-    'proof': lambda s, r, p=None, pr=None, t=None: proof(
-        s.value, r.value,
-        [a.value for a in p.value] if p else None,
-        pr.value if pr else None,
-        t.value if t else None),
-    'same': lambda a, b: same(a.value, b.value),
-    'axiom': lambda f: axiom(f.value),
-    'qed': lambda p: qed(p.value),
+    'mem': lambda l, r: mem(l, r),
+    'neg': lambda o: neg(o),
+    'implies': lambda l, r: implies(l, r),
+    'forall': lambda v, b: forall(v, b),
+    'sequent': lambda l, r: sequent(l, r),
+    'proof': lambda s, r, p=None, pr=None, t=None: proof(s, r, p, pr, t),
+    'same': lambda a, b: same(a, b),
+    'axiom': lambda f: axiom(f),
+    'qed': lambda p: qed(p),
 }
 
-
-# === AST expansion for display ===
-
-def _expand_ast(ast, env):
-    """Recursively expand Ref nodes to their values' ASTs.
-    Returns a new AST with refs resolved. Stops at functions/builtins."""
-    if isinstance(ast, Ref):
-        val = env.get(ast.name)
-        if val is None:
-            return ast
-        if isinstance(val.value, Fn) or callable(val.value):
-            return ast
-        if val.ast is not None and val.ast is not ast:
-            return _expand_ast(val.ast, env)
-        return ast
-    if isinstance(ast, Call):
-        return Call(_expand_ast(ast.callee, env),
-                    [_expand_ast(a, env) for a in ast.args],
-                    ast.line, ast.col)
-    if isinstance(ast, FnAST):
-        return FnAST(ast.params, _expand_ast(ast.body, env), ast.line, ast.col)
-    if isinstance(ast, ListAST):
-        return ListAST([_expand_ast(i, env) for i in ast.items], ast.line, ast.col)
-    if isinstance(ast, If):
-        return If(_expand_ast(ast.cond, env),
-                  _expand_ast(ast.then, env),
-                  _expand_ast(ast.else_, env),
-                  ast.line, ast.col)
-    if isinstance(ast, Block):
-        return Block([Bind(b.name, _expand_ast(b.expr, env), b.line, b.col)
-                      for b in ast.bindings],
-                     _expand_ast(ast.expr, env),
-                     ast.line, ast.col)
-    if isinstance(ast, Show):
-        return Show(_expand_ast(ast.expr, env), ast.line, ast.col)
-    return ast
 
 
 # === Evaluate ===
@@ -155,51 +118,46 @@ def evaluate(node, env):
 
 def _evaluate(node, env):
     if isinstance(node, Lit):
-        return Traced(node.value, node)
+        return node.value
 
     if isinstance(node, Ref):
         val = env.get(node.name)
         if val is not None:
             return val
         # Unknown name becomes a fresh Var, stored in env
-        v = Traced(var(), node)
-        env.set(node.name, v)
+        v = var()
+        env.set(node.name, v, node)
         return v
 
     if isinstance(node, FnAST):
-        return Traced(Fn(node.params, node.body, env), node)
+        return Fn(node.params, node.body, env)
 
     if isinstance(node, ListAST):
-        items = [_evaluate(item, env) for item in node.items]
-        return Traced(items, node)
+        return [_evaluate(item, env) for item in node.items]
 
     if isinstance(node, Show):
-        result = _evaluate(node.expr, env)
-        print(repr(_expand_ast(result.ast, env)))
-        return result
+        return _evaluate(node.expr, env)
 
     if isinstance(node, If):
         cond = _evaluate(node.cond, env)
-        return _evaluate(node.then, env) if cond.value else _evaluate(node.else_, env)
+        return _evaluate(node.then, env) if cond else _evaluate(node.else_, env)
 
     if isinstance(node, Call):
-        fn = _evaluate(node.callee, env).value
+        fn = _evaluate(node.callee, env)
         args = [_evaluate(a, env) for a in node.args]
 
         if callable(fn):
-            result = fn(*args)
-            return Traced(result, node)
+            return fn(*args)
 
         if isinstance(fn, Fn):
-            result = fn.call(args)
-            return Traced(result.value, node)
+            return fn.call(args)
 
         raise EvalError('not callable', node)
 
     if isinstance(node, Block):
         child = Env(env)
         for b in node.bindings:
-            child.set(b.name, _evaluate(b.expr, child))
+            child.set(b.name, _evaluate(b.expr, child), b.expr)
         return _evaluate(node.expr, child)
 
     raise EvalError(f'unknown node: {type(node).__name__}', node)
@@ -214,7 +172,7 @@ _loaded = {}
 def _make_global_env():
     env = Env()
     for name, val in BUILTINS.items():
-        env.set(name, Traced(val, None))
+        env.set(name, val)
     return env
 
 _global_env = _make_global_env()
@@ -237,8 +195,9 @@ def load_file(filepath):
         if isinstance(node, Import):
             _load_import(node)
         elif isinstance(node, Bind):
-            _global_env.set(node.name, evaluate(node.expr, _global_env))
-            exports[node.name] = _global_env.get(node.name)
+            val = evaluate(node.expr, _global_env)
+            _global_env.set(node.name, val, node.expr)
+            exports[node.name] = val
 
     return exports
 
@@ -298,9 +257,9 @@ $f forall(vx, mem(vx, va))
         env = _make_global_env()
         for node in nodes:
             if isinstance(node, Bind):
-                env.set(node.name, evaluate(node.expr, env))
+                val = evaluate(node.expr, env)
+                env.set(node.name, val, node.expr)
 
         for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk',
                       'r1', 'callnow', 't1', 'n1', 'f']:
-            t = env.get(name)
-            print(f'{name} = {t.value} <- {t.ast}')
+            print(f'{name} = {env.get(name)}')
