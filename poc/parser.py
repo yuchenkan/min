@@ -26,7 +26,7 @@ TOKEN_RE = re.compile(r"""
     ([0-9]+)                  |  # INT
     ("(?:[^"\\]|\\.)*")       |  # STRING
     (\.\.\.)                   |  # ellipsis
-    ([(){}=,.\n])                # punctuation
+    ([(){}=,.])                  # punctuation
 """, re.VERBOSE)
 
 
@@ -64,11 +64,7 @@ def tokenize(source, filepath='<input>'):
         elif string:
             tokens.append(('STR', string[1:-1], line, col))
         elif punct:
-            if punct == '\n':
-                line += 1
-                col_offset = pos
-            else:
-                tokens.append(('PUNCT', punct, line, col))
+            tokens.append(('PUNCT', punct, line, col))
     tokens.append(('EOF', None, line, 1))
     return tokens
 
