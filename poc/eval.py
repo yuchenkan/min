@@ -9,22 +9,6 @@ from parser import parse, Import, Bind, Call, Ref, Lit, Block
 import os
 
 
-# === Trace: every value wraps (fn, args, result) ===
-
-class Traced:
-    """Value with computation trace."""
-    def __init__(self, value, trace=None):
-        self.value = value
-        self.trace = trace  # (name, args) or None for literals
-
-    def show(self, level=0):
-        if level == 0 and self.trace:
-            name, args = self.trace
-            if args:
-                return f'{name}({", ".join(a.show(0) if isinstance(a, Traced) else str(a) for a in args)})'
-            return name
-        return str(self.value)
-
 
 # === Env ===
 
@@ -124,7 +108,7 @@ def evaluate(node, env):
         # Builtin function
         if callable(fn):
             result = fn(*args)
-            return Traced(result, (node.name, args)).value if not isinstance(result, Traced) else result
+            return result
 
         # User-defined Fn
         if isinstance(fn, Fn):
