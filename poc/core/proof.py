@@ -168,7 +168,6 @@ def axiom(f):
     if _free_vars(f):
         raise ValueError(f'axiom: formula has free variables')
     _axiom_registry.add(f)
-    return f
 
 
 def qed(p):
