@@ -1,24 +1,23 @@
 """Parser for the min language.
 
-program  = (import | let)*
+program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
-let      = 'let' name '=' expr
+bind     = '=' '(' name expr ')'
 expr     = '*' '(' params ':' expr ')'
-         | '[' args ']'
+         | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
-         | '{' let* expr '}'
-         | expr '(' args ')'
+         | '{' bind* expr '}'
+         | expr '(' (expr (',' expr)*)? ')'
          | name
          | INT
          | STRING
-args     = (expr (',' expr)*)?
-params   = (name (',' name)*)?
+params   = name*
 """
 
 
 # === Tokens ===
 
-KEYWORDS = {'from', 'import', 'let'}
+KEYWORDS = {'from', 'import'}
 PUNCTUATION = set('(){}[]=,.:?*')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
@@ -110,14 +109,14 @@ class Import:
     def __repr__(self):
         return f'from {self.module} import {", ".join(self.names)}'
 
-class Let:
+class Bind:
     def __init__(self, name, expr, line, col):
         self.name = name
         self.expr = expr
         self.line = line
         self.col = col
     def __repr__(self):
-        return f'let {self.name} = {self.expr}'
+        return f'=({self.name} {self.expr})'
 
 class Fn:
     def __init__(self, params, body, line, col):
@@ -126,7 +125,8 @@ class Fn:
         self.line = line
         self.col = col
     def __repr__(self):
-        return f'*({", ".join(self.params)} : {self.body})'
+        p = ' '.join(self.params)
+        return f'*({p} : {self.body})'
 
 class Call:
     def __init__(self, callee, args, line, col):
@@ -216,10 +216,10 @@ class Parser:
         while self.peek()[0] != 'EOF':
             if self.peek()[1] == 'from':
                 items.append(self.parse_import())
-            elif self.peek()[1] == 'let':
-                items.append(self.parse_let())
+            elif self.peek()[1] == '=':
+                items.append(self.parse_bind())
             else:
-                self.error(f'expected import or let, got {self.peek()[1]!r}')
+                self.error(f'expected import or bind, got {self.peek()[1]!r}')
         return items
 
     def parse_import(self):
@@ -239,12 +239,13 @@ class Parser:
             parts.append(self.expect('NAME')[1])
         return '.'.join(parts)
 
-    def parse_let(self):
-        tok = self.expect('KW', 'let')
+    def parse_bind(self):
+        tok = self.expect('PUNCT', '=')
+        self.expect('PUNCT', '(')
         name = self.expect('NAME')[1]
-        self.expect('PUNCT', '=')
         expr = self.parse_expr()
-        return Let(name, expr, tok[2], tok[3])
+        self.expect('PUNCT', ')')
+        return Bind(name, expr, tok[2], tok[3])
 
     def parse_expr(self):
         tok = self.peek()
@@ -288,12 +289,8 @@ class Parser:
 
     def parse_params(self):
         params = []
-        if self.peek()[1] == ':':
-            return params
-        params.append(self.expect('NAME')[1])
-        while self.peek()[1] == ',':
-            self.advance()
-            params.append(self.expect('NAME')[1])
+        while self.peek()[0] == 'NAME':
+            params.append(self.advance()[1])
         return params
 
     def parse_list(self):
@@ -321,8 +318,8 @@ class Parser:
     def parse_block(self):
         tok = self.expect('PUNCT', '{')
         bindings = []
-        while self.peek()[1] == 'let':
-            bindings.append(self.parse_let())
+        while self.peek()[1] == '=':
+            bindings.append(self.parse_bind())
         expr = self.parse_expr()
         self.expect('PUNCT', '}')
         return Block(bindings, expr, tok[2], tok[3])
@@ -350,30 +347,30 @@ if __name__ == '__main__':
     src = """
 from core.axioms import Extensionality
 
-let x = 5
-let y = add(x, 1)
-let f = *(a, b : add(a, b))
+=(x 5)
+=(y add(x, 1))
+=(f *(a b : add(a, b)))
 
-let result = {
-    let p = mem(z, a)
-    let q = implies(p, p)
+=(result {
+    =(p mem(z, a))
+    =(q implies(p, p))
     forall_right(s1, q, z)
-}
+})
 
-let factorial = *(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1)))))
-let test = ?(eq(x, 0), x, mul(x, 2))
-let apply = *(f : f(1)(2))
+=(factorial *(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))))
+=(test ?(eq(x, 0), x, mul(x, 2)))
+=(apply *(f : f(1)(2)))
 
 # lists
-let xs = [1, 2, 3]
-let empty = []
-let nested = [1, [2, 3], 4]
+=(xs [1, 2, 3])
+=(empty [])
+=(nested [1, [2, 3], 4])
 
 # deep nested function with call
-let compose = *(f, g : *(x : f(g(x))))
-let callnow = *(f, g : *(x : f(g(x))))(add)(mul)(3)
-let thunk = *(: 42)
-let deep = *(f : *(g : f(g)(1)(2)))(*(x : *(y : add(x, y))))(*(n : mul(n, 3)))
+=(compose *(f g : *(x : f(g(x)))))
+=(callnow *(f g : *(x : f(g(x))))(add)(mul)(3))
+=(thunk *(: 42))
+=(deep *(f : *(g : f(g)(1, 2)))(*(x : *(y : add(x, y))))(*(n : mul(n, 3))))
 """
 
     ast = parse(src, '<test>')
