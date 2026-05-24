@@ -154,7 +154,8 @@ class Lit:
         self.col = col
     def __repr__(self):
         if isinstance(self.value, str):
-            return f'"{self.value}"'
+            s = self.value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\t', '\\t')
+            return f'"{s}"'
         return str(self.value)
 
 class List:
