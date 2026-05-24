@@ -59,12 +59,7 @@ class Fn:
         for p, a in zip(self.params, args):
             child.set(p, a)
         if self.rest:
-            # Pack remaining args into nested Pairs
-            remaining = args[len(self.params):]
-            packed = None
-            for a in reversed(remaining):
-                packed = (a, packed)
-            child.set(self.rest, packed)
+            child.set(self.rest, args[len(self.params):])
         return evaluate(self.body_ast, child)
 
 
@@ -86,10 +81,14 @@ BUILTINS = {
     'True': True,
     'False': False,
     'not': lambda a: not a,
-    # Pair
-    'Pair': lambda a, b: (a, b),
-    'fst': lambda p: p[0],
-    'snd': lambda p: p[1],
+    # List
+    'head': lambda l: l[0],
+    'tail': lambda l: l[1:],
+    'nil': lambda l: len(l) == 0,
+    'len': lambda l: len(l),
+    'nth': lambda l, n: l[n],
+    'append': lambda l, x: l + [x],
+    'concat': lambda a, b: a + b,
 }
 
 
@@ -222,8 +221,12 @@ result = double(y)
 factorial(n) = if(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))
 fact5 = factorial(5)
 
-p = Pair(1, 2)
-first = fst(p)
+list(items...) = items
+mylist = list(1, 2, 3)
+first = head(mylist)
+rest = tail(mylist)
+empty = nil(rest)
+length = len(mylist)
 
 blk = {
     a = 10
@@ -236,5 +239,5 @@ blk = {
         for node in nodes:
             _eval_binding(node, env)
 
-        for name in ['x', 'y', 'result', 'fact5', 'first', 'blk']:
+        for name in ['x', 'y', 'result', 'fact5', 'mylist', 'first', 'rest', 'empty', 'length', 'blk']:
             print(f'{name} = {env.get(name)}')
