@@ -55,11 +55,35 @@ class Fn:
 # === Helpers ===
 
 def _v(t):
-    """Extract eval-level value from Traced."""
     return t.value
 
 def _kernel(x):
     return x.kernel
+
+def show(t, depth=0):
+    """Show a Traced value. depth=0: show AST. depth>0: expand eval types."""
+    if depth <= 0:
+        return repr(t.ast)
+    v = t.value
+    if isinstance(v, Var):
+        return repr(t.ast)
+    if isinstance(v, Mem):
+        return f'mem({show(v.left, depth - 1)}, {show(v.right, depth - 1)})'
+    if isinstance(v, Neg):
+        return f'neg({show(v.operand, depth - 1)})'
+    if isinstance(v, Implies):
+        return f'implies({show(v.left, depth - 1)}, {show(v.right, depth - 1)})'
+    if isinstance(v, Forall):
+        return f'forall({show(v.var, depth - 1)}, {show(v.body, depth - 1)})'
+    if isinstance(v, Sequent):
+        l = ', '.join(show(a, depth - 1) for a in _v(v.left))
+        r = ', '.join(show(a, depth - 1) for a in _v(v.right))
+        return f'[{l}] |- [{r}]'
+    if isinstance(v, Proof):
+        return f'proof({show(v.seq, depth - 1)})'
+    if isinstance(v, list):
+        return f'[{", ".join(show(a, depth - 1) for a in v)}]'
+    return str(v)
 
 
 # === Eval-level formula types ===
