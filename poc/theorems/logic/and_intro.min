@@ -1,0 +1,26 @@
+from tactics import ax, wl, nl, il, nr, ir, close
+
+# |- A -> B -> And(A, B)
+# And(A, B) = neg(implies(A, neg(B)))
+$and_intro \(A B : {
+    $and_AB neg(implies(A, neg(B)))
+    $not_B neg(B)
+    $imp_A_notB implies(A, not_B)
+    $s1 wl(ax(A), sequent([A, B], [A]), B)
+    $s2 wl(ax(B), sequent([A, B], [B]), A)
+    $s3 nl(s2, sequent([A, B, not_B], []), not_B)
+    $s4 il(s1, s3, sequent([A, B, imp_A_notB], []), imp_A_notB)
+    $s5 nr(s4, sequent([A, B], [and_AB]), and_AB)
+    $imp_B implies(B, and_AB)
+    $s6 ir(s5, sequent([A], [imp_B]), imp_B)
+    $top implies(A, imp_B)
+    ir(s6, sequent([], [top]), top)
+})
+
+$and_intro_example {
+    $A mem(a, b)
+    $B mem(b, a)
+    $thm and_intro(A, B)
+    $imp implies(A, implies(B, neg(implies(A, neg(B)))))
+    !qed(close(thm, imp, [b, a]))
+}

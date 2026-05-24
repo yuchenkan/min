@@ -1,0 +1,18 @@
+from tactics import ax, nl, nr, ir, close
+
+# |- ~~A -> A
+$double_negation \(A : {
+    $nna neg(neg(A))
+    $na neg(A)
+    $s1 nr(ax(A), sequent([], [na, A]), na)
+    $s2 nl(s1, sequent([nna], [A]), nna)
+    $top implies(nna, A)
+    ir(s2, sequent([], [top]), top)
+})
+
+$double_negation_example {
+    $A mem(a, b)
+    $thm double_negation(A)
+    $imp implies(neg(neg(A)), A)
+    !qed(close(thm, imp, [b, a]))
+}
