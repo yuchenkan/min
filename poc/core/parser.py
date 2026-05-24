@@ -1,24 +1,25 @@
 """Parser for the min language.
 
-program  = (import :let)*
+program  = (import | let)*
 import   = 'from' dotted_name 'import' names
 let      = 'let' name '=' expr
-expr     = '[' params ':' expr ']'
-         :'?' '(' expr ',' expr ',' expr ')'
-         :'{' let* expr '}'
-         :expr '(' args ')'
-         :name
-         :INT
-         :STRING
+expr     = '*' '(' params ':' expr ')'
+         | '[' args ']'
+         | '?' '(' expr ',' expr ',' expr ')'
+         | '{' let* expr '}'
+         | expr '(' args ')'
+         | name
+         | INT
+         | STRING
 args     = (expr (',' expr)*)?
-params   = (name (',' name)* (',' name '...')? )?
+params   = (name (',' name)*)?
 """
 
 
 # === Tokens ===
 
 KEYWORDS = {'from', 'import', 'let'}
-PUNCTUATION = set('(){}[]=,.:?')
+PUNCTUATION = set('(){}[]=,.:?*')
 ESCAPES = {'\\': '\\', '"': '"', 'n': '\n', 't': '\t'}
 
 
@@ -47,11 +48,6 @@ def tokenize(source, filepath='<input>'):
             continue
 
         col = pos - col_start + 1
-
-        if source[pos:pos+3] == '...':
-            tokens.append(('PUNCT', '...', line, col))
-            pos += 3
-            continue
 
         if c == '"':
             pos += 1
@@ -124,17 +120,13 @@ class Let:
         return f'let {self.name} = {self.expr}'
 
 class Fn:
-    def __init__(self, params, rest, body, line, col):
+    def __init__(self, params, body, line, col):
         self.params = params
-        self.rest = rest
         self.body = body
         self.line = line
         self.col = col
     def __repr__(self):
-        p = ', '.join(self.params)
-        if self.rest:
-            p = f'{p}, {self.rest}...' if p else f'{self.rest}...'
-        return f'[{p} : {self.body}]'
+        return f'*({", ".join(self.params)} : {self.body})'
 
 class Call:
     def __init__(self, callee, args, line, col):
@@ -162,6 +154,14 @@ class Lit:
         if isinstance(self.value, str):
             return f'"{self.value}"'
         return str(self.value)
+
+class List:
+    def __init__(self, items, line, col):
+        self.items = items
+        self.line = line
+        self.col = col
+    def __repr__(self):
+        return f'[{", ".join(repr(i) for i in self.items)}]'
 
 class Block:
     def __init__(self, bindings, expr, line, col):
@@ -249,10 +249,12 @@ class Parser:
     def parse_expr(self):
         tok = self.peek()
 
-        if tok[1] == '?':
-            node = self.parse_if()
-        elif tok[1] == '[':
+        if tok[1] == '*':
             node = self.parse_fn()
+        elif tok[1] == '[':
+            node = self.parse_list()
+        elif tok[1] == '?':
+            node = self.parse_if()
         elif tok[1] == '{':
             node = self.parse_block()
         elif tok[0] == 'INT':
@@ -275,6 +277,36 @@ class Parser:
 
         return node
 
+    def parse_fn(self):
+        tok = self.expect('PUNCT', '*')
+        self.expect('PUNCT', '(')
+        params = self.parse_params()
+        self.expect('PUNCT', ':')
+        body = self.parse_expr()
+        self.expect('PUNCT', ')')
+        return Fn(params, body, tok[2], tok[3])
+
+    def parse_params(self):
+        params = []
+        if self.peek()[1] == ':':
+            return params
+        params.append(self.expect('NAME')[1])
+        while self.peek()[1] == ',':
+            self.advance()
+            params.append(self.expect('NAME')[1])
+        return params
+
+    def parse_list(self):
+        tok = self.expect('PUNCT', '[')
+        items = []
+        if self.peek()[1] != ']':
+            items.append(self.parse_expr())
+            while self.peek()[1] == ',':
+                self.advance()
+                items.append(self.parse_expr())
+        self.expect('PUNCT', ']')
+        return List(items, tok[2], tok[3])
+
     def parse_if(self):
         tok = self.expect('PUNCT', '?')
         self.expect('PUNCT', '(')
@@ -285,28 +317,6 @@ class Parser:
         else_ = self.parse_expr()
         self.expect('PUNCT', ')')
         return If(cond, then, else_, tok[2], tok[3])
-
-    def parse_fn(self):
-        tok = self.expect('PUNCT', '[')
-        params, rest = self.parse_params()
-        self.expect('PUNCT', ':')
-        body = self.parse_expr()
-        self.expect('PUNCT', ']')
-        return Fn(params, rest, body, tok[2], tok[3])
-
-    def parse_params(self):
-        params = []
-        rest = None
-        if self.peek()[1] == ':':
-            return params, rest
-        params.append(self.expect('NAME')[1])
-        while self.peek()[1] == ',':
-            self.advance()
-            params.append(self.expect('NAME')[1])
-        if self.peek()[1] == '...':
-            rest = params.pop()
-            self.advance()
-        return params, rest
 
     def parse_block(self):
         tok = self.expect('PUNCT', '{')
@@ -342,27 +352,28 @@ from core.axioms import Extensionality
 
 let x = 5
 let y = add(x, 1)
-let f = [a, b :add(a, b)]
-let g = [a, b, rest... :head(rest)]
+let f = *(a, b : add(a, b))
 
 let result = {
-    let p = In(z, a)
-    let q = Implies(p, p)
-    ForallRight(s1, q, z)
+    let p = mem(z, a)
+    let q = implies(p, p)
+    forall_right(s1, q, z)
 }
 
-let list = [items... :items]
-let factorial = [n :?(eq(n, 0), 1, mul(n, factorial(sub(n, 1))))]
+let factorial = *(n : ?(eq(n, 0), 1, mul(n, factorial(sub(n, 1)))))
 let test = ?(eq(x, 0), x, mul(x, 2))
-let apply = [f :f(1)(2)]
+let apply = *(f : f(1)(2))
 
-# deep nested inline function with call
-let compose = [f, g :[x :f(g(x))]]
-let twice = compose(compose, compose)
-let callnow = [f, g :[x :f(g(x))]](add)(mul)(3)
-let nested = [a :[b :[c :a(b(c))]]]
-let thunk = [: 42]
-let deep = [f :[g :f(g)(1)(2)]]([x :[y :add(x, y)]])([n :mul(n, 3)])
+# lists
+let xs = [1, 2, 3]
+let empty = []
+let nested = [1, [2, 3], 4]
+
+# deep nested function with call
+let compose = *(f, g : *(x : f(g(x))))
+let callnow = *(f, g : *(x : f(g(x))))(add)(mul)(3)
+let thunk = *(: 42)
+let deep = *(f : *(g : f(g)(1)(2)))(*(x : *(y : add(x, y))))(*(n : mul(n, 3)))
 """
 
     ast = parse(src, '<test>')
