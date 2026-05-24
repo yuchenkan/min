@@ -1,34 +1,26 @@
 from tactics import ax, wl, wr, nl, nr, il, ir, ct, close
+from core.derived import iff
 
-# |- Iff(A, B) -> B -> A
-# Iff(A, B) = neg(implies(implies(A, B), neg(implies(B, A))))
+# |- iff(A, B) -> B -> A
 $iff_elim_right \(A B : {
     $fwd implies(A, B)
     $bwd implies(B, A)
     $not_bwd neg(bwd)
     $imp_fwd_not_bwd implies(fwd, not_bwd)
-    $iff_AB neg(imp_fwd_not_bwd)
-
-    # Extract bwd from iff_AB:
-    # |- not_bwd, bwd  (nr from ax(bwd))
-    $s1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
-    # fwd |- not_bwd, bwd  (wl)
-    $s2 wl(s1, sequent([fwd], [not_bwd, bwd]), fwd)
-    # |- imp_fwd_not_bwd, bwd  (ir)
-    $s3 ir(s2, sequent([], [imp_fwd_not_bwd, bwd]), imp_fwd_not_bwd)
-    # iff_AB |- bwd  (nl)
-    $s4 nl(s3, sequent([iff_AB], [bwd]), iff_AB)
-
-    # Use bwd = B -> A: B, bwd |- A
+    $iff_AB iff(A, B)
+    # Get bwd from iff_AB
+    $u1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
+    $u2 wl(u1, sequent([fwd], [not_bwd, bwd]), fwd)
+    $u3 ir(u2, sequent([], [imp_fwd_not_bwd, bwd]), imp_fwd_not_bwd)
+    $u4 nl(u3, sequent([iff_AB], [bwd]), iff_AB)
+    # Use bwd: B, bwd |- A
     $s5 wr(ax(B), sequent([B], [B, A]), A)
     $s6 wl(ax(A), sequent([B, A], [A]), B)
     $s7 il(s5, s6, sequent([B, bwd], [A]), bwd)
-
-    # Combine: B, iff_AB |- A via cut on bwd
-    $s8 wr(wl(s4, sequent([B, iff_AB], [bwd]), B), sequent([B, iff_AB], [bwd, A]), A)
+    # Combine via cut on bwd
+    $s8 wr(wl(u4, sequent([B, iff_AB], [bwd]), B), sequent([B, iff_AB], [bwd, A]), A)
     $s9 wl(s7, sequent([B, iff_AB, bwd], [A]), iff_AB)
     $s10 ct(s8, s9, sequent([B, iff_AB], [A]), bwd)
-
     $i1 implies(B, A)
     $s11 ir(s10, sequent([iff_AB], [i1]), i1)
     $top implies(iff_AB, i1)
@@ -39,7 +31,6 @@ $iff_elim_right_example {
     $A mem(a, b)
     $B mem(b, a)
     $thm iff_elim_right(A, B)
-    $iff_AB neg(implies(implies(A, B), neg(implies(B, A))))
-    $formula implies(iff_AB, implies(B, A))
+    $formula implies(iff(A, B), implies(B, A))
     !qed(close(thm, formula, [b, a]))
 }

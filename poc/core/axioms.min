@@ -1,6 +1,6 @@
 # ZFC axioms
 
-from derived import and, or, iff, exists, eq
+from derived import and, or, iff, exists, eqv
 
 $Extensionality axiom(forall(x, forall(y,
     implies(
@@ -11,7 +11,7 @@ $EmptySet axiom(exists(b, forall(x, neg(mem(x, b)))))
 
 $Pairing axiom(forall(x, forall(y,
     exists(b, forall(z,
-        iff(mem(z, b), or(eq(z, x), eq(z, y))))))))
+        iff(mem(z, b), or(eqv(z, x), eqv(z, y))))))))
 
 $Union axiom(forall(a,
     exists(b, forall(x,
@@ -36,21 +36,21 @@ $Infinity axiom(exists(b, and(
     exists(e, and(mem(e, b), forall(z, neg(mem(z, e))))),
     forall(y, implies(mem(y, b),
         exists(s, and(mem(s, b),
-            forall(w, iff(mem(w, s), or(mem(w, y), eq(w, y)))))))))))
+            forall(w, iff(mem(w, s), or(mem(w, y), eqv(w, y)))))))))))
 
 $Choice axiom(forall(x,
     implies(
         forall(y, implies(mem(y, x), exists(z, mem(z, y)))),
         exists(c, forall(y, implies(mem(y, x),
             exists(z, and(and(mem(z, y), mem(z, c)),
-                forall(w, implies(and(mem(w, y), mem(w, c)), eq(w, z)))))))))))
+                forall(w, implies(and(mem(w, y), mem(w, c)), eqv(w, z)))))))))))
 
 $rep_core \(phi x y : {
     forall(a,
         implies(
             forall(x, implies(mem(x, a),
                 forall(y1, forall(y2, implies(
-                    and(phi, phi), eq(y1, y2)))))),
+                    and(phi, phi), eqv(y1, y2)))))),
             exists(b, forall(y,
                 iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))
 })

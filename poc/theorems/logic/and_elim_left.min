@@ -1,8 +1,9 @@
 from tactics import ax, wl, wr, nl, ir, close
+from core.derived import and
 
-# |- And(A, B) -> A
+# |- and(A, B) -> A
 $and_elim_left \(A B : {
-    $and_AB neg(implies(A, neg(B)))
+    $and_AB and(A, B)
     $not_B neg(B)
     $imp_A_notB implies(A, not_B)
     $s1 wr(ax(A), sequent([A], [A, not_B]), not_B)
@@ -16,6 +17,6 @@ $and_elim_left_example {
     $A mem(a, b)
     $B mem(b, a)
     $thm and_elim_left(A, B)
-    $imp implies(neg(implies(A, neg(B))), A)
-    !qed(close(thm, imp, [b, a]))
+    $formula implies(and(A, B), A)
+    !qed(close(thm, formula, [b, a]))
 }

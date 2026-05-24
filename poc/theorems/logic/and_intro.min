@@ -1,9 +1,9 @@
 from tactics import ax, wl, nl, il, nr, ir, close
+from core.derived import and
 
-# |- A -> B -> And(A, B)
-# And(A, B) = neg(implies(A, neg(B)))
+# |- A -> B -> and(A, B)
 $and_intro \(A B : {
-    $and_AB neg(implies(A, neg(B)))
+    $and_AB and(A, B)
     $not_B neg(B)
     $imp_A_notB implies(A, not_B)
     $s1 wl(ax(A), sequent([A, B], [A]), B)
@@ -21,6 +21,6 @@ $and_intro_example {
     $A mem(a, b)
     $B mem(b, a)
     $thm and_intro(A, B)
-    $imp implies(A, implies(B, neg(implies(A, neg(B)))))
-    !qed(close(thm, imp, [b, a]))
+    $formula implies(A, implies(B, and(A, B)))
+    !qed(close(thm, formula, [b, a]))
 }

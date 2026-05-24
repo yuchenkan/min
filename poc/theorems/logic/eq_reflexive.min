@@ -1,38 +1,26 @@
 from tactics import ax, nl, nr, il, ir, fr, close
+from core.derived import iff
 
-# |- forall a. Eq(a, a)
-# Eq(a, a) = forall(z, Iff(mem(z, a), mem(z, a)))
-# Iff(P, P) = neg(implies(implies(P, P), neg(implies(P, P))))
+# |- forall a. eqv(a, a)
+# eqv(a, a) = forall(z, iff(mem(z, a), mem(z, a)))
+# iff(P, P) is trivially true
 $eq_reflexive {
     $P mem(z, a)
     $imp_PP implies(P, P)
-    $not_imp neg(imp_PP)
-    $imp_top implies(imp_PP, not_imp)
-    $iff_PP neg(imp_top)
-    # Prove |- iff_PP
-    # s1: |- imp_PP  (A -> A is trivial)
+    $iff_PP iff(P, P)
+    $imp_top implies(imp_PP, neg(imp_PP))
+    # |- imp_PP
     $s1 ir(ax(P), sequent([], [imp_PP]), imp_PP)
-    # s2: imp_PP, not_imp |- []  (not_left on not_imp from ax(imp_PP))
-    $s2 nl(ax(imp_PP), sequent([imp_PP, not_imp], []), not_imp)
-    # Need il on imp_top = implies(imp_PP, not_imp):
-    # prem0: |- imp_PP (s1), but il needs G |- D, imp_PP where G = []
-    # prem1: not_imp |- (s2 without imp_PP) ... hmm
-    # il: G, imp_top |- D from G |- D, imp_PP and G, not_imp |- D
-    # G = [], D = []
-    # prem0: [] |- [imp_PP] = s1 ✓
-    # prem1: [not_imp] |- [] = ax(not_imp) then nl... no
-    # prem1 needs just [not_imp] |- []. We have [imp_PP, not_imp] |- [] (s2).
-    # But G should be [], so prem1 should be [not_imp] |- [].
-    # not_imp = neg(imp_PP). nl on not_imp: from |- imp_PP derive not_imp |- []
-    $s3 nl(s1, sequent([not_imp], []), not_imp)
-    # il: [imp_top] |- [] from |- [imp_PP] and [not_imp] |- []
+    # neg(imp_PP) |- []
+    $s3 nl(s1, sequent([neg(imp_PP)], []), neg(imp_PP))
+    # implies(imp_PP, neg(imp_PP)) |- []
     $s4 il(s1, s3, sequent([imp_top], []), imp_top)
-    # nr: |- [iff_PP]
+    # |- iff_PP
     $s5 nr(s4, sequent([], [iff_PP]), iff_PP)
-    # fr: |- forall(z, iff_PP)
+    # |- forall(z, iff_PP)
     $eq_aa forall(z, iff_PP)
     $s6 fr(s5, sequent([], [eq_aa]), eq_aa, z)
-    # fr: |- forall(a, eq_aa)
+    # |- forall(a, eq_aa)
     $goal forall(a, eq_aa)
     $result fr(s6, sequent([], [goal]), goal, a)
     !qed(result)

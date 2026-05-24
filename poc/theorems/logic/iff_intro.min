@@ -1,25 +1,18 @@
 from tactics import ax, wl, nl, il, nr, ir, close
+from core.derived import iff
 
-# |- (A -> B) -> (B -> A) -> Iff(A, B)
-# Iff(A, B) = neg(implies(implies(A, B), neg(implies(B, A))))
+# |- (A -> B) -> (B -> A) -> iff(A, B)
 $iff_intro \(A B : {
     $fwd implies(A, B)
     $bwd implies(B, A)
     $not_bwd neg(bwd)
     $imp_fwd_not_bwd implies(fwd, not_bwd)
-    $iff_AB neg(imp_fwd_not_bwd)
-    # fwd, bwd |- fwd  (axiom + weaken)
+    $iff_AB iff(A, B)
     $s1 wl(ax(fwd), sequent([fwd, bwd], [fwd]), bwd)
-    # fwd, bwd |- bwd  (axiom + weaken)
     $s2 wl(ax(bwd), sequent([fwd, bwd], [bwd]), fwd)
-    # fwd, bwd, neg(bwd) |- []  (not_left)
     $s3 nl(s2, sequent([fwd, bwd, not_bwd], []), not_bwd)
-    # fwd, bwd |- fwd  and  fwd, bwd, neg(bwd) |- []
-    # implies_left: fwd, bwd, implies(fwd, neg(bwd)) |- []
     $s4 il(s1, s3, sequent([fwd, bwd, imp_fwd_not_bwd], []), imp_fwd_not_bwd)
-    # not_right: fwd, bwd |- iff_AB
     $s5 nr(s4, sequent([fwd, bwd], [iff_AB]), iff_AB)
-    # implies_right twice
     $imp_bwd implies(bwd, iff_AB)
     $s6 ir(s5, sequent([fwd], [imp_bwd]), imp_bwd)
     $top implies(fwd, imp_bwd)
@@ -30,6 +23,6 @@ $iff_intro_example {
     $A mem(a, b)
     $B mem(b, a)
     $thm iff_intro(A, B)
-    $formula implies(implies(A, B), implies(implies(B, A), neg(implies(implies(A, B), neg(implies(B, A))))))
+    $formula implies(implies(A, B), implies(implies(B, A), iff(A, B)))
     !qed(close(thm, formula, [b, a]))
 }

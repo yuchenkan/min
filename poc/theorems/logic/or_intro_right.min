@@ -1,12 +1,10 @@
 from tactics import ax, wl, ir, close
+from core.derived import or
 
-# |- B -> Or(A, B)
-# Or(A, B) = implies(neg(A), B)
+# |- B -> or(A, B)
 $or_intro_right \(A B : {
-    $or_AB implies(neg(A), B)
-    # B |- B, weaken: neg(A), B |- B
+    $or_AB or(A, B)
     $s1 wl(ax(B), sequent([neg(A), B], [B]), neg(A))
-    # implies_right: B |- implies(neg(A), B)
     $s2 ir(s1, sequent([B], [or_AB]), or_AB)
     $top implies(B, or_AB)
     ir(s2, sequent([], [top]), top)
@@ -16,6 +14,6 @@ $or_intro_right_example {
     $A mem(a, b)
     $B mem(b, a)
     $thm or_intro_right(A, B)
-    $formula implies(B, implies(neg(A), B))
+    $formula implies(B, or(A, B))
     !qed(close(thm, formula, [b, a]))
 }
