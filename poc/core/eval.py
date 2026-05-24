@@ -73,7 +73,6 @@ BUILTINS = {
     'append': lambda l, x: l.value + [x],
     'concat': lambda a, b: a.value + b.value,
     # Kernel
-    'var': lambda: var(),
     'mem': lambda l, r: mem(l.value, r.value),
     'neg': lambda o: neg(o.value),
     'implies': lambda l, r: implies(l.value, r.value),
