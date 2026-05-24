@@ -163,12 +163,12 @@ BUILTINS = {
     'not': lambda a: not _v(a),
     # List
     'head': _notrace(lambda l: _v(l)[0]),
-    'tail': lambda l: _v(l)[1:],
-    'nil': lambda l: len(_v(l)) == 0,
-    'len': lambda l: len(_v(l)),
+    'tail': _notrace(lambda l: _v(l)[1:]),
+    'nil': _notrace(lambda l: len(_v(l)) == 0),
+    'len': _notrace(lambda l: len(_v(l))),
     'nth': _notrace(lambda l, n: _v(l)[_v(n)]),
-    'append': lambda l, x: _v(l) + [x],
-    'concat': lambda a, b: _v(a) + _v(b),
+    'append': _notrace(lambda l, x: _v(l) + [x]),
+    'concat': _notrace(lambda a, b: _v(a) + _v(b)),
     # Kernel
     'mem': _notrace(lambda l, r: Mem(l, r)),
     'neg': _notrace(lambda o: Neg(o)),
