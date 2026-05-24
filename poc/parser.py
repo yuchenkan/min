@@ -10,7 +10,7 @@ expr     = name '(' args ')'
          | STRING
          | '{' binding* expr '}'
 args     = (expr (',' expr)*)?
-params   = (name (',' name)*)?
+params   = (name (',' name)* (',' name '...')? )?
 """
 
 import re
@@ -25,6 +25,7 @@ TOKEN_RE = re.compile(r"""
     ([a-zA-Z_][a-zA-Z_0-9]*) |  # NAME
     ([0-9]+)                  |  # INT
     ("(?:[^"\\]|\\.)*")       |  # STRING
+    (\.\.\.)                   |  # ellipsis
     ([(){}=,.\n])                # punctuation
 """, re.VERBOSE)
 
@@ -42,7 +43,7 @@ def tokenize(source, filepath='<input>'):
         start = pos
         pos = m.end()
         col = start - col_offset + 1
-        ws, comment, kw, name, num, string, punct = m.groups()
+        ws, comment, kw, name, num, string, ellipsis, punct = m.groups()
         if ws:
             last_nl = ws.rfind('\n')
             if last_nl >= 0:
@@ -50,6 +51,9 @@ def tokenize(source, filepath='<input>'):
                 col_offset = start + last_nl + 1
             continue
         if comment:
+            continue
+        if ellipsis:
+            tokens.append(('PUNCT', '...', line, col))
             continue
         if kw:
             tokens.append(('KW', kw, line, col))
@@ -79,9 +83,10 @@ class Import:
         self.col = col
 
 class Bind:
-    def __init__(self, name, params, body, line, col):
+    def __init__(self, name, params, rest, body, line, col):
         self.name = name
         self.params = params  # [] for value binding
+        self.rest = rest      # None or name of rest param
         self.body = body
         self.line = line
         self.col = col
@@ -178,18 +183,18 @@ class Parser:
         if self.peek()[1] == '(':
             # name(...) — could be function binding or call
             self.advance()
-            items = self.parse_args_or_params()
+            items, rest = self.parse_args_or_params()
             self.expect('PUNCT', ')')
             # Must be followed by '=' for a binding
             self.expect('PUNCT', '=')
             params = self._as_params(items, line, col)
             body = self.parse_expr()
-            return Bind(name, params, body, line, col)
+            return Bind(name, params, rest, body, line, col)
         else:
             # name = expr
             self.expect('PUNCT', '=')
             body = self.parse_expr()
-            return Bind(name, [], body, line, col)
+            return Bind(name, [], None, body, line, col)
 
     def parse_expr(self):
         tok = self.peek()
@@ -238,20 +243,20 @@ class Parser:
                     # name = expr
                     self.advance()
                     body = self.parse_expr()
-                    bindings.append(Bind(name_tok[1], [], body, name_tok[2], name_tok[3]))
+                    bindings.append(Bind(name_tok[1], [], None, body, name_tok[2], name_tok[3]))
                     continue
                 elif self.peek()[1] == '(':
                     # name(...) — check if followed by ) =
                     saved2 = self.pos
                     self.advance()
-                    items = self.parse_args_or_params()
+                    items, rest = self.parse_args_or_params()
                     self.expect('PUNCT', ')')
                     if self.peek()[1] == '=':
                         # function binding
                         self.advance()
                         params = self._as_params(items, name_tok[2], name_tok[3])
                         body = self.parse_expr()
-                        bindings.append(Bind(name_tok[1], params, body, name_tok[2], name_tok[3]))
+                        bindings.append(Bind(name_tok[1], params, rest, body, name_tok[2], name_tok[3]))
                         continue
                     else:
                         # Not a binding — backtrack and parse as expr
@@ -279,12 +284,27 @@ class Parser:
         return args
 
     def parse_args_or_params(self):
-        """Parse contents of (...) — could be args (exprs) or params (names).
-        Parse as exprs. Validate as params later if needed."""
-        return self.parse_args()
+        """Parse contents of (...). Returns (items, rest_name).
+        items are exprs. rest_name is set if last item is name... """
+        items = []
+        rest = None
+        if self.peek()[1] == ')':
+            return items, None
+        items.append(self.parse_expr())
+        while self.peek()[1] == ',':
+            self.advance()
+            items.append(self.parse_expr())
+        # Check for ... after last item
+        if self.peek()[1] == '...':
+            if not isinstance(items[-1], Ref):
+                self.error('rest parameter must be a name')
+            rest = items[-1].name
+            items.pop()
+            self.advance()  # consume ...
+        return items, rest
 
     def _as_params(self, items, line, col):
-        """Validate that parsed exprs are all bare names (for function params)."""
+        """Validate that parsed exprs are all bare names."""
         params = []
         for item in items:
             if not isinstance(item, Ref):
@@ -311,6 +331,7 @@ from core.axioms import Extensionality
 x = 5
 y = add(x, 1)
 f(a, b) = add(a, b)
+g(a, b, rest...) = Pair(a, rest)
 
 result = {
     p = In(z, a)
@@ -318,6 +339,7 @@ result = {
     ForallRight(s1, q, z)
 }
 
+list(items...) = items
 test = if(eq(x, 0), x, mul(x, 2))
 """
 
@@ -326,5 +348,6 @@ test = if(eq(x, 0), x, mul(x, 2))
         if isinstance(node, Import):
             print(f'import {node.module}: {node.names}')
         elif isinstance(node, Bind):
-            params = f'({", ".join(node.params)})' if node.params else ''
+            rest = f', {node.rest}...' if node.rest else ''
+            params = f'({", ".join(node.params)}{rest})' if node.params or node.rest else ''
             print(f'bind {node.name}{params} = {type(node.body).__name__}')

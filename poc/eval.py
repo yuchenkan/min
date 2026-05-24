@@ -47,9 +47,10 @@ class Env:
 # === Fn: user-defined function ===
 
 class Fn:
-    def __init__(self, name, params, body_ast, env):
+    def __init__(self, name, params, rest, body_ast, env):
         self.name = name
         self.params = params
+        self.rest = rest  # None or name of rest param
         self.body_ast = body_ast
         self.env = env
 
@@ -57,6 +58,13 @@ class Fn:
         child = Env(self.env)
         for p, a in zip(self.params, args):
             child.set(p, a)
+        if self.rest:
+            # Pack remaining args into nested Pairs
+            remaining = args[len(self.params):]
+            packed = None
+            for a in reversed(remaining):
+                packed = (a, packed)
+            child.set(self.rest, packed)
         return evaluate(self.body_ast, child)
 
 
@@ -139,8 +147,8 @@ def evaluate(node, env):
 
 
 def _eval_binding(node, env):
-    if node.params:
-        fn = Fn(node.name, node.params, node.body, env)
+    if node.params or node.rest:
+        fn = Fn(node.name, node.params, node.rest, node.body, env)
         env.set(node.name, fn)
     else:
         val = evaluate(node.body, env)

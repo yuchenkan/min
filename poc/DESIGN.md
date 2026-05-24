@@ -68,5 +68,8 @@ expr     = name '(' args ')'
          | STRING
          | '{' binding* expr '}'
 args     = (expr (',' expr)*)?
-params   = (name (',' name)*)?
+params   = (name (',' name)* (',' name '...')? )?
 ```
+
+Last parameter may be `name...` — rest parameter.
+Collects remaining args into nested Pairs (Pair(a, Pair(b, None))).
