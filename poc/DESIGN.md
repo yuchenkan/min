@@ -58,18 +58,21 @@ No bare expressions. No side effects at top level.
 ## 10. Syntax
 
 ```
-program  = (import | binding)*
+program  = (import | let)*
 import   = 'from' dotted_name 'import' names
-binding  = name '=' expr
-         | name '(' params ')' '=' expr
+let      = 'let' name '=' expr
+         | 'let' name '(' params ')' '=' expr
 expr     = name '(' args ')'
          | name
          | INT
          | STRING
-         | '{' binding* expr '}'
+         | '{' let* expr '}'
 args     = (expr (',' expr)*)?
 params   = (name (',' name)* (',' name '...')? )?
 ```
 
+`let` keyword marks all bindings. No ambiguity:
+- `let name(...)` = function definition (params are bare names)
+- `name(...)` in expr = function call (args are expressions)
 Last parameter may be `name...` — rest parameter.
-Collects remaining args into nested Pairs (Pair(a, Pair(b, None))).
+Collects remaining args into list.
