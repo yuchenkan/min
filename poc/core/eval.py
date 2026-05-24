@@ -95,47 +95,37 @@ BUILTINS = {
 
 def _expand_ast(ast, env):
     """Recursively expand Ref nodes to their values' ASTs.
-    Stops at: functions, builtins, auto-vars, literals."""
+    Returns a new AST with refs resolved. Stops at functions/builtins."""
     if isinstance(ast, Ref):
         val = env.get(ast.name)
         if val is None:
-            return repr(ast)
-        # Don't expand functions or builtins
+            return ast
         if isinstance(val.value, Fn) or callable(val.value):
-            return ast.name
-        # Expand to the value's AST
+            return ast
         if val.ast is not None and val.ast is not ast:
             return _expand_ast(val.ast, env)
-        return ast.name
+        return ast
     if isinstance(ast, Call):
-        callee = _expand_ast(ast.callee, env)
-        args = ', '.join(_expand_ast(a, env) for a in ast.args)
-        return f'{callee}({args})'
+        return Call(_expand_ast(ast.callee, env),
+                    [_expand_ast(a, env) for a in ast.args],
+                    ast.line, ast.col)
     if isinstance(ast, FnAST):
-        params = ' '.join(ast.params)
-        body = _expand_ast(ast.body, env)
-        return f'\\({params} : {body})'
+        return FnAST(ast.params, _expand_ast(ast.body, env), ast.line, ast.col)
     if isinstance(ast, ListAST):
-        items = ', '.join(_expand_ast(i, env) for i in ast.items)
-        return f'[{items}]'
+        return ListAST([_expand_ast(i, env) for i in ast.items], ast.line, ast.col)
     if isinstance(ast, If):
-        c = _expand_ast(ast.cond, env)
-        t = _expand_ast(ast.then, env)
-        e = _expand_ast(ast.else_, env)
-        return f'?({c}, {t}, {e})'
+        return If(_expand_ast(ast.cond, env),
+                  _expand_ast(ast.then, env),
+                  _expand_ast(ast.else_, env),
+                  ast.line, ast.col)
     if isinstance(ast, Block):
-        parts = []
-        for b in ast.bindings:
-            parts.append(f'${b.name} {_expand_ast(b.expr, env)}')
-        parts.append(_expand_ast(ast.expr, env))
-        return '{ ' + ' '.join(parts) + ' }'
-    if isinstance(ast, Lit):
-        return repr(ast)
-    if isinstance(ast, Bind):
-        return f'${ast.name} {_expand_ast(ast.expr, env)}'
+        return Block([Bind(b.name, _expand_ast(b.expr, env), b.line, b.col)
+                      for b in ast.bindings],
+                     _expand_ast(ast.expr, env),
+                     ast.line, ast.col)
     if isinstance(ast, Show):
-        return f'!{_expand_ast(ast.expr, env)}'
-    return repr(ast)
+        return Show(_expand_ast(ast.expr, env), ast.line, ast.col)
+    return ast
 
 
 # === Evaluate ===
@@ -185,7 +175,7 @@ def _evaluate(node, env):
 
     if isinstance(node, Show):
         result = _evaluate(node.expr, env)
-        print(_expand_ast(result.ast, env))
+        print(repr(_expand_ast(result.ast, env)))
         return result
 
     if isinstance(node, If):
