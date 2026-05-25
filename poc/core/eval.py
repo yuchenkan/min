@@ -12,9 +12,10 @@ import os
 # === Traced ===
 
 class Traced:
-    def __init__(self, value, ast):
+    def __init__(self, value, callee, args):
         self.value = value
-        self.ast = ast
+        self.callee = callee
+        self.args = args
 
 
 # === Env ===
@@ -70,7 +71,7 @@ def show(t, depth):
     Doesn't peel if value is Var or primitive."""
     if isinstance(t, Traced):
         if depth <= 0:
-            return repr(t.ast)
+            return f'{repr(t.callee)}({", ".join([show(a, 0) for a in t.args])})'
         return show(t.value, depth - 1)
     if isinstance(t, Var):
         return t.name
@@ -111,40 +112,40 @@ class Var:
 
 class Mem:
     def __init__(self, left, right):
-        self.left = left    # Traced
-        self.right = right  # Traced
+        self.left = left
+        self.right = right
         self.kernel = mem(_kernel(_v(left)), _kernel(_v(right)))
 
 class Neg:
     def __init__(self, operand):
-        self.operand = operand  # Traced
+        self.operand = operand 
         self.kernel = neg(_kernel(_v(operand)))
 
 class Implies:
     def __init__(self, left, right):
-        self.left = left    # Traced
-        self.right = right  # Traced
+        self.left = left
+        self.right = right
         self.kernel = implies(_kernel(_v(left)), _kernel(_v(right)))
 
 class Forall:
     def __init__(self, v, body):
-        self.var = v      # Traced
-        self.body = body  # Traced
+        self.var = v
+        self.body = body
         self.kernel = forall(_kernel(_v(v)), _kernel(_v(body)))
 
 class Sequent:
     def __init__(self, left, right):
-        self.left = left    # Traced list of Traced
-        self.right = right  # Traced list of Traced
+        self.left = left
+        self.right = right
         self.kernel = sequent([_kernel(_v(a)) for a in _v(left)], [_kernel(_v(a)) for a in _v(right)])
 
 class Proof:
     def __init__(self, seq, rule, premises=None, principal=None, term=None):
-        self.seq = seq          # Traced
-        self.rule = rule        # Traced
-        self.premises = premises  # list of Traced
-        self.principal = principal  # Traced or None
-        self.term = term        # Traced or None
+        self.seq = seq
+        self.rule = rule
+        self.premises = premises
+        self.principal = principal
+        self.term = term
         try:
             self.kernel = proof(
                 _kernel(_v(seq)), _v(rule),
@@ -166,11 +167,10 @@ class Proof:
 
 
 def _qed(p, e):
-    """Check proof against expected formula. Replace right side with expected."""
+    """Check proof against expected formula and show level 0 equality."""
     qed(_kernel(_v(p)), _kernel(_v(e)))
-    proof_val = _v(p)
-    seq_val = _v(proof_val.seq)
-    seq_val.right = [e]
+    if show(_v(_v(p).seq.right)[0], 0) != show(e, 0):
+        raise ValueError(f'qed: show mismatch\n  proof:    {s_proof}\n  expected: {s_expected}')
     return p
 
 
@@ -254,18 +254,18 @@ def evaluate(node, env):
 
 def _evaluate(node, env):
     if isinstance(node, Lit):
-        return Traced(node.value, node)
+        return node.value
 
     if isinstance(node, Ref):
         val = env.get(node.name)
         if val is not None:
             return val
-        v = Traced(Var(var(), node.name), node)
+        v = Var(var(), node.name)
         env.set(node.name, v)
         return v
 
     if isinstance(node, FnAST):
-        return Traced(Fn(node.params, node.body, env, node.traced), node)
+        return Fn(node.params, node.body, env, node.traced)
 
     if isinstance(node, ListAST):
         return [_evaluate(item, env) for item in node.items]
@@ -293,11 +293,11 @@ def _evaluate(node, env):
                 result = fn(*args)
                 if isinstance(fn, _notrace):
                     return result
-                return Traced(result, node)
+                return Traced(result, node.callee, args)
 
             if isinstance(fn, Fn):
                 result = fn.call(args)
-                return Traced(result, node) if fn.traced else result
+                return Traced(result, node.callee, args) if fn.traced else result
         except EvalError as e:
             e.add_frame(node)
             raise
@@ -324,7 +324,7 @@ _loaded = {}
 def _make_global_env():
     env = Env()
     for name, val in BUILTINS.items():
-        env.set(name, Traced(val, None))
+        env.set(name, val)
     return env
 
 _global_env = _make_global_env()
