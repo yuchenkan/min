@@ -1,0 +1,21 @@
+from tactics import ax, wl, wr, nl, nr, il, ir
+
+# |- (P -> Q) -> (neg(Q) -> neg(P))
+$contrapositive \(P Q : {
+    $imp implies(P, Q)
+
+    # P, imp |- Q
+    $s1 wr(ax(P), sequent([P], [P, Q]), Q)
+    $s2 wl(ax(Q), sequent([P, Q], [Q]), P)
+    $s3 il(s1, s2, sequent([P, imp], [Q]), imp)
+    # P, imp, neg(Q) |- []
+    $s4 nl(s3, sequent([P, imp, neg(Q)], []), neg(Q))
+    # imp, neg(Q) |- neg(P)
+    $s5 nr(s4, sequent([imp, neg(Q)], [neg(P)]), neg(P))
+    # imp |- neg(Q) -> neg(P)
+    $inner implies(neg(Q), neg(P))
+    $s6 ir(s5, sequent([imp], [inner]), inner)
+    # |- imp -> inner
+    $top implies(imp, inner)
+    ir(s6, sequent([], [top]), top)
+})

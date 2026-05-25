@@ -1,0 +1,12 @@
+from tactics import ax, nl, nr, ir
+
+# |- P -> neg(neg(P))
+$not_not_intro \(P : {
+    # P, neg(P) |- []
+    $s1 nl(ax(P), sequent([P, neg(P)], []), neg(P))
+    # P |- neg(neg(P))
+    $s2 nr(s1, sequent([P], [neg(neg(P))]), neg(neg(P)))
+    # |- P -> neg(neg(P))
+    $top implies(P, neg(neg(P)))
+    ir(s2, sequent([], [top]), top)
+})

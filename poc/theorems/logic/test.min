@@ -21,6 +21,13 @@ from theorems.logic.forall_implies_exists import forall_implies_exists
 from theorems.logic.eq_transitive import eq_transitive
 from theorems.logic.eq_substitution import eq_substitution
 from theorems.logic.or_iff_compat import or_iff_compat
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.logic.exists_intro import exists_intro
+from theorems.logic.contrapositive import contrapositive
+from theorems.logic.not_not_intro import not_not_intro
+from theorems.logic.neg_iff_compat import neg_iff_compat
+from theorems.logic.forall_iff_compat import forall_iff_compat
+from vocab.logic import exists_unique
 
 $A mem(a, b)
 $B mem(b, a)
@@ -91,3 +98,29 @@ $t20 !qed(close(eq_substitution(A, B, C), implies(iff(A, B), implies(implies(A, 
 $D mem(b, b)
 $t21 !qed(close(or_iff_compat(A, B, C, D), implies(iff(A, C), implies(iff(B, D), iff(or(A, B), or(C, D)))), [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(or(mem(a, b), mem(b, a)), or(mem(a, a), mem(b, b))))))))
+
+# exists_unique_intro: body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(x, body)
+$t22 !qed(close(exists_unique_intro(x, \(v : mem(v, a)), b),
+               implies(mem(b, a), implies(forall(y, implies(mem(y, a), eqv(b, y))), exists_unique(x, \(v : mem(v, a))))), [b, a]),
+          forall(a, forall(b, implies(mem(b, a), implies(forall(y, implies(mem(y, a), eqv(b, y))), exists_unique(x, \(v : mem(v, a))))))))
+
+# exists_intro: body(t) -> exists(x, body(x))
+$t23 !qed(close(exists_intro(x, \(v : mem(v, a)), b), implies(mem(b, a), exists(x, mem(x, a))), [b, a]),
+          forall(a, forall(b, implies(mem(b, a), exists(x, mem(x, a))))))
+
+# contrapositive: (P -> Q) -> (neg(Q) -> neg(P))
+$t24 !qed(close(contrapositive(A, B), implies(implies(A, B), implies(neg(B), neg(A))), [b, a]),
+          forall(a, forall(b, implies(implies(mem(a, b), mem(b, a)), implies(neg(mem(b, a)), neg(mem(a, b)))))))
+
+# not_not_intro: P -> neg(neg(P))
+$t25 !qed(close(not_not_intro(A), implies(A, neg(neg(A))), [b, a]),
+          forall(a, forall(b, implies(mem(a, b), neg(neg(mem(a, b)))))))
+
+# neg_iff_compat: iff(P, Q) -> iff(neg(P), neg(Q))
+$t26 !qed(close(neg_iff_compat(A, B), implies(iff(A, B), iff(neg(A), neg(B))), [b, a]),
+          forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), iff(neg(mem(a, b)), neg(mem(b, a)))))))
+
+# forall_iff_compat: forall(z, iff(P(z), Q(z))) -> iff(forall(x, P(x)), forall(x, Q(x)))
+$t27 !qed(close(forall_iff_compat(x, \(v : mem(v, a)), \(v : mem(v, b))),
+               implies(forall(z, iff(mem(z, a), mem(z, b))), iff(forall(x, mem(x, a)), forall(x, mem(x, b)))), [b, a]),
+          forall(a, forall(b, implies(forall(z, iff(mem(z, a), mem(z, b))), iff(forall(x, mem(x, a)), forall(x, mem(x, b)))))))
