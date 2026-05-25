@@ -169,7 +169,9 @@ class Proof:
 def _qed(p, e):
     """Check proof against expected formula and show level 0 equality."""
     qed(_kernel(_v(p)), _kernel(_v(e)))
-    if show(_v(_v(p).seq.right)[0], 0) != show(e, 0):
+    s_proof = show(_v(_v(p).seq.right)[0], 0)
+    s_expected = show(e, 0)
+    if s_proof != s_expected:
         raise ValueError(f'qed: show mismatch\n  proof:    {s_proof}\n  expected: {s_expected}')
     return p
 
