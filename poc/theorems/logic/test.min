@@ -37,6 +37,8 @@ from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.exists_unique_bridge import exists_unique_bridge
 from theorems.logic.neg_neg_iff import neg_neg_iff
 from theorems.logic.or_idempotent import or_idempotent
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_mem_left import eqv_mem_left
 
 $a var("a") $b var("b") $c var("c") $x var("x") $y var("y") $z var("z") $s var("s")
 
@@ -155,3 +157,10 @@ $t36 !qed(neg_neg_iff(A, B, [b, a]),
 # or_idempotent: iff(or(P, P), P)
 $t37 !qed(or_idempotent(A, [b, a]),
           forall(a, forall(b, iff(or(mem(a, b), mem(a, b)), mem(a, b)))))
+
+# eqv_reflexive: forall(a, eqv(a, a))
+$t38 !qed(eqv_reflexive, forall(a, eqv(a, a)))
+
+# eqv_mem_left: eqv(a, b) -> mem(z, a) -> mem(z, b)
+$t39 !qed(eqv_mem_left(a, b, z, [z, b, a]),
+          forall(a, forall(b, forall(z, implies(eqv(a, b), implies(mem(z, a), mem(z, b)))))))

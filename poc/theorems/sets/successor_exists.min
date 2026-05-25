@@ -1,0 +1,256 @@
+from tactics import ax, wl, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
+from core.derived import and, or, iff, exists, eqv
+from core.axioms import Pairing, Union
+from vocab.sets import singleton, pair_set, big_union, successor
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.or_iff_compat import or_iff_compat
+from theorems.logic.iff_refl import iff_refl
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.implies_trans import implies_trans
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.exists_intro import exists_intro
+from theorems.sets.singleton_exists import singleton_exists
+from theorems.sets.pair_set_exists import pair_set_exists
+from theorems.sets.big_union_exists import big_union_exists
+
+# Pairing, Union |- forall(a, exists(s, successor(s, a)))
+# Construction: s = ∪{a, {a}}
+$successor_exists \(a vars : {
+    $s var("s") $z var("z") $w var("w") $b var("b")
+    $t1 var("t1") $p1 var("p1") $s1 var("s1")
+    $pa_f Pairing()
+    $un_f Union()
+
+    # === Get witnesses ===
+    # singleton(t1, a) from singleton_exists
+    $sing_t1 singleton(t1, a)
+
+    # pair_set(p1, a, t1) from pair_set_exists(a, t1)
+    $ps_p1 pair_set(p1, a, t1)
+
+    # big_union(s1, p1) from big_union_exists(p1)
+    $bu_s1 big_union(s1, p1)
+
+    # === Show: big_union(s1, p1) + pair_set(p1, a, t1) + singleton(t1, a) ⊢ successor(s1, a) ===
+    # big_union: ∀z. iff(mem(z, s1), ∃w. and(mem(w, p1), mem(z, w)))
+    # Need: ∀z. iff(mem(z, s1), or(mem(z, a), eqv(z, a)))
+    # Strategy: for eigenvariable z, show iff between the two conditions,
+    # then iff_chain with big_union's iff.
+
+    # From big_union, fl with z:
+    $ex_cond exists(w, and(mem(w, p1), mem(z, w)))
+    $iff_bu iff(mem(z, s1), ex_cond)
+    $g_bu fl(ax(iff_bu), sequent([bu_s1], [iff_bu]), bu_s1, z)
+    # [bu_s1] |- [iff(mem(z,s1), ex_cond)]
+
+    # === Show: iff(ex_cond, or(mem(z, a), eqv(z, a))) ===
+    # Forward: ex_cond -> or(mem(z, a), eqv(z, a))
+    # Backward: or(mem(z, a), eqv(z, a)) -> ex_cond
+
+    $or_goal or(mem(z, a), eqv(z, a))
+
+    # -- Forward --
+    # Assume and(mem(w, p1), mem(z, w)) for eigenvariable w
+    $aw and(mem(w, p1), mem(z, w))
+    $g_mwp mp(and_elim_left(mem(w, p1), mem(z, w)), ax(aw), aw, mem(w, p1), [], [aw])
+    $g_mzw mp(and_elim_right(mem(w, p1), mem(z, w)), ax(aw), aw, mem(z, w), [], [aw])
+    # [aw] |- [mem(w, p1)] and [aw] |- [mem(z, w)]
+
+    # From pair_set, fl with w: iff(mem(w, p1), or(eqv(w, a), eqv(w, t1)))
+    $iff_ps iff(mem(w, p1), or(eqv(w, a), eqv(w, t1)))
+    $g_ps fl(ax(iff_ps), sequent([ps_p1], [iff_ps]), ps_p1, w)
+    # [ps_p1] |- [iff_ps]
+    # Extract: mem(w, p1) -> or(eqv(w, a), eqv(w, t1))
+    $imp_ps implies(mem(w, p1), or(eqv(w, a), eqv(w, t1)))
+    $g_or_wa_wt mp(mp(iff_elim_left(mem(w, p1), or(eqv(w, a), eqv(w, t1))),
+                      g_ps, iff_ps, imp_ps, [], [ps_p1]),
+                   g_mwp, mem(w, p1), or(eqv(w, a), eqv(w, t1)), [ps_p1], [aw])
+    # [ps_p1, aw] |- [or(eqv(w, a), eqv(w, t1))]
+
+    # Case eqv(w, a): mem(z, w) + eqv(w, a) -> mem(z, a) -> or_left
+    # eqv_mem_left(w, a, z): [] |- [eqv(w,a) -> mem(z,w) -> mem(z,a)]
+    $g_case_a mp(mp(eqv_mem_left(w, a, z), ax(eqv(w, a)), eqv(w, a), implies(mem(z, w), mem(z, a)), [], [eqv(w, a)]),
+                 g_mzw, mem(z, w), mem(z, a), [eqv(w, a)], [aw])
+    # [eqv(w,a), aw] |- [mem(z, a)]
+    $g_or_a mp(or_intro_left(mem(z, a), eqv(z, a)), g_case_a, mem(z, a), or_goal, [], [eqv(w, a), aw])
+    # [eqv(w,a), aw] |- [or_goal]
+
+    # Case eqv(w, t1): mem(z, w) + eqv(w, t1) -> mem(z, t1)
+    # Then from singleton: mem(z, t1) -> eqv(z, a) -> or_right
+    $g_mzt1 mp(mp(eqv_mem_left(w, t1, z), ax(eqv(w, t1)), eqv(w, t1), implies(mem(z, w), mem(z, t1)), [], [eqv(w, t1)]),
+               g_mzw, mem(z, w), mem(z, t1), [eqv(w, t1)], [aw])
+    # [eqv(w,t1), aw] |- [mem(z, t1)]
+    # From singleton, fl with z: iff(mem(z, t1), eqv(z, a))
+    $iff_sg iff(mem(z, t1), eqv(z, a))
+    $g_sg fl(ax(iff_sg), sequent([sing_t1], [iff_sg]), sing_t1, z)
+    $g_eza mp(mp(iff_elim_left(mem(z, t1), eqv(z, a)),
+                g_sg, iff_sg, implies(mem(z, t1), eqv(z, a)), [], [sing_t1]),
+              g_mzt1, mem(z, t1), eqv(z, a), [sing_t1], [eqv(w, t1), aw])
+    # [sing_t1, eqv(w,t1), aw] |- [eqv(z, a)]
+    $g_or_b mp(or_intro_right(mem(z, a), eqv(z, a)), g_eza, eqv(z, a), or_goal, [], [sing_t1, eqv(w, t1), aw])
+    # [sing_t1, eqv(w,t1), aw] |- [or_goal]
+
+    # or_elim on or(eqv(w,a), eqv(w,t1)):
+    # g_or_wa_wt: [ps_p1, aw] |- [or(eqv(w,a), eqv(w,t1))]
+    # g_or_a: [eqv(w,a), aw] |- [or_goal]  (case A)
+    # g_or_b: [sing_t1, eqv(w,t1), aw] |- [or_goal]  (case B)
+    # or_elim(eqv(w,a), eqv(w,t1), or_goal):
+    #   [] |- [or(...) -> (eqv(w,a)->or_goal) -> (eqv(w,t1)->or_goal) -> or_goal]
+    $imp_a implies(eqv(w, a), or_goal)
+    $imp_b implies(eqv(w, t1), or_goal)
+    $g_imp_a ir(g_or_a, sequent([aw], [imp_a]), imp_a)
+    $g_imp_b ir(g_or_b, sequent([sing_t1, aw], [imp_b]), imp_b)
+    $g_fwd_aw mp(mp(mp(or_elim(eqv(w, a), eqv(w, t1), or_goal),
+                       g_or_wa_wt, or(eqv(w, a), eqv(w, t1)), implies(imp_a, implies(imp_b, or_goal)), [], [ps_p1, aw]),
+                    g_imp_a, imp_a, implies(imp_b, or_goal), [ps_p1, aw], [aw]),
+                 g_imp_b, imp_b, or_goal, [ps_p1, aw], [sing_t1, aw])
+    # [ps_p1, sing_t1, aw] |- [or_goal]
+
+    # eel on aw: [ps_p1, sing_t1, ex_cond] |- [or_goal]
+    $aw_fn \(v : and(mem(v, p1), mem(z, v)))
+    $g_fwd_ex eel(g_fwd_aw, aw_fn, w, w, [ps_p1, sing_t1, aw], or_goal)
+    # ir: [ps_p1, sing_t1] |- [ex_cond -> or_goal]
+    $fwd implies(ex_cond, or_goal)
+    $g_fwd ir(g_fwd_ex, sequent([ps_p1, sing_t1], [fwd]), fwd)
+
+    # -- Backward --
+    # Case mem(z, a): take witness w=a. Need mem(a, p1) and mem(z, a).
+    # mem(a, p1) from pair_set: iff(mem(a, p1), or(eqv(a, a), eqv(a, t1)))
+    # eqv(a, a) from eqv_reflexive
+    $iff_pa iff(mem(a, p1), or(eqv(a, a), eqv(a, t1)))
+    $g_pa fl(ax(iff_pa), sequent([ps_p1], [iff_pa]), ps_p1, a)
+    # eqv_reflexive: [] |- [forall(a, eqv(a, a))]
+    $eqv_aa eqv(a, a)
+    $body_eqv \(v : eqv(v, v))
+    $g_eqv_aa apply_thm(eqv_reflexive, forall(a, eqv_aa), [a], [body_eqv], [])
+    # [] |- [eqv(a, a)]
+    $g_or_aa mp(or_intro_left(eqv_aa, eqv(a, t1)), g_eqv_aa, eqv_aa, or(eqv_aa, eqv(a, t1)), [], [])
+    # [] |- [or(eqv(a,a), eqv(a,t1))]
+    $g_ma_p1 mp(iff_elim_right(mem(a, p1), or(eqv_aa, eqv(a, t1))),
+                g_pa, iff_pa, implies(or(eqv_aa, eqv(a, t1)), mem(a, p1)), [], [ps_p1])
+    $g_map1 mp(g_ma_p1, g_or_aa, or(eqv_aa, eqv(a, t1)), mem(a, p1), [ps_p1], [])
+    # [ps_p1] |- [mem(a, p1)]
+
+    # and_intro(mem(a, p1), mem(z, a)): under assumption mem(z, a)
+    $g_and_a mp(mp(and_intro(mem(a, p1), mem(z, a)),
+                   g_map1, mem(a, p1), implies(mem(z, a), and(mem(a, p1), mem(z, a))), [], [ps_p1]),
+                ax(mem(z, a)), mem(z, a), and(mem(a, p1), mem(z, a)), [ps_p1], [mem(z, a)])
+    # [ps_p1, mem(z,a)] |- [and(mem(a,p1), mem(z,a))]
+
+    # exists intro with witness a:
+    $g_ex_a eir(g_and_a, aw_fn, w, a, [ps_p1, mem(z, a)])
+    # [ps_p1, mem(z,a)] |- [ex_cond]
+
+    # Case eqv(z, a): take witness w=t1. Need mem(t1, p1) and mem(z, t1).
+    # mem(t1, p1) from pair_set: iff(mem(t1, p1), or(eqv(t1, a), eqv(t1, t1)))
+    $eqv_t1t1 eqv(t1, t1)
+    $g_eqv_tt apply_thm(eqv_reflexive, forall(a, eqv_aa), [t1], [body_eqv], [])
+    $g_or_tt mp(or_intro_right(eqv(t1, a), eqv_t1t1), g_eqv_tt, eqv_t1t1, or(eqv(t1, a), eqv_t1t1), [], [])
+    $iff_pt iff(mem(t1, p1), or(eqv(t1, a), eqv_t1t1))
+    $g_pt fl(ax(iff_pt), sequent([ps_p1], [iff_pt]), ps_p1, t1)
+    $g_mt1p1 mp(mp(iff_elim_right(mem(t1, p1), or(eqv(t1, a), eqv_t1t1)),
+                   g_pt, iff_pt, implies(or(eqv(t1, a), eqv_t1t1), mem(t1, p1)), [], [ps_p1]),
+                g_or_tt, or(eqv(t1, a), eqv_t1t1), mem(t1, p1), [ps_p1], [])
+    # [ps_p1] |- [mem(t1, p1)]
+
+    # mem(z, t1) from singleton + eqv(z, a):
+    # singleton: iff(mem(z, t1), eqv(z, a)), backward: eqv(z, a) -> mem(z, t1)
+    $g_mzt1_bwd mp(iff_elim_right(mem(z, t1), eqv(z, a)),
+                   g_sg, iff_sg, implies(eqv(z, a), mem(z, t1)), [], [sing_t1])
+    $g_mzt1_from_eza mp(g_mzt1_bwd, ax(eqv(z, a)), eqv(z, a), mem(z, t1), [sing_t1], [eqv(z, a)])
+    # [sing_t1, eqv(z,a)] |- [mem(z, t1)]
+
+    $g_and_b mp(mp(and_intro(mem(t1, p1), mem(z, t1)),
+                   g_mt1p1, mem(t1, p1), implies(mem(z, t1), and(mem(t1, p1), mem(z, t1))), [], [ps_p1]),
+                g_mzt1_from_eza, mem(z, t1), and(mem(t1, p1), mem(z, t1)), [ps_p1], [sing_t1, eqv(z, a)])
+    # [ps_p1, sing_t1, eqv(z,a)] |- [and(mem(t1,p1), mem(z,t1))]
+    $g_ex_b eir(g_and_b, aw_fn, w, t1, [ps_p1, sing_t1, eqv(z, a)])
+    # [ps_p1, sing_t1, eqv(z,a)] |- [ex_cond]
+
+    # or_elim on or(mem(z,a), eqv(z,a)):
+    $imp_ca implies(mem(z, a), ex_cond)
+    $imp_cb implies(eqv(z, a), ex_cond)
+    $g_imp_ca ir(g_ex_a, sequent([ps_p1], [imp_ca]), imp_ca)
+    $g_imp_cb ir(g_ex_b, sequent([ps_p1, sing_t1], [imp_cb]), imp_cb)
+    $bwd implies(or_goal, ex_cond)
+    $g_bwd mp(mp(mp(or_elim(mem(z, a), eqv(z, a), ex_cond),
+                    ax(or_goal), or_goal, implies(imp_ca, implies(imp_cb, ex_cond)), [], [or_goal]),
+                 g_imp_ca, imp_ca, implies(imp_cb, ex_cond), [or_goal], [ps_p1]),
+              g_imp_cb, imp_cb, ex_cond, [or_goal, ps_p1], [ps_p1, sing_t1])
+    # [or_goal, ps_p1, sing_t1] |- [ex_cond]
+    $g_bwd_ir ir(g_bwd, sequent([ps_p1, sing_t1], [bwd]), bwd)
+    # [ps_p1, sing_t1] |- [bwd]
+
+    # === iff_intro: [ps_p1, sing_t1] |- [iff(ex_cond, or_goal)] ===
+    $iff_eq iff(ex_cond, or_goal)
+    $g_iff_eq mp(mp(iff_intro(ex_cond, or_goal),
+                    g_fwd, fwd, implies(bwd, iff_eq), [], [ps_p1, sing_t1]),
+                 g_bwd_ir, bwd, iff_eq, [ps_p1, sing_t1], [ps_p1, sing_t1])
+    # [ps_p1, sing_t1] |- [iff(ex_cond, or_goal)]
+
+    # === Chain with big_union: iff(mem(z,s1), ex_cond) + iff(ex_cond, or_goal) -> iff(mem(z,s1), or_goal) ===
+    $iff_succ iff(mem(z, s1), or_goal)
+    $g_chain mp(mp(iff_chain(mem(z, s1), ex_cond, or_goal),
+                   g_bu, iff_bu, implies(iff_eq, iff_succ), [], [bu_s1]),
+                g_iff_eq, iff_eq, iff_succ, [bu_s1], [ps_p1, sing_t1])
+    # [bu_s1, ps_p1, sing_t1] |- [iff_succ]
+
+    # fr on z: [bu_s1, ps_p1, sing_t1] |- [successor(s1, a)]
+    $succ successor(s1, a)
+    $g_succ fr(g_chain, sequent([bu_s1, ps_p1, sing_t1], [succ]), succ, z)
+
+    # eir: [bu_s1, ps_p1, sing_t1] |- [exists(s, successor(s, a))]
+    $succ_fn \(v : successor(v, a))
+    $goal exists(s, successor(s, a))
+    $g_ex_succ eir(g_succ, succ_fn, s, s1, [bu_s1, ps_p1, sing_t1])
+
+    # === Close all 3 exists ===
+    # eel big_union: replace bu_s1 with exists(s, big_union(s, p1))
+    $bu_fn \(v : big_union(v, p1))
+    $g1 eel(g_ex_succ, bu_fn, s, s1, [bu_s1, ps_p1, sing_t1], goal)
+    # [exists(s, big_union(s, p1)), ps_p1, sing_t1] |- [goal]
+
+    # cut with big_union_exists(p1)
+    $ex_bu exists(s, big_union(s, p1))
+    $bu_body \(av : exists(s, big_union(s, av)))
+    $g_bue apply_thm(big_union_exists, un_f, [p1], [bu_body], [un_f])
+    $g2 cut_c(g_bue, g1, ex_bu, [un_f], [ex_bu, ps_p1, sing_t1], goal)
+    # [un_f, ps_p1, sing_t1] |- [goal]
+
+    # eel pair_set: replace ps_p1 with exists(s, pair_set(s, a, t1))
+    $ps_fn \(v : pair_set(v, a, t1))
+    $g3 eel(g2, ps_fn, s, p1, [un_f, ps_p1, sing_t1], goal)
+    # [un_f, exists(s, pair_set(s, a, t1)), sing_t1] |- [goal]
+
+    # cut with pair_set_exists(a, t1)
+    $ex_ps exists(s, pair_set(s, a, t1))
+    $pa_body1 \(xv : forall(b, exists(s, pair_set(s, xv, b))))
+    $pa_body2 \(yv : exists(s, pair_set(s, a, yv)))
+    $g_pse apply_thm(pair_set_exists, pa_f, [a, t1], [pa_body1, pa_body2], [pa_f])
+    $g4 cut_c(g_pse, g3, ex_ps, [pa_f], [un_f, ex_ps, sing_t1], goal)
+    # [un_f, pa_f, sing_t1] |- [goal]
+
+    # eel singleton: replace sing_t1 with exists(s, singleton(s, a))
+    $sg_fn \(v : singleton(v, a))
+    $g5 eel(g4, sg_fn, s, t1, [un_f, pa_f, sing_t1], goal)
+    # [un_f, pa_f, exists(s, singleton(s, a))] |- [goal]
+
+    # cut with singleton_exists(a)
+    $ex_sg exists(s, singleton(s, a))
+    $g_sge singleton_exists(a)
+    $g6 cut_c(g_sge, g5, ex_sg, [pa_f], [un_f, pa_f, ex_sg], goal)
+    # [un_f, pa_f] |- [goal]
+
+    # relabel
+    $result wl(wl(g6, sequent([pa_f, un_f], [goal]), pa_f), sequent([pa_f, un_f], [goal]), un_f)
+    close(result, goal, vars, [pa_f, un_f])
+})

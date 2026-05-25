@@ -1,6 +1,6 @@
 from core.derived import exists, eqv
 from core.axioms import EmptySet, Pairing
-from vocab.sets import empty, singleton, pair_set, set_spec, big_union, power_set
+from vocab.sets import empty, singleton, pair_set, set_spec, big_union, power_set, successor
 from vocab.logic import exists_unique
 from theorems.sets.empty_exists import empty_exists
 from theorems.sets.empty_unique import empty_unique
@@ -15,6 +15,8 @@ from theorems.sets.big_union_exists import big_union_exists
 from theorems.sets.unique_big_union import unique_big_union
 from theorems.sets.power_set_exists import power_set_exists
 from theorems.sets.unique_power_set import unique_power_set
+from theorems.sets.successor_exists import successor_exists
+from theorems.sets.unique_successor import unique_successor
 
 $a var("a") $b var("b") $s var("s")
 
@@ -60,3 +62,9 @@ $t12 !qed(power_set_exists, forall(a, exists(s, power_set(s, a))))
 
 # unique_power_set: PowerSet |- forall(a, exists_unique(s, power_set(s, a)))
 $t13 !qed(unique_power_set(a, [a]), forall(a, exists_unique(s, \(v : power_set(v, a)))))
+
+# successor_exists: Pairing, Union |- forall(a, exists(s, successor(s, a)))
+$t14 !qed(successor_exists(a, [a]), forall(a, exists(s, successor(s, a))))
+
+# unique_successor: Pairing, Union |- forall(a, exists_unique(s, successor(s, a)))
+$t15 !qed(unique_successor(a, [a]), forall(a, exists_unique(s, \(v : successor(v, a)))))
