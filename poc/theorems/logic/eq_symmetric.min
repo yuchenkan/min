@@ -4,6 +4,7 @@ from theorems.logic.iff_sym import iff_sym
 
 # |- forall a b z. iff(mem(z,a), mem(z,b)) -> iff(mem(z,b), mem(z,a))
 $eq_symmetric {
+    $z var("z") $a var("a") $b var("b")
     $P mem(z, a)
     $Q mem(z, b)
     $thm iff_sym(P, Q)

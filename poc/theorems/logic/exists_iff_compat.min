@@ -14,6 +14,7 @@ from theorems.logic.forall_instantiation import forall_instantiation
 #   4. -> iff(neg(forall(x, neg(P(x)))), neg(forall(x, neg(Q(x)))))  [neg_iff_compat]
 #   = iff(exists(x, P(x)), exists(x, Q(x)))
 $exists_iff_compat \(x body_P body_Q : {
+    $z var("z") $v var("v") $u var("u")
     $hyp forall(z, iff(body_P(z), body_Q(z)))
     $ex_P exists(x, body_P(x))
     $ex_Q exists(x, body_Q(x))

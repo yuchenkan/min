@@ -1,0 +1,29 @@
+from tactics import ax, fl, ir, mp, apply_thm, close
+from core.derived import eqv, iff
+from core.axioms import Extensionality
+
+# Extensionality |- forall vars. eqv(a, b) -> iff(mem(a, s), mem(b, s))
+$ext_substitution \(a b s vars : {
+    $z var("z") $y var("y")
+    $eqv_ab eqv(a, b)
+    $ext_f Extensionality()
+    $ext_p ax(ext_f)
+
+    # Instantiate x=a, y=b
+    $body1 \(xv : forall(y, implies(eqv(xv, y), forall(z, iff(mem(xv, z), mem(y, z))))))
+    $body2 \(yv : implies(eqv(a, yv), forall(z, iff(mem(a, z), mem(yv, z)))))
+    $inst_ab apply_thm(ext_p, ext_f, [a, b], [body1, body2], [ext_f])
+
+    # MP with eqv_ab
+    $fa_iff forall(z, iff(mem(a, z), mem(b, z)))
+    $got_fa mp(inst_ab, ax(eqv_ab), eqv_ab, fa_iff, [ext_f], [eqv_ab])
+
+    # Instantiate z=s
+    $body3 \(zv : iff(mem(a, zv), mem(b, zv)))
+    $iff_s iff(mem(a, s), mem(b, s))
+    $got_iff apply_thm(got_fa, fa_iff, [s], [body3], [ext_f, eqv_ab])
+
+    $top implies(eqv_ab, iff_s)
+    $result ir(got_iff, sequent([ext_f], [top]), top)
+    close(result, top, vars, [ext_f])
+})

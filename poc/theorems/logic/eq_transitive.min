@@ -4,6 +4,7 @@ from theorems.logic.iff_chain import iff_chain
 
 # |- forall a b c z. iff(mem(z,a), mem(z,b)) -> iff(mem(z,b), mem(z,c)) -> iff(mem(z,a), mem(z,c))
 $eq_transitive {
+    $z var("z") $a var("a") $b var("b") $c var("c")
     $P mem(z, a)
     $Q mem(z, b)
     $R mem(z, c)

@@ -205,6 +205,7 @@ BUILTINS = {
     'append': _notrace(lambda l, x: _v(l) + [x]),
     'concat': _notrace(lambda a, b: _v(a) + _v(b)),
     # Kernel
+    'var': _notrace(lambda name: Var(var(), _v(name))),
     'mem': _notrace(lambda l, r: Mem(l, r)),
     'neg': _notrace(lambda o: Neg(o)),
     'implies': _notrace(lambda l, r: Implies(l, r)),
@@ -262,9 +263,7 @@ def _evaluate(node, env):
         val = env.get(node.name)
         if val is not None:
             return val
-        v = Var(var(), node.name)
-        env.set(node.name, v)
-        return v
+        raise EvalError(f'undefined: {node.name}', node)
 
     if isinstance(node, FnAST):
         return Fn(node.params, node.body, env, node.traced)
@@ -388,6 +387,7 @@ if __name__ == '__main__':
     load_file(os.path.join(ROOT, 'core', 'derived.min'))
 
     src = r'''
+$a var("a") $b var("b") $x var("x")
 $A mem(a, b)
 $B mem(b, a)
 $f1 and(A, B)

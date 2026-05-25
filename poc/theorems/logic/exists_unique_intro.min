@@ -6,6 +6,7 @@ from theorems.logic.and_intro import and_intro
 # |- body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(x, body)
 # exists_unique(x, body) = exists(x, and(body(x), forall(y, implies(body(y), eqv(x, y)))))
 $exists_unique_intro \(x body_fn t : {
+    $y var("y")
     $body_t body_fn(t)
     $uniq forall(y, implies(body_fn(y), eqv(t, y)))
     $conj and(body_t, uniq)

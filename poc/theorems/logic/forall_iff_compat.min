@@ -6,6 +6,7 @@ from theorems.logic.iff_intro import iff_intro
 # |- forall(z, iff(P(z), Q(z))) -> iff(forall(x, P(x)), forall(x, Q(x)))
 # Assumes z is the universally quantified variable in the hypothesis
 $forall_iff_compat \(x body_P body_Q : {
+    $z var("z") $v var("v")
     $hyp forall(z, iff(body_P(z), body_Q(z)))
     $fa_P forall(x, body_P(x))
     $fa_Q forall(x, body_Q(x))

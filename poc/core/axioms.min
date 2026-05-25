@@ -2,30 +2,42 @@
 
 from derived import and, or, iff, exists, eqv
 
-$Extensionality \\(:
+$Extensionality \\(: {
+    $x var("x") $y var("y") $z var("z")
     axiom(forall(x, forall(y,
         implies(
             forall(z, iff(mem(z, x), mem(z, y))),
-            forall(z, iff(mem(x, z), mem(y, z))))))))
+            forall(z, iff(mem(x, z), mem(y, z)))))))
+})
 
-$EmptySet \\(: axiom(exists(b, forall(x, neg(mem(x, b))))))
+$EmptySet \\(: {
+    $b var("b") $x var("x")
+    axiom(exists(b, forall(x, neg(mem(x, b)))))
+})
 
-$Pairing \\(:
+$Pairing \\(: {
+    $x var("x") $y var("y") $b var("b") $z var("z")
     axiom(forall(x, forall(y,
         exists(b, forall(z,
-            iff(mem(z, b), or(eqv(z, x), eqv(z, y)))))))))
+            iff(mem(z, b), or(eqv(z, x), eqv(z, y))))))))
+})
 
-$Union \\(:
+$Union \\(: {
+    $a var("a") $b var("b") $x var("x") $y var("y")
     axiom(forall(a,
         exists(b, forall(x,
-            iff(mem(x, b), exists(y, and(mem(y, a), mem(x, y)))))))))
+            iff(mem(x, b), exists(y, and(mem(y, a), mem(x, y))))))))
+})
 
-$PowerSet \\(:
+$PowerSet \\(: {
+    $a var("a") $b var("b") $x var("x") $y var("y")
     axiom(forall(a,
         exists(b, forall(x,
-            iff(mem(x, b), forall(y, implies(mem(y, x), mem(y, a)))))))))
+            iff(mem(x, b), forall(y, implies(mem(y, x), mem(y, a))))))))
+})
 
 $sep_core \(phi x : {
+    $a var("a") $b var("b")
     forall(a, exists(b, forall(x,
         iff(mem(x, b), and(mem(x, a), phi)))))
 })
@@ -36,22 +48,27 @@ $wrap_forall \(body vars :
 $Separation \\(phi x vars :
     axiom(wrap_forall(sep_core(phi, x), vars)))
 
-$Infinity \\(:
+$Infinity \\(: {
+    $b var("b") $e var("e") $z var("z") $y var("y") $s var("s") $w var("w")
     axiom(exists(b, and(
         exists(e, and(mem(e, b), forall(z, neg(mem(z, e))))),
         forall(y, implies(mem(y, b),
             exists(s, and(mem(s, b),
-                forall(w, iff(mem(w, s), or(mem(w, y), eqv(w, y))))))))))))
+                forall(w, iff(mem(w, s), or(mem(w, y), eqv(w, y)))))))))))
+})
 
-$Choice \\(:
+$Choice \\(: {
+    $x var("x") $y var("y") $z var("z") $c var("c") $w var("w")
     axiom(forall(x,
         implies(
             forall(y, implies(mem(y, x), exists(z, mem(z, y)))),
             exists(c, forall(y, implies(mem(y, x),
                 exists(z, and(and(mem(z, y), mem(z, c)),
-                    forall(w, implies(and(mem(w, y), mem(w, c)), eqv(w, z))))))))))))
+                    forall(w, implies(and(mem(w, y), mem(w, c)), eqv(w, z)))))))))))
+})
 
 $rep_core \(phi x y : {
+    $a var("a") $b var("b") $y1 var("y1") $y2 var("y2")
     forall(a,
         implies(
             forall(x, implies(mem(x, a),
@@ -64,8 +81,10 @@ $rep_core \(phi x y : {
 $Replacement \\(phi x y vars :
     axiom(wrap_forall(rep_core(phi, x, y), vars)))
 
-$Regularity \\(:
+$Regularity \\(: {
+    $a var("a") $y var("y") $z var("z")
     axiom(forall(a,
         implies(
             exists(y, mem(y, a)),
-            exists(y, and(mem(y, a), neg(exists(z, and(mem(z, a), mem(z, y))))))))))
+            exists(y, and(mem(y, a), neg(exists(z, and(mem(z, a), mem(z, y)))))))))
+})

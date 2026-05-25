@@ -1,0 +1,166 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, fl, fr, ct, mp, cut_c, apply_thm, eir, eel, close
+from core.derived import and, exists, iff, eqv
+from core.axioms import Extensionality
+from vocab.logic import exists_unique
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.ext_substitution import ext_substitution
+
+# Extensionality |- exists_unique(x, phi) -> iff(forall(x, phi(x)->mem(x,s)), exists(x, and(phi(x), mem(x,s))))
+# phi_fn: \(v : ...) characterizing property
+# s: the set for membership predicate
+# pred_fn(v) = mem(v, s)
+$exists_unique_bridge \(x phi_fn s vars : {
+    $u var("u") $u2 var("u2") $w var("w") $t var("t") $y var("y")
+    $pred_fn \(v : mem(v, s))
+    $eu exists_unique(x, phi_fn)
+    $fa_form forall(x, implies(phi_fn(x), pred_fn(x)))
+    $ex_body_fn \(v : and(phi_fn(v), pred_fn(v)))
+    $ex_form exists(x, ex_body_fn(x))
+    $eu_body_fn \(v : and(phi_fn(v), forall(y, implies(phi_fn(y), eqv(v, y)))))
+    $ext_f Extensionality()
+
+    # ===== FORWARD: eu, fa_form |- ex_form =====
+    # Assume eu_body_fn(u) (eigenvariable u for eu elim)
+    $eu_body_u eu_body_fn(u)
+    $phi_u phi_fn(u)
+    $pred_u pred_fn(u)
+    $uniq_u forall(y, implies(phi_fn(y), eqv(u, y)))
+
+    # and_elim_left: eu_body_u -> phi_u
+    $got_phi_u mp(and_elim_left(phi_u, uniq_u), ax(eu_body_u), eu_body_u, phi_u, [], [eu_body_u])
+    # [eu_body_u] |- [phi_u]
+
+    # Instantiate fa_form with u: phi_u -> pred_u
+    $fa_body_fn \(v : implies(phi_fn(v), pred_fn(v)))
+    $imp_u implies(phi_u, pred_u)
+    $got_imp_u apply_thm(ax(fa_form), fa_form, [u], [fa_body_fn], [fa_form])
+    # [fa_form] |- [imp_u]
+
+    # MP: [eu_body_u, fa_form] |- [pred_u]
+    $got_pred_u mp(got_imp_u, got_phi_u, phi_u, pred_u, [fa_form], [eu_body_u])
+
+    # and_intro: [eu_body_u, fa_form] |- [and(phi_u, pred_u)]
+    $and_u and(phi_u, pred_u)
+    $got_and_u mp(mp(and_intro(phi_u, pred_u),
+                     got_phi_u, phi_u, implies(pred_u, and_u), [], [eu_body_u]),
+                  got_pred_u, pred_u, and_u, [eu_body_u], [eu_body_u, fa_form])
+
+    # exists intro with witness u: [eu_body_u, fa_form] |- [ex_form]
+    $got_ex eir(got_and_u, ex_body_fn, x, u, [eu_body_u, fa_form])
+
+    # exists elim for eu: replace eu_body_u with eu on left
+    # u not free in fa_form or ex_form (x is bound in both)
+    $got_fwd_raw eel(got_ex, eu_body_fn, x, u, [eu_body_u, fa_form], ex_form)
+    # [fa_form, eu] |- [ex_form]
+
+    $fwd implies(fa_form, ex_form)
+    $got_fwd ir(got_fwd_raw, sequent([eu], [fwd]), fwd)
+    # [eu] |- [fwd]
+
+    # ===== BACKWARD: eu, ex_form |- fa_form (needs Extensionality) =====
+    # Use different eigenvariables: u2 for eu, w for ex
+    $eu_body_u2 eu_body_fn(u2)
+    $phi_u2 phi_fn(u2)
+    $uniq_u2 forall(y, implies(phi_fn(y), eqv(u2, y)))
+
+    $ex_body_w ex_body_fn(w)
+    $phi_w phi_fn(w)
+    $pred_w pred_fn(w)
+
+    # From eu_body_u2: get phi_u2 and uniq_u2
+    $got_phi_u2 mp(and_elim_left(phi_u2, uniq_u2), ax(eu_body_u2), eu_body_u2, phi_u2, [], [eu_body_u2])
+    $got_uniq_u2 mp(and_elim_right(phi_u2, uniq_u2), ax(eu_body_u2), eu_body_u2, uniq_u2, [], [eu_body_u2])
+
+    # From ex_body_w: get phi_w and pred_w
+    $got_phi_w mp(and_elim_left(phi_w, pred_w), ax(ex_body_w), ex_body_w, phi_w, [], [ex_body_w])
+    $got_pred_w mp(and_elim_right(phi_w, pred_w), ax(ex_body_w), ex_body_w, pred_w, [], [ex_body_w])
+
+    # Instantiate uniq_u2 with t (eigenvariable for forall_right):
+    # phi(t) -> eqv(u2, t)
+    $uniq_body_fn \(v : implies(phi_fn(v), eqv(u2, v)))
+    $phi_t phi_fn(t)
+    $pred_t pred_fn(t)
+    $eqv_u2_t eqv(u2, t)
+
+    $got_uniq_t apply_thm(got_uniq_u2, uniq_u2, [t], [uniq_body_fn], [eu_body_u2])
+    # [eu_body_u2] |- [implies(phi_t, eqv(u2, t))]
+
+    # Assume phi_t: get eqv(u2, t)
+    $got_eqv_u2_t mp(got_uniq_t, ax(phi_t), phi_t, eqv_u2_t, [eu_body_u2], [phi_t])
+    # [eu_body_u2, phi_t] |- [eqv(u2, t)]
+
+    # Instantiate uniq_u2 with w: phi(w) -> eqv(u2, w)
+    $eqv_u2_w eqv(u2, w)
+    $got_uniq_w apply_thm(got_uniq_u2, uniq_u2, [w], [uniq_body_fn], [eu_body_u2])
+    # [eu_body_u2] |- [implies(phi_w, eqv(u2, w))]
+    $got_eqv_u2_w mp(got_uniq_w, got_phi_w, phi_w, eqv_u2_w, [eu_body_u2], [ex_body_w])
+    # [eu_body_u2, ex_body_w] |- [eqv(u2, w)]
+
+    # eqv_symmetric: eqv(u2, t) -> eqv(t, u2)
+    $eqv_t_u2 eqv(t, u2)
+    $got_eqv_t_u2 mp(eqv_symmetric(u2, t), got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
+    # [eu_body_u2, phi_t] |- [eqv(t, u2)]
+
+    # eqv_transitive: eqv(t, u2) -> eqv(u2, w) -> eqv(t, w)
+    $eqv_t_w eqv(t, w)
+    $got_eqv_t_w mp(mp(eqv_transitive(t, u2, w),
+                       got_eqv_t_u2, eqv_t_u2, implies(eqv_u2_w, eqv_t_w), [], [eu_body_u2, phi_t]),
+                    got_eqv_u2_w, eqv_u2_w, eqv_t_w, [eu_body_u2, phi_t], [eu_body_u2, ex_body_w])
+    # [eu_body_u2, phi_t, ex_body_w] |- [eqv(t, w)]
+
+    # ext_substitution: [ext_f] |- [eqv(t,w) -> iff(mem(t,s), mem(w,s))]
+    $iff_pred iff(pred_t, pred_w)
+    $got_iff_pred mp(ext_substitution(t, w, s, []),
+                     got_eqv_t_w, eqv_t_w, iff_pred,
+                     [ext_f], [eu_body_u2, phi_t, ex_body_w])
+    # [ext_f, eu_body_u2, phi_t, ex_body_w] |- [iff(pred_t, pred_w)]
+
+    # iff_elim_right: iff(pred_t, pred_w) -> pred_w -> pred_t
+    $got_imp_wt mp(iff_elim_right(pred_t, pred_w),
+                   got_iff_pred, iff_pred, implies(pred_w, pred_t),
+                   [], [ext_f, eu_body_u2, phi_t, ex_body_w])
+    # [ext_f, eu_body_u2, phi_t, ex_body_w] |- [pred_w -> pred_t]
+
+    # MP with got_pred_w: get pred_t
+    $got_pred_t mp(got_imp_wt, got_pred_w, pred_w, pred_t,
+                   [ext_f, eu_body_u2, phi_t, ex_body_w], [ex_body_w])
+    # [ext_f, eu_body_u2, phi_t, ex_body_w] |- [pred_t]
+
+    # implies_right on phi_t
+    $imp_phi_pred implies(phi_t, pred_t)
+    $s_ir ir(got_pred_t, sequent([ext_f, eu_body_u2, ex_body_w], [imp_phi_pred]), imp_phi_pred)
+
+    # forall_right on t: t not free in context or fa_form
+    $s_fr fr(s_ir, sequent([ext_f, eu_body_u2, ex_body_w], [fa_form]), fa_form, t)
+
+    # exists elim for ex_form: replace ex_body_w with ex_form
+    # w not free in [ext_f, eu_body_u2] or fa_form
+    $s_eel_ex eel(s_fr, ex_body_fn, x, w, [ext_f, eu_body_u2, ex_body_w], fa_form)
+    # [ext_f, eu_body_u2, ex_form] |- [fa_form]
+
+    # exists elim for eu: replace eu_body_u2 with eu
+    # u2 not free in [ext_f, ex_form] or fa_form
+    $s_eel_eu eel(s_eel_ex, eu_body_fn, x, u2, [ext_f, eu_body_u2, ex_form], fa_form)
+    # [ext_f, ex_form, eu] |- [fa_form]
+
+    $bwd implies(ex_form, fa_form)
+    $got_bwd ir(s_eel_eu, sequent([ext_f, eu], [bwd]), bwd)
+    # [ext_f, eu] |- [bwd]
+
+    # ===== COMBINE with iff_intro =====
+    $iff_result iff(fa_form, ex_form)
+    $got_iff mp(mp(iff_intro(fa_form, ex_form),
+                   got_fwd, fwd, implies(bwd, iff_result), [], [eu]),
+                got_bwd, bwd, iff_result, [eu], [ext_f, eu])
+    # [eu, ext_f] |- [iff_result]
+
+    $top implies(eu, iff_result)
+    $result ir(got_iff, sequent([ext_f], [top]), top)
+    close(result, top, vars, [ext_f])
+})

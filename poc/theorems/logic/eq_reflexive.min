@@ -4,6 +4,7 @@ from theorems.logic.iff_intro import iff_intro
 
 # |- forall a. forall z. iff(mem(z, a), mem(z, a))
 $eq_reflexive {
+    $z var("z") $a var("a")
     $P mem(z, a)
     $imp_PP implies(P, P)
     $iff_PP iff(P, P)
