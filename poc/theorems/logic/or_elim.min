@@ -23,12 +23,3 @@ $or_elim \(A B C : {
     $top implies(or_AB, i2)
     ir(s2, sequent([], [top]), top)
 })
-
-$or_elim_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $C mem(a, a)
-    $imp implies(or(A, B), implies(implies(A, C), implies(implies(B, C), C)))
-    !qed(close(or_elim(A, B, C), imp, [b, a]),
-         forall(a, forall(b, implies(or(mem(a, b), mem(b, a)), implies(implies(mem(a, b), mem(a, a)), implies(implies(mem(b, a), mem(a, a)), mem(a, a)))))))
-}

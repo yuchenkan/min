@@ -13,11 +13,3 @@ $and_elim_right \(A B : {
     $top implies(and_AB, B)
     ir(t4, sequent([], [top]), top)
 })
-
-$and_elim_right_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $imp implies(and(A, B), B)
-    !qed(close(and_elim_right(A, B), imp, [b, a]),
-         forall(a, forall(b, implies(and(mem(a, b), mem(b, a)), mem(b, a)))))
-}

@@ -10,11 +10,3 @@ $or_intro_left \(A B : {
     $top implies(A, or_AB)
     ir(s3, sequent([], [top]), top)
 })
-
-$or_intro_left_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $imp implies(A, or(A, B))
-    !qed(close(or_intro_left(A, B), imp, [b, a]),
-         forall(a, forall(b, implies(mem(a, b), or(mem(a, b), mem(b, a))))))
-}

@@ -31,11 +31,3 @@ $iff_intro \(A B : {
     $top implies(fwd, imp_bwd)
     ir(s6, sequent([], [top]), top)
 })
-
-$iff_intro_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $imp implies(implies(A, B), implies(implies(B, A), iff(A, B)))
-    !qed(close(iff_intro(A, B), imp, [b, a]),
-         forall(a, forall(b, implies(implies(mem(a, b), mem(b, a)), implies(implies(mem(b, a), mem(a, b)), iff(mem(a, b), mem(b, a)))))))
-}

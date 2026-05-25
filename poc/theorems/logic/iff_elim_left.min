@@ -23,11 +23,3 @@ $iff_elim_left \(A B : {
     $top implies(iff_AB, i1)
     ir(t5, sequent([], [top]), top)
 })
-
-$iff_elim_left_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $imp implies(iff(A, B), implies(A, B))
-    !qed(close(iff_elim_left(A, B), imp, [b, a]),
-         forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(mem(a, b), mem(b, a))))))
-}

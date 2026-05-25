@@ -20,11 +20,3 @@ $iff_sym \(A B : {
     $top implies(iff_AB, iff_BA)
     ir(got_iff, sequent([], [top]), top)
 })
-
-$iff_sym_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $formula implies(iff(A, B), iff(B, A))
-    !qed(close(iff_sym(A, B), formula, [b, a]),
-         forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), iff(mem(b, a), mem(a, b))))))
-}

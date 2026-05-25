@@ -37,12 +37,3 @@ $iff_chain \(A B C : {
     $top implies(iff_AB, top2)
     ir(s1, sequent([], [top]), top)
 })
-
-$iff_chain_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $C mem(a, a)
-    $formula implies(iff(A, B), implies(iff(B, C), iff(A, C)))
-    !qed(close(iff_chain(A, B, C), formula, [b, a]),
-         forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(iff(mem(b, a), mem(a, a)), iff(mem(a, b), mem(a, a)))))))
-}

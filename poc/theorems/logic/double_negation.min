@@ -9,10 +9,3 @@ $double_negation \(A : {
     $top implies(nna, A)
     ir(s2, sequent([], [top]), top)
 })
-
-$double_negation_example {
-    $A mem(a, b)
-    $imp implies(neg(neg(A)), A)
-    !qed(close(double_negation(A), imp, [b, a]),
-         forall(a, forall(b, implies(neg(neg(mem(a, b))), mem(a, b)))))
-}

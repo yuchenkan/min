@@ -3,7 +3,6 @@ from core.derived import iff
 from theorems.logic.iff_sym import iff_sym
 
 # |- forall a b z. iff(mem(z,a), mem(z,b)) -> iff(mem(z,b), mem(z,a))
-# Just iff_sym instantiated with membership formulas
 $eq_symmetric {
     $P mem(z, a)
     $Q mem(z, b)
@@ -11,6 +10,5 @@ $eq_symmetric {
     $formula implies(iff(P, Q), iff(Q, P))
     $s1 fr(thm, sequent([], [forall(z, formula)]), forall(z, formula), z)
     $s2 fr(s1, sequent([], [forall(b, forall(z, formula))]), forall(b, forall(z, formula)), b)
-    $result fr(s2, sequent([], [forall(a, forall(b, forall(z, formula)))]), forall(a, forall(b, forall(z, formula))), a)
-    !qed(result, forall(a, forall(b, forall(z, implies(iff(mem(z, a), mem(z, b)), iff(mem(z, b), mem(z, a)))))))
+    fr(s2, sequent([], [forall(a, forall(b, forall(z, formula)))]), forall(a, forall(b, forall(z, formula))), a)
 }

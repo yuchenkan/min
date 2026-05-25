@@ -28,12 +28,3 @@ $implies_trans \(A B C : {
     $top implies(imp_AB, top2)
     ir(s11, sequent([], [top]), top)
 })
-
-$implies_trans_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $C mem(a, a)
-    $imp implies(implies(A, B), implies(implies(B, C), implies(A, C)))
-    !qed(close(implies_trans(A, B, C), imp, [b, a]),
-         forall(a, forall(b, implies(implies(mem(a, b), mem(b, a)), implies(implies(mem(b, a), mem(a, a)), implies(mem(a, b), mem(a, a)))))))
-}

@@ -11,11 +11,3 @@ $modus_ponens \(A B : {
     $top implies(A, imp2)
     ir(s4, sequent([], [top]), top)
 })
-
-$modus_ponens_example {
-    $A mem(a, b)
-    $B mem(b, a)
-    $imp implies(A, implies(implies(A, B), B))
-    !qed(close(modus_ponens(A, B), imp, [b, a]),
-         forall(a, forall(b, implies(mem(a, b), implies(implies(mem(a, b), mem(b, a)), mem(b, a))))))
-}

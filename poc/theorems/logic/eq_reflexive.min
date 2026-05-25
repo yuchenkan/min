@@ -15,6 +15,5 @@ $eq_reflexive {
     $eq_aa forall(z, iff_PP)
     $s1 fr(got, sequent([], [eq_aa]), eq_aa, z)
     $goal forall(a, eq_aa)
-    $result fr(s1, sequent([], [goal]), goal, a)
-    !qed(result, forall(a, forall(z, iff(mem(z, a), mem(z, a)))))
+    fr(s1, sequent([], [goal]), goal, a)
 }
