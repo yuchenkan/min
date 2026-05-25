@@ -103,11 +103,15 @@ $mp \(impl_proof arg_proof P Q impl_ctx arg_ctx : {
     $new_for_impl diff(impl_ctx, arg_ctx, same)
     $s0i wl_all(impl_proof, impl_ctx, new_for_arg, [imp])
     $s0a wl_all(arg_proof, arg_ctx, new_for_impl, [P])
-    $s1 wr(s0a, sequent(merged, [P, Q]), Q)
-    $s2 wl_all(ax(Q), [Q], merged, [Q])
+    # il: G, imp |- Q from G |- P, Q and G, Q |- Q
+    # G = merged (without imp). merged_imp = G + [imp]
+    $G ?(contains(merged, imp, same), remove(merged, imp, same), merged)
     $merged_imp ?(contains(merged, imp, same), merged, concat(merged, [imp]))
+    $s0a_G wl_all(arg_proof, arg_ctx, diff(G, arg_ctx, same), [P])
+    $s1 wr(s0a_G, sequent(G, [P, Q]), Q)
+    $s2 wl_all(ax(Q), [Q], G, [Q])
     $s3 il(s1, s2, sequent(merged_imp, [Q]), imp)
-    ct(wr(s0i, sequent(merged, [imp, Q]), Q),
+    ct(wr(wl_all(impl_proof, impl_ctx, diff(merged, impl_ctx, same), [imp]), sequent(merged, [imp, Q]), Q),
        s3, sequent(merged, [Q]), imp)
 })
 
