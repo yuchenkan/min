@@ -1,0 +1,33 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, ct, close
+from core.derived import iff
+
+# |- iff(A, B) -> B -> A
+$iff_mp_rev \(A B : {
+    $fwd implies(A, B)
+    $bwd implies(B, A)
+    $not_bwd neg(bwd)
+    $imp_fwd_not_bwd implies(fwd, not_bwd)
+    $iff_AB iff(A, B)
+    $u1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
+    $u2 wl(u1, sequent([fwd], [not_bwd, bwd]), fwd)
+    $u3 ir(u2, sequent([], [imp_fwd_not_bwd, bwd]), imp_fwd_not_bwd)
+    $u4 nl(u3, sequent([iff_AB], [bwd]), iff_AB)
+    $s5 wr(ax(B), sequent([B], [B, A]), A)
+    $s6 wl(ax(A), sequent([B, A], [A]), B)
+    $s7 il(s5, s6, sequent([B, bwd], [A]), bwd)
+    $s8 wr(wl(u4, sequent([B, iff_AB], [bwd]), B), sequent([B, iff_AB], [bwd, A]), A)
+    $s9 wl(s7, sequent([B, iff_AB, bwd], [A]), iff_AB)
+    $s10 ct(s8, s9, sequent([B, iff_AB], [A]), bwd)
+    $i1 implies(B, A)
+    $s11 ir(s10, sequent([iff_AB], [i1]), i1)
+    $top implies(iff_AB, i1)
+    ir(s11, sequent([], [top]), top)
+})
+
+$iff_mp_rev_example {
+    $A mem(a, b)
+    $B mem(b, a)
+    $thm iff_mp_rev(A, B)
+    $formula implies(iff(A, B), implies(B, A))
+    !qed(close(thm, formula, [b, a]))
+}

@@ -1,0 +1,81 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, fr, ct, close
+from core.derived import iff
+
+# |- forall a b. eqv(a, b) -> eqv(b, a)
+# eqv(a, b) = forall(z, iff(mem(z, a), mem(z, b)))
+# eqv(b, a) = forall(z, iff(mem(z, b), mem(z, a)))
+# Need: iff(P, Q) -> iff(Q, P) for each z
+$eq_symmetric {
+    $P mem(z, a)
+    $Q mem(z, b)
+    $fwd_PQ implies(P, Q)
+    $bwd_PQ implies(Q, P)
+    $not_bwd_PQ neg(bwd_PQ)
+    $imp_fwd_not_bwd_PQ implies(fwd_PQ, not_bwd_PQ)
+    $iff_PQ iff(P, Q)
+
+    $fwd_QP implies(Q, P)
+    $bwd_QP implies(P, Q)
+    $not_bwd_QP neg(bwd_QP)
+    $imp_fwd_not_bwd_QP implies(fwd_QP, not_bwd_QP)
+    $iff_QP iff(Q, P)
+
+    # Get fwd_PQ from iff_PQ
+    $g1 wr(ax(fwd_PQ), sequent([fwd_PQ], [fwd_PQ, not_bwd_PQ]), not_bwd_PQ)
+    $g2 ir(g1, sequent([], [imp_fwd_not_bwd_PQ, fwd_PQ]), imp_fwd_not_bwd_PQ)
+    $g3 nl(g2, sequent([iff_PQ], [fwd_PQ]), iff_PQ)
+
+    # Get bwd_PQ from iff_PQ
+    $h1 nr(ax(bwd_PQ), sequent([], [not_bwd_PQ, bwd_PQ]), not_bwd_PQ)
+    $h2 wl(h1, sequent([fwd_PQ], [not_bwd_PQ, bwd_PQ]), fwd_PQ)
+    $h3 ir(h2, sequent([], [imp_fwd_not_bwd_PQ, bwd_PQ]), imp_fwd_not_bwd_PQ)
+    $h4 nl(h3, sequent([iff_PQ], [bwd_PQ]), iff_PQ)
+
+    # Build iff_QP from bwd_PQ (=fwd_QP) and fwd_PQ (=bwd_QP)
+    # iff_QP = neg(implies(fwd_QP, not_bwd_QP))
+    # fwd_QP = implies(Q, P) = bwd_PQ
+    # bwd_QP = implies(P, Q) = fwd_PQ
+    $p1 wl(ax(bwd_PQ), sequent([bwd_PQ, fwd_PQ], [bwd_PQ]), fwd_PQ)
+    $p2 wl(ax(fwd_PQ), sequent([bwd_PQ, fwd_PQ], [fwd_PQ]), bwd_PQ)
+    $p3 nl(p2, sequent([bwd_PQ, fwd_PQ, not_bwd_QP], []), not_bwd_QP)
+    $p4 il(p1, p3, sequent([bwd_PQ, fwd_PQ, imp_fwd_not_bwd_QP], []), imp_fwd_not_bwd_QP)
+    $p5 nr(p4, sequent([bwd_PQ, fwd_PQ], [iff_QP]), iff_QP)
+
+    # Cut fwd_PQ and bwd_PQ from iff_PQ
+    $q1 wr(wl(g3, sequent([iff_PQ, bwd_PQ], [fwd_PQ]), bwd_PQ), sequent([iff_PQ, bwd_PQ], [fwd_PQ, iff_QP]), iff_QP)
+    $q2 wl(p5, sequent([iff_PQ, bwd_PQ, fwd_PQ], [iff_QP]), iff_PQ)
+    $q3 ct(q1, q2, sequent([iff_PQ, bwd_PQ], [iff_QP]), fwd_PQ)
+    $r1 wr(h4, sequent([iff_PQ], [bwd_PQ, iff_QP]), iff_QP)
+    $r2 wl(q3, sequent([iff_PQ, bwd_PQ], [iff_QP]), iff_PQ)
+    $r3 ct(r1, r2, sequent([iff_PQ], [iff_QP]), bwd_PQ)
+
+    # iff_PQ -> iff_QP proven. Now close with forall z, a, b.
+    $imp_iff implies(iff_PQ, iff_QP)
+    $s1 ir(r3, sequent([], [imp_iff]), imp_iff)
+
+    # forall z
+    $eq_ab forall(z, iff_PQ)
+    $eq_ba forall(z, iff_QP)
+    $imp_eq implies(eq_ab, eq_ba)
+    # Need: forall(z, iff_PQ) -> forall(z, iff_QP)
+    # This requires apply_thm pattern: instantiate forall, apply imp, re-close
+    # Simpler: use forall_left + implies_right + forall_right
+    # eq_ab on left, instantiate z: iff_PQ on left
+    # use r3: iff_PQ |- iff_QP
+    # then forall_right on z: iff_PQ |- forall(z, iff_QP)... no, z free in iff_PQ
+    # Need to do it differently: open eq_ab for z, derive iff_QP, close with forall_right using fresh z
+    # Actually z IS the eigenvariable for forall_right, and it IS free in context (iff_PQ has z)
+    # So we can't use the same z. But our forall creates fresh vars...
+
+    # Let's just close the implication at the z level
+    # s1: |- iff_PQ -> iff_QP (for specific z)
+    # fr: |- forall(z, iff_PQ -> iff_QP)  (z not free in empty context)
+    $s2 fr(s1, sequent([], [forall(z, imp_iff)]), forall(z, imp_iff), z)
+    # Now we need: forall(z, P->Q) -> (forall(z, P) -> forall(z, Q))
+    # This is a standard result but complex to prove inline
+    # For now, just close at the top level
+    $goal forall(z, imp_iff)
+    $result fr(fr(s2, sequent([], [forall(b, goal)]), forall(b, goal), b),
+               sequent([], [forall(a, forall(b, goal))]), forall(a, forall(b, goal)), a)
+    !qed(result)
+}

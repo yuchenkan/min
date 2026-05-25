@@ -1,0 +1,51 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, ct, close
+from core.derived import iff
+
+# |- iff(A, B) -> iff(B, A)
+$iff_sym \(A B : {
+    $fwd implies(A, B)
+    $bwd implies(B, A)
+    $iff_AB iff(A, B)
+    $iff_BA iff(B, A)
+    # iff(B, A) = neg(implies(implies(B, A), neg(implies(A, B))))
+    $not_fwd neg(fwd)
+    $imp_bwd_not_fwd implies(bwd, not_fwd)
+    # Get fwd and bwd from iff_AB (reuse iff_elim patterns)
+    # fwd from iff_AB
+    $not_bwd neg(bwd)
+    $imp_fwd_not_bwd implies(fwd, not_bwd)
+    $g1 wr(ax(fwd), sequent([fwd], [fwd, not_bwd]), not_bwd)
+    $g2 ir(g1, sequent([], [imp_fwd_not_bwd, fwd]), imp_fwd_not_bwd)
+    $g3 nl(g2, sequent([iff_AB], [fwd]), iff_AB)
+    # bwd from iff_AB
+    $h1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
+    $h2 wl(h1, sequent([fwd], [not_bwd, bwd]), fwd)
+    $h3 ir(h2, sequent([], [imp_fwd_not_bwd, bwd]), imp_fwd_not_bwd)
+    $h4 nl(h3, sequent([iff_AB], [bwd]), iff_AB)
+    # Build iff(B, A) from bwd and fwd
+    # Need: bwd, fwd |- iff_BA
+    # iff_BA = neg(implies(bwd, not_fwd))
+    $p1 wl(ax(bwd), sequent([bwd, fwd], [bwd]), fwd)
+    $p2 wl(ax(fwd), sequent([bwd, fwd], [fwd]), bwd)
+    $p3 nl(p2, sequent([bwd, fwd, not_fwd], []), not_fwd)
+    $p4 il(p1, p3, sequent([bwd, fwd, imp_bwd_not_fwd], []), imp_bwd_not_fwd)
+    $p5 nr(p4, sequent([bwd, fwd], [iff_BA]), iff_BA)
+    # Cut fwd: iff_AB, bwd |- iff_BA
+    $q1 wr(wl(g3, sequent([iff_AB, bwd], [fwd]), bwd), sequent([iff_AB, bwd], [fwd, iff_BA]), iff_BA)
+    $q2 wl(p5, sequent([iff_AB, bwd, fwd], [iff_BA]), iff_AB)
+    $q3 ct(q1, q2, sequent([iff_AB, bwd], [iff_BA]), fwd)
+    # Cut bwd: iff_AB |- iff_BA
+    $r1 wr(h4, sequent([iff_AB], [bwd, iff_BA]), iff_BA)
+    $r2 wl(q3, sequent([iff_AB, bwd], [iff_BA]), iff_AB)
+    $r3 ct(r1, r2, sequent([iff_AB], [iff_BA]), bwd)
+    $top implies(iff_AB, iff_BA)
+    ir(r3, sequent([], [top]), top)
+})
+
+$iff_sym_example {
+    $A mem(a, b)
+    $B mem(b, a)
+    $thm iff_sym(A, B)
+    $formula implies(iff(A, B), iff(B, A))
+    !qed(close(thm, formula, [b, a]))
+}
