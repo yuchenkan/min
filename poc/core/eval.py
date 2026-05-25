@@ -162,7 +162,7 @@ class Proof:
                 parts.append(f'  principal: {show(principal, 0)}')
             if term:
                 parts.append(f'  term:      {show(term, 0)}')
-            raise ValueError('\n'.join(parts)) from e
+            raise ValueError('\n'.join(parts)) from None
 
 
 def _qed(p, e):
@@ -249,7 +249,7 @@ def evaluate(node, env):
     except EvalError:
         raise
     except Exception as e:
-        raise EvalError(str(e), node, e) from e
+        raise EvalError(str(e), node, e) from None
 
 
 def _evaluate(node, env):
@@ -302,7 +302,7 @@ def _evaluate(node, env):
             e.add_frame(node)
             raise
         except Exception as e:
-            raise EvalError(str(e), node, e) from e
+            raise EvalError(str(e), node, e) from None
 
         raise EvalError('not callable', node)
 
@@ -362,3 +362,19 @@ def _load_import(node):
     for name in node.names:
         if name in imported and _global_env.get(name) is None:
             _global_env.set(name, imported[name])
+
+
+def run(source, filepath='<input>'):
+    """Run .min source. Catches EvalError and prints cleanly."""
+    import sys
+    try:
+        nodes = parse(source, filepath)
+        for node in nodes:
+            if isinstance(node, Import):
+                _load_import(node)
+            elif isinstance(node, Bind):
+                _global_env.set(node.name, evaluate(node.expr, _global_env))
+    except EvalError as e:
+        print(e, file=sys.stderr)
+        return False
+    return True
