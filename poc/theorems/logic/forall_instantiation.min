@@ -1,0 +1,12 @@
+from tactics import ax, fl, ir, close
+
+# |- forall(x, A) -> A[x:=t]
+# Given a formula builder body_fn and a term, instantiate the forall
+$forall_instantiation \(x body term : {
+    $A body(x)
+    $At body(term)
+    $fa forall(x, A)
+    $got fl(ax(At), sequent([fa], [At]), fa, term)
+    $top implies(fa, At)
+    ir(got, sequent([], [top]), top)
+})

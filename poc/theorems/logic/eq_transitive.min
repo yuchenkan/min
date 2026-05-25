@@ -1,0 +1,16 @@
+from tactics import ax, ir, fr, mp, close
+from core.derived import iff
+from theorems.logic.iff_chain import iff_chain
+
+# |- forall a b c z. iff(mem(z,a), mem(z,b)) -> iff(mem(z,b), mem(z,c)) -> iff(mem(z,a), mem(z,c))
+$eq_transitive {
+    $P mem(z, a)
+    $Q mem(z, b)
+    $R mem(z, c)
+    $thm iff_chain(P, Q, R)
+    $formula implies(iff(P, Q), implies(iff(Q, R), iff(P, R)))
+    $s1 fr(thm, sequent([], [forall(z, formula)]), forall(z, formula), z)
+    $s2 fr(s1, sequent([], [forall(c, forall(z, formula))]), forall(c, forall(z, formula)), c)
+    $s3 fr(s2, sequent([], [forall(b, forall(c, forall(z, formula)))]), forall(b, forall(c, forall(z, formula))), b)
+    fr(s3, sequent([], [forall(a, forall(b, forall(c, forall(z, formula))))]), forall(a, forall(b, forall(c, forall(z, formula)))), a)
+}

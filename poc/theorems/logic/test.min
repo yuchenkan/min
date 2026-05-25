@@ -16,6 +16,9 @@ from theorems.logic.implies_trans import implies_trans
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.forall_instantiation import forall_instantiation
+from theorems.logic.forall_implies_exists import forall_implies_exists
+from theorems.logic.eq_transitive import eq_transitive
 
 $A mem(a, b)
 $B mem(b, a)
@@ -66,3 +69,14 @@ $t14 !qed(close(iff_chain(A, B, C), implies(iff(A, B), implies(iff(B, C), iff(A,
 $t15 !qed(eq_reflexive, forall(a, forall(z, iff(mem(z, a), mem(z, a)))))
 
 $t16 !qed(eq_symmetric, forall(a, forall(b, forall(z, implies(iff(mem(z, a), mem(z, b)), iff(mem(z, b), mem(z, a)))))))
+
+# forall_instantiation: forall(x, A(x)) -> A(t)
+$t17 !qed(close(forall_instantiation(x, \(v : mem(v, a)), b), implies(forall(x, mem(x, a)), mem(b, a)), [b, a]),
+          forall(a, forall(b, implies(forall(x, mem(x, a)), mem(b, a)))))
+
+# forall_implies_exists: forall(x, A(x)) -> exists(x, A(x))
+$t18 !qed(close(forall_implies_exists(x, \(v : mem(v, a))), implies(forall(x, mem(x, a)), exists(x, mem(x, a))), [a]),
+          forall(a, implies(forall(x, mem(x, a)), exists(x, mem(x, a)))))
+
+# eq_transitive
+$t19 !qed(eq_transitive, forall(a, forall(b, forall(c, forall(z, implies(iff(mem(z, a), mem(z, b)), implies(iff(mem(z, b), mem(z, c)), iff(mem(z, a), mem(z, c)))))))))
