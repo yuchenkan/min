@@ -170,11 +170,12 @@ def axiom(f):
     _axiom_registry.add(f)
 
 
-def qed(p):
+def qed(p, expected):
     """Check a completed proof.
     - Exactly one formula on the right (the theorem)
     - That formula is closed (no free vars)
     - All left formulas are registered axioms
+    - If expected given, theorem must match it
     Raises on failure."""
     s = p.sequent
     if len(s.right) != 1:
@@ -184,6 +185,8 @@ def qed(p):
     for f in s.left:
         if not any(same(f, a) for a in _axiom_registry):
             raise ValueError(f'qed: non-axiom on left')
+    if not same(s.right[0], expected):
+        raise ValueError(f'qed: theorem does not match expected formula')
 
 
 def proof(seq, rule, premises=None, principal=None, term=None):

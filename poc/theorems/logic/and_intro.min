@@ -20,7 +20,7 @@ $and_intro \(A B : {
 $and_intro_example {
     $A mem(a, b)
     $B mem(b, a)
-    $thm and_intro(A, B)
-    $formula implies(A, implies(B, and(A, B)))
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(A, implies(B, and(A, B)))
+    !qed(close(and_intro(A, B), imp, [b, a]),
+         forall(a, forall(b, implies(mem(a, b), implies(mem(b, a), and(mem(a, b), mem(b, a)))))))
 }

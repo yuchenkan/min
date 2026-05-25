@@ -6,22 +6,16 @@ $or_elim \(A B C : {
     $or_AB or(A, B)
     $imp_AC implies(A, C)
     $imp_BC implies(B, C)
-    # Branch 1: A, imp_AC |- C
     $p1a wr(ax(A), sequent([A], [A, C]), C)
     $p1b wl(ax(C), sequent([A, C], [C]), A)
     $p1 il(p1a, p1b, sequent([A, imp_AC], [C]), imp_AC)
-
-    # Branch 2: B, imp_BC |- C
     $p2a wr(ax(B), sequent([B], [B, C]), C)
     $p2b wl(ax(C), sequent([B, C], [C]), B)
     $p2 il(p2a, p2b, sequent([B, imp_BC], [C]), imp_BC)
-
-    # Combine via or_AB = implies(neg(A), B)
     $p3 wl(p1, sequent([A, imp_AC, imp_BC], [C]), imp_BC)
     $p4 nr(p3, sequent([imp_AC, imp_BC], [neg(A), C]), neg(A))
     $p5 wl(p2, sequent([imp_AC, B, imp_BC], [C]), imp_AC)
     $p6 il(p4, p5, sequent([imp_AC, imp_BC, or_AB], [C]), or_AB)
-
     $i1 implies(imp_BC, C)
     $s1 ir(p6, sequent([imp_AC, or_AB], [i1]), i1)
     $i2 implies(imp_AC, i1)
@@ -34,7 +28,7 @@ $or_elim_example {
     $A mem(a, b)
     $B mem(b, a)
     $C mem(a, a)
-    $thm or_elim(A, B, C)
-    $formula implies(or(A, B), implies(implies(A, C), implies(implies(B, C), C)))
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(or(A, B), implies(implies(A, C), implies(implies(B, C), C)))
+    !qed(close(or_elim(A, B, C), imp, [b, a]),
+         forall(a, forall(b, implies(or(mem(a, b), mem(b, a)), implies(implies(mem(a, b), mem(a, a)), implies(implies(mem(b, a), mem(a, a)), mem(a, a)))))))
 }

@@ -12,7 +12,7 @@ $double_negation \(A : {
 
 $double_negation_example {
     $A mem(a, b)
-    $thm double_negation(A)
     $imp implies(neg(neg(A)), A)
-    !qed(close(thm, imp, [b, a]))
+    !qed(close(double_negation(A), imp, [b, a]),
+         forall(a, forall(b, implies(neg(neg(mem(a, b))), mem(a, b)))))
 }

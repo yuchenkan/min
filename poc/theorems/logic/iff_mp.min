@@ -1,8 +1,7 @@
 from tactics import ax, wl, wr, nl, il, ir, ct, close
 from core.derived import iff
 
-# |- iff(A, B) -> A -> B
-# Same as iff_elim_left but with iff from derived
+# |- iff(A, B) -> A -> B  (same as iff_elim_left)
 $iff_mp \(A B : {
     $fwd implies(A, B)
     $bwd implies(B, A)
@@ -28,7 +27,7 @@ $iff_mp \(A B : {
 $iff_mp_example {
     $A mem(a, b)
     $B mem(b, a)
-    $thm iff_mp(A, B)
-    $formula implies(iff(A, B), implies(A, B))
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(iff(A, B), implies(A, B))
+    !qed(close(iff_mp(A, B), imp, [b, a]),
+         forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(mem(a, b), mem(b, a))))))
 }

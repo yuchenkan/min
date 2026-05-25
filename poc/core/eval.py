@@ -152,6 +152,15 @@ class Proof:
             _kernel(_v(term)) if term else None)
 
 
+def _qed(p, e):
+    """Check proof against expected formula. Replace right side with expected."""
+    qed(_kernel(_v(p)), _kernel(_v(e)))
+    proof_val = _v(p)
+    seq_val = _v(proof_val.seq)
+    seq_val.right = [e]
+    return p
+
+
 # === Builtins ===
 
 class _notrace:
@@ -189,7 +198,7 @@ BUILTINS = {
     'proof': _notrace(lambda s, r, p=None, pr=None, t=None: Proof(s, r, p, pr, t)),
     'same': _notrace(lambda a, b: same(_kernel(_v(a)), _kernel(_v(b)))),
     'axiom': _notrace(lambda f: axiom(_kernel(_v(f))) or f),
-    'qed': _notrace(lambda p: qed(_kernel(_v(p))) or p),
+    'qed': _notrace(lambda p, e: _qed(p, e)),
 }
 
 

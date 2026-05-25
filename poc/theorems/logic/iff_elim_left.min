@@ -8,15 +8,12 @@ $iff_elim_left \(A B : {
     $not_bwd neg(bwd)
     $imp_fwd_not_bwd implies(fwd, not_bwd)
     $iff_AB iff(A, B)
-    # Get fwd from iff_AB
     $s1 wr(ax(fwd), sequent([fwd], [fwd, not_bwd]), not_bwd)
     $s2 ir(s1, sequent([], [imp_fwd_not_bwd, fwd]), imp_fwd_not_bwd)
     $s3 nl(s2, sequent([iff_AB], [fwd]), iff_AB)
-    # Use fwd: A, fwd |- B
     $s4 wr(ax(A), sequent([A], [A, B]), B)
     $s5 wl(ax(B), sequent([A, B], [B]), A)
     $s6 il(s4, s5, sequent([A, fwd], [B]), fwd)
-    # Combine via cut on fwd
     $t1 wl(s3, sequent([A, iff_AB], [fwd]), A)
     $t2 wl(s6, sequent([A, iff_AB, fwd], [B]), iff_AB)
     $t3 wr(t1, sequent([A, iff_AB], [fwd, B]), B)
@@ -30,7 +27,7 @@ $iff_elim_left \(A B : {
 $iff_elim_left_example {
     $A mem(a, b)
     $B mem(b, a)
-    $thm iff_elim_left(A, B)
-    $formula implies(iff(A, B), implies(A, B))
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(iff(A, B), implies(A, B))
+    !qed(close(iff_elim_left(A, B), imp, [b, a]),
+         forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(mem(a, b), mem(b, a))))))
 }

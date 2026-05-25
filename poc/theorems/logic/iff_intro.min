@@ -22,7 +22,7 @@ $iff_intro \(A B : {
 $iff_intro_example {
     $A mem(a, b)
     $B mem(b, a)
-    $thm iff_intro(A, B)
-    $formula implies(implies(A, B), implies(implies(B, A), iff(A, B)))
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(implies(A, B), implies(implies(B, A), iff(A, B)))
+    !qed(close(iff_intro(A, B), imp, [b, a]),
+         forall(a, forall(b, implies(implies(mem(a, b), mem(b, a)), implies(implies(mem(b, a), mem(a, b)), iff(mem(a, b), mem(b, a)))))))
 }

@@ -16,7 +16,7 @@ $and_elim_left \(A B : {
 $and_elim_left_example {
     $A mem(a, b)
     $B mem(b, a)
-    $thm and_elim_left(A, B)
-    $formula implies(and(A, B), A)
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(and(A, B), A)
+    !qed(close(and_elim_left(A, B), imp, [b, a]),
+         forall(a, forall(b, implies(and(mem(a, b), mem(b, a)), mem(a, b)))))
 }

@@ -77,5 +77,5 @@ $eq_symmetric {
     $goal forall(z, imp_iff)
     $result fr(fr(s2, sequent([], [forall(b, goal)]), forall(b, goal), b),
                sequent([], [forall(a, forall(b, goal))]), forall(a, forall(b, goal)), a)
-    !qed(result)
+    !qed(result, forall(a, forall(b, forall(z, implies(iff(mem(z, a), mem(z, b)), iff(mem(z, b), mem(z, a)))))))
 }

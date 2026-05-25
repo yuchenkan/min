@@ -14,7 +14,7 @@ $or_intro_left \(A B : {
 $or_intro_left_example {
     $A mem(a, b)
     $B mem(b, a)
-    $thm or_intro_left(A, B)
-    $formula implies(A, or(A, B))
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(A, or(A, B))
+    !qed(close(or_intro_left(A, B), imp, [b, a]),
+         forall(a, forall(b, implies(mem(a, b), or(mem(a, b), mem(b, a))))))
 }

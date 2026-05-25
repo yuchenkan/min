@@ -27,7 +27,7 @@ $iff_mp_rev \(A B : {
 $iff_mp_rev_example {
     $A mem(a, b)
     $B mem(b, a)
-    $thm iff_mp_rev(A, B)
-    $formula implies(iff(A, B), implies(B, A))
-    !qed(close(thm, formula, [b, a]))
+    $imp implies(iff(A, B), implies(B, A))
+    !qed(close(iff_mp_rev(A, B), imp, [b, a]),
+         forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(mem(b, a), mem(a, b))))))
 }
