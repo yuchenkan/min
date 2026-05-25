@@ -20,6 +20,7 @@ from theorems.logic.forall_instantiation import forall_instantiation
 from theorems.logic.forall_implies_exists import forall_implies_exists
 from theorems.logic.eq_transitive import eq_transitive
 from theorems.logic.eq_substitution import eq_substitution
+from theorems.logic.or_iff_compat import or_iff_compat
 
 $A mem(a, b)
 $B mem(b, a)
@@ -85,3 +86,8 @@ $t19 !qed(eq_transitive, forall(a, forall(b, forall(c, forall(z, implies(iff(mem
 # eq_substitution: iff(P, Q) -> (P -> R) -> (Q -> R)
 $t20 !qed(close(eq_substitution(A, B, C), implies(iff(A, B), implies(implies(A, C), implies(B, C))), [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(implies(mem(a, b), mem(a, a)), implies(mem(b, a), mem(a, a)))))))
+
+# or_iff_compat: iff(P, R) -> iff(Q, S) -> iff(or(P, Q), or(R, S))
+$D mem(b, b)
+$t21 !qed(close(or_iff_compat(A, B, C, D), implies(iff(A, C), implies(iff(B, D), iff(or(A, B), or(C, D)))), [b, a]),
+          forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(or(mem(a, b), mem(b, a)), or(mem(a, a), mem(b, b))))))))

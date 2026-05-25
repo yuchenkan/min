@@ -120,7 +120,7 @@ $mp \(impl_proof arg_proof P Q impl_ctx arg_ctx : {
 # prf: ctx2 |- [D] (with pred in ctx2)
 # Result: merged |- [D]
 $cut_c \(got_pred prf pred ctx1 ctx2 D : {
-    $merged concat(remove(ctx2, pred, same), ctx1)
+    $merged concat(remove(ctx2, pred, same), diff(ctx1, ctx2, same))
     $p0 wl_all(got_pred, ctx1, diff(merged, ctx1, same), [pred])
     $p0r wr(p0, sequent(merged, [pred, D]), D)
     $p1 wl_all(prf, ctx2, diff(merged, ctx2, same), [D])
