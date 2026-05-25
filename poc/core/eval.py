@@ -364,16 +364,11 @@ def _load_import(node):
             _global_env.set(name, imported[name])
 
 
-def run(source, filepath='<input>'):
-    """Run .min source. Catches EvalError and prints cleanly."""
+def run(filepath):
+    """Run a .min file. Catches EvalError and prints cleanly."""
     import sys
     try:
-        nodes = parse(source, filepath)
-        for node in nodes:
-            if isinstance(node, Import):
-                _load_import(node)
-            elif isinstance(node, Bind):
-                _global_env.set(node.name, evaluate(node.expr, _global_env))
+        load_file(filepath)
     except EvalError as e:
         print(e, file=sys.stderr)
         return False
