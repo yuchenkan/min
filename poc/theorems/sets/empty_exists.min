@@ -1,8 +1,12 @@
-from tactics import ax
+from tactics import ax, wr
+from core.derived import exists
 from core.axioms import EmptySet
+from vocab.sets import empty
 
 # EmptySet |- exists(s, empty(s))
 $empty_exists {
+    $s var("s")
     $f EmptySet()
-    ax(f)
+    $goal exists(s, empty(s))
+    wr(ax(f), sequent([f], [goal]), goal)
 }

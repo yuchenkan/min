@@ -1,0 +1,12 @@
+from tactics import ax, wr
+from core.derived import exists
+from core.axioms import Union
+from vocab.sets import big_union
+
+# Union |- forall(a, exists(s, big_union(s, a)))
+$big_union_exists {
+    $a var("a") $s var("s")
+    $f Union()
+    $goal forall(a, exists(s, big_union(s, a)))
+    wr(ax(f), sequent([f], [goal]), goal)
+}

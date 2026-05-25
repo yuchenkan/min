@@ -1,0 +1,12 @@
+from tactics import ax, wr
+from core.derived import exists
+from core.axioms import PowerSet
+from vocab.sets import power_set
+
+# PowerSet |- forall(a, exists(s, power_set(s, a)))
+$power_set_exists {
+    $a var("a") $s var("s")
+    $f PowerSet()
+    $goal forall(a, exists(s, power_set(s, a)))
+    wr(ax(f), sequent([f], [goal]), goal)
+}

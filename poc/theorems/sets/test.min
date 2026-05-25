@@ -1,6 +1,6 @@
 from core.derived import exists, eqv
 from core.axioms import EmptySet, Pairing
-from vocab.sets import empty, singleton, pair_set
+from vocab.sets import empty, singleton, pair_set, set_spec, big_union, power_set
 from vocab.logic import exists_unique
 from theorems.sets.empty_exists import empty_exists
 from theorems.sets.empty_unique import empty_unique
@@ -11,11 +11,15 @@ from theorems.sets.unique_singleton import unique_singleton
 from theorems.sets.set_spec_unique import set_spec_unique
 from theorems.sets.pair_set_exists import pair_set_exists
 from theorems.sets.unique_pair_set import unique_pair_set
+from theorems.sets.big_union_exists import big_union_exists
+from theorems.sets.unique_big_union import unique_big_union
+from theorems.sets.power_set_exists import power_set_exists
+from theorems.sets.unique_power_set import unique_power_set
 
 $a var("a") $b var("b") $s var("s")
 
 # empty_exists: EmptySet |- exists(s, empty(s))
-$t01 !qed(empty_exists, EmptySet())
+$t01 !qed(empty_exists, exists(s, empty(s)))
 
 # empty_unique: empty(a) -> empty(b) -> eqv(a, b)
 $t02 !qed(empty_unique(a, b, [b, a]),
@@ -40,7 +44,19 @@ $t07 !qed(set_spec_unique(s1, s2, \(v : mem(v, a)), [a, s2, s1]),
           forall(s1, forall(s2, forall(a, implies(set_spec(s1, \(v : mem(v, a))), implies(set_spec(s2, \(v : mem(v, a))), eqv(s1, s2)))))))
 
 # pair_set_exists: Pairing |- forall(a, forall(b, exists(s, pair_set(s, a, b))))
-$t08 !qed(pair_set_exists, Pairing())
+$t08 !qed(pair_set_exists, forall(a, forall(b, exists(s, pair_set(s, a, b)))))
 
 # unique_pair_set: Pairing |- forall(a, forall(b, exists_unique(s, pair_set(s, a, b))))
 $t09 !qed(unique_pair_set(a, b, [b, a]), forall(a, forall(b, exists_unique(s, \(v : pair_set(v, a, b))))))
+
+# big_union_exists: Union |- forall(a, exists(s, big_union(s, a)))
+$t10 !qed(big_union_exists, forall(a, exists(s, big_union(s, a))))
+
+# unique_big_union: Union |- forall(a, exists_unique(s, big_union(s, a)))
+$t11 !qed(unique_big_union(a, [a]), forall(a, exists_unique(s, \(v : big_union(v, a)))))
+
+# power_set_exists: PowerSet |- forall(a, exists(s, power_set(s, a)))
+$t12 !qed(power_set_exists, forall(a, exists(s, power_set(s, a))))
+
+# unique_power_set: PowerSet |- forall(a, exists_unique(s, power_set(s, a)))
+$t13 !qed(unique_power_set(a, [a]), forall(a, exists_unique(s, \(v : power_set(v, a)))))
