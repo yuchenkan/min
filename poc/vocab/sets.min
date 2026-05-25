@@ -1,0 +1,37 @@
+from core.derived import and, or, iff, exists, eqv
+
+# set_spec(s, cond_fn): forall x. iff(mem(x, s), cond_fn(x))
+$set_spec \\(s cond_fn : {
+    $x var("x")
+    forall(x, iff(mem(x, s), cond_fn(x)))
+})
+
+# empty(s): forall x. neg(mem(x, s))
+$empty \\(s : {
+    $x var("x")
+    forall(x, neg(mem(x, s)))
+})
+
+# subset(a, b): forall x. mem(x, a) -> mem(x, b)
+$subset \\(a b : {
+    $x var("x")
+    forall(x, implies(mem(x, a), mem(x, b)))
+})
+
+# singleton(s, a): s = {a}
+$singleton \\(s a : set_spec(s, \(x : eqv(x, a))))
+
+# pair_set(s, a, b): s = {a, b}
+$pair_set \\(s a b : set_spec(s, \(x : or(eqv(x, a), eqv(x, b)))))
+
+# big_union(s, a): s = U(a)
+$big_union \\(s a : {
+    $y var("y")
+    set_spec(s, \(x : exists(y, and(mem(y, a), mem(x, y)))))
+})
+
+# power_set(s, a): s = P(a)
+$power_set \\(s a : set_spec(s, \(x : subset(x, a))))
+
+# successor(s, a): s = a ∪ {a}
+$successor \\(s a : set_spec(s, \(x : or(mem(x, a), eqv(x, a)))))
