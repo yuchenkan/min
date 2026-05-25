@@ -1,42 +1,30 @@
-from tactics import ax, wl, wr, nl, nr, il, ir, ct, close
+from tactics import ax, ir, mp, close
 from core.derived import iff
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
 
 # |- iff(A, B) -> iff(B, A)
 $iff_sym \(A B : {
-    $fwd implies(A, B)
-    $bwd implies(B, A)
     $iff_AB iff(A, B)
     $iff_BA iff(B, A)
-    $not_fwd neg(fwd)
-    $imp_bwd_not_fwd implies(bwd, not_fwd)
-    $not_bwd neg(bwd)
-    $imp_fwd_not_bwd implies(fwd, not_bwd)
-    $g1 wr(ax(fwd), sequent([fwd], [fwd, not_bwd]), not_bwd)
-    $g2 ir(g1, sequent([], [imp_fwd_not_bwd, fwd]), imp_fwd_not_bwd)
-    $g3 nl(g2, sequent([iff_AB], [fwd]), iff_AB)
-    $h1 nr(ax(bwd), sequent([], [not_bwd, bwd]), not_bwd)
-    $h2 wl(h1, sequent([fwd], [not_bwd, bwd]), fwd)
-    $h3 ir(h2, sequent([], [imp_fwd_not_bwd, bwd]), imp_fwd_not_bwd)
-    $h4 nl(h3, sequent([iff_AB], [bwd]), iff_AB)
-    $p1 wl(ax(bwd), sequent([bwd, fwd], [bwd]), fwd)
-    $p2 wl(ax(fwd), sequent([bwd, fwd], [fwd]), bwd)
-    $p3 nl(p2, sequent([bwd, fwd, not_fwd], []), not_fwd)
-    $p4 il(p1, p3, sequent([bwd, fwd, imp_bwd_not_fwd], []), imp_bwd_not_fwd)
-    $p5 nr(p4, sequent([bwd, fwd], [iff_BA]), iff_BA)
-    $q1 wr(wl(g3, sequent([iff_AB, bwd], [fwd]), bwd), sequent([iff_AB, bwd], [fwd, iff_BA]), iff_BA)
-    $q2 wl(p5, sequent([iff_AB, bwd, fwd], [iff_BA]), iff_AB)
-    $q3 ct(q1, q2, sequent([iff_AB, bwd], [iff_BA]), fwd)
-    $r1 wr(h4, sequent([iff_AB], [bwd, iff_BA]), iff_BA)
-    $r2 wl(q3, sequent([iff_AB, bwd], [iff_BA]), iff_AB)
-    $r3 ct(r1, r2, sequent([iff_AB], [iff_BA]), bwd)
+
+    # Get A->B and B->A from iff(A,B)
+    $got_fwd mp(iff_elim_left(A, B), ax(iff_AB), iff_AB, implies(A, B), [], [iff_AB])
+    $got_bwd mp(iff_elim_right(A, B), ax(iff_AB), iff_AB, implies(B, A), [], [iff_AB])
+
+    # Build iff(B,A) from B->A and A->B via iff_intro(B, A)
+    $got_iff mp(mp(iff_intro(B, A), got_bwd, implies(B, A), implies(implies(A, B), iff_BA), [], [iff_AB]),
+               got_fwd, implies(A, B), iff_BA, [iff_AB], [iff_AB])
+
     $top implies(iff_AB, iff_BA)
-    ir(r3, sequent([], [top]), top)
+    ir(got_iff, sequent([], [top]), top)
 })
 
 $iff_sym_example {
     $A mem(a, b)
     $B mem(b, a)
-    $imp implies(iff(A, B), iff(B, A))
-    !qed(close(iff_sym(A, B), imp, [b, a]),
+    $formula implies(iff(A, B), iff(B, A))
+    !qed(close(iff_sym(A, B), formula, [b, a]),
          forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), iff(mem(b, a), mem(a, b))))))
 }

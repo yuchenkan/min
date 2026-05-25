@@ -2,19 +2,32 @@ from tactics import ax, wl, nl, il, nr, ir, close
 from core.derived import iff
 
 # |- (A -> B) -> (B -> A) -> iff(A, B)
+# Handles A=B case (where fwd=bwd causes duplicate sequent)
 $iff_intro \(A B : {
     $fwd implies(A, B)
     $bwd implies(B, A)
     $not_bwd neg(bwd)
     $imp_fwd_not_bwd implies(fwd, not_bwd)
     $iff_AB iff(A, B)
-    $s1 wl(ax(fwd), sequent([fwd, bwd], [fwd]), bwd)
-    $s2 wl(ax(bwd), sequent([fwd, bwd], [bwd]), fwd)
-    $s3 nl(s2, sequent([fwd, bwd, not_bwd], []), not_bwd)
-    $s4 il(s1, s3, sequent([fwd, bwd, imp_fwd_not_bwd], []), imp_fwd_not_bwd)
-    $s5 nr(s4, sequent([fwd, bwd], [iff_AB]), iff_AB)
+    # Core: fwd, bwd |- iff_AB
+    $core ?(same(fwd, bwd),
+        # A=B: fwd=bwd, only one formula on left
+        {
+            $t1 nl(ax(fwd), sequent([fwd, not_bwd], []), not_bwd)
+            $t2 il(ax(fwd), t1, sequent([fwd, imp_fwd_not_bwd], []), imp_fwd_not_bwd)
+            nr(t2, sequent([fwd], [iff_AB]), iff_AB)
+        },
+        # A!=B: standard case
+        {
+            $s1 wl(ax(fwd), sequent([fwd, bwd], [fwd]), bwd)
+            $s2 wl(ax(bwd), sequent([fwd, bwd], [bwd]), fwd)
+            $s3 nl(s2, sequent([fwd, bwd, not_bwd], []), not_bwd)
+            $s4 il(s1, s3, sequent([fwd, bwd, imp_fwd_not_bwd], []), imp_fwd_not_bwd)
+            nr(s4, sequent([fwd, bwd], [iff_AB]), iff_AB)
+        })
+    # Close: |- fwd -> bwd -> iff_AB
     $imp_bwd implies(bwd, iff_AB)
-    $s6 ir(s5, sequent([fwd], [imp_bwd]), imp_bwd)
+    $s6 ir(core, sequent([fwd], [imp_bwd]), imp_bwd)
     $top implies(fwd, imp_bwd)
     ir(s6, sequent([], [top]), top)
 })
