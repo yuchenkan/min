@@ -145,11 +145,24 @@ class Proof:
         self.premises = premises  # list of Traced
         self.principal = principal  # Traced or None
         self.term = term        # Traced or None
-        self.kernel = proof(
-            _kernel(_v(seq)), _v(rule),
-            [_kernel(_v(a)) for a in _v(premises)] if premises else None,
-            _kernel(_v(principal)) if principal else None,
-            _kernel(_v(term)) if term else None)
+        try:
+            self.kernel = proof(
+                _kernel(_v(seq)), _v(rule),
+                [_kernel(_v(a)) for a in _v(premises)] if premises else None,
+                _kernel(_v(principal)) if principal else None,
+                _kernel(_v(term)) if term else None)
+        except ValueError as e:
+            parts = [f'{e}']
+            parts.append(f'  sequent:   {show(seq, 0)}')
+            parts.append(f'  rule:      {_v(rule)}')
+            if premises:
+                for i, p in enumerate(_v(premises)):
+                    parts.append(f'  premise[{i}]: {show(p, 0)}')
+            if principal:
+                parts.append(f'  principal: {show(principal, 0)}')
+            if term:
+                parts.append(f'  term:      {show(term, 0)}')
+            raise ValueError('\n'.join(parts)) from e
 
 
 def _qed(p, e):
