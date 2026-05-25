@@ -1,0 +1,43 @@
+from tactics import ax, fl, fr, ir, mp, close
+from core.derived import iff, eqv
+from vocab.sets import singleton
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.iff_sym import iff_sym
+
+# |- singleton(s1, a) -> singleton(s2, a) -> eqv(s1, s2)
+# singleton(s, a) = forall(z, iff(mem(z, s), eqv(z, a)))
+# From both: iff(mem(z,s1), eqv(z,a)) and iff(mem(z,s2), eqv(z,a))
+# iff_sym on second: iff(eqv(z,a), mem(z,s2))
+# iff_chain: iff(mem(z,s1), mem(z,s2)) = pointwise eqv(s1, s2)
+$singleton_unique \(s1 s2 a vars : {
+    $v var("v")
+    $sg1 singleton(s1, a)
+    $sg2 singleton(s2, a)
+    $eqv_12 eqv(s1, s2)
+
+    $iff1 iff(mem(v, s1), eqv(v, a))
+    $iff2 iff(mem(v, s2), eqv(v, a))
+    $iff2r iff(eqv(v, a), mem(v, s2))
+    $iff_goal iff(mem(v, s1), mem(v, s2))
+
+    # fl on sg1, sg2 with eigenvariable v
+    $g1 fl(ax(iff1), sequent([sg1], [iff1]), sg1, v)
+    $g2 fl(ax(iff2), sequent([sg2], [iff2]), sg2, v)
+
+    # iff_sym on g2: [sg2] |- [iff(eqv(v,a), mem(v,s2))]
+    $g2r mp(iff_sym(mem(v, s2), eqv(v, a)), g2, iff2, iff2r, [], [sg2])
+
+    # iff_chain: [sg1, sg2] |- [iff(mem(v,s1), mem(v,s2))]
+    $got mp(mp(iff_chain(mem(v, s1), eqv(v, a), mem(v, s2)),
+               g1, iff1, implies(iff2r, iff_goal), [], [sg1]),
+            g2r, iff2r, iff_goal, [sg1], [sg2])
+
+    # fr on v: [sg1, sg2] |- [eqv(s1, s2)]
+    $got_eqv fr(got, sequent([sg1, sg2], [eqv_12]), eqv_12, v)
+
+    $inner implies(sg2, eqv_12)
+    $s1r ir(got_eqv, sequent([sg1], [inner]), inner)
+    $top implies(sg1, inner)
+    $result ir(s1r, sequent([], [top]), top)
+    close(result, top, vars)
+})

@@ -1,0 +1,29 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, mp, close
+from core.derived import or, iff
+from theorems.logic.iff_intro import iff_intro
+
+# |- iff(or(P, P), P)
+# or(P, P) = implies(neg(P), P)
+$or_idempotent \(P vars : {
+    $orPP or(P, P)
+
+    # fwd: P -> or(P, P) = P -> implies(neg(P), P)
+    # [P, neg(P)] |- [P] then ir
+    $s1 wl(ax(P), sequent([P, neg(P)], [P]), neg(P))
+    $fwd implies(P, orPP)
+    $s2 ir(s1, sequent([P], [orPP]), orPP)
+    $got_fwd ir(s2, sequent([], [fwd]), fwd)
+
+    # bwd: or(P, P) -> P = implies(neg(P), P) -> P
+    # il on implies(neg(P), P): need [] |- [P, neg(P)] and [P] |- [P]
+    $s3 nr(ax(P), sequent([], [neg(P), P]), neg(P))
+    $s4 il(s3, ax(P), sequent([orPP], [P]), orPP)
+    $bwd implies(orPP, P)
+    $got_bwd ir(s4, sequent([], [bwd]), bwd)
+
+    # iff_intro(orPP, P): [] |- [(orPP->P) -> (P->orPP) -> iff(orPP, P)]
+    $iff_result iff(orPP, P)
+    $result mp(mp(iff_intro(orPP, P), got_bwd, bwd, implies(fwd, iff_result), [], []),
+               got_fwd, fwd, iff_result, [], [])
+    close(result, iff_result, vars)
+})
