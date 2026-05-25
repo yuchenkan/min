@@ -375,3 +375,44 @@ def run(filepath):
         print(e, file=sys.stderr)
         return False
     return True
+
+
+if __name__ == '__main__':
+    import sys
+
+    if len(sys.argv) > 1:
+        ok = run(sys.argv[1])
+        sys.exit(0 if ok else 1)
+
+    # Self-test: show with formulas and traced computation
+    load_file(os.path.join(ROOT, 'core', 'derived.min'))
+
+    src = r'''
+$A mem(a, b)
+$B mem(b, a)
+$f1 and(A, B)
+$f2 or(A, B)
+$f3 iff(A, B)
+$f4 exists(x, mem(x, a))
+$f5 eqv(a, b)
+$f6 implies(f1, f2)
+$f7 forall(a, implies(mem(a, b), exists(x, and(mem(x, a), mem(x, b)))))
+
+$double \\(n : mul(n, 2))
+$r1 double(3)
+$r2 double(add(1, 2))
+$compose \\(f g : \\(x : f(g(x))))
+$double_add1 compose(double, \\(n : add(n, 1)))
+$r3 double_add1(3)
+'''
+    nodes = parse(src, '<test>')
+    for node in nodes:
+        if isinstance(node, Bind):
+            _global_env.set(node.name, evaluate(node.expr, _global_env))
+
+    tests = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'r1', 'r2', 'r3', 'double_add1']
+    for name in tests:
+        v = _global_env.get(name)
+        print(f'--- {name} ---')
+        for d in range(4):
+            print(f'  {d}: {show(v, d)}')
