@@ -5,7 +5,7 @@ from theorems.logic.and_intro import and_intro
 
 # |- body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(x, body)
 # exists_unique(x, body) = exists(x, and(body(x), forall(y, implies(body(y), eqv(x, y)))))
-$exists_unique_intro \(x body_fn t : {
+$exists_unique_intro \(x body_fn t vars : {
     $y var("y")
     $body_t body_fn(t)
     $uniq forall(y, implies(body_fn(y), eqv(t, y)))
@@ -44,5 +44,6 @@ $s1a wl(s1, sequent([body_t, fa_neg], [neg(inner_t)]), body_t)
     $top2 implies(uniq, eu)
     $s6 ir(s5, sequent([body_t], [top2]), top2)
     $top implies(body_t, top2)
-    ir(s6, sequent([], [top]), top)
+    $result ir(s6, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

@@ -2,7 +2,7 @@ from tactics import ax, wl, nl, il, nr, ir, close
 from core.derived import and
 
 # |- A -> B -> and(A, B)
-$and_intro \(A B : {
+$and_intro \(A B vars : {
     $and_AB and(A, B)
     $not_B neg(B)
     $imp_A_notB implies(A, not_B)
@@ -14,5 +14,6 @@ $and_intro \(A B : {
     $imp_B implies(B, and_AB)
     $s6 ir(s5, sequent([A], [imp_B]), imp_B)
     $top implies(A, imp_B)
-    ir(s6, sequent([], [top]), top)
+    $result ir(s6, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

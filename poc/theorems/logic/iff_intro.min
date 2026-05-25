@@ -3,7 +3,7 @@ from core.derived import iff
 
 # |- (A -> B) -> (B -> A) -> iff(A, B)
 # Handles A=B case (where fwd=bwd causes duplicate sequent)
-$iff_intro \(A B : {
+$iff_intro \(A B vars : {
     $fwd implies(A, B)
     $bwd implies(B, A)
     $not_bwd neg(bwd)
@@ -29,5 +29,6 @@ $iff_intro \(A B : {
     $imp_bwd implies(bwd, iff_AB)
     $s6 ir(core, sequent([fwd], [imp_bwd]), imp_bwd)
     $top implies(fwd, imp_bwd)
-    ir(s6, sequent([], [top]), top)
+    $result ir(s6, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

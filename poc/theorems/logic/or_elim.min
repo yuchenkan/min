@@ -2,7 +2,7 @@ from tactics import ax, wl, wr, nl, nr, il, ir, close
 from core.derived import or
 
 # |- or(A, B) -> (A -> C) -> (B -> C) -> C
-$or_elim \(A B C : {
+$or_elim \(A B C vars : {
     $or_AB or(A, B)
     $imp_AC implies(A, C)
     $imp_BC implies(B, C)
@@ -21,5 +21,6 @@ $or_elim \(A B C : {
     $i2 implies(imp_AC, i1)
     $s2 ir(s1, sequent([or_AB], [i2]), i2)
     $top implies(or_AB, i2)
-    ir(s2, sequent([], [top]), top)
+    $result ir(s2, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

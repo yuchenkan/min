@@ -1,7 +1,7 @@
 from tactics import ax, wl, wr, nl, nr, il, ir
 
 # |- (P -> Q) -> (neg(Q) -> neg(P))
-$contrapositive \(P Q : {
+$contrapositive \(P Q vars : {
     $imp implies(P, Q)
 
     # P, imp |- Q
@@ -17,5 +17,6 @@ $contrapositive \(P Q : {
     $s6 ir(s5, sequent([imp], [inner]), inner)
     # |- imp -> inner
     $top implies(imp, inner)
-    ir(s6, sequent([], [top]), top)
+    $result ir(s6, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

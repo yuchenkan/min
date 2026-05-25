@@ -3,7 +3,7 @@ from core.derived import exists
 
 # |- forall(x, A) -> exists(x, A)
 # exists(x, A) = neg(forall(x, neg(A)))
-$forall_implies_exists \(x body : {
+$forall_implies_exists \(x body vars : {
     $A body(x)
     $fa forall(x, A)
     $na neg(A)
@@ -19,5 +19,6 @@ $forall_implies_exists \(x body : {
     # fa |- neg(forall(x, neg(A))) = exists(x, A)
     $s4 nr(s3, sequent([fa], [ex]), ex)
     $top implies(fa, ex)
-    ir(s4, sequent([], [top]), top)
+    $result ir(s4, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

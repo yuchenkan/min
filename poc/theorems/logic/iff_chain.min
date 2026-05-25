@@ -6,7 +6,7 @@ from theorems.logic.implies_trans import implies_trans
 from theorems.logic.iff_intro import iff_intro
 
 # |- iff(A, B) -> iff(B, C) -> iff(A, C)
-$iff_chain \(A B C : {
+$iff_chain \(A B C vars : {
     $iff_AB iff(A, B)
     $iff_BC iff(B, C)
     $iff_AC iff(A, C)
@@ -35,5 +35,6 @@ $iff_chain \(A B C : {
     $top2 implies(iff_BC, iff_AC)
     $s1 ir(got_iff, sequent([iff_AB], [top2]), top2)
     $top implies(iff_AB, top2)
-    ir(s1, sequent([], [top]), top)
+    $result ir(s1, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

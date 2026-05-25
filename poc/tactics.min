@@ -37,14 +37,15 @@ $wr \(premise seq principal :
 # left: left side of sequent (preserved)
 # Result: left |- [forall(v1, forall(v2, ... formula ...))]
 $close \(prf formula vars left :
-    ?(nil(vars), prf, {
+    ?(?(none(vars), True, nil(vars)), prf, {
+        $lft ?(none(left), [], left)
         $v head(vars)
         $closed forall(v, formula)
         close(
-            fr(prf, sequent(left, [closed]), closed, v),
+            fr(prf, sequent(lft, [closed]), closed, v),
             closed,
             tail(vars),
-            left)
+            lft)
     }))
 
 # === Higher tactics ===

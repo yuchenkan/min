@@ -4,7 +4,7 @@ from theorems.logic.iff_sym import iff_sym
 
 # |- eqv(a, b) -> eqv(b, a)
 # eqv(a, b) = forall(z, iff(mem(z, a), mem(z, b)))
-$eqv_symmetric \(a b : {
+$eqv_symmetric \(a b vars : {
     $v var("v")
     $eqv_ab eqv(a, b)
     $eqv_ba eqv(b, a)
@@ -24,5 +24,6 @@ $eqv_symmetric \(a b : {
     $s3 fr(s2, sequent([eqv_ab], [eqv_ba]), eqv_ba, v)
 
     $top implies(eqv_ab, eqv_ba)
-    ir(s3, sequent([], [top]), top)
+    $result ir(s3, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

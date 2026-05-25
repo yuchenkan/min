@@ -3,7 +3,7 @@ from core.derived import eqv, iff
 from theorems.logic.iff_chain import iff_chain
 
 # |- eqv(a, b) -> eqv(b, c) -> eqv(a, c)
-$eqv_transitive \(a b c : {
+$eqv_transitive \(a b c vars : {
     $v var("v")
     $eqv_ab eqv(a, b)
     $eqv_bc eqv(b, c)
@@ -29,5 +29,6 @@ $eqv_transitive \(a b c : {
     $inner implies(eqv_bc, eqv_ac)
     $s5 ir(s4, sequent([eqv_ab], [inner]), inner)
     $top implies(eqv_ab, inner)
-    ir(s5, sequent([], [top]), top)
+    $result ir(s5, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

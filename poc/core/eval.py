@@ -20,6 +20,8 @@ class Traced:
 
 # === Env ===
 
+_NOT_FOUND = object()
+
 class Env:
     def __init__(self, parent=None):
         self.bindings = {}
@@ -30,7 +32,7 @@ class Env:
             return self.bindings[name]
         if self.parent:
             return self.parent.get(name)
-        return None
+        return _NOT_FOUND
 
     def set(self, name, value):
         if name in self.bindings:
@@ -49,8 +51,8 @@ class Fn:
 
     def call(self, args):
         child = Env(self.env)
-        for p, a in zip(self.params, args):
-            child.set(p, a)
+        for i, p in enumerate(self.params):
+            child.set(p, args[i] if i < len(args) else None)
         return evaluate(self.body_ast, child)
 
 
@@ -192,10 +194,12 @@ BUILTINS = {
     'eq': _notrace(lambda a, b: _v(a) == _v(b)),
     'lt': _notrace(lambda a, b: _v(a) < _v(b)),
     'gt': _notrace(lambda a, b: _v(a) > _v(b)),
-    # Bool
+    # Bool / None
     'True': True,
     'False': False,
+    'None': None,
     'not': _notrace(lambda a: not _v(a)),
+    'none': _notrace(lambda a: _v(a) is None),
     # List
     'head': _notrace(lambda l: _v(l)[0]),
     'tail': _notrace(lambda l: _v(l)[1:]),
@@ -261,7 +265,7 @@ def _evaluate(node, env):
 
     if isinstance(node, Ref):
         val = env.get(node.name)
-        if val is not None:
+        if val is not _NOT_FOUND:
             return val
         raise EvalError(f'undefined: {node.name}', node)
 
@@ -282,8 +286,10 @@ def _evaluate(node, env):
         return result
 
     if isinstance(node, If):
-        cond = _evaluate(node.cond, env)
-        return _evaluate(node.then, env) if _v(cond) else _evaluate(node.else_, env)
+        cond = _v(_evaluate(node.cond, env))
+        if cond is not True and cond is not False:
+            raise EvalError(f'condition must be True or False, got {type(cond).__name__}', node)
+        return _evaluate(node.then, env) if cond else _evaluate(node.else_, env)
 
     if isinstance(node, Call):
         fn = _v(_evaluate(node.callee, env))
@@ -361,7 +367,7 @@ def _load_import(node):
         return
     imported = load_file(filepath)
     for name in node.names:
-        if name in imported and _global_env.get(name) is None:
+        if name in imported and _global_env.get(name) is _NOT_FOUND:
             _global_env.set(name, imported[name])
 
 

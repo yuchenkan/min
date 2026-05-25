@@ -1,5 +1,5 @@
-from tactics import close
-from core.derived import and, or, iff
+from core.derived import and, or, iff, exists, eqv
+from vocab.logic import exists_unique
 from theorems.logic.modus_ponens import modus_ponens
 from theorems.logic.double_negation import double_negation
 from theorems.logic.and_intro import and_intro
@@ -35,137 +35,113 @@ from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.exists_unique_bridge import exists_unique_bridge
-from core.derived import exists, eqv
-from vocab.logic import exists_unique
 
 $a var("a") $b var("b") $c var("c") $x var("x") $y var("y") $z var("z") $s var("s")
 
 $A mem(a, b)
 $B mem(b, a)
 $C mem(a, a)
+$D mem(b, b)
 
-$t01 !qed(close(modus_ponens(A, B), implies(A, implies(implies(A, B), B)), [b, a], []),
+$t01 !qed(modus_ponens(A, B, [b, a]),
           forall(a, forall(b, implies(mem(a, b), implies(implies(mem(a, b), mem(b, a)), mem(b, a))))))
 
-$t02 !qed(close(double_negation(A), implies(neg(neg(A)), A), [b, a], []),
+$t02 !qed(double_negation(A, [b, a]),
           forall(a, forall(b, implies(neg(neg(mem(a, b))), mem(a, b)))))
 
-$t03 !qed(close(and_intro(A, B), implies(A, implies(B, and(A, B))), [b, a], []),
+$t03 !qed(and_intro(A, B, [b, a]),
           forall(a, forall(b, implies(mem(a, b), implies(mem(b, a), and(mem(a, b), mem(b, a)))))))
 
-$t04 !qed(close(and_elim_left(A, B), implies(and(A, B), A), [b, a], []),
+$t04 !qed(and_elim_left(A, B, [b, a]),
           forall(a, forall(b, implies(and(mem(a, b), mem(b, a)), mem(a, b)))))
 
-$t05 !qed(close(and_elim_right(A, B), implies(and(A, B), B), [b, a], []),
+$t05 !qed(and_elim_right(A, B, [b, a]),
           forall(a, forall(b, implies(and(mem(a, b), mem(b, a)), mem(b, a)))))
 
-$t06 !qed(close(or_intro_left(A, B), implies(A, or(A, B)), [b, a], []),
+$t06 !qed(or_intro_left(A, B, [b, a]),
           forall(a, forall(b, implies(mem(a, b), or(mem(a, b), mem(b, a))))))
 
-$t07 !qed(close(or_intro_right(A, B), implies(B, or(A, B)), [b, a], []),
+$t07 !qed(or_intro_right(A, B, [b, a]),
           forall(a, forall(b, implies(mem(b, a), or(mem(a, b), mem(b, a))))))
 
-$t08 !qed(close(or_elim(A, B, C), implies(or(A, B), implies(implies(A, C), implies(implies(B, C), C))), [b, a], []),
+$t08 !qed(or_elim(A, B, C, [b, a]),
           forall(a, forall(b, implies(or(mem(a, b), mem(b, a)), implies(implies(mem(a, b), mem(a, a)), implies(implies(mem(b, a), mem(a, a)), mem(a, a)))))))
 
-$t09 !qed(close(iff_intro(A, B), implies(implies(A, B), implies(implies(B, A), iff(A, B))), [b, a], []),
+$t09 !qed(iff_intro(A, B, [b, a]),
           forall(a, forall(b, implies(implies(mem(a, b), mem(b, a)), implies(implies(mem(b, a), mem(a, b)), iff(mem(a, b), mem(b, a)))))))
 
-$t10 !qed(close(iff_elim_left(A, B), implies(iff(A, B), implies(A, B)), [b, a], []),
+$t10 !qed(iff_elim_left(A, B, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(mem(a, b), mem(b, a))))))
 
-$t11 !qed(close(iff_elim_right(A, B), implies(iff(A, B), implies(B, A)), [b, a], []),
+$t11 !qed(iff_elim_right(A, B, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(mem(b, a), mem(a, b))))))
 
-$t12 !qed(close(iff_sym(A, B), implies(iff(A, B), iff(B, A)), [b, a], []),
+$t12 !qed(iff_sym(A, B, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), iff(mem(b, a), mem(a, b))))))
 
-$t13 !qed(close(implies_trans(A, B, C), implies(implies(A, B), implies(implies(B, C), implies(A, C))), [b, a], []),
+$t13 !qed(implies_trans(A, B, C, [b, a]),
           forall(a, forall(b, implies(implies(mem(a, b), mem(b, a)), implies(implies(mem(b, a), mem(a, a)), implies(mem(a, b), mem(a, a)))))))
 
-$t14 !qed(close(iff_chain(A, B, C), implies(iff(A, B), implies(iff(B, C), iff(A, C))), [b, a], []),
+$t14 !qed(iff_chain(A, B, C, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(iff(mem(b, a), mem(a, a)), iff(mem(a, b), mem(a, a)))))))
 
 $t15 !qed(eq_reflexive, forall(a, forall(z, iff(mem(z, a), mem(z, a)))))
 
 $t16 !qed(eq_symmetric, forall(a, forall(b, forall(z, implies(iff(mem(z, a), mem(z, b)), iff(mem(z, b), mem(z, a)))))))
 
-# forall_instantiation: forall(x, A(x)) -> A(t)
-$t17 !qed(close(forall_instantiation(x, \(v : mem(v, a)), b), implies(forall(x, mem(x, a)), mem(b, a)), [b, a], []),
+$t17 !qed(forall_instantiation(x, \(v : mem(v, a)), b, [b, a]),
           forall(a, forall(b, implies(forall(x, mem(x, a)), mem(b, a)))))
 
-# forall_implies_exists: forall(x, A(x)) -> exists(x, A(x))
-$t18 !qed(close(forall_implies_exists(x, \(v : mem(v, a))), implies(forall(x, mem(x, a)), exists(x, mem(x, a))), [a], []),
+$t18 !qed(forall_implies_exists(x, \(v : mem(v, a)), [a]),
           forall(a, implies(forall(x, mem(x, a)), exists(x, mem(x, a)))))
 
-# eq_transitive
 $t19 !qed(eq_transitive, forall(a, forall(b, forall(c, forall(z, implies(iff(mem(z, a), mem(z, b)), implies(iff(mem(z, b), mem(z, c)), iff(mem(z, a), mem(z, c)))))))))
 
-# eq_substitution: iff(P, Q) -> (P -> R) -> (Q -> R)
-$t20 !qed(close(eq_substitution(A, B, C), implies(iff(A, B), implies(implies(A, C), implies(B, C))), [b, a], []),
+$t20 !qed(eq_substitution(A, B, C, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(implies(mem(a, b), mem(a, a)), implies(mem(b, a), mem(a, a)))))))
 
-# or_iff_compat: iff(P, R) -> iff(Q, S) -> iff(or(P, Q), or(R, S))
-$D mem(b, b)
-$t21 !qed(close(or_iff_compat(A, B, C, D), implies(iff(A, C), implies(iff(B, D), iff(or(A, B), or(C, D)))), [b, a], []),
+$t21 !qed(or_iff_compat(A, B, C, D, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(or(mem(a, b), mem(b, a)), or(mem(a, a), mem(b, b))))))))
 
-# exists_unique_intro: body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(x, body)
-$t22 !qed(close(exists_unique_intro(x, \(v : mem(v, a)), b),
-               implies(mem(b, a), implies(forall(y, implies(mem(y, a), eqv(b, y))), exists_unique(x, \(v : mem(v, a))))), [b, a], []),
+$t22 !qed(exists_unique_intro(x, \(v : mem(v, a)), b, [b, a]),
           forall(a, forall(b, implies(mem(b, a), implies(forall(y, implies(mem(y, a), eqv(b, y))), exists_unique(x, \(v : mem(v, a))))))))
 
-# exists_intro: body(t) -> exists(x, body(x))
-$t23 !qed(close(exists_intro(x, \(v : mem(v, a)), b), implies(mem(b, a), exists(x, mem(x, a))), [b, a], []),
+$t23 !qed(exists_intro(x, \(v : mem(v, a)), b, [b, a]),
           forall(a, forall(b, implies(mem(b, a), exists(x, mem(x, a))))))
 
-# contrapositive: (P -> Q) -> (neg(Q) -> neg(P))
-$t24 !qed(close(contrapositive(A, B), implies(implies(A, B), implies(neg(B), neg(A))), [b, a], []),
+$t24 !qed(contrapositive(A, B, [b, a]),
           forall(a, forall(b, implies(implies(mem(a, b), mem(b, a)), implies(neg(mem(b, a)), neg(mem(a, b)))))))
 
-# not_not_intro: P -> neg(neg(P))
-$t25 !qed(close(not_not_intro(A), implies(A, neg(neg(A))), [b, a], []),
+$t25 !qed(not_not_intro(A, [b, a]),
           forall(a, forall(b, implies(mem(a, b), neg(neg(mem(a, b)))))))
 
-# neg_iff_compat: iff(P, Q) -> iff(neg(P), neg(Q))
-$t26 !qed(close(neg_iff_compat(A, B), implies(iff(A, B), iff(neg(A), neg(B))), [b, a], []),
+$t26 !qed(neg_iff_compat(A, B, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), iff(neg(mem(a, b)), neg(mem(b, a)))))))
 
-# forall_iff_compat: forall(z, iff(P(z), Q(z))) -> iff(forall(x, P(x)), forall(x, Q(x)))
-$t27 !qed(close(forall_iff_compat(x, \(v : mem(v, a)), \(v : mem(v, b))),
-               implies(forall(z, iff(mem(z, a), mem(z, b))), iff(forall(x, mem(x, a)), forall(x, mem(x, b)))), [b, a], []),
+$t27 !qed(forall_iff_compat(x, \(v : mem(v, a)), \(v : mem(v, b)), [b, a]),
           forall(a, forall(b, implies(forall(z, iff(mem(z, a), mem(z, b))), iff(forall(x, mem(x, a)), forall(x, mem(x, b)))))))
 
-# implies_iff_compat: iff(P, R) -> iff(Q, S) -> iff(implies(P, Q), implies(R, S))
-$t28 !qed(close(implies_iff_compat(A, B, C, D), implies(iff(A, C), implies(iff(B, D), iff(implies(A, B), implies(C, D)))), [b, a], []),
+$t28 !qed(implies_iff_compat(A, B, C, D, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(implies(mem(a, b), mem(b, a)), implies(mem(a, a), mem(b, b))))))))
 
-# and_iff_compat: iff(P, R) -> iff(Q, S) -> iff(and(P, Q), and(R, S))
-$t29 !qed(close(and_iff_compat(A, B, C, D), implies(iff(A, C), implies(iff(B, D), iff(and(A, B), and(C, D)))), [b, a], []),
+$t29 !qed(and_iff_compat(A, B, C, D, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(and(mem(a, b), mem(b, a)), and(mem(a, a), mem(b, b))))))))
 
-# exists_iff_compat: forall(z, iff(P(z), Q(z))) -> iff(exists(x, P(x)), exists(x, Q(x)))
-$t30 !qed(close(exists_iff_compat(x, \(v : mem(v, a)), \(v : mem(v, b))),
-               implies(forall(z, iff(mem(z, a), mem(z, b))), iff(exists(x, mem(x, a)), exists(x, mem(x, b)))), [b, a], []),
+$t30 !qed(exists_iff_compat(x, \(v : mem(v, a)), \(v : mem(v, b)), [b, a]),
           forall(a, forall(b, implies(forall(z, iff(mem(z, a), mem(z, b))), iff(exists(x, mem(x, a)), exists(x, mem(x, b)))))))
 
-# iff_refl: iff(P, P)
-$t31 !qed(close(iff_refl(A), iff(A, A), [b, a], []),
+$t31 !qed(iff_refl(A, [b, a]),
           forall(a, forall(b, iff(mem(a, b), mem(a, b)))))
 
-# eqv_symmetric: eqv(a, b) -> eqv(b, a)
-$t32 !qed(close(eqv_symmetric(a, b), implies(eqv(a, b), eqv(b, a)), [b, a], []),
+$t32 !qed(eqv_symmetric(a, b, [b, a]),
           forall(a, forall(b, implies(eqv(a, b), eqv(b, a)))))
 
-# eqv_transitive: eqv(a, b) -> eqv(b, c) -> eqv(a, c)
-$t33 !qed(close(eqv_transitive(a, b, c), implies(eqv(a, b), implies(eqv(b, c), eqv(a, c))), [c, b, a], []),
+$t33 !qed(eqv_transitive(a, b, c, [c, b, a]),
           forall(a, forall(b, forall(c, implies(eqv(a, b), implies(eqv(b, c), eqv(a, c)))))))
 
-# ext_substitution: Extensionality |- eqv(a, b) -> iff(mem(a, s), mem(b, s))
 $t34 !qed(ext_substitution(a, b, s, [s, b, a]),
           forall(a, forall(b, forall(s, implies(eqv(a, b), iff(mem(a, s), mem(b, s)))))))
 
-# exists_unique_bridge: Extensionality |- eu -> iff(forall, exists)
 $bridge_f implies(exists_unique(x, \(v : mem(v, a))), iff(forall(x, implies(mem(x, a), mem(x, s))), exists(x, and(mem(x, a), mem(x, s)))))
 $t35 !qed(exists_unique_bridge(x, \(v : mem(v, a)), s, [s, a]),
           forall(a, forall(s, bridge_f)))

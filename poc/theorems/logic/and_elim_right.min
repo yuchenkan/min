@@ -2,7 +2,7 @@ from tactics import ax, wl, nl, nr, ir, close
 from core.derived import and
 
 # |- and(A, B) -> B
-$and_elim_right \(A B : {
+$and_elim_right \(A B vars : {
     $and_AB and(A, B)
     $not_B neg(B)
     $imp_A_notB implies(A, not_B)
@@ -11,5 +11,6 @@ $and_elim_right \(A B : {
     $t3 ir(t2, sequent([], [imp_A_notB, B]), imp_A_notB)
     $t4 nl(t3, sequent([and_AB], [B]), and_AB)
     $top implies(and_AB, B)
-    ir(t4, sequent([], [top]), top)
+    $result ir(t4, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

@@ -116,7 +116,7 @@ $exists_unique_bridge \(x phi_fn s vars : {
 
     # ext_substitution: [ext_f] |- [eqv(t,w) -> iff(mem(t,s), mem(w,s))]
     $iff_pred iff(pred_t, pred_w)
-    $got_iff_pred mp(ext_substitution(t, w, s, []),
+    $got_iff_pred mp(ext_substitution(t, w, s),
                      got_eqv_t_w, eqv_t_w, iff_pred,
                      [ext_f], [eu_body_u2, phi_t, ex_body_w])
     # [ext_f, eu_body_u2, phi_t, ex_body_w] |- [iff(pred_t, pred_w)]

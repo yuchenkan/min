@@ -9,7 +9,7 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.implies_trans import implies_trans
 
 # |- iff(P, R) -> iff(Q, S) -> iff(and(P, Q), and(R, S))
-$and_iff_compat \(P Q R S : {
+$and_iff_compat \(P Q R S vars : {
     $iff_PR iff(P, R)
     $iff_QS iff(Q, S)
     $and_PQ and(P, Q)
@@ -89,5 +89,6 @@ $and_iff_compat \(P Q R S : {
     $top2 implies(iff_QS, iff_result)
     $h1 ir(got_iff, sequent([iff_PR], [top2]), top2)
     $top implies(iff_PR, top2)
-    ir(h1, sequent([], [top]), top)
+    $result ir(h1, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

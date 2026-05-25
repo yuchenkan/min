@@ -3,7 +3,7 @@ from core.derived import exists
 
 # |- body(t) -> exists(x, body)
 # exists(x, body) = neg(forall(x, neg(body(x))))
-$exists_intro \(x body_fn t : {
+$exists_intro \(x body_fn t vars : {
     $body_t body_fn(t)
     $body_x body_fn(x)
     $neg_body_t neg(body_t)
@@ -19,5 +19,6 @@ $exists_intro \(x body_fn t : {
     $s3 nr(s2, sequent([body_t], [ex]), ex)
     # ir: [] |- [implies(body_t, ex)]
     $top implies(body_t, ex)
-    ir(s3, sequent([], [top]), top)
+    $result ir(s3, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

@@ -1,7 +1,7 @@
 from tactics import ax, wl, wr, il, ir, ct, close
 
 # |- (A -> B) -> (B -> C) -> (A -> C)
-$implies_trans \(A B C : {
+$implies_trans \(A B C vars : {
     $imp_AB implies(A, B)
     $imp_BC implies(B, C)
     $imp_AC implies(A, C)
@@ -26,5 +26,6 @@ $implies_trans \(A B C : {
     $top2 implies(imp_BC, imp_AC)
     $s11 ir(s10, sequent([imp_AB], [top2]), top2)
     $top implies(imp_AB, top2)
-    ir(s11, sequent([], [top]), top)
+    $result ir(s11, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

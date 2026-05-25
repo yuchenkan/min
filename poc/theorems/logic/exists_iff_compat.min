@@ -13,7 +13,7 @@ from theorems.logic.forall_instantiation import forall_instantiation
 #   3. -> iff(forall(x, neg(P(x))), forall(x, neg(Q(x))))  [forall_iff_compat]
 #   4. -> iff(neg(forall(x, neg(P(x)))), neg(forall(x, neg(Q(x)))))  [neg_iff_compat]
 #   = iff(exists(x, P(x)), exists(x, Q(x)))
-$exists_iff_compat \(x body_P body_Q : {
+$exists_iff_compat \(x body_P body_Q vars : {
     $z var("z") $v var("v") $u var("u")
     $hyp forall(z, iff(body_P(z), body_Q(z)))
     $ex_P exists(x, body_P(x))
@@ -56,5 +56,6 @@ $exists_iff_compat \(x body_P body_Q : {
     # s5: [hyp] |- [iff_result]
 
     $top implies(hyp, iff_result)
-    ir(s5, sequent([], [top]), top)
+    $result ir(s5, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

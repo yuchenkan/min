@@ -5,7 +5,7 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.iff_intro import iff_intro
 
 # |- iff(A, B) -> iff(B, A)
-$iff_sym \(A B : {
+$iff_sym \(A B vars : {
     $iff_AB iff(A, B)
     $iff_BA iff(B, A)
 
@@ -18,5 +18,6 @@ $iff_sym \(A B : {
                got_fwd, implies(A, B), iff_BA, [iff_AB], [iff_AB])
 
     $top implies(iff_AB, iff_BA)
-    ir(got_iff, sequent([], [top]), top)
+    $result ir(got_iff, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

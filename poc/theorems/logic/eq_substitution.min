@@ -10,7 +10,7 @@ from theorems.logic.iff_elim_right import iff_elim_right
 # Actually this is exactly what Extensionality axiom says.
 # For a logic-only theorem, prove: iff(P, Q) -> (P -> R) -> (Q -> R)
 # i.e., substitution under implication
-$eq_substitution \(P Q R : {
+$eq_substitution \(P Q R vars : {
     $iff_PQ iff(P, Q)
     $imp_PR implies(P, R)
     $imp_QR implies(Q, R)
@@ -32,5 +32,6 @@ $eq_substitution \(P Q R : {
     $top2 implies(imp_PR, imp_QR)
     $s11 ir(s10, sequent([iff_PQ], [top2]), top2)
     $top implies(iff_PQ, top2)
-    ir(s11, sequent([], [top]), top)
+    $result ir(s11, sequent([], [top]), top)
+    close(result, top, vars, [])
 })

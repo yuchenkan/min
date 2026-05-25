@@ -6,7 +6,7 @@ from theorems.logic.iff_intro import iff_intro
 from theorems.logic.contrapositive import contrapositive
 
 # |- iff(P, Q) -> iff(neg(P), neg(Q))
-$neg_iff_compat \(P Q : {
+$neg_iff_compat \(P Q vars : {
     $iff_PQ iff(P, Q)
     $iff_result iff(neg(P), neg(Q))
 
@@ -25,5 +25,6 @@ $neg_iff_compat \(P Q : {
                 got_nQnP, implies(neg(Q), neg(P)), iff_result, [iff_PQ], [iff_PQ])
 
     $top implies(iff_PQ, iff_result)
-    ir(got_iff, sequent([], [top]), top)
+    $result ir(got_iff, sequent([], [top]), top)
+    close(result, top, vars, [])
 })
