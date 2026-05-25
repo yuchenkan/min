@@ -11,7 +11,7 @@ $unique_empty {
     $s var("s") $y var("y") $u var("u")
     $body_fn \(v : empty(v))
     $empty_u empty(u)
-    $eu exists_unique(s, body_fn)
+    $eu exists_unique(body_fn)
 
     # empty_unique(u, y): [] |- [empty(u) -> empty(y) -> eqv(u, y)]
     $imp_inner implies(empty(y), eqv(u, y))
@@ -22,7 +22,7 @@ $unique_empty {
     $got_fa fr(got_inner, sequent([empty_u], [fa_uniq]), fa_uniq, y)
 
     # exists_unique_intro: [] |- [empty(u) -> fa_uniq -> eu]
-    $got_eu mp(mp(exists_unique_intro(s, body_fn, u), ax(empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, u), ax(empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),
                got_fa, fa_uniq, eu, [empty_u], [empty_u])
     # [empty_u] |- [eu]
 

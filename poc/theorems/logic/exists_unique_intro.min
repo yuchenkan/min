@@ -5,12 +5,12 @@ from theorems.logic.and_intro import and_intro
 
 # |- body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(x, body)
 # exists_unique(x, body) = exists(x, and(body(x), forall(y, implies(body(y), eqv(x, y)))))
-$exists_unique_intro \(x body_fn t vars : {
-    $y var("y")
+$exists_unique_intro \(body_fn t vars : {
+    $x var("x") $y var("y")
     $body_t body_fn(t)
     $uniq forall(y, implies(body_fn(y), eqv(t, y)))
     $conj and(body_t, uniq)
-    $eu exists_unique(x, body_fn)
+    $eu exists_unique(body_fn)
 
     # and_intro: |- body_t -> uniq -> and(body_t, uniq)
     $got_and mp(mp(and_intro(body_t, uniq), ax(body_t), body_t, implies(uniq, conj), [], [body_t]),

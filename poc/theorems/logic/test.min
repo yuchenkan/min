@@ -107,8 +107,8 @@ $t20 !qed(eq_substitution(A, B, C, [b, a]),
 $t21 !qed(or_iff_compat(A, B, C, D, [b, a]),
           forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(or(mem(a, b), mem(b, a)), or(mem(a, a), mem(b, b))))))))
 
-$t22 !qed(exists_unique_intro(x, \(v : mem(v, a)), b, [b, a]),
-          forall(a, forall(b, implies(mem(b, a), implies(forall(y, implies(mem(y, a), eqv(b, y))), exists_unique(x, \(v : mem(v, a))))))))
+$t22 !qed(exists_unique_intro(\(v : mem(v, a)), b, [b, a]),
+          forall(a, forall(b, implies(mem(b, a), implies(forall(y, implies(mem(y, a), eqv(b, y))), exists_unique(\(v : mem(v, a))))))))
 
 $t23 !qed(exists_intro(x, \(v : mem(v, a)), b, [b, a]),
           forall(a, forall(b, implies(mem(b, a), exists(x, mem(x, a))))))
@@ -146,8 +146,8 @@ $t33 !qed(eqv_transitive(a, b, c, [c, b, a]),
 $t34 !qed(ext_substitution(a, b, s, [s, b, a]),
           forall(a, forall(b, forall(s, implies(eqv(a, b), iff(mem(a, s), mem(b, s)))))))
 
-$bridge_f implies(exists_unique(x, \(v : mem(v, a))), iff(forall(x, implies(mem(x, a), mem(x, s))), exists(x, and(mem(x, a), mem(x, s)))))
-$t35 !qed(exists_unique_bridge(x, \(v : mem(v, a)), s, [s, a]),
+$bridge_f implies(exists_unique(\(v : mem(v, a))), iff(forall(x, implies(mem(x, a), mem(x, s))), exists(x, and(mem(x, a), mem(x, s)))))
+$t35 !qed(exists_unique_bridge(\(v : mem(v, a)), s, [s, a]),
           forall(a, forall(s, bridge_f)))
 
 # neg_neg_iff: neg(P) -> neg(Q) -> iff(P, Q)

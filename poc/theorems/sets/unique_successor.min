@@ -13,14 +13,14 @@ $unique_successor \(a vars : {
     $cond_fn \(v : or(mem(v, a), eqv(v, a)))
     $body_fn \(v : successor(v, a))
     $su_u successor(u, a)
-    $eu exists_unique(s, body_fn)
+    $eu exists_unique(body_fn)
 
     $imp_inner implies(successor(y, a), eqv(u, y))
     $got_inner mp(set_spec_unique(u, y, cond_fn), ax(su_u), su_u, imp_inner, [], [su_u])
     $fa_uniq forall(y, imp_inner)
     $got_fa fr(got_inner, sequent([su_u], [fa_uniq]), fa_uniq, y)
 
-    $got_eu mp(mp(exists_unique_intro(s, body_fn, u), ax(su_u), su_u, implies(fa_uniq, eu), [], [su_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, u), ax(su_u), su_u, implies(fa_uniq, eu), [], [su_u]),
                got_fa, fa_uniq, eu, [su_u], [su_u])
 
     $got_ex eel(got_eu, body_fn, s, u, [su_u], eu)

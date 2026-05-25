@@ -12,7 +12,7 @@ $unique_singleton \(a vars : {
     $s var("s") $y var("y") $u var("u")
     $body_fn \(v : singleton(v, a))
     $sing_u singleton(u, a)
-    $eu exists_unique(s, body_fn)
+    $eu exists_unique(body_fn)
 
     # singleton_unique(u, y, a): [] |- [sing(u,a) -> sing(y,a) -> eqv(u,y)]
     $imp_inner implies(singleton(y, a), eqv(u, y))
@@ -23,7 +23,7 @@ $unique_singleton \(a vars : {
     $got_fa fr(got_inner, sequent([sing_u], [fa_uniq]), fa_uniq, y)
 
     # exists_unique_intro: [] |- [sing_u -> fa_uniq -> eu]
-    $got_eu mp(mp(exists_unique_intro(s, body_fn, u), ax(sing_u), sing_u, implies(fa_uniq, eu), [], [sing_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, u), ax(sing_u), sing_u, implies(fa_uniq, eu), [], [sing_u]),
                got_fa, fa_uniq, eu, [sing_u], [sing_u])
     # [sing_u] |- [eu]
 

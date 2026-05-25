@@ -13,7 +13,7 @@ $unique_pair_set \(a b vars : {
     $cond_fn \(v : or(eqv(v, a), eqv(v, b)))
     $body_fn \(v : pair_set(v, a, b))
     $ps_u pair_set(u, a, b)
-    $eu exists_unique(s, body_fn)
+    $eu exists_unique(body_fn)
 
     # set_spec_unique(u, y, cond_fn): [] |- [pair_set(u,a,b) -> pair_set(y,a,b) -> eqv(u,y)]
     # pair_set IS set_spec with cond_fn, so this works
@@ -23,7 +23,7 @@ $unique_pair_set \(a b vars : {
     $fa_uniq forall(y, imp_inner)
     $got_fa fr(got_inner, sequent([ps_u], [fa_uniq]), fa_uniq, y)
 
-    $got_eu mp(mp(exists_unique_intro(s, body_fn, u), ax(ps_u), ps_u, implies(fa_uniq, eu), [], [ps_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, u), ax(ps_u), ps_u, implies(fa_uniq, eu), [], [ps_u]),
                got_fa, fa_uniq, eu, [ps_u], [ps_u])
 
     $got_ex eel(got_eu, body_fn, s, u, [ps_u], eu)

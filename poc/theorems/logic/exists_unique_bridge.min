@@ -15,10 +15,10 @@ from theorems.logic.ext_substitution import ext_substitution
 # phi_fn: \(v : ...) characterizing property
 # s: the set for membership predicate
 # pred_fn(v) = mem(v, s)
-$exists_unique_bridge \(x phi_fn s vars : {
-    $u var("u") $u2 var("u2") $w var("w") $t var("t") $y var("y")
+$exists_unique_bridge \(phi_fn s vars : {
+    $x var("x") $u var("u") $u2 var("u2") $w var("w") $t var("t") $y var("y")
     $pred_fn \(v : mem(v, s))
-    $eu exists_unique(x, phi_fn)
+    $eu exists_unique(phi_fn)
     $fa_form forall(x, implies(phi_fn(x), pred_fn(x)))
     $ex_body_fn \(v : and(phi_fn(v), pred_fn(v)))
     $ex_form exists(x, ex_body_fn(x))

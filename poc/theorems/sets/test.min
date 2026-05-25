@@ -28,7 +28,7 @@ $t02 !qed(empty_unique(a, b, [b, a]),
           forall(a, forall(b, implies(empty(a), implies(empty(b), eqv(a, b))))))
 
 # unique_empty: EmptySet |- exists_unique(s, empty)
-$t03 !qed(unique_empty, exists_unique(s, \(v : empty(v))))
+$t03 !qed(unique_empty, exists_unique(\(v : empty(v))))
 
 # singleton_exists: Pairing |- forall(a, exists(s, singleton(s, a)))
 $t04 !qed(singleton_exists(a, [a]), forall(a, exists(s, singleton(s, a))))
@@ -39,7 +39,7 @@ $t05 !qed(singleton_unique(s1, s2, a, [a, s2, s1]),
           forall(s1, forall(s2, forall(a, implies(set_spec(s1, \(v : eqv(v, a))), implies(set_spec(s2, \(v : eqv(v, a))), eqv(s1, s2)))))))
 
 # unique_singleton: Pairing |- forall(a, exists_unique(s, singleton(s, a)))
-$t06 !qed(unique_singleton(a, [a]), forall(a, exists_unique(s, \(v : singleton(v, a)))))
+$t06 !qed(unique_singleton(a, [a]), forall(a, exists_unique(\(v : singleton(v, a)))))
 
 # set_spec_unique: set_spec(s1, cond) -> set_spec(s2, cond) -> eqv(s1, s2)
 $t07 !qed(set_spec_unique(s1, s2, \(v : mem(v, a)), [a, s2, s1]),
@@ -49,22 +49,22 @@ $t07 !qed(set_spec_unique(s1, s2, \(v : mem(v, a)), [a, s2, s1]),
 $t08 !qed(pair_set_exists, forall(a, forall(b, exists(s, pair_set(s, a, b)))))
 
 # unique_pair_set: Pairing |- forall(a, forall(b, exists_unique(s, pair_set(s, a, b))))
-$t09 !qed(unique_pair_set(a, b, [b, a]), forall(a, forall(b, exists_unique(s, \(v : pair_set(v, a, b))))))
+$t09 !qed(unique_pair_set(a, b, [b, a]), forall(a, forall(b, exists_unique(\(v : pair_set(v, a, b))))))
 
 # big_union_exists: Union |- forall(a, exists(s, big_union(s, a)))
 $t10 !qed(big_union_exists, forall(a, exists(s, big_union(s, a))))
 
 # unique_big_union: Union |- forall(a, exists_unique(s, big_union(s, a)))
-$t11 !qed(unique_big_union(a, [a]), forall(a, exists_unique(s, \(v : big_union(v, a)))))
+$t11 !qed(unique_big_union(a, [a]), forall(a, exists_unique(\(v : big_union(v, a)))))
 
 # power_set_exists: PowerSet |- forall(a, exists(s, power_set(s, a)))
 $t12 !qed(power_set_exists, forall(a, exists(s, power_set(s, a))))
 
 # unique_power_set: PowerSet |- forall(a, exists_unique(s, power_set(s, a)))
-$t13 !qed(unique_power_set(a, [a]), forall(a, exists_unique(s, \(v : power_set(v, a)))))
+$t13 !qed(unique_power_set(a, [a]), forall(a, exists_unique(\(v : power_set(v, a)))))
 
 # successor_exists: Pairing, Union |- forall(a, exists(s, successor(s, a)))
 $t14 !qed(successor_exists(a, [a]), forall(a, exists(s, successor(s, a))))
 
 # unique_successor: Pairing, Union |- forall(a, exists_unique(s, successor(s, a)))
-$t15 !qed(unique_successor(a, [a]), forall(a, exists_unique(s, \(v : successor(v, a)))))
+$t15 !qed(unique_successor(a, [a]), forall(a, exists_unique(\(v : successor(v, a)))))

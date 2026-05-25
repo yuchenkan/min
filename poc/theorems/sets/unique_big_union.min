@@ -13,7 +13,7 @@ $unique_big_union \(a vars : {
     $cond_fn \(v : exists(w, and(mem(w, a), mem(v, w))))
     $body_fn \(v : big_union(v, a))
     $bu_u big_union(u, a)
-    $eu exists_unique(s, body_fn)
+    $eu exists_unique(body_fn)
 
     # set_spec_unique: [] |- [bu(u,a) -> bu(y,a) -> eqv(u,y)]
     $imp_inner implies(big_union(y, a), eqv(u, y))
@@ -21,7 +21,7 @@ $unique_big_union \(a vars : {
     $fa_uniq forall(y, imp_inner)
     $got_fa fr(got_inner, sequent([bu_u], [fa_uniq]), fa_uniq, y)
 
-    $got_eu mp(mp(exists_unique_intro(s, body_fn, u), ax(bu_u), bu_u, implies(fa_uniq, eu), [], [bu_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, u), ax(bu_u), bu_u, implies(fa_uniq, eu), [], [bu_u]),
                got_fa, fa_uniq, eu, [bu_u], [bu_u])
 
     $got_ex eel(got_eu, body_fn, s, u, [bu_u], eu)
