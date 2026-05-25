@@ -1,0 +1,134 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, ct, close
+from core.derived import iff
+
+# |- iff(A, B) -> iff(B, C) -> iff(A, C)
+# Strategy: extract fwd/bwd from each iff, compose, rebuild iff
+$iff_chain \(A B C : {
+    $fwd_AB implies(A, B)
+    $bwd_AB implies(B, A)
+    $iff_AB iff(A, B)
+    $not_bwd_AB neg(bwd_AB)
+    $imp_AB implies(fwd_AB, not_bwd_AB)
+
+    $fwd_BC implies(B, C)
+    $bwd_BC implies(C, B)
+    $iff_BC iff(B, C)
+    $not_bwd_BC neg(bwd_BC)
+    $imp_BC implies(fwd_BC, not_bwd_BC)
+
+    $fwd_AC implies(A, C)
+    $bwd_AC implies(C, A)
+    $not_bwd_AC neg(bwd_AC)
+    $imp_AC implies(fwd_AC, not_bwd_AC)
+    $iff_AC iff(A, C)
+
+    # === Extract from iff_AB ===
+    # fwd_AB from iff_AB
+    $e1 wr(ax(fwd_AB), sequent([fwd_AB], [fwd_AB, not_bwd_AB]), not_bwd_AB)
+    $e2 ir(e1, sequent([], [imp_AB, fwd_AB]), imp_AB)
+    $got_fwd_AB nl(e2, sequent([iff_AB], [fwd_AB]), iff_AB)
+    # bwd_AB from iff_AB
+    $e3 nr(ax(bwd_AB), sequent([], [not_bwd_AB, bwd_AB]), not_bwd_AB)
+    $e4 wl(e3, sequent([fwd_AB], [not_bwd_AB, bwd_AB]), fwd_AB)
+    $e5 ir(e4, sequent([], [imp_AB, bwd_AB]), imp_AB)
+    $got_bwd_AB nl(e5, sequent([iff_AB], [bwd_AB]), iff_AB)
+
+    # === Extract from iff_BC ===
+    $f1 wr(ax(fwd_BC), sequent([fwd_BC], [fwd_BC, not_bwd_BC]), not_bwd_BC)
+    $f2 ir(f1, sequent([], [imp_BC, fwd_BC]), imp_BC)
+    $got_fwd_BC nl(f2, sequent([iff_BC], [fwd_BC]), iff_BC)
+    $f3 nr(ax(bwd_BC), sequent([], [not_bwd_BC, bwd_BC]), not_bwd_BC)
+    $f4 wl(f3, sequent([fwd_BC], [not_bwd_BC, bwd_BC]), fwd_BC)
+    $f5 ir(f4, sequent([], [imp_BC, bwd_BC]), imp_BC)
+    $got_bwd_BC nl(f5, sequent([iff_BC], [bwd_BC]), iff_BC)
+
+    # === Compose fwd: A->B, B->C |- A->C ===
+    # A, A->B |- B
+    $g1 wr(ax(A), sequent([A], [A, B]), B)
+    $g2 wl(ax(B), sequent([A, B], [B]), A)
+    $g3 il(g1, g2, sequent([A, fwd_AB], [B]), fwd_AB)
+    # B, B->C |- C
+    $g4 wr(ax(B), sequent([B], [B, C]), C)
+    $g5 wl(ax(C), sequent([B, C], [C]), B)
+    $g6 il(g4, g5, sequent([B, fwd_BC], [C]), fwd_BC)
+    # cut B: A, A->B, B->C |- C
+    $g7 wr(wl(g3, sequent([A, fwd_AB, fwd_BC], [B]), fwd_BC), sequent([A, fwd_AB, fwd_BC], [B, C]), C)
+    $g8 wl(wl(g6, sequent([A, B, fwd_BC], [C]), A), sequent([A, fwd_AB, B, fwd_BC], [C]), fwd_AB)
+    $g9 ct(g7, g8, sequent([A, fwd_AB, fwd_BC], [C]), B)
+    # ir: fwd_AB, fwd_BC |- fwd_AC
+    $got_compose_fwd ir(g9, sequent([fwd_AB, fwd_BC], [fwd_AC]), fwd_AC)
+
+    # === Compose bwd: C->B, B->A |- C->A ===
+    $h1 wr(ax(C), sequent([C], [C, B]), B)
+    $h2 wl(ax(B), sequent([C, B], [B]), C)
+    $h3 il(h1, h2, sequent([C, bwd_BC], [B]), bwd_BC)
+    $h4 wr(ax(B), sequent([B], [B, A]), A)
+    $h5 wl(ax(A), sequent([B, A], [A]), B)
+    $h6 il(h4, h5, sequent([B, bwd_AB], [A]), bwd_AB)
+    $h7 wr(wl(h3, sequent([C, bwd_BC, bwd_AB], [B]), bwd_AB), sequent([C, bwd_BC, bwd_AB], [B, A]), A)
+    $h8 wl(wl(h6, sequent([C, B, bwd_AB], [A]), C), sequent([C, bwd_BC, B, bwd_AB], [A]), bwd_BC)
+    $h9 ct(h7, h8, sequent([C, bwd_BC, bwd_AB], [A]), B)
+    $got_compose_bwd ir(h9, sequent([bwd_BC, bwd_AB], [bwd_AC]), bwd_AC)
+
+    # === Build iff_AC from fwd_AC + bwd_AC ===
+    $p1 wl(ax(fwd_AC), sequent([fwd_AC, bwd_AC], [fwd_AC]), bwd_AC)
+    $p2 wl(ax(bwd_AC), sequent([fwd_AC, bwd_AC], [bwd_AC]), fwd_AC)
+    $p3 nl(p2, sequent([fwd_AC, bwd_AC, not_bwd_AC], []), not_bwd_AC)
+    $p4 il(p1, p3, sequent([fwd_AC, bwd_AC, imp_AC], []), imp_AC)
+    $p5 nr(p4, sequent([fwd_AC, bwd_AC], [iff_AC]), iff_AC)
+
+    # === Wire: iff_AB, iff_BC |- iff_AC ===
+    # got_compose_fwd: fwd_AB, fwd_BC |- fwd_AC
+    # got_compose_bwd: bwd_BC, bwd_AB |- bwd_AC
+    # p5: fwd_AC, bwd_AC |- iff_AC
+
+    # Step 1: iff_AB, iff_BC |- fwd_AC
+    # cut fwd_AB: need iff_AB, iff_BC |- fwd_AB (got_fwd_AB + wl iff_BC)
+    #             and  fwd_AB, iff_BC |- fwd_AC (cut fwd_BC next)
+    $w1 wl(got_fwd_AB, sequent([iff_AB, iff_BC], [fwd_AB]), iff_BC)
+    $w2 wr(w1, sequent([iff_AB, iff_BC], [fwd_AB, fwd_AC]), fwd_AC)
+    $w3 wl(got_fwd_BC, sequent([iff_AB, iff_BC], [fwd_BC]), iff_AB)
+    $w4 wr(w3, sequent([iff_AB, iff_BC], [fwd_BC, fwd_AC]), fwd_AC)
+    $w5a wl(got_compose_fwd, sequent([iff_AB, fwd_AB, fwd_BC], [fwd_AC]), iff_AB)
+    $w5 wl(w5a, sequent([iff_AB, fwd_AB, fwd_BC, iff_BC], [fwd_AC]), iff_BC)
+    $w2b wl(w2, sequent([iff_AB, fwd_BC, iff_BC], [fwd_AB, fwd_AC]), fwd_BC)
+    $w6 ct(w2b, w5, sequent([iff_AB, fwd_BC, iff_BC], [fwd_AC]), fwd_AB)
+    $w7 ct(w4, w6, sequent([iff_AB, iff_BC], [fwd_AC]), fwd_BC)
+
+    # Step 2: iff_AB, iff_BC |- bwd_AC
+    $x1 wl(got_bwd_BC, sequent([iff_AB, iff_BC], [bwd_BC]), iff_AB)
+    $x2 wr(x1, sequent([iff_AB, iff_BC], [bwd_BC, bwd_AC]), bwd_AC)
+    $x3 wl(got_bwd_AB, sequent([iff_AB, iff_BC], [bwd_AB]), iff_BC)
+    $x4 wr(x3, sequent([iff_AB, iff_BC], [bwd_AB, bwd_AC]), bwd_AC)
+    $x5a wl(got_compose_bwd, sequent([iff_AB, bwd_BC, bwd_AB], [bwd_AC]), iff_AB)
+    $x5 wl(x5a, sequent([iff_AB, bwd_BC, bwd_AB, iff_BC], [bwd_AC]), iff_BC)
+    $x2b wl(x2, sequent([iff_AB, bwd_AB, iff_BC], [bwd_BC, bwd_AC]), bwd_AB)
+    $x6 ct(x2b, x5, sequent([iff_AB, bwd_AB, iff_BC], [bwd_AC]), bwd_BC)
+    $x7 ct(x4, x6, sequent([iff_AB, iff_BC], [bwd_AC]), bwd_AB)
+
+    # Step 3: iff_AB, iff_BC |- iff_AC via cuts on fwd_AC, bwd_AC
+    $y1 wr(w7, sequent([iff_AB, iff_BC], [fwd_AC, iff_AC]), iff_AC)
+    $y2a wl(p5, sequent([iff_AB, fwd_AC, bwd_AC], [iff_AC]), iff_AB)
+    $y2 wl(y2a, sequent([iff_AB, iff_BC, fwd_AC, bwd_AC], [iff_AC]), iff_BC)
+    $y1b wl(y1, sequent([iff_AB, iff_BC, bwd_AC], [fwd_AC, iff_AC]), bwd_AC)
+    $y3 ct(y1b, y2, sequent([iff_AB, iff_BC, bwd_AC], [iff_AC]), fwd_AC)
+    $y4 wr(x7, sequent([iff_AB, iff_BC], [bwd_AC, iff_AC]), iff_AC)
+    $y5 wl(y3, sequent([iff_AB, iff_BC, bwd_AC], [iff_AC]), iff_AB)
+    $y5b wl(y5, sequent([iff_AB, iff_BC, bwd_AC], [iff_AC]), iff_BC)
+    $y6 ct(y4, y5b, sequent([iff_AB, iff_BC], [iff_AC]), bwd_AC)
+
+    # Close with implies_right
+    $top2 implies(iff_BC, iff_AC)
+    $z1 ir(y6, sequent([iff_AB], [top2]), top2)
+    $top implies(iff_AB, top2)
+    ir(z1, sequent([], [top]), top)
+})
+
+$iff_chain_example {
+    $A mem(a, b)
+    $B mem(b, a)
+    $C mem(a, a)
+    $formula implies(iff(A, B), implies(iff(B, C), iff(A, C)))
+    !qed(close(iff_chain(A, B, C), formula, [b, a]),
+         forall(a, forall(b, implies(iff(mem(a, b), mem(b, a)), implies(iff(mem(b, a), mem(a, a)), iff(mem(a, b), mem(a, a)))))))
+}
