@@ -1,6 +1,6 @@
 from core.derived import exists, eqv
 from core.axioms import EmptySet, Pairing
-from vocab.sets import empty, singleton
+from vocab.sets import empty, singleton, pair_set
 from vocab.logic import exists_unique
 from theorems.sets.empty_exists import empty_exists
 from theorems.sets.empty_unique import empty_unique
@@ -8,6 +8,9 @@ from theorems.sets.unique_empty import unique_empty
 from theorems.sets.singleton_exists import singleton_exists
 from theorems.sets.singleton_unique import singleton_unique
 from theorems.sets.unique_singleton import unique_singleton
+from theorems.sets.set_spec_unique import set_spec_unique
+from theorems.sets.pair_set_exists import pair_set_exists
+from theorems.sets.unique_pair_set import unique_pair_set
 
 $a var("a") $b var("b") $s var("s")
 
@@ -31,3 +34,13 @@ $t05 !qed(singleton_unique(s1, s2, a, [a, s2, s1]),
 
 # unique_singleton: Pairing |- forall(a, exists_unique(s, singleton(s, a)))
 $t06 !qed(unique_singleton(a, [a]), forall(a, exists_unique(s, \(v : singleton(v, a)))))
+
+# set_spec_unique: set_spec(s1, cond) -> set_spec(s2, cond) -> eqv(s1, s2)
+$t07 !qed(set_spec_unique(s1, s2, \(v : mem(v, a)), [a, s2, s1]),
+          forall(s1, forall(s2, forall(a, implies(set_spec(s1, \(v : mem(v, a))), implies(set_spec(s2, \(v : mem(v, a))), eqv(s1, s2)))))))
+
+# pair_set_exists: Pairing |- forall(a, forall(b, exists(s, pair_set(s, a, b))))
+$t08 !qed(pair_set_exists, Pairing())
+
+# unique_pair_set: Pairing |- forall(a, forall(b, exists_unique(s, pair_set(s, a, b))))
+$t09 !qed(unique_pair_set(a, b, [b, a]), forall(a, forall(b, exists_unique(s, \(v : pair_set(v, a, b))))))

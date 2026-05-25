@@ -1,0 +1,8 @@
+from tactics import ax
+from core.axioms import Pairing
+
+# Pairing |- forall(a, forall(b, exists(s, pair_set(s, a, b))))
+$pair_set_exists {
+    $f Pairing()
+    ax(f)
+}
