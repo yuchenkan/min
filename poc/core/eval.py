@@ -223,13 +223,23 @@ class EvalError(Exception):
         self.msg = msg
         self.node = node
         self.cause = cause
+        self.stack = []
+
+    def _loc(self, node):
+        f = f'{node.file}:' if hasattr(node, 'file') and node.file else ''
+        return f'{f}{node.line}:{node.col}'
+
+    def add_frame(self, node):
+        self.stack.append(node)
+
     def __str__(self):
-        loc = f'{node.line}:{node.col}' if (node := self.node) else '?'
-        s = f'{loc}: {self.msg}'
+        loc = self._loc(self.node) if self.node else '?'
+        msg = self.msg.replace('\n', '\n  ')
+        s = f'error: {loc}: {msg}'
         if self.node:
             s += f'\n  at {self.node!r}'
-        if self.cause:
-            s += f'\n  caused by: {self.cause}'
+        for frame in self.stack:
+            s += f'\n  in {self._loc(frame)} {frame!r}'
         return s
 
 
@@ -288,7 +298,8 @@ def _evaluate(node, env):
             if isinstance(fn, Fn):
                 result = fn.call(args)
                 return Traced(result, node) if fn.traced else result
-        except EvalError:
+        except EvalError as e:
+            e.add_frame(node)
             raise
         except Exception as e:
             raise EvalError(str(e), node, e) from e

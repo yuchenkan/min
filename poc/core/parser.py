@@ -101,96 +101,92 @@ def tokenize(source, filepath='<input>'):
 
 # === AST ===
 
-class Import:
-    def __init__(self, module, names, line, col):
-        self.module = module
-        self.names = names
+class Node:
+    def __init__(self, file, line, col):
+        self.file = file
         self.line = line
         self.col = col
+
+class Import(Node):
+    def __init__(self, module, names, file, line, col):
+        super().__init__(file, line, col)
+        self.module = module
+        self.names = names
     def __repr__(self):
         return f'from {self.module} import {", ".join(self.names)}'
 
-class Bind:
-    def __init__(self, name, expr, line, col):
+class Bind(Node):
+    def __init__(self, name, expr, file, line, col):
+        super().__init__(file, line, col)
         self.name = name
         self.expr = expr
-        self.line = line
-        self.col = col
     def __repr__(self):
         return f'${self.name} {self.expr!r}'
 
-class Fn:
-    def __init__(self, params, body, line, col, traced=False):
+class Fn(Node):
+    def __init__(self, params, body, file, line, col, traced=False):
+        super().__init__(file, line, col)
         self.params = params
         self.body = body
-        self.line = line
         self.traced = traced
-        self.col = col
     def __repr__(self):
         s = '\\\\' if self.traced else '\\'
         return f'{s}({" ".join(self.params)} : {self.body!r})'
 
-class Call:
-    def __init__(self, callee, args, line, col):
+class Call(Node):
+    def __init__(self, callee, args, file, line, col):
+        super().__init__(file, line, col)
         self.callee = callee
         self.args = args
-        self.line = line
-        self.col = col
     def __repr__(self):
         return f'{self.callee!r}({", ".join(repr(a) for a in self.args)})'
 
-class Ref:
-    def __init__(self, name, line, col):
+class Ref(Node):
+    def __init__(self, name, file, line, col):
+        super().__init__(file, line, col)
         self.name = name
-        self.line = line
-        self.col = col
     def __repr__(self):
         return self.name
 
-class Lit:
-    def __init__(self, value, line, col):
+class Lit(Node):
+    def __init__(self, value, file, line, col):
+        super().__init__(file, line, col)
         self.value = value
-        self.line = line
-        self.col = col
     def __repr__(self):
         if isinstance(self.value, str):
             s = self.value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\t', '\\t')
             return f'"{s}"'
         return str(self.value)
 
-class List:
-    def __init__(self, items, line, col):
+class List(Node):
+    def __init__(self, items, file, line, col):
+        super().__init__(file, line, col)
         self.items = items
-        self.line = line
-        self.col = col
     def __repr__(self):
         return f'[{", ".join(repr(i) for i in self.items)}]'
 
-class Block:
-    def __init__(self, bindings, expr, line, col):
+class Block(Node):
+    def __init__(self, bindings, expr, file, line, col):
+        super().__init__(file, line, col)
         self.bindings = bindings
         self.expr = expr
-        self.line = line
-        self.col = col
     def __repr__(self):
         parts = [repr(b) for b in self.bindings] + [repr(self.expr)]
         return '{ ' + ' '.join(parts) + ' }'
 
-class If:
-    def __init__(self, cond, then, else_, line, col):
+class If(Node):
+    def __init__(self, cond, then, else_, file, line, col):
+        super().__init__(file, line, col)
         self.cond = cond
         self.then = then
         self.else_ = else_
-        self.line = line
-        self.col = col
     def __repr__(self):
         return f'?({self.cond!r}, {self.then!r}, {self.else_!r})'
 
-class Show:
-    def __init__(self, expr, line, col):
+class Show(Node):
+    def __init__(self, expr, file, line, col):
+        super().__init__(file, line, col)
         self.expr = expr
-        self.line = line
-        self.col = col
     def __repr__(self):
         return f'!{self.expr!r}'
 
@@ -241,7 +237,7 @@ class Parser:
         while self.peek()[1] == ',':
             self.advance()
             names.append(self.expect('NAME')[1])
-        return Import(module, names, tok[2], tok[3])
+        return Import(module, names, self.filepath, tok[2], tok[3])
 
     def parse_dotted_name(self):
         parts = [self.expect('NAME')[1]]
@@ -254,14 +250,14 @@ class Parser:
         tok = self.expect('PUNCT', '$')
         name = self.expect('NAME')[1]
         expr = self.parse_expr()
-        return Bind(name, expr, tok[2], tok[3])
+        return Bind(name, expr, self.filepath, tok[2], tok[3])
 
     def parse_expr(self):
         tok = self.peek()
 
         if tok[1] == '!':
             t = self.advance()
-            node = Show(self.parse_expr(), t[2], t[3])
+            node = Show(self.parse_expr(), self.filepath, t[2], t[3])
             return node
         elif tok[1] == '\\':
             node = self.parse_fn()
@@ -273,13 +269,13 @@ class Parser:
             node = self.parse_block()
         elif tok[0] == 'INT':
             t = self.advance()
-            node = Lit(t[1], t[2], t[3])
+            node = Lit(t[1], self.filepath, t[2], t[3])
         elif tok[0] == 'STR':
             t = self.advance()
-            node = Lit(t[1], t[2], t[3])
+            node = Lit(t[1], self.filepath, t[2], t[3])
         elif tok[0] == 'NAME':
             t = self.advance()
-            node = Ref(t[1], t[2], t[3])
+            node = Ref(t[1], self.filepath, t[2], t[3])
         else:
             self.error(f'expected expression, got {tok[1]!r}')
 
@@ -287,7 +283,7 @@ class Parser:
             self.advance()
             args = self.parse_args()
             self.expect('PUNCT', ')')
-            node = Call(node, args, node.line, node.col)
+            node = Call(node, args, node.file, node.line, node.col)
 
         return node
 
@@ -301,7 +297,7 @@ class Parser:
         self.expect('PUNCT', ':')
         body = self.parse_expr()
         self.expect('PUNCT', ')')
-        return Fn(params, body, tok[2], tok[3], traced)
+        return Fn(params, body, self.filepath, tok[2], tok[3], traced)
 
     def parse_params(self):
         params = []
@@ -318,7 +314,7 @@ class Parser:
                 self.advance()
                 items.append(self.parse_expr())
         self.expect('PUNCT', ']')
-        return List(items, tok[2], tok[3])
+        return List(items, self.filepath, tok[2], tok[3])
 
     def parse_if(self):
         tok = self.expect('PUNCT', '?')
@@ -329,7 +325,7 @@ class Parser:
         self.expect('PUNCT', ',')
         else_ = self.parse_expr()
         self.expect('PUNCT', ')')
-        return If(cond, then, else_, tok[2], tok[3])
+        return If(cond, then, else_, self.filepath, tok[2], tok[3])
 
     def parse_block(self):
         tok = self.expect('PUNCT', '{')
@@ -338,7 +334,7 @@ class Parser:
             bindings.append(self.parse_bind())
         expr = self.parse_expr()
         self.expect('PUNCT', '}')
-        return Block(bindings, expr, tok[2], tok[3])
+        return Block(bindings, expr, self.filepath, tok[2], tok[3])
 
     def parse_args(self):
         args = []
