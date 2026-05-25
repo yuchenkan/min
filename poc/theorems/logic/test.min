@@ -27,6 +27,10 @@ from theorems.logic.contrapositive import contrapositive
 from theorems.logic.not_not_intro import not_not_intro
 from theorems.logic.neg_iff_compat import neg_iff_compat
 from theorems.logic.forall_iff_compat import forall_iff_compat
+from theorems.logic.implies_iff_compat import implies_iff_compat
+from theorems.logic.and_iff_compat import and_iff_compat
+from theorems.logic.exists_iff_compat import exists_iff_compat
+from theorems.logic.iff_refl import iff_refl
 from vocab.logic import exists_unique
 
 $A mem(a, b)
@@ -124,3 +128,20 @@ $t26 !qed(close(neg_iff_compat(A, B), implies(iff(A, B), iff(neg(A), neg(B))), [
 $t27 !qed(close(forall_iff_compat(x, \(v : mem(v, a)), \(v : mem(v, b))),
                implies(forall(z, iff(mem(z, a), mem(z, b))), iff(forall(x, mem(x, a)), forall(x, mem(x, b)))), [b, a]),
           forall(a, forall(b, implies(forall(z, iff(mem(z, a), mem(z, b))), iff(forall(x, mem(x, a)), forall(x, mem(x, b)))))))
+
+# implies_iff_compat: iff(P, R) -> iff(Q, S) -> iff(implies(P, Q), implies(R, S))
+$t28 !qed(close(implies_iff_compat(A, B, C, D), implies(iff(A, C), implies(iff(B, D), iff(implies(A, B), implies(C, D)))), [b, a]),
+          forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(implies(mem(a, b), mem(b, a)), implies(mem(a, a), mem(b, b))))))))
+
+# and_iff_compat: iff(P, R) -> iff(Q, S) -> iff(and(P, Q), and(R, S))
+$t29 !qed(close(and_iff_compat(A, B, C, D), implies(iff(A, C), implies(iff(B, D), iff(and(A, B), and(C, D)))), [b, a]),
+          forall(a, forall(b, implies(iff(mem(a, b), mem(a, a)), implies(iff(mem(b, a), mem(b, b)), iff(and(mem(a, b), mem(b, a)), and(mem(a, a), mem(b, b))))))))
+
+# exists_iff_compat: forall(z, iff(P(z), Q(z))) -> iff(exists(x, P(x)), exists(x, Q(x)))
+$t30 !qed(close(exists_iff_compat(x, \(v : mem(v, a)), \(v : mem(v, b))),
+               implies(forall(z, iff(mem(z, a), mem(z, b))), iff(exists(x, mem(x, a)), exists(x, mem(x, b)))), [b, a]),
+          forall(a, forall(b, implies(forall(z, iff(mem(z, a), mem(z, b))), iff(exists(x, mem(x, a)), exists(x, mem(x, b)))))))
+
+# iff_refl: iff(P, P)
+$t31 !qed(close(iff_refl(A), iff(A, A), [b, a]),
+          forall(a, forall(b, iff(mem(a, b), mem(a, b)))))

@@ -1,0 +1,12 @@
+from tactics import ax, ir, mp
+from core.derived import iff
+from theorems.logic.iff_intro import iff_intro
+
+# |- iff(P, P)
+$iff_refl \(P : {
+    $id implies(P, P)
+    $iff_PP iff(P, P)
+    $got_id ir(ax(P), sequent([], [id]), id)
+    mp(mp(iff_intro(P, P), got_id, id, implies(id, iff_PP), [], []),
+       got_id, id, iff_PP, [], [])
+})

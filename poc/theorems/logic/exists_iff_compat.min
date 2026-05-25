@@ -1,0 +1,59 @@
+from tactics import ax, wl, wr, nl, nr, il, ir, fl, fr, ct, mp, cut_c
+from core.derived import exists, iff
+from theorems.logic.neg_iff_compat import neg_iff_compat
+from theorems.logic.forall_iff_compat import forall_iff_compat
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.forall_instantiation import forall_instantiation
+
+# |- forall(z, iff(P(z), Q(z))) -> iff(exists(x, P(x)), exists(x, Q(x)))
+# exists(x, P(x)) = neg(forall(x, neg(P(x))))
+# Strategy:
+#   1. forall(z, iff(P(z), Q(z)))
+#   2. -> forall(z, iff(neg(P(z)), neg(Q(z))))  [pointwise neg_iff_compat]
+#   3. -> iff(forall(x, neg(P(x))), forall(x, neg(Q(x))))  [forall_iff_compat]
+#   4. -> iff(neg(forall(x, neg(P(x)))), neg(forall(x, neg(Q(x)))))  [neg_iff_compat]
+#   = iff(exists(x, P(x)), exists(x, Q(x)))
+$exists_iff_compat \(x body_P body_Q : {
+    $hyp forall(z, iff(body_P(z), body_Q(z)))
+    $ex_P exists(x, body_P(x))
+    $ex_Q exists(x, body_Q(x))
+    $iff_result iff(ex_P, ex_Q)
+
+    # Step 1->2: pointwise neg_iff_compat
+    # From hyp, instantiate with eigenvariable v: iff(P(v), Q(v))
+    # Then neg_iff_compat: iff(neg(P(v)), neg(Q(v)))
+    # Then forall_right to get forall(z, iff(neg(P(z)), neg(Q(z))))
+    $Pv body_P(v)
+    $Qv body_Q(v)
+    $iff_v iff(Pv, Qv)
+    $iff_neg_v iff(neg(Pv), neg(Qv))
+
+    # fl on hyp with v: [hyp] |- [iff_v]
+    $s1 fl(ax(iff_v), sequent([hyp], [iff_v]), hyp, v)
+    # neg_iff_compat(Pv, Qv): [] |- [iff_v -> iff_neg_v]
+    $s2 mp(neg_iff_compat(Pv, Qv), s1, iff_v, iff_neg_v, [], [hyp])
+    # s2: [hyp] |- [iff_neg_v]
+
+    $neg_hyp forall(z, iff(neg(body_P(z)), neg(body_Q(z))))
+    # fr with v: [hyp] |- [neg_hyp]
+    $s3 fr(s2, sequent([hyp], [neg_hyp]), neg_hyp, v)
+
+    # Step 2->3: forall_iff_compat on neg bodies
+    $neg_P \(u : neg(body_P(u)))
+    $neg_Q \(u : neg(body_Q(u)))
+    # forall_iff_compat(x, neg_P, neg_Q): [] |- [neg_hyp -> iff(forall(x, neg(P(x))), forall(x, neg(Q(x))))]
+    $fa_neg_P forall(x, neg(body_P(x)))
+    $fa_neg_Q forall(x, neg(body_Q(x)))
+    $iff_fa_neg iff(fa_neg_P, fa_neg_Q)
+    $s4 mp(forall_iff_compat(x, neg_P, neg_Q), s3, neg_hyp, iff_fa_neg, [], [hyp])
+    # s4: [hyp] |- [iff_fa_neg]
+
+    # Step 3->4: neg_iff_compat on the foralls
+    # neg_iff_compat(fa_neg_P, fa_neg_Q): [] |- [iff_fa_neg -> iff(neg(fa_neg_P), neg(fa_neg_Q))]
+    # iff(neg(fa_neg_P), neg(fa_neg_Q)) = iff(ex_P, ex_Q) = iff_result
+    $s5 mp(neg_iff_compat(fa_neg_P, fa_neg_Q), s4, iff_fa_neg, iff_result, [], [hyp])
+    # s5: [hyp] |- [iff_result]
+
+    $top implies(hyp, iff_result)
+    ir(s5, sequent([], [top]), top)
+})
