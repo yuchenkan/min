@@ -183,7 +183,7 @@ def qed(p, expected):
     if _free_vars(s.right[0]):
         raise ValueError(f'qed: theorem has free variables')
     for f in s.left:
-        if not any(same(f, a) for a in _axiom_registry):
+        if not any(f is a for a in _axiom_registry):
             raise ValueError(f'qed: non-axiom on left')
     if not same(s.right[0], expected):
         raise ValueError(f'qed: theorem does not match expected formula')

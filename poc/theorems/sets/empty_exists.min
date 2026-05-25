@@ -1,0 +1,8 @@
+from tactics import ax
+from core.axioms import EmptySet
+
+# EmptySet |- exists(s, empty(s))
+$empty_exists {
+    $f EmptySet()
+    ax(f)
+}

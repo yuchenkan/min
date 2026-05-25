@@ -35,6 +35,7 @@ from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.exists_unique_bridge import exists_unique_bridge
+from theorems.logic.neg_neg_iff import neg_neg_iff
 
 $a var("a") $b var("b") $c var("c") $x var("x") $y var("y") $z var("z") $s var("s")
 
@@ -145,3 +146,7 @@ $t34 !qed(ext_substitution(a, b, s, [s, b, a]),
 $bridge_f implies(exists_unique(x, \(v : mem(v, a))), iff(forall(x, implies(mem(x, a), mem(x, s))), exists(x, and(mem(x, a), mem(x, s)))))
 $t35 !qed(exists_unique_bridge(x, \(v : mem(v, a)), s, [s, a]),
           forall(a, forall(s, bridge_f)))
+
+# neg_neg_iff: neg(P) -> neg(Q) -> iff(P, Q)
+$t36 !qed(neg_neg_iff(A, B, [b, a]),
+          forall(a, forall(b, implies(neg(mem(a, b)), implies(neg(mem(b, a)), iff(mem(a, b), mem(b, a)))))))

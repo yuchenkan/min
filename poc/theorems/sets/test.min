@@ -1,0 +1,19 @@
+from core.derived import exists, eqv
+from core.axioms import EmptySet
+from vocab.sets import empty
+from vocab.logic import exists_unique
+from theorems.sets.empty_exists import empty_exists
+from theorems.sets.empty_unique import empty_unique
+from theorems.sets.unique_empty import unique_empty
+
+$a var("a") $b var("b") $s var("s")
+
+# empty_exists: EmptySet |- exists(s, empty(s))
+$t01 !qed(empty_exists, EmptySet())
+
+# empty_unique: empty(a) -> empty(b) -> eqv(a, b)
+$t02 !qed(empty_unique(a, b, [b, a]),
+          forall(a, forall(b, implies(empty(a), implies(empty(b), eqv(a, b))))))
+
+# unique_empty: EmptySet |- exists_unique(s, empty)
+$t03 !qed(unique_empty, exists_unique(s, \(v : empty(v))))
