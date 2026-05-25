@@ -30,7 +30,7 @@ $t04 !qed(singleton_exists(a, [a]), forall(a, exists(s, singleton(s, a))))
 # singleton_unique: singleton(s1, a) -> singleton(s2, a) -> eqv(s1, s2)
 $s1 var("s1") $s2 var("s2")
 $t05 !qed(singleton_unique(s1, s2, a, [a, s2, s1]),
-          forall(s1, forall(s2, forall(a, implies(singleton(s1, a), implies(singleton(s2, a), eqv(s1, s2)))))))
+          forall(s1, forall(s2, forall(a, implies(set_spec(s1, \(v : eqv(v, a))), implies(set_spec(s2, \(v : eqv(v, a))), eqv(s1, s2)))))))
 
 # unique_singleton: Pairing |- forall(a, exists_unique(s, singleton(s, a)))
 $t06 !qed(unique_singleton(a, [a]), forall(a, exists_unique(s, \(v : singleton(v, a)))))
