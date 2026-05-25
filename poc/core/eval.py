@@ -50,7 +50,7 @@ class Fn:
         child = Env(self.env)
         for p, a in zip(self.params, args):
             child.set(p, a)
-        return _evaluate(self.body_ast, child)
+        return evaluate(self.body_ast, child)
 
 
 # === Helpers ===
