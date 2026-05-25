@@ -265,15 +265,20 @@ def _evaluate(node, env):
         fn = _v(_evaluate(node.callee, env))
         args = [_evaluate(a, env) for a in node.args]
 
-        if callable(fn):
-            result = fn(*args)
-            if isinstance(fn, _notrace):
-                return result
-            return Traced(result, node)
+        try:
+            if callable(fn):
+                result = fn(*args)
+                if isinstance(fn, _notrace):
+                    return result
+                return Traced(result, node)
 
-        if isinstance(fn, Fn):
-            result = fn.call(args)
-            return Traced(result, node) if fn.traced else result
+            if isinstance(fn, Fn):
+                result = fn.call(args)
+                return Traced(result, node) if fn.traced else result
+        except EvalError:
+            raise
+        except Exception as e:
+            raise EvalError(str(e), node, e) from e
 
         raise EvalError('not callable', node)
 
