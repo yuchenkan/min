@@ -191,6 +191,8 @@ class Show:
         self.expr = expr
         self.line = line
         self.col = col
+    def __repr__(self):
+        return f'!{self.expr!r}'
 
 
 # === Parser ===
