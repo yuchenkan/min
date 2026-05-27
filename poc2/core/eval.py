@@ -2,7 +2,7 @@
 
 import os, sys, parser, proof
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 # === Node ===
@@ -115,6 +115,22 @@ def _show(v, depth):
     if isinstance(v, Val):
         if isinstance(v.val, list):
             return f'[{", ".join(_show(e, depth) for e in v.val)}]'
+        if isinstance(v.val, KVar):
+            return _show(v.val.name, depth)
+        if isinstance(v.val, KMem):
+            return f'mem({_show(v.val.left, depth)}, {_show(v.val.right, depth)})'
+        if isinstance(v.val, KNeg):
+            return f'neg({_show(v.val.operand, depth)})'
+        if isinstance(v.val, KImplies):
+            return f'implies({_show(v.val.left, depth)}, {_show(v.val.right, depth)})'
+        if isinstance(v.val, KForall):
+            return f'forall({_show(v.val.body, depth)})'
+        if isinstance(v.val, KSequent):
+            l = ', '.join(_show(a, depth) for a in v.val.left)
+            r = ', '.join(_show(a, depth) for a in v.val.right)
+            return f'[{l}] |- [{r}]'
+        if isinstance(v.val, KProof):
+            return f'proof({_show(Val(v.val.seq), depth)})'
         return str(v.val)
     if isinstance(v, Param):
         return v.name
@@ -138,7 +154,7 @@ def _show(v, depth):
     if isinstance(v, Implies):
         return f'implies({_show(v.left, depth)}, {_show(v.right, depth)})'
     if isinstance(v, Forall):
-        return f'forall(\\({v.var.name} : {_show(v.body, depth)}))'
+        return f'forall({_show(v.body, depth)})'
     if isinstance(v, Sequent):
         l = ', '.join(_show(a, depth) for a in v.left)
         r = ', '.join(_show(a, depth) for a in v.right)
@@ -160,7 +176,7 @@ class Add:
         return Add(self.a.rewrite(pmap), self.b.rewrite(pmap))
 
     def eval(self):
-        return Val(_v(self.a).val + _v(self.b).val)
+        return Val(_v(self.a.eval()).val + _v(self.b.eval()).val)
 
 
 class Sub:
@@ -172,7 +188,7 @@ class Sub:
         return Sub(self.a.rewrite(pmap), self.b.rewrite(pmap))
 
     def eval(self):
-        return Val(_v(self.a).val - _v(self.b).val)
+        return Val(_v(self.a.eval()).val - _v(self.b.eval()).val)
 
 class Eq:
     def __init__(self, a, b):
@@ -183,7 +199,7 @@ class Eq:
         return Eq(self.a.rewrite(pmap), self.b.rewrite(pmap))
 
     def eval(self):
-        return Val(_v(self.a).val == _v(self.b).val)
+        return Val(_v(self.a.eval()).val == _v(self.b.eval()).val)
 
 class Not:
     def __init__(self, a):
@@ -193,7 +209,7 @@ class Not:
         return Not(self.a.rewrite(pmap))
 
     def eval(self):
-        return Val(not _v(self.a).val)
+        return Val(not _v(self.a.eval()).val)
 
 def add():
     a, b = Param('a'), Param('b')
@@ -215,7 +231,7 @@ class None_:
         return None_(self.a.rewrite(pmap))
 
     def eval(self):
-        return Val(_v(self.a).val is None)
+        return Val(_v(self.a.eval()).val is None)
 
 def not_():
     a = Param('a')
@@ -234,7 +250,8 @@ class Same:
         return Same(self.a.rewrite(pmap), self.b.rewrite(pmap))
 
     def eval(self):
-        return Val(proof.same(_v(self.a).val, _v(self.b).val))
+        a, b = _v(self.a.eval()).val, _v(self.b.eval()).val
+        return Val(proof.same(a.kernel, b.kernel))
 
 def same():
     a, b = Param('a'), Param('b')
@@ -246,7 +263,7 @@ class Head:
     def rewrite(self, pmap):
         return Head(self.a.rewrite(pmap))
     def eval(self):
-        return _v(self.a).val[0]
+        return _v(self.a.eval()).val[0]
 
 class Tail:
     def __init__(self, a):
@@ -254,7 +271,7 @@ class Tail:
     def rewrite(self, pmap):
         return Tail(self.a.rewrite(pmap))
     def eval(self):
-        return Val(_v(self.a).val[1:])
+        return Val(_v(self.a.eval()).val[1:])
 
 class Nil:
     def __init__(self, a):
@@ -262,7 +279,7 @@ class Nil:
     def rewrite(self, pmap):
         return Nil(self.a.rewrite(pmap))
     def eval(self):
-        return Val(len(_v(self.a).val) == 0)
+        return Val(len(_v(self.a.eval()).val) == 0)
 
 class Len:
     def __init__(self, a):
@@ -270,7 +287,7 @@ class Len:
     def rewrite(self, pmap):
         return Len(self.a.rewrite(pmap))
     def eval(self):
-        return Val(len(_v(self.a).val))
+        return Val(len(_v(self.a.eval()).val))
 
 class Concat:
     def __init__(self, a, b):
@@ -279,7 +296,7 @@ class Concat:
     def rewrite(self, pmap):
         return Concat(self.a.rewrite(pmap), self.b.rewrite(pmap))
     def eval(self):
-        return Val(_v(self.a).val + _v(self.b).val)
+        return Val(_v(self.a.eval()).val + _v(self.b.eval()).val)
 
 def head():
     a = Param('a')
@@ -304,6 +321,34 @@ def concat():
 
 # === Formula nodes ===
 
+class KVar:
+    def __init__(self, name, kernel):
+        self.name = name
+        self.kernel = kernel
+
+class KMem:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self.kernel = proof.mem(_v(left).val.kernel, _v(right).val.kernel)
+
+class KNeg:
+    def __init__(self, operand):
+        self.operand = operand
+        self.kernel = proof.neg(_v(operand).val.kernel)
+
+class KImplies:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self.kernel = proof.implies(_v(left).val.kernel, _v(right).val.kernel)
+
+class KForall:
+    def __init__(self, body):
+        self.body = body
+        var = Val(KVar('', proof.var()))
+        self.kernel = proof.forall(var.val.kernel, _v(body.call([var]).eval()).val.kernel)
+
 class Var:
     def __init__(self, name):
         self.name = name
@@ -313,7 +358,7 @@ class Var:
         return Var(self.name.rewrite(pmap))
 
     def eval(self):
-        return Val(self.var)
+        return Val(KVar(self.name.eval(), self.var))
 
 class Mem:
     def __init__(self, left, right):
@@ -324,7 +369,7 @@ class Mem:
         return Mem(self.left.rewrite(pmap), self.right.rewrite(pmap))
 
     def eval(self):
-        return Val(proof.mem(_v(self.left.eval()).val, _v(self.right.eval()).val))
+        return Val(KMem(self.left.eval(), self.right.eval()))
 
 class Neg:
     def __init__(self, operand):
@@ -334,7 +379,7 @@ class Neg:
         return Neg(self.operand.rewrite(pmap))
 
     def eval(self):
-        return Val(proof.neg(_v(self.operand.eval()).val))
+        return Val(KNeg(self.operand.eval()))
 
 class Implies:
     def __init__(self, left, right):
@@ -345,7 +390,7 @@ class Implies:
         return Implies(self.left.rewrite(pmap), self.right.rewrite(pmap))
 
     def eval(self):
-        return Val(proof.implies(_v(self.left.eval()).val, _v(self.right.eval()).val))
+        return Val(KImplies(self.left.eval(), self.right.eval()))
 
 class Forall:
     def __init__(self, body):
@@ -355,8 +400,27 @@ class Forall:
         return Forall(self.body.rewrite(pmap))
 
     def eval(self):
-        v = Val(proof.var())
-        return Val(proof.forall(v.val, _v(self.body.call([v]).eval()).val))
+        return Val(KForall(self.body.eval()))
+
+class KSequent:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self.kernel = proof.sequent([_v(e).val.kernel for e in left], [_v(e).val.kernel for e in right])
+
+class KProof:
+    def __init__(self, seq, rule, premises, principal, term):
+        self.seq = seq
+        self.rule = rule
+        self.premises = premises
+        self.principal = principal
+        self.term = term
+        self.kernel = proof.proof(
+            _v(seq).val.kernel,
+            _v(rule).val,
+            [_v(p).val.kernel for p in premises],
+            _v(principal).val.kernel if principal else None,
+            _v(term).val.kernel if term else None)
 
 class Sequent:
     def __init__(self, left, right):
@@ -367,8 +431,7 @@ class Sequent:
         return Sequent([e.rewrite(pmap) for e in self.left], [e.rewrite(pmap) for e in self.right])
 
     def eval(self):
-        return proof.sequent([e.eval().val for e in self.left], [e.eval().val for e in self.right])
-
+        return Val(KSequent([e.eval() for e in self.left], [e.eval() for e in self.right]))
 
 class Proof:
     def __init__(self, seq, rule, premises, principal, term):
@@ -382,12 +445,12 @@ class Proof:
         return self
 
     def eval(self):
-        return proof.proof(
-            self.seq.eval().val,
-            self.rule.eval().val,
-            [p.eval().val for p in self.premises],
-            self.principal.eval().val if self.principal else None,
-            self.term.eval().val if self.term else None)
+        return Val(KProof(
+            self.seq.eval(),
+            self.rule.eval(),
+            [p.eval() for p in self.premises],
+            self.principal.eval() if self.principal else None,
+            self.term.eval() if self.term else None))
 
 
 def var():
@@ -528,6 +591,70 @@ def _evaluate(node, env):
     raise EvalError(f'unknown: {type(node).__name__}', node)
 
 
+# === File loading ===
+
+_loaded = {}
+
+def load_file(filepath):
+    filepath = os.path.normpath(filepath)
+    if filepath in _loaded:
+        return _loaded[filepath]
+    exports = {}
+    _loaded[filepath] = exports
+
+    with open(filepath) as f:
+        source = f.read()
+    env = global_()
+    for name, val in exports.items():
+        env.set(name, val)
+    nodes = parser.parse(source, filepath)
+
+    for node in nodes:
+        if isinstance(node, parser.Import):
+            _load_import(node, env)
+        elif isinstance(node, parser.Bind):
+            val = evaluate(node.expr, env)
+            show(val, node.name, node.show, node.traced)
+            env.set(node.name, (val, node.traced))
+            exports[node.name] = (val, node.traced)
+
+    return exports
+
+
+def _load_import(node, env):
+    parts = node.module.split('.')
+    filepath = os.path.join(ROOT, *parts) + '.min'
+    if not os.path.isfile(filepath):
+        return
+    imported = load_file(filepath)
+    for name in node.names:
+        if name in imported:
+            try:
+                env.set(name, imported[name])
+            except NameError:
+                pass
+
+
+def run(filepath):
+    try:
+        load_file(filepath)
+    except EvalError as e:
+        print(e, file=sys.stderr)
+        return False
+    return True
+
+def _run_src(src):
+    env = global_()
+    nodes = parser.parse(src, '<test>')
+    for node in nodes:
+        if isinstance(node, parser.Import):
+            _load_import(node, env)
+        elif isinstance(node, parser.Bind):
+            val = evaluate(node.expr, env)
+            show(val, node.name, node.show, node.traced)
+            env.set(node.name, (val, node.traced))
+
+
 # === Self-test ===
 
 if __name__ == '__main__':
@@ -586,11 +713,18 @@ $f3 implies(f1, f2) !
 $f4 forall(\(x : mem(x, a))) !
 $r30 same(f1, f1) !
 $r31 same(f1, f2) !
+
+from core.derived import and, or, iff, exists, eqv
+$d1 and(mem(a, b), mem(b, a)) !
+$d2 or(mem(a, b), mem(b, a)) !
+$d3 iff(mem(a, b), mem(b, a)) !
+$d4 exists(\(x : mem(x, a))) !
+$d4b exists(\(x : mem(x, a))) !!
+$d5 exists(\(x : mem(x, a))) !!
+$d5b exists(\(x : mem(x, a))) !!!
+$d5c exists(\(x : mem(x, a))) !!!!
+$d6 eqv(a, b) !
+$d7 eqv(a, b) !!
+$d8 eqv(a, b) !!!
 '''
-    env = global_()
-    nodes = parser.parse(src, '<test>')
-    for node in nodes:
-        if isinstance(node, parser.Bind):
-            val = evaluate(node.expr, env)
-            show(val, node.name, node.show, node.traced)
-            env.set(node.name, (val, node.traced))
+    _run_src(src)
