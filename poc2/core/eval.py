@@ -144,7 +144,7 @@ def _show(v, depth):
     if isinstance(v, Param):
         return v.name
     if isinstance(v, Ref):
-        return v.name
+        return f'<{v.name}>'
     if isinstance(v, Fn):
         params = ' '.join(p.name for p in v.params)
         return f'\\{params}: {_show(v.body, depth)}'
