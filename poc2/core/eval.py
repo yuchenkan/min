@@ -154,28 +154,6 @@ def _show(v, depth):
         return f'[{", ".join(_show(e, depth) for e in v.elems)}]'
     if isinstance(v, If):
         return f'?({_show(v.cond, depth)}, {_show(v.then, depth)}, {_show(v.else_, depth)})'
-    if isinstance(v, Add):
-        return f'add({_show(v.a, depth)}, {_show(v.b, depth)})'
-    if isinstance(v, Sub):
-        return f'sub({_show(v.a, depth)}, {_show(v.b, depth)})'
-    if isinstance(v, Eq):
-        return f'eq({_show(v.a, depth)}, {_show(v.b, depth)})'
-    if isinstance(v, Not):
-        return f'not({_show(v.a, depth)})'
-    if isinstance(v, None_):
-        return f'none({_show(v.a, depth)})'
-    if isinstance(v, Same):
-        return f'same({_show(v.a, depth)}, {_show(v.b, depth)})'
-    if isinstance(v, Head):
-        return f'head({_show(v.a, depth)})'
-    if isinstance(v, Tail):
-        return f'tail({_show(v.a, depth)})'
-    if isinstance(v, Nil):
-        return f'nil({_show(v.a, depth)})'
-    if isinstance(v, Len):
-        return f'len({_show(v.a, depth)})'
-    if isinstance(v, Concat):
-        return f'concat({_show(v.a, depth)}, {_show(v.b, depth)})'
     if isinstance(v, Var):
         return f'var("{v.name}")'
     if isinstance(v, Mem):
@@ -192,6 +170,7 @@ def _show(v, depth):
         return f'proof({_show(v.seq, depth)}, {_show(v.rule, depth)})'
     if isinstance(v, Axiom):
         return f'axiom({_show(v.f, depth)})'
+    return v.show(depth)
 
 
 def show(v, name, depth, traced):
@@ -200,156 +179,36 @@ def show(v, name, depth, traced):
         print(f'{prefix}{name} {_show(v, depth - 1)}')
 
 
-class Add:
-    def __init__(self, a, b):
-        self.a = a
-        self.b = b
+def _builtin(name, param_names, fn):
+    """Build a node class + Fn factory for a builtin operation.
+    fn takes eval'd raw values, returns a value (raw or Val)."""
+    class Node:
+        def __init__(self, *args):
+            self.args = args
+            self._name = name
+        def rewrite(self, pmap):
+            return Node(*[a.rewrite(pmap) for a in self.args])
+        def eval(self):
+            vals = [_v(a.eval()).val for a in self.args]
+            result = fn(*vals)
+            return result if isinstance(result, (Val, Traced)) else Val(result)
+        def show(self, depth):
+            return f'{name}({", ".join(_show(a, depth) for a in self.args)})'
+    Node.__name__ = name
+    params = [Param(n) for n in param_names]
+    return Node, Fn(Node(*params), params)
 
-    def rewrite(self, pmap):
-        return Add(self.a.rewrite(pmap), self.b.rewrite(pmap))
-
-    def eval(self):
-        return Val(_v(self.a.eval()).val + _v(self.b.eval()).val)
-
-
-class Sub:
-    def __init__(self, a, b):
-        self.a = a
-        self.b = b
-
-    def rewrite(self, pmap):
-        return Sub(self.a.rewrite(pmap), self.b.rewrite(pmap))
-
-    def eval(self):
-        return Val(_v(self.a.eval()).val - _v(self.b.eval()).val)
-
-class Eq:
-    def __init__(self, a, b):
-        self.a = a
-        self.b = b
-
-    def rewrite(self, pmap):
-        return Eq(self.a.rewrite(pmap), self.b.rewrite(pmap))
-
-    def eval(self):
-        return Val(_v(self.a.eval()).val == _v(self.b.eval()).val)
-
-class Not:
-    def __init__(self, a):
-        self.a = a
-
-    def rewrite(self, pmap):
-        return Not(self.a.rewrite(pmap))
-
-    def eval(self):
-        return Val(not _v(self.a.eval()).val)
-
-def add():
-    a, b = Param('a'), Param('b')
-    return Fn(Add(a, b), [a, b])
-
-def sub():
-    a, b = Param('a'), Param('b')
-    return Fn(Sub(a, b), [a, b])
-
-def eq():
-    a, b = Param('a'), Param('b')
-    return Fn(Eq(a, b), [a, b])
-
-class None_:
-    def __init__(self, a):
-        self.a = a
-
-    def rewrite(self, pmap):
-        return None_(self.a.rewrite(pmap))
-
-    def eval(self):
-        return Val(_v(self.a.eval()).val is None)
-
-def not_():
-    a = Param('a')
-    return Fn(Not(a), [a])
-
-def none():
-    a = Param('a')
-    return Fn(None_(a), [a])
-
-class Same:
-    def __init__(self, a, b):
-        self.a = a
-        self.b = b
-
-    def rewrite(self, pmap):
-        return Same(self.a.rewrite(pmap), self.b.rewrite(pmap))
-
-    def eval(self):
-        a, b = _v(self.a.eval()).val, _v(self.b.eval()).val
-        return Val(proof.same(a.kernel, b.kernel))
-
-def same():
-    a, b = Param('a'), Param('b')
-    return Fn(Same(a, b), [a, b])
-
-class Head:
-    def __init__(self, a):
-        self.a = a
-    def rewrite(self, pmap):
-        return Head(self.a.rewrite(pmap))
-    def eval(self):
-        return _v(self.a.eval()).val[0]
-
-class Tail:
-    def __init__(self, a):
-        self.a = a
-    def rewrite(self, pmap):
-        return Tail(self.a.rewrite(pmap))
-    def eval(self):
-        return Val(_v(self.a.eval()).val[1:])
-
-class Nil:
-    def __init__(self, a):
-        self.a = a
-    def rewrite(self, pmap):
-        return Nil(self.a.rewrite(pmap))
-    def eval(self):
-        return Val(len(_v(self.a.eval()).val) == 0)
-
-class Len:
-    def __init__(self, a):
-        self.a = a
-    def rewrite(self, pmap):
-        return Len(self.a.rewrite(pmap))
-    def eval(self):
-        return Val(len(_v(self.a.eval()).val))
-
-class Concat:
-    def __init__(self, a, b):
-        self.a = a
-        self.b = b
-    def rewrite(self, pmap):
-        return Concat(self.a.rewrite(pmap), self.b.rewrite(pmap))
-    def eval(self):
-        return Val(_v(self.a.eval()).val + _v(self.b.eval()).val)
-
-def head():
-    a = Param('a')
-    return Fn(Head(a), [a])
-
-def tail():
-    a = Param('a')
-    return Fn(Tail(a), [a])
-
-def nil():
-    a = Param('a')
-    return Fn(Nil(a), [a])
-
-def len_():
-    a = Param('a')
-    return Fn(Len(a), [a])
-
-def concat():
-    a, b = Param('a'), Param('b')
-    return Fn(Concat(a, b), [a, b])
+Add, add = _builtin('add', ['a', 'b'], lambda a, b: a + b)
+Sub, sub = _builtin('sub', ['a', 'b'], lambda a, b: a - b)
+Eq, eq = _builtin('eq', ['a', 'b'], lambda a, b: a == b)
+Not, not_ = _builtin('not', ['a'], lambda a: not a)
+None_, none = _builtin('none', ['a'], lambda a: a is None)
+Head, head = _builtin('head', ['a'], lambda a: a[0])
+Tail, tail = _builtin('tail', ['a'], lambda a: a[1:])
+Nil, nil = _builtin('nil', ['a'], lambda a: len(a) == 0)
+Len, len_ = _builtin('len', ['a'], lambda a: len(a))
+Concat, concat = _builtin('concat', ['a', 'b'], lambda a, b: a + b)
+Same, same = _builtin('same', ['a', 'b'], lambda a, b: proof.same(a.kernel, b.kernel))
 
 
 # === Formula nodes ===
@@ -564,17 +423,17 @@ def global_():
     e.set('True', (Val(True), True))
     e.set('False', (Val(False), True))
     e.set('None', (Val(None), True))
-    e.set('none', (none(), True))
-    e.set('add', (add(), True))
-    e.set('sub', (sub(), True))
-    e.set('eq', (eq(), True))
-    e.set('not', (not_(), True))
-    e.set('same', (same(), True))
-    e.set('head', (head(), True))
-    e.set('tail', (tail(), True))
-    e.set('nil', (nil(), True))
-    e.set('len', (len_(), True))
-    e.set('concat', (concat(), True))
+    e.set('none', (none, True))
+    e.set('add', (add, True))
+    e.set('sub', (sub, True))
+    e.set('eq', (eq, True))
+    e.set('not', (not_, True))
+    e.set('same', (same, True))
+    e.set('head', (head, True))
+    e.set('tail', (tail, True))
+    e.set('nil', (nil, True))
+    e.set('len', (len_, True))
+    e.set('concat', (concat, True))
     e.set('var', (var(), False))
     e.set('mem', (mem(), True))
     e.set('neg', (neg(), True))
