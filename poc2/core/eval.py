@@ -187,9 +187,7 @@ def _show(v, depth):
     if isinstance(v, Forall):
         return f'forall({_show(v.body, depth)})'
     if isinstance(v, Sequent):
-        l = ', '.join(_show(a, depth) for a in v.left)
-        r = ', '.join(_show(a, depth) for a in v.right)
-        return f'sequent([{l}], [{r}])'
+        return f'sequent({_show(v.left, depth)}, {_show(v.right, depth)})'
     if isinstance(v, Proof):
         return f'proof({_show(v.seq, depth)}, {_show(v.rule, depth)})'
     if isinstance(v, Axiom):
