@@ -724,6 +724,7 @@ $d4b exists(\(x : mem(x, a))) !!
 $d5 exists(\(x : mem(x, a))) !!
 $d5b exists(\(x : mem(x, a))) !!!
 $d5c exists(\(x : mem(x, a))) !!!!
+$d5d exists(\(x : mem(x, a))) !!!!!
 $d6 eqv(a, b) !
 $d6b eqv(a, b) !!
 $d6c eqv(a, b) !!!
