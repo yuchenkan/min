@@ -118,19 +118,17 @@ def _show(v, depth):
         if isinstance(v.val, KVar):
             return _show(v.val.name, depth)
         if isinstance(v.val, KMem):
-            return f'mem({_show(v.val.left, depth)}, {_show(v.val.right, depth)})'
+            return f'{_show(v.val.left, depth)} in {_show(v.val.right, depth)}'
         if isinstance(v.val, KNeg):
-            return f'neg({_show(v.val.operand, depth)})'
+            return f'~{_show(v.val.operand, depth)}'
         if isinstance(v.val, KImplies):
-            return f'implies({_show(v.val.left, depth)}, {_show(v.val.right, depth)})'
+            return f'{_show(v.val.left, depth)} -> {_show(v.val.right, depth)}'
         if isinstance(v.val, KForall):
-            return f'forall({_show(v.val.body, depth)})'
+            return f'A.{_show(v.val.body, depth)}'
         if isinstance(v.val, KSequent):
-            l = ', '.join(_show(a, depth) for a in v.val.left)
-            r = ', '.join(_show(a, depth) for a in v.val.right)
-            return f'[{l}] |- [{r}]'
+            return f'{_show(v.val.left, depth)} {_show(v.val.right, depth)}'
         if isinstance(v.val, KProof):
-            return f'proof({_show(Val(v.val.seq), depth)})'
+            return f'|- {_show(v.val.seq, depth)}'
         return str(v.val)
     if isinstance(v, Param):
         return v.name
@@ -145,8 +143,28 @@ def _show(v, depth):
         return f'?({_show(v.cond, depth)}, {_show(v.then, depth)}, {_show(v.else_, depth)})'
     if isinstance(v, Add):
         return f'add({_show(v.a, depth)}, {_show(v.b, depth)})'
+    if isinstance(v, Sub):
+        return f'sub({_show(v.a, depth)}, {_show(v.b, depth)})'
+    if isinstance(v, Eq):
+        return f'eq({_show(v.a, depth)}, {_show(v.b, depth)})'
+    if isinstance(v, Not):
+        return f'not({_show(v.a, depth)})'
+    if isinstance(v, None_):
+        return f'none({_show(v.a, depth)})'
+    if isinstance(v, Same):
+        return f'same({_show(v.a, depth)}, {_show(v.b, depth)})'
+    if isinstance(v, Head):
+        return f'head({_show(v.a, depth)})'
+    if isinstance(v, Tail):
+        return f'tail({_show(v.a, depth)})'
+    if isinstance(v, Nil):
+        return f'nil({_show(v.a, depth)})'
+    if isinstance(v, Len):
+        return f'len({_show(v.a, depth)})'
+    if isinstance(v, Concat):
+        return f'concat({_show(v.a, depth)}, {_show(v.b, depth)})'
     if isinstance(v, Var):
-        return v.name
+        return f'var("{v.name}")'
     if isinstance(v, Mem):
         return f'mem({_show(v.left, depth)}, {_show(v.right, depth)})'
     if isinstance(v, Neg):
@@ -158,7 +176,9 @@ def _show(v, depth):
     if isinstance(v, Sequent):
         l = ', '.join(_show(a, depth) for a in v.left)
         r = ', '.join(_show(a, depth) for a in v.right)
-        return f'[{l}] |- [{r}]'
+        return f'sequent([{l}], [{r}])'
+    if isinstance(v, Proof):
+        return f'proof({_show(v.seq, depth)}, {_show(v.rule, depth)})'
 
 
 def show(v, name, depth, traced):
@@ -406,7 +426,7 @@ class KSequent:
     def __init__(self, left, right):
         self.left = left
         self.right = right
-        self.kernel = proof.sequent([_v(e).val.kernel for e in left], [_v(e).val.kernel for e in right])
+        self.kernel = proof.sequent([_v(e).val.kernel for e in _v(left).val], [_v(e).val.kernel for e in _v(right).val])
 
 class KProof:
     def __init__(self, seq, rule, premises, principal, term):
@@ -418,9 +438,9 @@ class KProof:
         self.kernel = proof.proof(
             _v(seq).val.kernel,
             _v(rule).val,
-            [_v(p).val.kernel for p in premises],
-            _v(principal).val.kernel if principal else None,
-            _v(term).val.kernel if term else None)
+            [_v(p).val.kernel for p in premises.val],
+            _v(principal).val.kernel if _v(principal).val is not None else None,
+            _v(term).val.kernel if _v(term).val is not None else None)
 
 class Sequent:
     def __init__(self, left, right):
@@ -428,10 +448,10 @@ class Sequent:
         self.right = right
 
     def rewrite(self, pmap):
-        return Sequent([e.rewrite(pmap) for e in self.left], [e.rewrite(pmap) for e in self.right])
+        return Sequent(self.left.rewrite(pmap), self.right.rewrite(pmap))
 
     def eval(self):
-        return Val(KSequent([e.eval() for e in self.left], [e.eval() for e in self.right]))
+        return Val(KSequent(self.left.eval(), self.right.eval()))
 
 class Proof:
     def __init__(self, seq, rule, premises, principal, term):
@@ -442,15 +462,20 @@ class Proof:
         self.term = term
 
     def rewrite(self, pmap):
-        return self
+        return Proof(
+            self.seq.rewrite(pmap),
+            self.rule.rewrite(pmap),
+            self.premises.rewrite(pmap),
+            self.principal.rewrite(pmap),
+            self.term.rewrite(pmap))
 
     def eval(self):
         return Val(KProof(
             self.seq.eval(),
             self.rule.eval(),
-            [p.eval() for p in self.premises],
-            self.principal.eval() if self.principal else None,
-            self.term.eval() if self.term else None))
+            self.premises.eval(),
+            self.principal.eval(),
+            self.term.eval()))
 
 
 def var():
@@ -713,6 +738,11 @@ $f3 implies(f1, f2) !
 $f4 forall(\(x : mem(x, a))) !
 $r30 same(f1, f1) !
 $r31 same(f1, f2) !
+$r31b same(f1, f2) !!
+$r31c same(f1, f2) !!!
+$r32 \(x: same(x, f2)) !
+$r32b \(x: same(x, f2)) !!
+$r32c \(x: same(x, f2)) !!!
 
 from core.derived import and, or, iff, exists, eqv
 $d1 and(mem(a, b), mem(b, a)) !
@@ -725,10 +755,19 @@ $d5 exists(\(x : mem(x, a))) !!
 $d5b exists(\(x : mem(x, a))) !!!
 $d5c exists(\(x : mem(x, a))) !!!!
 $d5d exists(\(x : mem(x, a))) !!!!!
+$d5e exists(\(x : mem(x, a))) !!!!!!
 $d6 eqv(a, b) !
 $d6b eqv(a, b) !!
 $d6c eqv(a, b) !!!
 $d6d eqv(a, b) !!!!
 $d6e eqv(a, b) !!!!!
+
+$s1 sequent([f1], [f1]) !
+$s2 sequent([f1, f2], [f3]) !
+$p1 proof_(s1, "axiom", [], f1, None) !
+$p1b proof_(s1, "axiom", [], f1, None) !!
+$p1c proof_(s1, "axiom", [], f1, None) !!!
+$p1d proof_(s1, "axiom", [], f1, None) !!!!
+$p13 proof_(s1, "axiom", [], f1, None) !!!!!
 '''
     _run_src(src)
