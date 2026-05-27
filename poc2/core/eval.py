@@ -521,7 +521,7 @@ def global_():
     e.set('nil', (nil(), True))
     e.set('len', (len_(), True))
     e.set('concat', (concat(), True))
-    e.set('var', (var(), True))
+    e.set('var', (var(), False))
     e.set('mem', (mem(), True))
     e.set('neg', (neg(), True))
     e.set('implies', (implies(), True))
@@ -719,12 +719,15 @@ $d1 and(mem(a, b), mem(b, a)) !
 $d2 or(mem(a, b), mem(b, a)) !
 $d3 iff(mem(a, b), mem(b, a)) !
 $d4 exists(\(x : mem(x, a))) !
+$d4x exists(\(x : iff(mem(x, a), mem(x, a)))) !
 $d4b exists(\(x : mem(x, a))) !!
 $d5 exists(\(x : mem(x, a))) !!
 $d5b exists(\(x : mem(x, a))) !!!
 $d5c exists(\(x : mem(x, a))) !!!!
 $d6 eqv(a, b) !
-$d7 eqv(a, b) !!
-$d8 eqv(a, b) !!!
+$d6b eqv(a, b) !!
+$d6c eqv(a, b) !!!
+$d6d eqv(a, b) !!!!
+$d6e eqv(a, b) !!!!!
 '''
     _run_src(src)
