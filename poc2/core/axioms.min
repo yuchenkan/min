@@ -1,0 +1,23 @@
+from core.derived import and, or, iff, exists, eqv
+
+$_close \n phi cont: ?(eq(n, 0), cont(phi), forall(\v: _close(sub(n, 1), phi(v), cont)))
+
+$$Extensionality axiom(forall(\x: forall(\y: implies(forall(\z: iff(mem(z, x), mem(z, y))), forall(\z: iff(mem(x, z), mem(y, z)))))))
+
+$$EmptySet axiom(exists(\b: forall(\x: neg(mem(x, b)))))
+
+$$Pairing axiom(forall(\x: forall(\y: exists(\b: forall(\z: iff(mem(z, b), or(eqv(z, x), eqv(z, y))))))))
+
+$$Union axiom(forall(\a: exists(\b: forall(\x: iff(mem(x, b), exists(\y: and(mem(y, a), mem(x, y))))))))
+
+$$PowerSet axiom(forall(\a: exists(\b: forall(\x: iff(mem(x, b), forall(\y: implies(mem(y, x), mem(y, a))))))))
+
+$$Separation \n phi: axiom(_close(n, phi, \inner: forall(\a: exists(\b: forall(\x: iff(mem(x, b), and(mem(x, a), inner(x))))))))
+
+$$Infinity axiom(exists(\b: and(exists(\e: and(mem(e, b), forall(\z: neg(mem(z, e))))), forall(\y: implies(mem(y, b), exists(\s: and(mem(s, b), forall(\w: iff(mem(w, s), or(mem(w, y), eqv(w, y)))))))))))
+
+$$Regularity axiom(forall(\a: implies(exists(\y: mem(y, a)), exists(\y: and(mem(y, a), neg(exists(\z: and(mem(z, a), mem(z, y)))))))))
+
+$$Replacement \n phi: axiom(_close(n, phi, \inner: forall(\a: implies(forall(\x: implies(mem(x, a), forall(\y1: forall(\y2: implies(and(inner(x, y1), inner(x, y2)), eqv(y1, y2)))))), exists(\b: forall(\y: iff(mem(y, b), exists(\x: and(mem(x, a), inner(x, y))))))))))
+
+$$Choice axiom(forall(\x: implies(forall(\y: implies(mem(y, x), exists(\z: mem(z, y)))), exists(\c: forall(\y: implies(mem(y, x), exists(\z: and(and(mem(z, y), mem(z, c)), forall(\w: implies(and(mem(w, y), mem(w, c)), eqv(w, z)))))))))))

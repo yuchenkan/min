@@ -2,9 +2,9 @@
 
 program  = (import | bind)*
 import   = 'from' dotted_name 'import' names
-bind     = '$' name expr | '$$' name expr
-expr     = '\\' '(' params ':' expr ')'
-         | expr
+bind     = '$' name expr '!'* | '$$' name expr '!'*
+expr     = '\\' params ':' expr
+         | '(' expr ')'
          | '[' (expr (',' expr)*)? ']'
          | '?' '(' expr ',' expr ',' expr ')'
          | '{' bind* expr '}'
@@ -242,6 +242,10 @@ class Parser:
             node = self.parse_if()
         elif tok[1] == '{':
             node = self.parse_block()
+        elif tok[1] == '(':
+            self.advance()
+            node = self.parse_expr()
+            self.expect('PUNCT', ')')
         elif tok[0] == 'INT':
             t = self.advance()
             node = Lit(t[1], self.filepath, t[2], t[3])
@@ -264,11 +268,9 @@ class Parser:
 
     def parse_fn(self):
         tok = self.expect('PUNCT', '\\')
-        self.expect('PUNCT', '(')
         params = self.parse_params()
         self.expect('PUNCT', ':')
         body = self.parse_expr()
-        self.expect('PUNCT', ')')
         return Fn(params, body, self.filepath, tok[2], tok[3])
 
     def parse_params(self):

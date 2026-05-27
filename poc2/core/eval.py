@@ -51,6 +51,17 @@ class Param:
         raise RuntimeError(f'unresolved param: {self.name}')
 
 
+class Ref:
+    def __init__(self, name):
+        self.name = name
+        self.target = None
+    def rewrite(self, pmap):
+        return self
+    def eval(self):
+        return self.target.eval()
+    def call(self, args):
+        return self.target.call(args)
+
 class Fn:
     def __init__(self, body, params):
         self.body = body
@@ -132,9 +143,11 @@ def _show(v, depth):
         return str(v.val)
     if isinstance(v, Param):
         return v.name
+    if isinstance(v, Ref):
+        return v.name
     if isinstance(v, Fn):
         params = ' '.join(p.name for p in v.params)
-        return f'\\({params} : {_show(v.body, depth)})'
+        return f'\\{params}: {_show(v.body, depth)}'
     if isinstance(v, Call):
         return f'{_show(v.callee, depth)}({", ".join(_show(a, depth) for a in v.args)})'
     if isinstance(v, List):
@@ -179,6 +192,8 @@ def _show(v, depth):
         return f'sequent([{l}], [{r}])'
     if isinstance(v, Proof):
         return f'proof({_show(v.seq, depth)}, {_show(v.rule, depth)})'
+    if isinstance(v, Axiom):
+        return f'axiom({_show(v.f, depth)})'
 
 
 def show(v, name, depth, traced):
@@ -509,6 +524,22 @@ def proof_():
     s, r, p, pr, t = Param('s'), Param('r'), Param('p'), Param('pr'), Param('t')
     return Fn(Proof(s, r, p, pr, t), [s, r, p, pr, t])
 
+class Axiom:
+    def __init__(self, f):
+        self.f = f
+
+    def rewrite(self, pmap):
+        return Axiom(self.f.rewrite(pmap))
+
+    def eval(self):
+        f = self.f.eval()
+        proof.axiom(_v(f).val.kernel)
+        return f
+
+def axiom_():
+    f = Param('f')
+    return Fn(Axiom(f), [f])
+
 
 # === Env ===
 
@@ -552,7 +583,8 @@ def global_():
     e.set('implies', (implies(), True))
     e.set('forall', (forall(), True))
     e.set('sequent', (sequent(), True))
-    e.set('proof_', (proof_(), True))
+    e.set('proof', (proof_(), True))
+    e.set('axiom', (axiom_(), False))
     return e
 
 
@@ -599,9 +631,7 @@ def _evaluate(node, env):
     if isinstance(node, parser.Block):
         child = Env(env)
         for binding in node.bindings:
-            val = evaluate(binding.expr, child)
-            show(val, binding.name, binding.show, binding.traced)
-            child.set(binding.name, (val, binding.traced))
+            _bind(child, binding)
         return _evaluate(node.expr, child)
 
     if isinstance(node, parser.If):
@@ -638,9 +668,7 @@ def load_file(filepath):
         if isinstance(node, parser.Import):
             _load_import(node, env)
         elif isinstance(node, parser.Bind):
-            val = evaluate(node.expr, env)
-            show(val, node.name, node.show, node.traced)
-            env.set(node.name, (val, node.traced))
+            val = _bind(env, node)
             exports[node.name] = (val, node.traced)
 
     return exports
@@ -668,6 +696,15 @@ def run(filepath):
         return False
     return True
 
+def _bind(env, node):
+    ref = Ref(node.name)
+    env.set(node.name, (ref, node.traced))
+    val = evaluate(node.expr, env)
+    ref.target = val
+    env.bindings[node.name] = (val, node.traced)
+    show(val, node.name, node.show, node.traced)
+    return val
+
 def _run_src(src):
     env = global_()
     nodes = parser.parse(src, '<test>')
@@ -675,43 +712,41 @@ def _run_src(src):
         if isinstance(node, parser.Import):
             _load_import(node, env)
         elif isinstance(node, parser.Bind):
-            val = evaluate(node.expr, env)
-            show(val, node.name, node.show, node.traced)
-            env.set(node.name, (val, node.traced))
+            _bind(env, node)
 
 
 # === Self-test ===
 
 if __name__ == '__main__':
     src = r'''
-$$double \(n : add(n, n)) !
+$$double \n : add(n, n) !
 $r1 double(3) !
 $r2 double(add(1, 2)) !
 $r3 double(3) !!
 
-$id \(x : x) !
+$id \x : x !
 $r4 id(42) !
 
-$$pair \(a b : [a, b]) !
+$$pair \a b : [a, b] !
 $r5 pair(1, 2) !
 
-$$compose \(f g : \(x : f(g(x)))) !
+$$compose \f g : \x : f(g(x)) !
 $r6 compose(double, double) !
 $r7 compose(double, double)(3) !!
 
-$$apply \(f x : f(x)) !
+$$apply \f x : f(x) !
 $r8 apply(double, 3) !
 
-$abs \(n : ?(n, n, 0)) !
+$abs \n : ?(n, n, 0) !
 $r9 abs(True) !
 $r10 abs(False) !
 
-$$twice \(f : \(x : f(f(x)))) !
+$$twice \f : \x : f(f(x)) !
 $r11 twice(double) !
 $r12 twice(double)(3) !
-$r13 \(f : \(x : f(x)))(double) !
-$r14 \(x : double(x)) !!
-$$addx \(x : \(y : add(x, y))) !
+$r13 (\f: \x: f(x))(double) !
+$r14 \x : double(x) !!
+$$addx \x : \y : add(x, y) !
 $r15 addx(1)(2) !
 $r16 addx(1)(2) !!
 
@@ -735,27 +770,27 @@ $b var("b") !
 $f1 mem(a, b) !
 $f2 neg(f1) !
 $f3 implies(f1, f2) !
-$f4 forall(\(x : mem(x, a))) !
+$f4 forall(\x : mem(x, a)) !
 $r30 same(f1, f1) !
 $r31 same(f1, f2) !
 $r31b same(f1, f2) !!
 $r31c same(f1, f2) !!!
-$r32 \(x: same(x, f2)) !
-$r32b \(x: same(x, f2)) !!
-$r32c \(x: same(x, f2)) !!!
+$r32 \x: same(x, f2) !
+$r32b \x: same(x, f2) !!
+$r32c \x: same(x, f2) !!!
 
 from core.derived import and, or, iff, exists, eqv
 $d1 and(mem(a, b), mem(b, a)) !
 $d2 or(mem(a, b), mem(b, a)) !
 $d3 iff(mem(a, b), mem(b, a)) !
-$d4 exists(\(x : mem(x, a))) !
-$d4x exists(\(x : iff(mem(x, a), mem(x, a)))) !
-$d4b exists(\(x : mem(x, a))) !!
-$d5 exists(\(x : mem(x, a))) !!
-$d5b exists(\(x : mem(x, a))) !!!
-$d5c exists(\(x : mem(x, a))) !!!!
-$d5d exists(\(x : mem(x, a))) !!!!!
-$d5e exists(\(x : mem(x, a))) !!!!!!
+$d4 exists(\x : mem(x, a)) !
+$d4x exists(\x : iff(mem(x, a), mem(x, a))) !
+$d4b exists(\x : mem(x, a)) !!
+$d5 exists(\x : mem(x, a)) !!
+$d5b exists(\x : mem(x, a)) !!!
+$d5c exists(\x : mem(x, a)) !!!!
+$d5d exists(\x : mem(x, a)) !!!!!
+$d5e exists(\x : mem(x, a)) !!!!!!
 $d6 eqv(a, b) !
 $d6b eqv(a, b) !!
 $d6c eqv(a, b) !!!
@@ -764,10 +799,28 @@ $d6e eqv(a, b) !!!!!
 
 $s1 sequent([f1], [f1]) !
 $s2 sequent([f1, f2], [f3]) !
-$p1 proof_(s1, "axiom", [], f1, None) !
-$p1b proof_(s1, "axiom", [], f1, None) !!
-$p1c proof_(s1, "axiom", [], f1, None) !!!
-$p1d proof_(s1, "axiom", [], f1, None) !!!!
-$p13 proof_(s1, "axiom", [], f1, None) !!!!!
+$p1 proof(s1, "axiom", [], f1, None) !
+$p1b proof(s1, "axiom", [], f1, None) !!
+$p1c proof(s1, "axiom", [], f1, None) !!!
+$p1d proof(s1, "axiom", [], f1, None) !!!!
+$p13 proof(s1, "axiom", [], f1, None) !!!!!
+
+from core.axioms import Extensionality, EmptySet, Pairing, Separation, Replacement, _close
+$ax1 Extensionality !
+$ax2 EmptySet !
+$ax3 Pairing !
+$ax4 Separation(1, \c: \x: neg(mem(x, c))) !
+$ax5 Separation(1, \c: \x: mem(x, c)) !
+$ax5b Separation(1, \c: \x: mem(x, c)) !!
+$ax5c Separation(1, \c: \x: mem(x, c)) !!!
+$ax5d Separation(1, \c: \x: mem(x, c)) !!!!
+$ax6 Replacement(0, \x y: mem(y, x)) !
+$ax7 Replacement(1, \c: \x y: and(mem(x, c), mem(y, c))) !
+$ax8 Separation(2, \c: \d: \x: and(mem(x, c), mem(x, d))) !
+$ax9 Separation(3, \c: \d: \e: \x: and(mem(x, c), and(mem(x, d), mem(x, e)))) !
+$ax9b Separation(3, \c: \d: \e: \x: and(mem(x, c), and(mem(x, d), mem(x, e)))) !!
+
+$c1 _close !
+$c1b _close !!
 '''
     _run_src(src)
