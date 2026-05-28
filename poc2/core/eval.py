@@ -680,10 +680,6 @@ $ax9b Separation(3, \c: \d: \e: \x: and(mem(x, c), and(mem(x, d), mem(x, e)))) !
 
 $c1 _close !
 
-from theorems.logic.modus_ponens import modus_ponens
-$mp modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !
-$mpb modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!
-
 from tactics import ax, nl, nr, il, ir, fl, fr, ct, wl, wr
 $A mem(a, b)
 $B mem(b, a)
@@ -700,5 +696,14 @@ $s6 ir(s5, sequent([A], [imp2]), imp2) !
 $top implies(A, imp2)
 $s7 ir(s6, sequent([], [top]), top) !
 $s7b ir(s6, sequent([], [top]), top) !!
+
+from theorems.logic.modus_ponens import modus_ponens
+$mp modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !
+$mpb modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!
+$mpc modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!
+$mpd modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!
+$mpe modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!
+$mpf modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!!
+$mpg modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!!!
 '''
     _run_src(src)
