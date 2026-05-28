@@ -679,5 +679,22 @@ $ax9b Separation(3, \c: \d: \e: \x: and(mem(x, c), and(mem(x, d), mem(x, e)))) !
 
 $c1 _close !
 $c1b _close !!
+
+from tactics import ax, nl, nr, il, ir, fl, fr, ct, wl, wr
+$A mem(a, b)
+$B mem(b, a)
+$imp implies(A, B)
+
+$t1 ax(A) !
+$t1b ax(A) !!
+
+$s3 wr(ax(A), sequent([A], [A, B]), B) !
+$s4 wl(ax(B), sequent([A, B], [B]), A) !
+$s5 il(s3, s4, sequent([A, imp], [B]), imp) !
+$imp2 implies(imp, B)
+$s6 ir(s5, sequent([A], [imp2]), imp2) !
+$top implies(A, imp2)
+$s7 ir(s6, sequent([], [top]), top) !
+$s7b ir(s6, sequent([], [top]), top) !!
 '''
     _run_src(src)

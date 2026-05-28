@@ -1,0 +1,15 @@
+$ax \f: proof(sequent([f], [f]), "axiom", [], f, None)
+
+$nl \premise seq principal: proof(seq, "neg_left", [premise], principal, None)
+$nr \premise seq principal: proof(seq, "neg_right", [premise], principal, None)
+
+$il \p0 p1 seq principal: proof(seq, "implies_left", [p0, p1], principal, None)
+$ir \premise seq principal: proof(seq, "implies_right", [premise], principal, None)
+
+$fl \premise seq principal term: proof(seq, "forall_left", [premise], principal, term)
+$fr \premise seq principal term: proof(seq, "forall_right", [premise], principal, term)
+
+$ct \p0 p1 seq principal: proof(seq, "cut", [p0, p1], principal, None)
+
+$wl \premise seq principal: proof(seq, "weakening_left", [premise], principal, None)
+$wr \premise seq principal: proof(seq, "weakening_right", [premise], principal, None)
