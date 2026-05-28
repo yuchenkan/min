@@ -1,7 +1,7 @@
 from tactics import ax, wl, wr, il, ir, _prove
 from core.axioms import _close
 
-$modus_ponens \vars phi: {
+$$modus_ponens \vars phi: {
     $prf head(tail(_prove(vars, phi, \args: {
         $A head(args)
         $B head(tail(args))

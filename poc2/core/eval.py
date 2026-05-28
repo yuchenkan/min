@@ -32,24 +32,18 @@ def _v(t):
 class Val:
     def __init__(self, val):
         self.val = val
-
     def rewrite(self, pmap):
         return self
-
     def eval(self):
         return self
-
 
 class Param:
     def __init__(self, name):
         self.name = name
-
     def rewrite(self, pmap):
         return pmap[self] if self in pmap else self
-
     def eval(self):
-        raise RuntimeError(f'unresolved param: {self.name}')
-
+        return self
 
 class Ref:
     def __init__(self, name):
@@ -58,9 +52,10 @@ class Ref:
     def rewrite(self, pmap):
         return self
     def eval(self):
-        return self.target.eval()
+        return self.target.eval() if self.target is not None else self
     def call(self, args):
         return self.target.call(args)
+
 
 class Fn:
     def __init__(self, body, params):
@@ -75,7 +70,7 @@ class Fn:
 
     def call(self, args):
         padded = args + [Val(None)] * (len(self.params) - len(args))
-        return self.body.rewrite(dict(zip(self.params, padded)))
+        return self.body.rewrite(dict(zip(self.params, padded))).eval()
 
 
 class If:
@@ -88,8 +83,10 @@ class If:
         return If(self.cond.rewrite(pmap), self.then.rewrite(pmap), self.else_.rewrite(pmap))
 
     def eval(self):
-        cond = _v(self.cond.eval())
-        return self.then.eval() if cond.val else self.else_.eval()
+        cond = self.cond.eval()
+        if isinstance(_v(cond), Val):
+            return self.then.eval() if _v(cond).val else self.else_.eval()
+        return If(cond, self.then, self.else_)
 
 
 class Call:
@@ -101,7 +98,9 @@ class Call:
         return Call(self.callee.rewrite(pmap), [a.rewrite(pmap) for a in self.args])
 
     def eval(self):
-        return self.callee.eval().call([a.eval() for a in self.args]).eval()
+        callee = self.callee.eval()
+        args = [a.eval() for a in self.args]
+        return callee.call(args) if isinstance(_v(callee), Fn) else Call(callee, args)
 
 
 class List:
@@ -112,7 +111,8 @@ class List:
         return List([e.rewrite(pmap) for e in self.elems])
 
     def eval(self):
-        return Val([e.eval() for e in self.elems])
+        elems = [e.eval() for e in self.elems]
+        return Val(elems) if all(isinstance(_v(e), Val) for e in elems) else List(elems)
 
 
 def _show(v, depth):
@@ -127,7 +127,7 @@ def _show(v, depth):
         if isinstance(v.val, list):
             return f'[{", ".join(_show(e, depth) for e in v.val)}]'
         if isinstance(v.val, KVar):
-            return _show(v.val.name, depth)
+            return f'var({_show(v.val.name, depth)})'
         if isinstance(v.val, KMem):
             return f'{_show(v.val.left, depth)} in {_show(v.val.right, depth)}'
         if isinstance(v.val, KNeg):
@@ -140,11 +140,13 @@ def _show(v, depth):
             return f'{_show(v.val.left, depth)} {_show(v.val.right, depth)}'
         if isinstance(v.val, KProof):
             return f'|- {_show(v.val.seq, depth)}'
+        if isinstance(v.val, str):
+            return '"' + v.val.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\t', '\\t') + '"'
         return str(v.val)
     if isinstance(v, Param):
         return v.name
     if isinstance(v, Ref):
-        return f'<{v.name}>'
+        return v.name
     if isinstance(v, Fn):
         params = ' '.join(p.name for p in v.params)
         return f'\\{params}: {_show(v.body, depth)}'
@@ -189,26 +191,25 @@ def _builtin(name, param_names, fn):
         def rewrite(self, pmap):
             return Node(*[a.rewrite(pmap) for a in self.args])
         def eval(self):
-            vals = [_v(a.eval()).val for a in self.args]
-            result = fn(*vals)
-            return result if isinstance(result, (Val, Traced)) else Val(result)
+            vals = [a.eval() for a in self.args]
+            return fn(*[_v(v).val for v in vals]) if all(isinstance(_v(v), Val) for v in vals) else Node(*vals)
         def show(self, depth):
             return f'{name}({", ".join(_show(a, depth) for a in self.args)})'
     Node.__name__ = name
     params = [Param(n) for n in param_names]
     return Node, Fn(Node(*params), params)
 
-Add, add = _builtin('add', ['a', 'b'], lambda a, b: a + b)
-Sub, sub = _builtin('sub', ['a', 'b'], lambda a, b: a - b)
-Eq, eq = _builtin('eq', ['a', 'b'], lambda a, b: a == b)
-Not, not_ = _builtin('not', ['a'], lambda a: not a)
-None_, none = _builtin('none', ['a'], lambda a: a is None)
+Add, add = _builtin('add', ['a', 'b'], lambda a, b: Val(a + b))
+Sub, sub = _builtin('sub', ['a', 'b'], lambda a, b: Val(a - b))
+Eq, eq = _builtin('eq', ['a', 'b'], lambda a, b: Val(a == b))
+Not, not_ = _builtin('not', ['a'], lambda a: Val(not a))
+None_, none = _builtin('none', ['a'], lambda a: Val(a is None))
 Head, head = _builtin('head', ['a'], lambda a: a[0])
-Tail, tail = _builtin('tail', ['a'], lambda a: a[1:])
-Nil, nil = _builtin('nil', ['a'], lambda a: len(a) == 0)
-Len, len_ = _builtin('len', ['a'], lambda a: len(a))
-Concat, concat = _builtin('concat', ['a', 'b'], lambda a, b: a + b)
-Same, same = _builtin('same', ['a', 'b'], lambda a, b: proof.same(a.kernel, b.kernel))
+Tail, tail = _builtin('tail', ['a'], lambda a: Val(a[1:]))
+Nil, nil = _builtin('nil', ['a'], lambda a: Val(len(a) == 0))
+Len, len_ = _builtin('len', ['a'], lambda a: Val(len(a)))
+Concat, concat = _builtin('concat', ['a', 'b'], lambda a, b: Val(a + b))
+Same, same = _builtin('same', ['a', 'b'], lambda a, b: Val(proof.same(a.kernel, b.kernel)))
 
 
 # === Formula nodes ===
@@ -250,7 +251,8 @@ class Var:
         return Var(self.name.rewrite(pmap))
 
     def eval(self):
-        return Val(KVar(self.name.eval(), self.var))
+        name = self.name.eval()
+        return Val(KVar(name, self.var)) if isinstance(_v(name), Val) else Var(name)
 
 class Mem:
     def __init__(self, left, right):
@@ -261,7 +263,9 @@ class Mem:
         return Mem(self.left.rewrite(pmap), self.right.rewrite(pmap))
 
     def eval(self):
-        return Val(KMem(self.left.eval(), self.right.eval()))
+        left = self.left.eval()
+        right = self.right.eval()
+        return Val(KMem(left, right)) if isinstance(_v(left), Val) and isinstance(_v(right), Val) else Mem(left, right)
 
 class Neg:
     def __init__(self, operand):
@@ -271,7 +275,8 @@ class Neg:
         return Neg(self.operand.rewrite(pmap))
 
     def eval(self):
-        return Val(KNeg(self.operand.eval()))
+        operand = self.operand.eval()
+        return Val(KNeg(operand)) if isinstance(_v(operand), Val) else Neg(operand)
 
 class Implies:
     def __init__(self, left, right):
@@ -282,7 +287,9 @@ class Implies:
         return Implies(self.left.rewrite(pmap), self.right.rewrite(pmap))
 
     def eval(self):
-        return Val(KImplies(self.left.eval(), self.right.eval()))
+        left = self.left.eval()
+        right = self.right.eval()
+        return Val(KImplies(left, right)) if isinstance(_v(left), Val) and isinstance(_v(right), Val) else Implies(left, right)
 
 class Forall:
     def __init__(self, body):
@@ -292,7 +299,8 @@ class Forall:
         return Forall(self.body.rewrite(pmap))
 
     def eval(self):
-        return Val(KForall(self.body.eval()))
+        body = self.body.eval()
+        return Val(KForall(body)) if isinstance(_v(body), Val) else Forall(body)
 
 class KSequent:
     def __init__(self, left, right):
@@ -323,7 +331,9 @@ class Sequent:
         return Sequent(self.left.rewrite(pmap), self.right.rewrite(pmap))
 
     def eval(self):
-        return Val(KSequent(self.left.eval(), self.right.eval()))
+        left = self.left.eval()
+        right = self.right.eval()
+        return Val(KSequent(left, right)) if isinstance(_v(left), Val) and isinstance(_v(right), Val) else Sequent(left, right)
 
 class Proof:
     def __init__(self, seq, rule, premises, principal, term):
@@ -342,12 +352,14 @@ class Proof:
             self.term.rewrite(pmap))
 
     def eval(self):
-        return Val(KProof(
-            self.seq.eval(),
-            self.rule.eval(),
-            self.premises.eval(),
-            self.principal.eval(),
-            self.term.eval()))
+        seq = self.seq.eval()
+        rule = self.rule.eval()
+        premises = self.premises.eval()
+        principal = self.principal.eval()
+        term = self.term.eval()
+        if all(isinstance(_v(x), Val) for x in [seq, rule, premises, principal, term]):
+            return Val(KProof(seq, rule, premises, principal, term))
+        return Proof(seq, rule, premises, principal, term)
 
 
 def var():
@@ -390,7 +402,7 @@ class Axiom:
 
     def eval(self):
         f = self.f.eval()
-        proof.axiom(_v(f).val.kernel)
+        if isinstance(_v(f), Val): proof.axiom(_v(f).val.kernel)
         return f
 
 def axiom_():
@@ -459,7 +471,7 @@ class EvalError(Exception):
 
 def evaluate(node, env):
     try:
-        return _evaluate(node, env).eval()
+        return _evaluate(node, env)
     except EvalError:
         raise
     except Exception as e:
@@ -473,7 +485,7 @@ def _evaluate(node, env):
     if isinstance(node, parser.Ref):
         try:
             ref, traced = env.get(node.name)
-            return Traced(ref, node.name) if traced else ref
+            return (Traced(ref, node.name) if traced else ref).eval()
         except KeyError:
             raise EvalError(f'undefined: {node.name}', node)
 
@@ -483,22 +495,22 @@ def _evaluate(node, env):
         for p in params:
             child.set(p.name, (p, False))
         body = _evaluate(node.body, child)
-        return Fn(body, params)
+        return Fn(body, params).eval()
 
     if isinstance(node, parser.Block):
         child = Env(env)
         for binding in node.bindings:
-            _bind(child, binding, False)
+            _bind(child, binding)
         return _evaluate(node.expr, child)
 
     if isinstance(node, parser.If):
-        return If(_evaluate(node.cond, env), _evaluate(node.then, env), _evaluate(node.else_, env))
+        return If(_evaluate(node.cond, env), _evaluate(node.then, env), _evaluate(node.else_, env)).eval()
 
     if isinstance(node, parser.Call):
-        return Call(_evaluate(node.callee, env), [_evaluate(a, env) for a in node.args])
+        return Call(_evaluate(node.callee, env), [_evaluate(a, env) for a in node.args]).eval()
 
     if isinstance(node, parser.List):
-        return List([_evaluate(e, env) for e in node.elems])
+        return List([_evaluate(e, env) for e in node.elems]).eval()
 
     raise EvalError(f'unknown: {type(node).__name__}', node)
 
@@ -553,14 +565,13 @@ def run(filepath):
         return False
     return True
 
-def _bind(env, node, top=True):
+def _bind(env, node):
     ref = Ref(node.name)
     env.set(node.name, (ref, node.traced))
-    val = evaluate(node.expr, env) if top else _evaluate(node.expr, env)
+    val = evaluate(node.expr, env)
     ref.target = val
     env.bindings[node.name] = (val, node.traced)
-    if top:
-        show(val, node.name, node.show, node.traced)
+    show(val, node.name, node.show, node.traced)
     return val
 
 def _run_src(src):
@@ -705,5 +716,7 @@ $mpd modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!
 $mpe modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!
 $mpf modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!!
 $mpg modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!!!
+$mph modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!!!!
+$mpi modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!!!!!!!!
 '''
     _run_src(src)
