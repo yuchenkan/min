@@ -1,0 +1,15 @@
+from tactics import ax, wl, wr, il, ir, _prove
+
+$modus_ponens \vars phi: _prove(vars, phi, \args: {
+    $A head(args)
+    $B head(tail(args))
+    $imp implies(A, B)
+    $s1 wr(ax(A), sequent([A], [A, B]), B)
+    $s2 wl(ax(B), sequent([A, B], [B]), A)
+    $s3 il(s1, s2, sequent([A, imp], [B]), imp)
+    $imp2 implies(imp, B)
+    $s4 ir(s3, sequent([A], [imp2]), imp2)
+    $top implies(A, imp2)
+    $prf ir(s4, sequent([], [top]), top)
+    [top, prf]
+})

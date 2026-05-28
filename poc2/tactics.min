@@ -13,3 +13,13 @@ $ct \p0 p1 seq principal: proof(seq, "cut", [p0, p1], principal, None)
 
 $wl \premise seq principal: proof(seq, "weakening_left", [premise], principal, None)
 $wr \premise seq principal: proof(seq, "weakening_right", [premise], principal, None)
+
+$_prove \vars phi cont: ?(nil(vars), cont(phi), {
+    $v head(vars)
+    $rest tail(vars)
+    $pair _prove(rest, phi(v), cont)
+    $inner_prf head(tail(pair))
+    $body_fn \w: head(_prove(rest, phi(w), cont))
+    $closed forall(body_fn)
+    [closed, fr(inner_prf, sequent([], [closed]), closed, v)]
+})

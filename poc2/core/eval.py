@@ -488,7 +488,7 @@ def _evaluate(node, env):
     if isinstance(node, parser.Block):
         child = Env(env)
         for binding in node.bindings:
-            _bind(child, binding)
+            _bind(child, binding, False)
         return _evaluate(node.expr, child)
 
     if isinstance(node, parser.If):
@@ -553,13 +553,14 @@ def run(filepath):
         return False
     return True
 
-def _bind(env, node):
+def _bind(env, node, top=True):
     ref = Ref(node.name)
     env.set(node.name, (ref, node.traced))
-    val = evaluate(node.expr, env)
+    val = evaluate(node.expr, env) if top else _evaluate(node.expr, env)
     ref.target = val
     env.bindings[node.name] = (val, node.traced)
-    show(val, node.name, node.show, node.traced)
+    if top:
+        show(val, node.name, node.show, node.traced)
     return val
 
 def _run_src(src):
@@ -678,7 +679,10 @@ $ax9 Separation(3, \c: \d: \e: \x: and(mem(x, c), and(mem(x, d), mem(x, e)))) !
 $ax9b Separation(3, \c: \d: \e: \x: and(mem(x, c), and(mem(x, d), mem(x, e)))) !!
 
 $c1 _close !
-$c1b _close !!
+
+from theorems.logic.modus_ponens import modus_ponens
+$mp modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !
+$mpb modus_ponens([a, b], \a: \b: [mem(a, b), mem(b, a)]) !!
 
 from tactics import ax, nl, nr, il, ir, fl, fr, ct, wl, wr
 $A mem(a, b)
