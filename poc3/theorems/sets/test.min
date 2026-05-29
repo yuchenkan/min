@@ -64,3 +64,12 @@ $_ print("unique_big_union ok")
 
 $_ qed(unique_power_set("a", ["a"]), forall("a", exists_unique(\v: power_set(v, "a", "_"))))
 $_ print("unique_power_set ok")
+
+from theorems.sets.successor_exists import successor_exists
+from theorems.sets.unique_successor import unique_successor
+
+$_ qed(successor_exists("a", ["a"]), forall("a", exists("s", successor("s", "a"))))
+$_ print("successor_exists ok")
+
+$_ qed(unique_successor("a", ["a"]), forall("a", exists_unique(\v: successor(v, "a", "_"))))
+$_ print("unique_successor ok")
