@@ -1,0 +1,29 @@
+from core.derived import implies, forall, exists, or, eqv, Pairing
+from vocab.sets import pair_set
+from vocab.logic import exists_unique
+from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.sets.set_spec_unique import set_spec_unique
+from theorems.sets.pair_set_exists import pair_set_exists
+
+# Pairing |- forall(a, forall(b, exists_unique(s, pair_set(s, a, b))))
+$unique_pair_set \a b vars: {
+    $cond_fn \v: or(eqv(v, a, "_"), eqv(v, b, "_"))
+    $body_fn \v: pair_set(v, a, b, "_")
+    $ps_u pair_set("u", a, b, "_")
+    $eu exists_unique(body_fn)
+    $imp_inner implies(pair_set("y", a, b, "_"), eqv("u", "y"))
+    $got_inner mp(set_spec_unique("u", "y", cond_fn, []), ax([ps_u], [ps_u], ps_u), ps_u, imp_inner, [], [ps_u])
+    $fa_uniq forall("y", imp_inner)
+    $got_fa fr(got_inner, [ps_u], [fa_uniq], fa_uniq, "y")
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([ps_u], [ps_u], ps_u), ps_u, implies(fa_uniq, eu), [], [ps_u]),
+               got_fa, fa_uniq, eu, [ps_u], [ps_u])
+    $got_ex eel(got_eu, body_fn, "s", "u", [ps_u], eu)
+    $pa_f Pairing
+    $ex_ps exists("s", pair_set("s", a, b))
+    $body_pa1 \xv: forall("b", exists("s", pair_set("s", xv, "b")))
+    $body_pa2 \yv: exists("s", pair_set("s", a, yv))
+    $got_pe apply_thm(pair_set_exists, pa_f, [a, b], [body_pa1, body_pa2], [pa_f])
+    $got_cut cut_c(got_pe, got_ex, ex_ps, [pa_f], [ex_ps], eu)
+    close(got_cut, [pa_f], [eu], vars)
+}

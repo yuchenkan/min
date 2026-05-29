@@ -42,3 +42,25 @@ from theorems.sets.singleton_exists import singleton_exists
 
 $_ qed(singleton_exists("a", ["a"]), forall("a", exists("s", singleton("s", "a"))))
 $_ print("singleton_exists ok")
+
+from vocab.logic import exists_unique
+from theorems.sets.unique_empty import unique_empty
+from theorems.sets.unique_singleton import unique_singleton
+from theorems.sets.unique_pair_set import unique_pair_set
+from theorems.sets.unique_big_union import unique_big_union
+from theorems.sets.unique_power_set import unique_power_set
+
+$_ qed(unique_empty, exists_unique(\v: empty(v, "_")))
+$_ print("unique_empty ok")
+
+$_ qed(unique_singleton("a", ["a"]), forall("a", exists_unique(\v: singleton(v, "a", "_"))))
+$_ print("unique_singleton ok")
+
+$_ qed(unique_pair_set("a", "b", ["b", "a"]), forall("a", forall("b", exists_unique(\v: pair_set(v, "a", "b", "_")))))
+$_ print("unique_pair_set ok")
+
+$_ qed(unique_big_union("a", ["a"]), forall("a", exists_unique(\v: big_union(v, "a", "_"))))
+$_ print("unique_big_union ok")
+
+$_ qed(unique_power_set("a", ["a"]), forall("a", exists_unique(\v: power_set(v, "a", "_"))))
+$_ print("unique_power_set ok")

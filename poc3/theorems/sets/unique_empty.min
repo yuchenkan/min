@@ -1,0 +1,22 @@
+from core.derived import implies, forall, eqv, EmptySet
+from vocab.sets import empty
+from vocab.logic import exists_unique
+from tactics import ax, fr, mp, wl, eel, cut_c
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.sets.empty_unique import empty_unique
+
+# EmptySet |- exists_unique(s, empty(s))
+$unique_empty {
+    $body_fn \v: empty(v, "_")
+    $eu exists_unique(body_fn)
+    $empty_u empty("u", "_")
+    $imp_inner implies(empty("y", "_"), eqv("u", "y", "_"))
+    $got_inner mp(empty_unique("u", "y", []), ax([empty_u], [empty_u], empty_u), empty_u, imp_inner, [], [empty_u])
+    $fa_uniq forall("y", imp_inner)
+    $got_fa fr(got_inner, [empty_u], [fa_uniq], fa_uniq, "y")
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([empty_u], [empty_u], empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),
+               got_fa, fa_uniq, eu, [empty_u], [empty_u])
+    $got_ex eel(got_eu, body_fn, "s", "u", [empty_u], eu)
+    $es_f EmptySet
+    wl(got_ex, [es_f], [eu], es_f)
+}
