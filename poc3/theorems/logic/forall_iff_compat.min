@@ -60,5 +60,5 @@ $forall_iff_compat \x body_P body_Q vars: {
                 b10, bwd, iff_result, [hyp], [hyp])
     $top implies(hyp, iff_result)
     $result ir(got_iff, [], [top], top)
-    close(result, [top], vars)
+    close(result, [], [top], vars)
 }

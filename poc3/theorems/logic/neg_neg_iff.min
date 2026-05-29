@@ -17,5 +17,5 @@ $neg_neg_iff \P Q vars: {
     $s5 ir(got_iff, [neg(P)], [inner], inner)
     $top implies(neg(P), inner)
     $result ir(s5, [], [top], top)
-    close(result, [top], vars)
+    close(result, [], [top], vars)
 }

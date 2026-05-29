@@ -15,5 +15,5 @@ $modus_ponens \A B vars: {
     $s4 ir(s3, [A], [ABB], ABB)
     $s5 ir(s4, [], [top], top)
 
-    close(s5, [top], vars)
+    close(s5, [], [top], vars)
 }

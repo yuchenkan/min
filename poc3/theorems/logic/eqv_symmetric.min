@@ -13,5 +13,5 @@ $eqv_symmetric \a b vars: {
     $s3 fr(s2, [eqv_ab], [eqv_ba], eqv_ba, "v")
     $top implies(eqv_ab, eqv_ba)
     $result ir(s3, [], [top], top)
-    close(result, [top], vars)
+    close(result, [], [top], vars)
 }

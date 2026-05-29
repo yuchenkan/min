@@ -155,3 +155,15 @@ $_ print("eqv_transitive ok")
 
 $_ qed(eqv_mem_left("a", "b", "z", ["z", "b", "a"]), forall("a", forall("b", forall("z", implies(eqv("a", "b"), implies(mem("z", "a"), mem("z", "b")))))))
 $_ print("eqv_mem_left ok")
+
+from vocab.logic import exists_unique
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.logic.ext_substitution import ext_substitution
+
+$_ qed(exists_unique_intro(\v: mem(v, "a"), "b", ["b", "a"]),
+    forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eqv("b", "y"))), exists_unique(\v: mem(v, "a")))))))
+$_ print("exists_unique_intro ok")
+
+$_ qed(ext_substitution("a", "b", "s", ["s", "b", "a"]),
+    forall("a", forall("b", forall("s", implies(eqv("a", "b", "_"), iff(mem("a", "s"), mem("b", "s")))))))
+$_ print("ext_substitution ok")

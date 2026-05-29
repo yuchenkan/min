@@ -10,5 +10,5 @@ $eq_reflexive {
     $pp ir(ax([P], [P], P), [], [imp_PP], imp_PP)
     $s1 mp(iff_intro(P, P, []), pp, imp_PP, implies(imp_PP, iff_PP), [], [])
     $got mp(s1, pp, imp_PP, iff_PP, [], [])
-    close(got, [iff_PP], ["z", "a"])
+    close(got, [], [iff_PP], ["z", "a"])
 }

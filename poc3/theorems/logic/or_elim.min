@@ -23,5 +23,5 @@ $or_elim \A B C vars: {
     $s2 ir(s1, [or_AB], [i2], i2)
     $top implies(or_AB, i2)
     $s3 ir(s2, [], [top], top)
-    close(s3, [top], vars)
+    close(s3, [], [top], vars)
 }

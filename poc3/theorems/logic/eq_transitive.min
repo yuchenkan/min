@@ -8,5 +8,5 @@ $eq_transitive {
     $Q mem("z", "b")
     $R mem("z", "c")
     $formula implies(iff(P, Q), implies(iff(Q, R), iff(P, R)))
-    close(iff_chain(P, Q, R, []), [formula], ["z", "c", "b", "a"])
+    close(iff_chain(P, Q, R, []), [], [formula], ["z", "c", "b", "a"])
 }

@@ -13,5 +13,5 @@ $contrapositive \P Q vars: {
     $s6 ir(s5, [imp], [inner], inner)
     $top implies(imp, inner)
     $s7 ir(s6, [], [top], top)
-    close(s7, [top], vars)
+    close(s7, [], [top], vars)
 }

@@ -9,5 +9,5 @@ $or_intro_right \A B vars: {
     $s2 ir(s1, [B], [or_AB], or_AB)
     $top implies(B, or_AB)
     $s3 ir(s2, [], [top], top)
-    close(s3, [top], vars)
+    close(s3, [], [top], vars)
 }

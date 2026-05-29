@@ -72,5 +72,5 @@ $or_iff_compat \P Q R S vars: {
     $h1 ir(g8, [iff_PR], [top2], top2)
     $top implies(iff_PR, top2)
     $result ir(h1, [], [top], top)
-    close(result, [top], vars)
+    close(result, [], [top], vars)
 }

@@ -9,5 +9,5 @@ $iff_refl \P vars: {
     $got_id ir(ax([P], [P], P), [], [id], id)
     $s1 mp(iff_intro(P, P, []), got_id, id, implies(id, iff_PP), [], [])
     $result mp(s1, got_id, id, iff_PP, [], [])
-    close(result, [iff_PP], vars)
+    close(result, [], [iff_PP], vars)
 }

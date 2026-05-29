@@ -20,5 +20,5 @@ $implies_trans \A B C vars: {
     $s11 ir(s10, [imp_AB], [top2], top2)
     $top implies(imp_AB, top2)
     $s12 ir(s11, [], [top], top)
-    close(s12, [top], vars)
+    close(s12, [], [top], vars)
 }

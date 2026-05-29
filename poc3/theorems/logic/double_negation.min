@@ -9,5 +9,5 @@ $double_negation \A vars: {
     $s2 nl(s1, [nna], [A], nna)
     $top implies(nna, A)
     $s3 ir(s2, [], [top], top)
-    close(s3, [top], vars)
+    close(s3, [], [top], vars)
 }

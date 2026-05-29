@@ -12,5 +12,5 @@ $and_elim_right \A B vars: {
     $s4 nl(s3, [and_AB], [B], and_AB)
     $top implies(and_AB, B)
     $s5 ir(s4, [], [top], top)
-    close(s5, [top], vars)
+    close(s5, [], [top], vars)
 }

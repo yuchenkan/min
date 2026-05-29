@@ -8,5 +8,5 @@ $eqv_reflexive {
     $got iff_refl(P, [])
     $eqv_aa eqv("a", "a")
     $s1 fr(got, [], [eqv_aa], eqv_aa, "z")
-    close(s1, [eqv_aa], ["a"])
+    close(s1, [], [eqv_aa], ["a"])
 }

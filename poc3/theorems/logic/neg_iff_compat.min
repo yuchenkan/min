@@ -18,5 +18,5 @@ $neg_iff_compat \P Q vars: {
                 got_nQnP, implies(neg(Q), neg(P)), iff_result, [iff_PQ], [iff_PQ])
     $top implies(iff_PQ, iff_result)
     $result ir(got_iff, [], [top], top)
-    close(result, [top], vars)
+    close(result, [], [top], vars)
 }

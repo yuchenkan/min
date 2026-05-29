@@ -9,5 +9,5 @@ $forall_instantiation \x body_fn t vars: {
     $s1 fl(ax([At], [At], At), [fa], [At], fa, t)
     $top implies(fa, At)
     $s2 ir(s1, [], [top], top)
-    close(s2, [top], vars)
+    close(s2, [], [top], vars)
 }

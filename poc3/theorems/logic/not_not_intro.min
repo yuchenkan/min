@@ -7,5 +7,5 @@ $not_not_intro \P vars: {
     $s2 nr(s1, [P], [neg(neg(P))], neg(neg(P)))
     $top implies(P, neg(neg(P)))
     $s3 ir(s2, [], [top], top)
-    close(s3, [top], vars)
+    close(s3, [], [top], vars)
 }

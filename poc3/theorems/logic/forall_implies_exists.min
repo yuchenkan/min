@@ -14,5 +14,5 @@ $forall_implies_exists \x body_fn vars: {
     $s4 nr(s3, [fa], [ex], ex)
     $top implies(fa, ex)
     $s5 ir(s4, [], [top], top)
-    close(s5, [top], vars)
+    close(s5, [], [top], vars)
 }

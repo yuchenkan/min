@@ -16,5 +16,5 @@ $or_idempotent \P vars: {
     $iff_result iff(orPP, P)
     $result mp(mp(iff_intro(orPP, P, []), got_bwd, bwd, implies(fwd, iff_result), [], []),
                got_fwd, fwd, iff_result, [], [])
-    close(result, [iff_result], vars)
+    close(result, [], [iff_result], vars)
 }

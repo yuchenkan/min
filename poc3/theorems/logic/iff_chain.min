@@ -28,5 +28,5 @@ $iff_chain \A B C vars: {
     $s2 ir(got_iff, [iff_AB], [top2], top2)
     $top implies(iff_AB, top2)
     $s3 ir(s2, [], [top], top)
-    close(s3, [top], vars)
+    close(s3, [], [top], vars)
 }

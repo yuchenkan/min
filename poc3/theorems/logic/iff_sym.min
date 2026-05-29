@@ -17,5 +17,5 @@ $iff_sym \A B vars: {
 
     $top implies(iff_AB, iff_BA)
     $result ir(got_iff, [], [top], top)
-    close(result, [top], vars)
+    close(result, [], [top], vars)
 }

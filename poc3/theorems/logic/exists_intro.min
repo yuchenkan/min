@@ -13,5 +13,5 @@ $exists_intro \x body_fn t vars: {
     $s3 nr(s2, [body_t], [ex], ex)
     $top implies(body_t, ex)
     $s4 ir(s3, [], [top], top)
-    close(s4, [top], vars)
+    close(s4, [], [top], vars)
 }

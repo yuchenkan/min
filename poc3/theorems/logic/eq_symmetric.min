@@ -7,5 +7,5 @@ $eq_symmetric {
     $P mem("z", "a")
     $Q mem("z", "b")
     $formula implies(iff(P, Q), iff(Q, P))
-    close(iff_sym(P, Q, []), [formula], ["z", "b", "a"])
+    close(iff_sym(P, Q, []), [], [formula], ["z", "b", "a"])
 }

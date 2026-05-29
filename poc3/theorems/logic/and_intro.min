@@ -15,5 +15,5 @@ $and_intro \A B vars: {
     $s6 ir(s5, [A], [imp_B], imp_B)
     $top implies(A, imp_B)
     $s7 ir(s6, [], [top], top)
-    close(s7, [top], vars)
+    close(s7, [], [top], vars)
 }

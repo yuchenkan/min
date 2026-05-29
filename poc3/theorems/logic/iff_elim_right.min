@@ -22,5 +22,5 @@ $iff_elim_right \A B vars: {
     $s11 ir(s10, [iff_AB], [i1], i1)
     $top implies(iff_AB, i1)
     $s12 ir(s11, [], [top], top)
-    close(s12, [top], vars)
+    close(s12, [], [top], vars)
 }

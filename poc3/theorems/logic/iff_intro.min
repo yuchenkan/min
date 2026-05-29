@@ -25,5 +25,5 @@ $iff_intro \A B vars: {
     $s6 ir(core, [fwd], [imp_bwd], imp_bwd)
     $top implies(fwd, imp_bwd)
     $s7 ir(s6, [], [top], top)
-    close(s7, [top], vars)
+    close(s7, [], [top], vars)
 }
