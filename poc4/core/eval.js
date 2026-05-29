@@ -125,7 +125,8 @@ function call(callee, args, node) {
         return callee(...args);
     }
     // Identity-based cache: nested Maps keyed by ===
-    if (!callee._cache) callee._cache = new Map();
+    if (!callee._cache) { callee._cache = new Map(); callee._cacheSize = 0; }
+    else if (callee._cacheSize > 1024) { callee._cache.clear(); callee._cacheSize = 0; }
     let level = callee._cache;
     for (const a of args) {
         let next = level.get(a);
@@ -143,6 +144,7 @@ function call(callee, args, node) {
         result = callee(...args);
     }
     level.set(_R, result);
+    callee._cacheSize++;
     return result;
 }
 
