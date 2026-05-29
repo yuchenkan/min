@@ -1,0 +1,53 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+
+# set_spec(s, cond_fn, p): forall x. iff(mem(x, s), cond(x))
+$set_spec \s cond_fn p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $body forall(x, iff(mem(x, s), cond_fn(x)))
+    ["set_spec", add(add("spec(", s), add(", ", add(d(cond_fn(x)), ")"))), body, s, cond_fn, p]
+}
+
+# empty(s, p): forall x. neg(mem(x, s))
+$empty \s p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $body forall(x, neg(mem(x, s)))
+    ["empty", add("empty(", add(s, ")")), body, s, p]
+}
+
+# subset(a, b, p): forall x. mem(x, a) -> mem(x, b)
+$subset \a b p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $body forall(x, implies(mem(x, a), mem(x, b)))
+    ["subset", add(a, add(" sub ", b)), body, a, b, p]
+}
+
+# singleton(s, a, p): set_spec(s, \x: eqv(x, a))
+$singleton \s a p: {
+    $body set_spec(s, \x: eqv(x, a, p), p)
+    ["singleton", add(s, add(" = {", add(a, "}"))), body, s, a, p]
+}
+
+# pair_set(s, a, b, p): set_spec(s, \x: or(eqv(x, a), eqv(x, b)))
+$pair_set \s a b p: {
+    $body set_spec(s, \x: or(eqv(x, a, p), eqv(x, b, p)), p)
+    ["pair_set", add(s, add(" = {", add(a, add(", ", add(b, "}"))))), body, s, a, b, p]
+}
+
+# big_union(s, a, p): set_spec(s, \x: exists(y, and(mem(y, a), mem(x, y))))
+$big_union \s a p: {
+    $y ?(eq(p, None), "y", add(p, "y"))
+    $body set_spec(s, \x: exists(y, and(mem(y, a), mem(x, y))), p)
+    ["big_union", add(s, add(" = U(", add(a, ")"))), body, s, a, p]
+}
+
+# power_set(s, a, p): set_spec(s, \x: subset(x, a))
+$power_set \s a p: {
+    $body set_spec(s, \x: subset(x, a, p), p)
+    ["power_set", add(s, add(" = P(", add(a, ")"))), body, s, a, p]
+}
+
+# successor(s, a, p): set_spec(s, \x: or(mem(x, a), eqv(x, a)))
+$successor \s a p: {
+    $body set_spec(s, \x: or(mem(x, a), eqv(x, a, p)), p)
+    ["successor", add(s, add(" = S(", add(a, ")"))), body, s, a, p]
+}
