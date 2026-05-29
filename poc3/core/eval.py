@@ -42,10 +42,18 @@ class EvalError(Exception):
     def __init__(self, msg, node=None):
         self.msg = msg
         self.node = node
+        self.trace = []
+    def add_frame(self, node):
+        self.trace.append(node)
     def __str__(self):
+        lines = []
         if self.node:
-            return f'{self.node.file}:{self.node.line}:{self.node.col}: {self.msg}'
-        return self.msg
+            lines.append(f'{self.node.file}:{self.node.line}:{self.node.col}: {self.msg}')
+        else:
+            lines.append(self.msg)
+        for n in self.trace:
+            lines.append(f'  at {n.file}:{n.line}:{n.col}')
+        return '\n'.join(lines)
 
 
 def evaluate(node, env):
@@ -78,7 +86,11 @@ def evaluate(node, env):
     if isinstance(node, parser.Call):
         callee = evaluate(node.callee, env)
         args = [evaluate(a, env) for a in node.args]
-        return call(callee, args, node)
+        try:
+            return call(callee, args, node)
+        except EvalError as e:
+            e.add_frame(node)
+            raise
 
     if isinstance(node, parser.List):
         return [evaluate(e, env) for e in node.elems]
