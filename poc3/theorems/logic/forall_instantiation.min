@@ -1,0 +1,13 @@
+from core.derived import implies, forall
+from tactics import ax, fl, ir, close
+
+# |- forall(x, body(x)) -> body(t)
+$forall_instantiation \x body_fn t vars: {
+    $A body_fn(x)
+    $At body_fn(t)
+    $fa forall(x, A)
+    $s1 fl(ax([At], [At], At), [fa], [At], fa, t)
+    $top implies(fa, At)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [top], vars)
+}
