@@ -111,9 +111,7 @@ def _global():
     env = env.extend('not', lambda a: not a)
     env = env.extend('head', lambda a: a[0])
     env = env.extend('tail', lambda a: a[1:])
-    env = env.extend('nil', lambda a: len(a) == 0)
     env = env.extend('len', lambda a: len(a))
-    env = env.extend('concat', lambda a, b: a + b)
     env = env.extend('print', lambda a: print(a) or a)
     return env
 
