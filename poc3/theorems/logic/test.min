@@ -167,3 +167,9 @@ $_ print("exists_unique_intro ok")
 $_ qed(ext_substitution("a", "b", "s", ["s", "b", "a"]),
     forall("a", forall("b", forall("s", implies(eqv("a", "b", "_"), iff(mem("a", "s"), mem("b", "s")))))))
 $_ print("ext_substitution ok")
+
+from theorems.logic.exists_unique_bridge import exists_unique_bridge
+$phi_fn \v: mem(v, "a")
+$bridge_f implies(exists_unique(phi_fn), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))
+$_ qed(exists_unique_bridge(phi_fn, "s", ["s", "a"]), forall("a", forall("s", bridge_f)))
+$_ print("exists_unique_bridge ok")
