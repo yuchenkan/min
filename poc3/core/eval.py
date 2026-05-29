@@ -118,9 +118,9 @@ def _do_proof(left, right, rule, premises, principal, term=None):
     except (ValueError, TypeError) as e:
         return [False, str(e)]
 
-def _do_qed(p, expected):
+def _do_qed(p, expected, system):
     try:
-        kernel.qed(p, build(expected))
+        kernel.qed(p, build(expected), system)
         return [True, None]
     except (ValueError, TypeError) as e:
         return [False, str(e)]

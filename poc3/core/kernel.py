@@ -357,23 +357,34 @@ def is_replacement(f):
                 return True
     return False
 
-def is_axiom(f):
-    for pattern in ZFC:
+# ZFC[0..6] = Ext, Empty, Pair, Union, Power, Inf, Reg
+# ZFC[7] = Choice
+
+def is_axiom(f, system):
+    # z: no Choice, no Replacement
+    # zf: no Choice
+    # zfc: all
+    limit = 7 if system in ("z", "zf") else 8
+    for pattern in ZFC[:limit]:
         if pmatch(pattern, f, {}):
             return True
-    return is_separation(f) or is_replacement(f)
+    if is_separation(f):
+        return True
+    if system in ("zf", "zfc") and is_replacement(f):
+        return True
+    return False
 
 
 # === qed ===
 
-def qed(p, expected):
+def qed(p, expected, system):
     s = p.sequent
     if len(s.right) != 1:
         raise ValueError(f'qed: expected 1 formula on right, got {len(s.right)}')
     if free_vars(s.right[0]):
         raise ValueError('qed: theorem has free variables')
     for f in s.left:
-        if not is_axiom(f):
-            raise ValueError('qed: non-axiom on left')
+        if not is_axiom(f, system):
+            raise ValueError(f'qed: non-axiom on left (system={system})')
     if not same(s.right[0], expected):
         raise ValueError('qed: theorem does not match expected')

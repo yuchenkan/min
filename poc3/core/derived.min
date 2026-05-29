@@ -61,8 +61,8 @@ $proof \left right rule premises principal term: {
 }
 
 # qed: flat expected, then call kernel bridge
-$qed \p expected: {
-    $result _do_qed(p, flat(flat, expected))
+$qed \p expected system: {
+    $result _do_qed(p, flat(flat, expected), ?(eq(system, None), "z", system))
     ?(head(result), expected, {
         $_ print("qed failed:")
         $_ print(add("  expected: ", show(expected)))
