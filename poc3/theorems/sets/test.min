@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, iff, eqv, exists, qed
+from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists, qed
 from vocab.sets import empty, singleton, pair_set, big_union
 from theorems.sets.empty_exists import empty_exists
 from theorems.sets.pair_set_exists import pair_set_exists
@@ -73,3 +73,23 @@ $_ print("successor_exists ok")
 
 $_ qed(unique_successor("a", ["a"]), forall("a", exists_unique(\v: successor(v, "a", "_"))))
 $_ print("unique_successor ok")
+
+from theorems.sets.singleton_pair_eq import singleton_pair_eq
+from theorems.sets.pair_injection import pair_injection
+from theorems.sets.singleton_injection import singleton_injection
+
+$_ qed(singleton_injection("a", "b", ["b", "a"]),
+    forall("a", forall("b", implies(forall("w", iff(eqv("w","a"), eqv("w","b"))), eqv("a","b")))))
+$_ print("singleton_injection ok")
+
+$_ qed(singleton_pair_eq("a", "c", "d", ["d","c","a"]),
+    forall("a", forall("c", forall("d",
+        implies(forall("w", iff(eqv("w","a"), or(eqv("w","c"), eqv("w","d")))),
+                and(eqv("c","a"), eqv("d","a")))))))
+$_ print("singleton_pair_eq ok")
+
+$_ qed(pair_injection("a", "b", "c", "d", ["d","c","b","a"]),
+    forall("a", forall("b", forall("c", forall("d",
+        implies(forall("w", iff(or(eqv("w","a"),eqv("w","b")), or(eqv("w","c"),eqv("w","d")))),
+                or(and(eqv("a","c"),eqv("b","d")), and(eqv("a","d"),eqv("b","c")))))))))
+$_ print("pair_injection ok")
