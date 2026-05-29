@@ -7,6 +7,16 @@ $_contains \self f lst: ?(eq(len(lst), 0), False,
 $contains \f lst: _contains(_contains, f, lst)
 $set_add \f lst: ?(contains(f, lst), lst, add(lst, [f]))
 
+$_remove \self f lst: ?(eq(len(lst), 0), [],
+    ?(eq(head(lst), f), tail(lst), add([head(lst)], self(self, f, tail(lst)))))
+$remove \f lst: _remove(_remove, f, lst)
+
+$_diff \self lst1 lst2: ?(eq(len(lst1), 0), [],
+    ?(contains(head(lst1), lst2),
+        self(self, tail(lst1), lst2),
+        add([head(lst1)], self(self, tail(lst1), lst2))))
+$diff \lst1 lst2: _diff(_diff, lst1, lst2)
+
 # === basic rule wrappers ===
 
 $ax \left right A: proof(left, right, "axiom", [], A)
@@ -58,28 +68,22 @@ $close \prf right vars: _close_proof(_close_proof, prf, right, vars)
 # === modus ponens ===
 # p1: G |- D, A    p2: G |- D, (A -> B)    =>    G |- D, B
 
-$mp \p1 p2 G D A B: {
-    $AB implies(A, B)
-    $DB set_add(B, D)
-    $ABG set_add(AB, G)
+# mp: modus ponens with context merging
+# impl_proof: impl_ctx |- [implies(P, Q)]
+# arg_proof:  arg_ctx  |- [P]
+# result:     merged   |- [Q]
+$mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
+    $imp implies(P, Q)
+    $merged add(impl_ctx, diff(arg_ctx, impl_ctx))
+    $G ?(contains(imp, merged), remove(imp, merged), merged)
+    $merged_imp ?(contains(imp, merged), merged, add(merged, [imp]))
 
-    # core: A, AB |- B
-    $c1 ax([A], [A, B], A)
-    $c2 wl(ax([B], [B], B), [A, B], [B], A)
-    $c3 il(c1, c2, [A, AB], [B], AB)
+    $s0a_G wl_all(arg_proof, arg_ctx, [P], diff(G, arg_ctx))
+    $s1 wr(s0a_G, G, [P, Q], Q)
+    $s2 wl_all(ax([Q], [Q], Q), [Q], [Q], G)
+    $s3 il(s1, s2, merged_imp, [Q], imp)
 
-    # weaken core: {A, AB} u G |- {B} u D
-    $c4 wr_all(c3, [A, AB], [B], D)
-    $c5 wl_all(c4, [A, AB], DB, G)
-
-    # cut A: ABG |- DB
-    # premise1: ABG |- DB u {A}
-    $p1a wr_all(p1, G, set_add(A, D), [B])
-    $p1b wl_all(p1a, G, set_add(A, DB), [AB])
-    $s1 cut(p1b, c5, ABG, DB, A)
-
-    # cut AB: G |- DB
-    # premise1: G |- DB u {AB}
-    $p2a wr_all(p2, G, set_add(AB, D), [B])
-    cut(p2a, s1, G, DB, AB)
+    $impl_w wl_all(impl_proof, impl_ctx, [imp], diff(merged, impl_ctx))
+    $impl_wr wr(impl_w, merged, [imp, Q], Q)
+    cut(impl_wr, s3, merged, [Q], imp)
 }

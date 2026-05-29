@@ -11,6 +11,12 @@ from theorems.logic.implies_trans import implies_trans
 from theorems.logic.contrapositive import contrapositive
 from theorems.logic.not_not_intro import not_not_intro
 from theorems.logic.exists_intro import exists_intro
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_refl import iff_refl
+from theorems.logic.iff_sym import iff_sym
+from theorems.logic.iff_chain import iff_chain
 
 $A mem("a", "b")
 $B mem("b", "a")
@@ -52,3 +58,21 @@ $_ print("not_not_intro ok")
 
 $_ qed(exists_intro("x", \v: mem(v, "b"), "a", ["b", "a"]), forall("a", forall("b", implies(mem("a", "b"), exists("x", mem("x", "b"))))))
 $_ print("exists_intro ok")
+
+$_ qed(iff_intro(A, B, v), forall("a", forall("b", implies(implies(A, B), implies(implies(B, A), iff(A, B))))))
+$_ print("iff_intro ok")
+
+$_ qed(iff_elim_left(A, B, v), forall("a", forall("b", implies(iff(A, B), implies(A, B)))))
+$_ print("iff_elim_left ok")
+
+$_ qed(iff_elim_right(A, B, v), forall("a", forall("b", implies(iff(A, B), implies(B, A)))))
+$_ print("iff_elim_right ok")
+
+$_ qed(iff_refl(A, v), forall("a", forall("b", iff(A, A))))
+$_ print("iff_refl ok")
+
+$_ qed(iff_sym(A, B, v), forall("a", forall("b", implies(iff(A, B), iff(B, A)))))
+$_ print("iff_sym ok")
+
+$_ qed(iff_chain(A, B, C, v), forall("a", forall("b", implies(iff(A, B), implies(iff(B, C), iff(A, C))))))
+$_ print("iff_chain ok")
