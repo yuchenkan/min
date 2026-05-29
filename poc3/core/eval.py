@@ -110,13 +110,23 @@ def build(f):
     raise ValueError(f'build: unknown tag {tag}')
 
 def _do_proof(left, right, rule, premises, principal, term=None):
-    seq = kernel.Sequent(
-        [build(f) for f in left],
-        [build(f) for f in right])
-    return kernel.proof(seq, rule, premises, build(principal), term)
+    try:
+        seq = kernel.Sequent(
+            [build(f) for f in left],
+            [build(f) for f in right])
+        return [True, kernel.proof(seq, rule, premises, build(principal), term)]
+    except (ValueError, TypeError) as e:
+        return [False, str(e)]
 
 def _do_qed(p, expected):
-    kernel.qed(p, build(expected))
+    try:
+        kernel.qed(p, build(expected))
+        return [True, None]
+    except (ValueError, TypeError) as e:
+        return [False, str(e)]
+
+def _fail(msg):
+    raise EvalError(msg)
 
 
 # === Builtins ===
@@ -137,6 +147,7 @@ def _global():
     env = env.extend('print', lambda a: print(a) or a)
     env = env.extend('_do_proof', _do_proof)
     env = env.extend('_do_qed', _do_qed)
+    env = env.extend('_fail', _fail)
     return env
 
 

@@ -157,15 +157,7 @@ def is_permutation(a, b):
 
 def proof(seq, rule, premises, principal, term=None):
     if not check_rule(seq, rule, premises, principal, term):
-        parts = [f'invalid proof step: {rule}']
-        parts.append(f'  sequent: {seq}')
-        parts.append(f'  rule: {rule}')
-        for i, p in enumerate(premises):
-            parts.append(f'  premise[{i}]: {p.sequent}')
-        parts.append(f'  principal: {principal}')
-        if term:
-            parts.append(f'  term: {term}')
-        raise ValueError('\n'.join(parts))
+        raise ValueError(f'invalid proof step: {rule}')
     return Proof(seq)
 
 

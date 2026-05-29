@@ -38,19 +38,36 @@ $flat \self f: {
 # map helper
 $_map \self f lst: ?(eq(len(lst), 0), [], add([f(head(lst))], self(self, f, tail(lst))))
 
+# show a list of formulas
+$_show_list \self lst: ?(eq(len(lst), 0), "",
+    ?(eq(len(lst), 1), show(head(lst)),
+        add(show(head(lst)), add(", ", self(self, tail(lst))))))
+
 # proof: flat formulas, then call kernel bridge
 $proof \left right rule premises principal term: {
     $fl \f: flat(flat, f)
-    _do_proof(
+    $result _do_proof(
         _map(_map, fl, left),
         _map(_map, fl, right),
         rule, premises, fl(principal), term)
+    ?(head(result), head(tail(result)), {
+        $_ print(add("proof failed: ", rule))
+        $_ print(add("  left:  ", _show_list(_show_list, left)))
+        $_ print(add("  right: ", _show_list(_show_list, right)))
+        $_ print(add("  principal: ", show(principal)))
+        $_ ?(eq(term, None), None, print(add("  term: ", term)))
+        _fail(head(tail(result)))
+    })
 }
 
 # qed: flat expected, then call kernel bridge
 $qed \p expected: {
-    $_ _do_qed(p, flat(flat, expected))
-    expected
+    $result _do_qed(p, flat(flat, expected))
+    ?(head(result), expected, {
+        $_ print("qed failed:")
+        $_ print(add("  expected: ", show(expected)))
+        _fail(head(tail(result)))
+    })
 }
 
 # === ZFC Axioms ===
