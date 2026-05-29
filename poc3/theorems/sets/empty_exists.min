@@ -1,0 +1,5 @@
+from core.derived import empty_set
+from tactics import ax
+
+# EmptySet |- exists(s, empty(s))
+$empty_exists ax([empty_set], [empty_set], empty_set)

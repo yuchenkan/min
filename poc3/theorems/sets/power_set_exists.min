@@ -1,0 +1,7 @@
+from core.derived import power_set
+from tactics import ax
+
+# PowerSet axiom |- forall(a, exists(s, power_set_vocab(s, a)))
+# power_set here is the ZFC axiom from derived.min
+$pw_axiom power_set
+$power_set_exists ax([pw_axiom], [pw_axiom], pw_axiom)

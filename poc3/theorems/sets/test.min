@@ -1,0 +1,33 @@
+from core.derived import mem, implies, forall, iff, eqv, exists, qed
+from vocab.sets import empty, singleton, pair_set, big_union
+from theorems.sets.empty_exists import empty_exists
+from theorems.sets.pair_set_exists import pair_set_exists
+from theorems.sets.big_union_exists import big_union_exists
+from theorems.sets.empty_unique import empty_unique
+from theorems.sets.set_spec_unique import set_spec_unique
+from theorems.sets.singleton_unique import singleton_unique
+
+$_ qed(empty_exists, exists("s", empty("s")))
+$_ print("empty_exists ok")
+
+$_ qed(pair_set_exists, forall("a", forall("b", exists("s", pair_set("s", "a", "b")))))
+$_ print("pair_set_exists ok")
+
+$_ qed(big_union_exists, forall("a", exists("s", big_union("s", "a"))))
+$_ print("big_union_exists ok")
+
+$_ qed(empty_unique("a", "b", ["b", "a"]),
+    forall("a", forall("b", implies(empty("a"), implies(empty("b"), eqv("a", "b", "_"))))))
+$_ print("empty_unique ok")
+
+$_ qed(set_spec_unique("s1", "s2", \v: mem(v, "a"), ["a", "s2", "s1"]),
+    forall("s1", forall("s2", forall("a",
+        implies(forall("x", iff(mem("x", "s1"), mem("x", "a"))),
+                implies(forall("x", iff(mem("x", "s2"), mem("x", "a"))),
+                        eqv("s1", "s2", "_")))))))
+$_ print("set_spec_unique ok")
+
+$_ qed(singleton_unique("s1", "s2", "a", ["a", "s2", "s1"]),
+    forall("s1", forall("s2", forall("a",
+        implies(singleton("s1", "a"), implies(singleton("s2", "a"), eqv("s1", "s2")))))))
+$_ print("singleton_unique ok")
