@@ -1,8 +1,54 @@
-from core.derived import mem, neg, implies, forall, iff, show, qed
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, show, qed
 from theorems.logic.modus_ponens import modus_ponens
+from theorems.logic.double_negation import double_negation
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.implies_trans import implies_trans
+from theorems.logic.contrapositive import contrapositive
+from theorems.logic.not_not_intro import not_not_intro
+from theorems.logic.exists_intro import exists_intro
 
 $A mem("a", "b")
 $B mem("b", "a")
+$C mem("a", "a")
+$v ["b", "a"]
 
-$_ qed(modus_ponens(A, B, ["b", "a"]), forall("a", forall("b", implies(A, implies(implies(A, B), B)))))
+$_ qed(modus_ponens(A, B, v), forall("a", forall("b", implies(A, implies(implies(A, B), B)))))
 $_ print("modus_ponens ok")
+
+$_ qed(double_negation(A, v), forall("a", forall("b", implies(neg(neg(A)), A))))
+$_ print("double_negation ok")
+
+$_ qed(and_intro(A, B, v), forall("a", forall("b", implies(A, implies(B, and(A, B))))))
+$_ print("and_intro ok")
+
+$_ qed(and_elim_left(A, B, v), forall("a", forall("b", implies(and(A, B), A))))
+$_ print("and_elim_left ok")
+
+$_ qed(and_elim_right(A, B, v), forall("a", forall("b", implies(and(A, B), B))))
+$_ print("and_elim_right ok")
+
+$_ qed(or_intro_left(A, B, v), forall("a", forall("b", implies(A, or(A, B)))))
+$_ print("or_intro_left ok")
+
+$_ qed(or_intro_right(A, B, v), forall("a", forall("b", implies(B, or(A, B)))))
+$_ print("or_intro_right ok")
+
+$_ qed(or_elim(A, B, C, v), forall("a", forall("b", implies(or(A, B), implies(implies(A, C), implies(implies(B, C), C))))))
+$_ print("or_elim ok")
+
+$_ qed(implies_trans(A, B, C, v), forall("a", forall("b", implies(implies(A, B), implies(implies(B, C), implies(A, C))))))
+$_ print("implies_trans ok")
+
+$_ qed(contrapositive(A, B, v), forall("a", forall("b", implies(implies(A, B), implies(neg(B), neg(A))))))
+$_ print("contrapositive ok")
+
+$_ qed(not_not_intro(A, v), forall("a", forall("b", implies(A, neg(neg(A))))))
+$_ print("not_not_intro ok")
+
+$_ qed(exists_intro("x", \v: mem(v, "b"), "a", ["b", "a"]), forall("a", forall("b", implies(mem("a", "b"), exists("x", mem("x", "b"))))))
+$_ print("exists_intro ok")

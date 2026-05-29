@@ -1,0 +1,19 @@
+from core.derived import neg, implies, and
+from tactics import ax, wl, nl, il, nr, ir, close
+
+# |- A -> B -> and(A, B)
+$and_intro \A B vars: {
+    $and_AB and(A, B)
+    $not_B neg(B)
+    $imp_A_notB implies(A, not_B)
+    $s1 wl(ax([A], [A], A), [A, B], [A], B)
+    $s2 wl(ax([B], [B], B), [A, B], [B], A)
+    $s3 nl(s2, [A, B, not_B], [], not_B)
+    $s4 il(s1, s3, [A, B, imp_A_notB], [], imp_A_notB)
+    $s5 nr(s4, [A, B], [and_AB], and_AB)
+    $imp_B implies(B, and_AB)
+    $s6 ir(s5, [A], [imp_B], imp_B)
+    $top implies(A, imp_B)
+    $s7 ir(s6, [], [top], top)
+    close(s7, [top], vars)
+}
