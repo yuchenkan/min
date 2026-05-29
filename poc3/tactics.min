@@ -1,4 +1,4 @@
-from core.derived import proof, forall, neg, implies
+from core.derived import proof, mem, forall, neg, implies, iff
 
 # === set helpers ===
 
