@@ -112,39 +112,37 @@ function compile(node) {
 }
 
 
-const _R = Symbol("r");
-
-function call(callee, args, node) {
-    if (callee._nocache) {
-        if (callee instanceof Fn) {
-            const env = callee.env.snapshot();
-            for (let i = 0; i < callee.params.length; i++)
-                env.d[callee.params[i]] = i < args.length ? args[i] : null;
-            return callee.bodyFn(env);
-        }
-        return callee(...args);
-    }
-    // Identity-based cache: nested Maps keyed by ===
-    if (!callee._cache) { callee._cache = new Map(); callee._cacheSize = 0; }
-    else if (callee._cacheSize > 1024) { callee._cache.clear(); callee._cacheSize = 0; }
-    let level = callee._cache;
-    for (const a of args) {
-        let next = level.get(a);
-        if (!next) { next = new Map(); level.set(a, next); }
-        level = next;
-    }
-    if (level.has(_R)) return level.get(_R);
-    let result;
+function exec(callee, args) {
     if (callee instanceof Fn) {
         const env = callee.env.snapshot();
         for (let i = 0; i < callee.params.length; i++)
             env.d[callee.params[i]] = i < args.length ? args[i] : null;
-        result = callee.bodyFn(env);
-    } else {
-        result = callee(...args);
+        return callee.bodyFn(env);
     }
-    level.set(_R, result);
-    callee._cacheSize++;
+    return callee(...args);
+}
+
+const _R = Symbol();
+
+function cacheGet(m, args) {
+    for (const a of args) { m = m.get(a); if (!m) return undefined; }
+    return m.get(_R);
+}
+
+function cacheSet(m, args, val) {
+    for (const a of args) { let n = m.get(a); if (!n) { n = new Map(); m.set(a, n); } m = n; }
+    m.set(_R, val);
+}
+
+function call(callee, args, node) {
+    if (callee._nocache) return exec(callee, args);
+    if (!callee._c) { callee._c = new Map(); callee._n = 0; }
+    const hit = cacheGet(callee._c, args);
+    if (hit !== undefined) return hit;
+    if (callee._n > 1024) { callee._c.clear(); callee._n = 0; }
+    const result = exec(callee, args);
+    cacheSet(callee._c, args, result);
+    callee._n++;
     return result;
 }
 
