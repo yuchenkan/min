@@ -24,8 +24,16 @@ class Forall:
 
 class Sequent:
     def __init__(self, left, right):
+        _check_set(left)
+        _check_set(right)
         self.left = left
         self.right = right
+
+def _check_set(lst):
+    for i, a in enumerate(lst):
+        for j in range(i + 1, len(lst)):
+            if same(a, lst[j]):
+                raise ValueError(f'sequent: duplicate formula')
 
 class Proof:
     def __init__(self, sequent):
@@ -147,16 +155,14 @@ def is_permutation(a, b):
 
 # === Proof rules ===
 
-def proof(seq, rule, premises=None, principal=None, term=None):
-    premises = premises or []
+def proof(seq, rule, premises, principal, term=None):
     if not check_rule(seq, rule, premises, principal, term):
         parts = [f'invalid proof step: {rule}']
         parts.append(f'  sequent: {seq}')
         parts.append(f'  rule: {rule}')
         for i, p in enumerate(premises):
             parts.append(f'  premise[{i}]: {p.sequent}')
-        if principal:
-            parts.append(f'  principal: {principal}')
+        parts.append(f'  principal: {principal}')
         if term:
             parts.append(f'  term: {term}')
         raise ValueError('\n'.join(parts))
@@ -169,7 +175,7 @@ def check_rule(s, rule, premises, principal, term):
     match rule:
         # A in G, A in D  =>  G |- D
         case "axiom":
-            return (len(ps) == 0 and principal is not None
+            return (len(ps) == 0
                     and fin(principal, s.left) and fin(principal, s.right))
         # G |- D, A  =>  G, ~A |- D
         case "neg_left":
@@ -229,12 +235,12 @@ def check_rule(s, rule, premises, principal, term):
             return eq_sequent(ps[0], Sequent(s.left, set_add(D, substituted)))
         # G |- D, A    A, G |- D  =>  G |- D
         case "cut":
-            return (len(ps) == 2 and principal is not None
+            return (len(ps) == 2
                     and eq_sequent(ps[0], Sequent(s.left, set_add(s.right, principal)))
                     and eq_sequent(ps[1], Sequent(set_add(s.left, principal), s.right)))
         # G |- D  =>  G, A |- D
         case "weakening_left":
-            if len(ps) != 1 or principal is None:
+            if len(ps) != 1:
                 return False
             if not fin(principal, s.left):
                 return False
@@ -243,7 +249,7 @@ def check_rule(s, rule, premises, principal, term):
             return eq_sequent(ps[0], Sequent(remove(s.left, principal), s.right))
         # G |- D  =>  G |- D, A
         case "weakening_right":
-            if len(ps) != 1 or principal is None:
+            if len(ps) != 1:
                 return False
             if not fin(principal, s.right):
                 return False

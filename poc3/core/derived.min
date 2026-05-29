@@ -1,0 +1,46 @@
+# display helper: get display string from formula node
+$d \f: head(tail(f))
+
+# core constructors: [tag, display, args...]
+$mem \a b: ["mem", add(a, add(" in ", b)), a, b]
+$neg \a: ["neg", add("~", d(a)), a]
+$implies \a b: ["implies", add(d(a), add(" -> ", d(b))), a, b]
+$forall \v b: ["forall", add("A", add(v, add(".", d(b)))), v, b]
+
+# vocab constructors: [tag, display, expansion, args...]
+$and \a b: ["and", add(d(a), add(" & ", d(b))), neg(implies(a, neg(b))), a, b]
+$or \a b: ["or", add(d(a), add(" | ", d(b))), implies(neg(a), b), a, b]
+$iff \a b: ["iff", add(d(a), add(" <-> ", d(b))), neg(implies(implies(a, b), neg(implies(b, a)))), a, b]
+$exists \v b: ["exists", add("E", add(v, add(".", d(b)))), neg(forall(v, neg(b))), v, b]
+
+# show: return precomputed display string
+$show \f: head(tail(f))
+
+# flat: expand to core [tag, args...]
+$_is_core \t: ?(eq(t, "mem"), True, ?(eq(t, "neg"), True, ?(eq(t, "implies"), True, ?(eq(t, "forall"), True, False))))
+
+$flat \self f: {
+    $tag head(f)
+    $rest tail(tail(f))
+    ?(_is_core(tag),
+        ?(eq(tag, "mem"), ["mem", head(rest), head(tail(rest))],
+        ?(eq(tag, "neg"), ["neg", self(self, head(rest))],
+        ?(eq(tag, "implies"), ["implies", self(self, head(rest)), self(self, head(tail(rest)))],
+        ["forall", head(rest), self(self, head(tail(rest)))]))),
+        self(self, head(rest)))
+}
+
+# map helper
+$_map \self f lst: ?(eq(len(lst), 0), [], add([f(head(lst))], self(self, f, tail(lst))))
+
+# proof: flat formulas, then call kernel bridge
+$proof \left right rule premises principal term: {
+    $fl \f: flat(flat, f)
+    _do_proof(
+        _map(_map, fl, left),
+        _map(_map, fl, right),
+        rule, premises, fl(principal), term)
+}
+
+# qed: flat expected, then call kernel bridge
+$qed \p expected: _do_qed(p, flat(flat, expected))

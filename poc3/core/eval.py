@@ -1,6 +1,6 @@
 """Pure eval. Closures, immutable env, thin Python wrapper."""
 
-import os, sys, parser
+import os, sys, parser, kernel
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -97,6 +97,28 @@ def call(callee, args, node=None):
     raise EvalError(f'not callable: {callee}', node)
 
 
+# === Formula bridge ===
+
+def build(f):
+    if isinstance(f, str):
+        return f
+    tag = f[0]
+    if tag == 'mem': return kernel.Mem(build(f[1]), build(f[2]))
+    if tag == 'neg': return kernel.Neg(build(f[1]))
+    if tag == 'implies': return kernel.Implies(build(f[1]), build(f[2]))
+    if tag == 'forall': return kernel.Forall(f[1], build(f[2]))
+    raise ValueError(f'build: unknown tag {tag}')
+
+def _do_proof(left, right, rule, premises, principal, term=None):
+    seq = kernel.Sequent(
+        [build(f) for f in left],
+        [build(f) for f in right])
+    return kernel.proof(seq, rule, premises, build(principal), term)
+
+def _do_qed(p, expected):
+    kernel.qed(p, build(expected))
+
+
 # === Builtins ===
 
 def _global():
@@ -113,6 +135,8 @@ def _global():
     env = env.extend('tail', lambda a: a[1:])
     env = env.extend('len', lambda a: len(a))
     env = env.extend('print', lambda a: print(a) or a)
+    env = env.extend('_do_proof', _do_proof)
+    env = env.extend('_do_qed', _do_qed)
     return env
 
 
