@@ -88,7 +88,7 @@ $choice ["choice", "Choice", forall("x", implies(
 
 # close: wrap formula with foralls for each var in list
 $_close \self vars f: ?(eq(len(vars), 0), f,
-    forall(head(vars), self(self, tail(vars), f)))
+    self(self, tail(vars), forall(head(vars), f)))
 
 # Separation: vars to close, phi formula, optional prefix for a/b/x
 $separation \vars phi p: {

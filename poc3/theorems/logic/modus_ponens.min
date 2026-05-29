@@ -1,20 +1,19 @@
-from core.derived import mem, implies, forall, show, qed
+from core.derived import implies
 from tactics import ax, wl, wr, il, ir, close
 
-# Modus Ponens: Ax.Aa.Ay.Ab.(x in a -> ((x in a -> y in b) -> y in b))
+# modus_ponens(A, B, vars) returns proof of:
+# close(vars, A -> (A -> B) -> B)
 
-$A mem("x", "a")
-$B mem("y", "b")
-$AB implies(A, B)
-$ABB implies(AB, B)
-$top implies(A, ABB)
+$modus_ponens \A B vars: {
+    $AB implies(A, B)
+    $ABB implies(AB, B)
+    $top implies(A, ABB)
 
-$s1 wr(ax([A], [A], A), [A], [A, B], B)
-$s2 wl(ax([B], [B], B), [A, B], [B], A)
-$s3 il(s1, s2, [A, AB], [B], AB)
-$s4 ir(s3, [A], [ABB], ABB)
-$s5 ir(s4, [], [top], top)
-$s6 close(s5, [top], ["b", "y", "a", "x"])
+    $s1 wr(ax([A], [A], A), [A], [A, B], B)
+    $s2 wl(ax([B], [B], B), [A, B], [B], A)
+    $s3 il(s1, s2, [A, AB], [B], AB)
+    $s4 ir(s3, [A], [ABB], ABB)
+    $s5 ir(s4, [], [top], top)
 
-$modus_ponens qed(s6, forall("x", forall("a", forall("y", forall("b", top)))))
-$_ print(show(modus_ponens))
+    close(s5, [top], vars)
+}

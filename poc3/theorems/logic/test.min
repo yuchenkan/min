@@ -1,0 +1,8 @@
+from core.derived import mem, neg, implies, forall, iff, show, qed
+from theorems.logic.modus_ponens import modus_ponens
+
+$A mem("a", "b")
+$B mem("b", "a")
+
+$_ qed(modus_ponens(A, B, ["b", "a"]), forall("a", forall("b", implies(A, implies(implies(A, B), B)))))
+$_ print("modus_ponens ok")
