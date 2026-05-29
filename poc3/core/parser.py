@@ -222,18 +222,22 @@ class Parser:
         expr = self.parse_expr()
         return Bind(name, expr, self.filepath, tok[2], tok[3])
 
+    def _punct(self, val):
+        tok = self.peek()
+        return tok[0] == 'PUNCT' and tok[1] == val
+
     def parse_expr(self):
         tok = self.peek()
 
-        if tok[1] == '\\':
+        if self._punct('\\'):
             node = self.parse_fn()
-        elif tok[1] == '[':
+        elif self._punct('['):
             node = self.parse_list()
-        elif tok[1] == '?':
+        elif self._punct('?'):
             node = self.parse_if()
-        elif tok[1] == '{':
+        elif self._punct('{'):
             node = self.parse_block()
-        elif tok[1] == '(':
+        elif self._punct('('):
             self.advance()
             node = self.parse_expr()
             self.expect('PUNCT', ')')
@@ -249,7 +253,7 @@ class Parser:
         else:
             self.error(f'expected expression, got {tok[1]!r}')
 
-        while self.peek()[1] == '(':
+        while self._punct('('):
             self.advance()
             args = self.parse_args()
             self.expect('PUNCT', ')')

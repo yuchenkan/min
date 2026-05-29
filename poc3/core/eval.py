@@ -89,8 +89,8 @@ def evaluate(node, env):
 def call(callee, args, node=None):
     if isinstance(callee, Fn):
         env = callee.env
-        for p, a in zip(callee.params, args):
-            env = env.extend(p, a)
+        for i, p in enumerate(callee.params):
+            env = env.extend(p, args[i] if i < len(args) else None)
         return evaluate(callee.body, env)
     if callable(callee):
         return callee(*args)
@@ -117,6 +117,7 @@ def _do_proof(left, right, rule, premises, principal, term=None):
 
 def _do_qed(p, expected):
     kernel.qed(p, build(expected))
+    return expected
 
 
 # === Builtins ===

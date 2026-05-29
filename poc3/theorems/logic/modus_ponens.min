@@ -1,0 +1,29 @@
+from core.derived import mem, implies, forall, show, proof, qed
+
+# Modus Ponens: Ax.Aa.Ay.Ab.(x in a -> (x in a -> y in b) -> y in b)
+
+$A mem("x", "a")
+$B mem("y", "b")
+$AB implies(A, B)
+$ABB implies(AB, B)
+$top implies(A, ABB)
+
+$s1 proof([A], [A], "axiom", [], A)
+$s2 proof([A], [A, B], "weakening_right", [s1], B)
+$s3 proof([B], [B], "axiom", [], B)
+$s4 proof([A, B], [B], "weakening_left", [s3], A)
+$s5 proof([A, AB], [B], "implies_left", [s2, s4], AB)
+$s6 proof([A], [ABB], "implies_right", [s5], ABB)
+$s7 proof([], [top], "implies_right", [s6], top)
+
+$c1 forall("b", top)
+$s8 proof([], [c1], "forall_right", [s7], c1, "b")
+$c2 forall("y", c1)
+$s9 proof([], [c2], "forall_right", [s8], c2, "y")
+$c3 forall("a", c2)
+$s10 proof([], [c3], "forall_right", [s9], c3, "a")
+$c4 forall("x", c3)
+$s11 proof([], [c4], "forall_right", [s10], c4, "x")
+
+$modus_ponens qed(s11, c4)
+$r print(show(c4))
