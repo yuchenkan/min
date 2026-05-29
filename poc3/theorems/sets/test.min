@@ -37,3 +37,8 @@ from theorems.sets.power_set_exists import power_set_exists
 
 $_ qed(power_set_exists, forall("a", exists("s", power_set("s", "a"))))
 $_ print("power_set_exists ok")
+
+from theorems.sets.singleton_exists import singleton_exists
+
+$_ qed(singleton_exists("a", ["a"]), forall("a", exists("s", singleton("s", "a"))))
+$_ print("singleton_exists ok")

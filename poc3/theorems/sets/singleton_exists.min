@@ -1,0 +1,81 @@
+from core.derived import mem, neg, implies, forall, or, iff, eqv, exists, Pairing
+from vocab.sets import singleton, pair_set
+from tactics import ax, wl, fl, fr, ir, nr, nl, mp, apply_thm, cut_c, close
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.or_idempotent import or_idempotent
+
+# Pairing |- forall(a, exists(s, singleton(s, a)))
+$singleton_exists \a vars: {
+    $pa_f Pairing
+    $pa_p ax([pa_f], [pa_f], pa_f)
+
+    # Instantiate Pairing with x=a, y=a
+    $body1 \xv: forall("y", exists("b", pair_set("b", xv, "y")))
+    $body2 \yv: exists("b", pair_set("b", a, yv))
+    $inst apply_thm(pa_p, pa_f, [a, a], [body1, body2], [pa_f])
+    # [pa_f] |- [exists(b, pair_set(b, a, a))]
+
+    # Work with shared pair_set object
+    $ps pair_set("u", a, a)
+    $goal exists("s", singleton("s", a))
+
+    # fl on ps with v: [ps] |- [iff(mem(v,u), or(eqv(v,a), eqv(v,a)))]
+    $iff_or iff(mem("v", "u"), or(eqv("v", a), eqv("v", a)))
+    $s1 fl(ax([iff_or], [iff_or], iff_or), [ps], [iff_or], ps, "v")
+
+    # or_idempotent + iff_chain to simplify
+    $iff_simp iff(or(eqv("v", a), eqv("v", a)), eqv("v", a))
+    $iff_sing iff(mem("v", "u"), eqv("v", a))
+    $got_iff mp(mp(iff_chain(mem("v", "u"), or(eqv("v", a), eqv("v", a)), eqv("v", a), []),
+                   s1, iff_or, implies(iff_simp, iff_sing), [], [ps]),
+                or_idempotent(eqv("v", a), []), iff_simp, iff_sing, [ps], [])
+
+    # fr on v: [ps] |- [singleton(u, a)]
+    $sing singleton("u", a)
+    $got_sing fr(got_iff, [ps], [sing], sing, "v")
+
+    # exists intro: [ps] |- [goal]
+    $neg_sing neg(sing)
+    $fa_neg forall("s", neg(singleton("s", a)))
+    $s2 nl(got_sing, [ps, neg_sing], [], neg_sing)
+    $s3 fl(s2, [ps, fa_neg], [], fa_neg, "u")
+    $got_ex nr(s3, [ps], [goal], goal)
+
+    # exists elim: replace ps with exists(b, pair_set(b, a, a))
+    # Use ps directly (same object) to avoid closure equality issues
+    $neg_ps neg(ps)
+    $fa_neg2 forall("b", neg(ps))
+    # Wait, fa_neg2 needs body_fn("b") not ps. But ps has "u" hardcoded.
+    # Need to manually do eel steps with the SAME ps object
+
+    $s4 nr(got_ex, [], [neg_ps, goal], neg_ps)
+    # [] |- [neg(ps), goal]
+    # But we need forall("b", neg(pair_set("b", a, a))), and ps = pair_set("u", a, a)
+    # The exists is exists("b", pair_set("b", a, a)) = neg(forall("b", neg(pair_set("b", a, a))))
+    # forall_right with eigenvariable "u": subst "b" -> "u" in neg(pair_set("b",a,a)) = neg_ps
+    # But pair_set("b",a,a) is a DIFFERENT object from ps = pair_set("u",a,a)
+    # After flat+build+subst "b"->"u", it becomes the same kernel formula as flat(ps)
+
+    # Let me just construct fa_neg2 and ex2 properly
+    $ps_b pair_set("b", a, a)
+    $fa_neg_b forall("b", neg(ps_b))
+    $ex_pair neg(fa_neg_b)
+
+    # nr: got_ex proves [ps] |- [goal]
+    # neg_right on neg(ps): [ps] on left, remove ps, add neg(ps) to right
+    $e1 nr(got_ex, [], [neg_ps, goal], neg_ps)
+    # [] |- [neg(ps), goal]
+
+    # forall_right with "u": [] |- [forall("b", neg(pair_set("b",a,a))), goal]
+    # subst "b" -> "u" in neg(pair_set("b",a,a)) should give neg(pair_set("u",a,a)) = neg_ps
+    $e2 fr(e1, [], [fa_neg_b, goal], fa_neg_b, "u")
+    # [] |- [fa_neg_b, goal]
+
+    # neg_left on ex_pair = neg(fa_neg_b): fa_neg_b in right -> ex_pair on left
+    $e3 nl(e2, [ex_pair], [goal], ex_pair)
+    # [ex_pair] |- [goal]
+
+    # cut with inst: [pa_f] |- [ex_pair]
+    $got_cut cut_c(inst, e3, ex_pair, [pa_f], [ex_pair], goal)
+    close(got_cut, [pa_f], [goal], vars)
+}

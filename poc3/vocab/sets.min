@@ -55,3 +55,10 @@ $successor \s a p: {
     $body set_spec(s, \x: or(mem(x, a), eqv(x, a, ep)), p)
     ["successor", add(s, add(" = S(", add(a, ")"))), body, s, a, p]
 }
+
+# ordered_pair(p, a, b, pr): p = {{a}, {a, b}}
+$ordered_pair \p a b pr: {
+    $ip ?(eq(pr, None), "_", add(pr, "_"))
+    $body set_spec(p, \x: or(singleton(x, a, ip), pair_set(x, a, b, ip)), pr)
+    ["ordered_pair", add("(", add(a, add(", ", add(b, ")")))), body, p, a, b, pr]
+}
