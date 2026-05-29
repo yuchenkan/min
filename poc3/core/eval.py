@@ -117,7 +117,6 @@ def _do_proof(left, right, rule, premises, principal, term=None):
 
 def _do_qed(p, expected):
     kernel.qed(p, build(expected))
-    return expected
 
 
 # === Builtins ===

@@ -1,0 +1,85 @@
+from core.derived import proof, forall, neg, implies
+
+# === set helpers ===
+
+$_contains \self f lst: ?(eq(len(lst), 0), False,
+    ?(eq(head(lst), f), True, self(self, f, tail(lst))))
+$contains \f lst: _contains(_contains, f, lst)
+$set_add \f lst: ?(contains(f, lst), lst, add(lst, [f]))
+
+# === basic rule wrappers ===
+
+$ax \left right A: proof(left, right, "axiom", [], A)
+$nl \prf left right A: proof(left, right, "neg_left", [prf], A)
+$nr \prf left right A: proof(left, right, "neg_right", [prf], A)
+$il \p1 p2 left right A: proof(left, right, "implies_left", [p1, p2], A)
+$ir \prf left right A: proof(left, right, "implies_right", [prf], A)
+$fl \prf left right A t: proof(left, right, "forall_left", [prf], A, t)
+$fr \prf left right A t: proof(left, right, "forall_right", [prf], A, t)
+$wl \prf left right A: proof(left, right, "weakening_left", [prf], A)
+$wr \prf left right A: proof(left, right, "weakening_right", [prf], A)
+$cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A)
+
+# === weakening helpers ===
+
+$_wl_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
+    $f head(fs)
+    ?(contains(f, left),
+        self(self, prf, left, right, tail(fs)),
+        {
+            $nl add(left, [f])
+            self(self, wl(prf, nl, right, f), nl, right, tail(fs))
+        })
+})
+$wl_all \prf left right fs: _wl_all(_wl_all, prf, left, right, fs)
+
+$_wr_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
+    $f head(fs)
+    ?(contains(f, right),
+        self(self, prf, left, right, tail(fs)),
+        {
+            $nr add(right, [f])
+            self(self, wr(prf, left, nr, f), left, nr, tail(fs))
+        })
+})
+$wr_all \prf left right fs: _wr_all(_wr_all, prf, left, right, fs)
+
+# === closing ===
+
+# close with forall_right for each var in list (right must be single formula)
+$_close_proof \self prf right vars: ?(eq(len(vars), 0), prf, {
+    $v head(vars)
+    $rest tail(vars)
+    $nr forall(v, head(right))
+    self(self, fr(prf, [], [nr], nr, v), [nr], rest)
+})
+$close \prf right vars: _close_proof(_close_proof, prf, right, vars)
+
+# === modus ponens ===
+# p1: G |- D, A    p2: G |- D, (A -> B)    =>    G |- D, B
+
+$mp \p1 p2 G D A B: {
+    $AB implies(A, B)
+    $DB set_add(B, D)
+    $ABG set_add(AB, G)
+
+    # core: A, AB |- B
+    $c1 ax([A], [A, B], A)
+    $c2 wl(ax([B], [B], B), [A, B], [B], A)
+    $c3 il(c1, c2, [A, AB], [B], AB)
+
+    # weaken core: {A, AB} u G |- {B} u D
+    $c4 wr_all(c3, [A, AB], [B], D)
+    $c5 wl_all(c4, [A, AB], DB, G)
+
+    # cut A: ABG |- DB
+    # premise1: ABG |- DB u {A}
+    $p1a wr_all(p1, G, set_add(A, D), [B])
+    $p1b wl_all(p1a, G, set_add(A, DB), [AB])
+    $s1 cut(p1b, c5, ABG, DB, A)
+
+    # cut AB: G |- DB
+    # premise1: G |- DB u {AB}
+    $p2a wr_all(p2, G, set_add(AB, D), [B])
+    cut(p2a, s1, G, DB, AB)
+}

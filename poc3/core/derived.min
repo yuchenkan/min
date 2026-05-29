@@ -48,7 +48,10 @@ $proof \left right rule premises principal term: {
 }
 
 # qed: flat expected, then call kernel bridge
-$qed \p expected: _do_qed(p, flat(flat, expected))
+$qed \p expected: {
+    $_ _do_qed(p, flat(flat, expected))
+    expected
+}
 
 # === ZFC Axioms ===
 
