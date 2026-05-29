@@ -1,0 +1,14 @@
+from core.derived import neg, implies, or
+from tactics import ax, nl, wr, ir, close
+
+# |- A -> or(A, B)
+$or_intro_left \A B vars: {
+    $or_AB or(A, B)
+    $na neg(A)
+    $s1 nl(ax([A], [A], A), [A, na], [], na)
+    $s2 wr(s1, [A, na], [B], B)
+    $s3 ir(s2, [A], [or_AB], or_AB)
+    $top implies(A, or_AB)
+    $s4 ir(s3, [], [top], top)
+    close(s4, [], [top], vars)
+}

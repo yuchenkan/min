@@ -1,0 +1,17 @@
+from core.derived import neg, implies, forall, exists
+from tactics import ax, nl, nr, fl, ir, close
+
+# |- body(t) -> exists(x, body(x))
+$exists_intro \x body_fn t vars: {
+    $body_t body_fn(t)
+    $body_x body_fn(x)
+    $neg_body_t neg(body_t)
+    $fa_neg forall(x, neg(body_x))
+    $ex exists(x, body_x)
+    $s1 nl(ax([body_t], [body_t], body_t), [body_t, neg_body_t], [], neg_body_t)
+    $s2 fl(s1, [body_t, fa_neg], [], fa_neg, t)
+    $s3 nr(s2, [body_t], [ex], ex)
+    $top implies(body_t, ex)
+    $s4 ir(s3, [], [top], top)
+    close(s4, [], [top], vars)
+}

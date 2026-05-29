@@ -1,0 +1,28 @@
+from core.derived import mem, implies, forall, exists, or, eqv, Pairing, Union
+from vocab.sets import successor
+from vocab.logic import exists_unique
+from tactics import ax, fr, mp, wl, eel, cut_c, close
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.sets.set_spec_unique import set_spec_unique
+from theorems.sets.successor_exists import successor_exists
+
+# Pairing, Union |- forall(a, exists_unique(s, successor(s, a)))
+$unique_successor \a vars: {
+    $cond_fn \v: or(mem(v, a), eqv(v, a, "__"))
+    $body_fn \v: successor(v, a, "_")
+    $su_u successor("u", a, "_")
+    $eu exists_unique(body_fn)
+    $imp_inner implies(successor("y", a, "_"), eqv("u", "y"))
+    $got_inner mp(set_spec_unique("u", "y", cond_fn, []), ax([su_u], [su_u], su_u), su_u, imp_inner, [], [su_u])
+    $fa_uniq forall("y", imp_inner)
+    $got_fa fr(got_inner, [su_u], [fa_uniq], fa_uniq, "y")
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([su_u], [su_u], su_u), su_u, implies(fa_uniq, eu), [], [su_u]),
+               got_fa, fa_uniq, eu, [su_u], [su_u])
+    $got_ex eel(got_eu, body_fn, "s", "u", [su_u], eu)
+    $pa_f Pairing
+    $un_f Union
+    $ex_su exists("s", successor("s", a))
+    $got_se successor_exists(a, [])
+    $got_cut cut_c(got_se, got_ex, ex_su, [pa_f, un_f], [ex_su], eu)
+    close(got_cut, [pa_f, un_f], [eu], vars)
+}

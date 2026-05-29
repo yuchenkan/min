@@ -1,0 +1,48 @@
+from core.derived import mem, implies, forall, or, iff, eqv, exists, Pairing
+from vocab.sets import singleton, pair_set
+from tactics import ax, fl, fr, mp, apply_thm, eir, eel, cut_c, close
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.or_idempotent import or_idempotent
+
+# Pairing |- forall(a, exists(s, singleton(s, a)))
+$singleton_exists \a vars: {
+    $pa_f Pairing
+    $pa_p ax([pa_f], [pa_f], pa_f)
+
+    # Instantiate Pairing with x=a, y=a
+    $body1 \xv: forall("y", exists("b", pair_set("b", xv, "y")))
+    $body2 \yv: exists("b", pair_set("b", a, yv))
+    $inst apply_thm(pa_p, pa_f, [a, a], [body1, body2], [pa_f])
+
+    # Inside exists: assume pair_set(u, a, a)
+    $ps pair_set("u", a, a)
+    $goal exists("s", singleton("s", a))
+
+    # fl on ps with v: [ps] |- [iff(mem(v,u), or(eqv(v,a), eqv(v,a)))]
+    $iff_or iff(mem("v", "u"), or(eqv("v", a), eqv("v", a)))
+    $s1 fl(ax([iff_or], [iff_or], iff_or), [ps], [iff_or], ps, "v")
+
+    # or_idempotent + iff_chain to simplify
+    $iff_simp iff(or(eqv("v", a), eqv("v", a)), eqv("v", a))
+    $iff_sing iff(mem("v", "u"), eqv("v", a))
+    $got_iff mp(mp(iff_chain(mem("v", "u"), or(eqv("v", a), eqv("v", a)), eqv("v", a), []),
+                   s1, iff_or, implies(iff_simp, iff_sing), [], [ps]),
+                or_idempotent(eqv("v", a), []), iff_simp, iff_sing, [ps], [])
+
+    # fr on v: [ps] |- [singleton(u, a)]
+    $sing singleton("u", a)
+    $got_sing fr(got_iff, [ps], [sing], sing, "v")
+
+    # eir: [ps] |- [goal]
+    $sing_fn \v: singleton(v, a)
+    $got_ex eir(got_sing, sing_fn, "s", "u", [ps])
+
+    # eel: [exists(b, pair_set(b, a, a))] |- [goal]
+    $ps_fn \v: pair_set(v, a, a)
+    $got_eel eel(got_ex, ps_fn, "b", "u", [ps], goal)
+
+    # cut with inst
+    $ex_pair exists("b", pair_set("b", a, a))
+    $got_cut cut_c(inst, got_eel, ex_pair, [pa_f], [ex_pair], goal)
+    close(got_cut, [pa_f], [goal], vars)
+}

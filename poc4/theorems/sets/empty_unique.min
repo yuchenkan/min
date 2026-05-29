@@ -1,0 +1,23 @@
+from core.derived import mem, neg, implies, iff, eqv
+from vocab.sets import empty
+from tactics import ax, fl, fr, ir, mp, close
+from theorems.logic.neg_neg_iff import neg_neg_iff
+
+# |- empty(a) -> empty(b) -> eqv(a, b)
+$empty_unique \a b vars: {
+    $ea empty(a)
+    $eb empty(b)
+    $eqv_ab eqv(a, b, "_")
+    $s1 fl(ax([neg(mem("v", a))], [neg(mem("v", a))], neg(mem("v", a))), [ea], [neg(mem("v", a))], ea, "v")
+    $s2 fl(ax([neg(mem("v", b))], [neg(mem("v", b))], neg(mem("v", b))), [eb], [neg(mem("v", b))], eb, "v")
+    $iff_v iff(mem("v", a), mem("v", b))
+    $got_iff mp(mp(neg_neg_iff(mem("v", a), mem("v", b), []),
+                   s1, neg(mem("v", a)), implies(neg(mem("v", b)), iff_v), [], [ea]),
+                s2, neg(mem("v", b)), iff_v, [ea], [eb])
+    $s3 fr(got_iff, [ea, eb], [eqv_ab], eqv_ab, "v")
+    $inner implies(eb, eqv_ab)
+    $s4 ir(s3, [ea], [inner], inner)
+    $top implies(ea, inner)
+    $result ir(s4, [], [top], top)
+    close(result, [], [top], vars)
+}

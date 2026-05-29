@@ -1,0 +1,175 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, show, qed
+from theorems.logic.modus_ponens import modus_ponens
+from theorems.logic.double_negation import double_negation
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.implies_trans import implies_trans
+from theorems.logic.contrapositive import contrapositive
+from theorems.logic.not_not_intro import not_not_intro
+from theorems.logic.exists_intro import exists_intro
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_refl import iff_refl
+from theorems.logic.iff_sym import iff_sym
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.forall_instantiation import forall_instantiation
+from theorems.logic.forall_implies_exists import forall_implies_exists
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
+from theorems.logic.eq_substitution import eq_substitution
+from theorems.logic.neg_iff_compat import neg_iff_compat
+from theorems.logic.implies_iff_compat import implies_iff_compat
+from theorems.logic.and_iff_compat import and_iff_compat
+from theorems.logic.or_iff_compat import or_iff_compat
+from theorems.logic.forall_iff_compat import forall_iff_compat
+from theorems.logic.exists_iff_compat import exists_iff_compat
+from theorems.logic.neg_neg_iff import neg_neg_iff
+from theorems.logic.or_idempotent import or_idempotent
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eqv_mem_left import eqv_mem_left
+
+$A mem("a", "b")
+$B mem("b", "a")
+$C mem("a", "a")
+$v ["b", "a"]
+
+$_ qed(modus_ponens(A, B, v), forall("a", forall("b", implies(A, implies(implies(A, B), B)))))
+$_ print("modus_ponens ok")
+
+$_ qed(double_negation(A, v), forall("a", forall("b", implies(neg(neg(A)), A))))
+$_ print("double_negation ok")
+
+$_ qed(and_intro(A, B, v), forall("a", forall("b", implies(A, implies(B, and(A, B))))))
+$_ print("and_intro ok")
+
+$_ qed(and_elim_left(A, B, v), forall("a", forall("b", implies(and(A, B), A))))
+$_ print("and_elim_left ok")
+
+$_ qed(and_elim_right(A, B, v), forall("a", forall("b", implies(and(A, B), B))))
+$_ print("and_elim_right ok")
+
+$_ qed(or_intro_left(A, B, v), forall("a", forall("b", implies(A, or(A, B)))))
+$_ print("or_intro_left ok")
+
+$_ qed(or_intro_right(A, B, v), forall("a", forall("b", implies(B, or(A, B)))))
+$_ print("or_intro_right ok")
+
+$_ qed(or_elim(A, B, C, v), forall("a", forall("b", implies(or(A, B), implies(implies(A, C), implies(implies(B, C), C))))))
+$_ print("or_elim ok")
+
+$_ qed(implies_trans(A, B, C, v), forall("a", forall("b", implies(implies(A, B), implies(implies(B, C), implies(A, C))))))
+$_ print("implies_trans ok")
+
+$_ qed(contrapositive(A, B, v), forall("a", forall("b", implies(implies(A, B), implies(neg(B), neg(A))))))
+$_ print("contrapositive ok")
+
+$_ qed(not_not_intro(A, v), forall("a", forall("b", implies(A, neg(neg(A))))))
+$_ print("not_not_intro ok")
+
+$_ qed(exists_intro("x", \v: mem(v, "b"), "a", ["b", "a"]), forall("a", forall("b", implies(mem("a", "b"), exists("x", mem("x", "b"))))))
+$_ print("exists_intro ok")
+
+$_ qed(iff_intro(A, B, v), forall("a", forall("b", implies(implies(A, B), implies(implies(B, A), iff(A, B))))))
+$_ print("iff_intro ok")
+
+$_ qed(iff_elim_left(A, B, v), forall("a", forall("b", implies(iff(A, B), implies(A, B)))))
+$_ print("iff_elim_left ok")
+
+$_ qed(iff_elim_right(A, B, v), forall("a", forall("b", implies(iff(A, B), implies(B, A)))))
+$_ print("iff_elim_right ok")
+
+$_ qed(iff_refl(A, v), forall("a", forall("b", iff(A, A))))
+$_ print("iff_refl ok")
+
+$_ qed(iff_sym(A, B, v), forall("a", forall("b", implies(iff(A, B), iff(B, A)))))
+$_ print("iff_sym ok")
+
+$_ qed(iff_chain(A, B, C, v), forall("a", forall("b", implies(iff(A, B), implies(iff(B, C), iff(A, C))))))
+$_ print("iff_chain ok")
+
+$_ qed(forall_instantiation("x", \v: mem(v, "a"), "b", ["b", "a"]),
+    forall("a", forall("b", implies(forall("x", mem("x", "a")), mem("b", "a")))))
+$_ print("forall_instantiation ok")
+
+$_ qed(forall_implies_exists("x", \v: mem(v, "a"), ["a"]),
+    forall("a", implies(forall("x", mem("x", "a")), exists("x", mem("x", "a")))))
+$_ print("forall_implies_exists ok")
+
+$_ qed(eq_reflexive, forall("a", forall("z", iff(mem("z", "a"), mem("z", "a")))))
+$_ print("eq_reflexive ok")
+
+$_ qed(eq_symmetric, forall("a", forall("b", forall("z", implies(iff(mem("z", "a"), mem("z", "b")), iff(mem("z", "b"), mem("z", "a")))))))
+$_ print("eq_symmetric ok")
+
+$_ qed(eq_transitive, forall("a", forall("b", forall("c", forall("z",
+    implies(iff(mem("z", "a"), mem("z", "b")), implies(iff(mem("z", "b"), mem("z", "c")), iff(mem("z", "a"), mem("z", "c")))))))))
+$_ print("eq_transitive ok")
+
+$_ qed(eq_substitution(A, B, C, v),
+    forall("a", forall("b", implies(iff(A, B), implies(implies(A, C), implies(B, C))))))
+$_ print("eq_substitution ok")
+
+$_ qed(neg_iff_compat(A, B, v), forall("a", forall("b", implies(iff(A, B), iff(neg(A), neg(B))))))
+$_ print("neg_iff_compat ok")
+
+$D mem("b", "b")
+$_ qed(implies_iff_compat(A, B, C, D, v), forall("a", forall("b", implies(iff(A, C), implies(iff(B, D), iff(implies(A, B), implies(C, D)))))))
+$_ print("implies_iff_compat ok")
+
+$_ qed(and_iff_compat(A, B, C, D, v), forall("a", forall("b", implies(iff(A, C), implies(iff(B, D), iff(and(A, B), and(C, D)))))))
+$_ print("and_iff_compat ok")
+
+$_ qed(or_iff_compat(A, B, C, D, v), forall("a", forall("b", implies(iff(A, C), implies(iff(B, D), iff(or(A, B), or(C, D)))))))
+$_ print("or_iff_compat ok")
+
+$_ qed(forall_iff_compat("x", \v: mem(v, "a"), \v: mem(v, "b"), ["b", "a"]),
+    forall("a", forall("b", implies(forall("z", iff(mem("z", "a"), mem("z", "b"))), iff(forall("x", mem("x", "a")), forall("x", mem("x", "b")))))))
+$_ print("forall_iff_compat ok")
+
+$_ qed(exists_iff_compat("x", \v: mem(v, "a"), \v: mem(v, "b"), ["b", "a"]),
+    forall("a", forall("b", implies(forall("z", iff(mem("z", "a"), mem("z", "b"))), iff(exists("x", mem("x", "a")), exists("x", mem("x", "b")))))))
+$_ print("exists_iff_compat ok")
+
+$_ qed(neg_neg_iff(A, B, v), forall("a", forall("b", implies(neg(A), implies(neg(B), iff(A, B))))))
+$_ print("neg_neg_iff ok")
+
+$_ qed(or_idempotent(A, v), forall("a", forall("b", iff(or(A, A), A))))
+$_ print("or_idempotent ok")
+
+$_ qed(eqv_reflexive, forall("a", eqv("a", "a")))
+$_ print("eqv_reflexive ok")
+
+$_ qed(eqv_symmetric("a", "b", ["b", "a"]), forall("a", forall("b", implies(eqv("a", "b"), eqv("b", "a")))))
+$_ print("eqv_symmetric ok")
+
+$_ qed(eqv_transitive("a", "b", "c", ["c", "b", "a"]), forall("a", forall("b", forall("c", implies(eqv("a", "b"), implies(eqv("b", "c"), eqv("a", "c")))))))
+$_ print("eqv_transitive ok")
+
+$_ qed(eqv_mem_left("a", "b", "z", ["z", "b", "a"]), forall("a", forall("b", forall("z", implies(eqv("a", "b"), implies(mem("z", "a"), mem("z", "b")))))))
+$_ print("eqv_mem_left ok")
+
+from vocab.logic import exists_unique
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.logic.ext_substitution import ext_substitution
+
+$_ qed(exists_unique_intro(\v: mem(v, "a"), "b", ["b", "a"]),
+    forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eqv("b", "y"))), exists_unique(\v: mem(v, "a")))))))
+$_ print("exists_unique_intro ok")
+
+$_ qed(ext_substitution("a", "b", "s", ["s", "b", "a"]),
+    forall("a", forall("b", forall("s", implies(eqv("a", "b", "_"), iff(mem("a", "s"), mem("b", "s")))))))
+$_ print("ext_substitution ok")
+
+from theorems.logic.exists_unique_bridge import exists_unique_bridge
+$phi_fn \v: mem(v, "a")
+$bridge_f implies(exists_unique(phi_fn), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))
+$_ qed(exists_unique_bridge(phi_fn, "s", ["s", "a"]), forall("a", forall("s", bridge_f)))
+$_ print("exists_unique_bridge ok")

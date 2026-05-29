@@ -1,0 +1,18 @@
+from core.derived import neg, implies, forall, exists
+from tactics import ax, nl, nr, fl, ir, close
+
+# |- forall(x, A) -> exists(x, A)
+$forall_implies_exists \x body_fn vars: {
+    $A body_fn(x)
+    $fa forall(x, A)
+    $na neg(A)
+    $fa_na forall(x, na)
+    $ex exists(x, A)
+    $s1 fl(ax([A], [A], A), [fa], [A], fa, x)
+    $s2 nl(s1, [fa, na], [], na)
+    $s3 fl(s2, [fa, fa_na], [], fa_na, x)
+    $s4 nr(s3, [fa], [ex], ex)
+    $top implies(fa, ex)
+    $s5 ir(s4, [], [top], top)
+    close(s5, [], [top], vars)
+}

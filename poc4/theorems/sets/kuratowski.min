@@ -1,0 +1,543 @@
+from core.derived import mem, neg, implies, forall, or, iff, eqv, and, exists, Pairing
+from vocab.sets import singleton, pair_set
+from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_sym import iff_sym
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.sets.singleton_exists import singleton_exists
+from theorems.sets.pair_set_exists import pair_set_exists
+from theorems.sets.singleton_injection import singleton_injection
+from theorems.sets.singleton_pair_eq import singleton_pair_eq
+from theorems.sets.pair_injection import pair_injection
+
+# transfer: from char1, eqv(s1,s2), char2, derive forall(v, iff(P(v), Q(v)))
+$transfer \char1 eqv12 char2 body_P body_Q s1 s2 v: {
+    $iff1 iff(mem("_tv", s1), body_P("_tv"))
+    $iff2 iff(mem("_tv", s2), body_Q("_tv"))
+    $iff_eq iff(mem("_tv", s1), mem("_tv", s2))
+    $g1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "_tv")
+    $g2 fl(ax([iff_eq], [iff_eq], iff_eq), [eqv12], [iff_eq], eqv12, "_tv")
+    $g3 fl(ax([iff2], [iff2], iff2), [char2], [iff2], char2, "_tv")
+    $g1r mp(iff_sym(mem("_tv", s1), body_P("_tv"), []), g1, iff1, iff(body_P("_tv"), mem("_tv", s1)), [], [char1])
+    $g12 mp(mp(iff_chain(body_P("_tv"), mem("_tv", s1), mem("_tv", s2), []),
+               g1r, iff(body_P("_tv"), mem("_tv", s1)), implies(iff_eq, iff(body_P("_tv"), mem("_tv", s2))), [], [char1]),
+            g2, iff_eq, iff(body_P("_tv"), mem("_tv", s2)), [char1], [eqv12])
+    $result_iff iff(body_P("_tv"), body_Q("_tv"))
+    $g_pq mp(mp(iff_chain(body_P("_tv"), mem("_tv", s2), body_Q("_tv"), []),
+                g12, iff(body_P("_tv"), mem("_tv", s2)), implies(iff2, result_iff), [], [char1, eqv12]),
+             g3, iff2, result_iff, [char1, eqv12], [char2])
+    $fa_result forall(v, iff(body_P(v), body_Q(v)))
+    fr(g_pq, [char1, eqv12, char2], [fa_result], fa_result, "_tv")
+}
+
+# Helper: from two characterizations of same set, derive pointwise iff
+# char1 = forall(_x, iff(mem(_x,s), P(_x))), char2 = forall(_x, iff(mem(_x,s), Q(_x)))
+# Result: [char1, char2] |- [forall(w, iff(P(w), Q(w)))]
+$char_iff \char1 char2 s body_P body_Q: {
+    $iff1 iff(mem("_cv", s), body_P("_cv"))
+    $iff2 iff(mem("_cv", s), body_Q("_cv"))
+    $g1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "_cv")
+    $g2 fl(ax([iff2], [iff2], iff2), [char2], [iff2], char2, "_cv")
+    $g1r mp(iff_sym(mem("_cv", s), body_P("_cv"), []), g1, iff1, iff(body_P("_cv"), mem("_cv", s)), [], [char1])
+    $result_iff iff(body_P("_cv"), body_Q("_cv"))
+    $g12 mp(mp(iff_chain(body_P("_cv"), mem("_cv", s), body_Q("_cv"), []),
+               g1r, iff(body_P("_cv"), mem("_cv", s)), implies(iff2, result_iff), [], [char1]),
+            g2, iff2, result_iff, [char1], [char2])
+    $fa forall("w", iff(body_P("w"), body_Q("w")))
+    fr(g12, [char1, char2], [fa], fa, "_cv")
+}
+
+# Pairing |- op(t1,a,b) -> op(t2,c,d) -> eqv(t1,t2) -> and(eqv(a,c), eqv(b,d))
+$kuratowski \a b c d vars: {
+    $pa_f Pairing
+    $sing_a \v: singleton(v, a, "_")
+    $pair_ab \v: pair_set(v, a, b, "_")
+    $sing_c \v: singleton(v, c, "_")
+    $pair_cd \v: pair_set(v, c, d, "_")
+    $cond1 \v: or(sing_a(v), pair_ab(v))
+    $cond2 \v: or(sing_c(v), pair_cd(v))
+
+    $op1 forall("x", iff(mem("x", "t1"), cond1("x")))
+    $op2 forall("x", iff(mem("x", "t2"), cond2("x")))
+    $eq12 eqv("t1", "t2", "_")
+    $eq_ac eqv(a, c)
+    $eq_bd eqv(b, d)
+    $goal and(eq_ac, eq_bd)
+
+    # === Outer transfer ===
+    $ot_prf transfer(op1, eq12, op2, cond1, cond2, "t1", "t2", "v")
+    $ot forall("v", iff(cond1("v"), cond2("v")))
+
+    # === Introduce sa witness from singleton_exists(a) ===
+    # In context: [op1, eq12, op2, sing(sa,a)]
+    $sa_char sing_a("sa")
+    $iff_sa iff(cond1("sa"), cond2("sa"))
+    $fl_sa fl(ax([iff_sa], [iff_sa], iff_sa), [ot], [iff_sa], ot, "sa")
+    $g_iff_sa cut_c(ot_prf, fl_sa, ot, [op1, eq12, op2], [ot], iff_sa)
+    $g_cond1_sa mp(or_intro_left(sa_char, pair_ab("sa"), []),
+                   ax([sa_char], [sa_char], sa_char), sa_char, cond1("sa"), [], [sa_char])
+    $g_cond2_sa mp(mp(iff_elim_left(cond1("sa"), cond2("sa"), []),
+                      g_iff_sa, iff_sa, implies(cond1("sa"), cond2("sa")), [], [op1, eq12, op2]),
+                   g_cond1_sa, cond1("sa"), cond2("sa"), [op1, eq12, op2], [sa_char])
+    # [op1, eq12, op2, sa_char] |- [or(sing(sa,c), pair(sa,c,d))]
+
+    # === Introduce pab witness from pair_set_exists(a,b) ===
+    $pab_char pair_ab("pab")
+    $iff_pab iff(cond1("pab"), cond2("pab"))
+    $fl_pab fl(ax([iff_pab], [iff_pab], iff_pab), [ot], [iff_pab], ot, "pab")
+    $g_iff_pab cut_c(ot_prf, fl_pab, ot, [op1, eq12, op2], [ot], iff_pab)
+    $g_cond1_pab mp(or_intro_right(sing_a("pab"), pab_char, []),
+                    ax([pab_char], [pab_char], pab_char), pab_char, cond1("pab"), [], [pab_char])
+    $g_cond2_pab mp(mp(iff_elim_left(cond1("pab"), cond2("pab"), []),
+                       g_iff_pab, iff_pab, implies(cond1("pab"), cond2("pab")), [], [op1, eq12, op2]),
+                    g_cond1_pab, cond1("pab"), cond2("pab"), [op1, eq12, op2], [pab_char])
+    # [op1, eq12, op2, pab_char] |- [or(sing(pab,c), pair(pab,c,d))]
+
+    # === Helper: from two chars of same set, get singleton_injection or pair_injection ===
+
+    # sing(sa,a) + sing(sa,c) -> eqv(a,c)
+    $g_ac_from_sing mp(singleton_injection(a, c, []),
+                       char_iff(sa_char, sing_c("sa"), "sa", \v: eqv(v, a), \v: eqv(v, c)),
+                       forall("w", iff(eqv("w", a), eqv("w", c))), eq_ac,
+                       [], [sa_char, sing_c("sa")])
+
+    # sing(sa,a) + pair(sa,c,d) -> and(eqv(c,a), eqv(d,a))
+    $g_ca_da_from_sp mp(singleton_pair_eq(a, c, d, []),
+                        char_iff(sa_char, pair_cd("sa"), "sa", \v: eqv(v, a), \v: or(eqv(v, c), eqv(v, d))),
+                        forall("w", iff(eqv("w", a), or(eqv("w", c), eqv("w", d)))), and(eqv(c, a), eqv(d, a)),
+                        [], [sa_char, pair_cd("sa")])
+
+    # pair(pab,a,b) + pair(pab,c,d) -> or(and(ac,bd), and(ad,bc))
+    $or_inj or(and(eq_ac, eq_bd), and(eqv(a, d), eqv(b, c)))
+    $g_inj_from_pair mp(pair_injection(a, b, c, d, []),
+                        char_iff(pab_char, pair_cd("pab"), "pab",
+                                 \v: or(eqv(v, a), eqv(v, b)), \v: or(eqv(v, c), eqv(v, d))),
+                        forall("w", iff(or(eqv("w", a), eqv("w", b)), or(eqv("w", c), eqv("w", d)))), or_inj,
+                        [], [pab_char, pair_cd("pab")])
+
+    # pair(pab,a,b) + sing(pab,c) -> and(eqv(a,c), eqv(b,c))
+    # Need iff(or(eqv(w,a),eqv(w,b)), eqv(w,c)) -> singleton_pair_eq reversed
+    # Actually: char_iff gives forall(w, iff(or(eqv(w,a),eqv(w,b)), eqv(w,c)))
+    # iff_sym each: forall(w, iff(eqv(w,c), or(eqv(w,a),eqv(w,b))))
+    # singleton_pair_eq: and(eqv(a,c), eqv(b,c))
+    $fa_ps char_iff(pab_char, sing_c("pab"), "pab", \v: or(eqv(v, a), eqv(v, b)), \v: eqv(v, c))
+    $fa_ps_form forall("w", iff(or(eqv("w", a), eqv("w", b)), eqv("w", c)))
+    $fa_ps_sym forall("w", iff(eqv("w", c), or(eqv("w", a), eqv("w", b))))
+    # Flip iff: fl on fa_ps_form, iff_sym, fr
+    $g_flip fl(ax([iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))],
+                   [iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))],
+                   iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))),
+               [fa_ps_form], [iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))], fa_ps_form, "_cv")
+    $g_flip2 mp(iff_sym(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c), []),
+                cut_c(fa_ps, g_flip, fa_ps_form, [pab_char, sing_c("pab")], [fa_ps_form], iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))),
+                iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c)),
+                iff(eqv("_cv",c), or(eqv("_cv",a),eqv("_cv",b))), [], [pab_char, sing_c("pab")])
+    $g_flip3 fr(g_flip2, [pab_char, sing_c("pab")], [fa_ps_sym], fa_ps_sym, "_cv")
+    $g_ac_bc mp(singleton_pair_eq(c, a, b, []), g_flip3, fa_ps_sym, and(eqv(a, c), eqv(b, c)), [], [pab_char, sing_c("pab")])
+    # [pab_char, sing(pab,c)] |- [and(eqv(a,c), eqv(b,c))]
+
+    # === Build goal for each case combination ===
+
+    # Helper: from eqv(a,c) and or_inj, derive goal
+    $g_bd_from_inj \ac_prf ac_ctx inj_prf inj_ctx: {
+        $g_case_direct mp(and_elim_right(eq_ac, eq_bd, []),
+                          ax([and(eq_ac,eq_bd)], [and(eq_ac,eq_bd)], and(eq_ac,eq_bd)),
+                          and(eq_ac,eq_bd), eq_bd, [], [and(eq_ac,eq_bd)])
+        $g_ca mp(eqv_symmetric(a, c, []), ac_prf, eq_ac, eqv(c, a), [], ac_ctx)
+        $g_ad mp(and_elim_left(eqv(a,d), eqv(b,c), []),
+                 ax([and(eqv(a,d),eqv(b,c))], [and(eqv(a,d),eqv(b,c))], and(eqv(a,d),eqv(b,c))),
+                 and(eqv(a,d),eqv(b,c)), eqv(a,d), [], [and(eqv(a,d),eqv(b,c))])
+        $g_bc2 mp(and_elim_right(eqv(a,d), eqv(b,c), []),
+                  ax([and(eqv(a,d),eqv(b,c))], [and(eqv(a,d),eqv(b,c))], and(eqv(a,d),eqv(b,c))),
+                  and(eqv(a,d),eqv(b,c)), eqv(b,c), [], [and(eqv(a,d),eqv(b,c))])
+        $g_cd mp(mp(eqv_transitive(c, a, d, []), g_ca, eqv(c,a), implies(eqv(a,d), eqv(c,d)), [], ac_ctx),
+                 g_ad, eqv(a,d), eqv(c,d), ac_ctx, [and(eqv(a,d),eqv(b,c))])
+        $g_bd_alt mp(mp(eqv_transitive(b, c, d, []), g_bc2, eqv(b,c), implies(eqv(c,d), eq_bd), [], [and(eqv(a,d),eqv(b,c))]),
+                     g_cd, eqv(c,d), eq_bd, [and(eqv(a,d),eqv(b,c))], add(ac_ctx, [and(eqv(a,d),eqv(b,c))]))
+        $g_or mp(mp(mp(or_elim(and(eq_ac,eq_bd), and(eqv(a,d),eqv(b,c)), eq_bd, []),
+                       inj_prf, or_inj, implies(implies(and(eq_ac,eq_bd),eq_bd), implies(implies(and(eqv(a,d),eqv(b,c)),eq_bd), eq_bd)), [], inj_ctx),
+                    ir(g_case_direct, [], [implies(and(eq_ac,eq_bd),eq_bd)], implies(and(eq_ac,eq_bd),eq_bd)),
+                    implies(and(eq_ac,eq_bd),eq_bd), implies(implies(and(eqv(a,d),eqv(b,c)),eq_bd),eq_bd), inj_ctx, []),
+                 ir(g_bd_alt, ac_ctx, [implies(and(eqv(a,d),eqv(b,c)),eq_bd)], implies(and(eqv(a,d),eqv(b,c)),eq_bd)),
+                 implies(and(eqv(a,d),eqv(b,c)),eq_bd), eq_bd, inj_ctx, ac_ctx)
+        mp(mp(and_intro(eq_ac, eq_bd, []),
+               ac_prf, eq_ac, implies(eq_bd, goal), [], ac_ctx),
+            g_or, eq_bd, goal, ac_ctx, add(inj_ctx, ac_ctx))
+    }
+
+    # Case A1: sing(sa,c) + pair(pab,c,d) → goal
+    $g_A1 g_bd_from_inj(g_ac_from_sing, [sa_char, sing_c("sa")], g_inj_from_pair, [pab_char, pair_cd("pab")])
+
+    # Case A2: sing(sa,c) + sing(pab,c) → a=c, b=c, need b=d
+    # From g_ac_bc: [pab_char, sing(pab,c)] |- [and(a=c, b=c)]
+    # Extract a=c and b=c
+    $g_ac2 mp(and_elim_left(eqv(a,c), eqv(b,c), []), g_ac_bc, and(eqv(a,c), eqv(b,c)), eqv(a,c), [], [pab_char, sing_c("pab")])
+    $g_bc mp(and_elim_right(eqv(a,c), eqv(b,c), []), g_ac_bc, and(eqv(a,c), eqv(b,c)), eqv(b,c), [], [pab_char, sing_c("pab")])
+    # Need d=c: from backward on outer_transfer with pcd witness from pair_set_exists(c,d)
+    # Instantiate outer_transfer backward with pcd: pair(pcd,c,d) true -> cond2(pcd) true -> cond1(pcd) true
+    # cond1(pcd) = or(sing(pcd,a), pair(pcd,a,b))
+    # Since a=c, b=c: pair(pcd,a,b) = pair(pcd,c,c). Combined with pair(pcd,c,d):
+    # char_iff: forall(w, iff(or(eqv(w,c),eqv(w,c)), or(eqv(w,c),eqv(w,d))))
+    # Actually this is getting too complex. Use a simpler approach:
+    # Since a=c and b=c, just need d=a (which is d=c since a=c).
+    # From sa_char + sing(sa,c): a=c (already have).
+    # From outer_transfer backward: t2 elements are in t1.
+    # Elements of t2: {c} and {c,d}. Elements of t1: {a}={c} and {a,b}={c}.
+    # So t1 = {{c}} (just one distinct element). t2 = {{c},{c,d}}.
+    # eqv(t1,t2): {c,d} must be in t1. So {c,d}={c}. So d=c.
+    # Formalize: backward on outer_transfer with pcd:
+    # iff(cond1(pcd), cond2(pcd)). cond2(pcd) has pair(pcd,c,d) true.
+    # backward: cond1(pcd). or(sing(pcd,a), pair(pcd,a,b)).
+    # With a=c, b=c: sing(pcd,c) or pair(pcd,c,c).
+    # Either way: elements of pcd are all c. But pcd={c,d}. So d=c.
+    # This still requires pair_set_exists and eel. Skip for now and use simpler:
+    # From g_ca_da_from_sp: if sing(sa,c,d) instead...
+    # Actually, let me handle this case by deriving d=a from the BACKWARD outer_transfer.
+
+    # For case A2, I'll use: eqv(a,c) from sing + a=c, and derive d=c from outer backward.
+    # This is the hardest sub-case. For now, assume it and prove it later.
+    # Actually let me try: from a=c and b=c, eqv(b,d) iff eqv(c,d).
+    # We can get eqv(c,d) from eqv(d,a) (if we had it) via d=a, a=c -> d=c.
+    # Or from singleton_pair_eq on {a}={c,d}: gives c=a,d=a.
+    # But we DON'T have {a}={c,d} in case A2. We have {a}={c} (case A: sing(sa,c)).
+    # Hmm, we're in case A (sing(sa,c)), so {a}={c}, not {a}={c,d}.
+    # d info must come from elsewhere.
+    # From outer_transfer with v = any witness of pair(v,c,d):
+    # pair_set_exists(c,d): exists pcd with pair(pcd,c,d)
+    # outer_transfer v=pcd: iff(cond1(pcd), cond2(pcd))
+    # cond2(pcd): or(sing(pcd,c), pair(pcd,c,d)). pair(pcd,c,d) true -> or_right -> true.
+    # backward: cond1(pcd) = or(sing(pcd,a), pair(pcd,a,b)) true.
+    # With a=c, b=c: sing(pcd,c) or pair(pcd,c,c).
+    # From pair(pcd,c,d) and sing(pcd,c): singleton_injection-like gives all elements of pcd equal c.
+    # But pcd={c,d} has d as element. So d=c. Then eqv(b,d) since b=c=d.
+    # Formalize: char_iff(pair(pcd,c,d), sing_a(pcd)) with a=c:
+    # forall(w, iff(or(eqv(w,c),eqv(w,d)), eqv(w,c)))
+    # iff_sym: forall(w, iff(eqv(w,c), or(eqv(w,c),eqv(w,d))))
+    # singleton_pair_eq(c, c, d): and(eqv(c,c), eqv(d,c))
+    # eqv(d,c) -> eqv(c,d) by sym -> eqv(b,d) via b=c trans c=d? No, b=c and d=c -> eqv(b,d) via b=c, sym(d,c)=c,d, trans(b,c,d)?
+    # Actually eqv(b,c) and eqv(d,c): sym(d,c) -> eqv(c,d). trans(b,c,d) -> eqv(b,d). Done.
+    # But this needs pair_set_exists(c,d) witness + eel. Very long inline.
+
+    # SIMPLIFICATION: for case A2, just note a=c=b and derive d=c from case B approach.
+    # Actually, case A2 is: sing(sa,c) AND sing(pab,c). This means both {a} and {a,b} equal {c}.
+    # {a,b}={c} means a=c and b=c. Combined with a=c from sing case.
+    # For d: use pair(sa,c,d) case from outer. Wait, we're in CASE A (sing(sa,c)), not pair(sa,c,d).
+    # d is unconstrained in this branch... but eqv(t1,t2) constrains it.
+    # t1 contains {c} only (since sa=pab={c}). t2 contains {c} and {c,d}.
+    # For them to be eqv: {c,d} must be in t1. So {c,d}={c}. So d=c.
+    # This needs the backward direction of the outer_transfer with witness pcd.
+    # I'll introduce pcd via pair_set_exists and do the derivation.
+
+    # For brevity, derive Case A2 as: a=c, b=c from existing proofs.
+    # Get d=c from backward outer_transfer + pair_set_exists(c,d).
+    # Then b=d via b=c, d=c -> eqv(b,d).
+
+    $pcd_char pair_cd("pcd")
+    $iff_pcd iff(cond1("pcd"), cond2("pcd"))
+    $fl_pcd fl(ax([iff_pcd], [iff_pcd], iff_pcd), [ot], [iff_pcd], ot, "pcd")
+    $g_iff_pcd cut_c(ot_prf, fl_pcd, ot, [op1, eq12, op2], [ot], iff_pcd)
+    # backward: cond2(pcd) -> cond1(pcd)
+    $g_cond2_pcd mp(or_intro_right(sing_c("pcd"), pcd_char, []),
+                    ax([pcd_char], [pcd_char], pcd_char), pcd_char, cond2("pcd"), [], [pcd_char])
+    $g_cond1_pcd mp(mp(iff_elim_left(cond2("pcd"), cond1("pcd"), []),
+                       mp(iff_sym(cond1("pcd"), cond2("pcd"), []),
+                          g_iff_pcd, iff_pcd, iff(cond2("pcd"), cond1("pcd")), [], [op1, eq12, op2]),
+                       iff(cond2("pcd"), cond1("pcd")), implies(cond2("pcd"), cond1("pcd")), [], [op1, eq12, op2]),
+                    g_cond2_pcd, cond2("pcd"), cond1("pcd"), [op1, eq12, op2], [pcd_char])
+    # [op1, eq12, op2, pcd_char] |- [or(sing(pcd,a), pair(pcd,a,b))]
+
+    # In A2 context: a=c, b=c. sing(pcd,a)=sing(pcd,c), pair(pcd,a,b)=pair(pcd,c,c).
+    # From pair(pcd,c,d) + either sing(pcd,c) or pair(pcd,c,c):
+    # char_iff gives iff about elements. For sing(pcd,c) case:
+    # forall(w, iff(eqv(w,c), or(eqv(w,c),eqv(w,d)))) -> singleton_pair_eq(c,c,d) -> eqv(d,c)
+    # For pair(pcd,c,c) case: forall(w, iff(or(eqv(w,c),eqv(w,c)), or(eqv(w,c),eqv(w,d))))
+    # -> or_idempotent gives iff(eqv(w,c), or(eqv(w,c),eqv(w,d))) same thing -> eqv(d,c)
+
+    # Either case gives eqv(d,c). Use or_elim.
+    # Case sing(pcd,a): with a=c context, sing(pcd,c).
+    # char_iff(pcd_char, sing(pcd,c)): forall(w, iff(or(eqv(w,c),eqv(w,d)), eqv(w,c)))
+    # iff_sym: forall(w, iff(eqv(w,c), or(eqv(w,c),eqv(w,d))))
+    # singleton_pair_eq(c,c,d) -> and(eqv(c,c), eqv(d,c)) -> eqv(d,c)
+
+    # For simplicity, I'll handle both sub-cases of cond1(pcd) via or_elim.
+    # But this requires knowing a=c. The a=c comes from the outer case A.
+    # The cond1(pcd) mentions "a" and "b", but in A2 context a=c and b=c.
+    # The formulas don't automatically substitute... this is sequent calculus, not substitution.
+    # We need to PROVE that sing(pcd,a) with a=c context gives the right result.
+
+    # This is getting too complex for inline. Let me just handle case A2 by noting:
+    # In A2: [sa_char, sing_c("sa"), pab_char, sing_c("pab")] on left.
+    # g_ac2: eqv(a,c). g_bc: eqv(b,c).
+    # From backward cond1(pcd): or(sing(pcd,a), pair(pcd,a,b)).
+    # Case sing(pcd,a):
+    #   char_iff(pcd_char, sing_a("pcd")): forall(w, iff(or(eqv(w,c),eqv(w,d)), eqv(w,a)))
+    #   singleton_pair_eq(a, c, d): needs forall(w, iff(eqv(w,a), or(eqv(w,c),eqv(w,d))))
+    #   iff_sym gives that. -> and(eqv(c,a), eqv(d,a)) -> eqv(d,a).
+    #   eqv(d,a) + eqv(a,c) -> eqv(d,c). eqv(b,c) + sym(eqv(d,c)) -> eqv(b,d) via trans.
+    # Case pair(pcd,a,b):
+    #   char_iff(pcd_char, pair_ab("pcd")): forall(w, iff(or(eqv(w,c),eqv(w,d)), or(eqv(w,a),eqv(w,b))))
+    #   pair_injection(c,d,a,b): or(and(eqv(c,a),eqv(d,b)), and(eqv(c,b),eqv(d,a)))
+    #   Either case: eqv(d,a) or eqv(d,b). With a=c,b=c: eqv(d,c).
+    #   Then eqv(b,d) as above.
+
+    # This is still very long. But each step is one tactic call. Let me just push through.
+    # Actually for the pair(pcd,a,b) case: since a=c and b=c, the pair_injection gives
+    # or(and(c=a,d=b), and(c=b,d=a)). Either case: d=a or d=b. Since a=c=b, d=c.
+
+    # I'll simplify: extract eqv(d,a) from singleton_pair_eq in the sing(pcd,a) sub-case.
+
+    $sing_a_pcd sing_a("pcd")
+    $fa_dc char_iff(pcd_char, sing_a_pcd, "pcd", \v: or(eqv(v, c), eqv(v, d)), \v: eqv(v, a))
+    $fa_dc_form forall("w", iff(or(eqv("w", c), eqv("w", d)), eqv("w", a)))
+    # iff_sym pointwise: forall(w, iff(eqv(w,a), or(eqv(w,c),eqv(w,d))))
+    $fl_dc fl(ax([iff(or(eqv("_cv",c),eqv("_cv",d)), eqv("_cv",a))],
+                  [iff(or(eqv("_cv",c),eqv("_cv",d)), eqv("_cv",a))],
+                  iff(or(eqv("_cv",c),eqv("_cv",d)), eqv("_cv",a))),
+              [fa_dc_form], [iff(or(eqv("_cv",c),eqv("_cv",d)), eqv("_cv",a))], fa_dc_form, "_cv")
+    $g_dc_flip mp(iff_sym(or(eqv("_cv",c),eqv("_cv",d)), eqv("_cv",a), []),
+                  cut_c(fa_dc, fl_dc, fa_dc_form, [pcd_char, sing_a_pcd], [fa_dc_form],
+                        iff(or(eqv("_cv",c),eqv("_cv",d)), eqv("_cv",a))),
+                  iff(or(eqv("_cv",c),eqv("_cv",d)), eqv("_cv",a)),
+                  iff(eqv("_cv",a), or(eqv("_cv",c),eqv("_cv",d))), [], [pcd_char, sing_a_pcd])
+    $fa_dc_sym forall("w", iff(eqv("w", a), or(eqv("w", c), eqv("w", d))))
+    $g_dc_fa fr(g_dc_flip, [pcd_char, sing_a_pcd], [fa_dc_sym], fa_dc_sym, "_cv")
+    $g_da mp(and_elim_right(eqv(c,a), eqv(d,a), []),
+             mp(singleton_pair_eq(a, c, d, []), g_dc_fa, fa_dc_sym, and(eqv(c,a), eqv(d,a)), [], [pcd_char, sing_a_pcd]),
+             and(eqv(c,a), eqv(d,a)), eqv(d, a), [], [pcd_char, sing_a_pcd])
+    # [pcd_char, sing(pcd,a)] |- [eqv(d,a)]
+    # Chain: eqv(d,a) + eqv(a,c) -> eqv(d,c). eqv(b,c) + sym(eqv(d,c)) = eqv(c,d) -> eqv(b,d)
+    $g_dc mp(mp(eqv_transitive(d, a, c, []), g_da, eqv(d,a), implies(eq_ac, eqv(d,c)), [], [pcd_char, sing_a_pcd]),
+             g_ac2, eq_ac, eqv(d,c), [pcd_char, sing_a_pcd], [pab_char, sing_c("pab")])
+    $g_cd2 mp(eqv_symmetric(d, c, []), g_dc, eqv(d,c), eqv(c,d), [], [pcd_char, sing_a_pcd, pab_char, sing_c("pab")])
+    $g_bd_A2_sing mp(mp(eqv_transitive(b, c, d, []),
+                        g_bc, eqv(b,c), implies(eqv(c,d), eq_bd), [], [pab_char, sing_c("pab")]),
+                     g_cd2, eqv(c,d), eq_bd, [pab_char, sing_c("pab")], [pcd_char, sing_a_pcd, pab_char, sing_c("pab")])
+    # [pab_char, sing(pab,c), pcd_char, sing(pcd,a)] |- [eqv(b,d)]
+
+    # For pair(pcd,a,b) sub-case: same result via pair_injection. Use simpler: eqv(d,a) or eqv(d,b).
+    # From char_iff: pair_injection(c,d,a,b) -> or(and(c=a,d=b), and(c=b,d=a)) -> eqv(d,a) or eqv(d,b).
+    # Since a=c=b, both give d=c. Same as above. For brevity, use sing case only via or_elim.
+    # Actually, pair(pcd,a,b) sub-case:
+    $pair_a_pcd pair_ab("pcd")
+    $fa_dc2 char_iff(pcd_char, pair_a_pcd, "pcd", \v: or(eqv(v,c),eqv(v,d)), \v: or(eqv(v,a),eqv(v,b)))
+    $or_inj2 or(and(eqv(c,a),eqv(d,b)), and(eqv(c,b),eqv(d,a)))
+    $g_inj2 mp(pair_injection(c, d, a, b, []), fa_dc2,
+               forall("w", iff(or(eqv("w",c),eqv("w",d)), or(eqv("w",a),eqv("w",b)))), or_inj2,
+               [], [pcd_char, pair_a_pcd])
+    # extract eqv(d,a) or eqv(d,b) from or_inj2
+    $g_da_case1 mp(and_elim_right(eqv(c,a), eqv(d,b), []),
+                   ax([and(eqv(c,a),eqv(d,b))], [and(eqv(c,a),eqv(d,b))], and(eqv(c,a),eqv(d,b))),
+                   and(eqv(c,a),eqv(d,b)), eqv(d,b), [], [and(eqv(c,a),eqv(d,b))])
+    $g_da_case2 mp(and_elim_right(eqv(c,b), eqv(d,a), []),
+                   ax([and(eqv(c,b),eqv(d,a))], [and(eqv(c,b),eqv(d,a))], and(eqv(c,b),eqv(d,a))),
+                   and(eqv(c,b),eqv(d,a)), eqv(d,a), [], [and(eqv(c,b),eqv(d,a))])
+    # eqv(d,b): b=c so d=b -> d=c -> eqv(b,d) by sym
+    $g_bd_p1 mp(eqv_symmetric(d, b, []), g_da_case1, eqv(d,b), eq_bd, [], [and(eqv(c,a),eqv(d,b))])
+    # eqv(d,a): d=a, a=c -> d=c, b=c -> b=d
+    $g_dc_p2 mp(mp(eqv_transitive(d, a, c, []),
+                   g_da_case2, eqv(d,a), implies(eq_ac, eqv(d,c)), [], [and(eqv(c,b),eqv(d,a))]),
+                g_ac2, eq_ac, eqv(d,c), [and(eqv(c,b),eqv(d,a))], [pab_char, sing_c("pab")])
+    $g_cd_p2 mp(eqv_symmetric(d, c, []), g_dc_p2, eqv(d,c), eqv(c,d), [], [and(eqv(c,b),eqv(d,a)), pab_char, sing_c("pab")])
+    $g_bd_p2 mp(mp(eqv_transitive(b, c, d, []),
+                   g_bc, eqv(b,c), implies(eqv(c,d), eq_bd), [], [pab_char, sing_c("pab")]),
+                g_cd_p2, eqv(c,d), eq_bd, [pab_char, sing_c("pab")], [and(eqv(c,b),eqv(d,a)), pab_char, sing_c("pab")])
+    $g_bd_A2_pair mp(mp(mp(or_elim(and(eqv(c,a),eqv(d,b)), and(eqv(c,b),eqv(d,a)), eq_bd, []),
+                           g_inj2, or_inj2, implies(implies(and(eqv(c,a),eqv(d,b)),eq_bd), implies(implies(and(eqv(c,b),eqv(d,a)),eq_bd), eq_bd)), [], [pcd_char, pair_a_pcd]),
+                        ir(g_bd_p1, [], [implies(and(eqv(c,a),eqv(d,b)),eq_bd)], implies(and(eqv(c,a),eqv(d,b)),eq_bd)),
+                        implies(and(eqv(c,a),eqv(d,b)),eq_bd), implies(implies(and(eqv(c,b),eqv(d,a)),eq_bd),eq_bd), [pcd_char, pair_a_pcd], []),
+                     ir(g_bd_p2, [pab_char, sing_c("pab")], [implies(and(eqv(c,b),eqv(d,a)),eq_bd)], implies(and(eqv(c,b),eqv(d,a)),eq_bd)),
+                     implies(and(eqv(c,b),eqv(d,a)),eq_bd), eq_bd, [pcd_char, pair_a_pcd], [pab_char, sing_c("pab")])
+    # [pcd_char, pair(pcd,a,b), pab_char, sing(pab,c)] |- [eqv(b,d)]
+
+    # or_elim on cond1(pcd): sing(pcd,a) or pair(pcd,a,b)
+    $g_bd_A2 mp(mp(mp(or_elim(sing_a_pcd, pair_a_pcd, eq_bd, []),
+                       g_cond1_pcd, cond1("pcd"), implies(implies(sing_a_pcd,eq_bd), implies(implies(pair_a_pcd,eq_bd), eq_bd)),
+                       [], [op1, eq12, op2, pcd_char]),
+                    ir(g_bd_A2_sing, [pcd_char, pab_char, sing_c("pab")], [implies(sing_a_pcd,eq_bd)], implies(sing_a_pcd,eq_bd)),
+                    implies(sing_a_pcd,eq_bd), implies(implies(pair_a_pcd,eq_bd),eq_bd), [op1, eq12, op2, pcd_char], [pcd_char, pab_char, sing_c("pab")]),
+                 ir(g_bd_A2_pair, [pcd_char, pab_char, sing_c("pab")], [implies(pair_a_pcd,eq_bd)], implies(pair_a_pcd,eq_bd)),
+                 implies(pair_a_pcd,eq_bd), eq_bd, [op1, eq12, op2, pcd_char, pab_char, sing_c("pab")], [pcd_char, pab_char, sing_c("pab")])
+    # [op1, eq12, op2, pcd_char, pab_char, sing(pab,c)] |- [eqv(b,d)]
+
+    # eel pcd: [op1, eq12, op2, exists(s,pair(s,c,d)), pab_char, sing(pab,c)] |- [eqv(b,d)]
+    $g_bd_A2_eel eel(g_bd_A2, pair_cd, "s", "pcd", [op1, eq12, op2, pcd_char, pab_char, sing_c("pab")], eq_bd)
+    # cut with pair_set_exists(c,d)
+    $ex_pcd exists("s", pair_cd("s"))
+    $pa_body1 \xv: forall("b", exists("s", pair_set("s", xv, "b")))
+    $pa_body2 \yv: exists("s", pair_set("s", c, yv))
+    $g_pse apply_thm(pair_set_exists, pa_f, [c, d], [pa_body1, pa_body2], [pa_f])
+    $g_bd_A2_cut cut_c(g_pse, g_bd_A2_eel, ex_pcd, [pa_f], [op1, eq12, op2, ex_pcd, pab_char, sing_c("pab")], eq_bd)
+    # [pa_f, op1, eq12, op2, pab_char, sing(pab,c)] |- [eqv(b,d)]
+
+    # Build goal for A2: and(eqv(a,c), eqv(b,d))
+    $g_goal_A2 mp(mp(and_intro(eq_ac, eq_bd, []),
+                     g_ac2, eq_ac, implies(eq_bd, goal), [], [pab_char, sing_c("pab")]),
+                  g_bd_A2_cut, eq_bd, goal, [pab_char, sing_c("pab")], [pa_f, op1, eq12, op2, pab_char, sing_c("pab")])
+    # [pa_f, op1, eq12, op2, pab_char, sing(pab,c)] |- [goal]
+
+    # === or_elim on cond2(pab): A1 or A2 ===
+    $g_case_A mp(mp(mp(or_elim(sing_c("pab"), pair_cd("pab"), goal, []),
+                       g_cond2_pab, cond2("pab"), implies(implies(sing_c("pab"),goal), implies(implies(pair_cd("pab"),goal), goal)),
+                       [], [op1, eq12, op2, pab_char]),
+                    ir(g_goal_A2, [pa_f, op1, eq12, op2, pab_char], [implies(sing_c("pab"),goal)], implies(sing_c("pab"),goal)),
+                    implies(sing_c("pab"),goal), implies(implies(pair_cd("pab"),goal),goal),
+                    [op1, eq12, op2, pab_char], [pa_f, op1, eq12, op2, pab_char]),
+                 ir(g_A1, [sa_char, sing_c("sa"), pab_char], [implies(pair_cd("pab"),goal)], implies(pair_cd("pab"),goal)),
+                 implies(pair_cd("pab"),goal), goal,
+                 [op1, eq12, op2, pab_char, pa_f], [sa_char, sing_c("sa"), pab_char])
+    # [pa_f, op1, eq12, op2, pab_char, sa_char, sing(sa,c)] |- [goal]
+
+    # eel pab: replace pab_char with exists(s, pair(s,a,b))
+    $g_eel_pab eel(g_case_A, pair_ab, "s", "pab", [pa_f, op1, eq12, op2, pab_char, sa_char, sing_c("sa")], goal)
+    $ex_pab exists("s", pair_ab("s"))
+    $g_pse_ab apply_thm(pair_set_exists, pa_f, [a, b], [pa_body1, \yv: exists("s", pair_set("s", a, yv))], [pa_f])
+    $g_cut_pab cut_c(g_pse_ab, g_eel_pab, ex_pab, [pa_f], [pa_f, op1, eq12, op2, ex_pab, sa_char, sing_c("sa")], goal)
+    # [pa_f, op1, eq12, op2, sa_char, sing(sa,c)] |- [goal]
+
+    # === Case B: pair(sa,c,d) -> c=a, d=a from singleton_pair_eq ===
+    $g_ca mp(and_elim_left(eqv(c,a), eqv(d,a), []), g_ca_da_from_sp, and(eqv(c,a),eqv(d,a)), eqv(c,a), [], [sa_char, pair_cd("sa")])
+    $g_ac_B mp(eqv_symmetric(c, a, []), g_ca, eqv(c,a), eq_ac, [], [sa_char, pair_cd("sa")])
+    $g_da2 mp(and_elim_right(eqv(c,a), eqv(d,a), []), g_ca_da_from_sp, and(eqv(c,a),eqv(d,a)), eqv(d,a), [], [sa_char, pair_cd("sa")])
+    # d=a, a=c -> d=c. b=? Need b info from somewhere.
+    # From outer_transfer with pab:
+    # cond2(pab) = or(sing(pab,c), pair(pab,c,d)). With c=a, d=a:
+    # sing(pab,a) or pair(pab,a,a). pair_set(pab,a,b) is true. So cond1(pab) true.
+    # Forward: cond2(pab) true. or(sing(pab,c), pair(pab,c,d)).
+    # With c=a, d=a: these are sing(pab,a) and pair(pab,a,a).
+    # Both describe {a}. Combined with pair(pab,a,b):
+    # forall(w, iff(or(eqv(w,a),eqv(w,b)), eqv(w,a))) via char_iff+simplification
+    # This means for all w, eqv(w,a)|eqv(w,b) iff eqv(w,a). So eqv(w,b)->eqv(w,a) for all w.
+    # Instantiate w=b: eqv(b,b)->eqv(b,a). eqv(b,b) true -> eqv(b,a). Then eqv(a,c)->eqv(b,c). eqv(d,a)->eqv(d,c).
+    # eqv(b,a) + eqv(a,c) -> eqv(b,c). eqv(d,a) + eqv(a,c) -> eqv(d,c). sym -> eqv(c,d). eqv(b,c)+eqv(c,d)->eqv(b,d).
+
+    # Simpler: eqv(b,a) from {a}={c}={c,d} argument. Then eqv(b,d) = eqv(b,a)*eqv(a,c)*sym(eqv(d,c))...
+    # Actually: d=a (have). Need b=d, i.e. b=a.
+    # From cond2(pab): or(sing(pab,c), pair(pab,c,d)). With c=a, d=a:
+    # Case sing(pab,a): char_iff(pair_ab(pab), sing_a(pab)):
+    #   forall(w, iff(or(eqv(w,a),eqv(w,b)), eqv(w,a)))
+    #   singleton_pair_eq(a,a,b) reversed: and(eqv(a,a), eqv(b,a)) -> eqv(b,a)
+    # Case pair(pab,a,a): char_iff(pair_ab(pab), pair_set(pab,a,a)):
+    #   forall(w, iff(or(eqv(w,a),eqv(w,b)), or(eqv(w,a),eqv(w,a))))
+    #   or_idempotent + iff_chain: iff(or(eqv(w,a),eqv(w,b)), eqv(w,a))
+    #   Same as sing case -> eqv(b,a)
+
+    # Both give eqv(b,a). Then eqv(b,d) = eqv(b,a)*sym(eqv(d,a)) -> trans.
+
+    # For brevity: handle sing(pab,c) sub-case (c=a by context, so sing(pab,a)):
+    $sing_c_pab sing_c("pab")
+    $fa_ba char_iff(pab_char, sing_c_pab, "pab", \v: or(eqv(v,a), eqv(v,b)), \v: eqv(v,c))
+    # iff_sym: forall(w, iff(eqv(w,c), or(eqv(w,a),eqv(w,b))))
+    # singleton_pair_eq(c, a, b) -> and(eqv(a,c), eqv(b,c)) -> eqv(b,c)
+    # With c=a: eqv(b,a)
+    $fa_ba_form forall("w", iff(or(eqv("w",a),eqv("w",b)), eqv("w",c)))
+    $fl_ba fl(ax([iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))],
+                  [iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))],
+                  iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))),
+              [fa_ba_form], [iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))], fa_ba_form, "_cv")
+    $g_ba_flip mp(iff_sym(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c), []),
+                  cut_c(fa_ba, fl_ba, fa_ba_form, [pab_char, sing_c_pab], [fa_ba_form],
+                        iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c))),
+                  iff(or(eqv("_cv",a),eqv("_cv",b)), eqv("_cv",c)),
+                  iff(eqv("_cv",c), or(eqv("_cv",a),eqv("_cv",b))), [], [pab_char, sing_c_pab])
+    $fa_ba_sym forall("w", iff(eqv("w",c), or(eqv("w",a),eqv("w",b))))
+    $g_ba_fa fr(g_ba_flip, [pab_char, sing_c_pab], [fa_ba_sym], fa_ba_sym, "_cv")
+    $g_bc_B mp(and_elim_right(eqv(a,c), eqv(b,c), []),
+               mp(singleton_pair_eq(c, a, b, []), g_ba_fa, fa_ba_sym, and(eqv(a,c),eqv(b,c)), [], [pab_char, sing_c_pab]),
+               and(eqv(a,c), eqv(b,c)), eqv(b,c), [], [pab_char, sing_c_pab])
+    # eqv(b,c) + sym(eqv(c,a)) = eqv(a,c)... no.
+    # eqv(b,c) and eqv(d,a). Need eqv(b,d).
+    # eqv(d,a) -> sym -> eqv(a,d). eqv(a,c) -> ... wait, c=a so eqv(a,c) = eqv(a,a).
+    # eqv(b,c) and c=a -> eqv(b,a). eqv(d,a) -> sym -> eqv(a,d). trans(b,a,d) -> nope need eqv(a,d).
+    # Actually: d=a -> eqv(d,a). sym -> eqv(a,d). b=c, c=a -> eqv(b,a). trans(b,a,d) with eqv(b,a) and eqv(a,d) -> eqv(b,d).
+    $g_ad mp(eqv_symmetric(d, a, []), g_da2, eqv(d,a), eqv(a,d), [], [sa_char, pair_cd("sa")])
+    $g_ba mp(mp(eqv_transitive(b, c, a, []),
+                g_bc_B, eqv(b,c), implies(eqv(c,a), eqv(b,a)), [], [pab_char, sing_c_pab]),
+             g_ca, eqv(c,a), eqv(b,a), [pab_char, sing_c_pab], [sa_char, pair_cd("sa")])
+    $g_bd_B_sing mp(mp(eqv_transitive(b, a, d, []),
+                       g_ba, eqv(b,a), implies(eqv(a,d), eq_bd), [], [pab_char, sing_c_pab, sa_char, pair_cd("sa")]),
+                    g_ad, eqv(a,d), eq_bd, [pab_char, sing_c_pab, sa_char, pair_cd("sa")], [sa_char, pair_cd("sa")])
+    $g_goal_B_sing mp(mp(and_intro(eq_ac, eq_bd, []),
+                         g_ac_B, eq_ac, implies(eq_bd, goal), [], [sa_char, pair_cd("sa")]),
+                      g_bd_B_sing, eq_bd, goal, [sa_char, pair_cd("sa")], [pab_char, sing_c_pab, sa_char, pair_cd("sa")])
+    # [sa_char, pair(sa,c,d), pab_char, sing(pab,c)] |- [goal]
+
+    # For pair(pab,c,d) sub-case in B: same result (d=a, then pair_injection gives b info)
+    # pair(pab,a,b) + pair(pab,c,d) with c=a,d=a: pair_injection(a,b,a,a) -> trivially a=a,b=a
+    $pair_cd_pab pair_cd("pab")
+    $g_inj_B mp(pair_injection(a, b, c, d, []),
+                char_iff(pab_char, pair_cd_pab, "pab", \v: or(eqv(v,a),eqv(v,b)), \v: or(eqv(v,c),eqv(v,d))),
+                forall("w", iff(or(eqv("w",a),eqv("w",b)), or(eqv("w",c),eqv("w",d)))), or_inj,
+                [], [pab_char, pair_cd_pab])
+    # or(and(a=c,b=d), and(a=d,b=c)). Either gives goal directly or with d=a.
+    # case and(a=d,b=c): derive goal via eqv chains
+    $g_ad3 mp(and_elim_left(eqv(a,d), eqv(b,c), []),
+              ax([and(eqv(a,d),eqv(b,c))], [and(eqv(a,d),eqv(b,c))], and(eqv(a,d),eqv(b,c))),
+              and(eqv(a,d),eqv(b,c)), eqv(a,d), [], [and(eqv(a,d),eqv(b,c))])
+    $g_bc3 mp(and_elim_right(eqv(a,d), eqv(b,c), []),
+              ax([and(eqv(a,d),eqv(b,c))], [and(eqv(a,d),eqv(b,c))], and(eqv(a,d),eqv(b,c))),
+              and(eqv(a,d),eqv(b,c)), eqv(b,c), [], [and(eqv(a,d),eqv(b,c))])
+    $g_cd3 mp(mp(eqv_transitive(c, a, d, []),
+                 g_ca, eqv(c,a), implies(eqv(a,d), eqv(c,d)), [], [sa_char, pair_cd("sa")]),
+              g_ad3, eqv(a,d), eqv(c,d), [sa_char, pair_cd("sa")], [and(eqv(a,d),eqv(b,c))])
+    $g_bd_B_pair mp(mp(eqv_transitive(b, c, d, []),
+                       g_bc3, eqv(b,c), implies(eqv(c,d), eq_bd), [], [and(eqv(a,d),eqv(b,c))]),
+                    g_cd3, eqv(c,d), eq_bd, [and(eqv(a,d),eqv(b,c))], [sa_char, pair_cd("sa"), and(eqv(a,d),eqv(b,c))])
+    $g_goal_B_pair_c2 mp(mp(and_intro(eq_ac, eq_bd, []),
+                            g_ac_B, eq_ac, implies(eq_bd, goal), [], [sa_char, pair_cd("sa")]),
+                         g_bd_B_pair, eq_bd, goal, [sa_char, pair_cd("sa")], [sa_char, pair_cd("sa"), and(eqv(a,d),eqv(b,c))])
+    # or_elim: use g_bd_from_inj helper for case and(ac,bd) since goal=and(ac,bd)
+    $g_goal_B_pair g_bd_from_inj(g_ac_B, [sa_char, pair_cd("sa")], g_inj_B, [pab_char, pair_cd_pab])
+    # [pab_char, pair(pab,c,d), sa_char, pair(sa,c,d)] |- [goal]
+
+    # or_elim on cond2(pab) in case B: sing(pab,c) or pair(pab,c,d)
+    $g_case_B mp(mp(mp(or_elim(sing_c_pab, pair_cd_pab, goal, []),
+                       g_cond2_pab, cond2("pab"), implies(implies(sing_c_pab,goal), implies(implies(pair_cd_pab,goal), goal)),
+                       [], [op1, eq12, op2, pab_char]),
+                    ir(g_goal_B_sing, [sa_char, pair_cd("sa"), pab_char], [implies(sing_c_pab,goal)], implies(sing_c_pab,goal)),
+                    implies(sing_c_pab,goal), implies(implies(pair_cd_pab,goal),goal),
+                    [op1, eq12, op2, pab_char], [sa_char, pair_cd("sa"), pab_char]),
+                 ir(g_goal_B_pair, [sa_char, pair_cd("sa"), pab_char], [implies(pair_cd_pab,goal)], implies(pair_cd_pab,goal)),
+                 implies(pair_cd_pab,goal), goal,
+                 [op1, eq12, op2, pab_char, sa_char, pair_cd("sa")], [sa_char, pair_cd("sa"), pab_char])
+    # [op1, eq12, op2, pab_char, sa_char, pair(sa,c,d)] |- [goal]
+
+    # eel pab in B
+    $g_eel_pab_B eel(g_case_B, pair_ab, "s", "pab", [op1, eq12, op2, pab_char, sa_char, pair_cd("sa")], goal)
+    $g_cut_pab_B cut_c(g_pse_ab, g_eel_pab_B, ex_pab, [pa_f], [op1, eq12, op2, ex_pab, sa_char, pair_cd("sa")], goal)
+    # [pa_f, op1, eq12, op2, sa_char, pair(sa,c,d)] |- [goal]
+
+    # === or_elim on cond2(sa): case A (sing(sa,c)) or case B (pair(sa,c,d)) ===
+    $g_combined mp(mp(mp(or_elim(sing_c("sa"), pair_cd("sa"), goal, []),
+                         g_cond2_sa, cond2("sa"), implies(implies(sing_c("sa"),goal), implies(implies(pair_cd("sa"),goal), goal)),
+                         [], [op1, eq12, op2, sa_char]),
+                      ir(g_cut_pab, [pa_f, op1, eq12, op2, sa_char], [implies(sing_c("sa"),goal)], implies(sing_c("sa"),goal)),
+                      implies(sing_c("sa"),goal), implies(implies(pair_cd("sa"),goal),goal),
+                      [op1, eq12, op2, sa_char], [pa_f, op1, eq12, op2, sa_char]),
+                   ir(g_cut_pab_B, [pa_f, op1, eq12, op2, sa_char], [implies(pair_cd("sa"),goal)], implies(pair_cd("sa"),goal)),
+                   implies(pair_cd("sa"),goal), goal,
+                   [op1, eq12, op2, sa_char, pa_f], [pa_f, op1, eq12, op2, sa_char])
+    # [pa_f, op1, eq12, op2, sa_char] |- [goal]
+
+    # eel sa: replace sa_char with exists(s, singleton(s, a, "_"))
+    $g_eel_sa eel(g_combined, sing_a, "s", "sa", [pa_f, op1, eq12, op2, sa_char], goal)
+    $ex_sa exists("s", sing_a("s"))
+    $g_cut_sa cut_c(singleton_exists(a, []), g_eel_sa, ex_sa, [pa_f], [pa_f, op1, eq12, op2, ex_sa], goal)
+    # [pa_f, op1, eq12, op2] |- [goal]
+
+    # === Close: implies_right for op1, op2, eq12, then forall ===
+    $imp3 implies(eq12, goal)
+    $imp2 implies(op2, imp3)
+    $imp1 implies(op1, imp2)
+    $r1 ir(g_cut_sa, [pa_f, op1, op2], [imp3], imp3)
+    $r2 ir(r1, [pa_f, op1], [imp2], imp2)
+    $r3 ir(r2, [pa_f], [imp1], imp1)
+    close(r3, [pa_f], [imp1], vars)
+}

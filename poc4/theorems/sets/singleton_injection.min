@@ -1,0 +1,30 @@
+from core.derived import mem, implies, forall, iff, eqv
+from tactics import ax, fl, ir, mp, apply_thm, close
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.eqv_reflexive import eqv_reflexive
+
+# |- forall(w, iff(eqv(w,a), eqv(w,b))) -> eqv(a, b)
+# "w" avoids clash with eqv's bound "z"
+$singleton_injection \a b vars: {
+    $char forall("w", iff(eqv("w", a), eqv("w", b)))
+    $iff_ab iff(eqv(a, a), eqv(a, b))
+
+    # Instantiate char with w=a
+    $s1 fl(ax([iff_ab], [iff_ab], iff_ab), [char], [iff_ab], char, a)
+
+    # Extract forward: eqv(a,a) -> eqv(a,b)
+    $imp_fwd implies(eqv(a, a), eqv(a, b))
+    $s2 mp(iff_elim_left(eqv(a, a), eqv(a, b), []), s1, iff_ab, imp_fwd, [], [char])
+
+    # eqv(a,a) from eqv_reflexive
+    $body_eqv \v: eqv(v, v)
+    $g_aa apply_thm(eqv_reflexive, forall("a", eqv("a", "a")), [a], [body_eqv], [])
+
+    # MP: [char] |- [eqv(a,b)]
+    $eqv_ab eqv(a, b)
+    $s3 mp(s2, g_aa, eqv(a, a), eqv_ab, [char], [])
+
+    $top implies(char, eqv_ab)
+    $s4 ir(s3, [], [top], top)
+    close(s4, [], [top], vars)
+}

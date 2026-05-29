@@ -1,0 +1,49 @@
+from core.derived import implies, iff
+from tactics import ax, ir, mp, close
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.implies_trans import implies_trans
+
+# |- iff(P, R) -> iff(Q, S) -> iff(P -> Q, R -> S)
+$implies_iff_compat \P Q R S vars: {
+    $iff_PR iff(P, R)
+    $iff_QS iff(Q, S)
+    $imp_PQ implies(P, Q)
+    $imp_RS implies(R, S)
+    $iff_result iff(imp_PQ, imp_RS)
+    $got_PR mp(iff_elim_left(P, R, []), ax([iff_PR], [iff_PR], iff_PR), iff_PR, implies(P, R), [], [iff_PR])
+    $got_RP mp(iff_elim_right(P, R, []), ax([iff_PR], [iff_PR], iff_PR), iff_PR, implies(R, P), [], [iff_PR])
+    $got_QS mp(iff_elim_left(Q, S, []), ax([iff_QS], [iff_QS], iff_QS), iff_QS, implies(Q, S), [], [iff_QS])
+    $got_SQ mp(iff_elim_right(Q, S, []), ax([iff_QS], [iff_QS], iff_QS), iff_QS, implies(S, Q), [], [iff_QS])
+    # fwd: P->Q implies R->S via R->P->Q->S
+    $rp implies(R, P)
+    $pq implies(P, Q)
+    $qs implies(Q, S)
+    $rq implies(R, Q)
+    $got_RQ mp(mp(implies_trans(R, P, Q, []), got_RP, rp, implies(pq, rq), [], [iff_PR]),
+               ax([pq], [pq], pq), pq, rq, [iff_PR], [pq])
+    $got_fwd mp(mp(implies_trans(R, Q, S, []), got_RQ, rq, implies(qs, imp_RS), [], [iff_PR, pq]),
+                got_QS, qs, imp_RS, [iff_PR, pq], [iff_QS])
+    $fwd implies(imp_PQ, imp_RS)
+    $got_fwd_closed ir(got_fwd, [iff_PR, iff_QS], [fwd], fwd)
+    # bwd: R->S implies P->Q via P->R->S->Q
+    $pr implies(P, R)
+    $rs implies(R, S)
+    $sq implies(S, Q)
+    $ps implies(P, S)
+    $got_PS mp(mp(implies_trans(P, R, S, []), got_PR, pr, implies(rs, ps), [], [iff_PR]),
+               ax([rs], [rs], rs), rs, ps, [iff_PR], [rs])
+    $got_bwd mp(mp(implies_trans(P, S, Q, []), got_PS, ps, implies(sq, imp_PQ), [], [iff_PR, rs]),
+                got_SQ, sq, imp_PQ, [iff_PR, rs], [iff_QS])
+    $bwd implies(imp_RS, imp_PQ)
+    $got_bwd_closed ir(got_bwd, [iff_PR, iff_QS], [bwd], bwd)
+    $got_iff mp(mp(iff_intro(imp_PQ, imp_RS, []),
+                   got_fwd_closed, fwd, implies(bwd, iff_result), [], [iff_PR, iff_QS]),
+                got_bwd_closed, bwd, iff_result, [iff_PR, iff_QS], [iff_PR, iff_QS])
+    $top2 implies(iff_QS, iff_result)
+    $h1 ir(got_iff, [iff_PR], [top2], top2)
+    $top implies(iff_PR, top2)
+    $result ir(h1, [], [top], top)
+    close(result, [], [top], vars)
+}

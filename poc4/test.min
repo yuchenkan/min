@@ -1,0 +1,14 @@
+from core.derived import mem, implies, forall, show, proof, qed
+
+# prove: Aa.Ax.(x in a -> x in a)
+$A mem("x", "a")
+$imp implies(A, A)
+$fa forall("x", imp)
+$faa forall("a", fa)
+
+$p1 proof([A], [A], "axiom", [], A, None)
+$p2 proof([], [imp], "implies_right", [p1], imp, None)
+$p3 proof([], [fa], "forall_right", [p2], fa, "x")
+$p4 proof([], [faa], "forall_right", [p3], faa, "a")
+$done qed(p4, faa)
+$r print(show(faa))

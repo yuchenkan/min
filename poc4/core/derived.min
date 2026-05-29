@@ -1,0 +1,132 @@
+# display helpers
+$d \f: head(tail(f))
+$_p \s: add("(", add(s, ")"))
+
+# core constructors: [tag, display, args...]
+$mem \a b: ["mem", add(a, add(" in ", b)), a, b]
+$neg \a: ["neg", add("~", _p(d(a))), a]
+$implies \a b: ["implies", _p(add(d(a), add(" -> ", d(b)))), a, b]
+$forall \v b: ["forall", add("A", add(v, add(".", d(b)))), v, b]
+
+# vocab constructors: [tag, display, expansion]
+$and \a b: ["and", _p(add(d(a), add(" & ", d(b)))), neg(implies(a, neg(b)))]
+$or \a b: ["or", _p(add(d(a), add(" | ", d(b)))), implies(neg(a), b)]
+$iff \a b: ["iff", _p(add(d(a), add(" <-> ", d(b)))), neg(implies(implies(a, b), neg(implies(b, a))))]
+$exists \v b: ["exists", add("E", add(v, add(".", d(b)))), neg(forall(v, neg(b)))]
+$eqv \a b p: {
+    $v ?(eq(p, None), "z", add(p, "z"))
+    ["eqv", add(a, add(" = ", b)), forall(v, iff(mem(v, a), mem(v, b)))]
+}
+
+# show: return precomputed display string
+$show \f: head(tail(f))
+
+# flat: expand to core [tag, args...]
+$_is_core \t: ?(eq(t, "mem"), True, ?(eq(t, "neg"), True, ?(eq(t, "implies"), True, ?(eq(t, "forall"), True, False))))
+
+$flat \self f: {
+    $tag head(f)
+    $rest tail(tail(f))
+    ?(_is_core(tag),
+        ?(eq(tag, "mem"), ["mem", head(rest), head(tail(rest))],
+        ?(eq(tag, "neg"), ["neg", self(self, head(rest))],
+        ?(eq(tag, "implies"), ["implies", self(self, head(rest)), self(self, head(tail(rest)))],
+        ["forall", head(rest), self(self, head(tail(rest)))]))),
+        self(self, head(rest)))
+}
+
+# map helper
+$_map \self f lst: ?(eq(len(lst), 0), [], add([f(head(lst))], self(self, f, tail(lst))))
+
+# show a list of formulas
+$_show_list \self lst: ?(eq(len(lst), 0), "",
+    ?(eq(len(lst), 1), show(head(lst)),
+        add(show(head(lst)), add(", ", self(self, tail(lst))))))
+
+# proof: flat formulas, then call kernel bridge
+$proof \left right rule premises principal term: {
+    $fl \f: flat(flat, f)
+    $result _do_proof(
+        _map(_map, fl, left),
+        _map(_map, fl, right),
+        rule, premises, fl(principal), term)
+    ?(head(result), head(tail(result)), {
+        $_ print(add("proof failed: ", rule))
+        $_ print(add("  left:  ", _show_list(_show_list, left)))
+        $_ print(add("  right: ", _show_list(_show_list, right)))
+        $_ print(add("  principal: ", show(principal)))
+        $_ ?(eq(term, None), None, print(add("  term: ", term)))
+        _fail(head(tail(result)))
+    })
+}
+
+# qed: flat expected, then call kernel bridge
+$qed \p expected system: {
+    $result _do_qed(p, flat(flat, expected), ?(eq(system, None), "z", system))
+    ?(head(result), expected, {
+        $_ print("qed failed:")
+        $_ print(add("  expected: ", show(expected)))
+        _fail(head(tail(result)))
+    })
+}
+
+# === ZFC Axioms ===
+
+$Extensionality ["extensionality", "Ext", forall("x", forall("y", implies(
+    forall("z", iff(mem("z", "x"), mem("z", "y"))),
+    forall("z", iff(mem("x", "z"), mem("y", "z"))))))]
+
+$EmptySet ["empty_set", "Empty", exists("b", forall("x", neg(mem("x", "b"))))]
+
+$Pairing ["pairing", "Pair", forall("x", forall("y", exists("b", forall("z",
+    iff(mem("z", "b"), or(eqv("z", "x", "_"), eqv("z", "y", "_")))))))]
+
+$Union ["union", "Union", forall("a", exists("b", forall("x",
+    iff(mem("x", "b"), exists("y", and(mem("y", "a"), mem("x", "y")))))))]
+
+$PowerSet ["power_set", "Power", forall("a", exists("b", forall("x",
+    iff(mem("x", "b"), forall("y", implies(mem("y", "x"), mem("y", "a")))))))]
+
+$Infinity ["infinity", "Inf", exists("b", and(
+    exists("e", and(mem("e", "b"), forall("z", neg(mem("z", "e"))))),
+    forall("y", implies(mem("y", "b"),
+        exists("s", and(mem("s", "b"),
+            forall("w", iff(mem("w", "s"), or(mem("w", "y"), eqv("w", "y", "_"))))))))))]
+
+$Regularity ["regularity", "Reg", forall("a", implies(
+    exists("y", mem("y", "a")),
+    exists("y", and(mem("y", "a"), neg(exists("z", and(mem("z", "a"), mem("z", "y"))))))))]
+
+$Choice ["choice", "Choice", forall("x", implies(
+    forall("y", implies(mem("y", "x"), exists("z", mem("z", "y")))),
+    exists("c", forall("y", implies(mem("y", "x"),
+        exists("z", and(and(mem("z", "y"), mem("z", "c")),
+            forall("w", implies(and(mem("w", "y"), mem("w", "c")), eqv("w", "z", "_"))))))))))]
+
+# close: wrap formula with foralls for each var in list
+$_close \self vars f: ?(eq(len(vars), 0), f,
+    self(self, tail(vars), forall(head(vars), f)))
+
+# Separation: vars to close, phi formula, optional prefix for a/b/x
+$separation \vars phi p: {
+    $a ?(eq(p, None), "a", add(p, "a"))
+    $b ?(eq(p, None), "b", add(p, "b"))
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $body forall(a, exists(b, forall(x,
+        iff(mem(x, b), and(mem(x, a), phi)))))
+    $closed _close(_close, vars, body)
+    ["separation", add("Sep(", add(show(phi), ")")), closed]
+}
+
+# Replacement: vars to close, uniq hypothesis, phi formula, optional prefix for a/b/x/y
+$replacement \vars uniq phi p: {
+    $a ?(eq(p, None), "a", add(p, "a"))
+    $b ?(eq(p, None), "b", add(p, "b"))
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $y ?(eq(p, None), "y", add(p, "y"))
+    $body forall(a, implies(uniq,
+        exists(b, forall(y,
+            iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))
+    $closed _close(_close, vars, body)
+    ["replacement", add("Rep(", add(show(phi), ")")), closed]
+}

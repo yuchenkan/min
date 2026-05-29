@@ -1,0 +1,60 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+
+# All vocab nodes: [tag, display, expansion] — no args stored
+
+# set_spec(s, cond_fn, p): forall x. iff(mem(x, s), cond(x))
+$set_spec \s cond_fn p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $body forall(x, iff(mem(x, s), cond_fn(x)))
+    ["set_spec", add(add("spec(", s), add(", ", add(d(cond_fn(x)), ")"))), body]
+}
+
+# empty(s, p): forall x. neg(mem(x, s))
+$empty \s p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $body forall(x, neg(mem(x, s)))
+    ["empty", add("empty(", add(s, ")")), body]
+}
+
+# subset(a, b, p): forall x. mem(x, a) -> mem(x, b)
+$subset \a b p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $body forall(x, implies(mem(x, a), mem(x, b)))
+    ["subset", add(a, add(" sub ", b)), body]
+}
+
+# singleton(s, a, p): set_spec(s, \x: eqv(x, a))
+$singleton \s a p: ["singleton", add(s, add(" = {", add(a, "}"))),
+    set_spec(s, \x: eqv(x, a, p), p)]
+
+# pair_set(s, a, b, p): set_spec(s, \x: or(eqv(x, a), eqv(x, b)))
+$pair_set \s a b p: ["pair_set", add(s, add(" = {", add(a, add(", ", add(b, "}"))))),
+    set_spec(s, \x: or(eqv(x, a, p), eqv(x, b, p)), p)]
+
+# big_union(s, a, p): set_spec(s, \x: exists(y, and(mem(y, a), mem(x, y))))
+$big_union \s a p: {
+    $y ?(eq(p, None), "y", add(p, "y"))
+    ["big_union", add(s, add(" = U(", add(a, ")"))),
+        set_spec(s, \x: exists(y, and(mem(y, a), mem(x, y))), p)]
+}
+
+# power_set(s, a, p): set_spec(s, \x: subset(x, a))
+$power_set \s a p: {
+    $sp ?(eq(p, None), "_", add(p, "_"))
+    ["power_set", add(s, add(" = P(", add(a, ")"))),
+        set_spec(s, \x: subset(x, a, sp), p)]
+}
+
+# successor(s, a, p): set_spec(s, \x: or(mem(x, a), eqv(x, a)))
+$successor \s a p: {
+    $ep ?(eq(p, None), "_", add(p, "_"))
+    ["successor", add(s, add(" = S(", add(a, ")"))),
+        set_spec(s, \x: or(mem(x, a), eqv(x, a, ep)), p)]
+}
+
+# ordered_pair(p, a, b, pr): p = {{a}, {a, b}}
+$ordered_pair \p a b pr: {
+    $ip ?(eq(pr, None), "_", add(pr, "_"))
+    ["ordered_pair", add("(", add(a, add(", ", add(b, ")")))),
+        set_spec(p, \x: or(singleton(x, a, ip), pair_set(x, a, b, ip)), pr)]
+}

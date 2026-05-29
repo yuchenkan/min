@@ -1,0 +1,64 @@
+from core.derived import implies, iff, forall
+from tactics import ax, wl, wr, il, ir, fl, fr, cut, mp, close
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
+
+# |- forall(z, iff(P(z), Q(z))) -> iff(forall(x, P(x)), forall(x, Q(x)))
+$forall_iff_compat \x body_P body_Q vars: {
+    $Pv body_P("v")
+    $Qv body_Q("v")
+    $iff_v iff(Pv, Qv)
+    $imp_PQ implies(Pv, Qv)
+    $imp_QP implies(Qv, Pv)
+    $hyp forall("z", iff(body_P("z"), body_Q("z")))
+    $fa_P forall(x, body_P(x))
+    $fa_Q forall(x, body_Q(x))
+    $iff_result iff(fa_P, fa_Q)
+
+    # fwd: hyp, fa_P |- fa_Q
+    $got_imp mp(iff_elim_left(Pv, Qv, []), ax([iff_v], [iff_v], iff_v), iff_v, imp_PQ, [], [iff_v])
+    $s3a wr(ax([Pv], [Pv], Pv), [Pv], [Pv, Qv], Qv)
+    $s3b wl(ax([Qv], [Qv], Qv), [Pv, Qv], [Qv], Pv)
+    $s3 il(s3a, s3b, [Pv, imp_PQ], [Qv], imp_PQ)
+    $s4 cut(wr(wl(got_imp, [iff_v, Pv], [imp_PQ], Pv), [iff_v, Pv], [imp_PQ, Qv], Qv),
+            wl(s3, [iff_v, Pv, imp_PQ], [Qv], iff_v),
+            [iff_v, Pv], [Qv], imp_PQ)
+    $s5 fl(ax([Pv], [Pv], Pv), [fa_P], [Pv], fa_P, "v")
+    $s6 cut(wr(wl(s5, [iff_v, fa_P], [Pv], iff_v), [iff_v, fa_P], [Pv, Qv], Qv),
+            wl(s4, [iff_v, fa_P, Pv], [Qv], fa_P),
+            [iff_v, fa_P], [Qv], Pv)
+    $s7 fl(ax([iff_v], [iff_v], iff_v), [hyp], [iff_v], hyp, "v")
+    $s8 cut(wr(wl(s7, [hyp, fa_P], [iff_v], fa_P), [hyp, fa_P], [iff_v, Qv], Qv),
+            wl(s6, [hyp, fa_P, iff_v], [Qv], hyp),
+            [hyp, fa_P], [Qv], iff_v)
+    $s9 fr(s8, [hyp, fa_P], [fa_Q], fa_Q, "v")
+    $fwd implies(fa_P, fa_Q)
+    $s10 ir(s9, [hyp], [fwd], fwd)
+
+    # bwd: hyp, fa_Q |- fa_P
+    $got_imp2 mp(iff_elim_right(Pv, Qv, []), ax([iff_v], [iff_v], iff_v), iff_v, imp_QP, [], [iff_v])
+    $b3a wr(ax([Qv], [Qv], Qv), [Qv], [Qv, Pv], Pv)
+    $b3b wl(ax([Pv], [Pv], Pv), [Qv, Pv], [Pv], Qv)
+    $b3 il(b3a, b3b, [Qv, imp_QP], [Pv], imp_QP)
+    $b4 cut(wr(wl(got_imp2, [iff_v, Qv], [imp_QP], Qv), [iff_v, Qv], [imp_QP, Pv], Pv),
+            wl(b3, [iff_v, Qv, imp_QP], [Pv], iff_v),
+            [iff_v, Qv], [Pv], imp_QP)
+    $b5 fl(ax([Qv], [Qv], Qv), [fa_Q], [Qv], fa_Q, "v")
+    $b6 cut(wr(wl(b5, [iff_v, fa_Q], [Qv], iff_v), [iff_v, fa_Q], [Qv, Pv], Pv),
+            wl(b4, [iff_v, fa_Q, Qv], [Pv], fa_Q),
+            [iff_v, fa_Q], [Pv], Qv)
+    $b7 fl(ax([iff_v], [iff_v], iff_v), [hyp], [iff_v], hyp, "v")
+    $b8 cut(wr(wl(b7, [hyp, fa_Q], [iff_v], fa_Q), [hyp, fa_Q], [iff_v, Pv], Pv),
+            wl(b6, [hyp, fa_Q, iff_v], [Pv], hyp),
+            [hyp, fa_Q], [Pv], iff_v)
+    $b9 fr(b8, [hyp, fa_Q], [fa_P], fa_P, "v")
+    $bwd implies(fa_Q, fa_P)
+    $b10 ir(b9, [hyp], [bwd], bwd)
+
+    $got_iff mp(mp(iff_intro(fa_P, fa_Q, []), s10, fwd, implies(bwd, iff_result), [], [hyp]),
+                b10, bwd, iff_result, [hyp], [hyp])
+    $top implies(hyp, iff_result)
+    $result ir(got_iff, [], [top], top)
+    close(result, [], [top], vars)
+}

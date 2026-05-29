@@ -1,0 +1,20 @@
+from core.derived import neg, implies, or, iff
+from tactics import ax, wl, nr, il, ir, mp, close
+from theorems.logic.iff_intro import iff_intro
+
+# |- iff(or(P, P), P)
+$or_idempotent \P vars: {
+    $orPP or(P, P)
+    $s1 wl(ax([P], [P], P), [P, neg(P)], [P], neg(P))
+    $fwd implies(P, orPP)
+    $s2 ir(s1, [P], [orPP], orPP)
+    $got_fwd ir(s2, [], [fwd], fwd)
+    $s3 nr(ax([P], [P], P), [], [neg(P), P], neg(P))
+    $s4 il(s3, ax([P], [P], P), [orPP], [P], orPP)
+    $bwd implies(orPP, P)
+    $got_bwd ir(s4, [], [bwd], bwd)
+    $iff_result iff(orPP, P)
+    $result mp(mp(iff_intro(orPP, P, []), got_bwd, bwd, implies(fwd, iff_result), [], []),
+               got_fwd, fwd, iff_result, [], [])
+    close(result, [], [iff_result], vars)
+}

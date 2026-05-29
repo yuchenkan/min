@@ -1,0 +1,153 @@
+from core.derived import proof, mem, forall, neg, implies, iff
+
+# === set helpers ===
+
+$_contains \self f lst: ?(eq(len(lst), 0), False,
+    ?(eq(head(lst), f), True, self(self, f, tail(lst))))
+$contains \f lst: _contains(_contains, f, lst)
+$set_add \f lst: ?(contains(f, lst), lst, add(lst, [f]))
+
+$_remove \self f lst: ?(eq(len(lst), 0), [],
+    ?(eq(head(lst), f), tail(lst), add([head(lst)], self(self, f, tail(lst)))))
+$remove \f lst: _remove(_remove, f, lst)
+
+$_diff \self lst1 lst2: ?(eq(len(lst1), 0), [],
+    ?(contains(head(lst1), lst2),
+        self(self, tail(lst1), lst2),
+        add([head(lst1)], self(self, tail(lst1), lst2))))
+$diff \lst1 lst2: _diff(_diff, lst1, lst2)
+
+# === basic rule wrappers ===
+
+$ax \left right A: proof(left, right, "axiom", [], A)
+$nl \prf left right A: proof(left, right, "neg_left", [prf], A)
+$nr \prf left right A: proof(left, right, "neg_right", [prf], A)
+$il \p1 p2 left right A: proof(left, right, "implies_left", [p1, p2], A)
+$ir \prf left right A: proof(left, right, "implies_right", [prf], A)
+$fl \prf left right A t: proof(left, right, "forall_left", [prf], A, t)
+$fr \prf left right A t: proof(left, right, "forall_right", [prf], A, t)
+$wl \prf left right A: proof(left, right, "weakening_left", [prf], A)
+$wr \prf left right A: proof(left, right, "weakening_right", [prf], A)
+$cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A)
+
+# === weakening helpers ===
+
+$_wl_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
+    $f head(fs)
+    ?(contains(f, left),
+        self(self, prf, left, right, tail(fs)),
+        {
+            $nl add(left, [f])
+            self(self, wl(prf, nl, right, f), nl, right, tail(fs))
+        })
+})
+$wl_all \prf left right fs: _wl_all(_wl_all, prf, left, right, fs)
+
+$_wr_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
+    $f head(fs)
+    ?(contains(f, right),
+        self(self, prf, left, right, tail(fs)),
+        {
+            $nr add(right, [f])
+            self(self, wr(prf, left, nr, f), left, nr, tail(fs))
+        })
+})
+$wr_all \prf left right fs: _wr_all(_wr_all, prf, left, right, fs)
+
+# === closing ===
+
+# close with forall_right for each var in list (right must be single formula)
+$_close_proof \self prf left right vars: ?(eq(len(vars), 0), prf, {
+    $v head(vars)
+    $rest tail(vars)
+    $nr forall(v, head(right))
+    self(self, fr(prf, left, [nr], nr, v), left, [nr], rest)
+})
+$close \prf left right vars: _close_proof(_close_proof, prf, left, right, vars)
+
+# === modus ponens ===
+# p1: G |- D, A    p2: G |- D, (A -> B)    =>    G |- D, B
+
+# mp: modus ponens with context merging
+# impl_proof: impl_ctx |- [implies(P, Q)]
+# arg_proof:  arg_ctx  |- [P]
+# result:     merged   |- [Q]
+$mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
+    $imp implies(P, Q)
+    $merged add(impl_ctx, diff(arg_ctx, impl_ctx))
+    $G ?(contains(imp, merged), remove(imp, merged), merged)
+    $merged_imp ?(contains(imp, merged), merged, add(merged, [imp]))
+
+    $s0a_G wl_all(arg_proof, arg_ctx, [P], diff(G, arg_ctx))
+    $s1 wr(s0a_G, G, [P, Q], Q)
+    $s2 wl_all(ax([Q], [Q], Q), [Q], [Q], G)
+    $s3 il(s1, s2, merged_imp, [Q], imp)
+
+    $impl_w wl_all(impl_proof, impl_ctx, [imp], diff(merged, impl_ctx))
+    $impl_wr wr(impl_w, merged, [imp, Q], Q)
+    cut(impl_wr, s3, merged, [Q], imp)
+}
+
+# inst: single forall instantiation
+# thm: ctx |- [formula], formula is a Forall
+# body: result after instantiation (caller computes body_fn(term))
+# term: instantiation term
+# ctx: left side
+$inst \thm formula body term ctx: {
+    $s1 fl(ax([body], [body], body), [formula], [body], formula, term)
+    $s2 wl_all(s1, [formula], [body], remove(formula, ctx))
+    cut(wr(thm, ctx, [formula, body], body),
+        s2, ctx, [body], formula)
+}
+
+# apply_thm: multi-forall instantiation
+# thm: ctx |- [formula]
+# terms: [t1, t2, ...]
+# body_fns: [f1, f2, ...] where fi(ti) gives next body
+$_apply_thm \self thm formula terms body_fns ctx:
+    ?(eq(len(terms), 0), thm, {
+        $body head(body_fns)(head(terms))
+        self(self,
+            inst(thm, formula, body, head(terms), ctx),
+            body, tail(terms), tail(body_fns), ctx)
+    })
+$apply_thm \thm formula terms body_fns ctx: _apply_thm(_apply_thm, thm, formula, terms, body_fns, ctx)
+
+# eir: exists intro right
+# prf: ctx |- [body_inst] where body_inst = body_fn(witness)
+# result: ctx |- [exists(x, body_fn(x))]
+$eir \prf body_fn x witness ctx: {
+    $body_inst body_fn(witness)
+    $body_x body_fn(x)
+    $neg_body_inst neg(body_inst)
+    $fa_neg forall(x, neg(body_x))
+    $ex neg(fa_neg)
+    $s1 nl(prf, add(ctx, [neg_body_inst]), [], neg_body_inst)
+    $s2 fl(s1, add(ctx, [fa_neg]), [], fa_neg, witness)
+    nr(s2, ctx, [ex], ex)
+}
+
+# eel: exists elim left
+# prf: ctx |- [D] (with pred_fn(y) in ctx, y eigenvariable)
+# result: ctx_without_pred + [exists(x, pred_fn(x))] |- [D]
+$eel \prf pred_fn x y ctx D: {
+    $pred_y pred_fn(y)
+    $fa_neg forall(x, neg(pred_fn(x)))
+    $ex neg(fa_neg)
+    $ctx_only remove(pred_y, ctx)
+    $s1 nr(prf, ctx_only, [neg(pred_y), D], neg(pred_y))
+    $s2 fr(s1, ctx_only, [fa_neg, D], fa_neg, y)
+    nl(s2, add(ctx_only, [ex]), [D], ex)
+}
+
+# cut_c: computed cut
+# got_pred: ctx1 |- [pred]
+# prf: ctx2 |- [D]  (with pred in ctx2)
+# result: merged |- [D]
+$cut_c \got_pred prf pred ctx1 ctx2 D: {
+    $merged add(remove(pred, ctx2), diff(ctx1, ctx2))
+    $p0 wl_all(got_pred, ctx1, [pred], diff(merged, ctx1))
+    $p0r wr(p0, merged, [pred, D], D)
+    $p1 wl_all(prf, ctx2, [D], diff(merged, ctx2))
+    cut(p0r, p1, merged, [D], pred)
+}

@@ -1,0 +1,25 @@
+from core.derived import implies, forall, exists, eqv, Pairing
+from vocab.sets import singleton
+from vocab.logic import exists_unique
+from tactics import ax, fr, mp, wl, eel, cut_c, close
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.sets.singleton_unique import singleton_unique
+from theorems.sets.singleton_exists import singleton_exists
+
+# Pairing |- forall(a, exists_unique(s, singleton(s, a)))
+$unique_singleton \a vars: {
+    $body_fn \v: singleton(v, a, "_")
+    $eu exists_unique(body_fn)
+    $sing_u singleton("u", a, "_")
+    $imp_inner implies(singleton("y", a, "_"), eqv("u", "y"))
+    $got_inner mp(singleton_unique("u", "y", a, []), ax([sing_u], [sing_u], sing_u), sing_u, imp_inner, [], [sing_u])
+    $fa_uniq forall("y", imp_inner)
+    $got_fa fr(got_inner, [sing_u], [fa_uniq], fa_uniq, "y")
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([sing_u], [sing_u], sing_u), sing_u, implies(fa_uniq, eu), [], [sing_u]),
+               got_fa, fa_uniq, eu, [sing_u], [sing_u])
+    $got_ex eel(got_eu, body_fn, "s", "u", [sing_u], eu)
+    $ex_sing exists("s", singleton("s", a))
+    $pa_f Pairing
+    $got_cut cut_c(singleton_exists(a, []), got_ex, ex_sing, [pa_f], [ex_sing], eu)
+    close(got_cut, [pa_f], [eu], vars)
+}
