@@ -8,7 +8,7 @@ const kernel = require("./kernel");
 const ROOT = path.dirname(path.dirname(path.resolve(__filename)));
 
 
-// === Env (immutable extend) ===
+// === Env ===
 
 class Env {
     constructor(d) { this.d = d || {}; }
@@ -23,16 +23,16 @@ class Env {
 // === Values ===
 
 class Fn {
-    constructor(params, body, env) {
+    constructor(params, bodyFn, env) {
         this.params = params;
-        this.body = body;
+        this.bodyFn = bodyFn;
         this.env = env;
     }
     toString() { return `\\${this.params.join(" ")}: ...`; }
 }
 
 
-// === Eval ===
+// === Errors ===
 
 class EvalError extends Error {
     constructor(msg, node) {
@@ -55,33 +55,59 @@ class EvalError extends Error {
 }
 
 
-function evaluate(node, env) {
-    if (node instanceof parser.Lit) return node.value;
-    if (node instanceof parser.Ref) {
-        try { return env.get(node.name); }
-        catch (_) { throw new EvalError(`undefined: ${node.name}`, node); }
+// === Compiler: AST -> (env) => value ===
+
+function compile(node) {
+    if (node instanceof parser.Lit) {
+        const v = node.value;
+        return (_env) => v;
     }
-    if (node instanceof parser.Fn) return new Fn(node.params, node.body, env.snapshot());
+    if (node instanceof parser.Ref) {
+        const name = node.name;
+        return (env) => {
+            if (!(name in env.d)) throw new EvalError(`undefined: ${name}`, node);
+            return env.d[name];
+        };
+    }
+    if (node instanceof parser.Fn) {
+        const params = node.params;
+        const bodyFn = compile(node.body);
+        return (env) => new Fn(params, bodyFn, env.snapshot());
+    }
     if (node instanceof parser.Block) {
-        env = env.snapshot();
-        for (const binding of node.bindings) {
-            env.d[binding.name] = evaluate(binding.expr, env);
-        }
-        return evaluate(node.expr, env);
+        const binds = node.bindings.map(b => ({ name: b.name, fn: compile(b.expr) }));
+        const exprFn = compile(node.expr);
+        return (env) => {
+            env = env.snapshot();
+            for (const b of binds) env.d[b.name] = b.fn(env);
+            return exprFn(env);
+        };
     }
     if (node instanceof parser.If) {
-        const cond = evaluate(node.cond, env);
-        if (cond === true) return evaluate(node.then, env);
-        if (cond === false) return evaluate(node.else_, env);
-        throw new EvalError("condition must be True or False", node);
+        const condFn = compile(node.cond);
+        const thenFn = compile(node.then);
+        const elseFn = compile(node.else_);
+        return (env) => {
+            const c = condFn(env);
+            if (c === true) return thenFn(env);
+            if (c === false) return elseFn(env);
+            throw new EvalError("condition must be True or False", node);
+        };
     }
     if (node instanceof parser.Call) {
-        const callee = evaluate(node.callee, env);
-        const args = node.args.map(a => evaluate(a, env));
-        try { return call(callee, args, node); }
-        catch (e) { if (e instanceof EvalError) e.addFrame(node); throw e; }
+        const calleeFn = compile(node.callee);
+        const argFns = node.args.map(a => compile(a));
+        return (env) => {
+            const callee = calleeFn(env);
+            const args = argFns.map(fn => fn(env));
+            try { return call(callee, args, node); }
+            catch (e) { if (e instanceof EvalError) e.addFrame(node); throw e; }
+        };
     }
-    if (node instanceof parser.List) return node.elems.map(e => evaluate(e, env));
+    if (node instanceof parser.List) {
+        const fns = node.elems.map(e => compile(e));
+        return (env) => fns.map(f => f(env));
+    }
     throw new EvalError(`unknown: ${node.constructor.name}`, node);
 }
 
@@ -91,7 +117,7 @@ function call(callee, args, node) {
         const env = callee.env.snapshot();
         for (let i = 0; i < callee.params.length; i++)
             env.d[callee.params[i]] = i < args.length ? args[i] : null;
-        return evaluate(callee.body, env);
+        return callee.bodyFn(env);
     }
     if (typeof callee === "function") return callee(...args);
     throw new EvalError(`not callable: ${callee}`, node);
@@ -112,9 +138,7 @@ function build(f) {
 
 function doProof(left, right, rule, premises, principal, term) {
     try {
-        const seq = new kernel.Sequent(
-            left.map(build),
-            right.map(build));
+        const seq = new kernel.Sequent(left.map(build), right.map(build));
         return [true, kernel.proof(seq, rule, premises, build(principal), term)];
     } catch (e) {
         return [false, e.message];
@@ -182,7 +206,8 @@ function loadFile(filepath) {
         if (node instanceof parser.Import) {
             loadImport(node, env);
         } else if (node instanceof parser.Bind) {
-            const val = evaluate(node.expr, env);
+            const fn = compile(node.expr);
+            const val = fn(env);
             env.d[node.name] = val;
             loaded[filepath][node.name] = val;
         }
@@ -215,7 +240,7 @@ function run(filepath) {
 }
 
 
-// === Self-test / CLI ===
+// === CLI ===
 
 if (require.main === module) {
     if (process.argv.length > 2) {
@@ -245,11 +270,10 @@ $r6 print(fact(fact, 5))
     const nodes = parser.parse(src, "<test>");
     for (const node of nodes) {
         if (node instanceof parser.Bind) {
-            const val = evaluate(node.expr, env);
-            env.d[node.name] = val;
+            const fn = compile(node.expr);
+            env.d[node.name] = fn(env);
         }
     }
 }
 
-
-module.exports = { Env, Fn, EvalError, evaluate, call, loadFile, run };
+module.exports = { Env, Fn, EvalError, compile, call, loadFile, run };
