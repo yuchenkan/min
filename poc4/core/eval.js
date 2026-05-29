@@ -112,30 +112,38 @@ function compile(node) {
 }
 
 
-function isCacheable(v) {
-    if (v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean") return true;
-    if (Array.isArray(v)) return v.every(isCacheable);
-    return false;
-}
+const _R = Symbol("r");
 
 function call(callee, args, node) {
-    if (callee instanceof Fn) {
-        let key = null;
-        if (args.every(isCacheable)) {
-            if (!callee._cache) callee._cache = new Map();
-            else if (callee._cache.size > 256) callee._cache.clear();
-            key = JSON.stringify(args);
-            if (callee._cache.has(key)) return callee._cache.get(key);
+    if (callee._nocache) {
+        if (callee instanceof Fn) {
+            const env = callee.env.snapshot();
+            for (let i = 0; i < callee.params.length; i++)
+                env.d[callee.params[i]] = i < args.length ? args[i] : null;
+            return callee.bodyFn(env);
         }
+        return callee(...args);
+    }
+    // Identity-based cache: nested Maps keyed by ===
+    if (!callee._cache) callee._cache = new Map();
+    let level = callee._cache;
+    for (const a of args) {
+        let next = level.get(a);
+        if (!next) { next = new Map(); level.set(a, next); }
+        level = next;
+    }
+    if (level.has(_R)) return level.get(_R);
+    let result;
+    if (callee instanceof Fn) {
         const env = callee.env.snapshot();
         for (let i = 0; i < callee.params.length; i++)
             env.d[callee.params[i]] = i < args.length ? args[i] : null;
-        const result = callee.bodyFn(env);
-        if (key !== null) callee._cache.set(key, result);
-        return result;
+        result = callee.bodyFn(env);
+    } else {
+        result = callee(...args);
     }
-    if (typeof callee === "function") return callee(...args);
-    throw new EvalError(`not callable: ${callee}`, node);
+    level.set(_R, result);
+    return result;
 }
 
 
@@ -197,10 +205,10 @@ function makeGlobal() {
         tail: (a) => a.slice(1),
         nth: (a, n) => a[n],
         len: (a) => a.length,
-        print: (a) => { console.log(a); return a; },
+        print: Object.assign((a) => { console.log(a); return a; }, { _nocache: true }),
         _do_proof: doProof,
         _do_qed: doQed,
-        _fail: fail,
+        _fail: Object.assign(fail, { _nocache: true }),
     });
 }
 
