@@ -48,20 +48,14 @@ $successor_exists {
 
     # Case eqv(w,"a"): mem(v,w) + eqv(w,"a") -> mem(v,"a") -> or_left
     $eml_f forall("a", forall("b", forall("z", implies(eqv("a","b","_"), implies(mem("z","a"), mem("z","b"))))))
-    $eml_wa apply_thm(eqv_mem_left, eml_f, ["w","a","v"],
-        [\v: forall("b", forall("z", implies(eqv(v,"b","_"), implies(mem("z",v), mem("z","b"))))),
-         \v: forall("z", implies(eqv("w",v,"_"), implies(mem("z","w"), mem("z",v)))),
-         \v: implies(eqv("w","a","_"), implies(mem(v,"w"), mem(v,"a")))], [])
+    $eml_wa apply_thm(eqv_mem_left, eml_f, ["w","a","v"], [])
     $g_case_a mp(mp(eml_wa, ax([eqv("w", "a")], [eqv("w", "a")], eqv("w", "a")), eqv("w", "a"),
                     implies(mem("v", "w"), mem("v", "a")), [], [eqv("w", "a")]),
                  g_mvw, mem("v", "w"), mem("v", "a"), [eqv("w", "a")], [aw])
     $g_or_a mp(or_intro_left(mem("v", "a"), eqv("v", "a", "_"), []), g_case_a, mem("v", "a"), or_goal, [], [eqv("w", "a"), aw])
 
     # Case eqv(w,t1): mem(v,w) + eqv(w,t1) -> mem(v,t1) -> eqv(v,"a") -> or_right
-    $eml_wt apply_thm(eqv_mem_left, eml_f, ["w","t1","v"],
-        [\v: forall("b", forall("z", implies(eqv(v,"b","_"), implies(mem("z",v), mem("z","b"))))),
-         \v: forall("z", implies(eqv("w",v,"_"), implies(mem("z","w"), mem("z",v)))),
-         \v: implies(eqv("w","t1","_"), implies(mem(v,"w"), mem(v,"t1")))], [])
+    $eml_wt apply_thm(eqv_mem_left, eml_f, ["w","t1","v"], [])
     $g_mvt1 mp(mp(eml_wt, ax([eqv("w", "t1")], [eqv("w", "t1")], eqv("w", "t1")), eqv("w", "t1"),
                    implies(mem("v", "w"), mem("v", "t1")), [], [eqv("w", "t1")]),
                 g_mvw, mem("v", "w"), mem("v", "t1"), [eqv("w", "t1")], [aw])
@@ -93,8 +87,7 @@ $successor_exists {
     $iff_pa iff(mem("a", "p1"), or(eqv("a", "a"), eqv("a", "t1")))
     $g_pa fl(ax([iff_pa], [iff_pa], iff_pa), [ps_p1], [iff_pa], ps_p1, "a")
     $eqv_aa eqv("a", "a")
-    $body_eqv \v: eqv(v, v)
-    $g_eqv_aa apply_thm(eqv_reflexive, forall("a", eqv_aa), ["a"], [body_eqv], [])
+    $g_eqv_aa apply_thm(eqv_reflexive, forall("a", eqv_aa), ["a"], [])
     $g_or_aa mp(or_intro_left(eqv_aa, eqv("a", "t1"), []), g_eqv_aa, eqv_aa, or(eqv_aa, eqv("a", "t1")), [], [])
     $g_map1 mp(mp(iff_elim_right(mem("a", "p1"), or(eqv_aa, eqv("a", "t1")), []),
                   g_pa, iff_pa, implies(or(eqv_aa, eqv("a", "t1")), mem("a", "p1")), [], [ps_p1]),
@@ -106,7 +99,7 @@ $successor_exists {
 
     # Case eqv(v,"a"): witness w=t1. Need mem(t1,p1) and mem(v,t1).
     $eqv_t1t1 eqv("t1", "t1")
-    $g_eqv_tt apply_thm(eqv_reflexive, forall("a", eqv_aa), ["t1"], [body_eqv], [])
+    $g_eqv_tt apply_thm(eqv_reflexive, forall("a", eqv_aa), ["t1"], [])
     $g_or_tt mp(or_intro_right(eqv("t1", "a"), eqv_t1t1, []), g_eqv_tt, eqv_t1t1, or(eqv("t1", "a"), eqv_t1t1), [], [])
     $iff_pt iff(mem("t1", "p1"), or(eqv("t1", "a"), eqv_t1t1))
     $g_pt fl(ax([iff_pt], [iff_pt], iff_pt), [ps_p1], [iff_pt], ps_p1, "t1")
@@ -157,23 +150,20 @@ $successor_exists {
     $bu_fn \v: big_union(v, "p1")
     $g1 eel(g_ex_succ, bu_fn, "s", "s1", [bu_s1, ps_p1, sing_t1], goal)
     $ex_bu exists("s", big_union("s", "p1"))
-    $bu_body \av: exists("s", big_union("s", av))
-    $g_bue apply_thm(big_union_exists, un_f, ["p1"], [bu_body], [un_f])
+    $g_bue apply_thm(big_union_exists, un_f, ["p1"], [un_f])
     $g2 cut_c(g_bue, g1, ex_bu, [un_f], [ex_bu, ps_p1, sing_t1], goal)
 
     $ps_fn \v: pair_set(v, "a", "t1")
     $g3 eel(g2, ps_fn, "s", "p1", [un_f, ps_p1, sing_t1], goal)
     $ex_ps exists("s", pair_set("s", "a", "t1"))
-    $pa_body1 \xv: forall("b", exists("s", pair_set("s", xv, "b")))
-    $pa_body2 \yv: exists("s", pair_set("s", "a", yv))
-    $g_pse apply_thm(pair_set_exists, pa_f, ["a", "t1"], [pa_body1, pa_body2], [pa_f])
+    $g_pse apply_thm(pair_set_exists, pa_f, ["a", "t1"], [pa_f])
     $g4 cut_c(g_pse, g3, ex_ps, [pa_f], [un_f, ex_ps, sing_t1], goal)
 
     $sg_fn \v: singleton(v, "a")
     $g5 eel(g4, sg_fn, "s", "t1", [un_f, pa_f, sing_t1], goal)
     $ex_sg exists("s", singleton("s", "a"))
     $se_f forall("a", exists("s", singleton("s", "a")))
-    $se_inst apply_thm(singleton_exists, se_f, ["a"], [\v: exists("s", singleton("s", v))], [pa_f])
+    $se_inst apply_thm(singleton_exists, se_f, ["a"], [pa_f])
     $g6 cut_c(se_inst, g5, ex_sg, [pa_f], [un_f, pa_f, ex_sg], goal)
 
     close(g6, [pa_f, un_f], [goal], ["a"])

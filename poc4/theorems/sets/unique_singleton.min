@@ -12,12 +12,8 @@ $unique_singleton {
     $eu exists_unique(body_fn)
     $sing_u singleton("u", "a", "_")
     $imp_inner implies(singleton("y", "a", "_"), eqv("u", "y"))
-    # singleton_unique: forall a s1 s2. singleton(s1,a) -> singleton(s2,a) -> eqv(s1,s2)
     $su_f forall("a", forall("s1", forall("s2", implies(singleton("s1","a"), implies(singleton("s2","a"), eqv("s1","s2","_"))))))
-    $su_inst apply_thm(singleton_unique, su_f, ["a","u","y"],
-        [\v: forall("s1", forall("s2", implies(singleton("s1",v), implies(singleton("s2",v), eqv("s1","s2","_"))))),
-         \v: forall("s2", implies(singleton(v,"a"), implies(singleton("s2","a"), eqv(v,"s2","_")))),
-         \v: implies(singleton("u","a"), implies(singleton(v,"a"), eqv("u",v,"_")))], [])
+    $su_inst apply_thm(singleton_unique, su_f, ["a","u","y"], [])
     $got_inner mp(su_inst, ax([sing_u], [sing_u], sing_u), sing_u, imp_inner, [], [sing_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [sing_u], [fa_uniq], fa_uniq, "y")
@@ -26,9 +22,8 @@ $unique_singleton {
     $got_ex eel(got_eu, body_fn, "s", "u", [sing_u], eu)
     $ex_sing exists("s", singleton("s", "a"))
     $pa_f Pairing
-    # singleton_exists: Pairing |- forall a. exists s. singleton(s,a)
     $se_f forall("a", exists("s", singleton("s","a")))
-    $se_inst apply_thm(singleton_exists, se_f, ["a"], [\v: exists("s", singleton("s",v))], [pa_f])
+    $se_inst apply_thm(singleton_exists, se_f, ["a"], [pa_f])
     $got_cut cut_c(se_inst, got_ex, ex_sing, [pa_f], [ex_sing], eu)
     close(got_cut, [pa_f], [eu], ["a"])
 }

@@ -6,7 +6,6 @@ from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.sets.set_spec_unique import set_spec_unique
 from theorems.sets.pair_set_exists import pair_set_exists
 
-# Pairing |- forall(a, forall(b, exists_unique(s, pair_set(s, a, b))))
 $unique_pair_set {
     $cond_fn \v: or(eqv(v, "a", "_"), eqv(v, "b", "_"))
     $body_fn \v: pair_set(v, "a", "b", "_")
@@ -15,9 +14,7 @@ $unique_pair_set {
     $imp_inner implies(pair_set("y", "a", "b", "_"), eqv("u", "y"))
     $ssu set_spec_unique(cond_fn, [])
     $ssu_f forall("s1", forall("s2", implies(pair_set("s1","a","b","_"), implies(pair_set("s2","a","b","_"), eqv("s1","s2","_")))))
-    $ssu_inst apply_thm(ssu, ssu_f, ["u","y"],
-        [\v: forall("s2", implies(pair_set(v,"a","b","_"), implies(pair_set("s2","a","b","_"), eqv(v,"s2","_")))),
-         \v: implies(pair_set("u","a","b","_"), implies(pair_set(v,"a","b","_"), eqv("u",v,"_")))], [])
+    $ssu_inst apply_thm(ssu, ssu_f, ["u","y"], [])
     $got_inner mp(ssu_inst, ax([ps_u], [ps_u], ps_u), ps_u, imp_inner, [], [ps_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [ps_u], [fa_uniq], fa_uniq, "y")
@@ -26,9 +23,8 @@ $unique_pair_set {
     $got_ex eel(got_eu, body_fn, "s", "u", [ps_u], eu)
     $pa_f Pairing
     $ex_ps exists("s", pair_set("s", "a", "b"))
-    $body_pa1 \xv: forall("b", exists("s", pair_set("s", xv, "b")))
-    $body_pa2 \yv: exists("s", pair_set("s", "a", yv))
-    $got_pe apply_thm(pair_set_exists, pa_f, ["a", "b"], [body_pa1, body_pa2], [pa_f])
+    $pa_f_r forall("_1", forall("_2", exists("_3", pair_set("_3", "_1", "_2"))))
+    $got_pe apply_thm(pair_set_exists, pa_f_r, ["a", "b"], [])
     $got_cut cut_c(got_pe, got_ex, ex_ps, [pa_f], [ex_ps], eu)
     close(got_cut, [pa_f], [eu], ["b","a"])
 }

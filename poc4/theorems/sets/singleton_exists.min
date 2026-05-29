@@ -10,9 +10,7 @@ $singleton_exists {
     $pa_p ax([pa_f], [pa_f], pa_f)
 
     # Instantiate Pairing with x="a", y="a"
-    $body1 \xv: forall("y", exists("b", pair_set("b", xv, "y")))
-    $body2 \yv: exists("b", pair_set("b", "a", yv))
-    $inst apply_thm(pa_p, pa_f, ["a", "a"], [body1, body2], [pa_f])
+    $inst apply_thm(pa_p, pa_f, ["a", "a"], [pa_f])
 
     # Inside exists: assume pair_set(u, "a", "a")
     $ps pair_set("u", "a", "a")
