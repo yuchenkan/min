@@ -6,41 +6,33 @@ from theorems.logic.or_intro_right import or_intro_right
 from theorems.logic.and_intro import and_intro
 from theorems.logic.eqv_reflexive import eqv_reflexive
 
-# |- forall(w, iff(eqv(w,a), or(eqv(w,c), eqv(w,d)))) -> and(eqv(c,a), eqv(d,a))
-# If {a} = {c,d} then c=a and d=a
-$singleton_pair_eq \a c d vars: {
-    $char forall("w", iff(eqv("w", a), or(eqv("w", c), eqv("w", d))))
-    $eqv_ca eqv(c, a)
-    $eqv_da eqv(d, a)
+# |- forall a c d. forall(w, iff(eqv(w,a), or(eqv(w,c), eqv(w,d)))) -> and(eqv(c,a), eqv(d,a))
+$singleton_pair_eq {
+    $char forall("w", iff(eqv("w", "a"), or(eqv("w", "c"), eqv("w", "d"))))
+    $eqv_ca eqv("c", "a")
+    $eqv_da eqv("d", "a")
     $body_eqv \v: eqv(v, v)
-
-    # === Derive eqv(c, a) ===
-    $iff_c iff(eqv(c, a), or(eqv(c, c), eqv(c, d)))
-    $or_cc or(eqv(c, c), eqv(c, d))
-    $s1 fl(ax([iff_c], [iff_c], iff_c), [char], [iff_c], char, c)
-    $g_cc apply_thm(eqv_reflexive, forall("a", eqv("a", "a")), [c], [body_eqv], [])
-    $g_or_c mp(or_intro_left(eqv(c, c), eqv(c, d), []), g_cc, eqv(c, c), or_cc, [], [])
+    $iff_c iff(eqv("c", "a"), or(eqv("c", "c"), eqv("c", "d")))
+    $or_cc or(eqv("c", "c"), eqv("c", "d"))
+    $s1 fl(ax([iff_c], [iff_c], iff_c), [char], [iff_c], char, "c")
+    $g_cc apply_thm(eqv_reflexive, forall("a", eqv("a", "a")), ["c"], [body_eqv], [])
+    $g_or_c mp(or_intro_left(eqv("c", "c"), eqv("c", "d"), []), g_cc, eqv("c", "c"), or_cc, [], [])
     $g_ca mp(mp(iff_elim_right(eqv_ca, or_cc, []),
                s1, iff_c, implies(or_cc, eqv_ca), [], [char]),
             g_or_c, or_cc, eqv_ca, [char], [])
-
-    # === Derive eqv(d, a) ===
-    $iff_d iff(eqv(d, a), or(eqv(d, c), eqv(d, d)))
-    $or_dd or(eqv(d, c), eqv(d, d))
-    $s2 fl(ax([iff_d], [iff_d], iff_d), [char], [iff_d], char, d)
-    $g_dd apply_thm(eqv_reflexive, forall("a", eqv("a", "a")), [d], [body_eqv], [])
-    $g_or_d mp(or_intro_right(eqv(d, c), eqv(d, d), []), g_dd, eqv(d, d), or_dd, [], [])
+    $iff_d iff(eqv("d", "a"), or(eqv("d", "c"), eqv("d", "d")))
+    $or_dd or(eqv("d", "c"), eqv("d", "d"))
+    $s2 fl(ax([iff_d], [iff_d], iff_d), [char], [iff_d], char, "d")
+    $g_dd apply_thm(eqv_reflexive, forall("a", eqv("a", "a")), ["d"], [body_eqv], [])
+    $g_or_d mp(or_intro_right(eqv("d", "c"), eqv("d", "d"), []), g_dd, eqv("d", "d"), or_dd, [], [])
     $g_da mp(mp(iff_elim_right(eqv_da, or_dd, []),
                s2, iff_d, implies(or_dd, eqv_da), [], [char]),
             g_or_d, or_dd, eqv_da, [char], [])
-
-    # === and_intro ===
     $goal and(eqv_ca, eqv_da)
     $g_and mp(mp(and_intro(eqv_ca, eqv_da, []),
                  g_ca, eqv_ca, implies(eqv_da, goal), [], [char]),
               g_da, eqv_da, goal, [char], [char])
-
     $top implies(char, goal)
     $s3 ir(g_and, [], [top], top)
-    close(s3, [], [top], vars)
+    close(s3, [], [top], ["d", "c", "a"])
 }

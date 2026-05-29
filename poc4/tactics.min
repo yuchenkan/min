@@ -103,15 +103,26 @@ $inst \thm formula body term ctx: {
 # apply_thm: multi-forall instantiation
 # thm: ctx |- [formula]
 # terms: [t1, t2, ...]
-# body_fns: [f1, f2, ...] where fi(ti) gives next body
-$_apply_thm \self thm formula terms body_fns ctx:
+$_apply_thm \self thm formula terms ctx: {
+    $_fs \fself f v t: {
+        $tag nth(f, 0)
+        ?(eq(tag, "mem"), ["mem", "", ?(eq(nth(f, 2), v), t, nth(f, 2)), ?(eq(nth(f, 3), v), t, nth(f, 3))],
+        ?(eq(tag, "neg"), ["neg", "", fself(fself, nth(f, 2), v, t)],
+        ?(eq(tag, "implies"), ["implies", "", fself(fself, nth(f, 2), v, t), fself(fself, nth(f, 3), v, t)],
+        ?(eq(tag, "forall"), ?(eq(nth(f, 2), v), f, ["forall", "", nth(f, 2), fself(fself, nth(f, 3), v, t)]),
+        fself(fself, nth(f, 2), v, t)))))
+    }
+    $__peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))
     ?(eq(len(terms), 0), thm, {
-        $body head(body_fns)(head(terms))
+        $f __peel(__peel, formula)
+        $v nth(f, 2)
+        $body _fs(_fs, nth(f, 3), v, head(terms))
         self(self,
             inst(thm, formula, body, head(terms), ctx),
-            body, tail(terms), tail(body_fns), ctx)
+            body, tail(terms), ctx)
     })
-$apply_thm \thm formula terms body_fns ctx: _apply_thm(_apply_thm, thm, formula, terms, body_fns, ctx)
+}
+$apply_thm \thm formula terms ctx: _apply_thm(_apply_thm, thm, formula, terms, ctx)
 
 # eir: exists intro right
 # prf: ctx |- [body_inst] where body_inst = body_fn(witness)

@@ -64,16 +64,32 @@ $exists_unique_bridge \phi_fn s vars: {
     $got_uniq_w apply_thm(got_uniq_u2, uniq_u2, ["w"], [uniq_body_fn], [eu_body_u2])
     $got_eqv_u2_w mp(got_uniq_w, got_phi_w, phi_w, eqv_u2_w, [eu_body_u2], [ex_body_w])
 
+    # eqv_symmetric: forall a b. eqv(a,b) -> eqv(b,a)
+    $es_f forall("a", forall("b", implies(eqv("a","b"), eqv("b","a"))))
+    $es_inst apply_thm(eqv_symmetric, es_f, ["u2", "t"],
+        [\v: forall("b", implies(eqv(v,"b"), eqv("b",v))), \v: implies(eqv("u2",v), eqv(v,"u2"))], [])
     $eqv_t_u2 eqv("t", "u2")
-    $got_eqv_t_u2 mp(eqv_symmetric("u2", "t", []), got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
+    $got_eqv_t_u2 mp(es_inst, got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
 
+    # eqv_transitive: forall a b c. eqv(a,b) -> eqv(b,c) -> eqv(a,c)
+    $et_f forall("a", forall("b", forall("c", implies(eqv("a","b"), implies(eqv("b","c"), eqv("a","c"))))))
+    $et_inst apply_thm(eqv_transitive, et_f, ["t", "u2", "w"],
+        [\v: forall("b", forall("c", implies(eqv(v,"b"), implies(eqv("b","c"), eqv(v,"c"))))),
+         \v: forall("c", implies(eqv("t",v), implies(eqv(v,"c"), eqv("t","c")))),
+         \v: implies(eqv("t","u2"), implies(eqv("u2",v), eqv("t",v)))], [])
     $eqv_t_w eqv("t", "w")
-    $got_eqv_t_w mp(mp(eqv_transitive("t", "u2", "w", []),
+    $got_eqv_t_w mp(mp(et_inst,
                        got_eqv_t_u2, eqv_t_u2, implies(eqv_u2_w, eqv_t_w), [], [eu_body_u2, phi_t]),
                     got_eqv_u2_w, eqv_u2_w, eqv_t_w, [eu_body_u2, phi_t], [eu_body_u2, ex_body_w])
 
+    # ext_substitution: Ext |- forall a b s. eqv(a,b,"_") -> iff(mem(a,s), mem(b,s))
+    $exs_f forall("a", forall("b", forall("s", implies(eqv("a","b","_"), iff(mem("a","s"), mem("b","s"))))))
+    $exs_inst apply_thm(ext_substitution, exs_f, ["t", "w", s],
+        [\v: forall("b", forall("s", implies(eqv(v,"b","_"), iff(mem(v,"s"), mem("b","s"))))),
+         \v: forall("s", implies(eqv("t",v,"_"), iff(mem("t","s"), mem(v,"s")))),
+         \v: implies(eqv("t","w","_"), iff(mem("t",v), mem("w",v)))], [ext_f])
     $iff_pred iff(pred_t, pred_w)
-    $got_iff_pred mp(ext_substitution("t", "w", s, []),
+    $got_iff_pred mp(exs_inst,
                      got_eqv_t_w, eqv_t_w, iff_pred,
                      [ext_f], [eu_body_u2, phi_t, ex_body_w])
 

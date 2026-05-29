@@ -1,7 +1,7 @@
 from core.derived import implies, forall, eqv, EmptySet
 from vocab.sets import empty
 from vocab.logic import exists_unique
-from tactics import ax, fr, mp, wl, eel, cut_c
+from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.sets.empty_unique import empty_unique
 
@@ -11,7 +11,11 @@ $unique_empty {
     $eu exists_unique(body_fn)
     $empty_u empty("u", "_")
     $imp_inner implies(empty("y", "_"), eqv("u", "y", "_"))
-    $got_inner mp(empty_unique("u", "y", []), ax([empty_u], [empty_u], empty_u), empty_u, imp_inner, [], [empty_u])
+    $eu_f forall("a", forall("b", implies(empty("a"), implies(empty("b"), eqv("a","b","_")))))
+    $eu_inst apply_thm(empty_unique, eu_f, ["u","y"],
+        [\v: forall("b", implies(empty(v), implies(empty("b"), eqv(v,"b","_")))),
+         \v: implies(empty("u"), implies(empty(v), eqv("u",v,"_")))], [])
+    $got_inner mp(eu_inst, ax([empty_u], [empty_u], empty_u), empty_u, imp_inner, [], [empty_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [empty_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([empty_u], [empty_u], empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),

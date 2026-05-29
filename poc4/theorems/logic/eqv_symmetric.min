@@ -3,15 +3,15 @@ from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.iff_sym import iff_sym
 
 # |- eqv(a, b) -> eqv(b, a)
-$eqv_symmetric \a b vars: {
-    $eqv_ab eqv(a, b)
-    $eqv_ba eqv(b, a)
-    $iff_v iff(mem("v", a), mem("v", b))
-    $iff_v_rev iff(mem("v", b), mem("v", a))
+$eqv_symmetric {
+    $eqv_ab eqv("a", "b")
+    $eqv_ba eqv("b", "a")
+    $iff_v iff(mem("v", "a"), mem("v", "b"))
+    $iff_v_rev iff(mem("v", "b"), mem("v", "a"))
     $s1 fl(ax([iff_v], [iff_v], iff_v), [eqv_ab], [iff_v], eqv_ab, "v")
-    $s2 mp(iff_sym(mem("v", a), mem("v", b), []), s1, iff_v, iff_v_rev, [], [eqv_ab])
+    $s2 mp(iff_sym(mem("v", "a"), mem("v", "b"), []), s1, iff_v, iff_v_rev, [], [eqv_ab])
     $s3 fr(s2, [eqv_ab], [eqv_ba], eqv_ba, "v")
     $top implies(eqv_ab, eqv_ba)
     $result ir(s3, [], [top], top)
-    close(result, [], [top], vars)
+    close(result, [], [top], ["b","a"])
 }
