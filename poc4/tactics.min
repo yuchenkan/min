@@ -1,21 +1,54 @@
-from core.derived import proof, mem, forall, neg, implies, iff
+from core.derived import proof, mem, forall, neg, implies, iff, flat
 
-# === set helpers ===
+# === alpha-equivalence for formulas ===
 
-$_contains \self f lst: ?(eq(len(lst), 0), False,
-    ?(eq(head(lst), f), True, self(self, f, tail(lst))))
-$contains \f lst: _contains(_contains, f, lst)
-$set_add \f lst: ?(contains(f, lst), lst, add(lst, [f]))
+$_veq \self va vb env: ?(eq(len(env), 0), eq(va, vb), {
+    $ba nth(head(env), 0)
+    $bb nth(head(env), 1)
+    ?(eq(va, ba), eq(vb, bb),
+    ?(eq(vb, bb), False,
+    self(self, va, vb, tail(env))))
+})
 
-$_remove \self f lst: ?(eq(len(lst), 0), [],
-    ?(eq(head(lst), f), tail(lst), add([head(lst)], self(self, f, tail(lst)))))
-$remove \f lst: _remove(_remove, f, lst)
+# alpha-equiv on flat (core-only) formulas
+$_aeq \self a b env:
+    ?(eq(a, b), True,
+    ?(eq(nth(a, 0), "mem"),
+        ?(eq(nth(b, 0), "mem"),
+            ?(not(_veq(_veq, nth(a, 1), nth(b, 1), env)), False,
+            _veq(_veq, nth(a, 2), nth(b, 2), env)),
+        False),
+    ?(eq(nth(a, 0), "neg"),
+        ?(eq(nth(b, 0), "neg"), self(self, nth(a, 1), nth(b, 1), env), False),
+    ?(eq(nth(a, 0), "implies"),
+        ?(eq(nth(b, 0), "implies"),
+            ?(not(self(self, nth(a, 1), nth(b, 1), env)), False,
+            self(self, nth(a, 2), nth(b, 2), env)),
+        False),
+    ?(eq(nth(a, 0), "forall"),
+        ?(eq(nth(b, 0), "forall"),
+            self(self, nth(a, 2), nth(b, 2), add([[nth(a, 1), nth(b, 1)]], env)),
+        False),
+    False)))))
 
-$_diff \self lst1 lst2: ?(eq(len(lst1), 0), [],
-    ?(contains(head(lst1), lst2),
-        self(self, tail(lst1), lst2),
-        add([head(lst1)], self(self, tail(lst1), lst2))))
-$diff \lst1 lst2: _diff(_diff, lst1, lst2)
+$same \a b: _aeq(_aeq, flat(flat, a), flat(flat, b), [])
+
+# === set helpers (take compare fn) ===
+
+$_contains \self cmp f lst: ?(eq(len(lst), 0), False,
+    ?(cmp(head(lst), f), True, self(self, cmp, f, tail(lst))))
+$contains \cmp f lst: _contains(_contains, cmp, f, lst)
+$set_add \cmp f lst: ?(contains(cmp, f, lst), lst, add(lst, [f]))
+
+$_remove \self cmp f lst: ?(eq(len(lst), 0), [],
+    ?(cmp(head(lst), f), tail(lst), add([head(lst)], self(self, cmp, f, tail(lst)))))
+$remove \cmp f lst: _remove(_remove, cmp, f, lst)
+
+$_diff \self cmp lst1 lst2: ?(eq(len(lst1), 0), [],
+    ?(contains(cmp, head(lst1), lst2),
+        self(self, cmp, tail(lst1), lst2),
+        add([head(lst1)], self(self, cmp, tail(lst1), lst2))))
+$diff \cmp lst1 lst2: _diff(_diff, cmp, lst1, lst2)
 
 # === basic rule wrappers ===
 
@@ -34,7 +67,7 @@ $cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A)
 
 $_wl_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
     $f head(fs)
-    ?(contains(f, left),
+    ?(contains(same, f, left),
         self(self, prf, left, right, tail(fs)),
         {
             $nl add(left, [f])
@@ -45,7 +78,7 @@ $wl_all \prf left right fs: _wl_all(_wl_all, prf, left, right, fs)
 
 $_wr_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
     $f head(fs)
-    ?(contains(f, right),
+    ?(contains(same, f, right),
         self(self, prf, left, right, tail(fs)),
         {
             $nr add(right, [f])
@@ -74,16 +107,16 @@ $close \prf left right vars: _close_proof(_close_proof, prf, left, right, vars)
 # result:     merged   |- [Q]
 $mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
     $imp implies(P, Q)
-    $merged add(impl_ctx, diff(arg_ctx, impl_ctx))
-    $G ?(contains(imp, merged), remove(imp, merged), merged)
-    $merged_imp ?(contains(imp, merged), merged, add(merged, [imp]))
+    $merged add(impl_ctx, diff(same, arg_ctx, impl_ctx))
+    $G ?(contains(same, imp, merged), remove(same, imp, merged), merged)
+    $merged_imp ?(contains(same, imp, merged), merged, add(merged, [imp]))
 
-    $s0a_G wl_all(arg_proof, arg_ctx, [P], diff(G, arg_ctx))
+    $s0a_G wl_all(arg_proof, arg_ctx, [P], diff(same, G, arg_ctx))
     $s1 wr(s0a_G, G, [P, Q], Q)
     $s2 wl_all(ax([Q], [Q], Q), [Q], [Q], G)
     $s3 il(s1, s2, merged_imp, [Q], imp)
 
-    $impl_w wl_all(impl_proof, impl_ctx, [imp], diff(merged, impl_ctx))
+    $impl_w wl_all(impl_proof, impl_ctx, [imp], diff(same, merged, impl_ctx))
     $impl_wr wr(impl_w, merged, [imp, Q], Q)
     cut(impl_wr, s3, merged, [Q], imp)
 }
@@ -95,7 +128,7 @@ $mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
 # ctx: left side
 $inst \thm formula body term ctx: {
     $s1 fl(ax([body], [body], body), [formula], [body], formula, term)
-    $s2 wl_all(s1, [formula], [body], remove(formula, ctx))
+    $s2 wl_all(s1, [formula], [body], remove(same, formula, ctx))
     cut(wr(thm, ctx, [formula, body], body),
         s2, ctx, [body], formula)
 }
@@ -145,7 +178,7 @@ $eel \prf pred_fn x y ctx D: {
     $pred_y pred_fn(y)
     $fa_neg forall(x, neg(pred_fn(x)))
     $ex neg(fa_neg)
-    $ctx_only remove(pred_y, ctx)
+    $ctx_only remove(same, pred_y, ctx)
     $s1 nr(prf, ctx_only, [neg(pred_y), D], neg(pred_y))
     $s2 fr(s1, ctx_only, [fa_neg, D], fa_neg, y)
     nl(s2, add(ctx_only, [ex]), [D], ex)
@@ -156,9 +189,9 @@ $eel \prf pred_fn x y ctx D: {
 # prf: ctx2 |- [D]  (with pred in ctx2)
 # result: merged |- [D]
 $cut_c \got_pred prf pred ctx1 ctx2 D: {
-    $merged add(remove(pred, ctx2), diff(ctx1, ctx2))
-    $p0 wl_all(got_pred, ctx1, [pred], diff(merged, ctx1))
+    $merged add(remove(same, pred, ctx2), diff(same, ctx1, ctx2))
+    $p0 wl_all(got_pred, ctx1, [pred], diff(same, merged, ctx1))
     $p0r wr(p0, merged, [pred, D], D)
-    $p1 wl_all(prf, ctx2, [D], diff(merged, ctx2))
+    $p1 wl_all(prf, ctx2, [D], diff(same, merged, ctx2))
     cut(p0r, p1, merged, [D], pred)
 }

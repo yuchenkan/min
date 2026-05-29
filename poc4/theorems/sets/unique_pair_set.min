@@ -24,7 +24,7 @@ $unique_pair_set {
     $pa_f Pairing
     $ex_ps exists("s", pair_set("s", "a", "b"))
     $pa_f_r forall("_1", forall("_2", exists("_3", pair_set("_3", "_1", "_2"))))
-    $got_pe apply_thm(pair_set_exists, pa_f_r, ["a", "b"], [])
+    $got_pe apply_thm(pair_set_exists, pa_f_r, ["a", "b"], [pa_f])
     $got_cut cut_c(got_pe, got_ex, ex_ps, [pa_f], [ex_ps], eu)
     close(got_cut, [pa_f], [eu], ["b","a"])
 }

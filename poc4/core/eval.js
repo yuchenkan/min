@@ -101,7 +101,10 @@ function compile(node) {
             const callee = calleeFn(env);
             const args = argFns.map(fn => fn(env));
             try { return call(callee, args, node); }
-            catch (e) { if (e instanceof EvalError) e.addFrame(node); throw e; }
+            catch (e) {
+                if (e instanceof EvalError) { e.addFrame(node); throw e; }
+                throw new EvalError(e.message, node);
+            }
         };
     }
     if (node instanceof parser.List) {
@@ -179,18 +182,6 @@ function doQed(p, expected, system) {
 
 function fail(msg) { throw new EvalError(msg); }
 
-function deepEqual(a, b) {
-    if (a === b) return true;
-    if (Array.isArray(a) && Array.isArray(b)) {
-        if (a.length !== b.length) return false;
-        for (let i = 0; i < a.length; i++)
-            if (!deepEqual(a[i], b[i])) return false;
-        return true;
-    }
-    return false;
-}
-
-
 // === Builtins ===
 
 function makeGlobal() {
@@ -199,7 +190,7 @@ function makeGlobal() {
         add: (a, b) => Array.isArray(a) ? [...a, ...b] : a + b,
         sub: (a, b) => a - b,
         mul: (a, b) => a * b,
-        eq: deepEqual,
+        eq: (a, b) => a === b,
         not: (a) => !a,
         head: (a) => a[0],
         tail: (a) => a.slice(1),
