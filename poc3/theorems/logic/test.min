@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, show, qed
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, show, qed
 from theorems.logic.modus_ponens import modus_ponens
 from theorems.logic.double_negation import double_negation
 from theorems.logic.and_intro import and_intro
@@ -23,6 +23,18 @@ from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.logic.eq_transitive import eq_transitive
 from theorems.logic.eq_substitution import eq_substitution
+from theorems.logic.neg_iff_compat import neg_iff_compat
+from theorems.logic.implies_iff_compat import implies_iff_compat
+from theorems.logic.and_iff_compat import and_iff_compat
+from theorems.logic.or_iff_compat import or_iff_compat
+from theorems.logic.forall_iff_compat import forall_iff_compat
+from theorems.logic.exists_iff_compat import exists_iff_compat
+from theorems.logic.neg_neg_iff import neg_neg_iff
+from theorems.logic.or_idempotent import or_idempotent
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eqv_mem_left import eqv_mem_left
 
 $A mem("a", "b")
 $B mem("b", "a")
@@ -104,3 +116,42 @@ $_ print("eq_transitive ok")
 $_ qed(eq_substitution(A, B, C, v),
     forall("a", forall("b", implies(iff(A, B), implies(implies(A, C), implies(B, C))))))
 $_ print("eq_substitution ok")
+
+$_ qed(neg_iff_compat(A, B, v), forall("a", forall("b", implies(iff(A, B), iff(neg(A), neg(B))))))
+$_ print("neg_iff_compat ok")
+
+$D mem("b", "b")
+$_ qed(implies_iff_compat(A, B, C, D, v), forall("a", forall("b", implies(iff(A, C), implies(iff(B, D), iff(implies(A, B), implies(C, D)))))))
+$_ print("implies_iff_compat ok")
+
+$_ qed(and_iff_compat(A, B, C, D, v), forall("a", forall("b", implies(iff(A, C), implies(iff(B, D), iff(and(A, B), and(C, D)))))))
+$_ print("and_iff_compat ok")
+
+$_ qed(or_iff_compat(A, B, C, D, v), forall("a", forall("b", implies(iff(A, C), implies(iff(B, D), iff(or(A, B), or(C, D)))))))
+$_ print("or_iff_compat ok")
+
+$_ qed(forall_iff_compat("x", \v: mem(v, "a"), \v: mem(v, "b"), ["b", "a"]),
+    forall("a", forall("b", implies(forall("z", iff(mem("z", "a"), mem("z", "b"))), iff(forall("x", mem("x", "a")), forall("x", mem("x", "b")))))))
+$_ print("forall_iff_compat ok")
+
+$_ qed(exists_iff_compat("x", \v: mem(v, "a"), \v: mem(v, "b"), ["b", "a"]),
+    forall("a", forall("b", implies(forall("z", iff(mem("z", "a"), mem("z", "b"))), iff(exists("x", mem("x", "a")), exists("x", mem("x", "b")))))))
+$_ print("exists_iff_compat ok")
+
+$_ qed(neg_neg_iff(A, B, v), forall("a", forall("b", implies(neg(A), implies(neg(B), iff(A, B))))))
+$_ print("neg_neg_iff ok")
+
+$_ qed(or_idempotent(A, v), forall("a", forall("b", iff(or(A, A), A))))
+$_ print("or_idempotent ok")
+
+$_ qed(eqv_reflexive, forall("a", eqv("a", "a")))
+$_ print("eqv_reflexive ok")
+
+$_ qed(eqv_symmetric("a", "b", ["b", "a"]), forall("a", forall("b", implies(eqv("a", "b"), eqv("b", "a")))))
+$_ print("eqv_symmetric ok")
+
+$_ qed(eqv_transitive("a", "b", "c", ["c", "b", "a"]), forall("a", forall("b", forall("c", implies(eqv("a", "b"), implies(eqv("b", "c"), eqv("a", "c")))))))
+$_ print("eqv_transitive ok")
+
+$_ qed(eqv_mem_left("a", "b", "z", ["z", "b", "a"]), forall("a", forall("b", forall("z", implies(eqv("a", "b"), implies(mem("z", "a"), mem("z", "b")))))))
+$_ print("eqv_mem_left ok")

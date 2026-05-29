@@ -87,3 +87,15 @@ $mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
     $impl_wr wr(impl_w, merged, [imp, Q], Q)
     cut(impl_wr, s3, merged, [Q], imp)
 }
+
+# cut_c: computed cut
+# got_pred: ctx1 |- [pred]
+# prf: ctx2 |- [D]  (with pred in ctx2)
+# result: merged |- [D]
+$cut_c \got_pred prf pred ctx1 ctx2 D: {
+    $merged add(remove(pred, ctx2), diff(ctx1, ctx2))
+    $p0 wl_all(got_pred, ctx1, [pred], diff(merged, ctx1))
+    $p0r wr(p0, merged, [pred, D], D)
+    $p1 wl_all(prf, ctx2, [D], diff(merged, ctx2))
+    cut(p0r, p1, merged, [D], pred)
+}
