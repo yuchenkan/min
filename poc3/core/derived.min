@@ -8,14 +8,14 @@ $neg \a: ["neg", add("~", _p(d(a))), a]
 $implies \a b: ["implies", _p(add(d(a), add(" -> ", d(b)))), a, b]
 $forall \v b: ["forall", add("A", add(v, add(".", d(b)))), v, b]
 
-# vocab constructors: [tag, display, expansion, args...]
-$and \a b: ["and", _p(add(d(a), add(" & ", d(b)))), neg(implies(a, neg(b))), a, b]
-$or \a b: ["or", _p(add(d(a), add(" | ", d(b)))), implies(neg(a), b), a, b]
-$iff \a b: ["iff", _p(add(d(a), add(" <-> ", d(b)))), neg(implies(implies(a, b), neg(implies(b, a)))), a, b]
-$exists \v b: ["exists", add("E", add(v, add(".", d(b)))), neg(forall(v, neg(b))), v, b]
+# vocab constructors: [tag, display, expansion]
+$and \a b: ["and", _p(add(d(a), add(" & ", d(b)))), neg(implies(a, neg(b)))]
+$or \a b: ["or", _p(add(d(a), add(" | ", d(b)))), implies(neg(a), b)]
+$iff \a b: ["iff", _p(add(d(a), add(" <-> ", d(b)))), neg(implies(implies(a, b), neg(implies(b, a))))]
+$exists \v b: ["exists", add("E", add(v, add(".", d(b)))), neg(forall(v, neg(b)))]
 $eqv \a b p: {
     $v ?(eq(p, None), "z", add(p, "z"))
-    ["eqv", add(a, add(" = ", b)), forall(v, iff(mem(v, a), mem(v, b))), a, b, p]
+    ["eqv", add(a, add(" = ", b)), forall(v, iff(mem(v, a), mem(v, b)))]
 }
 
 # show: return precomputed display string
@@ -115,7 +115,7 @@ $separation \vars phi p: {
     $body forall(a, exists(b, forall(x,
         iff(mem(x, b), and(mem(x, a), phi)))))
     $closed _close(_close, vars, body)
-    ["separation", add("Sep(", add(show(phi), ")")), closed, vars, phi, p]
+    ["separation", add("Sep(", add(show(phi), ")")), closed]
 }
 
 # Replacement: vars to close, uniq hypothesis, phi formula, optional prefix for a/b/x/y
@@ -128,5 +128,5 @@ $replacement \vars uniq phi p: {
         exists(b, forall(y,
             iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))
     $closed _close(_close, vars, body)
-    ["replacement", add("Rep(", add(show(phi), ")")), closed, vars, uniq, phi, p]
+    ["replacement", add("Rep(", add(show(phi), ")")), closed]
 }

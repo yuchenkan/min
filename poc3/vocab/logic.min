@@ -9,5 +9,5 @@ $exists_unique \body_fn p: {
     $y ?(eq(p, None), "y", add(p, "y"))
     $body body_fn(x)
     $expansion exists(x, and(body, forall(y, implies(body_fn(y), eqv(x, y, p)))))
-    ["exists_unique", add("E!", add(x, add(".", d(body)))), expansion, body_fn, p]
+    ["exists_unique", add("E!", add(x, add(".", d(body)))), expansion]
 }
