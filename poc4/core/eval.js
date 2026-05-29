@@ -112,12 +112,27 @@ function compile(node) {
 }
 
 
+function isCacheable(v) {
+    if (v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean") return true;
+    if (Array.isArray(v)) return v.every(isCacheable);
+    return false;
+}
+
 function call(callee, args, node) {
     if (callee instanceof Fn) {
+        let key = null;
+        if (args.every(isCacheable)) {
+            if (!callee._cache) callee._cache = new Map();
+            else if (callee._cache.size > 256) callee._cache.clear();
+            key = JSON.stringify(args);
+            if (callee._cache.has(key)) return callee._cache.get(key);
+        }
         const env = callee.env.snapshot();
         for (let i = 0; i < callee.params.length; i++)
             env.d[callee.params[i]] = i < args.length ? args[i] : null;
-        return callee.bodyFn(env);
+        const result = callee.bodyFn(env);
+        if (key !== null) callee._cache.set(key, result);
+        return result;
     }
     if (typeof callee === "function") return callee(...args);
     throw new EvalError(`not callable: ${callee}`, node);
