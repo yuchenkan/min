@@ -180,6 +180,7 @@ function makeGlobal() {
         not: (a) => !a,
         head: (a) => a[0],
         tail: (a) => a.slice(1),
+        nth: (a, n) => a[n],
         len: (a) => a.length,
         print: (a) => { console.log(a); return a; },
         _do_proof: doProof,

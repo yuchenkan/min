@@ -1,5 +1,5 @@
 # display helpers
-$d \f: head(tail(f))
+$d \f: nth(f, 1)
 $_p \s: add("(", add(s, ")"))
 
 # core constructors: [tag, display, args...]
@@ -19,20 +19,19 @@ $eqv \a b p: {
 }
 
 # show: return precomputed display string
-$show \f: head(tail(f))
+$show \f: nth(f, 1)
 
 # flat: expand to core [tag, args...]
 $_is_core \t: ?(eq(t, "mem"), True, ?(eq(t, "neg"), True, ?(eq(t, "implies"), True, ?(eq(t, "forall"), True, False))))
 
 $flat \self f: {
-    $tag head(f)
-    $rest tail(tail(f))
+    $tag nth(f, 0)
     ?(_is_core(tag),
-        ?(eq(tag, "mem"), ["mem", head(rest), head(tail(rest))],
-        ?(eq(tag, "neg"), ["neg", self(self, head(rest))],
-        ?(eq(tag, "implies"), ["implies", self(self, head(rest)), self(self, head(tail(rest)))],
-        ["forall", head(rest), self(self, head(tail(rest)))]))),
-        self(self, head(rest)))
+        ?(eq(tag, "mem"), ["mem", nth(f, 2), nth(f, 3)],
+        ?(eq(tag, "neg"), ["neg", self(self, nth(f, 2))],
+        ?(eq(tag, "implies"), ["implies", self(self, nth(f, 2)), self(self, nth(f, 3))],
+        ["forall", nth(f, 2), self(self, nth(f, 3))]))),
+        self(self, nth(f, 2)))
 }
 
 # map helper
@@ -50,23 +49,23 @@ $proof \left right rule premises principal term: {
         _map(_map, fl, left),
         _map(_map, fl, right),
         rule, premises, fl(principal), term)
-    ?(head(result), head(tail(result)), {
+    ?(nth(result, 0), nth(result, 1), {
         $_ print(add("proof failed: ", rule))
         $_ print(add("  left:  ", _show_list(_show_list, left)))
         $_ print(add("  right: ", _show_list(_show_list, right)))
         $_ print(add("  principal: ", show(principal)))
         $_ ?(eq(term, None), None, print(add("  term: ", term)))
-        _fail(head(tail(result)))
+        _fail(nth(result, 1))
     })
 }
 
 # qed: flat expected, then call kernel bridge
 $qed \p expected system: {
     $result _do_qed(p, flat(flat, expected), ?(eq(system, None), "z", system))
-    ?(head(result), expected, {
+    ?(nth(result, 0), expected, {
         $_ print("qed failed:")
         $_ print(add("  expected: ", show(expected)))
-        _fail(head(tail(result)))
+        _fail(nth(result, 1))
     })
 }
 
@@ -107,7 +106,7 @@ $Choice ["choice", "Choice", forall("x", implies(
 $_close \self vars f: ?(eq(len(vars), 0), f,
     self(self, tail(vars), forall(head(vars), f)))
 
-# Separation: vars to close, phi formula, optional prefix for a/b/x
+# Separation
 $separation \vars phi p: {
     $a ?(eq(p, None), "a", add(p, "a"))
     $b ?(eq(p, None), "b", add(p, "b"))
@@ -118,7 +117,7 @@ $separation \vars phi p: {
     ["separation", add("Sep(", add(show(phi), ")")), closed]
 }
 
-# Replacement: vars to close, uniq hypothesis, phi formula, optional prefix for a/b/x/y
+# Replacement
 $replacement \vars uniq phi p: {
     $a ?(eq(p, None), "a", add(p, "a"))
     $b ?(eq(p, None), "b", add(p, "b"))

@@ -158,7 +158,7 @@ def _global():
         'add': lambda a, b: a + b, 'sub': lambda a, b: a - b,
         'mul': lambda a, b: a * b, 'eq': lambda a, b: a == b,
         'not': lambda a: not a,
-        'head': lambda a: a[0], 'tail': lambda a: a[1:],
+        'head': lambda a: a[0], 'tail': lambda a: a[1:], 'nth': lambda a, n: a[n],
         'len': lambda a: len(a), 'print': lambda a: print(a) or a,
         '_do_proof': _do_proof, '_do_qed': _do_qed, '_fail': _fail,
     })
