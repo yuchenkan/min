@@ -8,20 +8,20 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # === Env (immutable extend) ===
 
 class Env:
-    def __init__(self, parent=None, name=None, val=None):
-        self.parent = parent
-        self.name = name
-        self.val = val
+    __slots__ = ('d',)
+    def __init__(self, d=None):
+        self.d = d or {}
 
     def get(self, name):
-        if self.name == name:
-            return self.val
-        if self.parent:
-            return self.parent.get(name)
-        raise KeyError(name)
+        try:
+            return self.d[name]
+        except KeyError:
+            raise KeyError(name)
 
     def extend(self, name, val):
-        return Env(self, name, val)
+        e = Env(self.d.copy())
+        e.d[name] = val
+        return e
 
 
 # === Values (Python objects) ===
@@ -56,45 +56,58 @@ class EvalError(Exception):
         return '\n'.join(lines)
 
 
+def _eval_lit(node, env):
+    return node.value
+
+def _eval_ref(node, env):
+    try:
+        return env.get(node.name)
+    except KeyError:
+        raise EvalError(f'undefined: {node.name}', node)
+
+def _eval_fn(node, env):
+    return Fn(node.params, node.body, env)
+
+def _eval_block(node, env):
+    for binding in node.bindings:
+        val = evaluate(binding.expr, env)
+        env = env.extend(binding.name, val)
+    return evaluate(node.expr, env)
+
+def _eval_if(node, env):
+    cond = evaluate(node.cond, env)
+    if cond is True:
+        return evaluate(node.then, env)
+    if cond is False:
+        return evaluate(node.else_, env)
+    raise EvalError('condition must be True or False', node)
+
+def _eval_call(node, env):
+    callee = evaluate(node.callee, env)
+    args = [evaluate(a, env) for a in node.args]
+    try:
+        return call(callee, args, node)
+    except EvalError as e:
+        e.add_frame(node)
+        raise
+
+def _eval_list(node, env):
+    return [evaluate(e, env) for e in node.elems]
+
+_DISPATCH = {
+    parser.Lit: _eval_lit,
+    parser.Ref: _eval_ref,
+    parser.Fn: _eval_fn,
+    parser.Block: _eval_block,
+    parser.If: _eval_if,
+    parser.Call: _eval_call,
+    parser.List: _eval_list,
+}
+
 def evaluate(node, env):
-    if isinstance(node, parser.Lit):
-        return node.value
-
-    if isinstance(node, parser.Ref):
-        try:
-            return env.get(node.name)
-        except KeyError:
-            raise EvalError(f'undefined: {node.name}', node)
-
-    if isinstance(node, parser.Fn):
-        return Fn(node.params, node.body, env)
-
-    if isinstance(node, parser.Block):
-        for binding in node.bindings:
-            val = evaluate(binding.expr, env)
-            env = env.extend(binding.name, val)
-        return evaluate(node.expr, env)
-
-    if isinstance(node, parser.If):
-        cond = evaluate(node.cond, env)
-        if cond is True:
-            return evaluate(node.then, env)
-        if cond is False:
-            return evaluate(node.else_, env)
-        raise EvalError('condition must be True or False', node)
-
-    if isinstance(node, parser.Call):
-        callee = evaluate(node.callee, env)
-        args = [evaluate(a, env) for a in node.args]
-        try:
-            return call(callee, args, node)
-        except EvalError as e:
-            e.add_frame(node)
-            raise
-
-    if isinstance(node, parser.List):
-        return [evaluate(e, env) for e in node.elems]
-
+    f = _DISPATCH.get(type(node))
+    if f:
+        return f(node, env)
     raise EvalError(f'unknown: {type(node).__name__}', node)
 
 
