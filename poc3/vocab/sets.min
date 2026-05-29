@@ -41,13 +41,17 @@ $big_union \s a p: {
 }
 
 # power_set(s, a, p): set_spec(s, \x: subset(x, a))
+# subset uses "_" prefix to avoid clash with set_spec's bound "x"
 $power_set \s a p: {
-    $body set_spec(s, \x: subset(x, a, p), p)
+    $sp ?(eq(p, None), "_", add(p, "_"))
+    $body set_spec(s, \x: subset(x, a, sp), p)
     ["power_set", add(s, add(" = P(", add(a, ")"))), body, s, a, p]
 }
 
 # successor(s, a, p): set_spec(s, \x: or(mem(x, a), eqv(x, a)))
+# eqv uses "_" prefix to avoid clash with set_spec's bound "x"
 $successor \s a p: {
-    $body set_spec(s, \x: or(mem(x, a), eqv(x, a, p)), p)
+    $ep ?(eq(p, None), "_", add(p, "_"))
+    $body set_spec(s, \x: or(mem(x, a), eqv(x, a, ep)), p)
     ["successor", add(s, add(" = S(", add(a, ")"))), body, s, a, p]
 }

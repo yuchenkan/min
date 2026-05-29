@@ -31,3 +31,9 @@ $_ qed(singleton_unique("s1", "s2", "a", ["a", "s2", "s1"]),
     forall("s1", forall("s2", forall("a",
         implies(singleton("s1", "a"), implies(singleton("s2", "a"), eqv("s1", "s2")))))))
 $_ print("singleton_unique ok")
+
+from vocab.sets import power_set, successor
+from theorems.sets.power_set_exists import power_set_exists
+
+$_ qed(power_set_exists, forall("a", exists("s", power_set("s", "a"))))
+$_ print("power_set_exists ok")
