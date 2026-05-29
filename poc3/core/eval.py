@@ -10,18 +10,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class Env:
     __slots__ = ('d',)
     def __init__(self, d=None):
-        self.d = d or {}
+        self.d = d if d is not None else {}
 
     def get(self, name):
-        try:
-            return self.d[name]
-        except KeyError:
-            raise KeyError(name)
+        return self.d[name]
 
-    def extend(self, name, val):
-        e = Env(self.d.copy())
-        e.d[name] = val
-        return e
+    def snapshot(self):
+        return Env(self.d.copy())
 
 
 # === Values (Python objects) ===
@@ -66,12 +61,13 @@ def _eval_ref(node, env):
         raise EvalError(f'undefined: {node.name}', node)
 
 def _eval_fn(node, env):
-    return Fn(node.params, node.body, env)
+    return Fn(node.params, node.body, env.snapshot())
 
 def _eval_block(node, env):
+    env = env.snapshot()
     for binding in node.bindings:
         val = evaluate(binding.expr, env)
-        env = env.extend(binding.name, val)
+        env.d[binding.name] = val
     return evaluate(node.expr, env)
 
 def _eval_if(node, env):
@@ -113,9 +109,9 @@ def evaluate(node, env):
 
 def call(callee, args, node=None):
     if isinstance(callee, Fn):
-        env = callee.env
+        env = callee.env.snapshot()
         for i, p in enumerate(callee.params):
-            env = env.extend(p, args[i] if i < len(args) else None)
+            env.d[p] = args[i] if i < len(args) else None
         return evaluate(callee.body, env)
     if callable(callee):
         return callee(*args)
@@ -157,23 +153,15 @@ def _fail(msg):
 # === Builtins ===
 
 def _global():
-    env = Env()
-    env = env.extend('True', True)
-    env = env.extend('False', False)
-    env = env.extend('None', None)
-    env = env.extend('add', lambda a, b: a + b)
-    env = env.extend('sub', lambda a, b: a - b)
-    env = env.extend('mul', lambda a, b: a * b)
-    env = env.extend('eq', lambda a, b: a == b)
-    env = env.extend('not', lambda a: not a)
-    env = env.extend('head', lambda a: a[0])
-    env = env.extend('tail', lambda a: a[1:])
-    env = env.extend('len', lambda a: len(a))
-    env = env.extend('print', lambda a: print(a) or a)
-    env = env.extend('_do_proof', _do_proof)
-    env = env.extend('_do_qed', _do_qed)
-    env = env.extend('_fail', _fail)
-    return env
+    return Env({
+        'True': True, 'False': False, 'None': None,
+        'add': lambda a, b: a + b, 'sub': lambda a, b: a - b,
+        'mul': lambda a, b: a * b, 'eq': lambda a, b: a == b,
+        'not': lambda a: not a,
+        'head': lambda a: a[0], 'tail': lambda a: a[1:],
+        'len': lambda a: len(a), 'print': lambda a: print(a) or a,
+        '_do_proof': _do_proof, '_do_qed': _do_qed, '_fail': _fail,
+    })
 
 
 # === File loading ===
@@ -193,10 +181,10 @@ def load_file(filepath):
 
     for node in nodes:
         if isinstance(node, parser.Import):
-            env = _load_import(node, env)
+            _load_import(node, env)
         elif isinstance(node, parser.Bind):
             val = evaluate(node.expr, env)
-            env = env.extend(node.name, val)
+            env.d[node.name] = val
             _loaded[filepath][node.name] = val
 
     return _loaded[filepath]
@@ -206,12 +194,11 @@ def _load_import(node, env):
     parts = node.module.split('.')
     filepath = os.path.join(ROOT, *parts) + '.min'
     if not os.path.isfile(filepath):
-        return env
+        return
     imported = load_file(filepath)
     for name in node.names:
         if name in imported:
-            env = env.extend(name, imported[name])
-    return env
+            env.d[name] = imported[name]
 
 
 def run(filepath):
