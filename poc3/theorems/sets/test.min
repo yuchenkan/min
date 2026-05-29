@@ -93,3 +93,12 @@ $_ qed(pair_injection("a", "b", "c", "d", ["d","c","b","a"]),
         implies(forall("w", iff(or(eqv("w","a"),eqv("w","b")), or(eqv("w","c"),eqv("w","d")))),
                 or(and(eqv("a","c"),eqv("b","d")), and(eqv("a","d"),eqv("b","c")))))))))
 $_ print("pair_injection ok")
+
+from theorems.sets.kuratowski import kuratowski
+from vocab.sets import ordered_pair
+
+$op \t a b: ordered_pair(t, a, b)
+$_ qed(kuratowski("a", "b", "c", "d", ["d","c","b","a","t2","t1"]),
+    forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
+        implies(op("t1","a","b"), implies(op("t2","c","d"), implies(eqv("t1","t2","_"), and(eqv("a","c"), eqv("b","d"))))))))))))
+$_ print("kuratowski ok")
