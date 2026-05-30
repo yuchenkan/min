@@ -10,8 +10,8 @@ from theorems.sets.singleton_exists import singleton_exists
 $unique_singleton {
     $body_fn \v p: singleton(v, "a", p)
     $eu exists_unique(body_fn, "_")
-    $sing_u body_fn("u", "__")
-    $imp_inner implies(body_fn("y", "__"), eqv("u", "y", "_"))
+    $sing_u body_fn("u", "_")
+    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $_su_f head(nth(singleton_unique, 2))
     $su_inst apply_thm(singleton_unique, _su_f, ["a","u","y"], [])
     $got_inner mp(su_inst, ax([sing_u], [sing_u], sing_u), sing_u, imp_inner, [], [sing_u])
@@ -19,11 +19,11 @@ $unique_singleton {
     $got_fa fr(got_inner, [sing_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([sing_u], [sing_u], sing_u), sing_u, implies(fa_uniq, eu), [], [sing_u]),
                got_fa, fa_uniq, eu, [sing_u], [sing_u])
-    $got_ex eel(got_eu, \v: body_fn(v, "__"), "s", "u", [sing_u], eu)
+    $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [sing_u], eu)
     $_se_f head(nth(singleton_exists, 2))
     $se_ctx nth(singleton_exists, 1)
     $se_inst apply_thm(singleton_exists, _se_f, ["a"], se_ctx)
-    $ex_sing exists("s", body_fn("s", "__"))
+    $ex_sing exists("s", body_fn("s", "_"))
     $got_cut cut_c(se_inst, got_ex, ex_sing, se_ctx, [ex_sing], eu)
     close(got_cut, se_ctx, [eu], ["a"])
 }
