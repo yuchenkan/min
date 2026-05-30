@@ -5,10 +5,8 @@ from vocab.omega import omega
 
 # recursive(h, a, f, w, p):
 # Function(h) ∧ dom(h)=w ∧ h(0)=a ∧ ∀n∈w. h(S(n))=f(h(n))
-# p is REQUIRED
 $recursive \h a f w p: {
-    $dp add(p, "_")
-    $ep add(p, "__")
+    $np add(p, "_")
     $e add(p, "e")
     $n add(p, "n")
     $v add(p, "val")
@@ -16,14 +14,14 @@ $recursive \h a f w p: {
     $fv add(p, "fval")
     $dd add(p, "d")
 
-    $func_h function(h, dp)
-    $dom_eq forall(dd, implies(domain(h, dd, ep), eqv(dd, w, ep)))
-    $base forall(e, implies(empty(e, ep), apply(h, e, a, ep)))
+    $func_h function(h, np)
+    $dom_eq forall(dd, implies(domain(h, dd, np), eqv(dd, w, np)))
+    $base forall(e, implies(empty(e, np), apply(h, e, a, np)))
     $step forall(n, implies(mem(n, w),
-        forall(v, implies(apply(h, n, v, ep),
-            forall(sn, implies(successor(sn, n, ep),
-                forall(fv, implies(apply(f, v, fv, ep),
-                    apply(h, sn, fv, ep)))))))))
+        forall(v, implies(apply(h, n, v, np),
+            forall(sn, implies(successor(sn, n, np),
+                forall(fv, implies(apply(f, v, fv, np),
+                    apply(h, sn, fv, np)))))))))
 
     ["recursive", add("Rec(", add(h, add(",", add(a, add(",", add(f, add(",", add(w, ")")))))))),
         and(func_h, and(dom_eq, and(base, step)))]

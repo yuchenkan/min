@@ -2,7 +2,6 @@ from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
 from vocab.sets import ordered_pair
 
 # apply(f, x, y, p): f(x) = y, i.e. exists p. ordered_pair(p,x,y) & p in f
-# p is REQUIRED
 $apply \f x y p: {
     $pv add(p, "p")
     $op add(p, "_")
@@ -11,7 +10,6 @@ $apply \f x y p: {
 }
 
 # domain(d, f, p): d = dom(f). forall x. x in d iff exists y. apply(f, x, y)
-# p is REQUIRED
 $domain \d f p: {
     $x add(p, "x")
     $y add(p, "y")
@@ -22,21 +20,17 @@ $domain \d f p: {
 
 # function(f, p): f is single-valued
 # forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2)
-# p is REQUIRED
 $function \f p: {
     $x add(p, "x")
     $y1 add(p, "y1")
     $y2 add(p, "y2")
     $ap add(p, "_")
-    $ep add(p, "__")
     ["function", add("Func(", add(f, ")")),
         forall(x, forall(y1, forall(y2,
-            implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ep)))))]
+            implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ap)))))]
 }
 
 # product(s, a, b, p): s = a x b
-# forall z. z in s iff exists x. exists y. (x in a & y in b & ordered_pair(z, x, y))
-# p is REQUIRED
 $product \s a b p: {
     $z add(p, "z")
     $x add(p, "x")
