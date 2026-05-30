@@ -185,6 +185,16 @@ from theorems.sets.domain_exists import domain_exists
 $_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "___"))))
 $_ print("domain_exists ok")
 
+from theorems.sets.domain_unique import domain_unique
+$_ qed(domain_unique,
+    forall("f", forall("s1", forall("s2",
+        implies(domain("s1","f"), implies(domain("s2","f"), eqv("s1","s2","_")))))))
+$_ print("domain_unique ok")
+
+from theorems.sets.unique_domain import unique_domain
+$_ qed(unique_domain, forall("f", exists_unique(\v: domain(v, "f", "_"))))
+$_ print("unique_domain ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union
