@@ -22,9 +22,9 @@ from theorems.sets.big_union_exists import big_union_exists
 
 $union_exists {
     # Key formulas
-    $ps pair_set("p", "a", "b")
-    $bu big_union("u", "p")
-    $un union("u", "a", "b")
+    $ps pair_set("p", "a", "b", "_")
+    $bu big_union("u", "p", "_")
+    $un union("u", "a", "b", "_")
     $goal exists("u", un)
     $xa mem("x", "a")
     $xb mem("x", "b")
@@ -40,8 +40,8 @@ $union_exists {
     $iff_bu iff(xu, ex_y)
 
     # pair_set body: iff(mem(y,p), or(eqv(y,a), eqv(y,b)))
-    $eqv_ya eqv("y", "a", "__")
-    $eqv_yb eqv("y", "b", "__")
+    $eqv_ya eqv("y", "a", "_")
+    $eqv_yb eqv("y", "b", "_")
     $or_eqv or(eqv_ya, eqv_yb)
     $iff_ps iff(yp, or_eqv)
 
@@ -66,7 +66,7 @@ $union_exists {
     $got_et_a apply_thm(eq_transfer, _et, ["y","a","x"], [])
     $iff_xy_xa iff(xy, xa)
     $imp_eqva_iff implies(eqv_ya, iff_xy_xa)
-    # Need: eqv(y,a,"__") but eq_transfer gives eqv(y,a,"_")
+    # Need: eqv(y,a,"_") but eq_transfer gives eqv(y,a,"_")
     # They are alpha-equivalent so same() matches
     $got_xy_xa mp(got_et_a, ax([eqv_ya], [eqv_ya], eqv_ya), eqv_ya, iff_xy_xa, [], [eqv_ya])
     $got_xy_to_xa mp(iff_elim_left(xy, xa, []), got_xy_xa, iff_xy_xa, implies(xy, xa), [], [eqv_ya])
@@ -134,10 +134,10 @@ $union_exists {
     # For a: eqv_reflexive(a) -> or_intro_left -> or_eqv -> yp
     # eqv(a, a) -> a∈p
     $_er head(nth(eqv_reflexive, 2))
-    $eqv_aa eqv("a", "a", "__")
+    $eqv_aa eqv("a", "a", "_")
     $got_eqv_aa apply_thm(eqv_reflexive, _er, ["a"], [])
-    $or_eqv_a or(eqv("a", "a", "__"), eqv("a", "b", "__"))
-    $got_or_a2 mp(or_intro_left(eqv("a","a","__"), eqv("a","b","__"), []), got_eqv_aa, eqv_aa, or_eqv_a, [], [])
+    $or_eqv_a or(eqv("a", "a", "_"), eqv("a", "b", "_"))
+    $got_or_a2 mp(or_intro_left(eqv("a","a","_"), eqv("a","b","_"), []), got_eqv_aa, eqv_aa, or_eqv_a, [], [])
 
     # ps instantiated at a: iff(mem(a,p), or(eqv(a,a), eqv(a,b)))
     $ap mem("a", "p")
@@ -159,10 +159,10 @@ $union_exists {
     # [ps, bu, xa] |- [xu]
 
     # For b: similar
-    $eqv_bb eqv("b", "b", "__")
+    $eqv_bb eqv("b", "b", "_")
     $got_eqv_bb apply_thm(eqv_reflexive, _er, ["b"], [])
-    $or_eqv_b or(eqv("b", "a", "__"), eqv("b", "b", "__"))
-    $got_or_b2 mp(or_intro_right(eqv("b","a","__"), eqv("b","b","__"), []), got_eqv_bb, eqv_bb, or_eqv_b, [], [])
+    $or_eqv_b or(eqv("b", "a", "_"), eqv("b", "b", "_"))
+    $got_or_b2 mp(or_intro_right(eqv("b","a","_"), eqv("b","b","_"), []), got_eqv_bb, eqv_bb, or_eqv_b, [], [])
 
     $bp mem("b", "p")
     $iff_ps_b iff(bp, or_eqv_b)
@@ -205,7 +205,7 @@ $union_exists {
     # [ps, bu] |- [union(u,a,b)]
 
     # eir: exists u. union(u,a,b)
-    $got_ex eir(got_fa, \u: union("u","a","b"), "u", "u", [ps, bu])
+    $got_ex eir(got_fa, \u: union("u","a","b","_"), "u", "u", [ps, bu])
     # [ps, bu] |- [goal]
 
     # eel on big_union: [ps, bu_axiom_ctx] |- [goal]
@@ -226,11 +226,11 @@ $union_exists {
     # eel with eigenvariable u → big_union(u, p) on left
 
     # Step 1: from got_ex, eel on bu
-    $got_eel_bu eel(got_ex, \u: big_union("u","p"), "u", "u", [ps, bu], goal)
+    $got_eel_bu eel(got_ex, \u: big_union("u","p","_"), "u", "u", [ps, bu], goal)
     # [ps, exists(u, big_union(u,p))] |- [goal]
 
     # Step 2: get exists(u, big_union(u, p)) from big_union_exists
-    $ex_bu exists("u", big_union("u", "p"))
+    $ex_bu exists("u", big_union("u", "p", "_"))
     $bu_f2 head(nth(big_union_exists, 2))
     $got_bu_ex apply_thm(big_union_exists, bu_f2, ["p"], bu_ctx)
     # bu_ctx |- [ex_bu]
@@ -239,7 +239,7 @@ $union_exists {
     # [ps, bu_ctx...] |- [goal]
 
     # Step 3: eel on ps
-    $got_eel_ps eel(got_cut_bu, \p: pair_set("p","a","b"), "p", "p",
+    $got_eel_ps eel(got_cut_bu, \p: pair_set("p","a","b","_"), "p", "p",
         add([ps], bu_ctx), goal)
     # [exists(p, pair_set(p,a,b)), bu_ctx...] |- [goal]
 
@@ -247,9 +247,8 @@ $union_exists {
     # Pairing = forall(x, forall(y, exists(b, ...))).
     # Instantiating y with "b" clashes with bound "b" in exists.
     # Use renamed formula with "_b" for the existential var.
-    $ex_ps exists("p", pair_set("p", "a", "b"))
-    $_ps_f forall("x", forall("y", exists("_b", forall("z",
-        iff(mem("z","_b"), or(eqv("z","x","_"), eqv("z","y","_")))))))
+    $ex_ps exists("p", pair_set("p", "a", "b", "_"))
+    $_ps_f head(nth(pair_set_exists, 2))
     $ps_ctx nth(pair_set_exists, 1)
     $got_ps_ex apply_thm(pair_set_exists, _ps_f, ["a","b"], ps_ctx)
     # ps_ctx |- [ex_ps]

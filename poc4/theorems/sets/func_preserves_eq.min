@@ -11,52 +11,33 @@ from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
 from theorems.sets.func_unique_thm import func_unique_thm
 
 # |- sv -> eqv(x1,x2) -> apply(f,x1,y1) -> apply(f,x2,y2) -> eqv(y1,y2)
-# sv = single-valued(f)
-# Strategy:
-# 1. eqv(x1,x2) → eqv(x2,x1) (symmetric)
-# 2. eqv(y2,y2) (reflexive)
-# 3. ordpair_eq_transfer: eqv(x2,x1) → eqv(y2,y2) → op(p,x2,y2) → op(p,x1,y2)
-# 4. Transfer apply(f,x2,y2) to apply(f,x1,y2) via existential
-# 5. func_unique_thm: sv → apply(f,x1,y1) → apply(f,x1,y2) → eqv(y1,y2)
-
 $func_preserves_eq {
-    $sv forall("_x", forall("_y1", forall("_y2",
-        implies(and(apply("f","_x","_y1","__"), apply("f","_x","_y2","__")), eqv("_y1","_y2","___")))))
-    $eqv_x eqv("x1", "x2", "____")
+    $sv forall("r", forall("r1", forall("r2",
+        implies(and(apply("f","r","r1","_"), apply("f","r","r2","_")), eqv("r1","r2","_")))))
+    $eqv_x eqv("x1", "x2", "_")
     $app1 apply("f", "x1", "y1", "_")
     $app2 apply("f", "x2", "y2", "_")
     $app12 apply("f", "x1", "y2", "_")
-    $eqv_y eqv("y1", "y2", "____")
+    $eqv_y eqv("y1", "y2", "_")
 
-    # Step 1: eqv(x2, x1) from eqv(x1, x2)
     $_es head(nth(eqv_symmetric, 2))
-    $eqv_x_rev eqv("x2", "x1", "____")
+    $eqv_x_rev eqv("x2", "x1", "_")
     $got_eqv_sym mp(apply_thm(eqv_symmetric, _es, ["x1","x2"], []),
         ax([eqv_x], [eqv_x], eqv_x), eqv_x, eqv_x_rev, [], [eqv_x])
-    # [eqv_x] |- eqv(x2, x1)
 
-    # Step 2: eqv(y2, y2) from reflexive
     $_er head(nth(eqv_reflexive, 2))
-    $eqv_yy eqv("y2", "y2", "____")
+    $eqv_yy eqv("y2", "y2", "_")
     $got_eqv_refl apply_thm(eqv_reflexive, _er, ["y2"], [])
-    # [] |- eqv(y2, y2)
 
-    # Step 3: ordpair_eq_transfer: eqv(x2,x1) → eqv(y2,y2) → op(p,x2,y2) → op(p,x1,y2)
-    $_oet forall("_t", forall("_a", forall("_b", forall("_c", forall("_d",
-        implies(eqv("_a","_c","____"), implies(eqv("_b","_d","____"),
-            implies(ordered_pair("_t","_a","_b","__"), ordered_pair("_t","_c","_d","__")))))))))
-    $op2 ordered_pair("p", "x2", "y2", "__")
-    $op12 ordered_pair("p", "x1", "y2", "__")
+    $_oet head(nth(ordpair_eq_transfer, 2))
+    $op2 ordered_pair("p", "x2", "y2", "_")
+    $op12 ordered_pair("p", "x1", "y2", "_")
     $got_oet apply_thm(ordpair_eq_transfer, _oet, ["p","x2","y2","x1","y2"], [])
     $got_op12 mp(mp(mp(got_oet,
         got_eqv_sym, eqv_x_rev, implies(eqv_yy, implies(op2, op12)), [], [eqv_x]),
         got_eqv_refl, eqv_yy, implies(op2, op12), [eqv_x], []),
         ax([op2], [op2], op2), op2, op12, [eqv_x], [op2])
-    # [eqv_x, op2] |- op12
 
-    # Step 4: Transfer apply(f,x2,y2) to apply(f,x1,y2)
-    # apply(f,x2,y2) = exists(p, and(op(p,x2,y2), p∈f))
-    # From op2 and p∈f, get op12 and p∈f → and(op12, p∈f) → apply(f,x1,y2)
     $pf mem("p", "f")
     $and2 and(op2, pf)
     $and12 and(op12, pf)
@@ -66,35 +47,25 @@ $func_preserves_eq {
     $got_op2 mp(and_elim_left(op2, pf, []),
         ax([and2], [and2], and2), and2, op2, [], [and2])
 
-    # op12 from got_op12 with op2 from and2
     $got_op12_from_and cut_c(got_op2, got_op12, op2, [and2], [eqv_x, op2], op12)
-    # [eqv_x, and2] |- op12
 
-    # and(op12, pf)
     $got_and12 mp(mp(and_intro(op12, pf, []),
         got_op12_from_and, op12, implies(pf, and12), [], [eqv_x, and2]),
         got_pf, pf, and12, [eqv_x, and2], [and2])
-    # [eqv_x, and2] |- and12
 
-    # eir: exists p. and12 = apply(f,x1,y2)
-    $got_app12 eir(got_and12, \p: and(ordered_pair(p,"x1","y2","__"), mem(p,"f")),
+    $got_app12 eir(got_and12, \p: and(ordered_pair(p,"x1","y2","_"), mem(p,"f")),
         "p", "p", [eqv_x, and2])
-    # [eqv_x, and2] |- app12
 
-    # eel on p from app2
     $got_app12_from_app2 eel(got_app12,
-        \p: and(ordered_pair(p,"x2","y2","__"), mem(p,"f")),
+        \p: and(ordered_pair(p,"x2","y2","_"), mem(p,"f")),
         "p", "p", [eqv_x, and2], app12)
-    # [eqv_x, app2] |- app12
 
-    # Step 5: func_unique_thm: sv → app1 → app12 → eqv(y1,y2)
     $_fut head(nth(func_unique_thm, 2))
     $got_fut apply_thm(func_unique_thm, _fut, ["f","x1","y1","y2"], [])
     $got_eqv mp(mp(mp(got_fut,
         ax([sv], [sv], sv), sv, implies(app1, implies(app12, eqv_y)), [], [sv]),
         ax([app1], [app1], app1), app1, implies(app12, eqv_y), [sv], [app1]),
         got_app12_from_app2, app12, eqv_y, [sv, app1], [eqv_x, app2])
-    # [sv, app1, eqv_x, app2] |- eqv_y
 
     $imp4 implies(app2, eqv_y)
     $s1 ir(got_eqv, [sv, app1, eqv_x], [imp4], imp4)

@@ -1,52 +1,27 @@
 from core.derived import mem, implies, forall, and, eqv
 from vocab.functions import apply, function
 from tactics import ax, fl, ir, mp, apply_thm, close
-from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.and_intro import and_intro
 
-# |- function(f) -> apply(f,x,y1) -> apply(f,x,y2) -> eqv(y1,y2)
-# function(f) = and(relation(f), single_valued(f))
-# single_valued = forall x, y1, y2. and(apply(f,x,y1), apply(f,x,y2)) -> eqv(y1,y2)
+# |- sv -> apply(f,x,y1) -> apply(f,x,y2) -> eqv(y1,y2)
+# sv = forall(x, forall(y1, forall(y2, implies(and(apply(f,x,y1), apply(f,x,y2)), eqv(y1,y2)))))
 $func_unique_thm {
-    $func function("f")
     $app1 apply("f", "x", "y1", "_")
     $app2 apply("f", "x", "y2", "_")
     $and_apps and(app1, app2)
-    $eqv_y eqv("y1", "y2", "__")
+    $eqv_y eqv("y1", "y2", "_")
 
-    # Extract single_valued from function
-    # function(f, "_") = and(relation, sv) with prefix "_"
-    # sv uses prefix "_": forall("_x", forall("_y1", forall("_y2",
-    #   implies(and(apply(f,"_x","_y1","__"), apply(f,"_x","_y2","__")), eqv("_y1","_y2","___")))))
-    $func_p function("f", "_")
-    $rel_f forall("_x", forall("_y1", forall("_y2",
-        implies(and(apply("f","_x","_y1","__"), apply("f","_x","_y2","__")), eqv("_y1","_y2","___")))))
-    # Hmm, relation is complex. Let me just use the raw function expansion.
-    # function(f) = forall(x, forall(y1, forall(y2,
-    #   implies(and(apply(f,x,y1), apply(f,x,y2)), eqv(y1,y2)))))
-    # With default prefix: x="x", y1="y1", y2="y2", apply prefix="_", eqv prefix="__"
-    $sv forall("_x", forall("_y1", forall("_y2",
-        implies(and(apply("f","_x","_y1","__"), apply("f","_x","_y2","__")), eqv("_y1","_y2","___")))))
+    # sv: single-valued condition (same structure as function but without relation)
+    $sv forall("r", forall("r1", forall("r2",
+        implies(and(apply("f","r","r1","_"), apply("f","r","r2","_")), eqv("r1","r2","_")))))
 
-    # func = sv (function without relation for now, or extract from and)
-    # Actually function has and(relation, sv). Let me just instantiate sv from func.
-    # For simplicity, treat function as just sv (they're alpha-equiv since function = sv when no relation wrapper)
-    # Wait, function DOES include relation as and(relation, sv).
-
-    # Let me just use func directly as the formula and instantiate from it.
-    # func = forall(x, forall(y1, forall(y2, implies(and(app(f,x,y1), app(f,x,y2)), eqv(y1,y2)))))
-    # Instantiate with x, y1, y2: and(app1, app2) -> eqv(y1, y2)
     $got_sv apply_thm(ax([sv], [sv], sv), sv, ["x","y1","y2"], [sv])
-    # [sv] |- implies(and_apps, eqv_y)
 
-    # mp with and_intro(app1, app2)
     $got_and mp(mp(and_intro(app1, app2, []),
         ax([app1], [app1], app1), app1, implies(app2, and_apps), [], [app1]),
         ax([app2], [app2], app2), app2, and_apps, [app1], [app2])
-    # [app1, app2] |- and_apps
 
     $got_eqv mp(got_sv, got_and, and_apps, eqv_y, [sv], [app1, app2])
-    # [sv, app1, app2] |- eqv_y
 
     $imp3 implies(app2, eqv_y)
     $s1 ir(got_eqv, [sv, app1], [imp3], imp3)
