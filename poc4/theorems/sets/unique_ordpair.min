@@ -8,23 +8,22 @@ from theorems.sets.ordpair_exists import ordpair_exists
 
 # Pairing |- forall(a, forall(b, exists_unique(p, ordered_pair(p, a, b))))
 $unique_ordpair {
-    $body_fn \v: ordered_pair(v, "a", "b", "_")
-    $eu exists_unique(body_fn)
-    $op_u ordered_pair("u", "a", "b", "_")
-    $imp_inner implies(ordered_pair("y", "a", "b", "_"), eqv("u", "y"))
-    $ou_f forall("a", forall("b", forall("s1", forall("s2",
-        implies(ordered_pair("s1","a","b"), implies(ordered_pair("s2","a","b"), eqv("s1","s2","_")))))))
-    $ou_inst apply_thm(ordpair_unique, ou_f, ["a","b","u","y"], [])
+    $body_fn \v p: ordered_pair(v, "a", "b", p)
+    $eu exists_unique(body_fn, "_")
+    $op_u body_fn("u", "_")
+    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $_ou_f head(nth(ordpair_unique, 2))
+    $ou_inst apply_thm(ordpair_unique, _ou_f, ["a","b","u","y"], [])
     $got_inner mp(ou_inst, ax([op_u], [op_u], op_u), op_u, imp_inner, [], [op_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [op_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([op_u], [op_u], op_u), op_u, implies(fa_uniq, eu), [], [op_u]),
                got_fa, fa_uniq, eu, [op_u], [op_u])
-    $got_ex eel(got_eu, body_fn, "p", "u", [op_u], eu)
-    $pa_f Pairing
-    $ex_op exists("p", ordered_pair("p", "a", "b"))
-    $oe_f forall("a", forall("b", exists("p", ordered_pair("p", "a", "b"))))
-    $got_oe apply_thm(ordpair_exists, oe_f, ["a","b"], [pa_f])
-    $got_cut cut_c(got_oe, got_ex, ex_op, [pa_f], [ex_op], eu)
-    close(got_cut, [pa_f], [eu], ["b","a"])
+    $got_ex eel(got_eu, \v: body_fn(v, "_"), "p", "u", [op_u], eu)
+    $_oe_f head(nth(ordpair_exists, 2))
+    $oe_ctx nth(ordpair_exists, 1)
+    $got_oe apply_thm(ordpair_exists, _oe_f, ["a","b"], oe_ctx)
+    $ex_op exists("p", body_fn("p", "_"))
+    $got_cut cut_c(got_oe, got_ex, ex_op, oe_ctx, [ex_op], eu)
+    close(got_cut, oe_ctx, [eu], ["b","a"])
 }
