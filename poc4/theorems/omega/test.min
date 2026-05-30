@@ -1,0 +1,6 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
+from vocab.omega import inductive
+from theorems.omega.infinity_gives_inductive import infinity_gives_inductive
+
+$_ qed(infinity_gives_inductive, exists("b", inductive("b")))
+$_ print("infinity_gives_inductive ok")
