@@ -7,25 +7,24 @@ from theorems.sets.set_spec_unique import set_spec_unique
 from theorems.sets.successor_exists import successor_exists
 
 $unique_successor {
-    $cond_fn \v: or(mem(v, "a"), eqv(v, "a", "__"))
-    $body_fn \v: successor(v, "a", "_")
-    $su_u successor("u", "a", "_")
-    $eu exists_unique(body_fn)
-    $imp_inner implies(successor("y", "a", "_"), eqv("u", "y"))
+    $cond_fn \v p: or(mem(v, "a"), eqv(v, "a", p))
+    $body_fn \v p: successor(v, "a", p)
+    $eu exists_unique(body_fn, "_")
+    $su_u body_fn("u", "_")
+    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $ssu set_spec_unique(cond_fn, [])
-    $ssu_f forall("s1", forall("s2", implies(successor("s1","a","_"), implies(successor("s2","a","_"), eqv("s1","s2","_")))))
-    $ssu_inst apply_thm(ssu, ssu_f, ["u","y"], [])
+    $_ssu_f head(nth(ssu, 2))
+    $ssu_inst apply_thm(ssu, _ssu_f, ["u","y"], [])
     $got_inner mp(ssu_inst, ax([su_u], [su_u], su_u), su_u, imp_inner, [], [su_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [su_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([su_u], [su_u], su_u), su_u, implies(fa_uniq, eu), [], [su_u]),
                got_fa, fa_uniq, eu, [su_u], [su_u])
-    $got_ex eel(got_eu, body_fn, "s", "u", [su_u], eu)
-    $pa_f Pairing
-    $un_f Union
-    $ex_su exists("s", successor("s", "a"))
-    $se_f forall("a", exists("s", successor("s", "a")))
-    $got_se apply_thm(successor_exists, se_f, ["a"], [pa_f, un_f])
-    $got_cut cut_c(got_se, got_ex, ex_su, [pa_f, un_f], [ex_su], eu)
-    close(got_cut, [pa_f, un_f], [eu], ["a"])
+    $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [su_u], eu)
+    $_se_f head(nth(successor_exists, 2))
+    $se_ctx nth(successor_exists, 1)
+    $got_se apply_thm(successor_exists, _se_f, ["a"], se_ctx)
+    $ex_su exists("s", body_fn("s", "_"))
+    $got_cut cut_c(got_se, got_ex, ex_su, se_ctx, [ex_su], eu)
+    close(got_cut, se_ctx, [eu], ["a"])
 }
