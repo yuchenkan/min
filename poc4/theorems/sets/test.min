@@ -222,6 +222,12 @@ $_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
     implies(sv, implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","__")))))))))
 $_ print("func_unique_thm ok")
 
+from theorems.sets.func_preserves_eq import func_preserves_eq
+$_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
+    implies(sv, implies(eqv("x1","x2","____"), implies(apply("f","x1","y1","_"),
+        implies(apply("f","x2","y2","_"), eqv("y1","y2","____")))))))))))
+$_ print("func_preserves_eq ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union
