@@ -43,13 +43,15 @@ $_show_list \self lst: ?(eq(len(lst), 0), "",
         add(show(head(lst)), add(", ", self(self, tail(lst))))))
 
 # proof: flat formulas, then call kernel bridge
+# returns [kernel_proof, left, right]
 $proof \left right rule premises principal term: {
     $fl \f: flat(flat, f)
+    $kps _map(_map, \p: nth(p, 0), premises)
     $result _do_proof(
         _map(_map, fl, left),
         _map(_map, fl, right),
-        rule, premises, fl(principal), term)
-    ?(nth(result, 0), nth(result, 1), {
+        rule, kps, fl(principal), term)
+    ?(nth(result, 0), [nth(result, 1), left, right], {
         $_ print(add("proof failed: ", rule))
         $_ print(add("  left:  ", _show_list(_show_list, left)))
         $_ print(add("  right: ", _show_list(_show_list, right)))
@@ -61,7 +63,7 @@ $proof \left right rule premises principal term: {
 
 # qed: flat expected, then call kernel bridge
 $qed \p expected system: {
-    $result _do_qed(p, flat(flat, expected), ?(eq(system, None), "z", system))
+    $result _do_qed(nth(p, 0), flat(flat, expected), ?(eq(system, None), "z", system))
     ?(nth(result, 0), expected, {
         $_ print("qed failed:")
         $_ print(add("  expected: ", show(expected)))
