@@ -100,3 +100,7 @@ $op \t a b: ordered_pair(t, a, b)
 $_ qed(kuratowski, forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
     implies(op("t1","a","b"), implies(op("t2","c","d"), implies(eqv("t1","t2","_"), and(eqv("a","c"), eqv("b","d"))))))))))))
 $_ print("kuratowski ok")
+
+from theorems.sets.ordpair_exists import ordpair_exists
+$_ qed(ordpair_exists, forall("a", forall("b", exists("p", ordered_pair("p", "a", "b")))))
+$_ print("ordpair_exists ok")
