@@ -30,3 +30,12 @@ $_ print("omega_succ_closed ok")
 from theorems.omega.omega_exists import omega_exists
 $_ qed(omega_exists, exists("w", omega("w")))
 $_ print("omega_exists ok")
+
+from theorems.omega.omega_unique import omega_unique
+$_ qed(omega_unique,
+    forall("w1", forall("w2", implies(omega("w1"), implies(omega("w2"), eqv("w1","w2"))))))
+$_ print("omega_unique ok")
+
+from theorems.omega.unique_omega import unique_omega
+$_ qed(unique_omega, exists_unique(\v: omega(v, "_")))
+$_ print("unique_omega ok")

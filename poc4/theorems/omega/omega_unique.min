@@ -1,0 +1,56 @@
+from core.derived import mem, implies, forall, eqv
+from vocab.sets import subset
+from vocab.omega import inductive, omega
+from tactics import ax, ir, mp, apply_thm, close
+from theorems.omega.omega_is_inductive import omega_is_inductive
+from theorems.omega.omega_smallest_inductive import omega_smallest_inductive
+from theorems.sets.subset_antisymmetric import subset_antisymmetric
+
+# |- omega(w1) -> omega(w2) -> eqv(w1, w2)
+$omega_unique {
+    $om1 omega("w1")
+    $om2 omega("w2")
+    $ind1 inductive("w1", "_")
+    $ind2 inductive("w2", "_")
+    $sub12 subset("w1", "w2")
+    $sub21 subset("w2", "w1")
+    $eqv12 eqv("w1", "w2")
+
+    # omega_is_inductive instantiated
+    $_oi head(nth(omega_is_inductive, 2))
+    $got_ind1 mp(apply_thm(omega_is_inductive, _oi, ["w1"], []),
+        ax([om1], [om1], om1), om1, ind1, [], [om1])
+    $got_ind2 mp(apply_thm(omega_is_inductive, _oi, ["w2"], []),
+        ax([om2], [om2], om2), om2, ind2, [], [om2])
+
+    # omega_smallest_inductive: omega(w) -> inductive(c) -> subset(w,c)
+    $_os head(nth(omega_smallest_inductive, 2))
+    # w1 sub w2: omega(w1) -> inductive(w2) -> subset(w1,w2)
+    # _os forall order is ∀c.∀w. so [c_val, w_val]
+    $got_os12 apply_thm(omega_smallest_inductive, _os, ["w2", "w1"], [])
+    $got_sub12 mp(mp(got_os12,
+        ax([om1], [om1], om1), om1, implies(ind2, sub12), [], [om1]),
+        got_ind2, ind2, sub12, [om1], [om2])
+    # [om1, om2] |- sub12
+
+    # w2 sub w1: omega(w2) -> inductive(w1) -> subset(w2,w1)
+    $got_os21 apply_thm(omega_smallest_inductive, _os, ["w1", "w2"], [])
+    $got_sub21 mp(mp(got_os21,
+        ax([om2], [om2], om2), om2, implies(ind1, sub21), [], [om2]),
+        got_ind1, ind1, sub21, [om2], [om1])
+    # [om1, om2] |- sub21
+
+    # subset_antisymmetric: sub12 -> sub21 -> eqv12
+    $_sa head(nth(subset_antisymmetric, 2))
+    $got_sa apply_thm(subset_antisymmetric, _sa, ["w1", "w2"], [])
+    $got_eqv mp(mp(got_sa,
+        got_sub12, sub12, implies(sub21, eqv12), [], [om1, om2]),
+        got_sub21, sub21, eqv12, [om1, om2], [om1, om2])
+    # [om1, om2] |- eqv12
+
+    $imp2 implies(om2, eqv12)
+    $s1 ir(got_eqv, [om1], [imp2], imp2)
+    $top implies(om1, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["w2", "w1"])
+}
