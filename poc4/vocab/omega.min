@@ -1,0 +1,24 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from vocab.sets import empty, successor, subset
+
+# inductive(a, p): (forall e. empty(e) -> e in a) and (forall x. x in a -> forall s. successor(s,x) -> s in a)
+$inductive \a p: {
+    $e ?(eq(p, None), "e", add(p, "e"))
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $s ?(eq(p, None), "s", add(p, "s"))
+    $ep ?(eq(p, None), "_", add(p, "_"))
+    $sp ?(eq(p, None), "__", add(p, "__"))
+    $part1 forall(e, implies(empty(e, ep), mem(e, a)))
+    $part2 forall(x, implies(mem(x, a), forall(s, implies(successor(s, x, sp), mem(s, a)))))
+    ["inductive", add("Ind(", add(a, ")")), and(part1, part2)]
+}
+
+# omega(w, p): inductive(w) and forall x. (inductive(x) -> subset(w, x))
+$omega \w p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $ip ?(eq(p, None), "_", add(p, "_"))
+    $sp ?(eq(p, None), "__", add(p, "__"))
+    $part1 inductive(w, ip)
+    $part2 forall(x, implies(inductive(x, ip), subset(w, x, sp)))
+    ["omega", add(w, add(" = ", "w")), and(part1, part2)]
+}

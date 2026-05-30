@@ -151,6 +151,12 @@ $_ qed(eq_in_eq, forall("z", forall("x1", forall("x2",
     implies(eqv("x1","x2","_"), iff(eqv("z","x1","__"), eqv("z","x2","__")))))))
 $_ print("eq_in_eq ok")
 
+from theorems.sets.successor_unique import successor_unique
+$_ qed(successor_unique,
+    forall("a", forall("s1", forall("s2",
+        implies(successor("s1","a"), implies(successor("s2","a"), eqv("s1","s2","_")))))))
+$_ print("successor_unique ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union
