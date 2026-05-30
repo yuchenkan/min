@@ -34,7 +34,7 @@ $infinity_gives_inductive {
     $emp_e empty("e", "_")
     $e0_in_b mem("e0", "b")
     $e_in_b mem("e", "b")
-    $eqv_e0_e eqv("e0", "e", "__")
+    $eqv_e0_e eqv("e0", "e", "_")
 
     # unique_empty: empty(e0) -> empty(e) -> eqv(e0, e)
     $_ue head(nth(empty_unique, 2))
@@ -74,11 +74,11 @@ $infinity_gives_inductive {
     # From infinity: forall y. y in b -> exists s0. s0 in b & succ(s0, y)
     # Convert exists s0 to forall s via unique_successor + ext_substitution
 
-    $succ_s0 successor("s0", "x", "__")
-    $succ_s successor("s", "x", "__")
+    $succ_s0 successor("s0", "x", "_")
+    $succ_s successor("s", "x", "_")
     $s0_in_b mem("s0", "b")
     $s_in_b mem("s", "b")
-    $eqv_s0_s eqv("s0", "s", "___")
+    $eqv_s0_s eqv("s0", "s", "_")
 
     # successor_unique: succ(s0,x) -> succ(s,x) -> eqv(s0,s)
     # The formula has bound var "x" in successor expansion, so use renamed formula
@@ -120,7 +120,7 @@ $infinity_gives_inductive {
     $x_in_b mem("x", "b")
     $imp_x_fas implies(x_in_b, fa_succ_in)
     $fa_x forall("x", imp_x_fas)
-    $ind_b inductive("b")
+    $ind_b inductive("b", "_")
 
     # From infinity's second part: forall y. y in b -> exists s0. s0 in b & succ(s0,y)
     # We have the witness s0. eel on s0:
@@ -140,7 +140,7 @@ $infinity_gives_inductive {
 
     # eel on s0: [ext_f, exists(s0, and_s0)] |- [fa_succ_in]
     $ex_s0 exists("s0", and_s0)
-    $got_fa_s3 eel(got_fa_s2, \s0: and(mem(s0, "b"), successor(s0, "x", "__")), "s0", "s0",
+    $got_fa_s3 eel(got_fa_s2, \s0: and(mem(s0, "b"), successor(s0, "x", "_")), "s0", "s0",
         [ext_f, and_s0], fa_succ_in)
     # [ext_f, ex_s0] |- [fa_succ_in]
 
@@ -161,7 +161,7 @@ $infinity_gives_inductive {
     # inf_part2 instantiated with x: x_in_b -> exists(s, and(s_in_b_inf, succ_like))
     # The exists body from infinity uses forall("w", iff(mem("w","s"), or(mem("w","y"), eqv("w","y","_"))))
     # After y->x subst: forall("w", iff(mem("w","s"), or(mem("w","x"), eqv("w","x","_"))))
-    # This IS successor("s","x","_") ... but our succ_s0 uses "__" prefix.
+    # This IS successor("s","x","_") ... but our succ_s0 uses "_" prefix.
     # Alpha-equiv should handle it.
 
     # For now, let's assume we have:
@@ -266,7 +266,7 @@ $infinity_gives_inductive {
         ax([and_s0_raw], [and_s0_raw], and_s0_raw), and_s0_raw, succ_s0_raw, [], [and_s0_raw])
 
     # got_fa_s: [ext_f, succ_s0, s0_in_b] |- [fa_succ_in]
-    # succ_s0 uses "__" prefix, succ_s0_raw uses "_" prefix. Alpha-equiv.
+    # succ_s0 uses "_" prefix, succ_s0_raw uses "_" prefix. Alpha-equiv.
     $got_fas_raw cut_c(got_s0b,
         cut_c(got_succ_s0r, got_fa_s, succ_s0, [and_s0_raw], [ext_f, succ_s0, s0_in_b], fa_succ_in),
         s0_in_b, [and_s0_raw], [ext_f, and_s0_raw], fa_succ_in)
@@ -313,7 +313,7 @@ $infinity_gives_inductive {
 
     # eir: exists b. inductive(b)
     $goal exists("b", ind_b)
-    $got_ex eir(got_ind2, \b: inductive(b), "b", "b", [ext_f, inf_conj])
+    $got_ex eir(got_ind2, \b: inductive(b, "_"), "b", "b", [ext_f, inf_conj])
     # [ext_f, inf_conj] |- [goal]
 
     # eel on b from infinity:

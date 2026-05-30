@@ -1,51 +1,50 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed, separation
 from vocab.sets import empty, successor, subset
 from vocab.omega import inductive, omega
 from vocab.logic import exists_unique
 
 from theorems.omega.infinity_gives_inductive import infinity_gives_inductive
-$_ qed(infinity_gives_inductive, exists("b", inductive("b")))
+$_ qed(infinity_gives_inductive, exists("b", inductive("b", "_")))
 $_ print("infinity_gives_inductive ok")
 
 from theorems.omega.omega_is_inductive import omega_is_inductive
-$_ qed(omega_is_inductive, forall("w", implies(omega("w"), inductive("w"))))
+$_ qed(omega_is_inductive, forall("w", implies(omega("w", "_"), inductive("w", "_"))))
 $_ print("omega_is_inductive ok")
 
 from theorems.omega.omega_smallest_inductive import omega_smallest_inductive
 $_ qed(omega_smallest_inductive,
-    forall("c", forall("w", implies(omega("w"), implies(inductive("c", "_"), subset("w", "c", "__"))))))
+    forall("c", forall("w", implies(omega("w", "_"), implies(inductive("c", "_"), subset("w", "c", "_"))))))
 $_ print("omega_smallest_inductive ok")
 
 from theorems.omega.omega_contains_empty import omega_contains_empty
 $_ qed(omega_contains_empty,
-    forall("e", forall("w", implies(omega("w"), implies(empty("e", "__"), mem("e", "w"))))))
+    forall("e", forall("w", implies(omega("w", "_"), implies(empty("e", "_"), mem("e", "w"))))))
 $_ print("omega_contains_empty ok")
 
 from theorems.omega.omega_succ_closed import omega_succ_closed
 $_ qed(omega_succ_closed,
     forall("s", forall("n", forall("w",
-        implies(omega("w"), implies(mem("n","w"), implies(successor("s","n","___"), mem("s","w"))))))))
+        implies(omega("w", "_"), implies(mem("n","w"), implies(successor("s","n","_"), mem("s","w"))))))))
 $_ print("omega_succ_closed ok")
 
 from theorems.omega.omega_exists import omega_exists
-$_ qed(omega_exists, exists("w", omega("w")))
+$_ qed(omega_exists, exists("w", omega("w", "_")))
 $_ print("omega_exists ok")
 
 from theorems.omega.omega_unique import omega_unique
 $_ qed(omega_unique,
-    forall("w1", forall("w2", implies(omega("w1"), implies(omega("w2"), eqv("w1","w2"))))))
+    forall("w1", forall("w2", implies(omega("w1", "_"), implies(omega("w2", "_"), eqv("w1","w2", "_"))))))
 $_ print("omega_unique ok")
 
 from theorems.omega.unique_omega import unique_omega
-$_ qed(unique_omega, exists_unique(\v: omega(v, "_")))
+$_ qed(unique_omega, exists_unique(\v p: omega(v, p), "_"))
 $_ print("unique_omega ok")
 
 from theorems.omega.omega_induction import omega_induction
-from core.derived import separation
 $trivial_pred \v: mem(v, "w")
 $trivial_ind omega_induction(trivial_pred, ["w"])
 $_ qed(trivial_ind,
-    forall("w", implies(omega("w"), implies(
+    forall("w", implies(omega("w", "_"), implies(
         forall("e", implies(empty("e","_"), mem("e","w"))),
         implies(forall("n", implies(mem("n","w"), implies(mem("n","w"), forall("s", implies(successor("s","n","_"), mem("s","w")))))),
             forall("n", implies(mem("n","w"), mem("n","w"))))))))

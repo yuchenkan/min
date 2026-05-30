@@ -34,7 +34,7 @@ $omega_exists {
     $phi \x: forall("c", implies(inductive("c", "_"), mem(x, "c")))
 
     # Separation: ∀a. ∃w. ∀x. (x∈w ↔ x∈a ∧ phi(x))
-    $sep_f separation([], phi("_x"), "_")
+    $sep_f separation([], \x a p: phi(x), "_")
 
     # Instantiate sep with b: ∃w. ∀x. (x∈w ↔ x∈b ∧ phi(x))
     $sep_ctx [sep_f]
@@ -57,7 +57,7 @@ $omega_exists {
     # If inductive(d), x∈w → phi(x) → inductive(d)→x∈d → x∈d
     $ind_d inductive("d", "_")
     $xd mem("x", "d")
-    $sub_wd subset("w", "d", "___")
+    $sub_wd subset("w", "d", "_")
 
     # char instantiated: [char] |- iff(xw, and_xb_phi)
     $char_inst fl(ax([char_body], [char_body], char_body), [char], [char_body], char, "x")
@@ -104,7 +104,7 @@ $omega_exists {
     # --- Empty part ---
     $eb mem("e", "b")
     $ew mem("e", "w")
-    $emp empty("e", "__")
+    $emp empty("e", "_")
     $phi_e phi("e")
     $and_eb_phi and(eb, phi_e)
 
@@ -113,8 +113,8 @@ $omega_exists {
     # From inductive(c), extract part1: ∀e. empty(e)→e∈c
     # inductive(c,"_") = and(part1_c, part2_c)
     $ind_c inductive("c", "_")
-    $part1_c forall("_e", implies(empty("_e", "__"), mem("_e", "c")))
-    $part2_c forall("_x", implies(mem("_x", "c"), forall("_s", implies(successor("_s", "_x", "___"), mem("_s", "c")))))
+    $part1_c forall("q1", implies(empty("q1", "_"), mem("q1", "c")))
+    $part2_c forall("q2", implies(mem("q2", "c"), forall("q3", implies(successor("q3", "q2", "_"), mem("q3", "c")))))
 
     # For phi(e): ∀c. inductive(c) → e∈c
     # From inductive(c): part1_c instantiated with e: empty(e) → e∈c
@@ -135,8 +135,8 @@ $omega_exists {
     # For e∈b: same argument with ind_b
     # We have ind_b on left from infinity. Let's keep it as hypothesis for now.
     $ind_b inductive("b", "_")
-    $part1_b forall("_e", implies(empty("_e", "__"), mem("_e", "b")))
-    $part2_b forall("_x", implies(mem("_x", "b"), forall("_s", implies(successor("_s", "_x", "___"), mem("_s", "b")))))
+    $part1_b forall("q1", implies(empty("q1", "_"), mem("q1", "b")))
+    $part2_b forall("q2", implies(mem("q2", "b"), forall("q3", implies(successor("q3", "q2", "_"), mem("q3", "b")))))
     $got_p1b2 mp(and_elim_left(part1_b, part2_b, []),
         ax([ind_b], [ind_b], ind_b), ind_b, part1_b, [], [ind_b])
     $got_emp_eb apply_thm(got_p1b2, part1_b, ["e"], [ind_b])
@@ -177,7 +177,7 @@ $omega_exists {
     $nb mem("n", "b")
     $sw mem("s", "w")
     $sb mem("s", "b")
-    $succ_sn successor("s", "n", "___")
+    $succ_sn successor("s", "n", "_")
     $phi_n phi("n")
     $phi_s phi("s")
     $and_nb_phi and(nb, phi_n)
@@ -199,7 +199,7 @@ $omega_exists {
     # s∈b: from ind_b, nb, succ(s,n) → s∈b
     $got_p2b mp(and_elim_right(part1_b, part2_b, []),
         ax([ind_b], [ind_b], ind_b), ind_b, part2_b, [], [ind_b])
-    $fa_s_b forall("_s", implies(successor("_s", "n", "___"), mem("_s", "b")))
+    $fa_s_b forall("q3", implies(successor("q3", "n", "_"), mem("q3", "b")))
     $got_p2b_n apply_thm(got_p2b, part2_b, ["n"], [ind_b])
     $got_fas_b mp(got_p2b_n, got_nb, nb, fa_s_b, [ind_b], [char, nw])
     $imp_succ_sb implies(succ_sn, sb)
@@ -220,7 +220,7 @@ $omega_exists {
 
     $got_p2c mp(and_elim_right(part1_c, part2_c, []),
         ax([ind_c], [ind_c], ind_c), ind_c, part2_c, [], [ind_c])
-    $fa_s_c forall("_s", implies(successor("_s", "n", "___"), mem("_s", "c")))
+    $fa_s_c forall("q3", implies(successor("q3", "n", "_"), mem("q3", "c")))
     $got_p2c_n apply_thm(got_p2c, part2_c, ["n"], [ind_c])
     $got_fas_c mp(got_p2c_n, got_nc, nc, fa_s_c, [ind_c], [char, nw, ind_c])
     # Hmm, nc is on the left of got_nc but we need it for mp. Let me fix:
@@ -265,7 +265,7 @@ $omega_exists {
     # [ind_b, char] |- ∀n. n∈w → ∀s. succ(s,n) → s∈w
 
     # === Combine into inductive(w) ===
-    $ind_w inductive("w")
+    $ind_w inductive("w", "_")
     # inductive(w) = and(fa_emp_part, fa_succ_part)
     # fa_emp = ∀e. empty(e) → e∈w  (with inductive's prefix)
     # fa_succ = ∀x. x∈w → ∀s. succ(s,x) → s∈w (with inductive's prefix)
@@ -276,7 +276,7 @@ $omega_exists {
     # Alpha-equiv should handle the var name differences.
 
     $ind_part1 forall("e", implies(empty("e", "_"), mem("e", "w")))
-    $ind_part2 forall("x", implies(mem("x", "w"), forall("s", implies(successor("s", "x", "__"), mem("s", "w")))))
+    $ind_part2 forall("x", implies(mem("x", "w"), forall("s", implies(successor("s", "x", "_"), mem("s", "w")))))
 
     $got_ind mp(mp(and_intro(ind_part1, ind_part2, []),
         got_fa_emp, ind_part1, implies(ind_part2, ind_w), [], [char, ind_b]),
@@ -284,10 +284,10 @@ $omega_exists {
     # [char, ind_b] |- ind_w
 
     # === Combine into omega(w) ===
-    # omega(w) = and(inductive(w, "_"), ∀d. inductive(d,"_") → subset(w,d,"__"))
-    $om omega("w")
+    # omega(w) = and(inductive(w, "_"), ∀d. inductive(d,"_") → subset(w,d,"_"))
+    $om omega("w", "_")
     $om_part1 inductive("w", "_")
-    $om_part2 forall("d", implies(inductive("d", "_"), subset("w", "d", "__")))
+    $om_part2 forall("d", implies(inductive("d", "_"), subset("w", "d", "_")))
 
     # got_ind: [char, ind_b] |- ind_w
     # got_fa_smallest: [char] |- ∀d...
@@ -300,7 +300,7 @@ $omega_exists {
 
     # eir: exists w. omega(w)
     $goal exists("w", om)
-    $got_ex eir(got_om, \w: omega(w), "w", "w", [char, ind_b])
+    $got_ex eir(got_om, \w: omega(w, "_"), "w", "w", [char, ind_b])
     # [char, ind_b] |- goal
 
     # eel on w from separation
@@ -316,10 +316,10 @@ $omega_exists {
     # eel on b from infinity_gives_inductive
     $igi_ctx nth(infinity_gives_inductive, 1)
     $igi_f head(nth(infinity_gives_inductive, 2))
-    $got_eel_b eel(got_cut_sep, \b: inductive(b), "b", "b", [sep_f, ind_b], goal)
+    $got_eel_b eel(got_cut_sep, \b: inductive(b, "_"), "b", "b", [sep_f, ind_b], goal)
     # [sep_f, exists(b, ind_b)] |- goal
 
-    $ex_ind exists("b", inductive("b"))
+    $ex_ind exists("b", inductive("b", "_"))
     $got_cut_igi cut_c(infinity_gives_inductive, got_eel_b, ex_ind, igi_ctx, [sep_f, ex_ind], goal)
     # [igi_ctx..., sep_f] |- goal
 

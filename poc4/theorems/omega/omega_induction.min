@@ -21,7 +21,7 @@ from theorems.omega.omega_smallest_inductive import omega_smallest_inductive
 # vars: free variables to close over (besides w)
 
 $omega_induction \pred vars: {
-    $om omega("w")
+    $om omega("w", "_")
     $nw mem("n", "w")
     $pn pred("n")
 
@@ -72,24 +72,24 @@ $omega_induction \pred vars: {
 
     $imp_emp_es implies(emp, es)
     $got_fa_emp ir(got_es, [char, om, base_hyp], [imp_emp_es], imp_emp_es)
-    $ind_part1 forall("e", implies(empty("e","__"), mem("e","s")))
+    $ind_part1 forall("e", implies(empty("e","_"), mem("e","s")))
     $got_ind_p1 fr(got_fa_emp, [char, om, base_hyp], [ind_part1], ind_part1, "e")
     # [char, om, base_hyp] |- ind_part1
 
     # Part 2: ∀xx. xx∈s → ∀tt. succ(tt,xx) → tt∈s
-    # Use "xx","tt" to avoid clash with bound "x" in omega/inductive vocab
-    $xs mem("xx", "s")
-    $xw mem("xx", "w")
-    $px pred("xx")
-    $ts mem("tt", "s")
-    $tw mem("tt", "w")
-    $succ_tx successor("tt", "xx", "_")
-    $pt pred("tt")
+    # Use "m","r" to avoid clash with bound "x" in omega/inductive vocab
+    $xs mem("m", "s")
+    $xw mem("m", "w")
+    $px pred("m")
+    $ts mem("r", "s")
+    $tw mem("r", "w")
+    $succ_tx successor("r", "m", "_")
+    $pt pred("r")
     $and_xw_px and(xw, px)
 
     # From char at x: x∈s → x∈w ∧ pred(x)
     $iff_xs iff(xs, and_xw_px)
-    $char_x fl(ax([iff_xs], [iff_xs], iff_xs), [char], [iff_xs], char, "xx")
+    $char_x fl(ax([iff_xs], [iff_xs], iff_xs), [char], [iff_xs], char, "m")
     $got_and_x mp(mp(iff_elim_left(xs, and_xw_px, []),
         char_x, iff_xs, implies(xs, and_xw_px), [], [char]),
         ax([xs], [xs], xs), xs, and_xw_px, [char], [xs])
@@ -98,23 +98,21 @@ $omega_induction \pred vars: {
     # [char, xs] |- xw, px
 
     # From step_hyp: x∈w → pred(x) → ∀t. succ(t,x) → pred(t)
-    $fa_t forall("tt", implies(succ_tx, pt))
-    $step_inst apply_thm(ax([step_hyp], [step_hyp], step_hyp), step_hyp, ["xx"], [step_hyp])
+    $fa_t forall("r", implies(succ_tx, pt))
+    $step_inst apply_thm(ax([step_hyp], [step_hyp], step_hyp), step_hyp, ["m"], [step_hyp])
     $got_fa_t mp(mp(step_inst,
         got_xw, xw, implies(px, fa_t), [step_hyp], [char, xs]),
         got_px, px, fa_t, [step_hyp, char, xs], [char, xs])
     # [step_hyp, char, xs] |- ∀t. succ(t,x) → pred(t)
 
-    $got_pt apply_thm(got_fa_t, fa_t, ["tt"], [step_hyp, char, xs])
+    $got_pt apply_thm(got_fa_t, fa_t, ["r"], [step_hyp, char, xs])
     $got_pt2 mp(got_pt, ax([succ_tx], [succ_tx], succ_tx), succ_tx, pt,
         [step_hyp, char, xs], [succ_tx])
     # [step_hyp, char, xs, succ_tx] |- pred(t)
 
     # From omega_succ_closed: omega(w) → x∈w → succ(t,x) → t∈w
-    # omega expansion has bound "x", use renamed formula
-    $_osc forall("_s", forall("_n", forall("_w",
-        implies(omega("_w"), implies(mem("_n","_w"), implies(successor("_s","_n","___"), mem("_s","_w")))))))
-    $got_osc apply_thm(omega_succ_closed, _osc, ["tt","xx","w"], [])
+    $_osc head(nth(omega_succ_closed, 2))
+    $got_osc apply_thm(omega_succ_closed, _osc, ["r","m","w"], [])
     $got_tw mp(mp(mp(got_osc,
         ax([om], [om], om), om, implies(xw, implies(succ_tx, tw)), [], [om]),
         got_xw, xw, implies(succ_tx, tw), [om], [char, xs]),
@@ -130,7 +128,7 @@ $omega_induction \pred vars: {
     # [om, step_hyp, char, xs, succ_tx] |- and(tw, pt)
 
     $iff_ts iff(ts, and_tw_pt)
-    $char_t fl(ax([iff_ts], [iff_ts], iff_ts), [char], [iff_ts], char, "tt")
+    $char_t fl(ax([iff_ts], [iff_ts], iff_ts), [char], [iff_ts], char, "r")
     $got_ts mp(mp(iff_elim_right(ts, and_tw_pt, []),
         char_t, iff_ts, implies(and_tw_pt, ts), [], [char]),
         got_and_t, and_tw_pt, ts, [char], [om, step_hyp, char, xs, succ_tx])
@@ -138,16 +136,16 @@ $omega_induction \pred vars: {
 
     $imp_succ_ts implies(succ_tx, ts)
     $got_succ_imp ir(got_ts, [om, step_hyp, char, xs], [imp_succ_ts], imp_succ_ts)
-    $fa_succ forall("tt", imp_succ_ts)
-    $got_fa_succ fr(got_succ_imp, [om, step_hyp, char, xs], [fa_succ], fa_succ, "tt")
+    $fa_succ forall("r", imp_succ_ts)
+    $got_fa_succ fr(got_succ_imp, [om, step_hyp, char, xs], [fa_succ], fa_succ, "r")
     $imp_xs_fas implies(xs, fa_succ)
     $got_xs_imp ir(got_fa_succ, [om, step_hyp, char], [imp_xs_fas], imp_xs_fas)
-    $ind_part2 forall("xx", implies(mem("xx","s"), forall("tt", implies(successor("tt","xx","_i__"), mem("tt","s")))))
-    $got_ind_p2 fr(got_xs_imp, nth(got_xs_imp, 1), [ind_part2], ind_part2, "xx")
+    $ind_part2 forall("m", implies(mem("m","s"), forall("r", implies(successor("r","m","_"), mem("r","s")))))
+    $got_ind_p2 fr(got_xs_imp, nth(got_xs_imp, 1), [ind_part2], ind_part2, "m")
     # [om, step_hyp, char] |- ind_part2
 
     # === inductive(s) ===
-    $ind_s inductive("s", "_i")
+    $ind_s inductive("s", "_")
     $got_ind mp(mp(and_intro(ind_part1, ind_part2, []),
         got_ind_p1, ind_part1, implies(ind_part2, ind_s), [], [char, om, base_hyp]),
         got_ind_p2, ind_part2, ind_s, [char, om, base_hyp], [om, step_hyp, char])
@@ -155,7 +153,7 @@ $omega_induction \pred vars: {
 
     # === omega_smallest → subset(w, s) → n∈w → n∈s → pred(n) ===
     $_osi head(nth(omega_smallest_inductive, 2))
-    $sub_ws subset("w", "s", "__")
+    $sub_ws subset("w", "s", "_")
     $got_sub mp(mp(apply_thm(omega_smallest_inductive, _osi, ["s","w"], []),
         ax([om], [om], om), om, implies(ind_s, sub_ws), [], [om]),
         got_ind, ind_s, sub_ws, [om], [char, om, base_hyp, step_hyp])
@@ -189,7 +187,7 @@ $omega_induction \pred vars: {
     # [exists(s,char), om, base_hyp, step_hyp] |- fa_n
 
     # Get exists(s,char) from sep instantiated at w
-    $sep_f separation(vars, pred("_x"), "_")
+    $sep_f separation(vars, \x a p: pred(x), "_")
     $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, add(vars, ["w"]), [sep_f])
     $ex_char exists("s", forall("n", iff(mem("n","s"), and(mem("n","w"), pred("n")))))
     # Hmm, sep_f may use different var names. Let me just use separation with proper vars.
