@@ -1,0 +1,28 @@
+from core.derived import mem, implies, forall
+from vocab.sets import subset
+from vocab.omega import inductive, omega
+from tactics import ax, ir, mp, apply_thm, close
+from theorems.logic.and_elim_right import and_elim_right
+
+# |- omega(w) -> inductive(c) -> subset(w, c)
+$omega_smallest_inductive {
+    $om omega("w")
+    $ind_w inductive("w", "_")
+    $ind_c inductive("c", "_")
+    $sub subset("w", "c", "__")
+    $part2 forall("x", implies(inductive("x", "_"), subset("w", "x", "__")))
+
+    $got_p2 mp(and_elim_right(ind_w, part2, []),
+        ax([om], [om], om), om, part2, [], [om])
+
+    $imp_ind_sub implies(ind_c, sub)
+    $got_inst apply_thm(got_p2, part2, ["c"], [om])
+
+    $got_sub mp(got_inst, ax([ind_c], [ind_c], ind_c), ind_c, sub, [om], [ind_c])
+
+    $imp2 implies(ind_c, sub)
+    $s1 ir(got_sub, [om], [imp2], imp2)
+    $top implies(om, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["w", "c"])
+}

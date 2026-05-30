@@ -1,0 +1,44 @@
+from core.derived import mem, implies, forall
+from vocab.sets import empty, successor
+from vocab.omega import inductive, omega
+from tactics import ax, fl, ir, mp, apply_thm, close
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.omega.omega_is_inductive import omega_is_inductive
+
+# |- omega(w) -> empty(e) -> mem(e, w)
+$omega_contains_empty {
+    $om omega("w")
+    $ind inductive("w", "_")
+    $emp empty("e", "__")
+    $e_in_w mem("e", "w")
+
+    # omega_is_inductive: omega(w) -> inductive(w)
+    $_oi head(nth(omega_is_inductive, 2))
+    $got_ind mp(apply_thm(omega_is_inductive, _oi, ["w"], []),
+        ax([om], [om], om), om, ind, [], [om])
+    # [om] |- [ind]
+
+    # inductive(w,"_") = and(part1, part2)
+    # part1 = forall(_e, implies(empty(_e,"__"), mem(_e, w)))
+    # part2 = forall(_x, implies(mem(_x,w), forall(_s, implies(succ(_s,_x), mem(_s,w)))))
+    $part1 forall("_e", implies(empty("_e", "__"), mem("_e", "w")))
+    $part2 forall("_x", implies(mem("_x", "w"), forall("_s", implies(successor("_s", "_x", "___"), mem("_s", "w")))))
+
+    $got_p1 mp(and_elim_left(part1, part2, []),
+        got_ind, ind, part1, [], [om])
+    # [om] |- [part1]
+
+    # instantiate with e
+    $imp_emp_in implies(emp, e_in_w)
+    $got_inst apply_thm(got_p1, part1, ["e"], [om])
+    # [om] |- [empty(e) -> e in w]
+
+    $got_in mp(got_inst, ax([emp], [emp], emp), emp, e_in_w, [om], [emp])
+    # [om, emp] |- [e in w]
+
+    $imp2 implies(emp, e_in_w)
+    $s1 ir(got_in, [om], [imp2], imp2)
+    $top implies(om, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["w", "e"])
+}
