@@ -1,0 +1,44 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from vocab.sets import ordered_pair
+
+# apply(f, x, y, p): f(x) = y, i.e. exists p. ordered_pair(p,x,y) & p in f
+$apply \f x y p: {
+    $pv ?(eq(p, None), "p", add(p, "p"))
+    $op ?(eq(p, None), "_", add(p, "_"))
+    ["apply", add(f, add("(", add(x, add(") = ", y)))),
+        exists(pv, and(ordered_pair(pv, x, y, op), mem(pv, f)))]
+}
+
+# domain(d, f, p): d = dom(f). forall x. x in d iff exists y. apply(f, x, y)
+$domain \d f p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $y ?(eq(p, None), "y", add(p, "y"))
+    $ap ?(eq(p, None), "_", add(p, "_"))
+    ["domain", add(d, add(" = dom(", add(f, ")"))),
+        forall(x, iff(mem(x, d), exists(y, apply(f, x, y, ap))))]
+}
+
+# function(f, p): f is single-valued
+# forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2)
+$function \f p: {
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $y1 ?(eq(p, None), "y1", add(p, "y1"))
+    $y2 ?(eq(p, None), "y2", add(p, "y2"))
+    $ap ?(eq(p, None), "_", add(p, "_"))
+    $ep ?(eq(p, None), "__", add(p, "__"))
+    ["function", add("Func(", add(f, ")")),
+        forall(x, forall(y1, forall(y2,
+            implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ep)))))]
+}
+
+# product(s, a, b, p): s = a x b
+# forall z. z in s iff exists x. exists y. (x in a & y in b & ordered_pair(z, x, y))
+$product \s a b p: {
+    $z ?(eq(p, None), "z", add(p, "z"))
+    $x ?(eq(p, None), "x", add(p, "x"))
+    $y ?(eq(p, None), "y", add(p, "y"))
+    $op ?(eq(p, None), "_", add(p, "_"))
+    ["product", add(s, add(" = ", add(a, add(" x ", b)))),
+        forall(z, iff(mem(z, s),
+            exists(x, exists(y, and(and(mem(x, a), mem(y, b)), ordered_pair(z, x, y, op))))))]
+}
