@@ -201,6 +201,19 @@ $_ qed(ordpair_val_transfer,
         implies(eqv("b","c","____"), implies(ordered_pair("t","a","b","__"), ordered_pair("t","a","c","__"))))))))
 $_ print("ordpair_val_transfer ok")
 
+from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
+$_ qed(ordpair_key_transfer,
+    forall("t", forall("a", forall("b", forall("c",
+        implies(eqv("a","c","____"), implies(ordered_pair("t","a","b","__"), ordered_pair("t","c","b","__"))))))))
+$_ print("ordpair_key_transfer ok")
+
+from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
+$_ qed(ordpair_eq_transfer,
+    forall("t", forall("a", forall("b", forall("c", forall("d",
+        implies(eqv("a","c","____"), implies(eqv("b","d","____"),
+            implies(ordered_pair("t","a","b","__"), ordered_pair("t","c","d","__"))))))))))
+$_ print("ordpair_eq_transfer ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union
