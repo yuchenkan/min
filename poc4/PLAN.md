@@ -53,5 +53,10 @@
 - plus_comm: m + n = n + m (optional)
 - plus_assoc: (m+n)+k = m+(n+k) (optional)
 
-## Total: ~35-40 new theorems
+## Progress (92 theorems total)
+- sets: 45 theorems (including function theory)
+- omega: 8 theorems
+- logic: 39 theorems (with degenerate case handling)
+- vocab: sets, omega, functions, recursion all defined
+- recursion dependencies complete: ordpair transfers, func_unique/preserves_eq, domain_exists
 ## Order: sets → omega vocab → omega → functions → recursion → arithmetic
