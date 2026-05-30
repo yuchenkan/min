@@ -112,3 +112,24 @@ $_ qed(ordpair_unique, forall("a", forall("b", forall("s1", forall("s2",
 $_ print("ordpair_unique ok")
 $_ qed(unique_ordpair, forall("a", forall("b", exists_unique(\v: ordered_pair(v, "a", "b", "_")))))
 $_ print("unique_ordpair ok")
+
+from vocab.sets import intersect
+from theorems.sets.succ_not_empty import succ_not_empty
+from theorems.sets.intersect_exists import intersect_exists
+from theorems.sets.intersect_unique import intersect_unique
+from theorems.sets.unique_intersect import unique_intersect
+from core.derived import separation
+
+$_ qed(succ_not_empty, forall("sn", forall("n", implies(successor("sn","n"), neg(empty("sn"))))))
+$_ print("succ_not_empty ok")
+
+$_ qed(intersect_exists, separation(["b"], mem("_x", "b"), "_"))
+$_ print("intersect_exists ok")
+
+$_ qed(intersect_unique,
+    forall("a", forall("b", forall("s1", forall("s2",
+        implies(intersect("s1","a","b"), implies(intersect("s2","a","b"), eqv("s1","s2","_"))))))))
+$_ print("intersect_unique ok")
+
+$_ qed(unique_intersect, forall("a", forall("b", exists_unique(\v: intersect(v, "a", "b", "_")))))
+$_ print("unique_intersect ok")

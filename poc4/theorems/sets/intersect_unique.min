@@ -1,0 +1,6 @@
+from core.derived import mem, and, eqv
+from vocab.sets import intersect
+from theorems.sets.set_spec_unique import set_spec_unique
+
+# |- intersect(s1,a,b) -> intersect(s2,a,b) -> eqv(s1,s2)
+$intersect_unique set_spec_unique(\v: and(mem(v, "a"), mem(v, "b")), ["b", "a"])

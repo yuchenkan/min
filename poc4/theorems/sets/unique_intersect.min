@@ -1,0 +1,30 @@
+from core.derived import mem, implies, forall, exists, and, eqv, separation
+from vocab.sets import intersect
+from vocab.logic import exists_unique
+from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.sets.intersect_unique import intersect_unique
+from theorems.sets.intersect_exists import intersect_exists
+
+# Sep |- forall a b. exists_unique(s, intersect(s, a, b))
+$unique_intersect {
+    $body_fn \v: intersect(v, "a", "b", "_")
+    $eu exists_unique(body_fn)
+    $int_u intersect("u", "a", "b", "_")
+    $imp_inner implies(intersect("y", "a", "b", "_"), eqv("u", "y"))
+    $iu_f forall("a", forall("b", forall("s1", forall("s2",
+        implies(intersect("s1","a","b"), implies(intersect("s2","a","b"), eqv("s1","s2","_")))))))
+    $iu_inst apply_thm(intersect_unique, iu_f, ["a","b","u","y"], [])
+    $got_inner mp(iu_inst, ax([int_u], [int_u], int_u), int_u, imp_inner, [], [int_u])
+    $fa_uniq forall("y", imp_inner)
+    $got_fa fr(got_inner, [int_u], [fa_uniq], fa_uniq, "y")
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([int_u], [int_u], int_u), int_u, implies(fa_uniq, eu), [], [int_u]),
+               got_fa, fa_uniq, eu, [int_u], [int_u])
+    $got_ex eel(got_eu, body_fn, "s", "u", [int_u], eu)
+    $sep_f separation(["b"], mem("_x", "b"), "_")
+    $ie_f forall("b", forall("_a", exists("_b", intersect("_b","_a","b","_"))))
+    $ie_inst apply_thm(intersect_exists, ie_f, ["b","a"], [sep_f])
+    $ex_int exists("s", intersect("s", "a", "b", "_"))
+    $got_cut cut_c(ie_inst, got_ex, ex_int, [sep_f], [ex_int], eu)
+    close(got_cut, [sep_f], [eu], ["b","a"])
+}

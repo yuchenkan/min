@@ -58,3 +58,7 @@ $ordered_pair \p a b pr: {
     ["ordered_pair", add("(", add(a, add(", ", add(b, ")")))),
         set_spec(p, \x: or(singleton(x, a, ip), pair_set(x, a, b, ip)), pr)]
 }
+
+# intersect(s, a, b, p): s = a & b
+$intersect \s a b p: ["intersect", add(s, add(" = ", add(a, add(" & ", b)))),
+    set_spec(s, \x: and(mem(x, a), mem(x, b)), p)]

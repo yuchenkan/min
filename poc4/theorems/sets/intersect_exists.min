@@ -1,0 +1,6 @@
+from core.derived import mem, and, separation
+from tactics import ax
+
+# Separation |- forall b a. exists s. forall x. iff(mem(x,s), and(mem(x,a), mem(x,b)))
+$_sep separation(["b"], mem("_x", "b"), "_")
+$intersect_exists ax([_sep], [_sep], _sep)
