@@ -7,8 +7,8 @@ from theorems.logic.eqv_reflexive import eqv_reflexive
 
 # |- successor(sn, n) -> neg(empty(sn))
 $succ_not_empty {
-    $succ successor("sn", "n")
-    $emp empty("sn")
+    $succ successor("sn", "n", "#")
+    $emp empty("sn", "#")
     $neg_mem neg(mem("n","sn"))
 
     # From succ, instantiate with n: iff(mem(n,sn), or(mem(n,n), eqv(n,n)))

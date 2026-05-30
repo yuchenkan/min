@@ -5,8 +5,8 @@ from theorems.logic.neg_neg_iff import neg_neg_iff
 
 # |- empty(a) -> empty(b) -> eqv(a, b)
 $empty_unique {
-    $ea empty("a")
-    $eb empty("b")
+    $ea empty("a", "_")
+    $eb empty("b", "_")
     $eqv_ab eqv("a", "b", "_")
     $s1 fl(ax([neg(mem("v", "a"))], [neg(mem("v", "a"))], neg(mem("v", "a"))), [ea], [neg(mem("v", "a"))], ea, "v")
     $s2 fl(ax([neg(mem("v", "b"))], [neg(mem("v", "b"))], neg(mem("v", "b"))), [eb], [neg(mem("v", "b"))], eb, "v")
