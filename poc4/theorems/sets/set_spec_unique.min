@@ -1,6 +1,7 @@
 from core.derived import mem, implies, iff, eqv
 from vocab.sets import set_spec
 from tactics import ax, fl, fr, ir, mp, close
+
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_sym import iff_sym
 
@@ -9,7 +10,7 @@ $set_spec_unique \cond_fn vars: {
     $sp1 set_spec("s1", cond_fn, "_")
     $sp2 set_spec("s2", cond_fn, "_")
     $eqv_12 eqv("s1", "s2", "_")
-    $cv cond_fn("_x")
+    $cv cond_fn("_x", "__")
     $iff1 iff(mem("_x", "s1"), cv)
     $iff2 iff(mem("_x", "s2"), cv)
     $iff2r iff(cv, mem("_x", "s2"))

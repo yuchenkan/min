@@ -108,29 +108,31 @@ $Choice ["choice", "Choice", forall("x", implies(
 $_close \self vars f: ?(eq(len(vars), 0), f,
     self(self, tail(vars), forall(head(vars), f)))
 
-# Separation: phi_fn(x, a) — x is element, a is the domain set
+# Separation: phi_fn(x, a, np) — x is element, a is domain, np is deeper prefix
 $separation \vars phi_fn p: {
     $a add(p, "a")
     $b add(p, "b")
     $x add(p, "x")
-    $phi phi_fn(x, a)
+    $np add(p, "_")
+    $phi phi_fn(x, a, np)
+    # NOTE: phi_fn receives np = add(p,"_") so its vocab doesn't clash with x,a,b
     $body forall(a, exists(b, forall(x,
         iff(mem(x, b), and(mem(x, a), phi)))))
     $closed _close(_close, vars, body)
     ["separation", add("Sep(", add(show(phi), ")")), closed]
 }
 
-# Replacement: phi_fn(x, y, a) — x,y are related, a is the domain set
+# Replacement: phi_fn(x, y, a, np) — x,y are related, a is domain, np is deeper prefix
 $replacement \vars phi_fn p: {
     $a add(p, "a")
     $b add(p, "b")
     $x add(p, "x")
     $y add(p, "y")
     $y2 add(p, "y2")
-    $ep add(p, "_")
-    $phi phi_fn(x, y, a)
+    $np add(p, "_")
+    $phi phi_fn(x, y, a, np)
     $uniq forall(x, implies(mem(x, a),
-        forall(y, forall(y2, implies(and(phi_fn(x, y, a), phi_fn(x, y2, a)), eqv(y, y2, ep))))))
+        forall(y, forall(y2, implies(and(phi_fn(x, y, a, np), phi_fn(x, y2, a, np)), eqv(y, y2, np))))))
     $body forall(a, implies(uniq,
         exists(b, forall(y,
             iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))

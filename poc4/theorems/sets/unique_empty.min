@@ -7,11 +7,10 @@ from theorems.sets.empty_unique import empty_unique
 
 # EmptySet |- exists_unique(s, empty(s))
 $unique_empty {
-    # body_fn uses "__" (deeper than exists_unique's "_")
-    $body_fn \v: empty(v, "__")
+    $body_fn \v p: empty(v, p)
     $eu exists_unique(body_fn, "_")
-    $empty_u empty("u", "__")
-    $imp_inner implies(empty("y", "__"), eqv("u", "y", "_"))
+    $empty_u body_fn("u", "__")
+    $imp_inner implies(body_fn("y", "__"), eqv("u", "y", "_"))
     $_eu_f head(nth(empty_unique, 2))
     $eu_inst apply_thm(empty_unique, _eu_f, ["u","y"], [])
     $got_inner mp(eu_inst, ax([empty_u], [empty_u], empty_u), empty_u, imp_inner, [], [empty_u])
@@ -19,7 +18,7 @@ $unique_empty {
     $got_fa fr(got_inner, [empty_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([empty_u], [empty_u], empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),
                got_fa, fa_uniq, eu, [empty_u], [empty_u])
-    $got_ex eel(got_eu, body_fn, "s", "u", [empty_u], eu)
+    $got_ex eel(got_eu, \v: body_fn(v, "__"), "s", "u", [empty_u], eu)
     $es_f EmptySet
     wl(got_ex, [es_f], [eu], es_f)
 }
