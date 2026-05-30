@@ -39,3 +39,14 @@ $_ print("omega_unique ok")
 from theorems.omega.unique_omega import unique_omega
 $_ qed(unique_omega, exists_unique(\v: omega(v, "_")))
 $_ print("unique_omega ok")
+
+from theorems.omega.omega_induction import omega_induction
+from core.derived import separation
+$trivial_pred \v: mem(v, "w")
+$trivial_ind omega_induction(trivial_pred, ["w"])
+$_ qed(trivial_ind,
+    forall("w", implies(omega("w"), implies(
+        forall("e", implies(empty("e","_"), mem("e","w"))),
+        implies(forall("n", implies(mem("n","w"), implies(mem("n","w"), forall("s", implies(successor("s","n","_"), mem("s","w")))))),
+            forall("n", implies(mem("n","w"), mem("n","w"))))))))
+$_ print("omega_induction ok")

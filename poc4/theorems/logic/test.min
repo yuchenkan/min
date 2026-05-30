@@ -184,6 +184,15 @@ $_ print("iff_elim_right A=B ok")
 $_ qed(iff_intro(A, A, v), forall("a", forall("b", implies(implies(A, A), implies(implies(A, A), iff(A, A))))))
 $_ print("iff_intro A=B ok")
 
+$_ qed(and_intro(A, A, v), forall("a", forall("b", implies(A, implies(A, and(A, A))))))
+$_ print("and_intro A=B ok")
+
+$_ qed(and_elim_left(A, A, v), forall("a", forall("b", implies(and(A, A), A))))
+$_ print("and_elim_left A=B ok")
+
+$_ qed(and_elim_right(A, A, v), forall("a", forall("b", implies(and(A, A), A))))
+$_ print("and_elim_right A=B ok")
+
 $_ qed(or_iff_compat(A, B, A, D, v), forall("a", forall("b", implies(iff(A, A), implies(iff(B, D), iff(or(A, B), or(A, D)))))))
 $_ print("or_iff_compat P=R ok")
 

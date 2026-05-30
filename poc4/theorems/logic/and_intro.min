@@ -1,19 +1,43 @@
 from core.derived import neg, implies, and
-from tactics import ax, wl, nl, il, nr, ir, close
+from tactics import ax, wl, nl, il, nr, ir, close, same
 
 # |- A -> B -> and(A, B)
 $and_intro \A B vars: {
     $and_AB and(A, B)
     $not_B neg(B)
     $imp_A_notB implies(A, not_B)
-    $s1 wl(ax([A], [A], A), [A, B], [A], B)
-    $s2 wl(ax([B], [B], B), [A, B], [B], A)
-    $s3 nl(s2, [A, B, not_B], [], not_B)
-    $s4 il(s1, s3, [A, B, imp_A_notB], [], imp_A_notB)
-    $s5 nr(s4, [A, B], [and_AB], and_AB)
+    $core ?(same(A, B), {
+        # A=B: and(A,A) = neg(implies(A, neg(A)))
+        # [A] |- [], then nr gives [A] |- [neg(neg(A))]... actually:
+        # [A, neg(A)] |- [] (from nl on axiom)
+        $s1 nl(ax([A], [A], A), [A, not_B], [], not_B)
+        # [A, imp_A_notB] |- [] (from il)
+        $s2 il(ax([A], [A], A), s1, [A, imp_A_notB], [], imp_A_notB)
+        nr(s2, [A], [and_AB], and_AB)
+    }, {
+        $s1 wl(ax([A], [A], A), [A, B], [A], B)
+        $s2 wl(ax([B], [B], B), [A, B], [B], A)
+        $s3 nl(s2, [A, B, not_B], [], not_B)
+        $s4 il(s1, s3, [A, B, imp_A_notB], [], imp_A_notB)
+        nr(s4, [A, B], [and_AB], and_AB)
+    })
     $imp_B implies(B, and_AB)
-    $s6 ir(s5, [A], [imp_B], imp_B)
     $top implies(A, imp_B)
-    $s7 ir(s6, [], [top], top)
-    close(s7, [], [top], vars)
+    $result ?(same(A, B), {
+        # A=B: core has [A] |- [and_AB]. Need [] |- [A → A → and(A,A)]
+        # One ir would consume A. But we need two. Solution: don't ir at all,
+        # directly build the nested implies.
+        # core: [A] |- [and_AB]. ir(and_AB → implies(A, and_AB)): [] |- [implies(A, and_AB)]
+        # But top = implies(A, implies(A, and_AB)) needs another ir.
+        # Since A=B, top = implies(A, implies(A, and(A,A))).
+        # Weaken A onto core first: core already has [A]. wr to add and: [A] |- [and_AB, imp_B]
+        # Hmm, let's just weakening_left A onto s6:
+        $s6 ir(core, [], [imp_B], imp_B)
+        $s6w wl(s6, [A], [imp_B], A)
+        ir(s6w, [], [top], top)
+    }, {
+        $s6 ir(core, [A], [imp_B], imp_B)
+        ir(s6, [], [top], top)
+    })
+    close(result, [], [top], vars)
 }

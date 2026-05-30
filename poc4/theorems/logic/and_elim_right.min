@@ -1,16 +1,37 @@
 from core.derived import neg, implies, and
-from tactics import ax, wl, nl, nr, ir, close
+from tactics import ax, wl, wr, nl, nr, ir, cut, close, same
 
 # |- and(A, B) -> B
 $and_elim_right \A B vars: {
     $and_AB and(A, B)
     $not_B neg(B)
     $imp_A_notB implies(A, not_B)
-    $s1 wl(ax([B], [B], B), [A, B], [B], A)
-    $s2 nr(s1, [A], [neg(B), B], neg(B))
-    $s3 ir(s2, [], [imp_A_notB, B], imp_A_notB)
-    $s4 nl(s3, [and_AB], [B], and_AB)
-    $top implies(and_AB, B)
-    $s5 ir(s4, [], [top], top)
-    close(s5, [], [top], vars)
+    ?(same(A, B), {
+        # A=B: and(A,A) -> A
+        # and(A,A) = neg(implies(A, neg(A)))
+        # [neg(A), and(A,A)] |- [] then [and(A,A)] |- [neg(neg(A))] then double-neg-elim
+        $t1 wl(ax([not_B], [not_B], not_B), [A, not_B], [not_B], A)
+        $t2 ir(t1, [not_B], [imp_A_notB], imp_A_notB)
+        $t3 nl(t2, [not_B, and_AB], [], and_AB)
+        # [neg(A), and(A,A)] |- []
+        $t4 nr(t3, [and_AB], [neg(not_B)], neg(not_B))
+        # [and(A,A)] |- [neg(neg(A))]
+        # double neg elim: [neg(neg(A))] |- [A]
+        $em nr(ax([A], [A], A), [], [A, not_B], not_B)
+        $dn nl(em, [neg(not_B)], [A], neg(not_B))
+        # cut: [and(A,A)] |- [A]
+        $t4w wr(t4, [and_AB], [neg(not_B), A], A)
+        $t5 cut(t4w, wl(dn, [and_AB, neg(not_B)], [A], and_AB), [and_AB], [A], neg(not_B))
+        $top implies(and_AB, A)
+        $t6 ir(t5, [], [top], top)
+        close(t6, [], [top], vars)
+    }, {
+        $s1 wl(ax([B], [B], B), [A, B], [B], A)
+        $s2 nr(s1, [A], [neg(B), B], neg(B))
+        $s3 ir(s2, [], [imp_A_notB, B], imp_A_notB)
+        $s4 nl(s3, [and_AB], [B], and_AB)
+        $top implies(and_AB, B)
+        $s5 ir(s4, [], [top], top)
+        close(s5, [], [top], vars)
+    })
 }
