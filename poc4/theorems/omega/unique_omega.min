@@ -8,10 +8,10 @@ from theorems.omega.omega_exists import omega_exists
 
 # Ext, Inf, Sep |- exists_unique(w, omega(w))
 $unique_omega {
-    $body_fn \v: omega(v, "_")
-    $eu exists_unique(body_fn)
-    $om_u omega("u", "_")
-    $imp_inner implies(omega("y", "_"), eqv("u", "y"))
+    $body_fn \v p: omega(v, p)
+    $eu exists_unique(body_fn, "_")
+    $om_u body_fn("u", "_")
+    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
 
     $_ou head(nth(omega_unique, 2))
     $ou_inst apply_thm(omega_unique, _ou, ["u", "y"], [])
@@ -21,11 +21,11 @@ $unique_omega {
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []),
         ax([om_u], [om_u], om_u), om_u, implies(fa_uniq, eu), [], [om_u]),
         got_fa, fa_uniq, eu, [om_u], [om_u])
-    $got_ex eel(got_eu, body_fn, "w", "u", [om_u], eu)
+    $got_ex eel(got_eu, \v: body_fn(v, "_"), "w", "u", [om_u], eu)
     $oe_ctx nth(omega_exists, 1)
     $oe_f head(nth(omega_exists, 2))
     $oe_inst apply_thm(omega_exists, oe_f, [], oe_ctx)
-    $ex_om exists("w", omega("w", "_"))
+    $ex_om exists("w", body_fn("w", "_"))
     $got_cut cut_c(oe_inst, got_ex, ex_om, oe_ctx, [ex_om], eu)
     close(got_cut, oe_ctx, [eu], [])
 }

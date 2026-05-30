@@ -7,34 +7,24 @@ from theorems.omega.omega_is_inductive import omega_is_inductive
 
 # |- omega(w) -> empty(e) -> mem(e, w)
 $omega_contains_empty {
-    $om omega("w")
+    $om omega("w", "_")
     $ind inductive("w", "_")
-    $emp empty("e", "__")
+    $emp empty("e", "_")
     $e_in_w mem("e", "w")
 
-    # omega_is_inductive: omega(w) -> inductive(w)
     $_oi head(nth(omega_is_inductive, 2))
     $got_ind mp(apply_thm(omega_is_inductive, _oi, ["w"], []),
         ax([om], [om], om), om, ind, [], [om])
-    # [om] |- [ind]
 
-    # inductive(w,"_") = and(part1, part2)
-    # part1 = forall(_e, implies(empty(_e,"__"), mem(_e, w)))
-    # part2 = forall(_x, implies(mem(_x,w), forall(_s, implies(succ(_s,_x), mem(_s,w)))))
-    $part1 forall("_e", implies(empty("_e", "__"), mem("_e", "w")))
-    $part2 forall("_x", implies(mem("_x", "w"), forall("_s", implies(successor("_s", "_x", "___"), mem("_s", "w")))))
+    $part1 forall("q", implies(empty("q", "_"), mem("q", "w")))
+    $part2 forall("q", implies(mem("q", "w"), forall("r", implies(successor("r", "q", "_"), mem("r", "w")))))
 
     $got_p1 mp(and_elim_left(part1, part2, []),
         got_ind, ind, part1, [], [om])
-    # [om] |- [part1]
 
-    # instantiate with e
-    $imp_emp_in implies(emp, e_in_w)
     $got_inst apply_thm(got_p1, part1, ["e"], [om])
-    # [om] |- [empty(e) -> e in w]
 
     $got_in mp(got_inst, ax([emp], [emp], emp), emp, e_in_w, [om], [emp])
-    # [om, emp] |- [e in w]
 
     $imp2 implies(emp, e_in_w)
     $s1 ir(got_in, [om], [imp2], imp2)

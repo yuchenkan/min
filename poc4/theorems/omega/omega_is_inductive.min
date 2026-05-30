@@ -6,9 +6,9 @@ from theorems.logic.and_elim_left import and_elim_left
 
 # |- omega(w) -> inductive(w)
 $omega_is_inductive {
-    $om omega("w")
+    $om omega("w", "_")
     $ind inductive("w", "_")
-    $part2 forall("x", implies(inductive("x", "_"), subset("w", "x", "__")))
+    $part2 forall("c", implies(inductive("c", "_"), subset("w", "c", "_")))
     $got mp(and_elim_left(ind, part2, []),
         ax([om], [om], om), om, ind, [], [om])
     $top implies(om, ind)

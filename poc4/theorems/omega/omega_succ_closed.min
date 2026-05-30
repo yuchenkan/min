@@ -1,49 +1,36 @@
 from core.derived import mem, implies, forall
-from vocab.sets import successor
+from vocab.sets import successor, empty
 from vocab.omega import inductive, omega
 from tactics import ax, ir, mp, apply_thm, close
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.omega.omega_is_inductive import omega_is_inductive
-from vocab.sets import empty
 
 # |- omega(w) -> mem(n, w) -> successor(s, n) -> mem(s, w)
 $omega_succ_closed {
-    $om omega("w")
+    $om omega("w", "_")
     $ind inductive("w", "_")
     $n_in_w mem("n", "w")
-    $succ_sn successor("s", "n", "___")
+    $succ_sn successor("s", "n", "_")
     $s_in_w mem("s", "w")
 
-    # omega_is_inductive: omega(w) -> inductive(w)
     $_oi head(nth(omega_is_inductive, 2))
     $got_ind mp(apply_thm(omega_is_inductive, _oi, ["w"], []),
         ax([om], [om], om), om, ind, [], [om])
-    # [om] |- [ind]
 
-    # inductive part2: forall _x. _x in w -> forall _s. succ(_s, _x) -> _s in w
-    $part1 forall("_e", implies(empty("_e", "__"), mem("_e", "w")))
-    $part2 forall("_x", implies(mem("_x", "w"), forall("_s", implies(successor("_s", "_x", "___"), mem("_s", "w")))))
+    $part1 forall("q", implies(empty("q", "_"), mem("q", "w")))
+    $part2 forall("q", implies(mem("q", "w"), forall("r", implies(successor("r", "q", "_"), mem("r", "w")))))
 
     $got_p2 mp(and_elim_right(part1, part2, []),
         got_ind, ind, part2, [], [om])
-    # [om] |- [part2]
 
-    # instantiate _x with n: n in w -> forall _s. succ(_s, n) -> _s in w
-    $fa_s forall("_s", implies(successor("_s", "n", "___"), mem("_s", "w")))
-    $imp_n_fas implies(n_in_w, fa_s)
+    $fa_s forall("r", implies(successor("r", "n", "_"), mem("r", "w")))
     $got_inst apply_thm(got_p2, part2, ["n"], [om])
-    # [om] |- [n in w -> forall _s...]
 
     $got_fas mp(got_inst, ax([n_in_w], [n_in_w], n_in_w), n_in_w, fa_s, [om], [n_in_w])
-    # [om, n_in_w] |- [fa_s]
 
-    # instantiate _s with s
-    $imp_succ_in implies(succ_sn, s_in_w)
     $got_inst2 apply_thm(got_fas, fa_s, ["s"], [om, n_in_w])
-    # [om, n_in_w] |- [succ(s,n) -> s in w]
 
     $got_in mp(got_inst2, ax([succ_sn], [succ_sn], succ_sn), succ_sn, s_in_w, [om, n_in_w], [succ_sn])
-    # [om, n_in_w, succ_sn] |- [s_in_w]
 
     $imp3 implies(succ_sn, s_in_w)
     $s1 ir(got_in, [om, n_in_w], [imp3], imp3)
