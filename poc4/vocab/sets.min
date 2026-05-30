@@ -59,6 +59,12 @@ $ordered_pair \p a b pr: {
         set_spec(p, \x: or(singleton(x, a, ip), pair_set(x, a, b, ip)), pr)]
 }
 
+# union(s, a, b, p): s = a | b
+$union \s a b p: {
+    ["union", add(s, add(" = ", add(a, add(" | ", b)))),
+        set_spec(s, \x: or(mem(x, a), mem(x, b)), p)]
+}
+
 # intersect(s, a, b, p): s = a & b
 $intersect \s a b p: ["intersect", add(s, add(" = ", add(a, add(" & ", b)))),
     set_spec(s, \x: and(mem(x, a), mem(x, b)), p)]

@@ -139,10 +139,10 @@ $inst \thm formula body term ctx: {
 $_apply_thm \self thm formula terms ctx: {
     $_fs \fself f v t: {
         $tag nth(f, 0)
-        ?(eq(tag, "mem"), ["mem", "", ?(eq(nth(f, 2), v), t, nth(f, 2)), ?(eq(nth(f, 3), v), t, nth(f, 3))],
-        ?(eq(tag, "neg"), ["neg", "", fself(fself, nth(f, 2), v, t)],
-        ?(eq(tag, "implies"), ["implies", "", fself(fself, nth(f, 2), v, t), fself(fself, nth(f, 3), v, t)],
-        ?(eq(tag, "forall"), ?(eq(nth(f, 2), v), f, ["forall", "", nth(f, 2), fself(fself, nth(f, 3), v, t)]),
+        ?(eq(tag, "mem"), mem(?(eq(nth(f, 2), v), t, nth(f, 2)), ?(eq(nth(f, 3), v), t, nth(f, 3))),
+        ?(eq(tag, "neg"), neg(fself(fself, nth(f, 2), v, t)),
+        ?(eq(tag, "implies"), implies(fself(fself, nth(f, 2), v, t), fself(fself, nth(f, 3), v, t)),
+        ?(eq(tag, "forall"), ?(eq(nth(f, 2), v), f, forall(nth(f, 2), fself(fself, nth(f, 3), v, t))),
         fself(fself, nth(f, 2), v, t)))))
     }
     $__peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))

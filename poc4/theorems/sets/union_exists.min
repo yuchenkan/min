@@ -1,0 +1,263 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists
+from vocab.sets import pair_set, big_union, union
+from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.or_elim import or_elim
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.sets.eq_transfer import eq_transfer
+from theorems.sets.pair_set_exists import pair_set_exists
+from theorems.sets.big_union_exists import big_union_exists
+
+# Pairing, Union |- forall a b. exists u. union(u, a, b)
+# union(u,a,b) = forall x. iff(mem(x,u), or(mem(x,a), mem(x,b)))
+# Strategy: get p={a,b} from Pairing, get u=⋃p from Union,
+#   show ∀x. iff(mem(x,u), or(mem(x,a), mem(x,b)))
+
+$union_exists {
+    # Key formulas
+    $ps pair_set("p", "a", "b")
+    $bu big_union("u", "p")
+    $un union("u", "a", "b")
+    $goal exists("u", un)
+    $xa mem("x", "a")
+    $xb mem("x", "b")
+    $xu mem("x", "u")
+    $or_ab or(xa, xb)
+    $iff_goal iff(xu, or_ab)
+
+    # big_union body: iff(mem(x,u), exists(y, and(mem(y,p), mem(x,y))))
+    $yp mem("y", "p")
+    $xy mem("x", "y")
+    $and_ypxy and(yp, xy)
+    $ex_y exists("y", and_ypxy)
+    $iff_bu iff(xu, ex_y)
+
+    # pair_set body: iff(mem(y,p), or(eqv(y,a), eqv(y,b)))
+    $eqv_ya eqv("y", "a", "__")
+    $eqv_yb eqv("y", "b", "__")
+    $or_eqv or(eqv_ya, eqv_yb)
+    $iff_ps iff(yp, or_eqv)
+
+    # === Forward: [ps, bu] |- xu -> or_ab ===
+
+    # From bu: iff(xu, ex_y)
+    $bu_inst fl(ax([iff_bu], [iff_bu], iff_bu), [bu], [iff_bu], bu, "x")
+    # [bu] |- [iff_bu]
+    $imp_xu_exy implies(xu, ex_y)
+    $got_fwd_bu mp(iff_elim_left(xu, ex_y, []), bu_inst, iff_bu, imp_xu_exy, [], [bu])
+    # [bu] |- [xu -> ex_y]
+
+    # From ps: iff(yp, or_eqv)
+    $ps_inst fl(ax([iff_ps], [iff_ps], iff_ps), [ps], [iff_ps], ps, "y")
+    # [ps] |- [iff_ps]
+    $imp_yp_or implies(yp, or_eqv)
+    $got_yp_or mp(iff_elim_left(yp, or_eqv, []), ps_inst, iff_ps, imp_yp_or, [], [ps])
+    # [ps] |- [yp -> or_eqv]
+
+    # eq_transfer: eqv(y,a) -> iff(mem(x,y), mem(x,a))
+    $_et head(nth(eq_transfer, 2))
+    $got_et_a apply_thm(eq_transfer, _et, ["y","a","x"], [])
+    $iff_xy_xa iff(xy, xa)
+    $imp_eqva_iff implies(eqv_ya, iff_xy_xa)
+    # Need: eqv(y,a,"__") but eq_transfer gives eqv(y,a,"_")
+    # They are alpha-equivalent so same() matches
+    $got_xy_xa mp(got_et_a, ax([eqv_ya], [eqv_ya], eqv_ya), eqv_ya, iff_xy_xa, [], [eqv_ya])
+    $got_xy_to_xa mp(iff_elim_left(xy, xa, []), got_xy_xa, iff_xy_xa, implies(xy, xa), [], [eqv_ya])
+    # [eqv_ya] |- [xy -> xa]
+
+    # eq_transfer: eqv(y,b) -> iff(mem(x,y), mem(x,b))
+    $got_et_b apply_thm(eq_transfer, _et, ["y","b","x"], [])
+    $iff_xy_xb iff(xy, xb)
+    $got_xy_xb mp(got_et_b, ax([eqv_yb], [eqv_yb], eqv_yb), eqv_yb, iff_xy_xb, [], [eqv_yb])
+    $got_xy_to_xb mp(iff_elim_left(xy, xb, []), got_xy_xb, iff_xy_xb, implies(xy, xb), [], [eqv_yb])
+    # [eqv_yb] |- [xy -> xb]
+
+    # Case y=a: [eqv_ya, xy] |- [or_ab]
+    $got_xa mp(got_xy_to_xa, ax([xy], [xy], xy), xy, xa, [eqv_ya], [xy])
+    $got_or_a mp(or_intro_left(xa, xb, []), got_xa, xa, or_ab, [], [eqv_ya, xy])
+    # [eqv_ya, xy] |- [or_ab]
+
+    # Case y=b: [eqv_yb, xy] |- [or_ab]
+    $got_xb mp(got_xy_to_xb, ax([xy], [xy], xy), xy, xb, [eqv_yb], [xy])
+    $got_or_b mp(or_intro_right(xa, xb, []), got_xb, xb, or_ab, [], [eqv_yb, xy])
+    # [eqv_yb, xy] |- [or_ab]
+
+    # or_elim on y=a | y=b: [or_eqv, xy] |- [or_ab]
+    $imp_eqva_or implies(eqv_ya, or_ab)
+    $imp_eqvb_or implies(eqv_yb, or_ab)
+    $got_case_a ir(got_or_a, [xy], [imp_eqva_or], imp_eqva_or)
+    $got_case_b ir(got_or_b, [xy], [imp_eqvb_or], imp_eqvb_or)
+    $got_or_elim mp(mp(mp(or_elim(eqv_ya, eqv_yb, or_ab, []),
+        ax([or_eqv], [or_eqv], or_eqv), or_eqv, implies(imp_eqva_or, implies(imp_eqvb_or, or_ab)), [], [or_eqv]),
+        got_case_a, imp_eqva_or, implies(imp_eqvb_or, or_ab), [or_eqv], [xy]),
+        got_case_b, imp_eqvb_or, or_ab, [or_eqv, xy], [xy])
+    # [or_eqv, xy] |- [or_ab]
+
+    # From yp: yp -> or_eqv. So [yp, xy] |- [or_ab]
+    $got_from_yp mp(got_yp_or, ax([yp], [yp], yp), yp, or_eqv, [ps], [yp])
+    $got_or_from_yp cut_c(got_from_yp, got_or_elim, or_eqv, [ps, yp], [or_eqv, xy], or_ab)
+    # [ps, yp, xy] |- [or_ab]
+
+    # From and(yp, xy): [and_ypxy] |- [or_ab]
+    $got_yp2 mp(and_elim_left(yp, xy, []), ax([and_ypxy], [and_ypxy], and_ypxy), and_ypxy, yp, [], [and_ypxy])
+    $got_xy2 mp(and_elim_right(yp, xy, []), ax([and_ypxy], [and_ypxy], and_ypxy), and_ypxy, xy, [], [and_ypxy])
+    $got_or_from_and cut_c(got_yp2, cut_c(got_xy2, got_or_from_yp, xy, [and_ypxy], [ps, yp, xy], or_ab),
+        yp, [and_ypxy], [ps, and_ypxy], or_ab)
+    # [ps, and_ypxy] |- [or_ab]
+
+    # eel: [ps, ex_y] |- [or_ab]
+    $got_or_from_ex eel(got_or_from_and, \y: and(mem("y", "p"), mem("x", "y")), "y", "y", [ps, and_ypxy], or_ab)
+    # [ps, ex_y] |- [or_ab]
+
+    # From xu: xu -> ex_y -> or_ab
+    $got_exy mp(got_fwd_bu, ax([xu], [xu], xu), xu, ex_y, [bu], [xu])
+    $got_fwd cut_c(got_exy, got_or_from_ex, ex_y, [bu, xu], [ps, ex_y], or_ab)
+    # [ps, bu, xu] |- [or_ab]
+    $imp_fwd implies(xu, or_ab)
+    $got_fwd_imp ir(got_fwd, [ps, bu], [imp_fwd], imp_fwd)
+
+    # === Backward: [ps, bu] |- or_ab -> xu ===
+
+    # From bu: iff(xu, ex_y) -> ex_y -> xu
+    $imp_exy_xu implies(ex_y, xu)
+    $got_bwd_bu mp(iff_elim_right(xu, ex_y, []), bu_inst, iff_bu, imp_exy_xu, [], [bu])
+    # [bu] |- [ex_y -> xu]
+
+    # From ps: iff(yp, or_eqv) backward -> or_eqv -> yp... no, need specific instances
+    # For a: eqv_reflexive(a) -> or_intro_left -> or_eqv -> yp
+    # eqv(a, a) -> a∈p
+    $_er head(nth(eqv_reflexive, 2))
+    $eqv_aa eqv("a", "a", "__")
+    $got_eqv_aa apply_thm(eqv_reflexive, _er, ["a"], [])
+    $or_eqv_a or(eqv("a", "a", "__"), eqv("a", "b", "__"))
+    $got_or_a2 mp(or_intro_left(eqv("a","a","__"), eqv("a","b","__"), []), got_eqv_aa, eqv_aa, or_eqv_a, [], [])
+
+    # ps instantiated at a: iff(mem(a,p), or(eqv(a,a), eqv(a,b)))
+    $ap mem("a", "p")
+    $iff_ps_a iff(ap, or_eqv_a)
+    $ps_inst_a fl(ax([iff_ps_a], [iff_ps_a], iff_ps_a), [ps], [iff_ps_a], ps, "a")
+    $imp_or_ap implies(or_eqv_a, ap)
+    $got_ap mp(mp(iff_elim_right(ap, or_eqv_a, []), ps_inst_a, iff_ps_a, imp_or_ap, [], [ps]),
+               got_or_a2, or_eqv_a, ap, [ps], [])
+    # [ps] |- [mem(a,p)]
+
+    # and_intro: mem(a,p) ∧ mem(x,a) -> exists y. and(mem(y,p), mem(x,y))
+    $and_ap_xa and(ap, xa)
+    $got_and_a mp(mp(and_intro(ap, xa, []), got_ap, ap, implies(xa, and_ap_xa), [], [ps]),
+                  ax([xa], [xa], xa), xa, and_ap_xa, [ps], [xa])
+    # [ps, xa] |- [and(ap, xa)]
+    $got_exy_a eir(got_and_a, \v: and(mem(v,"p"), mem("x",v)), "y", "a", [ps, xa])
+    # [ps, xa] |- [ex_y]
+    $got_xu_a mp(got_bwd_bu, got_exy_a, ex_y, xu, [bu], [ps, xa])
+    # [ps, bu, xa] |- [xu]
+
+    # For b: similar
+    $eqv_bb eqv("b", "b", "__")
+    $got_eqv_bb apply_thm(eqv_reflexive, _er, ["b"], [])
+    $or_eqv_b or(eqv("b", "a", "__"), eqv("b", "b", "__"))
+    $got_or_b2 mp(or_intro_right(eqv("b","a","__"), eqv("b","b","__"), []), got_eqv_bb, eqv_bb, or_eqv_b, [], [])
+
+    $bp mem("b", "p")
+    $iff_ps_b iff(bp, or_eqv_b)
+    $ps_inst_b fl(ax([iff_ps_b], [iff_ps_b], iff_ps_b), [ps], [iff_ps_b], ps, "b")
+    $imp_or_bp implies(or_eqv_b, bp)
+    $got_bp mp(mp(iff_elim_right(bp, or_eqv_b, []), ps_inst_b, iff_ps_b, imp_or_bp, [], [ps]),
+               got_or_b2, or_eqv_b, bp, [ps], [])
+    # [ps] |- [mem(b,p)]
+
+    $and_bp_xb and(bp, xb)
+    $got_and_b mp(mp(and_intro(bp, xb, []), got_bp, bp, implies(xb, and_bp_xb), [], [ps]),
+                  ax([xb], [xb], xb), xb, and_bp_xb, [ps], [xb])
+    # [ps, xb] |- [and(bp, xb)]
+    $got_exy_b eir(got_and_b, \v: and(mem(v,"p"), mem("x",v)), "y", "b", [ps, xb])
+    # [ps, xb] |- [ex_y]
+    $got_xu_b mp(got_bwd_bu, got_exy_b, ex_y, xu, [bu], [ps, xb])
+    # [ps, bu, xb] |- [xu]
+
+    # or_elim: or(xa, xb) -> xu
+    $imp_xa_xu implies(xa, xu)
+    $imp_xb_xu implies(xb, xu)
+    $got_case_xa ir(got_xu_a, [ps, bu], [imp_xa_xu], imp_xa_xu)
+    $got_case_xb ir(got_xu_b, [ps, bu], [imp_xb_xu], imp_xb_xu)
+    $got_bwd mp(mp(mp(or_elim(xa, xb, xu, []),
+        ax([or_ab], [or_ab], or_ab), or_ab, implies(imp_xa_xu, implies(imp_xb_xu, xu)), [], [or_ab]),
+        got_case_xa, imp_xa_xu, implies(imp_xb_xu, xu), [or_ab], [ps, bu]),
+        got_case_xb, imp_xb_xu, xu, [or_ab, ps, bu], [ps, bu])
+    # [ps, bu, or_ab] |- [xu]
+    $imp_bwd implies(or_ab, xu)
+    $got_bwd_imp ir(got_bwd, [ps, bu], [imp_bwd], imp_bwd)
+
+    # === Combine: iff(xu, or_ab) ===
+    $got_iff mp(mp(iff_intro(xu, or_ab, []),
+        got_fwd_imp, imp_fwd, implies(imp_bwd, iff_goal), [], [ps, bu]),
+        got_bwd_imp, imp_bwd, iff_goal, [ps, bu], [ps, bu])
+    # [ps, bu] |- [iff_goal]
+
+    # forall x -> union(u,a,b)
+    $got_fa fr(got_iff, [ps, bu], [un], un, "x")
+    # [ps, bu] |- [union(u,a,b)]
+
+    # eir: exists u. union(u,a,b)
+    $got_ex eir(got_fa, \u: union("u","a","b"), "u", "u", [ps, bu])
+    # [ps, bu] |- [goal]
+
+    # eel on big_union: [ps, bu_axiom_ctx] |- [goal]
+    $bu_ctx nth(big_union_exists, 1)
+    $bu_f head(nth(big_union_exists, 2))
+    $bu_inst2 apply_thm(big_union_exists, bu_f, ["{a, b}"], bu_ctx)
+    # bu_ctx |- [exists(u, big_union(u, "{a,b}"))]
+    # Hmm, this won't work — big_union_exists takes a single set argument.
+    # big_union_exists: ∀a. ∃s. big_union(s, a)
+    # We need to instantiate with "p" (our pair set witness)
+    # But p is an eigenvariable from eel, not a concrete term.
+
+    # Better: use the existing witnesses from pair_set_exists
+    # pair_set_exists: ∀a,b. ∃s. pair_set(s, a, b)
+    # Instantiate with a, b → ∃p. pair_set(p, a, b)
+    # eel with eigenvariable p → pair_set(p, a, b) on left
+    # Then big_union_exists instantiated with p → ∃u. big_union(u, p)
+    # eel with eigenvariable u → big_union(u, p) on left
+
+    # Step 1: from got_ex, eel on bu
+    $got_eel_bu eel(got_ex, \u: big_union("u","p"), "u", "u", [ps, bu], goal)
+    # [ps, exists(u, big_union(u,p))] |- [goal]
+
+    # Step 2: get exists(u, big_union(u, p)) from big_union_exists
+    $ex_bu exists("u", big_union("u", "p"))
+    $bu_f2 head(nth(big_union_exists, 2))
+    $got_bu_ex apply_thm(big_union_exists, bu_f2, ["p"], bu_ctx)
+    # bu_ctx |- [ex_bu]
+
+    $got_cut_bu cut_c(got_bu_ex, got_eel_bu, ex_bu, bu_ctx, [ps, ex_bu], goal)
+    # [ps, bu_ctx...] |- [goal]
+
+    # Step 3: eel on ps
+    $got_eel_ps eel(got_cut_bu, \p: pair_set("p","a","b"), "p", "p",
+        add([ps], bu_ctx), goal)
+    # [exists(p, pair_set(p,a,b)), bu_ctx...] |- [goal]
+
+    # Step 4: get exists(p, pair_set(p,a,b)) from pair_set_exists
+    # Pairing = forall(x, forall(y, exists(b, ...))).
+    # Instantiating y with "b" clashes with bound "b" in exists.
+    # Use renamed formula with "_b" for the existential var.
+    $ex_ps exists("p", pair_set("p", "a", "b"))
+    $_ps_f forall("x", forall("y", exists("_b", forall("z",
+        iff(mem("z","_b"), or(eqv("z","x","_"), eqv("z","y","_")))))))
+    $ps_ctx nth(pair_set_exists, 1)
+    $got_ps_ex apply_thm(pair_set_exists, _ps_f, ["a","b"], ps_ctx)
+    # ps_ctx |- [ex_ps]
+
+    $got_cut_ps cut_c(got_ps_ex, got_eel_ps, ex_ps,
+        ps_ctx, add([ex_ps], bu_ctx), goal)
+    # [bu_ctx..., ps_ctx...] |- [goal]
+
+    $all_ctx add(bu_ctx, ps_ctx)
+    close(got_cut_ps, all_ctx, [goal], ["b", "a"])
+}

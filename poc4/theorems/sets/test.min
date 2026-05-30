@@ -133,3 +133,24 @@ $_ print("intersect_unique ok")
 
 $_ qed(unique_intersect, forall("a", forall("b", exists_unique(\v: intersect(v, "a", "b", "_")))))
 $_ print("unique_intersect ok")
+
+from vocab.sets import subset, union
+from theorems.sets.subset_antisymmetric import subset_antisymmetric
+from theorems.sets.eq_transfer import eq_transfer
+from theorems.sets.eq_in_eq import eq_in_eq
+
+$_ qed(subset_antisymmetric, forall("a", forall("b",
+    implies(subset("a","b"), implies(subset("b","a"), eqv("a","b"))))))
+$_ print("subset_antisymmetric ok")
+
+$_ qed(eq_transfer, forall("a", forall("b", forall("z",
+    implies(eqv("a","b","_"), iff(mem("z","a"), mem("z","b")))))))
+$_ print("eq_transfer ok")
+
+$_ qed(eq_in_eq, forall("z", forall("x1", forall("x2",
+    implies(eqv("x1","x2","_"), iff(eqv("z","x1","__"), eqv("z","x2","__")))))))
+$_ print("eq_in_eq ok")
+
+from theorems.sets.union_exists import union_exists
+$_ qed(union_exists, forall("a", forall("b", exists("u", union("u","a","b")))))
+$_ print("union_exists ok")
