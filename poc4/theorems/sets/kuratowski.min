@@ -68,18 +68,18 @@ $kuratowski {
     $op1 forall("x", iff(mem("x", "t1"), cond1("x")))
     $op2 forall("x", iff(mem("x", "t2"), cond2("x")))
     $eq12 eqv("t1", "t2", "_")
-    $eq_ac eqv("a", "c")
-    $eq_bd eqv("b", "d")
+    $eq_ac eqv("a", "c", "_")
+    $eq_bd eqv("b", "d", "_")
     $goal and(eq_ac, eq_bd)
 
-    # Formulas for constant theorem instantiation
-    $_si forall("_1", forall("_2", implies(forall("w", iff(eqv("w","_1"), eqv("w","_2"))), eqv("_1","_2"))))
-    $_es forall("_1", forall("_2", implies(eqv("_1","_2"), eqv("_2","_1"))))
-    $_et forall("_1", forall("_2", forall("_3", implies(eqv("_1","_2"), implies(eqv("_2","_3"), eqv("_1","_3"))))))
-    $_sp forall("_1", forall("_2", forall("_3", implies(forall("w", iff(eqv("w","_1"), or(eqv("w","_2"), eqv("w","_3")))), and(eqv("_2","_1"), eqv("_3","_1"))))))
-    $_pi forall("_1", forall("_2", forall("_3", forall("_4", implies(forall("w", iff(or(eqv("w","_1"),eqv("w","_2")), or(eqv("w","_3"),eqv("w","_4")))), or(and(eqv("_1","_3"),eqv("_2","_4")), and(eqv("_1","_4"),eqv("_2","_3"))))))))
-    $_sse forall("_1", exists("s", singleton("s","_1")))
-    $_pse forall("_1", forall("_2", exists("_3", pair_set("_3","_1","_2"))))
+    # Read formulas from constant theorems (auto-deepen handles clashes)
+    $_si head(nth(singleton_injection, 2))
+    $_es head(nth(eqv_symmetric, 2))
+    $_et head(nth(eqv_transitive, 2))
+    $_sp head(nth(singleton_pair_eq, 2))
+    $_pi head(nth(pair_injection, 2))
+    $_sse head(nth(singleton_exists, 2))
+    $_pse head(nth(pair_set_exists, 2))
 
     # === Outer transfer ===
     $ot_prf transfer(op1, eq12, op2, cond1, cond2, "t1", "t2", "v")
