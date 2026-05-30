@@ -173,3 +173,22 @@ $phi_fn \v: mem(v, "a")
 $bridge_f implies(exists_unique(phi_fn), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))
 $_ qed(exists_unique_bridge(phi_fn, "s", ["s", "a"]), forall("a", forall("s", bridge_f)))
 $_ print("exists_unique_bridge ok")
+
+# === Degenerate cases (A=B, P=R, etc.) ===
+$_ qed(iff_elim_left(A, A, v), forall("a", forall("b", implies(iff(A, A), implies(A, A)))))
+$_ print("iff_elim_left A=B ok")
+
+$_ qed(iff_elim_right(A, A, v), forall("a", forall("b", implies(iff(A, A), implies(A, A)))))
+$_ print("iff_elim_right A=B ok")
+
+$_ qed(iff_intro(A, A, v), forall("a", forall("b", implies(implies(A, A), implies(implies(A, A), iff(A, A))))))
+$_ print("iff_intro A=B ok")
+
+$_ qed(or_iff_compat(A, B, A, D, v), forall("a", forall("b", implies(iff(A, A), implies(iff(B, D), iff(or(A, B), or(A, D)))))))
+$_ print("or_iff_compat P=R ok")
+
+$_ qed(or_iff_compat(A, B, C, B, v), forall("a", forall("b", implies(iff(A, C), implies(iff(B, B), iff(or(A, B), or(C, B)))))))
+$_ print("or_iff_compat Q=S ok")
+
+$_ qed(or_iff_compat(A, B, A, B, v), forall("a", forall("b", implies(iff(A, A), implies(iff(B, B), iff(or(A, B), or(A, B)))))))
+$_ print("or_iff_compat P=R Q=S ok")
