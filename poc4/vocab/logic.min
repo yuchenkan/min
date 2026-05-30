@@ -1,13 +1,13 @@
 from core.derived import and, exists, forall, implies, eqv, d
 
 # exists_unique(body_fn, p): E!x.(body(x) & Ay.(body(y) -> x = y))
-# body_fn: \v: formula using v
+# body_fn: \v p: formula using v, with prefix p for internal vocab
 # p is REQUIRED
 
 $exists_unique \body_fn p: {
     $x add(p, "x")
     $y add(p, "y")
-    $body body_fn(x)
-    $expansion exists(x, and(body, forall(y, implies(body_fn(y), eqv(x, y, p)))))
+    $body body_fn(x, p)
+    $expansion exists(x, and(body, forall(y, implies(body_fn(y, p), eqv(x, y, p)))))
     ["exists_unique", add("E!", add(x, add(".", d(body)))), expansion]
 }

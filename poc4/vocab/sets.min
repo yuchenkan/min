@@ -2,12 +2,13 @@ from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
 
 # All vocab nodes: [tag, display, expansion] — no args stored
 # p (prefix) is REQUIRED — caller must provide to avoid bound var clashes
+# callbacks receive (var, prefix) — vocab controls the prefix
 
 # set_spec(s, cond_fn, p): forall x. iff(mem(x, s), cond(x))
 $set_spec \s cond_fn p: {
     $x add(p, "x")
-    $body forall(x, iff(mem(x, s), cond_fn(x)))
-    ["set_spec", add(add("spec(", s), add(", ", add(d(cond_fn(x)), ")"))), body]
+    $body forall(x, iff(mem(x, s), cond_fn(x, p)))
+    ["set_spec", add(add("spec(", s), add(", ", add(d(cond_fn(x, p)), ")"))), body]
 }
 
 # empty(s, p): forall x. neg(mem(x, s))
@@ -26,46 +27,46 @@ $subset \a b p: {
 
 # singleton(s, a, p): set_spec(s, \x: eqv(x, a))
 $singleton \s a p: ["singleton", add(s, add(" = {", add(a, "}"))),
-    set_spec(s, \x: eqv(x, a, p), p)]
+    set_spec(s, \x p: eqv(x, a, p), p)]
 
 # pair_set(s, a, b, p): set_spec(s, \x: or(eqv(x, a), eqv(x, b)))
 $pair_set \s a b p: ["pair_set", add(s, add(" = {", add(a, add(", ", add(b, "}"))))),
-    set_spec(s, \x: or(eqv(x, a, p), eqv(x, b, p)), p)]
+    set_spec(s, \x p: or(eqv(x, a, p), eqv(x, b, p)), p)]
 
 # big_union(s, a, p): set_spec(s, \x: exists(y, and(mem(y, a), mem(x, y))))
 $big_union \s a p: {
     $y add(p, "y")
     ["big_union", add(s, add(" = U(", add(a, ")"))),
-        set_spec(s, \x: exists(y, and(mem(y, a), mem(x, y))), p)]
+        set_spec(s, \x p: exists(y, and(mem(y, a), mem(x, y))), p)]
 }
 
 # power_set(s, a, p): set_spec(s, \x: subset(x, a))
 $power_set \s a p: {
     $sp add(p, "_")
     ["power_set", add(s, add(" = P(", add(a, ")"))),
-        set_spec(s, \x: subset(x, a, sp), p)]
+        set_spec(s, \x p: subset(x, a, sp), p)]
 }
 
 # successor(s, a, p): set_spec(s, \x: or(mem(x, a), eqv(x, a)))
 $successor \s a p: {
     $ep add(p, "_")
     ["successor", add(s, add(" = S(", add(a, ")"))),
-        set_spec(s, \x: or(mem(x, a), eqv(x, a, ep)), p)]
+        set_spec(s, \x p: or(mem(x, a), eqv(x, a, ep)), p)]
 }
 
 # ordered_pair(p, a, b, pr): p = {{a}, {a, b}}
 $ordered_pair \p a b pr: {
     $ip add(pr, "_")
     ["ordered_pair", add("(", add(a, add(", ", add(b, ")")))),
-        set_spec(p, \x: or(singleton(x, a, ip), pair_set(x, a, b, ip)), pr)]
+        set_spec(p, \x pr: or(singleton(x, a, ip), pair_set(x, a, b, ip)), pr)]
 }
 
 # union(s, a, b, p): s = a | b
 $union \s a b p: {
     ["union", add(s, add(" = ", add(a, add(" | ", b)))),
-        set_spec(s, \x: or(mem(x, a), mem(x, b)), p)]
+        set_spec(s, \x p: or(mem(x, a), mem(x, b)), p)]
 }
 
 # intersect(s, a, b, p): s = a & b
 $intersect \s a b p: ["intersect", add(s, add(" = ", add(a, add(" & ", b)))),
-    set_spec(s, \x: and(mem(x, a), mem(x, b)), p)]
+    set_spec(s, \x p: and(mem(x, a), mem(x, b)), p)]
