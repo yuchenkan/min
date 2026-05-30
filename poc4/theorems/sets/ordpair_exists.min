@@ -11,24 +11,19 @@ from theorems.sets.pair_set_exists import pair_set_exists
 # Pairing |- forall a b. exists p. ordered_pair(p, a, b)
 $ordpair_exists {
     $pa_f Pairing
-    $_sse forall("_1", exists("s", singleton("s","_1")))
-    $_pse forall("_1", forall("_2", exists("_3", pair_set("_3","_1","_2"))))
+    $_sse head(nth(singleton_exists, 2))
+    $_pse head(nth(pair_set_exists, 2))
     $sing_a \v: singleton(v, "a", "_")
     $pair_ab \v: pair_set(v, "a", "b", "_")
-    $goal exists("p", ordered_pair("p", "a", "b"))
+    $goal exists("p", ordered_pair("p", "a", "b", "_"))
 
     # Witnesses
     $sa_char sing_a("sa")
     $pab_char pair_ab("pab")
-    $p_char pair_set("p", "sa", "pab")
+    $p_char pair_set("p", "sa", "pab", "_")
 
     # === Build iff(eqv(x,sa), singleton(x,a,"_")) under [sa_char] ===
-    # Forward: eqv(x,sa) + sa_char -> singleton(x,a,"_")
-    # fl eqv(x,sa) with w: iff(mem(w,x), mem(w,sa))
-    # fl sa_char with w: iff(mem(w,sa), eqv(w,a,"_"))
-    # iff_chain: iff(mem(w,x), eqv(w,a,"_"))
-    # fr: forall(w, iff(mem(w,x), eqv(w,a,"_"))) = singleton(x,a,"_")
-    $eqv_xsa eqv("x", "sa")
+    $eqv_xsa eqv("x", "sa", "_")
     $iff_mem_xsa iff(mem("w","x"), mem("w","sa"))
     $iff_mem_sa_a iff(mem("w","sa"), eqv("w","a","_"))
     $iff_mem_x_a iff(mem("w","x"), eqv("w","a","_"))
@@ -39,7 +34,6 @@ $ordpair_exists {
               g2, iff_mem_sa_a, iff_mem_x_a, [eqv_xsa], [sa_char])
     $sing_xa sing_a("x")
     $g_fwd_fa fr(g_fwd, [eqv_xsa, sa_char], [sing_xa], sing_xa, "w")
-    # [eqv(x,sa), sa_char] |- [singleton(x,a,"_")]
 
     # Backward: singleton(x,a,"_") + sa_char -> eqv(x,sa)
     $g3 fl(ax([iff_mem_x_a], [iff_mem_x_a], iff_mem_x_a), [sing_xa], [iff_mem_x_a], sing_xa, "w")
@@ -48,9 +42,8 @@ $ordpair_exists {
                  g3, iff_mem_x_a, implies(iff(eqv("w","a","_"), mem("w","sa")), iff_mem_xsa), [], [sing_xa]),
               g4, iff(eqv("w","a","_"), mem("w","sa")), iff_mem_xsa, [sing_xa], [sa_char])
     $g_bwd_fa fr(g_bwd, [sing_xa, sa_char], [eqv_xsa], eqv_xsa, "w")
-    # [singleton(x,a,"_"), sa_char] |- [eqv(x,sa)]
 
-    # iff_intro: [sa_char] |- [iff(eqv(x,sa), singleton(x,a,"_"))]
+    # iff_intro
     $iff_eqv_sing iff(eqv_xsa, sing_xa)
     $fwd_imp implies(eqv_xsa, sing_xa)
     $bwd_imp implies(sing_xa, eqv_xsa)
@@ -59,25 +52,24 @@ $ordpair_exists {
     $g_iff_es mp(mp(iff_intro(eqv_xsa, sing_xa, []),
                     g_fwd_ir, fwd_imp, implies(bwd_imp, iff_eqv_sing), [], [sa_char]),
                  g_bwd_ir, bwd_imp, iff_eqv_sing, [sa_char], [sa_char])
-    # [sa_char] |- [iff(eqv(x,sa), singleton(x,a,"_"))]
 
     # === Same for iff(eqv(x,pab), pair_set(x,a,b,"_")) under [pab_char] ===
-    $eqv_xpab eqv("x", "pab")
+    $eqv_xpab eqv("x", "pab", "_")
     $iff_mem_xpab iff(mem("w","x"), mem("w","pab"))
-    $iff_mem_pab_ab iff(mem("w","pab"), or(eqv("w","a"), eqv("w","b")))
-    $iff_mem_x_ab iff(mem("w","x"), or(eqv("w","a"), eqv("w","b")))
+    $iff_mem_pab_ab iff(mem("w","pab"), or(eqv("w","a","_"), eqv("w","b","_")))
+    $iff_mem_x_ab iff(mem("w","x"), or(eqv("w","a","_"), eqv("w","b","_")))
     $h1 fl(ax([iff_mem_xpab], [iff_mem_xpab], iff_mem_xpab), [eqv_xpab], [iff_mem_xpab], eqv_xpab, "w")
     $h2 fl(ax([iff_mem_pab_ab], [iff_mem_pab_ab], iff_mem_pab_ab), [pab_char], [iff_mem_pab_ab], pab_char, "w")
-    $h_fwd mp(mp(iff_chain(mem("w","x"), mem("w","pab"), or(eqv("w","a"),eqv("w","b")), []),
+    $h_fwd mp(mp(iff_chain(mem("w","x"), mem("w","pab"), or(eqv("w","a","_"),eqv("w","b","_")), []),
                  h1, iff_mem_xpab, implies(iff_mem_pab_ab, iff_mem_x_ab), [], [eqv_xpab]),
               h2, iff_mem_pab_ab, iff_mem_x_ab, [eqv_xpab], [pab_char])
     $pair_xab pair_ab("x")
     $h_fwd_fa fr(h_fwd, [eqv_xpab, pab_char], [pair_xab], pair_xab, "w")
     $h3 fl(ax([iff_mem_x_ab], [iff_mem_x_ab], iff_mem_x_ab), [pair_xab], [iff_mem_x_ab], pair_xab, "w")
-    $h4 mp(iff_sym(mem("w","pab"), or(eqv("w","a"),eqv("w","b")), []), h2, iff_mem_pab_ab, iff(or(eqv("w","a"),eqv("w","b")), mem("w","pab")), [], [pab_char])
-    $h_bwd mp(mp(iff_chain(mem("w","x"), or(eqv("w","a"),eqv("w","b")), mem("w","pab"), []),
-                 h3, iff_mem_x_ab, implies(iff(or(eqv("w","a"),eqv("w","b")), mem("w","pab")), iff_mem_xpab), [], [pair_xab]),
-              h4, iff(or(eqv("w","a"),eqv("w","b")), mem("w","pab")), iff_mem_xpab, [pair_xab], [pab_char])
+    $h4 mp(iff_sym(mem("w","pab"), or(eqv("w","a","_"),eqv("w","b","_")), []), h2, iff_mem_pab_ab, iff(or(eqv("w","a","_"),eqv("w","b","_")), mem("w","pab")), [], [pab_char])
+    $h_bwd mp(mp(iff_chain(mem("w","x"), or(eqv("w","a","_"),eqv("w","b","_")), mem("w","pab"), []),
+                 h3, iff_mem_x_ab, implies(iff(or(eqv("w","a","_"),eqv("w","b","_")), mem("w","pab")), iff_mem_xpab), [], [pair_xab]),
+              h4, iff(or(eqv("w","a","_"),eqv("w","b","_")), mem("w","pab")), iff_mem_xpab, [pair_xab], [pab_char])
     $h_bwd_fa fr(h_bwd, [pair_xab, pab_char], [eqv_xpab], eqv_xpab, "w")
     $iff_eqv_pair iff(eqv_xpab, pair_xab)
     $h_iff mp(mp(iff_intro(eqv_xpab, pair_xab, []),
@@ -85,57 +77,45 @@ $ordpair_exists {
                  implies(implies(pair_xab, eqv_xpab), iff_eqv_pair), [], [pab_char]),
               ir(h_bwd_fa, [pab_char], [implies(pair_xab, eqv_xpab)], implies(pair_xab, eqv_xpab)), implies(pair_xab, eqv_xpab),
               iff_eqv_pair, [pab_char], [pab_char])
-    # [pab_char] |- [iff(eqv(x,pab), pair_set(x,a,b,"_"))]
 
-    # === or_iff_compat: [sa_char, pab_char] |- [iff(or(eqv(x,sa),eqv(x,pab)), or(sing(x,a),pair(x,a,b)))] ===
+    # === or_iff_compat ===
     $or_left or(eqv_xsa, eqv_xpab)
     $or_right or(sing_xa, pair_xab)
     $iff_or iff(or_left, or_right)
     $g_or_iff mp(mp(or_iff_compat(eqv_xsa, eqv_xpab, sing_xa, pair_xab, []),
                     g_iff_es, iff_eqv_sing, implies(iff_eqv_pair, iff_or), [], [sa_char]),
                  h_iff, iff_eqv_pair, iff_or, [sa_char], [pab_char])
-    # [sa_char, pab_char] |- [iff(or(...), or(...))]
 
-    # === Chain with p_char: iff(mem(x,p), or(eqv(x,sa),eqv(x,pab))) + iff(or(...), or(...)) ===
+    # === Chain with p_char ===
     $iff_p iff(mem("x","p"), or_left)
     $g_p fl(ax([iff_p], [iff_p], iff_p), [p_char], [iff_p], p_char, "x")
     $iff_result iff(mem("x","p"), or_right)
     $g_chain mp(mp(iff_chain(mem("x","p"), or_left, or_right, []),
                    g_p, iff_p, implies(iff_or, iff_result), [], [p_char]),
                 g_or_iff, iff_or, iff_result, [p_char], [sa_char, pab_char])
-    # [p_char, sa_char, pab_char] |- [iff(mem(x,p), or(sing(x,a), pair(x,a,b)))]
 
-    # fr on x: [p_char, sa_char, pab_char] |- [ordered_pair(p,a,b)]
-    $op ordered_pair("p", "a", "b")
+    # fr on x
+    $op ordered_pair("p", "a", "b", "_")
     $g_op fr(g_chain, [p_char, sa_char, pab_char], [op], op, "x")
 
-    # eir: [p_char, sa_char, pab_char] |- [goal]
-    $op_fn \v: ordered_pair(v, "a", "b")
-    $g_ex eir(g_op, op_fn, "p", "p", [p_char, sa_char, pab_char])
+    # eir
+    $g_ex eir(g_op, \v: ordered_pair(v, "a", "b", "_"), "p", "p", [p_char, sa_char, pab_char])
 
-    # eel p: replace p_char with exists(p, pair_set(p, sa, pab))
-    $p_fn \v: pair_set(v, "sa", "pab")
-    $g_eel_p eel(g_ex, p_fn, "p", "p", [p_char, sa_char, pab_char], goal)
-    $ex_p exists("p", pair_set("p", "sa", "pab"))
+    # eel chain
+    $g_eel_p eel(g_ex, \v: pair_set(v, "sa", "pab", "_"), "p", "p", [p_char, sa_char, pab_char], goal)
+    $ex_p exists("p", pair_set("p", "sa", "pab", "_"))
     $g_pse_sapab apply_thm(pair_set_exists, _pse, ["sa","pab"], [pa_f])
     $g_cut_p cut_c(g_pse_sapab, g_eel_p, ex_p, [pa_f], [ex_p, sa_char, pab_char], goal)
-    # [pa_f, sa_char, pab_char] |- [goal]
 
-    # eel pab: replace pab_char with exists(pab, pair_set(pab, a, b))
-    $pab_fn \v: pair_set(v, "a", "b", "_")
-    $g_eel_pab eel(g_cut_p, pab_fn, "pab", "pab", [pa_f, sa_char, pab_char], goal)
+    $g_eel_pab eel(g_cut_p, \v: pair_set(v, "a", "b", "_"), "pab", "pab", [pa_f, sa_char, pab_char], goal)
     $ex_pab exists("pab", pair_ab("pab"))
     $g_pse_ab apply_thm(pair_set_exists, _pse, ["a","b"], [pa_f])
     $g_cut_pab cut_c(g_pse_ab, g_eel_pab, ex_pab, [pa_f], [pa_f, sa_char, ex_pab], goal)
-    # [pa_f, sa_char] |- [goal]
 
-    # eel sa: replace sa_char with exists(sa, singleton(sa, a))
-    $sa_fn \v: singleton(v, "a", "_")
-    $g_eel_sa eel(g_cut_pab, sa_fn, "sa", "sa", [pa_f, sa_char], goal)
+    $g_eel_sa eel(g_cut_pab, \v: singleton(v, "a", "_"), "sa", "sa", [pa_f, sa_char], goal)
     $ex_sa exists("sa", sing_a("sa"))
     $g_sse_a apply_thm(singleton_exists, _sse, ["a"], [pa_f])
     $g_cut_sa cut_c(g_sse_a, g_eel_sa, ex_sa, [pa_f], [pa_f, ex_sa], goal)
-    # [pa_f] |- [goal]
 
     close(g_cut_sa, [pa_f], [goal], ["b", "a"])
 }
