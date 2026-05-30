@@ -121,35 +121,65 @@ $mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
     cut(impl_wr, s3, merged, [Q], imp)
 }
 
-# inst: single forall instantiation
-# thm: ctx |- [formula], formula is a Forall
-# body: result after instantiation (caller computes body_fn(term))
-# term: instantiation term
-# ctx: left side
-$inst \thm formula body term ctx: {
-    $s1 fl(ax([body], [body], body), [formula], [body], formula, term)
-    $s2 wl_all(s1, [formula], [body], remove(same, formula, ctx))
-    cut(wr(thm, ctx, [formula, body], body),
-        s2, ctx, [body], formula)
+# fsubst: substitute free var v with term t in formula f
+$_fsubst \self f v t: {
+    $tag nth(f, 0)
+    ?(eq(tag, "mem"), mem(?(eq(nth(f, 2), v), t, nth(f, 2)), ?(eq(nth(f, 3), v), t, nth(f, 3))),
+    ?(eq(tag, "neg"), neg(self(self, nth(f, 2), v, t)),
+    ?(eq(tag, "implies"), implies(self(self, nth(f, 2), v, t), self(self, nth(f, 3), v, t)),
+    ?(eq(tag, "forall"), ?(eq(nth(f, 2), v), f, forall(nth(f, 2), self(self, nth(f, 3), v, t))),
+    self(self, nth(f, 2), v, t)))))
+}
+$fsubst \f v t: _fsubst(_fsubst, f, v, t)
+
+# deepen: push all bound vars one level deeper (prepend pre)
+# forall(v, body) -> forall(pre+v, body[v := pre+v])
+# produces alpha-equivalent formula with no shallow bound var names
+$_deepen \self f pre: {
+    $tag nth(f, 0)
+    ?(eq(tag, "mem"), f,
+    ?(eq(tag, "neg"), neg(self(self, nth(f, 2), pre)),
+    ?(eq(tag, "implies"), implies(self(self, nth(f, 2), pre), self(self, nth(f, 3), pre)),
+    ?(eq(tag, "forall"), {
+        $v nth(f, 2)
+        $nv add(pre, v)
+        forall(nv, self(self, fsubst(nth(f, 3), v, nv), pre))
+    },
+    # vocab: deepen expansion
+    self(self, nth(f, 2), pre)))))
+}
+$deepen \f pre: _deepen(_deepen, f, pre)
+
+# _has_bound: check if flat formula has bound var equal to term
+$_has_bound \self f t: {
+    $tag nth(f, 0)
+    ?(eq(tag, "mem"), False,
+    ?(eq(tag, "neg"), self(self, nth(f, 1), t),
+    ?(eq(tag, "implies"), ?(self(self, nth(f, 1), t), True, self(self, nth(f, 2), t)),
+    ?(eq(tag, "forall"), ?(eq(nth(f, 1), t), True, self(self, nth(f, 2), t)),
+    False))))
 }
 
-# apply_thm: multi-forall instantiation
-# thm: ctx |- [formula]
-# terms: [t1, t2, ...]
-$_apply_thm \self thm formula terms ctx: {
-    $_fs \fself f v t: {
-        $tag nth(f, 0)
-        ?(eq(tag, "mem"), mem(?(eq(nth(f, 2), v), t, nth(f, 2)), ?(eq(nth(f, 3), v), t, nth(f, 3))),
-        ?(eq(tag, "neg"), neg(fself(fself, nth(f, 2), v, t)),
-        ?(eq(tag, "implies"), implies(fself(fself, nth(f, 2), v, t), fself(fself, nth(f, 3), v, t)),
-        ?(eq(tag, "forall"), ?(eq(nth(f, 2), v), f, forall(nth(f, 2), fself(fself, nth(f, 3), v, t))),
-        fself(fself, nth(f, 2), v, t)))))
-    }
+# inst: single forall instantiation
+# auto-deepens formula if term clashes with bound vars
+$inst \thm formula body term ctx: {
     $__peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))
+    $fa __peel(__peel, formula)
+    $fa_body flat(flat, nth(fa, 3))
+    $clash _has_bound(_has_bound, fa_body, term)
+    $formula_use ?(clash, deepen(formula, term), formula)
+    $s1 fl(ax([body], [body], body), [formula_use], [body], formula_use, term)
+    $s2 wl_all(s1, [formula_use], [body], remove(same, formula_use, ctx))
+    cut(wr(thm, ctx, [formula_use, body], body),
+        s2, ctx, [body], formula_use)
+}
+# apply_thm: multi-forall instantiation with auto-deepening
+$_apply_thm \self thm formula terms ctx: {
+    $_peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))
     ?(eq(len(terms), 0), thm, {
-        $f __peel(__peel, formula)
+        $f _peel(_peel, formula)
         $v nth(f, 2)
-        $body _fs(_fs, nth(f, 3), v, head(terms))
+        $body fsubst(nth(f, 3), v, head(terms))
         self(self,
             inst(thm, formula, body, head(terms), ctx),
             body, tail(terms), ctx)
