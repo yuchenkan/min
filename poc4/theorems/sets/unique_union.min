@@ -1,0 +1,30 @@
+from core.derived import mem, implies, forall, exists, or, eqv
+from vocab.sets import union
+from vocab.logic import exists_unique
+from tactics import ax, fr, mp, apply_thm, eel, cut_c, close
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.sets.union_unique import union_unique
+from theorems.sets.union_exists import union_exists
+
+# Pairing, Union |- forall a b. exists_unique(u, union(u, a, b))
+$unique_union {
+    $body_fn \v: union(v, "a", "b", "_")
+    $eu exists_unique(body_fn)
+    $un_u union("u", "a", "b", "_")
+    $imp_inner implies(union("y", "a", "b", "_"), eqv("u", "y"))
+    $uu_f forall("a", forall("b", forall("s1", forall("s2",
+        implies(union("s1","a","b"), implies(union("s2","a","b"), eqv("s1","s2","_")))))))
+    $uu_inst apply_thm(union_unique, uu_f, ["a","b","u","y"], [])
+    $got_inner mp(uu_inst, ax([un_u], [un_u], un_u), un_u, imp_inner, [], [un_u])
+    $fa_uniq forall("y", imp_inner)
+    $got_fa fr(got_inner, [un_u], [fa_uniq], fa_uniq, "y")
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([un_u], [un_u], un_u), un_u, implies(fa_uniq, eu), [], [un_u]),
+               got_fa, fa_uniq, eu, [un_u], [un_u])
+    $got_ex eel(got_eu, body_fn, "u", "u", [un_u], eu)
+    $ue_ctx nth(union_exists, 1)
+    $ue_f head(nth(union_exists, 2))
+    $ue_inst apply_thm(union_exists, ue_f, ["a","b"], ue_ctx)
+    $ex_un exists("u", union("u", "a", "b", "_"))
+    $got_cut cut_c(ue_inst, got_ex, ex_un, ue_ctx, [ex_un], eu)
+    close(got_cut, ue_ctx, [eu], ["b","a"])
+}

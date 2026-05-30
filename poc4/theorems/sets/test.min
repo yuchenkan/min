@@ -152,5 +152,16 @@ $_ qed(eq_in_eq, forall("z", forall("x1", forall("x2",
 $_ print("eq_in_eq ok")
 
 from theorems.sets.union_exists import union_exists
+from theorems.sets.union_unique import union_unique
+from theorems.sets.unique_union import unique_union
+
 $_ qed(union_exists, forall("a", forall("b", exists("u", union("u","a","b")))))
 $_ print("union_exists ok")
+
+$_ qed(union_unique,
+    forall("a", forall("b", forall("s1", forall("s2",
+        implies(union("s1","a","b"), implies(union("s2","a","b"), eqv("s1","s2","_"))))))))
+$_ print("union_unique ok")
+
+$_ qed(unique_union, forall("a", forall("b", exists_unique(\v: union(v, "a", "b", "_")))))
+$_ print("unique_union ok")
