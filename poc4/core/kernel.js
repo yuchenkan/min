@@ -157,8 +157,8 @@ function isPermutation(a, b) {
 // === Proof rules ===
 
 function proof(seq, rule, premises, principal, term) {
-    if (!checkRule(seq, rule, premises, principal, term))
-        throw new Error(`invalid proof step: ${rule}`);
+    const err = checkRule(seq, rule, premises, principal, term);
+    if (err) throw new Error(`invalid proof step: ${rule}\n  ${err}`);
     return new Proof(seq);
 }
 
@@ -167,81 +167,107 @@ function checkRule(s, rule, premises, principal, term) {
 
     switch (rule) {
         case "axiom":
-            return ps.length === 0
-                && fin(principal, s.left) && fin(principal, s.right);
+            if (ps.length !== 0) return "axiom: premises not empty";
+            if (!fin(principal, s.left)) return "axiom: principal not in left";
+            if (!fin(principal, s.right)) return "axiom: principal not in right";
+            return null;
 
         case "neg_left":
-            return ps.length === 1 && principal instanceof Neg
-                && fin(principal, s.left)
-                && eqSequent(ps[0], new Sequent(
-                    remove(s.left, principal),
-                    setAdd(s.right, principal.operand)));
+            if (ps.length !== 1 || !(principal instanceof Neg)) return "neg_left: bad principal/premises";
+            if (!fin(principal, s.left)) return "neg_left: principal not in left";
+            if (!eqSequent(ps[0], new Sequent(remove(s.left, principal), setAdd(s.right, principal.operand))))
+                return "neg_left: premise mismatch";
+            return null;
 
         case "neg_right":
-            return ps.length === 1 && principal instanceof Neg
-                && fin(principal, s.right)
-                && eqSequent(ps[0], new Sequent(
-                    setAdd(s.left, principal.operand),
-                    remove(s.right, principal)));
+            if (ps.length !== 1 || !(principal instanceof Neg)) return "neg_right: bad principal/premises";
+            if (!fin(principal, s.right)) return "neg_right: principal not in right";
+            if (!eqSequent(ps[0], new Sequent(setAdd(s.left, principal.operand), remove(s.right, principal))))
+                return "neg_right: premise mismatch";
+            return null;
 
         case "implies_left": {
-            if (ps.length !== 2 || !(principal instanceof Implies)) return false;
-            if (!fin(principal, s.left)) return false;
+            if (ps.length !== 2 || !(principal instanceof Implies)) return "implies_left: bad principal/premises";
+            if (!fin(principal, s.left)) return "implies_left: principal not in left";
             const G = remove(s.left, principal);
-            return eqSequent(ps[0], new Sequent(G, setAdd(s.right, principal.left)))
-                && eqSequent(ps[1], new Sequent(setAdd(G, principal.right), s.right));
+            if (!eqSequent(ps[0], new Sequent(G, setAdd(s.right, principal.left))))
+                return "implies_left: premise 0 mismatch";
+            if (!eqSequent(ps[1], new Sequent(setAdd(G, principal.right), s.right)))
+                return "implies_left: premise 1 mismatch";
+            return null;
         }
 
         case "implies_right": {
-            if (ps.length !== 1 || !(principal instanceof Implies)) return false;
-            if (!fin(principal, s.right)) return false;
+            if (ps.length !== 1 || !(principal instanceof Implies)) return "implies_right: bad principal/premises";
+            if (!fin(principal, s.right)) return "implies_right: principal not in right";
             const D = remove(s.right, principal);
-            return eqSequent(ps[0], new Sequent(
-                setAdd(s.left, principal.left), setAdd(D, principal.right)));
+            if (!eqSequent(ps[0], new Sequent(setAdd(s.left, principal.left), setAdd(D, principal.right))))
+                return "implies_right: premise mismatch";
+            return null;
         }
 
         case "forall_left": {
             if (ps.length !== 1 || typeof term !== "string" || !(principal instanceof Forall))
-                return false;
-            if (!fin(principal, s.left)) return false;
-            if (boundVars(principal.body).has(term)) return false;
+                return "forall_left: bad principal/premises/term";
+            if (!fin(principal, s.left)) return "forall_left: principal not in left";
+            const bv = boundVars(principal.body);
+            if (bv.has(term)) return `forall_left: term "${term}" clashes with boundVars {${[...bv].join(", ")}}`;
             const G = remove(s.left, principal);
             const substituted = subst(principal.body, principal.var, term);
-            return eqSequent(ps[0], new Sequent(setAdd(G, substituted), s.right));
+            if (!eqSequent(ps[0], new Sequent(setAdd(G, substituted), s.right)))
+                return "forall_left: premise mismatch";
+            return null;
         }
 
         case "forall_right": {
             if (ps.length !== 1 || typeof term !== "string" || !(principal instanceof Forall))
-                return false;
-            if (!fin(principal, s.right)) return false;
-            if (boundVars(principal.body).has(term)) return false;
+                return "forall_right: bad principal/premises/term";
+            if (!fin(principal, s.right)) return "forall_right: principal not in right";
+            const bv = boundVars(principal.body);
+            if (bv.has(term)) return `forall_right: term "${term}" clashes with boundVars {${[...bv].join(", ")}}`;
             const D = remove(s.right, principal);
             const all = [...s.left, ...D];
-            if (all.some(f => freeVars(f).has(term))) return false;
+            const fvf = all.find(f => freeVars(f).has(term));
+            if (fvf) return `forall_right: term "${term}" free in context`;
             const substituted = subst(principal.body, principal.var, term);
-            return eqSequent(ps[0], new Sequent(s.left, setAdd(D, substituted)));
+            if (!eqSequent(ps[0], new Sequent(s.left, setAdd(D, substituted))))
+                return "forall_right: premise mismatch";
+            return null;
         }
 
         case "cut":
-            return ps.length === 2
-                && eqSequent(ps[0], new Sequent(s.left, setAdd(s.right, principal)))
-                && eqSequent(ps[1], new Sequent(setAdd(s.left, principal), s.right));
+            if (ps.length !== 2) return "cut: need 2 premises";
+            if (!eqSequent(ps[0], new Sequent(s.left, setAdd(s.right, principal))))
+                return "cut: premise 0 mismatch";
+            if (!eqSequent(ps[1], new Sequent(setAdd(s.left, principal), s.right)))
+                return "cut: premise 1 mismatch";
+            return null;
 
         case "weakening_left": {
-            if (ps.length !== 1) return false;
-            if (!fin(principal, s.left)) return false;
-            if (fin(principal, ps[0].left)) return eqSequent(ps[0], s);
-            return eqSequent(ps[0], new Sequent(remove(s.left, principal), s.right));
+            if (ps.length !== 1) return "weakening_left: need 1 premise";
+            if (!fin(principal, s.left)) return "weakening_left: principal not in left";
+            if (fin(principal, ps[0].left)) {
+                if (!eqSequent(ps[0], s)) return "weakening_left: premise mismatch (already present)";
+                return null;
+            }
+            if (!eqSequent(ps[0], new Sequent(remove(s.left, principal), s.right)))
+                return "weakening_left: premise mismatch";
+            return null;
         }
 
         case "weakening_right": {
-            if (ps.length !== 1) return false;
-            if (!fin(principal, s.right)) return false;
-            if (fin(principal, ps[0].right)) return eqSequent(ps[0], s);
-            return eqSequent(ps[0], new Sequent(s.left, remove(s.right, principal)));
+            if (ps.length !== 1) return "weakening_right: need 1 premise";
+            if (!fin(principal, s.right)) return "weakening_right: principal not in right";
+            if (fin(principal, ps[0].right)) {
+                if (!eqSequent(ps[0], s)) return "weakening_right: premise mismatch (already present)";
+                return null;
+            }
+            if (!eqSequent(ps[0], new Sequent(s.left, remove(s.right, principal))))
+                return "weakening_right: premise mismatch";
+            return null;
         }
     }
-    return false;
+    return `unknown rule: ${rule}`;
 }
 
 

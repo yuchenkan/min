@@ -160,6 +160,41 @@ $_has_bound \self f t: {
     False))))
 }
 
+# _max_len: max string length among term and all free vars in flat formula
+$_free_len \self f mx: {
+    $tag nth(f, 0)
+    ?(eq(tag, "mem"), {
+        $l1 len(nth(f, 1))
+        $l2 len(nth(f, 2))
+        $m ?(?(eq(l1, mx), False, ?(eq(l2, mx), False, True)),
+            ?(?(eq(l1, l2), False, ?(eq(mx, l1), False, True)), l1,
+            ?(?(eq(l2, mx), True, False), mx, l2)), mx)
+        # simplified: just use add to track, not worth complex max
+        # return mx for now, compute properly below
+        mx
+    },
+    ?(eq(tag, "neg"), self(self, nth(f, 1), mx),
+    ?(eq(tag, "implies"), self(self, nth(f, 2), self(self, nth(f, 1), mx)),
+    ?(eq(tag, "forall"), self(self, nth(f, 2), mx),
+    mx))))
+}
+
+# _make_pre: build prefix of n underscores
+$_make_pre \self n: ?(eq(n, 0), "", add("_", self(self, sub(n, 1))))
+
+# _max: max of two ints
+$_max \a b: ?(gt(a, b), a, b)
+
+# _max_free_len: max length of free vars in flat formula (skips bound vars)
+$_mfl \self f: {
+    $tag nth(f, 0)
+    ?(eq(tag, "mem"), _max(len(nth(f, 1)), len(nth(f, 2))),
+    ?(eq(tag, "neg"), self(self, nth(f, 1)),
+    ?(eq(tag, "implies"), _max(self(self, nth(f, 1)), self(self, nth(f, 2))),
+    ?(eq(tag, "forall"), self(self, nth(f, 2)),
+    0))))
+}
+
 # inst: single forall instantiation
 # auto-deepens formula if term clashes with bound vars
 $inst \thm formula body term ctx: {
@@ -167,11 +202,20 @@ $inst \thm formula body term ctx: {
     $fa __peel(__peel, formula)
     $fa_body flat(flat, nth(fa, 3))
     $clash _has_bound(_has_bound, fa_body, term)
-    $formula_use ?(clash, deepen(formula, term), formula)
-    $s1 fl(ax([body], [body], body), [formula_use], [body], formula_use, term)
-    $s2 wl_all(s1, [formula_use], [body], remove(same, formula_use, ctx))
-    cut(wr(thm, ctx, [formula_use, body], body),
-        s2, ctx, [body], formula_use)
+    $formula_use ?(clash, {
+        $ml _max(len(term), _mfl(_mfl, fa_body))
+        $pre _make_pre(_make_pre, add(ml, 1))
+        deepen(formula, pre)
+    }, formula)
+    # recompute body from deepened formula if needed
+    $body_use ?(clash, {
+        $fa2 __peel(__peel, formula_use)
+        fsubst(nth(fa2, 3), nth(fa2, 2), term)
+    }, body)
+    $s1 fl(ax([body_use], [body_use], body_use), [formula_use], [body_use], formula_use, term)
+    $s2 wl_all(s1, [formula_use], [body_use], remove(same, formula_use, ctx))
+    cut(wr(thm, ctx, [formula_use, body_use], body_use),
+        s2, ctx, [body_use], formula_use)
 }
 # apply_thm: multi-forall instantiation with auto-deepening
 $_apply_thm \self thm formula terms ctx: {
@@ -180,9 +224,9 @@ $_apply_thm \self thm formula terms ctx: {
         $f _peel(_peel, formula)
         $v nth(f, 2)
         $body fsubst(nth(f, 3), v, head(terms))
-        self(self,
-            inst(thm, formula, body, head(terms), ctx),
-            body, tail(terms), ctx)
+        $result inst(thm, formula, body, head(terms), ctx)
+        $actual_body head(nth(result, 2))
+        self(self, result, actual_body, tail(terms), ctx)
     })
 }
 $apply_thm \thm formula terms ctx: _apply_thm(_apply_thm, thm, formula, terms, ctx)

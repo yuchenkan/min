@@ -192,6 +192,7 @@ function makeGlobal() {
             return Array.isArray(a) ? [...a, ...b] : a + b;
         },
         sub: (a, b) => a - b,
+        gt: (a, b) => a > b,
         mul: (a, b) => a * b,
         eq: (a, b) => a === b,
         not: (a) => !a,
