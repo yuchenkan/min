@@ -5,29 +5,24 @@ from theorems.logic.iff_intro import iff_intro
 
 # |- subset(a,b) -> subset(b,a) -> eqv(a,b)
 $subset_antisymmetric {
-    $sub_ab subset("a", "b")
-    $sub_ba subset("b", "a")
+    $sub_ab subset("a", "b", "_")
+    $sub_ba subset("b", "a", "_")
     $mem_za mem("z", "a")
     $mem_zb mem("z", "b")
     $imp_ab implies(mem_za, mem_zb)
     $imp_ba implies(mem_zb, mem_za)
     $iff_ab iff(mem_za, mem_zb)
 
-    # from subset(a,b), instantiate with z: mem(z,a) -> mem(z,b)
     $got_fwd fl(ax([imp_ab], [imp_ab], imp_ab), [sub_ab], [imp_ab], sub_ab, "z")
-    # from subset(b,a), instantiate with z: mem(z,b) -> mem(z,a)
     $got_bwd fl(ax([imp_ba], [imp_ba], imp_ba), [sub_ba], [imp_ba], sub_ba, "z")
 
-    # combine into iff
     $got_iff mp(mp(iff_intro(mem_za, mem_zb, []),
                    got_fwd, imp_ab, implies(imp_ba, iff_ab), [], [sub_ab]),
                 got_bwd, imp_ba, iff_ab, [sub_ab], [sub_ba])
 
-    # forall z to get eqv(a,b)
-    $eqv_ab eqv("a", "b")
+    $eqv_ab eqv("a", "b", "_")
     $got_fa fr(got_iff, [sub_ab, sub_ba], [eqv_ab], eqv_ab, "z")
 
-    # close: subset(b,a) -> (subset(a,b) -> eqv(a,b))
     $imp2 implies(sub_ba, eqv_ab)
     $s1 ir(got_fa, [sub_ab], [imp2], imp2)
     $top implies(sub_ab, imp2)

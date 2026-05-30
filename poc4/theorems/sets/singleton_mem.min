@@ -8,17 +8,14 @@ from theorems.logic.eqv_reflexive import eqv_reflexive
 $singleton_mem {
     $sing singleton("s", "a", "_")
     $as mem("a", "s")
-    $eqv_aa eqv("a", "a", "__")
+    $eqv_aa eqv("a", "a", "_")
     $iff_as iff(as, eqv_aa)
 
-    # instantiate singleton with a
     $got_iff fl(ax([iff_as], [iff_as], iff_as), [sing], [iff_as], sing, "a")
 
-    # eqv_reflexive: a = a
     $_er head(nth(eqv_reflexive, 2))
     $got_eqv apply_thm(eqv_reflexive, _er, ["a"], [])
 
-    # iff backward: eqv_aa -> as
     $imp_bwd implies(eqv_aa, as)
     $got_as mp(mp(iff_elim_right(as, eqv_aa, []), got_iff, iff_as, imp_bwd, [], [sing]),
         got_eqv, eqv_aa, as, [sing], [])

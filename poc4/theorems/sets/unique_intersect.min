@@ -8,23 +8,22 @@ from theorems.sets.intersect_exists import intersect_exists
 
 # Sep |- forall a b. exists_unique(s, intersect(s, a, b))
 $unique_intersect {
-    $body_fn \v: intersect(v, "a", "b", "_")
-    $eu exists_unique(body_fn)
-    $int_u intersect("u", "a", "b", "_")
-    $imp_inner implies(intersect("y", "a", "b", "_"), eqv("u", "y"))
-    $iu_f forall("a", forall("b", forall("s1", forall("s2",
-        implies(intersect("s1","a","b"), implies(intersect("s2","a","b"), eqv("s1","s2","_")))))))
-    $iu_inst apply_thm(intersect_unique, iu_f, ["a","b","u","y"], [])
+    $body_fn \v p: intersect(v, "a", "b", p)
+    $eu exists_unique(body_fn, "_")
+    $int_u body_fn("u", "_")
+    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $_iu_f head(nth(intersect_unique, 2))
+    $iu_inst apply_thm(intersect_unique, _iu_f, ["a","b","u","y"], [])
     $got_inner mp(iu_inst, ax([int_u], [int_u], int_u), int_u, imp_inner, [], [int_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [int_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([int_u], [int_u], int_u), int_u, implies(fa_uniq, eu), [], [int_u]),
                got_fa, fa_uniq, eu, [int_u], [int_u])
-    $got_ex eel(got_eu, body_fn, "s", "u", [int_u], eu)
+    $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [int_u], eu)
     $ie_ctx nth(intersect_exists, 1)
-    $ie_f forall("b", forall("_a", exists("_b", intersect("_b","_a","b","_"))))
-    $ie_inst apply_thm(intersect_exists, ie_f, ["b","a"], ie_ctx)
-    $ex_int exists("s", intersect("s", "a", "b", "_"))
+    $_ie_f head(nth(intersect_exists, 2))
+    $ie_inst apply_thm(intersect_exists, _ie_f, ["b","a"], ie_ctx)
+    $ex_int exists("s", body_fn("s", "_"))
     $got_cut cut_c(ie_inst, got_ex, ex_int, ie_ctx, [ex_int], eu)
     close(got_cut, ie_ctx, [eu], ["b","a"])
 }
