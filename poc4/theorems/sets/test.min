@@ -195,6 +195,12 @@ from theorems.sets.unique_domain import unique_domain
 $_ qed(unique_domain, forall("f", exists_unique(\v: domain(v, "f", "_"))))
 $_ print("unique_domain ok")
 
+from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
+$_ qed(ordpair_val_transfer,
+    forall("t", forall("a", forall("b", forall("c",
+        implies(eqv("b","c","____"), implies(ordered_pair("t","a","b","__"), ordered_pair("t","a","c","__"))))))))
+$_ print("ordpair_val_transfer ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union

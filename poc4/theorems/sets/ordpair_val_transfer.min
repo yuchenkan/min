@@ -1,0 +1,179 @@
+from core.derived import mem, implies, forall, iff, or, eqv
+from vocab.sets import ordered_pair, singleton, pair_set
+from tactics import ax, fl, fr, ir, mp, apply_thm, close
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.or_iff_compat import or_iff_compat
+from theorems.logic.iff_refl import iff_refl
+from theorems.logic.forall_iff_compat import forall_iff_compat
+from theorems.sets.eq_in_eq import eq_in_eq
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_sym import iff_sym
+
+# |- eqv(b,c) -> ordered_pair(t,a,b) -> ordered_pair(t,a,c)
+#
+# ordered_pair(t,a,b) = forall z. z in t iff (singleton(z,a) | pair_set(z,a,b))
+# pair_set(z,a,b) = forall w. w in z iff (eqv(w,a) | eqv(w,b))
+# If eqv(b,c), then eqv(w,b) iff eqv(w,c) (eq_in_eq).
+# So pair_set(z,a,b) iff pair_set(z,a,c).
+# singleton is unchanged.
+# Therefore ordered_pair(t,a,b) iff ordered_pair(t,a,c).
+# With ordered_pair(t,a,b) on left, get ordered_pair(t,a,c).
+
+$ordpair_val_transfer {
+    $eqv_bc eqv("b", "c", "____")
+    $op_b ordered_pair("t", "a", "b", "__")
+    $op_c ordered_pair("t", "a", "c", "__")
+
+    # eq_in_eq: eqv(b,c) -> iff(eqv(w,b), eqv(w,c))
+    $_eie head(nth(eq_in_eq, 2))
+    $eqv_wb eqv("__w", "b", "___")
+    $eqv_wc eqv("__w", "c", "___")
+    $iff_eqv iff(eqv_wb, eqv_wc)
+    $got_eie apply_thm(eq_in_eq, _eie, ["__w","b","c"], [])
+    $got_iff_eqv mp(got_eie, ax([eqv_bc], [eqv_bc], eqv_bc), eqv_bc, iff_eqv, [], [eqv_bc])
+    # [eqv_bc] |- iff(eqv(w,b), eqv(w,c))
+
+    # iff_refl: iff(eqv(w,a), eqv(w,a))
+    $eqv_wa eqv("__w", "a", "___")
+    $iff_eqv_a iff(eqv_wa, eqv_wa)
+    $got_iff_a iff_refl(eqv_wa, [])
+
+    # or_iff_compat: iff(eqv_wa, eqv_wa) -> iff(eqv_wb, eqv_wc)
+    #   -> iff(or(eqv_wa, eqv_wb), or(eqv_wa, eqv_wc))
+    $or_b or(eqv_wa, eqv_wb)
+    $or_c or(eqv_wa, eqv_wc)
+    $iff_or iff(or_b, or_c)
+    # or_iff_compat: iff(A,A') -> iff(B,B') -> iff(or(A,B), or(A',B'))
+    # Instantiate: A=A'=eqv_wa, B=eqv_wb, B'=eqv_wc
+    $oic or_iff_compat(eqv_wa, eqv_wb, eqv_wa, eqv_wc, [])
+    # got_iff_a: [] |- iff_eqv_a. got_iff_eqv: [eqv_bc] |- iff_eqv.
+    # oic: [] |- iff_eqv_a -> iff_eqv -> iff_or
+    # Use apply_thm to instantiate:
+    $_oic head(nth(oic, 2))
+    $got_step1 mp(oic, got_iff_a, iff_eqv_a, implies(iff_eqv, iff_or), [], [])
+    $got_iff_or mp(got_step1, got_iff_eqv, iff_eqv, iff_or, [], [eqv_bc])
+    # [eqv_bc] |- iff(or_b, or_c)
+
+    # pair_set body: iff(mem(w,__x), or(eqv(w,a), eqv(w,b)))
+    $wx mem("__w", "__x")
+    $ps_b pair_set("__x", "a", "b", "___")
+    $ps_c pair_set("__x", "a", "c", "___")
+    $iff_wz_b iff(wx, or_b)
+    $iff_wz_c iff(wx, or_c)
+
+    # iff_chain: iff(wz, or_b) -> iff(or_b, or_c) -> iff(wz, or_c)
+    $got_chain mp(mp(iff_chain(wx, or_b, or_c, []),
+        ax([iff_wz_b], [iff_wz_b], iff_wz_b), iff_wz_b,
+        implies(iff_or, iff_wz_c), [], [iff_wz_b]),
+        got_iff_or, iff_or, iff_wz_c, [iff_wz_b], [eqv_bc])
+    # [iff_wz_b, eqv_bc] |- iff(wz, or_c)
+
+    # iff_intro(iff_wz_b, iff_wz_c): reverse chain for backward
+    # Actually we need: iff(iff_wz_b, iff_wz_c). Not quite — we need
+    # forall w. iff(iff_wz_b, iff_wz_c) which gives iff(pair_set_b, pair_set_c)
+    # via forall_iff_compat.
+
+    # forall_iff_compat: forall(w, iff(iff_wz_b, iff_wz_c)) -> iff(forall(w,iff_wz_b), forall(w,iff_wz_c))
+    # But we need forall(w, iff(body_b, body_c)) where body = iff(wz, or).
+    # Actually pair_set = forall(w, iff(wz, or(eqv_wa, eqv_wb))).
+    # We want: iff(pair_set_b, pair_set_c) = iff(forall(w, iff_wz_b), forall(w, iff_wz_c)).
+
+    # From got_chain: [iff_wz_b, eqv_bc] |- iff_wz_c
+    # And reverse: [iff_wz_c, eqv_bc] |- iff_wz_b
+
+    # Reverse chain: iff(wz, or_c) -> iff(or_c, or_b) -> iff(wz, or_b)
+    # iff_sym(or_b, or_c): iff(or_b,or_c) -> iff(or_c,or_b)
+    $iff_or_rev iff(or_c, or_b)
+    $got_iff_or_rev mp(iff_sym(or_b, or_c, []), got_iff_or, iff_or, iff_or_rev, [], [eqv_bc])
+    $got_chain_rev mp(mp(iff_chain(wx, or_c, or_b, []),
+        ax([iff_wz_c], [iff_wz_c], iff_wz_c), iff_wz_c,
+        implies(iff_or_rev, iff_wz_b), [], [iff_wz_c]),
+        got_iff_or_rev, iff_or_rev, iff_wz_b, [iff_wz_c], [eqv_bc])
+    # [iff_wz_c, eqv_bc] |- iff_wz_b
+
+    # iff_intro(iff_wz_b, iff_wz_c):
+    $iff_bodies iff(iff_wz_b, iff_wz_c)
+    $imp_fwd implies(iff_wz_b, iff_wz_c)
+    $imp_bwd implies(iff_wz_c, iff_wz_b)
+    $got_fwd_ir ir(got_chain, [eqv_bc], [imp_fwd], imp_fwd)
+    $got_bwd_ir ir(got_chain_rev, [eqv_bc], [imp_bwd], imp_bwd)
+    $got_iff_bodies mp(mp(iff_intro(iff_wz_b, iff_wz_c, []),
+        got_fwd_ir, imp_fwd, implies(imp_bwd, iff_bodies), [], [eqv_bc]),
+        got_bwd_ir, imp_bwd, iff_bodies, [eqv_bc], [eqv_bc])
+    # [eqv_bc] |- iff(iff_wz_b, iff_wz_c)
+
+    # forall w -> iff(pair_set_b, pair_set_c) via forall_iff_compat
+    $fa_iff_bodies forall("__w", iff_bodies)
+    $got_fa_iff fr(got_iff_bodies, [eqv_bc], [fa_iff_bodies], fa_iff_bodies, "__w")
+    $iff_ps iff(ps_b, ps_c)
+    # pair_set set name should not clash with forall_iff_compat's internal "z"
+    $bp \w: iff(mem(w,"__x"), or(eqv(w,"a","___"), eqv(w,"b","___")))
+    $bq \w: iff(mem(w,"__x"), or(eqv(w,"a","___"), eqv(w,"c","___")))
+    $got_iff_ps2 mp(forall_iff_compat("__w", bp, bq, []),
+        got_fa_iff, fa_iff_bodies, iff_ps, [], [eqv_bc])
+    # [eqv_bc] |- iff(ps_b, ps_c)
+
+    # ordered_pair uses prefix "__", so bound var is "__x"
+    # Use "__x" as the element variable for the ordered_pair level
+    $sing singleton("__x", "a", "___")
+    $ps_b2 pair_set("__x", "a", "b", "___")
+    $ps_c2 pair_set("__x", "a", "c", "___")
+    $or_op_b or(sing, ps_b2)
+    $or_op_c or(sing, ps_c2)
+    $iff_sing iff(sing, sing)
+    $got_iff_sing iff_refl(sing, [])
+    $iff_ps2 iff(ps_b2, ps_c2)
+    $iff_or_op iff(or_op_b, or_op_c)
+    $got_iff_or_op mp(mp(or_iff_compat(sing, ps_b2, sing, ps_c2, []),
+        got_iff_sing, iff_sing, implies(iff_ps2, iff_or_op), [], []),
+        got_iff_ps2, iff_ps2, iff_or_op, [], [eqv_bc])
+    # [eqv_bc] |- iff(or_op_b, or_op_c)
+
+    # iff_chain the ordered_pair bodies
+    $xt mem("__x", "t")
+    $op_body_b iff(xt, or_op_b)
+    $op_body_c iff(xt, or_op_c)
+
+    $got_chain2 mp(mp(iff_chain(xt, or_op_b, or_op_c, []),
+        ax([op_body_b], [op_body_b], op_body_b), op_body_b,
+        implies(iff_or_op, op_body_c), [], [op_body_b]),
+        got_iff_or_op, iff_or_op, op_body_c, [op_body_b], [eqv_bc])
+
+    $got_iff_or_op_rev mp(iff_sym(or_op_b, or_op_c, []),
+        got_iff_or_op, iff_or_op, iff(or_op_c, or_op_b), [], [eqv_bc])
+    $got_chain2_rev mp(mp(iff_chain(xt, or_op_c, or_op_b, []),
+        ax([op_body_c], [op_body_c], op_body_c), op_body_c,
+        implies(iff(or_op_c, or_op_b), op_body_b), [], [op_body_c]),
+        got_iff_or_op_rev, iff(or_op_c, or_op_b), op_body_b, [op_body_c], [eqv_bc])
+
+    $iff_op_bodies iff(op_body_b, op_body_c)
+    $got_fwd2 ir(got_chain2, [eqv_bc], [implies(op_body_b, op_body_c)], implies(op_body_b, op_body_c))
+    $got_bwd2 ir(got_chain2_rev, [eqv_bc], [implies(op_body_c, op_body_b)], implies(op_body_c, op_body_b))
+    $got_iff_op mp(mp(iff_intro(op_body_b, op_body_c, []),
+        got_fwd2, implies(op_body_b, op_body_c), implies(implies(op_body_c, op_body_b), iff_op_bodies), [], [eqv_bc]),
+        got_bwd2, implies(op_body_c, op_body_b), iff_op_bodies, [eqv_bc], [eqv_bc])
+    # [eqv_bc] |- iff(op_body_b, op_body_c)
+
+    # forall_iff_compat on __x -> iff(op_b, op_c)
+    $fa_iff_op forall("__x", iff_op_bodies)
+    $got_fa_iff_op fr(got_iff_op, [eqv_bc], [fa_iff_op], fa_iff_op, "__x")
+    $bp2 \v: iff(mem(v,"t"), or(singleton(v,"a","___"), pair_set(v,"a","b","___")))
+    $bq2 \v: iff(mem(v,"t"), or(singleton(v,"a","___"), pair_set(v,"a","c","___")))
+    $iff_ops iff(op_b, op_c)
+    $got_iff_ops mp(forall_iff_compat("__x", bp2, bq2, []),
+        got_fa_iff_op, fa_iff_op, iff_ops, [], [eqv_bc])
+    # [eqv_bc] |- iff(op_b, op_c)
+
+    # iff forward + op_b on left -> op_c
+    $got_op_c mp(mp(iff_elim_left(op_b, op_c, []),
+        got_iff_ops, iff_ops, implies(op_b, op_c), [], [eqv_bc]),
+        ax([op_b], [op_b], op_b), op_b, op_c, [eqv_bc], [op_b])
+    # [eqv_bc, op_b] |- op_c
+
+    $imp2 implies(op_b, op_c)
+    $s1 ir(got_op_c, [eqv_bc], [imp2], imp2)
+    $top implies(eqv_bc, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["c","b","a","t"])
+}
