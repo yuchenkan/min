@@ -144,13 +144,13 @@ $_ print("neg_neg_iff ok")
 $_ qed(or_idempotent(A, v), forall("a", forall("b", iff(or(A, A), A))))
 $_ print("or_idempotent ok")
 
-$_ qed(eqv_reflexive, forall("a", eqv("a", "a", "#")))
+$_ qed(eqv_reflexive, forall("a", eqv("a", "a", "_")))
 $_ print("eqv_reflexive ok")
 
-$_ qed(eqv_symmetric, forall("a", forall("b", implies(eqv("a", "b", "#"), eqv("b", "a", "#")))))
+$_ qed(eqv_symmetric, forall("a", forall("b", implies(eqv("a", "b", "_"), eqv("b", "a", "_")))))
 $_ print("eqv_symmetric ok")
 
-$_ qed(eqv_transitive, forall("a", forall("b", forall("c", implies(eqv("a", "b", "#"), implies(eqv("b", "c", "#"), eqv("a", "c", "#")))))))
+$_ qed(eqv_transitive, forall("a", forall("b", forall("c", implies(eqv("a", "b", "_"), implies(eqv("b", "c", "_"), eqv("a", "c", "_")))))))
 $_ print("eqv_transitive ok")
 
 $_ qed(eqv_mem_left, forall("a", forall("b", forall("z", implies(eqv("a", "b", "_"), implies(mem("z", "a"), mem("z", "b")))))))
@@ -161,7 +161,7 @@ from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.logic.ext_substitution import ext_substitution
 
 $_ qed(exists_unique_intro(\v: mem(v, "a"), "b", ["b", "a"]),
-    forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eqv("b", "y", "#"))), exists_unique(\v: mem(v, "a"), "#"))))))
+    forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eqv("b", "y", "_"))), exists_unique(\v: mem(v, "a"), "_"))))))
 $_ print("exists_unique_intro ok")
 
 $_ qed(ext_substitution,
@@ -170,7 +170,7 @@ $_ print("ext_substitution ok")
 
 from theorems.logic.exists_unique_bridge import exists_unique_bridge
 $phi_fn \v: mem(v, "a")
-$bridge_f implies(exists_unique(phi_fn, "#"), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))
+$bridge_f implies(exists_unique(phi_fn, "_"), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))
 $_ qed(exists_unique_bridge(phi_fn, "s", ["s", "a"]), forall("a", forall("s", bridge_f)))
 $_ print("exists_unique_bridge ok")
 
