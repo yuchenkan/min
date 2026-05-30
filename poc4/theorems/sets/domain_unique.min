@@ -3,4 +3,4 @@ from vocab.functions import apply, domain
 from theorems.sets.set_spec_unique import set_spec_unique
 
 # |- domain(d1,f) -> domain(d2,f) -> eqv(d1,d2)
-$domain_unique set_spec_unique(\v: exists("y", apply("f", v, "y", "_")), ["f"])
+$domain_unique set_spec_unique(\v p: exists("r", apply("f", v, "r", p)), ["f"])

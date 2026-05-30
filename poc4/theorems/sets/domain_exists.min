@@ -12,7 +12,7 @@ from theorems.sets.big_union_exists import big_union_exists
 
 # Union, Sep, Pairing |- forall f. exists d. domain(d, f)
 $domain_exists {
-    $ex_y_app exists("y", apply("f","x","y","__"))
+    $ex_y_app exists("y", apply("f","x","y","_"))
     $x_d mem("x", "d")
     $x_uuf mem("x", "uuf")
     $and_x_app and(x_uuf, ex_y_app)
@@ -24,8 +24,7 @@ $domain_exists {
     $uuf_uf big_union("uuf", "uf", "_")
 
     # Separation phi
-    $phi \v: exists("_y", apply("f", v, "_y", "__"))
-    $sep_f separation(["f"], phi("_x"), "_")
+    $sep_f separation(["f"], \x a np: exists("r", apply("f", x, "r", "_")), "_")
 
     # === Forward: [char] |- x∈d → ∃y.apply ===
     $char_inst fl(ax([iff_sep], [iff_sep], iff_sep), [char], [iff_sep], char, "x")
@@ -40,7 +39,7 @@ $domain_exists {
     # [char] |- x_d → ex_y_app
 
     # === Backward: [char, adu_ctx, uf_f, uuf_uf] |- ∃y.apply → x∈d ===
-    $app_fxy apply("f","x","y","__")
+    $app_fxy apply("f","x","y","_")
 
     # apply_in_double_union: apply(f,x,y) → uf_f → uuf_uf → x∈uuf
     $_adu head(nth(apply_in_double_union, 2))
@@ -57,7 +56,7 @@ $domain_exists {
 
     # ex_y_app from app_fxy
     $got_ex_y eir(ax([app_fxy], [app_fxy], app_fxy),
-        \y: apply("f","x",y,"__"), "y", "y", [app_fxy])
+        \y: apply("f","x",y,"_"), "y", "y", [app_fxy])
 
     # and(x_uuf, ex_y_app)
     $got_and_bwd mp(mp(and_intro(x_uuf, ex_y_app, []),
@@ -77,7 +76,7 @@ $domain_exists {
     # [char, adu_ctx, app_fxy, uf_f, uuf_uf] |- x_d
 
     # eel on app_fxy
-    $got_bwd_ex eel(got_xd, \y: apply("f","x",y,"__"), "y", "y",
+    $got_bwd_ex eel(got_xd, \y: apply("f","x",y,"_"), "y", "y",
         add([char], add(adu_ctx, [app_fxy, uf_f, uuf_uf])), x_d)
     # [char, adu_ctx, ex_y_app, uf_f, uuf_uf] |- x_d
 
@@ -99,11 +98,11 @@ $domain_exists {
 
     # eir: exists d
     $goal exists("d", dom)
-    $got_ex eir(got_fa, \d: domain(d, "f", "___"), "d", "d",
+    $got_ex eir(got_fa, \d: domain(d, "f", "_"), "d", "d",
         add([char], add(adu_ctx, [uf_f, uuf_uf])))
 
     # eel on d from separation (instantiated at uuf)
-    $got_eel_d eel(got_ex, \d: forall("x", iff(mem("x",d), and(mem("x","uuf"), phi("x")))),
+    $got_eel_d eel(got_ex, \d: forall("x", iff(mem("x",d), and(mem("x","uuf"), exists("r", apply("f","x","r","_"))))),
         "d", "d", add([char], add(adu_ctx, [uf_f, uuf_uf])), goal)
     $ex_char exists("d", char)
     $got_sep_inst apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, ["f", "uuf"], [sep_f])

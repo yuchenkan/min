@@ -8,25 +8,23 @@ from theorems.sets.domain_exists import domain_exists
 
 # Sep, Union, Pairing |- forall f. exists_unique(d, domain(d, f))
 $unique_domain {
-    $body_fn \v: domain(v, "f", "_")
-    $eu exists_unique(body_fn)
-    $dom_u domain("u", "f", "_")
-    $imp_inner implies(domain("y", "f", "_"), eqv("u", "y"))
-    # domain expansion has bound "y" (from apply's exists), use renamed formula
-    $du_f forall("f", forall("s1", forall("s2",
-        implies(domain("s1","f","_"), implies(domain("s2","f","_"), eqv("s1","s2","_"))))))
-    $du_inst apply_thm(domain_unique, du_f, ["f","u","y"], [])
+    $body_fn \v p: domain(v, "f", p)
+    $eu exists_unique(body_fn, "_")
+    $dom_u body_fn("u", "_")
+    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $_du_f head(nth(domain_unique, 2))
+    $du_inst apply_thm(domain_unique, _du_f, ["f","u","y"], [])
     $got_inner mp(du_inst, ax([dom_u], [dom_u], dom_u), dom_u, imp_inner, [], [dom_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [dom_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []),
         ax([dom_u], [dom_u], dom_u), dom_u, implies(fa_uniq, eu), [], [dom_u]),
         got_fa, fa_uniq, eu, [dom_u], [dom_u])
-    $got_ex eel(got_eu, body_fn, "d", "u", [dom_u], eu)
+    $got_ex eel(got_eu, \v: body_fn(v, "_"), "d", "u", [dom_u], eu)
     $de_ctx nth(domain_exists, 1)
     $de_f head(nth(domain_exists, 2))
     $de_inst apply_thm(domain_exists, de_f, ["f"], de_ctx)
-    $ex_dom exists("d", domain("d", "f", "_"))
+    $ex_dom exists("d", body_fn("d", "_"))
     $got_cut cut_c(de_inst, got_ex, ex_dom, de_ctx, [ex_dom], eu)
     close(got_cut, de_ctx, [eu], ["f"])
 }
