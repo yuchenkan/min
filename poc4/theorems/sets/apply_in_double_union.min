@@ -1,0 +1,99 @@
+from core.derived import mem, implies, forall, and, exists, iff
+from vocab.sets import ordered_pair, singleton, big_union
+from vocab.functions import apply
+from tactics import ax, fl, ir, mp, apply_thm, eel, eir, cut_c, close
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.ordpair_mem_left import ordpair_mem_left
+from theorems.sets.singleton_mem import singleton_mem
+from theorems.sets.big_union_mem_intro import big_union_mem_intro
+from theorems.sets.singleton_exists import singleton_exists
+from theorems.sets.big_union_exists import big_union_exists
+
+# Union |- apply(f,x,y) -> big_union(uf,f) -> big_union(uuf,uf) -> mem(x,uuf)
+# apply(f,x,y) = exists p. ordered_pair(p,x,y) & p in f
+# From op(p,x,y): singleton(s,x) -> s in p (ordpair_mem_left)
+# singleton_mem: x in s
+# p in f, s in p -> s in uf (big_union_mem_intro)
+# x in s, s in uf -> x in uuf (big_union_mem_intro)
+$apply_in_double_union {
+    $app apply("f", "x", "y")
+    $uf_f big_union("uf", "f", "_")
+    $uuf_uf big_union("uuf", "uf", "_")
+    $x_uuf mem("x", "uuf")
+
+    $op ordered_pair("p", "x", "y", "__")
+    $pf mem("p", "f")
+    $and_op_pf and(op, pf)
+
+    # From and: extract op and pf
+    $got_op mp(and_elim_left(op, pf, []),
+        ax([and_op_pf], [and_op_pf], and_op_pf), and_op_pf, op, [], [and_op_pf])
+    $got_pf mp(and_elim_right(op, pf, []),
+        ax([and_op_pf], [and_op_pf], and_op_pf), and_op_pf, pf, [], [and_op_pf])
+
+    # singleton_exists: exists s. singleton(s, x)
+    # singleton_exists = forall(a, exists(s, singleton(s,a)))
+    # singleton expands with bound var "x", so use renamed formula
+    $se_f forall("a", exists("_s", singleton("_s", "a", "_")))
+    $se_ctx nth(singleton_exists, 1)
+    $got_se apply_thm(singleton_exists, se_f, ["x"], se_ctx)
+    # se_ctx |- exists s. singleton(s,x)
+
+    $sing singleton("s", "x", "___")
+    $sx mem("s", "p")
+    $xs mem("x", "s")
+    $s_uf mem("s", "uf")
+
+    # ordpair_mem_left: op -> sing -> s in p
+    $_oml head(nth(ordpair_mem_left, 2))
+    $got_oml apply_thm(ordpair_mem_left, _oml, ["s","p","x","y"], [])
+    $got_sp mp(mp(got_oml, got_op, op, implies(sing, sx), [], [and_op_pf]),
+        ax([sing], [sing], sing), sing, sx, [and_op_pf], [sing])
+    # [and_op_pf, sing] |- s in p
+
+    # singleton_mem: sing -> x in s
+    $_sm head(nth(singleton_mem, 2))
+    $got_sm apply_thm(singleton_mem, _sm, ["s","x"], [])
+    $got_xs mp(got_sm, ax([sing], [sing], sing), sing, xs, [], [sing])
+    # [sing] |- x in s
+
+    # big_union_mem_intro: s in p -> p in f -> uf_f -> s in uf
+    $_bu head(nth(big_union_mem_intro, 2))
+    $got_bu1 apply_thm(big_union_mem_intro, _bu, ["s","p","uf","f"], [])
+    $got_s_uf mp(mp(mp(got_bu1,
+        got_sp, sx, implies(pf, implies(uf_f, s_uf)), [], [and_op_pf, sing]),
+        got_pf, pf, implies(uf_f, s_uf), [and_op_pf, sing], [and_op_pf]),
+        ax([uf_f], [uf_f], uf_f), uf_f, s_uf, [and_op_pf, sing], [uf_f])
+    # [and_op_pf, sing, uf_f] |- s in uf
+
+    # big_union_mem_intro: x in s -> s in uf -> uuf_uf -> x in uuf
+    $got_bu2 apply_thm(big_union_mem_intro, _bu, ["x","s","uuf","uf"], [])
+    $got_x_uuf mp(mp(mp(got_bu2,
+        got_xs, xs, implies(s_uf, implies(uuf_uf, x_uuf)), [], [sing]),
+        got_s_uf, s_uf, implies(uuf_uf, x_uuf), [sing], [and_op_pf, sing, uf_f]),
+        ax([uuf_uf], [uuf_uf], uuf_uf), uuf_uf, x_uuf, [and_op_pf, sing, uf_f], [uuf_uf])
+    # [and_op_pf, sing, uf_f, uuf_uf] |- x in uuf
+
+    # eel on s (from singleton_exists)
+    $got_eel_s eel(got_x_uuf, \s: singleton(s, "x", "___"), "s", "s",
+        [and_op_pf, sing, uf_f, uuf_uf], x_uuf)
+    $ex_sing exists("s", singleton("s", "x", "___"))
+    $got_cut_se cut_c(got_se, got_eel_s, ex_sing, se_ctx, [and_op_pf, ex_sing, uf_f, uuf_uf], x_uuf)
+    # [and_op_pf, se_ctx..., uf_f, uuf_uf] |- x_uuf
+
+    # eel on p (from apply)
+    $got_eel_p eel(got_cut_se, \p: and(ordered_pair(p,"x","y","__"), mem(p,"f")),
+        "p", "p", add([and_op_pf], add(se_ctx, [uf_f, uuf_uf])), x_uuf)
+    # [exists(p, and_op_pf), se_ctx..., uf_f, uuf_uf] |- x_uuf
+    # exists(p, and_op_pf) IS apply(f,x,y)
+
+    $imp3 implies(uuf_uf, x_uuf)
+    $imp2 implies(uf_f, imp3)
+    $top implies(app, imp2)
+    # got_eel_p left: [app, Pairing, uf_f, uuf_uf]
+    $s1 ir(got_eel_p, add([app], add(se_ctx, [uf_f])), [imp3], imp3)
+    $s2 ir(s1, add([app], se_ctx), [imp2], imp2)
+    $s3 ir(s2, se_ctx, [top], top)
+    close(s3, se_ctx, [top], ["uuf", "uf", "y", "x", "f"])
+}

@@ -1,0 +1,133 @@
+from core.derived import mem, implies, forall, and, exists, iff, separation
+from vocab.sets import big_union
+from vocab.functions import apply, domain
+from tactics import ax, wl, fl, fr, ir, mp, cut, apply_thm, eel, eir, cut_c, close
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.apply_in_double_union import apply_in_double_union
+from theorems.sets.big_union_exists import big_union_exists
+
+# Union, Sep, Pairing |- forall f. exists d. domain(d, f)
+$domain_exists {
+    $ex_y_app exists("y", apply("f","x","y","__"))
+    $x_d mem("x", "d")
+    $x_uuf mem("x", "uuf")
+    $and_x_app and(x_uuf, ex_y_app)
+    $iff_sep iff(x_d, and_x_app)
+    $iff_dom iff(x_d, ex_y_app)
+    $char forall("x", iff_sep)
+
+    $uf_f big_union("uf", "f", "_")
+    $uuf_uf big_union("uuf", "uf", "_")
+
+    # Separation phi
+    $phi \v: exists("_y", apply("f", v, "_y", "__"))
+    $sep_f separation(["f"], phi("_x"), "_")
+
+    # === Forward: [char] |- x∈d → ∃y.apply ===
+    $char_inst fl(ax([iff_sep], [iff_sep], iff_sep), [char], [iff_sep], char, "x")
+    $imp_fwd_sep implies(x_d, and_x_app)
+    $got_fwd mp(iff_elim_left(x_d, and_x_app, []),
+        char_inst, iff_sep, imp_fwd_sep, [], [char])
+    $got_and mp(got_fwd, ax([x_d], [x_d], x_d), x_d, and_x_app, [char], [x_d])
+    $got_fwd_app mp(and_elim_right(x_uuf, ex_y_app, []),
+        got_and, and_x_app, ex_y_app, [], [char, x_d])
+    $imp_fwd_dom implies(x_d, ex_y_app)
+    $got_fwd_ir ir(got_fwd_app, [char], [imp_fwd_dom], imp_fwd_dom)
+    # [char] |- x_d → ex_y_app
+
+    # === Backward: [char, adu_ctx, uf_f, uuf_uf] |- ∃y.apply → x∈d ===
+    $app_fxy apply("f","x","y","__")
+
+    # apply_in_double_union: apply(f,x,y) → uf_f → uuf_uf → x∈uuf
+    $_adu head(nth(apply_in_double_union, 2))
+    $adu_ctx nth(apply_in_double_union, 1)
+    $got_adu apply_thm(apply_in_double_union, _adu, ["f","x","y","uf","uuf"], adu_ctx)
+    $got_x_uuf mp(mp(mp(got_adu,
+        ax([app_fxy], [app_fxy], app_fxy), app_fxy,
+        implies(uf_f, implies(uuf_uf, x_uuf)), adu_ctx, [app_fxy]),
+        ax([uf_f], [uf_f], uf_f), uf_f,
+        implies(uuf_uf, x_uuf), add(adu_ctx, [app_fxy]), [uf_f]),
+        ax([uuf_uf], [uuf_uf], uuf_uf), uuf_uf, x_uuf,
+        add(adu_ctx, [app_fxy, uf_f]), [uuf_uf])
+    # [adu_ctx, app_fxy, uf_f, uuf_uf] |- x_uuf
+
+    # ex_y_app from app_fxy
+    $got_ex_y eir(ax([app_fxy], [app_fxy], app_fxy),
+        \y: apply("f","x",y,"__"), "y", "y", [app_fxy])
+
+    # and(x_uuf, ex_y_app)
+    $got_and_bwd mp(mp(and_intro(x_uuf, ex_y_app, []),
+        got_x_uuf, x_uuf, implies(ex_y_app, and_x_app),
+        [], add(adu_ctx, [app_fxy, uf_f, uuf_uf])),
+        got_ex_y, ex_y_app, and_x_app,
+        add(adu_ctx, [app_fxy, uf_f, uuf_uf]), [app_fxy])
+    # [adu_ctx, app_fxy, uf_f, uuf_uf] |- and_x_app
+
+    # iff_sep backward: and_x_app → x_d
+    $char_inst2 fl(ax([iff_sep], [iff_sep], iff_sep), [char], [iff_sep], char, "x")
+    $imp_bwd_sep implies(and_x_app, x_d)
+    $got_xd mp(mp(iff_elim_right(x_d, and_x_app, []),
+        char_inst2, iff_sep, imp_bwd_sep, [], [char]),
+        got_and_bwd, and_x_app, x_d,
+        [char], add(adu_ctx, [app_fxy, uf_f, uuf_uf]))
+    # [char, adu_ctx, app_fxy, uf_f, uuf_uf] |- x_d
+
+    # eel on app_fxy
+    $got_bwd_ex eel(got_xd, \y: apply("f","x",y,"__"), "y", "y",
+        add([char], add(adu_ctx, [app_fxy, uf_f, uuf_uf])), x_d)
+    # [char, adu_ctx, ex_y_app, uf_f, uuf_uf] |- x_d
+
+    $imp_bwd_dom implies(ex_y_app, x_d)
+    $got_bwd_ir ir(got_bwd_ex, add([char], add(adu_ctx, [uf_f, uuf_uf])),
+        [imp_bwd_dom], imp_bwd_dom)
+    # [char, adu_ctx, uf_f, uuf_uf] |- ex_y_app → x_d
+
+    # === Combine: iff_dom ===
+    $got_iff mp(mp(iff_intro(x_d, ex_y_app, []),
+        got_fwd_ir, imp_fwd_dom, implies(imp_bwd_dom, iff_dom), [], [char]),
+        got_bwd_ir, imp_bwd_dom, iff_dom,
+        [char], add([char], add(adu_ctx, [uf_f, uuf_uf])))
+    # [char, adu_ctx, uf_f, uuf_uf] |- iff_dom
+
+    # forall x (char has forall x so x not free on left)
+    $dom domain("d", "f", "___")
+    $got_fa fr(got_iff, add([char], add(adu_ctx, [uf_f, uuf_uf])), [dom], dom, "x")
+
+    # eir: exists d
+    $goal exists("d", dom)
+    $got_ex eir(got_fa, \d: domain(d, "f", "___"), "d", "d",
+        add([char], add(adu_ctx, [uf_f, uuf_uf])))
+
+    # eel on d from separation (instantiated at uuf)
+    $got_eel_d eel(got_ex, \d: forall("x", iff(mem("x",d), and(mem("x","uuf"), phi("x")))),
+        "d", "d", add([char], add(adu_ctx, [uf_f, uuf_uf])), goal)
+    $ex_char exists("d", char)
+    $got_sep_inst apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, ["f", "uuf"], [sep_f])
+    $got_cut_sep cut_c(got_sep_inst, got_eel_d, ex_char,
+        [sep_f], add([ex_char], add(adu_ctx, [uf_f, uuf_uf])), goal)
+
+    # eel on uuf from big_union(uf)
+    $bu_f head(nth(big_union_exists, 2))
+    $bu_ctx nth(big_union_exists, 1)
+    $got_eel_uuf eel(got_cut_sep, \uuf: big_union(uuf, "uf", "_"), "uuf", "uuf",
+        add([sep_f], add(adu_ctx, [uf_f, uuf_uf])), goal)
+    $ex_uuf exists("uuf", big_union("uuf", "uf", "_"))
+    $got_bu_uuf apply_thm(big_union_exists, bu_f, ["uf"], bu_ctx)
+    $got_cut_uuf cut_c(got_bu_uuf, got_eel_uuf, ex_uuf,
+        bu_ctx, add([sep_f], add(adu_ctx, [uf_f, ex_uuf])), goal)
+
+    # eel on uf from big_union(f)
+    $got_eel_uf eel(got_cut_uuf, \uf: big_union(uf, "f", "_"), "uf", "uf",
+        add(bu_ctx, add([sep_f], add(adu_ctx, [uf_f]))), goal)
+    $ex_uf exists("uf", big_union("uf", "f", "_"))
+    $got_bu_uf apply_thm(big_union_exists, bu_f, ["f"], bu_ctx)
+    $got_cut_uf cut_c(got_bu_uf, got_eel_uf, ex_uf,
+        bu_ctx, add(bu_ctx, add([sep_f], add(adu_ctx, [ex_uf]))), goal)
+
+    $all_ctx add(bu_ctx, add([sep_f], adu_ctx))
+    close(got_cut_uf, all_ctx, [goal], ["f"])
+}

@@ -173,6 +173,18 @@ $_ qed(big_union_mem_intro,
         implies(mem("x","y"), implies(mem("y","a"), implies(big_union("u","a","_"), mem("x","u")))))))))
 $_ print("big_union_mem_intro ok")
 
+from vocab.functions import apply, domain
+from theorems.sets.apply_in_double_union import apply_in_double_union
+$_ qed(apply_in_double_union,
+    forall("f", forall("x", forall("y", forall("uf", forall("uuf",
+        implies(apply("f","x","y","__"), implies(big_union("uf","f","_"),
+            implies(big_union("uuf","uf","_"), mem("x","uuf"))))))))))
+$_ print("apply_in_double_union ok")
+
+from theorems.sets.domain_exists import domain_exists
+$_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "___"))))
+$_ print("domain_exists ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union
