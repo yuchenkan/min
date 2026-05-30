@@ -7,23 +7,24 @@ from theorems.sets.set_spec_unique import set_spec_unique
 from theorems.sets.power_set_exists import power_set_exists
 
 $unique_power_set {
-    $cond_fn \v: subset(v, "a", "__")
-    $body_fn \v: power_set(v, "a", "_")
-    $ps_u power_set("u", "a", "_")
-    $eu exists_unique(body_fn)
-    $imp_inner implies(power_set("y", "a", "_"), eqv("u", "y"))
+    $cond_fn \v p: subset(v, "a", p)
+    $body_fn \v p: power_set(v, "a", p)
+    $eu exists_unique(body_fn, "_")
+    $ps_u body_fn("u", "__")
+    $imp_inner implies(body_fn("y", "__"), eqv("u", "y", "_"))
     $ssu set_spec_unique(cond_fn, [])
-    $ssu_f forall("s1", forall("s2", implies(power_set("s1","a","_"), implies(power_set("s2","a","_"), eqv("s1","s2","_")))))
-    $ssu_inst apply_thm(ssu, ssu_f, ["u","y"], [])
+    $_ssu_f head(nth(ssu, 2))
+    $ssu_inst apply_thm(ssu, _ssu_f, ["u","y"], [])
     $got_inner mp(ssu_inst, ax([ps_u], [ps_u], ps_u), ps_u, imp_inner, [], [ps_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [ps_u], [fa_uniq], fa_uniq, "y")
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([ps_u], [ps_u], ps_u), ps_u, implies(fa_uniq, eu), [], [ps_u]),
                got_fa, fa_uniq, eu, [ps_u], [ps_u])
-    $got_ex eel(got_eu, body_fn, "s", "u", [ps_u], eu)
-    $pw_f PowerSet
-    $ex_ps exists("s", power_set("s", "a"))
-    $got_pe apply_thm(power_set_exists, pw_f, ["a"], [pw_f])
-    $got_cut cut_c(got_pe, got_ex, ex_ps, [pw_f], [ex_ps], eu)
-    close(got_cut, [pw_f], [eu], ["a"])
+    $got_ex eel(got_eu, \v: body_fn(v, "__"), "s", "u", [ps_u], eu)
+    $_pe_f head(nth(power_set_exists, 2))
+    $pe_ctx nth(power_set_exists, 1)
+    $got_pe apply_thm(power_set_exists, _pe_f, ["a"], pe_ctx)
+    $ex_ps exists("s", body_fn("s", "__"))
+    $got_cut cut_c(got_pe, got_ex, ex_ps, pe_ctx, [ex_ps], eu)
+    close(got_cut, pe_ctx, [eu], ["a"])
 }
