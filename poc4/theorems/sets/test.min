@@ -104,3 +104,11 @@ $_ print("kuratowski ok")
 from theorems.sets.ordpair_exists import ordpair_exists
 $_ qed(ordpair_exists, forall("a", forall("b", exists("p", ordered_pair("p", "a", "b")))))
 $_ print("ordpair_exists ok")
+
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.sets.unique_ordpair import unique_ordpair
+$_ qed(ordpair_unique, forall("a", forall("b", forall("s1", forall("s2",
+    implies(ordered_pair("s1","a","b"), implies(ordered_pair("s2","a","b"), eqv("s1","s2","_"))))))))
+$_ print("ordpair_unique ok")
+$_ qed(unique_ordpair, forall("a", forall("b", exists_unique(\v: ordered_pair(v, "a", "b", "_")))))
+$_ print("unique_ordpair ok")
