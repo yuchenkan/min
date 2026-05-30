@@ -189,8 +189,8 @@ $omega_induction \pred vars: {
     # [exists(s,char), om, base_hyp, step_hyp] |- fa_n
 
     # Get exists(s,char) from sep instantiated at w
-    $sep_f separation([], pred("_n"), "_")
-    $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, ["w"], [sep_f])
+    $sep_f separation(vars, pred("_x"), "_")
+    $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, add(vars, ["w"]), [sep_f])
     $ex_char exists("s", forall("n", iff(mem("n","s"), and(mem("n","w"), pred("n")))))
     # Hmm, sep_f may use different var names. Let me just use separation with proper vars.
     # Actually sep gives: ∀a. ∃b. ∀x. iff(x∈b, x∈a ∧ pred(x))
