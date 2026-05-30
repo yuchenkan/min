@@ -7,29 +7,23 @@ from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
 
 # |- eqv(a,c) -> eqv(b,d) -> ordered_pair(t,a,b) -> ordered_pair(t,c,d)
 $ordpair_eq_transfer {
-    $eqv_ac eqv("a", "c", "____")
-    $eqv_bd eqv("b", "d", "____")
-    $op_ab ordered_pair("t", "a", "b", "__")
-    $op_cb ordered_pair("t", "c", "b", "__")
-    $op_cd ordered_pair("t", "c", "d", "__")
+    $eqv_ac eqv("a", "c", "_")
+    $eqv_bd eqv("b", "d", "_")
+    $op_ab ordered_pair("t", "a", "b", "_")
+    $op_cb ordered_pair("t", "c", "b", "_")
+    $op_cd ordered_pair("t", "c", "d", "_")
 
-    # ordpair_key_transfer: eqv(a,c) -> op(t,a,b) -> op(t,c,b)
     $_kt head(nth(ordpair_key_transfer, 2))
     $got_kt apply_thm(ordpair_key_transfer, _kt, ["t","a","b","c"], [])
     $got_cb mp(mp(got_kt,
         ax([eqv_ac], [eqv_ac], eqv_ac), eqv_ac, implies(op_ab, op_cb), [], [eqv_ac]),
         ax([op_ab], [op_ab], op_ab), op_ab, op_cb, [eqv_ac], [op_ab])
-    # [eqv_ac, op_ab] |- op_cb
 
-    # ordpair_val_transfer: eqv(b,d) -> op(t,c,b) -> op(t,c,d)
-    # Formula has bound var "c" from close order, use renamed formula
-    $_vt forall("_t", forall("_a", forall("_b", forall("_c",
-        implies(eqv("_b","_c","____"), implies(ordered_pair("_t","_a","_b","__"), ordered_pair("_t","_a","_c","__")))))))
+    $_vt head(nth(ordpair_val_transfer, 2))
     $got_vt apply_thm(ordpair_val_transfer, _vt, ["t","c","b","d"], [])
     $got_cd mp(mp(got_vt,
         ax([eqv_bd], [eqv_bd], eqv_bd), eqv_bd, implies(op_cb, op_cd), [], [eqv_bd]),
         got_cb, op_cb, op_cd, [eqv_bd], [eqv_ac, op_ab])
-    # [eqv_ac, op_ab, eqv_bd] |- op_cd
 
     $imp3 implies(op_ab, op_cd)
     $s1 ir(got_cd, [eqv_ac, eqv_bd], [imp3], imp3)
