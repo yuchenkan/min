@@ -13,18 +13,18 @@ from theorems.logic.ext_substitution import ext_substitution
 # Ext |- exists_unique(phi) -> iff(forall(x, phi(x)->mem(x,s)), exists(x, phi(x) & mem(x,s)))
 $exists_unique_bridge \phi_fn s vars: {
     $pred_fn \v: mem(v, s)
-    $eu exists_unique(phi_fn)
+    $eu exists_unique(phi_fn, "#")
     $fa_form forall("x", implies(phi_fn("x"), pred_fn("x")))
     $ex_body_fn \v: and(phi_fn(v), pred_fn(v))
     $ex_form exists("x", ex_body_fn("x"))
-    $eu_body_fn \v: and(phi_fn(v), forall("y", implies(phi_fn("y"), eqv(v, "y"))))
+    $eu_body_fn \v: and(phi_fn(v), forall("y", implies(phi_fn("y"), eqv(v, "y", "#"))))
     $ext_f Extensionality
 
     # ===== FORWARD: eu, fa_form |- ex_form =====
     $eu_body_u eu_body_fn("u")
     $phi_u phi_fn("u")
     $pred_u pred_fn("u")
-    $uniq_u forall("y", implies(phi_fn("y"), eqv("u", "y")))
+    $uniq_u forall("y", implies(phi_fn("y"), eqv("u", "y", "#")))
 
     $got_phi_u mp(and_elim_left(phi_u, uniq_u, []), ax([eu_body_u], [eu_body_u], eu_body_u), eu_body_u, phi_u, [], [eu_body_u])
     $imp_u implies(phi_u, pred_u)
@@ -42,7 +42,7 @@ $exists_unique_bridge \phi_fn s vars: {
     # ===== BACKWARD: eu, ex_form |- fa_form (needs Ext) =====
     $eu_body_u2 eu_body_fn("u2")
     $phi_u2 phi_fn("u2")
-    $uniq_u2 forall("y", implies(phi_fn("y"), eqv("u2", "y")))
+    $uniq_u2 forall("y", implies(phi_fn("y"), eqv("u2", "y", "#")))
     $ex_body_w ex_body_fn("w")
     $phi_w phi_fn("w")
     $pred_w pred_fn("w")
@@ -54,31 +54,29 @@ $exists_unique_bridge \phi_fn s vars: {
 
     $phi_t phi_fn("t")
     $pred_t pred_fn("t")
-    $eqv_u2_t eqv("u2", "t")
+    $eqv_u2_t eqv("u2", "t", "#")
     $got_uniq_t apply_thm(got_uniq_u2, uniq_u2, ["t"], [eu_body_u2])
     $got_eqv_u2_t mp(got_uniq_t, ax([phi_t], [phi_t], phi_t), phi_t, eqv_u2_t, [eu_body_u2], [phi_t])
 
-    $eqv_u2_w eqv("u2", "w")
+    $eqv_u2_w eqv("u2", "w", "#")
     $got_uniq_w apply_thm(got_uniq_u2, uniq_u2, ["w"], [eu_body_u2])
     $got_eqv_u2_w mp(got_uniq_w, got_phi_w, phi_w, eqv_u2_w, [eu_body_u2], [ex_body_w])
 
     # eqv_symmetric: forall a b. eqv(a,b) -> eqv(b,a)
-    $es_f forall("a", forall("b", implies(eqv("a","b"), eqv("b","a"))))
-    $es_inst apply_thm(eqv_symmetric, es_f, ["u2", "t"], [])
-    $eqv_t_u2 eqv("t", "u2")
-    $got_eqv_t_u2 mp(es_inst, got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
+    $_es head(nth(eqv_symmetric, 2))
+    $eqv_t_u2 eqv("t", "u2", "#")
+    $got_eqv_t_u2 mp(apply_thm(eqv_symmetric, _es, ["u2", "t"], []),
+        got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
 
-    $et_f forall("a", forall("b", forall("c", implies(eqv("a","b"), implies(eqv("b","c"), eqv("a","c"))))))
-    $et_inst apply_thm(eqv_transitive, et_f, ["t", "u2", "w"], [])
-    $eqv_t_w eqv("t", "w")
-    $got_eqv_t_w mp(mp(et_inst,
+    $_et head(nth(eqv_transitive, 2))
+    $eqv_t_w eqv("t", "w", "#")
+    $got_eqv_t_w mp(mp(apply_thm(eqv_transitive, _et, ["t", "u2", "w"], []),
                        got_eqv_t_u2, eqv_t_u2, implies(eqv_u2_w, eqv_t_w), [], [eu_body_u2, phi_t]),
                     got_eqv_u2_w, eqv_u2_w, eqv_t_w, [eu_body_u2, phi_t], [eu_body_u2, ex_body_w])
 
-    $exs_f forall("a", forall("b", forall("s", implies(eqv("a","b","_"), iff(mem("a","s"), mem("b","s"))))))
-    $exs_inst apply_thm(ext_substitution, exs_f, ["t", "w", s], [ext_f])
+    $_exs head(nth(ext_substitution, 2))
     $iff_pred iff(pred_t, pred_w)
-    $got_iff_pred mp(exs_inst,
+    $got_iff_pred mp(apply_thm(ext_substitution, _exs, ["t", "w", s], nth(ext_substitution, 1)),
                      got_eqv_t_w, eqv_t_w, iff_pred,
                      [ext_f], [eu_body_u2, phi_t, ex_body_w])
 

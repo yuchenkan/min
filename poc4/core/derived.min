@@ -14,7 +14,7 @@ $or \a b: ["or", _p(add(d(a), add(" | ", d(b)))), implies(neg(a), b)]
 $iff \a b: ["iff", _p(add(d(a), add(" <-> ", d(b)))), neg(implies(implies(a, b), neg(implies(b, a))))]
 $exists \v b: ["exists", add("E", add(v, add(".", d(b)))), neg(forall(v, neg(b)))]
 $eqv \a b p: {
-    $v ?(eq(p, None), "z", add(p, "z"))
+    $v add(p, "z")
     ["eqv", add(a, add(" = ", b)), forall(v, iff(mem(v, a), mem(v, b)))]
 }
 

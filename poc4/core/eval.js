@@ -187,7 +187,10 @@ function fail(msg) { throw new EvalError(msg); }
 function makeGlobal() {
     return new Env({
         True: true, False: false, None: null,
-        add: (a, b) => Array.isArray(a) ? [...a, ...b] : a + b,
+        add: (a, b) => {
+            if (a === null || b === null) throw new EvalError("add: null argument");
+            return Array.isArray(a) ? [...a, ...b] : a + b;
+        },
         sub: (a, b) => a - b,
         mul: (a, b) => a * b,
         eq: (a, b) => a === b,

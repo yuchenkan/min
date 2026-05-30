@@ -4,18 +4,18 @@ from theorems.logic.iff_chain import iff_chain
 
 # |- eqv(a, b) -> eqv(b, c) -> eqv(a, c)
 $eqv_transitive {
-    $eqv_ab eqv("a", "b")
-    $eqv_bc eqv("b", "c")
-    $eqv_ac eqv("a", "c")
-    $iff_v_ab iff(mem("v", "a"), mem("v", "b"))
-    $iff_v_bc iff(mem("v", "b"), mem("v", "c"))
-    $iff_v_ac iff(mem("v", "a"), mem("v", "c"))
-    $s1 fl(ax([iff_v_ab], [iff_v_ab], iff_v_ab), [eqv_ab], [iff_v_ab], eqv_ab, "v")
-    $s2 fl(ax([iff_v_bc], [iff_v_bc], iff_v_bc), [eqv_bc], [iff_v_bc], eqv_bc, "v")
-    $s3 mp(mp(iff_chain(mem("v", "a"), mem("v", "b"), mem("v", "c"), []),
+    $eqv_ab eqv("a", "b", "#")
+    $eqv_bc eqv("b", "c", "#")
+    $eqv_ac eqv("a", "c", "#")
+    $iff_v_ab iff(mem("#z", "a"), mem("#z", "b"))
+    $iff_v_bc iff(mem("#z", "b"), mem("#z", "c"))
+    $iff_v_ac iff(mem("#z", "a"), mem("#z", "c"))
+    $s1 fl(ax([iff_v_ab], [iff_v_ab], iff_v_ab), [eqv_ab], [iff_v_ab], eqv_ab, "#z")
+    $s2 fl(ax([iff_v_bc], [iff_v_bc], iff_v_bc), [eqv_bc], [iff_v_bc], eqv_bc, "#z")
+    $s3 mp(mp(iff_chain(mem("#z", "a"), mem("#z", "b"), mem("#z", "c"), []),
               s1, iff_v_ab, implies(iff_v_bc, iff_v_ac), [], [eqv_ab]),
            s2, iff_v_bc, iff_v_ac, [eqv_ab], [eqv_bc])
-    $s4 fr(s3, [eqv_ab, eqv_bc], [eqv_ac], eqv_ac, "v")
+    $s4 fr(s3, [eqv_ab, eqv_bc], [eqv_ac], eqv_ac, "#z")
     $inner implies(eqv_bc, eqv_ac)
     $s5 ir(s4, [eqv_ab], [inner], inner)
     $top implies(eqv_ab, inner)

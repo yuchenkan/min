@@ -5,15 +5,16 @@ from vocab.omega import omega
 
 # recursive(h, a, f, w, p):
 # Function(h) ∧ dom(h)=w ∧ h(0)=a ∧ ∀n∈w. h(S(n))=f(h(n))
+# p is REQUIRED
 $recursive \h a f w p: {
-    $dp ?(eq(p, None), "_", add(p, "_"))
-    $ep ?(eq(p, None), "__", add(p, "__"))
-    $e ?(eq(p, None), "e", add(p, "e"))
-    $n ?(eq(p, None), "n", add(p, "n"))
-    $v ?(eq(p, None), "val", add(p, "val"))
-    $sn ?(eq(p, None), "sn", add(p, "sn"))
-    $fv ?(eq(p, None), "fval", add(p, "fval"))
-    $dd ?(eq(p, None), "d", add(p, "d"))
+    $dp add(p, "_")
+    $ep add(p, "__")
+    $e add(p, "e")
+    $n add(p, "n")
+    $v add(p, "val")
+    $sn add(p, "sn")
+    $fv add(p, "fval")
+    $dd add(p, "d")
 
     $func_h function(h, dp)
     $dom_eq forall(dd, implies(domain(h, dd, ep), eqv(dd, w, ep)))

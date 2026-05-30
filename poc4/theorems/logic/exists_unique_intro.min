@@ -6,16 +6,16 @@ from theorems.logic.and_intro import and_intro
 # |- body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(body_fn)
 $exists_unique_intro \body_fn t vars: {
     $body_t body_fn(t)
-    $uniq forall("y", implies(body_fn("y"), eqv(t, "y")))
+    $uniq forall("y", implies(body_fn("y"), eqv(t, "y", "#")))
     $conj and(body_t, uniq)
-    $eu exists_unique(body_fn)
+    $eu exists_unique(body_fn, "#")
 
     $got_and mp(mp(and_intro(body_t, uniq, []), ax([body_t], [body_t], body_t), body_t, implies(uniq, conj), [], [body_t]),
                 ax([uniq], [uniq], uniq), uniq, conj, [body_t], [uniq])
 
-    $inner_body \v: and(body_fn(v), forall("y", implies(body_fn("y"), eqv(v, "y"))))
+    $inner_body \v: and(body_fn(v), forall("y", implies(body_fn("y"), eqv(v, "y", "#"))))
     $inner_t inner_body(t)
-    $fa_neg forall("x", neg(inner_body("x")))
+    $fa_neg forall("#x", neg(inner_body("#x")))
     $s1 fl(ax([neg(inner_t)], [neg(inner_t)], neg(inner_t)), [fa_neg], [neg(inner_t)], fa_neg, t)
     $s2 nl(got_and, [body_t, uniq, neg(inner_t)], [], neg(inner_t))
     $s1w wl(wl(s1, [body_t, fa_neg], [neg(inner_t)], body_t), [body_t, uniq, fa_neg], [neg(inner_t)], uniq)
