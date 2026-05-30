@@ -214,6 +214,14 @@ $_ qed(ordpair_eq_transfer,
             implies(ordered_pair("t","a","b","__"), ordered_pair("t","c","d","__"))))))))))
 $_ print("ordpair_eq_transfer ok")
 
+from vocab.functions import function
+from theorems.sets.func_unique_thm import func_unique_thm
+$sv forall("_x", forall("_y1", forall("_y2",
+    implies(and(apply("f","_x","_y1","__"), apply("f","_x","_y2","__")), eqv("_y1","_y2","___")))))
+$_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
+    implies(sv, implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","__")))))))))
+$_ print("func_unique_thm ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union
