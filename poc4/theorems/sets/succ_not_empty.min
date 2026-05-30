@@ -7,43 +7,35 @@ from theorems.logic.eqv_reflexive import eqv_reflexive
 
 # |- successor(sn, n) -> neg(empty(sn))
 $succ_not_empty {
-    $succ successor("sn", "n", "#")
-    $emp empty("sn", "#")
+    $succ successor("sn", "n", "_")
+    $emp empty("sn", "_")
     $neg_mem neg(mem("n","sn"))
 
     # From succ, instantiate with n: iff(mem(n,sn), or(mem(n,n), eqv(n,n)))
-    $iff_n iff(mem("n","sn"), or(mem("n","n"), eqv("n","n","_")))
-    $or_n or(mem("n","n"), eqv("n","n","_"))
+    $enn eqv("n", "n", "_")
+    $iff_n iff(mem("n","sn"), or(mem("n","n"), enn))
+    $or_n or(mem("n","n"), enn)
     $s1 fl(ax([iff_n], [iff_n], iff_n), [succ], [iff_n], succ, "n")
 
     # eqv(n,n) -> or_right -> iff backward -> mem(n,sn)
-    $_er forall("_1", eqv("_1","_1"))
+    $_er head(nth(eqv_reflexive, 2))
     $g_nn apply_thm(eqv_reflexive, _er, ["n"], [])
-    $g_or mp(or_intro_right(mem("n","n"), eqv("n","n","_"), []), g_nn, eqv("n","n","_"), or_n, [], [])
+    $g_or mp(or_intro_right(mem("n","n"), enn, []), g_nn, enn, or_n, [], [])
     $g_mem mp(mp(iff_elim_right(mem("n","sn"), or_n, []),
                 s1, iff_n, implies(or_n, mem("n","sn")), [], [succ]),
              g_or, or_n, mem("n","sn"), [succ], [])
-    # [succ] |- [mem(n,sn)]
 
     # From emp, instantiate with n: neg(mem(n,sn))
     $s2 fl(ax([neg_mem], [neg_mem], neg_mem), [emp], [neg_mem], emp, "n")
-    # [emp] |- [neg(mem(n,sn))]
 
     # Contradiction: [succ, emp] |- []
     $g_mem_w wl(g_mem, [succ, emp], [mem("n","sn")], emp)
     $s2_w wl(s2, [succ, emp], [neg_mem], succ)
-    # nl: from [succ, emp] |- [mem(n,sn)], get [succ, emp, neg_mem] |- []
     $s_nl nl(g_mem_w, [succ, emp, neg_mem], [], neg_mem)
-    # cut neg_mem: [succ, emp] |- [neg_mem] and [succ, emp, neg_mem] |- []
-    # wr first to add empty right: [succ, emp] |- [neg_mem] — already has neg_mem on right
-    # Need a formula on right for the cut result. Result is [succ, emp] |- []
-    # cut: Γ ⊢ Δ,C and C,Γ ⊢ Δ => Γ ⊢ Δ. With Γ=[succ,emp], Δ=[], C=neg_mem.
     $s_cut cut(s2_w, s_nl, [succ, emp], [], neg_mem)
-    # [succ, emp] |- []
 
     # nr: remove emp from left, add neg(emp) to right
     $s_nr nr(s_cut, [succ], [neg(emp)], neg(emp))
-    # [succ] |- [neg(emp)]
 
     $top implies(succ, neg(emp))
     $s_ir ir(s_nr, [], [top], top)
