@@ -157,6 +157,22 @@ $_ qed(successor_unique,
         implies(successor("s1","a"), implies(successor("s2","a"), eqv("s1","s2","_")))))))
 $_ print("successor_unique ok")
 
+from theorems.sets.ordpair_mem_left import ordpair_mem_left
+$_ qed(ordpair_mem_left,
+    forall("s", forall("p", forall("a", forall("b",
+        implies(ordered_pair("p","a","b","__"), implies(singleton("s","a","___"), mem("s","p"))))))))
+$_ print("ordpair_mem_left ok")
+
+from theorems.sets.singleton_mem import singleton_mem
+$_ qed(singleton_mem, forall("s", forall("a", implies(singleton("s","a","_"), mem("a","s")))))
+$_ print("singleton_mem ok")
+
+from theorems.sets.big_union_mem_intro import big_union_mem_intro
+$_ qed(big_union_mem_intro,
+    forall("x", forall("y", forall("u", forall("a",
+        implies(mem("x","y"), implies(mem("y","a"), implies(big_union("u","a","_"), mem("x","u")))))))))
+$_ print("big_union_mem_intro ok")
+
 from theorems.sets.union_exists import union_exists
 from theorems.sets.union_unique import union_unique
 from theorems.sets.unique_union import unique_union

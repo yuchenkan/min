@@ -1,0 +1,43 @@
+from core.derived import mem, implies, iff, and, exists
+from vocab.sets import big_union
+from tactics import ax, fl, ir, mp, eir, close
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.and_intro import and_intro
+
+# |- mem(x,y) -> mem(y,a) -> big_union(u,a) -> mem(x,u)
+$big_union_mem_intro {
+    $xy mem("x", "y")
+    $ya mem("y", "a")
+    $xu mem("x", "u")
+    $bu big_union("u", "a", "_")
+    $and_ya_xy and(ya, xy)
+    $ex_w exists("_y", and(mem("_y","a"), mem("x","_y")))
+    $iff_xu iff(xu, ex_w)
+
+    # instantiate big_union with x
+    $got_iff fl(ax([iff_xu], [iff_xu], iff_xu), [bu], [iff_xu], bu, "x")
+
+    # and_intro: ya & xy
+    $got_and mp(mp(and_intro(ya, xy, []),
+        ax([ya], [ya], ya), ya, implies(xy, and_ya_xy), [], [ya]),
+        ax([xy], [xy], xy), xy, and_ya_xy, [ya], [xy])
+    # [ya, xy] |- and_ya_xy
+
+    # eir: exists _y. and(mem(_y,a), mem(x,_y)) with witness y
+    $got_ex eir(got_and, \w: and(mem(w, "a"), mem("x", w)), "_y", "y", [ya, xy])
+    # [ya, xy] |- ex_w
+
+    # iff backward: ex_w -> xu
+    $imp_bwd implies(ex_w, xu)
+    $got_xu mp(mp(iff_elim_right(xu, ex_w, []), got_iff, iff_xu, imp_bwd, [], [bu]),
+        got_ex, ex_w, xu, [bu], [ya, xy])
+    # [bu, ya, xy] |- xu
+
+    $imp3 implies(bu, xu)
+    $s1 ir(got_xu, [ya, xy], [imp3], imp3)
+    $imp2 implies(ya, imp3)
+    $s2 ir(s1, [xy], [imp2], imp2)
+    $top implies(xy, imp2)
+    $s3 ir(s2, [], [top], top)
+    close(s3, [], [top], ["a", "u", "y", "x"])
+}
