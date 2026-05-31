@@ -50,4 +50,17 @@ $es_body implies(rec_approx("v","a","f","w","_"), implies(function("f","_"), imp
 $_ qed(extend_step, forall("v", forall("a", forall("f", forall("w", forall("n", forall("val", forall("fval", forall("sn", forall("op", forall("h", forall("u", es_body))))))))))))
 $_ print("extend_step ok")
 
+from theorems.recursion.rec_exists_step import rec_exists_step
+$res_func function("u", "_")
+$res_dom forall("x", implies(exists("y", apply("u","x","y","_")), mem("x","w")))
+$res_ran forall("x", forall("y", implies(apply("u","x","y","_"), exists("z", apply("f","y","z","_")))))
+$res_base forall("e", implies(empty("e","_"), implies(exists("y", apply("u","e","y","_")), apply("u","e","a","_"))))
+$res_step forall("m", implies(mem("m","w"), forall("sm", implies(successor("sm","m","_"), implies(exists("y5", apply("u","sm","y5","_")), and(exists("val5", apply("u","m","val5","_")), forall("val5", implies(apply("u","m","val5","_"), forall("fv5", implies(apply("f","val5","fv5","_"), apply("u","sm","fv5","_")))))))))))
+$res_ra and(res_func, and(res_dom, and(res_ran, and(res_base, res_step))))
+$res_goal and(res_ra, apply("u","sn","fval","_"))
+$res_rfc forall("y", forall("z", implies(apply("f","y","z","_"), exists("w2", apply("f","z","w2","_")))))
+$res_body implies(rec_approx("v","a","f","w","_"), implies(function("f","_"), implies(omega("w","_"), implies(mem("n","w"), implies(apply("v","n","val","_"), implies(apply("f","val","fval","_"), implies(res_rfc, implies(successor("sn","n","_"), implies(ordered_pair("op","sn","fval","_"), implies(singleton("h","op","_"), implies(union("u","v","h","_"), res_goal)))))))))))
+$_ qed(rec_exists_step, forall("v", forall("a", forall("f", forall("w", forall("n", forall("val", forall("fval", forall("sn", forall("op", forall("h", forall("u", res_body))))))))))))
+$_ print("rec_exists_step ok")
+
 $ok true
