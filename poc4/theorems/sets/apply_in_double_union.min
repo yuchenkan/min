@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, exists, iff
+from core.derived import mem, implies, forall, and, exists, iff, left, right
 from vocab.sets import ordered_pair, singleton, big_union
 from vocab.functions import apply
 from tactics import ax, fl, ir, mp, apply_thm, eel, eir, cut_c, close
@@ -27,8 +27,8 @@ $apply_in_double_union {
         ax([and_op_pf], [and_op_pf], and_op_pf), and_op_pf, pf, [], [and_op_pf])
 
     # singleton_exists: auto-deepen handles "x" clash
-    $_se_f head(nth(singleton_exists, 2))
-    $se_ctx nth(singleton_exists, 1)
+    $_se_f head(right(singleton_exists))
+    $se_ctx left(singleton_exists)
     $got_se apply_thm(singleton_exists, _se_f, ["x"], se_ctx)
 
     $sing singleton("s", "x", "_")
@@ -36,16 +36,16 @@ $apply_in_double_union {
     $xs mem("x", "s")
     $s_uf mem("s", "uf")
 
-    $_oml head(nth(ordpair_mem_left, 2))
+    $_oml head(right(ordpair_mem_left))
     $got_oml apply_thm(ordpair_mem_left, _oml, ["s","p","x","y"], [])
     $got_sp mp(mp(got_oml, got_op, op, implies(sing, sx), [], [and_op_pf]),
         ax([sing], [sing], sing), sing, sx, [and_op_pf], [sing])
 
-    $_sm head(nth(singleton_mem, 2))
+    $_sm head(right(singleton_mem))
     $got_sm apply_thm(singleton_mem, _sm, ["s","x"], [])
     $got_xs mp(got_sm, ax([sing], [sing], sing), sing, xs, [], [sing])
 
-    $_bu head(nth(big_union_mem_intro, 2))
+    $_bu head(right(big_union_mem_intro))
     $got_bu1 apply_thm(big_union_mem_intro, _bu, ["s","p","uf","f"], [])
     $got_s_uf mp(mp(mp(got_bu1,
         got_sp, sx, implies(pf, implies(uf_f, s_uf)), [], [and_op_pf, sing]),

@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, or, iff, eqv, and
+from core.derived import mem, neg, implies, forall, or, iff, eqv, and, right
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
@@ -20,9 +20,9 @@ $pair_injection {
     $eq_bd eqv("b", "d", "_")
     $goal or(and(eq_ac, eq_bd), and(eq_ad, eq_bc))
 
-    $_er head(nth(eqv_reflexive, 2))
-    $_es head(nth(eqv_symmetric, 2))
-    $_et head(nth(eqv_transitive, 2))
+    $_er head(right(eqv_reflexive))
+    $_es head(right(eqv_symmetric))
+    $_et head(right(eqv_transitive))
 
     # === w="a": forward with eqv("a","a") -> or(eqv("a","c"), eqv("a","d")) ===
     $or_ab_a or(eqv("a", "a", "_"), eqv("a", "b", "_"))

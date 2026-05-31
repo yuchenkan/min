@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, sep_ax
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, sep_ax, left, right
 from vocab.sets import empty, successor, subset
 from vocab.omega import inductive, omega
 from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c
@@ -314,8 +314,8 @@ $omega_exists {
     # [sep_f, ind_b] |- goal
 
     # eel on b from infinity_gives_inductive
-    $igi_ctx nth(infinity_gives_inductive, 1)
-    $igi_f head(nth(infinity_gives_inductive, 2))
+    $igi_ctx left(infinity_gives_inductive)
+    $igi_f head(right(infinity_gives_inductive))
     $got_eel_b eel(got_cut_sep, \b: inductive(b, "_"), "b", "b", [sep_f, ind_b], goal)
     # [sep_f, exists(b, ind_b)] |- goal
 

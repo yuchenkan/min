@@ -1,4 +1,4 @@
-from core.derived import neg, implies, or, iff
+from core.derived import neg, implies, or, iff, left, right
 from tactics import ax, wl, wr, nl, nr, il, ir, cut, mp, cut_c, close, same, contains, remove, wl_all
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
@@ -35,7 +35,7 @@ $_or_fwd \P Q R S pr qs or_PQ or_RS: {
     $got_s ?(same(Q, S), got_q, {
         # Q≠S: got_q gives q_left |- [Q]. qs = implies(Q, S).
         # Use il: premise1 = q_left |- [Q, S], premise2 = [S] + q_left |- [S]
-        $q_left nth(got_q, 1)
+        $q_left left(got_q)
         $full_left add(q_left, [qs])
         $got_q_wr wr(got_q, q_left, [Q, S], S)
         $ax_s wl_all(ax([S], [S], S), [S], [S], q_left)
@@ -44,9 +44,9 @@ $_or_fwd \P Q R S pr qs or_PQ or_RS: {
     # got_s: some_left |- [S]. or_PQ in some_left.
 
     # Step 3: wrap into or_PQ -> or_RS
-    $s_left nth(got_s, 1)
+    $s_left left(got_s)
     $got_or ir(got_s, remove(same, neg(R), s_left), [or_RS], or_RS)
-    $or_left nth(got_or, 1)
+    $or_left left(got_or)
     ir(got_or, remove(same, or_PQ, or_left), [implies(or_PQ, or_RS)], implies(or_PQ, or_RS))
 }
 
@@ -72,8 +72,8 @@ $or_iff_compat \P Q R S vars: {
     $d_fwd _or_fwd(P, Q, R, S, pr, qs, or_PQ, or_RS)
     $d_bwd _or_fwd(R, S, P, Q, rp, sq, or_RS, or_PQ)
     # d_fwd: fwd_left |- [fwd]. d_bwd: bwd_left |- [bwd].
-    $fwd_left nth(d_fwd, 1)
-    $bwd_left nth(d_bwd, 1)
+    $fwd_left left(d_fwd)
+    $bwd_left left(d_bwd)
 
     $got_iff mp(mp(iff_intro(or_PQ, or_RS, []),
         d_fwd, fwd, implies(bwd, iff_result), [], fwd_left),
@@ -82,26 +82,26 @@ $or_iff_compat \P Q R S vars: {
 
     $cur got_iff
     # Cut pr if present
-    $cur ?(contains(same, pr, nth(cur, 1)),
-        cut_c(got_PR, cur, pr, [iff_PR], nth(cur, 1), iff_result), cur)
+    $cur ?(contains(same, pr, left(cur)),
+        cut_c(got_PR, cur, pr, [iff_PR], left(cur), iff_result), cur)
     # Cut qs if present (and not already cut as pr)
-    $cur ?(contains(same, qs, nth(cur, 1)),
-        cut_c(got_QS, cur, qs, [iff_QS], nth(cur, 1), iff_result), cur)
+    $cur ?(contains(same, qs, left(cur)),
+        cut_c(got_QS, cur, qs, [iff_QS], left(cur), iff_result), cur)
     # Cut rp if present
-    $cur ?(contains(same, rp, nth(cur, 1)),
-        cut_c(got_RP, cur, rp, [iff_PR], nth(cur, 1), iff_result), cur)
+    $cur ?(contains(same, rp, left(cur)),
+        cut_c(got_RP, cur, rp, [iff_PR], left(cur), iff_result), cur)
     # Cut sq if present
-    $cur ?(contains(same, sq, nth(cur, 1)),
-        cut_c(got_SQ, cur, sq, [iff_QS], nth(cur, 1), iff_result), cur)
+    $cur ?(contains(same, sq, left(cur)),
+        cut_c(got_SQ, cur, sq, [iff_QS], left(cur), iff_result), cur)
     # cur: [iff_PR, iff_QS] or subset |- iff_result
 
-    $cur_left nth(cur, 1)
+    $cur_left left(cur)
     $top2 implies(iff_QS, iff_result)
     $top implies(iff_PR, top2)
     # Ensure both iff_PR and iff_QS are on left before closing
-    $cur_w ?(contains(same, iff_PR, cur_left), cur, wl(cur, add(cur_left, [iff_PR]), nth(cur, 2), iff_PR))
-    $cw_left nth(cur_w, 1)
-    $cur_w2 ?(contains(same, iff_QS, cw_left), cur_w, wl(cur_w, add(cw_left, [iff_QS]), nth(cur_w, 2), iff_QS))
+    $cur_w ?(contains(same, iff_PR, cur_left), cur, wl(cur, add(cur_left, [iff_PR]), right(cur), iff_PR))
+    $cw_left left(cur_w)
+    $cur_w2 ?(contains(same, iff_QS, cw_left), cur_w, wl(cur_w, add(cw_left, [iff_QS]), right(cur_w), iff_QS))
     $result ?(same(iff_PR, iff_QS), {
         ir(cur_w2, [], [top], top)
     }, {

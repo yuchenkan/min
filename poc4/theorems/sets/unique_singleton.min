@@ -1,4 +1,4 @@
-from core.derived import implies, forall, exists, eqv, pairing_ax
+from core.derived import implies, forall, exists, eqv, pairing_ax, left, right
 from vocab.sets import singleton
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -12,7 +12,7 @@ $unique_singleton {
     $eu exists_unique(body_fn, "_")
     $sing_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
-    $_su_f head(nth(singleton_unique, 2))
+    $_su_f head(right(singleton_unique))
     $su_inst apply_thm(singleton_unique, _su_f, ["a","u","y"], [])
     $got_inner mp(su_inst, ax([sing_u], [sing_u], sing_u), sing_u, imp_inner, [], [sing_u])
     $fa_uniq forall("y", imp_inner)
@@ -20,8 +20,8 @@ $unique_singleton {
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([sing_u], [sing_u], sing_u), sing_u, implies(fa_uniq, eu), [], [sing_u]),
                got_fa, fa_uniq, eu, [sing_u], [sing_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [sing_u], eu)
-    $_se_f head(nth(singleton_exists, 2))
-    $se_ctx nth(singleton_exists, 1)
+    $_se_f head(right(singleton_exists))
+    $se_ctx left(singleton_exists)
     $se_inst apply_thm(singleton_exists, _se_f, ["a"], se_ctx)
     $ex_sing exists("s", body_fn("s", "_"))
     $got_cut cut_c(se_inst, got_ex, ex_sing, se_ctx, [ex_sing], eu)

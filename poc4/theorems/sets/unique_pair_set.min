@@ -1,4 +1,4 @@
-from core.derived import implies, forall, exists, or, eqv, pairing_ax
+from core.derived import implies, forall, exists, or, eqv, pairing_ax, left, right
 from vocab.sets import pair_set
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -13,7 +13,7 @@ $unique_pair_set {
     $ps_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $ssu set_spec_unique(cond_fn, [])
-    $_ssu_f head(nth(ssu, 2))
+    $_ssu_f head(right(ssu))
     $ssu_inst apply_thm(ssu, _ssu_f, ["u","y"], [])
     $got_inner mp(ssu_inst, ax([ps_u], [ps_u], ps_u), ps_u, imp_inner, [], [ps_u])
     $fa_uniq forall("y", imp_inner)
@@ -21,8 +21,8 @@ $unique_pair_set {
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([ps_u], [ps_u], ps_u), ps_u, implies(fa_uniq, eu), [], [ps_u]),
                got_fa, fa_uniq, eu, [ps_u], [ps_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [ps_u], eu)
-    $_pe_f head(nth(pair_set_exists, 2))
-    $pe_ctx nth(pair_set_exists, 1)
+    $_pe_f head(right(pair_set_exists))
+    $pe_ctx left(pair_set_exists)
     $got_pe apply_thm(pair_set_exists, _pe_f, ["a", "b"], pe_ctx)
     $ex_ps exists("s", body_fn("s", "_"))
     $got_cut cut_c(got_pe, got_ex, ex_ps, pe_ctx, [ex_ps], eu)

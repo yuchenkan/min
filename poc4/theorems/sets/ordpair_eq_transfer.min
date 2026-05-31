@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, eqv
+from core.derived import mem, implies, forall, eqv, right
 from vocab.sets import ordered_pair
 from tactics import ax, ir, mp, apply_thm, close
 
@@ -13,13 +13,13 @@ $ordpair_eq_transfer {
     $op_cb ordered_pair("t", "c", "b", "_")
     $op_cd ordered_pair("t", "c", "d", "_")
 
-    $_kt head(nth(ordpair_key_transfer, 2))
+    $_kt head(right(ordpair_key_transfer))
     $got_kt apply_thm(ordpair_key_transfer, _kt, ["t","a","b","c"], [])
     $got_cb mp(mp(got_kt,
         ax([eqv_ac], [eqv_ac], eqv_ac), eqv_ac, implies(op_ab, op_cb), [], [eqv_ac]),
         ax([op_ab], [op_ab], op_ab), op_ab, op_cb, [eqv_ac], [op_ab])
 
-    $_vt head(nth(ordpair_val_transfer, 2))
+    $_vt head(right(ordpair_val_transfer))
     $got_vt apply_thm(ordpair_val_transfer, _vt, ["t","c","b","d"], [])
     $got_cd mp(mp(got_vt,
         ax([eqv_bd], [eqv_bd], eqv_bd), eqv_bd, implies(op_cb, op_cd), [], [eqv_bd]),

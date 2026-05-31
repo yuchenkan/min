@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists
+from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists, left, right
 from vocab.sets import pair_set, big_union, union
 from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c
 from theorems.logic.iff_elim_left import iff_elim_left
@@ -62,7 +62,7 @@ $union_exists {
     # [ps] |- [yp -> or_eqv]
 
     # eq_transfer: eqv(y,a) -> iff(mem(x,y), mem(x,a))
-    $_et head(nth(eq_transfer, 2))
+    $_et head(right(eq_transfer))
     $got_et_a apply_thm(eq_transfer, _et, ["y","a","x"], [])
     $iff_xy_xa iff(xy, xa)
     $imp_eqva_iff implies(eqv_ya, iff_xy_xa)
@@ -133,7 +133,7 @@ $union_exists {
     # From ps: iff(yp, or_eqv) backward -> or_eqv -> yp... no, need specific instances
     # For a: eqv_reflexive(a) -> or_intro_left -> or_eqv -> yp
     # eqv(a, a) -> a∈p
-    $_er head(nth(eqv_reflexive, 2))
+    $_er head(right(eqv_reflexive))
     $eqv_aa eqv("a", "a", "_")
     $got_eqv_aa apply_thm(eqv_reflexive, _er, ["a"], [])
     $or_eqv_a or(eqv("a", "a", "_"), eqv("a", "b", "_"))
@@ -209,8 +209,8 @@ $union_exists {
     # [ps, bu] |- [goal]
 
     # eel on big_union: [ps, bu_axiom_ctx] |- [goal]
-    $bu_ctx nth(big_union_exists, 1)
-    $bu_f head(nth(big_union_exists, 2))
+    $bu_ctx left(big_union_exists)
+    $bu_f head(right(big_union_exists))
     $bu_inst2 apply_thm(big_union_exists, bu_f, ["{a, b}"], bu_ctx)
     # bu_ctx |- [exists(u, big_union(u, "{a,b}"))]
     # Hmm, this won't work — big_union_exists takes a single set argument.
@@ -231,7 +231,7 @@ $union_exists {
 
     # Step 2: get exists(u, big_union(u, p)) from big_union_exists
     $ex_bu exists("u", big_union("u", "p", "_"))
-    $bu_f2 head(nth(big_union_exists, 2))
+    $bu_f2 head(right(big_union_exists))
     $got_bu_ex apply_thm(big_union_exists, bu_f2, ["p"], bu_ctx)
     # bu_ctx |- [ex_bu]
 
@@ -248,8 +248,8 @@ $union_exists {
     # Instantiating y with "b" clashes with bound "b" in exists.
     # Use renamed formula with "_b" for the existential var.
     $ex_ps exists("p", pair_set("p", "a", "b", "_"))
-    $_ps_f head(nth(pair_set_exists, 2))
-    $ps_ctx nth(pair_set_exists, 1)
+    $_ps_f head(right(pair_set_exists))
+    $ps_ctx left(pair_set_exists)
     $got_ps_ex apply_thm(pair_set_exists, _ps_f, ["a","b"], ps_ctx)
     # ps_ctx |- [ex_ps]
 

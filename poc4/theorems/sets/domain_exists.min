@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, exists, iff, sep_ax
+from core.derived import mem, implies, forall, and, exists, iff, sep_ax, left, right
 from vocab.sets import big_union
 from vocab.functions import apply, domain
 from tactics import ax, wl, fl, fr, ir, mp, cut, apply_thm, eel, eir, cut_c, close
@@ -42,8 +42,8 @@ $domain_exists {
     $app_fxy apply("f","x","y","_")
 
     # apply_in_double_union: apply(f,x,y) → uf_f → uuf_uf → x∈uuf
-    $_adu head(nth(apply_in_double_union, 2))
-    $adu_ctx nth(apply_in_double_union, 1)
+    $_adu head(right(apply_in_double_union))
+    $adu_ctx left(apply_in_double_union)
     $got_adu apply_thm(apply_in_double_union, _adu, ["f","x","y","uf","uuf"], adu_ctx)
     $got_x_uuf mp(mp(mp(got_adu,
         ax([app_fxy], [app_fxy], app_fxy), app_fxy,
@@ -110,8 +110,8 @@ $domain_exists {
         [sep_f], add([ex_char], add(adu_ctx, [uf_f, uuf_uf])), goal)
 
     # eel on uuf from big_union(uf)
-    $bu_f head(nth(big_union_exists, 2))
-    $bu_ctx nth(big_union_exists, 1)
+    $bu_f head(right(big_union_exists))
+    $bu_ctx left(big_union_exists)
     $got_eel_uuf eel(got_cut_sep, \uuf: big_union(uuf, "uf", "_"), "uuf", "uuf",
         add([sep_f], add(adu_ctx, [uf_f, uuf_uf])), goal)
     $ex_uuf exists("uuf", big_union("uuf", "uf", "_"))

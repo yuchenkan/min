@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall
+from core.derived import mem, implies, forall, right
 from vocab.sets import successor, empty
 from vocab.omega import inductive, omega
 from tactics import ax, ir, mp, apply_thm, close
@@ -13,7 +13,7 @@ $omega_succ_closed {
     $succ_sn successor("s", "n", "_")
     $s_in_w mem("s", "w")
 
-    $_oi head(nth(omega_is_inductive, 2))
+    $_oi head(right(omega_is_inductive))
     $got_ind mp(apply_thm(omega_is_inductive, _oi, ["w"], []),
         ax([om], [om], om), om, ind, [], [om])
 

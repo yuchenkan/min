@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, iff, or, eqv
+from core.derived import mem, implies, forall, iff, or, eqv, right
 from vocab.sets import ordered_pair, singleton, pair_set
 from tactics import ax, fl, fr, ir, mp, apply_thm, close
 from theorems.logic.iff_intro import iff_intro
@@ -17,7 +17,7 @@ $ordpair_val_transfer {
     $op_c ordered_pair("t", "a", "c", "_")
 
     # eq_in_eq: eqv(b,c) -> iff(eqv(w,b), eqv(w,c))
-    $_eie head(nth(eq_in_eq, 2))
+    $_eie head(right(eq_in_eq))
     $eqv_wb eqv("w", "b", "_")
     $eqv_wc eqv("w", "c", "_")
     $iff_eqv iff(eqv_wb, eqv_wc)

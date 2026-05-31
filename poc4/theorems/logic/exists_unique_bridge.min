@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, exists, iff, eqv, ext_ax
+from core.derived import mem, neg, implies, forall, and, exists, iff, eqv, ext_ax, left, right
 from vocab.logic import exists_unique
 from tactics import ax, wl, wr, nl, nr, il, ir, fl, fr, cut, mp, cut_c, apply_thm, eir, eel, close
 from theorems.logic.and_intro import and_intro
@@ -63,20 +63,20 @@ $exists_unique_bridge \phi_fn s vars: {
     $got_eqv_u2_w mp(got_uniq_w, got_phi_w, phi_w, eqv_u2_w, [eu_body_u2], [ex_body_w])
 
     # eqv_symmetric: forall a b. eqv(a,b) -> eqv(b,a)
-    $_es head(nth(eqv_symmetric, 2))
+    $_es head(right(eqv_symmetric))
     $eqv_t_u2 eqv("t", "u2", "_")
     $got_eqv_t_u2 mp(apply_thm(eqv_symmetric, _es, ["u2", "t"], []),
         got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
 
-    $_et head(nth(eqv_transitive, 2))
+    $_et head(right(eqv_transitive))
     $eqv_t_w eqv("t", "w", "_")
     $got_eqv_t_w mp(mp(apply_thm(eqv_transitive, _et, ["t", "u2", "w"], []),
                        got_eqv_t_u2, eqv_t_u2, implies(eqv_u2_w, eqv_t_w), [], [eu_body_u2, phi_t]),
                     got_eqv_u2_w, eqv_u2_w, eqv_t_w, [eu_body_u2, phi_t], [eu_body_u2, ex_body_w])
 
-    $_exs head(nth(ext_substitution, 2))
+    $_exs head(right(ext_substitution))
     $iff_pred iff(pred_t, pred_w)
-    $got_iff_pred mp(apply_thm(ext_substitution, _exs, ["t", "w", s], nth(ext_substitution, 1)),
+    $got_iff_pred mp(apply_thm(ext_substitution, _exs, ["t", "w", s], left(ext_substitution)),
                      got_eqv_t_w, eqv_t_w, iff_pred,
                      [ext_f], [eu_body_u2, phi_t, ex_body_w])
 

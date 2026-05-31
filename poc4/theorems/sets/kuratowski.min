@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, or, iff, eqv, and, exists, pairing_ax
+from core.derived import mem, neg, implies, forall, or, iff, eqv, and, exists, pairing_ax, right
 from vocab.sets import singleton, pair_set
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
@@ -73,13 +73,13 @@ $kuratowski {
     $goal and(eq_ac, eq_bd)
 
     # Read formulas from constant theorems (auto-deepen handles clashes)
-    $_si head(nth(singleton_injection, 2))
-    $_es head(nth(eqv_symmetric, 2))
-    $_et head(nth(eqv_transitive, 2))
-    $_sp head(nth(singleton_pair_eq, 2))
-    $_pi head(nth(pair_injection, 2))
-    $_sse head(nth(singleton_exists, 2))
-    $_pse head(nth(pair_set_exists, 2))
+    $_si head(right(singleton_injection))
+    $_es head(right(eqv_symmetric))
+    $_et head(right(eqv_transitive))
+    $_sp head(right(singleton_pair_eq))
+    $_pi head(right(pair_injection))
+    $_sse head(right(singleton_exists))
+    $_pse head(right(pair_set_exists))
 
     # === Outer transfer ===
     $ot_prf transfer(op1, eq12, op2, cond1, cond2, "t1", "t2", "v")

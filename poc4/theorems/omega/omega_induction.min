@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax
+from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
 from vocab.sets import empty, successor, subset
 from vocab.omega import inductive, omega
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eel, eir, cut_c, close
@@ -49,7 +49,7 @@ $omega_induction \pred vars: {
     # [base_hyp, emp] |- pred(e)
 
     # From omega_contains_empty: omega(w) → empty(e) → e∈w
-    $_oce head(nth(omega_contains_empty, 2))
+    $_oce head(right(omega_contains_empty))
     $got_oce apply_thm(omega_contains_empty, _oce, ["e", "w"], [])
     $got_ew mp(mp(got_oce, ax([om], [om], om), om, implies(emp, ew), [], [om]),
         ax([emp], [emp], emp), emp, ew, [om], [emp])
@@ -111,7 +111,7 @@ $omega_induction \pred vars: {
     # [step_hyp, char, xs, succ_tx] |- pred(t)
 
     # From omega_succ_closed: omega(w) → x∈w → succ(t,x) → t∈w
-    $_osc head(nth(omega_succ_closed, 2))
+    $_osc head(right(omega_succ_closed))
     $got_osc apply_thm(omega_succ_closed, _osc, ["r","m","w"], [])
     $got_tw mp(mp(mp(got_osc,
         ax([om], [om], om), om, implies(xw, implies(succ_tx, tw)), [], [om]),
@@ -141,7 +141,7 @@ $omega_induction \pred vars: {
     $imp_xs_fas implies(xs, fa_succ)
     $got_xs_imp ir(got_fa_succ, [om, step_hyp, char], [imp_xs_fas], imp_xs_fas)
     $ind_part2 forall("m", implies(mem("m","s"), forall("r", implies(successor("r","m","_"), mem("r","s")))))
-    $got_ind_p2 fr(got_xs_imp, nth(got_xs_imp, 1), [ind_part2], ind_part2, "m")
+    $got_ind_p2 fr(got_xs_imp, left(got_xs_imp), [ind_part2], ind_part2, "m")
     # [om, step_hyp, char] |- ind_part2
 
     # === inductive(s) ===
@@ -152,7 +152,7 @@ $omega_induction \pred vars: {
     # [char, om, base_hyp, step_hyp] |- inductive(s)
 
     # === omega_smallest → subset(w, s) → n∈w → n∈s → pred(n) ===
-    $_osi head(nth(omega_smallest_inductive, 2))
+    $_osi head(right(omega_smallest_inductive))
     $sub_ws subset("w", "s", "_")
     $got_sub mp(mp(apply_thm(omega_smallest_inductive, _osi, ["s","w"], []),
         ax([om], [om], om), om, implies(ind_s, sub_ws), [], [om]),

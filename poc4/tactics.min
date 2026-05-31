@@ -1,4 +1,4 @@
-from core.derived import proof, mem, forall, neg, implies, iff, tag, arg1, arg2, exp
+from core.derived import proof, mem, forall, neg, implies, iff, tag, arg1, arg2, exp, kp, left, right
 
 # flat: expand vocab to core, keeping .min format (with display)
 $flat \self f: {
@@ -213,7 +213,7 @@ $_apply_thm \self thm formula terms ctx: {
         $v arg1(f)
         $body fsubst(arg2(f), v, head(terms))
         $result inst(thm, formula, body, head(terms), ctx)
-        $actual_body head(nth(result, 2))
+        $actual_body head(right(result))
         self(self, result, actual_body, tail(terms), ctx)
     })
 }

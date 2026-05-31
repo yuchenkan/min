@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, or, iff, eqv
+from core.derived import mem, neg, implies, forall, or, iff, eqv, right
 from vocab.sets import successor, empty
 from tactics import ax, wl, fl, nl, nr, ir, mp, cut, close, apply_thm
 from theorems.logic.iff_elim_right import iff_elim_right
@@ -18,7 +18,7 @@ $succ_not_empty {
     $s1 fl(ax([iff_n], [iff_n], iff_n), [succ], [iff_n], succ, "n")
 
     # eqv(n,n) -> or_right -> iff backward -> mem(n,sn)
-    $_er head(nth(eqv_reflexive, 2))
+    $_er head(right(eqv_reflexive))
     $g_nn apply_thm(eqv_reflexive, _er, ["n"], [])
     $g_or mp(or_intro_right(mem("n","n"), enn, []), g_nn, enn, or_n, [], [])
     $g_mem mp(mp(iff_elim_right(mem("n","sn"), or_n, []),

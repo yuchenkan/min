@@ -1,4 +1,4 @@
-from core.derived import mem, iff, implies, eqv, forall
+from core.derived import mem, iff, implies, eqv, forall, right
 from tactics import ax, fl, fr, ir, mp, wl, cut, close, apply_thm
 from theorems.sets.eq_transfer import eq_transfer
 from theorems.logic.iff_chain import iff_chain
@@ -21,7 +21,7 @@ $eq_in_eq {
     $iff_21 iff(mw2, mw1)
 
     # eq_transfer instantiated: eqv(x1,x2) -> iff(mem(w,x1),mem(w,x2))
-    $_et head(nth(eq_transfer, 2))
+    $_et head(right(eq_transfer))
     $got_et apply_thm(eq_transfer, _et, ["x1","x2","w"], [])
     # [] |- [eqv(x1,x2) -> iff(mem(w,x1),mem(w,x2))]
     $got_iff12 mp(got_et, ax([eqv_12], [eqv_12], eqv_12), eqv_12, iff_12, [], [eqv_12])

@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, inf_ax, ext_ax
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, inf_ax, ext_ax, left, right
 from vocab.sets import empty, successor
 from vocab.omega import inductive
 from tactics import ax, wl, fl, fr, ir, nl, nr, mp, cut, close, apply_thm, eel, eir, cut_c
@@ -37,7 +37,7 @@ $infinity_gives_inductive {
     $eqv_e0_e eqv("e0", "e", "_")
 
     # unique_empty: empty(e0) -> empty(e) -> eqv(e0, e)
-    $_ue head(nth(empty_unique, 2))
+    $_ue head(right(empty_unique))
     $got_ue apply_thm(empty_unique, _ue, ["e0", "e"], [])
     $imp_emp_eqv implies(emp_e, eqv_e0_e)
     $got_eqv mp(mp(got_ue, ax([emp_e0], [emp_e0], emp_e0), emp_e0, imp_emp_eqv, [], [emp_e0]),
@@ -45,8 +45,8 @@ $infinity_gives_inductive {
     # [emp_e0, emp_e] |- [eqv_e0_e]
 
     # ext_substitution: eqv(e0,e) -> iff(e0 in b, e in b)
-    $_es head(nth(ext_substitution, 2))
-    $es_ctx nth(ext_substitution, 1)
+    $_es head(right(ext_substitution))
+    $es_ctx left(ext_substitution)
     $got_es apply_thm(ext_substitution, _es, ["e0", "e", "b"], es_ctx)
     $iff_eb iff(e0_in_b, e_in_b)
     $got_iff mp(got_es, got_eqv, eqv_e0_e, iff_eb, es_ctx, [emp_e0, emp_e])

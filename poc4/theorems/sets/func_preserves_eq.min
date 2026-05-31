@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, exists, eqv
+from core.derived import mem, implies, forall, and, exists, eqv, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from tactics import ax, ir, mp, apply_thm, eel, eir, cut_c, close
@@ -20,16 +20,16 @@ $func_preserves_eq {
     $app12 apply("f", "x1", "y2", "_")
     $eqv_y eqv("y1", "y2", "_")
 
-    $_es head(nth(eqv_symmetric, 2))
+    $_es head(right(eqv_symmetric))
     $eqv_x_rev eqv("x2", "x1", "_")
     $got_eqv_sym mp(apply_thm(eqv_symmetric, _es, ["x1","x2"], []),
         ax([eqv_x], [eqv_x], eqv_x), eqv_x, eqv_x_rev, [], [eqv_x])
 
-    $_er head(nth(eqv_reflexive, 2))
+    $_er head(right(eqv_reflexive))
     $eqv_yy eqv("y2", "y2", "_")
     $got_eqv_refl apply_thm(eqv_reflexive, _er, ["y2"], [])
 
-    $_oet head(nth(ordpair_eq_transfer, 2))
+    $_oet head(right(ordpair_eq_transfer))
     $op2 ordered_pair("p", "x2", "y2", "_")
     $op12 ordered_pair("p", "x1", "y2", "_")
     $got_oet apply_thm(ordpair_eq_transfer, _oet, ["p","x2","y2","x1","y2"], [])
@@ -60,7 +60,7 @@ $func_preserves_eq {
         \p: and(ordered_pair(p,"x2","y2","_"), mem(p,"f")),
         "p", "p", [eqv_x, and2], app12)
 
-    $_fut head(nth(func_unique_thm, 2))
+    $_fut head(right(func_unique_thm))
     $got_fut apply_thm(func_unique_thm, _fut, ["f","x1","y1","y2"], [])
     $got_eqv mp(mp(mp(got_fut,
         ax([sv], [sv], sv), sv, implies(app1, implies(app12, eqv_y)), [], [sv]),

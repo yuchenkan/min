@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, or, iff, eqv, and
+from core.derived import mem, implies, forall, or, iff, eqv, and, right
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.or_intro_left import or_intro_left
@@ -14,7 +14,7 @@ $singleton_pair_eq {
     $iff_c iff(eqv("c", "a", "_"), or(eqv("c", "c", "_"), eqv("c", "d", "_")))
     $or_cc or(eqv("c", "c", "_"), eqv("c", "d", "_"))
     $s1 fl(ax([iff_c], [iff_c], iff_c), [char], [iff_c], char, "c")
-    $_er head(nth(eqv_reflexive, 2))
+    $_er head(right(eqv_reflexive))
     $g_cc apply_thm(eqv_reflexive, _er, ["c"], [])
     $g_or_c mp(or_intro_left(eqv("c", "c", "_"), eqv("c", "d", "_"), []), g_cc, eqv("c", "c", "_"), or_cc, [], [])
     $g_ca mp(mp(iff_elim_right(eqv_ca, or_cc, []),

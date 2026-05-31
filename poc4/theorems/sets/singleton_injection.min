@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, iff, eqv
+from core.derived import mem, implies, forall, iff, eqv, right
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.eqv_reflexive import eqv_reflexive
@@ -10,7 +10,7 @@ $singleton_injection {
     $s1 fl(ax([iff_ab], [iff_ab], iff_ab), [char], [iff_ab], char, "a")
     $imp_fwd implies(eqv("a", "a", "_"), eqv("a", "b", "_"))
     $s2 mp(iff_elim_left(eqv("a", "a", "_"), eqv("a", "b", "_"), []), s1, iff_ab, imp_fwd, [], [char])
-    $_er head(nth(eqv_reflexive, 2))
+    $_er head(right(eqv_reflexive))
     $g_aa apply_thm(eqv_reflexive, _er, ["a"], [])
     $eqv_ab eqv("a", "b", "_")
     $s3 mp(s2, g_aa, eqv("a", "a", "_"), eqv_ab, [char], [])

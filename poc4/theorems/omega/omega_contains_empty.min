@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall
+from core.derived import mem, implies, forall, right
 from vocab.sets import empty, successor
 from vocab.omega import inductive, omega
 from tactics import ax, fl, ir, mp, apply_thm, close
@@ -12,7 +12,7 @@ $omega_contains_empty {
     $emp empty("e", "_")
     $e_in_w mem("e", "w")
 
-    $_oi head(nth(omega_is_inductive, 2))
+    $_oi head(right(omega_is_inductive))
     $got_ind mp(apply_thm(omega_is_inductive, _oi, ["w"], []),
         ax([om], [om], om), om, ind, [], [om])
 

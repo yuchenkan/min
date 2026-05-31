@@ -1,4 +1,4 @@
-from core.derived import implies, forall, exists, or, eqv, pairing_ax
+from core.derived import implies, forall, exists, or, eqv, pairing_ax, left, right
 from vocab.sets import singleton, pair_set, ordered_pair
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -12,7 +12,7 @@ $unique_ordpair {
     $eu exists_unique(body_fn, "_")
     $op_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
-    $_ou_f head(nth(ordpair_unique, 2))
+    $_ou_f head(right(ordpair_unique))
     $ou_inst apply_thm(ordpair_unique, _ou_f, ["a","b","u","y"], [])
     $got_inner mp(ou_inst, ax([op_u], [op_u], op_u), op_u, imp_inner, [], [op_u])
     $fa_uniq forall("y", imp_inner)
@@ -20,8 +20,8 @@ $unique_ordpair {
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([op_u], [op_u], op_u), op_u, implies(fa_uniq, eu), [], [op_u]),
                got_fa, fa_uniq, eu, [op_u], [op_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "p", "u", [op_u], eu)
-    $_oe_f head(nth(ordpair_exists, 2))
-    $oe_ctx nth(ordpair_exists, 1)
+    $_oe_f head(right(ordpair_exists))
+    $oe_ctx left(ordpair_exists)
     $got_oe apply_thm(ordpair_exists, _oe_f, ["a","b"], oe_ctx)
     $ex_op exists("p", body_fn("p", "_"))
     $got_cut cut_c(got_oe, got_ex, ex_op, oe_ctx, [ex_op], eu)

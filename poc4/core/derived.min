@@ -3,8 +3,13 @@ $tag \f: nth(f, 0)
 $d \f: nth(f, 1)
 $arg1 \f: nth(f, 2)
 $arg2 \f: nth(f, 3)
-# vocab: expansion at same position as a1
+# vocab: expansion at same position as arg1
 $exp \f: nth(f, 2)
+
+# proof: [kernel_proof, left, right]
+$kp \p: nth(p, 0)
+$left \p: nth(p, 1)
+$right \p: nth(p, 2)
 $_p \s: add("(", add(s, ")"))
 
 # core constructors: [tag, display, args...]
@@ -48,7 +53,7 @@ $_show_list \self lst: ?(eq(len(lst), 0), "",
 # returns [kernel_proof, left, right]
 $proof \left right rule premises principal term: {
     $fl \f: _core(_core, f)
-    $kps _map(_map, \p: nth(p, 0), premises)
+    $kps _map(_map, \p: kp(p), premises)
     $result _do_proof(
         _map(_map, fl, left),
         _map(_map, fl, right),
@@ -65,7 +70,7 @@ $proof \left right rule premises principal term: {
 
 # qed: flat expected, then call kernel bridge
 $qed \p expected system: {
-    $result _do_qed(nth(p, 0), _core(_core, expected), ?(eq(system, None), "z", system))
+    $result _do_qed(kp(p), _core(_core, expected), ?(eq(system, None), "z", system))
     ?(nth(result, 0), expected, {
         $_ print("qed failed:")
         $_ print(add("  expected: ", show(expected)))

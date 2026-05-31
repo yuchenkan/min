@@ -1,4 +1,4 @@
-from core.derived import mem, implies, iff, eqv
+from core.derived import mem, implies, iff, eqv, right
 from vocab.sets import singleton
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.iff_elim_right import iff_elim_right
@@ -13,7 +13,7 @@ $singleton_mem {
 
     $got_iff fl(ax([iff_as], [iff_as], iff_as), [sing], [iff_as], sing, "a")
 
-    $_er head(nth(eqv_reflexive, 2))
+    $_er head(right(eqv_reflexive))
     $got_eqv apply_thm(eqv_reflexive, _er, ["a"], [])
 
     $imp_bwd implies(eqv_aa, as)

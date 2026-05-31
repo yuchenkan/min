@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, exists, eqv
+from core.derived import mem, implies, forall, exists, eqv, left, right
 from vocab.functions import apply, domain
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, apply_thm, eel, cut_c, close
@@ -12,7 +12,7 @@ $unique_domain {
     $eu exists_unique(body_fn, "_")
     $dom_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
-    $_du_f head(nth(domain_unique, 2))
+    $_du_f head(right(domain_unique))
     $du_inst apply_thm(domain_unique, _du_f, ["f","u","y"], [])
     $got_inner mp(du_inst, ax([dom_u], [dom_u], dom_u), dom_u, imp_inner, [], [dom_u])
     $fa_uniq forall("y", imp_inner)
@@ -21,8 +21,8 @@ $unique_domain {
         ax([dom_u], [dom_u], dom_u), dom_u, implies(fa_uniq, eu), [], [dom_u]),
         got_fa, fa_uniq, eu, [dom_u], [dom_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "d", "u", [dom_u], eu)
-    $de_ctx nth(domain_exists, 1)
-    $de_f head(nth(domain_exists, 2))
+    $de_ctx left(domain_exists)
+    $de_f head(right(domain_exists))
     $de_inst apply_thm(domain_exists, de_f, ["f"], de_ctx)
     $ex_dom exists("d", body_fn("d", "_"))
     $got_cut cut_c(de_inst, got_ex, ex_dom, de_ctx, [ex_dom], eu)

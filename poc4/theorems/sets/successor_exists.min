@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, or, iff, eqv, exists, and, pairing_ax, union_ax
+from core.derived import mem, implies, forall, or, iff, eqv, exists, and, pairing_ax, union_ax, left, right
 from vocab.sets import singleton, pair_set, big_union, successor
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
@@ -46,7 +46,7 @@ $successor_exists {
                 g_mwp, mem("w", "p1"), or(eqv("w", "a", "_"), eqv("w", "t1", "_")), [ps_p1], [aw])
 
     # Case eqv(w,"a"): mem(v,w) + eqv(w,"a") -> mem(v,"a") -> or_left
-    $_eml head(nth(eqv_mem_left, 2))
+    $_eml head(right(eqv_mem_left))
     $ewa eqv("w", "a", "_")
     $eml_wa apply_thm(eqv_mem_left, _eml, ["w","a","v"], [])
     $g_case_a mp(mp(eml_wa, ax([ewa], [ewa], ewa), ewa,
@@ -90,7 +90,7 @@ $successor_exists {
     $eat eqv("a", "t1", "_")
     $iff_pa iff(mem("a", "p1"), or(eaa, eat))
     $g_pa fl(ax([iff_pa], [iff_pa], iff_pa), [ps_p1], [iff_pa], ps_p1, "a")
-    $_er head(nth(eqv_reflexive, 2))
+    $_er head(right(eqv_reflexive))
     $g_eqv_aa apply_thm(eqv_reflexive, _er, ["a"], [])
     $g_or_aa mp(or_intro_left(eaa, eat, []), g_eqv_aa, eaa, or(eaa, eat), [], [])
     $g_map1 mp(mp(iff_elim_right(mem("a", "p1"), or(eaa, eat), []),
@@ -153,20 +153,20 @@ $successor_exists {
 
     $g1 eel(g_ex_succ, \v: big_union(v, "p1", "_"), "s", "s1", [bu_s1, ps_p1, sing_t1], goal)
     $ex_bu exists("s", big_union("s", "p1", "_"))
-    $_bue_f head(nth(big_union_exists, 2))
+    $_bue_f head(right(big_union_exists))
     $g_bue apply_thm(big_union_exists, _bue_f, ["p1"], [un_f])
     $g2 cut_c(g_bue, g1, ex_bu, [un_f], [ex_bu, ps_p1, sing_t1], goal)
 
     $g3 eel(g2, \v: pair_set(v, "a", "t1", "_"), "s", "p1", [un_f, ps_p1, sing_t1], goal)
     $ex_ps exists("s", pair_set("s", "a", "t1", "_"))
-    $_pse_f head(nth(pair_set_exists, 2))
+    $_pse_f head(right(pair_set_exists))
     $g_pse apply_thm(pair_set_exists, _pse_f, ["a", "t1"], [pa_f])
     $g4 cut_c(g_pse, g3, ex_ps, [pa_f], [un_f, ex_ps, sing_t1], goal)
 
     $g5 eel(g4, \v: singleton(v, "a", "_"), "s", "t1", [un_f, pa_f, sing_t1], goal)
     $ex_sg exists("s", singleton("s", "a", "_"))
-    $_se_f head(nth(singleton_exists, 2))
-    $se_ctx nth(singleton_exists, 1)
+    $_se_f head(right(singleton_exists))
+    $se_ctx left(singleton_exists)
     $se_inst apply_thm(singleton_exists, _se_f, ["a"], se_ctx)
     $g6 cut_c(se_inst, g5, ex_sg, se_ctx, [un_f, pa_f, ex_sg], goal)
 
