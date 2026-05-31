@@ -77,4 +77,15 @@ $re_body implies(function("f","_"), implies(exists("z", apply("f","a","z","_")),
 $_ qed(rec_exists, forall("w", forall("f", forall("a", re_body))))
 $_ print("rec_exists ok")
 
+from theorems.recursion.rec_agree import rec_agree
+$ra_pred \w n p: forall(add(p,"v1"), forall(add(p,"v2"), forall(add(p,"y1"), forall(add(p,"y2"),
+    implies(rec_approx(add(p,"v1"),"a","f",w,add(p,"_")),
+    implies(rec_approx(add(p,"v2"),"a","f",w,add(p,"_")),
+    implies(apply(add(p,"v1"),n,add(p,"y1"),add(p,"_")),
+    implies(apply(add(p,"v2"),n,add(p,"y2"),add(p,"_")),
+        eqv(add(p,"y1"),add(p,"y2"),add(p,"_"))))))))))
+$ra_body implies(omega("w","_"), implies(function("f","_"), forall("n", implies(mem("n","w"), ra_pred("w","n","_")))))
+$_ qed(rec_agree, forall("w", forall("f", forall("a", ra_body))))
+$_ print("rec_agree ok")
+
 $ok true
