@@ -2,7 +2,7 @@
 
 // === Tokens ===
 
-const KEYWORDS = new Set(["from", "import"]);
+// No keywords — from/import/as are contextual, not reserved
 const PUNCTUATION = new Set("(){}[]$,.:?\\!".split(""));
 const ESCAPES = { "\\": "\\", '"': '"', n: "\n", t: "\t" };
 
@@ -56,7 +56,7 @@ function tokenize(source, filepath) {
             const start = pos;
             while (pos < source.length && /[a-zA-Z0-9_]/.test(source[pos])) pos++;
             const word = source.slice(start, pos);
-            tokens.push([KEYWORDS.has(word) ? "KW" : "NAME", word, line, col]);
+            tokens.push(["NAME", word, line, col]);
             continue;
         }
 
@@ -169,15 +169,25 @@ class Parser {
     }
 
     parseImport() {
-        const tok = this.expect("KW", "from");
+        const tok = this.expect("NAME", "from");
         const module = this.parseDottedName();
-        this.expect("KW", "import");
-        const names = [this.expect("NAME")[1]];
+        this.expect("NAME", "import");
+        const names = [this.parseImportName()];
         while (this.peek()[1] === ",") {
             this.advance();
-            names.push(this.expect("NAME")[1]);
+            names.push(this.parseImportName());
         }
         return new Import(module, names, this.filepath, tok[2], tok[3]);
+    }
+
+    parseImportName() {
+        const name = this.expect("NAME")[1];
+        if (this.peek()[1] === "as") {
+            this.advance();
+            const alias = this.expect("NAME")[1];
+            return { name, alias };
+        }
+        return { name, alias: name };
     }
 
     parseDottedName() {

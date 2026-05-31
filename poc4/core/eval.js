@@ -240,8 +240,10 @@ function loadImport(node, env) {
     const filepath = path.join(ROOT, ...parts) + ".min";
     if (!fs.existsSync(filepath)) return;
     const imported = loadFile(filepath);
-    for (const name of node.names) {
-        if (name in imported) env.d[name] = imported[name];
+    for (const { name, alias } of node.names) {
+        if (name.startsWith("_"))
+            throw new EvalError(`cannot import private name "${name}" from ${node.module}`);
+        if (name in imported) env.d[alias] = imported[name];
     }
 }
 
