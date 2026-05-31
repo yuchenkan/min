@@ -1,0 +1,8 @@
+from core.derived import mem, implies, forall, and, exists, eqv, qed
+from vocab.sets import empty
+from vocab.functions import apply, function
+
+from theorems.recursion.rec_base import rec_base
+$goal forall("e0", forall("a", implies(empty("e0", "_"), exists("h", and(function("h", "_"), forall("e", implies(empty("e", "_"), apply("h", "e", "a", "_"))))))))
+$_ qed(rec_base, goal)
+$_ print("rec_base ok")
