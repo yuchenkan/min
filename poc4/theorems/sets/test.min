@@ -382,3 +382,5 @@ $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ord
         implies(union("u","v","h","_"), function("u","_"))))))
 $_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
 $_ print("extend_function ok")
+
+$ok true

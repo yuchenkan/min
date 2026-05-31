@@ -201,3 +201,5 @@ $_ print("or_iff_compat Q=S ok")
 
 $_ qed(or_iff_compat(A, B, A, B, v), forall("a", forall("b", implies(iff(A, A), implies(iff(B, B), iff(or(A, B), or(A, B)))))))
 $_ print("or_iff_compat P=R Q=S ok")
+
+$ok true

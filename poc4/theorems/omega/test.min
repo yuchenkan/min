@@ -68,3 +68,5 @@ $_ qed(successor_injection, forall("w", forall("m", forall("n", forall("sn",
     implies(omega("w","_"), implies(mem("m","w"), implies(mem("n","w"),
         implies(successor("sn","m","_"), implies(successor("sn","n","_"), eqv("m","n","_")))))))))))
 $_ print("successor_injection ok")
+
+$ok true
