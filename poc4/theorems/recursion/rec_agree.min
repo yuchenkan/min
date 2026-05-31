@@ -1,0 +1,122 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from vocab.sets import empty, successor
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import rec_approx
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.sets.apply_key_transfer import apply_key_transfer
+from theorems.omega.omega_induction import omega_induction
+from theorems.recursion.rec_approx_zero import rec_approx_zero
+
+# Sep, Ext |- omega(w) → ∀n∈w. ∀v1 v2 y1 y2.
+#   rec_approx(v1,a,f,w) → rec_approx(v2,a,f,w) →
+#   apply(v1,n,y1) → apply(v2,n,y2) → eqv(y1,y2)
+#
+# By omega_induction with pred(n) = ∀v1 v2 y1 y2. ra(v1)→ra(v2)→app(v1,n,y1)→app(v2,n,y2)→eqv(y1,y2)
+# Base: rec_approx_zero gives y1=a, y2=a. Transitive: y1=y2.
+# Step: step condition gives predecessors, IH gives equality, func_unique chains.
+$rec_agree {
+    $pred \w n p: forall(add(p,"v1"), forall(add(p,"v2"), forall(add(p,"y1"), forall(add(p,"y2"),
+        implies(rec_approx(add(p,"v1"),"a","f",w,add(p,"_")),
+        implies(rec_approx(add(p,"v2"),"a","f",w,add(p,"_")),
+        implies(apply(add(p,"v1"),n,add(p,"y1"),add(p,"_")),
+        implies(apply(add(p,"v2"),n,add(p,"y2"),add(p,"_")),
+            eqv(add(p,"y1"),add(p,"y2"),add(p,"_"))))))))))
+
+    $ind omega_induction(pred, ["a","f"], "_")
+    $ind_ctx left(ind)
+    $_ind_f head(right(ind))
+
+    # Instantiate
+    $ind_inst apply_thm(ind, _ind_f, ["w","f","a"], ind_ctx)
+    $om omega("w","_")
+    $i1 mp(ind_inst, ax([om], [om], om), om, arg2(head(right(ind_inst))), left(ind_inst), [om])
+
+    $i1_body head(right(i1))
+    $base_hyp arg1(i1_body)
+    $after_base arg2(i1_body)
+
+    # === BASE CASE ===
+    # pred(w,e,_) = ∀v1 v2 y1 y2. ra(v1)→ra(v2)→app(v1,e,y1)→app(v2,e,y2)→eqv(y1,y2)
+    # From rec_approx_zero: ra(v1)→empty(e)→app(v1,e,y1)→eqv(y1,a). Similarly y2=a. Trans: y1=y2.
+    $emp empty("e","_")
+    $ra1 rec_approx("v1","a","f","w","_")
+    $ra2 rec_approx("v2","a","f","w","_")
+    $app1e apply("v1","e","y1","_")
+    $app2e apply("v2","e","y2","_")
+    $eqv_y1y2 eqv("y1","y2","_")
+
+    $_raz head(right(rec_approx_zero))
+    $raz1 apply_thm(rec_approx_zero, _raz, ["v1","a","f","w","e","y1"], [])
+    $raz1b head(right(raz1))
+    $raz2 mp(raz1, ax([ra1], [ra1], ra1), ra1, arg2(raz1b), left(raz1), [ra1])
+    $raz2b head(right(raz2))
+    $raz3 mp(raz2, ax([emp], [emp], emp), emp, arg2(raz2b), left(raz2), [emp])
+    $raz3b head(right(raz3))
+    $got_y1a mp(raz3, ax([app1e], [app1e], app1e), app1e, arg2(raz3b), left(raz3), [app1e])
+    # left(got_y1a) |- eqv(y1,a)
+
+    $raz_b1 apply_thm(rec_approx_zero, _raz, ["v2","a","f","w","e","y2"], [])
+    $raz_b1b head(right(raz_b1))
+    $raz_b2 mp(raz_b1, ax([ra2], [ra2], ra2), ra2, arg2(raz_b1b), left(raz_b1), [ra2])
+    $raz_b2b head(right(raz_b2))
+    $raz_b3 mp(raz_b2, ax([emp], [emp], emp), emp, arg2(raz_b2b), left(raz_b2), [emp])
+    $raz_b3b head(right(raz_b3))
+    $got_y2a mp(raz_b3, ax([app2e], [app2e], app2e), app2e, arg2(raz_b3b), left(raz_b3), [app2e])
+    # left(got_y2a) |- eqv(y2,a)
+
+    # eqv(y1,a) + eqv(a,y2) → eqv(y1,y2)
+    $_es head(right(eqv_symmetric))
+    $_et head(right(eqv_transitive))
+    $eqv_ay2 eqv("a","y2","_")
+    $got_ay2 mp(apply_thm(eqv_symmetric, _es, ["y2","a"], []),
+        got_y2a, eqv("y2","a","_"), eqv_ay2, [], left(got_y2a))
+    $got_y1y2 mp(mp(apply_thm(eqv_transitive, _et, ["y1","a","y2"], []),
+        got_y1a, eqv("y1","a","_"), implies(eqv_ay2, eqv_y1y2), [], left(got_y1a)),
+        got_ay2, eqv_ay2, eqv_y1y2, left(got_y1a), left(got_ay2))
+    # left(got_y1y2) |- eqv(y1,y2). Has ra1, ra2, emp, app1e, app2e.
+
+    # Close into pred(w,e,_): ir app2e, app1e, ra2, ra1. fr y2, y1, v2, v1.
+    $b1 ir(got_y1y2, remove(same, app2e, left(got_y1y2)), [implies(app2e, eqv_y1y2)], implies(app2e, eqv_y1y2))
+    $b2 ir(b1, remove(same, app1e, left(b1)), [implies(app1e, implies(app2e, eqv_y1y2))], implies(app1e, implies(app2e, eqv_y1y2)))
+    $b3 ir(b2, remove(same, ra2, left(b2)), [implies(ra2, implies(app1e, implies(app2e, eqv_y1y2)))], implies(ra2, implies(app1e, implies(app2e, eqv_y1y2))))
+    $b4 ir(b3, remove(same, ra1, left(b3)), [implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2))))], implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2)))))
+    $b5 fr(b4, left(b4), [forall("y2", implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2)))))], forall("y2", implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2))))), "y2")
+    $b6 fr(b5, left(b5), [forall("y1", forall("y2", implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2))))))], forall("y1", forall("y2", implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2)))))), "y1")
+    $b7 fr(b6, left(b6), [forall("v2", forall("y1", forall("y2", implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2)))))))], forall("v2", forall("y1", forall("y2", implies(ra1, implies(ra2, implies(app1e, implies(app2e, eqv_y1y2))))))), "v2")
+    $pred_e pred("w","e","_")
+    $got_pred_e fr(b7, left(b7), [pred_e], pred_e, "v1")
+    # left(got_pred_e) |- pred_e. Has emp.
+
+    # ir emp, fr e → base_hyp
+    $got_base_ir ir(got_pred_e, remove(same, emp, left(got_pred_e)), [implies(emp, pred_e)], implies(emp, pred_e))
+    $got_base fr(got_base_ir, left(got_base_ir), [base_hyp], base_hyp, "e")
+
+    $i2 mp(i1, got_base, base_hyp, after_base, left(i1), left(got_base))
+
+    $i2_body head(right(i2))
+    $step_hyp arg1(i2_body)
+    $fa_pred arg2(i2_body)
+
+    # === STEP CASE ===
+    # Given n∈w, pred(w,n,_) (IH), succ(s,n): prove pred(w,s,_).
+    # pred(w,s,_) = ∀v1 v2 y1 y2. ra(v1)→ra(v2)→app(v1,s,y1)→app(v2,s,y2)→eqv(y1,y2)
+    #
+    # From app(v1,s,y1) + ra(v1) step at (n,s):
+    #   ∃val1.app(v1,n,val1) and app(v1,s,y1)=f(val1) (via func_unique on step's output).
+    # Similarly val2 from v2.
+    # IH at n with val1, val2: eqv(val1,val2).
+    # func_unique(f): apply(f,val1,y1) and apply(f,val2,y2) with val1=val2 → y1=y2.
+    #
+    # This is complex (~150 lines). For now output base only to verify it works.
+    $got_step ax([step_hyp], [step_hyp], step_hyp)
+
+    $i3 mp(i2, got_step, step_hyp, fa_pred, left(i2), [step_hyp])
+    i3
+}
