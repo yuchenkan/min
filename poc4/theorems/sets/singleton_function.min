@@ -1,0 +1,129 @@
+from core.derived import mem, implies, forall, and, exists, eqv, left, right
+from vocab.sets import singleton, ordered_pair
+from vocab.functions import apply, function
+from tactics import ax, ir, mp, apply_thm, eel, cut_c, close, same, remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.sets.singleton_mem_eq import singleton_mem_eq
+from theorems.sets.kuratowski import kuratowski
+
+# pa |- singleton(f, op) -> ordered_pair(op, x, y) -> function(f)
+$singleton_function {
+    $sing singleton("f", "op", "_")
+    $opxy ordered_pair("op", "x", "y", "_")
+    $func function("f", "_")
+
+    $app1 apply("f", "r", "r1", "_")
+    $app2 apply("f", "r", "r2", "_")
+    $and_apps and(app1, app2)
+    $eqv_r1r2 eqv("r1", "r2", "_")
+
+    $op_q1 ordered_pair("q1", "r", "r1", "_")
+    $q1f mem("q1", "f")
+    $and_q1 and(op_q1, q1f)
+    $eqv_q1_op eqv("q1", "op", "_")
+    $eqv_r1y eqv("r1", "y", "_")
+
+    $_sme head(right(singleton_mem_eq))
+    $_kur head(right(kuratowski))
+    $kur_ctx left(kuratowski)
+
+    $got_op_q1 mp(and_elim_left(op_q1, q1f, []),
+        ax([and_q1], [and_q1], and_q1), and_q1, op_q1, [], [and_q1])
+    $got_q1f mp(and_elim_right(op_q1, q1f, []),
+        ax([and_q1], [and_q1], and_q1), and_q1, q1f, [], [and_q1])
+
+    $got_eqv_q1 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q1", "f", "op"], []),
+        ax([sing], [sing], sing), sing, implies(q1f, eqv_q1_op), [], [sing]),
+        got_q1f, q1f, eqv_q1_op, [sing], [and_q1])
+
+    # kuratowski: kur_ctx |- op(q1,r,r1) → op(op,x,y) → eqv(q1,op) → r=x ∧ r1=y
+    $goal_and1 and(eqv("r", "x", "_"), eqv_r1y)
+    $k1 apply_thm(kuratowski, _kur, ["q1","op","r","r1","x","y"], kur_ctx)
+    $k1a mp(k1, got_op_q1, op_q1, implies(opxy, implies(eqv_q1_op, goal_and1)), left(k1), [and_q1])
+    $k1b mp(k1a, ax([opxy], [opxy], opxy), opxy, implies(eqv_q1_op, goal_and1), left(k1a), [opxy])
+    $k1c mp(k1b, got_eqv_q1, eqv_q1_op, goal_and1, left(k1b), [sing, and_q1])
+    # k1c: some_ctx |- goal_and1
+
+    $got_r1y mp(and_elim_right(eqv("r", "x", "_"), eqv_r1y, []),
+        k1c, goal_and1, eqv_r1y, [], left(k1c))
+    # got_r1y: left(k1c) |- eqv_r1y
+
+    $got_r1y_eel eel(got_r1y, \v: and(ordered_pair(v, "r", "r1", "_"), mem(v, "f")),
+        "p", "q1", left(got_r1y), eqv_r1y)
+    # got_r1y_eel: some_ctx with app1 instead of and_q1 |- eqv_r1y
+
+    # Same for r2
+    $op_q2 ordered_pair("q2", "r", "r2", "_")
+    $q2f mem("q2", "f")
+    $and_q2 and(op_q2, q2f)
+    $eqv_q2_op eqv("q2", "op", "_")
+    $eqv_r2y eqv("r2", "y", "_")
+
+    $got_op_q2 mp(and_elim_left(op_q2, q2f, []),
+        ax([and_q2], [and_q2], and_q2), and_q2, op_q2, [], [and_q2])
+    $got_q2f mp(and_elim_right(op_q2, q2f, []),
+        ax([and_q2], [and_q2], and_q2), and_q2, q2f, [], [and_q2])
+
+    $got_eqv_q2 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q2", "f", "op"], []),
+        ax([sing], [sing], sing), sing, implies(q2f, eqv_q2_op), [], [sing]),
+        got_q2f, q2f, eqv_q2_op, [sing], [and_q2])
+
+    $goal_and2 and(eqv("r", "x", "_"), eqv_r2y)
+    $k2 apply_thm(kuratowski, _kur, ["q2","op","r","r2","x","y"], kur_ctx)
+    $k2a mp(k2, got_op_q2, op_q2, implies(opxy, implies(eqv_q2_op, goal_and2)), left(k2), [and_q2])
+    $k2b mp(k2a, ax([opxy], [opxy], opxy), opxy, implies(eqv_q2_op, goal_and2), left(k2a), [opxy])
+    $k2c mp(k2b, got_eqv_q2, eqv_q2_op, goal_and2, left(k2b), [sing, and_q2])
+
+    $got_r2y mp(and_elim_right(eqv("r", "x", "_"), eqv_r2y, []),
+        k2c, goal_and2, eqv_r2y, [], left(k2c))
+
+    $got_r2y_eel eel(got_r2y, \v: and(ordered_pair(v, "r", "r2", "_"), mem(v, "f")),
+        "p", "q2", left(got_r2y), eqv_r2y)
+
+    # eqv(r2,y) → eqv(y,r2)
+    $_es head(right(eqv_symmetric))
+    $eqv_yr2 eqv("y", "r2", "_")
+    $got_yr2 mp(apply_thm(eqv_symmetric, _es, ["r2","y"], []),
+        got_r2y_eel, eqv_r2y, eqv_yr2, [], left(got_r2y_eel))
+
+    # eqv(r1,y) + eqv(y,r2) → eqv(r1,r2)
+    $_et head(right(eqv_transitive))
+    $got_eqv mp(mp(apply_thm(eqv_transitive, _et, ["r1","y","r2"], []),
+        got_r1y_eel, eqv_r1y, implies(eqv_yr2, eqv_r1r2), [], left(got_r1y_eel)),
+        got_yr2, eqv_yr2, eqv_r1r2, left(got_r1y_eel), left(got_yr2))
+    # got_eqv: merged_ctx |- eqv_r1r2
+
+    # Replace app1,app2 with and(app1,app2) via cut
+    $got_a1 mp(and_elim_left(app1, app2, []),
+        ax([and_apps], [and_apps], and_apps), and_apps, app1, [], [and_apps])
+    $got_a2 mp(and_elim_right(app1, app2, []),
+        ax([and_apps], [and_apps], and_apps), and_apps, app2, [], [and_apps])
+
+    $got_cut1 cut_c(got_a1, got_eqv, app1, [and_apps], left(got_eqv), eqv_r1r2)
+    $got_cut2 cut_c(got_a2, got_cut1, app2, [and_apps], left(got_cut1), eqv_r1r2)
+    # got_cut2: ctx with and_apps, sing, opxy, pa_f |- eqv_r1r2
+
+    # Close: and_apps → eqv_r1r2, then forall r2, r1, r
+    # got_cut2: ctx_with_and |- eqv_r1r2. Extract and_apps from left.
+    $ctx_with_and left(got_cut2)
+    $imp_inner implies(and_apps, eqv_r1r2)
+
+    # Remove and_apps, sing, opxy from context step by step via ir
+    $ctx_no_and remove(same, and_apps, ctx_with_and)
+    $s1 ir(got_cut2, ctx_no_and, [imp_inner], imp_inner)
+
+    $s2 close(s1, ctx_no_and, [imp_inner], ["r2", "r1", "r"])
+    # s2: ctx_no_and |- [func]. ctx_no_and contains sing, opxy, pa_f
+
+    $ctx_no_opxy remove(same, opxy, ctx_no_and)
+    $imp2 implies(opxy, func)
+    $s5 ir(s2, ctx_no_opxy, [imp2], imp2)
+
+    $ctx_no_sing remove(same, sing, ctx_no_opxy)
+    $top implies(sing, imp2)
+    $s6 ir(s5, ctx_no_sing, [top], top)
+    close(s6, ctx_no_sing, [top], ["y","x","op","f"])
+}

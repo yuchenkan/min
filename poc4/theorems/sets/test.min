@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists, qed, sep_ax
 from vocab.sets import empty, singleton, pair_set, big_union, power_set, successor, ordered_pair, intersect, subset, union
-from vocab.functions import apply, domain
+from vocab.functions import apply, domain, function
 from vocab.logic import exists_unique
 
 from theorems.sets.empty_exists import empty_exists
@@ -277,3 +277,9 @@ $_ qed(singleton_mem_eq,
     forall("x", forall("f", forall("a",
         implies(singleton("f","a","_"), implies(mem("x","f"), eqv("x","a","_")))))))
 $_ print("singleton_mem_eq ok")
+
+from theorems.sets.singleton_function import singleton_function
+$_ qed(singleton_function,
+    forall("f", forall("op", forall("x", forall("y",
+        implies(singleton("f","op","_"), implies(ordered_pair("op","x","y","_"), function("f","_"))))))))
+$_ print("singleton_function ok")
