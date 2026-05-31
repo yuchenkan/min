@@ -406,5 +406,20 @@ $extend_step {
     $step_u forall("m", implies(mw, step_m_body))
     $c5 fr(c4, left(c4), [step_u], step_u, "m")
 
-    c5
+    # Close: ir each hypothesis, then close free vars
+    $ctx5 left(c5)
+    $d1 ir(c5, remove(same, app_u_sn_fval, ctx5), [implies(app_u_sn_fval, step_u)], implies(app_u_sn_fval, step_u))
+    $d2 ir(d1, remove(same, func_u, left(d1)), [implies(func_u, implies(app_u_sn_fval, step_u))], implies(func_u, implies(app_u_sn_fval, step_u)))
+    $d3 ir(d2, remove(same, un, left(d2)), [implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))], implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))
+    $d4 ir(d3, remove(same, sing_h, left(d3)), [implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))], implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))
+    $d5 ir(d4, remove(same, opkv, left(d4)), [implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))], implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))
+    $d6 ir(d5, remove(same, succ_sn, left(d5)), [implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))], implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))))
+    $d7 ir(d6, remove(same, app_f_val, left(d6)), [implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))))], implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))))
+    $d8 ir(d7, remove(same, app_vn, left(d7)), [implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))))], implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))))))
+    $d9 ir(d8, remove(same, nw, left(d8)), [implies(nw, implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))))))], implies(nw, implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))))))
+    $d10 ir(d9, remove(same, om, left(d9)), [implies(om, implies(nw, implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))))))], implies(om, implies(nw, implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))))))))
+    $d11 ir(d10, remove(same, func_f, left(d10)), [implies(func_f, implies(om, implies(nw, implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u)))))))))))], implies(func_f, implies(om, implies(nw, implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))))))))
+    $top_es implies(ra_v, implies(func_f, implies(om, implies(nw, implies(app_vn, implies(app_f_val, implies(succ_sn, implies(opkv, implies(sing_h, implies(un, implies(func_u, implies(app_u_sn_fval, step_u))))))))))))
+    $d12 ir(d11, remove(same, ra_v, left(d11)), [top_es], top_es)
+    close(d12, left(d12), [top_es], ["u","h","op","sn","fval","val","n","w","f","a","v"])
 }
