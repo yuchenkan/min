@@ -159,7 +159,7 @@ $deepen \f pre: _deepen(_deepen, f, pre)
 
 # _has_bound: check if .min formula has bound var equal to term
 $_has_bound \self f t: {
-    $g nth(f, 0)
+    $g tag(f)
     ?(eq(g, "mem"), False,
     ?(eq(g, "neg"), self(self, arg1(f), t),
     ?(eq(g, "implies"), ?(self(self, arg1(f), t), True, self(self, arg2(f), t)),
@@ -167,24 +167,6 @@ $_has_bound \self f t: {
     self(self, exp(f), t)))))
 }
 
-# _max_len: max string length among term and all free vars in flat formula
-$_free_len \self f mx: {
-    $tag nth(f, 0)
-    ?(eq(tag, "mem"), {
-        $l1 len(nth(f, 1))
-        $l2 len(nth(f, 2))
-        $m ?(?(eq(l1, mx), False, ?(eq(l2, mx), False, True)),
-            ?(?(eq(l1, l2), False, ?(eq(mx, l1), False, True)), l1,
-            ?(?(eq(l2, mx), True, False), mx, l2)), mx)
-        # simplified: just use add to track, not worth complex max
-        # return mx for now, compute properly below
-        mx
-    },
-    ?(eq(tag, "neg"), self(self, nth(f, 1), mx),
-    ?(eq(tag, "implies"), self(self, nth(f, 2), self(self, nth(f, 1), mx)),
-    ?(eq(tag, "forall"), self(self, nth(f, 2), mx),
-    mx))))
-}
 
 # _make_pre: build prefix of n underscores
 $_make_pre \self n: ?(eq(n, 0), "", add("_", self(self, sub(n, 1))))
@@ -225,7 +207,7 @@ $inst \thm formula body term ctx: {
 }
 # apply_thm: multi-forall instantiation with auto-deepening
 $_apply_thm \self thm formula terms ctx: {
-    $_peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))
+    $_peel \ps f: ?(eq(tag(f), "forall"), f, ps(ps, exp(f)))
     ?(eq(len(terms), 0), thm, {
         $f _peel(_peel, formula)
         $v arg1(f)
