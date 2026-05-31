@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed, separation
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed, sep_ax
 from vocab.sets import empty, successor, subset
 from vocab.omega import inductive, omega
 from vocab.logic import exists_unique

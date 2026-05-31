@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, exists, iff, separation
+from core.derived import mem, implies, forall, and, exists, iff, sep_ax
 from vocab.sets import big_union
 from vocab.functions import apply, domain
 from tactics import ax, wl, fl, fr, ir, mp, cut, apply_thm, eel, eir, cut_c, close
@@ -24,7 +24,7 @@ $domain_exists {
     $uuf_uf big_union("uuf", "uf", "_")
 
     # Separation phi
-    $sep_f separation(["f"], \x a np: exists("r", apply("f", x, "r", "_")), "_")
+    $sep_f sep_ax(["f"], \x a np: exists("r", apply("f", x, "r", "_")), "_")
 
     # === Forward: [char] |- x∈d → ∃y.apply ===
     $char_inst fl(ax([iff_sep], [iff_sep], iff_sep), [char], [iff_sep], char, "x")
@@ -101,7 +101,7 @@ $domain_exists {
     $got_ex eir(got_fa, \d: domain(d, "f", "_"), "d", "d",
         add([char], add(adu_ctx, [uf_f, uuf_uf])))
 
-    # eel on d from separation (instantiated at uuf)
+    # eel on d from sep_ax (instantiated at uuf)
     $got_eel_d eel(got_ex, \d: forall("x", iff(mem("x",d), and(mem("x","uuf"), exists("r", apply("f","x","r","_"))))),
         "d", "d", add([char], add(adu_ctx, [uf_f, uuf_uf])), goal)
     $ex_char exists("d", char)

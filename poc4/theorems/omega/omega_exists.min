@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, separation
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, sep_ax
 from vocab.sets import empty, successor, subset
 from vocab.omega import inductive, omega
 from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c
@@ -34,7 +34,7 @@ $omega_exists {
     $phi \x: forall("c", implies(inductive("c", "_"), mem(x, "c")))
 
     # Separation: ∀a. ∃w. ∀x. (x∈w ↔ x∈a ∧ phi(x))
-    $sep_f separation([], \x a p: phi(x), "_")
+    $sep_f sep_ax([], \x a p: phi(x), "_")
 
     # Instantiate sep with b: ∃w. ∀x. (x∈w ↔ x∈b ∧ phi(x))
     $sep_ctx [sep_f]
@@ -303,7 +303,7 @@ $omega_exists {
     $got_ex eir(got_om, \w: omega(w, "_"), "w", "w", [char, ind_b])
     # [char, ind_b] |- goal
 
-    # eel on w from separation
+    # eel on w from sep_ax
     $got_eel_w eel(got_ex, \w: forall("x", iff(mem("x",w), and(mem("x","b"), phi("x")))),
         "w", "w", [char, ind_b], goal)
     # [exists(w, char), ind_b] |- goal
