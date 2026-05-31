@@ -244,6 +244,14 @@ $rec_exists {
     $got_step fr(s4, left(s4), [step_hyp], step_hyp, "n")
 
     $i3 mp(i2, got_step, step_hyp, fa_pred, left(i2), left(got_step))
-    i3
+
+    # Close: ir ran_fc, f_at_a, func_f, om. fr w, f, a.
+    $ctx_i3 left(i3)
+    $c1 ir(i3, remove(same, om, ctx_i3), [implies(om, fa_pred)], implies(om, fa_pred))
+    $c2 ir(c1, remove(same, ran_fc, left(c1)), [implies(ran_fc, implies(om, fa_pred))], implies(ran_fc, implies(om, fa_pred)))
+    $c3 ir(c2, remove(same, f_at_a, left(c2)), [implies(f_at_a, implies(ran_fc, implies(om, fa_pred)))], implies(f_at_a, implies(ran_fc, implies(om, fa_pred))))
+    $c4 ir(c3, remove(same, func_f, left(c3)), [implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_pred))))], implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_pred)))))
+    $top implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_pred))))
+    close(c4, left(c4), [top], ["a","f","w"])
 }
 
