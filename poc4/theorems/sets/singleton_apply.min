@@ -1,0 +1,34 @@
+from core.derived import mem, implies, forall, left, right
+from vocab.sets import singleton, ordered_pair
+from vocab.functions import apply
+from tactics import ax, ir, mp, apply_thm, close
+from theorems.sets.singleton_mem import singleton_mem
+from theorems.sets.apply_intro import apply_intro
+
+# |- singleton(f, op) -> ordered_pair(op, x, y) -> apply(f, x, y)
+$singleton_apply {
+    $sing singleton("f", "op", "_")
+    $op ordered_pair("op", "x", "y", "_")
+    $app apply("f", "x", "y", "_")
+
+    # singleton_mem: sing -> op∈f
+    $_sm head(right(singleton_mem))
+    $got_sm apply_thm(singleton_mem, _sm, ["f","op"], [])
+    $op_in_f mem("op", "f")
+    $got_mem mp(got_sm, ax([sing], [sing], sing), sing, op_in_f, [], [sing])
+    # [sing] |- op_in_f
+
+    # apply_intro: op(op,x,y) -> op∈f -> apply(f,x,y)
+    $_ai head(right(apply_intro))
+    $got_ai apply_thm(apply_intro, _ai, ["op","f","x","y"], [])
+    $got_app mp(mp(got_ai,
+        ax([op], [op], op), op, implies(op_in_f, app), [], [op]),
+        got_mem, op_in_f, app, [op], [sing])
+    # [op, sing] |- app
+
+    $imp2 implies(op, app)
+    $s1 ir(got_app, [sing], [imp2], imp2)
+    $top implies(sing, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x","op","f"])
+}

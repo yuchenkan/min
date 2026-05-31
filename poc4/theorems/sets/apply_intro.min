@@ -1,0 +1,28 @@
+from core.derived import mem, implies, forall, and, exists, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from tactics import ax, ir, mp, eir, close
+from theorems.logic.and_intro import and_intro
+
+# |- ordered_pair(p,x,y) -> mem(p,f) -> apply(f,x,y)
+$apply_intro {
+    $op ordered_pair("p", "x", "y", "_")
+    $pf mem("p", "f")
+    $app apply("f", "x", "y", "_")
+    $and_op_pf and(op, pf)
+
+    $got_and mp(mp(and_intro(op, pf, []),
+        ax([op], [op], op), op, implies(pf, and_op_pf), [], [op]),
+        ax([pf], [pf], pf), pf, and_op_pf, [op], [pf])
+    # [op, pf] |- and_op_pf
+
+    $got_app eir(got_and, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "f")),
+        "_p", "p", [op, pf])
+    # [op, pf] |- app
+
+    $imp2 implies(pf, app)
+    $s1 ir(got_app, [op], [imp2], imp2)
+    $top implies(op, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x","f","p"])
+}

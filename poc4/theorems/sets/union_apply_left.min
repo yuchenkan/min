@@ -1,0 +1,75 @@
+from core.derived import mem, implies, forall, and, or, iff, exists, left, right
+from vocab.sets import union, ordered_pair
+from vocab.functions import apply
+from tactics import ax, wl, fl, ir, mp, apply_thm, eel, eir, cut_c, close
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+
+# |- apply(a,x,y) -> union(u,a,b) -> apply(u,x,y)
+# Proof: apply(a,x,y) = ∃p. op(p,x,y) ∧ p∈a.
+# union(u,a,b) gives ∀z. z∈u ↔ z∈a ∨ z∈b.
+# From p∈a, get p∈a ∨ p∈b, then iff backward: p∈u.
+# With op(p,x,y) ∧ p∈u, get apply(u,x,y).
+$union_apply_left {
+    $app_a apply("a", "x", "y", "_")
+    $un union("u", "a", "b", "_")
+    $app_u apply("u", "x", "y", "_")
+
+    $op ordered_pair("_p", "x", "y", "__")
+    $p_a mem("_p", "a")
+    $p_u mem("_p", "u")
+    $p_b mem("_p", "b")
+    $and_op_pa and(op, p_a)
+    $and_op_pu and(op, p_u)
+    $or_ab or(p_a, p_b)
+
+    # From and_op_pa: extract op and p_a
+    $got_op mp(and_elim_left(op, p_a, []),
+        ax([and_op_pa], [and_op_pa], and_op_pa), and_op_pa, op, [], [and_op_pa])
+    $got_pa mp(and_elim_right(op, p_a, []),
+        ax([and_op_pa], [and_op_pa], and_op_pa), and_op_pa, p_a, [], [and_op_pa])
+
+    # union char: z∈u ↔ z∈a ∨ z∈b, instantiate with _p
+    $iff_pu iff(p_u, or_ab)
+    $got_iff fl(ax([iff_pu], [iff_pu], iff_pu), [un], [iff_pu], un, "_p")
+
+    # p_a -> or(p_a, p_b)
+    $got_or mp(or_intro_left(p_a, p_b, []),
+        got_pa, p_a, or_ab, [], [and_op_pa])
+    # [and_op_pa] |- or_ab
+
+    # iff backward: or_ab -> p_u
+    $imp_bwd implies(or_ab, p_u)
+    $got_bwd mp(iff_elim_right(p_u, or_ab, []),
+        got_iff, iff_pu, imp_bwd, [], [un])
+    # [un] |- imp_bwd
+
+    # mp: or_ab -> p_u with our or_ab
+    $got_pu mp(got_bwd, got_or, or_ab, p_u, [un], [and_op_pa])
+    # [un, and_op_pa] |- p_u
+
+    # and(op, p_u)
+    $got_and mp(mp(and_intro(op, p_u, []),
+        got_op, op, implies(p_u, and_op_pu), [], [and_op_pa]),
+        got_pu, p_u, and_op_pu, [and_op_pa], [un, and_op_pa])
+    # [un, and_op_pa] |- and_op_pu
+
+    # eir: exists _p. and(op(_p,x,y), _p in u) = apply(u,x,y)
+    $got_app_u eir(got_and, \v: and(ordered_pair(v, "x", "y", "__"), mem(v, "u")),
+        "_p", "_p", [un, and_op_pa])
+    # [un, and_op_pa] |- app_u
+
+    # eel on _p from app_a: apply(a,x,y) = exists _p. and(op(_p,x,y), _p in a)
+    $got_eel eel(got_app_u, \v: and(ordered_pair(v, "x", "y", "__"), mem(v, "a")),
+        "_p", "_p", [un, and_op_pa], app_u)
+    # [un, app_a] |- app_u
+
+    $imp2 implies(un, app_u)
+    $s1 ir(got_eel, [app_a], [imp2], imp2)
+    $top implies(app_a, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x","b","a","u"])
+}

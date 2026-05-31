@@ -1,0 +1,29 @@
+from core.derived import mem, implies, forall, or, iff
+from vocab.sets import union
+from tactics import ax, fl, ir, mp, close
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+
+# |- mem(x,a) -> union(u,a,b) -> mem(x,u)
+$union_mem_left {
+    $xa mem("x", "a")
+    $xb mem("x", "b")
+    $xu mem("x", "u")
+    $un union("u", "a", "b", "_")
+    $or_ab or(xa, xb)
+    $iff_xu iff(xu, or_ab)
+
+    $got_iff fl(ax([iff_xu], [iff_xu], iff_xu), [un], [iff_xu], un, "x")
+    $got_or mp(or_intro_left(xa, xb, []),
+        ax([xa], [xa], xa), xa, or_ab, [], [xa])
+    $imp_bwd implies(or_ab, xu)
+    $got_bwd mp(iff_elim_right(xu, or_ab, []),
+        got_iff, iff_xu, imp_bwd, [], [un])
+    $got_xu mp(got_bwd, got_or, or_ab, xu, [un], [xa])
+
+    $imp2 implies(un, xu)
+    $s1 ir(got_xu, [xa], [imp2], imp2)
+    $top implies(xa, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["b","a","u","x"])
+}

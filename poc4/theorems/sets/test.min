@@ -229,3 +229,51 @@ $_ print("union_unique ok")
 
 $_ qed(unique_union, forall("a", forall("b", exists_unique(\v p: union(v, "a", "b", p), "_"))))
 $_ print("unique_union ok")
+
+from theorems.sets.apply_intro import apply_intro
+$_ qed(apply_intro,
+    forall("p", forall("f", forall("x", forall("y",
+        implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))))
+$_ print("apply_intro ok")
+
+from theorems.sets.union_apply_left import union_apply_left
+$_ qed(union_apply_left,
+    forall("u", forall("a", forall("b", forall("x", forall("y",
+        implies(apply("a","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))))
+$_ print("union_apply_left ok")
+
+from theorems.sets.union_apply_right import union_apply_right
+$_ qed(union_apply_right,
+    forall("u", forall("a", forall("b", forall("x", forall("y",
+        implies(apply("b","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))))
+$_ print("union_apply_right ok")
+
+from theorems.sets.union_mem_left import union_mem_left
+$_ qed(union_mem_left,
+    forall("x", forall("u", forall("a", forall("b",
+        implies(mem("x","a"), implies(union("u","a","b","_"), mem("x","u"))))))))
+$_ print("union_mem_left ok")
+
+from theorems.sets.union_mem_right import union_mem_right
+$_ qed(union_mem_right,
+    forall("x", forall("u", forall("a", forall("b",
+        implies(mem("x","b"), implies(union("u","a","b","_"), mem("x","u"))))))))
+$_ print("union_mem_right ok")
+
+from theorems.sets.subset_mem import subset_mem
+$_ qed(subset_mem,
+    forall("x", forall("a", forall("b",
+        implies(subset("a","b","_"), implies(mem("x","a"), mem("x","b")))))))
+$_ print("subset_mem ok")
+
+from theorems.sets.singleton_apply import singleton_apply
+$_ qed(singleton_apply,
+    forall("f", forall("op", forall("x", forall("y",
+        implies(singleton("f","op","_"), implies(ordered_pair("op","x","y","_"), apply("f","x","y","_"))))))))
+$_ print("singleton_apply ok")
+
+from theorems.sets.singleton_mem_eq import singleton_mem_eq
+$_ qed(singleton_mem_eq,
+    forall("x", forall("f", forall("a",
+        implies(singleton("f","a","_"), implies(mem("x","f"), eqv("x","a","_")))))))
+$_ print("singleton_mem_eq ok")

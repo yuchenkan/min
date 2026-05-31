@@ -1,0 +1,25 @@
+from core.derived import mem, implies, forall
+from vocab.sets import subset
+from tactics import ax, fl, ir, mp, close
+
+# |- subset(a,b) -> mem(x,a) -> mem(x,b)
+$subset_mem {
+    $sub subset("a", "b", "_")
+    $xa mem("x", "a")
+    $xb mem("x", "b")
+
+    # sub = forall(_x, implies(mem(_x,a), mem(_x,b)))
+    # fl with term "x": [sub] |- implies(xa, xb)
+    $imp_ab implies(xa, xb)
+    $got_imp fl(ax([imp_ab], [imp_ab], imp_ab), [sub], [imp_ab], sub, "x")
+    # [sub] |- imp_ab
+
+    $got_xb mp(got_imp, ax([xa], [xa], xa), xa, xb, [sub], [xa])
+    # [sub, xa] |- xb
+
+    $imp2 implies(xa, xb)
+    $s1 ir(got_xb, [sub], [imp2], imp2)
+    $top implies(sub, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["b","a","x"])
+}
