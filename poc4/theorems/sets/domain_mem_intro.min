@@ -1,0 +1,34 @@
+from core.derived import mem, implies, forall, iff, exists, left, right
+from vocab.functions import apply, domain
+from tactics import ax, fl, ir, mp, eir, close
+from theorems.logic.iff_elim_right import iff_elim_right
+
+# |- apply(f,x,y) -> domain(d,f) -> mem(x,d)
+$domain_mem_intro {
+    $app apply("f", "x", "y", "_")
+    $dom domain("d", "f", "_")
+    $xd mem("x", "d")
+    $ex_app exists("_y", apply("f", "x", "_y", "__"))
+    $iff_xd iff(xd, ex_app)
+
+    # apply(f,x,y) → ∃_y. apply(f,x,_y) via eir
+    $got_ex eir(ax([app], [app], app), \v: apply("f", "x", v, "_"),
+        "y", "y", [app])
+    # [app] |- ex_app  (alpha-equiv: exists("y",...) ~ exists("_y",...))
+
+    # domain(d,f) instantiated with x: iff(x∈d, ex_app)
+    $got_iff fl(ax([iff_xd], [iff_xd], iff_xd), [dom], [iff_xd], dom, "x")
+
+    # iff backward: ex_app → x∈d
+    $imp_bwd implies(ex_app, xd)
+    $got_bwd mp(iff_elim_right(xd, ex_app, []),
+        got_iff, iff_xd, imp_bwd, [], [dom])
+
+    $got_xd mp(got_bwd, got_ex, ex_app, xd, [dom], [app])
+
+    $imp2 implies(dom, xd)
+    $s1 ir(got_xd, [app], [imp2], imp2)
+    $top implies(app, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x","d","f"])
+}

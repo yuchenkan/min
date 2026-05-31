@@ -1,0 +1,28 @@
+from core.derived import mem, implies, forall, iff, exists, left, right
+from vocab.functions import apply, domain
+from tactics import ax, fl, ir, mp, close
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# |- domain(d,f) -> mem(x,d) -> exists(y, apply(f,x,y))
+$domain_mem_elim {
+    $dom domain("d", "f", "_")
+    $xd mem("x", "d")
+    $ex_app exists("_y", apply("f", "x", "_y", "__"))
+    $iff_xd iff(xd, ex_app)
+
+    # domain(d,f) instantiated with x: iff(x∈d, ex_app)
+    $got_iff fl(ax([iff_xd], [iff_xd], iff_xd), [dom], [iff_xd], dom, "x")
+
+    # iff forward: x∈d → ex_app
+    $imp_fwd implies(xd, ex_app)
+    $got_fwd mp(iff_elim_left(xd, ex_app, []),
+        got_iff, iff_xd, imp_fwd, [], [dom])
+
+    $got_ex mp(got_fwd, ax([xd], [xd], xd), xd, ex_app, [dom], [xd])
+
+    $imp2 implies(xd, ex_app)
+    $s1 ir(got_ex, [dom], [imp2], imp2)
+    $top implies(dom, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["x","d","f"])
+}

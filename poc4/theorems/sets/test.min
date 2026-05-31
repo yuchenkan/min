@@ -283,3 +283,27 @@ $_ qed(singleton_function,
     forall("f", forall("op", forall("x", forall("y",
         implies(singleton("f","op","_"), implies(ordered_pair("op","x","y","_"), function("f","_"))))))))
 $_ print("singleton_function ok")
+
+from theorems.sets.domain_mem_intro import domain_mem_intro
+$_ qed(domain_mem_intro,
+    forall("f", forall("d", forall("x", forall("y",
+        implies(apply("f","x","y","_"), implies(domain("d","f","_"), mem("x","d"))))))))
+$_ print("domain_mem_intro ok")
+
+from theorems.sets.domain_mem_elim import domain_mem_elim
+$_ qed(domain_mem_elim,
+    forall("f", forall("d", forall("x",
+        implies(domain("d","f","_"), implies(mem("x","d"), exists("_y", apply("f","x","_y","__"))))))))
+$_ print("domain_mem_elim ok")
+
+from theorems.sets.apply_key_transfer import apply_key_transfer
+$_ qed(apply_key_transfer,
+    forall("f", forall("x", forall("x2", forall("y",
+        implies(eqv("x","x2","_"), implies(apply("f","x","y","_"), apply("f","x2","y","_"))))))))
+$_ print("apply_key_transfer ok")
+
+from theorems.sets.apply_val_transfer import apply_val_transfer
+$_ qed(apply_val_transfer,
+    forall("f", forall("x", forall("y", forall("y2",
+        implies(eqv("y","y2","_"), implies(apply("f","x","y","_"), apply("f","x","y2","_"))))))))
+$_ print("apply_val_transfer ok")

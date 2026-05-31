@@ -1,0 +1,54 @@
+from core.derived import mem, implies, forall, and, exists, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from tactics import ax, ir, mp, apply_thm, eel, eir, cut_c, close
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
+
+# |- eqv(x,x2) -> apply(f,x,y) -> apply(f,x2,y)
+$apply_key_transfer {
+    $eqv_xx2 eqv("x", "x2", "_")
+    $app apply("f", "x", "y", "_")
+    $app2 apply("f", "x2", "y", "_")
+
+    # apply(f,x,y) = exists(p, and(op(p,x,y), p in f))
+    # eigenvariable q for eel
+    $op_q ordered_pair("q", "x", "y", "_")
+    $op_q2 ordered_pair("q", "x2", "y", "_")
+    $qf mem("q", "f")
+    $and_q and(op_q, qf)
+
+    $got_op mp(and_elim_left(op_q, qf, []),
+        ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
+    $got_qf mp(and_elim_right(op_q, qf, []),
+        ax([and_q], [and_q], and_q), and_q, qf, [], [and_q])
+
+    # ordpair_key_transfer: eqv(x,x2) → op(q,x,y) → op(q,x2,y)
+    $_okt head(right(ordpair_key_transfer))
+    $got_okt apply_thm(ordpair_key_transfer, _okt, ["q","x","y","x2"], [])
+    $got_op2 mp(mp(got_okt,
+        ax([eqv_xx2], [eqv_xx2], eqv_xx2), eqv_xx2, implies(op_q, op_q2), [], [eqv_xx2]),
+        got_op, op_q, op_q2, [eqv_xx2], [and_q])
+
+    # and(op(q,x2,y), q in f)
+    $and_q2 and(op_q2, qf)
+    $got_and2 mp(mp(and_intro(op_q2, qf, []),
+        got_op2, op_q2, implies(qf, and_q2), [], [eqv_xx2, and_q]),
+        got_qf, qf, and_q2, [eqv_xx2, and_q], [and_q])
+
+    # eir: exists p. and(op(p,x2,y), p in f) = apply(f,x2,y)
+    $got_app2 eir(got_and2, \v: and(ordered_pair(v, "x2", "y", "_"), mem(v, "f")),
+        "p", "q", [eqv_xx2, and_q])
+
+    # eel on q from app
+    $got_eel eel(got_app2, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "f")),
+        "p", "q", [eqv_xx2, and_q], app2)
+
+    $imp2 implies(app, app2)
+    $s1 ir(got_eel, [eqv_xx2], [imp2], imp2)
+    $top implies(eqv_xx2, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x2","x","f"])
+}
