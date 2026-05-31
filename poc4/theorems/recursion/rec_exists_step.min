@@ -5,6 +5,8 @@ from vocab.omega import omega
 from vocab.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.extend_apply_new import extend_apply_new
 from theorems.sets.extend_function import extend_function
 from theorems.recursion.extend_consistency import extend_consistency
@@ -44,16 +46,21 @@ $rec_exists_step {
     # Need to instantiate and mp all hypotheses to get the consistency forall.
     $_ec head(right(extend_consistency))
     $ec_ctx left(extend_consistency)
-    $ec1 apply_thm(extend_consistency, _ec, ["v","a","f","w","n","sn","val","fval"], ec_ctx)
-    # ec1: ec_ctx |- forall(z, ...). But it's actually implies(ra_v, implies(nw, ...)).
-    # Let me just mp step by step reading the body:
+    # Instantiate all 9 foralls (including z) to get bare implies chain:
+    $ec1 apply_thm(extend_consistency, _ec, ["v","a","f","w","n","sn","val","fval","z"], ec_ctx)
+    # ec1: [] |- implies(ra_v, implies(nw, implies(app_vn, implies(app_f, implies(succ_sn, implies(apply(v,sn,z), eqv(fval,z)))))))
     $ec2 mp(ec1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(ec1))), left(ec1), [ra_v])
     $ec3 mp(ec2, ax([nw], [nw], nw), nw, arg2(head(right(ec2))), left(ec2), [nw])
     $ec4 mp(ec3, ax([app_vn], [app_vn], app_vn), app_vn, arg2(head(right(ec3))), left(ec3), [app_vn])
     $ec5 mp(ec4, ax([app_f_val], [app_f_val], app_f_val), app_f_val, arg2(head(right(ec4))), left(ec4), [app_f_val])
     $ec6 mp(ec5, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(ec5))), left(ec5), [succ_sn])
-    # ec6: ctx |- forall(z, implies(apply(v,sn,z), eqv(fval,z)))
-    $cons head(right(ec6))
+    # ec6: [ra_v, nw, app_vn, app_f, succ_sn] |- implies(apply(v,sn,z), eqv(fval,z))
+    # ir + fr z to build consistency:
+    $app_vsn_z apply("v", "sn", "z", "_")
+    $eqv_fval_z eqv("fval", "z", "_")
+    $cons_inner implies(app_vsn_z, eqv_fval_z)
+    $cons forall("z", cons_inner)
+    $got_cons fr(ec6, left(ec6), [cons], cons, "z")
 
     # extend_function: func_v → sing_h → op_new → cons → un → func_u
     $_ef head(right(extend_function))
@@ -76,7 +83,7 @@ $rec_exists_step {
     $ef2 mp(ef1, got_func_v, func_v, arg2(ef1_b), left(ef1), [ra_v])
     $ef3 mp(ef2, ax([sing_h], [sing_h], sing_h), sing_h, arg2(head(right(ef2))), left(ef2), [sing_h])
     $ef4 mp(ef3, ax([op_new], [op_new], op_new), op_new, arg2(head(right(ef3))), left(ef3), [op_new])
-    $ef5 mp(ef4, ec6, cons, arg2(head(right(ef4))), left(ef4), left(ec6))
+    $ef5 mp(ef4, got_cons, cons, arg2(head(right(ef4))), left(ef4), left(got_cons))
     $got_func_u mp(ef5, ax([un], [un], un), un, func_u, left(ef5), [un])
     # left(got_func_u) |- func_u
 
