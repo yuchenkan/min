@@ -1,0 +1,46 @@
+from core.derived import mem, implies, forall, or, iff, eqv, left, right
+from vocab.sets import successor
+from tactics import ax, fl, fr, ir, mp, close
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.iff_sym import iff_sym
+
+# |- eqv(s1,s2) → successor(s1,n) → successor(s2,n)
+# Transfer a successor characterization from s1 to s2 when s1=s2.
+$succ_set_transfer {
+    $eqv_12 eqv("s1", "s2", "_")
+    $succ_1 successor("s1", "n", "_")
+    $succ_2 successor("s2", "n", "_")
+
+    $xs1 mem("x", "s1")
+    $xs2 mem("x", "s2")
+    $xn mem("x", "n")
+    $exn eqv("x", "n", "_")
+    $or_xn or(xn, exn)
+    $iff_s1 iff(xs1, or_xn)
+    $iff_s2 iff(xs2, or_xn)
+    $iff_12 iff(xs1, xs2)
+    $iff_21 iff(xs2, xs1)
+
+    # fl succ_1 at x: [succ_1] |- iff(x∈s1, or(x∈n, eqv(x,n)))
+    $got_iff_s1 fl(ax([iff_s1], [iff_s1], iff_s1), [succ_1], [iff_s1], succ_1, "x")
+
+    # fl eqv_12 at x: [eqv_12] |- iff(x∈s1, x∈s2)
+    $got_iff_12 fl(ax([iff_12], [iff_12], iff_12), [eqv_12], [iff_12], eqv_12, "x")
+
+    # iff_sym: iff(x∈s1, x∈s2) → iff(x∈s2, x∈s1)
+    $got_iff_21 mp(iff_sym(xs1, xs2, []), got_iff_12, iff_12, iff_21, [], [eqv_12])
+
+    # iff_chain: iff(x∈s2, x∈s1) → iff(x∈s1, or_xn) → iff(x∈s2, or_xn)
+    $got_iff_s2 mp(mp(iff_chain(xs2, xs1, or_xn, []),
+        got_iff_21, iff_21, implies(iff_s1, iff_s2), [], [eqv_12]),
+        got_iff_s1, iff_s1, iff_s2, [eqv_12], [succ_1])
+
+    # fr x → succ_2
+    $got_succ_2 fr(got_iff_s2, [eqv_12, succ_1], [succ_2], succ_2, "x")
+
+    $imp2 implies(succ_1, succ_2)
+    $s1 ir(got_succ_2, [eqv_12], [imp2], imp2)
+    $top implies(eqv_12, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["n","s2","s1"])
+}
