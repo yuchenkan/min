@@ -55,5 +55,5 @@ $_ qed(not_mem_self, forall("w", implies(omega("w","_"), forall("n", implies(mem
 $_ print("not_mem_self ok")
 
 from theorems.omega.zero_or_succ import zero_or_succ
-$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(empty("n","_"), exists("m", and(mem("m","w"), successor("n","m","_")))))))))
+$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(empty("n","_"), exists("_q", successor("n","_q","_"))))))))
 $_ print("zero_or_succ ok")
