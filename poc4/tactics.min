@@ -1,4 +1,14 @@
-from core.derived import proof, mem, forall, neg, implies, iff, flat
+from core.derived import proof, mem, forall, neg, implies, iff
+
+# flat: expand vocab to core, keeping .min format (with display)
+$flat \self f: {
+    $t nth(f, 0)
+    ?(eq(t, "mem"), f,
+    ?(eq(t, "neg"), neg(self(self, nth(f, 2))),
+    ?(eq(t, "implies"), implies(self(self, nth(f, 2)), self(self, nth(f, 3))),
+    ?(eq(t, "forall"), forall(nth(f, 2), self(self, nth(f, 3))),
+    self(self, nth(f, 2))))))
+}
 
 # === alpha-equivalence for formulas ===
 
@@ -10,24 +20,24 @@ $_veq \self va vb env: ?(eq(len(env), 0), eq(va, vb), {
     self(self, va, vb, tail(env))))
 })
 
-# alpha-equiv on flat (core-only) formulas
+# alpha-equiv on .min core formulas [tag, display, arg1, arg2]
 $_aeq \self a b env:
     ?(eq(a, b), True,
     ?(eq(nth(a, 0), "mem"),
         ?(eq(nth(b, 0), "mem"),
-            ?(not(_veq(_veq, nth(a, 1), nth(b, 1), env)), False,
-            _veq(_veq, nth(a, 2), nth(b, 2), env)),
+            ?(not(_veq(_veq, nth(a, 2), nth(b, 2), env)), False,
+            _veq(_veq, nth(a, 3), nth(b, 3), env)),
         False),
     ?(eq(nth(a, 0), "neg"),
-        ?(eq(nth(b, 0), "neg"), self(self, nth(a, 1), nth(b, 1), env), False),
+        ?(eq(nth(b, 0), "neg"), self(self, nth(a, 2), nth(b, 2), env), False),
     ?(eq(nth(a, 0), "implies"),
         ?(eq(nth(b, 0), "implies"),
-            ?(not(self(self, nth(a, 1), nth(b, 1), env)), False,
-            self(self, nth(a, 2), nth(b, 2), env)),
+            ?(not(self(self, nth(a, 2), nth(b, 2), env)), False,
+            self(self, nth(a, 3), nth(b, 3), env)),
         False),
     ?(eq(nth(a, 0), "forall"),
         ?(eq(nth(b, 0), "forall"),
-            self(self, nth(a, 2), nth(b, 2), add([[nth(a, 1), nth(b, 1)]], env)),
+            self(self, nth(a, 3), nth(b, 3), add([[nth(a, 2), nth(b, 2)]], env)),
         False),
     False)))))
 
@@ -150,14 +160,14 @@ $_deepen \self f pre: {
 }
 $deepen \f pre: _deepen(_deepen, f, pre)
 
-# _has_bound: check if flat formula has bound var equal to term
+# _has_bound: check if .min formula has bound var equal to term
 $_has_bound \self f t: {
-    $tag nth(f, 0)
-    ?(eq(tag, "mem"), False,
-    ?(eq(tag, "neg"), self(self, nth(f, 1), t),
-    ?(eq(tag, "implies"), ?(self(self, nth(f, 1), t), True, self(self, nth(f, 2), t)),
-    ?(eq(tag, "forall"), ?(eq(nth(f, 1), t), True, self(self, nth(f, 2), t)),
-    False))))
+    $g nth(f, 0)
+    ?(eq(g, "mem"), False,
+    ?(eq(g, "neg"), self(self, nth(f, 2), t),
+    ?(eq(g, "implies"), ?(self(self, nth(f, 2), t), True, self(self, nth(f, 3), t)),
+    ?(eq(g, "forall"), ?(eq(nth(f, 2), t), True, self(self, nth(f, 3), t)),
+    self(self, nth(f, 2), t)))))
 }
 
 # _max_len: max string length among term and all free vars in flat formula
@@ -185,14 +195,14 @@ $_make_pre \self n: ?(eq(n, 0), "", add("_", self(self, sub(n, 1))))
 # _max: max of two ints
 $_max \a b: ?(gt(a, b), a, b)
 
-# _max_free_len: max length of free vars in flat formula (skips bound vars)
+# _max_free_len: max length of free vars in .min formula (skips bound vars)
 $_mfl \self f: {
-    $tag nth(f, 0)
-    ?(eq(tag, "mem"), _max(len(nth(f, 1)), len(nth(f, 2))),
-    ?(eq(tag, "neg"), self(self, nth(f, 1)),
-    ?(eq(tag, "implies"), _max(self(self, nth(f, 1)), self(self, nth(f, 2))),
-    ?(eq(tag, "forall"), self(self, nth(f, 2)),
-    0))))
+    $g nth(f, 0)
+    ?(eq(g, "mem"), _max(len(nth(f, 2)), len(nth(f, 3))),
+    ?(eq(g, "neg"), self(self, nth(f, 2)),
+    ?(eq(g, "implies"), _max(self(self, nth(f, 2)), self(self, nth(f, 3))),
+    ?(eq(g, "forall"), self(self, nth(f, 3)),
+    self(self, nth(f, 2))))))
 }
 
 # inst: single forall instantiation
@@ -200,7 +210,7 @@ $_mfl \self f: {
 $inst \thm formula body term ctx: {
     $__peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))
     $fa __peel(__peel, formula)
-    $fa_body flat(flat, nth(fa, 3))
+    $fa_body nth(fa, 3)
     $clash _has_bound(_has_bound, fa_body, term)
     $formula_use ?(clash, {
         $ml _max(len(term), _mfl(_mfl, fa_body))

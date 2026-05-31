@@ -21,17 +21,14 @@ $eqv \a b p: {
 # show: return precomputed display string
 $show \f: nth(f, 1)
 
-# flat: expand to core [tag, args...]
-$_is_core \t: ?(eq(t, "mem"), True, ?(eq(t, "neg"), True, ?(eq(t, "implies"), True, ?(eq(t, "forall"), True, False))))
-
-$flat \self f: {
+# core: expand vocab to core [tag, args...] for kernel bridge
+$_core \self f: {
     $tag nth(f, 0)
-    ?(_is_core(tag),
-        ?(eq(tag, "mem"), ["mem", nth(f, 2), nth(f, 3)],
-        ?(eq(tag, "neg"), ["neg", self(self, nth(f, 2))],
-        ?(eq(tag, "implies"), ["implies", self(self, nth(f, 2)), self(self, nth(f, 3))],
-        ["forall", nth(f, 2), self(self, nth(f, 3))]))),
-        self(self, nth(f, 2)))
+    ?(eq(tag, "mem"), ["mem", nth(f, 2), nth(f, 3)],
+    ?(eq(tag, "neg"), ["neg", self(self, nth(f, 2))],
+    ?(eq(tag, "implies"), ["implies", self(self, nth(f, 2)), self(self, nth(f, 3))],
+    ?(eq(tag, "forall"), ["forall", nth(f, 2), self(self, nth(f, 3))],
+    self(self, nth(f, 2))))))
 }
 
 # map helper
@@ -45,7 +42,7 @@ $_show_list \self lst: ?(eq(len(lst), 0), "",
 # proof: flat formulas, then call kernel bridge
 # returns [kernel_proof, left, right]
 $proof \left right rule premises principal term: {
-    $fl \f: flat(flat, f)
+    $fl \f: _core(_core, f)
     $kps _map(_map, \p: nth(p, 0), premises)
     $result _do_proof(
         _map(_map, fl, left),
@@ -63,7 +60,7 @@ $proof \left right rule premises principal term: {
 
 # qed: flat expected, then call kernel bridge
 $qed \p expected system: {
-    $result _do_qed(nth(p, 0), flat(flat, expected), ?(eq(system, None), "z", system))
+    $result _do_qed(nth(p, 0), _core(_core, expected), ?(eq(system, None), "z", system))
     ?(nth(result, 0), expected, {
         $_ print("qed failed:")
         $_ print(add("  expected: ", show(expected)))
