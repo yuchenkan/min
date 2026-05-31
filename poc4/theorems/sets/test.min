@@ -321,3 +321,10 @@ $_ qed(domain_neg_no_apply,
     forall("f", forall("d", forall("x", forall("y",
         implies(domain("d","f","_"), implies(neg(mem("x","d")), neg(apply("f","x","y","_")))))))))
 $_ print("domain_neg_no_apply ok")
+
+from theorems.sets.extend_function import extend_function
+$ef_top implies(function("g","_"), implies(domain("d","g","_"), implies(neg(mem("k","d")),
+    implies(singleton("h","op","_"), implies(ordered_pair("op","k","v","_"),
+        implies(union("u","g","h","_"), function("u","_")))))))
+$_ qed(extend_function, forall("g", forall("d", forall("k", forall("h", forall("op", forall("v", forall("u", ef_top))))))))
+$_ print("extend_function ok")
