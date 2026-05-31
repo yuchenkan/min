@@ -1,0 +1,180 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, eqv, left, right, arg2
+from vocab.sets import successor, transitive_set
+from vocab.omega import omega
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same, remove, diff
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.and_intro import and_intro
+from theorems.sets.subset_antisymmetric import subset_antisymmetric
+from theorems.omega.omega_transitive_set import omega_transitive_set
+
+# Sep, Ext |- omega(w) → m∈w → n∈w → succ(sn,m) → succ(sn,n) → eqv(m,n)
+# Successor injection on ω without Regularity.
+$successor_injection {
+    $om omega("w", "_")
+    $mw mem("m", "w")
+    $nww mem("n", "w")
+    $succ_m successor("sn", "m", "_")
+    $succ_n successor("sn", "n", "_")
+    $eqv_mn eqv("m", "n", "_")
+
+    # === m∈sn from succ(sn,m): m=m → or(m∈m, eqv(m,m)) → iff backward → m∈sn ===
+    $_er head(right(eqv_reflexive))
+    $eqv_mm eqv("m", "m", "_")
+    $got_eqv_mm apply_thm(eqv_reflexive, _er, ["m"], [])
+    $mm mem("m", "m")
+    $or_mm or(mm, eqv_mm)
+    $got_or_mm mp(or_intro_right(mm, eqv_mm, []),
+        got_eqv_mm, eqv_mm, or_mm, [], [])
+    $m_sn mem("m", "sn")
+    $iff_m_sn iff(m_sn, or_mm)
+    $got_iff_m fl(ax([iff_m_sn], [iff_m_sn], iff_m_sn), [succ_m], [iff_m_sn], succ_m, "m")
+    $got_m_in_sn mp(mp(iff_elim_right(m_sn, or_mm, []),
+        got_iff_m, iff_m_sn, implies(or_mm, m_sn), [], [succ_m]),
+        got_or_mm, or_mm, m_sn, [succ_m], [])
+    # [succ_m] |- m∈sn
+
+    # === m∈sn + succ(sn,n) → or(m∈n, eqv(m,n)) ===
+    $mn mem("m", "n")
+    $or_mn or(mn, eqv_mn)
+    $iff_m_sn_n iff(m_sn, or_mn)
+    $got_iff_mn fl(ax([iff_m_sn_n], [iff_m_sn_n], iff_m_sn_n), [succ_n], [iff_m_sn_n], succ_n, "m")
+    $got_or_mn mp(mp(iff_elim_left(m_sn, or_mn, []),
+        got_iff_mn, iff_m_sn_n, implies(m_sn, or_mn), [], [succ_n]),
+        got_m_in_sn, m_sn, or_mn, [succ_n], [succ_m])
+    # [succ_m, succ_n] |- or(m∈n, eqv(m,n))
+
+    # === Similarly: n∈sn → or(n∈m, eqv(n,m)) ===
+    $eqv_nn eqv("n", "n", "_")
+    $got_eqv_nn apply_thm(eqv_reflexive, _er, ["n"], [])
+    $nn mem("n", "n")
+    $or_nn or(nn, eqv_nn)
+    $got_or_nn mp(or_intro_right(nn, eqv_nn, []),
+        got_eqv_nn, eqv_nn, or_nn, [], [])
+    $n_sn mem("n", "sn")
+    $iff_n_sn iff(n_sn, or_nn)
+    $got_iff_n fl(ax([iff_n_sn], [iff_n_sn], iff_n_sn), [succ_n], [iff_n_sn], succ_n, "n")
+    $got_n_in_sn mp(mp(iff_elim_right(n_sn, or_nn, []),
+        got_iff_n, iff_n_sn, implies(or_nn, n_sn), [], [succ_n]),
+        got_or_nn, or_nn, n_sn, [succ_n], [])
+    # [succ_n] |- n∈sn
+
+    $eqv_nm eqv("n", "m", "_")
+    $nm mem("n", "m")
+    $or_nm or(nm, eqv_nm)
+    $iff_n_sn_m iff(n_sn, or_nm)
+    $got_iff_nm fl(ax([iff_n_sn_m], [iff_n_sn_m], iff_n_sn_m), [succ_m], [iff_n_sn_m], succ_m, "n")
+    $got_or_nm mp(mp(iff_elim_left(n_sn, or_nm, []),
+        got_iff_nm, iff_n_sn_m, implies(n_sn, or_nm), [], [succ_m]),
+        got_n_in_sn, n_sn, or_nm, [succ_m], [succ_n])
+    # [succ_m, succ_n] |- or(n∈m, eqv(n,m))
+
+    # === Case m∈n ∧ n∈m: TransitiveSet gives m⊆n and n⊆m → subset_antisymmetric → eqv(m,n) ===
+    $_ots head(right(omega_transitive_set))
+    $ots_ctx left(omega_transitive_set)
+    $ts_m transitive_set("m", "_")
+    $ts_n transitive_set("n", "_")
+    # omega_transitive_set: forall w. omega(w) → forall n. n∈w → ts(n)
+    # Instantiate w, mp om, instantiate n=m/n, mp mw/nww.
+    $ots_w apply_thm(omega_transitive_set, _ots, ["w"], ots_ctx)
+    $ots_w_body head(right(ots_w))
+    $ots_w_rest arg2(ots_w_body)
+    $ots_w2 mp(ots_w, ax([om], [om], om), om, ots_w_rest, left(ots_w), [om])
+    # left(ots_w2) |- forall(n, n∈w → ts(n))
+    $ots_m apply_thm(ots_w2, head(right(ots_w2)), ["m"], left(ots_w2))
+    $ots_m_body head(right(ots_m))
+    $got_ts_m mp(ots_m, ax([mw], [mw], mw), mw, arg2(ots_m_body), left(ots_m), [mw])
+    $ots_n apply_thm(ots_w2, head(right(ots_w2)), ["n"], left(ots_w2))
+    $ots_n_body head(right(ots_n))
+    $got_ts_n mp(ots_n, ax([nww], [nww], nww), nww, arg2(ots_n_body), left(ots_n), [nww])
+
+    # TransitiveSet(n) + m∈n → ∀y. y∈m → y∈n (m⊆n)
+    # ts_n = forall(x, implies(x∈n, forall(y, implies(y∈x, y∈n))))
+    # inst x=m: implies(m∈n, forall(y, implies(y∈m, y∈n)))
+    $sub_mn forall("y", implies(mem("y","m"), mem("y","n")))
+    $ts_n_body implies(mn, sub_mn)
+    $got_ts_n_inst fl(ax([ts_n_body], [ts_n_body], ts_n_body), [ts_n], [ts_n_body], ts_n, "m")
+    $got_sub_mn_from_mn cut_c(got_ts_n, got_ts_n_inst, ts_n, left(got_ts_n), [ts_n], ts_n_body)
+    $got_sub_mn mp(got_sub_mn_from_mn, ax([mn], [mn], mn), mn, sub_mn,
+        left(got_sub_mn_from_mn), [mn])
+    # left(got_sub_mn) |- forall(y, implies(y∈m, y∈n)). Has ots_ctx, om, nww, mn.
+
+    # TransitiveSet(m) + n∈m → ∀y. y∈n → y∈m (n⊆m)
+    $sub_nm forall("y", implies(mem("y","n"), mem("y","m")))
+    $ts_m_body implies(nm, sub_nm)
+    $got_ts_m_inst fl(ax([ts_m_body], [ts_m_body], ts_m_body), [ts_m], [ts_m_body], ts_m, "n")
+    $got_sub_nm_from_nm cut_c(got_ts_m, got_ts_m_inst, ts_m, left(got_ts_m), [ts_m], ts_m_body)
+    $got_sub_nm mp(got_sub_nm_from_nm, ax([nm], [nm], nm), nm, sub_nm,
+        left(got_sub_nm_from_nm), [nm])
+    # left(got_sub_nm) |- forall(y, implies(y∈n, y∈m)). Has ots_ctx, om, mw, nm.
+
+    # subset_antisymmetric: subset(m,n) → subset(n,m) → eqv(m,n)
+    # subset(a,b) = forall(x, implies(x∈a, x∈b))
+    # got_sub_mn IS subset(m,n) (alpha-equiv). got_sub_nm IS subset(n,m).
+    $_sa head(right(subset_antisymmetric))
+    $sub_mn_v forall("y", implies(mem("y","m"), mem("y","n")))
+    $sub_nm_v forall("y", implies(mem("y","n"), mem("y","m")))
+    $got_eqv_mn mp(mp(apply_thm(subset_antisymmetric, _sa, ["m","n"], []),
+        got_sub_mn, sub_mn_v, implies(sub_nm_v, eqv_mn), [], left(got_sub_mn)),
+        got_sub_nm, sub_nm_v, eqv_mn, left(got_sub_mn), left(got_sub_nm))
+    # left(got_eqv_mn) |- eqv(m,n). Has ots_ctx, om, mw, nww, mn, nm.
+
+    # === Or-elim: nested ===
+    # Inner: or(n��m, eqv(n,m)) → eqv(m,n)
+    # Case n∈m + m∈n (from outer): got_eqv_mn
+    # Case eqv(n,m): eqv_symmetric → eqv(m,n)
+    $_es head(right(eqv_symmetric))
+    $got_nm_to_mn mp(apply_thm(eqv_symmetric, _es, ["n","m"], []),
+        ax([eqv_nm], [eqv_nm], eqv_nm), eqv_nm, eqv_mn, [], [eqv_nm])
+
+    # Inner or_elim on or(nm, eqv_nm) given mn on left:
+    # prf0: [..., mn] |- [eqv_mn, neg(nm)]  (from got_eqv_mn via nr)
+    # prf1: [..., mn, eqv_nm] |- [eqv_mn]  (from got_nm_to_mn)
+    # ctx_inner = Γ for inner il. Must NOT contain nm (inner case var).
+    # Must contain mn (outer case var, since this is INSIDE the outer mn case).
+    $ctx_inner remove(same, nm, left(got_eqv_mn))
+    $prf0_inner nr(wl_all(got_eqv_mn, left(got_eqv_mn), [eqv_mn], diff(same, ctx_inner, left(got_eqv_mn))),
+        ctx_inner, [eqv_mn, neg(nm)], neg(nm))
+    $prf1_inner wl_all(got_nm_to_mn, [eqv_nm], [eqv_mn], diff(same, add(ctx_inner, [eqv_nm]), [eqv_nm]))
+    $got_inner il(prf0_inner, prf1_inner, add(ctx_inner, [or_nm]), [eqv_mn], or_nm)
+
+    # Cut or_nm from got_or_nm: [succ_m, succ_n] |- or_nm
+    $inner_left remove(same, or_nm, left(got_inner))
+    $got_or_nm_wl wl_all(got_or_nm, [succ_m, succ_n], [or_nm], diff(same, inner_left, [succ_m, succ_n]))
+    # Weaken got_inner to match left(got_or_nm_wl) if needed
+    $cut_left_inner left(got_or_nm_wl)
+    $got_or_nm_w wr(got_or_nm_wl, cut_left_inner, [or_nm, eqv_mn], eqv_mn)
+    $got_inner_w wl_all(got_inner, left(got_inner), [eqv_mn], diff(same, add(cut_left_inner, [or_nm]), left(got_inner)))
+    $got_from_mn cut(got_or_nm_w, got_inner_w, cut_left_inner, [eqv_mn], or_nm)
+    # inner_left |- eqv_mn. Has mn, succ_m, succ_n, om, mw, nww, ots_ctx.
+
+    # Outer or_elim on or(mn, eqv_mn):
+    # Case mn: got_from_mn
+    # Case eqv_mn: trivially eqv_mn
+    $prf0_outer nr(got_from_mn, remove(same, mn, left(got_from_mn)), [eqv_mn, neg(mn)], neg(mn))
+    $prf1_outer wl_all(ax([eqv_mn], [eqv_mn], eqv_mn), [eqv_mn], [eqv_mn],
+        diff(same, remove(same, mn, left(got_from_mn)), [eqv_mn]))
+    $got_outer il(prf0_outer, prf1_outer,
+        add(remove(same, mn, left(got_from_mn)), [or_mn]), [eqv_mn], or_mn)
+
+    # Cut or_mn from got_or_mn: [succ_m, succ_n] |- or_mn
+    $outer_left remove(same, or_mn, left(got_outer))
+    $got_or_mn_w2 wr(wl_all(got_or_mn, [succ_m, succ_n], [or_mn], diff(same, outer_left, [succ_m, succ_n])),
+        outer_left, [or_mn, eqv_mn], eqv_mn)
+    $got_result cut(got_or_mn_w2, got_outer, outer_left, [eqv_mn], or_mn)
+    # outer_left |- eqv(m,n). Has succ_m, succ_n, om, mw, nww, ots_ctx.
+
+    # Close: ir for succ_n, succ_m, nww, mw, om. fr for sn, n, m, w.
+    $ctx left(got_result)
+    $r1 ir(got_result, remove(same, succ_n, ctx), [implies(succ_n, eqv_mn)], implies(succ_n, eqv_mn))
+    $r2 ir(r1, remove(same, succ_m, left(r1)), [implies(succ_m, implies(succ_n, eqv_mn))], implies(succ_m, implies(succ_n, eqv_mn)))
+    $r3 ir(r2, remove(same, nww, left(r2)), [implies(nww, implies(succ_m, implies(succ_n, eqv_mn)))], implies(nww, implies(succ_m, implies(succ_n, eqv_mn))))
+    $r4 ir(r3, remove(same, mw, left(r3)), [implies(mw, implies(nww, implies(succ_m, implies(succ_n, eqv_mn))))], implies(mw, implies(nww, implies(succ_m, implies(succ_n, eqv_mn)))))
+    $top implies(om, implies(mw, implies(nww, implies(succ_m, implies(succ_n, eqv_mn)))))
+    $r5 ir(r4, remove(same, om, left(r4)), [top], top)
+    close(r5, left(r5), [top], ["sn","n","m","w"])
+}

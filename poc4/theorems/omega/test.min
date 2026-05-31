@@ -62,3 +62,9 @@ from vocab.sets import transitive_set
 from theorems.omega.omega_transitive_set import omega_transitive_set
 $_ qed(omega_transitive_set, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), transitive_set("n","_"))))))
 $_ print("omega_transitive_set ok")
+
+from theorems.omega.successor_injection import successor_injection
+$_ qed(successor_injection, forall("w", forall("m", forall("n", forall("sn",
+    implies(omega("w","_"), implies(mem("m","w"), implies(mem("n","w"),
+        implies(successor("sn","m","_"), implies(successor("sn","n","_"), eqv("m","n","_")))))))))))
+$_ print("successor_injection ok")
