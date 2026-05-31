@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, exists, iff, eqv, Extensionality
+from core.derived import mem, neg, implies, forall, and, exists, iff, eqv, ext_ax
 from vocab.logic import exists_unique
 from tactics import ax, wl, wr, nl, nr, il, ir, fl, fr, cut, mp, cut_c, apply_thm, eir, eel, close
 from theorems.logic.and_intro import and_intro
@@ -18,7 +18,7 @@ $exists_unique_bridge \phi_fn s vars: {
     $ex_body_fn \v: and(phi_fn(v), pred_fn(v))
     $ex_form exists("x", ex_body_fn("x"))
     $eu_body_fn \v: and(phi_fn(v), forall("y", implies(phi_fn("y"), eqv(v, "y", "_"))))
-    $ext_f Extensionality
+    $ext_f ext_ax
 
     # ===== FORWARD: eu, fa_form |- ex_form =====
     $eu_body_u eu_body_fn("u")

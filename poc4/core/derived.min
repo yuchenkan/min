@@ -70,32 +70,32 @@ $qed \p expected system: {
 
 # === ZFC Axioms ===
 
-$Extensionality ["extensionality", "Ext", forall("x", forall("y", implies(
+$ext_ax ["extensionality", "Ext", forall("x", forall("y", implies(
     forall("z", iff(mem("z", "x"), mem("z", "y"))),
     forall("z", iff(mem("x", "z"), mem("y", "z"))))))]
 
-$EmptySet ["empty_set", "Empty", exists("b", forall("x", neg(mem("x", "b"))))]
+$empty_ax ["empty_set", "Empty", exists("b", forall("x", neg(mem("x", "b"))))]
 
-$Pairing ["pairing", "Pair", forall("x", forall("y", exists("b", forall("z",
+$pairing_ax ["pairing", "Pair", forall("x", forall("y", exists("b", forall("z",
     iff(mem("z", "b"), or(eqv("z", "x", "_"), eqv("z", "y", "_")))))))]
 
-$Union ["union", "Union", forall("a", exists("b", forall("x",
+$union_ax ["union", "Union", forall("a", exists("b", forall("x",
     iff(mem("x", "b"), exists("y", and(mem("y", "a"), mem("x", "y")))))))]
 
-$PowerSet ["power_set", "Power", forall("a", exists("b", forall("x",
+$power_ax ["power_set", "Power", forall("a", exists("b", forall("x",
     iff(mem("x", "b"), forall("y", implies(mem("y", "x"), mem("y", "a")))))))]
 
-$Infinity ["infinity", "Inf", exists("b", and(
+$inf_ax ["infinity", "Inf", exists("b", and(
     exists("e", and(mem("e", "b"), forall("z", neg(mem("z", "e"))))),
     forall("y", implies(mem("y", "b"),
         exists("s", and(mem("s", "b"),
             forall("w", iff(mem("w", "s"), or(mem("w", "y"), eqv("w", "y", "_"))))))))))]
 
-$Regularity ["regularity", "Reg", forall("a", implies(
+$reg_ax ["regularity", "Reg", forall("a", implies(
     exists("y", mem("y", "a")),
     exists("y", and(mem("y", "a"), neg(exists("z", and(mem("z", "a"), mem("z", "y"))))))))]
 
-$Choice ["choice", "Choice", forall("x", implies(
+$choice_ax ["choice", "Choice", forall("x", implies(
     forall("y", implies(mem("y", "x"), exists("z", mem("z", "y")))),
     exists("c", forall("y", implies(mem("y", "x"),
         exists("z", and(and(mem("z", "y"), mem("z", "c")),

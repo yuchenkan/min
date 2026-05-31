@@ -1,4 +1,4 @@
-from core.derived import implies, forall, exists, eqv, Pairing
+from core.derived import implies, forall, exists, eqv, pairing_ax
 from vocab.sets import singleton
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -6,7 +6,7 @@ from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.sets.singleton_unique import singleton_unique
 from theorems.sets.singleton_exists import singleton_exists
 
-# Pairing |- forall(a, exists_unique(s, singleton(s, a)))
+# pairing_ax |- forall(a, exists_unique(s, singleton(s, a)))
 $unique_singleton {
     $body_fn \v p: singleton(v, "a", p)
     $eu exists_unique(body_fn, "_")

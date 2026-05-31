@@ -10,7 +10,7 @@ from theorems.sets.big_union_mem_intro import big_union_mem_intro
 from theorems.sets.singleton_exists import singleton_exists
 from theorems.sets.big_union_exists import big_union_exists
 
-# Union |- apply(f,x,y) -> big_union(uf,f) -> big_union(uuf,uf) -> mem(x,uuf)
+# union_ax |- apply(f,x,y) -> big_union(uf,f) -> big_union(uuf,uf) -> mem(x,uuf)
 $apply_in_double_union {
     $app apply("f", "x", "y", "_")
     $uf_f big_union("uf", "f", "_")

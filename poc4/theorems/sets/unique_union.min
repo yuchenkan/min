@@ -6,7 +6,7 @@ from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.sets.union_unique import union_unique
 from theorems.sets.union_exists import union_exists
 
-# Pairing, Union |- forall a b. exists_unique(u, union(u, a, b))
+# pairing_ax, union_ax |- forall a b. exists_unique(u, union(u, a, b))
 $unique_union {
     $body_fn \v p: union(v, "a", "b", p)
     $eu exists_unique(body_fn, "_")

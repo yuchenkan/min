@@ -10,7 +10,7 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.apply_in_double_union import apply_in_double_union
 from theorems.sets.big_union_exists import big_union_exists
 
-# Union, Sep, Pairing |- forall f. exists d. domain(d, f)
+# union_ax, Sep, pairing_ax |- forall f. exists d. domain(d, f)
 $domain_exists {
     $ex_y_app exists("y", apply("f","x","y","_"))
     $x_d mem("x", "d")

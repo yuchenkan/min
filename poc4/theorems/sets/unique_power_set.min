@@ -1,4 +1,4 @@
-from core.derived import implies, forall, exists, eqv, PowerSet
+from core.derived import implies, forall, exists, eqv, power_ax
 from vocab.sets import power_set, subset
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close

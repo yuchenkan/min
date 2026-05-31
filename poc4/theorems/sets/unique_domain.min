@@ -6,7 +6,7 @@ from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.sets.domain_unique import domain_unique
 from theorems.sets.domain_exists import domain_exists
 
-# Sep, Union, Pairing |- forall f. exists_unique(d, domain(d, f))
+# Sep, union_ax, pairing_ax |- forall f. exists_unique(d, domain(d, f))
 $unique_domain {
     $body_fn \v p: domain(v, "f", p)
     $eu exists_unique(body_fn, "_")

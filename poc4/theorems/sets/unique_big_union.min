@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, exists, and, eqv, Union
+from core.derived import mem, implies, forall, exists, and, eqv, union_ax
 from vocab.sets import big_union
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close

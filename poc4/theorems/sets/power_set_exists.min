@@ -1,5 +1,5 @@
-from core.derived import PowerSet
+from core.derived import power_ax
 from tactics import ax
 
-# PowerSet |- forall(a, exists(s, power_set(s, a)))
-$power_set_exists ax([PowerSet], [PowerSet], PowerSet)
+# power_ax |- forall(a, exists(s, power_set(s, a)))
+$power_set_exists ax([power_ax], [power_ax], power_ax)

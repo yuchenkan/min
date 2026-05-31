@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, or, iff, eqv, exists, and, Pairing, Union
+from core.derived import mem, implies, forall, or, iff, eqv, exists, and, pairing_ax, union_ax
 from vocab.sets import singleton, pair_set, big_union, successor
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
@@ -17,11 +17,11 @@ from theorems.sets.singleton_exists import singleton_exists
 from theorems.sets.pair_set_exists import pair_set_exists
 from theorems.sets.big_union_exists import big_union_exists
 
-# Pairing, Union |- forall(a, exists(s, successor(s, a)))
+# pairing_ax, union_ax |- forall(a, exists(s, successor(s, a)))
 # Construction: s = U({a, {a}})
 $successor_exists {
-    $pa_f Pairing
-    $un_f Union
+    $pa_f pairing_ax
+    $un_f union_ax
 
     # Witnesses: t1 = {"a"}, p1 = {"a", t1}, s1 = U(p1)
     $sing_t1 singleton("t1", "a", "_")

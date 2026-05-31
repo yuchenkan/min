@@ -1,5 +1,5 @@
-from core.derived import Pairing
+from core.derived import pairing_ax
 from tactics import ax
 
-# Pairing |- forall(a, forall(b, exists(s, pair_set(s, a, b))))
-$pair_set_exists ax([Pairing], [Pairing], Pairing)
+# pairing_ax |- forall(a, forall(b, exists(s, pair_set(s, a, b))))
+$pair_set_exists ax([pairing_ax], [pairing_ax], pairing_ax)

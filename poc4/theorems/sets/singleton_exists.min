@@ -1,15 +1,15 @@
-from core.derived import mem, implies, forall, or, iff, eqv, exists, Pairing
+from core.derived import mem, implies, forall, or, iff, eqv, exists, pairing_ax
 from vocab.sets import singleton, pair_set
 from tactics import ax, fl, fr, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.or_idempotent import or_idempotent
 
-# Pairing |- forall(a, exists(s, singleton(s, a)))
+# pairing_ax |- forall(a, exists(s, singleton(s, a)))
 $singleton_exists {
-    $pa_f Pairing
+    $pa_f pairing_ax
     $pa_p ax([pa_f], [pa_f], pa_f)
 
-    # Instantiate Pairing with x="a", y="a"
+    # Instantiate pairing_ax with x="a", y="a"
     $inst apply_thm(pa_p, pa_f, ["a", "a"], [pa_f])
 
     # Inside exists: assume pair_set(u, "a", "a")

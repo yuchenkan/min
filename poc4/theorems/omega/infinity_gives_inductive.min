@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, Infinity, Extensionality
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, inf_ax, ext_ax
 from vocab.sets import empty, successor
 from vocab.omega import inductive
 from tactics import ax, wl, fl, fr, ir, nl, nr, mp, cut, close, apply_thm, eel, eir, cut_c
@@ -12,14 +12,14 @@ from theorems.logic.ext_substitution import ext_substitution
 
 # Ext, Inf |- exists b. inductive(b)
 #
-# Infinity: exists b. (exists e. e in b & empty(e)) & (forall y. y in b -> exists s. s in b & succ(s,y))
+# inf_ax: exists b. (exists e. e in b & empty(e)) & (forall y. y in b -> exists s. s in b & succ(s,y))
 # inductive(b) = (forall e. empty(e) -> e in b) & (forall x. x in b -> forall s. succ(s,x) -> s in b)
 #
 # Key conversion: exists witness + uniqueness + ext_substitution -> forall
 
 $infinity_gives_inductive {
-    $inf_f Infinity
-    $ext_f Extensionality
+    $inf_f inf_ax
+    $ext_f ext_ax
 
     # --- Helper: witness_to_forall ---
     # Given: w0 in b, P(w0), unique(P) (P(a)->P(b)->eqv(a,b))
@@ -145,7 +145,7 @@ $infinity_gives_inductive {
     # [ext_f, ex_s0] |- [fa_succ_in]
 
     # implies_right on x_in_b... but we need x_in_b -> ex_s0 from infinity.
-    # Infinity's second conjunct: forall y. y in b -> exists s0. s0 in b & succ(s0,y)
+    # inf_ax's second conjunct: forall y. y in b -> exists s0. s0 in b & succ(s0,y)
     # Instantiate y with x: x in b -> ex_s0
     $inf_part2 forall("y", implies(mem("y", "b"),
         exists("s", and(mem("s", "b"),
@@ -171,7 +171,7 @@ $infinity_gives_inductive {
     # Actually this is getting too complex to do in one file. Let me simplify.
     # The infinity axiom IS on the left. We peel it directly.
 
-    # From Infinity axiom (on left), eel on b to get both parts:
+    # From inf_ax axiom (on left), eel on b to get both parts:
     # inf = exists(b, and(part1_inf, part2_inf))
     # part1_inf = exists(e, and(mem(e,b), empty(e)))
     # part2_inf = forall(y, implies(mem(y,b), exists(s, and(mem(s,b), succ(s,y)))))
@@ -325,7 +325,7 @@ $infinity_gives_inductive {
         "b", "b", [ext_f, inf_conj], goal)
     # [ext_f, exists(b, ...)] |- [goal]
 
-    # The exists(b, ...) is the Infinity axiom itself.
+    # The exists(b, ...) is the inf_ax axiom itself.
     # [ext_f, inf_f] |- [goal]
     close(got_eel_b, [ext_f, inf_f], [goal], [])
 }

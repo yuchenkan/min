@@ -1,10 +1,10 @@
-from core.derived import mem, implies, iff, forall, eqv, Extensionality
+from core.derived import mem, implies, iff, forall, eqv, ext_ax
 from tactics import ax, ir, fl, mp, apply_thm, close
 
 # Ext |- eqv(a, b) -> iff(mem(a, s), mem(b, s))
 $ext_substitution {
     $eqv_ab eqv("a", "b", "_")
-    $ext_f Extensionality
+    $ext_f ext_ax
     $ext_p ax([ext_f], [ext_f], ext_f)
 
     $inst_ab apply_thm(ext_p, ext_f, ["a", "b"], [ext_f])

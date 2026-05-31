@@ -15,9 +15,9 @@ from theorems.sets.eq_transfer import eq_transfer
 from theorems.sets.pair_set_exists import pair_set_exists
 from theorems.sets.big_union_exists import big_union_exists
 
-# Pairing, Union |- forall a b. exists u. union(u, a, b)
+# pairing_ax, union_ax |- forall a b. exists u. union(u, a, b)
 # union(u,a,b) = forall x. iff(mem(x,u), or(mem(x,a), mem(x,b)))
-# Strategy: get p={a,b} from Pairing, get u=⋃p from Union,
+# Strategy: get p={a,b} from pairing_ax, get u=⋃p from union_ax,
 #   show ∀x. iff(mem(x,u), or(mem(x,a), mem(x,b)))
 
 $union_exists {
@@ -244,7 +244,7 @@ $union_exists {
     # [exists(p, pair_set(p,a,b)), bu_ctx...] |- [goal]
 
     # Step 4: get exists(p, pair_set(p,a,b)) from pair_set_exists
-    # Pairing = forall(x, forall(y, exists(b, ...))).
+    # pairing_ax = forall(x, forall(y, exists(b, ...))).
     # Instantiating y with "b" clashes with bound "b" in exists.
     # Use renamed formula with "_b" for the existential var.
     $ex_ps exists("p", pair_set("p", "a", "b", "_"))

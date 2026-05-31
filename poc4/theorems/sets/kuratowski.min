@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, or, iff, eqv, and, exists, Pairing
+from core.derived import mem, neg, implies, forall, or, iff, eqv, and, exists, pairing_ax
 from vocab.sets import singleton, pair_set
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
@@ -55,9 +55,9 @@ $char_iff \char1 char2 s body_P body_Q: {
     fr(g12, [char1, char2], [fa], fa, "_cv")
 }
 
-# Pairing |- op(t1,a,b) -> op(t2,c,d) -> eqv(t1,t2) -> and(eqv(a,c), eqv(b,d))
+# pairing_ax |- op(t1,a,b) -> op(t2,c,d) -> eqv(t1,t2) -> and(eqv(a,c), eqv(b,d))
 $kuratowski {
-    $pa_f Pairing
+    $pa_f pairing_ax
     $sing_a \v: singleton(v, "a", "_")
     $pair_ab \v: pair_set(v, "a", "b", "_")
     $sing_c \v: singleton(v, "c", "_")
@@ -537,7 +537,7 @@ $kuratowski {
     # eel sa: replace sa_char with exists(s, singleton(s, "a", "_"))
     $g_eel_sa eel(g_combined, sing_a, "s", "sa", [pa_f, op1, eq12, op2, sa_char], goal)
     $ex_sa exists("s", sing_a("s"))
-    $g_cut_sa cut_c(apply_thm(singleton_exists, _sse, ["a"], [Pairing]), g_eel_sa, ex_sa, [pa_f], [pa_f, op1, eq12, op2, ex_sa], goal)
+    $g_cut_sa cut_c(apply_thm(singleton_exists, _sse, ["a"], [pairing_ax]), g_eel_sa, ex_sa, [pa_f], [pa_f, op1, eq12, op2, ex_sa], goal)
     # [pa_f, op1, eq12, op2] |- [goal]
 
     # === Close: implies_right for op1, op2, eq12, then forall ===

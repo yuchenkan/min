@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, or, iff, eqv, exists, and, Pairing
+from core.derived import mem, neg, implies, forall, or, iff, eqv, exists, and, pairing_ax
 from vocab.sets import singleton, pair_set, ordered_pair
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_chain import iff_chain
@@ -8,9 +8,9 @@ from theorems.logic.or_iff_compat import or_iff_compat
 from theorems.sets.singleton_exists import singleton_exists
 from theorems.sets.pair_set_exists import pair_set_exists
 
-# Pairing |- forall a b. exists p. ordered_pair(p, a, b)
+# pairing_ax |- forall a b. exists p. ordered_pair(p, a, b)
 $ordpair_exists {
-    $pa_f Pairing
+    $pa_f pairing_ax
     $_sse head(nth(singleton_exists, 2))
     $_pse head(nth(pair_set_exists, 2))
     $sing_a \v: singleton(v, "a", "_")

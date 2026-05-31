@@ -1,5 +1,5 @@
-from core.derived import EmptySet
+from core.derived import empty_ax
 from tactics import ax
 
-# EmptySet |- exists(s, empty(s))
-$empty_exists ax([EmptySet], [EmptySet], EmptySet)
+# empty_ax |- exists(s, empty(s))
+$empty_exists ax([empty_ax], [empty_ax], empty_ax)

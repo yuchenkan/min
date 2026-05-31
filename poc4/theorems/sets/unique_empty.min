@@ -1,11 +1,11 @@
-from core.derived import implies, forall, eqv, EmptySet
+from core.derived import implies, forall, eqv, empty_ax
 from vocab.sets import empty
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.sets.empty_unique import empty_unique
 
-# EmptySet |- exists_unique(s, empty(s))
+# empty_ax |- exists_unique(s, empty(s))
 $unique_empty {
     $body_fn \v p: empty(v, p)
     $eu exists_unique(body_fn, "_")
@@ -19,6 +19,6 @@ $unique_empty {
     $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([empty_u], [empty_u], empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),
                got_fa, fa_uniq, eu, [empty_u], [empty_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [empty_u], eu)
-    $es_f EmptySet
+    $es_f empty_ax
     wl(got_ex, [es_f], [eu], es_f)
 }
