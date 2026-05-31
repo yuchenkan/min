@@ -1,0 +1,25 @@
+from core.derived import mem, implies, forall, left, right
+from vocab.sets import union
+from vocab.functions import apply
+from tactics import ax, ir, mp, apply_thm, close
+from theorems.sets.union_apply_left import union_apply_left
+
+# |- apply(g,x,y) -> union(u,g,h) -> apply(u,x,y)
+# Old applications are preserved in the extended function.
+# This is just union_apply_left renamed for clarity.
+$extend_apply_old {
+    $_ual head(right(union_apply_left))
+    $app_g apply("g", "x", "y", "_")
+    $un union("u", "g", "h", "_")
+    $app_u apply("u", "x", "y", "_")
+
+    $ual1 mp(apply_thm(union_apply_left, _ual, ["u","g","h","x","y"], []),
+        ax([app_g], [app_g], app_g), app_g, implies(un, app_u), [], [app_g])
+    $got mp(ual1, ax([un], [un], un), un, app_u, [app_g], [un])
+
+    $imp2 implies(un, app_u)
+    $s1 ir(got, [app_g], [imp2], imp2)
+    $top implies(app_g, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x","h","g","u"])
+}

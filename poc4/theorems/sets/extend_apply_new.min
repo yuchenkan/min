@@ -1,0 +1,36 @@
+from core.derived import mem, implies, forall, left, right
+from vocab.sets import singleton, ordered_pair, union
+from vocab.functions import apply
+from tactics import ax, ir, mp, apply_thm, close
+from theorems.sets.singleton_apply import singleton_apply
+from theorems.sets.union_apply_right import union_apply_right
+
+# |- singleton(h,op) -> ordered_pair(op,k,v) -> union(u,g,h) -> apply(u,k,v)
+# The new pair is accessible in the extended function.
+$extend_apply_new {
+    $sing_h singleton("h", "op", "_")
+    $opkv ordered_pair("op", "k", "v", "_")
+    $un union("u", "g", "h", "_")
+    $app_h apply("h", "k", "v", "_")
+    $app_u apply("u", "k", "v", "_")
+
+    # singleton_apply: sing_h → opkv → apply(h, k, v)
+    $_sa head(right(singleton_apply))
+    $sa1 apply_thm(singleton_apply, _sa, ["h","op","k","v"], [])
+    $sa2 mp(sa1, ax([sing_h], [sing_h], sing_h), sing_h, implies(opkv, app_h), left(sa1), [sing_h])
+    $got_app_h mp(sa2, ax([opkv], [opkv], opkv), opkv, app_h, left(sa2), [opkv])
+
+    # union_apply_right: apply(h,k,v) → union(u,g,h) → apply(u,k,v)
+    $_uar head(right(union_apply_right))
+    $uar1 mp(apply_thm(union_apply_right, _uar, ["u","g","h","k","v"], []),
+        got_app_h, app_h, implies(un, app_u), [], [sing_h, opkv])
+    $got_app_u mp(uar1, ax([un], [un], un), un, app_u, [sing_h, opkv], [un])
+
+    $imp3 implies(un, app_u)
+    $s1 ir(got_app_u, [sing_h, opkv], [imp3], imp3)
+    $imp2 implies(opkv, imp3)
+    $s2 ir(s1, [sing_h], [imp2], imp2)
+    $top implies(sing_h, imp2)
+    $s3 ir(s2, [], [top], top)
+    close(s3, [], [top], ["v","k","g","op","h","u"])
+}
