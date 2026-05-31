@@ -1,0 +1,85 @@
+from core.derived import mem, implies, forall, and, or, iff, exists, left, right
+from vocab.sets import union, ordered_pair
+from vocab.functions import apply
+from tactics import ax, wl, fl, ir, mp, apply_thm, eel, eir, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.or_elim import or_elim
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+
+# |- apply(u,x,y) -> union(u,a,b) -> or(apply(a,x,y), apply(b,x,y))
+$union_apply_elim {
+    $app_u apply("u", "x", "y", "_")
+    $un union("u", "a", "b", "_")
+    $app_a apply("a", "x", "y", "_")
+    $app_b apply("b", "x", "y", "_")
+    $goal or(app_a, app_b)
+
+    # apply(u,x,y) = exists(p, and(op(p,x,y), p∈u))
+    # Use eigenvariable q
+    $op_q ordered_pair("q", "x", "y", "_")
+    $qu mem("q", "u")
+    $qa mem("q", "a")
+    $qb mem("q", "b")
+    $and_q and(op_q, qu)
+    $or_ab or(qa, qb)
+    $iff_qu iff(qu, or_ab)
+
+    # Split and_q
+    $got_op mp(and_elim_left(op_q, qu, []),
+        ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
+    $got_qu mp(and_elim_right(op_q, qu, []),
+        ax([and_q], [and_q], and_q), and_q, qu, [], [and_q])
+
+    # union: q∈u ↔ q∈a ∨ q∈b
+    $got_iff fl(ax([iff_qu], [iff_qu], iff_qu), [un], [iff_qu], un, "q")
+    $got_or mp(mp(iff_elim_left(qu, or_ab, []),
+        got_iff, iff_qu, implies(qu, or_ab), [], [un]),
+        got_qu, qu, or_ab, [un], [and_q])
+    # [un, and_q] |- or(qa, qb)
+
+    # Case q∈a: op(q,x,y) ∧ q∈a → apply(a,x,y) → or_left
+    $and_qa and(op_q, qa)
+    $got_and_a mp(mp(and_intro(op_q, qa, []),
+        got_op, op_q, implies(qa, and_qa), [], [and_q]),
+        ax([qa], [qa], qa), qa, and_qa, [and_q], [qa])
+    $got_app_a eir(got_and_a, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "a")),
+        "p", "q", [and_q, qa])
+    $got_goal_a mp(or_intro_left(app_a, app_b, []),
+        got_app_a, app_a, goal, [], [and_q, qa])
+    # [and_q, qa] |- goal
+
+    # Case q∈b: op(q,x,y) ∧ q∈b → apply(b,x,y) → or_right
+    $and_qb and(op_q, qb)
+    $got_and_b mp(mp(and_intro(op_q, qb, []),
+        got_op, op_q, implies(qb, and_qb), [], [and_q]),
+        ax([qb], [qb], qb), qb, and_qb, [and_q], [qb])
+    $got_app_b eir(got_and_b, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "b")),
+        "p", "q", [and_q, qb])
+    $got_goal_b mp(or_intro_right(app_a, app_b, []),
+        got_app_b, app_b, goal, [], [and_q, qb])
+    # [and_q, qb] |- goal
+
+    # or_elim on or(qa, qb)
+    $got_elim mp(mp(mp(or_elim(qa, qb, goal, []),
+        got_or, or_ab, implies(implies(qa, goal), implies(implies(qb, goal), goal)), [], [un, and_q]),
+        ir(got_goal_a, [and_q], [implies(qa, goal)], implies(qa, goal)),
+        implies(qa, goal), implies(implies(qb, goal), goal), [un, and_q], [and_q]),
+        ir(got_goal_b, [and_q], [implies(qb, goal)], implies(qb, goal)),
+        implies(qb, goal), goal, [un, and_q], [and_q])
+    # [un, and_q] |- goal
+
+    # eel on q from app_u
+    $got_eel eel(got_elim, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "u")),
+        "p", "q", [un, and_q], goal)
+    # [un, app_u] |- goal
+
+    $imp2 implies(un, goal)
+    $s1 ir(got_eel, [app_u], [imp2], imp2)
+    $top implies(app_u, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x","b","a","u"])
+}

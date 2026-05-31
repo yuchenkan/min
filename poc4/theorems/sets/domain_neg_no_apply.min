@@ -1,0 +1,40 @@
+from core.derived import mem, neg, implies, forall, left, right
+from vocab.functions import apply, domain
+from tactics import ax, wl, nl, nr, ir, mp, apply_thm, close
+from theorems.sets.domain_mem_intro import domain_mem_intro
+
+# |- domain(d,f) -> neg(mem(x,d)) -> neg(apply(f,x,y))
+$domain_neg_no_apply {
+    $dom domain("d", "f", "_")
+    $xd mem("x", "d")
+    $neg_xd neg(xd)
+    $app apply("f", "x", "y", "_")
+    $neg_app neg(app)
+
+    # domain_mem_intro: apply(f,x,y) → domain(d,f) → x∈d
+    $_dmi head(right(domain_mem_intro))
+    $got_xd mp(mp(apply_thm(domain_mem_intro, _dmi, ["f","d","x","y"], []),
+        ax([app], [app], app), app, implies(dom, xd), [], [app]),
+        ax([dom], [dom], dom), dom, xd, [app], [dom])
+    # [app, dom] |- [xd]
+
+    # nl: from [app, dom] |- [xd], with principal neg_xd
+    # neg_left removes neg(A) from left, A from right
+    # conclusion: [app, dom, neg_xd] |- []
+    # premise needs: [app, dom] |- [xd]  ← got_xd ✓
+    $s1 nl(got_xd, [app, dom, neg_xd], [], neg_xd)
+    # [app, dom, neg_xd] |- []
+
+    # nr: from [dom, neg_xd, app] |- [], with principal neg_app
+    # neg_right removes A from left, adds neg(A) to right
+    # conclusion: [dom, neg_xd] |- [neg_app]
+    # premise needs: [dom, neg_xd, app] |- []  ← s1 ✓
+    $s2 nr(s1, [dom, neg_xd], [neg_app], neg_app)
+    # [dom, neg_xd] |- [neg_app]
+
+    $imp2 implies(neg_xd, neg_app)
+    $s3 ir(s2, [dom], [imp2], imp2)
+    $top implies(dom, imp2)
+    $s4 ir(s3, [], [top], top)
+    close(s4, [], [top], ["y","x","d","f"])
+}

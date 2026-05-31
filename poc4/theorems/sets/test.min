@@ -307,3 +307,17 @@ $_ qed(apply_val_transfer,
     forall("f", forall("x", forall("y", forall("y2",
         implies(eqv("y","y2","_"), implies(apply("f","x","y","_"), apply("f","x","y2","_"))))))))
 $_ print("apply_val_transfer ok")
+
+from theorems.sets.union_apply_elim import union_apply_elim
+$_ qed(union_apply_elim,
+    forall("u", forall("a", forall("b", forall("x", forall("y",
+        implies(apply("u","x","y","_"), implies(union("u","a","b","_"),
+            or(apply("a","x","y","_"), apply("b","x","y","_"))))))))))
+$_ print("union_apply_elim ok")
+
+from core.derived import neg
+from theorems.sets.domain_neg_no_apply import domain_neg_no_apply
+$_ qed(domain_neg_no_apply,
+    forall("f", forall("d", forall("x", forall("y",
+        implies(domain("d","f","_"), implies(neg(mem("x","d")), neg(apply("f","x","y","_")))))))))
+$_ print("domain_neg_no_apply ok")
