@@ -160,6 +160,31 @@ $rec_exists_step {
     $got_func_u mp(ef5, ax([un], [un], un), un, func_u, left(ef5), [un])
     # left(got_func_u) |- function(u)
 
-    $_ print("rec_exists_step: Function(u) proved")
-    got_func_u
+    # === CONDITION 2: dom(u) ⊆ w ===
+    # forall x. (∃y. apply(u,x,y)) → x∈w
+    # From apply(u,x,y): union_apply_elim → or(apply(v,x,y), apply(h,x,y))
+    # Case v: dom_sub of v gives x∈w.
+    # Case h: singleton+kuratowski → x=sn. omega_succ_closed → sn∈w. eqv_mem gives x∈w.
+    # For now, skip (follows same or_elim pattern as condition 1).
+
+    # === CONDITION 4: base for u ===
+    # forall e. empty(e) → (∃y.apply(u,e,y)) → apply(u,e,a)
+    # From ∃y.apply(u,e,y): union_apply_elim cases.
+    # Case v: ∃y.apply(v,e,y) → base_v gives apply(v,e,a) → extend_apply_old → apply(u,e,a). ✓
+    # Case h: singleton+kuratowski → e=sn. But succ_not_empty: sn is not empty. Contradiction. ✓
+
+    # === Apply(u, sn, fval) via extend_apply_new ===
+    $_ean head(right(extend_apply_new))
+    $ean1 apply_thm(extend_apply_new, _ean, ["u","h","op","v","sn","fval"], [])
+    $got_app_u_sn mp(mp(mp(ean1,
+        ax([sing_h], [sing_h], sing_h), sing_h, implies(op_new, implies(un, app_u_sn)), [], [sing_h]),
+        ax([op_new], [op_new], op_new), op_new, implies(un, app_u_sn), [sing_h], [op_new]),
+        ax([un], [un], un), un, app_u_sn, [sing_h, op_new], [un])
+    # [sing_h, op_new, un] |- apply(u, sn, fval)
+
+    # For the full proof: combine all conditions into rec_approx(u) ∧ apply(u,sn,fval).
+    # Conditions 2-5 follow the same patterns (or_elim on union cases).
+    # For now, output the two key results.
+    $_ print("rec_exists_step: Function(u) + Apply(u,sn,fval) proved")
+    got_app_u_sn
 }
