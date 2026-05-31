@@ -23,3 +23,15 @@ $eb_body implies(forall("e", implies(empty("e","_"), implies(exists("y", apply("
         implies(union("u","v","h","_"), forall("e", implies(empty("e","_"), implies(exists("y", apply("u","e","y","_")), apply("u","e","a","_")))))))))
 $_ qed(extend_base, forall("v", forall("u", forall("h", forall("op", forall("sn", forall("n", forall("a", forall("fval", eb_body)))))))))
 $_ print("extend_base ok")
+
+from theorems.recursion.extend_dom_sub import extend_dom_sub
+$_ print("extend_dom_sub ok")
+
+from theorems.recursion.extend_ran_sub import extend_ran_sub
+$_ print("extend_ran_sub ok")
+
+from theorems.recursion.extend_step import extend_step
+$_ print("extend_step ok")
+
+from theorems.sets.succ_set_transfer import succ_set_transfer
+$_ print("succ_set_transfer ok")

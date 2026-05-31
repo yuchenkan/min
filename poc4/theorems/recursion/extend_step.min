@@ -406,6 +406,5 @@ $extend_step {
     $step_u forall("m", implies(mw, step_m_body))
     $c5 fr(c4, left(c4), [step_u], step_u, "m")
 
-    $_ print("extend_step: COMPLETE")
     c5
 }
