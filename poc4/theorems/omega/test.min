@@ -57,3 +57,8 @@ $_ print("not_mem_self ok")
 from theorems.omega.zero_or_succ import zero_or_succ
 $_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(empty("n","_"), exists("_q", successor("n","_q","_"))))))))
 $_ print("zero_or_succ ok")
+
+from vocab.sets import transitive_set
+from theorems.omega.omega_transitive_set import omega_transitive_set
+$_ qed(omega_transitive_set, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), transitive_set("n","_"))))))
+$_ print("omega_transitive_set ok")

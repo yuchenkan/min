@@ -63,3 +63,12 @@ $union \s a b p: ["union", add(s, add(" = ", add(a, add(" | ", b)))),
 # intersect(s, a, b, p): s = a & b
 $intersect \s a b p: ["intersect", add(s, add(" = ", add(a, add(" & ", b)))),
     set_spec(s, \x np: and(mem(x, a), mem(x, b)), p)]
+
+# transitive_set(a, p): a is a transitive set.
+# ∀x. x∈a → ∀y. y∈x → y∈a
+$transitive_set \a p: {
+    $x add(p, "x")
+    $y add(p, "y")
+    ["transitive_set", add("Trans(", add(a, ")")),
+        forall(x, implies(mem(x, a), forall(y, implies(mem(y, x), mem(y, a)))))]
+}
