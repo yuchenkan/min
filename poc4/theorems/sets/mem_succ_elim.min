@@ -1,0 +1,27 @@
+from core.derived import mem, implies, forall, or, iff, eqv
+from vocab.sets import successor
+from tactics import ax, fl, ir, mp, close
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# |- mem(x,s) -> successor(s,n) -> or(mem(x,n), eqv(x,n))
+# succ(s,n): x∈s ↔ (x∈n ∨ eqv(x,n)). Forward direction.
+$mem_succ_elim {
+    $xs mem("x", "s")
+    $succ successor("s", "n", "_")
+    $xn mem("x", "n")
+    $exn eqv("x", "n", "_")
+    $or_x or(xn, exn)
+    $iff_xs iff(xs, or_x)
+
+    $got_iff fl(ax([iff_xs], [iff_xs], iff_xs), [succ], [iff_xs], succ, "x")
+    $imp_fwd implies(xs, or_x)
+    $got_fwd mp(iff_elim_left(xs, or_x, []),
+        got_iff, iff_xs, imp_fwd, [], [succ])
+    $got_or mp(got_fwd, ax([xs], [xs], xs), xs, or_x, [succ], [xs])
+
+    $imp2 implies(succ, or_x)
+    $s1 ir(got_or, [xs], [imp2], imp2)
+    $top implies(xs, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["n","s","x"])
+}

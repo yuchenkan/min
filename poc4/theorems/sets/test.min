@@ -341,3 +341,20 @@ $_ qed(extend_apply_old,
     forall("u", forall("g", forall("h", forall("x", forall("y",
         implies(apply("g","x","y","_"), implies(union("u","g","h","_"), apply("u","x","y","_")))))))))
 $_ print("extend_apply_old ok")
+
+from theorems.sets.mem_succ_self import mem_succ_self
+$_ qed(mem_succ_self,
+    forall("s", forall("n", implies(successor("s","n","_"), mem("n","s")))))
+$_ print("mem_succ_self ok")
+
+from theorems.sets.mem_succ_intro import mem_succ_intro
+$_ qed(mem_succ_intro,
+    forall("x", forall("s", forall("n",
+        implies(mem("x","n"), implies(successor("s","n","_"), mem("x","s")))))))
+$_ print("mem_succ_intro ok")
+
+from theorems.sets.mem_succ_elim import mem_succ_elim
+$_ qed(mem_succ_elim,
+    forall("x", forall("s", forall("n",
+        implies(mem("x","s"), implies(successor("s","n","_"), or(mem("x","n"), eqv("x","n","_"))))))))
+$_ print("mem_succ_elim ok")
