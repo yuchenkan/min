@@ -6,3 +6,10 @@ from theorems.recursion.rec_base import rec_base
 $goal forall("e0", forall("a", implies(empty("e0", "_"), exists("h", and(function("h", "_"), forall("e", implies(empty("e", "_"), apply("h", "e", "a", "_"))))))))
 $_ qed(rec_base, goal)
 $_ print("rec_base ok")
+
+from vocab.recursion import rec_approx
+from theorems.recursion.rec_approx_zero import rec_approx_zero
+$raz_goal forall("v", forall("a", forall("f", forall("w", forall("e", forall("y",
+    implies(rec_approx("v","a","f","w","_"), implies(empty("e","_"), implies(apply("v","e","y","_"), eqv("y","a","_"))))))))))
+$_ qed(rec_approx_zero, raz_goal)
+$_ print("rec_approx_zero ok")
