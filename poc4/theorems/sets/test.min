@@ -322,12 +322,6 @@ $_ qed(domain_neg_no_apply,
         implies(domain("d","f","_"), implies(neg(mem("x","d")), neg(apply("f","x","y","_")))))))))
 $_ print("domain_neg_no_apply ok")
 
-from theorems.sets.extend_function import extend_function
-$ef_top implies(function("g","_"), implies(domain("d","g","_"), implies(neg(mem("k","d")),
-    implies(singleton("h","op","_"), implies(ordered_pair("op","k","v","_"),
-        implies(union("u","g","h","_"), function("u","_")))))))
-$_ qed(extend_function, forall("g", forall("d", forall("k", forall("h", forall("op", forall("v", forall("u", ef_top))))))))
-$_ print("extend_function ok")
 
 from theorems.sets.extend_apply_new import extend_apply_new
 $_ qed(extend_apply_new,
@@ -382,9 +376,9 @@ $_ qed(eqv_apply,
         implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))))
 $_ print("eqv_apply ok")
 
-from theorems.sets.extend_function_consistent import extend_function_consistent
+from theorems.sets.extend_function import extend_function
 $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","k","y0","_"),
     implies(forall("z", implies(apply("v","k","z","_"), eqv("y0","z","_"))),
         implies(union("u","v","h","_"), function("u","_"))))))
-$_ qed(extend_function_consistent, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
-$_ print("extend_function_consistent ok")
+$_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
+$_ print("extend_function ok")
