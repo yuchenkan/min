@@ -358,3 +358,20 @@ $_ qed(mem_succ_elim,
     forall("x", forall("s", forall("n",
         implies(mem("x","s"), implies(successor("s","n","_"), or(mem("x","n"), eqv("x","n","_"))))))))
 $_ print("mem_succ_elim ok")
+
+from theorems.sets.neg_mem_empty import neg_mem_empty
+$_ qed(neg_mem_empty,
+    forall("e", forall("x", implies(empty("e","_"), neg(mem("x","e"))))))
+$_ print("neg_mem_empty ok")
+
+from theorems.sets.subset_union_left import subset_union_left
+$_ qed(subset_union_left,
+    forall("u", forall("a", forall("b",
+        implies(union("u","a","b","_"), subset("a","u","_"))))))
+$_ print("subset_union_left ok")
+
+from theorems.sets.subset_union_right import subset_union_right
+$_ qed(subset_union_right,
+    forall("u", forall("a", forall("b",
+        implies(union("u","a","b","_"), subset("b","u","_"))))))
+$_ print("subset_union_right ok")

@@ -1,0 +1,18 @@
+from core.derived import mem, neg, implies, forall
+from vocab.sets import empty
+from tactics import ax, fl, ir, close
+
+# |- empty(e) -> neg(mem(x, e))
+# empty(e) = forall(z, neg(mem(z, e))). Instantiate z=x: neg(x∈e).
+$neg_mem_empty {
+    $emp empty("e", "_")
+    $xe mem("x", "e")
+    $neg_xe neg(xe)
+
+    # fl on empty: [emp] |- neg(x∈e)
+    $got fl(ax([neg_xe], [neg_xe], neg_xe), [emp], [neg_xe], emp, "x")
+
+    $top implies(emp, neg_xe)
+    $s1 ir(got, [], [top], top)
+    close(s1, [], [top], ["x","e"])
+}
