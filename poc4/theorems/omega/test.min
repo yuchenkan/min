@@ -41,7 +41,7 @@ $_ qed(unique_omega, exists_unique(\v p: omega(v, p), "_"))
 $_ print("unique_omega ok")
 
 from theorems.omega.omega_induction import omega_induction
-$trivial_pred \v: mem(v, "w")
+$trivial_pred \v p: mem(v, "w")
 $trivial_ind omega_induction(trivial_pred, ["w"])
 $_ qed(trivial_ind,
     forall("w", implies(omega("w", "_"), implies(

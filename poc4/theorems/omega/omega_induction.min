@@ -23,11 +23,11 @@ from theorems.omega.omega_smallest_inductive import omega_smallest_inductive
 $omega_induction \pred vars: {
     $om omega("w", "_")
     $nw mem("n", "w")
-    $pn pred("n")
+    $pn pred("n", "_")
 
     # Hypotheses
-    $base_hyp forall("e", implies(empty("e", "_"), pred("e")))
-    $step_hyp forall("n", implies(nw, implies(pn, forall("s", implies(successor("s","n","_"), pred("s"))))))
+    $base_hyp forall("e", implies(empty("e", "_"), pred("e", "_")))
+    $step_hyp forall("n", implies(nw, implies(pn, forall("s", implies(successor("s","n","_"), pred("s", "_"))))))
 
     # Separation: S = {n∈w | pred(n)}
     # sep gives ∀n.(n∈s ↔ n∈w ∧ pred(n))
@@ -44,7 +44,7 @@ $omega_induction \pred vars: {
 
     # From base_hyp: empty(e) → pred(e)
     $got_pe apply_thm(ax([base_hyp], [base_hyp], base_hyp), base_hyp, ["e"], [base_hyp])
-    $pe pred("e")
+    $pe pred("e", "_")
     $got_pe2 mp(got_pe, ax([emp], [emp], emp), emp, pe, [base_hyp], [emp])
     # [base_hyp, emp] |- pred(e)
 
@@ -80,11 +80,11 @@ $omega_induction \pred vars: {
     # Use "m","r" to avoid clash with bound "x" in omega/inductive vocab
     $xs mem("m", "s")
     $xw mem("m", "w")
-    $px pred("m")
+    $px pred("m", "_")
     $ts mem("r", "s")
     $tw mem("r", "w")
     $succ_tx successor("r", "m", "_")
-    $pt pred("r")
+    $pt pred("r", "_")
     $and_xw_px and(xw, px)
 
     # From char at x: x∈s → x∈w ∧ pred(x)
@@ -182,14 +182,14 @@ $omega_induction \pred vars: {
     # [char, om, base_hyp, step_hyp] |- ∀n. n∈w → pred(n)
 
     # eel on s from Separation
-    $got_eel_s eel(got_fa, \s: forall("n", iff(mem("n",s), and(mem("n","w"), pred("n")))),
+    $got_eel_s eel(got_fa, \s: forall("n", iff(mem("n",s), and(mem("n","w"), pred("n", "_")))),
         "s", "s", [char, om, base_hyp, step_hyp], fa_n)
     # [exists(s,char), om, base_hyp, step_hyp] |- fa_n
 
     # Get exists(s,char) from sep instantiated at w
-    $sep_f sep_ax(vars, \x a p: pred(x), "_")
+    $sep_f sep_ax(vars, \x a p: pred(x, p), "_")
     $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, add(vars, ["w"]), [sep_f])
-    $ex_char exists("s", forall("n", iff(mem("n","s"), and(mem("n","w"), pred("n")))))
+    $ex_char exists("s", forall("n", iff(mem("n","s"), and(mem("n","w"), pred("n", "_")))))
     # Hmm, sep_f may use different var names. Let me just use sep_ax with proper vars.
     # Actually sep gives: ∀a. ∃b. ∀x. iff(x∈b, x∈a ∧ pred(x))
     # With prefix "_": ∀_a. ∃_b. ∀_x. iff(_x∈_b, _x∈_a ∧ pred(_x))
