@@ -103,9 +103,13 @@ $rec_exists_step {
         [ra_v, nw, succ_sn], [app_vsn_z])
     # [ra_v, nw, succ_sn, app_vsn_z] |- step_and = and(∃y.apply(v,n,y), forall(val2,...))
 
-    # Extract inner forall
-    $inner_fa arg2(step_and)
-    $got_inner_fa mp(and_elim_right(arg1(step_and), inner_fa, []),
+    # Extract inner forall from step_and = and(ex_part, inner_fa)
+    # step_and = and(exists(y, apply(v,n,y)), forall(val, implies(apply(v,n,val), forall(fv, implies(apply(f,val,fv), apply(v,sn,fv))))))
+    # Use simple bound var names — alpha-equiv handles matching.
+    $ex_part exists("y", apply("v", "n", "y", "_"))
+    $inner_fa forall("val2", implies(apply("v", "n", "val2", "_"),
+        forall("fval2", implies(apply("f", "val2", "fval2", "_"), apply("v", "sn", "fval2", "_")))))
+    $got_inner_fa mp(and_elim_right(ex_part, inner_fa, []),
         got_step_and, step_and, inner_fa, [], left(got_step_and))
 
     # Instantiate val2=val, mp with app_vn
