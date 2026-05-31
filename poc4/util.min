@@ -1,0 +1,8 @@
+# Proof-irrelevant utilities
+
+# rev: reverse a list
+$_rev \self lst acc: ?(eq(len(lst), 0), acc, self(self, tail(lst), add([head(lst)], acc)))
+$rev \lst: _rev(_rev, lst, [])
+
+# max: max of two ints
+$max \a b: ?(gt(a, b), a, b)

@@ -1,6 +1,7 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
 from vocab.sets import empty, successor, subset
 from vocab.omega import inductive, omega
+from util import rev
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eel, eir, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
@@ -189,8 +190,7 @@ $omega_induction \pred vars: {
     # Get exists(s,char) from sep instantiated at w
     # _close puts vars[0] innermost, vars[-1] outermost. apply_thm peels outermost first.
     # So instantiation terms must be vars reversed + ["w"] for domain.
-    $_rev \self lst acc: ?(eq(len(lst), 0), acc, self(self, tail(lst), add([head(lst)], acc)))
-    $rev_vars _rev(_rev, vars, [])
+    $rev_vars rev(vars)
     $sep_f sep_ax(vars, \x a p: pred(x, p), "_")
     $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, add(rev_vars, ["w"]), [sep_f])
     $ex_char exists("s", forall("n", iff(mem("n","s"), and(mem("n","w"), pred("n", "_")))))
