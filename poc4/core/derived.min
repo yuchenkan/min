@@ -1,5 +1,10 @@
-# display helpers
+# formula: [tag, display, arg1, arg2]
+$tag \f: nth(f, 0)
 $d \f: nth(f, 1)
+$arg1 \f: nth(f, 2)
+$arg2 \f: nth(f, 3)
+# vocab: expansion at same position as a1
+$exp \f: nth(f, 2)
 $_p \s: add("(", add(s, ")"))
 
 # core constructors: [tag, display, args...]
@@ -19,16 +24,16 @@ $eqv \a b p: {
 }
 
 # show: return precomputed display string
-$show \f: nth(f, 1)
+$show \f: d(f)
 
 # core: expand vocab to core [tag, args...] for kernel bridge
 $_core \self f: {
-    $tag nth(f, 0)
-    ?(eq(tag, "mem"), ["mem", nth(f, 2), nth(f, 3)],
-    ?(eq(tag, "neg"), ["neg", self(self, nth(f, 2))],
-    ?(eq(tag, "implies"), ["implies", self(self, nth(f, 2)), self(self, nth(f, 3))],
-    ?(eq(tag, "forall"), ["forall", nth(f, 2), self(self, nth(f, 3))],
-    self(self, nth(f, 2))))))
+    $t tag(f)
+    ?(eq(t, "mem"), ["mem", arg1(f), arg2(f)],
+    ?(eq(t, "neg"), ["neg", self(self, arg1(f))],
+    ?(eq(t, "implies"), ["implies", self(self, arg1(f)), self(self, arg2(f))],
+    ?(eq(t, "forall"), ["forall", arg1(f), self(self, arg2(f))],
+    self(self, exp(f))))))
 }
 
 # map helper

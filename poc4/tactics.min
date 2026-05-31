@@ -1,13 +1,13 @@
-from core.derived import proof, mem, forall, neg, implies, iff
+from core.derived import proof, mem, forall, neg, implies, iff, tag, arg1, arg2, exp
 
 # flat: expand vocab to core, keeping .min format (with display)
 $flat \self f: {
-    $t nth(f, 0)
+    $t tag(f)
     ?(eq(t, "mem"), f,
-    ?(eq(t, "neg"), neg(self(self, nth(f, 2))),
-    ?(eq(t, "implies"), implies(self(self, nth(f, 2)), self(self, nth(f, 3))),
-    ?(eq(t, "forall"), forall(nth(f, 2), self(self, nth(f, 3))),
-    self(self, nth(f, 2))))))
+    ?(eq(t, "neg"), neg(self(self, arg1(f))),
+    ?(eq(t, "implies"), implies(self(self, arg1(f)), self(self, arg2(f))),
+    ?(eq(t, "forall"), forall(arg1(f), self(self, arg2(f))),
+    self(self, exp(f))))))
 }
 
 # === alpha-equivalence for formulas ===
@@ -23,21 +23,21 @@ $_veq \self va vb env: ?(eq(len(env), 0), eq(va, vb), {
 # alpha-equiv on .min core formulas [tag, display, arg1, arg2]
 $_aeq \self a b env:
     ?(eq(a, b), True,
-    ?(eq(nth(a, 0), "mem"),
-        ?(eq(nth(b, 0), "mem"),
-            ?(not(_veq(_veq, nth(a, 2), nth(b, 2), env)), False,
-            _veq(_veq, nth(a, 3), nth(b, 3), env)),
+    ?(eq(tag(a), "mem"),
+        ?(eq(tag(b), "mem"),
+            ?(not(_veq(_veq, arg1(a), arg1(b), env)), False,
+            _veq(_veq, arg2(a), arg2(b), env)),
         False),
-    ?(eq(nth(a, 0), "neg"),
-        ?(eq(nth(b, 0), "neg"), self(self, nth(a, 2), nth(b, 2), env), False),
-    ?(eq(nth(a, 0), "implies"),
-        ?(eq(nth(b, 0), "implies"),
-            ?(not(self(self, nth(a, 2), nth(b, 2), env)), False,
-            self(self, nth(a, 3), nth(b, 3), env)),
+    ?(eq(tag(a), "neg"),
+        ?(eq(tag(b), "neg"), self(self, arg1(a), arg1(b), env), False),
+    ?(eq(tag(a), "implies"),
+        ?(eq(tag(b), "implies"),
+            ?(not(self(self, arg1(a), arg1(b), env)), False,
+            self(self, arg2(a), arg2(b), env)),
         False),
-    ?(eq(nth(a, 0), "forall"),
-        ?(eq(nth(b, 0), "forall"),
-            self(self, nth(a, 3), nth(b, 3), add([[nth(a, 2), nth(b, 2)]], env)),
+    ?(eq(tag(a), "forall"),
+        ?(eq(tag(b), "forall"),
+            self(self, arg2(a), arg2(b), add([[arg1(a), arg1(b)]], env)),
         False),
     False)))))
 
@@ -133,30 +133,27 @@ $mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
 
 # fsubst: substitute free var v with term t in formula f
 $_fsubst \self f v t: {
-    $tag nth(f, 0)
-    ?(eq(tag, "mem"), mem(?(eq(nth(f, 2), v), t, nth(f, 2)), ?(eq(nth(f, 3), v), t, nth(f, 3))),
-    ?(eq(tag, "neg"), neg(self(self, nth(f, 2), v, t)),
-    ?(eq(tag, "implies"), implies(self(self, nth(f, 2), v, t), self(self, nth(f, 3), v, t)),
-    ?(eq(tag, "forall"), ?(eq(nth(f, 2), v), f, forall(nth(f, 2), self(self, nth(f, 3), v, t))),
-    self(self, nth(f, 2), v, t)))))
+    $g tag(f)
+    ?(eq(g, "mem"), mem(?(eq(arg1(f), v), t, arg1(f)), ?(eq(arg2(f), v), t, arg2(f))),
+    ?(eq(g, "neg"), neg(self(self, arg1(f), v, t)),
+    ?(eq(g, "implies"), implies(self(self, arg1(f), v, t), self(self, arg2(f), v, t)),
+    ?(eq(g, "forall"), ?(eq(arg1(f), v), f, forall(arg1(f), self(self, arg2(f), v, t))),
+    self(self, exp(f), v, t)))))
 }
 $fsubst \f v t: _fsubst(_fsubst, f, v, t)
 
 # deepen: push all bound vars one level deeper (prepend pre)
-# forall(v, body) -> forall(pre+v, body[v := pre+v])
-# produces alpha-equivalent formula with no shallow bound var names
 $_deepen \self f pre: {
-    $tag nth(f, 0)
-    ?(eq(tag, "mem"), f,
-    ?(eq(tag, "neg"), neg(self(self, nth(f, 2), pre)),
-    ?(eq(tag, "implies"), implies(self(self, nth(f, 2), pre), self(self, nth(f, 3), pre)),
-    ?(eq(tag, "forall"), {
-        $v nth(f, 2)
+    $g tag(f)
+    ?(eq(g, "mem"), f,
+    ?(eq(g, "neg"), neg(self(self, arg1(f), pre)),
+    ?(eq(g, "implies"), implies(self(self, arg1(f), pre), self(self, arg2(f), pre)),
+    ?(eq(g, "forall"), {
+        $v arg1(f)
         $nv add(pre, v)
-        forall(nv, self(self, fsubst(nth(f, 3), v, nv), pre))
+        forall(nv, self(self, fsubst(arg2(f), v, nv), pre))
     },
-    # vocab: deepen expansion
-    self(self, nth(f, 2), pre)))))
+    self(self, exp(f), pre)))))
 }
 $deepen \f pre: _deepen(_deepen, f, pre)
 
@@ -164,10 +161,10 @@ $deepen \f pre: _deepen(_deepen, f, pre)
 $_has_bound \self f t: {
     $g nth(f, 0)
     ?(eq(g, "mem"), False,
-    ?(eq(g, "neg"), self(self, nth(f, 2), t),
-    ?(eq(g, "implies"), ?(self(self, nth(f, 2), t), True, self(self, nth(f, 3), t)),
-    ?(eq(g, "forall"), ?(eq(nth(f, 2), t), True, self(self, nth(f, 3), t)),
-    self(self, nth(f, 2), t)))))
+    ?(eq(g, "neg"), self(self, arg1(f), t),
+    ?(eq(g, "implies"), ?(self(self, arg1(f), t), True, self(self, arg2(f), t)),
+    ?(eq(g, "forall"), ?(eq(arg1(f), t), True, self(self, arg2(f), t)),
+    self(self, exp(f), t)))))
 }
 
 # _max_len: max string length among term and all free vars in flat formula
@@ -197,30 +194,29 @@ $_max \a b: ?(gt(a, b), a, b)
 
 # _max_free_len: max length of free vars in .min formula (skips bound vars)
 $_mfl \self f: {
-    $g nth(f, 0)
-    ?(eq(g, "mem"), _max(len(nth(f, 2)), len(nth(f, 3))),
-    ?(eq(g, "neg"), self(self, nth(f, 2)),
-    ?(eq(g, "implies"), _max(self(self, nth(f, 2)), self(self, nth(f, 3))),
-    ?(eq(g, "forall"), self(self, nth(f, 3)),
-    self(self, nth(f, 2))))))
+    $g tag(f)
+    ?(eq(g, "mem"), _max(len(arg1(f)), len(arg2(f))),
+    ?(eq(g, "neg"), self(self, arg1(f)),
+    ?(eq(g, "implies"), _max(self(self, arg1(f)), self(self, arg2(f))),
+    ?(eq(g, "forall"), self(self, arg2(f)),
+    self(self, exp(f))))))
 }
 
 # inst: single forall instantiation
 # auto-deepens formula if term clashes with bound vars
 $inst \thm formula body term ctx: {
-    $__peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))
+    $__peel \ps f: ?(eq(tag(f), "forall"), f, ps(ps, exp(f)))
     $fa __peel(__peel, formula)
-    $fa_body nth(fa, 3)
+    $fa_body arg2(fa)
     $clash _has_bound(_has_bound, fa_body, term)
     $formula_use ?(clash, {
         $ml _max(len(term), _mfl(_mfl, fa_body))
         $pre _make_pre(_make_pre, add(ml, 1))
         deepen(formula, pre)
     }, formula)
-    # recompute body from deepened formula if needed
     $body_use ?(clash, {
         $fa2 __peel(__peel, formula_use)
-        fsubst(nth(fa2, 3), nth(fa2, 2), term)
+        fsubst(arg2(fa2), arg1(fa2), term)
     }, body)
     $s1 fl(ax([body_use], [body_use], body_use), [formula_use], [body_use], formula_use, term)
     $s2 wl_all(s1, [formula_use], [body_use], remove(same, formula_use, ctx))
@@ -232,8 +228,8 @@ $_apply_thm \self thm formula terms ctx: {
     $_peel \ps f: ?(eq(nth(f, 0), "forall"), f, ps(ps, nth(f, 2)))
     ?(eq(len(terms), 0), thm, {
         $f _peel(_peel, formula)
-        $v nth(f, 2)
-        $body fsubst(nth(f, 3), v, head(terms))
+        $v arg1(f)
+        $body fsubst(arg2(f), v, head(terms))
         $result inst(thm, formula, body, head(terms), ctx)
         $actual_body head(nth(result, 2))
         self(self, result, actual_body, tail(terms), ctx)
