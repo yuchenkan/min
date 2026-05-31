@@ -1,0 +1,113 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from vocab.sets import empty, successor
+from vocab.functions import apply, function
+from vocab.recursion import rec_approx
+from tactics import ax, wl, wl_all, fl, fr, ir, mp, apply_thm, eir, cut_c, close, same, remove, diff
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.sets.func_unique_thm import func_unique_thm
+
+# |- rec_approx(v,a,f,w) → n∈w → apply(v,n,val) → apply(f,val,fval) →
+#    successor(sn,n) → apply(v,sn,z) → eqv(fval,z)
+#
+# From RecApprox step condition at (n,sn) + apply(v,sn,z) trigger:
+# get apply(v,sn,fval). func_unique → eqv(z,fval) → sym → eqv(fval,z).
+$extend_consistency {
+    $ra_v rec_approx("v", "a", "f", "w", "_")
+    $nw mem("n", "w")
+    $app_vn apply("v", "n", "val", "_")
+    $app_f apply("f", "val", "fval", "_")
+    $succ_sn successor("sn", "n", "_")
+    $app_vsn_z apply("v", "sn", "z", "_")
+    $eqv_fval_z eqv("fval", "z", "_")
+
+    # Extract func_v and step_v from rec_approx
+    $func_v function("v", "_")
+    $dom_sub forall("x", implies(exists("y", apply("v","x","y","_")), mem("x","w")))
+    $ran_sub forall("x", forall("y", implies(apply("v","x","y","_"), exists("z2", apply("f","y","z2","_")))))
+    $base_v forall("e", implies(empty("e","_"),
+        implies(exists("y", apply("v","e","y","_")), apply("v","e","a","_"))))
+    $step_v forall("n2", implies(mem("n2","w"),
+        forall("sn2", implies(successor("sn2","n2","_"),
+            implies(exists("y", apply("v","sn2","y","_")),
+                and(exists("y", apply("v","n2","y","_")),
+                    forall("val2", implies(apply("v","n2","val2","_"),
+                        forall("fval2", implies(apply("f","val2","fval2","_"),
+                            apply("v","sn2","fval2","_")))))))))))
+
+    $rest1 and(dom_sub, and(ran_sub, and(base_v, step_v)))
+    $got_func_v mp(and_elim_left(func_v, rest1, []),
+        ax([ra_v], [ra_v], ra_v), ra_v, func_v, [], [ra_v])
+    $got_rest1 mp(and_elim_right(func_v, rest1, []),
+        ax([ra_v], [ra_v], ra_v), ra_v, rest1, [], [ra_v])
+    $rest2 and(ran_sub, and(base_v, step_v))
+    $got_rest2 mp(and_elim_right(dom_sub, rest2, []),
+        got_rest1, rest1, rest2, [], [ra_v])
+    $rest3 and(base_v, step_v)
+    $got_rest3 mp(and_elim_right(ran_sub, rest3, []),
+        got_rest2, rest2, rest3, [], [ra_v])
+    $got_step_v mp(and_elim_right(base_v, step_v, []),
+        got_rest3, rest3, step_v, [], [ra_v])
+
+    # Peel step_v: inst n, mp nw, inst sn, mp succ_sn
+    $got_step_n apply_thm(got_step_v, step_v, ["n"], [ra_v])
+    $step_n_body head(right(got_step_n))
+    $got_step_n2 mp(got_step_n, ax([nw], [nw], nw), nw, arg2(step_n_body), left(got_step_n), [nw])
+    $got_step_sn apply_thm(got_step_n2, head(right(got_step_n2)), ["sn"], left(got_step_n2))
+    $step_sn_body head(right(got_step_sn))
+    $got_step_trigger mp(got_step_sn, ax([succ_sn], [succ_sn], succ_sn), succ_sn,
+        arg2(step_sn_body), left(got_step_sn), [succ_sn])
+
+    # Trigger with ∃y.apply(v,sn,y) from apply(v,sn,z)
+    $step_trigger head(right(got_step_trigger))
+    $ex_trigger arg1(step_trigger)
+    $step_and arg2(step_trigger)
+    $got_ex_vsn eir(ax([app_vsn_z], [app_vsn_z], app_vsn_z),
+        \y: apply("v", "sn", y, "_"), "y", "z", [app_vsn_z])
+    $got_step_and mp(got_step_trigger, got_ex_vsn, ex_trigger, step_and,
+        left(got_step_trigger), [app_vsn_z])
+
+    # Extract inner forall, inst val, mp app_vn, inst fval, mp app_f → apply(v,sn,fval)
+    $ex_part exists("y", apply("v", "n", "y", "_"))
+    $inner_fa forall("val2", implies(apply("v", "n", "val2", "_"),
+        forall("fval2", implies(apply("f", "val2", "fval2", "_"), apply("v", "sn", "fval2", "_")))))
+    $got_inner_fa mp(and_elim_right(ex_part, inner_fa, []),
+        got_step_and, step_and, inner_fa, [], left(got_step_and))
+
+    $got_inner_val apply_thm(got_inner_fa, inner_fa, ["val"], left(got_inner_fa))
+    $inner_val_body head(right(got_inner_val))
+    $got_inner_val2 mp(got_inner_val, ax([app_vn], [app_vn], app_vn), app_vn,
+        arg2(inner_val_body), left(got_inner_val), [app_vn])
+
+    $got_inner_fval apply_thm(got_inner_val2, head(right(got_inner_val2)), ["fval"], left(got_inner_val2))
+    $inner_fval_body head(right(got_inner_fval))
+    $app_vsn_fval apply("v", "sn", "fval", "_")
+    $got_app_vsn_fval mp(got_inner_fval, ax([app_f], [app_f], app_f), app_f,
+        arg2(inner_fval_body), left(got_inner_fval), [app_f])
+    # left(got_app_vsn_fval) |- apply(v,sn,fval)
+
+    # func_unique: apply(v,sn,z) + apply(v,sn,fval) → eqv(z,fval) → sym → eqv(fval,z)
+    $_fut head(right(func_unique_thm))
+    $eqv_z_fval eqv("z", "fval", "_")
+    $fut1 mp(apply_thm(func_unique_thm, _fut, ["v","sn","z","fval"], []),
+        got_func_v, func_v, implies(app_vsn_z, implies(app_vsn_fval, eqv_z_fval)), [], [ra_v])
+    $fut2 mp(fut1, ax([app_vsn_z], [app_vsn_z], app_vsn_z), app_vsn_z,
+        implies(app_vsn_fval, eqv_z_fval), [ra_v], [app_vsn_z])
+    $got_eqv_zf mp(fut2, got_app_vsn_fval, app_vsn_fval, eqv_z_fval,
+        [ra_v, app_vsn_z], left(got_app_vsn_fval))
+    $_es head(right(eqv_symmetric))
+    $got_result mp(apply_thm(eqv_symmetric, _es, ["z","fval"], []),
+        got_eqv_zf, eqv_z_fval, eqv_fval_z, [], left(got_eqv_zf))
+
+    # Close
+    $ctx left(got_result)
+    $r1 ir(got_result, remove(same, app_vsn_z, ctx), [implies(app_vsn_z, eqv_fval_z)], implies(app_vsn_z, eqv_fval_z))
+    $r2 ir(r1, remove(same, succ_sn, left(r1)), [implies(succ_sn, implies(app_vsn_z, eqv_fval_z))], implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))
+    $r3 ir(r2, remove(same, app_f, left(r2)), [implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))], implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))
+    $r4 ir(r3, remove(same, app_vn, left(r3)), [implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))], implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))))
+    $r5 ir(r4, remove(same, nw, left(r4)), [implies(nw, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))))], implies(nw, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))))
+    $top implies(ra_v, implies(nw, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))))
+    $r6 ir(r5, remove(same, ra_v, left(r5)), [top], top)
+    close(r6, left(r6), [top], ["z","fval","val","sn","n","w","f","a","v"])
+}
