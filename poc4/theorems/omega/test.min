@@ -42,7 +42,7 @@ $_ print("unique_omega ok")
 
 from theorems.omega.omega_induction import omega_induction
 $trivial_pred \w v p: mem(v, w)
-$trivial_ind omega_induction(trivial_pred, [])
+$trivial_ind omega_induction(trivial_pred, [], "_")
 $_ qed(trivial_ind,
     forall("w", implies(omega("w", "_"), implies(
         forall("e", implies(empty("e","_"), mem("e","w"))),

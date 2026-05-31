@@ -12,7 +12,7 @@ from theorems.omega.omega_induction import omega_induction
 $omega_transitive_set {
     $pred \w v p: transitive_set(v, p)
 
-    $ind omega_induction(pred, [])
+    $ind omega_induction(pred, [], "_")
     $ind_ctx left(ind)
     $_ind_f head(right(ind))
 

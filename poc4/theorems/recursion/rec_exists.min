@@ -17,7 +17,7 @@ $rec_exists {
     $pred \w n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", w, add(p,"_")),
         exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
 
-    $ind omega_induction(pred, ["a","f"])
+    $ind omega_induction(pred, ["a","f"], "_")
     $ind_ctx left(ind)
     $_ind_f head(right(ind))
 

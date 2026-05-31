@@ -20,7 +20,7 @@ $not_mem_self {
         and(neg(mem(v, v)), forall(z, implies(mem(z, v), neg(mem(z, z)))))
     }
 
-    $ind omega_induction(pred, [])
+    $ind omega_induction(pred, [], "_")
     $ind_ctx left(ind)
     $_ind_f head(right(ind))
 

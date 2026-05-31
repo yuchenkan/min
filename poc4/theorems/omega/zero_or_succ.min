@@ -10,7 +10,7 @@ from theorems.omega.omega_induction import omega_induction
 $zero_or_succ {
     $pred \w v p: or(empty(v, p), exists(add(p, "q"), successor(v, add(p, "q"), p)))
 
-    $ind omega_induction(pred, [])
+    $ind omega_induction(pred, [], "_")
     $ind_ctx left(ind)
     $_ind_f head(right(ind))
 
