@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, exists, eqv, left, right
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2, tag
 from vocab.sets import empty, successor, singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.omega import omega
@@ -9,14 +9,10 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.sets.extend_function import extend_function
 from theorems.sets.extend_apply_new import extend_apply_new
 from theorems.sets.extend_apply_old import extend_apply_old
-from theorems.sets.union_apply_elim import union_apply_elim
-from theorems.sets.singleton_mem_eq import singleton_mem_eq
-from theorems.sets.kuratowski import kuratowski
-from theorems.sets.domain_neg_no_apply import domain_neg_no_apply
-from theorems.sets.succ_not_empty import succ_not_empty
-from theorems.omega.omega_succ_closed import omega_succ_closed
+from theorems.sets.apply_key_transfer import apply_key_transfer
 
 # pa, ext |- rec_approx(v,a,f,w) -> function(f) -> n∈w ->
 #   apply(v,n,val) -> apply(f,val,fval) ->
@@ -24,7 +20,7 @@ from theorems.omega.omega_succ_closed import omega_succ_closed
 #   union(u,v,h) -> omega(w) ->
 #   and(rec_approx(u,a,f,w), apply(u,sn,fval))
 #
-# Extending RecApprox(v) at successor(sn,n) with value fval=f(val)=f(v(n)).
+# CONDITION 1: Function(u). Others TODO.
 $rec_exists_step {
     $ra_v rec_approx("v", "a", "f", "w", "_")
     $func_f function("f", "_")
@@ -37,32 +33,129 @@ $rec_exists_step {
     $un union("u", "v", "h", "_")
     $om omega("w", "_")
 
-    $ra_u rec_approx("u", "a", "f", "w", "_")
     $app_u_sn apply("u", "sn", "fval", "_")
-    $goal and(ra_u, app_u_sn)
+    $app_vsn_z apply("v", "sn", "z", "_")
+    $app_vsn_fval apply("v", "sn", "fval", "_")
+    $eqv_fval_z eqv("fval", "z", "_")
+    $func_u function("u", "_")
 
-    # === Apply(u, sn, fval) via extend_apply_new ===
-    $_ean head(right(extend_apply_new))
-    $ean1 apply_thm(extend_apply_new, _ean, ["u","h","op","v","sn","fval"], [])
-    $got_app_u_sn mp(mp(mp(ean1,
-        ax([sing_h], [sing_h], sing_h), sing_h, implies(op_new, implies(un, app_u_sn)), [], [sing_h]),
-        ax([op_new], [op_new], op_new), op_new, implies(un, app_u_sn), [sing_h], [op_new]),
-        ax([un], [un], un), un, app_u_sn, [sing_h, op_new], [un])
-    # [sing_h, op_new, un] |- apply(u, sn, fval)
+    # === Extract RecApprox(v) components ===
+    # Bound var names are arbitrary (alpha-equiv handles matching).
+    # Use simple names for readability.
+    $func_v function("v", "_")
+    $dom_sub forall("x", implies(exists("y", apply("v","x","y","_")), mem("x","w")))
+    $ran_sub forall("x", forall("y", implies(apply("v","x","y","_"), exists("z", apply("f","y","z","_")))))
+    $base_v forall("e", implies(empty("e","_"),
+        implies(exists("y", apply("v","e","y","_")), apply("v","e","a","_"))))
+    $step_v forall("n2", implies(mem("n2","w"),
+        forall("sn2", implies(successor("sn2","n2","_"),
+            implies(exists("y", apply("v","sn2","y","_")),
+                and(exists("y", apply("v","n2","y","_")),
+                    forall("val2", implies(apply("v","n2","val2","_"),
+                        forall("fval2", implies(apply("f","val2","fval2","_"),
+                            apply("v","sn2","fval2","_")))))))))))
 
-    # === Apply(u, n, val) via extend_apply_old ===
-    $_eao head(right(extend_apply_old))
-    $app_un apply("u", "n", "val", "_")
-    $eao1 apply_thm(extend_apply_old, _eao, ["u","v","h","n","val"], [])
-    $got_app_un mp(mp(eao1,
-        ax([app_vn], [app_vn], app_vn), app_vn, implies(un, app_un), [], [app_vn]),
-        ax([un], [un], un), un, app_un, [app_vn], [un])
-    # [app_vn, un] |- apply(u, n, val)
+    $rest1 and(dom_sub, and(ran_sub, and(base_v, step_v)))
+    $got_func_v mp(and_elim_left(func_v, rest1, []),
+        ax([ra_v], [ra_v], ra_v), ra_v, func_v, [], [ra_v])
 
-    # TODO: prove all 5 RecApprox conditions for u, combine into goal
-    # For now, output what we have as a partial proof.
-    $_ print("rec_exists_step: apply parts done")
+    $rest2 and(ran_sub, and(base_v, step_v))
+    $got_rest1 mp(and_elim_right(func_v, rest1, []),
+        ax([ra_v], [ra_v], ra_v), ra_v, rest1, [], [ra_v])
+    $got_rest2 mp(and_elim_right(dom_sub, rest2, []),
+        got_rest1, rest1, rest2, [], [ra_v])
+    $rest3 and(base_v, step_v)
+    $got_rest3 mp(and_elim_right(ran_sub, rest3, []),
+        got_rest2, rest2, rest3, [], [ra_v])
+    $got_step_v mp(and_elim_right(base_v, step_v, []),
+        got_rest3, rest3, step_v, [], [ra_v])
+    # [ra_v] |- step_v
 
-    # Placeholder — will complete the 5 conditions
-    got_app_u_sn
+    # === Build consistency for extend_function ===
+    # From step_v at (n, sn): if apply(v,sn,z) then apply(v,sn,fval).
+    # func_unique(v) then gives eqv(fval, z).
+
+    # Step 1: instantiate n2=n (step_v starts with forall)
+    $got_step_n apply_thm(got_step_v, step_v, ["n"], [ra_v])
+    # [ra_v] |- implies(nw, forall(sn2, implies(succ(sn2,n), ...)))
+    $step_n_body head(right(got_step_n))
+    # step_n_body = implies(nw, rest). Extract rest:
+    $step_n_rest arg2(step_n_body)
+    $got_step_n2 mp(got_step_n, ax([nw], [nw], nw), nw, step_n_rest, [ra_v], [nw])
+    # [ra_v, nw] |- forall(sn2, implies(succ(sn2,n), ...))
+
+    # Step 2: instantiate sn2=sn
+    $got_step_sn apply_thm(got_step_n2, head(right(got_step_n2)), ["sn"], left(got_step_n2))
+    # [ra_v, nw] |- implies(succ_sn, implies(∃y.apply(v,sn,y), step_and))
+    $step_sn_body head(right(got_step_sn))
+    $step_sn_rest arg2(step_sn_body)
+    $got_step_sn2 mp(got_step_sn, ax([succ_sn], [succ_sn], succ_sn), succ_sn,
+        step_sn_rest, [ra_v, nw], [succ_sn])
+    # [ra_v, nw, succ_sn] |- implies(∃y.apply(v,sn,y), step_and)
+
+    # Trigger with ∃y.apply(v,sn,y) from apply(v,sn,z)
+    $step_trigger head(right(got_step_sn2))
+    $ex_trigger arg1(step_trigger)
+    $step_and arg2(step_trigger)
+    $got_ex_vsn eir(ax([app_vsn_z], [app_vsn_z], app_vsn_z),
+        \y: apply("v", "sn", y, "_"), "y", "z", [app_vsn_z])
+    $got_step_and mp(got_step_sn2, got_ex_vsn, ex_trigger, step_and,
+        [ra_v, nw, succ_sn], [app_vsn_z])
+    # [ra_v, nw, succ_sn, app_vsn_z] |- step_and = and(∃y.apply(v,n,y), forall(val2,...))
+
+    # Extract inner forall
+    $inner_fa arg2(step_and)
+    $got_inner_fa mp(and_elim_right(arg1(step_and), inner_fa, []),
+        got_step_and, step_and, inner_fa, [], left(got_step_and))
+
+    # Instantiate val2=val, mp with app_vn
+    $got_inner_val apply_thm(got_inner_fa, inner_fa, ["val"], left(got_inner_fa))
+    $inner_val_body head(right(got_inner_val))
+    $inner_val_rest arg2(inner_val_body)
+    $got_inner_val2 mp(got_inner_val, ax([app_vn], [app_vn], app_vn), app_vn,
+        inner_val_rest, left(got_inner_val), [app_vn])
+
+    # Instantiate fval2=fval, mp with app_f
+    $got_inner_fval apply_thm(got_inner_val2, head(right(got_inner_val2)), ["fval"], left(got_inner_val2))
+    $inner_fval_body head(right(got_inner_fval))
+    $inner_fval_rest arg2(inner_fval_body)
+    $got_app_vsn_fval mp(got_inner_fval, ax([app_f], [app_f], app_f), app_f,
+        inner_fval_rest, left(got_inner_fval), [app_f])
+    # left(got_app_vsn_fval) |- apply(v, sn, fval)
+
+    # func_unique(v): apply(v,sn,z) + apply(v,sn,fval) → eqv(z,fval) → sym → eqv(fval,z)
+    $_fut head(right(func_unique_thm))
+    $eqv_z_fval eqv("z", "fval", "_")
+    $fut1 mp(apply_thm(func_unique_thm, _fut, ["v","sn","z","fval"], []),
+        got_func_v, func_v, implies(app_vsn_z, implies(app_vsn_fval, eqv_z_fval)), [], [ra_v])
+    $fut2 mp(fut1, ax([app_vsn_z], [app_vsn_z], app_vsn_z), app_vsn_z,
+        implies(app_vsn_fval, eqv_z_fval), [ra_v], [app_vsn_z])
+    $got_eqv_zf mp(fut2, got_app_vsn_fval, app_vsn_fval, eqv_z_fval,
+        [ra_v, app_vsn_z], left(got_app_vsn_fval))
+    $_es head(right(eqv_symmetric))
+    $got_cons_z mp(apply_thm(eqv_symmetric, _es, ["z","fval"], []),
+        got_eqv_zf, eqv_z_fval, eqv_fval_z, [], left(got_eqv_zf))
+
+    # Close into consistency: ∀z. apply(v,sn,z) → eqv(fval,z)
+    $cons_inner implies(app_vsn_z, eqv_fval_z)
+    $got_cons_ir ir(got_cons_z, remove(same, app_vsn_z, left(got_cons_z)), [cons_inner], cons_inner)
+    $cons forall("z", cons_inner)
+    $got_cons fr(got_cons_ir, left(got_cons_ir), [cons], cons, "z")
+
+    # === extend_function: func_v + sing_h + op_new + cons + un → func_u ===
+    $_ef head(right(extend_function))
+    $ef_ctx left(extend_function)
+    $ef1 apply_thm(extend_function, _ef, ["v","sn","fval","op","h","u"], ef_ctx)
+    $ef2 mp(ef1, got_func_v, func_v, implies(sing_h, implies(op_new, implies(cons, implies(un, func_u)))),
+        left(ef1), [ra_v])
+    $ef3 mp(ef2, ax([sing_h], [sing_h], sing_h), sing_h, implies(op_new, implies(cons, implies(un, func_u))),
+        left(ef2), [sing_h])
+    $ef4 mp(ef3, ax([op_new], [op_new], op_new), op_new, implies(cons, implies(un, func_u)),
+        left(ef3), [op_new])
+    $ef5 mp(ef4, got_cons, cons, implies(un, func_u), left(ef4), left(got_cons))
+    $got_func_u mp(ef5, ax([un], [un], un), un, func_u, left(ef5), [un])
+    # left(got_func_u) |- function(u)
+
+    $_ print("rec_exists_step: Function(u) proved")
+    got_func_u
 }
