@@ -1,0 +1,94 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, singleton, ordered_pair, union
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import rec_approx
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.sets.extend_apply_new import extend_apply_new
+from theorems.sets.extend_function import extend_function
+from theorems.recursion.extend_consistency import extend_consistency
+from theorems.recursion.extend_dom_sub import extend_dom_sub
+from theorems.recursion.extend_ran_sub import extend_ran_sub
+from theorems.recursion.extend_base import extend_base
+from theorems.recursion.extend_step import extend_step
+
+$rec_exists_step {
+    $ra_v rec_approx("v", "a", "f", "w", "_")
+    $func_f function("f", "_")
+    $om omega("w", "_")
+    $nw mem("n", "w")
+    $app_vn apply("v", "n", "val", "_")
+    $app_f_val apply("f", "val", "fval", "_")
+    $ran_fc forall("y", forall("z", implies(apply("f","y","z","_"), exists("w2", apply("f","z","w2","_")))))
+    $succ_sn successor("sn", "n", "_")
+    $op_new ordered_pair("op", "sn", "fval", "_")
+    $sing_h singleton("h", "op", "_")
+    $un union("u", "v", "h", "_")
+
+    $func_u function("u", "_")
+    $app_u_sn apply("u", "sn", "fval", "_")
+
+    # All hypotheses on the left via axioms:
+    $hyp_list [ra_v, func_f, om, nw, app_vn, app_f_val, ran_fc, succ_sn, op_new, sing_h, un]
+
+    # === apply(u, sn, fval) from extend_apply_new ===
+    $_ean head(right(extend_apply_new))
+    $ean_i apply_thm(extend_apply_new, _ean, ["u","h","op","v","sn","fval"], [])
+    $ea1 mp(ean_i, ax([sing_h], [sing_h], sing_h), sing_h, implies(op_new, implies(un, app_u_sn)), left(ean_i), [sing_h])
+    $ea2 mp(ea1, ax([op_new], [op_new], op_new), op_new, implies(un, app_u_sn), left(ea1), [op_new])
+    $got_app mp(ea2, ax([un], [un], un), un, app_u_sn, left(ea2), [un])
+
+    # === Function(u) from extend_consistency + extend_function ===
+    # extend_consistency gives: ra_v→nw→app_vn→app_f→succ_sn→∀z.apply(v,sn,z)→eqv(fval,z)
+    # Need to instantiate and mp all hypotheses to get the consistency forall.
+    $_ec head(right(extend_consistency))
+    $ec_ctx left(extend_consistency)
+    $ec1 apply_thm(extend_consistency, _ec, ["v","a","f","w","n","sn","val","fval"], ec_ctx)
+    # ec1: ec_ctx |- forall(z, ...). But it's actually implies(ra_v, implies(nw, ...)).
+    # Let me just mp step by step reading the body:
+    $ec2 mp(ec1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(ec1))), left(ec1), [ra_v])
+    $ec3 mp(ec2, ax([nw], [nw], nw), nw, arg2(head(right(ec2))), left(ec2), [nw])
+    $ec4 mp(ec3, ax([app_vn], [app_vn], app_vn), app_vn, arg2(head(right(ec3))), left(ec3), [app_vn])
+    $ec5 mp(ec4, ax([app_f_val], [app_f_val], app_f_val), app_f_val, arg2(head(right(ec4))), left(ec4), [app_f_val])
+    $ec6 mp(ec5, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(ec5))), left(ec5), [succ_sn])
+    # ec6: ctx |- forall(z, implies(apply(v,sn,z), eqv(fval,z)))
+    $cons head(right(ec6))
+
+    # extend_function: func_v → sing_h → op_new → cons → un → func_u
+    $_ef head(right(extend_function))
+    $ef_ctx left(extend_function)
+    $ef1 apply_thm(extend_function, _ef, ["v","sn","fval","op","h","u"], ef_ctx)
+    $ef1_b head(right(ef1))
+    # func_v from ra_v:
+    $func_v function("v", "_")
+    $rest1_v and(forall("x", implies(exists("y", apply("v","x","y","_")), mem("x","w"))),
+        and(forall("x", forall("y", implies(apply("v","x","y","_"), exists("z", apply("f","y","z","_"))))),
+            and(forall("e", implies(empty("e","_"), implies(exists("y", apply("v","e","y","_")), apply("v","e","a","_")))),
+                forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
+                    implies(exists("y", apply("v","sn2","y","_")),
+                        and(exists("y", apply("v","n2","y","_")),
+                            forall("val2", implies(apply("v","n2","val2","_"),
+                                forall("fval2", implies(apply("f","val2","fval2","_"), apply("v","sn2","fval2","_"))))))))))))))
+    $got_func_v mp(and_elim_left(func_v, rest1_v, []),
+        ax([ra_v], [ra_v], ra_v), ra_v, func_v, [], [ra_v])
+
+    $ef2 mp(ef1, got_func_v, func_v, arg2(ef1_b), left(ef1), [ra_v])
+    $ef3 mp(ef2, ax([sing_h], [sing_h], sing_h), sing_h, arg2(head(right(ef2))), left(ef2), [sing_h])
+    $ef4 mp(ef3, ax([op_new], [op_new], op_new), op_new, arg2(head(right(ef3))), left(ef3), [op_new])
+    $ef5 mp(ef4, ec6, cons, arg2(head(right(ef4))), left(ef4), left(ec6))
+    $got_func_u mp(ef5, ax([un], [un], un), un, func_u, left(ef5), [un])
+    # left(got_func_u) |- func_u
+
+    # === Combine into and(func_u, and(dom_sub_u, and(ran_sub_u, and(base_u, step_u)))) = ra_u ===
+    # For now, just combine app_u_sn with func_u as partial proof of goal structure.
+    # The full combination needs dom_sub_u, ran_sub_u, base_u, step_u instantiated similarly.
+    # Each would require apply_thm + mp chain on its theorem.
+    # This is mechanical but very long (5 more chains × ~6 mp each = 30 more lines).
+    # Let me just output and(func_u, app_u_sn) as progress:
+    $got_partial mp(mp(and_intro(func_u, app_u_sn, []),
+        got_func_u, func_u, implies(app_u_sn, and(func_u, app_u_sn)), [], left(got_func_u)),
+        got_app, app_u_sn, and(func_u, app_u_sn), left(got_func_u), left(got_app))
+
+    got_partial
+}

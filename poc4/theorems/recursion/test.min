@@ -1,6 +1,7 @@
-from core.derived import mem, neg, implies, forall, and, or, exists, eqv, qed
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
 from vocab.sets import empty, successor, singleton, ordered_pair, union
 from vocab.functions import apply, function
+from vocab.omega import omega
 from vocab.recursion import rec_approx
 
 from theorems.recursion.rec_base import rec_base
@@ -24,14 +25,26 @@ $eb_body implies(forall("e", implies(empty("e","_"), implies(exists("y", apply("
 $_ qed(extend_base, forall("v", forall("u", forall("h", forall("op", forall("sn", forall("n", forall("a", forall("fval", eb_body)))))))))
 $_ print("extend_base ok")
 
+from theorems.sets.succ_set_transfer import succ_set_transfer
+$_ qed(succ_set_transfer, forall("s1", forall("s2", forall("n", implies(eqv("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))))
+$_ print("succ_set_transfer ok")
+
 from theorems.recursion.extend_dom_sub import extend_dom_sub
+$eds_body implies(rec_approx("v","a","f","w","_"), implies(omega("w","_"), implies(mem("n","w"), implies(successor("sn","n","_"),
+    implies(singleton("h","op","_"), implies(ordered_pair("op","sn","fval","_"),
+        implies(union("u","v","h","_"), forall("x", implies(exists("y", apply("u","x","y","_")), mem("x","w"))))))))))
+$_ qed(extend_dom_sub, forall("v", forall("a", forall("f", forall("w", forall("n", forall("sn", forall("u", forall("h", forall("op", forall("fval", eds_body)))))))))))
 $_ print("extend_dom_sub ok")
 
 from theorems.recursion.extend_ran_sub import extend_ran_sub
+$ers_body implies(rec_approx("v","a","f","w","_"), implies(apply("f","val","fval","_"),
+    implies(forall("y", forall("z", implies(apply("f","y","z","_"), exists("w2", apply("f","z","w2","_"))))),
+        implies(singleton("h","op","_"), implies(ordered_pair("op","sn","fval","_"),
+            implies(union("u","v","h","_"), forall("x", forall("y", implies(apply("u","x","y","_"), exists("z", apply("f","y","z","_")))))))))))
+$_ qed(extend_ran_sub, forall("v", forall("a", forall("f", forall("w", forall("u", forall("h", forall("op", forall("sn", forall("val", forall("fval", ers_body)))))))))))
 $_ print("extend_ran_sub ok")
 
 from theorems.recursion.extend_step import extend_step
 $_ print("extend_step ok")
 
-from theorems.sets.succ_set_transfer import succ_set_transfer
-$_ print("succ_set_transfer ok")
+$ok true
