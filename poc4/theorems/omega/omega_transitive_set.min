@@ -10,18 +10,18 @@ from theorems.omega.omega_induction import omega_induction
 
 # Sep |- ∀w. omega(w) → ∀n∈w. transitive_set(n)
 $omega_transitive_set {
-    $pred \v p: transitive_set(v, p)
+    $pred \w v p: transitive_set(v, p)
 
-    $ind omega_induction(pred, ["w"])
+    $ind omega_induction(pred, [])
     $ind_ctx left(ind)
     $_ind_f head(right(ind))
 
     $om omega("w", "_")
     $nw mem("n", "w")
-    $pred_n pred("n", "_")
+    $pred_n pred("w", "n", "_")
     $ts_n transitive_set("n", "_")
     $emp_e empty("e", "_")
-    $pred_e pred("e", "_")
+    $pred_e pred("w", "e", "_")
     $ts_e transitive_set("e", "_")
 
     # === BASE: empty(e) → transitive_set(e) ===
@@ -132,7 +132,7 @@ $omega_transitive_set {
         [implies(succ_sn, ts_s)], implies(succ_sn, ts_s))
     $got_step_fa fr(got_step_inner, left(got_step_inner),
         [forall("s", implies(succ_sn, ts_s))], forall("s", implies(succ_sn, ts_s)), "s")
-    $step_inner implies(pred_n, forall("s", implies(succ_sn, pred("s", "_"))))
+    $step_inner implies(pred_n, forall("s", implies(succ_sn, pred("w", "s", "_"))))
     $got_step_ir ir(got_step_fa, remove(same, ts_n, left(got_step_fa)), [step_inner], step_inner)
     $got_step_nw wl(got_step_ir, add(left(got_step_ir), [nw]), [step_inner], nw)
     $step_hyp forall("n", implies(nw, step_inner))

@@ -16,10 +16,10 @@ from theorems.omega.omega_induction import omega_induction
 # Base: build singleton {⟨∅,a⟩} — is RecApprox and defined at ∅.
 # Step: rec_exists_step extends the approximation.
 $rec_exists {
-    $pred \n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", "w", add(p,"_")),
+    $pred \w n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", w, add(p,"_")),
         exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
 
-    $ind omega_induction(pred, ["w","a","f"])
+    $ind omega_induction(pred, ["a","f"])
     $_ print("rec_exists: induction schema built")
     ind
 }

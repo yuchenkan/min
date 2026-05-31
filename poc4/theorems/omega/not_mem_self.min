@@ -15,12 +15,12 @@ from theorems.omega.omega_induction import omega_induction
 # Sep, Ext |- forall w. omega(w) → ∀n∈w. ¬(n∈n)
 # pred(v) = ¬(v∈v) ∧ ∀z∈v. ¬(z∈z)
 $not_mem_self {
-    $pred \v p: {
+    $pred \w v p: {
         $z add(p, "z")
         and(neg(mem(v, v)), forall(z, implies(mem(z, v), neg(mem(z, z)))))
     }
 
-    $ind omega_induction(pred, ["w"])
+    $ind omega_induction(pred, [])
     $ind_ctx left(ind)
     $_ind_f head(right(ind))
 
@@ -28,9 +28,9 @@ $not_mem_self {
     $nw mem("n", "w")
     $nn mem("n", "n")
     $neg_nn neg(nn)
-    $pred_n pred("n", "_")
+    $pred_n pred("w", "n", "_")
     $emp_e empty("e", "_")
-    $pred_e pred("e", "_")
+    $pred_e pred("w", "e", "_")
 
     # === BASE: empty(e) → pred(e) ===
     $ee mem("e", "e")
@@ -65,7 +65,7 @@ $not_mem_self {
     $succ_sn successor("s", "n", "_")
     $ss mem("s", "s")
     $neg_ss neg(ss)
-    $pred_s pred("s", "_")
+    $pred_s pred("w", "s", "_")
     $fa_z_n forall("z", implies(mem("z", "n"), neg_zz))
     $fa_z_s forall("z", implies(mem("z", "s"), neg_zz))
 
