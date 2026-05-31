@@ -1,0 +1,25 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, singleton, ordered_pair, union
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import rec_approx
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.omega.omega_induction import omega_induction
+
+# Sep, Pa, Ext |- func(f) → (∃z.apply(f,a,z)) → ran_f_closed → omega(w) →
+#   ∀n∈w. ∃g. and(rec_approx(g,a,f,w), ∃y.apply(g,n,y))
+#
+# By omega_induction with pred(n,p) = ∃g. and(rec_approx(g,a,f,w,p), ∃y.apply(g,n,y,p))
+# Base: build singleton {⟨∅,a⟩} — is RecApprox and defined at ∅.
+# Step: rec_exists_step extends the approximation.
+$rec_exists {
+    $pred \n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", "w", add(p,"_")),
+        exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
+
+    $ind omega_induction(pred, ["w","a","f"])
+    $_ print("rec_exists: induction schema built")
+    ind
+}
