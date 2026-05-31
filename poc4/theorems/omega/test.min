@@ -49,3 +49,7 @@ $_ qed(trivial_ind,
         implies(forall("n", implies(mem("n","w"), implies(mem("n","w"), forall("s", implies(successor("s","n","_"), mem("s","w")))))),
             forall("n", implies(mem("n","w"), mem("n","w"))))))))
 $_ print("omega_induction ok")
+
+from theorems.omega.not_mem_self import not_mem_self
+$_ qed(not_mem_self, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), neg(mem("n","n")))))))
+$_ print("not_mem_self ok")
