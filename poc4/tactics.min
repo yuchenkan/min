@@ -16,37 +16,37 @@ $_veq \self va vb env: ?(eq(len(env), 0), eq(va, vb), {
     $ba nth(head(env), 0)
     $bb nth(head(env), 1)
     ?(eq(va, ba), eq(vb, bb),
-    ?(eq(vb, bb), False,
+    ?(eq(vb, bb), false,
     self(self, va, vb, tail(env))))
 })
 
 # alpha-equiv on .min core formulas [tag, display, arg1, arg2]
 $_aeq \self a b env:
-    ?(eq(a, b), True,
+    ?(eq(a, b), true,
     ?(eq(tag(a), "mem"),
         ?(eq(tag(b), "mem"),
-            ?(not(_veq(_veq, arg1(a), arg1(b), env)), False,
+            ?(not(_veq(_veq, arg1(a), arg1(b), env)), false,
             _veq(_veq, arg2(a), arg2(b), env)),
-        False),
+        false),
     ?(eq(tag(a), "neg"),
-        ?(eq(tag(b), "neg"), self(self, arg1(a), arg1(b), env), False),
+        ?(eq(tag(b), "neg"), self(self, arg1(a), arg1(b), env), false),
     ?(eq(tag(a), "implies"),
         ?(eq(tag(b), "implies"),
-            ?(not(self(self, arg1(a), arg1(b), env)), False,
+            ?(not(self(self, arg1(a), arg1(b), env)), false,
             self(self, arg2(a), arg2(b), env)),
-        False),
+        false),
     ?(eq(tag(a), "forall"),
         ?(eq(tag(b), "forall"),
             self(self, arg2(a), arg2(b), add([[arg1(a), arg1(b)]], env)),
-        False),
-    False)))))
+        false),
+    false)))))
 
 $same \a b: _aeq(_aeq, flat(flat, a), flat(flat, b), [])
 
 # === set helpers (take compare fn) ===
 
-$_contains \self cmp f lst: ?(eq(len(lst), 0), False,
-    ?(cmp(head(lst), f), True, self(self, cmp, f, tail(lst))))
+$_contains \self cmp f lst: ?(eq(len(lst), 0), false,
+    ?(cmp(head(lst), f), true, self(self, cmp, f, tail(lst))))
 $contains \cmp f lst: _contains(_contains, cmp, f, lst)
 $set_add \cmp f lst: ?(contains(cmp, f, lst), lst, add(lst, [f]))
 
@@ -160,10 +160,10 @@ $deepen \f pre: _deepen(_deepen, f, pre)
 # _has_bound: check if .min formula has bound var equal to term
 $_has_bound \self f t: {
     $g tag(f)
-    ?(eq(g, "mem"), False,
+    ?(eq(g, "mem"), false,
     ?(eq(g, "neg"), self(self, arg1(f), t),
-    ?(eq(g, "implies"), ?(self(self, arg1(f), t), True, self(self, arg2(f), t)),
-    ?(eq(g, "forall"), ?(eq(arg1(f), t), True, self(self, arg2(f), t)),
+    ?(eq(g, "implies"), ?(self(self, arg1(f), t), true, self(self, arg2(f), t)),
+    ?(eq(g, "forall"), ?(eq(arg1(f), t), true, self(self, arg2(f), t)),
     self(self, exp(f), t)))))
 }
 

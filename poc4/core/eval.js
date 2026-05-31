@@ -91,7 +91,7 @@ function compile(node) {
             const c = condFn(env);
             if (c === true) return thenFn(env);
             if (c === false) return elseFn(env);
-            throw new EvalError("condition must be True or False", node);
+            throw new EvalError("condition must be true or false", node);
         };
     }
     if (node instanceof parser.Call) {
@@ -186,7 +186,7 @@ function fail(msg) { throw new EvalError(msg); }
 
 function makeGlobal() {
     return new Env({
-        True: true, False: false, None: null,
+        true: true, false: false, none: null,
         add: (a, b) => {
             if (a === null || b === null) throw new EvalError("add: null argument");
             return Array.isArray(a) ? [...a, ...b] : a + b;
