@@ -53,3 +53,7 @@ $_ print("omega_induction ok")
 from theorems.omega.not_mem_self import not_mem_self
 $_ qed(not_mem_self, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), neg(mem("n","n")))))))
 $_ print("not_mem_self ok")
+
+from theorems.omega.zero_or_succ import zero_or_succ
+$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(empty("n","_"), exists("m", and(mem("m","w"), successor("n","m","_")))))))))
+$_ print("zero_or_succ ok")

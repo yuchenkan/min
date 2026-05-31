@@ -375,3 +375,9 @@ $_ qed(subset_union_right,
     forall("u", forall("a", forall("b",
         implies(union("u","a","b","_"), subset("b","u","_"))))))
 $_ print("subset_union_right ok")
+
+from theorems.sets.eqv_apply import eqv_apply
+$_ qed(eqv_apply,
+    forall("f", forall("g", forall("x", forall("y",
+        implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))))
+$_ print("eqv_apply ok")
