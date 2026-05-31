@@ -1,0 +1,69 @@
+from core.derived import mem, neg, implies, forall, and, or, exists, eqv, left, right
+from vocab.sets import empty, successor, singleton, ordered_pair, union
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import rec_approx
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.sets.extend_function import extend_function
+from theorems.sets.extend_apply_new import extend_apply_new
+from theorems.sets.extend_apply_old import extend_apply_old
+from theorems.sets.union_apply_elim import union_apply_elim
+from theorems.sets.singleton_mem_eq import singleton_mem_eq
+from theorems.sets.kuratowski import kuratowski
+from theorems.sets.domain_neg_no_apply import domain_neg_no_apply
+from theorems.sets.succ_not_empty import succ_not_empty
+from theorems.omega.omega_succ_closed import omega_succ_closed
+
+# pa, ext |- rec_approx(v,a,f,w) -> function(f) -> n∈w ->
+#   apply(v,n,val) -> apply(f,val,fval) ->
+#   successor(sn,n) -> ordered_pair(op,sn,fval) -> singleton(h,op) ->
+#   union(u,v,h) -> omega(w) ->
+#   and(rec_approx(u,a,f,w), apply(u,sn,fval))
+#
+# Extending RecApprox(v) at successor(sn,n) with value fval=f(val)=f(v(n)).
+$rec_exists_step {
+    $ra_v rec_approx("v", "a", "f", "w", "_")
+    $func_f function("f", "_")
+    $nw mem("n", "w")
+    $app_vn apply("v", "n", "val", "_")
+    $app_f apply("f", "val", "fval", "_")
+    $succ_sn successor("sn", "n", "_")
+    $op_new ordered_pair("op", "sn", "fval", "_")
+    $sing_h singleton("h", "op", "_")
+    $un union("u", "v", "h", "_")
+    $om omega("w", "_")
+
+    $ra_u rec_approx("u", "a", "f", "w", "_")
+    $app_u_sn apply("u", "sn", "fval", "_")
+    $goal and(ra_u, app_u_sn)
+
+    # === Apply(u, sn, fval) via extend_apply_new ===
+    $_ean head(right(extend_apply_new))
+    $ean1 apply_thm(extend_apply_new, _ean, ["u","h","op","v","sn","fval"], [])
+    $got_app_u_sn mp(mp(mp(ean1,
+        ax([sing_h], [sing_h], sing_h), sing_h, implies(op_new, implies(un, app_u_sn)), [], [sing_h]),
+        ax([op_new], [op_new], op_new), op_new, implies(un, app_u_sn), [sing_h], [op_new]),
+        ax([un], [un], un), un, app_u_sn, [sing_h, op_new], [un])
+    # [sing_h, op_new, un] |- apply(u, sn, fval)
+
+    # === Apply(u, n, val) via extend_apply_old ===
+    $_eao head(right(extend_apply_old))
+    $app_un apply("u", "n", "val", "_")
+    $eao1 apply_thm(extend_apply_old, _eao, ["u","v","h","n","val"], [])
+    $got_app_un mp(mp(eao1,
+        ax([app_vn], [app_vn], app_vn), app_vn, implies(un, app_un), [], [app_vn]),
+        ax([un], [un], un), un, app_un, [app_vn], [un])
+    # [app_vn, un] |- apply(u, n, val)
+
+    # TODO: prove all 5 RecApprox conditions for u, combine into goal
+    # For now, output what we have as a partial proof.
+    $_ print("rec_exists_step: apply parts done")
+
+    # Placeholder — will complete the 5 conditions
+    got_app_u_sn
+}
