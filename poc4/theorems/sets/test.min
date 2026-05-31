@@ -381,3 +381,10 @@ $_ qed(eqv_apply,
     forall("f", forall("g", forall("x", forall("y",
         implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))))
 $_ print("eqv_apply ok")
+
+from theorems.sets.extend_function_consistent import extend_function_consistent
+$efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","k","y0","_"),
+    implies(forall("z", implies(apply("v","k","z","_"), eqv("y0","z","_"))),
+        implies(union("u","v","h","_"), function("u","_"))))))
+$_ qed(extend_function_consistent, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
+$_ print("extend_function_consistent ok")
