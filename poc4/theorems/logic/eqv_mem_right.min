@@ -1,5 +1,5 @@
 from core.derived import mem, implies, iff, eqv, left, right
-from tactics import ax, ir, mp, apply_thm, close
+from tactics import ax, ir, mp, apply_thm, close, same, remove
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.ext_substitution import ext_substitution
 
@@ -16,14 +16,15 @@ $eqv_mem_right {
         ax([eqv_xy], [eqv_xy], eqv_xy), eqv_xy, iff_xy, es_ctx, [eqv_xy])
 
     $imp_fwd implies(xa, ya)
+    $got_iff_ctx left(got_iff)
     $got_fwd mp(iff_elim_left(xa, ya, []),
-        got_iff, iff_xy, imp_fwd, [], [eqv_xy])
+        got_iff, iff_xy, imp_fwd, [], got_iff_ctx)
 
-    $got_ya mp(got_fwd, ax([xa], [xa], xa), xa, ya, [eqv_xy], [xa])
+    $got_ya mp(got_fwd, ax([xa], [xa], xa), xa, ya, got_iff_ctx, [xa])
 
     $imp2 implies(xa, ya)
-    $s1 ir(got_ya, [eqv_xy], [imp2], imp2)
+    $s1 ir(got_ya, remove(same, xa, left(got_ya)), [imp2], imp2)
     $top implies(eqv_xy, imp2)
-    $s2 ir(s1, [], [top], top)
-    close(s2, [], [top], ["a","y","x"])
+    $s2 ir(s1, remove(same, eqv_xy, left(s1)), [top], top)
+    close(s2, left(s2), [top], ["a","y","x"])
 }
