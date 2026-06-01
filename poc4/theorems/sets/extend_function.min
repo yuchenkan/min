@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, exists, eqv, left, right
 from vocab.sets import singleton, ordered_pair, union
-from vocab.functions import apply, function
+from vocab.functions import apply, function, relation
 from tactics import ax, wl, wl_all, wr, fl, nl, nr, il, ir, mp, cut, apply_thm, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
@@ -40,6 +40,11 @@ $extend_function {
     $pa_f head(left(kuratowski))
     $hyps [func_v, sing_h, opky, un, cons, pa_f]
 
+    # Extract sv from function(v) = and(relation, sv)
+    $rel_v relation("v","_")
+    $sv_v forall("q1", forall("q2", forall("q3", implies(and(apply("v","q1","q2","_"), apply("v","q1","q3","_")), eqv("q2","q3","_")))))
+    $got_sv_v mp(and_elim_right(rel_v, sv_v, []), ax([func_v], [func_v], func_v), func_v, sv_v, [], [func_v])
+
     $_uae head(right(union_apply_elim))
     $_fut head(right(func_unique_thm))
     $_sme head(right(singleton_mem_eq))
@@ -51,7 +56,7 @@ $extend_function {
     $_akt head(right(apply_key_transfer))
 
     # Curried body helpers
-    $_fut_b \f: \x: \y1: \y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fut_b \f: \x: \y1: \y2: implies(forall("q1", forall("q2", forall("q3", implies(and(apply(f,"q1","q2","_"), apply(f,"q1","q3","_")), eqv("q2","q3","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
     $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
     $_sf_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), function(f,"_")))
@@ -62,7 +67,7 @@ $extend_function {
 
     # === Case GG: both from v → func_unique(v) ===
     $got_gg mp(mp(mp(apply_thm(func_unique_thm, _fut, ["v", "r", "r1", "r2"], ["v", "x", "y1", "y2"], _fut_b, []),
-        ax([func_v], [func_v], func_v), func_v, implies(app_v1, implies(app_v2, eqv_r1r2)), [], [func_v]),
+        got_sv_v, sv_v, implies(app_v1, implies(app_v2, eqv_r1r2)), [], [func_v]),
         ax([app_v1], [app_v1], app_v1), app_v1, implies(app_v2, eqv_r1r2), [func_v], [app_v1]),
         ax([app_v2], [app_v2], app_v2), app_v2, eqv_r1r2, [func_v, app_v1], [app_v2])
 
@@ -71,8 +76,10 @@ $extend_function {
     $sf_mp1 mp(sf_inst, ax([sing_h], [sing_h], sing_h), sing_h, implies(opky, function("h","_")), left(sf_inst), [sing_h])
     $func_h_prf mp(sf_mp1, ax([opky], [opky], opky), opky, function("h","_"), left(sf_mp1), [opky])
 
+    $sv_h forall("q1", forall("q2", forall("q3", implies(and(apply("h","q1","q2","_"), apply("h","q1","q3","_")), eqv("q2","q3","_")))))
+    $got_sv_h mp(and_elim_right(relation("h","_"), sv_h, []), func_h_prf, function("h","_"), sv_h, [], left(func_h_prf))
     $hh1 mp(apply_thm(func_unique_thm, _fut, ["h", "r", "r1", "r2"], ["h", "x", "y1", "y2"], _fut_b, []),
-        func_h_prf, function("h","_"), implies(app_h1, implies(app_h2, eqv_r1r2)), [], left(func_h_prf))
+        got_sv_h, sv_h, implies(app_h1, implies(app_h2, eqv_r1r2)), [], left(got_sv_h))
     $hh2 mp(hh1, ax([app_h1], [app_h1], app_h1), app_h1, implies(app_h2, eqv_r1r2), left(hh1), [app_h1])
     $got_hh mp(hh2, ax([app_h2], [app_h2], app_h2), app_h2, eqv_r1r2, left(hh2), [app_h2])
 

@@ -37,7 +37,7 @@ $rec_agree {
     # Common body helpers
     $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
     $_et_b \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
-    $_fut_b \f: \x: \y1: \y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fut_b \f: \x: \y1: \y2: implies(forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
 
     $_ind_body \w: \f: \a: {

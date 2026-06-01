@@ -106,7 +106,7 @@ $extend_consistency {
     # func_unique: apply(v,sn,z) + apply(v,sn,fval) → eqv(z,fval) → sym → eqv(fval,z)
     $_fut head(right(func_unique_thm))
     $eqv_z_fval eqv("z", "fval", "_")
-    $_fut_b \f: \x: \y1: \y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fut_b \f: \x: \y1: \y2: implies(forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $fut1 mp(apply_thm(func_unique_thm, _fut, ["v", "sn", "z", "fval"], ["v", "x", "y1", "y2"], _fut_b, []),
         got_func_v, func_v, implies(app_vsn_z, implies(app_vsn_fval, eqv_z_fval)), [], [ra_v])
     $fut2 mp(fut1, ax([app_vsn_z], [app_vsn_z], app_vsn_z), app_vsn_z,

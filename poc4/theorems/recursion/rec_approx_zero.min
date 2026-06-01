@@ -71,7 +71,7 @@ $rec_approx_zero {
 
     # func_unique: function(v) → apply(v,e,a) → apply(v,e,y) → eqv(a,y)
     $_fut head(right(func_unique_thm))
-    $_fut_b \f: \x: \y1: \y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fut_b \f: \x: \y1: \y2: implies(forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $fut1 mp(apply_thm(func_unique_thm, _fut, ["v", "e", "a", "y"], ["v", "x", "y1", "y2"], _fut_b, []),
         got_func, func_v, implies(app_vea, implies(app_vey, eqv_ay)), [], [ra])
     $fut2 mp(fut1, got_app_a, app_vea, implies(app_vey, eqv_ay), [ra], [ra, emp, app_vey])
