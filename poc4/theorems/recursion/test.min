@@ -81,4 +81,12 @@ $ra_body implies(omega("w","_"), implies(function("f","_"), forall("n", implies(
 $_ qed(rec_agree, forall("w", forall("f", forall("a", ra_body))))
 $_ print("rec_agree ok")
 
+from theorems.recursion.rec_graph_exists import rec_graph_exists
+$rge_phi \p np: exists(add(np,"n"), and(mem(add(np,"n"),"w"),
+    exists(add(np,"v"), exists(add(np,"y"), and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+        apply(add(np,"v"),add(np,"n"),add(np,"y"),add(np,"_"))), ordered_pair(p,add(np,"n"),add(np,"y"),add(np,"_")))))))
+$rge_body exists("h", forall("p", iff(mem("p","h"), and(mem("p","ppb"), rge_phi("p","_")))))
+$_ qed(rec_graph_exists, forall("w", forall("f", forall("a", forall("ppb", rge_body)))))
+$_ print("rec_graph_exists ok")
+
 $ok true
