@@ -152,14 +152,20 @@ function call(callee, args, node) {
 
 // === Formula bridge ===
 
+const _buildCache = new WeakMap();
 function build(f) {
     if (typeof f === "string") return f;
+    const cached = _buildCache.get(f);
+    if (cached) return cached;
     const tag = f[0];
-    if (tag === "mem") return new kernel.Mem(build(f[1]), build(f[2]));
-    if (tag === "neg") return new kernel.Neg(build(f[1]));
-    if (tag === "implies") return new kernel.Implies(build(f[1]), build(f[2]));
-    if (tag === "forall") return new kernel.Forall(f[1], build(f[2]));
-    throw new Error(`build: unknown tag ${tag}`);
+    let result;
+    if (tag === "mem") result = new kernel.Mem(build(f[1]), build(f[2]));
+    else if (tag === "neg") result = new kernel.Neg(build(f[1]));
+    else if (tag === "implies") result = new kernel.Implies(build(f[1]), build(f[2]));
+    else if (tag === "forall") result = new kernel.Forall(f[1], build(f[2]));
+    else throw new Error(`build: unknown tag ${tag}`);
+    _buildCache.set(f, result);
+    return result;
 }
 
 function doProof(left, right, rule, premises, principal, term) {

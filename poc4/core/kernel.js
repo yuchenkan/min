@@ -55,7 +55,27 @@ function subst(formula, old, new_) {
 
 // === Alpha-equivalence ===
 
-function same(a, b) { return eq(a, b, []); }
+const _eqCache = new WeakMap();
+
+function same(a, b) {
+    if (a === b) return true;
+    if (typeof a === "string" || typeof b === "string") return a === b;
+    let bMap = _eqCache.get(a);
+    if (bMap) {
+        const cached = bMap.get(b);
+        if (cached !== undefined) return cached;
+    } else {
+        bMap = _eqCache.get(b);
+        if (bMap) {
+            const cached = bMap.get(a);
+            if (cached !== undefined) return cached;
+        }
+    }
+    const result = eq(a, b, []);
+    if (!bMap) { bMap = new WeakMap(); _eqCache.set(a, bMap); }
+    bMap.set(b, result);
+    return result;
+}
 
 function eq(a, b, env) {
     if (typeof a === "string" && typeof b === "string") {
