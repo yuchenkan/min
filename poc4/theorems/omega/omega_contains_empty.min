@@ -13,7 +13,8 @@ $omega_contains_empty {
     $e_in_w mem("e", "w")
 
     $_oi head(right(omega_is_inductive))
-    $got_ind mp(apply_thm(omega_is_inductive, _oi, ["w"], []),
+    $got_ind mp(apply_thm(omega_is_inductive, _oi, [["w", []]],
+        \w: implies(omega(w,"_"), inductive(w,"_")), []),
         ax([om], [om], om), om, ind, [], [om])
 
     $part1 forall("q", implies(empty("q", "_"), mem("q", "w")))
@@ -22,7 +23,8 @@ $omega_contains_empty {
     $got_p1 mp(and_elim_left(part1, part2, []),
         got_ind, ind, part1, [], [om])
 
-    $got_inst apply_thm(got_p1, part1, ["e"], [om])
+    $got_inst apply_thm(got_p1, part1, [["e", []]],
+        \q: implies(empty(q,"_"), mem(q,"w")), [om])
 
     $got_in mp(got_inst, ax([emp], [emp], emp), emp, e_in_w, [om], [emp])
 

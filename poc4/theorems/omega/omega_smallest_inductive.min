@@ -15,7 +15,8 @@ $omega_smallest_inductive {
     $got_p2 mp(and_elim_right(ind_w, part2, []),
         ax([om], [om], om), om, part2, [], [om])
 
-    $got_inst apply_thm(got_p2, part2, ["c"], [om])
+    $got_inst apply_thm(got_p2, part2, [["c", []]],
+        \c: implies(inductive(c,"_"), subset("w",c,"_")), [om])
 
     $got_sub mp(got_inst, ax([ind_c], [ind_c], ind_c), ind_c, sub, [om], [ind_c])
 
