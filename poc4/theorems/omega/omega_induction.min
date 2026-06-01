@@ -212,11 +212,18 @@ $omega_induction \pred vars p: {
     # Instantiate sep with identity for outer vars, then domain=w
     # Use inst directly for each step
     $_sep_inner \a: exists("b", forall("x", iff(mem("x","b"), and(mem("x",a), pred(w,"x",np)))))
+    # _last: get last element of list
+    $_last \self lst: ?(eq(len(lst), 1), head(lst), self(self, tail(lst)))
+    # _wrap_foralls_around: wrap forall for each remaining term
+    # Last term is the domain value. Before that are outer forall vars.
+    # Domain forall uses a fresh var "d" to avoid capture with the domain value.
+    $_wrap_fa \self rest: ?(eq(len(rest), 1),
+        forall("d", _sep_inner("d")),
+        forall(head(rest), self(self, tail(rest))))
     $_peel_sep \self thm formula terms: ?(eq(len(terms), 0), thm, {
         $t head(terms)
         $rest tail(terms)
-        $body ?(eq(len(rest), 0), _sep_inner(t),
-            forall("a", _sep_inner("a")))
+        $body ?(eq(len(rest), 0), _sep_inner(t), _wrap_fa(_wrap_fa, rest))
         $r inst(thm, formula, body, t, [sep_f])
         self(self, r, head(right(r)), rest)
     })

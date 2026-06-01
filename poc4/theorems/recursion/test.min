@@ -70,13 +70,6 @@ $sr_body implies(omega("w","_"), implies(empty("e","_"), implies(exists("z", app
 $_ qed(singleton_recapprox, forall("w", forall("e", forall("f", forall("a", forall("op", forall("g", sr_body)))))))
 $_ print("singleton_recapprox ok")
 
-from theorems.recursion.rec_exists import rec_exists
-$re_pred \w n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", w, add(p,"_")), exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
-$re_rfc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
-$re_body implies(function("f","_"), implies(exists("z", apply("f","a","z","_")), implies(re_rfc, implies(omega("w","_"), forall("n", implies(mem("n","w"), re_pred("w","n","_")))))))
-$_ qed(rec_exists, forall("w", forall("f", forall("a", re_body))))
-$_ print("rec_exists ok")
-
 from theorems.recursion.rec_agree import rec_agree
 $ra_pred \w n p: forall(add(p,"v1"), forall(add(p,"v2"), forall(add(p,"y1"), forall(add(p,"y2"),
     implies(rec_approx(add(p,"v1"),"a","f",w,add(p,"_")),
