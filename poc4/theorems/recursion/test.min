@@ -136,4 +136,12 @@ $_ qed(rec_h_step, forall("h", forall("a", forall("f", forall("w",
     forall("n", forall("val", forall("sn", forall("fval", rhs_body)))))))))
 $_ print("rec_h_step ok")
 
+from theorems.recursion.rec_h_function import rec_h_function
+$rhf_body implies(rha_char, implies(function("f","_"), implies(omega("w","_"),
+    implies(exists("z", apply("f","a","z","_")),
+    implies(forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_"))))),
+    function("h","_"))))))
+$_ qed(rec_h_function, forall("h", forall("a", forall("f", forall("w", rhf_body)))))
+$_ print("rec_h_function ok")
+
 $ok true
