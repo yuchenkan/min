@@ -121,4 +121,10 @@ $rv_body implies(function("f","_"), implies(omega("w","_"), implies(mem("n","w")
 $_ qed(rec_value, forall("a", forall("f", forall("w", forall("n", forall("y1", forall("y2", rv_body)))))))
 $_ print("rec_value ok")
 
+from theorems.recursion.rec_h_apply_fwd import rec_h_apply_fwd
+$rhaf_goal exists("v", and(rec_approx("v","a","f","w","_"), apply("v","n","y","_")))
+$rhaf_body implies(rha_char, implies(mem("n","w"), implies(apply("h","n","y","_"), rhaf_goal)))
+$_ qed(rec_h_apply_fwd, forall("h", forall("a", forall("f", forall("w", forall("n", forall("y", rhaf_body)))))))
+$_ print("rec_h_apply_fwd ok")
+
 $ok true
