@@ -19,7 +19,7 @@ $mem_succ_self {
     $got_iff fl(ax([iff_ns], [iff_ns], iff_ns), [succ], [iff_ns], succ, "n")
 
     $_er head(right(eqv_reflexive))
-    $got_enn apply_thm(eqv_reflexive, _er, [["n", eqv("n","n","_")]], [])
+    $got_enn apply_thm(eqv_reflexive, _er, [["n", []]], \a: eqv(a,a,"_"), [])
     $got_or mp(or_intro_right(nn, enn, []), got_enn, enn, or_n, [], [])
 
     $imp_bwd implies(or_n, ns)

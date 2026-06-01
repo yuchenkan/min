@@ -35,17 +35,17 @@ $singleton_function {
     $got_q1f mp(and_elim_right(op_q1, q1f, []),
         ax([and_q1], [and_q1], and_q1), and_q1, q1f, [], [and_q1])
 
-    $_sme_b \x f a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $_kur_b \t1 t2 a b c d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_es_b \a b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_et_b \a b c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
-    $got_eqv_q1 mp(mp(apply_thm(singleton_mem_eq, _sme, [["q1", forall("f", forall("a", _sme_b("q1","f","a")))], ["f", forall("a", _sme_b("q1","f","a"))], ["op", _sme_b("q1","f","op")]], []),
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_et_b \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
+    $got_eqv_q1 mp(mp(apply_thm(singleton_mem_eq, _sme, [["q1", ["f","a"]], ["f", ["a"]], ["op", []]], _sme_b, []),
         ax([sing], [sing], sing), sing, implies(q1f, eqv_q1_op), [], [sing]),
         got_q1f, q1f, eqv_q1_op, [sing], [and_q1])
 
     # kuratowski: kur_ctx |- op(q1,r,r1) → op(op,x,y) → eqv(q1,op) → r=x ∧ r1=y
     $goal_and1 and(eqv("r", "x", "_"), eqv_r1y)
-    $k1 apply_thm(kuratowski, _kur, [["q1", forall("t2", forall("a", forall("b", forall("c", forall("d", _kur_b("q1","t2","a","b","c","d"))))))], ["op", forall("a", forall("b", forall("c", forall("d", _kur_b("q1","op","a","b","c","d")))))], ["r", forall("b", forall("c", forall("d", _kur_b("q1","op","r","b","c","d"))))], ["r1", forall("c", forall("d", _kur_b("q1","op","r","r1","c","d")))], ["x", forall("d", _kur_b("q1","op","r","r1","x","d"))], ["y", _kur_b("q1","op","r","r1","x","y")]], kur_ctx)
+    $k1 apply_thm(kuratowski, _kur, [["q1", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["r", ["b","c","d"]], ["r1", ["c","d"]], ["x", ["d"]], ["y", []]], _kur_b, kur_ctx)
     $k1a mp(k1, got_op_q1, op_q1, implies(opxy, implies(eqv_q1_op, goal_and1)), left(k1), [and_q1])
     $k1b mp(k1a, ax([opxy], [opxy], opxy), opxy, implies(eqv_q1_op, goal_and1), left(k1a), [opxy])
     $k1c mp(k1b, got_eqv_q1, eqv_q1_op, goal_and1, left(k1b), [sing, and_q1])
@@ -71,12 +71,12 @@ $singleton_function {
     $got_q2f mp(and_elim_right(op_q2, q2f, []),
         ax([and_q2], [and_q2], and_q2), and_q2, q2f, [], [and_q2])
 
-    $got_eqv_q2 mp(mp(apply_thm(singleton_mem_eq, _sme, [["q2", forall("f", forall("a", _sme_b("q2","f","a")))], ["f", forall("a", _sme_b("q2","f","a"))], ["op", _sme_b("q2","f","op")]], []),
+    $got_eqv_q2 mp(mp(apply_thm(singleton_mem_eq, _sme, [["q2", ["f","a"]], ["f", ["a"]], ["op", []]], _sme_b, []),
         ax([sing], [sing], sing), sing, implies(q2f, eqv_q2_op), [], [sing]),
         got_q2f, q2f, eqv_q2_op, [sing], [and_q2])
 
     $goal_and2 and(eqv("r", "x", "_"), eqv_r2y)
-    $k2 apply_thm(kuratowski, _kur, [["q2", forall("t2", forall("a", forall("b", forall("c", forall("d", _kur_b("q2","t2","a","b","c","d"))))))], ["op", forall("a", forall("b", forall("c", forall("d", _kur_b("q2","op","a","b","c","d")))))], ["r", forall("b", forall("c", forall("d", _kur_b("q2","op","r","b","c","d"))))], ["r2", forall("c", forall("d", _kur_b("q2","op","r","r2","c","d")))], ["x", forall("d", _kur_b("q2","op","r","r2","x","d"))], ["y", _kur_b("q2","op","r","r2","x","y")]], kur_ctx)
+    $k2 apply_thm(kuratowski, _kur, [["q2", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["r", ["b","c","d"]], ["r2", ["c","d"]], ["x", ["d"]], ["y", []]], _kur_b, kur_ctx)
     $k2a mp(k2, got_op_q2, op_q2, implies(opxy, implies(eqv_q2_op, goal_and2)), left(k2), [and_q2])
     $k2b mp(k2a, ax([opxy], [opxy], opxy), opxy, implies(eqv_q2_op, goal_and2), left(k2a), [opxy])
     $k2c mp(k2b, got_eqv_q2, eqv_q2_op, goal_and2, left(k2b), [sing, and_q2])
@@ -90,12 +90,12 @@ $singleton_function {
     # eqv(r2,y) → eqv(y,r2)
     $_es head(right(eqv_symmetric))
     $eqv_yr2 eqv("y", "r2", "_")
-    $got_yr2 mp(apply_thm(eqv_symmetric, _es, [["r2", forall("b", _es_b("r2","b"))], ["y", _es_b("r2","y")]], []),
+    $got_yr2 mp(apply_thm(eqv_symmetric, _es, [["r2", ["b"]], ["y", []]], _es_b, []),
         got_r2y_eel, eqv_r2y, eqv_yr2, [], left(got_r2y_eel))
 
     # eqv(r1,y) + eqv(y,r2) → eqv(r1,r2)
     $_et head(right(eqv_transitive))
-    $got_eqv mp(mp(apply_thm(eqv_transitive, _et, [["r1", forall("b", forall("c", _et_b("r1","b","c")))], ["y", forall("c", _et_b("r1","y","c"))], ["r2", _et_b("r1","y","r2")]], []),
+    $got_eqv mp(mp(apply_thm(eqv_transitive, _et, [["r1", ["b","c"]], ["y", ["c"]], ["r2", []]], _et_b, []),
         got_r1y_eel, eqv_r1y, implies(eqv_yr2, eqv_r1r2), [], left(got_r1y_eel)),
         got_yr2, eqv_yr2, eqv_r1r2, left(got_r1y_eel), left(got_yr2))
     # got_eqv: merged_ctx |- eqv_r1r2

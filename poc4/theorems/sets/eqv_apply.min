@@ -27,8 +27,8 @@ $eqv_apply {
 
     # eqv_mem_left: eqv(f,g) → q∈f → q∈g
     $_eml head(right(eqv_mem_left))
-    $_eml_b \a b z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
-    $got_qg mp(mp(apply_thm(eqv_mem_left, _eml, [["f", forall("b", forall("z", _eml_b("f","b","z")))], ["g", forall("z", _eml_b("f","g","z"))], ["q", _eml_b("f","g","q")]], []),
+    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_qg mp(mp(apply_thm(eqv_mem_left, _eml, [["f", ["b","z"]], ["g", ["z"]], ["q", []]], _eml_b, []),
         ax([eqv_fg], [eqv_fg], eqv_fg), eqv_fg, implies(qf, qg), [], [eqv_fg]),
         got_qf, qf, qg, [eqv_fg], [and_qf])
 

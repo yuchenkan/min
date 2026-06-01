@@ -43,22 +43,23 @@ $ordpair_bounded {
     $eqv_dy eqv("d","y","_")
 
     # d∈w from eqv(d,x): eqv_sym → eqv(x,d). eqv_mem_right(x,d,w) + x∈w → d∈w.
-    $_es_b \a b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_emr_b \a y x: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_emr_b \a: \y: \x: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
     # Rename eqv_mem_right bound vars to avoid clash with terms "x","y"
     # Formula is ∀x.∀y.∀a.body, _emr_b(a,y,x) = eqv(x,y)->mem(x,a)->mem(y,a)
-    $emr_r forall("p", forall("q", forall("r", _emr_b("r","q","p"))))
+    $emr_r forall("p", forall("q", forall("r", _emr_b("r")("q")("p"))))
     $emr_r_thm wr(eqv_mem_right, emr_ctx, [emr_r], emr_r)
-    $got_xd mp(apply_thm(eqv_symmetric, _es, [["d", forall("b", _es_b("d","b"))], ["x", _es_b("d","x")]], []),
+    $got_xd mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["x", []]], _es_b, []),
         ax([eqv_dx], [eqv_dx], eqv_dx), eqv_dx, eqv("x","d","_"), [], [eqv_dx])
-    $emr1 mp(apply_thm(emr_r_thm, emr_r, [["x", forall("q", forall("r", _emr_b("r","q","x")))], ["d", forall("r", _emr_b("r","d","x"))], ["w", _emr_b("w","d","x")]], emr_ctx),
+    $_emr_r_b \p: \q: \r: _emr_b(r)(q)(p)
+    $emr1 mp(apply_thm(emr_r_thm, emr_r, [["x", ["q","r"]], ["d", ["r"]], ["w", []]], _emr_r_b, emr_ctx),
         got_xd, eqv("x","d","_"), implies(xw, dw), emr_ctx, [eqv_dx])
     $got_dw_from_dx mp(emr1, ax([xw], [xw], xw), xw, dw, left(emr1), [xw])
 
     # d∈w from eqv(d,y): same pattern.
-    $got_yd mp(apply_thm(eqv_symmetric, _es, [["d", forall("b", _es_b("d","b"))], ["y", _es_b("d","y")]], []),
+    $got_yd mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["y", []]], _es_b, []),
         ax([eqv_dy], [eqv_dy], eqv_dy), eqv_dy, eqv("y","d","_"), [], [eqv_dy])
-    $emr2 mp(apply_thm(emr_r_thm, emr_r, [["y", forall("q", forall("r", _emr_b("r","q","y")))], ["d", forall("r", _emr_b("r","d","y"))], ["w", _emr_b("w","d","y")]], emr_ctx),
+    $emr2 mp(apply_thm(emr_r_thm, emr_r, [["y", ["q","r"]], ["d", ["r"]], ["w", []]], _emr_r_b, emr_ctx),
         got_yd, eqv("y","d","_"), implies(yw, dw), emr_ctx, [eqv_dy])
     $got_dw_from_dy mp(emr2, ax([yw], [yw], yw), yw, dw, left(emr2), [yw])
 

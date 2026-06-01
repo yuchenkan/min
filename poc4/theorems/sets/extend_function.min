@@ -50,28 +50,28 @@ $extend_function {
     $_et head(right(eqv_transitive))
     $_akt head(right(apply_key_transfer))
 
-    # Body helpers
-    $_fut_b \f x y1 y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
-    $_sme_b \x f a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $_kur_b \t1 t2 a b c d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_sf_b \f op x y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), function(f,"_")))
-    $_es_b \a b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_et_b \a b c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
-    $_akt_b \f x x2 y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
-    $_uae_b \u a b x y: implies(apply(u,x,y,"_"), implies(union(u,a,b,"_"), or(apply(a,x,y,"_"), apply(b,x,y,"_"))))
+    # Curried body helpers
+    $_fut_b \f: \x: \y1: \y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
+    $_sf_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), function(f,"_")))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_et_b \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
+    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_uae_b \u: \a: \b: \x: \y: implies(apply(u,x,y,"_"), implies(union(u,a,b,"_"), or(apply(a,x,y,"_"), apply(b,x,y,"_"))))
 
     # === Case GG: both from v → func_unique(v) ===
-    $got_gg mp(mp(mp(apply_thm(func_unique_thm, _fut, [["v", forall("x", forall("y1", forall("y2", _fut_b("v","x","y1","y2"))))], ["r", forall("y1", forall("y2", _fut_b("v","r","y1","y2")))], ["r1", forall("y2", _fut_b("v","r","r1","y2"))], ["r2", _fut_b("v","r","r1","r2")]], []),
+    $got_gg mp(mp(mp(apply_thm(func_unique_thm, _fut, [["v", ["x","y1","y2"]], ["r", ["y1","y2"]], ["r1", ["y2"]], ["r2", []]], _fut_b, []),
         ax([func_v], [func_v], func_v), func_v, implies(app_v1, implies(app_v2, eqv_r1r2)), [], [func_v]),
         ax([app_v1], [app_v1], app_v1), app_v1, implies(app_v2, eqv_r1r2), [func_v], [app_v1]),
         ax([app_v2], [app_v2], app_v2), app_v2, eqv_r1r2, [func_v, app_v1], [app_v2])
 
     # === Case HH: both from h → singleton_function ===
-    $sf_inst apply_thm(singleton_function, _sf, [["h", forall("op", forall("x", forall("y", _sf_b("h","op","x","y"))))], ["op", forall("x", forall("y", _sf_b("h","op","x","y")))], ["k", forall("y", _sf_b("h","op","k","y"))], ["y0", _sf_b("h","op","k","y0")]], kur_ctx)
+    $sf_inst apply_thm(singleton_function, _sf, [["h", ["op","x","y"]], ["op", ["x","y"]], ["k", ["y"]], ["y0", []]], _sf_b, kur_ctx)
     $sf_mp1 mp(sf_inst, ax([sing_h], [sing_h], sing_h), sing_h, implies(opky, function("h","_")), left(sf_inst), [sing_h])
     $func_h_prf mp(sf_mp1, ax([opky], [opky], opky), opky, function("h","_"), left(sf_mp1), [opky])
 
-    $hh1 mp(apply_thm(func_unique_thm, _fut, [["h", forall("x", forall("y1", forall("y2", _fut_b("h","x","y1","y2"))))], ["r", forall("y1", forall("y2", _fut_b("h","r","y1","y2")))], ["r1", forall("y2", _fut_b("h","r","r1","y2"))], ["r2", _fut_b("h","r","r1","r2")]], []),
+    $hh1 mp(apply_thm(func_unique_thm, _fut, [["h", ["x","y1","y2"]], ["r", ["y1","y2"]], ["r1", ["y2"]], ["r2", []]], _fut_b, []),
         func_h_prf, function("h","_"), implies(app_h1, implies(app_h2, eqv_r1r2)), [], left(func_h_prf))
     $hh2 mp(hh1, ax([app_h1], [app_h1], app_h1), app_h1, implies(app_h2, eqv_r1r2), left(hh1), [app_h1])
     $got_hh mp(hh2, ax([app_h2], [app_h2], app_h2), app_h2, eqv_r1r2, left(hh2), [app_h2])
@@ -89,14 +89,14 @@ $extend_function {
     $eqv_rk eqv("r", "k", "_")
     $eqv_r2y0 eqv("r2", "y0", "_")
 
-    $got_q2_op mp(mp(apply_thm(singleton_mem_eq, _sme, [["q2", forall("f", forall("a", _sme_b("q2","f","a")))], ["h", forall("a", _sme_b("q2","h","a"))], ["op", _sme_b("q2","h","op")]], []),
+    $got_q2_op mp(mp(apply_thm(singleton_mem_eq, _sme, [["q2", ["f","a"]], ["h", ["a"]], ["op", []]], _sme_b, []),
         ax([sing_h], [sing_h], sing_h), sing_h, implies(q2h, eqv_q2_op), [], [sing_h]),
         mp(and_elim_right(op_q2, q2h, []),
             ax([and_q2], [and_q2], and_q2), and_q2, q2h, [], [and_q2]),
         q2h, eqv_q2_op, [sing_h], [and_q2])
 
     $goal_and_k and(eqv_rk, eqv_r2y0)
-    $k_inst apply_thm(kuratowski, _kur, [["q2", forall("t2", forall("a", forall("b", forall("c", forall("d", _kur_b("q2","t2","a","b","c","d"))))))], ["op", forall("a", forall("b", forall("c", forall("d", _kur_b("q2","op","a","b","c","d")))))], ["r", forall("b", forall("c", forall("d", _kur_b("q2","op","r","b","c","d"))))], ["r2", forall("c", forall("d", _kur_b("q2","op","r","r2","c","d")))], ["k", forall("d", _kur_b("q2","op","r","r2","k","d"))], ["y0", _kur_b("q2","op","r","r2","k","y0")]], kur_ctx)
+    $k_inst apply_thm(kuratowski, _kur, [["q2", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["r", ["b","c","d"]], ["r2", ["c","d"]], ["k", ["d"]], ["y0", []]], _kur_b, kur_ctx)
     $got_op_q2 mp(and_elim_left(op_q2, q2h, []),
         ax([and_q2], [and_q2], and_q2), and_q2, op_q2, [], [and_q2])
     $km1 mp(k_inst, got_op_q2, op_q2, implies(opky, implies(eqv_q2_op, goal_and_k)), left(k_inst), [and_q2])
@@ -113,7 +113,7 @@ $extend_function {
     # First transfer: apply(v,r,r1) + eqv(r,k) → apply(v,k,r1) via apply_key_transfer.
     $_akt head(right(apply_key_transfer))
     $app_vk1 apply("v", "k", "r1", "_")
-    $akt1 mp(apply_thm(apply_key_transfer, _akt, [["v", forall("x", forall("x2", forall("y", _akt_b("v","x","x2","y"))))], ["r", forall("x2", forall("y", _akt_b("v","r","x2","y")))], ["k", forall("y", _akt_b("v","r","k","y"))], ["r1", _akt_b("v","r","k","r1")]], []),
+    $akt1 mp(apply_thm(apply_key_transfer, _akt, [["v", ["x","x2","y"]], ["r", ["x2","y"]], ["k", ["y"]], ["r1", []]], _akt_b, []),
         got_rk, eqv_rk, implies(app_v1, app_vk1), [], left(got_rk))
     $got_vk1 mp(akt1, ax([app_v1], [app_v1], app_v1), app_v1, app_vk1, left(akt1), [app_v1])
     # left(got_vk1) |- apply(v, k, r1)
@@ -127,10 +127,10 @@ $extend_function {
 
     # eqv(r2, y0) + eqv(y0, r1) → eqv(r2, r1) → sym → eqv(r1, r2)
     $eqv_r2r1 eqv("r2", "r1", "_")
-    $got_r2r1 mp(mp(apply_thm(eqv_transitive, _et, [["r2", forall("b", forall("c", _et_b("r2","b","c")))], ["y0", forall("c", _et_b("r2","y0","c"))], ["r1", _et_b("r2","y0","r1")]], []),
+    $got_r2r1 mp(mp(apply_thm(eqv_transitive, _et, [["r2", ["b","c"]], ["y0", ["c"]], ["r1", []]], _et_b, []),
         got_r2y0, eqv_r2y0, implies(eqv_y0r1, eqv_r2r1), [], left(got_r2y0)),
         got_cons_r1, eqv_y0r1, eqv_r2r1, left(got_r2y0), left(got_cons_r1))
-    $got_gh mp(apply_thm(eqv_symmetric, _es, [["r2", forall("b", _es_b("r2","b"))], ["r1", _es_b("r2","r1")]], []),
+    $got_gh mp(apply_thm(eqv_symmetric, _es, [["r2", ["b"]], ["r1", []]], _es_b, []),
         got_r2r1, eqv_r2r1, eqv_r1r2, [], left(got_r2r1))
     # left(got_gh) |- eqv(r1, r2). Has and_q2, sing_h, opky, pa_f, app_v1, cons.
 
@@ -149,14 +149,14 @@ $extend_function {
     $eqv_q1_op eqv("q1", "op", "_")
     $eqv_r1y0 eqv("r1", "y0", "_")
 
-    $got_q1_op mp(mp(apply_thm(singleton_mem_eq, _sme, [["q1", forall("f", forall("a", _sme_b("q1","f","a")))], ["h", forall("a", _sme_b("q1","h","a"))], ["op", _sme_b("q1","h","op")]], []),
+    $got_q1_op mp(mp(apply_thm(singleton_mem_eq, _sme, [["q1", ["f","a"]], ["h", ["a"]], ["op", []]], _sme_b, []),
         ax([sing_h], [sing_h], sing_h), sing_h, implies(q1h, eqv_q1_op), [], [sing_h]),
         mp(and_elim_right(op_q1, q1h, []),
             ax([and_q1], [and_q1], and_q1), and_q1, q1h, [], [and_q1]),
         q1h, eqv_q1_op, [sing_h], [and_q1])
 
     $goal_and_k2 and(eqv_rk, eqv_r1y0)
-    $k_inst2 apply_thm(kuratowski, _kur, [["q1", forall("t2", forall("a", forall("b", forall("c", forall("d", _kur_b("q1","t2","a","b","c","d"))))))], ["op", forall("a", forall("b", forall("c", forall("d", _kur_b("q1","op","a","b","c","d")))))], ["r", forall("b", forall("c", forall("d", _kur_b("q1","op","r","b","c","d"))))], ["r1", forall("c", forall("d", _kur_b("q1","op","r","r1","c","d")))], ["k", forall("d", _kur_b("q1","op","r","r1","k","d"))], ["y0", _kur_b("q1","op","r","r1","k","y0")]], kur_ctx)
+    $k_inst2 apply_thm(kuratowski, _kur, [["q1", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["r", ["b","c","d"]], ["r1", ["c","d"]], ["k", ["d"]], ["y0", []]], _kur_b, kur_ctx)
     $got_op_q1 mp(and_elim_left(op_q1, q1h, []),
         ax([and_q1], [and_q1], and_q1), and_q1, op_q1, [], [and_q1])
     $km1b mp(k_inst2, got_op_q1, op_q1, implies(opky, implies(eqv_q1_op, goal_and_k2)), left(k_inst2), [and_q1])
@@ -170,7 +170,7 @@ $extend_function {
 
     # apply(v,r,r2) + eqv(r,k) → apply(v,k,r2)
     $app_vk2 apply("v", "k", "r2", "_")
-    $akt2 mp(apply_thm(apply_key_transfer, _akt, [["v", forall("x", forall("x2", forall("y", _akt_b("v","x","x2","y"))))], ["r", forall("x2", forall("y", _akt_b("v","r","x2","y")))], ["k", forall("y", _akt_b("v","r","k","y"))], ["r2", _akt_b("v","r","k","r2")]], []),
+    $akt2 mp(apply_thm(apply_key_transfer, _akt, [["v", ["x","x2","y"]], ["r", ["x2","y"]], ["k", ["y"]], ["r2", []]], _akt_b, []),
         got_rk2, eqv_rk, implies(app_v2, app_vk2), [], left(got_rk2))
     $got_vk2 mp(akt2, ax([app_v2], [app_v2], app_v2), app_v2, app_vk2, left(akt2), [app_v2])
 
@@ -181,7 +181,7 @@ $extend_function {
         got_vk2, app_vk2, eqv_y0r2, [cons], left(got_vk2))
 
     # eqv(r1, y0) + eqv(y0, r2) → eqv(r1, r2)
-    $got_hg mp(mp(apply_thm(eqv_transitive, _et, [["r1", forall("b", forall("c", _et_b("r1","b","c")))], ["y0", forall("c", _et_b("r1","y0","c"))], ["r2", _et_b("r1","y0","r2")]], []),
+    $got_hg mp(mp(apply_thm(eqv_transitive, _et, [["r1", ["b","c"]], ["y0", ["c"]], ["r2", []]], _et_b, []),
         got_r1y0, eqv_r1y0, implies(eqv_y0r2, eqv_r1r2), [], left(got_r1y0)),
         got_cons_r2, eqv_y0r2, eqv_r1r2, left(got_r1y0), left(got_cons_r2))
 
@@ -214,10 +214,10 @@ $extend_function {
     $both il(g_nr, h_wl, add(hyps, [or1, or2]), [eqv_r1r2], or1)
 
     # Get or1, or2 from union_apply_elim
-    $got_or1 mp(mp(apply_thm(union_apply_elim, _uae, [["u", forall("a", forall("b", forall("x", forall("y", _uae_b("u","a","b","x","y")))))], ["v", forall("b", forall("x", forall("y", _uae_b("u","v","b","x","y"))))], ["h", forall("x", forall("y", _uae_b("u","v","h","x","y")))], ["r", forall("y", _uae_b("u","v","h","r","y"))], ["r1", _uae_b("u","v","h","r","r1")]], []),
+    $got_or1 mp(mp(apply_thm(union_apply_elim, _uae, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["r", ["y"]], ["r1", []]], _uae_b, []),
         ax([app_u1], [app_u1], app_u1), app_u1, implies(un, or1), [], [app_u1]),
         ax([un], [un], un), un, or1, [app_u1], [un])
-    $got_or2 mp(mp(apply_thm(union_apply_elim, _uae, [["u", forall("a", forall("b", forall("x", forall("y", _uae_b("u","a","b","x","y")))))], ["v", forall("b", forall("x", forall("y", _uae_b("u","v","b","x","y"))))], ["h", forall("x", forall("y", _uae_b("u","v","h","x","y")))], ["r", forall("y", _uae_b("u","v","h","r","y"))], ["r2", _uae_b("u","v","h","r","r2")]], []),
+    $got_or2 mp(mp(apply_thm(union_apply_elim, _uae, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["r", ["y"]], ["r2", []]], _uae_b, []),
         ax([app_u2], [app_u2], app_u2), app_u2, implies(un, or2), [], [app_u2]),
         ax([un], [un], un), un, or2, [app_u2], [un])
 

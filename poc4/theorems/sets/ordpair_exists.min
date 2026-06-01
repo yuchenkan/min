@@ -104,19 +104,19 @@ $ordpair_exists {
     # eel chain
     $g_eel_p eel(g_ex, \v: pair_set(v, "sa", "pab", "_"), "p", "p", [p_char, sa_char, pab_char], goal)
     $ex_p exists("p", pair_set("p", "sa", "pab", "_"))
-    $_pse_b \a b: exists("s", pair_set("s",a,b,"_"))
+    $_pse_b \a: \b: exists("s", pair_set("s",a,b,"_"))
     $_sse_b \a: exists("s", singleton("s",a,"_"))
-    $g_pse_sapab apply_thm(pair_set_exists, _pse, [["sa", forall("b", _pse_b("sa","b"))], ["pab", _pse_b("sa","pab")]], [pa_f])
+    $g_pse_sapab apply_thm(pair_set_exists, _pse, [["sa", ["b"]], ["pab", []]], _pse_b, [pa_f])
     $g_cut_p cut_c(g_pse_sapab, g_eel_p, ex_p, [pa_f], [ex_p, sa_char, pab_char], goal)
 
     $g_eel_pab eel(g_cut_p, \v: pair_set(v, "a", "b", "_"), "pab", "pab", [pa_f, sa_char, pab_char], goal)
     $ex_pab exists("pab", pair_ab("pab"))
-    $g_pse_ab apply_thm(pair_set_exists, _pse, [["a", forall("b", _pse_b("a","b"))], ["b", _pse_b("a","b")]], [pa_f])
+    $g_pse_ab apply_thm(pair_set_exists, _pse, [["a", ["b"]], ["b", []]], _pse_b, [pa_f])
     $g_cut_pab cut_c(g_pse_ab, g_eel_pab, ex_pab, [pa_f], [pa_f, sa_char, ex_pab], goal)
 
     $g_eel_sa eel(g_cut_pab, \v: singleton(v, "a", "_"), "sa", "sa", [pa_f, sa_char], goal)
     $ex_sa exists("sa", sing_a("sa"))
-    $g_sse_a apply_thm(singleton_exists, _sse, [["a", _sse_b("a")]], [pa_f])
+    $g_sse_a apply_thm(singleton_exists, _sse, [["a", []]], _sse_b, [pa_f])
     $g_cut_sa cut_c(g_sse_a, g_eel_sa, ex_sa, [pa_f], [pa_f, ex_sa], goal)
 
     close(g_cut_sa, [pa_f], [goal], ["b", "a"])

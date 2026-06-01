@@ -29,7 +29,7 @@ $apply_in_double_union {
     # singleton_exists: auto-deepen handles "x" clash
     $_se_f head(right(singleton_exists))
     $se_ctx left(singleton_exists)
-    $got_se apply_thm(singleton_exists, _se_f, [["x", exists("s", singleton("s","x","_"))]], se_ctx)
+    $got_se apply_thm(singleton_exists, _se_f, [["x", []]], \a: exists("s", singleton("s",a,"_")), se_ctx)
 
     $sing singleton("s", "x", "_")
     $sx mem("s", "p")
@@ -37,25 +37,25 @@ $apply_in_double_union {
     $s_uf mem("s", "uf")
 
     $_oml head(right(ordpair_mem_left))
-    $_oml_b \s p a b: implies(ordered_pair(p,a,b,"_"), implies(singleton(s,a,"_"), mem(s,p)))
-    $got_oml apply_thm(ordpair_mem_left, _oml, [["s", forall("p", forall("a", forall("b", _oml_b("s","p","a","b"))))], ["p", forall("a", forall("b", _oml_b("s","p","a","b")))], ["x", forall("b", _oml_b("s","p","x","b"))], ["y", _oml_b("s","p","x","y")]], [])
+    $_oml_b \s: \p: \a: \b: implies(ordered_pair(p,a,b,"_"), implies(singleton(s,a,"_"), mem(s,p)))
+    $got_oml apply_thm(ordpair_mem_left, _oml, [["s", ["p","a","b"]], ["p", ["a","b"]], ["x", ["b"]], ["y", []]], _oml_b, [])
     $got_sp mp(mp(got_oml, got_op, op, implies(sing, sx), [], [and_op_pf]),
         ax([sing], [sing], sing), sing, sx, [and_op_pf], [sing])
 
     $_sm head(right(singleton_mem))
-    $_sm_b \s a: implies(singleton(s,a,"_"), mem(a,s))
-    $got_sm apply_thm(singleton_mem, _sm, [["s", forall("a", _sm_b("s","a"))], ["x", _sm_b("s","x")]], [])
+    $_sm_b \s: \a: implies(singleton(s,a,"_"), mem(a,s))
+    $got_sm apply_thm(singleton_mem, _sm, [["s", ["a"]], ["x", []]], _sm_b, [])
     $got_xs mp(got_sm, ax([sing], [sing], sing), sing, xs, [], [sing])
 
     $_bu head(right(big_union_mem_intro))
-    $_bu_b \x y u a: implies(mem(x,y), implies(mem(y,a), implies(big_union(u,a,"_"), mem(x,u))))
-    $got_bu1 apply_thm(big_union_mem_intro, _bu, [["s", forall("y", forall("u", forall("a", _bu_b("s","y","u","a"))))], ["p", forall("u", forall("a", _bu_b("s","p","u","a")))], ["uf", forall("a", _bu_b("s","p","uf","a"))], ["f", _bu_b("s","p","uf","f")]], [])
+    $_bu_b \x: \y: \u: \a: implies(mem(x,y), implies(mem(y,a), implies(big_union(u,a,"_"), mem(x,u))))
+    $got_bu1 apply_thm(big_union_mem_intro, _bu, [["s", ["y","u","a"]], ["p", ["u","a"]], ["uf", ["a"]], ["f", []]], _bu_b, [])
     $got_s_uf mp(mp(mp(got_bu1,
         got_sp, sx, implies(pf, implies(uf_f, s_uf)), [], [and_op_pf, sing]),
         got_pf, pf, implies(uf_f, s_uf), [and_op_pf, sing], [and_op_pf]),
         ax([uf_f], [uf_f], uf_f), uf_f, s_uf, [and_op_pf, sing], [uf_f])
 
-    $got_bu2 apply_thm(big_union_mem_intro, _bu, [["x", forall("y", forall("u", forall("a", _bu_b("x","y","u","a"))))], ["s", forall("u", forall("a", _bu_b("x","s","u","a")))], ["uuf", forall("a", _bu_b("x","s","uuf","a"))], ["uf", _bu_b("x","s","uuf","uf")]], [])
+    $got_bu2 apply_thm(big_union_mem_intro, _bu, [["x", ["y","u","a"]], ["s", ["u","a"]], ["uuf", ["a"]], ["uf", []]], _bu_b, [])
     $got_x_uuf mp(mp(mp(got_bu2,
         got_xs, xs, implies(s_uf, implies(uuf_uf, x_uuf)), [], [sing]),
         got_s_uf, s_uf, implies(uuf_uf, x_uuf), [sing], [and_op_pf, sing, uf_f]),
