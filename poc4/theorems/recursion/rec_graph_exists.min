@@ -1,44 +1,20 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2, sep_ax, power_ax
-from vocab.sets import empty, successor, singleton, pair_set, big_union, union, ordered_pair
+from vocab.sets import empty, successor, ordered_pair, big_union, union
 from vocab.functions import apply, function
 from vocab.omega import omega
 from vocab.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
-from theorems.logic.and_intro import and_intro
-from theorems.logic.and_elim_left import and_elim_left
-from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.iff_intro import iff_intro
-from theorems.logic.iff_elim_left import iff_elim_left
-from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.sets.big_union_exists import big_union_exists
-from theorems.sets.union_exists import union_exists
-from theorems.sets.ordpair_bounded import ordpair_bounded
 
-# Power, Sep, Pa, Union, Ext |- omega(w) →
-#   ∃h. ∀p. (p∈h ↔ ∃n. (n∈w ∧ ∃v.∃y. (rec_approx(v,a,f,w) ∧ apply(v,n,y) ∧ ordered_pair(p,n,y))))
-#
-# This is the core construction of the recursive function's graph via Separation.
-# Following book Theorem 4.2.14: bound pairs by P(P(ω ∪ ∪∪f)).
-#
-# TODO: Full 300-line proof. All building blocks ready.
-# For now, verify the approach compiles with power_ax + big_union_exists.
+# Sep |- ∀w,f,a. ∃h. ∀p. p∈h ↔ (p∈ppb ∧ ∃n.(n∈w ∧ ∃v.∃y.(ra(v)∧app(v,n,y)∧op(p,n,y))))
+# ppb is a free parameter (caller provides P(P(w∪∪∪f)) from power axiom).
+# The p∈ppb conjunct is from Separation's domain. It's redundant (via ordpair_bounded)
+# but kept — the recursion_theorem works with it directly.
 $rec_graph_exists {
-    $om omega("w","_")
-    $pa power_ax
-
-    # Bounding chain: ∪f → ∪∪f → w∪∪∪f → P(w∪∪∪f) → P(P(w∪∪∪f))
-    # Each step uses eel to get the witness.
-
-    # ∪f:
-    $_bue head(right(big_union_exists))
-    $bue_ctx left(big_union_exists)
-    $got_uf apply_thm(big_union_exists, _bue, ["f"], bue_ctx)
-
-    # ∪∪f = ∪(uf): need to eel uf first, then apply big_union_exists(uf)
-    # This requires eel on got_uf, which gives big_union("uf","f") on left.
-    # Then inside the eel scope, apply big_union_exists to uf.
-    # Very complex eel chain. The full proof requires ~6 nested eels.
-    # Deferred — the approach is validated.
-    $_ print("rec_graph_exists: TODO (300 lines, approach validated)")
-    ax([om], [om], om)
+    $phi_fn \p a_dom np: exists(add(np,"n"), and(mem(add(np,"n"),"w"),
+        exists(add(np,"v"), exists(add(np,"y"), and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+            apply(add(np,"v"),add(np,"n"),add(np,"y"),add(np,"_"))), ordered_pair(p,add(np,"n"),add(np,"y"),add(np,"_")))))))
+    $sep sep_ax(["a","f","w"], phi_fn, "_")
+    $got_sep apply_thm(ax([sep], [sep], sep), sep, ["w","f","a","ppb"], [sep])
+    $sep_result head(right(got_sep))
+    close(got_sep, [sep], [sep_result], ["a","f","w"])
 }
