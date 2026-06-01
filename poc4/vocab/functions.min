@@ -18,16 +18,28 @@ $domain \d f p: {
         forall(x, iff(mem(x, d), exists(y, apply(f, x, y, ap))))]
 }
 
-# function(f, p): f is single-valued
-# forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2)
+# relation(f, p): every element of f is an ordered pair
+# forall z. z in f -> exists x, y. ordered_pair(z, x, y)
+$relation \f p: {
+    $z add(p, "z")
+    $x add(p, "x")
+    $y add(p, "y")
+    $op add(p, "_")
+    ["relation", add("Rel(", add(f, ")")),
+        forall(z, implies(mem(z, f), exists(x, exists(y, ordered_pair(z, x, y, op)))))]
+}
+
+# function(f, p): relation(f) and single-valued
+# and(relation(f), forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2))
 $function \f p: {
     $x add(p, "x")
     $y1 add(p, "y1")
     $y2 add(p, "y2")
     $ap add(p, "_")
+    $sv forall(x, forall(y1, forall(y2,
+        implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ap)))))
     ["function", add("Func(", add(f, ")")),
-        forall(x, forall(y1, forall(y2,
-            implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ap)))))]
+        and(relation(f, p), sv)]
 }
 
 # product(s, a, b, p): s = a x b
