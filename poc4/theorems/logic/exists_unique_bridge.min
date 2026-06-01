@@ -28,7 +28,8 @@ $exists_unique_bridge \phi_fn s vars: {
 
     $got_phi_u mp(and_elim_left(phi_u, uniq_u, []), ax([eu_body_u], [eu_body_u], eu_body_u), eu_body_u, phi_u, [], [eu_body_u])
     $imp_u implies(phi_u, pred_u)
-    $got_imp_u apply_thm(ax([fa_form], [fa_form], fa_form), fa_form, ["u"], [fa_form])
+    $got_imp_u apply_thm(ax([fa_form], [fa_form], fa_form), fa_form, [["u", []]],
+        \v: implies(phi_fn(v), pred_fn(v)), [fa_form])
     $got_pred_u mp(got_imp_u, got_phi_u, phi_u, pred_u, [fa_form], [eu_body_u])
     $and_u and(phi_u, pred_u)
     $got_and_u mp(mp(and_intro(phi_u, pred_u, []),
@@ -55,28 +56,33 @@ $exists_unique_bridge \phi_fn s vars: {
     $phi_t phi_fn("t")
     $pred_t pred_fn("t")
     $eqv_u2_t eqv("u2", "t", "_")
-    $got_uniq_t apply_thm(got_uniq_u2, uniq_u2, ["t"], [eu_body_u2])
+    $got_uniq_t apply_thm(got_uniq_u2, uniq_u2, [["t", []]],
+        \v: implies(phi_fn(v), eqv("u2",v,"_")), [eu_body_u2])
     $got_eqv_u2_t mp(got_uniq_t, ax([phi_t], [phi_t], phi_t), phi_t, eqv_u2_t, [eu_body_u2], [phi_t])
 
     $eqv_u2_w eqv("u2", "w", "_")
-    $got_uniq_w apply_thm(got_uniq_u2, uniq_u2, ["w"], [eu_body_u2])
+    $got_uniq_w apply_thm(got_uniq_u2, uniq_u2, [["w", []]],
+        \v: implies(phi_fn(v), eqv("u2",v,"_")), [eu_body_u2])
     $got_eqv_u2_w mp(got_uniq_w, got_phi_w, phi_w, eqv_u2_w, [eu_body_u2], [ex_body_w])
 
     # eqv_symmetric: forall a b. eqv(a,b) -> eqv(b,a)
     $_es head(right(eqv_symmetric))
     $eqv_t_u2 eqv("t", "u2", "_")
-    $got_eqv_t_u2 mp(apply_thm(eqv_symmetric, _es, ["u2", "t"], []),
+    $got_eqv_t_u2 mp(apply_thm(eqv_symmetric, _es, [["u2", ["b"]], ["t", []]],
+        \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
         got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
 
     $_et head(right(eqv_transitive))
     $eqv_t_w eqv("t", "w", "_")
-    $got_eqv_t_w mp(mp(apply_thm(eqv_transitive, _et, ["t", "u2", "w"], []),
+    $got_eqv_t_w mp(mp(apply_thm(eqv_transitive, _et, [["t", ["b","c"]], ["u2", ["c"]], ["w", []]],
+        \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_"))), []),
                        got_eqv_t_u2, eqv_t_u2, implies(eqv_u2_w, eqv_t_w), [], [eu_body_u2, phi_t]),
                     got_eqv_u2_w, eqv_u2_w, eqv_t_w, [eu_body_u2, phi_t], [eu_body_u2, ex_body_w])
 
     $_exs head(right(ext_substitution))
     $iff_pred iff(pred_t, pred_w)
-    $got_iff_pred mp(apply_thm(ext_substitution, _exs, ["t", "w", s], left(ext_substitution)),
+    $got_iff_pred mp(apply_thm(ext_substitution, _exs, [["t", ["b","s"]], ["w", ["s"]], [s, []]],
+        \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), left(ext_substitution)),
                      got_eqv_t_w, eqv_t_w, iff_pred,
                      [ext_f], [eu_body_u2, phi_t, ex_body_w])
 

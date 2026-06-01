@@ -140,20 +140,30 @@ $inst \thm formula body term ctx: {
     cut(wr(thm, ctx, [formula, body], body),
         s2, ctx, [body], formula)
 }
+# _apply_args: apply curried fn (\a: \b: ...) to list of args one at a time
+$_apply_args \self fn args: ?(eq(len(args), 0), fn, self(self, fn(head(args)), tail(args)))
+
+# _wrap_foralls: forall(v1, forall(v2, ..., body))
+$_wrap_foralls \self vars body: ?(eq(len(vars), 0), body,
+    forall(head(vars), self(self, tail(vars), body)))
+
 # apply_thm: multi-forall instantiation
-# steps: [[term, body], [term, body], ...] — caller provides each substituted body
-$_apply_thm \self thm formula steps ctx: {
-    $_peel \ps f: ?(eq(tag(f), "forall"), f, ps(ps, exp(f)))
+# steps: [[term, [remaining_vars]], ...] — vars name the foralls below this step
+# body_fn: curried \a: \b: \c: ... returning innermost body
+$_apply_thm \self thm formula steps body_fn applied ctx: {
     ?(eq(len(steps), 0), thm, {
         $step head(steps)
         $term nth(step, 0)
-        $body nth(step, 1)
+        $vars nth(step, 1)
+        $new_applied add(applied, [term])
+        $inner _apply_args(_apply_args, body_fn, add(new_applied, vars))
+        $body _wrap_foralls(_wrap_foralls, vars, inner)
         $result inst(thm, formula, body, term, ctx)
         $actual_body head(right(result))
-        self(self, result, actual_body, tail(steps), ctx)
+        self(self, result, actual_body, tail(steps), body_fn, new_applied, ctx)
     })
 }
-$apply_thm \thm formula steps ctx: _apply_thm(_apply_thm, thm, formula, steps, ctx)
+$apply_thm \thm formula steps body_fn ctx: _apply_thm(_apply_thm, thm, formula, steps, body_fn, [], ctx)
 
 # eir: exists intro right
 # prf: ctx |- [body_inst] where body_inst = body_fn(witness)

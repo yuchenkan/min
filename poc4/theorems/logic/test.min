@@ -170,7 +170,7 @@ $_ print("ext_substitution ok")
 
 from theorems.logic.eqv_mem_right import eqv_mem_right
 $_ qed(eqv_mem_right,
-    forall("a", forall("y", forall("x",
+    forall("x", forall("y", forall("a",
         implies(eqv("x", "y", "_"), implies(mem("x", "a"), mem("y", "a")))))))
 $_ print("eqv_mem_right ok")
 
