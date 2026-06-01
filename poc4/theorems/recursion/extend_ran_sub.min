@@ -60,7 +60,8 @@ $extend_ran_sub {
     # [ra_v] |- ran_sub
 
     # === Case v: ran_sub inst (x, y), mp app_vx → ∃z.apply(f,y,z) ===
-    $got_ran_inst apply_thm(got_ran_sub, ran_sub, ["x","y"], [ra_v])
+    $got_ran_inst apply_thm(got_ran_sub, ran_sub, [["x", ["y"]], ["y", []]],
+        \x: \y: implies(apply("v",x,y,"_"), exists("z2", apply("f",y,"z2","_"))), [ra_v])
     $ran_body head(right(got_ran_inst))
     $got_case_v mp(got_ran_inst, ax([app_vx], [app_vx], app_vx), app_vx,
         arg2(ran_body), [ra_v], [app_vx])
@@ -77,13 +78,18 @@ $extend_ran_sub {
     $eqv_q_op eqv("q", "op", "_")
     $eqv_y_fval eqv("y", "fval", "_")
 
-    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q","h","op"], []),
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_uae_b \u: \a: \b: \x: \y: implies(apply(u,x,y,"_"), implies(union(u,a,b,"_"), or(apply(a,x,y,"_"), apply(b,x,y,"_"))))
+    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, [["q", ["f","a"]], ["h", ["a"]], ["op", []]], _sme_b, []),
         ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eqv_q_op), [], [sing_h]),
         mp(and_elim_right(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, qh, [], [and_q]),
         qh, eqv_q_op, [sing_h], [and_q])
 
     $goal_and and(eqv("x","sn","_"), eqv_y_fval)
-    $k_inst apply_thm(kuratowski, _kur, ["q","op","x","y","sn","fval"], kur_ctx)
+    $k_inst apply_thm(kuratowski, _kur, [["q", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["x", ["b","c","d"]], ["y", ["c","d"]], ["sn", ["d"]], ["fval", []]], _kur_b, kur_ctx)
     $got_op_q mp(and_elim_left(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
     $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eqv_q_op, goal_and)), left(k_inst), [and_q])
     $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eqv_q_op, goal_and), left(km1), [opkv])
@@ -94,7 +100,8 @@ $extend_ran_sub {
 
     # ran_f_closed: apply(f,val,fval) → ∃w2.apply(f,fval,w2)
     $ex_f_fval exists("w2", apply("f","fval","w2","_"))
-    $got_rfc apply_thm(ax([ran_f_closed], [ran_f_closed], ran_f_closed), ran_f_closed, ["val","fval"], [ran_f_closed])
+    $got_rfc apply_thm(ax([ran_f_closed], [ran_f_closed], ran_f_closed), ran_f_closed, [["val", ["z"]], ["fval", []]],
+        \y: \z: implies(apply("f",y,z,"_"), exists("w2", apply("f",z,"w2","_"))), [ran_f_closed])
     $got_rfc2 mp(got_rfc, ax([app_f_val], [app_f_val], app_f_val), app_f_val, ex_f_fval,
         [ran_f_closed], [app_f_val])
     # [ran_f_closed, app_f_val] |- ∃w2.apply(f,fval,w2)
@@ -106,7 +113,7 @@ $extend_ran_sub {
     # Then eir.
     $_es head(right(eqv_symmetric))
     $eqv_fval_y eqv("fval", "y", "_")
-    $got_fval_y mp(apply_thm(eqv_symmetric, _es, ["y","fval"], []),
+    $got_fval_y mp(apply_thm(eqv_symmetric, _es, [["y", ["b"]], ["fval", []]], _es_b, []),
         got_y_fval, eqv_y_fval, eqv_fval_y, [], left(got_y_fval))
 
     $_avt head(right(apply_val_transfer))
@@ -117,7 +124,9 @@ $extend_ran_sub {
     $_akt head(right(apply_key_transfer))
     $app_f_fval_z3 apply("f", "fval", "z3", "_")
     $app_f_y_z3 apply("f", "y", "z3", "_")
-    $akt1 mp(apply_thm(apply_key_transfer, _akt, ["f","fval","y","z3"], []),
+    $akt_r forall("f", forall("x", forall("x2", forall("q", _akt_b("f")("x")("x2")("q")))))
+    $akt_r_thm wr(apply_key_transfer, [], [akt_r], akt_r)
+    $akt1 mp(apply_thm(akt_r_thm, akt_r, [["f", ["x","x2","q"]], ["fval", ["x2","q"]], ["y", ["q"]], ["z3", []]], _akt_b, []),
         got_fval_y, eqv_fval_y, implies(app_f_fval_z3, app_f_y_z3), [], left(got_fval_y))
     $got_f_y_z3 mp(akt1, ax([app_f_fval_z3], [app_f_fval_z3], app_f_fval_z3),
         app_f_fval_z3, app_f_y_z3, left(akt1), [app_f_fval_z3])
@@ -135,7 +144,7 @@ $extend_ran_sub {
 
     # === Or-elim ===
     $_uae head(right(union_apply_elim))
-    $got_or mp(mp(apply_thm(union_apply_elim, _uae, ["u","v","h","x","y"], []),
+    $got_or mp(mp(apply_thm(union_apply_elim, _uae, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["x", ["y"]], ["y", []]], _uae_b, []),
         ax([app_ux], [app_ux], app_ux), app_ux, implies(un, or_vh), [], [app_ux]),
         ax([un], [un], un), un, or_vh, [app_ux], [un])
 

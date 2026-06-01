@@ -73,13 +73,17 @@ $extend_dom_sub {
     $eqv_x_sn eqv("x", "sn", "_")
     $eqv_sn_x eqv("sn", "x", "_")
 
-    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q","h","op"], []),
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_uae_b \u: \a: \b: \x: \y: implies(apply(u,x,y,"_"), implies(union(u,a,b,"_"), or(apply(a,x,y,"_"), apply(b,x,y,"_"))))
+    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, [["q", ["f","a"]], ["h", ["a"]], ["op", []]], _sme_b, []),
         ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eqv_q_op), [], [sing_h]),
         mp(and_elim_right(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, qh, [], [and_q]),
         qh, eqv_q_op, [sing_h], [and_q])
 
     $goal_and and(eqv_x_sn, eqv("y", "fval", "_"))
-    $k_inst apply_thm(kuratowski, _kur, ["q","op","x","y","sn","fval"], kur_ctx)
+    $k_inst apply_thm(kuratowski, _kur, [["q", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["x", ["b","c","d"]], ["y", ["c","d"]], ["sn", ["d"]], ["fval", []]], _kur_b, kur_ctx)
     $got_op_q mp(and_elim_left(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
     $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eqv_q_op, goal_and)), left(k_inst), [and_q])
     $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eqv_q_op, goal_and), left(km1), [opkv])
@@ -90,13 +94,14 @@ $extend_dom_sub {
 
     # eqv_symmetric: eqv(x,sn) → eqv(sn,x)
     $_es head(right(eqv_symmetric))
-    $got_sn_x mp(apply_thm(eqv_symmetric, _es, ["x","sn"], []),
+    $got_sn_x mp(apply_thm(eqv_symmetric, _es, [["x", ["b"]], ["sn", []]], _es_b, []),
         got_x_sn, eqv_x_sn, eqv_sn_x, [], left(got_x_sn))
 
     # omega_succ_closed: omega(w) → n∈w → succ(sn,n) → sn∈w
     $_osc head(right(omega_succ_closed))
     $sn_w mem("sn", "w")
-    $osc1 apply_thm(omega_succ_closed, _osc, ["sn","n","w"], [])
+    $osc1 apply_thm(omega_succ_closed, _osc, [["sn", ["n","w"]], ["n", ["w"]], ["w", []]],
+        \s: \n: \w: implies(omega(w,"_"), implies(mem(n,w), implies(successor(s,n,"_"), mem(s,w)))), [])
     $osc2 mp(osc1, ax([om], [om], om), om, implies(nw, implies(succ_sn, sn_w)), left(osc1), [om])
     $osc3 mp(osc2, ax([nw], [nw], nw), nw, implies(succ_sn, sn_w), left(osc2), [nw])
     $got_sn_w mp(osc3, ax([succ_sn], [succ_sn], succ_sn), succ_sn, sn_w, left(osc3), [succ_sn])
@@ -105,7 +110,8 @@ $extend_dom_sub {
     # eqv_mem_right: eqv(sn,x) → sn∈w → x∈w
     $emr_ctx left(eqv_mem_right)
     $_emr head(right(eqv_mem_right))
-    $emr1 mp(apply_thm(eqv_mem_right, _emr, ["sn","x","w"], emr_ctx),
+    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $emr1 mp(apply_thm(eqv_mem_right, _emr, [["sn", ["y","a"]], ["x", ["a"]], ["w", []]], _emr_b, emr_ctx),
         got_sn_x, eqv_sn_x, implies(sn_w, xw), emr_ctx, left(got_sn_x))
     $got_case_h_inner mp(emr1, got_sn_w, sn_w, xw, left(emr1), left(got_sn_w))
     # left(got_case_h_inner) |- x∈w. Has pa_f, and_q, opkv, sing_h, om, nw, succ_sn, emr_ctx.
@@ -117,7 +123,7 @@ $extend_dom_sub {
 
     # === Or-elim via il ===
     $_uae head(right(union_apply_elim))
-    $got_or mp(mp(apply_thm(union_apply_elim, _uae, ["u","v","h","x","y"], []),
+    $got_or mp(mp(apply_thm(union_apply_elim, _uae, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["x", ["y"]], ["y", []]], _uae_b, []),
         ax([app_ux], [app_ux], app_ux), app_ux, implies(un, or_vh), [], [app_ux]),
         ax([un], [un], un), un, or_vh, [app_ux], [un])
 
