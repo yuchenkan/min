@@ -15,7 +15,7 @@ $recursive \h a f w p: {
     $dd add(p, "d")
 
     $func_h function(h, np)
-    $dom_eq forall(dd, implies(domain(h, dd, np), eqv(dd, w, np)))
+    $dom_eq forall(dd, implies(domain(dd, h, np), eqv(dd, w, np)))
     $base forall(e, implies(empty(e, np), apply(h, e, a, np)))
     $step forall(n, implies(mem(n, w),
         forall(v, implies(apply(h, n, v, np),

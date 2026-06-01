@@ -2,7 +2,7 @@ from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, q
 from vocab.sets import empty, successor, singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.omega import omega
-from vocab.recursion import rec_approx
+from vocab.recursion import rec_approx, recursive
 
 from theorems.recursion.rec_base import rec_base
 $_ qed(rec_base, forall("e0", forall("a", implies(empty("e0","_"), exists("h", and(function("h","_"), forall("e", implies(empty("e","_"), apply("h","e","a","_")))))))))
@@ -143,5 +143,15 @@ $rhf_body implies(rha_char, implies(function("f","_"), implies(omega("w","_"),
     function("h","_"))))))
 $_ qed(rec_h_function, forall("h", forall("a", forall("f", forall("w", rhf_body)))))
 $_ print("rec_h_function ok")
+
+from theorems.recursion.rec_values_agree import rec_values_agree
+$rva_pred \w n p: exists(add(p,"y"), and(apply("h",n,add(p,"y"),add(p,"_")),
+    and(apply("h2",n,add(p,"y"),add(p,"_")), exists(add(p,"z"), apply("f",add(p,"y"),add(p,"z"),add(p,"_"))))))
+$rva_ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
+$rva_body implies(recursive("h","a","f","w","_"), implies(recursive("h2","a","f","w","_"),
+    implies(function("f","_"), implies(exists("z", apply("f","a","z","_")), implies(rva_ran_fc,
+        implies(omega("w","_"), forall("n", implies(mem("n","w"), rva_pred("w","n","_")))))))))
+$_ qed(rec_values_agree, forall("h", forall("h2", forall("a", forall("f", forall("w", rva_body))))))
+$_ print("rec_values_agree ok")
 
 $ok true
