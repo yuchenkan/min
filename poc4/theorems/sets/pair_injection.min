@@ -28,10 +28,7 @@ $pair_injection {
     $or_ab_a or(eqv("a", "a", "_"), eqv("a", "b", "_"))
     $or_cd_a or(eqv("a", "c", "_"), eqv("a", "d", "_"))
     $iff_a iff(or_ab_a, or_cd_a)
-    $_er_body \a: eqv(a,a,"_")
-    $_es_body \a b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_et_body \a b c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
-    $g_aa apply_thm(eqv_reflexive, _er, [["a", _er_body("a")]], [])
+    $g_aa apply_thm(eqv_reflexive, _er, [["a", []]], \a: eqv(a,a,"_"), [])
     $g_or_a mp(or_intro_left(eqv("a", "a", "_"), eqv("a", "b", "_"), []), g_aa, eqv("a", "a", "_"), or_ab_a, [], [])
     $s_a fl(ax([iff_a], [iff_a], iff_a), [char], [iff_a], char, "a")
     $g_fwd_a mp(mp(iff_elim_left(or_ab_a, or_cd_a, []),
@@ -42,7 +39,7 @@ $pair_injection {
     $or_ab_b or(eqv("b", "a", "_"), eqv("b", "b", "_"))
     $or_cd_b or(eqv("b", "c", "_"), eqv("b", "d", "_"))
     $iff_b iff(or_ab_b, or_cd_b)
-    $g_bb apply_thm(eqv_reflexive, _er, [["b", _er_body("b")]], [])
+    $g_bb apply_thm(eqv_reflexive, _er, [["b", []]], \a: eqv(a,a,"_"), [])
     $g_or_b mp(or_intro_right(eqv("b", "a", "_"), eqv("b", "b", "_"), []), g_bb, eqv("b", "b", "_"), or_ab_b, [], [])
     $s_b fl(ax([iff_b], [iff_b], iff_b), [char], [iff_b], char, "b")
     $g_fwd_b mp(mp(iff_elim_left(or_ab_b, or_cd_b, []),
@@ -53,7 +50,7 @@ $pair_injection {
     $or_ab_d or(eqv("d", "a", "_"), eqv("d", "b", "_"))
     $or_cd_d or(eqv("d", "c", "_"), eqv("d", "d", "_"))
     $iff_d iff(or_ab_d, or_cd_d)
-    $g_dd apply_thm(eqv_reflexive, _er, [["d", _er_body("d")]], [])
+    $g_dd apply_thm(eqv_reflexive, _er, [["d", []]], \a: eqv(a,a,"_"), [])
     $g_or_d mp(or_intro_right(eqv("d", "c", "_"), eqv("d", "d", "_"), []), g_dd, eqv("d", "d", "_"), or_cd_d, [], [])
     $s_d fl(ax([iff_d], [iff_d], iff_d), [char], [iff_d], char, "d")
     $g_bwd_d mp(mp(iff_elim_right(or_ab_d, or_cd_d, []),
@@ -70,7 +67,7 @@ $pair_injection {
 
     # Sub-case eqv("b","c"): eqv("d","b") -> sym -> eqv("b","d")
     $eqv_db eqv("d", "b", "_")
-    $g_db_to_bd mp(apply_thm(eqv_symmetric, _es, [["d", forall("b", _es_body("d","b"))], ["b", _es_body("d","b")]], []),
+    $g_db_to_bd mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["b", []]], \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
         ax([eqv_db], [eqv_db], eqv_db), eqv_db, eq_bd, [], [eqv_db])
     $g_goal_db mp(mp(and_intro(eq_ac, eq_bd, []),
                      ax([eq_ac], [eq_ac], eq_ac), eq_ac, implies(eq_bd, and(eq_ac, eq_bd)), [], [eq_ac]),
@@ -83,15 +80,16 @@ $pair_injection {
     $eqv_da eqv("d", "a", "_")
     $eqv_dc eqv("d", "c", "_")
     $eqv_cd eqv("c", "d", "_")
-    $g_da_to_dc mp(mp(apply_thm(eqv_transitive, _et, [["d", forall("b", forall("c", _et_body("d","b","c")))], ["a", forall("c", _et_body("d","a","c"))], ["c", _et_body("d","a","c")]], []),
+    $_et_bf \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
+    $g_da_to_dc mp(mp(apply_thm(eqv_transitive, _et, [["d", ["b","c"]], ["a", ["c"]], ["c", []]], _et_bf, []),
                       ax([eqv_da], [eqv_da], eqv_da), eqv_da, implies(eq_ac, eqv_dc), [], [eqv_da]),
                    ax([eq_ac], [eq_ac], eq_ac), eq_ac, eqv_dc, [eqv_da], [eq_ac])
-    $g_cd mp(apply_thm(eqv_symmetric, _es, [["d", forall("b", _es_body("d","b"))], ["c", _es_body("d","c")]], []),
+    $g_cd mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["c", []]], \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
         g_da_to_dc, eqv_dc, eqv_cd, [], [eqv_da, eq_ac])
     # rename bound vars to avoid clash: a->b would clash with bound b
-    $et_bcd forall("a", forall("p", forall("q", _et_body("a","p","q"))))
+    $et_bcd forall("a", forall("p", forall("q", _et_bf("a")("p")("q"))))
     $et_bcd_thm wr(eqv_transitive, [], [et_bcd], et_bcd)
-    $g_bc_cd_bd mp(mp(apply_thm(et_bcd_thm, et_bcd, [["b", forall("p", forall("q", _et_body("b","p","q")))], ["c", forall("q", _et_body("b","c","q"))], ["d", _et_body("b","c","d")]], []),
+    $g_bc_cd_bd mp(mp(apply_thm(et_bcd_thm, et_bcd, [["b", ["p","q"]], ["c", ["q"]], ["d", []]], _et_bf, []),
                       ax([eq_bc], [eq_bc], eq_bc), eq_bc, implies(eqv_cd, eq_bd), [], [eq_bc]),
                    g_cd, eqv_cd, eq_bd, [eq_bc], [eqv_da, eq_ac])
     $g_goal_from_da mp(mp(and_intro(eq_ac, eq_bd, []),
@@ -121,7 +119,7 @@ $pair_injection {
     $or_ab_c or(eqv("c", "a", "_"), eqv("c", "b", "_"))
     $or_cd_c or(eqv("c", "c", "_"), eqv("c", "d", "_"))
     $iff_c iff(or_ab_c, or_cd_c)
-    $g_cc apply_thm(eqv_reflexive, _er, [["c", _er_body("c")]], [])
+    $g_cc apply_thm(eqv_reflexive, _er, [["c", []]], \a: eqv(a,a,"_"), [])
     $g_or_c mp(or_intro_left(eqv("c", "c", "_"), eqv("c", "d", "_"), []), g_cc, eqv("c", "c", "_"), or_cd_c, [], [])
     $s_c fl(ax([iff_c], [iff_c], iff_c), [char], [iff_c], char, "c")
     $g_bwd_c mp(mp(iff_elim_right(or_ab_c, or_cd_c, []),
@@ -137,7 +135,7 @@ $pair_injection {
 
     # Sub-case eqv("b","d"): eqv("c","b") -> sym -> eqv("b","c")
     $eqv_cb eqv("c", "b", "_")
-    $g_cb_to_bc mp(apply_thm(eqv_symmetric, _es, [["c", forall("b", _es_body("c","b"))], ["b", _es_body("c","b")]], []),
+    $g_cb_to_bc mp(apply_thm(eqv_symmetric, _es, [["c", ["b"]], ["b", []]], \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
         ax([eqv_cb], [eqv_cb], eqv_cb), eqv_cb, eq_bc, [], [eqv_cb])
     $g_goal_from_cb mp(mp(and_intro(eq_ad, eq_bc, []),
                           ax([eq_ad], [eq_ad], eq_ad), eq_ad, implies(eq_bc, and(eq_ad, eq_bc)), [], [eq_ad]),
@@ -149,16 +147,16 @@ $pair_injection {
     # eqv("b","d") + eqv("d","c") -> eqv("b","c") -> goal
     $eqv_ca eqv("c", "a", "_")
     # rename bound vars to avoid clash: a->c would clash with bound c
-    $et_cad forall("a", forall("p", forall("q", _et_body("a","p","q"))))
+    $et_cad forall("a", forall("p", forall("q", _et_bf("a")("p")("q"))))
     $et_cad_thm wr(eqv_transitive, [], [et_cad], et_cad)
-    $g_ca_to_cd mp(mp(apply_thm(et_cad_thm, et_cad, [["c", forall("p", forall("q", _et_body("c","p","q")))], ["a", forall("q", _et_body("c","a","q"))], ["d", _et_body("c","a","d")]], []),
+    $g_ca_to_cd mp(mp(apply_thm(et_cad_thm, et_cad, [["c", ["p","q"]], ["a", ["q"]], ["d", []]], _et_bf, []),
                       ax([eqv_ca], [eqv_ca], eqv_ca), eqv_ca, implies(eq_ad, eqv_cd), [], [eqv_ca]),
                    ax([eq_ad], [eq_ad], eq_ad), eq_ad, eqv_cd, [eqv_ca], [eq_ad])
-    $g_dc mp(apply_thm(eqv_symmetric, _es, [["c", forall("b", _es_body("c","b"))], ["d", _es_body("c","d")]], []),
+    $g_dc mp(apply_thm(eqv_symmetric, _es, [["c", ["b"]], ["d", []]], \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
         g_ca_to_cd, eqv_cd, eqv_dc, [], [eqv_ca, eq_ad])
     # reuse et_bcd renamed formula (a->b clash)
     $et_bdc_thm wr(eqv_transitive, [], [et_bcd], et_bcd)
-    $g_bd_dc_bc mp(mp(apply_thm(et_bdc_thm, et_bcd, [["b", forall("p", forall("q", _et_body("b","p","q")))], ["d", forall("q", _et_body("b","d","q"))], ["c", _et_body("b","d","c")]], []),
+    $g_bd_dc_bc mp(mp(apply_thm(et_bdc_thm, et_bcd, [["b", ["p","q"]], ["d", ["q"]], ["c", []]], _et_bf, []),
                       ax([eq_bd], [eq_bd], eq_bd), eq_bd, implies(eqv_dc, eq_bc), [], [eq_bd]),
                    g_dc, eqv_dc, eq_bc, [eq_bd], [eqv_ca, eq_ad])
     $g_goal_from_ca mp(mp(and_intro(eq_ad, eq_bc, []),
