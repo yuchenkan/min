@@ -101,4 +101,10 @@ $_ qed(rec_h_apply, forall("h", forall("a", forall("f", forall("w",
     forall("v", forall("n", forall("y", rha_body))))))))
 $_ print("rec_h_apply ok")
 
+from theorems.recursion.rec_h_dom_sub import rec_h_dom_sub
+$rhds_body implies(rha_char, implies(apply("h","x","y","_"), mem("x","w")))
+$_ qed(rec_h_dom_sub, forall("h", forall("a", forall("f", forall("w",
+    forall("x", forall("y", rhds_body)))))))
+$_ print("rec_h_dom_sub ok")
+
 $ok true
