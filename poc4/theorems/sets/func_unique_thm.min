@@ -15,7 +15,7 @@ $func_unique_thm {
     $sv forall("r", forall("r1", forall("r2",
         implies(and(apply("f","r","r1","_"), apply("f","r","r2","_")), eqv("r1","r2","_")))))
 
-    $got_sv apply_thm(ax([sv], [sv], sv), sv, [["x", ["r1","r2"]], ["y1", ["r2"]], ["y2", []]],
+    $got_sv apply_thm(ax([sv], [sv], sv), sv, ["x", "y1", "y2"], ["x", "r1", "r2"],
         \r: \r1: \r2: implies(and(apply("f",r,r1,"_"), apply("f",r,r2,"_")), eqv(r1,r2,"_")), [sv])
 
     $got_and mp(mp(and_intro(app1, app2, []),

@@ -22,7 +22,7 @@ $eq_in_eq {
 
     # eq_transfer instantiated: eqv(x1,x2) -> iff(mem(w,x1),mem(w,x2))
     $_et head(right(eq_transfer))
-    $got_et apply_thm(eq_transfer, _et, [["x1", ["b","z"]], ["x2", ["z"]], ["w", []]],
+    $got_et apply_thm(eq_transfer, _et, ["x1", "x2", "w"], ["x1", "b", "z"],
         \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a),mem(z,b))), [])
     # [] |- [eqv(x1,x2) -> iff(mem(w,x1),mem(w,x2))]
     $got_iff12 mp(got_et, ax([eqv_12], [eqv_12], eqv_12), eqv_12, iff_12, [], [eqv_12])

@@ -58,10 +58,10 @@ $extend_consistency {
                     forall("val2", implies(apply("v",n2,"val2","_"),
                         forall("fval2", implies(apply("f","val2","fval2","_"),
                             apply("v","sn2","fval2","_"))))))))))
-    $got_step_n apply_thm(got_step_v, step_v, [["n", []]], _step_v_b, [ra_v])
+    $got_step_n apply_thm(got_step_v, step_v, ["n"], ["n"], _step_v_b, [ra_v])
     $step_n_body head(right(got_step_n))
     $got_step_n2 mp(got_step_n, ax([nw], [nw], nw), nw, arg2(step_n_body), left(got_step_n), [nw])
-    $got_step_sn apply_thm(got_step_n2, head(right(got_step_n2)), [["sn", []]],
+    $got_step_sn apply_thm(got_step_n2, head(right(got_step_n2)), ["sn"], ["sn"],
         \sn2: implies(successor(sn2,"n","_"),
             implies(exists("y", apply("v",sn2,"y","_")),
                 and(exists("y", apply("v","n","y","_")),
@@ -88,14 +88,14 @@ $extend_consistency {
     $got_inner_fa mp(and_elim_right(ex_part, inner_fa, []),
         got_step_and, step_and, inner_fa, [], left(got_step_and))
 
-    $got_inner_val apply_thm(got_inner_fa, inner_fa, [["val", []]],
+    $got_inner_val apply_thm(got_inner_fa, inner_fa, ["val"], ["val"],
         \val2: implies(apply("v","n",val2,"_"),
             forall("fval2", implies(apply("f",val2,"fval2","_"), apply("v","sn","fval2","_")))), left(got_inner_fa))
     $inner_val_body head(right(got_inner_val))
     $got_inner_val2 mp(got_inner_val, ax([app_vn], [app_vn], app_vn), app_vn,
         arg2(inner_val_body), left(got_inner_val), [app_vn])
 
-    $got_inner_fval apply_thm(got_inner_val2, head(right(got_inner_val2)), [["fval", []]],
+    $got_inner_fval apply_thm(got_inner_val2, head(right(got_inner_val2)), ["fval"], ["fval"],
         \fval2: implies(apply("f","val",fval2,"_"), apply("v","sn",fval2,"_")), left(got_inner_val2))
     $inner_fval_body head(right(got_inner_fval))
     $app_vsn_fval apply("v", "sn", "fval", "_")
@@ -107,7 +107,7 @@ $extend_consistency {
     $_fut head(right(func_unique_thm))
     $eqv_z_fval eqv("z", "fval", "_")
     $_fut_b \f: \x: \y1: \y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
-    $fut1 mp(apply_thm(func_unique_thm, _fut, [["v", ["x","y1","y2"]], ["sn", ["y1","y2"]], ["z", ["y2"]], ["fval", []]], _fut_b, []),
+    $fut1 mp(apply_thm(func_unique_thm, _fut, ["v", "sn", "z", "fval"], ["v", "x", "y1", "y2"], _fut_b, []),
         got_func_v, func_v, implies(app_vsn_z, implies(app_vsn_fval, eqv_z_fval)), [], [ra_v])
     $fut2 mp(fut1, ax([app_vsn_z], [app_vsn_z], app_vsn_z), app_vsn_z,
         implies(app_vsn_fval, eqv_z_fval), [ra_v], [app_vsn_z])
@@ -115,7 +115,7 @@ $extend_consistency {
         [ra_v, app_vsn_z], left(got_app_vsn_fval))
     $_es head(right(eqv_symmetric))
     $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_result mp(apply_thm(eqv_symmetric, _es, [["z", ["b"]], ["fval", []]], _es_b, []),
+    $got_result mp(apply_thm(eqv_symmetric, _es, ["z", "fval"], ["z", "b"], _es_b, []),
         got_eqv_zf, eqv_z_fval, eqv_fval_z, [], left(got_eqv_zf))
 
     # Close

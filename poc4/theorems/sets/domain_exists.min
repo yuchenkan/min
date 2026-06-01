@@ -45,7 +45,7 @@ $domain_exists {
     $_adu head(right(apply_in_double_union))
     $adu_ctx left(apply_in_double_union)
     $_adu_b \f: \x: \y: \uf: \uuf: implies(apply(f,x,y,"_"), implies(big_union(uf,f,"_"), implies(big_union(uuf,uf,"_"), mem(x,uuf))))
-    $got_adu apply_thm(apply_in_double_union, _adu, [["f", ["x","y","uf","uuf"]], ["x", ["y","uf","uuf"]], ["y", ["uf","uuf"]], ["uf", ["uuf"]], ["uuf", []]], _adu_b, adu_ctx)
+    $got_adu apply_thm(apply_in_double_union, _adu, ["f", "x", "y", "uf", "uuf"], ["f", "x", "y", "uf", "uuf"], _adu_b, adu_ctx)
     $got_x_uuf mp(mp(mp(got_adu,
         ax([app_fxy], [app_fxy], app_fxy), app_fxy,
         implies(uf_f, implies(uuf_uf, x_uuf)), adu_ctx, [app_fxy]),
@@ -106,7 +106,7 @@ $domain_exists {
     $got_eel_d eel(got_ex, \d: forall("x", iff(mem("x",d), and(mem("x","uuf"), exists("r", apply("f","x","r","_"))))),
         "d", "d", add([char], add(adu_ctx, [uf_f, uuf_uf])), goal)
     $ex_char exists("d", char)
-    $got_sep_inst apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, [["f", ["a"]], ["uuf", []]],
+    $got_sep_inst apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, ["f", "uuf"], ["f", "a"],
         \f: \a: exists("b", forall("x", iff(mem("x","b"), and(mem("x",a), exists("r", apply(f,"x","r","_")))))), [sep_f])
     $got_cut_sep cut_c(got_sep_inst, got_eel_d, ex_char,
         [sep_f], add([ex_char], add(adu_ctx, [uf_f, uuf_uf])), goal)
@@ -117,7 +117,7 @@ $domain_exists {
     $got_eel_uuf eel(got_cut_sep, \uuf: big_union(uuf, "uf", "_"), "uuf", "uuf",
         add([sep_f], add(adu_ctx, [uf_f, uuf_uf])), goal)
     $ex_uuf exists("uuf", big_union("uuf", "uf", "_"))
-    $got_bu_uuf apply_thm(big_union_exists, bu_f, [["uf", []]], \a: exists("s", big_union("s",a,"_")), bu_ctx)
+    $got_bu_uuf apply_thm(big_union_exists, bu_f, ["uf"], ["uf"], \a: exists("s", big_union("s",a,"_")), bu_ctx)
     $got_cut_uuf cut_c(got_bu_uuf, got_eel_uuf, ex_uuf,
         bu_ctx, add([sep_f], add(adu_ctx, [uf_f, ex_uuf])), goal)
 
@@ -125,7 +125,7 @@ $domain_exists {
     $got_eel_uf eel(got_cut_uuf, \uf: big_union(uf, "f", "_"), "uf", "uf",
         add(bu_ctx, add([sep_f], add(adu_ctx, [uf_f]))), goal)
     $ex_uf exists("uf", big_union("uf", "f", "_"))
-    $got_bu_uf apply_thm(big_union_exists, bu_f, [["f", []]], \a: exists("s", big_union("s",a,"_")), bu_ctx)
+    $got_bu_uf apply_thm(big_union_exists, bu_f, ["f"], ["f"], \a: exists("s", big_union("s",a,"_")), bu_ctx)
     $got_cut_uf cut_c(got_bu_uf, got_eel_uf, ex_uf,
         bu_ctx, add(bu_ctx, add([sep_f], add(adu_ctx, [ex_uf]))), goal)
 

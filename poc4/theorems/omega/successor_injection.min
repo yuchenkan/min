@@ -25,7 +25,7 @@ $successor_injection {
     # === m∈sn from succ(sn,m): m=m → or(m∈m, eqv(m,m)) → iff backward → m∈sn ===
     $_er head(right(eqv_reflexive))
     $eqv_mm eqv("m", "m", "_")
-    $got_eqv_mm apply_thm(eqv_reflexive, _er, [["m", []]], \a: eqv(a,a,"_"), [])
+    $got_eqv_mm apply_thm(eqv_reflexive, _er, ["m"], ["m"], \a: eqv(a,a,"_"), [])
     $mm mem("m", "m")
     $or_mm or(mm, eqv_mm)
     $got_or_mm mp(or_intro_right(mm, eqv_mm, []),
@@ -50,7 +50,7 @@ $successor_injection {
 
     # === Similarly: n∈sn → or(n∈m, eqv(n,m)) ===
     $eqv_nn eqv("n", "n", "_")
-    $got_eqv_nn apply_thm(eqv_reflexive, _er, [["n", []]], \a: eqv(a,a,"_"), [])
+    $got_eqv_nn apply_thm(eqv_reflexive, _er, ["n"], ["n"], \a: eqv(a,a,"_"), [])
     $nn mem("n", "n")
     $or_nn or(nn, eqv_nn)
     $got_or_nn mp(or_intro_right(nn, eqv_nn, []),
@@ -80,17 +80,17 @@ $successor_injection {
     $ts_n transitive_set("n", "_")
     # omega_transitive_set: forall w. omega(w) → forall n. n∈w → ts(n)
     # Instantiate w, mp om, instantiate n=m/n, mp mw/nww.
-    $ots_w apply_thm(omega_transitive_set, _ots, [["w", []]],
+    $ots_w apply_thm(omega_transitive_set, _ots, ["w"], ["w"],
         \w: implies(omega(w,"_"), forall("n", implies(mem("n",w), transitive_set("n","_")))), ots_ctx)
     $ots_w_body head(right(ots_w))
     $ots_w_rest arg2(ots_w_body)
     $ots_w2 mp(ots_w, ax([om], [om], om), om, ots_w_rest, left(ots_w), [om])
     # left(ots_w2) |- forall(n, n∈w → ts(n))
-    $ots_m apply_thm(ots_w2, head(right(ots_w2)), [["m", []]],
+    $ots_m apply_thm(ots_w2, head(right(ots_w2)), ["m"], ["m"],
         \n: implies(mem(n,"w"), transitive_set(n,"_")), left(ots_w2))
     $ots_m_body head(right(ots_m))
     $got_ts_m mp(ots_m, ax([mw], [mw], mw), mw, arg2(ots_m_body), left(ots_m), [mw])
-    $ots_n apply_thm(ots_w2, head(right(ots_w2)), [["n", []]],
+    $ots_n apply_thm(ots_w2, head(right(ots_w2)), ["n"], ["n"],
         \n: implies(mem(n,"w"), transitive_set(n,"_")), left(ots_w2))
     $ots_n_body head(right(ots_n))
     $got_ts_n mp(ots_n, ax([nww], [nww], nww), nww, arg2(ots_n_body), left(ots_n), [nww])
@@ -121,7 +121,7 @@ $successor_injection {
     $_sa head(right(subset_antisymmetric))
     $sub_mn_v forall("y", implies(mem("y","m"), mem("y","n")))
     $sub_nm_v forall("y", implies(mem("y","n"), mem("y","m")))
-    $got_eqv_mn mp(mp(apply_thm(subset_antisymmetric, _sa, [["m", ["b"]], ["n", []]],
+    $got_eqv_mn mp(mp(apply_thm(subset_antisymmetric, _sa, ["m", "n"], ["m", "b"],
         \a: \b: implies(subset(a,b,"_"), implies(subset(b,a,"_"), eqv(a,b,"_"))), []),
         got_sub_mn, sub_mn_v, implies(sub_nm_v, eqv_mn), [], left(got_sub_mn)),
         got_sub_nm, sub_nm_v, eqv_mn, left(got_sub_mn), left(got_sub_nm))
@@ -132,7 +132,7 @@ $successor_injection {
     # Case n∈m + m∈n (from outer): got_eqv_mn
     # Case eqv(n,m): eqv_symmetric → eqv(m,n)
     $_es head(right(eqv_symmetric))
-    $got_nm_to_mn mp(apply_thm(eqv_symmetric, _es, [["n", ["b"]], ["m", []]],
+    $got_nm_to_mn mp(apply_thm(eqv_symmetric, _es, ["n", "m"], ["n", "b"],
         \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
         ax([eqv_nm], [eqv_nm], eqv_nm), eqv_nm, eqv_mn, [], [eqv_nm])
 

@@ -14,7 +14,7 @@ $unique_omega {
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
 
     $_ou head(right(omega_unique))
-    $ou_inst apply_thm(omega_unique, _ou, [["u", ["w2"]], ["y", []]],
+    $ou_inst apply_thm(omega_unique, _ou, ["u", "y"], ["u", "w2"],
         \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_"))), [])
     $got_inner mp(ou_inst, ax([om_u], [om_u], om_u), om_u, imp_inner, [], [om_u])
     $fa_uniq forall("y", imp_inner)

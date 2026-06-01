@@ -14,7 +14,7 @@ $unique_big_union {
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $ssu set_spec_unique(cond_fn, [])
     $_ssu_f head(right(ssu))
-    $ssu_inst apply_thm(ssu, _ssu_f, [["u", ["s2"]], ["y", []]],
+    $ssu_inst apply_thm(ssu, _ssu_f, ["u", "y"], ["u", "s2"],
         \s1: \s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eqv(s1,s2,"_"))), [])
     $got_inner mp(ssu_inst, ax([bu_u], [bu_u], bu_u), bu_u, imp_inner, [], [bu_u])
     $fa_uniq forall("y", imp_inner)
@@ -24,7 +24,7 @@ $unique_big_union {
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [bu_u], eu)
     $_ue_f head(right(big_union_exists))
     $ue_ctx left(big_union_exists)
-    $got_ue apply_thm(big_union_exists, _ue_f, [["a", []]],
+    $got_ue apply_thm(big_union_exists, _ue_f, ["a"], ["a"],
         \a: exists("s", big_union("s",a,"_")), ue_ctx)
     $ex_bu exists("s", body_fn("s", "_"))
     $got_cut cut_c(got_ue, got_ex, ex_bu, ue_ctx, [ex_bu], eu)

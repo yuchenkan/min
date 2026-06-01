@@ -21,7 +21,7 @@ $ordpair_val_transfer {
     $eqv_wb eqv("w", "b", "_")
     $eqv_wc eqv("w", "c", "_")
     $iff_eqv iff(eqv_wb, eqv_wc)
-    $got_eie apply_thm(eq_in_eq, _eie, [["w", ["x1","x2"]], ["b", ["x2"]], ["c", []]],
+    $got_eie apply_thm(eq_in_eq, _eie, ["w", "b", "c"], ["w", "x1", "x2"],
         \z: \x1: \x2: implies(eqv(x1,x2,"_"), iff(eqv(z,x1,"_"), eqv(z,x2,"_"))), [])
     $got_iff_eqv mp(got_eie, ax([eqv_bc], [eqv_bc], eqv_bc), eqv_bc, iff_eqv, [], [eqv_bc])
 

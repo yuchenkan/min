@@ -14,7 +14,7 @@ $omega_succ_closed {
     $s_in_w mem("s", "w")
 
     $_oi head(right(omega_is_inductive))
-    $got_ind mp(apply_thm(omega_is_inductive, _oi, [["w", []]],
+    $got_ind mp(apply_thm(omega_is_inductive, _oi, ["w"], ["w"],
         \w: implies(omega(w,"_"), inductive(w,"_")), []),
         ax([om], [om], om), om, ind, [], [om])
 
@@ -25,12 +25,12 @@ $omega_succ_closed {
         got_ind, ind, part2, [], [om])
 
     $fa_s forall("r", implies(successor("r", "n", "_"), mem("r", "w")))
-    $got_inst apply_thm(got_p2, part2, [["n", []]],
+    $got_inst apply_thm(got_p2, part2, ["n"], ["n"],
         \q: implies(mem(q,"w"), forall("r", implies(successor("r",q,"_"), mem("r","w")))), [om])
 
     $got_fas mp(got_inst, ax([n_in_w], [n_in_w], n_in_w), n_in_w, fa_s, [om], [n_in_w])
 
-    $got_inst2 apply_thm(got_fas, fa_s, [["s", []]],
+    $got_inst2 apply_thm(got_fas, fa_s, ["s"], ["s"],
         \r: implies(successor(r,"n","_"), mem(r,"w")), [om, n_in_w])
 
     $got_in mp(got_inst2, ax([succ_sn], [succ_sn], succ_sn), succ_sn, s_in_w, [om, n_in_w], [succ_sn])

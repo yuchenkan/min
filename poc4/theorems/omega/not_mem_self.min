@@ -40,12 +40,12 @@ $not_mem_self {
 
     $_nme head(right(neg_mem_empty))
     $_nme_b \e: \x: implies(empty(e,"_"), neg(mem(x,e)))
-    $got_neg_ee mp(apply_thm(neg_mem_empty, _nme, [["e", ["x"]], ["e", []]], _nme_b, []),
+    $got_neg_ee mp(apply_thm(neg_mem_empty, _nme, ["e", "e"], ["e", "x"], _nme_b, []),
         ax([emp_e], [emp_e], emp_e), emp_e, neg(ee), [], [emp_e])
 
     # ∀z∈e.¬(z∈z): vacuous (z∈e impossible)
     $ax_ze wl(ax([ze], [ze], ze), [emp_e, ze], [ze], emp_e)
-    $got_neg_ze mp(apply_thm(neg_mem_empty, _nme, [["e", ["x"]], ["z", []]], _nme_b, []),
+    $got_neg_ze mp(apply_thm(neg_mem_empty, _nme, ["e", "z"], ["e", "x"], _nme_b, []),
         ax([emp_e], [emp_e], emp_e), emp_e, neg(ze), [], [emp_e])
     $got_empty cut(wl(got_neg_ze, [emp_e, ze], [neg(ze)], ze),
         nl(ax_ze, [emp_e, ze, neg(ze)], [], neg(ze)), [emp_e, ze], [], neg(ze))
@@ -83,7 +83,7 @@ $not_mem_self {
     $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
     $mse_r forall("x", forall("p", forall("q", _mse_b("x")("p")("q"))))
     $mse_r_thm wr(mem_succ_elim, [], [mse_r], mse_r)
-    $got_or_s mp(mp(apply_thm(mse_r_thm, mse_r, [["s", ["p","q"]], ["s", ["q"]], ["n", []]], _mse_b, []),
+    $got_or_s mp(mp(apply_thm(mse_r_thm, mse_r, ["s", "s", "n"], ["s", "p", "q"], _mse_b, []),
         ax([ss], [ss], ss), ss, implies(succ_sn, or_sn), [], [ss]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_sn, [ss], [succ_sn])
 
@@ -91,13 +91,13 @@ $not_mem_self {
     $_mss head(right(mem_succ_self))
     $ns mem("n", "s")
     $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
-    $got_ns mp(apply_thm(mem_succ_self, _mss, [["s", ["n"]], ["n", []]], _mss_b, []),
+    $got_ns mp(apply_thm(mem_succ_self, _mss, ["s", "n"], ["s", "n"], _mss_b, []),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, ns, [], [succ_sn])
     $_eml head(right(eqv_mem_left))
     $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
     $eml_r forall("a", forall("b", forall("q", _eml_b("a")("b")("q"))))
     $eml_r_thm wr(eqv_mem_left, [], [eml_r], eml_r)
-    $got_nn_esn mp(mp(apply_thm(eml_r_thm, eml_r, [["s", ["b","q"]], ["n", ["q"]], ["n", []]], _eml_b, []),
+    $got_nn_esn mp(mp(apply_thm(eml_r_thm, eml_r, ["s", "n", "n"], ["s", "b", "q"], _eml_b, []),
         ax([esn], [esn], esn), esn, implies(ns, nn), [], [esn]),
         got_ns, ns, nn, [esn], [succ_sn])
     $case_esn nl(got_nn_esn, [esn, succ_sn, neg_nn], [], neg_nn)
@@ -134,7 +134,7 @@ $not_mem_self {
     $zn mem("z", "n")
     $ezn eqv("z", "n", "_")
     $or_zn or(zn, ezn)
-    $got_or_z mp(mp(apply_thm(mse_r_thm, mse_r, [["z", ["p","q"]], ["s", ["q"]], ["n", []]], _mse_b, []),
+    $got_or_z mp(mp(apply_thm(mse_r_thm, mse_r, ["z", "s", "n"], ["z", "p", "q"], _mse_b, []),
         ax([zs], [zs], zs), zs, implies(succ_sn, or_zn), [], [zs]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_zn, [zs], [succ_sn])
 
@@ -148,10 +148,10 @@ $not_mem_self {
     $_emr_f head(right(eqv_mem_right))
     $nz mem("n", "z")
     $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
-    $emr1 mp(apply_thm(eqv_mem_right, _emr_f, [["z", ["y","a"]], ["n", ["a"]], ["z", []]], _emr_b, emr_ctx),
+    $emr1 mp(apply_thm(eqv_mem_right, _emr_f, ["z", "n", "z"], ["z", "y", "a"], _emr_b, emr_ctx),
         ax([ezn], [ezn], ezn), ezn, implies(zz, nz), emr_ctx, [ezn])
     $got_nz mp(emr1, ax([zz], [zz], zz), zz, nz, left(emr1), [zz])
-    $eml1 mp(apply_thm(eml_r_thm, eml_r, [["z", ["b","q"]], ["n", ["q"]], ["n", []]], _eml_b, []),
+    $eml1 mp(apply_thm(eml_r_thm, eml_r, ["z", "n", "n"], ["z", "b", "q"], _eml_b, []),
         ax([ezn], [ezn], ezn), ezn, implies(nz, nn), [], [ezn])
     $got_nn_zz mp(eml1, got_nz, nz, nn, [ezn], left(got_nz))
     # left(got_nn_zz) |- nn
@@ -216,7 +216,7 @@ $not_mem_self {
             forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
         implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
     }
-    $ind_inst apply_thm(ind, _ind_f, [["w", []]], _ind_body, ind_ctx)
+    $ind_inst apply_thm(ind, _ind_f, ["w"], ["w"], _ind_body, ind_ctx)
     $fa_pred forall("n", implies(nw, pred_n))
 
     $i1 mp(ind_inst, ax([om], [om], om), om,

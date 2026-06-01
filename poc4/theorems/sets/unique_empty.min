@@ -12,7 +12,7 @@ $unique_empty {
     $empty_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $_eu_f head(right(empty_unique))
-    $eu_inst apply_thm(empty_unique, _eu_f, [["u", ["b"]], ["y", []]],
+    $eu_inst apply_thm(empty_unique, _eu_f, ["u", "y"], ["u", "b"],
         \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_"))), [])
     $got_inner mp(eu_inst, ax([empty_u], [empty_u], empty_u), empty_u, imp_inner, [], [empty_u])
     $fa_uniq forall("y", imp_inner)

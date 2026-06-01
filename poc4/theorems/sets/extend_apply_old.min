@@ -14,7 +14,7 @@ $extend_apply_old {
     $app_u apply("u", "x", "y", "_")
 
     $_ual_b \u: \a: \b: \x: \y: implies(apply(a,x,y,"_"), implies(union(u,a,b,"_"), apply(u,x,y,"_")))
-    $ual1 mp(apply_thm(union_apply_left, _ual, [["u", ["a","b","x","y"]], ["g", ["b","x","y"]], ["h", ["x","y"]], ["x", ["y"]], ["y", []]], _ual_b, []),
+    $ual1 mp(apply_thm(union_apply_left, _ual, ["u", "g", "h", "x", "y"], ["u", "a", "b", "x", "y"], _ual_b, []),
         ax([app_g], [app_g], app_g), app_g, implies(un, app_u), [], [app_g])
     $got mp(ual1, ax([un], [un], un), un, app_u, [app_g], [un])
 

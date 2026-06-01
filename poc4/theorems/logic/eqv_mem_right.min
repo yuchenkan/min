@@ -12,7 +12,7 @@ $eqv_mem_right {
 
     $_es head(right(ext_substitution))
     $es_ctx left(ext_substitution)
-    $got_iff mp(apply_thm(ext_substitution, _es, [["x", ["b", "s"]], ["y", ["s"]], ["a", []]],
+    $got_iff mp(apply_thm(ext_substitution, _es, ["x", "y", "a"], ["x", "b", "s"],
         \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx),
         ax([eqv_xy], [eqv_xy], eqv_xy), eqv_xy, iff_xy, es_ctx, [eqv_xy])
 

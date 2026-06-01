@@ -14,7 +14,7 @@ $domain_neg_no_apply {
     # domain_mem_intro: apply(f,x,y) → domain(d,f) → x∈d
     $_dmi head(right(domain_mem_intro))
     $_dmi_b \f: \d: \x: \y: implies(apply(f,x,y,"_"), implies(domain(d,f,"_"), mem(x,d)))
-    $got_xd mp(mp(apply_thm(domain_mem_intro, _dmi, [["f", ["d","x","y"]], ["d", ["x","y"]], ["x", ["y"]], ["y", []]], _dmi_b, []),
+    $got_xd mp(mp(apply_thm(domain_mem_intro, _dmi, ["f", "d", "x", "y"], ["f", "d", "x", "y"], _dmi_b, []),
         ax([app], [app], app), app, implies(dom, xd), [], [app]),
         ax([dom], [dom], dom), dom, xd, [app], [dom])
     # [app, dom] |- [xd]

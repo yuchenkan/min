@@ -10,7 +10,7 @@ $singleton_exists {
     $pa_p ax([pa_f], [pa_f], pa_f)
 
     # Instantiate pairing_ax with x="a", y="a"
-    $inst apply_thm(pa_p, pa_f, [["a", ["y"]], ["a", []]],
+    $inst apply_thm(pa_p, pa_f, ["a", "a"], ["a", "y"],
         \x: \y: exists("b", forall("z", iff(mem("z","b"), or(eqv("z",x,"_"), eqv("z",y,"_"))))), [pa_f])
 
     # Inside exists: assume pair_set(u, "a", "a")

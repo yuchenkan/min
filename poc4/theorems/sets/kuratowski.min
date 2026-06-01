@@ -131,20 +131,20 @@ $kuratowski {
     # === Helper: from two chars of same set, get singleton_injection or pair_injection ===
 
     # sing(sa,"a") + sing(sa,"c") -> eqv("a", "c", "_")
-    $g_ac_from_sing mp(apply_thm(singleton_injection, _si, [["a", ["b"]], ["c", []]], _si_b, []),
+    $g_ac_from_sing mp(apply_thm(singleton_injection, _si, ["a", "c"], ["a", "b"], _si_b, []),
                        char_iff(sa_char, sing_c("sa"), "sa", \v: eqv(v, "a", "_"), \v: eqv(v, "c", "_")),
                        forall("w", iff(eqv("w", "a", "_"), eqv("w", "c", "_"))), eq_ac,
                        [], [sa_char, sing_c("sa")])
 
     # sing(sa,"a") + pair(sa,"c","d") -> and(eqv("c", "a", "_"), eqv("d", "a", "_"))
-    $g_ca_da_from_sp mp(apply_thm(singleton_pair_eq, _sp, [["a", ["c","d"]], ["c", ["d"]], ["d", []]], _sp_b, []),
+    $g_ca_da_from_sp mp(apply_thm(singleton_pair_eq, _sp, ["a", "c", "d"], ["a", "c", "d"], _sp_b, []),
                         char_iff(sa_char, pair_cd("sa"), "sa", \v: eqv(v, "a", "_"), \v: or(eqv(v, "c", "_"), eqv(v, "d", "_"))),
                         forall("w", iff(eqv("w", "a", "_"), or(eqv("w", "c", "_"), eqv("w", "d", "_")))), and(eqv("c", "a", "_"), eqv("d", "a", "_")),
                         [], [sa_char, pair_cd("sa")])
 
     # pair(pab,"a","b") + pair(pab,"c","d") -> or(and(ac,bd), and(ad,bc))
     $or_inj or(and(eq_ac, eq_bd), and(eqv("a", "d", "_"), eqv("b", "c", "_")))
-    $g_inj_from_pair mp(apply_thm(pair_injection, _pi, [["a", ["b","c","d"]], ["b", ["c","d"]], ["c", ["d"]], ["d", []]], _pi_b, []),
+    $g_inj_from_pair mp(apply_thm(pair_injection, _pi, ["a", "b", "c", "d"], ["a", "b", "c", "d"], _pi_b, []),
                         char_iff(pab_char, pair_cd("pab"), "pab",
                                  \v: or(eqv(v, "a", "_"), eqv(v, "b", "_")), \v: or(eqv(v, "c", "_"), eqv(v, "d", "_"))),
                         forall("w", iff(or(eqv("w", "a", "_"), eqv("w", "b", "_")), or(eqv("w", "c", "_"), eqv("w", "d", "_")))), or_inj,
@@ -168,7 +168,7 @@ $kuratowski {
                 iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_")),
                 iff(eqv("_cv", "c", "_"), or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_"))), [], [pab_char, sing_c("pab")])
     $g_flip3 fr(g_flip2, [pab_char, sing_c("pab")], [fa_ps_sym], fa_ps_sym, "_cv")
-    $g_ac_bc mp(apply_thm(sp_r_thm, sp_r, [["c", ["p","q"]], ["a", ["q"]], ["b", []]], _sp_b, []), g_flip3, fa_ps_sym, and(eqv("a", "c", "_"), eqv("b", "c", "_")), [], [pab_char, sing_c("pab")])
+    $g_ac_bc mp(apply_thm(sp_r_thm, sp_r, ["c", "a", "b"], ["c", "p", "q"], _sp_b, []), g_flip3, fa_ps_sym, and(eqv("a", "c", "_"), eqv("b", "c", "_")), [], [pab_char, sing_c("pab")])
     # [pab_char, sing(pab,"c")] |- [and(eqv("a", "c", "_"), eqv("b", "c", "_"))]
 
     # === Build goal for each case combination ===
@@ -178,16 +178,16 @@ $kuratowski {
         $g_case_direct mp(and_elim_right(eq_ac, eq_bd, []),
                           ax([and(eq_ac,eq_bd)], [and(eq_ac,eq_bd)], and(eq_ac,eq_bd)),
                           and(eq_ac,eq_bd), eq_bd, [], [and(eq_ac,eq_bd)])
-        $g_ca mp(apply_thm(eqv_symmetric, _es, [["a", ["b"]], ["c", []]], _es_b, []), ac_prf, eq_ac, eqv("c", "a", "_"), [], ac_ctx)
+        $g_ca mp(apply_thm(eqv_symmetric, _es, ["a", "c"], ["a", "b"], _es_b, []), ac_prf, eq_ac, eqv("c", "a", "_"), [], ac_ctx)
         $g_ad mp(and_elim_left(eqv("a", "d", "_"), eqv("b", "c", "_"), []),
                  ax([and(eqv("a", "d", "_"),eqv("b", "c", "_"))], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))], and(eqv("a", "d", "_"),eqv("b", "c", "_"))),
                  and(eqv("a", "d", "_"),eqv("b", "c", "_")), eqv("a", "d", "_"), [], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))])
         $g_bc2 mp(and_elim_right(eqv("a", "d", "_"), eqv("b", "c", "_"), []),
                   ax([and(eqv("a", "d", "_"),eqv("b", "c", "_"))], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))], and(eqv("a", "d", "_"),eqv("b", "c", "_"))),
                   and(eqv("a", "d", "_"),eqv("b", "c", "_")), eqv("b", "c", "_"), [], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))])
-        $g_cd mp(mp(apply_thm(et_r_thm, et_r, [["c", ["p","q"]], ["a", ["q"]], ["d", []]], _et_b, []), g_ca, eqv("c", "a", "_"), implies(eqv("a", "d", "_"), eqv("c", "d", "_")), [], ac_ctx),
+        $g_cd mp(mp(apply_thm(et_r_thm, et_r, ["c", "a", "d"], ["c", "p", "q"], _et_b, []), g_ca, eqv("c", "a", "_"), implies(eqv("a", "d", "_"), eqv("c", "d", "_")), [], ac_ctx),
                  g_ad, eqv("a", "d", "_"), eqv("c", "d", "_"), ac_ctx, [and(eqv("a", "d", "_"),eqv("b", "c", "_"))])
-        $g_bd_alt mp(mp(apply_thm(et_r_thm, et_r, [["b", ["p","q"]], ["c", ["q"]], ["d", []]], _et_b, []), g_bc2, eqv("b", "c", "_"), implies(eqv("c", "d", "_"), eq_bd), [], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))]),
+        $g_bd_alt mp(mp(apply_thm(et_r_thm, et_r, ["b", "c", "d"], ["b", "p", "q"], _et_b, []), g_bc2, eqv("b", "c", "_"), implies(eqv("c", "d", "_"), eq_bd), [], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))]),
                      g_cd, eqv("c", "d", "_"), eq_bd, [and(eqv("a", "d", "_"),eqv("b", "c", "_"))], add(ac_ctx, [and(eqv("a", "d", "_"),eqv("b", "c", "_"))]))
         $g_or mp(mp(mp(or_elim(and(eq_ac,eq_bd), and(eqv("a", "d", "_"),eqv("b", "c", "_")), eq_bd, []),
                        inj_prf, or_inj, implies(implies(and(eq_ac,eq_bd),eq_bd), implies(implies(and(eqv("a", "d", "_"),eqv("b", "c", "_")),eq_bd), eq_bd)), [], inj_ctx),
@@ -337,14 +337,14 @@ $kuratowski {
     $fa_dc_sym forall("w", iff(eqv("w", "a", "_"), or(eqv("w", "c", "_"), eqv("w", "d", "_"))))
     $g_dc_fa fr(g_dc_flip, [pcd_char, sing_a_pcd], [fa_dc_sym], fa_dc_sym, "_cv")
     $g_da mp(and_elim_right(eqv("c", "a", "_"), eqv("d", "a", "_"), []),
-             mp(apply_thm(singleton_pair_eq, _sp, [["a", ["c","d"]], ["c", ["d"]], ["d", []]], _sp_b, []), g_dc_fa, fa_dc_sym, and(eqv("c", "a", "_"), eqv("d", "a", "_")), [], [pcd_char, sing_a_pcd]),
+             mp(apply_thm(singleton_pair_eq, _sp, ["a", "c", "d"], ["a", "c", "d"], _sp_b, []), g_dc_fa, fa_dc_sym, and(eqv("c", "a", "_"), eqv("d", "a", "_")), [], [pcd_char, sing_a_pcd]),
              and(eqv("c", "a", "_"), eqv("d", "a", "_")), eqv("d", "a", "_"), [], [pcd_char, sing_a_pcd])
     # [pcd_char, sing(pcd,"a")] |- [eqv("d", "a", "_")]
     # Chain: eqv("d", "a", "_") + eqv("a", "c", "_") -> eqv("d", "c", "_"). eqv("b", "c", "_") + sym(eqv("d", "c", "_")) = eqv("c", "d", "_") -> eqv("b", "d", "_")
-    $g_dc mp(mp(apply_thm(eqv_transitive, _et, [["d", ["b","c"]], ["a", ["c"]], ["c", []]], _et_b, []), g_da, eqv("d", "a", "_"), implies(eq_ac, eqv("d", "c", "_")), [], [pcd_char, sing_a_pcd]),
+    $g_dc mp(mp(apply_thm(eqv_transitive, _et, ["d", "a", "c"], ["d", "b", "c"], _et_b, []), g_da, eqv("d", "a", "_"), implies(eq_ac, eqv("d", "c", "_")), [], [pcd_char, sing_a_pcd]),
              g_ac2, eq_ac, eqv("d", "c", "_"), [pcd_char, sing_a_pcd], [pab_char, sing_c("pab")])
-    $g_cd2 mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["c", []]], _es_b, []), g_dc, eqv("d", "c", "_"), eqv("c", "d", "_"), [], [pcd_char, sing_a_pcd, pab_char, sing_c("pab")])
-    $g_bd_A2_sing mp(mp(apply_thm(et_r_thm, et_r, [["b", ["p","q"]], ["c", ["q"]], ["d", []]], _et_b, []),
+    $g_cd2 mp(apply_thm(eqv_symmetric, _es, ["d", "c"], ["d", "b"], _es_b, []), g_dc, eqv("d", "c", "_"), eqv("c", "d", "_"), [], [pcd_char, sing_a_pcd, pab_char, sing_c("pab")])
+    $g_bd_A2_sing mp(mp(apply_thm(et_r_thm, et_r, ["b", "c", "d"], ["b", "p", "q"], _et_b, []),
                         g_bc, eqv("b", "c", "_"), implies(eqv("c", "d", "_"), eq_bd), [], [pab_char, sing_c("pab")]),
                      g_cd2, eqv("c", "d", "_"), eq_bd, [pab_char, sing_c("pab")], [pcd_char, sing_a_pcd, pab_char, sing_c("pab")])
     # [pab_char, sing(pab,"c"), pcd_char, sing(pcd,"a")] |- [eqv("b", "d", "_")]
@@ -356,7 +356,7 @@ $kuratowski {
     $pair_a_pcd pair_ab("pcd")
     $fa_dc2 char_iff(pcd_char, pair_a_pcd, "pcd", \v: or(eqv(v, "c", "_"),eqv(v, "d", "_")), \v: or(eqv(v, "a", "_"),eqv(v, "b", "_")))
     $or_inj2 or(and(eqv("c", "a", "_"),eqv("d", "b", "_")), and(eqv("c", "b", "_"),eqv("d", "a", "_")))
-    $g_inj2 mp(apply_thm(pi_r_thm, pi_r, [["c", ["p","q","r"]], ["d", ["q","r"]], ["a", ["r"]], ["b", []]], _pi_b, []), fa_dc2,
+    $g_inj2 mp(apply_thm(pi_r_thm, pi_r, ["c", "d", "a", "b"], ["c", "p", "q", "r"], _pi_b, []), fa_dc2,
                forall("w", iff(or(eqv("w", "c", "_"),eqv("w", "d", "_")), or(eqv("w", "a", "_"),eqv("w", "b", "_")))), or_inj2,
                [], [pcd_char, pair_a_pcd])
     # extract eqv("d", "a", "_") or eqv("d", "b", "_") from or_inj2
@@ -367,13 +367,13 @@ $kuratowski {
                    ax([and(eqv("c", "b", "_"),eqv("d", "a", "_"))], [and(eqv("c", "b", "_"),eqv("d", "a", "_"))], and(eqv("c", "b", "_"),eqv("d", "a", "_"))),
                    and(eqv("c", "b", "_"),eqv("d", "a", "_")), eqv("d", "a", "_"), [], [and(eqv("c", "b", "_"),eqv("d", "a", "_"))])
     # eqv("d", "b", "_"): "b"="c" so "d"="b" -> "d"="c" -> eqv("b", "d", "_") by sym
-    $g_bd_p1 mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["b", []]], _es_b, []), g_da_case1, eqv("d", "b", "_"), eq_bd, [], [and(eqv("c", "a", "_"),eqv("d", "b", "_"))])
+    $g_bd_p1 mp(apply_thm(eqv_symmetric, _es, ["d", "b"], ["d", "b"], _es_b, []), g_da_case1, eqv("d", "b", "_"), eq_bd, [], [and(eqv("c", "a", "_"),eqv("d", "b", "_"))])
     # eqv("d", "a", "_"): "d"="a", "a"="c" -> "d"="c", "b"="c" -> "b"="d"
-    $g_dc_p2 mp(mp(apply_thm(eqv_transitive, _et, [["d", ["b","c"]], ["a", ["c"]], ["c", []]], _et_b, []),
+    $g_dc_p2 mp(mp(apply_thm(eqv_transitive, _et, ["d", "a", "c"], ["d", "b", "c"], _et_b, []),
                    g_da_case2, eqv("d", "a", "_"), implies(eq_ac, eqv("d", "c", "_")), [], [and(eqv("c", "b", "_"),eqv("d", "a", "_"))]),
                 g_ac2, eq_ac, eqv("d", "c", "_"), [and(eqv("c", "b", "_"),eqv("d", "a", "_"))], [pab_char, sing_c("pab")])
-    $g_cd_p2 mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["c", []]], _es_b, []), g_dc_p2, eqv("d", "c", "_"), eqv("c", "d", "_"), [], [and(eqv("c", "b", "_"),eqv("d", "a", "_")), pab_char, sing_c("pab")])
-    $g_bd_p2 mp(mp(apply_thm(et_r_thm, et_r, [["b", ["p","q"]], ["c", ["q"]], ["d", []]], _et_b, []),
+    $g_cd_p2 mp(apply_thm(eqv_symmetric, _es, ["d", "c"], ["d", "b"], _es_b, []), g_dc_p2, eqv("d", "c", "_"), eqv("c", "d", "_"), [], [and(eqv("c", "b", "_"),eqv("d", "a", "_")), pab_char, sing_c("pab")])
+    $g_bd_p2 mp(mp(apply_thm(et_r_thm, et_r, ["b", "c", "d"], ["b", "p", "q"], _et_b, []),
                    g_bc, eqv("b", "c", "_"), implies(eqv("c", "d", "_"), eq_bd), [], [pab_char, sing_c("pab")]),
                 g_cd_p2, eqv("c", "d", "_"), eq_bd, [pab_char, sing_c("pab")], [and(eqv("c", "b", "_"),eqv("d", "a", "_")), pab_char, sing_c("pab")])
     $g_bd_A2_pair mp(mp(mp(or_elim(and(eqv("c", "a", "_"),eqv("d", "b", "_")), and(eqv("c", "b", "_"),eqv("d", "a", "_")), eq_bd, []),
@@ -399,7 +399,7 @@ $kuratowski {
     # cut with pair_set_exists("c","d")
     $ex_pcd exists("s", pair_cd("s"))
     $pa_body2 \yv: exists("s", pair_set("s", "c", yv))
-    $g_pse apply_thm(pair_set_exists, _pse, [["c", ["b"]], ["d", []]], _pse_b, [pa_f])
+    $g_pse apply_thm(pair_set_exists, _pse, ["c", "d"], ["c", "b"], _pse_b, [pa_f])
     $g_bd_A2_cut cut_c(g_pse, g_bd_A2_eel, ex_pcd, [pa_f], [op1, eq12, op2, ex_pcd, pab_char, sing_c("pab")], eq_bd)
     # [pa_f, op1, eq12, op2, pab_char, sing(pab,"c")] |- [eqv("b", "d", "_")]
 
@@ -424,13 +424,13 @@ $kuratowski {
     # eel pab: replace pab_char with exists(s, pair(s,"a","b"))
     $g_eel_pab eel(g_case_A, pair_ab, "s", "pab", [pa_f, op1, eq12, op2, pab_char, sa_char, sing_c("sa")], goal)
     $ex_pab exists("s", pair_ab("s"))
-    $g_pse_ab apply_thm(pair_set_exists, _pse, [["a", ["b"]], ["b", []]], _pse_b, [pa_f])
+    $g_pse_ab apply_thm(pair_set_exists, _pse, ["a", "b"], ["a", "b"], _pse_b, [pa_f])
     $g_cut_pab cut_c(g_pse_ab, g_eel_pab, ex_pab, [pa_f], [pa_f, op1, eq12, op2, ex_pab, sa_char, sing_c("sa")], goal)
     # [pa_f, op1, eq12, op2, sa_char, sing(sa,"c")] |- [goal]
 
     # === Case B: pair(sa,"c","d") -> "c"="a", "d"="a" from singleton_pair_eq ===
     $g_ca mp(and_elim_left(eqv("c", "a", "_"), eqv("d", "a", "_"), []), g_ca_da_from_sp, and(eqv("c", "a", "_"),eqv("d", "a", "_")), eqv("c", "a", "_"), [], [sa_char, pair_cd("sa")])
-    $g_ac_B mp(apply_thm(eqv_symmetric, _es, [["c", ["b"]], ["a", []]], _es_b, []), g_ca, eqv("c", "a", "_"), eq_ac, [], [sa_char, pair_cd("sa")])
+    $g_ac_B mp(apply_thm(eqv_symmetric, _es, ["c", "a"], ["c", "b"], _es_b, []), g_ca, eqv("c", "a", "_"), eq_ac, [], [sa_char, pair_cd("sa")])
     $g_da2 mp(and_elim_right(eqv("c", "a", "_"), eqv("d", "a", "_"), []), g_ca_da_from_sp, and(eqv("c", "a", "_"),eqv("d", "a", "_")), eqv("d", "a", "_"), [], [sa_char, pair_cd("sa")])
     # "d"="a", "a"="c" -> "d"="c". "b"=? Need "b" info from somewhere.
     # From outer_transfer with pab:
@@ -476,18 +476,18 @@ $kuratowski {
     $fa_ba_sym forall("w", iff(eqv("w", "c", "_"), or(eqv("w", "a", "_"),eqv("w", "b", "_"))))
     $g_ba_fa fr(g_ba_flip, [pab_char, sing_c_pab], [fa_ba_sym], fa_ba_sym, "_cv")
     $g_bc_B mp(and_elim_right(eqv("a", "c", "_"), eqv("b", "c", "_"), []),
-               mp(apply_thm(sp_r_thm, sp_r, [["c", ["p","q"]], ["a", ["q"]], ["b", []]], _sp_b, []), g_ba_fa, fa_ba_sym, and(eqv("a", "c", "_"),eqv("b", "c", "_")), [], [pab_char, sing_c_pab]),
+               mp(apply_thm(sp_r_thm, sp_r, ["c", "a", "b"], ["c", "p", "q"], _sp_b, []), g_ba_fa, fa_ba_sym, and(eqv("a", "c", "_"),eqv("b", "c", "_")), [], [pab_char, sing_c_pab]),
                and(eqv("a", "c", "_"), eqv("b", "c", "_")), eqv("b", "c", "_"), [], [pab_char, sing_c_pab])
     # eqv("b", "c", "_") + sym(eqv("c", "a", "_")) = eqv("a", "c", "_")... no.
     # eqv("b", "c", "_") and eqv("d", "a", "_"). Need eqv("b", "d", "_").
     # eqv("d", "a", "_") -> sym -> eqv("a", "d", "_"). eqv("a", "c", "_") -> ... wait, "c"="a" so eqv("a", "c", "_") = eqv("a", "a", "_").
     # eqv("b", "c", "_") and "c"="a" -> eqv("b", "a", "_"). eqv("d", "a", "_") -> sym -> eqv("a", "d", "_"). trans("b","a","d") -> nope need eqv("a", "d", "_").
     # Actually: "d"="a" -> eqv("d", "a", "_"). sym -> eqv("a", "d", "_"). "b"="c", "c"="a" -> eqv("b", "a", "_"). trans("b","a","d") with eqv("b", "a", "_") and eqv("a", "d", "_") -> eqv("b", "d", "_").
-    $g_ad mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["a", []]], _es_b, []), g_da2, eqv("d", "a", "_"), eqv("a", "d", "_"), [], [sa_char, pair_cd("sa")])
-    $g_ba mp(mp(apply_thm(et_r_thm, et_r, [["b", ["p","q"]], ["c", ["q"]], ["a", []]], _et_b, []),
+    $g_ad mp(apply_thm(eqv_symmetric, _es, ["d", "a"], ["d", "b"], _es_b, []), g_da2, eqv("d", "a", "_"), eqv("a", "d", "_"), [], [sa_char, pair_cd("sa")])
+    $g_ba mp(mp(apply_thm(et_r_thm, et_r, ["b", "c", "a"], ["b", "p", "q"], _et_b, []),
                 g_bc_B, eqv("b", "c", "_"), implies(eqv("c", "a", "_"), eqv("b", "a", "_")), [], [pab_char, sing_c_pab]),
              g_ca, eqv("c", "a", "_"), eqv("b", "a", "_"), [pab_char, sing_c_pab], [sa_char, pair_cd("sa")])
-    $g_bd_B_sing mp(mp(apply_thm(et_r_thm, et_r, [["b", ["p","q"]], ["a", ["q"]], ["d", []]], _et_b, []),
+    $g_bd_B_sing mp(mp(apply_thm(et_r_thm, et_r, ["b", "a", "d"], ["b", "p", "q"], _et_b, []),
                        g_ba, eqv("b", "a", "_"), implies(eqv("a", "d", "_"), eq_bd), [], [pab_char, sing_c_pab, sa_char, pair_cd("sa")]),
                     g_ad, eqv("a", "d", "_"), eq_bd, [pab_char, sing_c_pab, sa_char, pair_cd("sa")], [sa_char, pair_cd("sa")])
     $g_goal_B_sing mp(mp(and_intro(eq_ac, eq_bd, []),
@@ -498,7 +498,7 @@ $kuratowski {
     # For pair(pab,"c","d") sub-case in B: same result ("d"="a", then pair_injection gives "b" info)
     # pair(pab,"a","b") + pair(pab,"c","d") with "c"="a","d"="a": pair_injection("a","b","a","a") -> trivially "a"="a","b"="a"
     $pair_cd_pab pair_cd("pab")
-    $g_inj_B mp(apply_thm(pair_injection, _pi, [["a", ["b","c","d"]], ["b", ["c","d"]], ["c", ["d"]], ["d", []]], _pi_b, []),
+    $g_inj_B mp(apply_thm(pair_injection, _pi, ["a", "b", "c", "d"], ["a", "b", "c", "d"], _pi_b, []),
                 char_iff(pab_char, pair_cd_pab, "pab", \v: or(eqv(v, "a", "_"),eqv(v, "b", "_")), \v: or(eqv(v, "c", "_"),eqv(v, "d", "_"))),
                 forall("w", iff(or(eqv("w", "a", "_"),eqv("w", "b", "_")), or(eqv("w", "c", "_"),eqv("w", "d", "_")))), or_inj,
                 [], [pab_char, pair_cd_pab])
@@ -510,10 +510,10 @@ $kuratowski {
     $g_bc3 mp(and_elim_right(eqv("a", "d", "_"), eqv("b", "c", "_"), []),
               ax([and(eqv("a", "d", "_"),eqv("b", "c", "_"))], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))], and(eqv("a", "d", "_"),eqv("b", "c", "_"))),
               and(eqv("a", "d", "_"),eqv("b", "c", "_")), eqv("b", "c", "_"), [], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))])
-    $g_cd3 mp(mp(apply_thm(et_r_thm, et_r, [["c", ["p","q"]], ["a", ["q"]], ["d", []]], _et_b, []),
+    $g_cd3 mp(mp(apply_thm(et_r_thm, et_r, ["c", "a", "d"], ["c", "p", "q"], _et_b, []),
                  g_ca, eqv("c", "a", "_"), implies(eqv("a", "d", "_"), eqv("c", "d", "_")), [], [sa_char, pair_cd("sa")]),
               g_ad3, eqv("a", "d", "_"), eqv("c", "d", "_"), [sa_char, pair_cd("sa")], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))])
-    $g_bd_B_pair mp(mp(apply_thm(et_r_thm, et_r, [["b", ["p","q"]], ["c", ["q"]], ["d", []]], _et_b, []),
+    $g_bd_B_pair mp(mp(apply_thm(et_r_thm, et_r, ["b", "c", "d"], ["b", "p", "q"], _et_b, []),
                        g_bc3, eqv("b", "c", "_"), implies(eqv("c", "d", "_"), eq_bd), [], [and(eqv("a", "d", "_"),eqv("b", "c", "_"))]),
                     g_cd3, eqv("c", "d", "_"), eq_bd, [and(eqv("a", "d", "_"),eqv("b", "c", "_"))], [sa_char, pair_cd("sa"), and(eqv("a", "d", "_"),eqv("b", "c", "_"))])
     $g_goal_B_pair_c2 mp(mp(and_intro(eq_ac, eq_bd, []),
@@ -555,7 +555,7 @@ $kuratowski {
     # eel sa: replace sa_char with exists(s, singleton(s, "a", "_"))
     $g_eel_sa eel(g_combined, sing_a, "s", "sa", [pa_f, op1, eq12, op2, sa_char], goal)
     $ex_sa exists("s", sing_a("s"))
-    $g_cut_sa cut_c(apply_thm(singleton_exists, _sse, [["a", []]], _sse_b, [pairing_ax]), g_eel_sa, ex_sa, [pa_f], [pa_f, op1, eq12, op2, ex_sa], goal)
+    $g_cut_sa cut_c(apply_thm(singleton_exists, _sse, ["a"], ["a"], _sse_b, [pairing_ax]), g_eel_sa, ex_sa, [pa_f], [pa_f, op1, eq12, op2, ex_sa], goal)
     # [pa_f, op1, eq12, op2] |- [goal]
 
     # === Close: implies_right for op1, op2, eq12, then forall ===

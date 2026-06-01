@@ -49,17 +49,17 @@ $ordpair_bounded {
     # Formula is ∀x.∀y.∀a.body, _emr_b(a,y,x) = eqv(x,y)->mem(x,a)->mem(y,a)
     $emr_r forall("p", forall("q", forall("r", _emr_b("r")("q")("p"))))
     $emr_r_thm wr(eqv_mem_right, emr_ctx, [emr_r], emr_r)
-    $got_xd mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["x", []]], _es_b, []),
+    $got_xd mp(apply_thm(eqv_symmetric, _es, ["d", "x"], ["d", "b"], _es_b, []),
         ax([eqv_dx], [eqv_dx], eqv_dx), eqv_dx, eqv("x","d","_"), [], [eqv_dx])
     $_emr_r_b \p: \q: \r: _emr_b(r)(q)(p)
-    $emr1 mp(apply_thm(emr_r_thm, emr_r, [["x", ["q","r"]], ["d", ["r"]], ["w", []]], _emr_r_b, emr_ctx),
+    $emr1 mp(apply_thm(emr_r_thm, emr_r, ["x", "d", "w"], ["x", "q", "r"], _emr_r_b, emr_ctx),
         got_xd, eqv("x","d","_"), implies(xw, dw), emr_ctx, [eqv_dx])
     $got_dw_from_dx mp(emr1, ax([xw], [xw], xw), xw, dw, left(emr1), [xw])
 
     # d∈w from eqv(d,y): same pattern.
-    $got_yd mp(apply_thm(eqv_symmetric, _es, [["d", ["b"]], ["y", []]], _es_b, []),
+    $got_yd mp(apply_thm(eqv_symmetric, _es, ["d", "y"], ["d", "b"], _es_b, []),
         ax([eqv_dy], [eqv_dy], eqv_dy), eqv_dy, eqv("y","d","_"), [], [eqv_dy])
-    $emr2 mp(apply_thm(emr_r_thm, emr_r, [["y", ["q","r"]], ["d", ["r"]], ["w", []]], _emr_r_b, emr_ctx),
+    $emr2 mp(apply_thm(emr_r_thm, emr_r, ["y", "d", "w"], ["y", "q", "r"], _emr_r_b, emr_ctx),
         got_yd, eqv("y","d","_"), implies(yw, dw), emr_ctx, [eqv_dy])
     $got_dw_from_dy mp(emr2, ax([yw], [yw], yw), yw, dw, left(emr2), [yw])
 

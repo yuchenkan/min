@@ -17,14 +17,14 @@ $extend_apply_new {
     # singleton_apply: sing_h → opkv → apply(h, k, v)
     $_sa head(right(singleton_apply))
     $_sa_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), apply(f,x,y,"_")))
-    $sa1 apply_thm(singleton_apply, _sa, [["h", ["op","x","y"]], ["op", ["x","y"]], ["k", ["y"]], ["v", []]], _sa_b, [])
+    $sa1 apply_thm(singleton_apply, _sa, ["h", "op", "k", "v"], ["h", "op", "x", "y"], _sa_b, [])
     $sa2 mp(sa1, ax([sing_h], [sing_h], sing_h), sing_h, implies(opkv, app_h), left(sa1), [sing_h])
     $got_app_h mp(sa2, ax([opkv], [opkv], opkv), opkv, app_h, left(sa2), [opkv])
 
     # union_apply_right: apply(h,k,v) → union(u,g,h) → apply(u,k,v)
     $_uar head(right(union_apply_right))
     $_uar_b \u: \a: \b: \x: \y: implies(apply(b,x,y,"_"), implies(union(u,a,b,"_"), apply(u,x,y,"_")))
-    $uar1 mp(apply_thm(union_apply_right, _uar, [["u", ["a","b","x","y"]], ["g", ["b","x","y"]], ["h", ["x","y"]], ["k", ["y"]], ["v", []]], _uar_b, []),
+    $uar1 mp(apply_thm(union_apply_right, _uar, ["u", "g", "h", "k", "v"], ["u", "a", "b", "x", "y"], _uar_b, []),
         got_app_h, app_h, implies(un, app_u), [], [sing_h, opkv])
     $got_app_u mp(uar1, ax([un], [un], un), un, app_u, [sing_h, opkv], [un])
 

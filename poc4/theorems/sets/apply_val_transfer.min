@@ -25,7 +25,7 @@ $apply_val_transfer {
 
     $_ovt head(right(ordpair_val_transfer))
     $_ovt_b \t: \a: \b: \c: implies(eqv(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
-    $got_ovt apply_thm(ordpair_val_transfer, _ovt, [["q", ["a","b","c"]], ["x", ["b","c"]], ["y", ["c"]], ["y2", []]], _ovt_b, [])
+    $got_ovt apply_thm(ordpair_val_transfer, _ovt, ["q", "x", "y", "y2"], ["q", "a", "b", "c"], _ovt_b, [])
     $got_op2 mp(mp(got_ovt,
         ax([eqv_yy2], [eqv_yy2], eqv_yy2), eqv_yy2, implies(op_q, op_q2), [], [eqv_yy2]),
         got_op, op_q, op_q2, [eqv_yy2], [and_q])

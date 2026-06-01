@@ -38,7 +38,7 @@ $infinity_gives_inductive {
 
     # unique_empty: empty(e0) -> empty(e) -> eqv(e0, e)
     $_ue head(right(empty_unique))
-    $got_ue apply_thm(empty_unique, _ue, [["e0", ["b"]], ["e", []]],
+    $got_ue apply_thm(empty_unique, _ue, ["e0", "e"], ["e0", "b"],
         \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_"))), [])
     $imp_emp_eqv implies(emp_e, eqv_e0_e)
     $got_eqv mp(mp(got_ue, ax([emp_e0], [emp_e0], emp_e0), emp_e0, imp_emp_eqv, [], [emp_e0]),
@@ -48,7 +48,7 @@ $infinity_gives_inductive {
     # ext_substitution: eqv(e0,e) -> iff(e0 in b, e in b)
     $_es head(right(ext_substitution))
     $es_ctx left(ext_substitution)
-    $got_es apply_thm(ext_substitution, _es, [["e0", ["b","s"]], ["e", ["s"]], ["b", []]],
+    $got_es apply_thm(ext_substitution, _es, ["e0", "e", "b"], ["e0", "b", "s"],
         \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx)
     $iff_eb iff(e0_in_b, e_in_b)
     $got_iff mp(got_es, got_eqv, eqv_e0_e, iff_eb, es_ctx, [emp_e0, emp_e])
@@ -86,7 +86,7 @@ $infinity_gives_inductive {
     # The formula has bound var "x" in successor expansion, so use renamed formula
     $_su forall("a", forall("s1", forall("s2",
         implies(successor("s1","a","_"), implies(successor("s2","a","_"), eqv("s1","s2","_"))))))
-    $got_us apply_thm(successor_unique, _su, [["x", ["s1","s2"]], ["s0", ["s2"]], ["s", []]],
+    $got_us apply_thm(successor_unique, _su, ["x", "s0", "s"], ["x", "s1", "s2"],
         \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_"))), [])
     $imp_succ_eqv implies(succ_s, eqv_s0_s)
     $got_eqvs mp(mp(got_us, ax([succ_s0], [succ_s0], succ_s0), succ_s0, imp_succ_eqv, [], [succ_s0]),
@@ -98,7 +98,7 @@ $infinity_gives_inductive {
     $_es2_b \a: \b: \c: implies(eqv(a,b,"_"), iff(mem(a,c), mem(b,c)))
     $_es2 forall("a", forall("b", forall("c", _es2_b("a")("b")("c"))))
     $es2_thm wr(ext_substitution, es_ctx, [_es2], _es2)
-    $got_es2 apply_thm(es2_thm, _es2, [["s0", ["b","c"]], ["s", ["c"]], ["b", []]], _es2_b, es_ctx)
+    $got_es2 apply_thm(es2_thm, _es2, ["s0", "s", "b"], ["s0", "b", "c"], _es2_b, es_ctx)
     $iff_sb iff(s0_in_b, s_in_b)
     $got_iff2 mp(got_es2, got_eqvs, eqv_s0_s, iff_sb, es_ctx, [succ_s0, succ_s])
     # [ext_f, succ_s0, succ_s] |- [iff_sb]

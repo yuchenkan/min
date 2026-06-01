@@ -49,7 +49,7 @@ $successor_exists {
     $_eml head(right(eqv_mem_left))
     $ewa eqv("w", "a", "_")
     $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
-    $eml_wa apply_thm(eqv_mem_left, _eml, [["w", ["b","z"]], ["a", ["z"]], ["v", []]], _eml_b, [])
+    $eml_wa apply_thm(eqv_mem_left, _eml, ["w", "a", "v"], ["w", "b", "z"], _eml_b, [])
     $g_case_a mp(mp(eml_wa, ax([ewa], [ewa], ewa), ewa,
                     implies(mem("v", "w"), mem("v", "a")), [], [ewa]),
                  g_mvw, mem("v", "w"), mem("v", "a"), [ewa], [aw])
@@ -57,7 +57,7 @@ $successor_exists {
 
     # Case eqv(w,t1): mem(v,w) + eqv(w,t1) -> mem(v,t1) -> eqv(v,"a") -> or_right
     $ewt eqv("w", "t1", "_")
-    $eml_wt apply_thm(eqv_mem_left, _eml, [["w", ["b","z"]], ["t1", ["z"]], ["v", []]], _eml_b, [])
+    $eml_wt apply_thm(eqv_mem_left, _eml, ["w", "t1", "v"], ["w", "b", "z"], _eml_b, [])
     $g_mvt1 mp(mp(eml_wt, ax([ewt], [ewt], ewt), ewt,
                    implies(mem("v", "w"), mem("v", "t1")), [], [ewt]),
                 g_mvw, mem("v", "w"), mem("v", "t1"), [ewt], [aw])
@@ -92,7 +92,7 @@ $successor_exists {
     $iff_pa iff(mem("a", "p1"), or(eaa, eat))
     $g_pa fl(ax([iff_pa], [iff_pa], iff_pa), [ps_p1], [iff_pa], ps_p1, "a")
     $_er head(right(eqv_reflexive))
-    $g_eqv_aa apply_thm(eqv_reflexive, _er, [["a", []]], \a: eqv(a,a,"_"), [])
+    $g_eqv_aa apply_thm(eqv_reflexive, _er, ["a"], ["a"], \a: eqv(a,a,"_"), [])
     $g_or_aa mp(or_intro_left(eaa, eat, []), g_eqv_aa, eaa, or(eaa, eat), [], [])
     $g_map1 mp(mp(iff_elim_right(mem("a", "p1"), or(eaa, eat), []),
                   g_pa, iff_pa, implies(or(eaa, eat), mem("a", "p1")), [], [ps_p1]),
@@ -105,7 +105,7 @@ $successor_exists {
     # Case eqv(v,"a"): witness w=t1. Need mem(t1,p1) and mem(v,t1).
     $ett eqv("t1", "t1", "_")
     $eta eqv("t1", "a", "_")
-    $g_eqv_tt apply_thm(eqv_reflexive, _er, [["t1", []]], \a: eqv(a,a,"_"), [])
+    $g_eqv_tt apply_thm(eqv_reflexive, _er, ["t1"], ["t1"], \a: eqv(a,a,"_"), [])
     $g_or_tt mp(or_intro_right(eta, ett, []), g_eqv_tt, ett, or(eta, ett), [], [])
     $iff_pt iff(mem("t1", "p1"), or(eta, ett))
     $g_pt fl(ax([iff_pt], [iff_pt], iff_pt), [ps_p1], [iff_pt], ps_p1, "t1")
@@ -155,13 +155,13 @@ $successor_exists {
     $g1 eel(g_ex_succ, \v: big_union(v, "p1", "_"), "s", "s1", [bu_s1, ps_p1, sing_t1], goal)
     $ex_bu exists("s", big_union("s", "p1", "_"))
     $_bue_f head(right(big_union_exists))
-    $g_bue apply_thm(big_union_exists, _bue_f, [["p1", []]], \a: exists("s", big_union("s",a,"_")), [un_f])
+    $g_bue apply_thm(big_union_exists, _bue_f, ["p1"], ["p1"], \a: exists("s", big_union("s",a,"_")), [un_f])
     $g2 cut_c(g_bue, g1, ex_bu, [un_f], [ex_bu, ps_p1, sing_t1], goal)
 
     $g3 eel(g2, \v: pair_set(v, "a", "t1", "_"), "s", "p1", [un_f, ps_p1, sing_t1], goal)
     $ex_ps exists("s", pair_set("s", "a", "t1", "_"))
     $_pse_f head(right(pair_set_exists))
-    $g_pse apply_thm(pair_set_exists, _pse_f, [["a", ["b"]], ["t1", []]],
+    $g_pse apply_thm(pair_set_exists, _pse_f, ["a", "t1"], ["a", "b"],
         \a: \b: exists("s", pair_set("s",a,b,"_")), [pa_f])
     $g4 cut_c(g_pse, g3, ex_ps, [pa_f], [un_f, ex_ps, sing_t1], goal)
 
@@ -169,7 +169,7 @@ $successor_exists {
     $ex_sg exists("s", singleton("s", "a", "_"))
     $_se_f head(right(singleton_exists))
     $se_ctx left(singleton_exists)
-    $se_inst apply_thm(singleton_exists, _se_f, [["a", []]], \a: exists("s", singleton("s",a,"_")), se_ctx)
+    $se_inst apply_thm(singleton_exists, _se_f, ["a"], ["a"], \a: exists("s", singleton("s",a,"_")), se_ctx)
     $g6 cut_c(se_inst, g5, ex_sg, se_ctx, [un_f, pa_f, ex_sg], goal)
 
     close(g6, [pa_f, un_f], [goal], ["a"])

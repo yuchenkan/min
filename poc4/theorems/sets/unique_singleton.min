@@ -13,7 +13,7 @@ $unique_singleton {
     $sing_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $_su_f head(right(singleton_unique))
-    $su_inst apply_thm(singleton_unique, _su_f, [["a", ["s1","s2"]], ["u", ["s2"]], ["y", []]],
+    $su_inst apply_thm(singleton_unique, _su_f, ["a", "u", "y"], ["a", "s1", "s2"],
         \a: \s1: \s2: implies(singleton(s1,a,"_"), implies(singleton(s2,a,"_"), eqv(s1,s2,"_"))), [])
     $got_inner mp(su_inst, ax([sing_u], [sing_u], sing_u), sing_u, imp_inner, [], [sing_u])
     $fa_uniq forall("y", imp_inner)
@@ -23,7 +23,7 @@ $unique_singleton {
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [sing_u], eu)
     $_se_f head(right(singleton_exists))
     $se_ctx left(singleton_exists)
-    $se_inst apply_thm(singleton_exists, _se_f, [["a", []]],
+    $se_inst apply_thm(singleton_exists, _se_f, ["a"], ["a"],
         \a: exists("s", singleton("s",a,"_")), se_ctx)
     $ex_sing exists("s", body_fn("s", "_"))
     $got_cut cut_c(se_inst, got_ex, ex_sing, se_ctx, [ex_sing], eu)

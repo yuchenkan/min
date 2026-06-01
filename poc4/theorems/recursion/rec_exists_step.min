@@ -37,7 +37,7 @@ $rec_exists_step {
     # === apply(u, sn, fval) from extend_apply_new ===
     $_ean head(right(extend_apply_new))
     $_ean_b \u: \h: \op: \g: \k: \v: implies(singleton(h,op,"_"), implies(ordered_pair(op,k,v,"_"), implies(union(u,g,h,"_"), apply(u,k,v,"_"))))
-    $ean_i apply_thm(extend_apply_new, _ean, [["u", ["h","op","g","k","r"]], ["h", ["op","g","k","r"]], ["op", ["g","k","r"]], ["v", ["k","r"]], ["sn", ["r"]], ["fval", []]], _ean_b, [])
+    $ean_i apply_thm(extend_apply_new, _ean, ["u", "h", "op", "v", "sn", "fval"], ["u", "h", "op", "g", "k", "r"], _ean_b, [])
     $ea1 mp(ean_i, ax([sing_h], [sing_h], sing_h), sing_h, implies(op_new, implies(un, app_u_sn)), left(ean_i), [sing_h])
     $ea2 mp(ea1, ax([op_new], [op_new], op_new), op_new, implies(un, app_u_sn), left(ea1), [op_new])
     $got_app mp(ea2, ax([un], [un], un), un, app_u_sn, left(ea2), [un])
@@ -49,7 +49,7 @@ $rec_exists_step {
     $ec_ctx left(extend_consistency)
     # Instantiate all 9 foralls (including z) to get bare implies chain:
     $_ec_b \v: \a: \f: \w: \n: \sn: \val: \fval: \z: implies(rec_approx(v,a,f,w,"_"), implies(mem(n,w), implies(apply(v,n,val,"_"), implies(apply(f,val,fval,"_"), implies(successor(sn,n,"_"), implies(apply(v,sn,z,"_"), eqv(fval,z,"_")))))))
-    $ec1 apply_thm(extend_consistency, _ec, [["v", ["a","f","w","n","sn","val","fval","z"]], ["a", ["f","w","n","sn","val","fval","z"]], ["f", ["w","n","sn","val","fval","z"]], ["w", ["n","sn","val","fval","z"]], ["n", ["sn","val","fval","z"]], ["sn", ["val","fval","z"]], ["val", ["fval","z"]], ["fval", ["z"]], ["z", []]], _ec_b, ec_ctx)
+    $ec1 apply_thm(extend_consistency, _ec, ["v", "a", "f", "w", "n", "sn", "val", "fval", "z"], ["v", "a", "f", "w", "n", "sn", "val", "fval", "z"], _ec_b, ec_ctx)
     # ec1: [] |- implies(ra_v, implies(nw, implies(app_vn, implies(app_f, implies(succ_sn, implies(apply(v,sn,z), eqv(fval,z)))))))
     $ec2 mp(ec1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(ec1))), left(ec1), [ra_v])
     $ec3 mp(ec2, ax([nw], [nw], nw), nw, arg2(head(right(ec2))), left(ec2), [nw])
@@ -70,7 +70,7 @@ $rec_exists_step {
     $_ef_b \v: \k: \y0: \op: \h: \u: implies(function(v,"_"), implies(singleton(h,op,"_"), implies(ordered_pair(op,k,y0,"_"),
         implies(forall("z", implies(apply(v,k,"z","_"), eqv(y0,"z","_"))),
             implies(union(u,v,h,"_"), function(u,"_"))))))
-    $ef1 apply_thm(extend_function, _ef, [["v", ["k","y0","op","h","u"]], ["sn", ["y0","op","h","u"]], ["fval", ["op","h","u"]], ["op", ["h","u"]], ["h", ["u"]], ["u", []]], _ef_b, ef_ctx)
+    $ef1 apply_thm(extend_function, _ef, ["v", "sn", "fval", "op", "h", "u"], ["v", "k", "y0", "op", "h", "u"], _ef_b, ef_ctx)
     $ef1_b head(right(ef1))
     # func_v from ra_v:
     $func_v function("v", "_")
@@ -100,7 +100,7 @@ $rec_exists_step {
     $_eds_b \v: \a: \f: \w: \n: \sn: \u: \h: \op: \fval: implies(rec_approx(v,a,f,w,"_"), implies(omega(w,"_"), implies(mem(n,w), implies(successor(sn,n,"_"),
         implies(singleton(h,op,"_"), implies(ordered_pair(op,sn,fval,"_"),
             implies(union(u,v,h,"_"), forall("x", implies(exists("y", apply(u,"x","y","_")), mem("x",w))))))))))
-    $eds1 apply_thm(extend_dom_sub, _eds, [["v", ["a","f","w","n","sn","u","h","op","fval"]], ["a", ["f","w","n","sn","u","h","op","fval"]], ["f", ["w","n","sn","u","h","op","fval"]], ["w", ["n","sn","u","h","op","fval"]], ["n", ["sn","u","h","op","fval"]], ["sn", ["u","h","op","fval"]], ["u", ["h","op","fval"]], ["h", ["op","fval"]], ["op", ["fval"]], ["fval", []]], _eds_b, left(extend_dom_sub))
+    $eds1 apply_thm(extend_dom_sub, _eds, ["v", "a", "f", "w", "n", "sn", "u", "h", "op", "fval"], ["v", "a", "f", "w", "n", "sn", "u", "h", "op", "fval"], _eds_b, left(extend_dom_sub))
     $eds2 mp(eds1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(eds1))), left(eds1), [ra_v])
     $eds3 mp(eds2, ax([om], [om], om), om, arg2(head(right(eds2))), left(eds2), [om])
     $eds4 mp(eds3, ax([nw], [nw], nw), nw, arg2(head(right(eds3))), left(eds3), [nw])
@@ -116,7 +116,7 @@ $rec_exists_step {
         implies(forall("y", forall("z", implies(apply(f,"y","z","_"), exists("w2", apply(f,"z","w2","_"))))),
             implies(singleton(h,op,"_"), implies(ordered_pair(op,sn,fval,"_"),
                 implies(union(u,v,h,"_"), forall("x", forall("y", implies(apply(u,"x","y","_"), exists("z", apply(f,"y","z","_")))))))))))
-    $ers1 apply_thm(extend_ran_sub, _ers, [["v", ["a","f","w","u","h","op","sn","val","fval"]], ["a", ["f","w","u","h","op","sn","val","fval"]], ["f", ["w","u","h","op","sn","val","fval"]], ["w", ["u","h","op","sn","val","fval"]], ["u", ["h","op","sn","val","fval"]], ["h", ["op","sn","val","fval"]], ["op", ["sn","val","fval"]], ["sn", ["val","fval"]], ["val", ["fval"]], ["fval", []]], _ers_b, left(extend_ran_sub))
+    $ers1 apply_thm(extend_ran_sub, _ers, ["v", "a", "f", "w", "u", "h", "op", "sn", "val", "fval"], ["v", "a", "f", "w", "u", "h", "op", "sn", "val", "fval"], _ers_b, left(extend_ran_sub))
     $ers2 mp(ers1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(ers1))), left(ers1), [ra_v])
     $ers3 mp(ers2, ax([app_f_val], [app_f_val], app_f_val), app_f_val, arg2(head(right(ers2))), left(ers2), [app_f_val])
     $ers4 mp(ers3, ax([ran_fc], [ran_fc], ran_fc), ran_fc, arg2(head(right(ers3))), left(ers3), [ran_fc])
@@ -152,7 +152,7 @@ $rec_exists_step {
     $_eb_b \v: \u: \h: \op: \sn: \n: \a: \fval: implies(forall("e", implies(empty("e","_"), implies(exists("y", apply(v,"e","y","_")), apply(v,"e",a,"_")))),
         implies(successor(sn,n,"_"), implies(singleton(h,op,"_"), implies(ordered_pair(op,sn,fval,"_"),
             implies(union(u,v,h,"_"), forall("e", implies(empty("e","_"), implies(exists("y", apply(u,"e","y","_")), apply(u,"e",a,"_")))))))))
-    $eb1 apply_thm(extend_base, _eb, [["v", ["u","h","op","sn","n","a","fval"]], ["u", ["h","op","sn","n","a","fval"]], ["h", ["op","sn","n","a","fval"]], ["op", ["sn","n","a","fval"]], ["sn", ["n","a","fval"]], ["n", ["a","fval"]], ["a", ["fval"]], ["fval", []]], _eb_b, left(extend_base))
+    $eb1 apply_thm(extend_base, _eb, ["v", "u", "h", "op", "sn", "n", "a", "fval"], ["v", "u", "h", "op", "sn", "n", "a", "fval"], _eb_b, left(extend_base))
     $eb2 mp(eb1, got_base_v2, base_v, arg2(head(right(eb1))), left(eb1), [ra_v])
     $eb3 mp(eb2, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(eb2))), left(eb2), [succ_sn])
     $eb4 mp(eb3, ax([sing_h], [sing_h], sing_h), sing_h, arg2(head(right(eb3))), left(eb3), [sing_h])
@@ -164,7 +164,7 @@ $rec_exists_step {
     $_est head(right(extend_step))
     $_es_inner \u w f: forall("m", implies(mem("m",w), forall("sm", implies(successor("sm","m","_"), implies(exists("y5", apply(u,"sm","y5","_")), and(exists("val5", apply(u,"m","val5","_")), forall("val5", implies(apply(u,"m","val5","_"), forall("fv5", implies(apply(f,"val5","fv5","_"), apply(u,"sm","fv5","_")))))))))))
     $_est_b \v: \a: \f: \w: \n: \val: \fval: \sn: \op: \h: \u: implies(rec_approx(v,a,f,w,"_"), implies(function(f,"_"), implies(omega(w,"_"), implies(mem(n,w), implies(apply(v,n,val,"_"), implies(apply(f,val,fval,"_"), implies(successor(sn,n,"_"), implies(ordered_pair(op,sn,fval,"_"), implies(singleton(h,op,"_"), implies(union(u,v,h,"_"), implies(function(u,"_"), implies(apply(u,sn,fval,"_"), _es_inner(u,w,f)))))))))))))
-    $est1 apply_thm(extend_step, _est, [["v", ["a","f","w","n","val","fval","sn","op","h","u"]], ["a", ["f","w","n","val","fval","sn","op","h","u"]], ["f", ["w","n","val","fval","sn","op","h","u"]], ["w", ["n","val","fval","sn","op","h","u"]], ["n", ["val","fval","sn","op","h","u"]], ["val", ["fval","sn","op","h","u"]], ["fval", ["sn","op","h","u"]], ["sn", ["op","h","u"]], ["op", ["h","u"]], ["h", ["u"]], ["u", []]], _est_b, left(extend_step))
+    $est1 apply_thm(extend_step, _est, ["v", "a", "f", "w", "n", "val", "fval", "sn", "op", "h", "u"], ["v", "a", "f", "w", "n", "val", "fval", "sn", "op", "h", "u"], _est_b, left(extend_step))
     $est2 mp(est1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(est1))), left(est1), [ra_v])
     $est3 mp(est2, ax([func_f], [func_f], func_f), func_f, arg2(head(right(est2))), left(est2), [func_f])
     $est4 mp(est3, ax([om], [om], om), om, arg2(head(right(est3))), left(est3), [om])

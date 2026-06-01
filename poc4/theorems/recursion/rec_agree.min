@@ -46,7 +46,7 @@ $rec_agree {
             forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
         implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
     }
-    $ind_inst apply_thm(ind, _ind_f, [["w", ["f","a"]], ["f", ["a"]], ["a", []]], _ind_body, ind_ctx)
+    $ind_inst apply_thm(ind, _ind_f, ["w", "f", "a"], ["w", "f", "a"], _ind_body, ind_ctx)
     $om omega("w","_")
     $i1 mp(ind_inst, ax([om], [om], om), om, arg2(head(right(ind_inst))), left(ind_inst), [om])
 
@@ -66,7 +66,7 @@ $rec_agree {
 
     $_raz head(right(rec_approx_zero))
     $_raz_b \v: \a: \f: \w: \e: \y: implies(rec_approx(v,a,f,w,"_"), implies(empty(e,"_"), implies(apply(v,e,y,"_"), eqv(y,a,"_"))))
-    $raz1 apply_thm(rec_approx_zero, _raz, [["v1", ["a","f","w","e","y"]], ["a", ["f","w","e","y"]], ["f", ["w","e","y"]], ["w", ["e","y"]], ["e", ["y"]], ["y1", []]], _raz_b, [])
+    $raz1 apply_thm(rec_approx_zero, _raz, ["v1", "a", "f", "w", "e", "y1"], ["v1", "a", "f", "w", "e", "y"], _raz_b, [])
     $raz1b head(right(raz1))
     $raz2 mp(raz1, ax([ra1], [ra1], ra1), ra1, arg2(raz1b), left(raz1), [ra1])
     $raz2b head(right(raz2))
@@ -75,7 +75,7 @@ $rec_agree {
     $got_y1a mp(raz3, ax([app1e], [app1e], app1e), app1e, arg2(raz3b), left(raz3), [app1e])
     # left(got_y1a) |- eqv(y1,a)
 
-    $raz_b1 apply_thm(rec_approx_zero, _raz, [["v2", ["a","f","w","e","y"]], ["a", ["f","w","e","y"]], ["f", ["w","e","y"]], ["w", ["e","y"]], ["e", ["y"]], ["y2", []]], _raz_b, [])
+    $raz_b1 apply_thm(rec_approx_zero, _raz, ["v2", "a", "f", "w", "e", "y2"], ["v2", "a", "f", "w", "e", "y"], _raz_b, [])
     $raz_b1b head(right(raz_b1))
     $raz_b2 mp(raz_b1, ax([ra2], [ra2], ra2), ra2, arg2(raz_b1b), left(raz_b1), [ra2])
     $raz_b2b head(right(raz_b2))
@@ -88,9 +88,9 @@ $rec_agree {
     $_es head(right(eqv_symmetric))
     $_et head(right(eqv_transitive))
     $eqv_ay2 eqv("a","y2","_")
-    $got_ay2 mp(apply_thm(eqv_symmetric, _es, [["y2", ["b"]], ["a", []]], _es_b, []),
+    $got_ay2 mp(apply_thm(eqv_symmetric, _es, ["y2", "a"], ["y2", "b"], _es_b, []),
         got_y2a, eqv("y2","a","_"), eqv_ay2, [], left(got_y2a))
-    $got_y1y2 mp(mp(apply_thm(eqv_transitive, _et, [["y1", ["b","c"]], ["a", ["c"]], ["y2", []]], _et_b, []),
+    $got_y1y2 mp(mp(apply_thm(eqv_transitive, _et, ["y1", "a", "y2"], ["y1", "b", "c"], _et_b, []),
         got_y1a, eqv("y1","a","_"), implies(eqv_ay2, eqv_y1y2), [], left(got_y1a)),
         got_ay2, eqv_ay2, eqv_y1y2, left(got_y1a), left(got_ay2))
     # left(got_y1y2) |- eqv(y1,y2). Has ra1, ra2, emp, app1e, app2e.
@@ -155,9 +155,9 @@ $rec_agree {
                     forall("val", implies(apply("v1",n2,"val","_"),
                         forall("fv", implies(apply("f","val","fv","_"),
                             apply("v1","sn2","fv","_"))))))))))
-    $sv1_1 apply_thm(got_step_v1, step_v1, [["n", []]], _sv_b, [ra1])
+    $sv1_1 apply_thm(got_step_v1, step_v1, ["n"], ["n"], _sv_b, [ra1])
     $sv1_2 mp(sv1_1, ax([nw], [nw], nw), nw, arg2(head(right(sv1_1))), left(sv1_1), [nw])
-    $sv1_3 apply_thm(sv1_2, head(right(sv1_2)), [["s", []]],
+    $sv1_3 apply_thm(sv1_2, head(right(sv1_2)), ["s"], ["s"],
         \sn2: implies(successor(sn2,"n","_"),
             implies(exists("y", apply("v1",sn2,"y","_")),
                 and(exists("y", apply("v1","n","y","_")),
@@ -203,9 +203,9 @@ $rec_agree {
                     forall("val", implies(apply("v2",n2,"val","_"),
                         forall("fv", implies(apply("f","val","fv","_"),
                             apply("v2","sn2","fv","_"))))))))))
-    $sv2_1 apply_thm(got_step_v2, step_v2, [["n", []]], _sv2_b, [ra2])
+    $sv2_1 apply_thm(got_step_v2, step_v2, ["n"], ["n"], _sv2_b, [ra2])
     $sv2_2 mp(sv2_1, ax([nw], [nw], nw), nw, arg2(head(right(sv2_1))), left(sv2_1), [nw])
-    $sv2_3 apply_thm(sv2_2, head(right(sv2_2)), [["s", []]],
+    $sv2_3 apply_thm(sv2_2, head(right(sv2_2)), ["s"], ["s"],
         \sn2: implies(successor(sn2,"n","_"),
             implies(exists("y", apply("v2",sn2,"y","_")),
                 and(exists("y", apply("v2","n","y","_")),
@@ -229,11 +229,11 @@ $rec_agree {
     $app_v2n apply("v2","n","val2","_")
 
     # inner_v1 inst val1: app(v1,n,val1) → ∀fv.app(f,val1,fv)→app(v1,s,fv)
-    $iv1_1 apply_thm(got_inner_v1, inner_v1, [["val1", []]],
+    $iv1_1 apply_thm(got_inner_v1, inner_v1, ["val1"], ["val1"],
         \val: implies(apply("v1","n",val,"_"), forall("fv", implies(apply("f",val,"fv","_"), apply("v1","s","fv","_")))), left(got_inner_v1))
     $iv1_2 mp(iv1_1, ax([app_v1n], [app_v1n], app_v1n), app_v1n, arg2(head(right(iv1_1))), left(iv1_1), [app_v1n])
     # inst fv=fv1: app(f,val1,fv1) → app(v1,s,fv1)
-    $iv1_3 apply_thm(iv1_2, head(right(iv1_2)), [["fv1", []]],
+    $iv1_3 apply_thm(iv1_2, head(right(iv1_2)), ["fv1"], ["fv1"],
         \fv: implies(apply("f","val1",fv,"_"), apply("v1","s",fv,"_")), left(iv1_2))
     $app_f_val1 apply("f","val1","fv1","_")
     $app_v1s_fv1 apply("v1","s","fv1","_")
@@ -241,17 +241,17 @@ $rec_agree {
     # func_unique(v1): app(v1,s,y1) + app(v1,s,fv1) → eqv(y1,fv1)
     $_fut head(right(func_unique_thm))
     $eqv_y1fv1 eqv("y1","fv1","_")
-    $fu1 mp(mp(mp(apply_thm(func_unique_thm, _fut, [["v1", ["x","y1","y2"]], ["s", ["y1","y2"]], ["y1", ["y2"]], ["fv1", []]], _fut_b, []),
+    $fu1 mp(mp(mp(apply_thm(func_unique_thm, _fut, ["v1", "s", "y1", "fv1"], ["v1", "x", "y1", "y2"], _fut_b, []),
         got_func_v1, func_v1, implies(app1s, implies(app_v1s_fv1, eqv_y1fv1)), [], [ra1]),
         ax([app1s], [app1s], app1s), app1s, implies(app_v1s_fv1, eqv_y1fv1), [ra1], [app1s]),
         got_v1s_fv1, app_v1s_fv1, eqv_y1fv1, [ra1, app1s], left(got_v1s_fv1))
     # left(fu1) |- eqv(y1, fv1)
 
     # Same for v2: inner_v2 inst val2, get app(v2,s,fv2), func_unique → eqv(y2,fv2)
-    $iv2_1 apply_thm(got_inner_v2, inner_v2, [["val2", []]],
+    $iv2_1 apply_thm(got_inner_v2, inner_v2, ["val2"], ["val2"],
         \val: implies(apply("v2","n",val,"_"), forall("fv", implies(apply("f",val,"fv","_"), apply("v2","s","fv","_")))), left(got_inner_v2))
     $iv2_2 mp(iv2_1, ax([app_v2n], [app_v2n], app_v2n), app_v2n, arg2(head(right(iv2_1))), left(iv2_1), [app_v2n])
-    $iv2_3 apply_thm(iv2_2, head(right(iv2_2)), [["fv2", []]],
+    $iv2_3 apply_thm(iv2_2, head(right(iv2_2)), ["fv2"], ["fv2"],
         \fv: implies(apply("f","val2",fv,"_"), apply("v2","s",fv,"_")), left(iv2_2))
     $app_f_val2 apply("f","val2","fv2","_")
     $app_v2s_fv2 apply("v2","s","fv2","_")
@@ -259,13 +259,13 @@ $rec_agree {
     $eqv_y2fv2 eqv("y2","fv2","_")
     $fut_r forall("f", forall("x", forall("p", forall("q", _fut_b("f")("x")("p")("q")))))
     $fut_r_thm wr(func_unique_thm, [], [fut_r], fut_r)
-    $fu2 mp(mp(mp(apply_thm(fut_r_thm, fut_r, [["v2", ["x","p","q"]], ["s", ["p","q"]], ["y2", ["q"]], ["fv2", []]], _fut_b, []),
+    $fu2 mp(mp(mp(apply_thm(fut_r_thm, fut_r, ["v2", "s", "y2", "fv2"], ["v2", "x", "p", "q"], _fut_b, []),
         got_func_v2, func_v2, implies(app2s, implies(app_v2s_fv2, eqv_y2fv2)), [], [ra2]),
         ax([app2s], [app2s], app2s), app2s, implies(app_v2s_fv2, eqv_y2fv2), [ra2], [app2s]),
         got_v2s_fv2, app_v2s_fv2, eqv_y2fv2, [ra2, app2s], left(got_v2s_fv2))
 
     # IH: pred_n instantiated at v1,v2,val1,val2 → eqv(val1,val2)
-    $ih1 apply_thm(ax([pred_n], [pred_n], pred_n), pred_n, [["v1", ["v2","y1","y2"]], ["v2", ["y1","y2"]], ["val1", ["y2"]], ["val2", []]],
+    $ih1 apply_thm(ax([pred_n], [pred_n], pred_n), pred_n, ["v1", "v2", "val1", "val2"], ["v1", "v2", "y1", "y2"],
         \v1: \v2: \y1: \y2: implies(rec_approx(v1,"a","f","w","_"), implies(rec_approx(v2,"a","f","w","_"),
             implies(apply(v1,"n",y1,"_"), implies(apply(v2,"n",y2,"_"), eqv(y1,y2,"_"))))), [pred_n])
     $ih1b head(right(ih1))
@@ -282,7 +282,7 @@ $rec_agree {
     # apply_key_transfer: eqv(val1,val2) → app(f,val1,fv1) → app(f,val2,fv1)
     $_akt head(right(apply_key_transfer))
     $app_f_val2_fv1 apply("f","val2","fv1","_")
-    $akt1 mp(mp(apply_thm(apply_key_transfer, _akt, [["f", ["x","x2","y"]], ["val1", ["x2","y"]], ["val2", ["y"]], ["fv1", []]], _akt_b, []),
+    $akt1 mp(mp(apply_thm(apply_key_transfer, _akt, ["f", "val1", "val2", "fv1"], ["f", "x", "x2", "y"], _akt_b, []),
         got_ih, eqv_val1val2, implies(app_f_val1, app_f_val2_fv1), [], left(got_ih)),
         ax([app_f_val1], [app_f_val1], app_f_val1), app_f_val1, app_f_val2_fv1, left(got_ih), [app_f_val1])
 
@@ -290,26 +290,26 @@ $rec_agree {
     # Need function(f) — add as hypothesis
     $func_f function("f","_")
     $eqv_fv1fv2 eqv("fv1","fv2","_")
-    $fuf_a apply_thm(func_unique_thm, _fut, [["f", ["x","y1","y2"]], ["val2", ["y1","y2"]], ["fv1", ["y2"]], ["fv2", []]], _fut_b, [])
+    $fuf_a apply_thm(func_unique_thm, _fut, ["f", "val2", "fv1", "fv2"], ["f", "x", "y1", "y2"], _fut_b, [])
     $fuf_b mp(fuf_a, ax([func_f], [func_f], func_f), func_f, implies(app_f_val2_fv1, implies(app_f_val2, eqv_fv1fv2)), left(fuf_a), [func_f])
     $fuf_c mp(fuf_b, akt1, app_f_val2_fv1, implies(app_f_val2, eqv_fv1fv2), left(fuf_b), left(akt1))
     $fuf1 mp(fuf_c, ax([app_f_val2], [app_f_val2], app_f_val2), app_f_val2, eqv_fv1fv2, left(fuf_c), [app_f_val2])
 
     # Chain: eqv(y1,fv1) + eqv(fv1,fv2) → eqv(y1,fv2). eqv(y2,fv2) → eqv(fv2,y2) → eqv(y1,y2).
     $eqv_y1fv2 eqv("y1","fv2","_")
-    $got_y1fv2 mp(mp(apply_thm(eqv_transitive, _et, [["y1", ["b","c"]], ["fv1", ["c"]], ["fv2", []]], _et_b, []),
+    $got_y1fv2 mp(mp(apply_thm(eqv_transitive, _et, ["y1", "fv1", "fv2"], ["y1", "b", "c"], _et_b, []),
         fu1, eqv_y1fv1, implies(eqv_fv1fv2, eqv_y1fv2), [], left(fu1)),
         fuf1, eqv_fv1fv2, eqv_y1fv2, left(fu1), left(fuf1))
     $eqv_fv2y2 eqv("fv2","y2","_")
-    $got_fv2y2 mp(apply_thm(eqv_symmetric, _es, [["y2", ["b"]], ["fv2", []]], _es_b, []),
+    $got_fv2y2 mp(apply_thm(eqv_symmetric, _es, ["y2", "fv2"], ["y2", "b"], _es_b, []),
         fu2, eqv_y2fv2, eqv_fv2y2, [], left(fu2))
-    $got_y1y2_step mp(mp(apply_thm(eqv_transitive, _et, [["y1", ["b","c"]], ["fv2", ["c"]], ["y2", []]], _et_b, []),
+    $got_y1y2_step mp(mp(apply_thm(eqv_transitive, _et, ["y1", "fv2", "y2"], ["y1", "b", "c"], _et_b, []),
         got_y1fv2, eqv_y1fv2, implies(eqv_fv2y2, eqv_y1y2_s), [], left(got_y1fv2)),
         got_fv2y2, eqv_fv2y2, eqv_y1y2_s, left(got_y1fv2), left(got_fv2y2))
     # left(got_y1y2_step) |- eqv(y1,y2)
 
     # eel fv1 from ran_sub(v1,n,val1): app(v1,n,val1)→∃z.app(f,val1,z)
-    $got_ran_v1_inst apply_thm(got_ran_v1, ran_sub_v1, [["n", ["y"]], ["val1", []]],
+    $got_ran_v1_inst apply_thm(got_ran_v1, ran_sub_v1, ["n", "val1"], ["n", "y"],
         \x: \y: implies(apply("v1",x,y,"_"), exists("z2", apply("f",y,"z2","_"))), [ra1])
     $got_ex_f1 mp(got_ran_v1_inst, ax([app_v1n], [app_v1n], app_v1n), app_v1n,
         arg2(head(right(got_ran_v1_inst))), left(got_ran_v1_inst), [app_v1n])
@@ -319,7 +319,7 @@ $rec_agree {
     # eel fv2 from ran_sub(v2,n,val2):
     $got_ran_v2 mp(and_elim_left(ran_sub_v2, and(forall("e2", implies(empty("e2","_"), implies(exists("y", apply("v2","e2","y","_")), apply("v2","e2","a","_")))), step_v2), []),
         got_rest2_v2, rest2_v2, ran_sub_v2, [], [ra2])
-    $got_ran_v2_inst apply_thm(got_ran_v2, ran_sub_v2, [["n", ["y"]], ["val2", []]],
+    $got_ran_v2_inst apply_thm(got_ran_v2, ran_sub_v2, ["n", "val2"], ["n", "y"],
         \x: \y: implies(apply("v2",x,y,"_"), exists("z2", apply("f",y,"z2","_"))), [ra2])
     $got_ex_f2 mp(got_ran_v2_inst, ax([app_v2n], [app_v2n], app_v2n), app_v2n,
         arg2(head(right(got_ran_v2_inst))), left(got_ran_v2_inst), [app_v2n])

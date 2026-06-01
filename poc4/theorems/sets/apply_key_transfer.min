@@ -28,7 +28,7 @@ $apply_key_transfer {
     # ordpair_key_transfer: eqv(x,x2) → op(q,x,y) → op(q,x2,y)
     $_okt head(right(ordpair_key_transfer))
     $_okt_b \t: \a: \b: \c: implies(eqv(a,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,b,"_")))
-    $got_okt apply_thm(ordpair_key_transfer, _okt, [["q", ["a","b","c"]], ["x", ["b","c"]], ["y", ["c"]], ["x2", []]], _okt_b, [])
+    $got_okt apply_thm(ordpair_key_transfer, _okt, ["q", "x", "y", "x2"], ["q", "a", "b", "c"], _okt_b, [])
     $got_op2 mp(mp(got_okt,
         ax([eqv_xx2], [eqv_xx2], eqv_xx2), eqv_xx2, implies(op_q, op_q2), [], [eqv_xx2]),
         got_op, op_q, op_q2, [eqv_xx2], [and_q])

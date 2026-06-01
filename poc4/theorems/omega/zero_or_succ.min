@@ -61,7 +61,7 @@ $zero_or_succ {
             forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
         implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
     }
-    $ind_inst apply_thm(ind, _ind_f, [["w", []]], _ind_body, ind_ctx)
+    $ind_inst apply_thm(ind, _ind_f, ["w"], ["w"], _ind_body, ind_ctx)
     $i1 mp(ind_inst, ax([om], [om], om), om,
         implies(base_hyp, implies(step_hyp, fa_pred)), left(ind_inst), [om])
     $i2 mp(i1, wl_all(got_base, [], [base_hyp], left(i1)),

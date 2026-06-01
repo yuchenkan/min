@@ -13,7 +13,7 @@ $unique_domain {
     $dom_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $_du_f head(right(domain_unique))
-    $du_inst apply_thm(domain_unique, _du_f, [["f", ["s1","s2"]], ["u", ["s2"]], ["y", []]],
+    $du_inst apply_thm(domain_unique, _du_f, ["f", "u", "y"], ["f", "s1", "s2"],
         \f: \s1: \s2: implies(domain(s1,f,"_"), implies(domain(s2,f,"_"), eqv(s1,s2,"_"))), [])
     $got_inner mp(du_inst, ax([dom_u], [dom_u], dom_u), dom_u, imp_inner, [], [dom_u])
     $fa_uniq forall("y", imp_inner)
@@ -24,7 +24,7 @@ $unique_domain {
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "d", "u", [dom_u], eu)
     $de_ctx left(domain_exists)
     $de_f head(right(domain_exists))
-    $de_inst apply_thm(domain_exists, de_f, [["f", []]],
+    $de_inst apply_thm(domain_exists, de_f, ["f"], ["f"],
         \f: exists("d", domain("d",f,"_")), de_ctx)
     $ex_dom exists("d", body_fn("d", "_"))
     $got_cut cut_c(de_inst, got_ex, ex_dom, de_ctx, [ex_dom], eu)

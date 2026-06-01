@@ -14,7 +14,7 @@ $singleton_mem {
     $got_iff fl(ax([iff_as], [iff_as], iff_as), [sing], [iff_as], sing, "a")
 
     $_er head(right(eqv_reflexive))
-    $got_eqv apply_thm(eqv_reflexive, _er, [["a", []]], \a: eqv(a,a,"_"), [])
+    $got_eqv apply_thm(eqv_reflexive, _er, ["a"], ["a"], \a: eqv(a,a,"_"), [])
 
     $imp_bwd implies(eqv_aa, as)
     $got_as mp(mp(iff_elim_right(as, eqv_aa, []), got_iff, iff_as, imp_bwd, [], [sing]),

@@ -52,7 +52,7 @@ $omega_induction \pred vars p: {
     $ew mem(e, w)
 
     # From base_hyp: empty(e) → pred(e)
-    $got_pe apply_thm(ax([base_hyp], [base_hyp], base_hyp), base_hyp, [[e, []]],
+    $got_pe apply_thm(ax([base_hyp], [base_hyp], base_hyp), base_hyp, [e], [e],
         \v: implies(empty(v, np), pred(w, v, np)), [base_hyp])
     $pe pred(w, e, np)
     $got_pe2 mp(got_pe, ax([emp], [emp], emp), emp, pe, [base_hyp], [emp])
@@ -60,7 +60,7 @@ $omega_induction \pred vars p: {
 
     # From omega_contains_empty: omega(w) → empty(e) → e∈w
     $_oce head(right(omega_contains_empty))
-    $got_oce apply_thm(omega_contains_empty, _oce, [[e, ["w"]], [w, []]],
+    $got_oce apply_thm(omega_contains_empty, _oce, [e, w], [e, "w"],
         \e: \w: implies(omega(w,"_"), implies(empty(e,"_"), mem(e,w))), [])
     $got_ew mp(mp(got_oce, ax([om], [om], om), om, implies(emp, ew), [], [om]),
         ax([emp], [emp], emp), emp, ew, [om], [emp])
@@ -110,14 +110,14 @@ $omega_induction \pred vars p: {
 
     # From step_hyp: x∈w → pred(x) → ∀t. succ(t,x) → pred(t)
     $fa_t forall(r, implies(succ_tx, pt))
-    $step_inst apply_thm(ax([step_hyp], [step_hyp], step_hyp), step_hyp, [[m, []]],
+    $step_inst apply_thm(ax([step_hyp], [step_hyp], step_hyp), step_hyp, [m], [m],
         \v: implies(mem(v,w), implies(pred(w,v,np), forall(s, implies(successor(s,v,np), pred(w,s,np))))), [step_hyp])
     $got_fa_t mp(mp(step_inst,
         got_xw, xw, implies(px, fa_t), [step_hyp], [char, xs]),
         got_px, px, fa_t, [step_hyp, char, xs], [char, xs])
     # [step_hyp, char, xs] |- ∀t. succ(t,x) → pred(t)
 
-    $got_pt apply_thm(got_fa_t, fa_t, [[r, []]],
+    $got_pt apply_thm(got_fa_t, fa_t, [r], [r],
         \v: implies(successor(v,m,np), pred(w,v,np)), [step_hyp, char, xs])
     $got_pt2 mp(got_pt, ax([succ_tx], [succ_tx], succ_tx), succ_tx, pt,
         [step_hyp, char, xs], [succ_tx])
@@ -125,7 +125,7 @@ $omega_induction \pred vars p: {
 
     # From omega_succ_closed: omega(w) → x∈w → succ(t,x) → t∈w
     $_osc head(right(omega_succ_closed))
-    $got_osc apply_thm(omega_succ_closed, _osc, [[r, ["n","w"]], [m, ["w"]], [w, []]],
+    $got_osc apply_thm(omega_succ_closed, _osc, [r, m, w], [r, "n", "w"],
         \s: \n: \w: implies(omega(w,"_"), implies(mem(n,w), implies(successor(s,n,"_"), mem(s,w)))), [])
     $got_tw mp(mp(mp(got_osc,
         ax([om], [om], om), om, implies(xw, implies(succ_tx, tw)), [], [om]),
@@ -171,14 +171,14 @@ $omega_induction \pred vars p: {
     $osi_r forall("p", forall("q", _osi_b("p")("q")))
     $osi_r_thm wr(omega_smallest_inductive, [], [osi_r], osi_r)
     $sub_ws subset(w, s, np)
-    $got_sub mp(mp(apply_thm(osi_r_thm, osi_r, [[s, ["q"]], [w, []]], _osi_b, []),
+    $got_sub mp(mp(apply_thm(osi_r_thm, osi_r, [s, w], [s, "q"], _osi_b, []),
         ax([om], [om], om), om, implies(ind_s, sub_ws), [], [om]),
         got_ind, ind_s, sub_ws, [om], [char, om, base_hyp, step_hyp])
     # [char, om, base_hyp, step_hyp] |- subset(w, s)
 
     # subset(w,s) instantiated at n: n∈w → n∈s
     $imp_nw_ns implies(nw, ns)
-    $got_ns apply_thm(got_sub, sub_ws, [[n, []]],
+    $got_ns apply_thm(got_sub, sub_ws, [n], [n],
         \v: implies(mem(v,w), mem(v,s)), [char, om, base_hyp, step_hyp])
     $got_ns2 mp(got_ns, ax([nw], [nw], nw), nw, ns, [char, om, base_hyp, step_hyp], [nw])
     # [char, om, base_hyp, step_hyp, nw] |- n∈s

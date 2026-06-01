@@ -23,18 +23,18 @@ $func_preserves_eq {
     $_es head(right(eqv_symmetric))
     $eqv_x_rev eqv("x2", "x1", "_")
     $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_eqv_sym mp(apply_thm(eqv_symmetric, _es, [["x1", ["b"]], ["x2", []]], _es_b, []),
+    $got_eqv_sym mp(apply_thm(eqv_symmetric, _es, ["x1", "x2"], ["x1", "b"], _es_b, []),
         ax([eqv_x], [eqv_x], eqv_x), eqv_x, eqv_x_rev, [], [eqv_x])
 
     $_er head(right(eqv_reflexive))
     $eqv_yy eqv("y2", "y2", "_")
-    $got_eqv_refl apply_thm(eqv_reflexive, _er, [["y2", []]], \a: eqv(a,a,"_"), [])
+    $got_eqv_refl apply_thm(eqv_reflexive, _er, ["y2"], ["y2"], \a: eqv(a,a,"_"), [])
 
     $_oet head(right(ordpair_eq_transfer))
     $op2 ordered_pair("p", "x2", "y2", "_")
     $op12 ordered_pair("p", "x1", "y2", "_")
     $_oet_b \t: \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,d,"_"))))
-    $got_oet apply_thm(ordpair_eq_transfer, _oet, [["p", ["a","b","c","d"]], ["x2", ["b","c","d"]], ["y2", ["c","d"]], ["x1", ["d"]], ["y2", []]], _oet_b, [])
+    $got_oet apply_thm(ordpair_eq_transfer, _oet, ["p", "x2", "y2", "x1", "y2"], ["p", "a", "b", "c", "d"], _oet_b, [])
     $got_op12 mp(mp(mp(got_oet,
         got_eqv_sym, eqv_x_rev, implies(eqv_yy, implies(op2, op12)), [], [eqv_x]),
         got_eqv_refl, eqv_yy, implies(op2, op12), [eqv_x], []),
@@ -64,7 +64,7 @@ $func_preserves_eq {
 
     $_fut head(right(func_unique_thm))
     $_fut_b \f: \x: \y1: \y2: implies(sv, implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
-    $got_fut apply_thm(func_unique_thm, _fut, [["f", ["x","y1","y2"]], ["x1", ["y1","y2"]], ["y1", ["y2"]], ["y2", []]], _fut_b, [])
+    $got_fut apply_thm(func_unique_thm, _fut, ["f", "x1", "y1", "y2"], ["f", "x", "y1", "y2"], _fut_b, [])
     $got_eqv mp(mp(mp(got_fut,
         ax([sv], [sv], sv), sv, implies(app1, implies(app12, eqv_y)), [], [sv]),
         ax([app1], [app1], app1), app1, implies(app12, eqv_y), [sv], [app1]),

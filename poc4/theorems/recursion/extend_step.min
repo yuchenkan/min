@@ -86,10 +86,10 @@ $extend_step {
                     forall("val2", implies(apply("v",n2,"val2","_"),
                         forall("fval2", implies(apply("f","val2","fval2","_"),
                             apply("v","sn2","fval2","_"))))))))))
-    $got_sv_m apply_thm(got_step_v, step_v, [["m", []]], _step_v_b, [ra_v])
+    $got_sv_m apply_thm(got_step_v, step_v, ["m"], ["m"], _step_v_b, [ra_v])
     $sv_m_body head(right(got_sv_m))
     $got_sv_m2 mp(got_sv_m, ax([mw], [mw], mw), mw, arg2(sv_m_body), left(got_sv_m), [mw])
-    $got_sv_sm apply_thm(got_sv_m2, head(right(got_sv_m2)), [["sm", []]],
+    $got_sv_sm apply_thm(got_sv_m2, head(right(got_sv_m2)), ["sm"], ["sm"],
         \sn2: implies(successor(sn2,"m","_"),
             implies(exists("y", apply("v",sn2,"y","_")),
                 and(exists("y", apply("v","m","y","_")),
@@ -118,7 +118,7 @@ $extend_step {
     $_eao head(right(extend_apply_old))
     $app_v_m_vv apply("v", "m", "val_v", "_")
     $app_u_m_vv apply("u", "m", "val_v", "_")
-    $eao1 mp(mp(apply_thm(extend_apply_old, _eao, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["m", ["y"]], ["val_v", []]], _eao_b, []),
+    $eao1 mp(mp(apply_thm(extend_apply_old, _eao, ["u", "v", "h", "m", "val_v"], ["u", "a", "b", "x", "y"], _eao_b, []),
         ax([app_v_m_vv], [app_v_m_vv], app_v_m_vv), app_v_m_vv, implies(un, app_u_m_vv), [], [app_v_m_vv]),
         ax([un], [un], un), un, app_u_m_vv, [app_v_m_vv], [un])
     $got_ex_u_m_vv eir(eao1, \v2: apply("u","m",v2,"_"), "val5", "val_v", [app_v_m_vv, un])
@@ -135,13 +135,13 @@ $extend_step {
     # extend_apply_old: apply(u,sm,fv5).
 
     # step_v part2 inst val_v, mp app_v_m_vv, inst fv5, mp app_f_vv:
-    $got_sv_p2_inst apply_thm(got_sv_p2, sv_part2, [["val_v", []]],
+    $got_sv_p2_inst apply_thm(got_sv_p2, sv_part2, ["val_v"], ["val_v"],
         \val2: implies(apply("v","m",val2,"_"),
             forall("fval2", implies(apply("f",val2,"fval2","_"), apply("v","sm","fval2","_")))), left(got_sv_p2))
     $sv_p2_body head(right(got_sv_p2_inst))
     $got_sv_p2_mp mp(got_sv_p2_inst, ax([app_v_m_vv], [app_v_m_vv], app_v_m_vv),
         app_v_m_vv, arg2(sv_p2_body), left(got_sv_p2_inst), [app_v_m_vv])
-    $got_sv_p2_fv apply_thm(got_sv_p2_mp, head(right(got_sv_p2_mp)), [["fv5", []]],
+    $got_sv_p2_fv apply_thm(got_sv_p2_mp, head(right(got_sv_p2_mp)), ["fv5"], ["fv5"],
         \fval2: implies(apply("f","val_v",fval2,"_"), apply("v","sm",fval2,"_")), left(got_sv_p2_mp))
     $sv_p2_fv_body head(right(got_sv_p2_fv))
     $app_f_vv_fv5 apply("f", "val_v", "fv5", "_")
@@ -151,7 +151,7 @@ $extend_step {
     # left |- apply(v,sm,fv5). Has ra_v, mw, succ_sm, app_v_sm, app_v_m_vv, app_f_vv_fv5.
 
     # extend_apply_old: apply(v,sm,fv5) → apply(u,sm,fv5)
-    $eao2 mp(mp(apply_thm(extend_apply_old, _eao, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["sm", ["y"]], ["fv5", []]], _eao_b, []),
+    $eao2 mp(mp(apply_thm(extend_apply_old, _eao, ["u", "v", "h", "sm", "fv5"], ["u", "a", "b", "x", "y"], _eao_b, []),
         got_app_v_sm_fv5, app_v_sm_fv5, implies(un, app_u_sm_fv5), [], left(got_app_v_sm_fv5)),
         ax([un], [un], un), un, app_u_sm_fv5, left(got_app_v_sm_fv5), [un])
     # left(eao2) |- apply(u,sm,fv5). Has ..., app_v_m_vv, app_f_vv_fv5, un.
@@ -159,12 +159,12 @@ $extend_step {
     # func_unique(u): apply(u,m,val5) + apply(u,m,val_v) → eqv(val5,val_v)
     $_fut head(right(func_unique_thm))
     $eqv_val5_valv eqv("val5", "val_v", "_")
-    $fut1 mp(apply_thm(func_unique_thm, _fut, [["u", ["x","y1","y2"]], ["m", ["y1","y2"]], ["val5", ["y2"]], ["val_v", []]], _fut_b, []),
+    $fut1 mp(apply_thm(func_unique_thm, _fut, ["u", "m", "val5", "val_v"], ["u", "x", "y1", "y2"], _fut_b, []),
         ax([func_u], [func_u], func_u), func_u, implies(app_u_m_val5, implies(app_u_m_vv, eqv_val5_valv)), [], [func_u])
     $fut2 mp(fut1, ax([app_u_m_val5], [app_u_m_val5], app_u_m_val5), app_u_m_val5,
         implies(app_u_m_vv, eqv_val5_valv), [func_u], [app_u_m_val5])
     # Need apply(u,m,val_v) from apply(v,m,val_v) via extend_apply_old:
-    $got_u_m_vv mp(mp(apply_thm(extend_apply_old, _eao, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["m", ["y"]], ["val_v", []]], _eao_b, []),
+    $got_u_m_vv mp(mp(apply_thm(extend_apply_old, _eao, ["u", "v", "h", "m", "val_v"], ["u", "a", "b", "x", "y"], _eao_b, []),
         ax([app_v_m_vv], [app_v_m_vv], app_v_m_vv), app_v_m_vv, implies(un, app_u_m_vv), [], [app_v_m_vv]),
         ax([un], [un], un), un, app_u_m_vv, [app_v_m_vv], [un])
     $got_eqv mp(fut2, got_u_m_vv, app_u_m_vv, eqv_val5_valv, [func_u, app_u_m_val5], [app_v_m_vv, un])
@@ -172,7 +172,7 @@ $extend_step {
 
     # apply_key_transfer: eqv(val5,val_v) → apply(f,val5,fv5) → apply(f,val_v,fv5)
     $_akt head(right(apply_key_transfer))
-    $got_f_transfer mp(mp(apply_thm(apply_key_transfer, _akt, [["f", ["x","x2","y"]], ["val5", ["x2","y"]], ["val_v", ["y"]], ["fv5", []]], _akt_b, []),
+    $got_f_transfer mp(mp(apply_thm(apply_key_transfer, _akt, ["f", "val5", "val_v", "fv5"], ["f", "x", "x2", "y"], _akt_b, []),
         got_eqv, eqv_val5_valv, implies(app_f_val5, app_f_vv_fv5), [], left(got_eqv)),
         ax([app_f_val5], [app_f_val5], app_f_val5), app_f_val5, app_f_vv_fv5, left(got_eqv), [app_f_val5])
     # left(got_f_transfer) |- apply(f,val_v,fv5). Has func_u, app_u_m_val5, app_v_m_vv, un, app_f_val5.
@@ -213,12 +213,12 @@ $extend_step {
     $eqv_q_op eqv("q", "op", "_")
     $eqv_sm_sn eqv("sm", "sn", "_")
 
-    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, [["q", ["f","a"]], ["h", ["a"]], ["op", []]], _sme_b, []),
+    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "h", "op"], ["q", "f", "a"], _sme_b, []),
         ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eqv_q_op), [], [sing_h]),
         mp(and_elim_right(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, qh, [], [and_q]),
         qh, eqv_q_op, [sing_h], [and_q])
     $goal_and_h and(eqv_sm_sn, eqv("y5","fval","_"))
-    $k_inst apply_thm(kuratowski, _kur, [["q", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["sm", ["b","c","d"]], ["y5", ["c","d"]], ["sn", ["d"]], ["fval", []]], _kur_b, kur_ctx)
+    $k_inst apply_thm(kuratowski, _kur, ["q", "op", "sm", "y5", "sn", "fval"], ["q", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
     $got_op_q mp(and_elim_left(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
     $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eqv_q_op, goal_and_h)), left(k_inst), [and_q])
     $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eqv_q_op, goal_and_h), left(km1), [opkv])
@@ -293,7 +293,7 @@ $extend_step {
     $_sst head(right(succ_set_transfer))
     $sst_ctx left(succ_set_transfer)
     $succ_sn_m successor("sn", "m", "_")
-    $sst_inst apply_thm(succ_set_transfer, _sst, [["sm", ["s2","n"]], ["sn", ["n"]], ["m", []]], _sst_b, sst_ctx)
+    $sst_inst apply_thm(succ_set_transfer, _sst, ["sm", "sn", "m"], ["sm", "s2", "n"], _sst_b, sst_ctx)
     $sst2 mp(sst_inst, got_sm_sn, eqv_sm_sn, implies(succ_sm, succ_sn_m), left(sst_inst), left(got_sm_sn))
     $sst1 mp(sst2, ax([succ_sm], [succ_sm], succ_sm), succ_sm, succ_sn_m, left(sst2), [succ_sm])
     # left(sst1) |- succ(sn,m). Has pa_f, and_q, opkv, sing_h, succ_sm.
@@ -302,7 +302,7 @@ $extend_step {
     $_si head(right(successor_injection))
     $si_ctx left(successor_injection)
     $eqv_mn eqv("m", "n", "_")
-    $si1 apply_thm(successor_injection, _si, [["w", ["m","n","sn"]], ["m", ["n","sn"]], ["n", ["sn"]], ["sn", []]], _si_b, si_ctx)
+    $si1 apply_thm(successor_injection, _si, ["w", "m", "n", "sn"], ["w", "m", "n", "sn"], _si_b, si_ctx)
     $si1_body head(right(si1))
     $si2 mp(si1, ax([om], [om], om), om, arg2(si1_body), left(si1), [om])
     $si2_body head(right(si2))
@@ -320,15 +320,15 @@ $extend_step {
     # apply_key_transfer with eqv(n,m) (symmetric of eqv(m,n)): apply(u,m,val). eir.
     $_es head(right(eqv_symmetric))
     $eqv_nm eqv("n", "m", "_")
-    $got_nm mp(apply_thm(eqv_symmetric, _es, [["m", ["b"]], ["n", []]], _es_b, []),
+    $got_nm mp(apply_thm(eqv_symmetric, _es, ["m", "n"], ["m", "b"], _es_b, []),
         got_mn, eqv_mn, eqv_nm, [], left(got_mn))
     $app_u_n_val apply("u", "n", "val", "_")
     $app_u_m_val apply("u", "m", "val", "_")
-    $eao_n mp(mp(apply_thm(extend_apply_old, _eao, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["n", ["y"]], ["val", []]], _eao_b, []),
+    $eao_n mp(mp(apply_thm(extend_apply_old, _eao, ["u", "v", "h", "n", "val"], ["u", "a", "b", "x", "y"], _eao_b, []),
         ax([app_vn], [app_vn], app_vn), app_vn, implies(un, app_u_n_val), [], [app_vn]),
         ax([un], [un], un), un, app_u_n_val, [app_vn], [un])
     $_akt2 head(right(apply_key_transfer))
-    $got_u_m_val mp(mp(apply_thm(apply_key_transfer, _akt, [["u", ["x","x2","y"]], ["n", ["x2","y"]], ["m", ["y"]], ["val", []]], _akt_b, []),
+    $got_u_m_val mp(mp(apply_thm(apply_key_transfer, _akt, ["u", "n", "m", "val"], ["u", "x", "x2", "y"], _akt_b, []),
         got_nm, eqv_nm, implies(app_u_n_val, app_u_m_val), [], left(got_nm)),
         eao_n, app_u_n_val, app_u_m_val, left(got_nm), [app_vn, un])
     $got_part1_h eir(got_u_m_val, \v2: apply("u","m",v2,"_"), "val5", "val", left(got_u_m_val))
@@ -343,7 +343,7 @@ $extend_step {
 
     $_fut2 head(right(func_unique_thm))
     $eqv_val5_val eqv("val5", "val", "_")
-    $fu1 mp(apply_thm(func_unique_thm, _fut, [["u", ["x","y1","y2"]], ["m", ["y1","y2"]], ["val5", ["y2"]], ["val", []]], _fut_b, []),
+    $fu1 mp(apply_thm(func_unique_thm, _fut, ["u", "m", "val5", "val"], ["u", "x", "y1", "y2"], _fut_b, []),
         ax([func_u], [func_u], func_u), func_u, implies(app_u_m_val5, implies(app_u_m_val, eqv_val5_val)), [], [func_u])
     $fu2 mp(fu1, ax([app_u_m_val5], [app_u_m_val5], app_u_m_val5), app_u_m_val5,
         implies(app_u_m_val, eqv_val5_val), [func_u], [app_u_m_val5])
@@ -352,13 +352,13 @@ $extend_step {
 
     # apply_key_transfer on f: eqv(val5,val) → apply(f,val5,fv5) → apply(f,val,fv5)
     $app_f_val_fv5 apply("f", "val", "fv5", "_")
-    $got_f_transfer mp(mp(apply_thm(apply_key_transfer, _akt, [["f", ["x","x2","y"]], ["val5", ["x2","y"]], ["val", ["y"]], ["fv5", []]], _akt_b, []),
+    $got_f_transfer mp(mp(apply_thm(apply_key_transfer, _akt, ["f", "val5", "val", "fv5"], ["f", "x", "x2", "y"], _akt_b, []),
         got_eqv_val, eqv_val5_val, implies(app_f_val5, app_f_val_fv5), [], left(got_eqv_val)),
         ax([app_f_val5], [app_f_val5], app_f_val5), app_f_val5, app_f_val_fv5, left(got_eqv_val), [app_f_val5])
 
     # func_unique(f): apply(f,val,fval) + apply(f,val,fv5) → eqv(fval,fv5)
     $eqv_fval_fv5 eqv("fval", "fv5", "_")
-    $fu_f1 mp(apply_thm(func_unique_thm, _fut, [["f", ["x","y1","y2"]], ["val", ["y1","y2"]], ["fval", ["y2"]], ["fv5", []]], _fut_b, []),
+    $fu_f1 mp(apply_thm(func_unique_thm, _fut, ["f", "val", "fval", "fv5"], ["f", "x", "y1", "y2"], _fut_b, []),
         ax([func_f], [func_f], func_f), func_f, implies(app_f_val, implies(app_f_val_fv5, eqv_fval_fv5)), [], [func_f])
     $fu_f2 mp(fu_f1, ax([app_f_val], [app_f_val], app_f_val), app_f_val,
         implies(app_f_val_fv5, eqv_fval_fv5), [func_f], [app_f_val])
@@ -368,15 +368,15 @@ $extend_step {
     # apply_val_transfer: eqv(fval,fv5) → apply(u,sn,fval) → apply(u,sn,fv5)
     $_avt head(right(apply_val_transfer))
     $app_u_sn_fv5 apply("u", "sn", "fv5", "_")
-    $got_u_sn_fv5 mp(mp(apply_thm(apply_val_transfer, _avt, [["u", ["x","y","y2"]], ["sn", ["y","y2"]], ["fval", ["y2"]], ["fv5", []]], _avt_b, []),
+    $got_u_sn_fv5 mp(mp(apply_thm(apply_val_transfer, _avt, ["u", "sn", "fval", "fv5"], ["u", "x", "y", "y2"], _avt_b, []),
         got_eqv_fval_fv5, eqv_fval_fv5, implies(app_u_sn_fval, app_u_sn_fv5), [], left(got_eqv_fval_fv5)),
         ax([app_u_sn_fval], [app_u_sn_fval], app_u_sn_fval), app_u_sn_fval, app_u_sn_fv5, left(got_eqv_fval_fv5), [app_u_sn_fval])
 
     # apply_key_transfer with eqv(sn,sm): apply(u,sn,fv5) → apply(u,sm,fv5)
     $eqv_sn_sm eqv("sn", "sm", "_")
-    $got_sn_sm mp(apply_thm(eqv_symmetric, _es, [["sm", ["b"]], ["sn", []]], _es_b, []),
+    $got_sn_sm mp(apply_thm(eqv_symmetric, _es, ["sm", "sn"], ["sm", "b"], _es_b, []),
         got_sm_sn, eqv_sm_sn, eqv_sn_sm, [], left(got_sm_sn))
-    $got_u_sm_fv5_h mp(mp(apply_thm(apply_key_transfer, _akt, [["u", ["x","x2","y"]], ["sn", ["x2","y"]], ["sm", ["y"]], ["fv5", []]], _akt_b, []),
+    $got_u_sm_fv5_h mp(mp(apply_thm(apply_key_transfer, _akt, ["u", "sn", "sm", "fv5"], ["u", "x", "x2", "y"], _akt_b, []),
         got_sn_sm, eqv_sn_sm, implies(app_u_sn_fv5, app_u_sm_fv5), [], left(got_sn_sm)),
         got_u_sn_fv5, app_u_sn_fv5, app_u_sm_fv5, left(got_sn_sm), left(got_u_sn_fv5))
     # left(got_u_sm_fv5_h) |- apply(u,sm,fv5). Has lots of hypotheses.
@@ -402,7 +402,7 @@ $extend_step {
 
     # === OR-ELIM on or(app_v_sm, app_h_sm) ===
     $_uae head(right(union_apply_elim))
-    $got_or mp(mp(apply_thm(union_apply_elim, _uae, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["sm", ["y"]], ["y5", []]], _uae_b, []),
+    $got_or mp(mp(apply_thm(union_apply_elim, _uae, ["u", "v", "h", "sm", "y5"], ["u", "a", "b", "x", "y"], _uae_b, []),
         ax([app_u_sm], [app_u_sm], app_u_sm), app_u_sm, implies(un, or_vh), [], [app_u_sm]),
         ax([un], [un], un), un, or_vh, [app_u_sm], [un])
 
