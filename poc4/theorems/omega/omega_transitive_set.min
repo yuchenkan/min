@@ -32,7 +32,8 @@ $omega_transitive_set {
 
     # neg_mem_empty: empty(e) → ¬(x∈e). From [emp_e, xe] derive contradiction → y∈e.
     $_nme head(right(neg_mem_empty))
-    $got_neg_xe mp(apply_thm(neg_mem_empty, _nme, ["e","x"], []),
+    $_nme_b \e: \x: implies(empty(e,"_"), neg(mem(x,e)))
+    $got_neg_xe mp(apply_thm(neg_mem_empty, _nme, [["e", ["x"]], ["x", []]], _nme_b, []),
         ax([emp_e], [emp_e], emp_e), emp_e, neg(xe), [], [emp_e])
     $ax_xe wl(ax([xe], [xe], xe), [emp_e, xe], [xe], emp_e)
     $got_false cut(wl(got_neg_xe, [emp_e, xe], [neg(xe)], xe),
@@ -64,7 +65,8 @@ $omega_transitive_set {
 
     # mem_succ_elim: x∈s → succ(s,n) → or(x∈n, eqv(x,n))
     $_mse head(right(mem_succ_elim))
-    $got_or_x mp(mp(apply_thm(mem_succ_elim, _mse, ["x","s","n"], []),
+    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+    $got_or_x mp(mp(apply_thm(mem_succ_elim, _mse, [["x", ["s","n"]], ["s", ["n"]], ["n", []]], _mse_b, []),
         ax([xs], [xs], xs), xs, implies(succ_sn, or_xn), [], [xs]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_xn, [xs], [succ_sn])
     # [xs, succ_sn] |- or(xn, exn)
@@ -85,7 +87,8 @@ $omega_transitive_set {
 
     # Case eqv(x,n): eqv_mem_left(x,n): y∈x → y∈n
     $_eml head(right(eqv_mem_left))
-    $got_yn_from_exn mp(mp(apply_thm(eqv_mem_left, _eml, ["x","n","y"], []),
+    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_yn_from_exn mp(mp(apply_thm(eqv_mem_left, _eml, [["x", ["b","z"]], ["n", ["z"]], ["y", []]], _eml_b, []),
         ax([exn], [exn], exn), exn, implies(yx, yn), [], [exn]),
         ax([yx], [yx], yx), yx, yn, [exn], [yx])
     # [exn, yx] |- y∈n
@@ -93,13 +96,15 @@ $omega_transitive_set {
     # Both cases give y∈n. mem_succ_intro: y∈n → succ(s,n) → y∈s
     $_msi head(right(mem_succ_intro))
     # Case xn: [ts_n, xn, yx] |- yn. Transfer to ys:
-    $got_ys_xn mp(mp(apply_thm(mem_succ_intro, _msi, ["y","s","n"], []),
+    $got_ys_xn mp(mp(apply_thm(mem_succ_intro, _msi, [["y", ["s","n"]], ["s", ["n"]], ["n", []]],
+        \x: \s: \n: implies(mem(x,n), implies(successor(s,n,"_"), mem(x,s))), []),
         got_yn_from_xn, yn, implies(succ_sn, ys), [], [ts_n, xn, yx]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, ys, [ts_n, xn, yx], [succ_sn])
     # [ts_n, xn, yx, succ_sn] |- ys
 
     # Case exn: [exn, yx] |- yn. Transfer to ys:
-    $got_ys_exn mp(mp(apply_thm(mem_succ_intro, _msi, ["y","s","n"], []),
+    $got_ys_exn mp(mp(apply_thm(mem_succ_intro, _msi, [["y", ["s","n"]], ["s", ["n"]], ["n", []]],
+        \x: \s: \n: implies(mem(x,n), implies(successor(s,n,"_"), mem(x,s))), []),
         got_yn_from_exn, yn, implies(succ_sn, ys), [], [exn, yx]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, ys, [exn, yx], [succ_sn])
     # [exn, yx, succ_sn] |- ys
@@ -142,7 +147,13 @@ $omega_transitive_set {
 
     # === Apply induction ===
     $fa_pred forall("n", implies(nw, pred_n))
-    $ind_inst apply_thm(ind, _ind_f, ["w"], ind_ctx)
+    $_ind_body \w: {
+        $base forall("e", implies(empty("e","_"), pred(w,"e","_")))
+        $step forall("n", implies(mem("n",w), implies(pred(w,"n","_"),
+            forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
+        implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
+    }
+    $ind_inst apply_thm(ind, _ind_f, [["w", []]], _ind_body, ind_ctx)
     $i1 mp(ind_inst, ax([om], [om], om), om,
         implies(base_hyp, implies(step_hyp, fa_pred)), left(ind_inst), [om])
     $i2 mp(i1, wl_all(got_base, [], [base_hyp], left(i1)),
