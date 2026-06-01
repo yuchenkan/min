@@ -13,8 +13,8 @@ $unique_ordpair {
     $op_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $_ou_f head(right(ordpair_unique))
-    $_ou_b \a b s1 s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
-    $ou_inst apply_thm(ordpair_unique, _ou_f, [["a", forall("b", forall("s1", forall("s2", _ou_b("a","b","s1","s2"))))], ["b", forall("s1", forall("s2", _ou_b("a","b","s1","s2")))], ["u", forall("s2", _ou_b("a","b","u","s2"))], ["y", _ou_b("a","b","u","y")]], [])
+    $ou_inst apply_thm(ordpair_unique, _ou_f, [["a", ["b","s1","s2"]], ["b", ["s1","s2"]], ["u", ["s2"]], ["y", []]],
+        \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_"))), [])
     $got_inner mp(ou_inst, ax([op_u], [op_u], op_u), op_u, imp_inner, [], [op_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [op_u], [fa_uniq], fa_uniq, "y")
@@ -23,8 +23,8 @@ $unique_ordpair {
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "p", "u", [op_u], eu)
     $_oe_f head(right(ordpair_exists))
     $oe_ctx left(ordpair_exists)
-    $_oe_b \a b: exists("p", ordered_pair("p",a,b,"_"))
-    $got_oe apply_thm(ordpair_exists, _oe_f, [["a", forall("b", _oe_b("a","b"))], ["b", _oe_b("a","b")]], oe_ctx)
+    $got_oe apply_thm(ordpair_exists, _oe_f, [["a", ["b"]], ["b", []]],
+        \a: \b: exists("p", ordered_pair("p",a,b,"_")), oe_ctx)
     $ex_op exists("p", body_fn("p", "_"))
     $got_cut cut_c(got_oe, got_ex, ex_op, oe_ctx, [ex_op], eu)
     close(got_cut, oe_ctx, [eu], ["b","a"])

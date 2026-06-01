@@ -14,8 +14,8 @@ $unique_power_set {
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
     $ssu set_spec_unique(cond_fn, [])
     $_ssu_f head(right(ssu))
-    $_ssu_body \s1 s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eqv(s1,s2,"_")))
-    $ssu_inst apply_thm(ssu, _ssu_f, [["u", forall("s2", _ssu_body("u","s2"))], ["y", _ssu_body("u","y")]], [])
+    $ssu_inst apply_thm(ssu, _ssu_f, [["u", ["s2"]], ["y", []]],
+        \s1: \s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eqv(s1,s2,"_"))), [])
     $got_inner mp(ssu_inst, ax([ps_u], [ps_u], ps_u), ps_u, imp_inner, [], [ps_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [ps_u], [fa_uniq], fa_uniq, "y")
@@ -24,7 +24,8 @@ $unique_power_set {
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [ps_u], eu)
     $_pe_f head(right(power_set_exists))
     $pe_ctx left(power_set_exists)
-    $got_pe apply_thm(power_set_exists, _pe_f, [["a", exists("s", body_fn("s","_"))]], pe_ctx)
+    $got_pe apply_thm(power_set_exists, _pe_f, [["a", []]],
+        \a: exists("s", power_set("s",a,"_")), pe_ctx)
     $ex_ps exists("s", body_fn("s", "_"))
     $got_cut cut_c(got_pe, got_ex, ex_ps, pe_ctx, [ex_ps], eu)
     close(got_cut, pe_ctx, [eu], ["a"])
