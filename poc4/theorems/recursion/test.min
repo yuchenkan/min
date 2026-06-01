@@ -159,6 +159,20 @@ $rva_body implies(recursive("h","a","f","w","_"), implies(recursive("h2","a","f"
 $_ qed(rec_values_agree, forall("h", forall("h2", forall("a", forall("f", forall("w", rva_body))))))
 $_ print("rec_values_agree ok")
 
+from theorems.recursion.char_h_bridge import char_h_bridge
+$chb_phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
+    and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+        apply(add(np,"v"),m,add(np,"y"),add(np,"_"))),
+        ordered_pair(p,m,add(np,"y"),add(np,"_")))))
+$chb_char_h_ppb forall("p", iff(mem("p","h"), and(mem("p","ppb"), exists("m", and(mem("m","w"), chb_phi("m","p","_"))))))
+$chb_char_h forall("p", iff(mem("p","h"), exists("m", and(mem("m","w"), chb_phi("m","p","_")))))
+from vocab.sets import big_union, union, power_set
+$chb_body implies(chb_char_h_ppb, implies(big_union("uf","f","_"), implies(big_union("uuf","uf","_"),
+    implies(union("big","w","uuf","_"), implies(power_set("pb","big","_"), implies(power_set("ppb","pb","_"), chb_char_h))))))
+$_ qed(char_h_bridge, forall("h", forall("a", forall("f", forall("w",
+    forall("uf", forall("uuf", forall("big", forall("pb", forall("ppb", chb_body))))))))))
+$_ print("char_h_bridge ok")
+
 from theorems.recursion.rec_unique import rec_unique
 $ru_body implies(recursive("h","a","f","w","_"), implies(recursive("h2","a","f","w","_"),
     implies(function("f","_"), implies(exists("z", apply("f","a","z","_")),
