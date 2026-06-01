@@ -148,22 +148,22 @@ $_wrap_foralls \self vars body: ?(eq(len(vars), 0), body,
     forall(head(vars), self(self, tail(vars), body)))
 
 # apply_thm: multi-forall instantiation
-# steps: [[term, [remaining_vars]], ...] — vars name the foralls below this step
+# terms: ["a","b","c"] — instantiation terms
+# vars: ["a","b","c"] — forall var names (for wrapping intermediate bodies)
 # body_fn: curried \a: \b: \c: ... returning innermost body
-$_apply_thm \self thm formula steps body_fn applied ctx: {
-    ?(eq(len(steps), 0), thm, {
-        $step head(steps)
-        $term nth(step, 0)
-        $vars nth(step, 1)
+$_apply_thm \self thm formula terms vars body_fn applied ctx: {
+    ?(eq(len(terms), 0), thm, {
+        $term head(terms)
+        $rest_vars tail(vars)
         $new_applied add(applied, [term])
-        $inner _apply_args(_apply_args, body_fn, add(new_applied, vars))
-        $body _wrap_foralls(_wrap_foralls, vars, inner)
+        $inner _apply_args(_apply_args, body_fn, add(new_applied, rest_vars))
+        $body _wrap_foralls(_wrap_foralls, rest_vars, inner)
         $result inst(thm, formula, body, term, ctx)
         $actual_body head(right(result))
-        self(self, result, actual_body, tail(steps), body_fn, new_applied, ctx)
+        self(self, result, actual_body, tail(terms), rest_vars, body_fn, new_applied, ctx)
     })
 }
-$apply_thm \thm formula steps body_fn ctx: _apply_thm(_apply_thm, thm, formula, steps, body_fn, [], ctx)
+$apply_thm \thm formula terms vars body_fn ctx: _apply_thm(_apply_thm, thm, formula, terms, vars, body_fn, [], ctx)
 
 # eir: exists intro right
 # prf: ctx |- [body_inst] where body_inst = body_fn(witness)
