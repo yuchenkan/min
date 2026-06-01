@@ -2,7 +2,7 @@ from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, le
 from vocab.sets import empty, successor, subset
 from vocab.omega import inductive, omega
 from util import rev
-from tactics import ax, wl, fl, fr, ir, mp, inst, apply_thm, eel, eir, cut_c, close
+from tactics import ax, wl, wr, fl, fr, ir, mp, inst, apply_thm, eel, eir, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.and_intro import and_intro
@@ -167,9 +167,11 @@ $omega_induction \pred vars p: {
 
     # === omega_smallest → subset(w, s) → n∈w → n∈s → pred(n) ===
     $_osi head(right(omega_smallest_inductive))
+    $_osi_b \c: \w: implies(omega(w,np), implies(inductive(c,np), subset(w,c,np)))
+    $osi_r forall("p", forall("q", _osi_b("p")("q")))
+    $osi_r_thm wr(omega_smallest_inductive, [], [osi_r], osi_r)
     $sub_ws subset(w, s, np)
-    $got_sub mp(mp(apply_thm(omega_smallest_inductive, _osi, [[s, ["w"]], [w, []]],
-        \c: \w: implies(omega(w,"_"), implies(inductive(c,"_"), subset(w,c,"_"))), []),
+    $got_sub mp(mp(apply_thm(osi_r_thm, osi_r, [[s, ["q"]], [w, []]], _osi_b, []),
         ax([om], [om], om), om, implies(ind_s, sub_ws), [], [om]),
         got_ind, ind_s, sub_ws, [om], [char, om, base_hyp, step_hyp])
     # [char, om, base_hyp, step_hyp] |- subset(w, s)
@@ -209,12 +211,14 @@ $omega_induction \pred vars p: {
     $sep_f sep_ax(all_vars, \x a pp: pred(w, x, pp), np)
     # Instantiate sep with identity for outer vars, then domain=w
     # Use inst directly for each step
+    $_sep_inner \a: exists("b", forall("x", iff(mem("x","b"), and(mem("x",a), pred(w,"x",np)))))
     $_peel_sep \self thm formula terms: ?(eq(len(terms), 0), thm, {
         $t head(terms)
-        $body_inner exists("s", forall("x", iff(mem("x","s"), and(mem("x",t), pred(w,"x",np)))))
-        $body ?(eq(len(tail(terms)), 0), body_inner, forall(head(tail(terms)), body_inner))
+        $rest tail(terms)
+        $body ?(eq(len(rest), 0), _sep_inner(t),
+            forall("a", _sep_inner("a")))
         $r inst(thm, formula, body, t, [sep_f])
-        self(self, r, head(right(r)), tail(terms))
+        self(self, r, head(right(r)), rest)
     })
     $got_sep _peel_sep(_peel_sep, ax([sep_f], [sep_f], sep_f), sep_f, add(rev_vars, [w]))
     $ex_char exists(s, forall(n, iff(mem(n, s), and(mem(n, w), pred(w, n, np)))))
