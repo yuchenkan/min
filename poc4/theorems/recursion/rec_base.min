@@ -21,13 +21,15 @@ $rec_base {
 
     # function(g)
     $_sf head(right(singleton_function))
-    $sf1 apply_thm(singleton_function, _sf, ["g","t","e0","a"], left(singleton_function))
+    $sf1 apply_thm(singleton_function, _sf, [["g", ["op","x","y"]], ["t", ["x","y"]], ["e0", ["y"]], ["a", []]],
+        \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), function(f,"_"))), left(singleton_function))
     $sf2 mp(sf1, ax([sing_g], [sing_g], sing_g), sing_g, implies(op_t, func_g), left(sf1), [sing_g])
     $got_func mp(sf2, ax([op_t], [op_t], op_t), op_t, func_g, left(sf2), [op_t])
 
     # apply(g, e0, a)
     $_sa head(right(singleton_apply))
-    $sa1 apply_thm(singleton_apply, _sa, ["g","t","e0","a"], [])
+    $sa1 apply_thm(singleton_apply, _sa, [["g", ["op","x","y"]], ["t", ["x","y"]], ["e0", ["y"]], ["a", []]],
+        \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), apply(f,x,y,"_"))), [])
     $sa2 mp(sa1, ax([sing_g], [sing_g], sing_g), sing_g, implies(op_t, app_g_e0), left(sa1), [sing_g])
     $got_app mp(sa2, ax([op_t], [op_t], op_t), op_t, app_g_e0, left(sa2), [op_t])
 
@@ -37,12 +39,14 @@ $rec_base {
     $eqv_e0e eqv("e0", "e", "_")
 
     $_eu head(right(empty_unique))
-    $got_eqv mp(mp(apply_thm(empty_unique, _eu, ["e0","e"], []),
+    $got_eqv mp(mp(apply_thm(empty_unique, _eu, [["e0", ["b"]], ["e", []]],
+        \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_"))), []),
         ax([emp0], [emp0], emp0), emp0, implies(emp_e, eqv_e0e), [], [emp0]),
         ax([emp_e], [emp_e], emp_e), emp_e, eqv_e0e, [emp0], [emp_e])
 
     $_akt head(right(apply_key_transfer))
-    $got_app_e mp(mp(apply_thm(apply_key_transfer, _akt, ["g","e0","e","a"], []),
+    $got_app_e mp(mp(apply_thm(apply_key_transfer, _akt, [["g", ["x","x2","y"]], ["e0", ["x2","y"]], ["e", ["y"]], ["a", []]],
+        \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_"))), []),
         got_eqv, eqv_e0e, implies(app_g_e0, app_g_e), [], [emp0, emp_e]),
         got_app, app_g_e0, app_g_e, [emp0, emp_e], left(got_app))
 
@@ -64,13 +68,14 @@ $rec_base {
     # eel g from singleton_exists, t from ordpair_exists
     $got_eel_g eel(got_ex, \v: singleton(v, "t", "_"), "s", "g", left(got_ex), ex_goal)
     $_se head(right(singleton_exists))
-    $got_se apply_thm(singleton_exists, _se, ["t"], left(singleton_exists))
+    $got_se apply_thm(singleton_exists, _se, [["t", []]], \a: exists("s", singleton("s",a,"_")), left(singleton_exists))
     $got_cut_g cut_c(got_se, got_eel_g,
         exists("s", singleton("s","t","_")), left(got_se), left(got_eel_g), ex_goal)
 
     $got_eel_t eel(got_cut_g, \v: ordered_pair(v, "e0", "a", "_"), "p", "t", left(got_cut_g), ex_goal)
     $_ope head(right(ordpair_exists))
-    $got_ope apply_thm(ordpair_exists, _ope, ["e0","a"], left(ordpair_exists))
+    $got_ope apply_thm(ordpair_exists, _ope, [["e0", ["b"]], ["a", []]],
+        \a: \b: exists("p", ordered_pair("p",a,b,"_")), left(ordpair_exists))
     $got_cut_t cut_c(got_ope, got_eel_t,
         exists("p", ordered_pair("p","e0","a","_")), left(got_ope), left(got_eel_t), ex_goal)
     # left(got_cut_t) has emp0, pa_f

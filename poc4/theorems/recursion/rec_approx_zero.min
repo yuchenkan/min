@@ -71,14 +71,16 @@ $rec_approx_zero {
 
     # func_unique: function(v) → apply(v,e,a) → apply(v,e,y) → eqv(a,y)
     $_fut head(right(func_unique_thm))
-    $fut1 mp(apply_thm(func_unique_thm, _fut, ["v","e","a","y"], []),
+    $_fut_b \f: \x: \y1: \y2: implies(function(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $fut1 mp(apply_thm(func_unique_thm, _fut, [["v", ["x","y1","y2"]], ["e", ["y1","y2"]], ["a", ["y2"]], ["y", []]], _fut_b, []),
         got_func, func_v, implies(app_vea, implies(app_vey, eqv_ay)), [], [ra])
     $fut2 mp(fut1, got_app_a, app_vea, implies(app_vey, eqv_ay), [ra], [ra, emp, app_vey])
     $got_eqv_ay mp(fut2, ax([app_vey], [app_vey], app_vey), app_vey, eqv_ay, left(fut2), [app_vey])
 
     # eqv_symmetric: eqv(a,y) → eqv(y,a)
     $_es head(right(eqv_symmetric))
-    $got_eqv_ya mp(apply_thm(eqv_symmetric, _es, ["a","y"], []),
+    $got_eqv_ya mp(apply_thm(eqv_symmetric, _es, [["a", ["b"]], ["y", []]],
+        \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
         got_eqv_ay, eqv_ay, eqv_ya, [], left(got_eqv_ay))
 
     # Close
