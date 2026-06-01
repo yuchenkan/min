@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
 from vocab.sets import empty, successor, singleton, ordered_pair, union
-from vocab.functions import apply, function
+from vocab.functions import apply, function, relation
 from vocab.omega import omega
 from vocab.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
@@ -67,6 +67,10 @@ $extend_step {
     $got_step_v mp(and_elim_right(base_v, step_v, []), got_rest3, rest3, step_v, [], [ra_v])
 
     # === Peel step_v: inst m, mp mw, inst sm, mp succ_sm ===
+    # sv extraction helper
+    $sv_of \f: forall("q1", forall("q2", forall("q3", implies(and(apply(f,"q1","q2","_"), apply(f,"q1","q3","_")), eqv("q2","q3","_")))))
+    $extract_sv \f got_func: mp(and_elim_right(relation(f,"_"), sv_of(f), []), got_func, function(f,"_"), sv_of(f), [], left(got_func))
+
     # Common body helpers
     $_eao_b \u: \a: \b: \x: \y: implies(apply(a,x,y,"_"), implies(union(u,a,b,"_"), apply(u,x,y,"_")))
     $_fut_b \f: \x: \y1: \y2: implies(forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
@@ -159,8 +163,9 @@ $extend_step {
     # func_unique(u): apply(u,m,val5) + apply(u,m,val_v) → eqv(val5,val_v)
     $_fut head(right(func_unique_thm))
     $eqv_val5_valv eqv("val5", "val_v", "_")
+    $got_sv_u extract_sv("u", ax([func_u], [func_u], func_u))
     $fut1 mp(apply_thm(func_unique_thm, _fut, ["u", "m", "val5", "val_v"], ["u", "x", "y1", "y2"], _fut_b, []),
-        ax([func_u], [func_u], func_u), func_u, implies(app_u_m_val5, implies(app_u_m_vv, eqv_val5_valv)), [], [func_u])
+        got_sv_u, sv_of("u"), implies(app_u_m_val5, implies(app_u_m_vv, eqv_val5_valv)), [], [func_u])
     $fut2 mp(fut1, ax([app_u_m_val5], [app_u_m_val5], app_u_m_val5), app_u_m_val5,
         implies(app_u_m_vv, eqv_val5_valv), [func_u], [app_u_m_val5])
     # Need apply(u,m,val_v) from apply(v,m,val_v) via extend_apply_old:
@@ -343,8 +348,9 @@ $extend_step {
 
     $_fut2 head(right(func_unique_thm))
     $eqv_val5_val eqv("val5", "val", "_")
+    $got_sv_u2 extract_sv("u", ax([func_u], [func_u], func_u))
     $fu1 mp(apply_thm(func_unique_thm, _fut, ["u", "m", "val5", "val"], ["u", "x", "y1", "y2"], _fut_b, []),
-        ax([func_u], [func_u], func_u), func_u, implies(app_u_m_val5, implies(app_u_m_val, eqv_val5_val)), [], [func_u])
+        got_sv_u2, sv_of("u"), implies(app_u_m_val5, implies(app_u_m_val, eqv_val5_val)), [], [func_u])
     $fu2 mp(fu1, ax([app_u_m_val5], [app_u_m_val5], app_u_m_val5), app_u_m_val5,
         implies(app_u_m_val, eqv_val5_val), [func_u], [app_u_m_val5])
     $got_eqv_val mp(fu2, got_u_m_val, app_u_m_val, eqv_val5_val, [func_u, app_u_m_val5], left(got_u_m_val))
@@ -358,8 +364,9 @@ $extend_step {
 
     # func_unique(f): apply(f,val,fval) + apply(f,val,fv5) → eqv(fval,fv5)
     $eqv_fval_fv5 eqv("fval", "fv5", "_")
+    $got_sv_f extract_sv("f", ax([func_f], [func_f], func_f))
     $fu_f1 mp(apply_thm(func_unique_thm, _fut, ["f", "val", "fval", "fv5"], ["f", "x", "y1", "y2"], _fut_b, []),
-        ax([func_f], [func_f], func_f), func_f, implies(app_f_val, implies(app_f_val_fv5, eqv_fval_fv5)), [], [func_f])
+        got_sv_f, sv_of("f"), implies(app_f_val, implies(app_f_val_fv5, eqv_fval_fv5)), [], [func_f])
     $fu_f2 mp(fu_f1, ax([app_f_val], [app_f_val], app_f_val), app_f_val,
         implies(app_f_val_fv5, eqv_fval_fv5), [func_f], [app_f_val])
     $got_eqv_fval_fv5 mp(fu_f2, got_f_transfer, app_f_val_fv5, eqv_fval_fv5,

@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
 from vocab.sets import empty, successor
-from vocab.functions import apply, function
+from vocab.functions import apply, function, relation
 from vocab.omega import omega
 from vocab.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
@@ -140,6 +140,8 @@ $rec_agree {
     $rest1_v1 and(dom_sub_v1, and(ran_sub_v1, and(base_v1, step_v1)))
     $got_rest1_v1 mp(and_elim_right(func_v1, rest1_v1, []), ax([ra1], [ra1], ra1), ra1, rest1_v1, [], [ra1])
     $got_func_v1 mp(and_elim_left(func_v1, rest1_v1, []), ax([ra1], [ra1], ra1), ra1, func_v1, [], [ra1])
+    $sv_v1 forall("q1", forall("q2", forall("q3", implies(and(apply("v1","q1","q2","_"), apply("v1","q1","q3","_")), eqv("q2","q3","_")))))
+    $got_sv_v1 mp(and_elim_right(relation("v1","_"), sv_v1, []), got_func_v1, func_v1, sv_v1, [], [ra1])
     $rest2_v1 and(ran_sub_v1, and(base_v1, step_v1))
     $got_rest2_v1 mp(and_elim_right(dom_sub_v1, rest2_v1, []), got_rest1_v1, rest1_v1, rest2_v1, [], [ra1])
     $got_ran_v1 mp(and_elim_left(ran_sub_v1, and(base_v1, step_v1), []), got_rest2_v1, rest2_v1, ran_sub_v1, [], [ra1])
@@ -187,6 +189,8 @@ $rec_agree {
     $ran_sub_v2 forall("x", forall("y", implies(apply("v2","x","y","_"), exists("z", apply("f","y","z","_")))))
     $rest1_v2 and(forall("x", implies(exists("y", apply("v2","x","y","_")), mem("x","w"))), and(ran_sub_v2, and(forall("e2", implies(empty("e2","_"), implies(exists("y", apply("v2","e2","y","_")), apply("v2","e2","a","_")))), step_v2)))
     $got_func_v2 mp(and_elim_left(func_v2, rest1_v2, []), ax([ra2], [ra2], ra2), ra2, func_v2, [], [ra2])
+    $sv_v2 forall("q1", forall("q2", forall("q3", implies(and(apply("v2","q1","q2","_"), apply("v2","q1","q3","_")), eqv("q2","q3","_")))))
+    $got_sv_v2 mp(and_elim_right(relation("v2","_"), sv_v2, []), got_func_v2, func_v2, sv_v2, [], [ra2])
     $got_rest1_v2 mp(and_elim_right(func_v2, rest1_v2, []), ax([ra2], [ra2], ra2), ra2, rest1_v2, [], [ra2])
     $rest2_v2 and(ran_sub_v2, and(forall("e2", implies(empty("e2","_"), implies(exists("y", apply("v2","e2","y","_")), apply("v2","e2","a","_")))), step_v2))
     $got_rest2_v2 mp(and_elim_right(forall("x", implies(exists("y", apply("v2","x","y","_")), mem("x","w"))), rest2_v2, []),
@@ -242,7 +246,7 @@ $rec_agree {
     $_fut head(right(func_unique_thm))
     $eqv_y1fv1 eqv("y1","fv1","_")
     $fu1 mp(mp(mp(apply_thm(func_unique_thm, _fut, ["v1", "s", "y1", "fv1"], ["v1", "x", "y1", "y2"], _fut_b, []),
-        got_func_v1, func_v1, implies(app1s, implies(app_v1s_fv1, eqv_y1fv1)), [], [ra1]),
+        got_sv_v1, sv_v1, implies(app1s, implies(app_v1s_fv1, eqv_y1fv1)), [], [ra1]),
         ax([app1s], [app1s], app1s), app1s, implies(app_v1s_fv1, eqv_y1fv1), [ra1], [app1s]),
         got_v1s_fv1, app_v1s_fv1, eqv_y1fv1, [ra1, app1s], left(got_v1s_fv1))
     # left(fu1) |- eqv(y1, fv1)
@@ -260,7 +264,7 @@ $rec_agree {
     $fut_r forall("f", forall("x", forall("p", forall("q", _fut_b("f")("x")("p")("q")))))
     $fut_r_thm wr(func_unique_thm, [], [fut_r], fut_r)
     $fu2 mp(mp(mp(apply_thm(fut_r_thm, fut_r, ["v2", "s", "y2", "fv2"], ["v2", "x", "p", "q"], _fut_b, []),
-        got_func_v2, func_v2, implies(app2s, implies(app_v2s_fv2, eqv_y2fv2)), [], [ra2]),
+        got_sv_v2, sv_v2, implies(app2s, implies(app_v2s_fv2, eqv_y2fv2)), [], [ra2]),
         ax([app2s], [app2s], app2s), app2s, implies(app_v2s_fv2, eqv_y2fv2), [ra2], [app2s]),
         got_v2s_fv2, app_v2s_fv2, eqv_y2fv2, [ra2, app2s], left(got_v2s_fv2))
 
@@ -291,7 +295,9 @@ $rec_agree {
     $func_f function("f","_")
     $eqv_fv1fv2 eqv("fv1","fv2","_")
     $fuf_a apply_thm(func_unique_thm, _fut, ["f", "val2", "fv1", "fv2"], ["f", "x", "y1", "y2"], _fut_b, [])
-    $fuf_b mp(fuf_a, ax([func_f], [func_f], func_f), func_f, implies(app_f_val2_fv1, implies(app_f_val2, eqv_fv1fv2)), left(fuf_a), [func_f])
+    $sv_f forall("q1", forall("q2", forall("q3", implies(and(apply("f","q1","q2","_"), apply("f","q1","q3","_")), eqv("q2","q3","_")))))
+    $got_sv_f mp(and_elim_right(relation("f","_"), sv_f, []), ax([func_f], [func_f], func_f), func_f, sv_f, [], [func_f])
+    $fuf_b mp(fuf_a, got_sv_f, sv_f, implies(app_f_val2_fv1, implies(app_f_val2, eqv_fv1fv2)), left(fuf_a), [func_f])
     $fuf_c mp(fuf_b, akt1, app_f_val2_fv1, implies(app_f_val2, eqv_fv1fv2), left(fuf_b), left(akt1))
     $fuf1 mp(fuf_c, ax([app_f_val2], [app_f_val2], app_f_val2), app_f_val2, eqv_fv1fv2, left(fuf_c), [app_f_val2])
 

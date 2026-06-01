@@ -1,7 +1,7 @@
-from core.derived import mem, neg, implies, forall, and, or, exists, eqv, left, right
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right
 from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply, function, relation
-from tactics import ax, wl, wl_all, wr, fl, nl, nr, il, ir, mp, cut, apply_thm, eel, cut_c, close, same, remove, diff
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
@@ -12,6 +12,10 @@ from theorems.sets.kuratowski import kuratowski
 from theorems.sets.func_unique_thm import func_unique_thm
 from theorems.sets.singleton_function import singleton_function
 from theorems.sets.apply_key_transfer import apply_key_transfer
+from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.logic.or_elim import or_elim
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.and_intro import and_intro
 
 # pa |- function(v) -> singleton(h,op) -> ordered_pair(op,k,y0) -> union(u,v,h) ->
 #       (forall z. apply(v,k,z) -> eqv(y0,z)) -> function(u)
@@ -247,14 +251,86 @@ $extend_function {
     $c3 cut_c(got_a1, c2, app_u1, [and_apps], left(c2), eqv_r1r2)
     $c4 cut_c(got_a2, c3, app_u2, [and_apps], left(c3), eqv_r1r2)
 
-    # Close into function(u)
+    # Close sv part
     $ctx_final remove(same, and_apps, left(c4))
     $imp_inner implies(and_apps, eqv_r1r2)
     $s1 ir(c4, ctx_final, [imp_inner], imp_inner)
+    $sv_u forall("r", forall("r1", forall("r2", imp_inner)))
     $s2 close(s1, ctx_final, [imp_inner], ["r2", "r1", "r"])
+    # s2: [func_v, sing_h, opky, un, cons, pa_f] |- sv_u
+
+    # === Prove relation(u) ===
+    # relation(u) = ∀z. z∈u → ∃x.∃y. ordpair(z,x,y)
+    # From z∈u: union gives z∈v or z∈h.
+    # From relation(v): z∈v → ∃x.∃y. ordpair(z,x,y).
+    # From relation(h): z∈h → ∃x.∃y. ordpair(z,x,y).
+    $rel_u relation("u","_")
+    $zu mem("z","u")
+    $zv mem("z","v")
+    $zh mem("z","h")
+    $ex_op exists("x3", exists("y3", ordered_pair("z","x3","y3","_")))
+
+    # Extract relation(v) from function(v):
+    $got_rel_v mp(and_elim_left(rel_v, sv_v, []), ax([func_v], [func_v], func_v), func_v, rel_v, [], [func_v])
+    # fl relation(v) at z: z∈v → ∃x.∃y. ordpair(z,x,y)
+    $imp_zv implies(zv, ex_op)
+    $got_zv_op fl(ax([imp_zv], [imp_zv], imp_zv), [rel_v], [imp_zv], rel_v, "z")
+    $got_case_v2 cut_c(got_rel_v, got_zv_op, rel_v, [func_v], [rel_v], imp_zv)
+    $got_v_exop mp(got_case_v2, ax([zv], [zv], zv), zv, ex_op, [func_v], [zv])
+    # [func_v, zv] |- ex_op
+
+    # Extract relation(h) from function(h) = singleton_function result:
+    # function(h) from sf_inst chain. But we need it inside the proof context.
+    # Actually, for singleton {op} where op=(k,y0): relation is trivial.
+    # Use eqv_ordpair_transfer: eqv(z,op) → ordpair(op,k,y0) → ordpair(z,k,y0) → eir → ex_op
+    $_eot head(right(eqv_ordpair_transfer))
+    $_eot_b \z: \t: \x: \y: implies(eqv(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
+    # From z∈h: singleton_mem_eq gives eqv(z,op)
+    $eqv_zop eqv("z","op","_")
+    $got_eqv_z mp(mp(apply_thm(singleton_mem_eq, _sme, ["z","h","op"], ["z","f","a"], _sme_b, []),
+        ax([sing_h], [sing_h], sing_h), sing_h, implies(zh, eqv_zop), [], [sing_h]),
+        ax([zh], [zh], zh), zh, eqv_zop, [sing_h], [zh])
+    $opz ordered_pair("z","k","y0","_")
+    $got_opz mp(mp(apply_thm(eqv_ordpair_transfer, _eot, ["z","op","k","y0"], ["z","t","x","y"], _eot_b, []),
+        got_eqv_z, eqv_zop, implies(opky, opz), [], [sing_h, zh]),
+        ax([opky], [opky], opky), opky, opz, [sing_h, zh], [opky])
+    $got_ex_y3 eir(got_opz, \y3: ordered_pair("z","k",y3,"_"), "y3", "y0", [sing_h, zh, opky])
+    $got_h_exop eir(got_ex_y3, \x3: exists("y3", ordered_pair("z",x3,"y3","_")), "x3", "k", [sing_h, zh, opky])
+    # [sing_h, zh, opky] |- ex_op
+
+    # or_elim on z∈v | z∈h:
+    # From z∈u + union(u,v,h): z∈v | z∈h via union vocab instantiation
+    # From union(u,v,h): ∀w. w∈u ↔ or(w∈v, w∈h). Instantiate z, iff forward.
+    $or_vh or(zv, zh)
+    $iff_zu iff(zu, or_vh)
+    $got_iff_zu fl(ax([iff_zu], [iff_zu], iff_zu), [un], [iff_zu], un, "z")
+    $got_or mp(mp(iff_elim_left(zu, or_vh, []),
+        got_iff_zu, iff_zu, implies(zu, or_vh), [], [un]),
+        ax([zu], [zu], zu), zu, or_vh, [un], [zu])
+    # [zu, un] |- or(zv, zh)
+
+    # or_elim:
+    $got_v_w wl(got_v_exop, [func_v, zv, un], [ex_op], un)
+    $got_h_w wl_all(got_h_exop, [sing_h, zh, opky], [ex_op], [func_v, un])
+    $got_v_ir ir(got_v_w, [func_v, un], [implies(zv, ex_op)], implies(zv, ex_op))
+    $got_h_ir ir(got_h_w, remove(same, zh, left(got_h_w)), [implies(zh, ex_op)], implies(zh, ex_op))
+    $got_exop mp(mp(mp(or_elim(zv, zh, ex_op, []),
+        got_or, or_vh, implies(implies(zv, ex_op), implies(implies(zh, ex_op), ex_op)), [], [zu, un]),
+        got_v_ir, implies(zv, ex_op), implies(implies(zh, ex_op), ex_op), [zu, un], [func_v, un]),
+        got_h_ir, implies(zh, ex_op), ex_op, [zu, un, func_v], left(got_h_ir))
+
+    # ir zu, fr z → relation(u)
+    $got_rel_u_inner ir(got_exop, remove(same, zu, left(got_exop)), [implies(zu, ex_op)], implies(zu, ex_op))
+    $got_rel_u fr(got_rel_u_inner, left(got_rel_u_inner), [rel_u], rel_u, "z")
+    # [...] |- relation(u)
+
+    # and_intro(relation, sv) → function(u)
+    $got_func_u mp(mp(and_intro(rel_u, sv_u, []),
+        got_rel_u, rel_u, implies(sv_u, func_u), [], left(got_rel_u)),
+        s2, sv_u, func_u, left(got_rel_u), ctx_final)
 
     # ir for each hypothesis
-    $s3 ir(s2, remove(same, un, ctx_final), [implies(un, func_u)], implies(un, func_u))
+    $s3 ir(got_func_u, remove(same, un, left(got_func_u)), [implies(un, func_u)], implies(un, func_u))
     $s4 ir(s3, remove(same, cons, left(s3)), [implies(cons, implies(un, func_u))], implies(cons, implies(un, func_u)))
     $s5 ir(s4, remove(same, opky, left(s4)), [implies(opky, implies(cons, implies(un, func_u)))], implies(opky, implies(cons, implies(un, func_u))))
     $s6 ir(s5, remove(same, sing_h, left(s5)), [implies(sing_h, implies(opky, implies(cons, implies(un, func_u))))], implies(sing_h, implies(opky, implies(cons, implies(un, func_u)))))
