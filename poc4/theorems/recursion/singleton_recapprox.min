@@ -33,15 +33,27 @@ $singleton_recapprox {
     $app_gea apply("g", "e", "a", "_")
     $func_g function("g", "_")
 
+    # Curried body helpers
+    $_sa_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), apply(f,x,y,"_")))
+    $_sf_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), function(f,"_")))
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $_nme_b \e: \x: implies(empty(e,"_"), neg(mem(x,e)))
+    $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
+
     # === apply(g,e,a) ===
     $_sa head(right(singleton_apply))
-    $sa1 apply_thm(singleton_apply, _sa, ["g","op","e","a"], [])
+    $sa1 apply_thm(singleton_apply, _sa, [["g", ["op","x","y"]], ["op", ["x","y"]], ["e", ["y"]], ["a", []]], _sa_b, [])
     $sa2 mp(sa1, ax([sing], [sing], sing), sing, implies(opea, app_gea), left(sa1), [sing])
     $got_app mp(sa2, ax([opea], [opea], opea), opea, app_gea, left(sa2), [opea])
 
     # === Function(g) ===
     $_sf head(right(singleton_function))
-    $sf1 apply_thm(singleton_function, _sf, ["g","op","e","a"], left(singleton_function))
+    $sf1 apply_thm(singleton_function, _sf, [["g", ["op","x","y"]], ["op", ["x","y"]], ["e", ["y"]], ["a", []]], _sf_b, left(singleton_function))
     $sf2 mp(sf1, ax([sing], [sing], sing), sing, implies(opea, func_g), left(sf1), [sing])
     $got_func mp(sf2, ax([opea], [opea], opea), opea, func_g, left(sf2), [opea])
 
@@ -62,12 +74,12 @@ $singleton_recapprox {
     $and_q and(op_q, qg)
     $eqv_xe eqv("x","e","_")
 
-    $got_qop mp(mp(apply_thm(singleton_mem_eq, _sme, ["q","g","op"], []),
+    $got_qop mp(mp(apply_thm(singleton_mem_eq, _sme, [["q", ["f","a"]], ["g", ["a"]], ["op", []]], _sme_b, []),
         ax([sing], [sing], sing), sing, implies(qg, eqv("q","op","_")), [], [sing]),
         mp(and_elim_right(op_q, qg, []), ax([and_q], [and_q], and_q), and_q, qg, [], [and_q]),
         qg, eqv("q","op","_"), [sing], [and_q])
     $got_opq mp(and_elim_left(op_q, qg, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
-    $k1 apply_thm(kuratowski, _kur, ["q","op","x","y2","e","a"], kur_ctx)
+    $k1 apply_thm(kuratowski, _kur, [["q", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["x", ["b","c","d"]], ["y2", ["c","d"]], ["e", ["d"]], ["a", []]], _kur_b, kur_ctx)
     $k2 mp(k1, got_opq, op_q, implies(opea, implies(eqv("q","op","_"), and(eqv_xe, eqv("y2","a","_")))), left(k1), [and_q])
     $k3 mp(k2, ax([opea], [opea], opea), opea, implies(eqv("q","op","_"), and(eqv_xe, eqv("y2","a","_"))), left(k2), [opea])
     $k4 mp(k3, got_qop, eqv("q","op","_"), and(eqv_xe, eqv("y2","a","_")), left(k3), [sing, and_q])
@@ -77,17 +89,18 @@ $singleton_recapprox {
     # omega_contains_empty: om → emp → e∈w
     $_oce head(right(omega_contains_empty))
     $ew mem("e","w")
-    $oce1 apply_thm(omega_contains_empty, _oce, ["e","w"], [])
+    $oce1 apply_thm(omega_contains_empty, _oce, [["e", ["w"]], ["w", []]],
+        \e: \w: implies(omega(w,"_"), implies(empty(e,"_"), mem(e,w))), [])
     $oce2 mp(oce1, ax([om], [om], om), om, implies(emp, ew), left(oce1), [om])
     $got_ew mp(oce2, ax([emp], [emp], emp), emp, ew, left(oce2), [emp])
 
     # eqv_symmetric(x,e) → eqv(e,x). eqv_mem_right(e,x,w): e∈w → x∈w.
     $_es head(right(eqv_symmetric))
     $eqv_ex eqv("e","x","_")
-    $got_ex mp(apply_thm(eqv_symmetric, _es, ["x","e"], []), got_xe, eqv_xe, eqv_ex, [], left(got_xe))
+    $got_ex mp(apply_thm(eqv_symmetric, _es, [["x", ["b"]], ["e", []]], _es_b, []), got_xe, eqv_xe, eqv_ex, [], left(got_xe))
     $emr_ctx left(eqv_mem_right)
     $_emr head(right(eqv_mem_right))
-    $emr1 mp(apply_thm(eqv_mem_right, _emr, ["e","x","w"], emr_ctx),
+    $emr1 mp(apply_thm(eqv_mem_right, _emr, [["e", ["y","a"]], ["x", ["a"]], ["w", []]], _emr_b, emr_ctx),
         got_ex, eqv_ex, implies(ew, xw), emr_ctx, left(got_ex))
     $got_xw mp(emr1, got_ew, ew, xw, left(emr1), left(got_ew))
     # left(got_xw) |- x∈w
@@ -119,11 +132,11 @@ $singleton_recapprox {
     # Need actual transfer. Let me just use ax for ran_sub too... NO.
     # OK: from eqv(y2,a), apply_key_transfer: eqv(a,y2) → apply(f,a,z) → apply(f,y2,z).
     $eqv_ay2 eqv("a","y2","_")
-    $got_ay2 mp(apply_thm(eqv_symmetric, _es, ["y2","a"], []), got_ya, eqv("y2","a","_"), eqv_ay2, [], left(got_ya))
+    $got_ay2 mp(apply_thm(eqv_symmetric, _es, [["y2", ["b"]], ["a", []]], _es_b, []), got_ya, eqv("y2","a","_"), eqv_ay2, [], left(got_ya))
     $_akt head(right(apply_key_transfer))
     $app_faz apply("f","a","z3","_")
     $app_fy2z apply("f","y2","z3","_")
-    $akt1 mp(apply_thm(apply_key_transfer, _akt, ["f","a","y2","z3"], []),
+    $akt1 mp(apply_thm(apply_key_transfer, _akt, [["f", ["x","x2","y"]], ["a", ["x2","y"]], ["y2", ["y"]], ["z3", []]], _akt_b, []),
         got_ay2, eqv_ay2, implies(app_faz, app_fy2z), [], left(got_ay2))
     $got_fy2z mp(akt1, ax([app_faz], [app_faz], app_faz), app_faz, app_fy2z, left(akt1), [app_faz])
     $got_ex_fy2 eir(got_fy2z, \z: apply("f","y2",z,"_"), "z", "z3", left(got_fy2z))
@@ -152,21 +165,21 @@ $singleton_recapprox {
     $and_q2 and(op_q2, q2g)
     $eqv_e2e eqv("e2","e","_")
 
-    $got_qop2 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q2","g","op"], []),
+    $got_qop2 mp(mp(apply_thm(singleton_mem_eq, _sme, [["q2", ["f","a"]], ["g", ["a"]], ["op", []]], _sme_b, []),
         ax([sing], [sing], sing), sing, implies(q2g, eqv("q2","op","_")), [], [sing]),
         mp(and_elim_right(op_q2, q2g, []), ax([and_q2], [and_q2], and_q2), and_q2, q2g, [], [and_q2]),
         q2g, eqv("q2","op","_"), [sing], [and_q2])
     $got_opq2 mp(and_elim_left(op_q2, q2g, []), ax([and_q2], [and_q2], and_q2), and_q2, op_q2, [], [and_q2])
-    $kb1 apply_thm(kuratowski, _kur, ["q2","op","e2","y3","e","a"], kur_ctx)
+    $kb1 apply_thm(kuratowski, _kur, [["q2", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["e2", ["b","c","d"]], ["y3", ["c","d"]], ["e", ["d"]], ["a", []]], _kur_b, kur_ctx)
     $kb2 mp(kb1, got_opq2, op_q2, implies(opea, implies(eqv("q2","op","_"), and(eqv_e2e, eqv("y3","a","_")))), left(kb1), [and_q2])
     $kb3 mp(kb2, ax([opea], [opea], opea), opea, implies(eqv("q2","op","_"), and(eqv_e2e, eqv("y3","a","_"))), left(kb2), [opea])
     $kb4 mp(kb3, got_qop2, eqv("q2","op","_"), and(eqv_e2e, eqv("y3","a","_")), left(kb3), [sing, and_q2])
     $got_e2e mp(and_elim_left(eqv_e2e, eqv("y3","a","_"), []), kb4, and(eqv_e2e, eqv("y3","a","_")), eqv_e2e, [], left(kb4))
     # eqv(e,e2) from symmetric:
     $eqv_ee2 eqv("e","e2","_")
-    $got_ee2 mp(apply_thm(eqv_symmetric, _es, ["e2","e"], []), got_e2e, eqv_e2e, eqv_ee2, [], left(got_e2e))
+    $got_ee2 mp(apply_thm(eqv_symmetric, _es, [["e2", ["b"]], ["e", []]], _es_b, []), got_e2e, eqv_e2e, eqv_ee2, [], left(got_e2e))
     # apply_key_transfer: eqv(e,e2) → apply(g,e,a) → apply(g,e2,a)
-    $got_ge2a mp(mp(apply_thm(apply_key_transfer, _akt, ["g","e","e2","a"], []),
+    $got_ge2a mp(mp(apply_thm(apply_key_transfer, _akt, [["g", ["x","x2","y"]], ["e", ["x2","y"]], ["e2", ["y"]], ["a", []]], _akt_b, []),
         got_ee2, eqv_ee2, implies(app_gea, app_ge2a), [], left(got_ee2)),
         got_app, app_gea, app_ge2a, left(got_ee2), left(got_app))
     # eel q2, eel y3, ir (∃y.apply), ir empty(e2), fr e2
@@ -197,12 +210,12 @@ $singleton_recapprox {
     $op_q3 ordered_pair("q3","sn2","y4","_")
     $q3g mem("q3","g")
     $and_q3 and(op_q3, q3g)
-    $got_qop3 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q3","g","op"], []),
+    $got_qop3 mp(mp(apply_thm(singleton_mem_eq, _sme, [["q3", ["f","a"]], ["g", ["a"]], ["op", []]], _sme_b, []),
         ax([sing], [sing], sing), sing, implies(q3g, eqv("q3","op","_")), [], [sing]),
         mp(and_elim_right(op_q3, q3g, []), ax([and_q3], [and_q3], and_q3), and_q3, q3g, [], [and_q3]),
         q3g, eqv("q3","op","_"), [sing], [and_q3])
     $got_opq3 mp(and_elim_left(op_q3, q3g, []), ax([and_q3], [and_q3], and_q3), and_q3, op_q3, [], [and_q3])
-    $kc1 apply_thm(kuratowski, _kur, ["q3","op","sn2","y4","e","a"], kur_ctx)
+    $kc1 apply_thm(kuratowski, _kur, [["q3", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["sn2", ["b","c","d"]], ["y4", ["c","d"]], ["e", ["d"]], ["a", []]], _kur_b, kur_ctx)
     $kc2 mp(kc1, got_opq3, op_q3, implies(opea, implies(eqv("q3","op","_"), and(eqv_sne, eqv("y4","a","_")))), left(kc1), [and_q3])
     $kc3 mp(kc2, ax([opea], [opea], opea), opea, implies(eqv("q3","op","_"), and(eqv_sne, eqv("y4","a","_"))), left(kc2), [opea])
     $kc4 mp(kc3, got_qop3, eqv("q3","op","_"), and(eqv_sne, eqv("y4","a","_")), left(kc3), [sing, and_q3])
@@ -211,18 +224,18 @@ $singleton_recapprox {
 
     # mem_succ_self: succ(sn2,n2) → n2∈sn2
     $_mss head(right(mem_succ_self))
-    $got_n2sn mp(apply_thm(mem_succ_self, _mss, ["sn2","n2"], []),
+    $got_n2sn mp(apply_thm(mem_succ_self, _mss, [["sn2", ["n"]], ["n2", []]], _mss_b, []),
         ax([succ_sn2], [succ_sn2], succ_sn2), succ_sn2, n2sn, [], [succ_sn2])
 
     # eqv_mem_left(sn2,e): n2∈sn2 → n2∈e
     $_eml head(right(eqv_mem_left))
-    $got_n2e mp(mp(apply_thm(eqv_mem_left, _eml, ["sn2","e","n2"], []),
+    $got_n2e mp(mp(apply_thm(eqv_mem_left, _eml, [["sn2", ["b","z"]], ["e", ["z"]], ["n2", []]], _eml_b, []),
         got_sne, eqv_sne, implies(n2sn, n2e), [], left(got_sne)),
         got_n2sn, n2sn, n2e, left(got_sne), [succ_sn2])
 
     # neg_mem_empty: emp → neg(n2∈e). Contradiction → weaken right with step conclusion.
     $_nme head(right(neg_mem_empty))
-    $got_neg_n2e mp(apply_thm(neg_mem_empty, _nme, ["e","n2"], []),
+    $got_neg_n2e mp(apply_thm(neg_mem_empty, _nme, [["e", ["x"]], ["n2", []]], _nme_b, []),
         ax([emp], [emp], emp), emp, neg(n2e), [], [emp])
     # Contradiction: got_n2e: ctx |- [n2e]. got_neg_n2e: [emp] |- [neg(n2e)].
     # nl on got_n2e: [ctx, neg(n2e)] |- [].
