@@ -187,4 +187,12 @@ $ru_body implies(recursive("h","a","f","w","_"), implies(recursive("h2","a","f",
 $_ qed(rec_unique, forall("h", forall("h2", forall("a", forall("f", forall("w", ru_body))))))
 $_ print("rec_unique ok")
 
+from theorems.recursion.recursion_theorem import recursion_theorem
+from vocab.logic import exists_unique
+$eu_body \h p: recursive(h,"a","f","w",p)
+$rt_body implies(function("f","_"), implies(exists("z", apply("f","a","z","_")),
+    implies(rva_ran_fc, implies(omega("w","_"), exists_unique(eu_body, "_")))))
+$_ qed(recursion_theorem, forall("a", forall("f", forall("w", rt_body))))
+$_ print("recursion_theorem ok")
+
 $ok true
