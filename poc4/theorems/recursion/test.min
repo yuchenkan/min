@@ -173,6 +173,13 @@ $_ qed(char_h_bridge, forall("h", forall("a", forall("f", forall("w",
     forall("uf", forall("uuf", forall("big", forall("pb", forall("ppb", chb_body))))))))))
 $_ print("char_h_bridge ok")
 
+from theorems.recursion.rec_exists_full import rec_exists_full
+$ref_body implies(function("f","_"), implies(exists("z", apply("f","a","z","_")),
+    implies(rva_ran_fc, implies(omega("w","_"),
+        exists("h", recursive("h","a","f","w","_"))))))
+$_ qed(rec_exists_full, forall("a", forall("f", forall("w", ref_body))))
+$_ print("rec_exists_full ok")
+
 from theorems.recursion.rec_unique import rec_unique
 $ru_body implies(recursive("h","a","f","w","_"), implies(recursive("h2","a","f","w","_"),
     implies(function("f","_"), implies(exists("z", apply("f","a","z","_")),
