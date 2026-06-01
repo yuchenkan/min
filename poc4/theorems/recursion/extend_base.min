@@ -53,7 +53,8 @@ $extend_base {
 
     # extend_apply_old: apply(v,e,a) → union(u,v,h) → apply(u,e,a)
     $_eao head(right(extend_apply_old))
-    $got_case_v mp(mp(apply_thm(extend_apply_old, _eao, ["u","v","h","e","a"], []),
+    $_eao_b \u: \a: \b: \x: \y: implies(apply(a,x,y,"_"), implies(union(u,a,b,"_"), apply(u,x,y,"_")))
+    $got_case_v mp(mp(apply_thm(extend_apply_old, _eao, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["e", ["y"]], ["a", []]], _eao_b, []),
         got_app_vea, app_vea, implies(un, app_uea), [], [base_v, emp_e, app_ve]),
         ax([un], [un], un), un, app_uea, [base_v, emp_e, app_ve], [un])
     # [base_v, emp_e, app_ve, un] |- apply(u,e,a)
@@ -74,7 +75,8 @@ $extend_base {
     $eqv_e_sn eqv("e", "sn", "_")
 
     # singleton_mem_eq → eqv(q,op)
-    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q","h","op"], []),
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
+    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, [["q", ["f","a"]], ["h", ["a"]], ["op", []]], _sme_b, []),
         ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eqv_q_op), [], [sing_h]),
         mp(and_elim_right(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, qh, [], [and_q]),
         qh, eqv_q_op, [sing_h], [and_q])
@@ -82,7 +84,8 @@ $extend_base {
     # kuratowski → and(eqv(e,sn), eqv(y2,fval))
     $eqv_y2_fval eqv("y2", "fval", "_")
     $goal_and and(eqv_e_sn, eqv_y2_fval)
-    $k_inst apply_thm(kuratowski, _kur, ["q","op","e","y2","sn","fval"], kur_ctx)
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
+    $k_inst apply_thm(kuratowski, _kur, [["q", ["t2","a","b","c","d"]], ["op", ["a","b","c","d"]], ["e", ["b","c","d"]], ["y2", ["c","d"]], ["sn", ["d"]], ["fval", []]], _kur_b, kur_ctx)
     $got_op_q mp(and_elim_left(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
     $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eqv_q_op, goal_and)), left(k_inst), [and_q])
     $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eqv_q_op, goal_and), left(km1), [opkv])
@@ -93,7 +96,8 @@ $extend_base {
 
     # succ_not_empty: succ(sn,n) → neg(empty(sn))
     $neg_emp_sn neg(empty("sn", "_"))
-    $got_neg_sn mp(apply_thm(succ_not_empty, _sne, ["sn","n"], []),
+    $got_neg_sn mp(apply_thm(succ_not_empty, _sne, [["sn", ["n"]], ["n", []]],
+        \sn: \n: implies(successor(sn,n,"_"), neg(empty(sn,"_"))), []),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, neg_emp_sn, [], [succ_sn])
     # [succ_sn] |- neg(empty(sn))
 
@@ -108,7 +112,8 @@ $extend_base {
     # n∈sn from succ_sn:
     $_mss head(right(mem_succ_self))
     $n_sn mem("n", "sn")
-    $got_n_sn mp(apply_thm(mem_succ_self, _mss, ["sn","n"], []),
+    $got_n_sn mp(apply_thm(mem_succ_self, _mss, [["sn", ["n"]], ["n", []]],
+        \s: \n: implies(successor(s,n,"_"), mem(n,s)), []),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, n_sn, [], [succ_sn])
 
     # eqv_mem_left(sn, e): n∈sn → n∈e  (eqv is symmetric in set comparison)
@@ -128,7 +133,8 @@ $extend_base {
 
     # neg_mem_empty: empty(e) → neg(n∈e). Contradiction with n∈e.
     $_nme head(right(neg_mem_empty))
-    $got_neg_ne mp(apply_thm(neg_mem_empty, _nme, ["e","n"], []),
+    $got_neg_ne mp(apply_thm(neg_mem_empty, _nme, [["e", ["x"]], ["n", []]],
+        \e: \x: implies(empty(e,"_"), neg(mem(x,e))), []),
         ax([emp_e], [emp_e], emp_e), emp_e, neg(n_e), [], [emp_e])
     # [emp_e] |- neg(n∈e)
 
@@ -152,7 +158,8 @@ $extend_base {
 
     # === Or-elim on or(app_ve, app_he) via il ===
     $_uae head(right(union_apply_elim))
-    $got_or mp(mp(apply_thm(union_apply_elim, _uae, ["u","v","h","e","y2"], []),
+    $_uae_b \u: \a: \b: \x: \y: implies(apply(u,x,y,"_"), implies(union(u,a,b,"_"), or(apply(a,x,y,"_"), apply(b,x,y,"_"))))
+    $got_or mp(mp(apply_thm(union_apply_elim, _uae, [["u", ["a","b","x","y"]], ["v", ["b","x","y"]], ["h", ["x","y"]], ["e", ["y"]], ["y2", []]], _uae_b, []),
         ax([app_ue], [app_ue], app_ue), app_ue, implies(un, or_ve_he), [], [app_ue]),
         ax([un], [un], un), un, or_ve_he, [app_ue], [un])
     # [app_ue, un] |- or(app_ve, app_he)
