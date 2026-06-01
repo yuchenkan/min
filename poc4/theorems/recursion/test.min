@@ -114,4 +114,11 @@ $_ qed(rec_h_dom_sub, forall("h", forall("a", forall("f", forall("w",
     forall("x", forall("y", rhds_body)))))))
 $_ print("rec_h_dom_sub ok")
 
+from theorems.recursion.rec_value import rec_value
+$rv_ex \v y: and(rec_approx(v,"a","f","w","_"), apply(v,"n",y,"_"))
+$rv_body implies(function("f","_"), implies(omega("w","_"), implies(mem("n","w"),
+    implies(exists("v1", rv_ex("v1","y1")), implies(exists("v2", rv_ex("v2","y2")), eqv("y1","y2","_"))))))
+$_ qed(rec_value, forall("a", forall("f", forall("w", forall("n", forall("y1", forall("y2", rv_body)))))))
+$_ print("rec_value ok")
+
 $ok true
