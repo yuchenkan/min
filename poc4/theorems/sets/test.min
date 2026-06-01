@@ -376,6 +376,15 @@ $_ qed(eqv_apply,
         implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))))
 $_ print("eqv_apply ok")
 
+from theorems.sets.ordpair_bounded import ordpair_bounded
+$ob_sub_w forall("d", implies(mem("d","s"), mem("d","w")))
+$ob_pw forall("s", iff(mem("s","pw"), ob_sub_w))
+$ob_sub_pw forall("d", implies(mem("d","s"), mem("d","pw")))
+$ob_ppw forall("s", iff(mem("s","ppw"), ob_sub_pw))
+$ob_body implies(mem("x","w"), implies(mem("y","w"), implies(ordered_pair("p","x","y","_"), implies(ob_pw, implies(ob_ppw, mem("p","ppw"))))))
+$_ qed(ordpair_bounded, forall("w", forall("x", forall("y", forall("p", forall("pw", forall("ppw", ob_body)))))))
+$_ print("ordpair_bounded ok")
+
 from theorems.sets.extend_function import extend_function
 $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","k","y0","_"),
     implies(forall("z", implies(apply("v","k","z","_"), eqv("y0","z","_"))),
