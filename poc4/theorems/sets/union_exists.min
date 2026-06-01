@@ -63,7 +63,8 @@ $union_exists {
 
     # eq_transfer: eqv(y,a) -> iff(mem(x,y), mem(x,a))
     $_et head(right(eq_transfer))
-    $got_et_a apply_thm(eq_transfer, _et, ["y","a","x"], [])
+    $_et_b \a b z: implies(eqv(a,b,"_"), iff(mem(z,a),mem(z,b)))
+    $got_et_a apply_thm(eq_transfer, _et, [["y", forall("b", forall("z", _et_b("y","b","z")))], ["a", forall("z", _et_b("y","a","z"))], ["x", _et_b("y","a","x")]], [])
     $iff_xy_xa iff(xy, xa)
     $imp_eqva_iff implies(eqv_ya, iff_xy_xa)
     # Need: eqv(y,a,"_") but eq_transfer gives eqv(y,a,"_")
@@ -73,7 +74,7 @@ $union_exists {
     # [eqv_ya] |- [xy -> xa]
 
     # eq_transfer: eqv(y,b) -> iff(mem(x,y), mem(x,b))
-    $got_et_b apply_thm(eq_transfer, _et, ["y","b","x"], [])
+    $got_et_b apply_thm(eq_transfer, _et, [["y", forall("b", forall("z", _et_b("y","b","z")))], ["b", forall("z", _et_b("y","b","z"))], ["x", _et_b("y","b","x")]], [])
     $iff_xy_xb iff(xy, xb)
     $got_xy_xb mp(got_et_b, ax([eqv_yb], [eqv_yb], eqv_yb), eqv_yb, iff_xy_xb, [], [eqv_yb])
     $got_xy_to_xb mp(iff_elim_left(xy, xb, []), got_xy_xb, iff_xy_xb, implies(xy, xb), [], [eqv_yb])
@@ -135,7 +136,7 @@ $union_exists {
     # eqv(a, a) -> a∈p
     $_er head(right(eqv_reflexive))
     $eqv_aa eqv("a", "a", "_")
-    $got_eqv_aa apply_thm(eqv_reflexive, _er, ["a"], [])
+    $got_eqv_aa apply_thm(eqv_reflexive, _er, [["a", eqv("a","a","_")]], [])
     $or_eqv_a or(eqv("a", "a", "_"), eqv("a", "b", "_"))
     $got_or_a2 mp(or_intro_left(eqv("a","a","_"), eqv("a","b","_"), []), got_eqv_aa, eqv_aa, or_eqv_a, [], [])
 
@@ -160,7 +161,7 @@ $union_exists {
 
     # For b: similar
     $eqv_bb eqv("b", "b", "_")
-    $got_eqv_bb apply_thm(eqv_reflexive, _er, ["b"], [])
+    $got_eqv_bb apply_thm(eqv_reflexive, _er, [["b", eqv("b","b","_")]], [])
     $or_eqv_b or(eqv("b", "a", "_"), eqv("b", "b", "_"))
     $got_or_b2 mp(or_intro_right(eqv("b","a","_"), eqv("b","b","_"), []), got_eqv_bb, eqv_bb, or_eqv_b, [], [])
 
@@ -211,20 +212,6 @@ $union_exists {
     # eel on big_union: [ps, bu_axiom_ctx] |- [goal]
     $bu_ctx left(big_union_exists)
     $bu_f head(right(big_union_exists))
-    $bu_inst2 apply_thm(big_union_exists, bu_f, ["{a, b}"], bu_ctx)
-    # bu_ctx |- [exists(u, big_union(u, "{a,b}"))]
-    # Hmm, this won't work — big_union_exists takes a single set argument.
-    # big_union_exists: ∀a. ∃s. big_union(s, a)
-    # We need to instantiate with "p" (our pair set witness)
-    # But p is an eigenvariable from eel, not a concrete term.
-
-    # Better: use the existing witnesses from pair_set_exists
-    # pair_set_exists: ∀a,b. ∃s. pair_set(s, a, b)
-    # Instantiate with a, b → ∃p. pair_set(p, a, b)
-    # eel with eigenvariable p → pair_set(p, a, b) on left
-    # Then big_union_exists instantiated with p → ∃u. big_union(u, p)
-    # eel with eigenvariable u → big_union(u, p) on left
-
     # Step 1: from got_ex, eel on bu
     $got_eel_bu eel(got_ex, \u: big_union("u","p","_"), "u", "u", [ps, bu], goal)
     # [ps, exists(u, big_union(u,p))] |- [goal]
@@ -232,7 +219,7 @@ $union_exists {
     # Step 2: get exists(u, big_union(u, p)) from big_union_exists
     $ex_bu exists("u", big_union("u", "p", "_"))
     $bu_f2 head(right(big_union_exists))
-    $got_bu_ex apply_thm(big_union_exists, bu_f2, ["p"], bu_ctx)
+    $got_bu_ex apply_thm(big_union_exists, bu_f2, [["p", exists("s", big_union("s","p","_"))]], bu_ctx)
     # bu_ctx |- [ex_bu]
 
     $got_cut_bu cut_c(got_bu_ex, got_eel_bu, ex_bu, bu_ctx, [ps, ex_bu], goal)
@@ -250,7 +237,8 @@ $union_exists {
     $ex_ps exists("p", pair_set("p", "a", "b", "_"))
     $_ps_f head(right(pair_set_exists))
     $ps_ctx left(pair_set_exists)
-    $got_ps_ex apply_thm(pair_set_exists, _ps_f, ["a","b"], ps_ctx)
+    $_pse_b \a b: exists("s", pair_set("s",a,b,"_"))
+    $got_ps_ex apply_thm(pair_set_exists, _ps_f, [["a", forall("b", _pse_b("a","b"))], ["b", _pse_b("a","b")]], ps_ctx)
     # ps_ctx |- [ex_ps]
 
     $got_cut_ps cut_c(got_ps_ex, got_eel_ps, ex_ps,

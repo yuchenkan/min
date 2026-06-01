@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, eqv, right
 from vocab.sets import ordered_pair
-from tactics import ax, ir, mp, apply_thm, close
+from tactics import ax, wr, ir, mp, apply_thm, close
 
 from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
 from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
@@ -14,13 +14,17 @@ $ordpair_eq_transfer {
     $op_cd ordered_pair("t", "c", "d", "_")
 
     $_kt head(right(ordpair_key_transfer))
-    $got_kt apply_thm(ordpair_key_transfer, _kt, ["t","a","b","c"], [])
+    $_kt_b \t a b c: implies(eqv(a,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,b,"_")))
+    $got_kt apply_thm(ordpair_key_transfer, _kt, [["t", forall("a", forall("b", forall("c", _kt_b("t","a","b","c"))))], ["a", forall("b", forall("c", _kt_b("t","a","b","c")))], ["b", forall("c", _kt_b("t","a","b","c"))], ["c", _kt_b("t","a","b","c")]], [])
     $got_cb mp(mp(got_kt,
         ax([eqv_ac], [eqv_ac], eqv_ac), eqv_ac, implies(op_ab, op_cb), [], [eqv_ac]),
         ax([op_ab], [op_ab], op_ab), op_ab, op_cb, [eqv_ac], [op_ab])
 
     $_vt head(right(ordpair_val_transfer))
-    $got_vt apply_thm(ordpair_val_transfer, _vt, ["t","c","b","d"], [])
+    $_vt_b \t a b c: implies(eqv(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $vt_r forall("t", forall("p", forall("q", forall("r", _vt_b("t","p","q","r")))))
+    $vt_r_thm wr(ordpair_val_transfer, [], [vt_r], vt_r)
+    $got_vt apply_thm(vt_r_thm, vt_r, [["t", forall("p", forall("q", forall("r", _vt_b("t","p","q","r"))))], ["c", forall("q", forall("r", _vt_b("t","c","q","r")))], ["b", forall("r", _vt_b("t","c","b","r"))], ["d", _vt_b("t","c","b","d")]], [])
     $got_cd mp(mp(got_vt,
         ax([eqv_bd], [eqv_bd], eqv_bd), eqv_bd, implies(op_cb, op_cd), [], [eqv_bd]),
         got_cb, op_cb, op_cd, [eqv_bd], [eqv_ac, op_ab])

@@ -19,7 +19,7 @@ $succ_not_empty {
 
     # eqv(n,n) -> or_right -> iff backward -> mem(n,sn)
     $_er head(right(eqv_reflexive))
-    $g_nn apply_thm(eqv_reflexive, _er, ["n"], [])
+    $g_nn apply_thm(eqv_reflexive, _er, [["n", eqv("n","n","_")]], [])
     $g_or mp(or_intro_right(mem("n","n"), enn, []), g_nn, enn, or_n, [], [])
     $g_mem mp(mp(iff_elim_right(mem("n","sn"), or_n, []),
                 s1, iff_n, implies(or_n, mem("n","sn")), [], [succ]),

@@ -1,4 +1,4 @@
-from core.derived import mem, implies, iff, eqv, left, right
+from core.derived import mem, implies, iff, forall, eqv, left, right
 from tactics import ax, ir, mp, apply_thm, close, same, remove
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.ext_substitution import ext_substitution
@@ -12,7 +12,8 @@ $eqv_mem_right {
 
     $_es head(right(ext_substitution))
     $es_ctx left(ext_substitution)
-    $got_iff mp(apply_thm(ext_substitution, _es, ["x","y","a"], es_ctx),
+    $_es_b \a b s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s)))
+    $got_iff mp(apply_thm(ext_substitution, _es, [["x", forall("b", forall("s", _es_b("x","b","s")))], ["y", forall("s", _es_b("x","y","s"))], ["a", _es_b("x","y","a")]], es_ctx),
         ax([eqv_xy], [eqv_xy], eqv_xy), eqv_xy, iff_xy, es_ctx, [eqv_xy])
 
     $imp_fwd implies(xa, ya)

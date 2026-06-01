@@ -168,6 +168,12 @@ $_ qed(ext_substitution,
     forall("a", forall("b", forall("s", implies(eqv("a", "b", "_"), iff(mem("a", "s"), mem("b", "s")))))))
 $_ print("ext_substitution ok")
 
+from theorems.logic.eqv_mem_right import eqv_mem_right
+$_ qed(eqv_mem_right,
+    forall("a", forall("y", forall("x",
+        implies(eqv("x", "y", "_"), implies(mem("x", "a"), mem("y", "a")))))))
+$_ print("eqv_mem_right ok")
+
 from theorems.logic.exists_unique_bridge import exists_unique_bridge
 $phi_fn \v: mem(v, "a")
 $bridge_f implies(exists_unique(phi_fn, "_"), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))

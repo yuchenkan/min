@@ -1,15 +1,5 @@
 from core.derived import proof, mem, forall, neg, implies, iff, tag, arg1, arg2, exp, kp, left, right
-from util import max
 
-# flat: expand vocab to core, keeping .min format (with display)
-$flat \self f: {
-    $t tag(f)
-    ?(eq(t, "mem"), f,
-    ?(eq(t, "neg"), neg(self(self, arg1(f))),
-    ?(eq(t, "implies"), implies(self(self, arg1(f)), self(self, arg2(f))),
-    ?(eq(t, "forall"), forall(arg1(f), self(self, arg2(f))),
-    self(self, exp(f))))))
-}
 
 # === alpha-equivalence for formulas ===
 
@@ -42,7 +32,16 @@ $_aeq \self a b env:
         false),
     false)))))
 
-$same \a b: _aeq(_aeq, flat(flat, a), flat(flat, b), [])
+# flat: expand vocab to core for comparison
+$_flat \self f: {
+    $t tag(f)
+    ?(eq(t, "mem"), f,
+    ?(eq(t, "neg"), neg(self(self, arg1(f))),
+    ?(eq(t, "implies"), implies(self(self, arg1(f)), self(self, arg2(f))),
+    ?(eq(t, "forall"), forall(arg1(f), self(self, arg2(f))),
+    self(self, exp(f))))))
+}
+$same \a b: _aeq(_aeq, _flat(_flat, a), _flat(_flat, b), [])
 
 # === set helpers (take compare fn) ===
 
@@ -132,91 +131,29 @@ $mp \impl_proof arg_proof P Q impl_ctx arg_ctx: {
     cut(impl_wr, s3, merged, [Q], imp)
 }
 
-# fsubst: substitute free var v with term t in formula f
-$_fsubst \self f v t: {
-    $g tag(f)
-    ?(eq(g, "mem"), mem(?(eq(arg1(f), v), t, arg1(f)), ?(eq(arg2(f), v), t, arg2(f))),
-    ?(eq(g, "neg"), neg(self(self, arg1(f), v, t)),
-    ?(eq(g, "implies"), implies(self(self, arg1(f), v, t), self(self, arg2(f), v, t)),
-    ?(eq(g, "forall"), ?(eq(arg1(f), v), f, forall(arg1(f), self(self, arg2(f), v, t))),
-    self(self, exp(f), v, t)))))
-}
-$fsubst \f v t: _fsubst(_fsubst, f, v, t)
-
-# deepen: push all bound vars one level deeper (prepend pre)
-$_deepen \self f pre: {
-    $g tag(f)
-    ?(eq(g, "mem"), f,
-    ?(eq(g, "neg"), neg(self(self, arg1(f), pre)),
-    ?(eq(g, "implies"), implies(self(self, arg1(f), pre), self(self, arg2(f), pre)),
-    ?(eq(g, "forall"), {
-        $v arg1(f)
-        $nv add(pre, v)
-        forall(nv, self(self, fsubst(arg2(f), v, nv), pre))
-    },
-    self(self, exp(f), pre)))))
-}
-$deepen \f pre: _deepen(_deepen, f, pre)
-
-# _has_bound: check if .min formula has bound var equal to term
-$_has_bound \self f t: {
-    $g tag(f)
-    ?(eq(g, "mem"), false,
-    ?(eq(g, "neg"), self(self, arg1(f), t),
-    ?(eq(g, "implies"), ?(self(self, arg1(f), t), true, self(self, arg2(f), t)),
-    ?(eq(g, "forall"), ?(eq(arg1(f), t), true, self(self, arg2(f), t)),
-    self(self, exp(f), t)))))
-}
-
-
-# _make_pre: build prefix of n underscores
-$_make_pre \self n: ?(eq(n, 0), "", add("_", self(self, sub(n, 1))))
-
-
-# _max_free_len: max length of free vars in .min formula (skips bound vars)
-$_mfl \self f: {
-    $g tag(f)
-    ?(eq(g, "mem"), max(len(arg1(f)), len(arg2(f))),
-    ?(eq(g, "neg"), self(self, arg1(f)),
-    ?(eq(g, "implies"), max(self(self, arg1(f)), self(self, arg2(f))),
-    ?(eq(g, "forall"), self(self, arg2(f)),
-    self(self, exp(f))))))
-}
 
 # inst: single forall instantiation
-# auto-deepens formula if term clashes with bound vars
+# Caller provides body (the substituted formula after forall_left).
 $inst \thm formula body term ctx: {
-    $__peel \ps f: ?(eq(tag(f), "forall"), f, ps(ps, exp(f)))
-    $fa __peel(__peel, formula)
-    $fa_body arg2(fa)
-    $clash _has_bound(_has_bound, fa_body, term)
-    $formula_use ?(clash, {
-        $ml max(len(term), _mfl(_mfl, fa_body))
-        $pre _make_pre(_make_pre, add(ml, 1))
-        deepen(formula, pre)
-    }, formula)
-    $body_use ?(clash, {
-        $fa2 __peel(__peel, formula_use)
-        fsubst(arg2(fa2), arg1(fa2), term)
-    }, body)
-    $s1 fl(ax([body_use], [body_use], body_use), [formula_use], [body_use], formula_use, term)
-    $s2 wl_all(s1, [formula_use], [body_use], remove(same, formula_use, ctx))
-    cut(wr(thm, ctx, [formula_use, body_use], body_use),
-        s2, ctx, [body_use], formula_use)
+    $s1 fl(ax([body], [body], body), [formula], [body], formula, term)
+    $s2 wl_all(s1, [formula], [body], remove(same, formula, ctx))
+    cut(wr(thm, ctx, [formula, body], body),
+        s2, ctx, [body], formula)
 }
-# apply_thm: multi-forall instantiation with auto-deepening
-$_apply_thm \self thm formula terms ctx: {
+# apply_thm: multi-forall instantiation
+# steps: [[term, body], [term, body], ...] — caller provides each substituted body
+$_apply_thm \self thm formula steps ctx: {
     $_peel \ps f: ?(eq(tag(f), "forall"), f, ps(ps, exp(f)))
-    ?(eq(len(terms), 0), thm, {
-        $f _peel(_peel, formula)
-        $v arg1(f)
-        $body fsubst(arg2(f), v, head(terms))
-        $result inst(thm, formula, body, head(terms), ctx)
+    ?(eq(len(steps), 0), thm, {
+        $step head(steps)
+        $term nth(step, 0)
+        $body nth(step, 1)
+        $result inst(thm, formula, body, term, ctx)
         $actual_body head(right(result))
-        self(self, result, actual_body, tail(terms), ctx)
+        self(self, result, actual_body, tail(steps), ctx)
     })
 }
-$apply_thm \thm formula terms ctx: _apply_thm(_apply_thm, thm, formula, terms, ctx)
+$apply_thm \thm formula steps ctx: _apply_thm(_apply_thm, thm, formula, steps, ctx)
 
 # eir: exists intro right
 # prf: ctx |- [body_inst] where body_inst = body_fn(witness)

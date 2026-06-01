@@ -13,14 +13,16 @@ $singleton_apply {
 
     # singleton_mem: sing -> op∈f
     $_sm head(right(singleton_mem))
-    $got_sm apply_thm(singleton_mem, _sm, ["f","op"], [])
+    $_sm_b \s a: implies(singleton(s,a,"_"), mem(a,s))
+    $got_sm apply_thm(singleton_mem, _sm, [["f", forall("a", _sm_b("f","a"))], ["op", _sm_b("f","op")]], [])
     $op_in_f mem("op", "f")
     $got_mem mp(got_sm, ax([sing], [sing], sing), sing, op_in_f, [], [sing])
     # [sing] |- op_in_f
 
     # apply_intro: op(op,x,y) -> op∈f -> apply(f,x,y)
     $_ai head(right(apply_intro))
-    $got_ai apply_thm(apply_intro, _ai, ["op","f","x","y"], [])
+    $_ai_b \p f x y: implies(ordered_pair(p,x,y,"_"), implies(mem(p,f), apply(f,x,y,"_")))
+    $got_ai apply_thm(apply_intro, _ai, [["op", forall("f", forall("x", forall("y", _ai_b("op","f","x","y"))))], ["f", forall("x", forall("y", _ai_b("op","f","x","y")))], ["x", forall("y", _ai_b("op","f","x","y"))], ["y", _ai_b("op","f","x","y")]], [])
     $got_app mp(mp(got_ai,
         ax([op], [op], op), op, implies(op_in_f, app), [], [op]),
         got_mem, op_in_f, app, [op], [sing])

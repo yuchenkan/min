@@ -11,7 +11,7 @@ $singleton_injection {
     $imp_fwd implies(eqv("a", "a", "_"), eqv("a", "b", "_"))
     $s2 mp(iff_elim_left(eqv("a", "a", "_"), eqv("a", "b", "_"), []), s1, iff_ab, imp_fwd, [], [char])
     $_er head(right(eqv_reflexive))
-    $g_aa apply_thm(eqv_reflexive, _er, ["a"], [])
+    $g_aa apply_thm(eqv_reflexive, _er, [["a", eqv("a","a","_")]], [])
     $eqv_ab eqv("a", "b", "_")
     $s3 mp(s2, g_aa, eqv("a", "a", "_"), eqv_ab, [char], [])
     $top implies(char, eqv_ab)

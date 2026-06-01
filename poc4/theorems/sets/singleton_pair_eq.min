@@ -15,7 +15,7 @@ $singleton_pair_eq {
     $or_cc or(eqv("c", "c", "_"), eqv("c", "d", "_"))
     $s1 fl(ax([iff_c], [iff_c], iff_c), [char], [iff_c], char, "c")
     $_er head(right(eqv_reflexive))
-    $g_cc apply_thm(eqv_reflexive, _er, ["c"], [])
+    $g_cc apply_thm(eqv_reflexive, _er, [["c", eqv("c","c","_")]], [])
     $g_or_c mp(or_intro_left(eqv("c", "c", "_"), eqv("c", "d", "_"), []), g_cc, eqv("c", "c", "_"), or_cc, [], [])
     $g_ca mp(mp(iff_elim_right(eqv_ca, or_cc, []),
                s1, iff_c, implies(or_cc, eqv_ca), [], [char]),
@@ -23,7 +23,7 @@ $singleton_pair_eq {
     $iff_d iff(eqv("d", "a", "_"), or(eqv("d", "c", "_"), eqv("d", "d", "_")))
     $or_dd or(eqv("d", "c", "_"), eqv("d", "d", "_"))
     $s2 fl(ax([iff_d], [iff_d], iff_d), [char], [iff_d], char, "d")
-    $g_dd apply_thm(eqv_reflexive, _er, ["d"], [])
+    $g_dd apply_thm(eqv_reflexive, _er, [["d", eqv("d","d","_")]], [])
     $g_or_d mp(or_intro_right(eqv("d", "c", "_"), eqv("d", "d", "_"), []), g_dd, eqv("d", "d", "_"), or_dd, [], [])
     $g_da mp(mp(iff_elim_right(eqv_da, or_dd, []),
                s2, iff_d, implies(or_dd, eqv_da), [], [char]),

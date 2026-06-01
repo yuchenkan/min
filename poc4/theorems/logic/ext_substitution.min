@@ -7,12 +7,13 @@ $ext_substitution {
     $ext_f ext_ax
     $ext_p ax([ext_f], [ext_f], ext_f)
 
-    $inst_ab apply_thm(ext_p, ext_f, ["a", "b"], [ext_f])
+    $_ext_inner \x y: implies(forall("z", iff(mem("z",x),mem("z",y))), forall("z", iff(mem(x,"z"),mem(y,"z"))))
+    $inst_ab apply_thm(ext_p, ext_f, [["a", forall("y", _ext_inner("a","y"))], ["b", _ext_inner("a","b")]], [ext_f])
 
     $fa_iff forall("z", iff(mem("a", "z"), mem("b", "z")))
     $got_fa mp(inst_ab, ax([eqv_ab], [eqv_ab], eqv_ab), eqv_ab, fa_iff, [ext_f], [eqv_ab])
 
-    $got_iff apply_thm(got_fa, fa_iff, ["s"], [ext_f, eqv_ab])
+    $got_iff apply_thm(got_fa, fa_iff, [["s", iff(mem("a","s"),mem("b","s"))]], [ext_f, eqv_ab])
 
     $iff_s iff(mem("a", "s"), mem("b", "s"))
     $top implies(eqv_ab, iff_s)

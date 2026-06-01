@@ -21,7 +21,8 @@ $ordpair_key_transfer {
     $eqv_wc eqv("w", "c", "_")
     $eqv_wb eqv("w", "b", "_")
     $iff_eqv_ac iff(eqv_wa, eqv_wc)
-    $got_iff_ac mp(apply_thm(eq_in_eq, _eie, ["w","a","c"], []),
+    $_eie_b \z x1 x2: implies(eqv(x1,x2,"_"), iff(eqv(z,x1,"_"), eqv(z,x2,"_")))
+    $got_iff_ac mp(apply_thm(eq_in_eq, _eie, [["w", forall("x1", forall("x2", _eie_b("w","x1","x2")))], ["a", forall("x2", _eie_b("w","a","x2"))], ["c", _eie_b("w","a","c")]], []),
         ax([eqv_ac], [eqv_ac], eqv_ac), eqv_ac, iff_eqv_ac, [], [eqv_ac])
 
     # === Pair_set level: iff(pair_set(r,a,b), pair_set(r,c,b)) ===
