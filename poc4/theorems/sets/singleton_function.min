@@ -1,13 +1,15 @@
 from core.derived import mem, implies, forall, and, exists, eqv, left, right
 from vocab.sets import singleton, ordered_pair
-from vocab.functions import apply, function
-from tactics import ax, ir, mp, apply_thm, eel, cut_c, close, same, remove
+from vocab.functions import apply, function, relation
+from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
+from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
 
 # pa |- singleton(f, op) -> ordered_pair(op, x, y) -> function(f)
 $singleton_function {
@@ -119,12 +121,51 @@ $singleton_function {
     $ctx_no_and remove(same, and_apps, ctx_with_and)
     $s1 ir(got_cut2, ctx_no_and, [imp_inner], imp_inner)
 
+    # s1 proves single-valuedness body. Close foralls:
     $s2 close(s1, ctx_no_and, [imp_inner], ["r2", "r1", "r"])
-    # s2: ctx_no_and |- [func]. ctx_no_and contains sing, opxy, pa_f
+    $sv head(right(s2))
+    # s2: [sing, opxy, pa_f] |- sv
 
-    $ctx_no_opxy remove(same, opxy, ctx_no_and)
+    # === Prove relation(f) ===
+    # relation(f,"_") = forall(z, implies(mem(z,f), exists(x2, exists(y2, ordered_pair(z,x2,y2,"_")))))
+    $rel relation("f", "_")
+
+    # From z∈f: singleton_mem_eq → eqv(z,op). eqv_ordpair_transfer: eqv(z,op)→op(op,x,y)→op(z,x,y).
+    # Then eir x, eir y → ∃x2.∃y2. ordpair(z,x2,y2).
+    $zf mem("z","f")
+    $eqv_zop eqv("z","op","_")
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
+    $got_eqv_z mp(mp(apply_thm(singleton_mem_eq, _sme, ["z","f","op"], ["z","f","a"], _sme_b, []),
+        ax([sing], [sing], sing), sing, implies(zf, eqv_zop), [], [sing]),
+        ax([zf], [zf], zf), zf, eqv_zop, [sing], [zf])
+    # [sing, zf] |- eqv(z,op)
+
+    $_eot head(right(eqv_ordpair_transfer))
+    $_eot_b \z: \t: \x: \y: implies(eqv(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
+    $opz ordered_pair("z","x","y","_")
+    $got_opz mp(mp(apply_thm(eqv_ordpair_transfer, _eot, ["z","op","x","y"], ["z","t","x","y"], _eot_b, []),
+        got_eqv_z, eqv_zop, implies(opxy, opz), [], [sing, zf]),
+        ax([opxy], [opxy], opxy), opxy, opz, [sing, zf], [opxy])
+    # [sing, zf, opxy] |- ordered_pair(z,x,y)
+
+    $got_ex_y eir(got_opz, \y2: ordered_pair("z","x",y2,"_"), "y2", "y", [sing, zf, opxy])
+    $got_ex_xy eir(got_ex_y, \x2: exists("y2", ordered_pair("z",x2,"y2","_")), "x2", "x", [sing, zf, opxy])
+    # [sing, zf, opxy] |- ∃x2.∃y2. ordpair(z,x2,y2)
+
+    $imp_zf implies(zf, exists("x2", exists("y2", ordered_pair("z","x2","y2","_"))))
+    $got_rel_inner ir(got_ex_xy, [sing, opxy], [imp_zf], imp_zf)
+    $got_rel fr(got_rel_inner, [sing, opxy], [rel], rel, "z")
+    # [sing, opxy] |- relation(f)
+
+    # === and_intro(rel, sv) → func ===
+    $got_func mp(mp(and_intro(rel, sv, []),
+        got_rel, rel, implies(sv, func), [], [sing, opxy]),
+        s2, sv, func, [sing, opxy], ctx_no_and)
+    # [sing, opxy, pa_f] |- func
+
+    $ctx_no_opxy remove(same, opxy, left(got_func))
     $imp2 implies(opxy, func)
-    $s5 ir(s2, ctx_no_opxy, [imp2], imp2)
+    $s5 ir(got_func, ctx_no_opxy, [imp2], imp2)
 
     $ctx_no_sing remove(same, sing, ctx_no_opxy)
     $top implies(sing, imp2)

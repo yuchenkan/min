@@ -1,0 +1,44 @@
+from core.derived import mem, implies, forall, or, iff, eqv
+from vocab.sets import singleton, pair_set, ordered_pair
+from tactics import ax, fl, fr, ir, mp, close
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.iff_sym import iff_sym
+
+# |- eqv(z,t) -> ordered_pair(t,x,y) -> ordered_pair(z,x,y)
+# From eqv(z,t): forall w. w∈z ↔ w∈t.
+# From ordered_pair(t,x,y): forall w. w∈t ↔ or(sing(w,x), pair(w,x,y)).
+# iff_chain: w∈z ↔ or(...). forall w → ordered_pair(z,x,y).
+$eqv_ordpair_transfer {
+    $ez eqv("z","t","_")
+    $opt ordered_pair("t","x","y","_")
+    $opz ordered_pair("z","x","y","_")
+
+    $wz mem("w","z")
+    $wt mem("w","t")
+    $sw singleton("w","x","_")
+    $pw pair_set("w","x","y","_")
+    $or_sp or(sw, pw)
+
+    # From eqv(z,t): iff(w∈z, w∈t)
+    $iff_zt iff(wz, wt)
+    $got_iff_zt fl(ax([iff_zt], [iff_zt], iff_zt), [ez], [iff_zt], ez, "w")
+
+    # From ordered_pair(t,x,y): iff(w∈t, or(sing(w,x), pair(w,x,y)))
+    $iff_tor iff(wt, or_sp)
+    $got_iff_tor fl(ax([iff_tor], [iff_tor], iff_tor), [opt], [iff_tor], opt, "w")
+
+    # iff_chain: iff(w∈z, w∈t) + iff(w∈t, or(...)) → iff(w∈z, or(...))
+    $iff_zor iff(wz, or_sp)
+    $got_iff mp(mp(iff_chain(wz, wt, or_sp, []),
+        got_iff_zt, iff_zt, implies(iff_tor, iff_zor), [], [ez]),
+        got_iff_tor, iff_tor, iff_zor, [ez], [opt])
+
+    # forall w → ordered_pair(z,x,y)
+    $got_opz fr(got_iff, [ez, opt], [opz], opz, "w")
+
+    $imp2 implies(opt, opz)
+    $s1 ir(got_opz, [ez], [imp2], imp2)
+    $top implies(ez, imp2)
+    $s2 ir(s1, [], [top], top)
+    close(s2, [], [top], ["y","x","t","z"])
+}
