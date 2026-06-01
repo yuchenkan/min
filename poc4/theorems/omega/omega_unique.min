@@ -17,24 +17,27 @@ $omega_unique {
     $eqv12 eqv("w1", "w2", "_")
 
     $_oi head(right(omega_is_inductive))
-    $got_ind1 mp(apply_thm(omega_is_inductive, _oi, ["w1"], []),
+    $got_ind1 mp(apply_thm(omega_is_inductive, _oi, [["w1", []]], \w: implies(omega(w,"_"), inductive(w,"_")), []),
         ax([om1], [om1], om1), om1, ind1, [], [om1])
-    $got_ind2 mp(apply_thm(omega_is_inductive, _oi, ["w2"], []),
+    $got_ind2 mp(apply_thm(omega_is_inductive, _oi, [["w2", []]], \w: implies(omega(w,"_"), inductive(w,"_")), []),
         ax([om2], [om2], om2), om2, ind2, [], [om2])
 
     $_os head(right(omega_smallest_inductive))
-    $got_os12 apply_thm(omega_smallest_inductive, _os, ["w2", "w1"], [])
+    $got_os12 apply_thm(omega_smallest_inductive, _os, [["w2", ["w"]], ["w1", []]],
+        \c: \w: implies(omega(w,"_"), implies(inductive(c,"_"), subset(w,c,"_"))), [])
     $got_sub12 mp(mp(got_os12,
         ax([om1], [om1], om1), om1, implies(ind2, sub12), [], [om1]),
         got_ind2, ind2, sub12, [om1], [om2])
 
-    $got_os21 apply_thm(omega_smallest_inductive, _os, ["w1", "w2"], [])
+    $got_os21 apply_thm(omega_smallest_inductive, _os, [["w1", ["w"]], ["w2", []]],
+        \c: \w: implies(omega(w,"_"), implies(inductive(c,"_"), subset(w,c,"_"))), [])
     $got_sub21 mp(mp(got_os21,
         ax([om2], [om2], om2), om2, implies(ind1, sub21), [], [om2]),
         got_ind1, ind1, sub21, [om2], [om1])
 
     $_sa head(right(subset_antisymmetric))
-    $got_sa apply_thm(subset_antisymmetric, _sa, ["w1", "w2"], [])
+    $got_sa apply_thm(subset_antisymmetric, _sa, [["w1", ["b"]], ["w2", []]],
+        \a: \b: implies(subset(a,b,"_"), implies(subset(b,a,"_"), eqv(a,b,"_"))), [])
     $got_eqv mp(mp(got_sa,
         got_sub12, sub12, implies(sub21, eqv12), [], [om1, om2]),
         got_sub21, sub21, eqv12, [om1, om2], [om1, om2])

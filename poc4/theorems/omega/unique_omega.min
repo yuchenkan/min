@@ -14,7 +14,8 @@ $unique_omega {
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
 
     $_ou head(right(omega_unique))
-    $ou_inst apply_thm(omega_unique, _ou, ["u", "y"], [])
+    $ou_inst apply_thm(omega_unique, _ou, [["u", ["w2"]], ["y", []]],
+        \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_"))), [])
     $got_inner mp(ou_inst, ax([om_u], [om_u], om_u), om_u, imp_inner, [], [om_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [om_u], [fa_uniq], fa_uniq, "y")
@@ -24,7 +25,7 @@ $unique_omega {
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "w", "u", [om_u], eu)
     $oe_ctx left(omega_exists)
     $oe_f head(right(omega_exists))
-    $oe_inst apply_thm(omega_exists, oe_f, [], oe_ctx)
+    $oe_inst apply_thm(omega_exists, oe_f, [], \x: x, oe_ctx)
     $ex_om exists("w", body_fn("w", "_"))
     $got_cut cut_c(oe_inst, got_ex, ex_om, oe_ctx, [ex_om], eu)
     close(got_cut, oe_ctx, [eu], [])

@@ -38,7 +38,8 @@ $omega_exists {
 
     # Instantiate sep with b: ∃w. ∀x. (x∈w ↔ x∈b ∧ phi(x))
     $sep_ctx [sep_f]
-    $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, ["b"], [sep_f])
+    $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, [["b", []]],
+        \a: exists("s", forall("x", iff(mem("x","s"), and(mem("x",a), phi("x"))))), [sep_f])
     # [sep_f] |- [∃w. ∀x. (x∈w ↔ x∈b ∧ phi(x))]
 
     # The characterization of w:
@@ -73,7 +74,8 @@ $omega_exists {
 
     # phi_x instantiated with d: inductive(d) → x∈d
     $imp_ind_xd implies(ind_d, xd)
-    $got_imp_d apply_thm(got_phi, phi_x, ["d"], [char, xw])
+    $got_imp_d apply_thm(got_phi, phi_x, [["d", []]],
+        \c: implies(inductive(c,"_"), mem("x",c)), [char, xw])
     $got_xd mp(got_imp_d, ax([ind_d], [ind_d], ind_d), ind_d, xd, [char, xw], [ind_d])
     # [char, xw, ind_d] |- xd
 
@@ -122,7 +124,8 @@ $omega_exists {
     $got_p1c mp(and_elim_left(part1_c, part2_c, []),
         ax([ind_c], [ind_c], ind_c), ind_c, part1_c, [], [ind_c])
     $imp_emp_ec implies(emp, mem("e", "c"))
-    $got_emp_ec apply_thm(got_p1c, part1_c, ["e"], [ind_c])
+    $got_emp_ec apply_thm(got_p1c, part1_c, [["e", []]],
+        \q: implies(empty(q,"_"), mem(q,"c")), [ind_c])
     $got_ec mp(got_emp_ec, ax([emp], [emp], emp), emp, mem("e","c"), [ind_c], [emp])
     # [ind_c, emp] |- e∈c
 
@@ -139,7 +142,8 @@ $omega_exists {
     $part2_b forall("q2", implies(mem("q2", "b"), forall("q3", implies(successor("q3", "q2", "_"), mem("q3", "b")))))
     $got_p1b2 mp(and_elim_left(part1_b, part2_b, []),
         ax([ind_b], [ind_b], ind_b), ind_b, part1_b, [], [ind_b])
-    $got_emp_eb apply_thm(got_p1b2, part1_b, ["e"], [ind_b])
+    $got_emp_eb apply_thm(got_p1b2, part1_b, [["e", []]],
+        \q: implies(empty(q,"_"), mem(q,"b")), [ind_b])
     $got_eb mp(got_emp_eb, ax([emp], [emp], emp), emp, eb, [ind_b], [emp])
     # [ind_b, emp] |- e∈b
 
@@ -200,10 +204,12 @@ $omega_exists {
     $got_p2b mp(and_elim_right(part1_b, part2_b, []),
         ax([ind_b], [ind_b], ind_b), ind_b, part2_b, [], [ind_b])
     $fa_s_b forall("q3", implies(successor("q3", "n", "_"), mem("q3", "b")))
-    $got_p2b_n apply_thm(got_p2b, part2_b, ["n"], [ind_b])
+    $got_p2b_n apply_thm(got_p2b, part2_b, [["n", []]],
+        \q: implies(mem(q,"b"), forall("q3", implies(successor("q3",q,"_"), mem("q3","b")))), [ind_b])
     $got_fas_b mp(got_p2b_n, got_nb, nb, fa_s_b, [ind_b], [char, nw])
     $imp_succ_sb implies(succ_sn, sb)
-    $got_sb_inst apply_thm(got_fas_b, fa_s_b, ["s"], [ind_b, char, nw])
+    $got_sb_inst apply_thm(got_fas_b, fa_s_b, [["s", []]],
+        \q: implies(successor(q,"n","_"), mem(q,"b")), [ind_b, char, nw])
     $got_sb mp(got_sb_inst, ax([succ_sn], [succ_sn], succ_sn), succ_sn, sb,
         [ind_b, char, nw], [succ_sn])
     # [ind_b, char, nw, succ_sn] |- sb
@@ -214,21 +220,24 @@ $omega_exists {
     $nc mem("n", "c")
     $sc mem("s", "c")
     $imp_ind_nc implies(ind_c, nc)
-    $got_phi_n_c apply_thm(got_phi_n, phi_n, ["c"], [char, nw])
+    $got_phi_n_c apply_thm(got_phi_n, phi_n, [["c", []]],
+        \c: implies(inductive(c,"_"), mem("n",c)), [char, nw])
     $got_nc mp(got_phi_n_c, ax([ind_c], [ind_c], ind_c), ind_c, nc, [char, nw], [ind_c])
     # [char, nw, ind_c] |- nc
 
     $got_p2c mp(and_elim_right(part1_c, part2_c, []),
         ax([ind_c], [ind_c], ind_c), ind_c, part2_c, [], [ind_c])
     $fa_s_c forall("q3", implies(successor("q3", "n", "_"), mem("q3", "c")))
-    $got_p2c_n apply_thm(got_p2c, part2_c, ["n"], [ind_c])
+    $got_p2c_n apply_thm(got_p2c, part2_c, [["n", []]],
+        \q: implies(mem(q,"c"), forall("q3", implies(successor("q3",q,"_"), mem("q3","c")))), [ind_c])
     $got_fas_c mp(got_p2c_n, got_nc, nc, fa_s_c, [ind_c], [char, nw, ind_c])
     # Hmm, nc is on the left of got_nc but we need it for mp. Let me fix:
     # got_p2c_n: [ind_c] |- [nc → fa_s_c]
     # got_nc: [char, nw, ind_c] |- [nc]
     $got_fas_c2 mp(got_p2c_n, got_nc, nc, fa_s_c, [ind_c], [char, nw, ind_c])
     $imp_succ_sc implies(succ_sn, sc)
-    $got_sc_inst apply_thm(got_fas_c2, fa_s_c, ["s"], [ind_c, char, nw])
+    $got_sc_inst apply_thm(got_fas_c2, fa_s_c, [["s", []]],
+        \q: implies(successor(q,"n","_"), mem(q,"c")), [ind_c, char, nw])
     $got_sc mp(got_sc_inst, ax([succ_sn], [succ_sn], succ_sn), succ_sn, sc,
         [ind_c, char, nw], [succ_sn])
     # [ind_c, char, nw, succ_sn] |- sc
