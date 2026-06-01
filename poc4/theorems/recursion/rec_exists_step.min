@@ -36,7 +36,8 @@ $rec_exists_step {
 
     # === apply(u, sn, fval) from extend_apply_new ===
     $_ean head(right(extend_apply_new))
-    $ean_i apply_thm(extend_apply_new, _ean, ["u","h","op","v","sn","fval"], [])
+    $_ean_b \u: \h: \op: \g: \k: \v: implies(singleton(h,op,"_"), implies(ordered_pair(op,k,v,"_"), implies(union(u,g,h,"_"), apply(u,k,v,"_"))))
+    $ean_i apply_thm(extend_apply_new, _ean, [["u", ["h","op","g","k","r"]], ["h", ["op","g","k","r"]], ["op", ["g","k","r"]], ["v", ["k","r"]], ["sn", ["r"]], ["fval", []]], _ean_b, [])
     $ea1 mp(ean_i, ax([sing_h], [sing_h], sing_h), sing_h, implies(op_new, implies(un, app_u_sn)), left(ean_i), [sing_h])
     $ea2 mp(ea1, ax([op_new], [op_new], op_new), op_new, implies(un, app_u_sn), left(ea1), [op_new])
     $got_app mp(ea2, ax([un], [un], un), un, app_u_sn, left(ea2), [un])
@@ -47,7 +48,8 @@ $rec_exists_step {
     $_ec head(right(extend_consistency))
     $ec_ctx left(extend_consistency)
     # Instantiate all 9 foralls (including z) to get bare implies chain:
-    $ec1 apply_thm(extend_consistency, _ec, ["v","a","f","w","n","sn","val","fval","z"], ec_ctx)
+    $_ec_b \v: \a: \f: \w: \n: \sn: \val: \fval: \z: implies(rec_approx(v,a,f,w,"_"), implies(mem(n,w), implies(apply(v,n,val,"_"), implies(apply(f,val,fval,"_"), implies(successor(sn,n,"_"), implies(apply(v,sn,z,"_"), eqv(fval,z,"_")))))))
+    $ec1 apply_thm(extend_consistency, _ec, [["v", ["a","f","w","n","sn","val","fval","z"]], ["a", ["f","w","n","sn","val","fval","z"]], ["f", ["w","n","sn","val","fval","z"]], ["w", ["n","sn","val","fval","z"]], ["n", ["sn","val","fval","z"]], ["sn", ["val","fval","z"]], ["val", ["fval","z"]], ["fval", ["z"]], ["z", []]], _ec_b, ec_ctx)
     # ec1: [] |- implies(ra_v, implies(nw, implies(app_vn, implies(app_f, implies(succ_sn, implies(apply(v,sn,z), eqv(fval,z)))))))
     $ec2 mp(ec1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(ec1))), left(ec1), [ra_v])
     $ec3 mp(ec2, ax([nw], [nw], nw), nw, arg2(head(right(ec2))), left(ec2), [nw])
