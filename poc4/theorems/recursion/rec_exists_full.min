@@ -2,7 +2,7 @@ from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, l
 from vocab.sets import empty, successor, ordered_pair, big_union, union, power_set
 from vocab.functions import apply, function, domain, relation
 from vocab.omega import omega
-from vocab.recursion import rec_approx, recursive
+from vocab.recursion import rec_approx, recursive, total_from
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, inst, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -32,9 +32,12 @@ from theorems.omega.omega_contains_empty import omega_contains_empty
 $rec_exists_full {
     $func_f function("f","_")
     $om omega("w","_")
+    $tf total_from("f","a","_")
     $f_at_a exists("z", apply("f","a","z","_"))
     $ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
-    $hyps [func_f, f_at_a, ran_fc, om]
+    $got_f_at_a mp(and_elim_left(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, f_at_a, [], [tf])
+    $got_ran_fc mp(and_elim_right(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, ran_fc, [], [tf])
+    $hyps [func_f, tf, om]
 
     $phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
         and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
@@ -118,8 +121,8 @@ $rec_exists_full {
     $gf1 mp(got_func, got_char_h, char_h, arg2(head(right(got_func))), left(got_func), left(got_char_h))
     $gf2 mp(gf1, ax([func_f], [func_f], func_f), func_f, arg2(head(right(gf1))), left(gf1), [func_f])
     $gf3 mp(gf2, ax([om], [om], om), om, arg2(head(right(gf2))), left(gf2), [om])
-    $gf4 mp(gf3, ax([f_at_a], [f_at_a], f_at_a), f_at_a, arg2(head(right(gf3))), left(gf3), [f_at_a])
-    $got_func_h mp(gf4, ax([ran_fc], [ran_fc], ran_fc), ran_fc, function("h","_"), left(gf4), [ran_fc])
+    $gf4 mp(gf3, got_f_at_a, f_at_a, arg2(head(right(gf3))), left(gf3), [tf])
+    $got_func_h mp(gf4, got_ran_fc, ran_fc, function("h","_"), left(gf4), [tf])
 
 
 
@@ -146,8 +149,8 @@ $rec_exists_full {
     }
     $got_re apply_thm(rec_exists, _re, ["w","f","a"], ["w","f","a"], _re_body, re_ctx)
     $re1 mp(got_re, ax([func_f], [func_f], func_f), func_f, arg2(head(right(got_re))), left(got_re), [func_f])
-    $re2 mp(re1, ax([f_at_a], [f_at_a], f_at_a), f_at_a, arg2(head(right(re1))), left(re1), [f_at_a])
-    $re3 mp(re2, ax([ran_fc], [ran_fc], ran_fc), ran_fc, arg2(head(right(re2))), left(re2), [ran_fc])
+    $re2 mp(re1, got_f_at_a, f_at_a, arg2(head(right(re1))), left(re1), [tf])
+    $re3 mp(re2, got_ran_fc, ran_fc, arg2(head(right(re2))), left(re2), [tf])
     $re4 mp(re3, ax([om], [om], om), om, arg2(head(right(re3))), left(re3), [om])
     $re_pred_b \n: implies(mem(n,"w"), exists("g", and(rec_approx("g","a","f","w","_"),
         exists("y", apply("g",n,"y","_")))))
@@ -206,8 +209,8 @@ $rec_exists_full {
     $st1 mp(got_step, got_char_h, char_h, arg2(head(right(got_step))), left(got_step), left(got_char_h))
     $st2 mp(st1, ax([func_f], [func_f], func_f), func_f, arg2(head(right(st1))), left(st1), [func_f])
     $st3 mp(st2, ax([om], [om], om), om, arg2(head(right(st2))), left(st2), [om])
-    $st4 mp(st3, ax([f_at_a], [f_at_a], f_at_a), f_at_a, arg2(head(right(st3))), left(st3), [f_at_a])
-    $st5 mp(st4, ax([ran_fc], [ran_fc], ran_fc), ran_fc, arg2(head(right(st4))), left(st4), [ran_fc])
+    $st4 mp(st3, got_f_at_a, f_at_a, arg2(head(right(st3))), left(st3), [tf])
+    $st5 mp(st4, got_ran_fc, ran_fc, arg2(head(right(st4))), left(st4), [tf])
     # st5: ctx |- n∈w → h(n)=val → sn=S(n) → f(val)=fval → h(sn)=fval
     # Rebuild interleaved foralls by mp-ing each, then ir+fr back:
     $nw_s mem("n","w")
@@ -350,9 +353,8 @@ $rec_exists_full {
     # Discharge hyps and close:
     $final wl_all(got_e10, left(got_e10), [ex_rec], diff(same, hyps, left(got_e10)))
     $t1 ir(final, remove(same, om, left(final)), [implies(om, ex_rec)], implies(om, ex_rec))
-    $t2 ir(t1, remove(same, ran_fc, left(t1)), [implies(ran_fc, implies(om, ex_rec))], implies(ran_fc, implies(om, ex_rec)))
-    $t3 ir(t2, remove(same, f_at_a, left(t2)), [implies(f_at_a, implies(ran_fc, implies(om, ex_rec)))], implies(f_at_a, implies(ran_fc, implies(om, ex_rec))))
-    $top implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, ex_rec))))
-    $t4 ir(t3, remove(same, func_f, left(t3)), [top], top)
-    close(t4, left(t4), [top], ["w","f","a"])
+    $t2 ir(t1, remove(same, tf, left(t1)), [implies(tf, implies(om, ex_rec))], implies(tf, implies(om, ex_rec)))
+    $top implies(func_f, implies(tf, implies(om, ex_rec)))
+    $t3 ir(t2, remove(same, func_f, left(t2)), [top], top)
+    close(t3, left(t3), [top], ["w","f","a"])
 }

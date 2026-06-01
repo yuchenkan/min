@@ -3,6 +3,19 @@ from vocab.sets import empty, successor
 from vocab.functions import apply, domain, function
 from vocab.omega import omega
 
+# total_from(f, a, p): f is defined at a and range-closed.
+# And(∃z.Apply(f,a,z), ∀x.∀y.(Apply(f,x,y) → ∃z.Apply(f,y,z)))
+$total_from \f a p: {
+    $np add(p, "_")
+    $x add(p, "x")
+    $y add(p, "y")
+    $z add(p, "z")
+    $at_a exists(z, apply(f, a, z, np))
+    $ran_closed forall(x, forall(y, implies(apply(f, x, y, np), exists(z, apply(f, y, z, np)))))
+    ["total_from", add("TotalFrom(", add(f, add(",", add(a, ")")))),
+        and(at_a, ran_closed)]
+}
+
 # recursive(h, a, f, w, p):
 # Function(h) ∧ dom(h)=w ∧ h(0)=a ∧ ∀n∈w. h(S(n))=f(h(n))
 $recursive \h a f w p: {

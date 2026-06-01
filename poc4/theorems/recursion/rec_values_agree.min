@@ -2,7 +2,7 @@ from core.derived import mem, implies, forall, and, exists, eqv, left, right, ar
 from vocab.sets import empty, successor
 from vocab.functions import apply, function, relation, domain
 from vocab.omega import omega
-from vocab.recursion import recursive
+from vocab.recursion import recursive, total_from
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -18,8 +18,11 @@ $rec_values_agree {
     $rec_h recursive("h","a","f","w","_")
     $rec_h2 recursive("h2","a","f","w","_")
     $func_f function("f","_")
+    $tf total_from("f","a","_")
     $f_at_a exists("z", apply("f","a","z","_"))
     $ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
+    $got_f_at_a mp(and_elim_left(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, f_at_a, [], [tf])
+    $got_ran_fc mp(and_elim_right(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, ran_fc, [], [tf])
     $om omega("w","_")
 
     # Predicate for omega_induction:
@@ -77,10 +80,10 @@ $rec_values_agree {
     $triple_base and(app_hea, inner_base)
     $got_inner_b mp(mp(and_intro(app_h2ea, f_at_a, []),
         got_h2ea, app_h2ea, implies(f_at_a, inner_base), [], [rec_h2, emp]),
-        ax([f_at_a], [f_at_a], f_at_a), f_at_a, inner_base, [rec_h2, emp], [f_at_a])
+        got_f_at_a, f_at_a, inner_base, [rec_h2, emp], [tf])
     $got_triple_b mp(mp(and_intro(app_hea, inner_base, []),
         got_hea, app_hea, implies(inner_base, triple_base), [], [rec_h, emp]),
-        got_inner_b, inner_base, triple_base, [rec_h, emp], [rec_h2, emp, f_at_a])
+        got_inner_b, inner_base, triple_base, [rec_h, emp], [rec_h2, emp, tf])
 
     # eir y=a: ∃y.(Apply(h,e,y) ∧ Apply(h2,e,y) ∧ ∃z.Apply(f,y,z))
     $pred_e pred("w","e","_")
@@ -164,14 +167,14 @@ $rec_values_agree {
 
 
     # ran_fc at y,fval: Apply(f,y,fval) → ∃w2.Apply(f,fval,w2)
-    $ran1 apply_thm(ax([ran_fc], [ran_fc], ran_fc), ran_fc, ["y"], ["y"],
+    $ran1 apply_thm(got_ran_fc, ran_fc, ["y"], ["y"],
         \y: forall("z3", implies(apply("f",y,"z3","_"), exists("w2", apply("f","z3","w2","_")))),
-        [ran_fc])
+        [tf])
     $ran2 apply_thm(ran1, head(right(ran1)), ["fval"], ["fval"],
         \z: implies(apply("f","y",z,"_"), exists("w2", apply("f",z,"w2","_"))),
-        [ran_fc])
+        [tf])
     $ex_ffval exists("w2", apply("f","fval","w2","_"))
-    $got_ran mp(ran2, ax([app_fyfv], [app_fyfv], app_fyfv), app_fyfv, ex_ffval, [ran_fc], [app_fyfv])
+    $got_ran mp(ran2, ax([app_fyfv], [app_fyfv], app_fyfv), app_fyfv, ex_ffval, [tf], [app_fyfv])
 
 
 
@@ -181,7 +184,7 @@ $rec_values_agree {
     $triple_s and(app_hsfv, inner_s)
     $got_inner_s mp(mp(and_intro(app_h2sfv, ex_ffval, []),
         got_h2sfv, app_h2sfv, implies(ex_ffval, inner_s), [], left(got_h2sfv)),
-        got_ran, ex_ffval, inner_s, left(got_h2sfv), [ran_fc, app_fyfv])
+        got_ran, ex_ffval, inner_s, left(got_h2sfv), [tf, app_fyfv])
     $got_triple_s mp(mp(and_intro(app_hsfv, inner_s, []),
         got_hsfv, app_hsfv, implies(inner_s, triple_s), [], left(got_hsfv)),
         got_inner_s, inner_s, triple_s, left(got_hsfv), left(got_inner_s))
@@ -252,15 +255,14 @@ $rec_values_agree {
 
 
     # Discharge hypotheses and close:
-    $hyps [rec_h, rec_h2, func_f, f_at_a, ran_fc, om]
+    $hyps [rec_h, rec_h2, func_f, tf, om]
     $result wr(oi3, left(oi3), [fa_result], fa_result)
     $final wl_all(result, left(result), [fa_result], diff(same, hyps, left(result)))
     $t1 ir(final, remove(same, om, left(final)), [implies(om, fa_result)], implies(om, fa_result))
-    $t2 ir(t1, remove(same, ran_fc, left(t1)), [implies(ran_fc, implies(om, fa_result))], implies(ran_fc, implies(om, fa_result)))
-    $t3 ir(t2, remove(same, f_at_a, left(t2)), [implies(f_at_a, implies(ran_fc, implies(om, fa_result)))], implies(f_at_a, implies(ran_fc, implies(om, fa_result))))
-    $t4 ir(t3, remove(same, func_f, left(t3)), [implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_result))))], implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_result)))))
-    $t5 ir(t4, remove(same, rec_h2, left(t4)), [implies(rec_h2, implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_result)))))], implies(rec_h2, implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_result))))))
-    $top implies(rec_h, implies(rec_h2, implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_result))))))
-    $t6 ir(t5, remove(same, rec_h, left(t5)), [top], top)
-    close(t6, left(t6), [top], ["w","f","a","h2","h"])
+    $t2 ir(t1, remove(same, tf, left(t1)), [implies(tf, implies(om, fa_result))], implies(tf, implies(om, fa_result)))
+    $t3 ir(t2, remove(same, func_f, left(t2)), [implies(func_f, implies(tf, implies(om, fa_result)))], implies(func_f, implies(tf, implies(om, fa_result))))
+    $t4 ir(t3, remove(same, rec_h2, left(t3)), [implies(rec_h2, implies(func_f, implies(tf, implies(om, fa_result))))], implies(rec_h2, implies(func_f, implies(tf, implies(om, fa_result)))))
+    $top implies(rec_h, implies(rec_h2, implies(func_f, implies(tf, implies(om, fa_result)))))
+    $t5 ir(t4, remove(same, rec_h, left(t4)), [top], top)
+    close(t5, left(t5), [top], ["w","f","a","h2","h"])
 }

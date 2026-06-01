@@ -2,90 +2,68 @@ from core.derived import mem, implies, forall, and, exists, eqv, left, right, ar
 from vocab.sets import empty, successor
 from vocab.functions import apply, function
 from vocab.omega import omega
-from vocab.recursion import recursive
+from vocab.recursion import recursive, total_from
 from vocab.logic import exists_unique
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.recursion.rec_exists_full import rec_exists_full
 from theorems.recursion.rec_unique import rec_unique
 
-# Recursion Theorem (∃!): func(f) → f_at_a → ran_fc → omega(w) → ∃!h.Recursive(h,a,f,w)
+# Recursion Theorem (∃!): func(f) → TotalFrom(f,a) → omega(w) → ∃!h.Recursive(h,a,f,w)
 $recursion_theorem {
     $func_f function("f","_")
-    $f_at_a exists("z", apply("f","a","z","_"))
-    $ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
+    $tf total_from("f","a","_")
     $om omega("w","_")
     $rec_h recursive("h","a","f","w","_")
     $eu_body \h p: recursive(h,"a","f","w",p)
     $eu exists_unique(eu_body, "_")
 
-    # exists_unique_intro: body(t) → (∀y.body(y)→eqv(t,y)) → ∃!
     $eui exists_unique_intro(eu_body, "h", [])
-    # eui: [] |- Recursive(h) → (∀y.Recursive(y)→eqv(h,y)) → ∃!h.Recursive(h)
 
-    # Part 1: Recursive(h) — from existence. Need to extract h from ∃h.Recursive(h).
-    # Get ∃h.Recursive(h) from rec_exists_full.
+    # Instantiate rec_exists_full: ∀a.∀f.∀w. func(f) → tf → omega(w) → ∃h.Rec(h)
     $_rt head(right(rec_exists_full))
-    $_rt_b \a: \f: \w: implies(function(f,"_"), implies(exists("z", apply(f,a,"z","_")),
-        implies(forall("y3", forall("z3", implies(apply(f,"y3","z3","_"), exists("w2", apply(f,"z3","w2","_"))))),
-            implies(omega(w,"_"), exists("h", recursive("h",a,f,w,"_"))))))
+    $_rt_b \a: \f: \w: implies(function(f,"_"), implies(total_from(f,a,"_"), implies(omega(w,"_"),
+        exists("h", recursive("h",a,f,w,"_")))))
     $rt_inst apply_thm(rec_exists_full, _rt, ["a","f","w"], ["a","f","w"], _rt_b, left(rec_exists_full))
     $rt1 mp(rt_inst, ax([func_f], [func_f], func_f), func_f, arg2(head(right(rt_inst))), left(rt_inst), [func_f])
-    $rt2 mp(rt1, ax([f_at_a], [f_at_a], f_at_a), f_at_a, arg2(head(right(rt1))), left(rt1), [f_at_a])
-    $rt3 mp(rt2, ax([ran_fc], [ran_fc], ran_fc), ran_fc, arg2(head(right(rt2))), left(rt2), [ran_fc])
-    $got_ex mp(rt3, ax([om], [om], om), om, exists("h", rec_h), left(rt3), [om])
-    # got_ex: [..., func_f, f_at_a, ran_fc, om] |- ∃h.Recursive(h)
+    $rt2 mp(rt1, ax([tf], [tf], tf), tf, arg2(head(right(rt1))), left(rt1), [tf])
+    $got_ex mp(rt2, ax([om], [om], om), om, exists("h", rec_h), left(rt2), [om])
 
-    # Instantiate rec_unique: ∀h.∀h2.∀a.∀f.∀w. Rec(h)→Rec(h2)→func_f→f_at_a→ran_fc→om→eqv(h,h2)
+    # Instantiate rec_unique: ∀h.∀h2.∀a.∀f.∀w. Rec(h)→Rec(h2)→func(f)→tf→omega(w)→eqv(h,h2)
     $_ru head(right(rec_unique))
     $_ru_b \h: \h2: \a: \f: \w: implies(recursive(h,a,f,w,"_"), implies(recursive(h2,a,f,w,"_"),
-        implies(function(f,"_"), implies(exists("z", apply(f,a,"z","_")),
-            implies(forall("y3", forall("z3", implies(apply(f,"y3","z3","_"), exists("w2", apply(f,"z3","w2","_"))))),
-                implies(omega(w,"_"), eqv(h,h2,"_")))))))
+        implies(function(f,"_"), implies(total_from(f,a,"_"), implies(omega(w,"_"), eqv(h,h2,"_"))))))
     $ru_inst apply_thm(rec_unique, _ru, ["h","h2","a","f","w"], ["h","h2","a","f","w"], _ru_b, left(rec_unique))
-    # mp rec_h:
     $ru1 mp(ru_inst, ax([rec_h], [rec_h], rec_h), rec_h, arg2(head(right(ru_inst))), left(ru_inst), [rec_h])
-    # ru1: [..., rec_h] |- Rec(h2) → func_f → ... → eqv(h,h2)
-    # We need: ∀h2. Rec(h2) → eqv(h,h2). So mp func_f, f_at_a, ran_fc, om first, then ir rec_h2, fr h2.
-
     $rec_h2 recursive("h2","a","f","w","_")
-    # mp rec_h2:
     $ru2 mp(ru1, ax([rec_h2], [rec_h2], rec_h2), rec_h2, arg2(head(right(ru1))), left(ru1), [rec_h2])
     $ru3 mp(ru2, ax([func_f], [func_f], func_f), func_f, arg2(head(right(ru2))), left(ru2), [func_f])
-    $ru4 mp(ru3, ax([f_at_a], [f_at_a], f_at_a), f_at_a, arg2(head(right(ru3))), left(ru3), [f_at_a])
-    $ru5 mp(ru4, ax([ran_fc], [ran_fc], ran_fc), ran_fc, arg2(head(right(ru4))), left(ru4), [ran_fc])
-    $got_eqv mp(ru5, ax([om], [om], om), om, eqv("h","h2","_"), left(ru5), [om])
-    # got_eqv: [..., rec_h, rec_h2, func_f, f_at_a, ran_fc, om] |- eqv(h,h2)
+    $ru4 mp(ru3, ax([tf], [tf], tf), tf, arg2(head(right(ru3))), left(ru3), [tf])
+    $got_eqv mp(ru4, ax([om], [om], om), om, eqv("h","h2","_"), left(ru4), [om])
 
-    # Package uniqueness: ir rec_h2, fr h2 → ∀h2.Rec(h2)→eqv(h,h2)
-    # But eui uses "y" not "h2": ∀y.Rec(y)→eqv(h,y). Use wr to match.
+    # Package uniqueness: ir rec_h2, fr h2
     $uniq_inner implies(rec_h2, eqv("h","h2","_"))
     $got_uniq_1 ir(got_eqv, remove(same, rec_h2, left(got_eqv)), [uniq_inner], uniq_inner)
     $uniq_fa forall("h2", uniq_inner)
     $got_uniq_2 fr(got_uniq_1, left(got_uniq_1), [uniq_fa], uniq_fa, "h2")
-    # got_uniq_2: [..., rec_h, func_f, f_at_a, ran_fc, om] |- ∀h2. Rec(h2) → eqv(h,h2)
 
-    # eui expects: Rec(h) → (∀y.Rec(y)→eqv(h,y)) → ∃!
-    # wr uniq_fa to match eui's ∀y form:
     $eui_uniq forall("y", implies(eu_body("y","_"), eqv("h","y","_")))
     $got_uniq_w wr(got_uniq_2, left(got_uniq_2), [eui_uniq], eui_uniq)
-
-    # eui: [] |- Rec(h) → uniq → ∃!
     $eui_1 mp(eui, ax([rec_h], [rec_h], rec_h), rec_h, arg2(head(right(eui))), left(eui), [rec_h])
     $got_eu mp(eui_1, got_uniq_w, eui_uniq, eu, left(eui_1), left(got_uniq_w))
-    # [..., rec_h, func_f, f_at_a, ran_fc, om] |- ∃!h.Rec(h)
 
     # eel h from got_ex:
     $got_eu2 eel(got_eu, \h: recursive(h,"a","f","w","_"), "h", "h", left(got_eu), eu)
     $got_eu3 cut_c(got_ex, got_eu2, exists("h", rec_h), left(got_ex), left(got_eu2), eu)
 
-    # Discharge hypotheses:
-    $hyps [func_f, f_at_a, ran_fc, om]
+    # Discharge: func_f, tf, om
+    $hyps [func_f, tf, om]
     $final wl_all(got_eu3, left(got_eu3), [eu], diff(same, hyps, left(got_eu3)))
     $t1 ir(final, remove(same, om, left(final)), [implies(om, eu)], implies(om, eu))
-    $t2 ir(t1, remove(same, ran_fc, left(t1)), [implies(ran_fc, implies(om, eu))], implies(ran_fc, implies(om, eu)))
-    $t3 ir(t2, remove(same, f_at_a, left(t2)), [implies(f_at_a, implies(ran_fc, implies(om, eu)))], implies(f_at_a, implies(ran_fc, implies(om, eu))))
-    $top implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, eu))))
-    $t4 ir(t3, remove(same, func_f, left(t3)), [top], top)
-    close(t4, left(t4), [top], ["w","f","a"])
+    $t2 ir(t1, remove(same, tf, left(t1)), [implies(tf, implies(om, eu))], implies(tf, implies(om, eu)))
+    $top implies(func_f, implies(tf, implies(om, eu)))
+    $t3 ir(t2, remove(same, func_f, left(t2)), [top], top)
+    close(t3, left(t3), [top], ["w","f","a"])
 }
