@@ -144,6 +144,11 @@ $rhf_body implies(rha_char, implies(function("f","_"), implies(omega("w","_"),
 $_ qed(rec_h_function, forall("h", forall("a", forall("f", forall("w", rhf_body)))))
 $_ print("rec_h_function ok")
 
+from theorems.recursion.rec_apply_dom import rec_apply_dom
+$rad_body implies(recursive("h","a","f","w","_"), implies(apply("h","x","y","_"), mem("x","w")))
+$_ qed(rec_apply_dom, forall("y", forall("x", forall("h", forall("a", forall("f", forall("w", rad_body)))))))
+$_ print("rec_apply_dom ok")
+
 from theorems.recursion.rec_values_agree import rec_values_agree
 $rva_pred \w n p: exists(add(p,"y"), and(apply("h",n,add(p,"y"),add(p,"_")),
     and(apply("h2",n,add(p,"y"),add(p,"_")), exists(add(p,"z"), apply("f",add(p,"y"),add(p,"z"),add(p,"_"))))))
@@ -153,5 +158,12 @@ $rva_body implies(recursive("h","a","f","w","_"), implies(recursive("h2","a","f"
         implies(omega("w","_"), forall("n", implies(mem("n","w"), rva_pred("w","n","_")))))))))
 $_ qed(rec_values_agree, forall("h", forall("h2", forall("a", forall("f", forall("w", rva_body))))))
 $_ print("rec_values_agree ok")
+
+from theorems.recursion.rec_unique import rec_unique
+$ru_body implies(recursive("h","a","f","w","_"), implies(recursive("h2","a","f","w","_"),
+    implies(function("f","_"), implies(exists("z", apply("f","a","z","_")),
+        implies(rva_ran_fc, implies(omega("w","_"), eqv("h","h2","_")))))))
+$_ qed(rec_unique, forall("h", forall("h2", forall("a", forall("f", forall("w", ru_body))))))
+$_ print("rec_unique ok")
 
 $ok true
