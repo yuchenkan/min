@@ -1,0 +1,142 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, power_ax
+from vocab.sets import ordered_pair, singleton, pair_set
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+
+# Power |- x∈w → y∈w → ordered_pair(p,x,y) →
+#   ∀s.(s∈pw ↔ ∀d.d∈s→d∈w) → ∀s.(s∈ppw ↔ ∀d.d∈s→d∈pw) → p∈ppw
+#
+# Uses power axiom characterization directly (not power_set vocab).
+$ordpair_bounded {
+    $xw mem("x","w")
+    $yw mem("y","w")
+    $op ordered_pair("p","x","y","_")
+    $sub_w forall("d", implies(mem("d","s"), mem("d","w")))
+    $pw_char forall("s", iff(mem("s","pw"), sub_w))
+    $sub_pw forall("d", implies(mem("d","s"), mem("d","pw")))
+    $ppw_char forall("s", iff(mem("s","ppw"), sub_pw))
+    $sp mem("s","p")
+    $s_pw mem("s","pw")
+    $p_ppw mem("p","ppw")
+
+    # === Show: s∈p → s∈pw (for any s) ===
+    # ordpair: s∈p ↔ (sing(s,x) ∨ ps(s,x,y)). Forward: s∈p → or.
+    $sing_sx singleton("s","x","_")
+    $ps_sxy pair_set("s","x","y","_")
+    $or_sp or(sing_sx, ps_sxy)
+    $iff_sp iff(sp, or_sp)
+    $got_iff_sp fl(ax([iff_sp], [iff_sp], iff_sp), [op], [iff_sp], op, "s")
+    $got_or mp(mp(iff_elim_left(sp, or_sp, []),
+        got_iff_sp, iff_sp, implies(sp, or_sp), [], [op]),
+        ax([sp], [sp], sp), sp, or_sp, [op], [sp])
+
+    # Helper: show d∈w from eqv(d,x) or eqv(d,y) + x∈w, y∈w
+    $_es head(right(eqv_symmetric))
+    $emr_ctx left(eqv_mem_right)
+    $_emr head(right(eqv_mem_right))
+    $ds mem("d","s")
+    $dw mem("d","w")
+    $eqv_dx eqv("d","x","_")
+    $eqv_dy eqv("d","y","_")
+
+    # d∈w from eqv(d,x): eqv_sym → eqv(x,d). eqv_mem_right(x,d,w) + x∈w → d∈w.
+    $got_xd mp(apply_thm(eqv_symmetric, _es, ["d","x"], []),
+        ax([eqv_dx], [eqv_dx], eqv_dx), eqv_dx, eqv("x","d","_"), [], [eqv_dx])
+    $emr1 mp(apply_thm(eqv_mem_right, _emr, ["x","d","w"], emr_ctx),
+        got_xd, eqv("x","d","_"), implies(xw, dw), emr_ctx, [eqv_dx])
+    $got_dw_from_dx mp(emr1, ax([xw], [xw], xw), xw, dw, left(emr1), [xw])
+
+    # d∈w from eqv(d,y): same pattern.
+    $got_yd mp(apply_thm(eqv_symmetric, _es, ["d","y"], []),
+        ax([eqv_dy], [eqv_dy], eqv_dy), eqv_dy, eqv("y","d","_"), [], [eqv_dy])
+    $emr2 mp(apply_thm(eqv_mem_right, _emr, ["y","d","w"], emr_ctx),
+        got_yd, eqv("y","d","_"), implies(yw, dw), emr_ctx, [eqv_dy])
+    $got_dw_from_dy mp(emr2, ax([yw], [yw], yw), yw, dw, left(emr2), [yw])
+
+    # Case sing(s,x): ∀d.d∈s→eqv(d,x). So d∈s→eqv(d,x)→d∈w. Close into ∀d.d∈s→d∈w.
+    $iff_ds_sing iff(ds, eqv_dx)
+    $got_iff_sing fl(ax([iff_ds_sing], [iff_ds_sing], iff_ds_sing), [sing_sx], [iff_ds_sing], sing_sx, "d")
+    $got_dx mp(mp(iff_elim_left(ds, eqv_dx, []),
+        got_iff_sing, iff_ds_sing, implies(ds, eqv_dx), [], [sing_sx]),
+        ax([ds], [ds], ds), ds, eqv_dx, [sing_sx], [ds])
+    $got_dw_sing cut_c(got_dx, got_dw_from_dx, eqv_dx, [sing_sx, ds], left(got_dw_from_dx), dw)
+    # close d: ∀d.d∈s→d∈w
+    $got_sub_sing fr(ir(got_dw_sing, remove(same, ds, left(got_dw_sing)), [implies(ds, dw)], implies(ds, dw)),
+        remove(same, ds, left(got_dw_sing)), [sub_w], sub_w, "d")
+    # pw backward: sub_w → s∈pw
+    $iff_spw iff(s_pw, sub_w)
+    $got_iff_pw fl(ax([iff_spw], [iff_spw], iff_spw), [pw_char], [iff_spw], pw_char, "s")
+    $got_spw_sing mp(mp(iff_elim_right(s_pw, sub_w, []),
+        got_iff_pw, iff_spw, implies(sub_w, s_pw), [], [pw_char]),
+        got_sub_sing, sub_w, s_pw, [pw_char], left(got_sub_sing))
+
+    # Case ps(s,x,y): ∀d.d∈s→(eqv(d,x)∨eqv(d,y)). d∈s→or→d∈w via cases.
+    $or_dxy or(eqv_dx, eqv_dy)
+    $iff_ds_ps iff(ds, or_dxy)
+    $got_iff_ps fl(ax([iff_ds_ps], [iff_ds_ps], iff_ds_ps), [ps_sxy], [iff_ds_ps], ps_sxy, "d")
+    $got_or_dxy mp(mp(iff_elim_left(ds, or_dxy, []),
+        got_iff_ps, iff_ds_ps, implies(ds, or_dxy), [], [ps_sxy]),
+        ax([ds], [ds], ds), ds, or_dxy, [ps_sxy], [ds])
+
+    # or_elim on or(eqv_dx, eqv_dy) → d∈w
+    # Weaken both cases to shared context
+    $dw_dx_w wl_all(got_dw_from_dx, left(got_dw_from_dx), [dw], [ps_sxy, ds, yw])
+    $dw_dy_w wl_all(got_dw_from_dy, left(got_dw_from_dy), [dw], [ps_sxy, ds, xw])
+    $p0 nr(dw_dx_w, remove(same, eqv_dx, left(dw_dx_w)), [dw, neg(eqv_dx)], neg(eqv_dx))
+    $p1 wl_all(dw_dy_w, left(dw_dy_w), [dw], diff(same, add(remove(same, eqv_dx, left(dw_dx_w)), [eqv_dy]), left(dw_dy_w)))
+    $got_dw_or il(p0, p1, add(remove(same, eqv_dx, left(dw_dx_w)), [or_dxy]), [dw], or_dxy)
+    # Cut or_dxy
+    $or_left remove(same, or_dxy, left(got_dw_or))
+    $got_or_dxy_wr wr(wl_all(got_or_dxy, [ps_sxy, ds], [or_dxy], diff(same, or_left, [ps_sxy, ds])),
+        left(wl_all(got_or_dxy, [ps_sxy, ds], [or_dxy], diff(same, or_left, [ps_sxy, ds]))),
+        [or_dxy, dw], dw)
+    $got_dw_or_w wl_all(got_dw_or, left(got_dw_or), [dw], diff(same, add(left(got_or_dxy_wr), [or_dxy]), left(got_dw_or)))
+    $got_dw_ps cut(got_or_dxy_wr, got_dw_or_w, left(got_or_dxy_wr), [dw], or_dxy)
+
+    $got_sub_ps fr(ir(got_dw_ps, remove(same, ds, left(got_dw_ps)), [implies(ds, dw)], implies(ds, dw)),
+        remove(same, ds, left(got_dw_ps)), [sub_w], sub_w, "d")
+    $got_spw_ps mp(mp(iff_elim_right(s_pw, sub_w, []),
+        got_iff_pw, iff_spw, implies(sub_w, s_pw), [], [pw_char]),
+        got_sub_ps, sub_w, s_pw, [pw_char], left(got_sub_ps))
+
+    # === or_elim on or(sing,ps) → s∈pw ===
+    $ext_f head(emr_ctx)
+    $all_hyps [op, sp, xw, yw, pw_char, ext_f]
+    $gv_w wl_all(got_spw_sing, left(got_spw_sing), [s_pw], diff(same, add(all_hyps, [sing_sx]), left(got_spw_sing)))
+    $gp_w wl_all(got_spw_ps, left(got_spw_ps), [s_pw], diff(same, add(all_hyps, [ps_sxy]), left(got_spw_ps)))
+    $pm0 nr(gv_w, remove(same, sing_sx, left(gv_w)), [s_pw, neg(sing_sx)], neg(sing_sx))
+    $pm1 wl_all(gp_w, left(gp_w), [s_pw], diff(same, add(remove(same, sing_sx, left(gv_w)), [ps_sxy]), left(gp_w)))
+    $got_spw il(pm0, pm1, add(remove(same, sing_sx, left(gv_w)), [or_sp]), [s_pw], or_sp)
+
+    $spw_left remove(same, or_sp, left(got_spw))
+    $got_or_wr wr(wl_all(got_or, [op, sp], [or_sp], diff(same, spw_left, [op, sp])),
+        left(wl_all(got_or, [op, sp], [or_sp], diff(same, spw_left, [op, sp]))),
+        [or_sp, s_pw], s_pw)
+    $got_spw_w wl_all(got_spw, left(got_spw), [s_pw], diff(same, add(left(got_or_wr), [or_sp]), left(got_spw)))
+    $got_spw_cut cut(got_or_wr, got_spw_w, left(got_or_wr), [s_pw], or_sp)
+
+    # === p∈ppw ===
+    $got_sub_p fr(ir(got_spw_cut, remove(same, sp, left(got_spw_cut)), [implies(sp, s_pw)], implies(sp, s_pw)),
+        remove(same, sp, left(got_spw_cut)), [forall("s", implies(sp, s_pw))], forall("s", implies(sp, s_pw)), "s")
+    # sub_pw = ∀d.d∈p→d∈pw. Alpha-equiv to ∀s.s∈p→s∈pw with s→d,sp→dp,s_pw→d_pw.
+    # Actually sub_pw uses "d" and "s". Let me use the same variable name:
+    $sub_p forall("s", implies(sp, s_pw))
+    $iff_ppw iff(p_ppw, sub_p)
+    $got_iff_ppw fl(ax([iff_ppw], [iff_ppw], iff_ppw), [ppw_char], [iff_ppw], ppw_char, "p")
+    $got_p_ppw mp(mp(iff_elim_right(p_ppw, sub_p, []),
+        got_iff_ppw, iff_ppw, implies(sub_p, p_ppw), [], [ppw_char]),
+        got_sub_p, sub_p, p_ppw, [ppw_char], left(got_sub_p))
+
+    # Close
+    $ctx left(got_p_ppw)
+    $c1 ir(got_p_ppw, remove(same, ppw_char, ctx), [implies(ppw_char, p_ppw)], implies(ppw_char, p_ppw))
+    $c2 ir(c1, remove(same, pw_char, left(c1)), [implies(pw_char, implies(ppw_char, p_ppw))], implies(pw_char, implies(ppw_char, p_ppw)))
+    $c3 ir(c2, remove(same, op, left(c2)), [implies(op, implies(pw_char, implies(ppw_char, p_ppw)))], implies(op, implies(pw_char, implies(ppw_char, p_ppw))))
+    $c4 ir(c3, remove(same, yw, left(c3)), [implies(yw, implies(op, implies(pw_char, implies(ppw_char, p_ppw))))], implies(yw, implies(op, implies(pw_char, implies(ppw_char, p_ppw)))))
+    $top implies(xw, implies(yw, implies(op, implies(pw_char, implies(ppw_char, p_ppw)))))
+    $c5 ir(c4, remove(same, xw, left(c4)), [top], top)
+    close(c5, left(c5), [top], ["ppw","pw","p","y","x","w"])
+}
