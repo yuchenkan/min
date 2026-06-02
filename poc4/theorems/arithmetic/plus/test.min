@@ -111,4 +111,11 @@ $pf_sv_top implies(pf_char_fwd, implies(sfp_all, implies(omega("w","_"), pf_sv_b
 $_ qed(pf_single_valued, forall("h", forall("sf", forall("w", pf_sv_top))))
 $_ print("pf_single_valued ok")
 
+from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
+$rvo_sc forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
+$rvo_body implies(omega("w","_"), implies(mem("a","w"), implies(rvo_sc,
+    implies(recursive("h","a","sf","w","_"), implies(mem("x","w"), implies(apply("h","x","y","_"), mem("y","w")))))))
+$_ qed(rec_val_in_omega, forall("w", forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body)))))))
+$_ print("rec_val_in_omega ok")
+
 $ok true
