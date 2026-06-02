@@ -1,0 +1,50 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv
+from vocab.sets import ordered_pair
+from vocab.functions import product
+from vocab.logic import exists_unique
+from core.derived import left, right, arg2
+from tactics import ax, wl, wr, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.sets.product_exists import product_exists
+from theorems.sets.product_unique import product_unique
+
+# unique_product: ∀a.∀b.∃!p.Product(p,a,b)
+$unique_product {
+    $prod_fn \s p: product(s,"a","b",p)
+    $prod_s product("s","a","b","_")
+    $eu exists_unique(prod_fn, "_")
+
+    $eui exists_unique_intro(prod_fn, "s", [])
+
+    # Existence:
+    $_pe head(right(product_exists))
+    # product_exists close order ["b","a"] → outermost ∀a, then ∀b
+    $_pe_b \a: \b: exists("s", product("s",a,b,"_"))
+    $got_ex apply_thm(product_exists, _pe, ["a","b"], ["a","b"], _pe_b, left(product_exists))
+
+    # Uniqueness: product_unique gives prod(s1)→prod(s2)→eqv(s1,s2)
+    $_pu head(right(product_unique))
+    # product_unique close order ["s2","s1","b","a"] → outermost ∀a, ∀b, ∀s1, ∀s2
+    $_pu_b \a: \b: \s1: \s2: implies(product(s1,a,b,"_"), implies(product(s2,a,b,"_"), eqv(s1,s2,"_")))
+    $pu_inst apply_thm(product_unique, _pu, ["a","b","s","s2"], ["a","b","s1","s2"], _pu_b, left(product_unique))
+    $pu1 mp(pu_inst, ax([prod_s], [prod_s], prod_s), prod_s, arg2(head(right(pu_inst))),
+        left(pu_inst), [prod_s])
+    $prod_s2 product("s2","a","b","_")
+    $pu2 mp(pu1, ax([prod_s2], [prod_s2], prod_s2), prod_s2, eqv("s","s2","_"),
+        left(pu1), [prod_s2])
+    $pu3 ir(pu2, remove(same, prod_s2, left(pu2)),
+        [implies(prod_s2, eqv("s","s2","_"))], implies(prod_s2, eqv("s","s2","_")))
+    $pu4 fr(pu3, left(pu3), [forall("s2", implies(prod_s2, eqv("s","s2","_")))],
+        forall("s2", implies(prod_s2, eqv("s","s2","_"))), "s2")
+
+    $eui_uniq forall("y", implies(prod_fn("y","_"), eqv("s","y","_")))
+    $pu5 wr(pu4, left(pu4), [eui_uniq], eui_uniq)
+
+    $eui_1 mp(eui, ax([prod_s], [prod_s], prod_s), prod_s, arg2(head(right(eui))), left(eui), [prod_s])
+    $got_eu mp(eui_1, pu5, eui_uniq, eu, left(eui_1), left(pu5))
+
+    $got_eu2 eel(got_eu, \s: product(s,"a","b","_"), "s", "s", left(got_eu), eu)
+    $got_eu3 cut_c(got_ex, got_eu2, exists("s", prod_s), left(got_ex), left(got_eu2), eu)
+
+    close(got_eu3, left(got_eu3), [eu], ["b","a"])
+}

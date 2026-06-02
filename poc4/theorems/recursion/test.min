@@ -192,4 +192,27 @@ $rt_body implies(function("f","_"), implies(total_from("f","a","_"), implies(ome
 $_ qed(recursion_theorem, forall("a", forall("f", forall("w", rt_body))))
 $_ print("recursion_theorem ok")
 
+from vocab.logic import exists_unique
+
+from theorems.recursion.succ_func_exists import succ_func_exists
+$sfe_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+    exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+        ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+$sfe_sc forall("x", implies(mem("x","w"), forall("s", implies(successor("s","x","_"), mem("s","w")))))
+$sfe_body implies(sfe_sc, exists("sf", forall("p", iff(mem("p","sf"), sfe_phi("p","_")))))
+$_ qed(succ_func_exists, forall("w", sfe_body))
+$_ print("succ_func_exists ok")
+
+from theorems.recursion.succ_func_unique import succ_func_unique
+$sfu_body implies(forall("p", iff(mem("p","sf1"), sfe_phi("p","_"))),
+    implies(forall("p", iff(mem("p","sf2"), sfe_phi("p","_"))), eqv("sf1","sf2","_")))
+$_ qed(succ_func_unique, forall("sf1", forall("sf2", forall("w", sfu_body))))
+$_ print("succ_func_unique ok")
+
+from theorems.recursion.unique_succ_func import unique_succ_func
+$usf_char_fn \sf p: forall("p", iff(mem("p",sf), sfe_phi("p",p)))
+$usf_body implies(sfe_sc, exists_unique(usf_char_fn, "_"))
+$_ qed(unique_succ_func, forall("w", usf_body))
+$_ print("unique_succ_func ok")
+
 $ok true

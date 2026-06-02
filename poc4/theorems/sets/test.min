@@ -392,4 +392,19 @@ $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ord
 $_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
 $_ print("extend_function ok")
 
+from theorems.sets.product_exists import product_exists
+from vocab.functions import product
+$_ qed(product_exists, forall("a", forall("b", exists("s", product("s","a","b","_")))))
+$_ print("product_exists ok")
+
+from theorems.sets.product_unique import product_unique
+$_ qed(product_unique, forall("a", forall("b", forall("s1", forall("s2",
+    implies(product("s1","a","b","_"), implies(product("s2","a","b","_"), eqv("s1","s2","_"))))))))
+$_ print("product_unique ok")
+
+from theorems.sets.unique_product import unique_product
+$up_fn \s p: product(s,"a","b",p)
+$_ qed(unique_product, forall("a", forall("b", exists_unique(up_fn, "_"))))
+$_ print("unique_product ok")
+
 $ok true

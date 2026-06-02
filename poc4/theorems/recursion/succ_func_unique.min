@@ -1,0 +1,56 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import successor, ordered_pair
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, close, same, remove, diff
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
+
+# succ_func_unique:
+# char(sf1) ∧ char(sf2) → eqv(sf1,sf2)
+# where char(sf) = ∀p.(p∈sf ↔ phi(p))
+# From iff_chain: (p∈sf1 ↔ phi) ∧ (phi ↔ p∈sf2) → (p∈sf1 ↔ p∈sf2) → eqv(sf1,sf2)
+
+$succ_func_unique {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+
+    $char1 forall("p", iff(mem("p","sf1"), phi("p","_")))
+    $char2 forall("p", iff(mem("p","sf2"), phi("p","_")))
+
+    $p_sf1 mem("p","sf1")
+    $p_sf2 mem("p","sf2")
+    $phi_p phi("p","_")
+
+    # char1 at p: p∈sf1 ↔ phi(p)
+    $iff1 iff(p_sf1, phi_p)
+    $got_iff1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "p")
+
+    # char2 at p: p∈sf2 ↔ phi(p). Need phi ↔ p∈sf2 (reversed).
+    $iff2 iff(p_sf2, phi_p)
+    $got_iff2 fl(ax([iff2], [iff2], iff2), [char2], [iff2], char2, "p")
+    # Reverse iff2: phi ↔ p∈sf2
+    $iff2_rev iff(phi_p, p_sf2)
+    $got_fwd2 mp(iff_elim_left(p_sf2, phi_p, []), got_iff2, iff2, implies(p_sf2, phi_p), [], [char2])
+    $got_bwd2 mp(iff_elim_right(p_sf2, phi_p, []), got_iff2, iff2, implies(phi_p, p_sf2), [], [char2])
+    $got_iff2_rev mp(mp(iff_intro(phi_p, p_sf2, []),
+        got_bwd2, implies(phi_p, p_sf2), implies(implies(p_sf2, phi_p), iff2_rev), [], [char2]),
+        got_fwd2, implies(p_sf2, phi_p), iff2_rev, [char2], [char2])
+
+    # iff_chain: (p∈sf1 ↔ phi) ∧ (phi ↔ p∈sf2) → (p∈sf1 ↔ p∈sf2)
+    $iff_12 iff(p_sf1, p_sf2)
+    $got_iff_12 mp(mp(iff_chain(p_sf1, phi_p, p_sf2, []),
+        got_iff1, iff1, implies(iff2_rev, iff_12), [], [char1]),
+        got_iff2_rev, iff2_rev, iff_12, [char1], [char2])
+
+    # fr p → eqv(sf1,sf2)
+    $eqv_sf eqv("sf1","sf2","_")
+    $got_eqv fr(got_iff_12, left(got_iff_12), [eqv_sf], eqv_sf, "p")
+
+    # Discharge and close:
+    $top implies(char1, implies(char2, eqv_sf))
+    $t1 ir(got_eqv, remove(same, char2, left(got_eqv)), [implies(char2, eqv_sf)], implies(char2, eqv_sf))
+    $t2 ir(t1, remove(same, char1, left(t1)), [top], top)
+    close(t2, left(t2), [top], ["w","sf2","sf1"])
+}

@@ -1,0 +1,8 @@
+from core.derived import mem, and, exists
+from vocab.sets import ordered_pair
+from theorems.sets.set_spec_unique import set_spec_unique
+
+# product_unique: Product(s1,a,b) → Product(s2,a,b) → eqv(s1,s2)
+$product_unique set_spec_unique(
+    \z p: exists(add(p,"x"), exists(add(p,"y"), and(and(mem(add(p,"x"),"a"), mem(add(p,"y"),"b")), ordered_pair(z,add(p,"x"),add(p,"y"),add(p,"_"))))),
+    ["b","a"])

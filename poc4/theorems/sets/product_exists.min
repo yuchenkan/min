@@ -1,0 +1,157 @@
+from core.derived import mem, implies, forall, and, or, iff, exists, eqv, left, right, arg2, sep_ax
+from vocab.sets import empty, successor, ordered_pair, power_set, union
+from vocab.functions import apply, product
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.sets.ordpair_bounded import ordpair_bounded
+from theorems.sets.union_exists import union_exists
+from theorems.sets.power_set_exists import power_set_exists
+
+# product_exists: ∀a.∀b. ∃p. Product(p,a,b)
+# Product(p,a,b) = ∀z.(z∈p ↔ ∃x.∃y.(x∈a ∧ y∈b ∧ OrdPair(z,x,y)))
+# Strategy: Separation on P(P(a∪b)) with phi(z) = ∃x.∃y.(x∈a ∧ y∈b ∧ OrdPair(z,x,y))
+# ordpair_bounded: x∈(a∪b) → y∈(a∪b) → OrdPair(z,x,y) → z∈P(P(a∪b))
+
+$product_exists {
+    $phi \z np: exists(add(np,"x"), exists(add(np,"y"),
+        and(and(mem(add(np,"x"),"a"), mem(add(np,"y"),"b")),
+            ordered_pair(z,add(np,"x"),add(np,"y"),add(np,"_")))))
+
+    # Separation on P(P(a∪b)):
+    $sep sep_ax(["a","b"], \z dom np: phi(z, np), "_")
+    $sep_inner \d: exists("s", forall("z", iff(mem("z","s"), and(mem("z",d), phi("z","_")))))
+    # sep close order ["a","b"] → outermost ∀b, then ∀a. Inst with identity.
+    $_sep_b \b: \a: forall("d", sep_inner("d"))
+    $got_sep apply_thm(ax([sep], [sep], sep), sep, ["b","a"], ["b","a"], _sep_b, [sep])
+    $got_sep_inst apply_thm(got_sep, head(right(got_sep)), ["ppab"], ["ppab"], sep_inner, [sep])
+    # [sep] |- ∃s.∀z.(z∈s ↔ z∈ppab ∧ phi(z))
+
+    # Construct a∪b, P(a∪b), P(P(a∪b)):
+    $_un head(right(union_exists))
+    $_un_b \a: \b: exists("u", union("u",a,b,"_"))
+    $got_ab apply_thm(union_exists, _un, ["a","b"], ["a","b"], _un_b, left(union_exists))
+    $_ps head(right(power_set_exists))
+    $_ps_b \a: exists("s", power_set("s",a,"_"))
+    $got_pab apply_thm(power_set_exists, _ps, ["ab"], ["ab"], _ps_b, left(power_set_exists))
+    $got_ppab apply_thm(power_set_exists, _ps, ["pab"], ["pab"], _ps_b, left(power_set_exists))
+
+    # Bridge: phi(z) → z∈ppab via ordpair_bounded
+    # phi(z) has x∈a, y∈b. Need x∈ab and y∈ab where ab = a∪b.
+    $un_ab union("ab","a","b","_")
+    $ps_pab power_set("pab","ab","_")
+    $ps_ppab power_set("ppab","pab","_")
+
+    $xa mem("xv","a")
+    $yb mem("yv","b")
+    $op_z ordered_pair("z","xv","yv","_")
+
+    # x∈a → x∈a∪b (union left)
+    $xab mem("xv","ab")
+    $iff_xab iff(xab, or(xa, mem("xv","b")))
+    $got_iff_x fl(ax([iff_xab], [iff_xab], iff_xab), [un_ab], [iff_xab], un_ab, "xv")
+    $got_or_x mp(or_intro_left(xa, mem("xv","b"), []), ax([xa], [xa], xa), xa, or(xa, mem("xv","b")), [], [xa])
+    $got_xab mp(mp(iff_elim_right(xab, or(xa, mem("xv","b")), []),
+        got_iff_x, iff_xab, implies(or(xa, mem("xv","b")), xab), [], [un_ab]),
+        got_or_x, or(xa, mem("xv","b")), xab, [un_ab], [xa])
+
+    # y∈b → y∈a∪b (union right)
+    $yab mem("yv","ab")
+    $iff_yab iff(yab, or(mem("yv","a"), yb))
+    $got_iff_y fl(ax([iff_yab], [iff_yab], iff_yab), [un_ab], [iff_yab], un_ab, "yv")
+    $got_or_y mp(or_intro_right(mem("yv","a"), yb, []), ax([yb], [yb], yb), yb, or(mem("yv","a"), yb), [], [yb])
+    $got_yab mp(mp(iff_elim_right(yab, or(mem("yv","a"), yb), []),
+        got_iff_y, iff_yab, implies(or(mem("yv","a"), yb), yab), [], [un_ab]),
+        got_or_y, or(mem("yv","a"), yb), yab, [un_ab], [yb])
+
+    # ordpair_bounded: x∈ab → y∈ab → OrdPair(z,x,y) → PS(pab,ab) → PS(ppab,pab) → z∈ppab
+    $_ob head(right(ordpair_bounded))
+    $_ob_b \ww: \xx: \yy: \pp: \pw: \ppw: implies(mem(xx,ww), implies(mem(yy,ww), implies(ordered_pair(pp,xx,yy,"_"),
+        implies(power_set(pw,ww,"_"), implies(power_set(ppw,pw,"_"), mem(pp,ppw))))))
+    $z_ppab mem("z","ppab")
+    $ob_inst apply_thm(ordpair_bounded, _ob, ["ab","xv","yv","z","pab","ppab"], ["ww","xx","yy","pp","pw","ppw"], _ob_b, left(ordpair_bounded))
+    $ob1 mp(ob_inst, got_xab, xab, arg2(head(right(ob_inst))), left(ob_inst), left(got_xab))
+    $ob2 mp(ob1, got_yab, yab, arg2(head(right(ob1))), left(ob1), left(got_yab))
+    $ob3 mp(ob2, ax([op_z], [op_z], op_z), op_z, arg2(head(right(ob2))), left(ob2), [op_z])
+    $ob4 mp(ob3, ax([ps_pab], [ps_pab], ps_pab), ps_pab, arg2(head(right(ob3))), left(ob3), [ps_pab])
+    $got_z_ppab mp(ob4, ax([ps_ppab], [ps_ppab], ps_ppab), ps_ppab, z_ppab, left(ob4), [ps_ppab])
+    # [un_ab, xa, yb, op_z, ps_pab, ps_ppab] |- z∈ppab
+
+    # Package: from and(and(xa,yb), op_z) extract pieces, derive z∈ppab, eel x,y
+    $and_xy and(xa, yb)
+    $and_all and(and_xy, op_z)
+    $got_xa2 mp(and_elim_left(xa, yb, []), mp(and_elim_left(and_xy, op_z, []),
+        ax([and_all], [and_all], and_all), and_all, and_xy, [], [and_all]), and_xy, xa, [], [and_all])
+    $got_yb2 mp(and_elim_right(xa, yb, []), mp(and_elim_left(and_xy, op_z, []),
+        ax([and_all], [and_all], and_all), and_all, and_xy, [], [and_all]), and_xy, yb, [], [and_all])
+    $got_op2 mp(and_elim_right(and_xy, op_z, []),
+        ax([and_all], [and_all], and_all), and_all, op_z, [], [and_all])
+    $got_z2 cut_c(got_xa2, cut_c(got_yb2, cut_c(got_op2, got_z_ppab, op_z, [and_all], left(got_z_ppab), z_ppab),
+        yb, [and_all], left(cut_c(got_op2, got_z_ppab, op_z, [and_all], left(got_z_ppab), z_ppab)), z_ppab),
+        xa, [and_all], left(cut_c(got_yb2, cut_c(got_op2, got_z_ppab, op_z, [and_all], left(got_z_ppab), z_ppab),
+        yb, [and_all], left(cut_c(got_op2, got_z_ppab, op_z, [and_all], left(got_z_ppab), z_ppab)), z_ppab)), z_ppab)
+
+    # eel yv, xv:
+    $got_z3 eel(got_z2, \yv: and(and(xa, mem(yv,"b")), ordered_pair("z","xv",yv,"_")),
+        "yv", "yv", left(got_z2), z_ppab)
+    $got_z4 eel(got_z3, \xv: exists("yv", and(and(mem(xv,"a"), mem("yv","b")), ordered_pair("z",xv,"yv","_"))),
+        "xv", "xv", left(got_z3), z_ppab)
+    # [..., phi("z","_"), un_ab, ps_pab, ps_ppab] |- z∈ppab
+
+    $phi_z phi("z","_")
+
+    # Build char_simple from char_ppab using same bridge pattern as before:
+    $char_ppab forall("z", iff(mem("z","s"), and(z_ppab, phi_z)))
+    $char_simple forall("z", iff(mem("z","s"), phi_z))
+
+    $iff_ppab iff(mem("z","s"), and(z_ppab, phi_z))
+    $got_iff_ppab fl(ax([iff_ppab], [iff_ppab], iff_ppab), [char_ppab], [iff_ppab], char_ppab, "z")
+
+    # Forward: z∈s → z∈ppab∧phi → phi
+    $got_fwd_and mp(mp(iff_elim_left(mem("z","s"), and(z_ppab, phi_z), []),
+        got_iff_ppab, iff_ppab, implies(mem("z","s"), and(z_ppab, phi_z)), [], [char_ppab]),
+        ax([mem("z","s")], [mem("z","s")], mem("z","s")), mem("z","s"), and(z_ppab, phi_z), [char_ppab], [mem("z","s")])
+    $got_fwd mp(and_elim_right(z_ppab, phi_z, []), got_fwd_and, and(z_ppab, phi_z), phi_z, [], [char_ppab, mem("z","s")])
+    $got_fwd_ir ir(got_fwd, remove(same, mem("z","s"), left(got_fwd)),
+        [implies(mem("z","s"), phi_z)], implies(mem("z","s"), phi_z))
+
+    # Backward: phi → z∈ppab → and → z∈s
+    $got_and_ppab mp(mp(and_intro(z_ppab, phi_z, []),
+        got_z4, z_ppab, implies(phi_z, and(z_ppab, phi_z)), [], left(got_z4)),
+        ax([phi_z], [phi_z], phi_z), phi_z, and(z_ppab, phi_z), left(got_z4), [phi_z])
+    $got_bwd_sf mp(mp(iff_elim_right(mem("z","s"), and(z_ppab, phi_z), []),
+        got_iff_ppab, iff_ppab, implies(and(z_ppab, phi_z), mem("z","s")), [], [char_ppab]),
+        got_and_ppab, and(z_ppab, phi_z), mem("z","s"), [char_ppab], left(got_and_ppab))
+    $got_bwd_ir ir(got_bwd_sf, remove(same, phi_z, left(got_bwd_sf)),
+        [implies(phi_z, mem("z","s"))], implies(phi_z, mem("z","s")))
+
+    # iff → char_simple, eir s, eel s from sep, eel ppab/pab/ab:
+    $iff_simple iff(mem("z","s"), phi_z)
+    $got_iff mp(mp(iff_intro(mem("z","s"), phi_z, []),
+        got_fwd_ir, implies(mem("z","s"), phi_z), implies(implies(phi_z, mem("z","s")), iff_simple), [], left(got_fwd_ir)),
+        got_bwd_ir, implies(phi_z, mem("z","s")), iff_simple, left(got_fwd_ir), left(got_bwd_ir))
+    $got_char fr(got_iff, left(got_iff), [char_simple], char_simple, "z")
+
+    # eir s, eel s from char_ppab, cut with sep:
+    $ex_prod exists("s", char_simple)
+    $got_ex eir(got_char, \s: forall("z", iff(mem("z",s), phi("z","_"))), "s", "s", left(got_char))
+    $got_ex2 eel(got_ex, \s: forall("z", iff(mem("z",s), and(mem("z","ppab"), phi("z","_")))),
+        "s", "s", left(got_ex), ex_prod)
+    $got_ex3 cut_c(got_sep_inst, got_ex2, exists("s", char_ppab), left(got_sep_inst), left(got_ex2), ex_prod)
+
+    # eel ppab, pab, ab:
+    $got_ex4 eel(got_ex3, \ppab: power_set(ppab,"pab","_"), "ppab", "ppab", left(got_ex3), ex_prod)
+    $got_ex5 cut_c(got_ppab, got_ex4, exists("ppab", ps_ppab), left(got_ppab), left(got_ex4), ex_prod)
+    $got_ex6 eel(got_ex5, \pab: power_set(pab,"ab","_"), "pab", "pab", left(got_ex5), ex_prod)
+    $got_ex7 cut_c(got_pab, got_ex6, exists("pab", ps_pab), left(got_pab), left(got_ex6), ex_prod)
+    $got_ex8 eel(got_ex7, \ab: union(ab,"a","b","_"), "ab", "ab", left(got_ex7), ex_prod)
+    $got_ex9 cut_c(got_ab, got_ex8, exists("ab", un_ab), left(got_ab), left(got_ex8), ex_prod)
+
+    close(got_ex9, left(got_ex9), [ex_prod], ["b","a"])
+}

@@ -1,0 +1,63 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import successor, ordered_pair
+from vocab.logic import exists_unique
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.recursion.succ_func_exists import succ_func_exists
+from theorems.recursion.succ_func_unique import succ_func_unique
+
+# unique_succ_func:
+# succ_closed(w) → ∃!sf.∀p.(p∈sf ↔ phi(p))
+
+$unique_succ_func {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+    $char_fn \sf p: forall("p", iff(mem("p",sf), phi("p",p)))
+    $char_sf char_fn("sf","_")
+    $succ_closed forall("x", implies(mem("x","w"), forall("s", implies(successor("s","x","_"), mem("s","w")))))
+    $eu exists_unique(char_fn, "_")
+
+    # exists_unique_intro: char(sf) → (∀y.char(y)→eqv(sf,y)) → ∃!
+    $eui exists_unique_intro(char_fn, "sf", [])
+
+    # Existence: succ_func_exists gives ∃sf.char(sf)
+    $_sfe head(right(succ_func_exists))
+    $_sfe_b \w: implies(succ_closed, exists("sf", char_sf))
+    $got_ex mp(apply_thm(succ_func_exists, _sfe, ["w"], ["w"], _sfe_b, left(succ_func_exists)),
+        ax([succ_closed], [succ_closed], succ_closed), succ_closed, exists("sf", char_sf),
+        left(succ_func_exists), [succ_closed])
+
+    # Uniqueness: succ_func_unique gives char(sf1)→char(sf2)→eqv(sf1,sf2)
+    $_sfu head(right(succ_func_unique))
+    $_sfu_b \sf1: \sf2: \w: implies(char_fn(sf1,"_"), implies(char_fn(sf2,"_"), eqv(sf1,sf2,"_")))
+    $sfu_inst apply_thm(succ_func_unique, _sfu, ["sf","sf2","w"], ["sf1","sf2","w"], _sfu_b, left(succ_func_unique))
+    $sfu1 mp(sfu_inst, ax([char_sf], [char_sf], char_sf), char_sf, arg2(head(right(sfu_inst))),
+        left(sfu_inst), [char_sf])
+    # [..., char_sf] |- char(sf2) → eqv(sf,sf2)
+    # ir char(sf2), fr sf2 → ∀sf2.char(sf2)→eqv(sf,sf2)
+    $char_sf2 char_fn("sf2","_")
+    $uniq_inner implies(char_sf2, eqv("sf","sf2","_"))
+    $sfu2 mp(sfu1, ax([char_sf2], [char_sf2], char_sf2), char_sf2, eqv("sf","sf2","_"),
+        left(sfu1), [char_sf2])
+    $sfu3 ir(sfu2, remove(same, char_sf2, left(sfu2)), [uniq_inner], uniq_inner)
+    $uniq_fa forall("sf2", uniq_inner)
+    $sfu4 fr(sfu3, left(sfu3), [uniq_fa], uniq_fa, "sf2")
+
+    # Match eui's ∀y form:
+    $eui_uniq forall("y", implies(char_fn("y","_"), eqv("sf","y","_")))
+    $sfu5 wr(sfu4, left(sfu4), [eui_uniq], eui_uniq)
+
+    # eui: char(sf) → uniq → ∃!
+    $eui_1 mp(eui, ax([char_sf], [char_sf], char_sf), char_sf, arg2(head(right(eui))), left(eui), [char_sf])
+    $got_eu mp(eui_1, sfu5, eui_uniq, eu, left(eui_1), left(sfu5))
+
+    # eel sf from got_ex:
+    $got_eu2 eel(got_eu, \sf: char_fn(sf,"_"), "sf", "sf", left(got_eu), eu)
+    $got_eu3 cut_c(got_ex, got_eu2, exists("sf", char_sf), left(got_ex), left(got_eu2), eu)
+
+    # Discharge succ_closed and close:
+    $top implies(succ_closed, eu)
+    $got_top ir(got_eu3, remove(same, succ_closed, left(got_eu3)), [top], top)
+    close(got_top, left(got_top), [top], ["w"])
+}
