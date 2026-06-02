@@ -3,8 +3,8 @@ from vocab.sets import successor, ordered_pair
 from vocab.logic import exists_unique
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.exists_unique_intro import exists_unique_intro
-from theorems.recursion.succ_func_exists import succ_func_exists
-from theorems.recursion.succ_func_unique import succ_func_unique
+from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
+from theorems.arithmetic.plus.succ_func_unique import succ_func_unique
 
 # unique_succ_func:
 # succ_closed(w) → ∃!sf.∀p.(p∈sf ↔ phi(p))
