@@ -1,0 +1,77 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right
+from vocab.sets import successor, ordered_pair
+from vocab.functions import relation
+from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# sf_relation: sf_char(sf,w) → Relation(sf)
+# Relation(sf) = ∀z.(z∈sf → ∃x.∃y.OrdPair(z,x,y))
+
+$sf_relation {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+
+    $sf_char forall("p", iff(mem("p","sf"), phi("p","_")))
+    $rel_sf relation("sf","_")
+
+    # fl sf_char at zv: iff(zv∈sf, phi(zv))
+    $zv_sf mem("zv","sf")
+    $phi_zv phi("zv","_")
+    $iff_zv iff(zv_sf, phi_zv)
+    $got_iff fl(ax([iff_zv], [iff_zv], iff_zv), [sf_char], [iff_zv], sf_char, "zv")
+
+    # iff forward: zv∈sf → phi(zv)
+    $got_phi mp(mp(iff_elim_left(zv_sf, phi_zv, []),
+        got_iff, iff_zv, implies(zv_sf, phi_zv), [], [sf_char]),
+        ax([zv_sf], [zv_sf], zv_sf), zv_sf, phi_zv, [sf_char], [zv_sf])
+    # [sf_char, zv_sf] |- phi(zv)
+
+    # phi(zv) = ∃xv.and(xv∈w, ∃sv.and(Succ(sv,xv), OrdPair(zv,xv,sv)))
+    # Need ∃xv.∃yv.OrdPair(zv,xv,yv)
+    # From and(Succ(sv,xv), OrdPair(zv,xv,sv)): extract OrdPair
+    $succ_sx successor("sv","xv","_")
+    $op_zv ordered_pair("zv","xv","sv","_")
+    $and_succ_op and(succ_sx, op_zv)
+
+    $got_op mp(and_elim_right(succ_sx, op_zv, []),
+        ax([and_succ_op], [and_succ_op], and_succ_op), and_succ_op, op_zv, [], [and_succ_op])
+
+    # eir yv=sv: ∃yv.OrdPair(zv,xv,yv)
+    $ex_y exists("yv", ordered_pair("zv","xv","yv","_"))
+    $got_ey eir(got_op, \yv: ordered_pair("zv","xv",yv,"_"), "yv", "sv", [and_succ_op])
+
+    # eir xv=xv: ∃xv.∃yv.OrdPair(zv,xv,yv)
+    $ex_xy exists("xv", exists("yv", ordered_pair("zv","xv","yv","_")))
+    $got_exy eir(got_ey, \xv: exists("yv", ordered_pair("zv",xv,"yv","_")), "xv", "xv", [and_succ_op])
+
+    # eel sv from and_succ_op:
+    $got_exy2 eel(got_exy, \sv: and(successor(sv,"xv","_"), ordered_pair("zv","xv",sv,"_")),
+        "sv", "sv", [and_succ_op], ex_xy)
+    # Extract ∃sv from and(xvw, ∃sv.(...)):
+    $xvw mem("xv","w")
+    $ex_s exists("sv", and_succ_op)
+    $and_xw_inner and(xvw, ex_s)
+    $got_exy3 cut_c(
+        mp(and_elim_right(xvw, ex_s, []),
+            ax([and_xw_inner], [and_xw_inner], and_xw_inner), and_xw_inner, ex_s, [], [and_xw_inner]),
+        got_exy2, ex_s, [and_xw_inner], left(got_exy2), ex_xy)
+    # eel xv from and_xw_inner:
+    $got_exy4 eel(got_exy3, \xv: and(mem(xv,"w"), exists("sv", and(successor("sv",xv,"_"), ordered_pair("zv",xv,"sv","_")))),
+        "xv", "xv", left(got_exy3), ex_xy)
+    # cut with phi(zv):
+    $got_exy5 cut_c(got_phi, got_exy4, phi_zv, left(got_phi), left(got_exy4), ex_xy)
+    # [sf_char, zv_sf] |- ∃xv.∃yv.OrdPair(zv,xv,yv)
+
+    # ir zv_sf, fr zv → Relation(sf)
+    $imp_rel implies(zv_sf, ex_xy)
+    $got_imp ir(got_exy5, [sf_char], [imp_rel], imp_rel)
+    $got_rel fr(got_imp, [sf_char], [rel_sf], rel_sf, "zv")
+
+    # Close: sf_char → Relation(sf)
+    $top implies(sf_char, rel_sf)
+    $r1 ir(got_rel, [], [top], top)
+    close(r1, [], [top], ["w","sf"])
+}

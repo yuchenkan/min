@@ -1,0 +1,126 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax
+from vocab.sets import successor, ordered_pair
+from vocab.functions import apply
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.sets.kuratowski import kuratowski
+from theorems.sets.eq_succ_transfer import eq_succ_transfer
+
+# sf_apply_to_succ:
+# sf_char(sf,w) ∧ Apply(sf,x,y) → Successor(y,x)
+# where sf_char = ∀p.(p∈sf ↔ ∃xv.(xv∈w ∧ ∃sv.(Succ(sv,xv) ∧ OrdPair(p,xv,sv))))
+
+$sf_apply_to_succ {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+
+    $sf_char forall("p", iff(mem("p","sf"), phi("p","_")))
+    $app apply("sf","x","y","_")
+    $succ_yx successor("y","x","_")
+
+    # === Work inside Apply's existential ===
+    # Apply(sf,x,y) = ∃qv.and(OrdPair(qv,x,y), qv∈sf)
+    $op_qv ordered_pair("qv","x","y","_")
+    $qv_sf mem("qv","sf")
+    $and_op_qv and(op_qv, qv_sf)
+
+    # Extract OrdPair and mem from and:
+    $got_op mp(and_elim_left(op_qv, qv_sf, []),
+        ax([and_op_qv], [and_op_qv], and_op_qv), and_op_qv, op_qv, [], [and_op_qv])
+    $got_qv_sf mp(and_elim_right(op_qv, qv_sf, []),
+        ax([and_op_qv], [and_op_qv], and_op_qv), and_op_qv, qv_sf, [], [and_op_qv])
+
+    # fl sf_char at qv: iff(qv∈sf, phi(qv))
+    $phi_qv phi("qv","_")
+    $iff_qv iff(qv_sf, phi_qv)
+    $got_iff fl(ax([iff_qv], [iff_qv], iff_qv), [sf_char], [iff_qv], sf_char, "qv")
+
+    # iff forward: qv∈sf → phi(qv)
+    $got_phi mp(mp(iff_elim_left(qv_sf, phi_qv, []),
+        got_iff, iff_qv, implies(qv_sf, phi_qv), [], [sf_char]),
+        got_qv_sf, qv_sf, phi_qv, [sf_char], [and_op_qv])
+    # [sf_char, and_op_qv] |- phi_qv
+
+    # === Work inside phi's existentials ===
+    # phi(qv) = ∃xv.and(xv∈w, ∃sv.and(Succ(sv,xv), OrdPair(qv,xv,sv)))
+    $succ_sx successor("sv","xv","_")
+    $op_qv_xs ordered_pair("qv","xv","sv","_")
+    $and_succ_op and(succ_sx, op_qv_xs)
+    $xvw mem("xv","w")
+    $ex_s exists("sv", and_succ_op)
+    $and_xw_inner and(xvw, ex_s)
+
+    # Extract pieces from and(Succ, OrdPair):
+    $got_succ_raw mp(and_elim_left(succ_sx, op_qv_xs, []),
+        ax([and_succ_op], [and_succ_op], and_succ_op), and_succ_op, succ_sx, [], [and_succ_op])
+    $got_op_xs mp(and_elim_right(succ_sx, op_qv_xs, []),
+        ax([and_succ_op], [and_succ_op], and_succ_op), and_succ_op, op_qv_xs, [], [and_succ_op])
+
+    # === Kuratowski: OrdPair(qv,x,y) ∧ OrdPair(qv,xv,sv) ∧ eqv(qv,qv) → and(eqv(x,xv), eqv(y,sv)) ===
+    $_er head(right(eqv_reflexive))
+    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["qv"], ["qv"], \a: eqv(a,a,"_"), [])
+
+    # kuratowski close order: ["d","c","b","a","t2","t1"], left=[pairing_ax]
+    $_ku head(right(kuratowski))
+    $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
+        implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"), eqv(b,d,"_")))))
+    $ku_ctx left(kuratowski)
+    $ku_inst apply_thm(kuratowski, _ku, ["qv","qv","x","y","xv","sv"], ["t1","t2","a","b","c","d"], _ku_b, ku_ctx)
+
+    # mp chain: OrdPair(qv,x,y) → OrdPair(qv,xv,sv) → eqv(qv,qv) → and(eqv(x,xv), eqv(y,sv))
+    $eq_goal and(eqv("x","xv","_"), eqv("y","sv","_"))
+    $ku1 mp(ku_inst, got_op, op_qv, arg2(head(right(ku_inst))), ku_ctx, [and_op_qv])
+    $ku2 mp(ku1, got_op_xs, op_qv_xs, arg2(head(right(ku1))), left(ku1), [and_succ_op])
+    $got_eq mp(ku2, got_eqv_qq, eqv("qv","qv","_"), eq_goal, left(ku2), [])
+    # [pairing_ax, and_op_qv, and_succ_op] |- and(eqv(x,xv), eqv(y,sv))
+
+    # Extract eqv(x,xv) and eqv(y,sv):
+    $eqv_x eqv("x","xv","_")
+    $eqv_y eqv("y","sv","_")
+    $got_eqv_x mp(and_elim_left(eqv_x, eqv_y, []), got_eq, eq_goal, eqv_x, [], left(got_eq))
+    $got_eqv_y mp(and_elim_right(eqv_x, eqv_y, []), got_eq, eq_goal, eqv_y, [], left(got_eq))
+
+    # === eq_succ_transfer: eqv(y,sv) → eqv(x,xv) → Succ(sv,xv) → Succ(y,x) ===
+    # eq_succ_transfer close order ["d","c","b","a"] → ∀a.∀b.∀c.∀d. eqv(a,c)→eqv(b,d)→Succ(c,d)→Succ(a,b)
+    $_est head(right(eq_succ_transfer))
+    $_est_b \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"),
+        implies(successor(c,d,"_"), successor(a,b,"_"))))
+    $est_inst apply_thm(eq_succ_transfer, _est, ["y","x","sv","xv"], ["a","b","c","d"], _est_b, [])
+    $est1 mp(est_inst, got_eqv_y, eqv_y, arg2(head(right(est_inst))), [], left(got_eqv_y))
+    $est2 mp(est1, got_eqv_x, eqv_x, arg2(head(right(est1))), left(est1), left(got_eqv_x))
+    $got_succ mp(est2, got_succ_raw, succ_sx, succ_yx, left(est2), [and_succ_op])
+    # [pairing_ax, and_op_qv, and_succ_op] |- Succ(y,x)
+
+    # === Close existentials back ===
+    # eel sv: replace and_succ_op with ∃sv.and_succ_op
+    $got_s1 eel(got_succ, \sv: and(successor(sv,"xv","_"), ordered_pair("qv","xv",sv,"_")),
+        "sv", "sv", left(got_succ), succ_yx)
+    # Extract ∃sv from and(xvw, ∃sv.(...)):
+    $got_s2 cut_c(
+        mp(and_elim_right(xvw, ex_s, []),
+            ax([and_xw_inner], [and_xw_inner], and_xw_inner), and_xw_inner, ex_s, [], [and_xw_inner]),
+        got_s1, ex_s, [and_xw_inner], left(got_s1), succ_yx)
+    # eel xv: replace and_xw_inner with ∃xv.and_xw_inner = phi(qv)
+    $got_x1 eel(got_s2, \xv: and(mem(xv,"w"), exists("sv", and(successor("sv",xv,"_"), ordered_pair("qv",xv,"sv","_")))),
+        "xv", "xv", left(got_s2), succ_yx)
+    # cut with phi_qv from got_phi:
+    $got_x2 cut_c(got_phi, got_x1, phi_qv, left(got_phi), left(got_x1), succ_yx)
+    # [sf_char, and_op_qv, pairing_ax] |- Succ(y,x)
+
+    # eel qv: replace and_op_qv with ∃qv.and_op_qv = Apply(sf,x,y)
+    $got_q1 eel(got_x2, \qv: and(ordered_pair(qv,"x","y","_"), mem(qv,"sf")),
+        "qv", "qv", left(got_x2), succ_yx)
+    # [sf_char, Apply, pairing_ax] |- Succ(y,x)
+
+    # Close: sf_char → Apply → Succ
+    $imp2 implies(app, succ_yx)
+    $top implies(sf_char, imp2)
+    $r1 ir(got_q1, remove(same, app, left(got_q1)), [imp2], imp2)
+    $r2 ir(r1, remove(same, sf_char, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["y","x","w","sf"])
+}

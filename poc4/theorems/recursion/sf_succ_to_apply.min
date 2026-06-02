@@ -1,0 +1,89 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax
+from vocab.sets import successor, ordered_pair
+from vocab.functions import apply
+from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.apply_intro import apply_intro
+
+# sf_succ_to_apply:
+# sf_char(sf,w) ∧ x∈w ∧ Successor(y,x) → Apply(sf,x,y)
+
+$sf_succ_to_apply {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+
+    $sf_char forall("p", iff(mem("p","sf"), phi("p","_")))
+    $xw mem("x","w")
+    $succ_yx successor("y","x","_")
+    $app apply("sf","x","y","_")
+
+    # ordpair_exists: ∃qb.OrdPair(qb,x,y)
+    $_oe head(right(ordpair_exists))
+    $_oe_b \a: \b: exists("p", ordered_pair("p",a,b,"_"))
+    $got_qb apply_thm(ordpair_exists, _oe, ["x","y"], ["a","b"], _oe_b, left(ordpair_exists))
+
+    # Assume OrdPair(qb,x,y):
+    $op_qb ordered_pair("qb","x","y","_")
+    $qb_sf mem("qb","sf")
+
+    # Build phi(qb) = ∃xv.and(xv∈w, ∃sv.and(Succ(sv,xv), OrdPair(qb,xv,sv)))
+    # We have x∈w and Succ(y,x). Package: and(Succ(y,x), OrdPair(qb,x,y))
+    $and_so mp(mp(and_intro(succ_yx, op_qb, []),
+        ax([succ_yx], [succ_yx], succ_yx), succ_yx, implies(op_qb, and(succ_yx, op_qb)), [], [succ_yx]),
+        ax([op_qb], [op_qb], op_qb), op_qb, and(succ_yx, op_qb), [succ_yx], [op_qb])
+
+    # eir sv=y: ∃sv.and(Succ(sv,x), OrdPair(qb,x,sv))
+    $ex_sv exists("sv", and(successor("sv","x","_"), ordered_pair("qb","x","sv","_")))
+    $got_ex_sv eir(and_so, \sv: and(successor(sv,"x","_"), ordered_pair("qb","x",sv,"_")),
+        "sv", "y", [succ_yx, op_qb])
+
+    # and(x∈w, ∃sv.(...))
+    $and_xw_ex and(xw, ex_sv)
+    $got_and_xw mp(mp(and_intro(xw, ex_sv, []),
+        ax([xw], [xw], xw), xw, implies(ex_sv, and_xw_ex), [], [xw]),
+        got_ex_sv, ex_sv, and_xw_ex, [xw], [succ_yx, op_qb])
+
+    # eir xv=x: ∃xv.and(xv∈w, ∃sv.and(Succ(sv,xv), OrdPair(qb,xv,sv))) = phi(qb)
+    $phi_qb phi("qb","_")
+    $got_phi_qb eir(got_and_xw, \xv: and(mem(xv,"w"), exists("sv", and(successor("sv",xv,"_"), ordered_pair("qb",xv,"sv","_")))),
+        "xv", "x", [xw, succ_yx, op_qb])
+    # [xw, succ_yx, op_qb] |- phi(qb)
+
+    # fl sf_char at qb: iff(qb∈sf, phi(qb))
+    $iff_qb iff(qb_sf, phi_qb)
+    $got_iff fl(ax([iff_qb], [iff_qb], iff_qb), [sf_char], [iff_qb], sf_char, "qb")
+
+    # iff backward: phi(qb) → qb∈sf
+    $got_qb_sf mp(mp(iff_elim_right(qb_sf, phi_qb, []),
+        got_iff, iff_qb, implies(phi_qb, qb_sf), [], [sf_char]),
+        got_phi_qb, phi_qb, qb_sf, [sf_char], [xw, succ_yx, op_qb])
+    # [sf_char, xw, succ_yx, op_qb] |- qb∈sf
+
+    # apply_intro: OrdPair(qb,x,y) → qb∈sf → Apply(sf,x,y)
+    $_ai head(right(apply_intro))
+    $_ai_b \p: \f: \x: \y: implies(ordered_pair(p,x,y,"_"), implies(mem(p,f), apply(f,x,y,"_")))
+    $ai_inst apply_thm(apply_intro, _ai, ["qb","sf","x","y"], ["p","f","x","y"], _ai_b, [])
+    $ai1 mp(ai_inst, ax([op_qb], [op_qb], op_qb), op_qb, implies(qb_sf, app), [], [op_qb])
+    $got_app mp(ai1, got_qb_sf, qb_sf, app, [op_qb], [sf_char, xw, succ_yx, op_qb])
+    # [op_qb, sf_char, xw, succ_yx] |- Apply(sf,x,y)
+
+    # eel qb from ordpair_exists:
+    $got_app2 eel(got_app, \qb: ordered_pair(qb,"x","y","_"), "qb", "qb", left(got_app), app)
+    $ex_qb exists("qb", op_qb)
+    $got_app3 cut_c(got_qb, got_app2, ex_qb, left(got_qb), left(got_app2), app)
+    # [pairing_ax, sf_char, xw, succ_yx] |- Apply(sf,x,y)
+
+    # Close: sf_char → x∈w → Succ(y,x) → Apply(sf,x,y)
+    $imp3 implies(succ_yx, app)
+    $imp2 implies(xw, imp3)
+    $top implies(sf_char, imp2)
+    $r1 ir(got_app3, remove(same, succ_yx, left(got_app3)), [imp3], imp3)
+    $r2 ir(r1, remove(same, xw, left(r1)), [imp2], imp2)
+    $r3 ir(r2, remove(same, sf_char, left(r2)), [top], top)
+    close(r3, left(r3), [top], ["y","x","w","sf"])
+}

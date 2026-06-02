@@ -1,0 +1,133 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax, ext_ax
+from vocab.sets import successor, ordered_pair
+from vocab.functions import apply
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.ext_substitution import ext_substitution
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.sets.kuratowski import kuratowski
+
+# sf_dom_sub: sf_char(sf,w) → ∀xd.(∃yd.Apply(sf,xd,yd)) → xd∈w
+# From Apply, use sf_char + kuratowski to get xd=xv, then xv∈w → xd∈w.
+
+$sf_dom_sub {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+
+    $sf_char forall("p", iff(mem("p","sf"), phi("p","_")))
+    $app apply("sf","xd","yd","_")
+    $xdw mem("xd","w")
+
+    # === Work inside Apply's existential ===
+    $op_qv ordered_pair("qv","xd","yd","_")
+    $qv_sf mem("qv","sf")
+    $and_op_qv and(op_qv, qv_sf)
+
+    $got_op mp(and_elim_left(op_qv, qv_sf, []),
+        ax([and_op_qv], [and_op_qv], and_op_qv), and_op_qv, op_qv, [], [and_op_qv])
+    $got_qv_sf mp(and_elim_right(op_qv, qv_sf, []),
+        ax([and_op_qv], [and_op_qv], and_op_qv), and_op_qv, qv_sf, [], [and_op_qv])
+
+    # fl sf_char at qv → phi(qv)
+    $phi_qv phi("qv","_")
+    $iff_qv iff(qv_sf, phi_qv)
+    $got_iff fl(ax([iff_qv], [iff_qv], iff_qv), [sf_char], [iff_qv], sf_char, "qv")
+    $got_phi mp(mp(iff_elim_left(qv_sf, phi_qv, []),
+        got_iff, iff_qv, implies(qv_sf, phi_qv), [], [sf_char]),
+        got_qv_sf, qv_sf, phi_qv, [sf_char], [and_op_qv])
+
+    # phi(qv) = ∃xv.and(xv∈w, ∃sv.and(Succ(sv,xv), OrdPair(qv,xv,sv)))
+    $succ_sx successor("sv","xv","_")
+    $op_qv_xs ordered_pair("qv","xv","sv","_")
+    $and_succ_op and(succ_sx, op_qv_xs)
+    $xvw mem("xv","w")
+    $ex_s exists("sv", and_succ_op)
+    $and_xw_inner and(xvw, ex_s)
+
+    # Extract OrdPair from and(Succ, OrdPair):
+    $got_op_xs mp(and_elim_right(succ_sx, op_qv_xs, []),
+        ax([and_succ_op], [and_succ_op], and_succ_op), and_succ_op, op_qv_xs, [], [and_succ_op])
+
+    # Extract xv∈w from and(xvw, ∃sv.(...)):
+    $got_xvw mp(and_elim_left(xvw, ex_s, []),
+        ax([and_xw_inner], [and_xw_inner], and_xw_inner), and_xw_inner, xvw, [], [and_xw_inner])
+
+    # Kuratowski: OrdPair(qv,xd,yd) ∧ OrdPair(qv,xv,sv) ∧ eqv(qv,qv) → and(eqv(xd,xv), eqv(yd,sv))
+    $_er head(right(eqv_reflexive))
+    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["qv"], ["qv"], \a: eqv(a,a,"_"), [])
+
+    $_ku head(right(kuratowski))
+    $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
+        implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"), eqv(b,d,"_")))))
+    $ku_ctx left(kuratowski)
+    $ku_inst apply_thm(kuratowski, _ku, ["qv","qv","xd","yd","xv","sv"], ["t1","t2","a","b","c","d"], _ku_b, ku_ctx)
+
+    $eq_goal and(eqv("xd","xv","_"), eqv("yd","sv","_"))
+    $ku1 mp(ku_inst, got_op, op_qv, arg2(head(right(ku_inst))), ku_ctx, [and_op_qv])
+    $ku2 mp(ku1, got_op_xs, op_qv_xs, arg2(head(right(ku1))), left(ku1), [and_succ_op])
+    $got_eq mp(ku2, got_eqv_qq, eqv("qv","qv","_"), eq_goal, left(ku2), [])
+
+    # Extract eqv(xd,xv):
+    $eqv_xd_xv eqv("xd","xv","_")
+    $got_eqv_x mp(and_elim_left(eqv_xd_xv, eqv("yd","sv","_"), []), got_eq, eq_goal, eqv_xd_xv, [], left(got_eq))
+
+    # eqv_mem_right: eqv(xd,xv) → xv∈w → xd∈w (Ext needed)
+    # Actually eqv_mem_right is: eqv(x,y) → x∈a → y∈a. We need eqv(xd,xv) → xv∈w → xd∈w.
+    # That's eqv_mem_right with x=xv, y=xd? No: eqv_mem_right is eqv(x,y) → x∈a → y∈a.
+    # We have eqv(xd,xv) and xv∈w. Want xd∈w.
+    # Need: eqv(xv,xd) → xv∈w → xd∈w. So use eqv_symmetric first, or use ext_substitution directly.
+    # Actually, ext_substitution: eqv(a,b) → iff(a∈s, b∈s). With a=xd, b=xv, s=w:
+    # eqv(xd,xv) → iff(xd∈w, xv∈w) → iff_elim_right → xv∈w → xd∈w.
+
+    # Simpler: use eqv_mem_right(xd, xv, w): eqv(xd,xv) → xd∈w → xv∈w. Wrong direction.
+    # Use eqv_mem_right(xv, xd, w): eqv(xv,xd) → xv∈w → xd∈w. But I have eqv(xd,xv), not eqv(xv,xd).
+    # Need eqv_symmetric. Let me use ext_substitution + iff_elim_right instead.
+
+    # ext_substitution: Ext |- eqv(a,b) → iff(mem(a,s), mem(b,s))
+    # With a=xd, b=xv, s=w: eqv(xd,xv) → iff(xd∈w, xv∈w) → backward: xv∈w → xd∈w
+    $_es head(right(ext_substitution))
+    $_es_b \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s), mem(b,s)))
+    $es_ctx left(ext_substitution)
+    $got_iff_xw mp(apply_thm(ext_substitution, _es, ["xd","xv","w"], ["a","b","s"], _es_b, es_ctx),
+        got_eqv_x, eqv_xd_xv, iff(xdw, xvw), es_ctx, left(got_eqv_x))
+    $got_xdw mp(mp(iff_elim_right(xdw, xvw, []),
+        got_iff_xw, iff(xdw, xvw), implies(xvw, xdw), [], left(got_iff_xw)),
+        got_xvw, xvw, xdw, left(got_iff_xw), [and_xw_inner])
+    # [Ext, pairing_ax, and_op_qv, and_succ_op, and_xw_inner] |- xd∈w
+
+    # === Close existentials back ===
+    # eel sv:
+    $got1 eel(got_xdw, \sv: and(successor(sv,"xv","_"), ordered_pair("qv","xv",sv,"_")),
+        "sv", "sv", left(got_xdw), xdw)
+    # cut ∃sv from and_xw_inner:
+    $got2 cut_c(
+        mp(and_elim_right(xvw, ex_s, []),
+            ax([and_xw_inner], [and_xw_inner], and_xw_inner), and_xw_inner, ex_s, [], [and_xw_inner]),
+        got1, ex_s, [and_xw_inner], left(got1), xdw)
+    # eel xv:
+    $got3 eel(got2, \xv: and(mem(xv,"w"), exists("sv", and(successor("sv",xv,"_"), ordered_pair("qv",xv,"sv","_")))),
+        "xv", "xv", left(got2), xdw)
+    # cut with phi_qv:
+    $got4 cut_c(got_phi, got3, phi_qv, left(got_phi), left(got3), xdw)
+    # [sf_char, and_op_qv, Ext, pairing_ax] |- xd∈w
+
+    # eel qv → replace and_op_qv with Apply:
+    $got5 eel(got4, \qv: and(ordered_pair(qv,"xd","yd","_"), mem(qv,"sf")),
+        "qv", "qv", left(got4), xdw)
+
+    # eel yd → replace Apply(sf,xd,yd) with ∃yd.Apply(sf,xd,yd):
+    $ex_y_app exists("yd", app)
+    $got6 eel(got5, \yd: apply("sf","xd",yd,"_"), "yd", "yd", left(got5), xdw)
+
+    # Close: sf_char → (∃yd.Apply(sf,xd,yd)) → xd∈w
+    $imp2 implies(ex_y_app, xdw)
+    $top implies(sf_char, imp2)
+    $r1 ir(got6, remove(same, ex_y_app, left(got6)), [imp2], imp2)
+    $r2 ir(r1, remove(same, sf_char, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["xd","w","sf"])
+}

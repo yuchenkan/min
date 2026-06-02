@@ -392,6 +392,19 @@ $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ord
 $_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
 $_ print("extend_function ok")
 
+from theorems.sets.succ_set_transfer import succ_set_transfer
+$_ qed(succ_set_transfer,
+    forall("s1", forall("s2", forall("n",
+        implies(eqv("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))))
+$_ print("succ_set_transfer ok")
+
+from theorems.sets.eq_succ_transfer import eq_succ_transfer
+$_ qed(eq_succ_transfer,
+    forall("a", forall("b", forall("c", forall("d",
+        implies(eqv("a","c","_"), implies(eqv("b","d","_"),
+            implies(successor("c","d","_"), successor("a","b","_")))))))))
+$_ print("eq_succ_transfer ok")
+
 from theorems.sets.product_exists import product_exists
 from vocab.functions import product
 $_ qed(product_exists, forall("a", forall("b", exists("s", product("s","a","b","_")))))
