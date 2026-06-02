@@ -111,6 +111,20 @@ $pf_sv_top implies(pf_char_fwd, implies(sfp_all, implies(omega("w","_"), pf_sv_b
 $_ qed(pf_single_valued, forall("h", forall("sf", forall("w", pf_sv_top))))
 $_ print("pf_single_valued ok")
 
+from theorems.arithmetic.plus.pf_step import pf_step
+$pf_step_body forall("m", implies(mem("m","w"),
+    forall("n", implies(mem("n","w"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"),
+            forall("p", implies(apply("h","pair","p","_"),
+                forall("sn", implies(successor("sn","n","_"),
+                    forall("sp", implies(successor("sp","p","_"),
+                        forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                            apply("h","pair2","sp","_")))))))))))))))
+$pf_step_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
+    implies(sfp_all, implies(omega("w","_"), pf_step_body)))))
+$_ qed(pf_step, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_step_top))))))
+$_ print("pf_step ok")
+
 from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
 $rvo_sc forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
 $rvo_body implies(omega("w","_"), implies(mem("a","w"), implies(rvo_sc,
