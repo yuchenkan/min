@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
 from vocab.sets import successor, ordered_pair
-from vocab.functions import apply, function, relation
+from vocab.functions import apply, function, relation, domain, product
 from vocab.omega import omega
 from vocab.recursion import recursive, total_from
 from vocab.logic import exists_unique
@@ -110,6 +110,14 @@ $pf_sv_body forall("key", forall("y1", forall("y2",
 $pf_sv_top implies(pf_char_fwd, implies(sfp_all, implies(omega("w","_"), pf_sv_body)))
 $_ qed(pf_single_valued, forall("h", forall("sf", forall("w", pf_sv_top))))
 $_ print("pf_single_valued ok")
+
+from theorems.arithmetic.plus.pf_dom_eq import pf_dom_eq
+$pf_deq_body forall("dd", implies(domain("dd","h","_"),
+    forall("prod", implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
+$pf_deq_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
+    implies(sfp_all, implies(omega("w","_"), pf_deq_body)))))
+$_ qed(pf_dom_eq, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_deq_top))))))
+$_ print("pf_dom_eq ok")
 
 from theorems.arithmetic.plus.pf_backward import pf_backward
 $pf_bwd_body forall("m", implies(mem("m","w"),

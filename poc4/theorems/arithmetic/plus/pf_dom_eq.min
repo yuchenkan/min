@@ -1,0 +1,401 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, ordered_pair
+from vocab.functions import apply, function, domain, product, relation
+from vocab.omega import omega
+from vocab.recursion import recursive
+from vocab.logic import exists_unique
+from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.sets.domain_exists import domain_exists
+from theorems.sets.domain_mem_elim import domain_mem_elim
+from theorems.arithmetic.plus.pf_forward import pf_forward
+from theorems.arithmetic.plus.pf_backward import pf_backward
+from theorems.arithmetic.plus.rec_for_each_m import rec_for_each_m
+from theorems.recursion.rec_apply_dom import rec_apply_dom
+
+# pf_dom_eq: Domain of PlusFunc h equals w×w.
+# char_h ∧ Product(pww,w,w) ∧ Product(pwww,pww,w) ∧ sf_all ∧ Omega(w) →
+#   ∀dd.Domain(dd,h)→∀prod.Product(prod,w,w)→Eqv(dd,prod)
+
+$pf_dom_eq {
+    $phi \xv np: exists(add(np,"m"), and(mem(add(np,"m"),"w"),
+        exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+            and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+            and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf","w",add(np,"_")),
+                    apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
+
+    $succ_char forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
+    $func_sf function("sf","_")
+    $dom_sub_sf forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))
+    $sf_all and(succ_char, and(func_sf, dom_sub_sf))
+    $om omega("w","_")
+    $prod_ww product("pww","w","w","_")
+    $prod_pwww product("pwww","pww","w","_")
+    $char_h forall("xv", iff(mem("xv","h"), and(mem("xv","pwww"), phi("xv","_"))))
+
+    $dom_dd domain("dd","h","_")
+    $prod_prod product("prod","w","w","_")
+    $eqv_goal eqv("dd","prod","_")
+
+    # elt∈dd and elt∈prod
+    $elt_dd mem("elt","dd")
+    $elt_prod mem("elt","prod")
+
+    # === Derive char_fwd from char_h ===
+    $char_fwd forall("xv", implies(mem("xv","h"), phi("xv","_")))
+    $xv_h mem("xv","h")
+    $and_xv and(mem("xv","pwww"), phi("xv","_"))
+    $iff_xv iff(xv_h, and_xv)
+    $got_iff_xv fl(ax([iff_xv], [iff_xv], iff_xv), [char_h], [iff_xv], char_h, "xv")
+    $got_fwd_xv mp(iff_elim_left(xv_h, and_xv, []),
+        got_iff_xv, iff_xv, implies(xv_h, and_xv), [], [char_h])
+    $got_and_xv mp(got_fwd_xv,
+        ax([xv_h], [xv_h], xv_h), xv_h, and_xv, [char_h], [xv_h])
+    $got_phi_from mp(and_elim_right(mem("xv","pwww"), phi("xv","_"), []),
+        got_and_xv, and_xv, phi("xv","_"), [], [char_h, xv_h])
+    $cf_1 ir(got_phi_from, [char_h], [implies(xv_h, phi("xv","_"))], implies(xv_h, phi("xv","_")))
+    $got_char_fwd fr(cf_1, [char_h], [char_fwd], char_fwd, "xv")
+
+    # ==============================
+    # === FORWARD: elt∈dd → elt∈prod ===
+    # ==============================
+    # Domain(dd,h) at elt: elt∈dd ↔ ∃_y.Apply(h,elt,_y)
+    $ex_app_elt exists("_y", apply("h","elt","_y","__"))
+    $iff_dd iff(elt_dd, ex_app_elt)
+    $got_iff_dd fl(ax([iff_dd], [iff_dd], iff_dd), [dom_dd], [iff_dd], dom_dd, "elt")
+    $got_ex_app mp(mp(iff_elim_left(elt_dd, ex_app_elt, []),
+        got_iff_dd, iff_dd, implies(elt_dd, ex_app_elt), [], [dom_dd]),
+        ax([elt_dd], [elt_dd], elt_dd), elt_dd, ex_app_elt, [dom_dd], [elt_dd])
+    # [dom_dd, elt_dd] |- ∃_y.Apply(h,elt,_y)
+
+    # Assume Apply(h,elt,val):
+    $app_h_elt apply("h","elt","val","_")
+
+    # pf_forward: char_fwd → Apply(h,elt,val) → ∃mv.mvw ∧ ...
+    $pf_result exists("mv", and(mem("mv","w"), exists("nv", and(ordered_pair("elt","mv","nv","_"),
+        exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv","val","_")))))))
+    $pf_ctx left(pf_forward)
+    $_pff_b \h: \sf: \w: \key: \val: implies(
+        forall("xv", implies(mem("xv",h), phi("xv","_"))),
+        implies(apply(h,key,val,"_"), exists("mv", and(mem("mv",w), exists("nv", and(ordered_pair(key,"mv","nv","_"),
+            exists("hm", and(recursive("hm","mv",sf,w,"_"), apply("hm","nv",val,"_")))))))))
+    $pff_inst apply_thm(pf_forward, head(right(pf_forward)),
+        ["h","sf","w","elt","val"], ["h","sf","w","key","val"], _pff_b, pf_ctx)
+    $pf_mp1 mp(pff_inst, got_char_fwd, char_fwd, implies(app_h_elt, pf_result), pf_ctx, [char_h])
+    $got_pf mp(pf_mp1, ax([app_h_elt], [app_h_elt], app_h_elt), app_h_elt, pf_result,
+        left(pf_mp1), [app_h_elt])
+    # [pf_ctx, char_h, app_h_elt] |- pf_result
+
+    # Assume pf_result components: mvw, OrdPair(elt,mv,nv), Rec(hm,mv,sf,w), Apply(hm,nv,val)
+    $mvw mem("mv","w")
+    $op_elt ordered_pair("elt","mv","nv","_")
+    $rec_hm recursive("hm","mv","sf","w","_")
+    $app_hm apply("hm","nv","val","_")
+    $and_rec_app and(rec_hm, app_hm)
+    $and_op_ex and(op_elt, exists("hm", and_rec_app))
+    $and_mv_body and(mvw, exists("nv", and_op_ex))
+
+    $got_mvw_f mp(and_elim_left(mvw, exists("nv", and_op_ex), []),
+        ax([and_mv_body], [and_mv_body], and_mv_body), and_mv_body, mvw, [], [and_mv_body])
+    $got_op_elt mp(and_elim_left(op_elt, exists("hm", and_rec_app), []),
+        ax([and_op_ex], [and_op_ex], and_op_ex), and_op_ex, op_elt, [], [and_op_ex])
+    $got_rec_f mp(and_elim_left(rec_hm, app_hm, []),
+        ax([and_rec_app], [and_rec_app], and_rec_app), and_rec_app, rec_hm, [], [and_rec_app])
+    $got_app_hm mp(and_elim_right(rec_hm, app_hm, []),
+        ax([and_rec_app], [and_rec_app], and_rec_app), and_rec_app, app_hm, [], [and_rec_app])
+
+    # rec_apply_dom: Rec(hm,mv,sf,w) → Apply(hm,nv,val) → nv∈w
+    # Alpha-rename to avoid "w" clash with bound vars
+    $rad_ctx left(rec_apply_dom)
+    # rec_apply_dom close vars ["w","f","a","h","x","y"] → ∀y.∀x.∀h.∀a.∀f.∀w.
+    # Rename to ∀p6.∀p5.∀p4.∀p3.∀p2.∀p1 (matching original nesting order)
+    $_rad_b2 \p6: \p5: \p4: \p3: \p2: \p1: implies(recursive(p4,p3,p2,p1,"_"), implies(apply(p4,p5,p6,"_"), mem(p5,p1)))
+    $rad_body implies(recursive("p4","p3","p2","p1","_"), implies(apply("p4","p5","p6","_"), mem("p5","p1")))
+    $rad_r forall("p6", forall("p5", forall("p4", forall("p3", forall("p2", forall("p1", rad_body))))))
+    $rad_thm wr(rec_apply_dom, rad_ctx, [rad_r], rad_r)
+    $rad_inst apply_thm(rad_thm, rad_r, ["val","nv","hm","mv","sf","w"],
+        ["p6","p5","p4","p3","p2","p1"], _rad_b2, rad_ctx)
+    $nvw mem("nv","w")
+    $rad_r1 implies(app_hm, nvw)
+    $rad_1 mp(rad_inst, got_rec_f, rec_hm, rad_r1, rad_ctx, [and_rec_app])
+    $got_nvw mp(rad_1, got_app_hm, app_hm, nvw, left(rad_1), [and_rec_app])
+
+    # Build ∃_x.∃_y.and(and(_x∈w,_y∈w),OrdPair(elt,_x,_y)) for Product(prod,w,w) backward
+    $got_and_ww mp(mp(and_intro(mvw, nvw, []),
+        got_mvw_f, mvw, implies(nvw, and(mvw, nvw)), [], [and_mv_body]),
+        got_nvw, nvw, and(mvw, nvw), [and_mv_body], left(got_nvw))
+    $and_full and(and(mvw, nvw), op_elt)
+    $got_and_full mp(mp(and_intro(and(mvw, nvw), op_elt, []),
+        got_and_ww, and(mvw, nvw), implies(op_elt, and_full), [], left(got_and_ww)),
+        got_op_elt, op_elt, and_full, left(got_and_ww), [and_op_ex])
+    # eir nv, mv:
+    $got_ex_nv_f eir(got_and_full, \nv: and(and(mvw, mem(nv,"w")), ordered_pair("elt","mv",nv,"_")),
+        "nv", "nv", left(got_and_full))
+    $got_ex_mv_f eir(got_ex_nv_f, \mv: exists("nv", and(and(mem(mv,"w"), mem("nv","w")), ordered_pair("elt",mv,"nv","_"))),
+        "mv", "mv", left(got_ex_nv_f))
+    $ex_prod_body head(right(got_ex_mv_f))
+
+    # Product(prod,w,w) backward at elt: existential → elt∈prod
+    $iff_prod iff(elt_prod, ex_prod_body)
+    $got_iff_prod fl(ax([iff_prod], [iff_prod], iff_prod), [prod_prod], [iff_prod], prod_prod, "elt")
+    $got_elt_prod mp(mp(iff_elim_right(elt_prod, ex_prod_body, []),
+        got_iff_prod, iff_prod, implies(ex_prod_body, elt_prod), [], [prod_prod]),
+        got_ex_mv_f, ex_prod_body, elt_prod, [prod_prod], left(got_ex_mv_f))
+
+    # eel chain: hm, nv(from and_op_ex), mv(from and_mv_body)
+    $cur_f got_elt_prod
+    $cur_f eel(cur_f, \hm: and(recursive(hm,"mv","sf","w","_"), apply(hm,"nv","val","_")),
+        "hm", "hm", left(cur_f), elt_prod)
+    $got_ex_hm_f mp(and_elim_right(op_elt, exists("hm", and_rec_app), []),
+        ax([and_op_ex], [and_op_ex], and_op_ex), and_op_ex, exists("hm", and_rec_app), [], [and_op_ex])
+    $cur_f cut_c(got_ex_hm_f, cur_f, exists("hm", and_rec_app), [and_op_ex], left(cur_f), elt_prod)
+    $cur_f eel(cur_f, \nv: and(ordered_pair("elt","mv",nv,"_"),
+        exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm",nv,"val","_")))),
+        "nv", "nv", left(cur_f), elt_prod)
+    $got_ex_nv_src mp(and_elim_right(mvw, exists("nv", and_op_ex), []),
+        ax([and_mv_body], [and_mv_body], and_mv_body), and_mv_body, exists("nv", and_op_ex), [], [and_mv_body])
+    $cur_f cut_c(got_ex_nv_src, cur_f, exists("nv", and_op_ex), [and_mv_body], left(cur_f), elt_prod)
+    # and_mv_body has mv free. eel mv:
+    $cur_f eel(cur_f, \mv: and(mem(mv,"w"), exists("nv", and(ordered_pair("elt",mv,"nv","_"),
+        exists("hm", and(recursive("hm",mv,"sf","w","_"), apply("hm","nv","val","_")))))),
+        "mv", "mv", left(cur_f), elt_prod)
+    # cut with pf_forward result:
+    $cur_f cut_c(got_pf, cur_f, pf_result, left(got_pf), left(cur_f), elt_prod)
+
+    # eel val from ∃_y.Apply(h,elt,_y):
+    $cur_f eel(cur_f, \v: apply("h","elt",v,"_"), "_y", "val", left(cur_f), elt_prod)
+    $cur_f cut_c(got_ex_app, cur_f, ex_app_elt, [dom_dd, elt_dd], left(cur_f), elt_prod)
+
+    # ir elt_dd → implies(elt_dd, elt_prod)
+    $fwd implies(elt_dd, elt_prod)
+    $cur_f ir(cur_f, remove(same, elt_dd, left(cur_f)), [fwd], fwd)
+    # left has: dom_dd, prod_prod, char_h, pf_ctx, rad_ctx, ...
+
+    # ==============================
+    # === BACKWARD: elt∈prod → elt∈dd ===
+    # ==============================
+    # Product(prod,w,w) at elt: elt∈prod → ∃_x.∃_y.and(and(_x∈w,_y∈w),OrdPair(elt,_x,_y))
+    $got_ex_prod mp(mp(iff_elim_left(elt_prod, ex_prod_body, []),
+        got_iff_prod, iff_prod, implies(elt_prod, ex_prod_body), [], [prod_prod]),
+        ax([elt_prod], [elt_prod], elt_prod), elt_prod, ex_prod_body, [prod_prod], [elt_prod])
+
+    # Assume components: aa∈w, bb∈w, OrdPair(elt,aa,bb)
+    $aaw mem("aa","w")
+    $bbw mem("bb","w")
+    $op_elt_ab ordered_pair("elt","aa","bb","_")
+    $and_ab and(aaw, bbw)
+    $and_full_b and(and_ab, op_elt_ab)
+
+    $got_aaw mp(and_elim_left(aaw, bbw, []),
+        mp(and_elim_left(and_ab, op_elt_ab, []),
+            ax([and_full_b], [and_full_b], and_full_b), and_full_b, and_ab, [], [and_full_b]),
+        and_ab, aaw, [], [and_full_b])
+    $got_bbw mp(and_elim_right(aaw, bbw, []),
+        mp(and_elim_left(and_ab, op_elt_ab, []),
+            ax([and_full_b], [and_full_b], and_full_b), and_full_b, and_ab, [], [and_full_b]),
+        and_ab, bbw, [], [and_full_b])
+    $got_op_ab mp(and_elim_right(and_ab, op_elt_ab, []),
+        ax([and_full_b], [and_full_b], and_full_b), and_full_b, op_elt_ab, [], [and_full_b])
+
+    # rec_for_each_m: sf_all → om → aa∈w → ∃!hm.Rec(hm,aa,sf,w)
+    $_rfem head(right(rec_for_each_m))
+    $rfem_ctx left(rec_for_each_m)
+    $_rfem_b \sf: \w: \m: implies(
+        and(forall("xc", implies(mem("xc",w), forall("yc", iff(apply(sf,"xc","yc","_"), successor("yc","xc","_"))))),
+            and(function(sf,"_"),
+                forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), mem("xd",w))))),
+        implies(omega(w,"_"), implies(mem(m,w),
+            exists("hm", and(recursive("hm",m,sf,w,"_"),
+                forall("y", implies(recursive("y",m,sf,w,"_"), eqv("hm","y","_"))))))))
+    $rfem_inst apply_thm(rec_for_each_m, _rfem, ["sf","w","aa"], ["sf","w","m"], _rfem_b, rfem_ctx)
+    $eu exists("hm", and(recursive("hm","aa","sf","w","_"),
+        forall("y", implies(recursive("y","aa","sf","w","_"), eqv("hm","y","_")))))
+    $rfem1 mp(rfem_inst, ax([sf_all], [sf_all], sf_all), sf_all, implies(om, implies(aaw, eu)), rfem_ctx, [sf_all])
+    $rfem2 mp(rfem1, ax([om], [om], om), om, implies(aaw, eu), left(rfem1), [om])
+    $got_eu mp(rfem2, got_aaw, aaw, eu, left(rfem2), [and_full_b])
+
+    # Extract ∃hm.Rec from eu:
+    $rec_hm_b recursive("hm","aa","sf","w","_")
+    $eu_body and(rec_hm_b, forall("y", implies(recursive("y","aa","sf","w","_"), eqv("hm","y","_"))))
+    $got_rec_b mp(and_elim_left(rec_hm_b, forall("y", implies(recursive("y","aa","sf","w","_"), eqv("hm","y","_"))), []),
+        ax([eu_body], [eu_body], eu_body), eu_body, rec_hm_b, [], [eu_body])
+
+    # Domain chain: bb∈w → ∃val.Apply(hm,bb,val)
+    $dom_hm domain("dh","hm","_")
+    $de_ctx left(domain_exists)
+    $_de_f head(right(domain_exists))
+    $_de_b \f: exists("d", domain("d",f,"_"))
+    $got_de apply_thm(domain_exists, _de_f, ["hm"], ["hm"], _de_b, de_ctx)
+
+    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eqv("d","w","_")))
+    $base_hm forall("e", implies(empty("e","_"), apply("hm","e","aa","_")))
+    $step_hm_f forall("ns", implies(mem("ns","w"), forall("val", implies(apply("hm","ns","val","_"),
+        forall("sns", implies(successor("sns","ns","_"), forall("fval", implies(apply("sf","val","fval","_"), apply("hm","sns","fval","_")))))))))
+    $rest1_b and(dom_eq_hm, and(base_hm, step_hm_f))
+    $func_hm function("hm","_")
+    $got_dom_eq_b mp(and_elim_left(dom_eq_hm, and(base_hm, step_hm_f), []),
+        mp(and_elim_right(func_hm, rest1_b, []),
+            got_rec_b, rec_hm_b, rest1_b, [], [eu_body]),
+        rest1_b, dom_eq_hm, [], [eu_body])
+
+    # dom_eq at dh: Domain(dh,hm) → Eqv(dh,w)
+    $eqv_dw eqv("dh","w","_")
+    $got_eqv_dw mp(apply_thm(got_dom_eq_b, dom_eq_hm, ["dh"], ["dh"],
+        \d: implies(domain(d,"hm","_"), eqv(d,"w","_")), [eu_body]),
+        ax([dom_hm], [dom_hm], dom_hm), dom_hm, eqv_dw, [eu_body], [dom_hm])
+    # eqv_symmetric
+    $_es head(right(eqv_symmetric))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eqv_wd mp(apply_thm(eqv_symmetric, _es, ["dh","w"], ["a","b"], _es_b, []),
+        got_eqv_dw, eqv_dw, eqv("w","dh","_"), [], [eu_body, dom_hm])
+    # eqv_mem_left: bb∈w → bb∈dh
+    $bb_dh mem("bb","dh")
+    $_eml head(right(eqv_mem_left))
+    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_bb_dh mp(mp(apply_thm(eqv_mem_left, _eml, ["w","dh","bb"], ["a","b","z"], _eml_b, []),
+        got_eqv_wd, eqv("w","dh","_"), implies(bbw, bb_dh), [], [eu_body, dom_hm]),
+        got_bbw, bbw, bb_dh, [eu_body, dom_hm], [and_full_b])
+    # domain_mem_elim: Domain(dh,hm) → bb∈dh → ∃val.Apply(hm,bb,val)
+    $ex_val_b exists("_y", apply("hm","bb","_y","__"))
+    $_dme_f head(right(domain_mem_elim))
+    $_dme_b \f: \d: \x: implies(domain(d,f,"_"), implies(mem(x,d), exists("_y", apply(f,x,"_y","__"))))
+    $dme_inst apply_thm(domain_mem_elim, _dme_f, ["hm","dh","bb"], ["f","d","x"], _dme_b, [])
+    $got_ex_val_b mp(mp(dme_inst,
+        ax([dom_hm], [dom_hm], dom_hm), dom_hm, implies(bb_dh, ex_val_b), [], [dom_hm]),
+        got_bb_dh, bb_dh, ex_val_b, [dom_hm], [eu_body, dom_hm, and_full_b])
+    # eel dh, cut domain_exists:
+    $got_ex_val_eel eel(got_ex_val_b, \d: domain(d,"hm","_"), "d", "dh",
+        left(got_ex_val_b), ex_val_b)
+    $ex_dom exists("d", domain("d","hm","_"))
+    $got_ex_val cut_c(got_de, got_ex_val_eel, ex_dom, de_ctx, left(got_ex_val_eel), ex_val_b)
+    # [de_ctx, eu_body, and_full_b] |- ∃val.Apply(hm,bb,val)
+
+    # Assume Apply(hm,bb,val_b):
+    $app_hm_bb apply("hm","bb","val_b","_")
+
+    # pf_backward: char_h→prod_ww→prod_pwww→sf_all→om → aa∈w→bb∈w→OrdPair(elt,aa,bb)→Rec(hm,aa,sf,w)→Apply(hm,bb,val_b)→Apply(h,elt,val_b)
+    $bwd_ctx left(pf_backward)
+    $_bwd head(right(pf_backward))
+    $_bwd_b \h: \pww: \pwww: \sf: \w: implies(
+        forall("xv", iff(mem("xv",h), and(mem("xv",pwww), phi("xv","_")))),
+        implies(product(pww,w,w,"_"), implies(product(pwww,pww,w,"_"),
+            implies(and(forall("xc", implies(mem("xc",w), forall("yc", iff(apply(sf,"xc","yc","_"), successor("yc","xc","_"))))),
+                and(function(sf,"_"), forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), mem("xd",w))))),
+                implies(omega(w,"_"),
+                    forall("m", implies(mem("m",w), forall("n", implies(mem("n",w),
+                        forall("pair", implies(ordered_pair("pair","m","n","_"),
+                            forall("hm", implies(recursive("hm","m",sf,w,"_"),
+                                forall("yv", implies(apply("hm","n","yv","_"), apply(h,"pair","yv","_"))))))))))))))))
+    $bwd_inst apply_thm(pf_backward, _bwd, ["h","pww","pwww","sf","w"], ["h","pww","pwww","sf","w"], _bwd_b, bwd_ctx)
+    $bwd_1 mp(bwd_inst, ax([char_h], [char_h], char_h), char_h, arg2(head(right(bwd_inst))), bwd_ctx, [char_h])
+    $bwd_2 mp(bwd_1, ax([prod_ww], [prod_ww], prod_ww), prod_ww, arg2(head(right(bwd_1))), left(bwd_1), [prod_ww])
+    $bwd_3 mp(bwd_2, ax([prod_pwww], [prod_pwww], prod_pwww), prod_pwww, arg2(head(right(bwd_2))), left(bwd_2), [prod_pwww])
+    $bwd_4 mp(bwd_3, ax([sf_all], [sf_all], sf_all), sf_all, arg2(head(right(bwd_3))), left(bwd_3), [sf_all])
+    $bwd_5 mp(bwd_4, ax([om], [om], om), om, arg2(head(right(bwd_4))), left(bwd_4), [om])
+    # instantiate at aa, bb, elt, hm, val_b:
+    $bwd_6 apply_thm(bwd_5, head(right(bwd_5)), ["aa"], ["aa"],
+        \m: implies(mem(m,"w"), forall("n", implies(mem("n","w"),
+            forall("pair", implies(ordered_pair("pair",m,"n","_"),
+                forall("hm", implies(recursive("hm",m,"sf","w","_"),
+                    forall("yv", implies(apply("hm","n","yv","_"), apply("h","pair","yv","_")))))))))),
+        left(bwd_5))
+    $bwd_7 mp(bwd_6, got_aaw, aaw, arg2(head(right(bwd_6))), left(bwd_5), [and_full_b])
+    $bwd_8 apply_thm(bwd_7, head(right(bwd_7)), ["bb"], ["bb"],
+        \n: implies(mem(n,"w"), forall("pair", implies(ordered_pair("pair","aa",n,"_"),
+            forall("hm", implies(recursive("hm","aa","sf","w","_"),
+                forall("yv", implies(apply("hm",n,"yv","_"), apply("h","pair","yv","_")))))))),
+        left(bwd_7))
+    $bwd_9 mp(bwd_8, got_bbw, bbw, arg2(head(right(bwd_8))), left(bwd_8), [and_full_b])
+    $bwd_10 apply_thm(bwd_9, head(right(bwd_9)), ["elt"], ["elt"],
+        \pair: implies(ordered_pair(pair,"aa","bb","_"),
+            forall("hm", implies(recursive("hm","aa","sf","w","_"),
+                forall("yv", implies(apply("hm","bb","yv","_"), apply("h",pair,"yv","_")))))),
+        left(bwd_9))
+    $bwd_11 mp(bwd_10, got_op_ab, op_elt_ab, arg2(head(right(bwd_10))), left(bwd_10), [and_full_b])
+    $bwd_12 apply_thm(bwd_11, head(right(bwd_11)), ["hm"], ["hm"],
+        \hm: implies(recursive(hm,"aa","sf","w","_"),
+            forall("yv", implies(apply(hm,"bb","yv","_"), apply("h","elt","yv","_")))),
+        left(bwd_11))
+    $bwd_13 mp(bwd_12, got_rec_b, rec_hm_b, arg2(head(right(bwd_12))), left(bwd_12), [eu_body])
+    $bwd_14 apply_thm(bwd_13, head(right(bwd_13)), ["val_b"], ["val_b"],
+        \yv: implies(apply("hm","bb",yv,"_"), apply("h","elt",yv,"_")),
+        left(bwd_13))
+    $app_h_elt_b apply("h","elt","val_b","_")
+    $got_app_h mp(bwd_14, ax([app_hm_bb], [app_hm_bb], app_hm_bb), app_hm_bb, app_h_elt_b,
+        left(bwd_14), [app_hm_bb])
+    # combined |- Apply(h,elt,val_b)
+
+    # eir val_b → ∃val.Apply(h,elt,val):
+    $got_ex_app_b eir(got_app_h, \v: apply("h","elt",v,"_"), "_y", "val_b", left(got_app_h))
+    $ex_app_b head(right(got_ex_app_b))
+
+    # Domain(dd,h) backward at elt: ∃val.Apply(h,elt,val) → elt∈dd
+    $got_elt_dd mp(mp(iff_elim_right(elt_dd, ex_app_elt, []),
+        got_iff_dd, iff_dd, implies(ex_app_elt, elt_dd), [], [dom_dd]),
+        got_ex_app_b, ex_app_b, elt_dd, [dom_dd], left(got_ex_app_b))
+
+    # eel chain: val_b(from domain), hm(from eu), bb, aa(from product)
+    $cur_b got_elt_dd
+    # eel val_b from ex_val_b:
+    $cur_b eel(cur_b, \v: apply("hm","bb",v,"_"), "_y", "val_b", left(cur_b), elt_dd)
+    $cur_b cut_c(got_ex_val, cur_b, ex_val_b, left(got_ex_val), left(cur_b), elt_dd)
+    # eel hm from eu:
+    $cur_b eel(cur_b, \hm: and(recursive(hm,"aa","sf","w","_"),
+        forall("y", implies(recursive("y","aa","sf","w","_"), eqv(hm,"y","_")))),
+        "hm", "hm", left(cur_b), elt_dd)
+    $cur_b cut_c(got_eu, cur_b, eu, left(got_eu), left(cur_b), elt_dd)
+    # eel bb from and_full_b:
+    $cur_b eel(cur_b, \bb: and(and(aaw, mem(bb,"w")), ordered_pair("elt","aa",bb,"_")),
+        "qb", "bb", left(cur_b), elt_dd)
+    # eel aa: use "qa"/"qb" to avoid prefix "_" clashes
+    $cur_b eel(cur_b, \aa: exists("qb", and(and(mem(aa,"w"), mem("qb","w")), ordered_pair("elt",aa,"qb","_"))),
+        "qa", "aa", left(cur_b), elt_dd)
+    # cut with product opening:
+    $cur_b cut_c(got_ex_prod, cur_b, ex_prod_body, [prod_prod, elt_prod], left(cur_b), elt_dd)
+
+    # ir elt_prod → implies(elt_prod, elt_dd)
+    $bwd_imp implies(elt_prod, elt_dd)
+    $cur_b ir(cur_b, remove(same, elt_prod, left(cur_b)), [bwd_imp], bwd_imp)
+
+    # ==============================
+    # === Combine: iff → eqv ===
+    # ==============================
+    $iff_elt iff(elt_dd, elt_prod)
+    $got_iff mp(mp(iff_intro(elt_dd, elt_prod, []),
+        cur_f, fwd, implies(bwd_imp, iff_elt), [], left(cur_f)),
+        cur_b, bwd_imp, iff_elt, left(cur_f), left(cur_b))
+    # fr elt → eqv(dd,prod) (alpha-equiv):
+    $got_eqv fr(got_iff, left(got_iff), [eqv_goal], eqv_goal, "elt")
+
+    # ir prod_prod, fr prod, ir dom_dd, fr dd
+    $imp_prod implies(prod_prod, eqv_goal)
+    $got_ip ir(got_eqv, remove(same, prod_prod, left(got_eqv)), [imp_prod], imp_prod)
+    $fa_prod forall("prod", imp_prod)
+    $got_fp fr(got_ip, left(got_ip), [fa_prod], fa_prod, "prod")
+    $imp_dd implies(dom_dd, fa_prod)
+    $got_id ir(got_fp, remove(same, dom_dd, left(got_fp)), [imp_dd], imp_dd)
+    $dom_result forall("dd", imp_dd)
+    $got_dom fr(got_id, left(got_id), [dom_result], dom_result, "dd")
+
+    # Discharge hypotheses
+    $imp5 implies(om, dom_result)
+    $imp4 implies(sf_all, imp5)
+    $imp3 implies(prod_pwww, imp4)
+    $imp2 implies(prod_ww, imp3)
+    $top implies(char_h, imp2)
+    $cur got_dom
+    $cur ir(cur, remove(same, om, left(cur)), [imp5], imp5)
+    $cur ir(cur, remove(same, sf_all, left(cur)), [imp4], imp4)
+    $cur ir(cur, remove(same, prod_pwww, left(cur)), [imp3], imp3)
+    $cur ir(cur, remove(same, prod_ww, left(cur)), [imp2], imp2)
+    $cur ir(cur, remove(same, char_h, left(cur)), [top], top)
+    close(cur, left(cur), [top], ["w","sf","pwww","pww","h"])
+}
