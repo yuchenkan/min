@@ -104,4 +104,11 @@ $pf_fwd_top implies(pf_char_fwd, implies(apply("h","key","val","_"), pf_fwd_resu
 $_ qed(pf_forward, forall("h", forall("sf", forall("w", forall("key", forall("val", pf_fwd_top))))))
 $_ print("pf_forward ok")
 
+from theorems.arithmetic.plus.pf_single_valued import pf_single_valued
+$pf_sv_body forall("key", forall("y1", forall("y2",
+    implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")), eqv("y1","y2","_")))))
+$pf_sv_top implies(pf_char_fwd, implies(sfp_all, implies(omega("w","_"), pf_sv_body)))
+$_ qed(pf_single_valued, forall("h", forall("sf", forall("w", pf_sv_top))))
+$_ print("pf_single_valued ok")
+
 $ok true
