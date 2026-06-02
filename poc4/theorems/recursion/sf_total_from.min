@@ -1,0 +1,159 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import successor, ordered_pair
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import total_from
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.sets.successor_exists import successor_exists
+from theorems.omega.omega_succ_closed import omega_succ_closed
+
+# sf_total_from:
+# sf_props_result(sf,w) ∧ Omega(w) ∧ m∈w → TotalFrom(sf,m)
+# where sf_props_result = succ_char ∧ Function(sf) ∧ dom_sub
+
+$sf_total_from {
+    # sf_props components:
+    $succ_char forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
+    $func_sf function("sf","_")
+    $dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))
+    $sf_all and(succ_char, and(func_sf, dom_sub))
+    $om omega("w","_")
+    $mw mem("m","w")
+
+    # Extract components from sf_all:
+    $got_sc mp(and_elim_left(succ_char, and(func_sf, dom_sub), []),
+        ax([sf_all], [sf_all], sf_all), sf_all, succ_char, [], [sf_all])
+    $got_fd mp(and_elim_right(succ_char, and(func_sf, dom_sub), []),
+        ax([sf_all], [sf_all], sf_all), sf_all, and(func_sf, dom_sub), [], [sf_all])
+    $got_ds mp(and_elim_right(func_sf, dom_sub, []),
+        got_fd, and(func_sf, dom_sub), dom_sub, [], [sf_all])
+
+    # === Part 1: ∃z.Apply(sf,m,z) ===
+    # successor_exists at m: ∃sm.Succ(sm,m)
+    $_se head(right(successor_exists))
+    $_se_b \a: exists("s", successor("s",a,"_"))
+    $se_ctx left(successor_exists)
+    $got_ex_sm apply_thm(successor_exists, _se, ["m"], ["m"], _se_b, se_ctx)
+
+    # succ_char at m: m∈w → ∀yc.Iff(Apply(sf,m,yc), Succ(yc,m))
+    $fa_yc forall("yc", iff(apply("sf","m","yc","_"), successor("yc","m","_")))
+    $sc_inst apply_thm(got_sc, succ_char, ["m"], ["m"],
+        \x: implies(mem(x,"w"), forall("yc", iff(apply("sf",x,"yc","_"), successor("yc",x,"_")))), [sf_all])
+    $got_fa_yc mp(sc_inst, ax([mw], [mw], mw), mw, fa_yc, [sf_all], [mw])
+
+    # Instantiate at sm: Iff(Apply(sf,m,sm), Succ(sm,m))
+    $iff_sm iff(apply("sf","m","sm","_"), successor("sm","m","_"))
+    $got_iff_sm apply_thm(got_fa_yc, fa_yc, ["sm"], ["sm"],
+        \y: iff(apply("sf","m",y,"_"), successor(y,"m","_")), [sf_all, mw])
+
+    # iff backward: Succ(sm,m) → Apply(sf,m,sm)
+    $succ_sm successor("sm","m","_")
+    $app_sm apply("sf","m","sm","_")
+    $got_app_sm mp(mp(iff_elim_right(app_sm, succ_sm, []),
+        got_iff_sm, iff_sm, implies(succ_sm, app_sm), [], [sf_all, mw]),
+        ax([succ_sm], [succ_sm], succ_sm), succ_sm, app_sm, [sf_all, mw], [succ_sm])
+
+    # eir sm → ∃z.Apply(sf,m,z), eel sm from successor_exists:
+    $ex_app_m exists("z", apply("sf","m","z","_"))
+    $got_ex_app eir(got_app_sm, \z: apply("sf","m",z,"_"), "z", "sm", [sf_all, mw, succ_sm])
+    $got_ex_app2 eel(got_ex_app, \sm: successor(sm,"m","_"), "sm", "sm", left(got_ex_app), ex_app_m)
+    $got_part1 cut_c(got_ex_sm, got_ex_app2, exists("sm", succ_sm), se_ctx, left(got_ex_app2), ex_app_m)
+    # [se_ctx, sf_all, mw] |- ∃z.Apply(sf,m,z)
+
+    # === Part 2: ∀x.∀y. Apply(sf,x,y) → ∃z.Apply(sf,y,z) ===
+    $app_xy apply("sf","xr","yr","_")
+
+    # dom_sub at xr: (∃yd.Apply(sf,xr,yd)) → xr∈w
+    $xrw mem("xr","w")
+    $ex_app_xr exists("yd", apply("sf","xr","yd","_"))
+    $ds_inst apply_thm(got_ds, dom_sub, ["xr"], ["xr"],
+        \x: implies(exists("yd", apply("sf",x,"yd","_")), mem(x,"w")), [sf_all])
+    # eir yr to get ∃yd.Apply(sf,xr,yd) from Apply(sf,xr,yr):
+    $got_ex_app_xr eir(ax([app_xy], [app_xy], app_xy), \yd: apply("sf","xr",yd,"_"), "yd", "yr", [app_xy])
+    $got_xrw mp(ds_inst, got_ex_app_xr, ex_app_xr, xrw, [sf_all], [app_xy])
+    # [sf_all, app_xy] |- xr∈w
+
+    # succ_char at xr: xr∈w → Iff(Apply(sf,xr,yr), Succ(yr,xr))
+    $sc_xr apply_thm(got_sc, succ_char, ["xr"], ["xr"],
+        \x: implies(mem(x,"w"), forall("yc", iff(apply("sf",x,"yc","_"), successor("yc",x,"_")))), [sf_all])
+    $fa_yc_xr forall("yc", iff(apply("sf","xr","yc","_"), successor("yc","xr","_")))
+    $got_fa_xr mp(sc_xr, got_xrw, xrw, fa_yc_xr, [sf_all], [sf_all, app_xy])
+    $iff_xr iff(app_xy, successor("yr","xr","_"))
+    $got_iff_xr apply_thm(got_fa_xr, fa_yc_xr, ["yr"], ["yr"],
+        \y: iff(apply("sf","xr",y,"_"), successor(y,"xr","_")), left(got_fa_xr))
+
+    # iff forward: Apply(sf,xr,yr) → Succ(yr,xr)
+    $succ_yr_xr successor("yr","xr","_")
+    $got_succ_yr mp(mp(iff_elim_left(app_xy, succ_yr_xr, []),
+        got_iff_xr, iff_xr, implies(app_xy, succ_yr_xr), [], left(got_iff_xr)),
+        ax([app_xy], [app_xy], app_xy), app_xy, succ_yr_xr, left(got_iff_xr), [app_xy])
+    # [sf_all, app_xy] |- Succ(yr,xr)
+
+    # omega_succ_closed: Omega(w) → xr∈w → Succ(yr,xr) → yr∈w
+    # Alpha-rename to avoid "w" clashing with bound vars in Omega expansion
+    # Close order ["w","n","s"] → ∀s.∀n.∀w.body. Rename to ∀p1.∀p2.∀p3.
+    $_osc_b \p1: \p2: \p3: implies(omega(p3,"_"), implies(mem(p2,p3), implies(successor(p1,p2,"_"), mem(p1,p3))))
+    $osc_r forall("p1", forall("p2", forall("p3", _osc_b("p1")("p2")("p3"))))
+    $osc_thm wr(omega_succ_closed, [], [osc_r], osc_r)
+    $osc_inst apply_thm(osc_thm, osc_r, ["yr","xr","w"], ["p1","p2","p3"], _osc_b, [])
+    $yrw mem("yr","w")
+    $osc1 mp(osc_inst, ax([om], [om], om), om, implies(xrw, implies(succ_yr_xr, yrw)), [], [om])
+    $osc2 mp(osc1, got_xrw, xrw, implies(succ_yr_xr, yrw), [om], [sf_all, app_xy])
+    $got_yrw mp(osc2, got_succ_yr, succ_yr_xr, yrw, left(osc2), [sf_all, app_xy])
+    # [om, sf_all, app_xy] |- yr∈w
+
+    # succ_char at yr: yr∈w → ∀zr.Iff(Apply(sf,yr,zr), Succ(zr,yr))
+    $sc_yr apply_thm(got_sc, succ_char, ["yr"], ["yr"],
+        \x: implies(mem(x,"w"), forall("yc", iff(apply("sf",x,"yc","_"), successor("yc",x,"_")))), [sf_all])
+    $fa_zr forall("yc", iff(apply("sf","yr","yc","_"), successor("yc","yr","_")))
+    $got_fa_yr mp(sc_yr, got_yrw, yrw, fa_zr, [sf_all], left(got_yrw))
+    $iff_yr iff(apply("sf","yr","zr","_"), successor("zr","yr","_"))
+    $got_iff_yr apply_thm(got_fa_yr, fa_zr, ["zr"], ["zr"],
+        \y: iff(apply("sf","yr",y,"_"), successor(y,"yr","_")), left(got_fa_yr))
+
+    # successor_exists at yr: ∃zr.Succ(zr,yr)
+    $succ_zr successor("zr","yr","_")
+    $got_ex_szr apply_thm(successor_exists, _se, ["yr"], ["yr"], _se_b, se_ctx)
+
+    # iff backward: Succ(zr,yr) → Apply(sf,yr,zr)
+    $app_yz apply("sf","yr","zr","_")
+    $got_app_yz mp(mp(iff_elim_right(app_yz, succ_zr, []),
+        got_iff_yr, iff_yr, implies(succ_zr, app_yz), [], left(got_iff_yr)),
+        ax([succ_zr], [succ_zr], succ_zr), succ_zr, app_yz, left(got_iff_yr), [succ_zr])
+
+    # eir zr, eel zr from successor_exists:
+    $ex_app_yz exists("zr", apply("sf","yr","zr","_"))
+    $got_ex_yz eir(got_app_yz, \z: apply("sf","yr",z,"_"), "zr", "zr", left(got_app_yz))
+    $got_ex_yz2 eel(got_ex_yz, \zr: successor(zr,"yr","_"), "zr", "zr", left(got_ex_yz), ex_app_yz)
+    $got_part2_raw cut_c(got_ex_szr, got_ex_yz2, exists("zr", succ_zr), se_ctx, left(got_ex_yz2), ex_app_yz)
+    # [se_ctx, om, sf_all, app_xy] |- ∃zr.Apply(sf,yr,zr)
+
+    # ir app_xy, fr yr, xr:
+    $imp_app implies(app_xy, ex_app_yz)
+    $got_imp ir(got_part2_raw, remove(same, app_xy, left(got_part2_raw)), [imp_app], imp_app)
+    $got_fa_yr2 fr(got_imp, left(got_imp), [forall("yr", imp_app)], forall("yr", imp_app), "yr")
+    $ran_closed forall("xr", forall("yr", imp_app))
+    $got_part2 fr(got_fa_yr2, left(got_fa_yr2), [ran_closed], ran_closed, "xr")
+    # [se_ctx, om, sf_all] |- ran_closed
+
+    # === Package: And(part1, part2) = TotalFrom(sf,m) ===
+    $tf total_from("sf","m","_")
+    $got_and mp(mp(and_intro(ex_app_m, ran_closed, []),
+        got_part1, ex_app_m, implies(ran_closed, and(ex_app_m, ran_closed)), [], left(got_part1)),
+        got_part2, ran_closed, and(ex_app_m, ran_closed), left(got_part1), left(got_part2))
+    # and(ex_app_m, ran_closed) should be alpha-equiv to tf expansion
+
+    # Close: sf_all → Omega(w) → m∈w → TotalFrom(sf,m)
+    $imp3 implies(mw, tf)
+    $imp2 implies(om, imp3)
+    $top implies(sf_all, imp2)
+    $r1 ir(got_and, remove(same, mw, left(got_and)), [imp3], imp3)
+    $r2 ir(r1, remove(same, om, left(r1)), [imp2], imp2)
+    $r3 ir(r2, remove(same, sf_all, left(r2)), [top], top)
+    close(r3, left(r3), [top], ["m","w","sf"])
+}

@@ -248,4 +248,11 @@ $sfp_body implies(sfe_sc, exists("sf", and(sfp_succ_char, and(function("sf","_")
 $_ qed(sf_props, forall("w", sfp_body))
 $_ print("sf_props ok")
 
+from theorems.recursion.sf_total_from import sf_total_from
+from vocab.recursion import total_from
+$sfp_all and(sfp_succ_char, and(function("sf","_"), sfp_dom_sub))
+$sftf_body implies(sfp_all, implies(omega("w","_"), implies(mem("m","w"), total_from("sf","m","_"))))
+$_ qed(sf_total_from, forall("sf", forall("w", forall("m", sftf_body))))
+$_ print("sf_total_from ok")
+
 $ok true
