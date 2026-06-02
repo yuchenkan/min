@@ -1,0 +1,58 @@
+from core.derived import mem, implies, forall, and, exists, eqv
+from vocab.sets import empty, successor, ordered_pair
+from vocab.functions import apply, function, domain, product
+from vocab.omega import omega
+
+# plus_func(h, w, p): h is the addition function over omega w.
+# And(Function(h),
+#   And(∀d,prod. Domain(d,h) → Product(prod,w,w) → Eq(d,prod),
+#   And(∀m∈w. ∀z. Empty(z) → ∀pair. OrdPair(pair,m,z) → Apply(h,pair,m),
+#       ∀m∈w. ∀n∈w. ∀pair. OrdPair(pair,m,n) → ∀p. Apply(h,pair,p) →
+#           ∀sn. Succ(sn,n) → ∀sp. Succ(sp,p) →
+#               ∀pair2. OrdPair(pair2,m,sn) → Apply(h,pair2,sp))))
+$plus_func \h w p: {
+    $np add(p, "_")
+    $m add(p, "m")
+    $n add(p, "n")
+    $z add(p, "z")
+    $pv add(p, "p")
+    $pair add(p, "pair")
+    $pair2 add(p, "pair2")
+    $sn add(p, "sn")
+    $sp add(p, "sp")
+    $dd add(p, "d")
+    $prod add(p, "prod")
+
+    $func_h function(h, np)
+    $dom_eq forall(dd, forall(prod, implies(domain(dd, h, np),
+        implies(product(prod, w, w, np), eqv(dd, prod, np)))))
+    $base forall(m, implies(mem(m, w),
+        forall(z, implies(empty(z, np),
+            forall(pair, implies(ordered_pair(pair, m, z, np),
+                apply(h, pair, m, np)))))))
+    $step forall(m, implies(mem(m, w),
+        forall(n, implies(mem(n, w),
+            forall(pair, implies(ordered_pair(pair, m, n, np),
+                forall(pv, implies(apply(h, pair, pv, np),
+                    forall(sn, implies(successor(sn, n, np),
+                        forall(sp, implies(successor(sp, pv, np),
+                            forall(pair2, implies(ordered_pair(pair2, m, sn, np),
+                                apply(h, pair2, sp, np)))))))))))))))
+
+    ["plus_func", add("PlusFunc(", add(h, add(",", add(w, ")")))),
+        and(func_h, and(dom_eq, and(base, step)))]
+}
+
+# plus(m, n, p, prefix): m + n = p.
+# ∀w. Omega(w) → ∀h. PlusFunc(h,w) → ∀pair. OrdPair(pair,m,n) → Apply(h,pair,p)
+$plus \m n p prefix: {
+    $np add(prefix, "_")
+    $w add(prefix, "w")
+    $h add(prefix, "h")
+    $pair add(prefix, "pair")
+    ["plus", add(m, add(" + ", add(n, add(" = ", p)))),
+        forall(w, implies(omega(w, np),
+            forall(h, implies(plus_func(h, w, np),
+                forall(pair, implies(ordered_pair(pair, m, n, np),
+                    apply(h, pair, p, np)))))))]
+}
