@@ -112,8 +112,8 @@ $_ qed(pf_single_valued, forall("h", forall("sf", forall("w", pf_sv_top))))
 $_ print("pf_single_valued ok")
 
 from theorems.arithmetic.plus.pf_dom_eq import pf_dom_eq
-$pf_deq_body forall("dd", implies(domain("dd","h","_"),
-    forall("prod", implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
+$pf_deq_body forall("dd", forall("prod", implies(domain("dd","h","_"),
+    implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
 $pf_deq_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
     implies(sfp_all, implies(omega("w","_"), pf_deq_body)))))
 $_ qed(pf_dom_eq, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_deq_top))))))
@@ -151,5 +151,10 @@ $rvo_body implies(omega("w","_"), implies(mem("a","w"), implies(rvo_sc,
     implies(recursive("h","a","sf","w","_"), implies(mem("x","w"), implies(apply("h","x","y","_"), mem("y","w")))))))
 $_ qed(rec_val_in_omega, forall("w", forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body)))))))
 $_ print("rec_val_in_omega ok")
+
+from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
+from vocab.arithmetic.plus import plus_func
+$_ qed(plus_func_exists, forall("w", implies(omega("w","_"), exists("h", plus_func("h","w","_")))))
+$_ print("plus_func_exists ok")
 
 $ok true

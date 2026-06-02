@@ -375,15 +375,15 @@ $pf_dom_eq {
     # fr elt → eqv(dd,prod) (alpha-equiv):
     $got_eqv fr(got_iff, left(got_iff), [eqv_goal], eqv_goal, "elt")
 
-    # ir prod_prod, fr prod, ir dom_dd, fr dd
+    # ir prod_prod, ir dom_dd, fr prod, fr dd — matches plus_func vocab: ∀dd.∀prod.Dom→Prod→Eqv
     $imp_prod implies(prod_prod, eqv_goal)
     $got_ip ir(got_eqv, remove(same, prod_prod, left(got_eqv)), [imp_prod], imp_prod)
-    $fa_prod forall("prod", imp_prod)
-    $got_fp fr(got_ip, left(got_ip), [fa_prod], fa_prod, "prod")
-    $imp_dd implies(dom_dd, fa_prod)
-    $got_id ir(got_fp, remove(same, dom_dd, left(got_fp)), [imp_dd], imp_dd)
-    $dom_result forall("dd", imp_dd)
-    $got_dom fr(got_id, left(got_id), [dom_result], dom_result, "dd")
+    $imp_dd implies(dom_dd, imp_prod)
+    $got_id ir(got_ip, remove(same, dom_dd, left(got_ip)), [imp_dd], imp_dd)
+    $fa_prod forall("prod", imp_dd)
+    $got_fp fr(got_id, left(got_id), [fa_prod], fa_prod, "prod")
+    $dom_result forall("dd", fa_prod)
+    $got_dom fr(got_fp, left(got_fp), [dom_result], dom_result, "dd")
 
     # Discharge hypotheses
     $imp5 implies(om, dom_result)
