@@ -1,0 +1,20 @@
+from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, ordered_pair
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.arithmetic.plus import plus_func
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+
+# plus_func_unique: Omega(w) → PlusFunc(h,w) → PlusFunc(h2,w) → eqv(h,h2)
+# Both h and h2 satisfy the same recursion conditions.
+# By omega_induction on n: for all m∈w, h(⟨m,n⟩) = h2(⟨m,n⟩).
+# Then extensionality on w×w gives eqv(h,h2).
+# TODO: implement
+$plus_func_unique {
+    $om omega("w","_")
+    $pf1 plus_func("h","w","_")
+    $pf2 plus_func("h2","w","_")
+    $goal eqv("h","h2","_")
+    $_ print("plus_func_unique: TODO")
+    close(ax([om], [om], om), [om], [om], [])
+}

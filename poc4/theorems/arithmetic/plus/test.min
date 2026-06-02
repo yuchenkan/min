@@ -1,0 +1,8 @@
+from core.derived import mem, implies, forall, and, exists, eqv, qed
+from vocab.omega import omega
+from vocab.arithmetic.plus import plus_func
+from vocab.logic import exists_unique
+
+# TODO: add qed tests as theorems are proved
+
+$ok true

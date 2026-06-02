@@ -1,0 +1,18 @@
+from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, ordered_pair
+from vocab.functions import apply, function, domain, product
+from vocab.omega import omega
+from vocab.arithmetic.plus import plus_func
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+
+# plus_func_exists: Omega(w) → ∃h.PlusFunc(h,w)
+# From recursion theorem: for each m∈w, define h_m by recursion with
+#   a = m, f = successor function, giving h_m(0)=m, h_m(S(n))=S(h_m(n)).
+# Then combine all h_m into a single function on w×w.
+# TODO: implement
+$plus_func_exists {
+    $om omega("w","_")
+    $goal exists("h", plus_func("h","w","_"))
+    $_ print("plus_func_exists: TODO")
+    close(ax([om], [om], om), [om], [om], [])
+}

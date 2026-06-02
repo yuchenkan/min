@@ -1,0 +1,19 @@
+from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
+from vocab.omega import omega
+from vocab.arithmetic.plus import plus_func
+from vocab.logic import exists_unique
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
+from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
+
+# unique_plus_func: Omega(w) → ∃!h.PlusFunc(h,w)
+# Combines plus_func_exists and plus_func_unique via exists_unique_intro.
+# TODO: implement
+$unique_plus_func {
+    $om omega("w","_")
+    $eu_body \h p: plus_func(h,"w",p)
+    $goal exists_unique(eu_body, "_")
+    $_ print("unique_plus_func: TODO")
+    close(ax([om], [om], om), [om], [om], [])
+}
