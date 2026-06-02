@@ -1,0 +1,57 @@
+from core.derived import mem, implies, forall, and, iff, exists, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import product
+from tactics import ax, fl, ir, fr, mp, apply_thm, eir, close
+from theorems.logic.and_intro import and_intro
+from theorems.logic.iff_elim_right import iff_elim_right
+
+# product_in_intro:
+# |- Product(s,a,b) → x∈a → y∈b → OrdPair(z,x,y) → z∈s
+
+$product_in_intro {
+    $prod product("s","a","b","_")
+    $xa mem("x","a")
+    $yb mem("y","b")
+    $op_z ordered_pair("z","x","y","_")
+    $zs mem("z","s")
+
+    # fl prod at z: iff(z∈s, ∃px.∃py.(px∈a ∧ py∈b ∧ OrdPair(z,px,py)))
+    $ex_body \px py: and(and(mem(px,"a"), mem(py,"b")), ordered_pair("z",px,py,"_"))
+    $ex_rhs exists("px", exists("py", ex_body("px","py")))
+    $iff_z iff(zs, ex_rhs)
+    $got_iff fl(ax([iff_z], [iff_z], iff_z), [prod], [iff_z], prod, "z")
+
+    # iff backward: ex_rhs → z∈s
+    $got_rev mp(iff_elim_right(zs, ex_rhs, []),
+        got_iff, iff_z, implies(ex_rhs, zs), [], [prod])
+
+    # Build witness: and(and(x∈a, y∈b), OrdPair(z,x,y))
+    $and_xy and(xa, yb)
+    $and_all and(and_xy, op_z)
+    $got_xy mp(mp(and_intro(xa, yb, []),
+        ax([xa], [xa], xa), xa, implies(yb, and_xy), [], [xa]),
+        ax([yb], [yb], yb), yb, and_xy, [xa], [yb])
+    $got_all mp(mp(and_intro(and_xy, op_z, []),
+        got_xy, and_xy, implies(op_z, and_all), [], [xa, yb]),
+        ax([op_z], [op_z], op_z), op_z, and_all, [xa, yb], [op_z])
+
+    # eir py=y, px=x:
+    $got_ey eir(got_all, \py: and(and(xa, mem(py,"b")), ordered_pair("z","x",py,"_")),
+        "py", "y", [xa, yb, op_z])
+    $got_ex eir(got_ey, \px: exists("py", and(and(mem(px,"a"), mem("py","b")), ordered_pair("z",px,"py","_"))),
+        "px", "x", [xa, yb, op_z])
+
+    # mp with iff backward:
+    $got_zs mp(got_rev, got_ex, ex_rhs, zs, [prod], [xa, yb, op_z])
+
+    # Close: prod → xa → yb → op_z → zs
+    $imp4 implies(op_z, zs)
+    $imp3 implies(yb, imp4)
+    $imp2 implies(xa, imp3)
+    $top implies(prod, imp2)
+    $r1 ir(got_zs, [prod, xa, yb], [imp4], imp4)
+    $r2 ir(r1, [prod, xa], [imp3], imp3)
+    $r3 ir(r2, [prod], [imp2], imp2)
+    $r4 ir(r3, [], [top], top)
+    close(r4, [], [top], ["z","y","x","b","a","s"])
+}

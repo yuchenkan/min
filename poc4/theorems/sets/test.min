@@ -420,4 +420,11 @@ $up_fn \s p: product(s,"a","b",p)
 $_ qed(unique_product, forall("a", forall("b", exists_unique(up_fn, "_"))))
 $_ print("unique_product ok")
 
+from theorems.sets.product_in_intro import product_in_intro
+$_ qed(product_in_intro,
+    forall("s", forall("a", forall("b", forall("x", forall("y", forall("z",
+        implies(product("s","a","b","_"), implies(mem("x","a"), implies(mem("y","b"),
+            implies(ordered_pair("z","x","y","_"), mem("z","s"))))))))))))
+$_ print("product_in_intro ok")
+
 $ok true

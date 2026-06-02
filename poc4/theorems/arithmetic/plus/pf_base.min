@@ -1,0 +1,268 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, ordered_pair
+from vocab.functions import apply, function, domain, product
+from vocab.omega import omega
+from vocab.recursion import recursive
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.apply_intro import apply_intro
+from theorems.sets.product_in_intro import product_in_intro
+from theorems.omega.omega_contains_empty import omega_contains_empty
+from theorems.arithmetic.plus.rec_for_each_m import rec_for_each_m
+
+# pf_base: PlusFunc base condition.
+# char_h ∧ Product(pww,w,w) ∧ Product(pwww,pww,w) ∧ sf_all ∧ Omega(w) →
+#   ∀m∈w.∀z.Empty(z)→∀pair.OrdPair(pair,m,z)→Apply(h,pair,m)
+#
+# char_h = ∀xv.(xv∈h ↔ xv∈pwww ∧ phi(xv))
+# phi(xv) = ∃mv.mv∈w ∧ ∃nv.∃yv.∃pv. OrdPair(pv,mv,nv) ∧ OrdPair(xv,pv,yv) ∧
+#           ∃hm. Recursive(hm,mv,sf,w) ∧ Apply(hm,nv,yv)
+
+$pf_base {
+    # phi for the separation:
+    $phi \xv np: exists(add(np,"m"), and(mem(add(np,"m"),"w"),
+        exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+            and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+            and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf","w",add(np,"_")),
+                    apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
+
+    # Hypotheses:
+    $succ_char forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
+    $func_sf function("sf","_")
+    $dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))
+    $sf_all and(succ_char, and(func_sf, dom_sub))
+    $om omega("w","_")
+    $prod_ww product("pww","w","w","_")
+    $prod_pwww product("pwww","pww","w","_")
+    $char_h forall("xv", iff(mem("xv","h"), and(mem("xv","pwww"), phi("xv","_"))))
+
+    # Outer quantified vars:
+    $mw mem("m","w")
+    $emp empty("z","_")
+    $op_pair ordered_pair("pair","m","z","_")
+    $app_goal apply("h","pair","m","_")
+
+    # === C1: rec_for_each_m → ∃!hm.Recursive(hm,m,sf,w) → extract ∃hm.Rec ===
+    $_rfem head(right(rec_for_each_m))
+    # rec_for_each_m close order: ["m","w","sf"] → ∀sf.∀w.∀m. sf_all → om → mw → ∃!hm.Rec
+    $_rfem_b \sf: \w: \m: implies(
+        and(forall("xc", implies(mem("xc",w), forall("yc", iff(apply(sf,"xc","yc","_"), successor("yc","xc","_"))))),
+            and(function(sf,"_"),
+                forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), mem("xd",w))))),
+        implies(omega(w,"_"), implies(mem(m,w),
+            exists("hm", and(recursive("hm",m,sf,w,"_"),
+                forall("y", implies(recursive("y",m,sf,w,"_"), eqv("hm","y","_"))))))))
+    $rfem_ctx left(rec_for_each_m)
+    $rfem_inst apply_thm(rec_for_each_m, _rfem, ["sf","w","m"], ["sf","w","m"], _rfem_b, rfem_ctx)
+    $eu exists("hm", and(recursive("hm","m","sf","w","_"),
+        forall("y", implies(recursive("y","m","sf","w","_"), eqv("hm","y","_")))))
+    $rfem1 mp(rfem_inst, ax([sf_all], [sf_all], sf_all), sf_all, implies(om, implies(mw, eu)), rfem_ctx, [sf_all])
+    $rfem2 mp(rfem1, ax([om], [om], om), om, implies(mw, eu), left(rfem1), [om])
+    $got_eu mp(rfem2, ax([mw], [mw], mw), mw, eu, left(rfem2), [mw])
+    # [rfem_ctx, sf_all, om, mw] |- ∃hm.(...∧uniq)
+
+    # Extract ∃hm.Recursive(hm,m,sf,w) from ∃!:
+    $rec_hm recursive("hm","m","sf","w","_")
+    $eu_body and(rec_hm, forall("y", implies(recursive("y","m","sf","w","_"), eqv("hm","y","_"))))
+    $got_rec_from_eu mp(and_elim_left(rec_hm,
+        forall("y", implies(recursive("y","m","sf","w","_"), eqv("hm","y","_"))), []),
+        ax([eu_body], [eu_body], eu_body), eu_body, rec_hm, [], [eu_body])
+    # [eu_body] |- Recursive(hm,m,sf,w)
+
+    # === C2: Extract base from Recursive: ∀e.Empty(e) → Apply(hm,e,m) ===
+    # Recursive = And(Function(hm), And(dom_eq, And(base, step)))
+    $func_hm function("hm","_")
+    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eqv("d","w","_")))
+    $base_hm forall("e", implies(empty("e","_"), apply("hm","e","m","_")))
+    $step_hm forall("n", implies(mem("n","w"),
+        forall("val", implies(apply("hm","n","val","_"),
+            forall("sn", implies(successor("sn","n","_"),
+                forall("fval", implies(apply("sf","val","fval","_"), apply("hm","sn","fval","_")))))))))
+    $rest1 and(dom_eq_hm, and(base_hm, step_hm))
+    $rest2 and(base_hm, step_hm)
+    $got_rest1 mp(and_elim_right(func_hm, rest1, []), got_rec_from_eu, rec_hm, rest1, [], [eu_body])
+    $got_rest2 mp(and_elim_left(base_hm, step_hm, []),
+        mp(and_elim_right(dom_eq_hm, rest2, []), got_rest1, rest1, rest2, [], [eu_body]),
+        rest2, base_hm, [], [eu_body])
+
+    # Instantiate base at z: Empty(z) → Apply(hm,z,m)
+    $app_hm_zm apply("hm","z","m","_")
+    $got_base_inst apply_thm(got_rest2, base_hm, ["z"], ["z"],
+        \e: implies(empty(e,"_"), apply("hm",e,"m","_")), [eu_body])
+    $got_app_hm mp(got_base_inst, ax([emp], [emp], emp), emp, app_hm_zm, [eu_body], [emp])
+    # [eu_body, emp] |- Apply(hm,z,m)
+
+    # === C3: z∈w from omega_contains_empty ===
+    # Alpha-rename: close order ["w","e"] → ∀e.∀w. Rename to ∀p1.∀p2.
+    $_oce_b \p1: \p2: implies(omega(p2,"_"), implies(empty(p1,"_"), mem(p1,p2)))
+    $oce_r forall("p1", forall("p2", _oce_b("p1")("p2")))
+    $oce_thm wr(omega_contains_empty, [], [oce_r], oce_r)
+    $got_zw mp(mp(apply_thm(oce_thm, oce_r, ["z","w"], ["p1","p2"], _oce_b, []),
+        ax([om], [om], om), om, implies(emp, mem("z","w")), [], [om]),
+        ax([emp], [emp], emp), emp, mem("z","w"), [om], [emp])
+    # [om, emp] |- z∈w
+
+    # === C4: pair∈pww via product_in_intro ===
+    # Alpha-rename: close order ["z","y","x","b","a","s"] → ∀s.∀a.∀b.∀x.∀y.∀z.
+    # Rename to ∀q1.∀q2.∀q3.∀q4.∀q5.∀q6 to avoid "z" clash.
+    $_pii_b \q1: \q2: \q3: \q4: \q5: \q6: implies(product(q1,q2,q3,"_"),
+        implies(mem(q4,q2), implies(mem(q5,q3), implies(ordered_pair(q6,q4,q5,"_"), mem(q6,q1)))))
+    $pii_r forall("q1", forall("q2", forall("q3", forall("q4", forall("q5", forall("q6",
+        _pii_b("q1")("q2")("q3")("q4")("q5")("q6")))))))
+    $pii_thm wr(product_in_intro, [], [pii_r], pii_r)
+    $pii_inst apply_thm(pii_thm, pii_r, ["pww","w","w","m","z","pair"],
+        ["q1","q2","q3","q4","q5","q6"], _pii_b, [])
+    $pair_in_ww mem("pair","pww")
+    $pii1 mp(pii_inst, ax([prod_ww], [prod_ww], prod_ww), prod_ww, arg2(head(right(pii_inst))), [], [prod_ww])
+    $pii2 mp(pii1, ax([mw], [mw], mw), mw, arg2(head(right(pii1))), [prod_ww], [mw])
+    $pii3 mp(pii2, got_zw, mem("z","w"), arg2(head(right(pii2))), [prod_ww, mw], [om, emp])
+    $got_pair_ww mp(pii3, ax([op_pair], [op_pair], op_pair), op_pair, pair_in_ww,
+        left(pii3), [op_pair])
+    # [prod_ww, mw, om, emp, op_pair] |- pair∈pww
+
+    # === C5: ordpair_exists → ∃tr.OrdPair(tr,pair,m) ===
+    $_oe head(right(ordpair_exists))
+    $_oe_b \a: \b: exists("p", ordered_pair("p",a,b,"_"))
+    $got_ex_tr apply_thm(ordpair_exists, _oe, ["pair","m"], ["a","b"], _oe_b, left(ordpair_exists))
+    $op_tr ordered_pair("tr","pair","m","_")
+
+    # === C6: tr∈pwww via product_in_intro ===
+    $pii_inst2 apply_thm(pii_thm, pii_r, ["pwww","pww","w","pair","m","tr"],
+        ["q1","q2","q3","q4","q5","q6"], _pii_b, [])
+    $tr_in_pwww mem("tr","pwww")
+    $pii2a mp(pii_inst2, ax([prod_pwww], [prod_pwww], prod_pwww), prod_pwww, arg2(head(right(pii_inst2))), [], [prod_pwww])
+    $pii2b mp(pii2a, got_pair_ww, pair_in_ww, arg2(head(right(pii2a))), [prod_pwww], left(got_pair_ww))
+    $pii2c mp(pii2b, ax([mw], [mw], mw), mw, arg2(head(right(pii2b))), left(pii2b), [mw])
+    $got_tr_pwww mp(pii2c, ax([op_tr], [op_tr], op_tr), op_tr, tr_in_pwww, left(pii2c), [op_tr])
+    # [..., op_tr] |- tr∈pwww
+
+    # === C7: Build phi(tr) ===
+    # phi(tr) = ∃mv.mv∈w ∧ ∃nv.∃yv.∃pv. OrdPair(pv,mv,nv) ∧ OrdPair(tr,pv,yv) ∧
+    #           ∃hmv. Recursive(hmv,mv,sf,w) ∧ Apply(hmv,nv,yv)
+    # Witnesses: mv=m, nv=z, yv=m, pv=pair, hmv=hm
+
+    # Innermost: and(Rec(hm,m,sf,w), Apply(hm,z,m))
+    $got_inner mp(mp(and_intro(rec_hm, app_hm_zm, []),
+        got_rec_from_eu, rec_hm, implies(app_hm_zm, and(rec_hm, app_hm_zm)), [], [eu_body]),
+        got_app_hm, app_hm_zm, and(rec_hm, app_hm_zm), [eu_body], [eu_body, emp])
+    # eir hmv=hm:
+    $got_ex_hm eir(got_inner, \hm: and(recursive(hm,"m","sf","w","_"), apply(hm,"z","m","_")),
+        "hm", "hm", left(got_inner))
+
+    # and(OrdPair(tr,pair,m), ∃hm.(...))
+    $ex_hm_body got_ex_hm
+    $got_and_op_tr mp(mp(and_intro(op_tr, head(right(ex_hm_body)), []),
+        ax([op_tr], [op_tr], op_tr), op_tr, implies(head(right(ex_hm_body)), and(op_tr, head(right(ex_hm_body)))), [], [op_tr]),
+        ex_hm_body, head(right(ex_hm_body)), and(op_tr, head(right(ex_hm_body))), [op_tr], left(ex_hm_body))
+
+    # and(OrdPair(pair,m,z), and(OrdPair(tr,pair,m), ∃hm.(...)))
+    $and_ops and(op_pair, head(right(got_and_op_tr)))
+    $got_and_ops mp(mp(and_intro(op_pair, head(right(got_and_op_tr)), []),
+        ax([op_pair], [op_pair], op_pair), op_pair, implies(head(right(got_and_op_tr)), and_ops), [], [op_pair]),
+        got_and_op_tr, head(right(got_and_op_tr)), and_ops, [op_pair], left(got_and_op_tr))
+
+    # eir pv=pair:
+    $got_ex_pv eir(got_and_ops, \pv: and(ordered_pair(pv,"m","z","_"),
+        and(ordered_pair("tr",pv,"m","_"),
+            exists("hm", and(recursive("hm","m","sf","w","_"), apply("hm","z","m","_"))))),
+        "pv", "pair", left(got_and_ops))
+
+    # eir yv=m:
+    $got_ex_yv eir(got_ex_pv, \yv: exists("pv", and(ordered_pair("pv","m","z","_"),
+        and(ordered_pair("tr","pv",yv,"_"),
+            exists("hm", and(recursive("hm","m","sf","w","_"), apply("hm","z",yv,"_")))))),
+        "yv", "m", left(got_ex_pv))
+
+    # eir nv=z:
+    $got_ex_nv eir(got_ex_yv, \nv: exists("yv", exists("pv", and(ordered_pair("pv","m",nv,"_"),
+        and(ordered_pair("tr","pv","yv","_"),
+            exists("hm", and(recursive("hm","m","sf","w","_"), apply("hm",nv,"yv","_"))))))),
+        "nv", "z", left(got_ex_yv))
+
+    # and(m∈w, ∃nv.(...))
+    $got_and_mw mp(mp(and_intro(mw, head(right(got_ex_nv)), []),
+        ax([mw], [mw], mw), mw, implies(head(right(got_ex_nv)), and(mw, head(right(got_ex_nv)))), [], [mw]),
+        got_ex_nv, head(right(got_ex_nv)), and(mw, head(right(got_ex_nv))), [mw], left(got_ex_nv))
+
+    # eir mv=m → phi(tr):
+    $phi_tr phi("tr","_")
+    $got_phi eir(got_and_mw, \mv: and(mem(mv,"w"),
+        exists("nv", exists("yv", exists("pv", and(ordered_pair("pv",mv,"nv","_"),
+            and(ordered_pair("tr","pv","yv","_"),
+                exists("hm", and(recursive("hm",mv,"sf","w","_"), apply("hm","nv","yv","_"))))))))),
+        "mv", "m", left(got_and_mw))
+    # [...] |- phi(tr)
+
+    # === C8: char_h backward → tr∈h ===
+    # and(tr∈pwww, phi(tr))
+    $and_bp and(tr_in_pwww, phi_tr)
+    $got_and_bp mp(mp(and_intro(tr_in_pwww, phi_tr, []),
+        got_tr_pwww, tr_in_pwww, implies(phi_tr, and_bp), [], left(got_tr_pwww)),
+        got_phi, phi_tr, and_bp, left(got_tr_pwww), left(got_phi))
+
+    # fl char_h at tr: iff(tr∈h, and(tr∈pwww, phi(tr)))
+    $tr_h mem("tr","h")
+    $iff_tr iff(tr_h, and_bp)
+    $got_iff_tr fl(ax([iff_tr], [iff_tr], iff_tr), [char_h], [iff_tr], char_h, "tr")
+    $got_tr_h mp(mp(iff_elim_right(tr_h, and_bp, []),
+        got_iff_tr, iff_tr, implies(and_bp, tr_h), [], [char_h]),
+        got_and_bp, and_bp, tr_h, [char_h], left(got_and_bp))
+    # [..., char_h] |- tr∈h
+
+    # === C9: Apply(h,pair,m) via apply_intro ===
+    $_ai head(right(apply_intro))
+    $_ai_b \p: \f: \x: \y: implies(ordered_pair(p,x,y,"_"), implies(mem(p,f), apply(f,x,y,"_")))
+    $ai_inst apply_thm(apply_intro, _ai, ["tr","h","pair","m"], ["p","f","x","y"], _ai_b, [])
+    $ai1 mp(ai_inst, ax([op_tr], [op_tr], op_tr), op_tr, implies(tr_h, app_goal), [], [op_tr])
+    $got_app mp(ai1, got_tr_h, tr_h, app_goal, [op_tr], left(got_tr_h))
+    # [..., op_tr, char_h] |- Apply(h,pair,m)
+
+    # === C10: Eliminate hm (eel from eu_body, cut with got_eu) ===
+    $got_app2 eel(got_app, \hm: and(recursive(hm,"m","sf","w","_"),
+        forall("y", implies(recursive("y","m","sf","w","_"), eqv(hm,"y","_")))),
+        "hm", "hm", left(got_app), app_goal)
+    $got_app3 cut_c(got_eu, got_app2, eu, left(got_eu), left(got_app2), app_goal)
+
+    # === C11: Eliminate tr (eel from op_tr, cut with ordpair_exists) ===
+    $got_app4 eel(got_app3, \tr: ordered_pair(tr,"pair","m","_"),
+        "tr", "tr", left(got_app3), app_goal)
+    $ex_tr exists("tr", op_tr)
+    $got_app5 cut_c(got_ex_tr, got_app4, ex_tr, left(got_ex_tr), left(got_app4), app_goal)
+
+    # === C12: Close quantifiers ===
+    # ir op_pair, fr pair
+    $imp_pair implies(op_pair, app_goal)
+    $got_ip ir(got_app5, remove(same, op_pair, left(got_app5)), [imp_pair], imp_pair)
+    $got_fp fr(got_ip, left(got_ip), [forall("pair", imp_pair)], forall("pair", imp_pair), "pair")
+
+    # ir emp, fr z
+    $fa_pair forall("pair", imp_pair)
+    $imp_emp implies(emp, fa_pair)
+    $got_ie ir(got_fp, remove(same, emp, left(got_fp)), [imp_emp], imp_emp)
+    $got_fz fr(got_ie, left(got_ie), [forall("z", imp_emp)], forall("z", imp_emp), "z")
+
+    # ir mw, fr m
+    $fa_z forall("z", imp_emp)
+    $imp_mw implies(mw, fa_z)
+    $got_im ir(got_fz, remove(same, mw, left(got_fz)), [imp_mw], imp_mw)
+    $base_result forall("m", imp_mw)
+    $got_base fr(got_im, left(got_im), [base_result], base_result, "m")
+
+    # Discharge char_h, prod_pwww, prod_ww, sf_all, om:
+    $imp5 implies(om, base_result)
+    $imp4 implies(sf_all, imp5)
+    $imp3 implies(prod_pwww, imp4)
+    $imp2 implies(prod_ww, imp3)
+    $top implies(char_h, imp2)
+    $t1 ir(got_base, remove(same, om, left(got_base)), [imp5], imp5)
+    $t2 ir(t1, remove(same, sf_all, left(t1)), [imp4], imp4)
+    $t3 ir(t2, remove(same, prod_pwww, left(t2)), [imp3], imp3)
+    $t4 ir(t3, remove(same, prod_ww, left(t3)), [imp2], imp2)
+    $t5 ir(t4, remove(same, char_h, left(t4)), [top], top)
+    close(t5, left(t5), [top], ["w","sf","pwww","pww","h"])
+}
