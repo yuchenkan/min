@@ -111,6 +111,18 @@ $pf_sv_top implies(pf_char_fwd, implies(sfp_all, implies(omega("w","_"), pf_sv_b
 $_ qed(pf_single_valued, forall("h", forall("sf", forall("w", pf_sv_top))))
 $_ print("pf_single_valued ok")
 
+from theorems.arithmetic.plus.pf_backward import pf_backward
+$pf_bwd_body forall("m", implies(mem("m","w"),
+    forall("n", implies(mem("n","w"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"),
+            forall("hm", implies(recursive("hm","m","sf","w","_"),
+                forall("yv", implies(apply("hm","n","yv","_"),
+                    apply("h","pair","yv","_")))))))))))
+$pf_bwd_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
+    implies(sfp_all, implies(omega("w","_"), pf_bwd_body)))))
+$_ qed(pf_backward, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_bwd_top))))))
+$_ print("pf_backward ok")
+
 from theorems.arithmetic.plus.pf_step import pf_step
 $pf_step_body forall("m", implies(mem("m","w"),
     forall("n", implies(mem("n","w"),
