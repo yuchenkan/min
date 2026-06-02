@@ -1,0 +1,214 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax
+from vocab.sets import successor, ordered_pair
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import recursive
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.sets.kuratowski import kuratowski
+from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+
+# pf_forward: From Apply(h,key,val), extract the phi components.
+# char_fwd(h) → Apply(h,key,val) →
+#   ∃mv. mv∈w ∧ ∃nv. OrdPair(key,mv,nv) ∧ ∃hm. Recursive(hm,mv,sf,w) ∧ Apply(hm,nv,val)
+
+$pf_forward {
+    $phi \xv np: exists(add(np,"m"), and(mem(add(np,"m"),"w"),
+        exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+            and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+            and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf","w",add(np,"_")),
+                    apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
+
+    $char_fwd forall("xv", implies(mem("xv","h"), phi("xv","_")))
+    $app_hkv apply("h","key","val","_")
+
+    # Result formula:
+    $result_body \mv: and(mem(mv,"w"), exists("nv", and(ordered_pair("key",mv,"nv","_"),
+        exists("hm", and(recursive("hm",mv,"sf","w","_"), apply("hm","nv","val","_"))))))
+    $result exists("mv", result_body("mv"))
+
+    # === Open Apply: ∃qv. OrdPair(qv,key,val) ∧ qv∈h ===
+    $op_qv ordered_pair("qv","key","val","_")
+    $qv_h mem("qv","h")
+    $and_op_qv and(op_qv, qv_h)
+
+    # === char_fwd at qv: qv∈h → phi(qv) ===
+    $phi_qv phi("qv","_")
+    $got_qv_h mp(and_elim_right(op_qv, qv_h, []),
+        ax([and_op_qv], [and_op_qv], and_op_qv), and_op_qv, qv_h, [], [and_op_qv])
+    $got_phi mp(apply_thm(ax([char_fwd], [char_fwd], char_fwd), char_fwd, ["qv"], ["qv"],
+        \xv: implies(mem(xv,"h"), phi(xv,"_")), [char_fwd]),
+        got_qv_h, qv_h, phi_qv, [char_fwd], [and_op_qv])
+
+    # === Open phi existentials one by one, derive result, close back ===
+    # phi(qv) = ∃mv.and(mvw, ∃nv.∃yv.∃pv.and(op_pv, and(op_qv_py, ∃hm.and(rec,app))))
+    # Define the inner body names:
+    $mvw mem("mv","w")
+    $op_pv ordered_pair("pv","mv","nv","_")
+    $op_qv_py ordered_pair("qv","pv","yv","_")
+    $rec_hm recursive("hm","mv","sf","w","_")
+    $app_hm apply("hm","nv","yv","_")
+    $and_rec_app and(rec_hm, app_hm)
+    $and_inner and(op_qv_py, exists("hm", and_rec_app))
+    $body_pv and(op_pv, and_inner)
+
+    # --- Work inside all existentials ---
+    # Assume body_pv on left, extract pieces:
+    $got_op_pv mp(and_elim_left(op_pv, and_inner, []),
+        ax([body_pv], [body_pv], body_pv), body_pv, op_pv, [], [body_pv])
+    $got_and_inner mp(and_elim_right(op_pv, and_inner, []),
+        ax([body_pv], [body_pv], body_pv), body_pv, and_inner, [], [body_pv])
+    $got_op_qv_py mp(and_elim_left(op_qv_py, exists("hm", and_rec_app), []),
+        got_and_inner, and_inner, op_qv_py, [], [body_pv])
+    $got_ex_hm mp(and_elim_right(op_qv_py, exists("hm", and_rec_app), []),
+        got_and_inner, and_inner, exists("hm", and_rec_app), [], [body_pv])
+
+    # Open ∃hm: assume and_rec_app on left
+    $got_rec mp(and_elim_left(rec_hm, app_hm, []),
+        ax([and_rec_app], [and_rec_app], and_rec_app), and_rec_app, rec_hm, [], [and_rec_app])
+    $got_app_hm mp(and_elim_right(rec_hm, app_hm, []),
+        ax([and_rec_app], [and_rec_app], and_rec_app), and_rec_app, app_hm, [], [and_rec_app])
+    $got_op mp(and_elim_left(op_qv, qv_h, []),
+        ax([and_op_qv], [and_op_qv], and_op_qv), and_op_qv, op_qv, [], [and_op_qv])
+
+    # === Kuratowski: OrdPair(qv,key,val) ∧ OrdPair(qv,pv,yv) → eqv(key,pv) ∧ eqv(val,yv) ===
+    $_er head(right(eqv_reflexive))
+    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["qv"], ["qv"], \a: eqv(a,a,"_"), [])
+
+    $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
+        implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"), eqv(b,d,"_")))))
+    $ku_r forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
+        _ku_b("t1")("t2")("a")("b")("c")("d")))))))
+    $ku_thm wr(kuratowski, left(kuratowski), [ku_r], ku_r)
+    $ku_inst apply_thm(ku_thm, ku_r, ["qv","qv","key","val","pv","yv"],
+        ["t1","t2","a","b","c","d"], _ku_b, left(kuratowski))
+    $ku1 mp(ku_inst, got_op, op_qv, arg2(head(right(ku_inst))), left(ku_inst), [and_op_qv])
+    $ku2 mp(ku1, got_op_qv_py, op_qv_py, arg2(head(right(ku1))), left(ku1), [body_pv])
+    $eq_goal and(eqv("key","pv","_"), eqv("val","yv","_"))
+    $got_eq mp(ku2, got_eqv_qq, eqv("qv","qv","_"), eq_goal, left(ku2), [])
+    $eqv_key_pv eqv("key","pv","_")
+    $eqv_val_yv eqv("val","yv","_")
+    $got_eqv_key mp(and_elim_left(eqv_key_pv, eqv_val_yv, []), got_eq, eq_goal, eqv_key_pv, [], left(got_eq))
+    $got_eqv_val mp(and_elim_right(eqv_key_pv, eqv_val_yv, []), got_eq, eq_goal, eqv_val_yv, [], left(got_eq))
+
+    # === Transfer: eqv(key,pv) → OrdPair(pv,mv,nv) → OrdPair(key,mv,nv) ===
+    $_eot head(right(eqv_ordpair_transfer))
+    $_eot_b \z: \t: \x: \y: implies(eqv(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
+    $got_op_key mp(mp(apply_thm(eqv_ordpair_transfer, _eot, ["key","pv","mv","nv"],
+        ["z","t","x","y"], _eot_b, []),
+        got_eqv_key, eqv_key_pv, implies(op_pv, ordered_pair("key","mv","nv","_")),
+        [], left(got_eqv_key)),
+        got_op_pv, op_pv, ordered_pair("key","mv","nv","_"),
+        left(got_eqv_key), [body_pv])
+
+    # === Transfer: eqv(yv,val) → Apply(hm,nv,yv) → Apply(hm,nv,val) ===
+    $_es head(right(eqv_symmetric))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eqv_yv_val mp(apply_thm(eqv_symmetric, _es, ["val","yv"], ["a","b"], _es_b, []),
+        got_eqv_val, eqv_val_yv, eqv("yv","val","_"), [], left(got_eqv_val))
+
+    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $avt_r forall("pf", forall("px", forall("py", forall("py2", _avt_b("pf")("px")("py")("py2")))))
+    $avt_thm wr(apply_val_transfer, [], [avt_r], avt_r)
+    $app_hm_val apply("hm","nv","val","_")
+    $got_app_val mp(mp(apply_thm(avt_thm, avt_r, ["hm","nv","yv","val"],
+        ["pf","px","py","py2"], _avt_b, []),
+        got_eqv_yv_val, eqv("yv","val","_"), implies(app_hm, app_hm_val), [], left(got_eqv_yv_val)),
+        got_app_hm, app_hm, app_hm_val, left(got_eqv_yv_val), [and_rec_app])
+
+    # === Package result ===
+    $op_key ordered_pair("key","mv","nv","_")
+    # and(rec_hm, app_hm_val)
+    $got_ra mp(mp(and_intro(rec_hm, app_hm_val, []),
+        got_rec, rec_hm, implies(app_hm_val, and(rec_hm, app_hm_val)), [], [and_rec_app]),
+        got_app_val, app_hm_val, and(rec_hm, app_hm_val), [and_rec_app], left(got_app_val))
+    # eir hm → ∃hm.and(rec,app_val)
+    $got_ex_hm2 eir(got_ra, \hm: and(recursive(hm,"mv","sf","w","_"), apply(hm,"nv","val","_")),
+        "hm", "hm", left(got_ra))
+    $ex_hm_val head(right(got_ex_hm2))
+    # and(op_key, ∃hm.(...))
+    $got_and_op mp(mp(and_intro(op_key, ex_hm_val, []),
+        got_op_key, op_key, implies(ex_hm_val, and(op_key, ex_hm_val)), [], left(got_op_key)),
+        got_ex_hm2, ex_hm_val, and(op_key, ex_hm_val), left(got_op_key), left(got_ex_hm2))
+    # eir nv
+    $got_ex_nv eir(got_and_op, \nv: and(ordered_pair("key","mv",nv,"_"),
+        exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm",nv,"val","_")))),
+        "nv", "nv", left(got_and_op))
+    $ex_nv head(right(got_ex_nv))
+    # and(mvw, ∃nv.(...))
+    $got_and_mw mp(mp(and_intro(mvw, ex_nv, []),
+        ax([mvw], [mvw], mvw), mvw, implies(ex_nv, and(mvw, ex_nv)), [], [mvw]),
+        got_ex_nv, ex_nv, and(mvw, ex_nv), [mvw], left(got_ex_nv))
+    # eir mv
+    $got_result eir(got_and_mw, result_body, "mv", "mv", left(got_and_mw))
+    # left has: and_rec_app, body_pv, mvw, and_op_qv, char_fwd, pairing_ax
+    # right: result
+
+    # === Close phi existentials (eel from inside out) ===
+    # eel hm from and_rec_app (only formula with hm free):
+    $cur eel(got_result, \hm: and(recursive(hm,"mv","sf","w","_"), apply(hm,"nv","yv","_")),
+        "hm", "hm", left(got_result), result)
+    # cut ∃hm.and_rec_app with got_ex_hm:
+    $cur cut_c(got_ex_hm, cur, exists("hm", and_rec_app), left(got_ex_hm), left(cur), result)
+    # left now: body_pv, mvw, and_op_qv, char_fwd, pairing_ax
+
+    # eel pv from body_pv (only formula with pv free):
+    $cur eel(cur, \pv: and(ordered_pair(pv,"mv","nv","_"),
+        and(ordered_pair("qv",pv,"yv","_"),
+            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv","yv","_"))))),
+        "pv", "pv", left(cur), result)
+    # eel yv: exists("pv",...) has yv free. Also mvw and and_op_qv don't have yv.
+    $cur eel(cur, \yv: exists("pv", and(ordered_pair("pv","mv","nv","_"),
+        and(ordered_pair("qv","pv",yv,"_"),
+            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv",yv,"_")))))),
+        "yv", "yv", left(cur), result)
+    # eel nv:
+    $cur eel(cur, \nv: exists("yv", exists("pv", and(ordered_pair("pv","mv",nv,"_"),
+        and(ordered_pair("qv","pv","yv","_"),
+            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm",nv,"yv","_"))))))),
+        "nv", "nv", left(cur), result)
+    # Left has: mvw, ∃nv..., and_op_qv, char_fwd, pairing_ax (mvw and ∃nv separate)
+    # Recombine mvw and ∃nv... into and(mvw, ∃nv...) = phi body for eel mv:
+    $ex_nv_body exists("nv", exists("yv", exists("pv",
+        and(ordered_pair("pv","mv","nv","_"),
+        and(ordered_pair("qv","pv","yv","_"),
+            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv","yv","_"))))))))
+    $and_mv_body and(mvw, ex_nv_body)
+    # Source mvw from and: [and_mv_body] |- mvw
+    $got_mvw_from mp(and_elim_left(mvw, ex_nv_body, []),
+        ax([and_mv_body], [and_mv_body], and_mv_body), and_mv_body, mvw, [], [and_mv_body])
+    # Source ∃nv from and: [and_mv_body] |- ∃nv...
+    $got_exn_from mp(and_elim_right(mvw, ex_nv_body, []),
+        ax([and_mv_body], [and_mv_body], and_mv_body), and_mv_body, ex_nv_body, [], [and_mv_body])
+    # cut mvw → sourced from and_mv_body:
+    $cur cut_c(got_mvw_from, cur, mvw, [and_mv_body], left(cur), result)
+    # cut ∃nv... → sourced from and_mv_body:
+    $cur cut_c(got_exn_from, cur, ex_nv_body, [and_mv_body], left(cur), result)
+    # Now left has: and_mv_body (with mv free), and_op_qv, char_fwd, pairing_ax
+    # eel mv:
+    $cur eel(cur, \mv: and(mem(mv,"w"), exists("nv", exists("yv", exists("pv",
+        and(ordered_pair("pv",mv,"nv","_"),
+        and(ordered_pair("qv","pv","yv","_"),
+            exists("hm", and(recursive("hm",mv,"sf","w","_"), apply("hm","nv","yv","_"))))))))),
+        "mv", "mv", left(cur), result)
+    # cut with phi_qv:
+    $cur cut_c(got_phi, cur, phi_qv, left(got_phi), left(cur), result)
+
+    # eel qv from and_op_qv:
+    $cur eel(cur, \qv: and(ordered_pair(qv,"key","val","_"), mem(qv,"h")),
+        "qv", "qv", left(cur), result)
+
+    # Close: char_fwd → Apply(h,key,val) → result
+    $imp2 implies(app_hkv, result)
+    $top implies(char_fwd, imp2)
+    $r1 ir(cur, remove(same, app_hkv, left(cur)), [imp2], imp2)
+    $r2 ir(r1, remove(same, char_fwd, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["val","key","w","sf","h"])
+}

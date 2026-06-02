@@ -1,0 +1,82 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right
+from vocab.sets import successor, ordered_pair
+from vocab.functions import apply, function, product, relation
+from vocab.omega import omega
+from vocab.recursion import recursive
+from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# pf_relation: char_h ∧ Product(pwww,pww,w) → Relation(h)
+# From z∈h → char_h forward → z∈pwww → Product forward → ∃a.∃b.OrdPair(z,a,b)
+
+$pf_relation {
+    $phi \xv np: exists(add(np,"m"), and(mem(add(np,"m"),"w"),
+        exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+            and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+            and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf","w",add(np,"_")),
+                    apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
+
+    $prod_pwww product("pwww","pww","w","_")
+    $char_h forall("xv", iff(mem("xv","h"), and(mem("xv","pwww"), phi("xv","_"))))
+    $rel_h relation("h","_")
+
+    # Work with z∈h on left:
+    $zh mem("zr","h")
+    $phi_zr phi("zr","_")
+    $zr_pwww mem("zr","pwww")
+    $and_sep and(zr_pwww, phi_zr)
+
+    # char_h forward: z∈h → And(z∈pwww, phi(z))
+    $iff_zr iff(zh, and_sep)
+    $got_iff fl(ax([iff_zr], [iff_zr], iff_zr), [char_h], [iff_zr], char_h, "zr")
+    $got_and mp(mp(iff_elim_left(zh, and_sep, []),
+        got_iff, iff_zr, implies(zh, and_sep), [], [char_h]),
+        ax([zh], [zh], zh), zh, and_sep, [char_h], [zh])
+
+    # Extract z∈pwww:
+    $got_zr_pwww mp(and_elim_left(zr_pwww, phi_zr, []),
+        got_and, and_sep, zr_pwww, [], [char_h, zh])
+
+    # Product(pwww,pww,w) forward at zr: z∈pwww → ∃av.∃bv.(av∈pww ∧ bv∈w ∧ OrdPair(zr,av,bv))
+    $ex_body \av bv: and(and(mem(av,"pww"), mem(bv,"w")), ordered_pair("zr",av,bv,"_"))
+    $ex_prod exists("av", exists("bv", ex_body("av","bv")))
+    $iff_prod iff(zr_pwww, ex_prod)
+    $got_iff_prod fl(ax([iff_prod], [iff_prod], iff_prod), [prod_pwww], [iff_prod], prod_pwww, "zr")
+    $got_ex_prod mp(mp(iff_elim_left(zr_pwww, ex_prod, []),
+        got_iff_prod, iff_prod, implies(zr_pwww, ex_prod), [], [prod_pwww]),
+        got_zr_pwww, zr_pwww, ex_prod, [prod_pwww], [char_h, zh])
+    # [prod_pwww, char_h, zh] |- ∃av.∃bv.(...)
+
+    # Extract OrdPair(zr,av,bv) from inner And:
+    $inner ex_body("av","bv")
+    $and_mem and(mem("av","pww"), mem("bv","w"))
+    $op_zr ordered_pair("zr","av","bv","_")
+    $got_op mp(and_elim_right(and_mem, op_zr, []),
+        ax([inner], [inner], inner), inner, op_zr, [], [inner])
+
+    # eir xr=av, yr=bv: ∃xr.∃yr.OrdPair(zr,xr,yr)
+    $got_ey eir(got_op, \yr: ordered_pair("zr","av",yr,"_"), "yr", "bv", [inner])
+    $got_exy eir(got_ey, \xr: exists("yr", ordered_pair("zr",xr,"yr","_")), "xr", "av", [inner])
+    $concl exists("xr", exists("yr", ordered_pair("zr","xr","yr","_")))
+
+    # eel bv, av from product existentials:
+    $got1 eel(got_exy, \bv: ex_body("av",bv), "bv", "bv", [inner], concl)
+    $got2 eel(got1, \av: exists("bv", ex_body(av,"bv")), "av", "av", left(got1), concl)
+    $got3 cut_c(got_ex_prod, got2, ex_prod, left(got_ex_prod), left(got2), concl)
+    # [prod_pwww, char_h, zh] |- ∃xr.∃yr.OrdPair(zr,xr,yr)
+
+    # ir zh, fr zr → Relation(h)
+    $imp_zh implies(zh, concl)
+    $got_ir ir(got3, remove(same, zh, left(got3)), [imp_zh], imp_zh)
+    $got_fr fr(got_ir, left(got_ir), [rel_h], rel_h, "zr")
+
+    # Close: char_h → prod_pwww → Relation(h)
+    $imp2 implies(prod_pwww, rel_h)
+    $top implies(char_h, imp2)
+    $r1 ir(got_fr, remove(same, prod_pwww, left(got_fr)), [imp2], imp2)
+    $r2 ir(r1, remove(same, char_h, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["w","sf","pwww","pww","h"])
+}

@@ -91,4 +91,17 @@ $pf_base_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(prod
 $_ qed(pf_base, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_base_top))))))
 $_ print("pf_base ok")
 
+from theorems.arithmetic.plus.pf_relation import pf_relation
+$pf_rel_top implies(pf_char_h, implies(product("pwww","pww","w","_"), relation("h","_")))
+$_ qed(pf_relation, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_rel_top))))))
+$_ print("pf_relation ok")
+
+from theorems.arithmetic.plus.pf_forward import pf_forward
+$pf_char_fwd forall("xv", implies(mem("xv","h"), pf_phi("xv","_")))
+$pf_fwd_result \key val: exists("mv", and(mem("mv","w"), exists("nv",
+    and(ordered_pair(key,"mv","nv","_"), exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv",val,"_")))))))
+$pf_fwd_top implies(pf_char_fwd, implies(apply("h","key","val","_"), pf_fwd_result("key","val")))
+$_ qed(pf_forward, forall("h", forall("sf", forall("w", forall("key", forall("val", pf_fwd_top))))))
+$_ print("pf_forward ok")
+
 $ok true
