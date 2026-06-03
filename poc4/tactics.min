@@ -176,8 +176,7 @@ $eir \prf body_fn x witness ctx: {
     $ex neg(fa_neg)
     $s1 ?(contains(same, neg_body_inst, ctx), {
         # neg_body_inst already on left. Cut body_inst from right using contradiction.
-        $nr_r ?(same(neg_body_inst, body_inst), [body_inst], [neg_body_inst, body_inst])
-        $contra nr(ax([neg_body_inst], [neg_body_inst], neg_body_inst), [], nr_r, body_inst)
+        $contra nr(ax([neg_body_inst], [neg_body_inst], neg_body_inst), [], [neg_body_inst, body_inst], body_inst)
         $contra_w wl_all(contra, [], [neg_body_inst, body_inst], ctx)
         cut(contra_w, prf, ctx, [], body_inst)
     }, nl(prf, add(ctx, [neg_body_inst]), [], neg_body_inst))
@@ -193,10 +192,8 @@ $eel \prf pred_fn x y ctx D: {
     $fa_neg forall(x, neg(pred_fn(x)))
     $ex neg(fa_neg)
     $ctx_only remove(same, pred_y, ctx)
-    $nr_right ?(same(neg(pred_y), D), [D], [neg(pred_y), D])
-    $s1 nr(prf, ctx_only, nr_right, neg(pred_y))
-    $fr_right ?(same(fa_neg, D), [D], [fa_neg, D])
-    $s2 fr(s1, ctx_only, fr_right, fa_neg, y)
+    $s1 nr(prf, ctx_only, [neg(pred_y), D], neg(pred_y))
+    $s2 fr(s1, ctx_only, [fa_neg, D], fa_neg, y)
     ?(contains(same, ex, ctx_only), {
         # ex (= ¬fa_neg) already on ctx_only. Cut fa_neg from right using contradiction.
         $contra nl(ax([fa_neg], [fa_neg], fa_neg), [fa_neg, ex], [], ex)
