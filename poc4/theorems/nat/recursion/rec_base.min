@@ -1,10 +1,10 @@
 from core.derived import mem, implies, forall, and, exists, eqv, left, right
-from vocab.sets import empty, singleton, ordered_pair
+from vocab.sets import singleton, ordered_pair
 from vocab.functions import apply, function
 from vocab.nat.nat import num
 from tactics import ax, fr, ir, mp, apply_thm, eel, eir, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
-from theorems.sets.empty_unique import empty_unique
+from theorems.nat.nat.num_unique import num_unique
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.singleton_exists import singleton_exists
 from theorems.sets.singleton_function import singleton_function
@@ -38,17 +38,18 @@ $rec_base {
     $app_g_e apply("g", "e", "a", "_")
     $eqv_e0e eqv("e0", "e", "_")
 
-    $_eu head(right(empty_unique))
-    $got_eqv mp(mp(apply_thm(empty_unique, _eu, ["e0", "e"], ["e0", "b"],
-        \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_"))), []),
-        ax([emp0], [emp0], emp0), emp0, implies(emp_e, eqv_e0e), [], [emp0]),
-        ax([emp_e], [emp_e], emp_e), emp_e, eqv_e0e, [emp0], [emp_e])
+    $nu0 num_unique(0)
+    $_nu head(right(nu0))
+    $nu_inst apply_thm(nu0, _nu, ["e0", "e"], ["n1", "n2"],
+        \a: \b: implies(num(a,0,"_"), implies(num(b,0,"_"), eqv(a,b,"_"))), left(nu0))
+    $nu_mp1 mp(nu_inst, ax([emp0], [emp0], emp0), emp0, implies(emp_e, eqv_e0e), left(nu_inst), [emp0])
+    $got_eqv mp(nu_mp1, ax([emp_e], [emp_e], emp_e), emp_e, eqv_e0e, left(nu_mp1), [emp_e])
 
     $_akt head(right(apply_key_transfer))
-    $got_app_e mp(mp(apply_thm(apply_key_transfer, _akt, ["g", "e0", "e", "a"], ["g", "x", "x2", "y"],
-        \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_"))), []),
-        got_eqv, eqv_e0e, implies(app_g_e0, app_g_e), [], [emp0, emp_e]),
-        got_app, app_g_e0, app_g_e, [emp0, emp_e], left(got_app))
+    $akt_inst apply_thm(apply_key_transfer, _akt, ["g", "e0", "e", "a"], ["g", "x", "x2", "y"],
+        \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_"))), [])
+    $akt_mp1 mp(akt_inst, got_eqv, eqv_e0e, implies(app_g_e0, app_g_e), left(akt_inst), left(got_eqv))
+    $got_app_e mp(akt_mp1, got_app, app_g_e0, app_g_e, left(akt_mp1), left(got_app))
 
     $imp_ea implies(emp_e, app_g_e)
     $got_imp ir(got_app_e, remove(same, emp_e, left(got_app_e)), [imp_ea], imp_ea)
