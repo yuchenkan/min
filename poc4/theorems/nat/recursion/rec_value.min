@@ -1,12 +1,12 @@
 from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg1, arg2
 from vocab.sets import empty, successor
 from vocab.functions import apply, function
-from vocab.omega import omega
-from vocab.recursion import rec_approx
+from vocab.nat.omega import omega
+from vocab.nat.recursion import rec_approx
 from tactics import ax, fl, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.recursion.rec_agree import rec_agree
+from theorems.nat.recursion.rec_agree import rec_agree
 
 # |- func(f) -> omega(w) -> n∈w ->
 #    (∃v. ra(v)∧app(v,n,y1)) -> (∃v. ra(v)∧app(v,n,y2)) -> eqv(y1,y2)
@@ -15,8 +15,8 @@ $rec_value {
     $func_f function("f","_")
     $om omega("w","_")
     $nw mem("n","w")
-    $ra1 rec_approx("v1","a","f","w","_")
-    $ra2 rec_approx("v2","a","f","w","_")
+    $ra1 rec_approx("v1","a","f","_")
+    $ra2 rec_approx("v2","a","f","_")
     $app1 apply("v1","n","y1","_")
     $app2 apply("v2","n","y2","_")
     $eqv_y eqv("y1","y2","_")
@@ -28,8 +28,8 @@ $rec_value {
 
     # Instantiate rec_agree at w,f,a:
     $pred \w2 n p: forall(add(p,"v1"), forall(add(p,"v2"), forall(add(p,"y1"), forall(add(p,"y2"),
-        implies(rec_approx(add(p,"v1"),"a","f",w2,add(p,"_")),
-        implies(rec_approx(add(p,"v2"),"a","f",w2,add(p,"_")),
+        implies(rec_approx(add(p,"v1"),"a","f",add(p,"_")),
+        implies(rec_approx(add(p,"v2"),"a","f",add(p,"_")),
         implies(apply(add(p,"v1"),n,add(p,"y1"),add(p,"_")),
         implies(apply(add(p,"v2"),n,add(p,"y2"),add(p,"_")),
             eqv(add(p,"y1"),add(p,"y2"),add(p,"_"))))))))))
@@ -45,8 +45,8 @@ $rec_value {
     # Instantiate at n, mp n∈w:
     $fa_n head(right(ra3b))
     $pred_body \n: implies(mem(n,"w"), forall("v1", forall("v2", forall("y1", forall("y2",
-        implies(rec_approx("v1","a","f","w","_"),
-        implies(rec_approx("v2","a","f","w","_"),
+        implies(rec_approx("v1","a","f","_"),
+        implies(rec_approx("v2","a","f","_"),
         implies(apply("v1",n,"y1","_"),
         implies(apply("v2",n,"y2","_"),
             eqv("y1","y2","_"))))))))))
@@ -54,8 +54,8 @@ $rec_value {
     $got_nw mp(got_n, ax([nw], [nw], nw), nw, pred("w","n","_"), left(got_n), [nw])
 
     # Instantiate v1,v2,y1,y2:
-    $inner_body \v1: \v2: \y1: \y2: implies(rec_approx(v1,"a","f","w","_"),
-        implies(rec_approx(v2,"a","f","w","_"),
+    $inner_body \v1: \v2: \y1: \y2: implies(rec_approx(v1,"a","f","_"),
+        implies(rec_approx(v2,"a","f","_"),
         implies(apply(v1,"n",y1,"_"),
         implies(apply(v2,"n",y2,"_"), eqv(y1,y2,"_")))))
     $got_inner apply_thm(got_nw, head(right(got_nw)),
@@ -83,11 +83,11 @@ $rec_value {
     $g_d cut_c(got_app2, g_c, app2, [and2], left(g_c), eqv_y)
 
     # eel v1 from and1, v2 from and2:
-    $ex1 exists("v1", and(rec_approx("v1","a","f","w","_"), apply("v1","n","y1","_")))
-    $ex2 exists("v2", and(rec_approx("v2","a","f","w","_"), apply("v2","n","y2","_")))
-    $g_e eel(g_d, \v1: and(rec_approx(v1,"a","f","w","_"), apply(v1,"n","y1","_")),
+    $ex1 exists("v1", and(rec_approx("v1","a","f","_"), apply("v1","n","y1","_")))
+    $ex2 exists("v2", and(rec_approx("v2","a","f","_"), apply("v2","n","y2","_")))
+    $g_e eel(g_d, \v1: and(rec_approx(v1,"a","f","_"), apply(v1,"n","y1","_")),
         "v1", "v1", left(g_d), eqv_y)
-    $g_f eel(g_e, \v2: and(rec_approx(v2,"a","f","w","_"), apply(v2,"n","y2","_")),
+    $g_f eel(g_e, \v2: and(rec_approx(v2,"a","f","_"), apply(v2,"n","y2","_")),
         "v2", "v2", left(g_e), eqv_y)
 
     # Close: ir ex2, ir ex1, ir nw, ir om, fr y2, y1, n, w, f, a
