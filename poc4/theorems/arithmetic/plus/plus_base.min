@@ -2,64 +2,79 @@ from core.derived import mem, implies, forall, and, iff, exists, eqv, left, righ
 from vocab.sets import empty, successor, ordered_pair, product
 from vocab.functions import apply, function, domain
 from vocab.omega import omega
+from vocab.arithmetic.nat import nat, num
 from vocab.arithmetic.plus import plus_func, plus
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 
-# plus_base: m∈w → Empty(z) → Plus(m,z,m)
-# Plus(m,z,m) = ∀w.Omega(w) → ∀h.PlusFunc(h,w) → ∀pair.OrdPair(pair,m,z) → Apply(h,pair,m)
+# plus_base: ∀m,z. Nat(m) → Num(z,0) → Plus(m,z,m)
+# i.e. m + 0 = m for any natural number m.
 
 $plus_base {
-    $om omega("w","_")
-    $pf plus_func("h","w","_")
-    $mw mem("m","w")
-    $emp empty("z","_")
-    $op ordered_pair("pair","m","z","_")
-    $app_goal apply("h","pair","m","_")
+    $nat_m nat("m","_")
+    $num_z num("z",0,"_")
+    $plus_mzm plus("m","z","m","_")
 
-    # Extract base from PlusFunc(h,w) = And(func, And(dom_eq, And(base, step)))
-    $func_h function("h","_")
-    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eqv("d","prod","_")))))
-    $base forall("m", implies(mem("m","w"), forall("z", implies(empty("z","_"),
-        forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_")))))))
-    $step forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"),
-        forall("pair", implies(ordered_pair("pair","m","n","_"), forall("p", implies(apply("h","pair","p","_"),
-            forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"),
-                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","sp","_")))))))))))))))
+    # Plus(m,z,m) = ∀_w. Omega(_w) → ∀_h. PlusFunc(_h,_w) → ∀_pair. OrdPair(_pair,m,z) → Apply(_h,_pair,m)
+    # Assume Omega(_w), PlusFunc(_h,_w), OrdPair(_pair,m,z). Need Apply(_h,_pair,m).
+    # From Nat(m): ∀w.Omega(w)→m∈w. Inst at _w, mp Omega(_w) → m∈_w.
+    # From PlusFunc base: m∈_w → Empty(z) → OrdPair(_pair,m,z) → Apply(_h,_pair,m).
+    # Num(z,0) = Empty(z,"__"). PlusFunc base uses Empty(z,"_"). Alpha-equiv.
+
+    $ow omega("_w","__")
+    $pf plus_func("_h","_w","__")
+    $op ordered_pair("_pair","m","z","__")
+    $app_goal apply("_h","_pair","m","__")
+    $mw mem("m","_w")
+
+    # Nat(m) at _w: Omega(_w) → m∈_w
+    $got_mw mp(apply_thm(ax([nat_m], [nat_m], nat_m), nat_m, ["_w"], ["_w"],
+        \w: implies(omega(w,"_"), mem("m",w)), [nat_m]),
+        ax([ow], [ow], ow), ow, mw, [nat_m], [ow])
+
+    # Extract base from PlusFunc(_h,_w)
+    $func_h function("_h","__")
+    $dom_eq forall("d", forall("prod", implies(domain("d","_h","__"), implies(product("prod","_w","_w","__"), eqv("d","prod","__")))))
+    $base forall("m", implies(mem("m","_w"), forall("z", implies(empty("z","__"),
+        forall("pair", implies(ordered_pair("pair","m","z","__"), apply("_h","pair","m","__")))))))
+    $step forall("m", implies(mem("m","_w"), forall("n", implies(mem("n","_w"),
+        forall("pair", implies(ordered_pair("pair","m","n","__"), forall("p", implies(apply("_h","pair","p","__"),
+            forall("sn", implies(successor("sn","n","__"), forall("sp", implies(successor("sp","p","__"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","__"), apply("_h","pair2","sp","__")))))))))))))))
     $rest and(dom_eq, and(base, step))
     $got_base mp(and_elim_left(base, step, []),
         mp(and_elim_right(dom_eq, and(base, step), []),
-            mp(and_elim_right(func_h, rest, []),
-                ax([pf], [pf], pf), pf, rest, [], [pf]),
+            mp(and_elim_right(func_h, rest, []), ax([pf], [pf], pf), pf, rest, [], [pf]),
             rest, and(base, step), [], [pf]),
         and(base, step), base, [], [pf])
-    # [pf] |- base
 
-    # Instantiate base at m, z, pair
+    # Instantiate base at m, z, _pair
     $b1 apply_thm(got_base, base, ["m"], ["m"],
-        \m: implies(mem(m,"w"), forall("z", implies(empty("z","_"),
-            forall("pair", implies(ordered_pair("pair",m,"z","_"), apply("h","pair",m,"_")))))), [pf])
-    $b2 mp(b1, ax([mw], [mw], mw), mw, arg2(head(right(b1))), [pf], [mw])
+        \m: implies(mem(m,"_w"), forall("z", implies(empty("z","__"),
+            forall("pair", implies(ordered_pair("pair",m,"z","__"), apply("_h","pair",m,"__")))))), [pf])
+    $b2 mp(b1, got_mw, mw, arg2(head(right(b1))), [pf], left(got_mw))
     $b3 apply_thm(b2, head(right(b2)), ["z"], ["z"],
-        \z: implies(empty(z,"_"), forall("pair", implies(ordered_pair("pair","m",z,"_"), apply("h","pair","m","_")))),
+        \z: implies(empty(z,"__"), forall("pair", implies(ordered_pair("pair","m",z,"__"), apply("_h","pair","m","__")))),
         left(b2))
-    $b4 mp(b3, ax([emp], [emp], emp), emp, arg2(head(right(b3))), left(b2), [emp])
-    $b5 apply_thm(b4, head(right(b4)), ["pair"], ["pair"],
-        \pair: implies(ordered_pair(pair,"m","z","_"), apply("h",pair,"m","_")), left(b4))
+    # Num(z,0) = empty("z","__"). mp:
+    $b4 mp(b3, ax([num_z], [num_z], num_z), num_z, arg2(head(right(b3))), left(b2), [num_z])
+    $b5 apply_thm(b4, head(right(b4)), ["_pair"], ["_pair"],
+        \pair: implies(ordered_pair(pair,"m","z","__"), apply("_h",pair,"m","__")), left(b4))
     $got_app mp(b5, ax([op], [op], op), op, app_goal, left(b4), [op])
-    # [pf, mw, emp, op] |- Apply(h,pair,m)
 
-    # Close: ir op, fr pair, ir pf, fr h, ir emp, fr z, ir mw, fr m
-    # Don't wrap in Plus vocab (bound var "_w" vs free "w" clash). State with "w" free.
+    # Close: ir op, fr _pair, ir pf, fr _h, ir ow, fr _w → Plus(m,z,m)
     $cur got_app
     $cur ir(cur, remove(same, op, left(cur)), [implies(op, app_goal)], implies(op, app_goal))
-    $cur fr(cur, left(cur), [forall("pair", implies(op, app_goal))], forall("pair", implies(op, app_goal)), "pair")
+    $cur fr(cur, left(cur), [forall("_pair", head(right(cur)))], forall("_pair", head(right(cur))), "_pair")
     $cur ir(cur, remove(same, pf, left(cur)), [implies(pf, head(right(cur)))], implies(pf, head(right(cur))))
-    $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
-    $cur ir(cur, remove(same, emp, left(cur)), [implies(emp, head(right(cur)))], implies(emp, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("_h", head(right(cur)))], forall("_h", head(right(cur))), "_h")
+    $cur ir(cur, remove(same, ow, left(cur)), [implies(ow, head(right(cur)))], implies(ow, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("_w", head(right(cur)))], forall("_w", head(right(cur))), "_w")
+    # Right is now Plus(m,z,m) (alpha-equiv). ir num_z, fr z, ir nat_m, fr m.
+    $cur ir(cur, remove(same, num_z, left(cur)), [implies(num_z, head(right(cur)))], implies(num_z, head(right(cur))))
     $cur fr(cur, left(cur), [forall("z", head(right(cur)))], forall("z", head(right(cur))), "z")
-    $cur ir(cur, remove(same, mw, left(cur)), [implies(mw, head(right(cur)))], implies(mw, head(right(cur))))
+    $cur ir(cur, remove(same, nat_m, left(cur)), [implies(nat_m, head(right(cur)))], implies(nat_m, head(right(cur))))
     $top forall("m", head(right(cur)))
     $cur fr(cur, left(cur), [top], top, "m")
     close(cur, left(cur), [top], [])
