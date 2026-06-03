@@ -509,20 +509,112 @@ $plus_func_unique {
     $rel2x forall("z", implies(mem("z","h2"), exists("x", exists("y", ordered_pair("z","x","y","_")))))
     $got_rel2 mp(and_elim_left(rel2x, sv2, []), got_func2, func2, rel2x, [], [pf2])
 
-    # 3. agree: ∀x.∀v1.∀v2. Apply(h1,x,v1)→Apply(h2,x,v2)→Eqv(v1,v2)
-    # 4. dom_fwd: ∀x.∀v. Apply(h1,x,v)→∃v2.Apply(h2,x,v2)
-    # 5. dom_bwd: ∀x.∀v. Apply(h2,x,v)→∃v1.Apply(h1,x,v1)
-    # These require: from Apply → domain chain → x∈w×w → ∃m,n → P(n) / domain of other
-    # TODO: derive from oi_3 + dom_eq. Using ax placeholder for now.
+    # --- dom_fwd: ∀x.∀v. Apply(h1,x,v)→∃v2.Apply(h2,x,v2) ---
+    # Chain: Apply(h1,x,v)→x∈dom(h1)=w×w→x∈dom(h2)→∃v2.Apply(h2,x,v2)
+    $app1_xv apply("h1","x","v","_")
+    $dom_d1 domain("d1","h1","_")
+    $dom_d2 domain("d2","h2","_")
+    $prod_pww product("pww","w","w","_")
+    # Apply→eir→∃v.Apply→domain backward→x∈d1
+    $got_ex_app1 eir(ax([app1_xv], [app1_xv], app1_xv), \v: apply("h1","x",v,"_"), "qv", "v", [app1_xv])
+    $xd1 mem("x","d1")
+    $iff_d1 iff(xd1, head(right(got_ex_app1)))
+    $got_xd1 mp(mp(iff_elim_right(xd1, head(right(got_ex_app1)), []),
+        fl(ax([iff_d1], [iff_d1], iff_d1), [dom_d1], [iff_d1], dom_d1, "x"),
+        iff_d1, implies(head(right(got_ex_app1)), xd1), [], [dom_d1]),
+        got_ex_app1, head(right(got_ex_app1)), xd1, [dom_d1], [app1_xv])
+    # dom_eq1→Eqv(d1,pww)→x∈pww, dom_eq2→Eqv(pww,d2)→x∈d2
+    $deq_i1 apply_thm(got_deq1, dom_eq1, ["d1","pww"], ["d","prod"],
+        \d: \prod: implies(domain(d,"h1","_"), implies(product(prod,"w","w","_"), eqv(d,prod,"_"))), [pf1])
+    $deq_i1a mp(deq_i1, ax([dom_d1], [dom_d1], dom_d1), dom_d1,
+        implies(prod_pww, eqv("d1","pww","_")), [pf1], [dom_d1])
+    $got_eqv1 mp(deq_i1a,
+        ax([prod_pww], [prod_pww], prod_pww), prod_pww, eqv("d1","pww","_"), left(deq_i1a), [prod_pww])
+    $xpww mem("x","pww")
+    $got_xpww mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["d1","pww","x"],
+        ["a","b","z"], _eml_b, []),
+        got_eqv1, eqv("d1","pww","_"), implies(xd1, xpww), [], left(got_eqv1)),
+        got_xd1, xd1, xpww, left(got_eqv1), left(got_xd1))
+    $deq_i2 apply_thm(got_deq2, dom_eq2, ["d2","pww"], ["d","prod"],
+        \d: \prod: implies(domain(d,"h2","_"), implies(product(prod,"w","w","_"), eqv(d,prod,"_"))), [pf2])
+    $deq_i2a mp(deq_i2, ax([dom_d2], [dom_d2], dom_d2), dom_d2,
+        implies(prod_pww, eqv("d2","pww","_")), [pf2], [dom_d2])
+    $got_eqv2 mp(deq_i2a,
+        ax([prod_pww], [prod_pww], prod_pww), prod_pww, eqv("d2","pww","_"), left(deq_i2a), [prod_pww])
+    $got_eqv2s mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["d2","pww"], ["a","b"], _es_b, []),
+        got_eqv2, eqv("d2","pww","_"), eqv("pww","d2","_"), [], left(got_eqv2))
+    $xd2 mem("x","d2")
+    $got_xd2 mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["pww","d2","x"],
+        ["a","b","z"], _eml_b, []),
+        got_eqv2s, eqv("pww","d2","_"), implies(xpww, xd2), [], left(got_eqv2s)),
+        got_xpww, xpww, xd2, left(got_eqv2s), left(got_xpww))
+    # domain_mem_elim→∃v2.Apply(h2,x,v2)
+    $dme_i apply_thm(domain_mem_elim, head(right(domain_mem_elim)), ["h2","d2","x"],
+        ["f","d","x"], _dme_b, [])
+    $ex_v2 exists("qv", apply("h2","x","qv","_"))
+    $got_ex_v2 mp(mp(dme_i, ax([dom_d2], [dom_d2], dom_d2), dom_d2,
+        implies(xd2, ex_v2), [], [dom_d2]),
+        got_xd2, xd2, ex_v2, [dom_d2], left(got_xd2))
+    # eel d1,d2,pww + cut domain_exists,product_exists
+    $dcur got_ex_v2
+    $dcur eel(dcur, \d: domain(d,"h2","_"), "d", "d2", left(dcur), ex_v2)
+    $got_de2 apply_thm(domain_exists, head(right(domain_exists)), ["h2"], ["h2"],
+        \f: exists("d", domain("d",f,"_")), de_ctx)
+    $dcur cut_c(got_de2, dcur, head(right(got_de2)), de_ctx, left(dcur), ex_v2)
+    $dcur eel(dcur, \d: domain(d,"h1","_"), "d", "d1", left(dcur), ex_v2)
+    $got_de1 apply_thm(domain_exists, head(right(domain_exists)), ["h1"], ["h1"],
+        \f: exists("d", domain("d",f,"_")), de_ctx)
+    $dcur cut_c(got_de1, dcur, head(right(got_de1)), de_ctx, left(dcur), ex_v2)
+    $dcur eel(dcur, \pww: product(pww,"w","w","_"), "p", "pww", left(dcur), ex_v2)
+    $dcur cut_c(got_pe, dcur, head(right(got_pe)), pe_ctx, left(dcur), ex_v2)
+    # ir app1_xv, fr v, fr x
+    $dcur ir(dcur, remove(same, app1_xv, left(dcur)), [implies(app1_xv, ex_v2)], implies(app1_xv, ex_v2))
+    $dcur fr(dcur, left(dcur), [forall("v", implies(app1_xv, ex_v2))], forall("v", implies(app1_xv, ex_v2)), "v")
+    $dom_fwd forall("x", forall("v", implies(app1_xv, ex_v2)))
+    $got_dom_fwd fr(dcur, left(dcur), [dom_fwd], dom_fwd, "x")
+
+    # --- dom_bwd: symmetric (swap h1↔h2) ---
+    $app2_xv apply("h2","x","v","_")
+    $got_ex_app2 eir(ax([app2_xv], [app2_xv], app2_xv), \v: apply("h2","x",v,"_"), "qv", "v", [app2_xv])
+    $got_xd2b mp(mp(iff_elim_right(xd2, head(right(got_ex_app2)), []),
+        fl(ax([iff(xd2, head(right(got_ex_app2)))], [iff(xd2, head(right(got_ex_app2)))], iff(xd2, head(right(got_ex_app2)))),
+            [dom_d2], [iff(xd2, head(right(got_ex_app2)))], dom_d2, "x"),
+        iff(xd2, head(right(got_ex_app2))), implies(head(right(got_ex_app2)), xd2), [], [dom_d2]),
+        got_ex_app2, head(right(got_ex_app2)), xd2, [dom_d2], [app2_xv])
+    $got_xpww_b mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["d2","pww","x"],
+        ["a","b","z"], _eml_b, []),
+        got_eqv2, eqv("d2","pww","_"), implies(xd2, xpww), [], left(got_eqv2)),
+        got_xd2b, xd2, xpww, left(got_eqv2), left(got_xd2b))
+    $got_eqv1s mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["d1","pww"], ["a","b"], _es_b, []),
+        got_eqv1, eqv("d1","pww","_"), eqv("pww","d1","_"), [], left(got_eqv1))
+    $got_xd1b mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["pww","d1","x"],
+        ["a","b","z"], _eml_b, []),
+        got_eqv1s, eqv("pww","d1","_"), implies(xpww, xd1), [], left(got_eqv1s)),
+        got_xpww_b, xpww, xd1, left(got_eqv1s), left(got_xpww_b))
+    $dme_i2 apply_thm(domain_mem_elim, head(right(domain_mem_elim)), ["h1","d1","x"],
+        ["f","d","x"], _dme_b, [])
+    $ex_v1 exists("qv", apply("h1","x","qv","_"))
+    $got_ex_v1 mp(mp(dme_i2, ax([dom_d1], [dom_d1], dom_d1), dom_d1,
+        implies(xd1, ex_v1), [], [dom_d1]),
+        got_xd1b, xd1, ex_v1, [dom_d1], left(got_xd1b))
+    $bcur got_ex_v1
+    $bcur eel(bcur, \d: domain(d,"h1","_"), "d", "d1", left(bcur), ex_v1)
+    $bcur cut_c(got_de1, bcur, head(right(got_de1)), de_ctx, left(bcur), ex_v1)
+    $bcur eel(bcur, \d: domain(d,"h2","_"), "d", "d2", left(bcur), ex_v1)
+    $bcur cut_c(got_de2, bcur, head(right(got_de2)), de_ctx, left(bcur), ex_v1)
+    $bcur eel(bcur, \pww: product(pww,"w","w","_"), "p", "pww", left(bcur), ex_v1)
+    $bcur cut_c(got_pe, bcur, head(right(got_pe)), pe_ctx, left(bcur), ex_v1)
+    $bcur ir(bcur, remove(same, app2_xv, left(bcur)), [implies(app2_xv, ex_v1)], implies(app2_xv, ex_v1))
+    $bcur fr(bcur, left(bcur), [forall("v", implies(app2_xv, ex_v1))], forall("v", implies(app2_xv, ex_v1)), "v")
+    $dom_bwd forall("x", forall("v", implies(app2_xv, ex_v1)))
+    $got_dom_bwd fr(bcur, left(bcur), [dom_bwd], dom_bwd, "x")
+
+    # --- agree: ∀x.∀v1.∀v2. Apply(h1,x,v1)→Apply(h2,x,v2)→Eqv(v1,v2) ---
+    # From dom_fwd: Apply(h1,x,v1)→x∈w×w. Open w×w→∃m,n. P(n)→Eqv(v1,v2).
+    # TODO: derive from oi_3 + dom chain + product opening. ~80 lines.
     $agree forall("x", forall("v1", forall("v2",
         implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
-    $dom_fwd forall("x", forall("v", implies(apply("h1","x","v","_"),
-        exists("v2", apply("h2","x","v2","_")))))
-    $dom_bwd forall("x", forall("v", implies(apply("h2","x","v","_"),
-        exists("v1", apply("h1","x","v1","_")))))
     $got_agree ax([pf1, pf2, om], [agree], agree)
-    $got_dom_fwd ax([pf1, pf2, om], [dom_fwd], dom_fwd)
-    $got_dom_bwd ax([pf1, pf2, om], [dom_bwd], dom_bwd)
 
     # Apply func_ext_from_agree
     $_fea_b \h1: \h2: implies(rel1, implies(rel2x, implies(agree, implies(dom_fwd, implies(dom_bwd, eqv(h1,h2,"_"))))))
