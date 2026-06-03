@@ -11,12 +11,15 @@ from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.iff_intro import iff_intro
 from theorems.logic.iff_chain import iff_chain
+from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_mem_left import eqv_mem_left
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.sets.func_unique_thm import func_unique_thm
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.domain_exists import domain_exists
 from theorems.sets.domain_mem_elim import domain_mem_elim
+from theorems.sets.product_exists import product_exists
 from theorems.sets.product_in_intro import product_in_intro
 from theorems.omega.omega_induction import omega_induction
 from theorems.omega.omega_contains_empty import omega_contains_empty
@@ -177,15 +180,315 @@ $plus_func_unique {
     $base_case forall("e", ie)
     $got_bc fr(cur, left(cur), [base_case], base_case, "e")
 
+    # Extract dom_eq from both PlusFuncs:
+    $got_deq1 mp(and_elim_left(dom_eq1, and(base1, step1), []),
+        got_rest1, rest1a, dom_eq1, [], [pf1])
+    $dom_eq2 forall("d", forall("prod", implies(domain("d","h2","_"), implies(product("prod","w","w","_"), eqv("d","prod","_")))))
+    $got_deq2 mp(and_elim_left(dom_eq2, and(base2, step2), []),
+        mp(and_elim_right(func2, and(dom_eq2, and(base2, step2)), []),
+            ax([pf2], [pf2], pf2), pf2, and(dom_eq2, and(base2, step2)), [], [pf2]),
+        and(dom_eq2, and(base2, step2)), dom_eq2, [], [pf2])
+
     # === STEP CASE: ∀n. n∈w → P(n) → ∀s. Succ(s,n) → P(s) ===
-    # This is the hardest part. Need domain chain + PlusFunc step + IH + successor transfer.
-    # For now, placeholder axiom to verify base case + assembly structure work.
+    # Assume nw, P(n), Succ(s,n), mw, OrdPair(pair2,m,s), Apply(h1,pair2,v1), Apply(h2,pair2,v2).
+    # Derive Eqv(v1,v2).
     $nw mem("n","w")
     $pn pred("w","n","_")
     $succ_sn successor("s","n","_")
-    $step_case forall("n", implies(nw, implies(pn, forall("s", implies(succ_sn, pred("w","s","_"))))))
-    # TODO: prove step_case properly
-    $got_sc ax([pf1, pf2, om], [step_case], step_case)
+    $op_s ordered_pair("pair2","m","s","_")
+    $app1s apply("h1","pair2","v1","_")
+    $app2s apply("h2","pair2","v2","_")
+
+    # --- A. ordpair_exists ⟨m,n⟩ ---
+    $oe_ctx left(ordpair_exists)
+    $_oe_b \a: \b: exists("p", ordered_pair("p",a,b,"_"))
+    $got_ex_pmn apply_thm(ordpair_exists, head(right(ordpair_exists)), ["m","n"], ["a","b"], _oe_b, oe_ctx)
+    $op_pmn ordered_pair("pmn","m","n","_")
+
+    # --- B. product_in_intro: pmn∈pww ---
+    $pe_ctx left(product_exists)
+    $_pe_b \a: \b: exists("p", product("p",a,b,"_"))
+    $got_pe apply_thm(product_exists, head(right(product_exists)), ["w","w"], ["a","b"], _pe_b, pe_ctx)
+    $prod_pww product("pww","w","w","_")
+    $_pii_b \q1: \q2: \q3: \q4: \q5: \q6: implies(product(q1,q2,q3,"_"),
+        implies(mem(q4,q2), implies(mem(q5,q3), implies(ordered_pair(q6,q4,q5,"_"), mem(q6,q1)))))
+    $pii_r forall("q1", forall("q2", forall("q3", forall("q4", forall("q5", forall("q6",
+        _pii_b("q1")("q2")("q3")("q4")("q5")("q6")))))))
+    $pii_thm wr(product_in_intro, [], [pii_r], pii_r)
+    $pmn_pww mem("pmn","pww")
+    $pii_inst apply_thm(pii_thm, pii_r, ["pww","w","w","m","n","pmn"],
+        ["q1","q2","q3","q4","q5","q6"], _pii_b, [])
+    $pi1 mp(pii_inst, ax([prod_pww], [prod_pww], prod_pww), prod_pww, arg2(head(right(pii_inst))), [], [prod_pww])
+    $pi2 mp(pi1, ax([mw], [mw], mw), mw, arg2(head(right(pi1))), [prod_pww], [mw])
+    $pi3 mp(pi2, ax([nw], [nw], nw), nw, arg2(head(right(pi2))), [prod_pww, mw], [nw])
+    $got_pmn_pww mp(pi3, ax([op_pmn], [op_pmn], op_pmn), op_pmn, pmn_pww, left(pi3), [op_pmn])
+
+    # --- C. Domain chain for h1: pmn∈dh1 → ∃p1.Apply(h1,pmn,p1) ---
+    $de_ctx left(domain_exists)
+    $dom_dh1 domain("dh1","h1","_")
+    # dom_eq1 at dh1,pww → Eqv(dh1,pww)
+    $deq1i apply_thm(got_deq1, dom_eq1, ["dh1","pww"], ["d","prod"],
+        \d: \prod: implies(domain(d,"h1","_"), implies(product(prod,"w","w","_"), eqv(d,prod,"_"))), [pf1])
+    $deq1a mp(deq1i, ax([dom_dh1], [dom_dh1], dom_dh1), dom_dh1, implies(prod_pww, eqv("dh1","pww","_")), [pf1], [dom_dh1])
+    $deq1b mp(deq1a, ax([prod_pww], [prod_pww], prod_pww), prod_pww, eqv("dh1","pww","_"), left(deq1a), [prod_pww])
+    # eqv(pww,dh1) → pmn∈pww → pmn∈dh1
+    $got_epd1 mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["dh1","pww"], ["a","b"], _es_b, []),
+        deq1b, eqv("dh1","pww","_"), eqv("pww","dh1","_"), [], left(deq1b))
+    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_pmn_dh1 mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["pww","dh1","pmn"],
+        ["a","b","z"], _eml_b, []),
+        got_epd1, eqv("pww","dh1","_"), implies(pmn_pww, mem("pmn","dh1")), [], left(got_epd1)),
+        got_pmn_pww, pmn_pww, mem("pmn","dh1"), left(got_epd1), left(got_pmn_pww))
+    # domain_mem_elim: dom_dh1 → pmn∈dh1 → ∃p1.Apply(h1,pmn,p1)
+    # close vars ["x","d","f"] → outermost "f"
+    $_dme_b \f: \d: \x: implies(domain(d,f,"_"), implies(mem(x,d), exists("_y", apply(f,x,"_y","__"))))
+    $dme1 apply_thm(domain_mem_elim, head(right(domain_mem_elim)), ["h1","dh1","pmn"],
+        ["f","d","x"], _dme_b, [])
+    $got_ex_p1 mp(mp(dme1, ax([dom_dh1], [dom_dh1], dom_dh1), dom_dh1,
+        implies(mem("pmn","dh1"), exists("_y", apply("h1","pmn","_y","__"))), [], [dom_dh1]),
+        got_pmn_dh1, mem("pmn","dh1"), exists("_y", apply("h1","pmn","_y","__")), [dom_dh1], left(got_pmn_dh1))
+    # eel dh1, cut domain_exists
+    $got_ex_p1b eel(got_ex_p1, \d: domain(d,"h1","_"), "d", "dh1", left(got_ex_p1),
+        exists("_y", apply("h1","pmn","_y","__")))
+    $got_de1 apply_thm(domain_exists, head(right(domain_exists)), ["h1"], ["h1"],
+        \f: exists("d", domain("d",f,"_")), de_ctx)
+    $got_ex_p1c cut_c(got_de1, got_ex_p1b, head(right(got_de1)), de_ctx, left(got_ex_p1b),
+        exists("_y", apply("h1","pmn","_y","__")))
+    # eel pww, cut product_exists
+    $got_ex_p1d eel(got_ex_p1c, \pww: product(pww,"w","w","_"), "p", "pww", left(got_ex_p1c),
+        exists("_y", apply("h1","pmn","_y","__")))
+    $got_ex_p1e cut_c(got_pe, got_ex_p1d, head(right(got_pe)), pe_ctx, left(got_ex_p1d),
+        exists("_y", apply("h1","pmn","_y","__")))
+    # [pe_ctx, de_ctx, pf1, op_pmn, nw, mw] |- ∃p1.Apply(h1,pmn,p1)
+
+    # --- D. Same domain chain for h2 ---
+    $dom_dh2 domain("dh2","h2","_")
+    $deq2i apply_thm(got_deq2, dom_eq2, ["dh2","pww"], ["d","prod"],
+        \d: \prod: implies(domain(d,"h2","_"), implies(product(prod,"w","w","_"), eqv(d,prod,"_"))), [pf2])
+    $deq2a mp(deq2i, ax([dom_dh2], [dom_dh2], dom_dh2), dom_dh2, implies(prod_pww, eqv("dh2","pww","_")), [pf2], [dom_dh2])
+    $deq2b mp(deq2a, ax([prod_pww], [prod_pww], prod_pww), prod_pww, eqv("dh2","pww","_"), left(deq2a), [prod_pww])
+    $got_epd2 mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["dh2","pww"], ["a","b"], _es_b, []),
+        deq2b, eqv("dh2","pww","_"), eqv("pww","dh2","_"), [], left(deq2b))
+    $got_pmn_dh2 mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["pww","dh2","pmn"],
+        ["a","b","z"], _eml_b, []),
+        got_epd2, eqv("pww","dh2","_"), implies(pmn_pww, mem("pmn","dh2")), [], left(got_epd2)),
+        got_pmn_pww, pmn_pww, mem("pmn","dh2"), left(got_epd2), left(got_pmn_pww))
+    $dme2 apply_thm(domain_mem_elim, head(right(domain_mem_elim)), ["h2","dh2","pmn"],
+        ["f","d","x"], _dme_b, [])
+    $got_ex_p2 mp(mp(dme2, ax([dom_dh2], [dom_dh2], dom_dh2), dom_dh2,
+        implies(mem("pmn","dh2"), exists("_y", apply("h2","pmn","_y","__"))), [], [dom_dh2]),
+        got_pmn_dh2, mem("pmn","dh2"), exists("_y", apply("h2","pmn","_y","__")), [dom_dh2], left(got_pmn_dh2))
+    $got_ex_p2b eel(got_ex_p2, \d: domain(d,"h2","_"), "d", "dh2", left(got_ex_p2),
+        exists("_y", apply("h2","pmn","_y","__")))
+    $got_de2 apply_thm(domain_exists, head(right(domain_exists)), ["h2"], ["h2"],
+        \f: exists("d", domain("d",f,"_")), de_ctx)
+    $got_ex_p2c cut_c(got_de2, got_ex_p2b, head(right(got_de2)), de_ctx, left(got_ex_p2b),
+        exists("_y", apply("h2","pmn","_y","__")))
+    $got_ex_p2d eel(got_ex_p2c, \pww: product(pww,"w","w","_"), "p", "pww", left(got_ex_p2c),
+        exists("_y", apply("h2","pmn","_y","__")))
+    $got_ex_p2e cut_c(got_pe, got_ex_p2d, head(right(got_pe)), pe_ctx, left(got_ex_p2d),
+        exists("_y", apply("h2","pmn","_y","__")))
+
+    # --- E. Assume Apply(h1,pmn,p1), Apply(h2,pmn,p2). IH → Eqv(p1,p2) ---
+    $app1_pmn apply("h1","pmn","p1","_")
+    $app2_pmn apply("h2","pmn","p2","_")
+    # P(n) at m,pmn: Apply(h1,pmn,p1)→Apply(h2,pmn,p2)→Eqv(p1,p2)
+    $pn_m apply_thm(ax([pn], [pn], pn), pn, ["m"], ["m"],
+        \m: implies(mem(m,"w"), forall("pair", implies(ordered_pair("pair",m,"n","_"),
+            forall("v1", implies(apply("h1","pair","v1","_"),
+                forall("v2", implies(apply("h2","pair","v2","_"), eqv("v1","v2","_")))))))), [pn])
+    $pn_1 mp(pn_m, ax([mw], [mw], mw), mw, arg2(head(right(pn_m))), [pn], [mw])
+    $pn_2 apply_thm(pn_1, head(right(pn_1)), ["pmn"], ["pmn"],
+        \pair: implies(ordered_pair(pair,"m","n","_"), forall("v1", implies(apply("h1",pair,"v1","_"),
+            forall("v2", implies(apply("h2",pair,"v2","_"), eqv("v1","v2","_")))))), left(pn_1))
+    $pn_3 mp(pn_2, ax([op_pmn], [op_pmn], op_pmn), op_pmn, arg2(head(right(pn_2))), left(pn_1), [op_pmn])
+    $pn_4 apply_thm(pn_3, head(right(pn_3)), ["p1"], ["p1"],
+        \v1: implies(apply("h1","pmn",v1,"_"), forall("v2", implies(apply("h2","pmn","v2","_"), eqv(v1,"v2","_")))),
+        left(pn_3))
+    $pn_5 mp(pn_4, ax([app1_pmn], [app1_pmn], app1_pmn), app1_pmn, arg2(head(right(pn_4))), left(pn_3), [app1_pmn])
+    $pn_6 apply_thm(pn_5, head(right(pn_5)), ["p2"], ["p2"],
+        \v2: implies(apply("h2","pmn",v2,"_"), eqv("p1",v2,"_")), left(pn_5))
+    $got_eqv_p1p2 mp(pn_6, ax([app2_pmn], [app2_pmn], app2_pmn), app2_pmn, eqv("p1","p2","_"),
+        left(pn_5), [app2_pmn])
+    # [pn, mw, op_pmn, app1_pmn, app2_pmn] |- Eqv(p1,p2)
+
+    # --- F. successor_exists → ∃sp.Succ(sp,p1) ---
+    $se_ctx left(successor_exists)
+    $_se_b \a: exists("s", successor("s",a,"_"))
+    $got_ex_sp apply_thm(successor_exists, head(right(successor_exists)), ["p1"], ["p1"], _se_b, se_ctx)
+    $succ_sp1 successor("sp","p1","_")
+
+    # --- G. step1: m∈w→n∈w→OrdPair(pmn,m,n)→Apply(h1,pmn,p1)→Succ(s,n)→Succ(sp,p1)→OrdPair(pair2,m,s)→Apply(h1,pair2,sp) ---
+    $_s1_b \m: implies(mem(m,"w"), forall("n", implies(mem("n","w"), forall("pair", implies(ordered_pair("pair",m,"n","_"),
+        forall("p", implies(apply("h1","pair","p","_"), forall("sn", implies(successor("sn","n","_"),
+            forall("sp", implies(successor("sp","p","_"), forall("pair2", implies(ordered_pair("pair2",m,"sn","_"),
+                apply("h1","pair2","sp","_"))))))))))))))
+    $s1i apply_thm(got_step1, step1, ["m"], ["m"], _s1_b, [pf1])
+    $s1a mp(s1i, ax([mw], [mw], mw), mw, arg2(head(right(s1i))), [pf1], [mw])
+    $s1b apply_thm(s1a, head(right(s1a)), ["n"], ["n"],
+        \n: implies(mem(n,"w"), forall("pair", implies(ordered_pair("pair","m",n,"_"),
+            forall("p", implies(apply("h1","pair","p","_"), forall("sn", implies(successor("sn",n,"_"),
+                forall("sp", implies(successor("sp","p","_"), forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                    apply("h1","pair2","sp","_"))))))))))))
+        , left(s1a))
+    $s1c mp(s1b, ax([nw], [nw], nw), nw, arg2(head(right(s1b))), left(s1a), [nw])
+    $s1d apply_thm(s1c, head(right(s1c)), ["pmn"], ["pmn"],
+        \pair: implies(ordered_pair(pair,"m","n","_"), forall("p", implies(apply("h1",pair,"p","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h1","pair2","sp","_"))))))))))
+        , left(s1c))
+    $s1e mp(s1d, ax([op_pmn], [op_pmn], op_pmn), op_pmn, arg2(head(right(s1d))), left(s1c), [op_pmn])
+    $s1f apply_thm(s1e, head(right(s1e)), ["p1"], ["p1"],
+        \p: implies(apply("h1","pmn",p,"_"), forall("sn", implies(successor("sn","n","_"),
+            forall("sp", implies(successor("sp",p,"_"), forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                apply("h1","pair2","sp","_"))))))))
+        , left(s1e))
+    $s1g mp(s1f, ax([app1_pmn], [app1_pmn], app1_pmn), app1_pmn, arg2(head(right(s1f))), left(s1e), [app1_pmn])
+    $s1h apply_thm(s1g, head(right(s1g)), ["s"], ["s"],
+        \sn: implies(successor(sn,"n","_"), forall("sp", implies(successor("sp","p1","_"),
+            forall("pair2", implies(ordered_pair("pair2","m",sn,"_"), apply("h1","pair2","sp","_"))))))
+        , left(s1g))
+    $s1j mp(s1h, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(s1h))), left(s1g), [succ_sn])
+    $s1k apply_thm(s1j, head(right(s1j)), ["sp"], ["sp"],
+        \sp: implies(successor(sp,"p1","_"), forall("pair2", implies(ordered_pair("pair2","m","s","_"),
+            apply("h1","pair2",sp,"_"))))
+        , left(s1j))
+    $s1l mp(s1k, ax([succ_sp1], [succ_sp1], succ_sp1), succ_sp1, arg2(head(right(s1k))), left(s1j), [succ_sp1])
+    $s1m apply_thm(s1l, head(right(s1l)), ["pair2"], ["pair2"],
+        \pair2: implies(ordered_pair(pair2,"m","s","_"), apply("h1",pair2,"sp","_")), left(s1l))
+    $got_app1_sp mp(s1m, ax([op_s], [op_s], op_s), op_s, apply("h1","pair2","sp","_"), left(s1l), [op_s])
+    # combined |- Apply(h1,pair2,sp)
+
+    # func_unique h1: v1 = sp
+    $fu1s apply_thm(func_unique_thm, head(right(func_unique_thm)), ["h1","pair2","v1","sp"],
+        ["f","x","y1","y2"], _fu_b, [])
+    $fu1sa mp(fu1s, got_sv1, sv1, implies(app1s, implies(apply("h1","pair2","sp","_"), eqv("v1","sp","_"))), [], [pf1])
+    $fu1sb mp(fu1sa, ax([app1s], [app1s], app1s), app1s, implies(apply("h1","pair2","sp","_"), eqv("v1","sp","_")),
+        [pf1], [app1s])
+    $got_eq_v1sp mp(fu1sb, got_app1_sp, apply("h1","pair2","sp","_"), eqv("v1","sp","_"),
+        left(fu1sb), left(got_app1_sp))
+
+    # --- H. Same for h2: step2 → Apply(h2,pair2,sp2) where Succ(sp2,p2), func_unique → v2=sp2 ---
+    # Use eq_succ_transfer: Eqv(p1,p2) + Succ(sp,p1) → Succ(sp,p2)
+    # eq_succ_transfer close vars ["d","c","b","a"] → outermost "a": ∀a.∀b.∀c.∀d
+    # eqv(a,c)→eqv(b,d)→Succ(c,d)→Succ(a,b). With a=sp,b=p2,c=sp,d=p1:
+    $_est_b \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"), implies(successor(c,d,"_"), successor(a,b,"_"))))
+    $est_r forall("ra", forall("rb", forall("rc", forall("rd",
+        _est_b("ra")("rb")("rc")("rd")))))
+    $est_thm wr(eq_succ_transfer, [], [est_r], est_r)
+    # eqv(sp,sp): reflexive
+    $_er head(right(eqv_reflexive))
+    $got_eqv_spsp apply_thm(eqv_reflexive, _er, ["sp"], ["sp"], \a: eqv(a,a,"_"), [])
+    # eqv(p2,p1): symmetric of eqv(p1,p2)
+    $got_eqv_p2p1 mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["p1","p2"], ["a","b"], _es_b, []),
+        got_eqv_p1p2, eqv("p1","p2","_"), eqv("p2","p1","_"), [], left(got_eqv_p1p2))
+    # eq_succ_transfer: eqv(sp,sp)→eqv(p2,p1)→Succ(sp,p1)→Succ(sp,p2)
+    $succ_sp_p2 successor("sp","p2","_")
+    $est_inst apply_thm(est_thm, est_r, ["sp","p2","sp","p1"], ["ra","rb","rc","rd"], _est_b, [])
+    $est1 mp(est_inst, got_eqv_spsp, eqv("sp","sp","_"), arg2(head(right(est_inst))), [], [])
+    $est2 mp(est1, got_eqv_p2p1, eqv("p2","p1","_"), implies(succ_sp1, succ_sp_p2), [], left(got_eqv_p2p1))
+    $got_succ_sp_p2 mp(est2, ax([succ_sp1], [succ_sp1], succ_sp1), succ_sp1, succ_sp_p2,
+        left(est2), [succ_sp1])
+
+    # step2: m∈w→n∈w→OrdPair(pmn,m,n)→Apply(h2,pmn,p2)→Succ(s,n)→Succ(sp,p2)→OrdPair(pair2,m,s)→Apply(h2,pair2,sp)
+    $_s2_b \m: implies(mem(m,"w"), forall("n", implies(mem("n","w"), forall("pair", implies(ordered_pair("pair",m,"n","_"),
+        forall("p", implies(apply("h2","pair","p","_"), forall("sn", implies(successor("sn","n","_"),
+            forall("sp", implies(successor("sp","p","_"), forall("pair2", implies(ordered_pair("pair2",m,"sn","_"),
+                apply("h2","pair2","sp","_"))))))))))))))
+    $s2i apply_thm(got_step2, step2, ["m"], ["m"], _s2_b, [pf2])
+    $s2a mp(s2i, ax([mw], [mw], mw), mw, arg2(head(right(s2i))), [pf2], [mw])
+    $s2b apply_thm(s2a, head(right(s2a)), ["n"], ["n"],
+        \n: implies(mem(n,"w"), forall("pair", implies(ordered_pair("pair","m",n,"_"),
+            forall("p", implies(apply("h2","pair","p","_"), forall("sn", implies(successor("sn",n,"_"),
+                forall("sp", implies(successor("sp","p","_"), forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                    apply("h2","pair2","sp","_"))))))))))))
+        , left(s2a))
+    $s2c mp(s2b, ax([nw], [nw], nw), nw, arg2(head(right(s2b))), left(s2a), [nw])
+    $s2d apply_thm(s2c, head(right(s2c)), ["pmn"], ["pmn"],
+        \pair: implies(ordered_pair(pair,"m","n","_"), forall("p", implies(apply("h2",pair,"p","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h2","pair2","sp","_"))))))))))
+        , left(s2c))
+    $s2e mp(s2d, ax([op_pmn], [op_pmn], op_pmn), op_pmn, arg2(head(right(s2d))), left(s2c), [op_pmn])
+    $s2f apply_thm(s2e, head(right(s2e)), ["p2"], ["p2"],
+        \p: implies(apply("h2","pmn",p,"_"), forall("sn", implies(successor("sn","n","_"),
+            forall("sp", implies(successor("sp",p,"_"), forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                apply("h2","pair2","sp","_"))))))))
+        , left(s2e))
+    $s2g mp(s2f, ax([app2_pmn], [app2_pmn], app2_pmn), app2_pmn, arg2(head(right(s2f))), left(s2e), [app2_pmn])
+    $s2h apply_thm(s2g, head(right(s2g)), ["s"], ["s"],
+        \sn: implies(successor(sn,"n","_"), forall("sp", implies(successor("sp","p2","_"),
+            forall("pair2", implies(ordered_pair("pair2","m",sn,"_"), apply("h2","pair2","sp","_"))))))
+        , left(s2g))
+    $s2j mp(s2h, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(s2h))), left(s2g), [succ_sn])
+    $s2k apply_thm(s2j, head(right(s2j)), ["sp"], ["sp"],
+        \sp: implies(successor(sp,"p2","_"), forall("pair2", implies(ordered_pair("pair2","m","s","_"),
+            apply("h2","pair2",sp,"_"))))
+        , left(s2j))
+    $s2l mp(s2k, got_succ_sp_p2, succ_sp_p2, arg2(head(right(s2k))), left(s2k), left(got_succ_sp_p2))
+    $s2m apply_thm(s2l, head(right(s2l)), ["pair2"], ["pair2"],
+        \pair2: implies(ordered_pair(pair2,"m","s","_"), apply("h2",pair2,"sp","_")), left(s2l))
+    $got_app2_sp mp(s2m, ax([op_s], [op_s], op_s), op_s, apply("h2","pair2","sp","_"), left(s2l), [op_s])
+
+    # func_unique h2: v2 = sp
+    $fu2s apply_thm(func_unique_thm, head(right(func_unique_thm)), ["h2","pair2","v2","sp"],
+        ["f","x","y1","y2"], _fu_b, [])
+    $fu2sa mp(fu2s, got_sv2, sv2, implies(app2s, implies(apply("h2","pair2","sp","_"), eqv("v2","sp","_"))), [], [pf2])
+    $fu2sb mp(fu2sa, ax([app2s], [app2s], app2s), app2s, implies(apply("h2","pair2","sp","_"), eqv("v2","sp","_")),
+        [pf2], [app2s])
+    $got_eq_v2sp mp(fu2sb, got_app2_sp, apply("h2","pair2","sp","_"), eqv("v2","sp","_"),
+        left(fu2sb), left(got_app2_sp))
+
+    # --- I. Eqv(v1,sp) + Eqv(sp,v2) → Eqv(v1,v2) via iff_chain ---
+    # eqv(sp,v2) from symmetric(eqv(v2,sp)):
+    $got_eq_spv2 mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["v2","sp"], ["a","b"], _es_b, []),
+        got_eq_v2sp, eqv("v2","sp","_"), eqv("sp","v2","_"), [], left(got_eq_v2sp))
+    $siff1 iff(mem("zz","v1"), mem("zz","sp"))
+    $siff2 iff(mem("zz","sp"), mem("zz","v2"))
+    $siff3 iff(mem("zz","v1"), mem("zz","v2"))
+    $sgiff1 fl(ax([siff1], [siff1], siff1), [eqv("v1","sp","_")], [siff1], eqv("v1","sp","_"), "zz")
+    $sgiff2 fl(ax([siff2], [siff2], siff2), [eqv("sp","v2","_")], [siff2], eqv("sp","v2","_"), "zz")
+    $sic iff_chain(mem("zz","v1"), mem("zz","sp"), mem("zz","v2"), [])
+    $sgiff3 mp(mp(sic, sgiff1, siff1, implies(siff2, siff3), [], [eqv("v1","sp","_")]),
+        sgiff2, siff2, siff3, [eqv("v1","sp","_")], [eqv("sp","v2","_")])
+    $sgiff4 cut_c(got_eq_v1sp, cut_c(got_eq_spv2, sgiff3, eqv("sp","v2","_"), left(got_eq_spv2), left(sgiff3), siff3),
+        eqv("v1","sp","_"), left(got_eq_v1sp), left(cut_c(got_eq_spv2, sgiff3, eqv("sp","v2","_"), left(got_eq_spv2), left(sgiff3), siff3)), siff3)
+    $got_step_eqv fr(sgiff4, left(sgiff4), [eqv("v1","v2","_")], eqv("v1","v2","_"), "zz")
+
+    # --- J. eel chain: sp(from successor_exists), p2(from h2 domain), p1(from h1 domain), pmn(from ordpair_exists) ---
+    $scur got_step_eqv
+    $scur eel(scur, \sp: successor(sp,"p1","_"), "s", "sp", left(scur), eqv("v1","v2","_"))
+    $scur cut_c(got_ex_sp, scur, head(right(got_ex_sp)), se_ctx, left(scur), eqv("v1","v2","_"))
+    $scur eel(scur, \p2: apply("h2","pmn",p2,"_"), "qb", "p2", left(scur), eqv("v1","v2","_"))
+    $scur cut_c(got_ex_p2e, scur, head(right(got_ex_p2e)), left(got_ex_p2e), left(scur), eqv("v1","v2","_"))
+    $scur eel(scur, \p1: apply("h1","pmn",p1,"_"), "qa", "p1", left(scur), eqv("v1","v2","_"))
+    $scur cut_c(got_ex_p1e, scur, head(right(got_ex_p1e)), left(got_ex_p1e), left(scur), eqv("v1","v2","_"))
+    $scur eel(scur, \pmn: ordered_pair(pmn,"m","n","_"), "p", "pmn", left(scur), eqv("v1","v2","_"))
+    $scur cut_c(got_ex_pmn, scur, head(right(got_ex_pmn)), oe_ctx, left(scur), eqv("v1","v2","_"))
+
+    # --- K. Close step: ir app2s,fr v2,ir app1s,fr v1,ir op_s,fr pair2,ir mw,fr m,ir succ_sn,fr s,ir pn,ir nw,fr n ---
+    $scur ir(scur, remove(same, app2s, left(scur)), [implies(app2s, eqv("v1","v2","_"))], implies(app2s, eqv("v1","v2","_")))
+    $scur fr(scur, left(scur), [forall("v2", implies(app2s, eqv("v1","v2","_")))], forall("v2", implies(app2s, eqv("v1","v2","_"))), "v2")
+    $siv1 implies(app1s, head(right(scur)))
+    $scur ir(scur, remove(same, app1s, left(scur)), [siv1], siv1)
+    $scur fr(scur, left(scur), [forall("v1", siv1)], forall("v1", siv1), "v1")
+    $sip implies(op_s, head(right(scur)))
+    $scur ir(scur, remove(same, op_s, left(scur)), [sip], sip)
+    $scur fr(scur, left(scur), [forall("pair2", sip)], forall("pair2", sip), "pair2")
+    $sim implies(mw, head(right(scur)))
+    $scur ir(scur, remove(same, mw, left(scur)), [sim], sim)
+    $scur fr(scur, left(scur), [forall("m", sim)], forall("m", sim), "m")
+    # now ir succ_sn, fr s
+    $sis implies(succ_sn, head(right(scur)))
+    $scur ir(scur, remove(same, succ_sn, left(scur)), [sis], sis)
+    $scur fr(scur, left(scur), [forall("s", sis)], forall("s", sis), "s")
+    # ir pn, ir nw, fr n
+    $sipn implies(pn, head(right(scur)))
+    $scur ir(scur, remove(same, pn, left(scur)), [sipn], sipn)
+    $sinw implies(nw, sipn)
+    $scur ir(scur, remove(same, nw, left(scur)), [sinw], sinw)
+    $step_case forall("n", sinw)
+    $got_sc fr(scur, left(scur), [step_case], step_case, "n")
 
     # === ASSEMBLY: omega_induction → ∀n∈w.P(n) ===
     $oi_body \w: implies(omega(w,"_"), implies(base_case, implies(step_case,
