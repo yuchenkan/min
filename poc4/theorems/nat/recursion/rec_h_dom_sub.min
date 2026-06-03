@@ -1,7 +1,9 @@
 from core.derived import mem, implies, forall, and, exists, iff, eqv, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
-from vocab.recursion import rec_approx
+from vocab.nat.omega import omega
+from vocab.nat.nat import nat
+from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.and_intro import and_intro
@@ -11,49 +13,44 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.sets.kuratowski import kuratowski
 from theorems.logic.ext_substitution import ext_substitution
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.omega.omega_exists import omega_exists
 
-# |- char_h -> Apply(h,x,y) -> In(x,w)
-# From Apply(h,x,y): OrdPair(q,x,y) ∧ q∈h.
-# char_h forward: q∈h → ∃m.(m∈w ∧ phi(m,q)).
-# phi gives OrdPair(q,m,y'). kuratowski: x=m. So x∈w.
+# |- char_h -> Apply(h,x,y) -> Nat(x)
 $rec_h_dom_sub {
     $phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
-        and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+        and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
             apply(add(np,"v"),m,add(np,"y"),add(np,"_"))),
             ordered_pair(p,m,add(np,"y"),add(np,"_")))))
 
-    $char_h forall("p", iff(mem("p","h"), exists("m", and(mem("m","w"), phi("m","p","_")))))
+    $char_h forall("p", iff(mem("p","h"), exists("m", and(nat("m","_"), phi("m","p","_")))))
     $app_hxy apply("h","x","y","_")
-    $xw mem("x","w")
+    $nat_x nat("x","_")
 
     # Unpack Apply(h,x,y): exists q. and(ordpair(q,x,y), mem(q,h))
     $opq_xy ordered_pair("q","x","y","_")
     $qh mem("q","h")
     $and_qh and(opq_xy, qh)
 
-    # === char_h forward: q∈h → ∃m.(m∈w ∧ phi(m,q)) ===
-    $ex_m exists("m", and(mem("m","w"), phi("m","q","_")))
+    # === char_h forward: q∈h → ∃m.(Nat(m) ∧ phi(m,q)) ===
+    $ex_m exists("m", and(nat("m","_"), phi("m","q","_")))
     $iff_qh iff(mem("q","h"), ex_m)
     $got_iff fl(ax([iff_qh], [iff_qh], iff_qh), [char_h], [iff_qh], char_h, "q")
     $got_ex_m mp(mp(iff_elim_left(mem("q","h"), ex_m, []),
         got_iff, iff_qh, implies(mem("q","h"), ex_m), [], [char_h]),
         ax([qh], [qh], qh), qh, ex_m, [char_h], [qh])
-    # [char_h, qh] |- ∃m.(m∈w ∧ phi(m,q))
 
-    # === Inside: assume m∈w and phi(m,q) components, derive x∈w ===
-    # phi(m,q) = ∃v.∃y'.(RA(v)∧Apply(v,m,y') ∧ OrdPair(q,m,y'))
-    # The OrdPair(q,m,y') + OrdPair(q,x,y) → kuratowski → eqv(x,m) ∧ eqv(y,y')
+    # === Inside: assume Nat(m), phi(m,q) components, derive Nat(x) ===
     $opq_my ordered_pair("q","m","y2","_")
-    $ra_v rec_approx("v2","a","f","w","_")
+    $ra_v rec_approx("v2","a","f","_")
     $app_vm apply("v2","m","y2","_")
     $and_ra_app and(ra_v, app_vm)
     $and_inner and(and_ra_app, opq_my)
 
-    # kuratowski: opq_xy ∧ opq_my → eqv(x,m) ∧ eqv(y,y2)
+    # kuratowski: opq_xy ∧ opq_my → eqv(x,m)
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
     $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    # Need eqv(q,q) for kuratowski. Use eqv_reflexive:
     $_er head(right(eqv_reflexive))
     $eqv_qq eqv("q","q","_")
     $got_eqv_qq apply_thm(eqv_reflexive, _er, ["q"], ["q"], \a: eqv(a,a,"_"), [])
@@ -70,65 +67,81 @@ $rec_h_dom_sub {
         k3, goal_and, eqv_xm, [], left(k3))
     # [opq_xy, opq_my, kur_ctx] |- eqv(x,m)
 
-    # ext_substitution: eqv(x,m) → iff(mem(x,w), mem(m,w))
+    # === Derive Nat(x) from eqv(x,m) + Nat(m) ===
+    # For arbitrary w with Omega(w): nat_elim → m∈w, ext_substitution → x∈w, then wrap to Nat(x).
+    $nat_m nat("m","_")
+    $om omega("w","_")
+    $mw mem("m","w")
+    $xw mem("x","w")
+
+    # nat_elim: Nat(m) → Omega(w) → m∈w
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $ne_inst apply_thm(nat_elim, head(right(nat_elim)), ["m","w"], ["m","w"], _ne_b, left(nat_elim))
+    $ne_mp1 mp(ne_inst, ax([nat_m],[nat_m],nat_m), nat_m, implies(om, mw), left(ne_inst), [nat_m])
+    $got_mw mp(ne_mp1, ax([om],[om],om), om, mw, left(ne_mp1), [om])
+    # [nat_m, om] |- m∈w
+
+    # ext_substitution: eqv(x,m) → iff(x∈w, m∈w)
     $_es head(right(ext_substitution))
     $es_ctx left(ext_substitution)
-    $iff_xw iff(xw, mem("m","w"))
+    $iff_xw iff(xw, mw)
     $got_es apply_thm(ext_substitution, _es, ["x","m","w"], ["x","b","s"],
         \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx)
     $got_iff_xw mp(got_es, got_eqv_xm, eqv_xm, iff_xw, es_ctx, left(got_eqv_xm))
 
-    # iff backward: mem(m,w) → mem(x,w)
-    $got_xw mp(mp(iff_elim_right(xw, mem("m","w"), []),
-        got_iff_xw, iff_xw, implies(mem("m","w"), xw), [], left(got_iff_xw)),
-        ax([mem("m","w")], [mem("m","w")], mem("m","w")), mem("m","w"), xw, left(got_iff_xw), [mem("m","w")])
-    # [opq_xy, opq_my, kur_ctx, es_ctx, mem(m,w)] |- x∈w
+    # iff backward: m∈w → x∈w
+    $got_xw mp(mp(iff_elim_right(xw, mw, []),
+        got_iff_xw, iff_xw, implies(mw, xw), [], left(got_iff_xw)),
+        got_mw, mw, xw, left(got_iff_xw), left(got_mw))
+    # [opq_xy, opq_my, kur_ctx, es_ctx, nat_m, om] |- x∈w
+
+    # Wrap x∈w into Nat(x): ir om, fr "w" → ∀w.Omega(w)→x∈w = Nat(x)
+    $got_xw_ir ir(got_xw, remove(same, om, left(got_xw)), [implies(om, xw)], implies(om, xw))
+    $got_nat_x fr(got_xw_ir, left(got_xw_ir), [nat_x], nat_x, "w")
+    # [opq_xy, opq_my, kur_ctx, es_ctx, nat_m] |- Nat(x)
 
     # === Close inner existentials ===
-    # Replace opq_my with and_inner via and_elim_right:
     $got_opq_from mp(and_elim_right(and_ra_app, opq_my, []),
         ax([and_inner], [and_inner], and_inner), and_inner, opq_my, [], [and_inner])
-    $got_xw2 cut_c(got_opq_from, got_xw, opq_my, [and_inner], left(got_xw), xw)
+    $got_nx2 cut_c(got_opq_from, got_nat_x, opq_my, [and_inner], left(got_nat_x), nat_x)
 
-    # eel y2 from and_inner (exists y2 inside phi):
-    $got_xw3 eel(got_xw2, \y2: and(and(rec_approx("v2","a","f","w","_"), apply("v2","m",y2,"_")), ordered_pair("q","m",y2,"_")),
-        "_y", "y2", left(got_xw2), xw)
+    # eel y2 from and_inner:
+    $got_nx3 eel(got_nx2, \y2: and(and(rec_approx("v2","a","f","_"), apply("v2","m",y2,"_")), ordered_pair("q","m",y2,"_")),
+        "_y", "y2", left(got_nx2), nat_x)
     # eel v2:
-    $got_xw4 eel(got_xw3, \v2: exists("_y", and(and(rec_approx(v2,"a","f","w","_"), apply(v2,"m","_y","_")), ordered_pair("q","m","_y","_"))),
-        "_v", "v2", left(got_xw3), xw)
-    # Now phi("m","q","_") is on left
+    $got_nx4 eel(got_nx3, \v2: exists("_y", and(and(rec_approx(v2,"a","f","_"), apply(v2,"m","_y","_")), ordered_pair("q","m","_y","_"))),
+        "_v", "v2", left(got_nx3), nat_x)
 
-    # Package mem(m,w) and phi into and(mem(m,w), phi(m,q)):
-    $and_mw_phi and(mem("m","w"), phi("m","q","_"))
-    $got_mw_from mp(and_elim_left(mem("m","w"), phi("m","q","_"), []),
-        ax([and_mw_phi], [and_mw_phi], and_mw_phi), and_mw_phi, mem("m","w"), [], [and_mw_phi])
-    $got_phi_from mp(and_elim_right(mem("m","w"), phi("m","q","_"), []),
-        ax([and_mw_phi], [and_mw_phi], and_mw_phi), and_mw_phi, phi("m","q","_"), [], [and_mw_phi])
-    $got_xw5 cut_c(got_mw_from, got_xw4, mem("m","w"), [and_mw_phi], left(got_xw4), xw)
-    $got_xw6 cut_c(got_phi_from, got_xw5, phi("m","q","_"), [and_mw_phi], left(got_xw5), xw)
+    # Package Nat(m) and phi into and(Nat(m), phi(m,q)):
+    $and_nat_phi and(nat_m, phi("m","q","_"))
+    $got_nat_from mp(and_elim_left(nat_m, phi("m","q","_"), []),
+        ax([and_nat_phi], [and_nat_phi], and_nat_phi), and_nat_phi, nat_m, [], [and_nat_phi])
+    $got_phi_from mp(and_elim_right(nat_m, phi("m","q","_"), []),
+        ax([and_nat_phi], [and_nat_phi], and_nat_phi), and_nat_phi, phi("m","q","_"), [], [and_nat_phi])
+    $got_nx5 cut_c(got_nat_from, got_nx4, nat_m, [and_nat_phi], left(got_nx4), nat_x)
+    $got_nx6 cut_c(got_phi_from, got_nx5, phi("m","q","_"), [and_nat_phi], left(got_nx5), nat_x)
 
     # eel m:
-    $got_xw7 eel(got_xw6, \m: and(mem(m,"w"), phi(m,"q","_")),
-        "m", "m", left(got_xw6), xw)
+    $got_nx7 eel(got_nx6, \m: and(nat(m,"_"), phi(m,"q","_")),
+        "m", "m", left(got_nx6), nat_x)
     # Cut with got_ex_m:
-    $got_xw8 cut_c(got_ex_m, got_xw7, ex_m, [char_h, qh], left(got_xw7), xw)
+    $got_nx8 cut_c(got_ex_m, got_nx7, ex_m, left(got_ex_m), left(got_nx7), nat_x)
 
-    # Replace opq_xy and qh with and(opq_xy, qh) via and_elim:
+    # Replace opq_xy and qh with and(opq_xy, qh):
     $got_opq_from2 mp(and_elim_left(opq_xy, qh, []),
         ax([and_qh], [and_qh], and_qh), and_qh, opq_xy, [], [and_qh])
     $got_qh_from mp(and_elim_right(opq_xy, qh, []),
         ax([and_qh], [and_qh], and_qh), and_qh, qh, [], [and_qh])
-    $got_xw9 cut_c(got_opq_from2, got_xw8, opq_xy, [and_qh], left(got_xw8), xw)
-    $got_xw10 cut_c(got_qh_from, got_xw9, qh, [and_qh], left(got_xw9), xw)
+    $got_nx9 cut_c(got_opq_from2, got_nx8, opq_xy, [and_qh], left(got_nx8), nat_x)
+    $got_nx10 cut_c(got_qh_from, got_nx9, qh, [and_qh], left(got_nx9), nat_x)
 
     # eel q from and_qh = Apply(h,x,y) body:
-    $got_xw11 eel(got_xw10, \q: and(ordered_pair(q,"x","y","_"), mem(q,"h")),
-        "q", "q", left(got_xw10), xw)
-    # app_hxy is exists(q, and_qh) — should be on left now
+    $got_nx11 eel(got_nx10, \q: and(ordered_pair(q,"x","y","_"), mem(q,"h")),
+        "q", "q", left(got_nx10), nat_x)
 
-    # Close: ir app_hxy, ir char_h, fr y, x, w, f, a, h
-    $s1 ir(got_xw11, remove(same, app_hxy, left(got_xw11)), [implies(app_hxy, xw)], implies(app_hxy, xw))
-    $top implies(char_h, implies(app_hxy, xw))
+    # Close: ir app_hxy, ir char_h
+    $s1 ir(got_nx11, remove(same, app_hxy, left(got_nx11)), [implies(app_hxy, nat_x)], implies(app_hxy, nat_x))
+    $top implies(char_h, implies(app_hxy, nat_x))
     $s2 ir(s1, remove(same, char_h, left(s1)), [top], top)
-    close(s2, left(s2), [top], ["y","x","w","f","a","h"])
+    close(s2, left(s2), [top], ["y","x","f","a","h"])
 }
