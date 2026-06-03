@@ -157,9 +157,11 @@ $_ qed(eqv_mem_right,
         implies(eqv("x", "y", "_"), implies(mem("x", "a"), mem("y", "a")))))))
 $_ print("eqv_mem_right ok")
 
-$phi_fn \v: mem(v, "a")
-$bridge_f implies(exists_unique(phi_fn, "_"), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))
-$_ qed(exists_unique_bridge(phi_fn, "s", ["s", "a"]), forall("a", forall("s", bridge_f)))
+$phi_fn \v p: mem(v, "a")
+$pred_fn \v: mem(v, "s")
+$tr forall("t1", forall("t2", implies(eqv("t1","t2","_"), implies(mem("t1","s"), mem("t2","s")))))
+$bridge_f implies(tr, implies(exists_unique(phi_fn, "_"), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s"))))))
+$_ qed(exists_unique_bridge(phi_fn, pred_fn, ["s", "a"], "_"), forall("a", forall("s", bridge_f)))
 $_ print("exists_unique_bridge ok")
 
 # === Degenerate cases (A=B, P=R, etc.) ===

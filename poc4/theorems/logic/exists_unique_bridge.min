@@ -1,114 +1,127 @@
-from core.derived import mem, neg, implies, forall, and, exists, iff, eqv, ext_ax, left, right
+from core.derived import neg, implies, forall, and, iff, exists, eqv, left, right
 from vocab.logic import exists_unique
-from tactics import ax, wl, wr, nl, nr, il, ir, fl, fr, cut, mp, cut_c, apply_thm, eir, eel, close
+from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.iff_intro import iff_intro
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
-from theorems.logic.ext_substitution import ext_substitution
 
-# Ext |- exists_unique(phi) -> iff(forall(x, phi(x)->mem(x,s)), exists(x, phi(x) & mem(x,s)))
-$exists_unique_bridge \phi_fn s vars: {
-    $pred_fn \v: mem(v, s)
-    $eu exists_unique(phi_fn, "_")
-    $fa_form forall("x", implies(phi_fn("x"), pred_fn("x")))
-    $ex_body_fn \v: and(phi_fn(v), pred_fn(v))
-    $ex_form exists("x", ex_body_fn("x"))
-    $eu_body_fn \v: and(phi_fn(v), forall("y", implies(phi_fn("y"), eqv(v, "y", "_"))))
-    $ext_f ext_ax
+# eu_bridge: ∃!x.phi(x) → iff(∀x.phi(x)→P(x), ∃x.phi(x)∧P(x))
+# Generalized exists_unique_bridge for arbitrary predicates.
+# phi_fn: \v p: phi formula. pred_fn: \v: predicate (no prefix needed).
 
-    # ===== FORWARD: eu, fa_form |- ex_form =====
-    $eu_body_u eu_body_fn("u")
-    $phi_u phi_fn("u")
-    $pred_u pred_fn("u")
-    $uniq_u forall("y", implies(phi_fn("y"), eqv("u", "y", "_")))
+$exists_unique_bridge \phi_fn pred_fn vars p: {
+    $np add(p, "_")
+    $xv add(p, "x")
+    $yv add(p, "y")
+    $uv add(p, "u")
+    $eu exists_unique(phi_fn, np)
+    $fa_form forall(xv, implies(phi_fn(xv, np), pred_fn(xv)))
+    $ex_form exists(xv, and(phi_fn(xv, np), pred_fn(xv)))
+    $goal iff(fa_form, ex_form)
 
+    # eu internals: ∃x. phi(x) ∧ ∀y. phi(y) → eqv(x,y)
+    $eu_body_fn \v: and(phi_fn(v, np), forall(yv, implies(phi_fn(yv, np), eqv(v, yv, np))))
+    $eu_body_u eu_body_fn(uv)
+    $phi_u phi_fn(uv, np)
+    $uniq_u forall(yv, implies(phi_fn(yv, np), eqv(uv, yv, np)))
+
+    # === FORWARD: eu, fa_form |- ex_form ===
+    # From eu: ∃u. phi(u) ∧ uniq(u). Assume phi(u) ∧ uniq(u).
     $got_phi_u mp(and_elim_left(phi_u, uniq_u, []), ax([eu_body_u], [eu_body_u], eu_body_u), eu_body_u, phi_u, [], [eu_body_u])
-    $imp_u implies(phi_u, pred_u)
-    $got_imp_u apply_thm(ax([fa_form], [fa_form], fa_form), fa_form, ["u"], ["u"],
-        \v: implies(phi_fn(v), pred_fn(v)), [fa_form])
-    $got_pred_u mp(got_imp_u, got_phi_u, phi_u, pred_u, [fa_form], [eu_body_u])
-    $and_u and(phi_u, pred_u)
-    $got_and_u mp(mp(and_intro(phi_u, pred_u, []),
-                     got_phi_u, phi_u, implies(pred_u, and_u), [], [eu_body_u]),
-                  got_pred_u, pred_u, and_u, [eu_body_u], [eu_body_u, fa_form])
-    $got_ex eir(got_and_u, ex_body_fn, "x", "u", [eu_body_u, fa_form])
-    $got_fwd_raw eel(got_ex, eu_body_fn, "x", "u", [eu_body_u, fa_form], ex_form)
+    # fa_form at u: phi(u) → P(u). mp: P(u).
+    $pred_u pred_fn(uv)
+    $got_pred_u mp(apply_thm(ax([fa_form], [fa_form], fa_form), fa_form, [uv], [uv],
+        \x: implies(phi_fn(x, np), pred_fn(x)), [fa_form]),
+        got_phi_u, phi_u, pred_u, [fa_form], [eu_body_u])
+    # and(phi(u), P(u)), eir u → ex_form
+    $got_and mp(mp(and_intro(phi_u, pred_u, []),
+        got_phi_u, phi_u, implies(pred_u, and(phi_u, pred_u)), [], [eu_body_u]),
+        got_pred_u, pred_u, and(phi_u, pred_u), [eu_body_u], [fa_form, eu_body_u])
+    $got_ex eir(got_and, \v: and(phi_fn(v, np), pred_fn(v)), xv, uv, left(got_and))
+    # eel u: replace eu_body_u on left with ∃u.eu_body = eu
+    $got_ex2 eel(got_ex, eu_body_fn, xv, uv, left(got_ex), ex_form)
+    # left now has [eu_on_left, fa_form] where eu_on_left ≈ eu. cut_c to source from ax([eu]).
+    # Actually eu should already be on the left from eel. Just ir fa_form.
     $fwd implies(fa_form, ex_form)
-    $got_fwd ir(got_fwd_raw, [eu], [fwd], fwd)
+    $got_fwd ir(got_ex2, remove(same, fa_form, left(got_ex2)), [fwd], fwd)
 
-    # ===== BACKWARD: eu, ex_form |- fa_form (needs Ext) =====
-    $eu_body_u2 eu_body_fn("u2")
-    $phi_u2 phi_fn("u2")
-    $uniq_u2 forall("y", implies(phi_fn("y"), eqv("u2", "y", "_")))
-    $ex_body_w ex_body_fn("w")
-    $phi_w phi_fn("w")
-    $pred_w pred_fn("w")
+    # === BACKWARD: eu, transfer, ex_form |- fa_form ===
+    # transfer: ∀a,b. eqv(a,b) → P(a) → P(b)
+    $av add(p, "a")
+    $bv add(p, "b")
+    $transfer forall(av, forall(bv, implies(eqv(av, bv, np), implies(pred_fn(av), pred_fn(bv)))))
 
-    $got_phi_u2 mp(and_elim_left(phi_u2, uniq_u2, []), ax([eu_body_u2], [eu_body_u2], eu_body_u2), eu_body_u2, phi_u2, [], [eu_body_u2])
-    $got_uniq_u2 mp(and_elim_right(phi_u2, uniq_u2, []), ax([eu_body_u2], [eu_body_u2], eu_body_u2), eu_body_u2, uniq_u2, [], [eu_body_u2])
-    $got_phi_w mp(and_elim_left(phi_w, pred_w, []), ax([ex_body_w], [ex_body_w], ex_body_w), ex_body_w, phi_w, [], [ex_body_w])
-    $got_pred_w mp(and_elim_right(phi_w, pred_w, []), ax([ex_body_w], [ex_body_w], ex_body_w), ex_body_w, pred_w, [], [ex_body_w])
+    # Assume phi(y). Need P(y).
+    $phi_y phi_fn(yv, np)
+    $pred_y pred_fn(yv)
+    # From ex_form: ∃x.phi(x)∧P(x). Assume phi(u)∧P(u).
+    $and_phi_pred and(phi_u, pred_u)
+    $got_phi_u2 mp(and_elim_left(phi_u, pred_u, []),
+        ax([and_phi_pred], [and_phi_pred], and_phi_pred), and_phi_pred, phi_u, [], [and_phi_pred])
+    $got_pred_u2 mp(and_elim_right(phi_u, pred_u, []),
+        ax([and_phi_pred], [and_phi_pred], and_phi_pred), and_phi_pred, pred_u, [], [and_phi_pred])
+    # From eu: ∃x.phi(x)∧uniq(x). Assume phi(v)∧uniq(v). uniq(v) at y: phi(y)→eqv(v,y).
+    $vv add(p, "v")
+    $phi_v phi_fn(vv, np)
+    $uniq_v forall(yv, implies(phi_fn(yv, np), eqv(vv, yv, np)))
+    $eu_body_v and(phi_v, uniq_v)
+    $got_uniq_v mp(and_elim_right(phi_v, uniq_v, []),
+        ax([eu_body_v], [eu_body_v], eu_body_v), eu_body_v, uniq_v, [], [eu_body_v])
+    # uniq(v) at u: phi(u)→eqv(v,u). mp phi(u) → eqv(v,u).
+    $got_eqv_vu mp(apply_thm(got_uniq_v, uniq_v, [uv], [uv],
+        \y: implies(phi_fn(y, np), eqv(vv, y, np)), [eu_body_v]),
+        got_phi_u2, phi_u, eqv(vv, uv, np), [eu_body_v], [and_phi_pred])
+    # uniq(v) at y: phi(y)→eqv(v,y). mp phi(y) → eqv(v,y).
+    $got_eqv_vy mp(apply_thm(got_uniq_v, uniq_v, [yv], [yv],
+        \y: implies(phi_fn(y, np), eqv(vv, y, np)), [eu_body_v]),
+        ax([phi_y], [phi_y], phi_y), phi_y, eqv(vv, yv, np), [eu_body_v], [phi_y])
+    # eqv(v,u) → eqv(u,v) via symmetric
+    # eqv_symmetric, eqv_transitive imported at top
+    $_es_b \a: \b: implies(eqv(a,b,np), eqv(b,a,np))
+    $_es_r forall("ra", forall("rb", _es_b("ra")("rb")))
+    $es_thm wr(eqv_symmetric, [], [_es_r], _es_r)
+    $got_eqv_uv mp(apply_thm(es_thm, _es_r, [vv, uv], ["ra","rb"], _es_b, []),
+        got_eqv_vu, eqv(vv, uv, np), eqv(uv, vv, np), [], left(got_eqv_vu))
+    # eqv(u,v) + eqv(v,y) → eqv(u,y) via transitive
 
-    $phi_t phi_fn("t")
-    $pred_t pred_fn("t")
-    $eqv_u2_t eqv("u2", "t", "_")
-    $got_uniq_t apply_thm(got_uniq_u2, uniq_u2, ["t"], ["t"],
-        \v: implies(phi_fn(v), eqv("u2",v,"_")), [eu_body_u2])
-    $got_eqv_u2_t mp(got_uniq_t, ax([phi_t], [phi_t], phi_t), phi_t, eqv_u2_t, [eu_body_u2], [phi_t])
+    $_et_b \a: \b: \c: implies(eqv(a,b,np), implies(eqv(b,c,np), eqv(a,c,np)))
+    $_et_r forall("ra", forall("rb", forall("rc", _et_b("ra")("rb")("rc"))))
+    $et_thm wr(eqv_transitive, [], [_et_r], _et_r)
+    $got_eqv_uy mp(mp(apply_thm(et_thm, _et_r, [uv, vv, yv], ["ra","rb","rc"], _et_b, []),
+        got_eqv_uv, eqv(uv, vv, np), implies(eqv(vv, yv, np), eqv(uv, yv, np)), [], left(got_eqv_uv)),
+        got_eqv_vy, eqv(vv, yv, np), eqv(uv, yv, np), left(got_eqv_uv), left(got_eqv_vy))
+    # transfer at u,y: eqv(u,y) → P(u) → P(y)
+    $tr1 apply_thm(ax([transfer], [transfer], transfer), transfer, [uv], [uv],
+        \a: forall(bv, implies(eqv(a, bv, np), implies(pred_fn(a), pred_fn(bv)))), [transfer])
+    $tr2 apply_thm(tr1, head(right(tr1)), [yv], [yv],
+        \b: implies(eqv(uv, b, np), implies(pred_u, pred_fn(b))), [transfer])
+    $tr3 mp(tr2, got_eqv_uy, eqv(uv, yv, np), implies(pred_u, pred_y), [transfer], left(got_eqv_uy))
+    $got_pred_y mp(tr3, got_pred_u2, pred_u, pred_y, left(tr3), [and_phi_pred])
+    # eel v from eu, eel u from ex_form
+    $bcur got_pred_y
+    $bcur eel(bcur, \v: and(phi_fn(v, np), forall(yv, implies(phi_fn(yv, np), eqv(v, yv, np)))),
+        xv, vv, left(bcur), pred_y)
+    $bcur eel(bcur, \u: and(phi_fn(u, np), pred_fn(u)),
+        xv, uv, left(bcur), pred_y)
+    # ir phi_y, fr y → fa_form
+    $bcur ir(bcur, remove(same, phi_y, left(bcur)), [implies(phi_y, pred_y)], implies(phi_y, pred_y))
+    $bcur fr(bcur, left(bcur), [forall(yv, implies(phi_y, pred_y))], forall(yv, implies(phi_y, pred_y)), yv)
+    # left has [eu_on_left, ex_on_left, transfer]. ir ex_form.
+    $bwd implies(ex_form, head(right(bcur)))
+    $bcur ir(bcur, remove(same, ex_form, left(bcur)), [bwd], bwd)
 
-    $eqv_u2_w eqv("u2", "w", "_")
-    $got_uniq_w apply_thm(got_uniq_u2, uniq_u2, ["w"], ["w"],
-        \v: implies(phi_fn(v), eqv("u2",v,"_")), [eu_body_u2])
-    $got_eqv_u2_w mp(got_uniq_w, got_phi_w, phi_w, eqv_u2_w, [eu_body_u2], [ex_body_w])
-
-    # eqv_symmetric: forall a b. eqv(a,b) -> eqv(b,a)
-    $_es head(right(eqv_symmetric))
-    $eqv_t_u2 eqv("t", "u2", "_")
-    $got_eqv_t_u2 mp(apply_thm(eqv_symmetric, _es, ["u2", "t"], ["u2", "b"],
-        \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
-        got_eqv_u2_t, eqv_u2_t, eqv_t_u2, [], [eu_body_u2, phi_t])
-
-    $_et head(right(eqv_transitive))
-    $eqv_t_w eqv("t", "w", "_")
-    $got_eqv_t_w mp(mp(apply_thm(eqv_transitive, _et, ["t", "u2", "w"], ["t", "b", "c"],
-        \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_"))), []),
-                       got_eqv_t_u2, eqv_t_u2, implies(eqv_u2_w, eqv_t_w), [], [eu_body_u2, phi_t]),
-                    got_eqv_u2_w, eqv_u2_w, eqv_t_w, [eu_body_u2, phi_t], [eu_body_u2, ex_body_w])
-
-    $_exs head(right(ext_substitution))
-    $iff_pred iff(pred_t, pred_w)
-    $got_iff_pred mp(apply_thm(ext_substitution, _exs, ["t", "w", s], ["t", "b", "s"],
-        \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), left(ext_substitution)),
-                     got_eqv_t_w, eqv_t_w, iff_pred,
-                     [ext_f], [eu_body_u2, phi_t, ex_body_w])
-
-    $got_imp_wt mp(iff_elim_right(pred_t, pred_w, []),
-                   got_iff_pred, iff_pred, implies(pred_w, pred_t),
-                   [], [ext_f, eu_body_u2, phi_t, ex_body_w])
-
-    $got_pred_t mp(got_imp_wt, got_pred_w, pred_w, pred_t,
-                   [ext_f, eu_body_u2, phi_t, ex_body_w], [ex_body_w])
-
-    $imp_phi_pred implies(phi_t, pred_t)
-    $s_ir ir(got_pred_t, [ext_f, eu_body_u2, ex_body_w], [imp_phi_pred], imp_phi_pred)
-    $s_fr fr(s_ir, [ext_f, eu_body_u2, ex_body_w], [fa_form], fa_form, "t")
-    $s_eel_ex eel(s_fr, ex_body_fn, "x", "w", [ext_f, eu_body_u2, ex_body_w], fa_form)
-    $s_eel_eu eel(s_eel_ex, eu_body_fn, "x", "u2", [ext_f, eu_body_u2, ex_form], fa_form)
-
-    $bwd implies(ex_form, fa_form)
-    $got_bwd ir(s_eel_eu, [ext_f, eu], [bwd], bwd)
-
-    # ===== COMBINE =====
-    $iff_result iff(fa_form, ex_form)
     $got_iff mp(mp(iff_intro(fa_form, ex_form, []),
-                   got_fwd, fwd, implies(bwd, iff_result), [], [eu]),
-                got_bwd, bwd, iff_result, [eu], [ext_f, eu])
+        got_fwd, fwd, implies(bwd, goal), [], left(got_fwd)),
+        bcur, bwd, goal, left(got_fwd), left(bcur))
 
-    $top implies(eu, iff_result)
-    $result ir(got_iff, [ext_f], [top], top)
-    close(result, [ext_f], [top], vars)
+    $top implies(transfer, implies(eu, goal))
+    $cur got_iff
+    $cur ir(cur, remove(same, eu, left(cur)), [implies(eu, goal)], implies(eu, goal))
+    $cur ir(cur, [], [top], top)
+    close(cur, [], [top], vars)
 }
