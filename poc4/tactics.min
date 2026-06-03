@@ -73,6 +73,15 @@ $wl \prf left right A: proof(left, right, "weakening_left", [prf], A)
 $wr \prf left right A: proof(left, right, "weakening_right", [prf], A)
 $cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A)
 
+# contraction_left: G, A, A |- D  →  G, A |- D
+# Derived via cut: G,A,A |- D + G,A |- A,D  →  G,A |- D
+$cl \prf left_with_dup right A: {
+    $left_dedup remove(same, A, left_with_dup)
+    $left_single add(left_dedup, [A])
+    $p2 wr(ax(left_single, [A], A), left_single, add([A], right), A)
+    cut(p2, prf, left_single, right, A)
+}
+
 # === weakening helpers ===
 
 $_wl_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
@@ -189,7 +198,15 @@ $eel \prf pred_fn x y ctx D: {
     $ctx_only remove(same, pred_y, ctx)
     $s1 nr(prf, ctx_only, [neg(pred_y), D], neg(pred_y))
     $s2 fr(s1, ctx_only, [fa_neg, D], fa_neg, y)
-    nl(s2, add(ctx_only, [ex]), [D], ex)
+    ?(contains(same, ex, ctx_only), {
+        # ex (= ¬fa_neg) already on ctx_only. Cut fa_neg from right using contradiction.
+        # [fa_neg, ¬fa_neg] ⊢ [] then weaken to [fa_neg, ctx_only] ⊢ [D].
+        $contra nl(ax([fa_neg], [fa_neg], fa_neg), [fa_neg, ex], [], ex)
+        $contra_w wr(wl_all(contra, [fa_neg, ex], [],
+            diff(same, add(ctx_only, [fa_neg]), [fa_neg, ex])),
+            add(ctx_only, [fa_neg]), [D], D)
+        cut(s2, contra_w, ctx_only, [D], fa_neg)
+    }, nl(s2, add(ctx_only, [ex]), [D], ex))
 }
 
 # cut_c: computed cut
