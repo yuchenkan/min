@@ -21,6 +21,12 @@ from theorems.sets.product_in_intro import product_in_intro
 from theorems.omega.omega_induction import omega_induction
 from theorems.omega.omega_contains_empty import omega_contains_empty
 from theorems.omega.omega_succ_closed import omega_succ_closed
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.sets.successor_unique import successor_unique
+from theorems.sets.successor_exists import successor_exists
+from theorems.sets.apply_intro import apply_intro
+from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.sets.eq_succ_transfer import eq_succ_transfer
 
 # plus_func_unique: Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eqv(h1,h2)
 # By omega_induction: for all m∈w, n∈w, h1(⟨m,n⟩) = h2(⟨m,n⟩).
@@ -77,10 +83,127 @@ $plus_func_unique {
     $got_sv2 mp(and_elim_right(forall("z", implies(mem("z","h2"), exists("x", exists("y", ordered_pair("z","x","y","_"))))), sv2, []),
         got_func2, func2, sv2, [], [pf2])
 
-    # TODO: omega_induction on P(n) = values agree, then extensionality → Eqv(h1,h2)
-    # Placeholder:
+    # === Omega induction: P(n) = ∀m∈w.∀pair.Op(pair,m,n)→∀v1.App(h1)→∀v2.App(h2)→Eqv(v1,v2) ===
+    $pred \w n p: forall(add(p,"m"), implies(mem(add(p,"m"),w),
+        forall(add(p,"pair"), implies(ordered_pair(add(p,"pair"),add(p,"m"),n,add(p,"_")),
+            forall(add(p,"v1"), implies(apply("h1",add(p,"pair"),add(p,"v1"),add(p,"_")),
+                forall(add(p,"v2"), implies(apply("h2",add(p,"pair"),add(p,"v2"),add(p,"_")),
+                    eqv(add(p,"v1"),add(p,"v2"),add(p,"_"))))))))))
+    $oi omega_induction(pred, [], "_")
+
+    # func_unique helper: sv → Apply(f,x,y1) → Apply(f,x,y2) → eqv(y1,y2)
+    $_fu_b \f: \x: \y1: \y2: implies(
+        forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))),
+        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    # eqv_trans via iff_chain on membership:
+    $_ic_b \a: \b: \c: implies(iff(a,b), implies(iff(b,c), iff(a,c)))
+
+    # === BASE CASE: ∀e.empty(e)→P(e) ===
+    $emp empty("e","_")
+    $mw mem("m","w")
+    $op_pair ordered_pair("pair","m","e","_")
+    $app1v apply("h1","pair","v1","_")
+    $app2v apply("h2","pair","v2","_")
+    $app1m apply("h1","pair","m","_")
+    $app2m apply("h2","pair","m","_")
+
+    # base1 at m,e,pair → Apply(h1,pair,m) — step by step
+    $b1i apply_thm(got_base1, base1, ["m"], ["m"],
+        \m: implies(mem(m,"w"), forall("z", implies(empty("z","_"), forall("pair", implies(ordered_pair("pair",m,"z","_"), apply("h1","pair",m,"_")))))), [pf1])
+    $b1a mp(b1i, ax([mw], [mw], mw), mw, arg2(head(right(b1i))), [pf1], [mw])
+    $b1b apply_thm(b1a, head(right(b1a)), ["e"], ["e"],
+        \z: implies(empty(z,"_"), forall("pair", implies(ordered_pair("pair","m",z,"_"), apply("h1","pair","m","_")))), left(b1a))
+    $b1c mp(b1b, ax([emp], [emp], emp), emp, arg2(head(right(b1b))), left(b1a), [emp])
+    $b1d apply_thm(b1c, head(right(b1c)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"m","e","_"), apply("h1",pair,"m","_")), left(b1c))
+    $gb1 mp(b1d, ax([op_pair], [op_pair], op_pair), op_pair, app1m, left(b1c), [op_pair])
+    # func_unique h1: v1=m
+    $fu1_inst apply_thm(func_unique_thm, head(right(func_unique_thm)), ["h1","pair","v1","m"],
+        ["f","x","y1","y2"], _fu_b, [])
+    $fu1a mp(fu1_inst, got_sv1, sv1, implies(app1v, implies(app1m, eqv("v1","m","_"))), [], [pf1])
+    $fu1b mp(fu1a, ax([app1v], [app1v], app1v), app1v, implies(app1m, eqv("v1","m","_")), [pf1], [app1v])
+    $geq1 mp(fu1b, gb1, app1m, eqv("v1","m","_"), left(fu1b), left(gb1))
+
+    # base2 at m,e,pair → Apply(h2,pair,m), func_unique h2: v2=m
+    $b2i apply_thm(got_base2, base2, ["m"], ["m"],
+        \m: implies(mem(m,"w"), forall("z", implies(empty("z","_"), forall("pair", implies(ordered_pair("pair",m,"z","_"), apply("h2","pair",m,"_")))))), [pf2])
+    $b2a mp(b2i, ax([mw], [mw], mw), mw, arg2(head(right(b2i))), [pf2], [mw])
+    $b2b apply_thm(b2a, head(right(b2a)), ["e"], ["e"],
+        \z: implies(empty(z,"_"), forall("pair", implies(ordered_pair("pair","m",z,"_"), apply("h2","pair","m","_")))), left(b2a))
+    $b2c mp(b2b, ax([emp], [emp], emp), emp, arg2(head(right(b2b))), left(b2a), [emp])
+    $b2d apply_thm(b2c, head(right(b2c)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"m","e","_"), apply("h2",pair,"m","_")), left(b2c))
+    $gb2 mp(b2d, ax([op_pair], [op_pair], op_pair), op_pair, app2m, left(b2c), [op_pair])
+    $fu2_inst apply_thm(func_unique_thm, head(right(func_unique_thm)), ["h2","pair","v2","m"],
+        ["f","x","y1","y2"], _fu_b, [])
+    $fu2a mp(fu2_inst, got_sv2, sv2, implies(app2v, implies(app2m, eqv("v2","m","_"))), [], [pf2])
+    $fu2b mp(fu2a, ax([app2v], [app2v], app2v), app2v, implies(app2m, eqv("v2","m","_")), [pf2], [app2v])
+    $geq2 mp(fu2b, gb2, app2m, eqv("v2","m","_"), left(fu2b), left(gb2))
+
+    # eqv_trans: eqv(v1,m) + eqv(m,v2) → eqv(v1,v2) via iff_chain on membership
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $geq2s mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["v2","m"], ["a","b"], _es_b, []),
+        geq2, eqv("v2","m","_"), eqv("m","v2","_"), [], left(geq2))
+    # fl eqv(v1,m) at zz, fl eqv(m,v2) at zz, iff_chain
+    $iff_v1m iff(mem("zz","v1"), mem("zz","m"))
+    $iff_mv2 iff(mem("zz","m"), mem("zz","v2"))
+    $iff_v1v2 iff(mem("zz","v1"), mem("zz","v2"))
+    $giff1 fl(ax([iff_v1m], [iff_v1m], iff_v1m), [eqv("v1","m","_")], [iff_v1m], eqv("v1","m","_"), "zz")
+    $giff2 fl(ax([iff_mv2], [iff_mv2], iff_mv2), [eqv("m","v2","_")], [iff_mv2], eqv("m","v2","_"), "zz")
+    # iff_chain(A,B,C,vars): iff(A,B) → iff(B,C) → iff(A,C)
+    $ic iff_chain(mem("zz","v1"), mem("zz","m"), mem("zz","v2"), [])
+    $giff3 mp(mp(ic, giff1, iff_v1m, implies(iff_mv2, iff_v1v2), [], [eqv("v1","m","_")]),
+        giff2, iff_mv2, iff_v1v2, [eqv("v1","m","_")], [eqv("m","v2","_")])
+    $giff4 cut_c(geq1, cut_c(geq2s, giff3, eqv("m","v2","_"), left(geq2s), left(giff3), iff_v1v2),
+        eqv("v1","m","_"), left(geq1), left(cut_c(geq2s, giff3, eqv("m","v2","_"), left(geq2s), left(giff3), iff_v1v2)), iff_v1v2)
+    $eqv_v1v2 eqv("v1","v2","_")
+    $got_base_eqv fr(giff4, left(giff4), [eqv_v1v2], eqv_v1v2, "zz")
+
+    # Close base: ir app2v, fr v2, ir app1v, fr v1, ir op_pair, fr pair, ir mw, fr m, ir emp, fr e
+    $cur got_base_eqv
+    $cur ir(cur, remove(same, app2v, left(cur)), [implies(app2v, eqv_v1v2)], implies(app2v, eqv_v1v2))
+    $cur fr(cur, left(cur), [forall("v2", implies(app2v, eqv_v1v2))], forall("v2", implies(app2v, eqv_v1v2)), "v2")
+    $iv1 implies(app1v, head(right(cur)))
+    $cur ir(cur, remove(same, app1v, left(cur)), [iv1], iv1)
+    $cur fr(cur, left(cur), [forall("v1", iv1)], forall("v1", iv1), "v1")
+    $ip implies(op_pair, head(right(cur)))
+    $cur ir(cur, remove(same, op_pair, left(cur)), [ip], ip)
+    $cur fr(cur, left(cur), [forall("pair", ip)], forall("pair", ip), "pair")
+    $im implies(mw, head(right(cur)))
+    $cur ir(cur, remove(same, mw, left(cur)), [im], im)
+    $cur fr(cur, left(cur), [forall("m", im)], forall("m", im), "m")
+    $ie implies(emp, head(right(cur)))
+    $cur ir(cur, remove(same, emp, left(cur)), [ie], ie)
+    $base_case forall("e", ie)
+    $got_bc fr(cur, left(cur), [base_case], base_case, "e")
+
+    # === STEP CASE: ∀n. n∈w → P(n) → ∀s. Succ(s,n) → P(s) ===
+    # This is the hardest part. Need domain chain + PlusFunc step + IH + successor transfer.
+    # For now, placeholder axiom to verify base case + assembly structure work.
+    $nw mem("n","w")
+    $pn pred("w","n","_")
+    $succ_sn successor("s","n","_")
+    $step_case forall("n", implies(nw, implies(pn, forall("s", implies(succ_sn, pred("w","s","_"))))))
+    # TODO: prove step_case properly
+    $got_sc ax([pf1, pf2, om], [step_case], step_case)
+
+    # === ASSEMBLY: omega_induction → ∀n∈w.P(n) ===
+    $oi_body \w: implies(omega(w,"_"), implies(base_case, implies(step_case,
+        forall("n", implies(mem("n",w), pred(w,"n","_"))))))
+    $oi_inst apply_thm(oi, head(right(oi)), ["w"], ["_w"], oi_body, left(oi))
+    $oi_1 mp(oi_inst, ax([om], [om], om), om, arg2(head(right(oi_inst))), left(oi), [om])
+    $oi_2 mp(oi_1, got_bc, head(right(got_bc)), arg2(head(right(oi_1))), left(oi_1), left(got_bc))
+    $oi_3 mp(oi_2, got_sc, step_case, arg2(head(right(oi_2))), left(oi_2), left(got_sc))
+    # [axiom_ctxs, pf1, pf2, om] |- ∀n∈w.P(n)
+
+    # === EXTENSIONALITY: from ∀n∈w.P(n) to Eqv(h1,h2) ===
+    # For z∈h1 → z∈h2: Relation → ∃key,val, apply_intro → Apply(h1,key,val),
+    #   domain chain → key∈w×w → ∃m,n, P(n) → Apply(h2,key,val),
+    #   Apply(h2,key,val) + ordpair_unique → z∈h2.
+    # TODO: implement extensionality (symmetric argument for both directions)
+    # For now, close with placeholder to verify induction structure.
     $goal eqv("h1","h2","_")
     $top implies(om, implies(pf1, implies(pf2, goal)))
-    $_ print("plus_func_unique: extraction done, induction TODO")
+    $_ print("plus_func_unique: base+assembly done, step+extensionality TODO")
     close(ax([om], [om], om), [om], [om], [])
 }
