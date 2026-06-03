@@ -18,5 +18,5 @@ $omega \w p: {
     $np add(p, "_")
     $part1 inductive(w, np)
     $part2 forall(x, implies(inductive(x, np), subset(w, x, np)))
-    ["omega", add(w, add(" = ", "w")), and(part1, part2)]
+    ["omega", add("Omega(", add(w, ")")), and(part1, part2)]
 }
