@@ -19,7 +19,7 @@ from theorems.recursion.rec_exists import rec_exists
 from theorems.recursion.rec_agree import rec_agree
 from theorems.nat.recursion.rec_graph_exists import rec_graph_exists
 from theorems.nat.recursion.rec_h_apply import rec_h_apply
-from theorems.recursion.rec_h_dom_sub import rec_h_dom_sub
+from theorems.nat.recursion.rec_h_dom_sub import rec_h_dom_sub
 from theorems.recursion.rec_value import rec_value
 from theorems.nat.recursion.rec_h_apply_fwd import rec_h_apply_fwd
 from theorems.recursion.rec_h_step import rec_h_step
@@ -121,9 +121,9 @@ $_ qed(rec_h_apply, forall("h", forall("a", forall("f",
     forall("v", forall("n", forall("y", rha_body)))))))
 $_ print("rec_h_apply ok")
 
-$rhds_body implies(rha_char, implies(apply("h","x","y","_"), mem("x","w")))
-$_ qed(rec_h_dom_sub, forall("h", forall("a", forall("f", forall("w",
-    forall("x", forall("y", rhds_body)))))))
+$rhds_body implies(rha_char, implies(apply("h","x","y","_"), nat("x","_")))
+$_ qed(rec_h_dom_sub, forall("h", forall("a", forall("f",
+    forall("x", forall("y", rhds_body))))))
 $_ print("rec_h_dom_sub ok")
 
 $rv_ex \v y: and(rec_approx(v,"a","f","w","_"), apply(v,"n",y,"_"))
