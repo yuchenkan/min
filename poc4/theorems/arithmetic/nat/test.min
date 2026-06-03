@@ -1,0 +1,9 @@
+from core.derived import mem, implies, forall, qed
+from vocab.omega import omega
+from vocab.arithmetic.nat import nat
+
+from theorems.arithmetic.nat.nat_elim import nat_elim
+$_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))))
+$_ print("nat_elim ok")
+
+$ok true
