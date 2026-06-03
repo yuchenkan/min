@@ -14,7 +14,7 @@ from theorems.nat.recursion.extend_dom_sub import extend_dom_sub
 from theorems.nat.recursion.extend_ran_sub import extend_ran_sub
 from theorems.nat.recursion.extend_step import extend_step
 from theorems.recursion.rec_exists_step import rec_exists_step
-from theorems.recursion.singleton_recapprox import singleton_recapprox
+from theorems.nat.recursion.singleton_recapprox import singleton_recapprox
 from theorems.recursion.rec_exists import rec_exists
 from theorems.recursion.rec_agree import rec_agree
 from theorems.recursion.rec_graph_exists import rec_graph_exists
@@ -81,10 +81,10 @@ $res_body implies(rec_approx("v","a","f","w","_"), implies(function("f","_"), im
 $_ qed(rec_exists_step, forall("v", forall("a", forall("f", forall("w", forall("n", forall("val", forall("fval", forall("sn", forall("op", forall("h", forall("u", res_body))))))))))))
 $_ print("rec_exists_step ok")
 
-$sr_body implies(omega("w","_"), implies(empty("e","_"), implies(exists("z", apply("f","a","z","_")),
+$sr_body implies(num("e",0,"_"), implies(exists("z", apply("f","a","z","_")),
     implies(ordered_pair("op","e","a","_"), implies(singleton("g","op","_"),
-        and(rec_approx("g","a","f","w","_"), apply("g","e","a","_")))))))
-$_ qed(singleton_recapprox, forall("w", forall("e", forall("f", forall("a", forall("op", forall("g", sr_body)))))))
+        and(rec_approx("g","a","f","_"), apply("g","e","a","_"))))))
+$_ qed(singleton_recapprox, forall("e", forall("f", forall("a", forall("op", forall("g", sr_body))))))
 $_ print("singleton_recapprox ok")
 
 $re_pred \w n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", w, add(p,"_")), exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
