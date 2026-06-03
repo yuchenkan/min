@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right
 from vocab.sets import singleton, ordered_pair, union
-from vocab.functions import apply, function, relation
+from vocab.functions import apply, function, relation, single_valued
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
@@ -255,7 +255,7 @@ $extend_function {
     $ctx_final remove(same, and_apps, left(c4))
     $imp_inner implies(and_apps, eqv_r1r2)
     $s1 ir(c4, ctx_final, [imp_inner], imp_inner)
-    $sv_u forall("r", forall("r1", forall("r2", imp_inner)))
+    $sv_u single_valued("u","_")
     $s2 close(s1, ctx_final, [imp_inner], ["r2", "r1", "r"])
     # s2: [func_v, sing_h, opky, un, cons, pa_f] |- sv_u
 
