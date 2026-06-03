@@ -7,7 +7,7 @@ from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.sets.apply_in_double_union import apply_in_double_union
+from theorems.functions.apply_in_double_union import apply_in_double_union
 from theorems.sets.big_union_exists import big_union_exists
 
 # union_ax, Sep, pairing_ax |- forall f. exists d. domain(d, f)

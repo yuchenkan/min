@@ -8,7 +8,7 @@ from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.singleton_exists import singleton_exists
 from theorems.sets.singleton_function import singleton_function
 from theorems.sets.singleton_apply import singleton_apply
-from theorems.sets.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
 
 # pa |- empty(e0) -> forall a. exists h. function(h) & forall e. (empty(e) -> apply(h, e, a))
 # The empty set witness e0 is taken as hypothesis.

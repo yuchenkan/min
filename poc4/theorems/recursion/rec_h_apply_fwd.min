@@ -9,8 +9,8 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.apply_key_transfer import apply_key_transfer
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.logic.eqv_symmetric import eqv_symmetric
 
 # |- char_h -> Apply(h,n,y) -> In(n,w) -> ∃v. And(RA(v,a,f,w), Apply(v,n,y))

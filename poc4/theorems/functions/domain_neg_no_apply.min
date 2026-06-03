@@ -1,7 +1,7 @@
 from core.derived import mem, neg, implies, forall, left, right
 from vocab.functions import apply, domain
 from tactics import ax, wl, nl, nr, ir, mp, apply_thm, close
-from theorems.sets.domain_mem_intro import domain_mem_intro
+from theorems.functions.domain_mem_intro import domain_mem_intro
 
 # |- domain(d,f) -> neg(mem(x,d)) -> neg(apply(f,x,y))
 $domain_neg_no_apply {

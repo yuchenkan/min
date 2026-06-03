@@ -8,13 +8,13 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.sets.func_unique_thm import func_unique_thm
-from theorems.sets.union_apply_elim import union_apply_elim
-from theorems.sets.extend_apply_old import extend_apply_old
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.functions.union_apply_elim import union_apply_elim
+from theorems.functions.extend_apply_old import extend_apply_old
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.apply_key_transfer import apply_key_transfer
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.omega.successor_injection import successor_injection
 from theorems.sets.succ_set_transfer import succ_set_transfer
 

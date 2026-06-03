@@ -8,11 +8,11 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_intro import iff_intro
-from theorems.sets.apply_intro import apply_intro
+from theorems.functions.apply_intro import apply_intro
 from theorems.sets.ordpair_unique import ordpair_unique
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.logic.eqv_mem_right import eqv_mem_right
-from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.recursion.rec_values_agree import rec_values_agree
 from theorems.recursion.rec_apply_dom import rec_apply_dom
 

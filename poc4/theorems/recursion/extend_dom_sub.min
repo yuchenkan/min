@@ -7,7 +7,7 @@ from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_t
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.sets.union_apply_elim import union_apply_elim
+from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
 from theorems.logic.eqv_mem_right import eqv_mem_right

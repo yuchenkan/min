@@ -20,12 +20,12 @@ from theorems.recursion.rec_exists import rec_exists
 from theorems.recursion.rec_approx_zero import rec_approx_zero
 from theorems.recursion.rec_value import rec_value
 from theorems.recursion.char_h_bridge import char_h_bridge
-from theorems.sets.domain_exists import domain_exists
+from theorems.functions.domain_exists import domain_exists
 from theorems.sets.big_union_exists import big_union_exists
 from theorems.sets.union_exists import union_exists
 from theorems.sets.power_set_exists import power_set_exists
 from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.omega.omega_contains_empty import omega_contains_empty
 
 # Recursion Theorem (existence): func(f) → f_at_a → ran_fc → omega(w) → ∃h.Recursive(h,a,f,w)

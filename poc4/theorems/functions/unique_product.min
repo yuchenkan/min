@@ -5,8 +5,8 @@ from vocab.logic import exists_unique
 from core.derived import left, right, arg2
 from tactics import ax, wl, wr, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.exists_unique_intro import exists_unique_intro
-from theorems.sets.product_exists import product_exists
-from theorems.sets.product_unique import product_unique
+from theorems.functions.product_exists import product_exists
+from theorems.functions.product_unique import product_unique
 
 # unique_product: ∀a.∀b.∃!p.Product(p,a,b)
 $unique_product {

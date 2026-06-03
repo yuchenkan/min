@@ -8,7 +8,7 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.sets.domain_exists import domain_exists
+from theorems.functions.domain_exists import domain_exists
 
 # rec_apply_dom: Recursive(h,a,f,w) → Apply(h,x,y) → x∈w
 # From dom_eq + domain_exists + iff backward + eqv_mem_left.

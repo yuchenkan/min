@@ -3,8 +3,8 @@ from vocab.functions import apply, domain
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, apply_thm, eel, cut_c, close
 from theorems.logic.exists_unique_intro import exists_unique_intro
-from theorems.sets.domain_unique import domain_unique
-from theorems.sets.domain_exists import domain_exists
+from theorems.functions.domain_unique import domain_unique
+from theorems.functions.domain_exists import domain_exists
 
 # Sep, union_ax, pairing_ax |- forall f. exists_unique(d, domain(d, f))
 $unique_domain {

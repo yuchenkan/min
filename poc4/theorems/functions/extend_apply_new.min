@@ -3,7 +3,7 @@ from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply
 from tactics import ax, ir, mp, apply_thm, close
 from theorems.sets.singleton_apply import singleton_apply
-from theorems.sets.union_apply_right import union_apply_right
+from theorems.functions.union_apply_right import union_apply_right
 
 # |- singleton(h,op) -> ordered_pair(op,k,v) -> union(u,g,h) -> apply(u,k,v)
 # The new pair is accessible in the extended function.

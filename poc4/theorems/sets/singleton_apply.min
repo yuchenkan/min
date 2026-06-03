@@ -3,7 +3,7 @@ from vocab.sets import singleton, ordered_pair
 from vocab.functions import apply
 from tactics import ax, ir, mp, apply_thm, close
 from theorems.sets.singleton_mem import singleton_mem
-from theorems.sets.apply_intro import apply_intro
+from theorems.functions.apply_intro import apply_intro
 
 # |- singleton(f, op) -> ordered_pair(op, x, y) -> apply(f, x, y)
 $singleton_apply {

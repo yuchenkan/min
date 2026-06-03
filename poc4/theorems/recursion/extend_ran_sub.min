@@ -5,12 +5,12 @@ from vocab.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.sets.union_apply_elim import union_apply_elim
+from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.sets.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
 
 # pa |- rec_approx(v,a,f,w) → apply(f,val,fval) →
 #   (∀y z. apply(f,y,z) → ∃w. apply(f,z,w)) →

@@ -7,8 +7,8 @@ from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.sets.extend_apply_new import extend_apply_new
-from theorems.sets.extend_function import extend_function
+from theorems.functions.extend_apply_new import extend_apply_new
+from theorems.functions.extend_function import extend_function
 from theorems.recursion.extend_consistency import extend_consistency
 from theorems.recursion.extend_dom_sub import extend_dom_sub
 from theorems.recursion.extend_ran_sub import extend_ran_sub

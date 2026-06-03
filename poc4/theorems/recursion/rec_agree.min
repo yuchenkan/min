@@ -9,8 +9,8 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
-from theorems.sets.func_unique_thm import func_unique_thm
-from theorems.sets.apply_key_transfer import apply_key_transfer
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.omega.omega_induction import omega_induction
 from theorems.recursion.rec_approx_zero import rec_approx_zero
 

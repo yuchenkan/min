@@ -8,7 +8,7 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
-from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.functions.func_unique_thm import func_unique_thm
 
 # |- sv -> eqv(x1,x2) -> apply(f,x1,y1) -> apply(f,x2,y2) -> eqv(y1,y2)
 $func_preserves_eq {

@@ -11,7 +11,7 @@ from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
 
 # pf_forward: From Apply(h,key,val), extract the phi components.

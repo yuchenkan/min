@@ -1,0 +1,49 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
+from vocab.sets import ordered_pair, successor
+from vocab.functions import apply, function, relation, single_valued, domain, product
+from vocab.logic import exists_unique
+
+from theorems.functions.domain_exists import domain_exists
+$_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))))
+$_ print("domain_exists ok")
+
+from theorems.functions.unique_domain import unique_domain
+$_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")))
+$_ print("unique_domain ok")
+
+from theorems.functions.func_unique_thm import func_unique_thm
+$_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
+    implies(forall("r", forall("r1", forall("r2", implies(and(apply("f","r","r1","_"), apply("f","r","r2","_")), eqv("r1","r2","_"))))),
+        implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))))
+$_ print("func_unique_thm ok")
+
+from theorems.functions.func_preserves_eq import func_preserves_eq
+$_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
+    implies(single_valued("f","_"), implies(eqv("x1","x2","_"), implies(apply("f","x1","y1","_"),
+        implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))))
+$_ print("func_preserves_eq ok")
+
+from theorems.functions.apply_intro import apply_intro
+$_ qed(apply_intro, forall("p", forall("f", forall("x", forall("y",
+    implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))))
+$_ print("apply_intro ok")
+
+from theorems.functions.product_exists import product_exists
+$_ qed(product_exists, forall("a", forall("b", exists("s", product("s","a","b","_")))))
+$_ print("product_exists ok")
+
+from theorems.functions.product_in_intro import product_in_intro
+$_ qed(product_in_intro, forall("s", forall("a", forall("b", forall("x", forall("y", forall("z",
+    implies(product("s","a","b","_"), implies(mem("x","a"), implies(mem("y","b"),
+        implies(ordered_pair("z","x","y","_"), mem("z","s"))))))))))))
+$_ print("product_in_intro ok")
+
+from theorems.functions.func_ext_from_agree import func_ext_from_agree
+$_fea_agree forall("x", forall("v1", forall("v2", implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
+$_fea_df forall("x", forall("v", implies(apply("h1","x","v","_"), exists("v2", apply("h2","x","v2","_")))))
+$_fea_db forall("x", forall("v", implies(apply("h2","x","v","_"), exists("v1", apply("h1","x","v1","_")))))
+$_fea_top implies(relation("h1","_"), implies(relation("h2","_"), implies(_fea_agree, implies(_fea_df, implies(_fea_db, eqv("h1","h2","_"))))))
+$_ qed(func_ext_from_agree, forall("h1", forall("h2", _fea_top)))
+$_ print("func_ext_from_agree ok")
+
+$ok true

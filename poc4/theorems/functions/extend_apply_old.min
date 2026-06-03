@@ -2,7 +2,7 @@ from core.derived import mem, implies, forall, left, right
 from vocab.sets import union
 from vocab.functions import apply
 from tactics import ax, ir, mp, apply_thm, close
-from theorems.sets.union_apply_left import union_apply_left
+from theorems.functions.union_apply_left import union_apply_left
 
 # |- apply(g,x,y) -> union(u,g,h) -> apply(u,x,y)
 # Old applications are preserved in the extended function.

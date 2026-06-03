@@ -14,7 +14,7 @@ from theorems.sets.kuratowski import kuratowski
 from theorems.sets.succ_not_empty import succ_not_empty
 from theorems.sets.mem_succ_self import mem_succ_self
 from theorems.sets.neg_mem_empty import neg_mem_empty
-from theorems.sets.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_mem_right import eqv_mem_right

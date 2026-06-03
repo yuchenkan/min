@@ -15,20 +15,20 @@ from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_mem_left import eqv_mem_left
 from theorems.logic.ext_substitution import ext_substitution
-from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.sets.ordpair_exists import ordpair_exists
-from theorems.sets.domain_exists import domain_exists
-from theorems.sets.domain_mem_elim import domain_mem_elim
-from theorems.sets.product_exists import product_exists
-from theorems.sets.product_in_intro import product_in_intro
+from theorems.functions.domain_exists import domain_exists
+from theorems.functions.domain_mem_elim import domain_mem_elim
+from theorems.functions.product_exists import product_exists
+from theorems.functions.product_in_intro import product_in_intro
 from theorems.omega.omega_induction import omega_induction
 from theorems.omega.omega_contains_empty import omega_contains_empty
 from theorems.omega.omega_succ_closed import omega_succ_closed
 from theorems.sets.ordpair_unique import ordpair_unique
 from theorems.sets.successor_unique import successor_unique
 from theorems.sets.successor_exists import successor_exists
-from theorems.sets.apply_intro import apply_intro
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_intro import apply_intro
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.sets.eq_succ_transfer import eq_succ_transfer
 
 # plus_func_unique: Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eqv(h1,h2)

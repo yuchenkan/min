@@ -10,10 +10,10 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.apply_val_transfer import apply_val_transfer
-from theorems.sets.apply_key_transfer import apply_key_transfer
-from theorems.sets.eqv_apply import eqv_apply
-from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.functions.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.functions.eqv_apply import eqv_apply
+from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.recursion.rec_unique import rec_unique
 from theorems.arithmetic.plus.sf_total_from import sf_total_from
 from theorems.arithmetic.plus.pf_forward import pf_forward

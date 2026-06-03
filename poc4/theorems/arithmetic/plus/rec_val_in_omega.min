@@ -10,14 +10,14 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.sets.func_unique_thm import func_unique_thm
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.omega.omega_induction import omega_induction
 from theorems.omega.omega_succ_closed import omega_succ_closed
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.sets.domain_exists import domain_exists
-from theorems.sets.domain_mem_elim import domain_mem_elim
+from theorems.functions.domain_exists import domain_exists
+from theorems.functions.domain_mem_elim import domain_mem_elim
 from theorems.sets.successor_exists import successor_exists
 
 # rec_val_in_omega:

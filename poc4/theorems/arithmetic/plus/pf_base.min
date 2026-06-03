@@ -9,8 +9,8 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.sets.ordpair_exists import ordpair_exists
-from theorems.sets.apply_intro import apply_intro
-from theorems.sets.product_in_intro import product_in_intro
+from theorems.functions.apply_intro import apply_intro
+from theorems.functions.product_in_intro import product_in_intro
 from theorems.omega.omega_contains_empty import omega_contains_empty
 from theorems.arithmetic.plus.rec_for_each_m import rec_for_each_m
 

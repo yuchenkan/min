@@ -6,7 +6,7 @@ from tactics import ax, wl, wl_all, fl, fr, ir, mp, apply_thm, eir, cut_c, close
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.functions.func_unique_thm import func_unique_thm
 
 # |- rec_approx(v,a,f,w) → n∈w → apply(v,n,val) → apply(f,val,fval) →
 #    successor(sn,n) → apply(v,sn,z) → eqv(fval,z)

@@ -6,7 +6,7 @@ from tactics import ax, fl, ir, mp, eir, apply_thm, cut_c, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.sets.func_unique_thm import func_unique_thm
+from theorems.functions.func_unique_thm import func_unique_thm
 
 # |- rec_approx(v,a,f,w) -> empty(e) -> apply(v,e,y) -> eqv(y,a)
 # Any RecApprox maps 0 to a (where defined).

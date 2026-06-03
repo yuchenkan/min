@@ -12,13 +12,13 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.apply_key_transfer import apply_key_transfer
-from theorems.sets.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
 from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
-from theorems.sets.apply_intro import apply_intro
-from theorems.sets.product_in_intro import product_in_intro
+from theorems.functions.apply_intro import apply_intro
+from theorems.functions.product_in_intro import product_in_intro
 from theorems.omega.omega_succ_closed import omega_succ_closed
 from theorems.arithmetic.plus.pf_forward import pf_forward
 from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
