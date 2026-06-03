@@ -11,7 +11,7 @@ from theorems.nat.recursion.extend_consistency import extend_consistency
 from theorems.recursion.extend_base import extend_base
 from theorems.sets.succ_set_transfer import succ_set_transfer
 from theorems.recursion.extend_dom_sub import extend_dom_sub
-from theorems.recursion.extend_ran_sub import extend_ran_sub
+from theorems.nat.recursion.extend_ran_sub import extend_ran_sub
 from theorems.recursion.extend_step import extend_step
 from theorems.recursion.rec_exists_step import rec_exists_step
 from theorems.recursion.singleton_recapprox import singleton_recapprox
@@ -57,11 +57,11 @@ $eds_body implies(rec_approx("v","a","f","w","_"), implies(omega("w","_"), impli
 $_ qed(extend_dom_sub, forall("v", forall("a", forall("f", forall("w", forall("n", forall("sn", forall("u", forall("h", forall("op", forall("fval", eds_body)))))))))))
 $_ print("extend_dom_sub ok")
 
-$ers_body implies(rec_approx("v","a","f","w","_"), implies(apply("f","val","fval","_"),
-    implies(forall("y", forall("z", implies(apply("f","y","z","_"), exists("w2", apply("f","z","w2","_"))))),
+$ers_body implies(rec_approx("v","a","f","_"), implies(apply("f","val","fval","_"),
+    implies(forall("y2", forall("z2", implies(apply("f","y2","z2","_"), exists("w2", apply("f","z2","w2","_"))))),
         implies(singleton("h","op","_"), implies(ordered_pair("op","sn","fval","_"),
             implies(union("u","v","h","_"), forall("x", forall("y", implies(apply("u","x","y","_"), exists("z", apply("f","y","z","_")))))))))))
-$_ qed(extend_ran_sub, forall("v", forall("a", forall("f", forall("w", forall("u", forall("h", forall("op", forall("sn", forall("val", forall("fval", ers_body)))))))))))
+$_ qed(extend_ran_sub, forall("v", forall("a", forall("f", forall("u", forall("h", forall("op", forall("sn", forall("val", forall("fval", ers_body))))))))))
 $_ print("extend_ran_sub ok")
 
 $es_inner forall("m", implies(mem("m","w"), forall("sm", implies(successor("sm","m","_"), implies(exists("y5", apply("u","sm","y5","_")), and(exists("val5", apply("u","m","val5","_")), forall("val5", implies(apply("u","m","val5","_"), forall("fv5", implies(apply("f","val5","fv5","_"), apply("u","sm","fv5","_")))))))))))
