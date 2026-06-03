@@ -73,15 +73,6 @@ $wl \prf left right A: proof(left, right, "weakening_left", [prf], A)
 $wr \prf left right A: proof(left, right, "weakening_right", [prf], A)
 $cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A)
 
-# contraction_left: G, A, A |- D  →  G, A |- D
-# Derived via cut: G,A,A |- D + G,A |- A,D  →  G,A |- D
-$cl \prf left_with_dup right A: {
-    $left_dedup remove(same, A, left_with_dup)
-    $left_single add(left_dedup, [A])
-    $p2 wr(ax(left_single, [A], A), left_single, add([A], right), A)
-    cut(p2, prf, left_single, right, A)
-}
-
 # === weakening helpers ===
 
 $_wl_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
