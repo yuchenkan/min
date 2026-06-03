@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, exists, eqv, right
 from vocab.sets import ordered_pair
-from vocab.functions import apply
+from vocab.functions import apply, single_valued
 from tactics import ax, ir, mp, apply_thm, eel, eir, cut_c, close
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -12,8 +12,7 @@ from theorems.functions.func_unique_thm import func_unique_thm
 
 # |- sv -> eqv(x1,x2) -> apply(f,x1,y1) -> apply(f,x2,y2) -> eqv(y1,y2)
 $func_preserves_eq {
-    $sv forall("r", forall("r1", forall("r2",
-        implies(and(apply("f","r","r1","_"), apply("f","r","r2","_")), eqv("r1","r2","_")))))
+    $sv single_valued("f","_")
     $eqv_x eqv("x1", "x2", "_")
     $app1 apply("f", "x1", "y1", "_")
     $app2 apply("f", "x2", "y2", "_")

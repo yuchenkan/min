@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
 from vocab.sets import empty, successor, ordered_pair
-from vocab.functions import apply, function, domain, relation
+from vocab.functions import apply, function, domain, relation, single_valued
 from vocab.omega import omega
 from vocab.recursion import recursive
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
@@ -59,7 +59,7 @@ $rec_val_in_omega {
         ax([rec_h], [rec_h], rec_h), rec_h, func_h, [], [rec_h])
 
     # Extract sv from func_h for func_unique_thm:
-    $sv_h forall("r", forall("r1", forall("r2", implies(and(apply("h","r","r1","_"), apply("h","r","r2","_")), eqv("r1","r2","_")))))
+    $sv_h single_valued("h","_")
     $got_sv mp(and_elim_right(relation("h","_"), sv_h, []),
         got_func, func_h, sv_h, [], [rec_h])
 

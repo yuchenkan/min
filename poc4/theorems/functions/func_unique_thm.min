@@ -1,5 +1,5 @@
 from core.derived import mem, implies, forall, and, eqv
-from vocab.functions import apply, function
+from vocab.functions import apply, single_valued, function
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.and_intro import and_intro
 
@@ -12,8 +12,7 @@ $func_unique_thm {
     $eqv_y eqv("y1", "y2", "_")
 
     # sv: single-valued condition (same structure as function but without relation)
-    $sv forall("r", forall("r1", forall("r2",
-        implies(and(apply("f","r","r1","_"), apply("f","r","r2","_")), eqv("r1","r2","_")))))
+    $sv single_valued("f","_")
 
     $got_sv apply_thm(ax([sv], [sv], sv), sv, ["x", "y1", "y2"], ["x", "r1", "r2"],
         \r: \r1: \r2: implies(and(apply("f",r,r1,"_"), apply("f",r,r2,"_")), eqv(r1,r2,"_")), [sv])

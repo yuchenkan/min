@@ -40,18 +40,9 @@ $single_valued \f p: {
             implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ap)))))]
 }
 
-# function(f, p): relation(f) and single-valued
-# and(relation(f), forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2))
-$function \f p: {
-    $x add(p, "x")
-    $y1 add(p, "y1")
-    $y2 add(p, "y2")
-    $ap add(p, "_")
-    $sv forall(x, forall(y1, forall(y2,
-        implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ap)))))
-    ["function", add("Func(", add(f, ")")),
-        and(relation(f, p), sv)]
-}
+# function(f, p): relation(f) and single_valued(f)
+$function \f p: ["function", add("Func(", add(f, ")")),
+    and(relation(f, p), single_valued(f, p))]
 
 # product(s, a, b, p): s = a x b
 $product \s a b p: {

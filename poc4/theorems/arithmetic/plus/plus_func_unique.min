@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
 from vocab.sets import empty, successor, ordered_pair
-from vocab.functions import apply, function, domain, product
+from vocab.functions import apply, function, single_valued, domain, product
 from vocab.omega import omega
 from vocab.arithmetic.plus import plus_func
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
@@ -59,7 +59,7 @@ $plus_func_unique {
         mp(and_elim_right(dom_eq1, and(base1, step1), []), got_rest1, rest1a, and(base1, step1), [], [pf1]),
         and(base1, step1), step1, [], [pf1])
     $rel1 forall("z", implies(mem("z","h1"), exists("x", exists("y", ordered_pair("z","x","y","_")))))
-    $sv1 forall("r", forall("r1", forall("r2", implies(and(apply("h1","r","r1","_"), apply("h1","r","r2","_")), eqv("r1","r2","_")))))
+    $sv1 single_valued("h1","_")
     $got_sv1 mp(and_elim_right(rel1, sv1, []), got_func1, func1, sv1, [], [pf1])
 
     # Same for h2:
@@ -82,7 +82,7 @@ $plus_func_unique {
             mp(and_elim_right(func2, rest2a, []), ax([pf2], [pf2], pf2), pf2, rest2a, [], [pf2]),
             rest2a, and(base2, step2), [], [pf2]),
         and(base2, step2), step2, [], [pf2])
-    $sv2 forall("r", forall("r1", forall("r2", implies(and(apply("h2","r","r1","_"), apply("h2","r","r2","_")), eqv("r1","r2","_")))))
+    $sv2 single_valued("h2","_")
     $got_sv2 mp(and_elim_right(forall("z", implies(mem("z","h2"), exists("x", exists("y", ordered_pair("z","x","y","_"))))), sv2, []),
         got_func2, func2, sv2, [], [pf2])
 
