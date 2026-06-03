@@ -200,7 +200,6 @@ $eel \prf pred_fn x y ctx D: {
     $s2 fr(s1, ctx_only, [fa_neg, D], fa_neg, y)
     ?(contains(same, ex, ctx_only), {
         # ex (= ¬fa_neg) already on ctx_only. Cut fa_neg from right using contradiction.
-        # [fa_neg, ¬fa_neg] ⊢ [] then weaken to [fa_neg, ctx_only] ⊢ [D].
         $contra nl(ax([fa_neg], [fa_neg], fa_neg), [fa_neg, ex], [], ex)
         $contra_w wr(wl_all(contra, [fa_neg, ex], [],
             diff(same, add(ctx_only, [fa_neg]), [fa_neg, ex])),
