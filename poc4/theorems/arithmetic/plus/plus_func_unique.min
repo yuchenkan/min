@@ -93,7 +93,7 @@ $plus_func_unique {
             forall(add(p,"v1"), implies(apply("h1",add(p,"pair"),add(p,"v1"),add(p,"_")),
                 forall(add(p,"v2"), implies(apply("h2",add(p,"pair"),add(p,"v2"),add(p,"_")),
                     eqv(add(p,"v1"),add(p,"v2"),add(p,"_"))))))))))
-    $oi omega_induction(pred, [], "_")
+    $oi omega_induction(pred, ["h1","h2"], "_")
 
     # func_unique helper: sv → Apply(f,x,y1) → Apply(f,x,y2) → eqv(y1,y2)
     $_fu_b \f: \x: \y1: \y2: implies(
@@ -492,9 +492,10 @@ $plus_func_unique {
     $got_sc fr(scur, left(scur), [step_case], step_case, "n")
 
     # === ASSEMBLY: omega_induction → ∀n∈w.P(n) ===
-    $oi_body \w: implies(omega(w,"_"), implies(base_case, implies(step_case,
+    # oi close vars: _close(["h1","h2","_w"]) → ∀_w.∀h2.∀h1. Outermost first: _w,h2,h1.
+    $oi_body \w: \h2: \h1: implies(omega(w,"_"), implies(base_case, implies(step_case,
         forall("n", implies(mem("n",w), pred(w,"n","_"))))))
-    $oi_inst apply_thm(oi, head(right(oi)), ["w"], ["_w"], oi_body, left(oi))
+    $oi_inst apply_thm(oi, head(right(oi)), ["w","h2","h1"], ["w","h2","h1"], oi_body, left(oi))
     $oi_1 mp(oi_inst, ax([om], [om], om), om, arg2(head(right(oi_inst))), left(oi), [om])
     $oi_2 mp(oi_1, got_bc, head(right(got_bc)), arg2(head(right(oi_1))), left(oi_1), left(got_bc))
     $oi_3 mp(oi_2, got_sc, step_case, arg2(head(right(oi_2))), left(oi_2), left(got_sc))
@@ -610,11 +611,86 @@ $plus_func_unique {
     $got_dom_bwd fr(bcur, left(bcur), [dom_bwd], dom_bwd, "x")
 
     # --- agree: ∀x.∀v1.∀v2. Apply(h1,x,v1)→Apply(h2,x,v2)→Eqv(v1,v2) ---
-    # From dom_fwd: Apply(h1,x,v1)→x∈w×w. Open w×w→∃m,n. P(n)→Eqv(v1,v2).
-    # TODO: derive from oi_3 + dom chain + product opening. ~80 lines.
-    $agree forall("x", forall("v1", forall("v2",
-        implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
-    $got_agree ax([pf1, pf2, om], [agree], agree)
+    # Chain: Apply(h1,x,v1)→x∈w×w (reuse dom chain)→Product fwd→∃m,n→P(n)→Eqv(v1,v2)
+    $app1_xv1 apply("h1","x","v1","_")
+    $app2_xv2 apply("h2","x","v2","_")
+    $eqv_v1v2 eqv("v1","v2","_")
+    # x∈d1 from Apply(h1,x,v1) (same chain as dom_fwd)
+    $got_ex_a1 eir(ax([app1_xv1], [app1_xv1], app1_xv1), \v: apply("h1","x",v,"_"), "qv", "v1", [app1_xv1])
+    $got_xd1_a mp(mp(iff_elim_right(xd1, head(right(got_ex_a1)), []),
+        fl(ax([iff_d1], [iff_d1], iff_d1), [dom_d1], [iff_d1], dom_d1, "x"),
+        iff_d1, implies(head(right(got_ex_a1)), xd1), [], [dom_d1]),
+        got_ex_a1, head(right(got_ex_a1)), xd1, [dom_d1], [app1_xv1])
+    # x∈pww
+    $got_xpww_a mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["d1","pww","x"],
+        ["a","b","z"], _eml_b, []),
+        got_eqv1, eqv("d1","pww","_"), implies(xd1, xpww), [], left(got_eqv1)),
+        got_xd1_a, xd1, xpww, left(got_eqv1), left(got_xd1_a))
+    # Product fwd: x∈pww → ∃mx.∃nx. and(and(mx∈w,nx∈w),OrdPair(x,mx,nx))
+    $ex_mn exists("mx", exists("nx", and(and(mem("mx","w"), mem("nx","w")), ordered_pair("x","mx","nx","_"))))
+    $iff_pww_a iff(xpww, ex_mn)
+    $got_ex_mn mp(mp(iff_elim_left(xpww, ex_mn, []),
+        fl(ax([iff_pww_a], [iff_pww_a], iff_pww_a), [prod_pww], [iff_pww_a], prod_pww, "x"),
+        iff_pww_a, implies(xpww, ex_mn), [], [prod_pww]),
+        got_xpww_a, xpww, ex_mn, [prod_pww], left(got_xpww_a))
+    # Assume and(and(mx∈w,nx∈w), OrdPair(x,mx,nx))
+    $mxw mem("mx","w")
+    $nxw mem("nx","w")
+    $op_xmn ordered_pair("x","mx","nx","_")
+    $and_mn_a and(and(mxw, nxw), op_xmn)
+    $got_mxw_a mp(and_elim_left(mxw, nxw, []),
+        mp(and_elim_left(and(mxw, nxw), op_xmn, []),
+            ax([and_mn_a], [and_mn_a], and_mn_a), and_mn_a, and(mxw, nxw), [], [and_mn_a]),
+        and(mxw, nxw), mxw, [], [and_mn_a])
+    $got_nxw_a mp(and_elim_right(mxw, nxw, []),
+        mp(and_elim_left(and(mxw, nxw), op_xmn, []),
+            ax([and_mn_a], [and_mn_a], and_mn_a), and_mn_a, and(mxw, nxw), [], [and_mn_a]),
+        and(mxw, nxw), nxw, [], [and_mn_a])
+    $got_op_xmn mp(and_elim_right(and(mxw, nxw), op_xmn, []),
+        ax([and_mn_a], [and_mn_a], and_mn_a), and_mn_a, op_xmn, [], [and_mn_a])
+    # P(n) at nx,mx,x → Apply(h1,x,v1)→Apply(h2,x,v2)→Eqv(v1,v2)
+    $pn_a1 apply_thm(oi_3, head(right(oi_3)), ["nx"], ["nx"],
+        \n: implies(mem(n,"w"), pred("w",n,"_")), left(oi_3))
+    $pn_a2 mp(pn_a1, got_nxw_a, nxw, pred("w","nx","_"), left(oi_3), [and_mn_a])
+    $pn_a3 apply_thm(pn_a2, pred("w","nx","_"), ["mx"], ["mx"],
+        \m: implies(mem(m,"w"), forall("pair", implies(ordered_pair("pair",m,"nx","_"),
+            forall("v1", implies(apply("h1","pair","v1","_"),
+                forall("v2", implies(apply("h2","pair","v2","_"), eqv("v1","v2","_")))))))), left(pn_a2))
+    $pn_a4 mp(pn_a3, got_mxw_a, mxw, arg2(head(right(pn_a3))), left(pn_a2), [and_mn_a])
+    $pn_a5 apply_thm(pn_a4, head(right(pn_a4)), ["x"], ["x"],
+        \pair: implies(ordered_pair(pair,"mx","nx","_"), forall("v1", implies(apply("h1",pair,"v1","_"),
+            forall("v2", implies(apply("h2",pair,"v2","_"), eqv("v1","v2","_")))))), left(pn_a4))
+    $pn_a6 mp(pn_a5, got_op_xmn, op_xmn, arg2(head(right(pn_a5))), left(pn_a4), [and_mn_a])
+    $pn_a7 apply_thm(pn_a6, head(right(pn_a6)), ["v1"], ["v1"],
+        \v1: implies(apply("h1","x",v1,"_"), forall("v2", implies(apply("h2","x","v2","_"), eqv(v1,"v2","_")))),
+        left(pn_a6))
+    $pn_a8 mp(pn_a7, ax([app1_xv1], [app1_xv1], app1_xv1), app1_xv1, arg2(head(right(pn_a7))),
+        left(pn_a6), [app1_xv1])
+    $pn_a9 apply_thm(pn_a8, head(right(pn_a8)), ["v2"], ["v2"],
+        \v2: implies(apply("h2","x",v2,"_"), eqv("v1",v2,"_")), left(pn_a8))
+    $got_eqv_a mp(pn_a9, ax([app2_xv2], [app2_xv2], app2_xv2), app2_xv2, eqv_v1v2,
+        left(pn_a8), [app2_xv2])
+    # eel nx,mx from product
+    $acur got_eqv_a
+    $acur eel(acur, \nx: and(and(mxw, mem(nx,"w")), ordered_pair("x","mx",nx,"_")),
+        "qb", "nx", left(acur), eqv_v1v2)
+    $acur eel(acur, \mx: exists("qb", and(and(mem(mx,"w"), mem("qb","w")), ordered_pair("x",mx,"qb","_"))),
+        "qa", "mx", left(acur), eqv_v1v2)
+    $acur cut_c(got_ex_mn, acur, ex_mn, left(got_ex_mn), left(acur), eqv_v1v2)
+    # eel d1, pww + cuts
+    $acur eel(acur, \d: domain(d,"h1","_"), "d", "d1", left(acur), eqv_v1v2)
+    $acur cut_c(got_de1, acur, head(right(got_de1)), de_ctx, left(acur), eqv_v1v2)
+    $acur eel(acur, \pww: product(pww,"w","w","_"), "p", "pww", left(acur), eqv_v1v2)
+    $acur cut_c(got_pe, acur, head(right(got_pe)), pe_ctx, left(acur), eqv_v1v2)
+    # ir app2, ir app1, fr v2, fr v1, fr x — all ∀'s outermost
+    $imp_a2 implies(app2_xv2, eqv_v1v2)
+    $acur ir(acur, remove(same, app2_xv2, left(acur)), [imp_a2], imp_a2)
+    $imp_a1 implies(app1_xv1, imp_a2)
+    $acur ir(acur, remove(same, app1_xv1, left(acur)), [imp_a1], imp_a1)
+    $acur fr(acur, left(acur), [forall("v2", imp_a1)], forall("v2", imp_a1), "v2")
+    $acur fr(acur, left(acur), [forall("v1", forall("v2", imp_a1))], forall("v1", forall("v2", imp_a1)), "v1")
+    $agree forall("x", forall("v1", forall("v2", imp_a1)))
+    $got_agree fr(acur, left(acur), [agree], agree, "x")
 
     # Apply func_ext_from_agree
     $_fea_b \h1: \h2: implies(rel1, implies(rel2x, implies(agree, implies(dom_fwd, implies(dom_bwd, eqv(h1,h2,"_"))))))

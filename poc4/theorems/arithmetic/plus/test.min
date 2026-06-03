@@ -23,6 +23,7 @@ from theorems.arithmetic.plus.pf_backward import pf_backward
 from theorems.arithmetic.plus.pf_step import pf_step
 from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
 from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
+from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
 from vocab.arithmetic.plus import plus_func
 
 $sfe_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
@@ -154,5 +155,9 @@ $_ print("rec_val_in_omega ok")
 
 $_ qed(plus_func_exists, forall("w", implies(omega("w","_"), exists("h", plus_func("h","w","_")))))
 $_ print("plus_func_exists ok")
+
+$pfu_body implies(omega("w","_"), implies(plus_func("h1","w","_"), implies(plus_func("h2","w","_"), eqv("h1","h2","_"))))
+$_ qed(plus_func_unique, forall("h1", forall("h2", forall("w", pfu_body))))
+$_ print("plus_func_unique ok")
 
 $ok true
