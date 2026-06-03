@@ -3,4 +3,4 @@ from vocab.sets import successor
 from theorems.sets.set_spec_unique import set_spec_unique
 
 # |- successor(s1,a) -> successor(s2,a) -> eqv(s1,s2)
-$successor_unique set_spec_unique(\v p: or(mem(v, "a"), eqv(v, "a", p)), ["a"])
+$successor_unique set_spec_unique(\v p: or(mem(v, "a"), eqv(v, "a", p)), ["a"], "_")

@@ -18,7 +18,7 @@ $unique_ordpair {
     $got_inner mp(ou_inst, ax([op_u], [op_u], op_u), op_u, imp_inner, [], [op_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [op_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([op_u], [op_u], op_u), op_u, implies(fa_uniq, eu), [], [op_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"), ax([op_u], [op_u], op_u), op_u, implies(fa_uniq, eu), [], [op_u]),
                got_fa, fa_uniq, eu, [op_u], [op_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "p", "u", [op_u], eu)
     $_oe_f head(right(ordpair_exists))

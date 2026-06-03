@@ -5,25 +5,29 @@ from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_sym import iff_sym
 
 # |- close(vars, set_spec(s1, cond) -> set_spec(s2, cond) -> eqv(s1, s2))
-$set_spec_unique \cond_fn vars: {
-    $sp1 set_spec("s1", cond_fn, "_")
-    $sp2 set_spec("s2", cond_fn, "_")
-    $eqv_12 eqv("s1", "s2", "_")
-    $cv cond_fn("v", "_")
-    $iff1 iff(mem("v", "s1"), cv)
-    $iff2 iff(mem("v", "s2"), cv)
-    $iff2r iff(cv, mem("v", "s2"))
-    $iff_goal iff(mem("v", "s1"), mem("v", "s2"))
-    $g1 fl(ax([iff1], [iff1], iff1), [sp1], [iff1], sp1, "v")
-    $g2 fl(ax([iff2], [iff2], iff2), [sp2], [iff2], sp2, "v")
-    $g2r mp(iff_sym(mem("v", "s2"), cv, []), g2, iff2, iff2r, [], [sp2])
-    $got mp(mp(iff_chain(mem("v", "s1"), cv, mem("v", "s2"), []),
+$set_spec_unique \cond_fn vars p: {
+    $np add(p, "_")
+    $s1v add(p, "s1")
+    $s2v add(p, "s2")
+    $vv add(p, "v")
+    $sp1 set_spec(s1v, cond_fn, np)
+    $sp2 set_spec(s2v, cond_fn, np)
+    $eqv_12 eqv(s1v, s2v, np)
+    $cv cond_fn(vv, np)
+    $iff1 iff(mem(vv, s1v), cv)
+    $iff2 iff(mem(vv, s2v), cv)
+    $iff2r iff(cv, mem(vv, s2v))
+    $iff_goal iff(mem(vv, s1v), mem(vv, s2v))
+    $g1 fl(ax([iff1], [iff1], iff1), [sp1], [iff1], sp1, vv)
+    $g2 fl(ax([iff2], [iff2], iff2), [sp2], [iff2], sp2, vv)
+    $g2r mp(iff_sym(mem(vv, s2v), cv, []), g2, iff2, iff2r, [], [sp2])
+    $got mp(mp(iff_chain(mem(vv, s1v), cv, mem(vv, s2v), []),
                g1, iff1, implies(iff2r, iff_goal), [], [sp1]),
             g2r, iff2r, iff_goal, [sp1], [sp2])
-    $got_eqv fr(got, [sp1, sp2], [eqv_12], eqv_12, "v")
+    $got_eqv fr(got, [sp1, sp2], [eqv_12], eqv_12, vv)
     $inner implies(sp2, eqv_12)
     $s1r ir(got_eqv, [sp1], [inner], inner)
     $top implies(sp1, inner)
     $result ir(s1r, [], [top], top)
-    close(result, [], [top], add(["s2", "s1"], vars))
+    close(result, [], [top], add([s2v, s1v], vars))
 }

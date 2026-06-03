@@ -4,19 +4,22 @@ from tactics import ax, wl, nl, fl, nr, ir, cut, mp, close
 from theorems.logic.and_intro import and_intro
 
 # |- body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(body_fn)
-$exists_unique_intro \body_fn t vars: {
-    $body_t body_fn(t, "_")
-    $uniq forall("y", implies(body_fn("y", "_"), eqv(t, "y", "_")))
+$exists_unique_intro \body_fn t vars p: {
+    $np add(p, "_")
+    $body_t body_fn(t, np)
+    $uniq forall(add(p, "y"), implies(body_fn(add(p, "y"), np), eqv(t, add(p, "y"), p)))
     $conj and(body_t, uniq)
-    $eu exists_unique(body_fn, "_")
+    $eu exists_unique(body_fn, p)
 
     $got_and mp(mp(and_intro(body_t, uniq, []), ax([body_t], [body_t], body_t), body_t, implies(uniq, conj), [], [body_t]),
                 ax([uniq], [uniq], uniq), uniq, conj, [body_t], [uniq])
 
-    # Use simple var "q" (not "_x") to avoid capture in body_fn
-    $inner_body \v: and(body_fn(v, "_"), forall("y", implies(body_fn("y", "_"), eqv(v, "y", "_"))))
+    # Use prefixed var to avoid capture in body_fn
+    $qv add(p, "q")
+    $yv add(p, "y")
+    $inner_body \v: and(body_fn(v, np), forall(yv, implies(body_fn(yv, np), eqv(v, yv, p))))
     $inner_t inner_body(t)
-    $fa_neg forall("q", neg(inner_body("q")))
+    $fa_neg forall(qv, neg(inner_body(qv)))
     $s1 fl(ax([neg(inner_t)], [neg(inner_t)], neg(inner_t)), [fa_neg], [neg(inner_t)], fa_neg, t)
     $s2 nl(got_and, [body_t, uniq, neg(inner_t)], [], neg(inner_t))
     $s1w wl(wl(s1, [body_t, fa_neg], [neg(inner_t)], body_t), [body_t, uniq, fa_neg], [neg(inner_t)], uniq)

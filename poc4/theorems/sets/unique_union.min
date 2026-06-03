@@ -18,7 +18,7 @@ $unique_union {
     $got_inner mp(uu_inst, ax([un_u], [un_u], un_u), un_u, imp_inner, [], [un_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [un_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([un_u], [un_u], un_u), un_u, implies(fa_uniq, eu), [], [un_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"), ax([un_u], [un_u], un_u), un_u, implies(fa_uniq, eu), [], [un_u]),
                got_fa, fa_uniq, eu, [un_u], [un_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "u", "u", [un_u], eu)
     $ue_ctx left(union_exists)

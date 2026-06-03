@@ -19,7 +19,7 @@ $unique_succ_func {
     $eu exists_unique(char_fn, "_")
 
     # exists_unique_intro: char(sf) → (∀y.char(y)→eqv(sf,y)) → ∃!
-    $eui exists_unique_intro(char_fn, "sf", [])
+    $eui exists_unique_intro(char_fn, "sf", [], "_")
 
     # Existence: succ_func_exists gives ∃sf.char(sf)
     $_sfe head(right(succ_func_exists))

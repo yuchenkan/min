@@ -18,7 +18,7 @@ $unique_singleton {
     $got_inner mp(su_inst, ax([sing_u], [sing_u], sing_u), sing_u, imp_inner, [], [sing_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [sing_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([sing_u], [sing_u], sing_u), sing_u, implies(fa_uniq, eu), [], [sing_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"), ax([sing_u], [sing_u], sing_u), sing_u, implies(fa_uniq, eu), [], [sing_u]),
                got_fa, fa_uniq, eu, [sing_u], [sing_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [sing_u], eu)
     $_se_f head(right(singleton_exists))

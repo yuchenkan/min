@@ -13,7 +13,7 @@ $unique_product {
     $prod_s product("s","a","b","_")
     $eu exists_unique(prod_fn, "_")
 
-    $eui exists_unique_intro(prod_fn, "s", [])
+    $eui exists_unique_intro(prod_fn, "s", [], "_")
 
     # Existence:
     $_pe head(right(product_exists))

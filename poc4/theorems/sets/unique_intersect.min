@@ -18,7 +18,7 @@ $unique_intersect {
     $got_inner mp(iu_inst, ax([int_u], [int_u], int_u), int_u, imp_inner, [], [int_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [int_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([int_u], [int_u], int_u), int_u, implies(fa_uniq, eu), [], [int_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"), ax([int_u], [int_u], int_u), int_u, implies(fa_uniq, eu), [], [int_u]),
                got_fa, fa_uniq, eu, [int_u], [int_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [int_u], eu)
     $ie_ctx left(intersect_exists)

@@ -1,19 +1,58 @@
-from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
+from core.derived import mem, implies, forall, exists, eqv, left, right, arg2
 from vocab.omega import omega
 from vocab.arithmetic.plus import plus_func
 from vocab.logic import exists_unique
-from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
 from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
 
 # unique_plus_func: Omega(w) → ∃!h.PlusFunc(h,w)
-# Combines plus_func_exists and plus_func_unique via exists_unique_intro.
-# TODO: implement
 $unique_plus_func {
     $om omega("w","_")
     $eu_body \h p: plus_func(h,"w",p)
     $goal exists_unique(eu_body, "_")
-    $_ print("unique_plus_func: TODO")
-    close(ax([om], [om], om), [om], [om], [])
+
+    # exists_unique_intro: body(t)→(∀y.body(y)→eqv(t,y))→∃!body
+    # With t="h", body=plus_func(h,w): PlusFunc(h,w)→(∀y.PlusFunc(y,w)→Eqv(h,y))→∃!
+    $eui exists_unique_intro(eu_body, "h", [], "_")
+    $pf_h plus_func("h","w","_")
+    $uniq forall("y", implies(plus_func("y","w","_"), eqv("h","y","_")))
+
+    # From plus_func_unique: Omega(w) → PlusFunc(h,w) → PlusFunc(y,w) → Eqv(h,y)
+    $pfu_ctx left(plus_func_unique)
+    $_pfu head(right(plus_func_unique))
+    # _close(["w","h2","h1"]) → ∀h1.∀h2.∀w. Alpha-rename to avoid "w" capture.
+    $_pfu_b \p1: \p2: \p3: implies(omega(p3,"_"), implies(plus_func(p1,p3,"_"), implies(plus_func(p2,p3,"_"), eqv(p1,p2,"_"))))
+    $pfu_r forall("p1", forall("p2", forall("p3", _pfu_b("p1")("p2")("p3"))))
+    $pfu_wr wr(plus_func_unique, pfu_ctx, [pfu_r], pfu_r)
+    $pfu_i1 apply_thm(pfu_wr, pfu_r, ["h","y","w"], ["p1","p2","p3"], _pfu_b, pfu_ctx)
+    # [pfu_ctx] |- implies(om, implies(pf_h, implies(plus_func("y","w","_"), eqv("h","y","_"))))
+    $pfu1 mp(pfu_i1, ax([om], [om], om), om, arg2(head(right(pfu_i1))), pfu_ctx, [om])
+    $pfu2 mp(pfu1, ax([pf_h], [pf_h], pf_h), pf_h, arg2(head(right(pfu1))), left(pfu1), [pf_h])
+    # [pfu_ctx, om, pf_h] |- PlusFunc(y,w)→Eqv(h,y)
+    # fr y → ∀y. PlusFunc(y,w)→Eqv(h,y) = uniq
+    $pfu3 fr(pfu2, left(pfu2), [uniq], uniq, "y")
+    # [pfu_ctx, om, pf_h] |- uniq
+
+    # eui: PlusFunc(h,w) → uniq → ∃!
+    $got_eu mp(mp(eui, ax([pf_h], [pf_h], pf_h), pf_h, implies(uniq, goal), [], [pf_h]),
+        pfu3, uniq, goal, [pf_h], left(pfu3))
+    # [pfu_ctx, om, pf_h] |- ∃!h.PlusFunc(h,w)
+
+    # eel h from plus_func_exists: Omega(w) → ∃h.PlusFunc(h,w)
+    $pfe_ctx left(plus_func_exists)
+    $_pfe head(right(plus_func_exists))
+    $_pfe_b \w: implies(omega(w,"_"), exists("h", plus_func("h",w,"_")))
+    $pfe_inst apply_thm(plus_func_exists, _pfe, ["w"], ["w"], _pfe_b, pfe_ctx)
+    $got_ex_pf mp(pfe_inst, ax([om], [om], om), om, exists("h", pf_h), pfe_ctx, [om])
+    # [pfe_ctx, om] |- ∃h.PlusFunc(h,w)
+
+    $cur eel(got_eu, \h: plus_func(h,"w","_"), "h", "h", left(got_eu), goal)
+    $cur cut_c(got_ex_pf, cur, exists("h", pf_h), left(got_ex_pf), left(cur), goal)
+
+    # ir om
+    $top implies(om, goal)
+    $cur ir(cur, remove(same, om, left(cur)), [top], top)
+    close(cur, left(cur), [top], ["w"])
 }

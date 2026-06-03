@@ -20,7 +20,7 @@ $recursion_theorem {
     $eu_body \h p: recursive(h,"a","f","w",p)
     $eu exists_unique(eu_body, "_")
 
-    $eui exists_unique_intro(eu_body, "h", [])
+    $eui exists_unique_intro(eu_body, "h", [], "_")
 
     # Instantiate rec_exists_full: ∀a.∀f.∀w. func(f) → tf → omega(w) → ∃h.Rec(h)
     $_rt head(right(rec_exists_full))

@@ -18,7 +18,7 @@ $unique_domain {
     $got_inner mp(du_inst, ax([dom_u], [dom_u], dom_u), dom_u, imp_inner, [], [dom_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [dom_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"),
         ax([dom_u], [dom_u], dom_u), dom_u, implies(fa_uniq, eu), [], [dom_u]),
         got_fa, fa_uniq, eu, [dom_u], [dom_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "d", "u", [dom_u], eu)

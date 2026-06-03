@@ -19,7 +19,7 @@ $unique_omega {
     $got_inner mp(ou_inst, ax([om_u], [om_u], om_u), om_u, imp_inner, [], [om_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [om_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"),
         ax([om_u], [om_u], om_u), om_u, implies(fa_uniq, eu), [], [om_u]),
         got_fa, fa_uniq, eu, [om_u], [om_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "w", "u", [om_u], eu)

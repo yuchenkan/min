@@ -144,7 +144,7 @@ $_ print("eqv_transitive ok")
 $_ qed(eqv_mem_left, forall("a", forall("b", forall("z", implies(eqv("a", "b", "_"), implies(mem("z", "a"), mem("z", "b")))))))
 $_ print("eqv_mem_left ok")
 
-$_ qed(exists_unique_intro(\v: mem(v, "a"), "b", ["b", "a"]),
+$_ qed(exists_unique_intro(\v p: mem(v, "a", p), "b", ["b", "a"], "_"),
     forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eqv("b", "y", "_"))), exists_unique(\v: mem(v, "a"), "_"))))))
 $_ print("exists_unique_intro ok")
 

@@ -12,14 +12,14 @@ $unique_pair_set {
     $eu exists_unique(body_fn, "_")
     $ps_u body_fn("u", "_")
     $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
-    $ssu set_spec_unique(cond_fn, [])
+    $ssu set_spec_unique(cond_fn, [], "_")
     $_ssu_f head(right(ssu))
     $ssu_inst apply_thm(ssu, _ssu_f, ["u", "y"], ["u", "s2"],
         \s1: \s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eqv(s1,s2,"_"))), [])
     $got_inner mp(ssu_inst, ax([ps_u], [ps_u], ps_u), ps_u, imp_inner, [], [ps_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [ps_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([ps_u], [ps_u], ps_u), ps_u, implies(fa_uniq, eu), [], [ps_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"), ax([ps_u], [ps_u], ps_u), ps_u, implies(fa_uniq, eu), [], [ps_u]),
                got_fa, fa_uniq, eu, [ps_u], [ps_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [ps_u], eu)
     $_pe_f head(right(pair_set_exists))

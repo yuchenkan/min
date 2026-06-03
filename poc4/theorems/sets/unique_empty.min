@@ -17,7 +17,7 @@ $unique_empty {
     $got_inner mp(eu_inst, ax([empty_u], [empty_u], empty_u), empty_u, imp_inner, [], [empty_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [empty_u], [fa_uniq], fa_uniq, "y")
-    $got_eu mp(mp(exists_unique_intro(body_fn, "u", []), ax([empty_u], [empty_u], empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),
+    $got_eu mp(mp(exists_unique_intro(body_fn, "u", [], "_"), ax([empty_u], [empty_u], empty_u), empty_u, implies(fa_uniq, eu), [], [empty_u]),
                got_fa, fa_uniq, eu, [empty_u], [empty_u])
     $got_ex eel(got_eu, \v: body_fn(v, "_"), "s", "u", [empty_u], eu)
     $es_f empty_ax
