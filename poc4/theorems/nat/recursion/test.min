@@ -12,7 +12,7 @@ from theorems.recursion.extend_base import extend_base
 from theorems.sets.succ_set_transfer import succ_set_transfer
 from theorems.nat.recursion.extend_dom_sub import extend_dom_sub
 from theorems.nat.recursion.extend_ran_sub import extend_ran_sub
-from theorems.recursion.extend_step import extend_step
+from theorems.nat.recursion.extend_step import extend_step
 from theorems.recursion.rec_exists_step import rec_exists_step
 from theorems.recursion.singleton_recapprox import singleton_recapprox
 from theorems.recursion.rec_exists import rec_exists
@@ -65,7 +65,7 @@ $_ qed(extend_ran_sub, forall("v", forall("a", forall("f", forall("u", forall("h
 $_ print("extend_ran_sub ok")
 
 $es_inner forall("m", implies(mem("m","w"), forall("sm", implies(successor("sm","m","_"), implies(exists("y5", apply("u","sm","y5","_")), and(exists("val5", apply("u","m","val5","_")), forall("val5", implies(apply("u","m","val5","_"), forall("fv5", implies(apply("f","val5","fv5","_"), apply("u","sm","fv5","_")))))))))))
-$es_body implies(rec_approx("v","a","f","w","_"), implies(function("f","_"), implies(omega("w","_"), implies(mem("n","w"), implies(apply("v","n","val","_"), implies(apply("f","val","fval","_"), implies(successor("sn","n","_"), implies(ordered_pair("op","sn","fval","_"), implies(singleton("h","op","_"), implies(union("u","v","h","_"), implies(function("u","_"), implies(apply("u","sn","fval","_"), es_inner))))))))))))
+$es_body implies(rec_approx("v","a","f","_"), implies(function("f","_"), implies(omega("w","_"), implies(nat("n","_"), implies(apply("v","n","val","_"), implies(apply("f","val","fval","_"), implies(successor("sn","n","_"), implies(ordered_pair("op","sn","fval","_"), implies(singleton("h","op","_"), implies(union("u","v","h","_"), implies(function("u","_"), implies(apply("u","sn","fval","_"), es_inner))))))))))))
 $_ qed(extend_step, forall("v", forall("a", forall("f", forall("w", forall("n", forall("val", forall("fval", forall("sn", forall("op", forall("h", forall("u", es_body))))))))))))
 $_ print("extend_step ok")
 
