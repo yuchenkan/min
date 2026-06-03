@@ -1,9 +1,7 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty
 from vocab.functions import apply, function, domain
-from vocab.omega import omega
-from vocab.nat.nat import successor
-from vocab.recursion import recursive
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.nat.recursion import recursive
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
@@ -11,23 +9,30 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_mem_left import eqv_mem_left
 from theorems.functions.domain_exists import domain_exists
 
-# rec_apply_dom: Recursive(h,a,f,w) → Apply(h,x,y) → x∈w
-# From dom_eq + domain_exists + iff backward + eqv_mem_left.
+# rec_apply_dom: Recursive(h,a,f) → Apply(h,x,y) → Nat(x)
+# For any omega w: unwrap Recursive → dom_eq → x∈w. Wrap to Nat(x).
 $rec_apply_dom {
-    $rec_h recursive("h","a","f","w","_")
-    $func_h function("h","_")
-    $dom_eq_h forall("d", implies(domain("d","h","_"), eqv("d","w","_")))
-    $rest_h and(dom_eq_h, and(forall("e", implies(empty("e","_"), apply("h","e","a","_"))),
-        forall("n", implies(mem("n","w"), forall("val", implies(apply("h","n","val","_"),
-            forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f","val","fval","_"), apply("h","sn","fval","_")))))))))))
-    $got_rest mp(and_elim_right(func_h, rest_h, []), ax([rec_h], [rec_h], rec_h), rec_h, rest_h, [], [rec_h])
-    $got_dom_eq mp(and_elim_left(dom_eq_h, and(forall("e", implies(empty("e","_"), apply("h","e","a","_"))),
-        forall("n", implies(mem("n","w"), forall("val", implies(apply("h","n","val","_"),
-            forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f","val","fval","_"), apply("h","sn","fval","_")))))))))), []),
-        got_rest, rest_h, dom_eq_h, [], [rec_h])
-
+    $rec_h recursive("h","a","f","_")
     $app_hxy apply("h","x","y","_")
+    $nat_x nat("x","_")
+    $om omega("w","_")
     $xw mem("x","w")
+
+    # Unwrap Recursive(h) at w
+    $func_h function("h","_")
+    $dom_eq_h forall("d2", implies(domain("d2","h","_"), eqv("d2","w","_")))
+    $base_h forall("e2", implies(num("e2",0,"_"), apply("h","e2","a","_")))
+    $step_h forall("n2", implies(mem("n2","w"), forall("val2", implies(apply("h","n2","val2","_"),
+        forall("sn2", implies(successor("sn2","n2","_"), forall("fval2", implies(apply("f","val2","fval2","_"), apply("h","sn2","fval2","_")))))))))
+    $body_h and(func_h, and(dom_eq_h, and(base_h, step_h)))
+    $_rh_b \w: implies(omega(w,"_"), body_h)
+    $rh_inst apply_thm(ax([rec_h],[rec_h],rec_h), rec_h, ["w"], ["w"], _rh_b, [rec_h])
+    $got_body mp(rh_inst, ax([om],[om],om), om, body_h, [rec_h], [om])
+
+    $rest_h and(dom_eq_h, and(base_h, step_h))
+    $got_rest mp(and_elim_right(func_h, rest_h, []), got_body, body_h, rest_h, [], left(got_body))
+    $got_dom_eq mp(and_elim_left(dom_eq_h, and(base_h, step_h), []),
+        got_rest, rest_h, dom_eq_h, [], left(got_body))
 
     # domain_exists at h: ∃d.domain(d,h)
     $_de head(right(domain_exists))
@@ -37,18 +42,18 @@ $rec_apply_dom {
     # Assume domain(d,h) on left:
     $dom_dh domain("d","h","_")
     $eqv_dw eqv("d","w","_")
-    $got_eqv mp(apply_thm(got_dom_eq, dom_eq_h, ["d"], ["d"],
-        \d: implies(domain(d,"h","_"), eqv(d,"w","_")), [rec_h]),
-        ax([dom_dh], [dom_dh], dom_dh), dom_dh, eqv_dw, [rec_h], [dom_dh])
+    $got_eqv mp(apply_thm(got_dom_eq, dom_eq_h, ["d"], ["d2"],
+        \d: implies(domain(d,"h","_"), eqv(d,"w","_")), left(got_body)),
+        ax([dom_dh],[dom_dh],dom_dh), dom_dh, eqv_dw, left(got_body), [dom_dh])
 
     # domain(d,h) at x: x∈d ↔ ∃y.Apply(h,x,y)
     $xd mem("x","d")
-    $ex_y exists("y", app_hxy)
+    $ex_y exists("y2", apply("h","x","y2","_"))
     $iff_xd iff(xd, ex_y)
-    $got_iff fl(ax([iff_xd], [iff_xd], iff_xd), [dom_dh], [iff_xd], dom_dh, "x")
+    $got_iff fl(ax([iff_xd],[iff_xd],iff_xd), [dom_dh], [iff_xd], dom_dh, "x")
 
     # Apply(h,x,y) → ∃y.Apply(h,x,y) → x∈d
-    $got_ex_y eir(ax([app_hxy], [app_hxy], app_hxy), \y: apply("h","x",y,"_"), "y", "y", [app_hxy])
+    $got_ex_y eir(ax([app_hxy],[app_hxy],app_hxy), \y: apply("h","x",y,"_"), "y", "y", [app_hxy])
     $got_xd mp(mp(iff_elim_right(xd, ex_y, []),
         got_iff, iff_xd, implies(ex_y, xd), [], [dom_dh]),
         got_ex_y, ex_y, xd, [dom_dh], [app_hxy])
@@ -57,15 +62,19 @@ $rec_apply_dom {
     $_eml head(right(eqv_mem_left))
     $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
     $got_xw mp(mp(apply_thm(eqv_mem_left, _eml, ["d","w","x"], ["a","b","z"], _eml_b, []),
-        got_eqv, eqv_dw, implies(xd, xw), [], [rec_h, dom_dh]),
-        got_xd, xd, xw, [rec_h, dom_dh], [dom_dh, app_hxy])
+        got_eqv, eqv_dw, implies(xd, xw), [], left(got_eqv)),
+        got_xd, xd, xw, left(got_eqv), left(got_xd))
 
     # eel d from domain_exists:
     $got_xw2 eel(got_xw, \d: domain(d,"h","_"), "d", "d", left(got_xw), xw)
     $got_xw3 cut_c(got_de, got_xw2, exists("d", dom_dh), left(got_de), left(got_xw2), xw)
 
-    $top implies(rec_h, implies(app_hxy, xw))
-    $t1 ir(got_xw3, remove(same, app_hxy, left(got_xw3)), [implies(app_hxy, xw)], implies(app_hxy, xw))
+    # Wrap into Nat(x): ir omega, fr w → ∀w.Omega(w)→x∈w = Nat(x)
+    $got_nat_ir ir(got_xw3, remove(same, om, left(got_xw3)), [implies(om, xw)], implies(om, xw))
+    $got_nat_x fr(got_nat_ir, left(got_nat_ir), [nat_x], nat_x, "w")
+
+    $top implies(rec_h, implies(app_hxy, nat_x))
+    $t1 ir(got_nat_x, remove(same, app_hxy, left(got_nat_x)), [implies(app_hxy, nat_x)], implies(app_hxy, nat_x))
     $t2 ir(t1, remove(same, rec_h, left(t1)), [top], top)
-    close(t2, left(t2), [top], ["w","f","a","h","x","y"])
+    close(t2, left(t2), [top], ["y","x","f","a","h"])
 }
