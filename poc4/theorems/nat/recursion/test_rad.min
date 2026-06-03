@@ -1,3 +1,0 @@
-from theorems.nat.recursion.rec_apply_dom import rec_apply_dom
-$_ print("rec_apply_dom loaded")
-$ok true
