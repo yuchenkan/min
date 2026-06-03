@@ -2,10 +2,11 @@ from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, q
 from vocab.sets import empty, successor, singleton, ordered_pair, union, big_union, power_set
 from vocab.functions import apply, function
 from vocab.omega import omega
+from vocab.nat.nat import num
 from vocab.recursion import rec_approx, recursive, total_from
 from vocab.logic import exists_unique
 from theorems.recursion.rec_base import rec_base
-from theorems.recursion.rec_approx_zero import rec_approx_zero
+from theorems.nat.recursion.rec_approx_zero import rec_approx_zero
 from theorems.recursion.extend_consistency import extend_consistency
 from theorems.recursion.extend_base import extend_base
 from theorems.sets.succ_set_transfer import succ_set_transfer
@@ -33,8 +34,8 @@ from theorems.recursion.recursion_theorem import recursion_theorem
 $_ qed(rec_base, forall("e0", forall("a", implies(empty("e0","_"), exists("h", and(function("h","_"), forall("e", implies(empty("e","_"), apply("h","e","a","_")))))))))
 $_ print("rec_base ok")
 
-$_ qed(rec_approx_zero, forall("v", forall("a", forall("f", forall("w", forall("e", forall("y",
-    implies(rec_approx("v","a","f","w","_"), implies(empty("e","_"), implies(apply("v","e","y","_"), eqv("y","a","_")))))))))))
+$_ qed(rec_approx_zero, forall("v", forall("a", forall("f", forall("e", forall("y",
+    implies(rec_approx("v","a","f","_"), implies(num("e",0,"_"), implies(apply("v","e","y","_"), eqv("y","a","_"))))))))))
 $_ print("rec_approx_zero ok")
 
 $ec_body implies(rec_approx("v","a","f","w","_"), implies(mem("n","w"), implies(apply("v","n","val","_"), implies(apply("f","val","fval","_"), implies(successor("sn","n","_"), implies(apply("v","sn","z","_"), eqv("fval","z","_")))))))
