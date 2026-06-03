@@ -1,5 +1,6 @@
 from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor
+from vocab.sets import empty
+from vocab.nat.nat import successor
 from vocab.functions import apply, function
 from core.derived import iff
 from vocab.omega import omega

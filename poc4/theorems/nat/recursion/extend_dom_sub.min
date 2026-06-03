@@ -1,8 +1,7 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right
-from vocab.sets import successor, singleton, ordered_pair, union
+from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply, function
-from vocab.nat.omega import omega
-from vocab.nat.nat import nat, num
+from vocab.nat.nat import nat, num, omega, successor
 from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left

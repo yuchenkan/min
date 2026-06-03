@@ -1,15 +1,22 @@
-from core.derived import mem, implies, forall, exists, eqv, qed
+from core.derived import mem, neg, implies, forall, and, or, exists, eqv, qed
 from vocab.sets import empty
-from vocab.nat.omega import omega
-from vocab.nat.nat import nat, num
+from vocab.nat.nat import nat, num, omega, successor
 from vocab.logic import exists_unique
 from theorems.nat.nat.nat_elim import nat_elim
 from theorems.nat.nat.num_exists_unique import num_exists_unique
 from theorems.nat.nat.num_exists import num_exists
 from theorems.nat.nat.num_unique import num_unique
-from core.derived import and
 from theorems.nat.nat.num_nat import num_nat
 from theorems.nat.nat.unique_num import unique_num
+from theorems.nat.nat.successor_exists import successor_exists
+from theorems.nat.nat.successor_unique import successor_unique
+from theorems.nat.nat.unique_successor import unique_successor
+from theorems.nat.nat.mem_succ_self import mem_succ_self
+from theorems.nat.nat.mem_succ_intro import mem_succ_intro
+from theorems.nat.nat.mem_succ_elim import mem_succ_elim
+from theorems.nat.nat.succ_not_empty import succ_not_empty
+from theorems.nat.nat.succ_set_transfer import succ_set_transfer
+from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
 
 $_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))))
 $_ print("nat_elim ok")
@@ -53,5 +60,38 @@ $_ qed(num_nat(1), forall("n", implies(num("n",1,"_"), nat("n","_"))))
 $_ print("num_nat(1) ok")
 $_ qed(num_nat(2), forall("n", implies(num("n",2,"_"), nat("n","_"))))
 $_ print("num_nat(2) ok")
+
+$_ qed(successor_exists, forall("a", exists("s", successor("s", "a", "_"))))
+$_ print("successor_exists ok")
+
+$_ qed(successor_unique, forall("a", forall("s1", forall("s2",
+    implies(successor("s1","a","_"), implies(successor("s2","a","_"), eqv("s1","s2","_")))))))
+$_ print("successor_unique ok")
+
+$_ qed(unique_successor, forall("a", exists_unique(\v p: successor(v, "a", p), "_")))
+$_ print("unique_successor ok")
+
+$_ qed(mem_succ_self, forall("s", forall("n", implies(successor("s","n","_"), mem("n","s")))))
+$_ print("mem_succ_self ok")
+
+$_ qed(mem_succ_intro, forall("x", forall("s", forall("n",
+    implies(mem("x","n"), implies(successor("s","n","_"), mem("x","s")))))))
+$_ print("mem_succ_intro ok")
+
+$_ qed(mem_succ_elim, forall("x", forall("s", forall("n",
+    implies(mem("x","s"), implies(successor("s","n","_"), or(mem("x","n"), eqv("x","n","_"))))))))
+$_ print("mem_succ_elim ok")
+
+$_ qed(succ_not_empty, forall("sn", forall("n", implies(successor("sn","n","_"), neg(empty("sn","_"))))))
+$_ print("succ_not_empty ok")
+
+$_ qed(succ_set_transfer, forall("s1", forall("s2", forall("n",
+    implies(eqv("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))))
+$_ print("succ_set_transfer ok")
+
+$_ qed(eq_succ_transfer, forall("a", forall("b", forall("c", forall("d",
+    implies(eqv("a","c","_"), implies(eqv("b","d","_"),
+        implies(successor("c","d","_"), successor("a","b","_")))))))))
+$_ print("eq_succ_transfer ok")
 
 $ok true

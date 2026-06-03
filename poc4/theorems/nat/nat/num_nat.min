@@ -1,7 +1,6 @@
 from core.derived import mem, implies, forall, exists, eqv, left, right
-from vocab.sets import empty, successor
-from vocab.nat.omega import omega
-from vocab.nat.nat import nat, num
+from vocab.sets import empty
+from vocab.nat.nat import nat, num, omega, successor
 from tactics import ax, wr, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
 from theorems.nat.omega.omega_contains_empty import omega_contains_empty
 from theorems.nat.omega.omega_succ_closed import omega_succ_closed

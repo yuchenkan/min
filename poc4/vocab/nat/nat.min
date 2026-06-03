@@ -1,6 +1,29 @@
-from core.derived import mem, implies, forall, and
-from vocab.sets import empty, successor
-from vocab.nat.omega import omega
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from vocab.sets import empty, set_spec, subset
+
+# successor(s, a, p): s = a ∪ {a}
+$successor \s a p: ["successor", add(s, add(" = S(", add(a, ")"))),
+    set_spec(s, \x np: or(mem(x, a), eqv(x, a, np)), p)]
+
+# inductive(a, p): 0∈a ∧ ∀x∈a. S(x)∈a
+$inductive \a p: {
+    $e add(p, "e")
+    $x add(p, "x")
+    $s add(p, "s")
+    $np add(p, "_")
+    $part1 forall(e, implies(empty(e, np), mem(e, a)))
+    $part2 forall(x, implies(mem(x, a), forall(s, implies(successor(s, x, np), mem(s, a)))))
+    ["inductive", add("Ind(", add(a, ")")), and(part1, part2)]
+}
+
+# omega(w, p): smallest inductive set
+$omega \w p: {
+    $x add(p, "x")
+    $np add(p, "_")
+    $part1 inductive(w, np)
+    $part2 forall(x, implies(inductive(x, np), subset(w, x, np)))
+    ["omega", add("Omega(", add(w, ")")), and(part1, part2)]
+}
 
 # nat(n, p): n is a natural number (n ∈ ω).
 # ∀w. Omega(w) → n ∈ w

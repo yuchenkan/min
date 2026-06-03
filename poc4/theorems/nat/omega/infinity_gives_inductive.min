@@ -1,13 +1,13 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, inf_ax, ext_ax, left, right
-from vocab.sets import empty, successor
-from vocab.nat.omega import inductive
+from vocab.sets import empty
+from vocab.nat.nat import inductive, successor
 from tactics import ax, wl, wr, fl, fr, ir, nl, nr, mp, cut, close, apply_thm, eel, eir, cut_c
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.empty_unique import empty_unique
-from theorems.sets.successor_unique import successor_unique
+from theorems.nat.nat.successor_unique import successor_unique
 from theorems.logic.ext_substitution import ext_substitution
 
 # Ext, Inf |- exists b. inductive(b)

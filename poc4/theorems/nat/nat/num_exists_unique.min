@@ -1,15 +1,15 @@
 from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor
-from vocab.nat.nat import num
+from vocab.sets import empty
+from vocab.nat.nat import num, successor
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.empty_exists import empty_exists
 from theorems.sets.empty_unique import empty_unique
-from theorems.sets.successor_exists import successor_exists
-from theorems.sets.successor_unique import successor_unique
-from theorems.sets.eq_succ_transfer import eq_succ_transfer
+from theorems.nat.nat.successor_exists import successor_exists
+from theorems.nat.nat.successor_unique import successor_unique
+from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 

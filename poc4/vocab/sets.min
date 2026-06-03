@@ -45,10 +45,6 @@ $big_union \s a p: {
 $power_set \s a p: ["power_set", add(s, add(" = P(", add(a, ")"))),
     set_spec(s, \x np: subset(x, a, np), p)]
 
-# successor(s, a, p): set_spec(s, \x np: or(mem(x, a), eqv(x, a, np)))
-$successor \s a p: ["successor", add(s, add(" = S(", add(a, ")"))),
-    set_spec(s, \x np: or(mem(x, a), eqv(x, a, np)), p)]
-
 # ordered_pair(p, a, b, pr): p = {{a}, {a, b}}
 $ordered_pair \p a b pr: ["ordered_pair", add("(", add(a, add(", ", add(b, ")")))),
     set_spec(p, \x np: or(singleton(x, a, np), pair_set(x, a, b, np)), pr)]

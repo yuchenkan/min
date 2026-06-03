@@ -1,5 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
-from vocab.sets import ordered_pair, successor, singleton, big_union, union, relation, product
+from vocab.sets import ordered_pair, singleton, big_union, union, relation, product
+from vocab.nat.nat import successor
 from vocab.functions import apply, function, single_valued, domain
 from vocab.logic import exists_unique
 from theorems.functions.domain_exists import domain_exists

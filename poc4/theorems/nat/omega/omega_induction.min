@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
-from vocab.sets import empty, successor, subset
-from vocab.nat.omega import inductive, omega
+from vocab.sets import empty, subset
+from vocab.nat.nat import inductive, omega, successor
 from util import rev
 from tactics import ax, wl, wr, fl, fr, ir, mp, inst, apply_thm, eel, eir, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left

@@ -1,5 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor, ordered_pair, relation
+from vocab.sets import empty, ordered_pair, relation
+from vocab.nat.nat import successor
 from vocab.functions import apply, function, domain, single_valued
 from vocab.omega import omega
 from vocab.recursion import recursive
@@ -18,7 +19,7 @@ from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.eqv_mem_left import eqv_mem_left
 from theorems.functions.domain_exists import domain_exists
 from theorems.functions.domain_mem_elim import domain_mem_elim
-from theorems.sets.successor_exists import successor_exists
+from theorems.nat.nat.successor_exists import successor_exists
 
 # rec_val_in_omega:
 # Omega(w) → a∈w → succ_char(sf,w) → Recursive(h,a,sf,w) → x∈w → Apply(h,x,y) → y∈w

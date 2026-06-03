@@ -1,15 +1,14 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
-from vocab.sets import successor, singleton, ordered_pair, union, big_union, power_set
+from vocab.sets import singleton, ordered_pair, union, big_union, power_set
 from vocab.functions import apply, function
-from vocab.omega import omega
-from vocab.nat.nat import nat, num
-from vocab.recursion import rec_approx, recursive, total_from
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.nat.recursion import rec_approx, recursive, total_from
 from vocab.logic import exists_unique
 from theorems.recursion.rec_base import rec_base
 from theorems.nat.recursion.rec_approx_zero import rec_approx_zero
 from theorems.nat.recursion.extend_consistency import extend_consistency
 from theorems.recursion.extend_base import extend_base
-from theorems.sets.succ_set_transfer import succ_set_transfer
+from theorems.nat.nat.succ_set_transfer import succ_set_transfer
 from theorems.nat.recursion.extend_dom_sub import extend_dom_sub
 from theorems.nat.recursion.extend_ran_sub import extend_ran_sub
 from theorems.nat.recursion.extend_step import extend_step

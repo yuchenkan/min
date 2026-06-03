@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, right
-from vocab.sets import successor, empty
-from vocab.nat.omega import inductive, omega
+from vocab.sets import empty
+from vocab.nat.nat import inductive, omega, successor
 from tactics import ax, ir, mp, apply_thm, close
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.nat.omega.omega_is_inductive import omega_is_inductive

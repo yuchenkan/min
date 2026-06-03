@@ -1,5 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor, singleton, ordered_pair, union
+from vocab.sets import empty, singleton, ordered_pair, union
+from vocab.nat.nat import successor
 from vocab.functions import apply
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
@@ -9,8 +10,8 @@ from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.functions.extend_apply_old import extend_apply_old
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.succ_not_empty import succ_not_empty
-from theorems.sets.mem_succ_self import mem_succ_self
+from theorems.nat.nat.succ_not_empty import succ_not_empty
+from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.logic.eqv_mem_left import eqv_mem_left
 

@@ -1,5 +1,5 @@
 from core.derived import mem, implies, forall, or, iff, eqv, left, right
-from vocab.sets import successor
+from vocab.nat.nat import successor
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_sym import iff_sym

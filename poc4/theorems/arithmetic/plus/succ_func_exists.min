@@ -1,5 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2, sep_ax, power_ax
-from vocab.sets import empty, successor, ordered_pair, power_set
+from vocab.sets import empty, ordered_pair, power_set
+from vocab.nat.nat import successor
 from vocab.functions import apply, function
 from vocab.omega import omega
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
@@ -12,7 +13,7 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.sets.ordpair_bounded import ordpair_bounded
 from theorems.sets.power_set_exists import power_set_exists
 from theorems.sets.ordpair_exists import ordpair_exists
-from theorems.sets.successor_exists import successor_exists
+from theorems.nat.nat.successor_exists import successor_exists
 
 # succ_func_exists:
 # |- ∀w. (∀x∈w.∀s.Succ(s,x)→s∈w) → ∃sf.∀p.(p∈sf ↔ ∃x.(x∈w ∧ ∃s.(Succ(s,x) ∧ OrdPair(p,x,s))))

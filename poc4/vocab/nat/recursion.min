@@ -1,8 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
-from vocab.sets import successor
-from vocab.nat.nat import num
+from vocab.nat.nat import num, successor, omega
 from vocab.functions import apply, domain, function
-from vocab.nat.omega import omega
 
 # total_from(f, a, p): f is defined at a and range-closed.
 # And(∃z.Apply(f,a,z), ∀x.∀y.(Apply(f,x,y) → ∃z.Apply(f,y,z)))

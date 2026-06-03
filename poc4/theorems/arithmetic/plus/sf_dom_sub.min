@@ -1,5 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax, ext_ax
-from vocab.sets import successor, ordered_pair
+from vocab.sets import ordered_pair
+from vocab.nat.nat import successor
 from vocab.functions import apply
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left

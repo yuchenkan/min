@@ -1,6 +1,5 @@
 from core.derived import mem, implies
-from vocab.nat.omega import omega
-from vocab.nat.nat import nat
+from vocab.nat.nat import nat, omega
 from tactics import ax, fr, ir, mp, apply_thm, close
 
 # nat_elim: ∀m,w. Nat(m) → Omega(w) → m∈w

@@ -1,5 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor, ordered_pair, product
+from vocab.sets import empty, ordered_pair, product
+from vocab.nat.nat import successor
 from vocab.functions import apply, function, single_valued, domain
 from vocab.omega import omega
 from vocab.arithmetic.plus import plus_func
@@ -25,11 +26,11 @@ from theorems.omega.omega_induction import omega_induction
 from theorems.omega.omega_contains_empty import omega_contains_empty
 from theorems.omega.omega_succ_closed import omega_succ_closed
 from theorems.sets.ordpair_unique import ordpair_unique
-from theorems.sets.successor_unique import successor_unique
-from theorems.sets.successor_exists import successor_exists
+from theorems.nat.nat.successor_unique import successor_unique
+from theorems.nat.nat.successor_exists import successor_exists
 from theorems.functions.apply_intro import apply_intro
 from theorems.functions.apply_val_transfer import apply_val_transfer
-from theorems.sets.eq_succ_transfer import eq_succ_transfer
+from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
 from theorems.functions.func_ext_from_agree import func_ext_from_agree
 
 # plus_func_unique: Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eqv(h1,h2)

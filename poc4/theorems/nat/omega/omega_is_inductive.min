@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall
 from vocab.sets import subset
-from vocab.nat.omega import inductive, omega
+from vocab.nat.nat import inductive, omega
 from tactics import ax, ir, mp, close
 from theorems.logic.and_elim_left import and_elim_left
 

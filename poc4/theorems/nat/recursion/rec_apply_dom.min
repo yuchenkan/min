@@ -1,7 +1,8 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor
+from vocab.sets import empty
 from vocab.functions import apply, function, domain
 from vocab.omega import omega
+from vocab.nat.nat import successor
 from vocab.recursion import recursive
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left

@@ -1,10 +1,10 @@
 from core.derived import mem, neg, implies, forall, and, or, eqv, left, right, arg2
-from vocab.sets import empty, successor, transitive_set
-from vocab.nat.omega import omega
+from vocab.sets import empty, transitive_set
+from vocab.nat.nat import omega, successor
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same, remove, diff
 from theorems.sets.neg_mem_empty import neg_mem_empty
-from theorems.sets.mem_succ_intro import mem_succ_intro
-from theorems.sets.mem_succ_elim import mem_succ_elim
+from theorems.nat.nat.mem_succ_intro import mem_succ_intro
+from theorems.nat.nat.mem_succ_elim import mem_succ_elim
 from theorems.logic.eqv_mem_left import eqv_mem_left
 from theorems.nat.omega.omega_induction import omega_induction
 

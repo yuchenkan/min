@@ -1,8 +1,7 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
-from vocab.sets import successor, singleton, ordered_pair, union, relation
+from vocab.sets import singleton, ordered_pair, union, relation
 from vocab.functions import apply, single_valued, function
-from vocab.nat.omega import omega
-from vocab.nat.nat import nat, num
+from vocab.nat.nat import nat, num, omega, successor
 from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
@@ -17,7 +16,7 @@ from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.nat.omega.successor_injection import successor_injection
-from theorems.sets.succ_set_transfer import succ_set_transfer
+from theorems.nat.nat.succ_set_transfer import succ_set_transfer
 from theorems.nat.nat.nat_elim import nat_elim
 
 $extend_step {

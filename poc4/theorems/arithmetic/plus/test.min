@@ -1,5 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
-from vocab.sets import successor, ordered_pair, relation, product, empty
+from vocab.sets import ordered_pair, relation, product, empty
+from vocab.nat.nat import successor
 from vocab.functions import apply, function, domain
 from vocab.omega import omega
 from vocab.recursion import recursive, total_from

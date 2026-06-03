@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed, sep_ax
-from vocab.sets import empty, successor, subset, transitive_set
-from vocab.nat.omega import inductive, omega
+from vocab.sets import empty, subset, transitive_set
+from vocab.nat.nat import inductive, omega, successor
 from vocab.logic import exists_unique
 from theorems.nat.omega.infinity_gives_inductive import infinity_gives_inductive
 from theorems.nat.omega.omega_is_inductive import omega_is_inductive

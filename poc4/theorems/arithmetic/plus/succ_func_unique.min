@@ -1,5 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import successor, ordered_pair
+from vocab.sets import ordered_pair
+from vocab.nat.nat import successor
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, close, same, remove, diff
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_elim_left import iff_elim_left

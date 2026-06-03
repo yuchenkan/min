@@ -1,18 +1,19 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import successor, ordered_pair, relation
+from vocab.sets import ordered_pair, relation
+from vocab.nat.nat import successor
 from vocab.functions import apply, function
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, wr
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_intro import iff_intro
-from theorems.sets.unique_successor import unique_successor
+from theorems.nat.nat.unique_successor import unique_successor
 from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
 from theorems.arithmetic.plus.sf_apply_to_succ import sf_apply_to_succ
 from theorems.arithmetic.plus.sf_succ_to_apply import sf_succ_to_apply
 from theorems.arithmetic.plus.sf_relation import sf_relation
 from theorems.arithmetic.plus.sf_dom_sub import sf_dom_sub
-from theorems.sets.successor_unique import successor_unique
+from theorems.nat.nat.successor_unique import successor_unique
 
 # sf_props: succ_closed(w) → ∃sf. succ_char(sf,w) ∧ Function(sf) ∧ dom_sub(sf,w)
 # succ_char = ∀x∈w.∀y.Apply(sf,x,y)↔Successor(y,x)
