@@ -17,8 +17,8 @@ from theorems.recursion.rec_exists_step import rec_exists_step
 from theorems.nat.recursion.singleton_recapprox import singleton_recapprox
 from theorems.recursion.rec_exists import rec_exists
 from theorems.recursion.rec_agree import rec_agree
-from theorems.recursion.rec_graph_exists import rec_graph_exists
-from theorems.recursion.rec_h_apply import rec_h_apply
+from theorems.nat.recursion.rec_graph_exists import rec_graph_exists
+from theorems.nat.recursion.rec_h_apply import rec_h_apply
 from theorems.recursion.rec_h_dom_sub import rec_h_dom_sub
 from theorems.recursion.rec_value import rec_value
 from theorems.recursion.rec_h_apply_fwd import rec_h_apply_fwd
@@ -103,22 +103,22 @@ $ra_body implies(omega("w","_"), implies(function("f","_"), forall("n", implies(
 $_ qed(rec_agree, forall("w", forall("f", forall("a", ra_body))))
 $_ print("rec_agree ok")
 
-$rge_phi \p np: exists(add(np,"n"), and(mem(add(np,"n"),"w"),
-    exists(add(np,"v"), exists(add(np,"y"), and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+$rge_phi \p np: exists(add(np,"n"), and(nat(add(np,"n"),np),
+    exists(add(np,"v"), exists(add(np,"y"), and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
         apply(add(np,"v"),add(np,"n"),add(np,"y"),add(np,"_"))), ordered_pair(p,add(np,"n"),add(np,"y"),add(np,"_")))))))
 $rge_body exists("h", forall("p", iff(mem("p","h"), and(mem("p","ppb"), rge_phi("p","_")))))
-$_ qed(rec_graph_exists, forall("w", forall("f", forall("a", forall("ppb", rge_body)))))
+$_ qed(rec_graph_exists, forall("f", forall("a", forall("ppb", rge_body))))
 $_ print("rec_graph_exists ok")
 
 $rha_phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
-    and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+    and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
         apply(add(np,"v"),m,add(np,"y"),add(np,"_"))),
         ordered_pair(p,m,add(np,"y"),add(np,"_")))))
-$rha_char forall("p", iff(mem("p","h"), exists("m", and(mem("m","w"), rha_phi("m","p","_")))))
-$rha_body implies(rha_char, implies(mem("n","w"), implies(rec_approx("v","a","f","w","_"),
+$rha_char forall("p", iff(mem("p","h"), exists("m", and(nat("m","_"), rha_phi("m","p","_")))))
+$rha_body implies(rha_char, implies(nat("n","_"), implies(rec_approx("v","a","f","_"),
     implies(apply("v","n","y","_"), apply("h","n","y","_")))))
-$_ qed(rec_h_apply, forall("h", forall("a", forall("f", forall("w",
-    forall("v", forall("n", forall("y", rha_body))))))))
+$_ qed(rec_h_apply, forall("h", forall("a", forall("f",
+    forall("v", forall("n", forall("y", rha_body)))))))
 $_ print("rec_h_apply ok")
 
 $rhds_body implies(rha_char, implies(apply("h","x","y","_"), mem("x","w")))
