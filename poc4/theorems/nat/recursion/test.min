@@ -23,7 +23,7 @@ from theorems.nat.recursion.rec_h_dom_sub import rec_h_dom_sub
 from theorems.nat.recursion.rec_value import rec_value
 from theorems.nat.recursion.rec_h_apply_fwd import rec_h_apply_fwd
 from theorems.recursion.rec_h_step import rec_h_step
-from theorems.recursion.rec_h_function import rec_h_function
+from theorems.nat.recursion.rec_h_function import rec_h_function
 from theorems.recursion.rec_apply_dom import rec_apply_dom
 from theorems.recursion.rec_values_agree import rec_values_agree
 from theorems.nat.recursion.char_h_bridge import char_h_bridge
@@ -31,7 +31,7 @@ from theorems.recursion.rec_exists_full import rec_exists_full
 from theorems.recursion.rec_unique import rec_unique
 from theorems.recursion.recursion_theorem import recursion_theorem
 
-$_ qed(rec_base, forall("e0", forall("a", implies(empty("e0","_"), exists("h", and(function("h","_"), forall("e", implies(empty("e","_"), apply("h","e","a","_")))))))))
+$_ qed(rec_base, forall("e0", forall("a", implies(num("e0",0,"_"), exists("h", and(function("h","_"), forall("e", implies(num("e",0,"_"), apply("h","e","a","_")))))))))
 $_ print("rec_base ok")
 
 $_ qed(rec_approx_zero, forall("v", forall("a", forall("f", forall("e", forall("y",
@@ -146,11 +146,11 @@ $_ qed(rec_h_step, forall("h", forall("a", forall("f", forall("w",
     forall("n", forall("val", forall("sn", forall("fval", rhs_body)))))))))
 $_ print("rec_h_step ok")
 
-$rhf_body implies(rha_char, implies(function("f","_"), implies(omega("w","_"),
+$rhf_body implies(rha_char, implies(function("f","_"),
     implies(exists("z", apply("f","a","z","_")),
     implies(forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_"))))),
-    function("h","_"))))))
-$_ qed(rec_h_function, forall("h", forall("a", forall("f", forall("w", rhf_body)))))
+    function("h","_")))))
+$_ qed(rec_h_function, forall("h", forall("a", forall("f", rhf_body))))
 $_ print("rec_h_function ok")
 
 $rad_body implies(recursive("h","a","f","w","_"), implies(apply("h","x","y","_"), mem("x","w")))

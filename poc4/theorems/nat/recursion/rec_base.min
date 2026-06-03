@@ -1,6 +1,7 @@
 from core.derived import mem, implies, forall, and, exists, eqv, left, right
 from vocab.sets import empty, singleton, ordered_pair
 from vocab.functions import apply, function
+from vocab.nat.nat import num
 from tactics import ax, fr, ir, mp, apply_thm, eel, eir, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
 from theorems.sets.empty_unique import empty_unique
@@ -10,10 +11,9 @@ from theorems.sets.singleton_function import singleton_function
 from theorems.sets.singleton_apply import singleton_apply
 from theorems.functions.apply_key_transfer import apply_key_transfer
 
-# pa |- empty(e0) -> forall a. exists h. function(h) & forall e. (empty(e) -> apply(h, e, a))
-# The empty set witness e0 is taken as hypothesis.
+# pa |- num(e0,0) -> forall a. exists h. function(h) & forall e. (num(e,0) -> apply(h, e, a))
 $rec_base {
-    $emp0 empty("e0", "_")
+    $emp0 num("e0", 0, "_")
     $op_t ordered_pair("t", "e0", "a", "_")
     $sing_g singleton("g", "t", "_")
     $func_g function("g", "_")
@@ -34,7 +34,7 @@ $rec_base {
     $got_app mp(sa2, ax([op_t], [op_t], op_t), op_t, app_g_e0, left(sa2), [op_t])
 
     # forall e. empty(e) → apply(g, e, a)
-    $emp_e empty("e", "_")
+    $emp_e num("e", 0, "_")
     $app_g_e apply("g", "e", "a", "_")
     $eqv_e0e eqv("e0", "e", "_")
 
@@ -61,7 +61,7 @@ $rec_base {
         got_base, base, goal, left(got_func), left(got_base))
 
     # eir: ∃g. goal
-    $body_fn \v: and(function(v, "_"), forall("e", implies(empty("e", "_"), apply(v, "e", "a", "_"))))
+    $body_fn \v: and(function(v, "_"), forall("e", implies(num("e", 0, "_"), apply(v, "e", "a", "_"))))
     $ex_goal exists("g", goal)
     $got_ex eir(got_goal, body_fn, "h", "g", left(got_goal))
 
