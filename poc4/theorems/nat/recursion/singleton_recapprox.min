@@ -187,7 +187,7 @@ $singleton_recapprox {
     $got_base_eel eel(got_ge2a, \v: and(ordered_pair(v,"e2","y3","_"), mem(v,"g")), "p", "q2", left(got_ge2a), app_ge2a)
     $got_base_eel2 eel(got_base_eel, \v: apply("g","e2",v,"_"), "y3", "y3", left(got_base_eel), app_ge2a)
     $ex_ge2 exists("y3", apply("g","e2","y3","_"))
-    $emp_e2 empty("e2","_")
+    $emp_e2 num("e2",0,"_")
     $base_inner implies(ex_ge2, app_ge2a)
     $got_base_ir ir(got_base_eel2, remove(same, ex_ge2, left(got_base_eel2)), [base_inner], base_inner)
     # emp_e2 not used in proof — weaken it in, then ir to get implies(emp_e2, ...)

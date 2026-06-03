@@ -1,5 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
-from vocab.sets import empty, successor
+from vocab.sets import successor
+from vocab.nat.nat import num
 from vocab.functions import apply, domain, function
 from vocab.nat.omega import omega
 
@@ -29,7 +30,7 @@ $recursive \h a f p: {
 
     $func_h function(h, np)
     $dom_eq forall(dd, implies(domain(dd, h, np), eqv(dd, w, np)))
-    $base forall(e, implies(empty(e, np), apply(h, e, a, np)))
+    $base forall(e, implies(num(e, 0, p), apply(h, e, a, np)))
     $step forall(n, implies(mem(n, w),
         forall(v, implies(apply(h, n, v, np),
             forall(sn, implies(successor(sn, n, np),
@@ -57,7 +58,7 @@ $rec_approx \v a f p: {
     $func_v function(v, np)
     $dom_sub forall(x, implies(exists(y, apply(v, x, y, np)), mem(x, w)))
     $ran_sub forall(x, forall(y, implies(apply(v, x, y, np), exists(z, apply(f, y, z, np)))))
-    $base forall(e, implies(empty(e, np),
+    $base forall(e, implies(num(e, 0, p),
         implies(exists(y, apply(v, e, y, np)), apply(v, e, a, np))))
     $step forall(n, implies(mem(n, w),
         forall(sn, implies(successor(sn, n, np),

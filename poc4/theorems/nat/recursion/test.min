@@ -1,5 +1,5 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
-from vocab.sets import empty, successor, singleton, ordered_pair, union, big_union, power_set
+from vocab.sets import successor, singleton, ordered_pair, union, big_union, power_set
 from vocab.functions import apply, function
 from vocab.omega import omega
 from vocab.nat.nat import nat, num
@@ -42,9 +42,9 @@ $ec_body implies(rec_approx("v","a","f","_"), implies(nat("n","_"), implies(appl
 $_ qed(extend_consistency, forall("v", forall("a", forall("f", forall("n", forall("sn", forall("val", forall("fval", forall("z", ec_body)))))))))
 $_ print("extend_consistency ok")
 
-$eb_body implies(forall("e", implies(empty("e","_"), implies(exists("y", apply("v","e","y","_")), apply("v","e","a","_")))),
+$eb_body implies(forall("e", implies(num("e",0,"_"), implies(exists("y", apply("v","e","y","_")), apply("v","e","a","_")))),
     implies(successor("sn","n","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","sn","fval","_"),
-        implies(union("u","v","h","_"), forall("e", implies(empty("e","_"), implies(exists("y", apply("u","e","y","_")), apply("u","e","a","_")))))))))
+        implies(union("u","v","h","_"), forall("e", implies(num("e",0,"_"), implies(exists("y", apply("u","e","y","_")), apply("u","e","a","_")))))))))
 $_ qed(extend_base, forall("v", forall("u", forall("h", forall("op", forall("sn", forall("n", forall("a", forall("fval", eb_body)))))))))
 $_ print("extend_base ok")
 
@@ -72,7 +72,7 @@ $_ print("extend_step ok")
 $res_func function("u", "_")
 $res_dom forall("x2", implies(exists("y2", apply("u","x2","y2","_")), mem("x2","w")))
 $res_ran forall("x2", forall("y2", implies(apply("u","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
-$res_base forall("e2", implies(empty("e2","_"), implies(exists("y2", apply("u","e2","y2","_")), apply("u","e2","a","_"))))
+$res_base forall("e2", implies(num("e2",0,"_"), implies(exists("y2", apply("u","e2","y2","_")), apply("u","e2","a","_"))))
 $res_step forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"), implies(exists("y2", apply("u","sn2","y2","_")), and(exists("val2", apply("u","n2","val2","_")), forall("val2", implies(apply("u","n2","val2","_"), forall("fval2", implies(apply("f","val2","fval2","_"), apply("u","sn2","fval2","_")))))))))))
 $res_ra_body and(res_func, and(res_dom, and(res_ran, and(res_base, res_step))))
 $res_ra forall("w", implies(omega("w","_"), res_ra_body))

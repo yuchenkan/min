@@ -1,8 +1,8 @@
 from core.derived import mem, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
-from vocab.sets import empty, successor, ordered_pair, big_union, union, power_set
+from vocab.sets import successor, ordered_pair, big_union, union, power_set
 from vocab.functions import apply, function
 from vocab.nat.omega import omega
-from vocab.nat.nat import nat
+from vocab.nat.nat import nat, num
 from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
@@ -113,7 +113,7 @@ $char_h_bridge {
     $func_vv function("vv", "_")
     $dom_sub_vv forall("x2", implies(exists("y2", apply("vv","x2","y2","_")), mem("x2","w0")))
     $ran_sub_vv forall("x2", forall("y2", implies(apply("vv","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
-    $base_vv forall("e2", implies(empty("e2","_"),
+    $base_vv forall("e2", implies(num("e2",0,"_"),
         implies(exists("y2", apply("vv","e2","y2","_")), apply("vv","e2","a","_"))))
     $step_vv forall("n2", implies(mem("n2","w0"),
         forall("sn2", implies(successor("sn2","n2","_"),

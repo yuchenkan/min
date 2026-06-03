@@ -1,5 +1,5 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
-from vocab.sets import empty, successor, relation
+from vocab.sets import successor, relation
 from vocab.functions import apply, single_valued, function
 from vocab.nat.omega import omega
 from vocab.nat.nat import num
@@ -42,7 +42,7 @@ $rec_agree {
     $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
 
     $_ind_body \w: \f: \a: {
-        $base forall("e", implies(empty("e","_"), pred(w,"e","_")))
+        $base forall("e", implies(num("e",0,"_"), pred(w,"e","_")))
         $step forall("n", implies(mem("n",w), implies(pred(w,"n","_"),
             forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
         implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
@@ -131,7 +131,7 @@ $rec_agree {
     $func_v1 function("v1","_")
     $dom_sub_v1 forall("x2", implies(exists("y2", apply("v1","x2","y2","_")), mem("x2","w")))
     $ran_sub_v1 forall("x2", forall("y2", implies(apply("v1","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
-    $base_v1 forall("e2", implies(empty("e2","_"), implies(exists("y2", apply("v1","e2","y2","_")), apply("v1","e2","a","_"))))
+    $base_v1 forall("e2", implies(num("e2",0,"_"), implies(exists("y2", apply("v1","e2","y2","_")), apply("v1","e2","a","_"))))
     $step_v1 forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
         implies(exists("y2", apply("v1","sn2","y2","_")),
             and(exists("y2", apply("v1","n2","y2","_")),
@@ -190,7 +190,7 @@ $rec_agree {
     $func_v2 function("v2","_")
     $dom_sub_v2 forall("x2", implies(exists("y2", apply("v2","x2","y2","_")), mem("x2","w")))
     $ran_sub_v2 forall("x2", forall("y2", implies(apply("v2","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
-    $base_v2 forall("e2", implies(empty("e2","_"), implies(exists("y2", apply("v2","e2","y2","_")), apply("v2","e2","a","_"))))
+    $base_v2 forall("e2", implies(num("e2",0,"_"), implies(exists("y2", apply("v2","e2","y2","_")), apply("v2","e2","a","_"))))
     $step_v2 forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
         implies(exists("y2", apply("v2","sn2","y2","_")),
             and(exists("y2", apply("v2","n2","y2","_")),
@@ -341,7 +341,7 @@ $rec_agree {
     $got_cut_fv1 cut_c(got_ex_f1, got_eel_fv1, exists("z", apply("f","val1","z","_")), left(got_ex_f1), left(got_eel_fv1), eqv_y1y2_s)
 
     # eel fv2 from ran_sub(v2,n,val2):
-    $got_ran_v2 mp(and_elim_left(ran_sub_v2, and(forall("e2", implies(empty("e2","_"), implies(exists("y", apply("v2","e2","y","_")), apply("v2","e2","a","_")))), step_v2), []),
+    $got_ran_v2 mp(and_elim_left(ran_sub_v2, and(forall("e2", implies(num("e2",0,"_"), implies(exists("y", apply("v2","e2","y","_")), apply("v2","e2","a","_")))), step_v2), []),
         got_rest2_v2, rest2_v2, ran_sub_v2, [], left(got_body_v2))
     $got_ran_v2_inst apply_thm(got_ran_v2, ran_sub_v2, ["n", "val2"], ["n", "y"],
         \x: \y: implies(apply("v2",x,y,"_"), exists("z2", apply("f",y,"z2","_"))), left(got_body_v2))

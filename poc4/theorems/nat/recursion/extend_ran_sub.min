@@ -1,7 +1,8 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor, singleton, ordered_pair, union
+from vocab.sets import successor, singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.nat.omega import omega
+from vocab.nat.nat import num
 from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
@@ -36,7 +37,7 @@ $extend_ran_sub {
     $func_v function("v", "_")
     $dom_sub forall("x2", implies(exists("y2", apply("v","x2","y2","_")), mem("x2","w")))
     $ran_sub forall("x2", forall("y2", implies(apply("v","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
-    $base_v forall("e2", implies(empty("e2","_"),
+    $base_v forall("e2", implies(num("e2",0,"_"),
         implies(exists("y2", apply("v","e2","y2","_")), apply("v","e2","a","_"))))
     $step_v forall("n2", implies(mem("n2","w"),
         forall("sn2", implies(successor("sn2","n2","_"),

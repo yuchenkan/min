@@ -1,8 +1,8 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor, singleton, ordered_pair, union
+from vocab.sets import successor, singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.nat.omega import omega
-from vocab.nat.nat import nat
+from vocab.nat.nat import nat, num
 from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
@@ -39,7 +39,7 @@ $rec_exists_step {
     $func_v function("v", "_")
     $dom_sub_v forall("x2", implies(exists("y2", apply("v","x2","y2","_")), mem("x2","w")))
     $ran_sub_v forall("x2", forall("y2", implies(apply("v","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
-    $base_v forall("e2", implies(empty("e2","_"),
+    $base_v forall("e2", implies(num("e2",0,"_"),
         implies(exists("y2", apply("v","e2","y2","_")), apply("v","e2","a","_"))))
     $step_v forall("n2", implies(mem("n2","w"),
         forall("sn2", implies(successor("sn2","n2","_"),
@@ -149,9 +149,9 @@ $rec_exists_step {
 
     # === extend_base: base_v→succ_sn→sing_h→opkv→un→base_u ===
     $_eb head(right(extend_base))
-    $_eb_b \v: \u: \h: \op: \sn: \n: \a: \fval: implies(forall("e", implies(empty("e","_"), implies(exists("y", apply(v,"e","y","_")), apply(v,"e",a,"_")))),
+    $_eb_b \v: \u: \h: \op: \sn: \n: \a: \fval: implies(forall("e", implies(num("e",0,"_"), implies(exists("y", apply(v,"e","y","_")), apply(v,"e",a,"_")))),
         implies(successor(sn,n,"_"), implies(singleton(h,op,"_"), implies(ordered_pair(op,sn,fval,"_"),
-            implies(union(u,v,h,"_"), forall("e", implies(empty("e","_"), implies(exists("y", apply(u,"e","y","_")), apply(u,"e",a,"_")))))))))
+            implies(union(u,v,h,"_"), forall("e", implies(num("e",0,"_"), implies(exists("y", apply(u,"e","y","_")), apply(u,"e",a,"_")))))))))
     $eb1 apply_thm(extend_base, _eb, ["v", "u", "h", "op", "sn", "n", "a", "fval"], ["v", "u", "h", "op", "sn", "n", "a", "fval"], _eb_b, left(extend_base))
     $eb2 mp(eb1, got_base_v, base_v, arg2(head(right(eb1))), left(eb1), left(got_body_v))
     $eb3 mp(eb2, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(eb2))), left(eb2), [succ_sn])
