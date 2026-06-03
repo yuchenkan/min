@@ -174,8 +174,13 @@ $eir \prf body_fn x witness ctx: {
     $neg_body_inst neg(body_inst)
     $fa_neg forall(x, neg(body_x))
     $ex neg(fa_neg)
-    $s1 nl(prf, add(ctx, [neg_body_inst]), [], neg_body_inst)
-    $s2 fl(s1, add(ctx, [fa_neg]), [], fa_neg, witness)
+    $s1 ?(contains(same, neg_body_inst, ctx), {
+        # neg_body_inst already on left. Cut body_inst from right using contradiction.
+        $contra nr(ax([neg_body_inst], [neg_body_inst], neg_body_inst), [], [neg_body_inst, body_inst], body_inst)
+        $contra_w wl_all(contra, [], [neg_body_inst, body_inst], ctx)
+        cut(contra_w, prf, ctx, [], body_inst)
+    }, nl(prf, add(ctx, [neg_body_inst]), [], neg_body_inst))
+    $s2 fl(s1, ?(contains(same, fa_neg, ctx), ctx, add(ctx, [fa_neg])), [], fa_neg, witness)
     nr(s2, ctx, [ex], ex)
 }
 
