@@ -26,7 +26,7 @@ from theorems.recursion.rec_h_step import rec_h_step
 from theorems.recursion.rec_h_function import rec_h_function
 from theorems.recursion.rec_apply_dom import rec_apply_dom
 from theorems.recursion.rec_values_agree import rec_values_agree
-from theorems.recursion.char_h_bridge import char_h_bridge
+from theorems.nat.recursion.char_h_bridge import char_h_bridge
 from theorems.recursion.rec_exists_full import rec_exists_full
 from theorems.recursion.rec_unique import rec_unique
 from theorems.recursion.recursion_theorem import recursion_theorem
@@ -165,15 +165,13 @@ $_ qed(rec_values_agree, forall("h", forall("h2", forall("a", forall("f", forall
 $_ print("rec_values_agree ok")
 
 $chb_phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
-    and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+    and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
         apply(add(np,"v"),m,add(np,"y"),add(np,"_"))),
         ordered_pair(p,m,add(np,"y"),add(np,"_")))))
-$chb_char_h_ppb forall("p", iff(mem("p","h"), and(mem("p","ppb"), exists("m", and(mem("m","w"), chb_phi("m","p","_"))))))
-$chb_char_h forall("p", iff(mem("p","h"), exists("m", and(mem("m","w"), chb_phi("m","p","_")))))
-$chb_body implies(chb_char_h_ppb, implies(big_union("uf","f","_"), implies(big_union("uuf","uf","_"),
-    implies(union("big","w","uuf","_"), implies(power_set("pb","big","_"), implies(power_set("ppb","pb","_"), chb_char_h))))))
-$_ qed(char_h_bridge, forall("h", forall("a", forall("f", forall("w",
-    forall("uf", forall("uuf", forall("big", forall("pb", forall("ppb", chb_body))))))))))
+$chb_char_h_ppb forall("ppb", exists("h", forall("p", iff(mem("p","h"),
+    and(mem("p","ppb"), exists("m", and(nat("m","_"), chb_phi("m","p","_"))))))))
+$chb_char_h exists("h", forall("p", iff(mem("p","h"), exists("m", and(nat("m","_"), chb_phi("m","p","_"))))))
+$_ qed(char_h_bridge, forall("a", forall("f", implies(chb_char_h_ppb, chb_char_h))))
 $_ print("char_h_bridge ok")
 
 $ref_body implies(function("f","_"), implies(total_from("f","a","_"), implies(omega("w","_"),
