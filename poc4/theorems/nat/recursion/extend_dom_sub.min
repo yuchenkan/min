@@ -11,7 +11,7 @@ from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
 from theorems.logic.eqv_mem_right import eqv_mem_right
-from theorems.nat.omega.omega_succ_closed import omega_succ_closed
+from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 from theorems.nat.nat.nat_elim import nat_elim
 
 # |- rec_approx(v,a,f) → omega(w) → nat(n) → successor(sn,n) →

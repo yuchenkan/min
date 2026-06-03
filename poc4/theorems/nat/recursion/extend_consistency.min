@@ -8,7 +8,7 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.functions.func_unique_thm import func_unique_thm
-from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.nat.omega_exists import omega_exists
 from theorems.nat.nat.nat_elim import nat_elim
 
 # |- rec_approx(v,a,f) → nat(n) → apply(v,n,val) → apply(f,val,fval) →

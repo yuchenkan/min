@@ -4,7 +4,7 @@ from vocab.nat.nat import omega, successor
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, close, same, remove, diff, wl_all
 from theorems.logic.or_intro_left import or_intro_left
 from theorems.logic.or_intro_right import or_intro_right
-from theorems.nat.omega.omega_induction import omega_induction
+from theorems.nat.nat.omega_induction import omega_induction
 
 # Sep |- forall w. omega(w) → ∀n∈w. or(empty(n), ∃q. successor(n,q))
 $zero_or_succ {

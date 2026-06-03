@@ -12,7 +12,7 @@ from theorems.nat.recursion.rec_h_apply_fwd import rec_h_apply_fwd
 from theorems.nat.recursion.rec_value import rec_value
 from theorems.nat.recursion.rec_h_dom_sub import rec_h_dom_sub
 from theorems.nat.nat.nat_elim import nat_elim
-from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.nat.omega_exists import omega_exists
 
 # |- char_h → func(f) → f_at_a → ran_fc → Function(h)
 # No omega — discharged internally via omega_exists.

@@ -15,7 +15,7 @@ from theorems.nat.recursion.extend_ran_sub import extend_ran_sub
 from theorems.nat.recursion.extend_base import extend_base
 from theorems.nat.recursion.extend_step import extend_step
 from theorems.nat.nat.nat_elim import nat_elim
-from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.nat.omega_exists import omega_exists
 
 $rec_exists_step {
     $ra_v rec_approx("v", "a", "f", "_")

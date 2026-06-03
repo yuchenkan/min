@@ -10,7 +10,7 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.iff_intro import iff_intro
 from theorems.logic.and_intro import and_intro
 from theorems.sets.subset_antisymmetric import subset_antisymmetric
-from theorems.nat.omega.omega_transitive_set import omega_transitive_set
+from theorems.nat.nat.omega_transitive_set import omega_transitive_set
 
 # Sep, Ext |- omega(w) → m∈w → n∈w → succ(sn,m) → succ(sn,n) → eqv(m,n)
 # Successor injection on ω without Regularity.

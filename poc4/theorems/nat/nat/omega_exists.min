@@ -8,9 +8,9 @@ from theorems.logic.iff_intro import iff_intro
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.nat.omega.infinity_gives_inductive import infinity_gives_inductive
-from theorems.nat.omega.omega_contains_empty import omega_contains_empty
-from theorems.nat.omega.omega_succ_closed import omega_succ_closed
+from theorems.nat.nat.infinity_gives_inductive import infinity_gives_inductive
+from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 
 # Ext, Inf, Sep |- exists w. omega(w)
 #

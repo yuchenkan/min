@@ -6,7 +6,7 @@ from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.nat.nat.mem_succ_intro import mem_succ_intro
 from theorems.nat.nat.mem_succ_elim import mem_succ_elim
 from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.nat.omega.omega_induction import omega_induction
+from theorems.nat.nat.omega_induction import omega_induction
 
 # Sep |- ∀w. omega(w) → ∀n∈w. transitive_set(n)
 $omega_transitive_set {

@@ -8,10 +8,10 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.nat.omega.omega_is_inductive import omega_is_inductive
-from theorems.nat.omega.omega_contains_empty import omega_contains_empty
-from theorems.nat.omega.omega_succ_closed import omega_succ_closed
-from theorems.nat.omega.omega_smallest_inductive import omega_smallest_inductive
+from theorems.nat.nat.omega_is_inductive import omega_is_inductive
+from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_succ_closed import omega_succ_closed
+from theorems.nat.nat.omega_smallest_inductive import omega_smallest_inductive
 
 # omega_induction(pred, vars):
 # omega(w) → (∀e. empty(e) → pred(e)) → (∀n. n∈w → pred(n) → ∀s. succ(s,n) → pred(s)) → ∀n. n∈w → pred(n)

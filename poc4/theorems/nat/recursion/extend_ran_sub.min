@@ -12,7 +12,7 @@ from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.functions.apply_key_transfer import apply_key_transfer
-from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.nat.omega_exists import omega_exists
 
 # |- rec_approx(v,a,f) → apply(f,val,fval) →
 #   (∀y z. apply(f,y,z) → ∃w. apply(f,z,w)) →

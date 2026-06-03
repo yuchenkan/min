@@ -13,7 +13,7 @@ from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.sets.kuratowski import kuratowski
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.nat.nat.nat_elim import nat_elim
-from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.nat.omega_exists import omega_exists
 
 # |- char_h -> Apply(h,x,y) -> Nat(x)
 $rec_h_dom_sub {

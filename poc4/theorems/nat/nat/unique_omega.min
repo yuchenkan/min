@@ -3,8 +3,8 @@ from vocab.nat.nat import omega
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, apply_thm, eel, cut_c, close
 from theorems.logic.exists_unique_intro import exists_unique_intro
-from theorems.nat.omega.omega_unique import omega_unique
-from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.nat.omega_unique import omega_unique
+from theorems.nat.nat.omega_exists import omega_exists
 
 # Ext, Inf, Sep |- exists_unique(w, omega(w))
 $unique_omega {

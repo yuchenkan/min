@@ -15,7 +15,7 @@ from theorems.logic.or_intro_right import or_intro_right
 from theorems.sets.ordpair_bounded import ordpair_bounded
 from theorems.functions.apply_in_double_union import apply_in_double_union
 from theorems.nat.nat.nat_elim import nat_elim
-from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.nat.omega_exists import omega_exists
 from theorems.sets.big_union_exists import big_union_exists
 from theorems.sets.union_exists import union_exists
 from theorems.sets.power_set_exists import power_set_exists

@@ -3,7 +3,7 @@ from vocab.sets import empty
 from vocab.nat.nat import inductive, omega, successor
 from tactics import ax, ir, mp, apply_thm, close
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.nat.omega.omega_is_inductive import omega_is_inductive
+from theorems.nat.nat.omega_is_inductive import omega_is_inductive
 
 # |- omega(w) -> mem(n, w) -> successor(s, n) -> mem(s, w)
 $omega_succ_closed {

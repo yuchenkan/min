@@ -19,7 +19,7 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_mem_right import eqv_mem_right
 from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.nat.omega.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_contains_empty import omega_contains_empty
 
 # pa, ext |- num(e,0) → (∃z.apply(f,a,z)) →
 #   ordered_pair(op,e,a) → singleton(g,op) →

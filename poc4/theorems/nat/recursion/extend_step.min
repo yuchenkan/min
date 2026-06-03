@@ -15,7 +15,7 @@ from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.apply_val_transfer import apply_val_transfer
-from theorems.nat.omega.successor_injection import successor_injection
+from theorems.nat.nat.successor_injection import successor_injection
 from theorems.nat.nat.succ_set_transfer import succ_set_transfer
 from theorems.nat.nat.nat_elim import nat_elim
 

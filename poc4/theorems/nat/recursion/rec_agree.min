@@ -11,7 +11,7 @@ from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
 from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.functions.apply_key_transfer import apply_key_transfer
-from theorems.nat.omega.omega_induction import omega_induction
+from theorems.nat.nat.omega_induction import omega_induction
 from theorems.nat.recursion.rec_approx_zero import rec_approx_zero
 
 # Sep, Ext |- omega(w) → ∀n∈w. ∀v1 v2 y1 y2.
