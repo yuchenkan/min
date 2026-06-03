@@ -4,10 +4,8 @@ from vocab.omega import omega
 from vocab.arithmetic.nat import nat, num
 from vocab.logic import exists_unique
 from theorems.arithmetic.nat.nat_elim import nat_elim
-from theorems.arithmetic.nat.num_exists import num_exists
-from theorems.arithmetic.nat.num_unique import num_unique
+from theorems.arithmetic.nat.num_props import num_exists, num_unique, num_nat
 from theorems.arithmetic.nat.unique_num import unique_num
-from theorems.arithmetic.nat.num_nat import num_nat
 
 $_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))))
 $_ print("nat_elim ok")
@@ -23,5 +21,25 @@ $_ print("unique_num(0) ok")
 
 $_ qed(num_nat(0), forall("n", implies(num("n",0,"_"), nat("n","_"))))
 $_ print("num_nat(0) ok")
+
+$_ qed(num_exists(1), exists("n", num("n",1,"_")))
+$_ print("num_exists(1) ok")
+$_ qed(num_exists(2), exists("n", num("n",2,"_")))
+$_ print("num_exists(2) ok")
+
+$_ qed(num_unique(1), forall("n1", forall("n2", implies(num("n1",1,"_"), implies(num("n2",1,"_"), eqv("n1","n2","_"))))))
+$_ print("num_unique(1) ok")
+$_ qed(num_unique(2), forall("n1", forall("n2", implies(num("n1",2,"_"), implies(num("n2",2,"_"), eqv("n1","n2","_"))))))
+$_ print("num_unique(2) ok")
+
+$_ qed(unique_num(1), exists_unique(\v p: num(v,1,p), "_"))
+$_ print("unique_num(1) ok")
+$_ qed(unique_num(2), exists_unique(\v p: num(v,2,p), "_"))
+$_ print("unique_num(2) ok")
+
+$_ qed(num_nat(1), forall("n", implies(num("n",1,"_"), nat("n","_"))))
+$_ print("num_nat(1) ok")
+$_ qed(num_nat(2), forall("n", implies(num("n",2,"_"), nat("n","_"))))
+$_ print("num_nat(2) ok")
 
 $ok true

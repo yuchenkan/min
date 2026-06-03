@@ -1,0 +1,175 @@
+from core.derived import mem, implies, forall, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor
+from vocab.omega import omega
+from vocab.arithmetic.nat import nat, num
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from theorems.sets.empty_exists import empty_exists
+from theorems.sets.empty_unique import empty_unique
+from theorems.sets.successor_exists import successor_exists
+from theorems.sets.successor_unique import successor_unique
+from theorems.sets.eq_succ_transfer import eq_succ_transfer
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.omega.omega_contains_empty import omega_contains_empty
+from theorems.omega.omega_succ_closed import omega_succ_closed
+from theorems.arithmetic.nat.nat_elim import nat_elim
+
+# num_exists(k): ∃n. Num(n,k)
+# num_unique(k): ∀n1,n2. Num(n1,k)→Num(n2,k)→Eqv(n1,n2)
+# num_nat(k): ∀n. Num(n,k)→Nat(n)
+# Mutually recursive: num_exists(k+1) uses num_unique(k), num_unique(k+1) uses num_exists(k).
+
+$_num_exists_and_unique \self k: ?(eq(k, 0), {
+    # num_exists(0): ∃n.Empty(n) from empty_exists
+    $ne wr(empty_exists, left(empty_exists), [exists("n", num("n",0,"_"))], exists("n", num("n",0,"_")))
+    # num_unique(0): from empty_unique
+    $_eu_b \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_")))
+    $eu_r forall("ra", forall("rb", _eu_b("ra")("rb")))
+    $eu_thm wr(empty_unique, left(empty_unique), [eu_r], eu_r)
+    $num1 num("n1",0,"_")
+    $num2 num("n2",0,"_")
+    $g1 mp(apply_thm(eu_thm, eu_r, ["n1","n2"], ["ra","rb"], _eu_b, left(empty_unique)),
+        ax([num1], [num1], num1), num1, implies(num2, eqv("n1","n2","_")), left(empty_unique), [num1])
+    $nu mp(g1, ax([num2], [num2], num2), num2, eqv("n1","n2","_"), left(g1), [num2])
+    $cur ir(nu, remove(same, num2, left(nu)), [implies(num2, eqv("n1","n2","_"))], implies(num2, eqv("n1","n2","_")))
+    $cur ir(cur, remove(same, num1, left(cur)), [implies(num1, implies(num2, eqv("n1","n2","_")))], implies(num1, implies(num2, eqv("n1","n2","_"))))
+    $nu_closed close(cur, left(cur), [head(right(cur))], ["n2","n1"])
+    [ne, nu_closed]
+}, {
+    $prev self(self, sub(k, 1))
+    $prev_ne nth(prev, 0)
+    $prev_nu nth(prev, 1)
+
+    # --- num_exists(k) ---
+    $num_m num("m", sub(k,1), "_")
+    $num_mp num("mp",sub(k,1),"_")
+    $succ_snm successor("sn","m","_")
+    $succ_snmp successor("sn","mp","_")
+    $goal_e exists("n", num("n",k,"_"))
+
+    # successor_exists at m
+    $se_ctx left(successor_exists)
+    $_se_b \a: exists("s", successor("s",a,"_"))
+    $got_se apply_thm(successor_exists, head(right(successor_exists)), ["m"], ["m"], _se_b, se_ctx)
+
+    # prev_nu at m,mp: Num(m)→Num(mp)→Eqv(m,mp). eqv_symmetric→Eqv(mp,m).
+    $_nu_b \n1: \n2: implies(num(n1,sub(k,1),"_"), implies(num(n2,sub(k,1),"_"), eqv(n1,n2,"_")))
+    $ge1 mp(apply_thm(prev_nu, head(right(prev_nu)), ["m","mp"], ["n1","n2"], _nu_b, left(prev_nu)),
+        ax([num_m], [num_m], num_m), num_m, implies(num_mp, eqv("m","mp","_")), left(prev_nu), [num_m])
+    $got_eqv mp(ge1, ax([num_mp], [num_mp], num_mp), num_mp, eqv("m","mp","_"), left(ge1), [num_mp])
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $es_r forall("ra", forall("rb", _es_b("ra")("rb")))
+    $es_thm wr(eqv_symmetric, [], [es_r], es_r)
+    $got_eqv_rev mp(apply_thm(es_thm, es_r, ["m","mp"], ["ra","rb"], _es_b, []),
+        got_eqv, eqv("m","mp","_"), eqv("mp","m","_"), [], left(got_eqv))
+
+    # eq_succ_transfer: eqv(sn,sn)→eqv(mp,m)→Succ(sn,m)→Succ(sn,mp)
+    $got_eqv_ss apply_thm(eqv_reflexive, head(right(eqv_reflexive)), ["sn"], ["sn"], \a: eqv(a,a,"_"), [])
+    $_est_b \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"), implies(successor(c,d,"_"), successor(a,b,"_"))))
+    $est_r forall("ra", forall("rb", forall("rc", forall("rd", _est_b("ra")("rb")("rc")("rd")))))
+    $est_thm wr(eq_succ_transfer, [], [est_r], est_r)
+    $est_inst apply_thm(est_thm, est_r, ["sn","mp","sn","m"], ["ra","rb","rc","rd"], _est_b, [])
+    $gs1 mp(est_inst, got_eqv_ss, eqv("sn","sn","_"), arg2(head(right(est_inst))), [], [])
+    $gs2 mp(gs1, got_eqv_rev, eqv("mp","m","_"), arg2(head(right(gs1))), left(gs1), left(got_eqv_rev))
+    $got_succ mp(gs2, ax([succ_snm], [succ_snm], succ_snm), succ_snm, succ_snmp, left(gs2), [succ_snm])
+
+    # ir num_mp, fr mp → Num(sn,k). eir sn. eel sn(from se), eel m(from prev_ne).
+    $cur ir(got_succ, remove(same, num_mp, left(got_succ)),
+        [implies(num_mp, succ_snmp)], implies(num_mp, succ_snmp))
+    $num_sn num("sn",k,"_")
+    $cur fr(cur, left(cur), [num_sn], num_sn, "mp")
+    $cur eir(cur, \n: num(n,k,"_"), "n", "sn", left(cur))
+    $cur eel(cur, \sn: successor(sn,"m","_"), "s", "sn", left(cur), goal_e)
+    $cur cut_c(got_se, cur, head(right(got_se)), se_ctx, left(cur), goal_e)
+    $cur eel(cur, \m: num(m,sub(k,1),"_"), "n", "m", left(cur), goal_e)
+    $ne cut_c(prev_ne, cur, head(right(prev_ne)), left(prev_ne), left(cur), goal_e)
+    $ne close(ne, left(ne), [goal_e], [])
+
+    # --- num_unique(k) ---
+    $num1 num("n1",k,"_")
+    $num2 num("n2",k,"_")
+    $num_m2 num("m",sub(k,1),"_")
+    $succ_n1m successor("n1","m","_")
+    $succ_n2m successor("n2","m","_")
+    # Inst Num(n1,k) and Num(n2,k) at m: Succ(n1,m), Succ(n2,m). successor_unique.
+    $got_s1 mp(apply_thm(ax([num1], [num1], num1), num1, ["m"], ["m"],
+        \m: implies(num(m,sub(k,1),"_"), successor("n1",m,"_")), [num1]),
+        ax([num_m2], [num_m2], num_m2), num_m2, succ_n1m, [num1], [num_m2])
+    $got_s2 mp(apply_thm(ax([num2], [num2], num2), num2, ["m"], ["m"],
+        \m: implies(num(m,sub(k,1),"_"), successor("n2",m,"_")), [num2]),
+        ax([num_m2], [num_m2], num_m2), num_m2, succ_n2m, [num2], [num_m2])
+    # successor_unique: _close(["_s2","_s1","a"]) → ∀a.∀_s1.∀_s2. Succ(s1,a)→Succ(s2,a)→Eqv(s1,s2)
+    $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_")))
+    $su1 mp(apply_thm(successor_unique, head(right(successor_unique)), ["m","n1","n2"],
+        ["a","_s1","_s2"], _su_b, []),
+        got_s1, succ_n1m, implies(succ_n2m, eqv("n1","n2","_")), [], left(got_s1))
+    $got_eqv_u mp(su1, got_s2, succ_n2m, eqv("n1","n2","_"), left(su1), left(got_s2))
+    # eel m from prev_ne
+    $cur eel(got_eqv_u, \m: num(m,sub(k,1),"_"), "n", "m", left(got_eqv_u), eqv("n1","n2","_"))
+    $cur cut_c(prev_ne, cur, head(right(prev_ne)), left(prev_ne), left(cur), eqv("n1","n2","_"))
+    $cur ir(cur, remove(same, num2, left(cur)), [implies(num2, eqv("n1","n2","_"))], implies(num2, eqv("n1","n2","_")))
+    $cur ir(cur, remove(same, num1, left(cur)), [implies(num1, implies(num2, eqv("n1","n2","_")))],
+        implies(num1, implies(num2, eqv("n1","n2","_"))))
+    $nu_closed close(cur, left(cur), [head(right(cur))], ["n2","n1"])
+
+    [ne, nu_closed]
+})
+
+$num_exists \k: nth(_num_exists_and_unique(_num_exists_and_unique, k), 0)
+$num_unique \k: nth(_num_exists_and_unique(_num_exists_and_unique, k), 1)
+
+# num_nat(k): ∀n. Num(n,k) → Nat(n) — uses num_exists internally
+$_num_nat \self k: ?(eq(k, 0), {
+    $num_n num("n",0,"_")
+    $ow omega("w","_")
+    $nw mem("n","w")
+    $nat_n nat("n","_")
+    $_oce_b \p1: \p2: implies(omega(p2,"_"), implies(empty(p1,"_"), mem(p1,p2)))
+    $oce_r forall("p1", forall("p2", _oce_b("p1")("p2")))
+    $oce_thm wr(omega_contains_empty, [], [oce_r], oce_r)
+    $got_nw mp(mp(apply_thm(oce_thm, oce_r, ["n","w"], ["p1","p2"], _oce_b, []),
+        ax([ow], [ow], ow), ow, implies(num_n, nw), [], [ow]),
+        ax([num_n], [num_n], num_n), num_n, nw, [ow], [num_n])
+    $cur ir(got_nw, [num_n], [implies(ow, nw)], implies(ow, nw))
+    $cur fr(cur, [num_n], [nat_n], nat_n, "w")
+    $top implies(num_n, nat_n)
+    $cur ir(cur, [], [top], top)
+    close(cur, [], [top], ["n"])
+}, {
+    $prev self(self, sub(k, 1))
+    $num_n num("n",k,"_")
+    $nat_n nat("n","_")
+    $ow omega("w","_")
+    $nw mem("n","w")
+    $num_m num("m",sub(k,1),"_")
+    $nat_m nat("m","_")
+    $succ_nm successor("n","m","_")
+    $mw mem("m","w")
+    $_prev_b \n: implies(num(n,sub(k,1),"_"), nat(n,"_"))
+    $got_nat_m mp(apply_thm(prev, head(right(prev)), ["m"], ["m"], _prev_b, left(prev)),
+        ax([num_m], [num_m], num_m), num_m, nat_m, left(prev), [num_m])
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $got_mw mp(mp(apply_thm(nat_elim, head(right(nat_elim)), ["m","w"], ["m","w"], _ne_b, []),
+        got_nat_m, nat_m, implies(ow, mw), [], left(got_nat_m)),
+        ax([ow], [ow], ow), ow, mw, left(got_nat_m), [ow])
+    $got_succ mp(apply_thm(ax([num_n], [num_n], num_n), num_n, ["m"], ["m"],
+        \m: implies(num(m,sub(k,1),"_"), successor("n",m,"_")), [num_n]),
+        ax([num_m], [num_m], num_m), num_m, succ_nm, [num_n], [num_m])
+    $_osc_b \p1: \p2: \p3: implies(omega(p3,"_"), implies(mem(p2,p3), implies(successor(p1,p2,"_"), mem(p1,p3))))
+    $osc_r forall("p1", forall("p2", forall("p3", _osc_b("p1")("p2")("p3"))))
+    $osc_thm wr(omega_succ_closed, [], [osc_r], osc_r)
+    $got_nw mp(mp(mp(apply_thm(osc_thm, osc_r, ["n","m","w"], ["p1","p2","p3"], _osc_b, []),
+        ax([ow], [ow], ow), ow, implies(mw, implies(succ_nm, nw)), [], [ow]),
+        got_mw, mw, implies(succ_nm, nw), [ow], left(got_mw)),
+        got_succ, succ_nm, nw, left(got_mw), left(got_succ))
+    $ne_prev num_exists(sub(k,1))
+    $cur eel(got_nw, \m: num(m,sub(k,1),"_"), "m", "m", left(got_nw), nw)
+    $cur cut_c(ne_prev, cur, head(right(ne_prev)), left(ne_prev), left(cur), nw)
+    $cur ir(cur, remove(same, ow, left(cur)), [implies(ow, nw)], implies(ow, nw))
+    $cur fr(cur, left(cur), [nat_n], nat_n, "w")
+    $top implies(num_n, nat_n)
+    $cur ir(cur, remove(same, num_n, left(cur)), [top], top)
+    close(cur, left(cur), [top], ["n"])
+})
+
+$num_nat \k: _num_nat(_num_nat, k)
