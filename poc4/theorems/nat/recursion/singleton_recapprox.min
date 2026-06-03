@@ -1,8 +1,9 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
 from vocab.sets import empty, successor, singleton, ordered_pair
 from vocab.functions import apply, function
-from vocab.omega import omega
-from vocab.recursion import rec_approx
+from vocab.nat.omega import omega
+from vocab.nat.nat import num
+from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -19,14 +20,14 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_mem_right import eqv_mem_right
 from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.omega.omega_contains_empty import omega_contains_empty
+from theorems.nat.omega.omega_contains_empty import omega_contains_empty
 
-# pa, ext |- omega(w) → empty(e) → (∃z.apply(f,a,z)) →
+# pa, ext |- num(e,0) → (∃z.apply(f,a,z)) →
 #   ordered_pair(op,e,a) → singleton(g,op) →
-#   and(rec_approx(g,a,f,w), apply(g,e,a))
+#   and(rec_approx(g,a,f), apply(g,e,a))
 $singleton_recapprox {
     $om omega("w", "_")
-    $emp empty("e", "_")
+    $emp num("e", 0, "_")
     $f_at_a exists("z", apply("f","a","z","_"))
     $opea ordered_pair("op", "e", "a", "_")
     $sing singleton("g", "op", "_")
@@ -281,19 +282,25 @@ $singleton_recapprox {
         got_func, func_g, implies(and(dom_sub_u, and(ran_sub_u, and(base_u, step_u))), ra_formula), [], left(got_func)),
         got_drbs, and(dom_sub_u, and(ran_sub_u, and(base_u, step_u))), ra_formula, left(got_func), left(got_drbs))
 
-    # === Final: and(rec_approx(g,a,f,w), apply(g,e,a)) ===
-    $goal and(ra_formula, app_gea)
-    $got_goal mp(mp(and_intro(ra_formula, app_gea, []),
-        got_ra, ra_formula, implies(app_gea, goal), [], left(got_ra)),
-        got_app, app_gea, goal, left(got_ra), left(got_app))
+    # === Wrap ra_formula into new rec_approx form: ∀w. Omega(w) → body ===
+    # ir omega, fr "w" to get rec_approx(g,a,f,"_")
+    $got_ra_ir ir(got_ra, remove(same, om, left(got_ra)), [implies(om, ra_formula)], implies(om, ra_formula))
+    $new_ra forall("w", implies(om, ra_formula))
+    $got_new_ra fr(got_ra_ir, left(got_ra_ir), [new_ra], new_ra, "w")
+    # new_ra is alpha-equiv to rec_approx(g,a,f,"_")
 
-    # Close: ir for each hypothesis, close vars
+    # === Final: and(rec_approx(g,a,f), apply(g,e,a)) ===
+    $goal and(new_ra, app_gea)
+    $got_goal mp(mp(and_intro(new_ra, app_gea, []),
+        got_new_ra, new_ra, implies(app_gea, goal), [], left(got_new_ra)),
+        got_app, app_gea, goal, left(got_new_ra), left(got_app))
+
+    # Close: ir for each hypothesis, close vars (no omega, no w)
     $ctx left(got_goal)
     $c1 ir(got_goal, remove(same, sing, ctx), [implies(sing, goal)], implies(sing, goal))
     $c2 ir(c1, remove(same, opea, left(c1)), [implies(opea, implies(sing, goal))], implies(opea, implies(sing, goal)))
     $c3 ir(c2, remove(same, f_at_a, left(c2)), [implies(f_at_a, implies(opea, implies(sing, goal)))], implies(f_at_a, implies(opea, implies(sing, goal))))
-    $c4 ir(c3, remove(same, emp, left(c3)), [implies(emp, implies(f_at_a, implies(opea, implies(sing, goal))))], implies(emp, implies(f_at_a, implies(opea, implies(sing, goal)))))
-    $top implies(om, implies(emp, implies(f_at_a, implies(opea, implies(sing, goal)))))
-    $c5 ir(c4, remove(same, om, left(c4)), [top], top)
-    close(c5, left(c5), [top], ["g","op","a","f","e","w"])
+    $top implies(emp, implies(f_at_a, implies(opea, implies(sing, goal))))
+    $c4 ir(c3, remove(same, emp, left(c3)), [top], top)
+    close(c4, left(c4), [top], ["g","op","a","f","e"])
 }
