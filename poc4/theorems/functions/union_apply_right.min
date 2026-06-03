@@ -14,7 +14,7 @@ $union_apply_right {
     $un union("u", "a", "b", "_")
     $app_u apply("u", "x", "y", "_")
 
-    $op ordered_pair("_p", "x", "y", "__")
+    $op ordered_pair("_p", "x", "y", "_")
     $p_b mem("_p", "b")
     $p_u mem("_p", "u")
     $p_a mem("_p", "a")
@@ -50,11 +50,11 @@ $union_apply_right {
         got_pu, p_u, and_op_pu, [and_op_pb], [un, and_op_pb])
 
     # eir: exists _p. and(op(_p,x,y), _p in u) = apply(u,x,y)
-    $got_app_u eir(got_and, \v: and(ordered_pair(v, "x", "y", "__"), mem(v, "u")),
+    $got_app_u eir(got_and, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "u")),
         "_p", "_p", [un, and_op_pb])
 
     # eel on _p from app_b
-    $got_eel eel(got_app_u, \v: and(ordered_pair(v, "x", "y", "__"), mem(v, "b")),
+    $got_eel eel(got_app_u, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "b")),
         "_p", "_p", [un, and_op_pb], app_u)
 
     $imp2 implies(un, app_u)

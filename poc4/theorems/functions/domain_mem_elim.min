@@ -7,7 +7,7 @@ from theorems.logic.iff_elim_left import iff_elim_left
 $domain_mem_elim {
     $dom domain("d", "f", "_")
     $xd mem("x", "d")
-    $ex_app exists("_y", apply("f", "x", "_y", "__"))
+    $ex_app exists("y2", apply("f", "x", "y2", "_"))
     $iff_xd iff(xd, ex_app)
 
     # domain(d,f) instantiated with x: iff(x∈d, ex_app)

@@ -8,7 +8,7 @@ $domain_mem_intro {
     $app apply("f", "x", "y", "_")
     $dom domain("d", "f", "_")
     $xd mem("x", "d")
-    $ex_app exists("_y", apply("f", "x", "_y", "__"))
+    $ex_app exists("y2", apply("f", "x", "y2", "_"))
     $iff_xd iff(xd, ex_app)
 
     # apply(f,x,y) → ∃_y. apply(f,x,_y) via eir

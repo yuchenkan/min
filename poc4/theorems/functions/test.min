@@ -101,7 +101,7 @@ $_ print("domain_mem_intro ok")
 
 $_ qed(domain_mem_elim,
     forall("f", forall("d", forall("x",
-        implies(domain("d","f","_"), implies(mem("x","d"), exists("_y", apply("f","x","_y","__"))))))))
+        implies(domain("d","f","_"), implies(mem("x","d"), exists("y2", apply("f","x","y2","_"))))))))
 $_ print("domain_mem_elim ok")
 
 $_ qed(apply_key_transfer,
