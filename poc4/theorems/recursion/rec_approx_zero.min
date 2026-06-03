@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, exists, eqv, left, right
 from vocab.sets import empty, successor
-from vocab.functions import apply, function, relation
+from vocab.functions import apply, single_valued, function, relation
 from vocab.recursion import rec_approx
 from tactics import ax, fl, ir, mp, eir, apply_thm, cut_c, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left
@@ -71,7 +71,7 @@ $rec_approx_zero {
 
     # func_unique: function(v) → apply(v,e,a) → apply(v,e,y) → eqv(a,y)
     $_fut head(right(func_unique_thm))
-    $_fut_b \f: \x: \y1: \y2: implies(forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fut_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $sv_v forall("q1", forall("q2", forall("q3", implies(and(apply("v","q1","q2","_"), apply("v","q1","q3","_")), eqv("q2","q3","_")))))
     $got_sv mp(and_elim_right(relation("v","_"), sv_v, []), got_func, func_v, sv_v, [], [ra])
     $fut1 mp(apply_thm(func_unique_thm, _fut, ["v", "e", "a", "y"], ["v", "x", "y1", "y2"], _fut_b, []),

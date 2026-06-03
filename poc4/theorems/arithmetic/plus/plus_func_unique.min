@@ -96,7 +96,7 @@ $plus_func_unique {
 
     # func_unique helper: sv → Apply(f,x,y1) → Apply(f,x,y2) → eqv(y1,y2)
     $_fu_b \f: \x: \y1: \y2: implies(
-        forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))),
+        single_valued(f,"_"),
         implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     # eqv_trans via iff_chain on membership:
     $_ic_b \a: \b: \c: implies(iff(a,b), implies(iff(b,c), iff(a,c)))

@@ -261,7 +261,7 @@ $pf_single_valued {
     # where sv(f) = forall(r, forall(r1, forall(r2, implies(and(apply(f,r,r1), apply(f,r,r2)), eqv(r1,r2)))))
 
     # Extract sv from Function(hm) = and(Relation, sv):
-    $sv_hm forall("r", forall("r1", forall("r2", implies(and(apply("hm","r","r1","_"), apply("hm","r","r2","_")), eqv("r1","r2","_")))))
+    $sv_hm single_valued("hm","_")
     $got_sv_hm mp(and_elim_right(relation("hm","_"), sv_hm, []),
         ax([func_hm], [func_hm], func_hm), func_hm, sv_hm, [], [func_hm])
     # But func_hm comes from rec1, so:
@@ -270,7 +270,7 @@ $pf_single_valued {
 
     $_fut head(right(func_unique_thm))
     $_fut_b \f: \x: \y1: \y2: implies(
-        forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))),
+        single_valued(f,"_"),
         implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $fut_inst apply_thm(func_unique_thm, _fut, ["hm","nv","y1","y2"], ["f","x","y1","y2"], _fut_b, [])
     $fut1 mp(fut_inst, got_sv, sv_hm, implies(app_hm1, implies(apply("hm","nv","y2","_"), eqv_y12)), [], [rec1])

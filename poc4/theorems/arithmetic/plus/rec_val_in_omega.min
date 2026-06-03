@@ -86,7 +86,7 @@ $rec_val_in_omega {
     # func_unique_thm: sv → Apply(h,e,yi) → Apply(h,e,a) → eqv(yi,a)
     $_fut head(right(func_unique_thm))
     $_fut_b \f: \x: \y1: \y2: implies(
-        forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))),
+        single_valued(f,"_"),
         implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $fut_inst apply_thm(func_unique_thm, _fut, ["h","e","yi","a"], ["f","x","y1","y2"], _fut_b, [])
     $got_eqv_ya mp(mp(mp(fut_inst, got_sv, sv_h, implies(app_he, implies(app_hea, eqv("yi","a","_"))), [], [rec_h]),
@@ -184,7 +184,7 @@ $rec_val_in_omega {
 
     # --- 4. func_unique: Apply(h,s,yi) ∧ Apply(h,s,fval) → eqv(yi,fval) ---
     $_fut_b2 \f: \x: \y1: \y2: implies(
-        forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))),
+        single_valued(f,"_"),
         implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $fut_inst2 apply_thm(func_unique_thm, _fut, ["h","s","yi","fval"], ["f","x","y1","y2"], _fut_b2, [])
     $got_eqv_yf mp(mp(mp(fut_inst2,

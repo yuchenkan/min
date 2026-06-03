@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
 from vocab.sets import empty, successor
-from vocab.functions import apply, function, relation
+from vocab.functions import apply, single_valued, function, relation
 from vocab.recursion import rec_approx
 from tactics import ax, wl, wl_all, fl, fr, ir, mp, apply_thm, eir, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
@@ -106,7 +106,7 @@ $extend_consistency {
     # func_unique: apply(v,sn,z) + apply(v,sn,fval) → eqv(z,fval) → sym → eqv(fval,z)
     $_fut head(right(func_unique_thm))
     $eqv_z_fval eqv("z", "fval", "_")
-    $_fut_b \f: \x: \y1: \y2: implies(forall("r", forall("r1", forall("r2", implies(and(apply(f,"r","r1","_"), apply(f,"r","r2","_")), eqv("r1","r2","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fut_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
     $sv_v forall("q1", forall("q2", forall("q3", implies(and(apply("v","q1","q2","_"), apply("v","q1","q3","_")), eqv("q2","q3","_")))))
     $got_sv_v mp(and_elim_right(relation("v","_"), sv_v, []), got_func_v, func_v, sv_v, [], [ra_v])
     $fut1 mp(apply_thm(func_unique_thm, _fut, ["v", "sn", "z", "fval"], ["v", "x", "y1", "y2"], _fut_b, []),
