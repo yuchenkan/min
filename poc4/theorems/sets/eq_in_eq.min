@@ -9,8 +9,8 @@ from theorems.logic.iff_intro import iff_intro
 # eqv uses prefix "_" to avoid clash with quantified w
 $eq_in_eq {
     $eqv_12 eqv("x1", "x2", "_")
-    $eqv_z1 eqv("z", "x1", "__")
-    $eqv_z2 eqv("z", "x2", "__")
+    $eqv_z1 eqv("z", "x1", "_")
+    $eqv_z2 eqv("z", "x2", "_")
 
     $mw1 mem("w", "x1")
     $mw2 mem("w", "x2")

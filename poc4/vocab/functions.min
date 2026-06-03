@@ -4,18 +4,18 @@ from vocab.sets import ordered_pair, relation
 # apply(f, x, y, p): f(x) = y, i.e. exists p. ordered_pair(p,x,y) & p in f
 $apply \f x y p: {
     $pv add(p, "p")
-    $op add(p, "_")
+    $np add(p, "_")
     ["apply", add(f, add("(", add(x, add(") = ", y)))),
-        exists(pv, and(ordered_pair(pv, x, y, op), mem(pv, f)))]
+        exists(pv, and(ordered_pair(pv, x, y, np), mem(pv, f)))]
 }
 
 # domain(d, f, p): d = dom(f). forall x. x in d iff exists y. apply(f, x, y)
 $domain \d f p: {
     $x add(p, "x")
     $y add(p, "y")
-    $ap add(p, "_")
+    $np add(p, "_")
     ["domain", add(d, add(" = dom(", add(f, ")"))),
-        forall(x, iff(mem(x, d), exists(y, apply(f, x, y, ap))))]
+        forall(x, iff(mem(x, d), exists(y, apply(f, x, y, np))))]
 }
 
 # single_valued(f, p): forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2)
@@ -23,10 +23,10 @@ $single_valued \f p: {
     $x add(p, "x")
     $y1 add(p, "y1")
     $y2 add(p, "y2")
-    $ap add(p, "_")
+    $np add(p, "_")
     ["single_valued", add("SV(", add(f, ")")),
         forall(x, forall(y1, forall(y2,
-            implies(and(apply(f, x, y1, ap), apply(f, x, y2, ap)), eqv(y1, y2, ap)))))]
+            implies(and(apply(f, x, y1, np), apply(f, x, y2, np)), eqv(y1, y2, np)))))]
 }
 
 # function(f, p): relation(f) and single_valued(f)
