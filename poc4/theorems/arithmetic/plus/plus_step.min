@@ -15,6 +15,7 @@ from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
 from theorems.omega.unique_omega import unique_omega
 from theorems.functions.eqv_apply import eqv_apply
 from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.arithmetic.nat.nat_elim import nat_elim
 
 # plus_step: ∀m,n,p,sn,sp. Nat(m) → Nat(n) → Plus(m,n,p) → Succ(sn,n) → Succ(sp,p) → Plus(m,sn,sp)
 
@@ -54,13 +55,18 @@ $plus_step {
     $mw mem("m","w")
     $nw mem("n","w")
 
-    # Nat(m) at w → m∈w, Nat(n) at w → n∈w
-    $got_mw mp(apply_thm(ax([nat_m], [nat_m], nat_m), nat_m, ["w"], ["w"],
-        \w: implies(omega(w,"_"), mem("m",w)), [nat_m]),
+    # nat_elim: Nat(m)→Omega(w)→m∈w. Share ow on left.
+    $_ne head(right(nat_elim))
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $ne_m mp(mp(apply_thm(nat_elim, _ne, ["m","w"], ["m","w"], _ne_b, []),
+        ax([nat_m], [nat_m], nat_m), nat_m, implies(ow, mw), [], [nat_m]),
         ax([ow], [ow], ow), ow, mw, [nat_m], [ow])
-    $got_nw mp(apply_thm(ax([nat_n], [nat_n], nat_n), nat_n, ["w"], ["w"],
-        \w: implies(omega(w,"_"), mem("n",w)), [nat_n]),
+    $ne_n mp(mp(apply_thm(nat_elim, _ne, ["n","w"], ["m","w"], _ne_b, []),
+        ax([nat_n], [nat_n], nat_n), nat_n, implies(ow, nw), [], [nat_n]),
         ax([ow], [ow], ow), ow, nw, [nat_n], [ow])
+    # Both have [nat_*, ow] on left. Merge: [nat_m, nat_n, ow]
+    $got_mw ne_m
+    $got_nw ne_n
 
     # Open Plus(m,n,p) at w,h: inst _w→w, mp ow, inst _h→h, mp pf → ∀pair.OrdPair→Apply
     $pi1 apply_thm(ax([plus_mnp], [plus_mnp], plus_mnp), plus_mnp, ["w"], ["w"],
@@ -144,7 +150,7 @@ $plus_step {
     # Close Plus(m,sn,sp): ir pf, fr h, wl+ir ow, fr w
     $cur ir(cur, remove(same, pf, left(cur)), [implies(pf, inner_body)], implies(pf, inner_body))
     $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
-    $cur wl(cur, add(left(cur), [ow]), [head(right(cur))], ow)
+    # ow already on left from nat_elim — just ir it
     $cur ir(cur, remove(same, ow, left(cur)), [implies(ow, head(right(cur)))], implies(ow, head(right(cur))))
     # "w" is free in nat_m, nat_n, got_mw, got_nw on left... but those were consumed by mp.
     # Left should only have: plus_mnp, nat_m, nat_n, succ_sn, succ_sp, oe_ctx

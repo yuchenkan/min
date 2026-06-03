@@ -1,0 +1,10 @@
+from core.derived import mem, or, eqv
+
+# nat_lt(m, n, p): m < n. In von Neumann ordinals: m ∈ n.
+$nat_lt \m n p: ["nat_lt", add(m, add(" < ", n)), mem(m, n)]
+
+# nat_le(m, n, p): m ≤ n. m ∈ n ∨ m = n.
+$nat_le \m n p: {
+    $np add(p, "_")
+    ["nat_le", add(m, add(" <= ", n)), or(mem(m, n), eqv(m, n, np))]
+}

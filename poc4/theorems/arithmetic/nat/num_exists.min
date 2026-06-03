@@ -1,0 +1,29 @@
+from core.derived import mem, implies, forall, exists, left, right
+from vocab.sets import empty, successor
+from vocab.arithmetic.nat import num
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close
+from theorems.sets.empty_exists import empty_exists
+from theorems.sets.successor_exists import successor_exists
+
+# num_exists(k): ∃n. Num(n,k)
+# k=0: empty_exists → ∃n. Empty(n) = ∃n. Num(n,0)
+# k+1: num_exists(k) → ∃m. Num(m,k). Assume Num(m,k).
+#       successor_exists at m → ∃n. Succ(n,m).
+#       Num(n,k+1) = ∀m'. Num(m',k) → Succ(n,m'). Need to prove this from Succ(n,m) + unique_num(k).
+#       Actually simpler: Succ(n,m) + Num(m,k). For Num(n,k+1): ∀m'.Num(m',k)→Succ(n,m').
+#       From unique_num(k): Num(m,k)∧Num(m',k)→Eqv(m,m'). Then eq_succ_transfer.
+#       This needs unique_num. Let me handle k=0 and k=1 first.
+
+# For now: just k=0.
+$_num_exists \self k: ?(eq(k, 0), {
+    # ∃n. Num(n,0) = ∃n. Empty(n) — from empty_exists, cast via wr
+    $goal exists("n", num("n",0,"_"))
+    $ee_ctx left(empty_exists)
+    wr(empty_exists, ee_ctx, [goal], goal)
+}, {
+    # k>0: needs unique_num(k-1) + successor_exists. TODO.
+    $_ print(add("num_exists TODO k=", str(k)))
+    close(ax([], [], exists("n", num("n",k,"_"))), [], [exists("n", num("n",k,"_"))], [])
+})
+
+$num_exists \k: _num_exists(_num_exists, k)

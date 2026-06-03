@@ -1,0 +1,39 @@
+from core.derived import mem, implies, forall, eqv, left, right
+from vocab.sets import empty, successor
+from vocab.arithmetic.nat import num
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, close
+from theorems.sets.empty_unique import empty_unique
+from theorems.sets.successor_unique import successor_unique
+
+# num_unique(k): ∀n1,n2. Num(n1,k) → Num(n2,k) → Eqv(n1,n2)
+# k=0: empty_unique
+# k+1: Num(n1,k+1) = ∀m.Num(m,k)→Succ(n1,m). Num(n2,k+1) = same for n2.
+#       From num_exists(k): ∃m.Num(m,k). Assume Num(m,k).
+#       Inst both at m: Succ(n1,m), Succ(n2,m). successor_unique: Eqv(n1,n2).
+
+$_num_unique \self k: ?(eq(k, 0), {
+    # empty_unique: ∀a,b. Empty(a)→Empty(b)→Eqv(a,b)
+    # Num(n,0) = Empty(n,"__"). Alpha-equiv to Empty with deeper prefix.
+    $eu_ctx left(empty_unique)
+    $_eu_b \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_")))
+    $eu_r forall("ra", forall("rb", _eu_b("ra")("rb")))
+    $eu_thm wr(empty_unique, eu_ctx, [eu_r], eu_r)
+    $num1 num("n1",0,"_")
+    $num2 num("n2",0,"_")
+    $g1 mp(apply_thm(eu_thm, eu_r, ["n1","n2"], ["ra","rb"], _eu_b, eu_ctx),
+        ax([num1], [num1], num1), num1, implies(num2, eqv("n1","n2","_")), eu_ctx, [num1])
+    $got mp(g1, ax([num2], [num2], num2), num2, eqv("n1","n2","_"), left(g1), [num2])
+    $top implies(num1, implies(num2, eqv("n1","n2","_")))
+    $cur ir(got, [num1], [implies(num2, eqv("n1","n2","_"))], implies(num2, eqv("n1","n2","_")))
+    $cur ir(cur, [], [top], top)
+    close(cur, eu_ctx, [top], ["n2","n1"])
+}, {
+    # k>0: TODO — needs num_exists(k-1) + successor_unique
+    $_ print(add("num_unique TODO k=", str(k)))
+    $num1 num("n1",k,"_")
+    $num2 num("n2",k,"_")
+    $top implies(num1, implies(num2, eqv("n1","n2","_")))
+    close(ax([], [], top), [], [top], ["n2","n1"])
+})
+
+$num_unique \k: _num_unique(_num_unique, k)
