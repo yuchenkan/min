@@ -24,18 +24,18 @@ $extend_consistency {
     $eqv_fval_z eqv("fval", "z", "_")
 
     # Body components (match vocab after inst _w→"w")
-    $func_v function("v", "__")
-    $dom_sub forall("_x", implies(exists("_y", apply("v","_x","_y","__")), mem("_x","w")))
-    $ran_sub forall("_x", forall("_y", implies(apply("v","_x","_y","__"), exists("_z", apply("f","_y","_z","__")))))
-    $base_v forall("_e", implies(empty("_e","__"),
-        implies(exists("_y", apply("v","_e","_y","__")), apply("v","_e","a","__"))))
-    $step_v forall("_n", implies(mem("_n","w"),
-        forall("_sn", implies(successor("_sn","_n","__"),
-            implies(exists("_y", apply("v","_sn","_y","__")),
-                and(exists("_y", apply("v","_n","_y","__")),
-                    forall("_val", implies(apply("v","_n","_val","__"),
-                        forall("_fval", implies(apply("f","_val","_fval","__"),
-                            apply("v","_sn","_fval","__")))))))))))
+    $func_v function("v", "_")
+    $dom_sub forall("x2", implies(exists("y2", apply("v","x2","y2","_")), mem("x2","w")))
+    $ran_sub forall("x2", forall("y2", implies(apply("v","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
+    $base_v forall("e2", implies(empty("e2","_"),
+        implies(exists("y2", apply("v","e2","y2","_")), apply("v","e2","a","_"))))
+    $step_v forall("n2", implies(mem("n2","w"),
+        forall("sn2", implies(successor("sn2","n2","_"),
+            implies(exists("y2", apply("v","sn2","y2","_")),
+                and(exists("y2", apply("v","n2","y2","_")),
+                    forall("val2", implies(apply("v","n2","val2","_"),
+                        forall("fval2", implies(apply("f","val2","fval2","_"),
+                            apply("v","sn2","fval2","_")))))))))))
 
     $body and(func_v, and(dom_sub, and(ran_sub, and(base_v, step_v))))
     $nw mem("n", "w")
@@ -59,22 +59,22 @@ $extend_consistency {
 
     # Peel step_v: inst n, mp nw, inst sn, mp succ_sn
     $_step_v_b \n2: implies(mem(n2,"w"),
-        forall("_sn", implies(successor("_sn",n2,"__"),
-            implies(exists("_y", apply("v","_sn","_y","__")),
-                and(exists("_y", apply("v",n2,"_y","__")),
-                    forall("_val", implies(apply("v",n2,"_val","__"),
-                        forall("_fval", implies(apply("f","_val","_fval","__"),
-                            apply("v","_sn","_fval","__"))))))))))
-    $got_step_n apply_thm(got_step_v, step_v, ["n"], ["_n"], _step_v_b, [body])
+        forall("sn2", implies(successor("sn2",n2,"_"),
+            implies(exists("y2", apply("v","sn2","y2","_")),
+                and(exists("y2", apply("v",n2,"y2","_")),
+                    forall("val2", implies(apply("v",n2,"val2","_"),
+                        forall("fval2", implies(apply("f","val2","fval2","_"),
+                            apply("v","sn2","fval2","_"))))))))))
+    $got_step_n apply_thm(got_step_v, step_v, ["n"], ["n2"], _step_v_b, [body])
     $step_n_body head(right(got_step_n))
     $got_step_n2 mp(got_step_n, ax([nw], [nw], nw), nw, arg2(step_n_body), left(got_step_n), [nw])
-    $got_step_sn apply_thm(got_step_n2, head(right(got_step_n2)), ["sn"], ["_sn"],
-        \sn2: implies(successor(sn2,"n","__"),
-            implies(exists("_y", apply("v",sn2,"_y","__")),
-                and(exists("_y", apply("v","n","_y","__")),
-                    forall("_val", implies(apply("v","n","_val","__"),
-                        forall("_fval", implies(apply("f","_val","_fval","__"),
-                            apply("v",sn2,"_fval","__")))))))), left(got_step_n2))
+    $got_step_sn apply_thm(got_step_n2, head(right(got_step_n2)), ["sn"], ["sn2"],
+        \sn2: implies(successor(sn2,"n","_"),
+            implies(exists("y2", apply("v",sn2,"y2","_")),
+                and(exists("y2", apply("v","n","y2","_")),
+                    forall("val2", implies(apply("v","n","val2","_"),
+                        forall("fval2", implies(apply("f","val2","fval2","_"),
+                            apply("v",sn2,"fval2","_")))))))), left(got_step_n2))
     $step_sn_body head(right(got_step_sn))
     $got_step_trigger mp(got_step_sn, ax([succ_sn], [succ_sn], succ_sn), succ_sn,
         arg2(step_sn_body), left(got_step_sn), [succ_sn])
@@ -89,21 +89,21 @@ $extend_consistency {
         left(got_step_trigger), [app_vsn_z])
 
     # Extract inner forall, inst val, mp app_vn, inst fval, mp app_f → apply(v,sn,fval)
-    $ex_part exists("_y", apply("v", "n", "_y", "__"))
-    $inner_fa forall("_val", implies(apply("v", "n", "_val", "__"),
-        forall("_fval", implies(apply("f", "_val", "_fval", "__"), apply("v", "sn", "_fval", "__")))))
+    $ex_part exists("y2", apply("v", "n", "y2", "_"))
+    $inner_fa forall("val2", implies(apply("v", "n", "val2", "_"),
+        forall("fval2", implies(apply("f", "val2", "fval2", "_"), apply("v", "sn", "fval2", "_")))))
     $got_inner_fa mp(and_elim_right(ex_part, inner_fa, []),
         got_step_and, step_and, inner_fa, [], left(got_step_and))
 
-    $got_inner_val apply_thm(got_inner_fa, inner_fa, ["val"], ["_val"],
-        \val2: implies(apply("v","n",val2,"__"),
-            forall("_fval", implies(apply("f",val2,"_fval","__"), apply("v","sn","_fval","__")))), left(got_inner_fa))
+    $got_inner_val apply_thm(got_inner_fa, inner_fa, ["val"], ["val2"],
+        \val2: implies(apply("v","n",val2,"_"),
+            forall("fval2", implies(apply("f",val2,"fval2","_"), apply("v","sn","fval2","_")))), left(got_inner_fa))
     $inner_val_body head(right(got_inner_val))
     $got_inner_val2 mp(got_inner_val, ax([app_vn], [app_vn], app_vn), app_vn,
         arg2(inner_val_body), left(got_inner_val), [app_vn])
 
-    $got_inner_fval apply_thm(got_inner_val2, head(right(got_inner_val2)), ["fval"], ["_fval"],
-        \fval2: implies(apply("f","val",fval2,"__"), apply("v","sn",fval2,"__")), left(got_inner_val2))
+    $got_inner_fval apply_thm(got_inner_val2, head(right(got_inner_val2)), ["fval"], ["fval2"],
+        \fval2: implies(apply("f","val",fval2,"_"), apply("v","sn",fval2,"_")), left(got_inner_val2))
     $inner_fval_body head(right(got_inner_fval))
     $app_vsn_fval apply("v", "sn", "fval", "_")
     $got_app_vsn_fval mp(got_inner_fval, ax([app_f], [app_f], app_f), app_f,

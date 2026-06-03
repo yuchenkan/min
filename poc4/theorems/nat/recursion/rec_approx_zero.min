@@ -21,19 +21,19 @@ $rec_approx_zero {
     $eqv_ya eqv("y", "a", "_")
     $eqv_ay eqv("a", "y", "_")
 
-    # RecApprox body components (match vocab after inst _w→"w")
-    $func_v function("v", "__")
-    $dom_sub forall("_x", implies(exists("_y", apply("v", "_x", "_y", "__")), mem("_x", "w")))
-    $ran_sub forall("_x", forall("_y", implies(apply("v", "_x", "_y", "__"), exists("_z", apply("f", "_y", "_z", "__")))))
-    $base forall("_e", implies(empty("_e", "__"),
-        implies(exists("_y", apply("v", "_e", "_y", "__")), apply("v", "_e", "a", "__"))))
-    $step forall("_n", implies(mem("_n", "w"),
-        forall("_sn", implies(successor("_sn", "_n", "__"),
-            implies(exists("_y", apply("v", "_sn", "_y", "__")),
-                and(exists("_y", apply("v", "_n", "_y", "__")),
-                    forall("_val", implies(apply("v", "_n", "_val", "__"),
-                        forall("_fval", implies(apply("f", "_val", "_fval", "__"),
-                            apply("v", "_sn", "_fval", "__")))))))))))
+    # RecApprox body components (alpha-equiv to vocab expansion)
+    $func_v function("v", "_")
+    $dom_sub forall("x2", implies(exists("y2", apply("v", "x2", "y2", "_")), mem("x2", "w")))
+    $ran_sub forall("x2", forall("y2", implies(apply("v", "x2", "y2", "_"), exists("z2", apply("f", "y2", "z2", "_")))))
+    $base forall("e2", implies(empty("e2", "_"),
+        implies(exists("y2", apply("v", "e2", "y2", "_")), apply("v", "e2", "a", "_"))))
+    $step forall("n2", implies(mem("n2", "w"),
+        forall("sn2", implies(successor("sn2", "n2", "_"),
+            implies(exists("y2", apply("v", "sn2", "y2", "_")),
+                and(exists("y2", apply("v", "n2", "y2", "_")),
+                    forall("val2", implies(apply("v", "n2", "val2", "_"),
+                        forall("fval2", implies(apply("f", "val2", "fval2", "_"),
+                            apply("v", "sn2", "fval2", "_")))))))))))
 
     $body and(func_v, and(dom_sub, and(ran_sub, and(base, step))))
 
@@ -57,7 +57,7 @@ $rec_approx_zero {
         got_rest3, rest_3, base, [], [body])
 
     # Instantiate base with "e"
-    $ex_app exists("_y", apply("v", "e", "_y", "__"))
+    $ex_app exists("y2", apply("v", "e", "y2", "_"))
     $imp_base implies(emp, implies(ex_app, app_vea))
     $got_base_e fl(ax([imp_base], [imp_base], imp_base), [base], [imp_base], base, "e")
     $got_base_e2 cut_c(got_base, got_base_e, base, [body], [base], imp_base)
