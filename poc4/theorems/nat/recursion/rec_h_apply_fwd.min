@@ -1,7 +1,8 @@
 from core.derived import mem, implies, forall, and, exists, iff, eqv, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
-from vocab.recursion import rec_approx
+from vocab.nat.nat import nat
+from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.and_intro import and_intro
@@ -13,45 +14,39 @@ from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.logic.eqv_symmetric import eqv_symmetric
 
-# |- char_h -> Apply(h,n,y) -> In(n,w) -> ∃v. And(RA(v,a,f,w), Apply(v,n,y))
-# From Apply(h,n,y): OrdPair(q,n,y) ∧ q∈h.
-# char_h forward: q∈h → ∃m.(m∈w ∧ ∃v'.∃y'.(RA(v')∧App(v',m,y')∧OrdPair(q,m,y'))).
-# kuratowski: OrdPair(q,n,y) ∧ OrdPair(q,m,y') → n=m ∧ y=y'.
-# Transfer: App(v',m,y') + n=m + y=y' → App(v',n,y).
-# Then And(RA(v'), App(v',n,y)) → eir → goal.
+# |- char_h -> Apply(h,n,y) -> ∃v. And(RA(v,a,f), Apply(v,n,y))
+# char_h uses Nat(m) and RA(v,a,f) — fully w-free.
 $rec_h_apply_fwd {
     $phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
-        and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+        and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
             apply(add(np,"v"),m,add(np,"y"),add(np,"_"))),
             ordered_pair(p,m,add(np,"y"),add(np,"_")))))
 
-    $char_h forall("p", iff(mem("p","h"), exists("m", and(mem("m","w"), phi("m","p","_")))))
+    $char_h forall("p", iff(mem("p","h"), exists("m", and(nat("m","_"), phi("m","p","_")))))
     $app_hny apply("h","n","y","_")
-    $nw mem("n","w")
-    $goal exists("v2", and(rec_approx("v2","a","f","w","_"), apply("v2","n","y","_")))
+    $goal exists("v2", and(rec_approx("v2","a","f","_"), apply("v2","n","y","_")))
 
     # Unpack Apply(h,n,y): exists q. and(ordpair(q,n,y), mem(q,h))
     $opq_ny ordered_pair("q","n","y","_")
     $qh mem("q","h")
     $and_qh and(opq_ny, qh)
 
-    # char_h forward: q∈h → ∃m.(m∈w ∧ phi(m,q))
-    $ex_m exists("m", and(mem("m","w"), phi("m","q","_")))
+    # char_h forward: q∈h → ∃m.(Nat(m) ∧ phi(m,q))
+    $ex_m exists("m", and(nat("m","_"), phi("m","q","_")))
     $iff_qh iff(mem("q","h"), ex_m)
     $got_iff fl(ax([iff_qh], [iff_qh], iff_qh), [char_h], [iff_qh], char_h, "q")
     $got_ex_m mp(mp(iff_elim_left(mem("q","h"), ex_m, []),
         got_iff, iff_qh, implies(mem("q","h"), ex_m), [], [char_h]),
         ax([qh], [qh], qh), qh, ex_m, [char_h], [qh])
-    # [char_h, qh] |- ∃m.(m∈w ∧ phi(m,q))
 
-    # === Inside: assume m∈w, RA(v'), App(v',m,y'), OrdPair(q,m,y'), derive goal ===
+    # === Inside: assume Nat(m), RA(v'), App(v',m,y'), OrdPair(q,m,y'), derive goal ===
     $opq_my ordered_pair("q","m","yr","_")
-    $ra_v rec_approx("v2","a","f","w","_")
+    $ra_v rec_approx("v2","a","f","_")
     $app_vm apply("v2","m","yr","_")
     $and_ra_app and(ra_v, app_vm)
     $and_inner and(and_ra_app, opq_my)
 
-    # kuratowski: opq_ny ∧ opq_my ∧ eqv(q,q) → eqv(n,m) ∧ eqv(y,y2)
+    # kuratowski: opq_ny ∧ opq_my ∧ eqv(q,q) → eqv(n,m) ∧ eqv(y,yr)
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
     $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
@@ -70,10 +65,8 @@ $rec_h_apply_fwd {
     $k3 mp(k2, got_eqv_qq, eqv_qq, goal_and, left(k2), [])
     $got_eqv_nm mp(and_elim_left(eqv_nm, eqv_yy2, []), k3, goal_and, eqv_nm, [], left(k3))
     $got_eqv_yy2 mp(and_elim_right(eqv_nm, eqv_yy2, []), k3, goal_and, eqv_yy2, [], left(k3))
-    # [opq_ny, opq_my, kur_ctx] |- eqv(n,m) and eqv(y,y2)
 
     # Transfer: App(v',m,y') → App(v',n,y) via apply_key_transfer + apply_val_transfer
-    # Step 1: eqv(n,m) → sym → eqv(m,n). apply_key_transfer: App(v',m,y') → App(v',n,y')
     $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
     $eqv_mn eqv("m","n","_")
     $got_eqv_mn mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["n","m"], ["n","b"], _es_b, []),
@@ -86,7 +79,6 @@ $rec_h_apply_fwd {
         got_eqv_mn, eqv_mn, implies(app_vm, app_vny2), [], left(got_eqv_mn)),
         ax([app_vm], [app_vm], app_vm), app_vm, app_vny2, left(got_eqv_mn), [app_vm])
 
-    # Step 2: eqv(y,y2) → sym → eqv(y2,y). apply_val_transfer: App(v',n,y2) → App(v',n,y)
     $eqv_y2y eqv("yr","y","_")
     $got_eqv_y2y mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["y","yr"], ["y","b"], _es_b, []),
         got_eqv_yy2, eqv_yy2, eqv_y2y, [], left(got_eqv_yy2))
@@ -103,14 +95,10 @@ $rec_h_apply_fwd {
     $got_and mp(mp(and_intro(ra_v, app_vny, []),
         ax([ra_v], [ra_v], ra_v), ra_v, implies(app_vny, and_goal), [], [ra_v]),
         got_app_vny, app_vny, and_goal, [ra_v], left(got_app_vny))
-    $got_goal eir(got_and, \v: and(rec_approx(v,"a","f","w","_"), apply(v,"n","y","_")),
+    $got_goal eir(got_and, \v: and(rec_approx(v,"a","f","_"), apply(v,"n","y","_")),
         "v2", "v2", left(got_and))
 
     # === Close inner existentials ===
-    # got_goal has [opq_ny, opq_my, ra_v, app_vm, kur_ctx, ...] |- goal
-    # Need to replace individual assumptions with their packed existential forms.
-
-    # Replace opq_my, app_vm, ra_v with and_inner:
     $got_opq_from mp(and_elim_right(and_ra_app, opq_my, []),
         ax([and_inner], [and_inner], and_inner), and_inner, opq_my, [], [and_inner])
     $got_app_vm_from mp(and_elim_right(ra_v, app_vm, []),
@@ -126,41 +114,36 @@ $rec_h_apply_fwd {
     $g4 cut_c(got_ra_app_from, g3, and_ra_app, [and_inner], left(g3), goal)
 
     # eel yr from and_inner:
-    $g5 eel(g4, \yr: and(and(rec_approx("v2","a","f","w","_"), apply("v2","m",yr,"_")), ordered_pair("q","m",yr,"_")),
+    $g5 eel(g4, \yr: and(and(rec_approx("v2","a","f","_"), apply("v2","m",yr,"_")), ordered_pair("q","m",yr,"_")),
         "_y", "yr", left(g4), goal)
     # eel v2:
-    $g6 eel(g5, \v2: exists("_y", and(and(rec_approx(v2,"a","f","w","_"), apply(v2,"m","_y","_")), ordered_pair("q","m","_y","_"))),
+    $g6 eel(g5, \v2: exists("_y", and(and(rec_approx(v2,"a","f","_"), apply(v2,"m","_y","_")), ordered_pair("q","m","_y","_"))),
         "_v", "v2", left(g5), goal)
-    # Now phi("m","q","_") is on left. mem("m","w") is NOT on left — need to add it.
 
-    # Use and_intro to build and(mem(m,w), phi(m,q)) from the two pieces.
-    # But mem(m,w) isn't on the left either — it will come from eel m later.
-    # Instead: ir to discharge phi, fr m, then eel m from ∃m.and(mem(m,w),phi).
+    # Weaken g6 to include Nat(m) on left:
+    $nat_m nat("m","_")
+    $g6w wl(g6, add(left(g6), [nat_m]), [goal], nat_m)
 
-    # Weaken g6 to include mem(m,w) on left:
-    $mw mem("m","w")
-    $g6w wl(g6, add(left(g6), [mw]), [goal], mw)
-
-    # ir phi → goal, then ir mem(m,w):
+    # ir phi → goal, then ir Nat(m):
     $phi_mq phi("m","q","_")
     $imp_phi implies(phi_mq, goal)
     $g7 ir(g6w, remove(same, phi_mq, left(g6w)), [imp_phi], imp_phi)
-    $imp_mw implies(mw, imp_phi)
-    $g8 ir(g7, remove(same, mw, left(g7)), [imp_mw], imp_mw)
+    $imp_nat implies(nat_m, imp_phi)
+    $g8 ir(g7, remove(same, nat_m, left(g7)), [imp_nat], imp_nat)
     # fr m:
-    $fa_m forall("m", imp_mw)
+    $fa_m forall("m", imp_nat)
     $g9 fr(g8, left(g8), [fa_m], fa_m, "m")
 
-    # fl fa_m with m, mp mem(m,w), mp phi:
-    $and_mw_phi and(mw, phi_mq)
-    $g10_mw mp(and_elim_left(mw, phi_mq, []), ax([and_mw_phi], [and_mw_phi], and_mw_phi), and_mw_phi, mw, [], [and_mw_phi])
-    $g10_phi mp(and_elim_right(mw, phi_mq, []), ax([and_mw_phi], [and_mw_phi], and_mw_phi), and_mw_phi, phi_mq, [], [and_mw_phi])
-    $g10_inst apply_thm(g9, fa_m, ["m"], ["m"], \m: implies(mem(m,"w"), implies(phi(m,"q","_"), goal)), left(g9))
-    $g10_mp1 mp(g10_inst, g10_mw, mw, imp_phi, left(g10_inst), [and_mw_phi])
-    $g10_mp2 mp(g10_mp1, g10_phi, phi_mq, goal, left(g10_mp1), [and_mw_phi])
+    # fl fa_m with m, mp Nat(m), mp phi:
+    $and_nat_phi and(nat_m, phi_mq)
+    $g10_nat mp(and_elim_left(nat_m, phi_mq, []), ax([and_nat_phi], [and_nat_phi], and_nat_phi), and_nat_phi, nat_m, [], [and_nat_phi])
+    $g10_phi mp(and_elim_right(nat_m, phi_mq, []), ax([and_nat_phi], [and_nat_phi], and_nat_phi), and_nat_phi, phi_mq, [], [and_nat_phi])
+    $g10_inst apply_thm(g9, fa_m, ["m"], ["m"], \m: implies(nat(m,"_"), implies(phi(m,"q","_"), goal)), left(g9))
+    $g10_mp1 mp(g10_inst, g10_nat, nat_m, imp_phi, left(g10_inst), [and_nat_phi])
+    $g10_mp2 mp(g10_mp1, g10_phi, phi_mq, goal, left(g10_mp1), [and_nat_phi])
 
-    # eel m from and_mw_phi:
-    $g11 eel(g10_mp2, \m: and(mem(m,"w"), phi(m,"q","_")), "m", "m", left(g10_mp2), goal)
+    # eel m from and_nat_phi:
+    $g11 eel(g10_mp2, \m: and(nat(m,"_"), phi(m,"q","_")), "m", "m", left(g10_mp2), goal)
     # Cut with got_ex_m:
     $g12 cut_c(got_ex_m, g11, ex_m, left(got_ex_m), left(g11), goal)
 
@@ -175,15 +158,9 @@ $rec_h_apply_fwd {
     # eel q from and_qh = Apply(h,n,y) body:
     $g15 eel(g14, \q: and(ordered_pair(q,"n","y","_"), mem(q,"h")), "q", "q", left(g14), goal)
 
-    # Close: ir app_hny, ir char_h, then weaken nw in for ir
-    # g15's left should have [char_h, app_hny, kur_ctx, ext_ctx...]
-    # nw is not on the left — it's unused in the proof (all info comes from char_h).
-    # But the theorem states char_h → In(n,w) → Apply(h,n,y) → goal.
-    # So nw is a redundant hypothesis. Add via weakening:
-    $g15w wl(g15, add(left(g15), [nw]), [goal], nw)
-    $s1 ir(g15w, remove(same, app_hny, left(g15w)), [implies(app_hny, goal)], implies(app_hny, goal))
-    $s2 ir(s1, remove(same, nw, left(s1)), [implies(nw, implies(app_hny, goal))], implies(nw, implies(app_hny, goal)))
-    $top implies(char_h, implies(nw, implies(app_hny, goal)))
-    $s3 ir(s2, remove(same, char_h, left(s2)), [top], top)
-    close(s3, left(s3), [top], ["y","n","w","f","a","h"])
+    # Close: no nw needed (char_h is w-free, goal is w-free)
+    $s1 ir(g15, remove(same, app_hny, left(g15)), [implies(app_hny, goal)], implies(app_hny, goal))
+    $top implies(char_h, implies(app_hny, goal))
+    $s2 ir(s1, remove(same, char_h, left(s1)), [top], top)
+    close(s2, left(s2), [top], ["y","n","f","a","h"])
 }
