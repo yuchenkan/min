@@ -1,0 +1,245 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
+from vocab.sets import empty, successor, subset
+from vocab.nat.omega import inductive, omega
+from util import rev
+from tactics import ax, wl, wr, fl, fr, ir, mp, inst, apply_thm, eel, eir, cut_c, close
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.nat.omega.omega_is_inductive import omega_is_inductive
+from theorems.nat.omega.omega_contains_empty import omega_contains_empty
+from theorems.nat.omega.omega_succ_closed import omega_succ_closed
+from theorems.nat.omega.omega_smallest_inductive import omega_smallest_inductive
+
+# omega_induction(pred, vars):
+# omega(w) → (∀e. empty(e) → pred(e)) → (∀n. n∈w → pred(n) → ∀s. succ(s,n) → pred(s)) → ∀n. n∈w → pred(n)
+#
+# Proof: S = {n∈w | pred(n)} is inductive. omega smallest → w⊆S → n∈w → pred(n).
+#
+# pred: \w n p: formula. w = omega set, n = element, p = prefix for bound vars.
+# vars: variables to universally quantify (including w if desired)
+
+$omega_induction \pred vars p: {
+    $w add(p, "w")
+    $n add(p, "n")
+    $e add(p, "e")
+    $s add(p, "s")
+    $m add(p, "m")
+    $r add(p, "r")
+    $np add(p, "_")
+    $all_vars add(vars, [w])
+    $om omega(w, np)
+    $nw mem(n, w)
+    $pn pred(w, n, np)
+
+    # Hypotheses
+    $base_hyp forall(e, implies(empty(e, np), pred(w, e, np)))
+    $step_hyp forall(n, implies(nw, implies(pn, forall(s, implies(successor(s, n, np), pred(w, s, np))))))
+
+    # Separation: S = {n∈w | pred(n)}
+    # sep gives ∀n.(n∈s ↔ n∈w ∧ pred(n))
+    $ns mem(n, s)
+    $and_nw_pn and(nw, pn)
+    $iff_ns iff(ns, and_nw_pn)
+    $char forall(n, iff_ns)
+
+    # === Show S is inductive ===
+    # Part 1: ∀e. empty(e) → e∈s
+    $emp empty(e, np)
+    $es mem(e, s)
+    $ew mem(e, w)
+
+    # From base_hyp: empty(e) → pred(e)
+    $got_pe apply_thm(ax([base_hyp], [base_hyp], base_hyp), base_hyp, [e], [e],
+        \v: implies(empty(v, np), pred(w, v, np)), [base_hyp])
+    $pe pred(w, e, np)
+    $got_pe2 mp(got_pe, ax([emp], [emp], emp), emp, pe, [base_hyp], [emp])
+    # [base_hyp, emp] |- pred(e)
+
+    # From omega_contains_empty: omega(w) → empty(e) → e∈w
+    $_oce head(right(omega_contains_empty))
+    $got_oce apply_thm(omega_contains_empty, _oce, [e, w], [e, "w"],
+        \e: \w: implies(omega(w,"_"), implies(empty(e,"_"), mem(e,w))), [])
+    $got_ew mp(mp(got_oce, ax([om], [om], om), om, implies(emp, ew), [], [om]),
+        ax([emp], [emp], emp), emp, ew, [om], [emp])
+    # [om, emp] |- e∈w
+
+    # and(e∈w, pred(e))
+    $and_ew_pe and(ew, pe)
+    $got_and_e mp(mp(and_intro(ew, pe, []),
+        got_ew, ew, implies(pe, and_ew_pe), [], [om, emp]),
+        got_pe2, pe, and_ew_pe, [om, emp], [base_hyp, emp])
+    # [om, base_hyp, emp] |- and(ew, pe)
+
+    # char backward at e: and(ew, pe) → e∈s
+    $iff_es iff(es, and(ew, pe))
+    $char_e fl(ax([iff_es], [iff_es], iff_es), [char], [iff_es], char, e)
+    $got_es mp(mp(iff_elim_right(es, and(ew, pe), []),
+        char_e, iff_es, implies(and(ew, pe), es), [], [char]),
+        got_and_e, and(ew, pe), es, [char], [om, base_hyp, emp])
+    # [char, om, base_hyp, emp] |- e∈s
+
+    $imp_emp_es implies(emp, es)
+    $got_fa_emp ir(got_es, [char, om, base_hyp], [imp_emp_es], imp_emp_es)
+    $ind_part1 forall(e, implies(empty(e, np), mem(e,s)))
+    $got_ind_p1 fr(got_fa_emp, [char, om, base_hyp], [ind_part1], ind_part1, e)
+    # [char, om, base_hyp] |- ind_part1
+
+    # Part 2: ∀xx. xx∈s → ∀tt. succ(tt,xx) → tt∈s
+    # Use "m","r" to avoid clash with bound "x" in omega/inductive vocab
+    $xs mem(m, s)
+    $xw mem(m, w)
+    $px pred(w, m, np)
+    $ts mem(r, s)
+    $tw mem(r, w)
+    $succ_tx successor(r, m, np)
+    $pt pred(w, r, np)
+    $and_xw_px and(xw, px)
+
+    # From char at x: x∈s → x∈w ∧ pred(x)
+    $iff_xs iff(xs, and_xw_px)
+    $char_x fl(ax([iff_xs], [iff_xs], iff_xs), [char], [iff_xs], char, m)
+    $got_and_x mp(mp(iff_elim_left(xs, and_xw_px, []),
+        char_x, iff_xs, implies(xs, and_xw_px), [], [char]),
+        ax([xs], [xs], xs), xs, and_xw_px, [char], [xs])
+    $got_xw mp(and_elim_left(xw, px, []), got_and_x, and_xw_px, xw, [], [char, xs])
+    $got_px mp(and_elim_right(xw, px, []), got_and_x, and_xw_px, px, [], [char, xs])
+    # [char, xs] |- xw, px
+
+    # From step_hyp: x∈w → pred(x) → ∀t. succ(t,x) → pred(t)
+    $fa_t forall(r, implies(succ_tx, pt))
+    $step_inst apply_thm(ax([step_hyp], [step_hyp], step_hyp), step_hyp, [m], [m],
+        \v: implies(mem(v,w), implies(pred(w,v,np), forall(s, implies(successor(s,v,np), pred(w,s,np))))), [step_hyp])
+    $got_fa_t mp(mp(step_inst,
+        got_xw, xw, implies(px, fa_t), [step_hyp], [char, xs]),
+        got_px, px, fa_t, [step_hyp, char, xs], [char, xs])
+    # [step_hyp, char, xs] |- ∀t. succ(t,x) → pred(t)
+
+    $got_pt apply_thm(got_fa_t, fa_t, [r], [r],
+        \v: implies(successor(v,m,np), pred(w,v,np)), [step_hyp, char, xs])
+    $got_pt2 mp(got_pt, ax([succ_tx], [succ_tx], succ_tx), succ_tx, pt,
+        [step_hyp, char, xs], [succ_tx])
+    # [step_hyp, char, xs, succ_tx] |- pred(t)
+
+    # From omega_succ_closed: omega(w) → x∈w → succ(t,x) → t∈w
+    $_osc head(right(omega_succ_closed))
+    $got_osc apply_thm(omega_succ_closed, _osc, [r, m, w], [r, "n", "w"],
+        \s: \n: \w: implies(omega(w,"_"), implies(mem(n,w), implies(successor(s,n,"_"), mem(s,w)))), [])
+    $got_tw mp(mp(mp(got_osc,
+        ax([om], [om], om), om, implies(xw, implies(succ_tx, tw)), [], [om]),
+        got_xw, xw, implies(succ_tx, tw), [om], [char, xs]),
+        ax([succ_tx], [succ_tx], succ_tx), succ_tx, tw,
+        [om, char, xs], [succ_tx])
+    # [om, char, xs, succ_tx] |- t∈w
+
+    # and(t∈w, pred(t)) → t∈s (char backward)
+    $and_tw_pt and(tw, pt)
+    $got_and_t mp(mp(and_intro(tw, pt, []),
+        got_tw, tw, implies(pt, and_tw_pt), [], [om, char, xs, succ_tx]),
+        got_pt2, pt, and_tw_pt, [om, char, xs, succ_tx], [step_hyp, char, xs, succ_tx])
+    # [om, step_hyp, char, xs, succ_tx] |- and(tw, pt)
+
+    $iff_ts iff(ts, and_tw_pt)
+    $char_t fl(ax([iff_ts], [iff_ts], iff_ts), [char], [iff_ts], char, r)
+    $got_ts mp(mp(iff_elim_right(ts, and_tw_pt, []),
+        char_t, iff_ts, implies(and_tw_pt, ts), [], [char]),
+        got_and_t, and_tw_pt, ts, [char], [om, step_hyp, char, xs, succ_tx])
+    # [om, step_hyp, char, xs, succ_tx] |- t∈s
+
+    $imp_succ_ts implies(succ_tx, ts)
+    $got_succ_imp ir(got_ts, [om, step_hyp, char, xs], [imp_succ_ts], imp_succ_ts)
+    $fa_succ forall(r, imp_succ_ts)
+    $got_fa_succ fr(got_succ_imp, [om, step_hyp, char, xs], [fa_succ], fa_succ, r)
+    $imp_xs_fas implies(xs, fa_succ)
+    $got_xs_imp ir(got_fa_succ, [om, step_hyp, char], [imp_xs_fas], imp_xs_fas)
+    $ind_part2 forall(m, implies(mem(m,s), forall(r, implies(successor(r, m, np), mem(r,s)))))
+    $got_ind_p2 fr(got_xs_imp, left(got_xs_imp), [ind_part2], ind_part2, m)
+    # [om, step_hyp, char] |- ind_part2
+
+    # === inductive(s) ===
+    $ind_s inductive(s, np)
+    $got_ind mp(mp(and_intro(ind_part1, ind_part2, []),
+        got_ind_p1, ind_part1, implies(ind_part2, ind_s), [], [char, om, base_hyp]),
+        got_ind_p2, ind_part2, ind_s, [char, om, base_hyp], [om, step_hyp, char])
+    # [char, om, base_hyp, step_hyp] |- inductive(s)
+
+    # === omega_smallest → subset(w, s) → n∈w → n∈s → pred(n) ===
+    $_osi head(right(omega_smallest_inductive))
+    $_osi_b \c: \w: implies(omega(w,np), implies(inductive(c,np), subset(w,c,np)))
+    $osi_r forall("p", forall("q", _osi_b("p")("q")))
+    $osi_r_thm wr(omega_smallest_inductive, [], [osi_r], osi_r)
+    $sub_ws subset(w, s, np)
+    $got_sub mp(mp(apply_thm(osi_r_thm, osi_r, [s, w], [s, "q"], _osi_b, []),
+        ax([om], [om], om), om, implies(ind_s, sub_ws), [], [om]),
+        got_ind, ind_s, sub_ws, [om], [char, om, base_hyp, step_hyp])
+    # [char, om, base_hyp, step_hyp] |- subset(w, s)
+
+    # subset(w,s) instantiated at n: n∈w → n∈s
+    $imp_nw_ns implies(nw, ns)
+    $got_ns apply_thm(got_sub, sub_ws, [n], [n],
+        \v: implies(mem(v,w), mem(v,s)), [char, om, base_hyp, step_hyp])
+    $got_ns2 mp(got_ns, ax([nw], [nw], nw), nw, ns, [char, om, base_hyp, step_hyp], [nw])
+    # [char, om, base_hyp, step_hyp, nw] |- n∈s
+
+    # char forward at n: n∈s → n∈w ∧ pred(n) → pred(n)
+    $char_n fl(ax([iff_ns], [iff_ns], iff_ns), [char], [iff_ns], char, n)
+    $got_and_n mp(mp(iff_elim_left(ns, and_nw_pn, []),
+        char_n, iff_ns, implies(ns, and_nw_pn), [], [char]),
+        got_ns2, ns, and_nw_pn, [char], [char, om, base_hyp, step_hyp, nw])
+    $got_pn mp(and_elim_right(nw, pn, []),
+        got_and_n, and_nw_pn, pn, [], [char, om, base_hyp, step_hyp, nw])
+    # [char, om, base_hyp, step_hyp, nw] |- pred(n)
+
+    # Close: implies_right nw, forall n
+    $imp_nw_pn implies(nw, pn)
+    $fa_n forall(n, imp_nw_pn)
+    $got_fa_n ir(got_pn, [char, om, base_hyp, step_hyp], [imp_nw_pn], imp_nw_pn)
+    $got_fa fr(got_fa_n, [char, om, base_hyp, step_hyp], [fa_n], fa_n, n)
+    # [char, om, base_hyp, step_hyp] |- ∀n. n∈w → pred(n)
+
+    # eel on s from Separation
+    $got_eel_s eel(got_fa, \sv: forall(n, iff(mem(n,sv), and(mem(n, w), pred(w, n, np)))),
+        "s", s, [char, om, base_hyp, step_hyp], fa_n)
+    # [exists(s,char), om, base_hyp, step_hyp] |- fa_n
+
+    # Get exists(s,char) from sep instantiated at w
+    # _close puts vars[0] innermost, vars[-1] outermost. apply_thm peels outermost first.
+    # So instantiation terms must be vars reversed + ["w"] for domain.
+    $rev_vars rev(all_vars)
+    $sep_f sep_ax(all_vars, \x a pp: pred(w, x, pp), np)
+    # Instantiate sep with identity for outer vars, then domain=w
+    # Use inst directly for each step
+    $_sep_inner \a: exists("b", forall("x", iff(mem("x","b"), and(mem("x",a), pred(w,"x",np)))))
+    # _last: get last element of list
+    $_last \self lst: ?(eq(len(lst), 1), head(lst), self(self, tail(lst)))
+    # _wrap_foralls_around: wrap forall for each remaining term
+    # Last term is the domain value. Before that are outer forall vars.
+    # Domain forall uses a fresh var "d" to avoid capture with the domain value.
+    $_wrap_fa \self rest: ?(eq(len(rest), 1),
+        forall("d", _sep_inner("d")),
+        forall(head(rest), self(self, tail(rest))))
+    $_peel_sep \self thm formula terms: ?(eq(len(terms), 0), thm, {
+        $t head(terms)
+        $rest tail(terms)
+        $body ?(eq(len(rest), 0), _sep_inner(t), _wrap_fa(_wrap_fa, rest))
+        $r inst(thm, formula, body, t, [sep_f])
+        self(self, r, head(right(r)), rest)
+    })
+    $got_sep _peel_sep(_peel_sep, ax([sep_f], [sep_f], sep_f), sep_f, add(rev_vars, [w]))
+    $ex_char exists(s, forall(n, iff(mem(n, s), and(mem(n, w), pred(w, n, np)))))
+
+    $got_cut_sep cut_c(got_sep, got_eel_s, ex_char,
+        [sep_f], add([ex_char], [om, base_hyp, step_hyp]), fa_n)
+    # [sep_f, om, base_hyp, step_hyp] |- fa_n
+
+    # implies_right step_hyp, base_hyp, om
+    $imp_step implies(step_hyp, fa_n)
+    $s1 ir(got_cut_sep, [sep_f, om, base_hyp], [imp_step], imp_step)
+    $imp_base implies(base_hyp, imp_step)
+    $s2 ir(s1, [sep_f, om], [imp_base], imp_base)
+    $top implies(om, imp_base)
+    $s3 ir(s2, [sep_f], [top], top)
+    close(s3, [sep_f], [top], all_vars)
+}

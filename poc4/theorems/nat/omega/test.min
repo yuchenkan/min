@@ -1,0 +1,71 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed, sep_ax
+from vocab.sets import empty, successor, subset, transitive_set
+from vocab.nat.omega import inductive, omega
+from vocab.logic import exists_unique
+from theorems.nat.omega.infinity_gives_inductive import infinity_gives_inductive
+from theorems.nat.omega.omega_is_inductive import omega_is_inductive
+from theorems.nat.omega.omega_smallest_inductive import omega_smallest_inductive
+from theorems.nat.omega.omega_contains_empty import omega_contains_empty
+from theorems.nat.omega.omega_succ_closed import omega_succ_closed
+from theorems.nat.omega.omega_exists import omega_exists
+from theorems.nat.omega.omega_unique import omega_unique
+from theorems.nat.omega.unique_omega import unique_omega
+from theorems.nat.omega.omega_induction import omega_induction
+from theorems.nat.omega.not_mem_self import not_mem_self
+from theorems.nat.omega.zero_or_succ import zero_or_succ
+from theorems.nat.omega.omega_transitive_set import omega_transitive_set
+from theorems.nat.omega.successor_injection import successor_injection
+
+$_ qed(infinity_gives_inductive, exists("b", inductive("b", "_")))
+$_ print("infinity_gives_inductive ok")
+
+$_ qed(omega_is_inductive, forall("w", implies(omega("w", "_"), inductive("w", "_"))))
+$_ print("omega_is_inductive ok")
+
+$_ qed(omega_smallest_inductive,
+    forall("c", forall("w", implies(omega("w", "_"), implies(inductive("c", "_"), subset("w", "c", "_"))))))
+$_ print("omega_smallest_inductive ok")
+
+$_ qed(omega_contains_empty,
+    forall("e", forall("w", implies(omega("w", "_"), implies(empty("e", "_"), mem("e", "w"))))))
+$_ print("omega_contains_empty ok")
+
+$_ qed(omega_succ_closed,
+    forall("s", forall("n", forall("w",
+        implies(omega("w", "_"), implies(mem("n","w"), implies(successor("s","n","_"), mem("s","w"))))))))
+$_ print("omega_succ_closed ok")
+
+$_ qed(omega_exists, exists("w", omega("w", "_")))
+$_ print("omega_exists ok")
+
+$_ qed(omega_unique,
+    forall("w1", forall("w2", implies(omega("w1", "_"), implies(omega("w2", "_"), eqv("w1","w2", "_"))))))
+$_ print("omega_unique ok")
+
+$_ qed(unique_omega, exists_unique(\v p: omega(v, p), "_"))
+$_ print("unique_omega ok")
+
+$trivial_pred \w v p: mem(v, w)
+$trivial_ind omega_induction(trivial_pred, [], "_")
+$_ qed(trivial_ind,
+    forall("w", implies(omega("w", "_"), implies(
+        forall("e", implies(empty("e","_"), mem("e","w"))),
+        implies(forall("n", implies(mem("n","w"), implies(mem("n","w"), forall("s", implies(successor("s","n","_"), mem("s","w")))))),
+            forall("n", implies(mem("n","w"), mem("n","w"))))))))
+$_ print("omega_induction ok")
+
+$_ qed(not_mem_self, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), neg(mem("n","n")))))))
+$_ print("not_mem_self ok")
+
+$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(empty("n","_"), exists("_q", successor("n","_q","_"))))))))
+$_ print("zero_or_succ ok")
+
+$_ qed(omega_transitive_set, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), transitive_set("n","_"))))))
+$_ print("omega_transitive_set ok")
+
+$_ qed(successor_injection, forall("w", forall("m", forall("n", forall("sn",
+    implies(omega("w","_"), implies(mem("m","w"), implies(mem("n","w"),
+        implies(successor("sn","m","_"), implies(successor("sn","n","_"), eqv("m","n","_")))))))))))
+$_ print("successor_injection ok")
+
+$ok true

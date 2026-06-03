@@ -1,0 +1,283 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from vocab.sets import empty, successor, singleton, ordered_pair, union
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import rec_approx
+from util import rev
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.omega.omega_induction import omega_induction
+from theorems.recursion.rec_exists_step import rec_exists_step
+from theorems.recursion.singleton_recapprox import singleton_recapprox
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.singleton_exists import singleton_exists
+from theorems.sets.union_exists import union_exists
+
+$rec_exists {
+    $pred \w n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", w, add(p,"_")),
+        exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
+
+    $ind omega_induction(pred, ["a","f"], "_")
+    $ind_ctx left(ind)
+    $_ind_f head(right(ind))
+
+    $_ind_body \w: \f: \a: {
+        $base forall("e", implies(empty("e","_"), pred(w,"e","_")))
+        $step forall("n", implies(mem("n",w), implies(pred(w,"n","_"),
+            forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
+        implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
+    }
+    $ind_inst apply_thm(ind, _ind_f, ["w","f","a"], ["w","f","a"], _ind_body, ind_ctx)
+    $om omega("w", "_")
+    $ind_body head(right(ind_inst))
+    $i1 mp(ind_inst, ax([om], [om], om), om, arg2(ind_body), left(ind_inst), [om])
+
+    $i1_body head(right(i1))
+    $base_hyp arg1(i1_body)
+    $after_base arg2(i1_body)
+
+    # === BASE CASE ===
+    # base_hyp = forall(e, implies(empty(e), pred(w,e)))
+    # Prove: empty(e) → ∃g. and(rec_approx(g,a,f,w), ∃y.apply(g,e,y))
+    # Use singleton_recapprox + ordpair_exists + singleton_exists for witnesses.
+    $emp_e empty("e", "_")
+    $pred_e pred("w", "e", "_")
+
+    # singleton_recapprox: om → emp → f_at_a → ordpair(op,e,a) → singleton(g,op) → and(ra(g), app(g,e,a))
+    $_sr head(right(singleton_recapprox))
+    $sr_ctx left(singleton_recapprox)
+    $_sr_b \w: \e: \f: \a: \op: \g: implies(omega(w,"_"), implies(empty(e,"_"), implies(exists("z", apply(f,a,"z","_")),
+        implies(ordered_pair(op,e,a,"_"), implies(singleton(g,op,"_"),
+            and(rec_approx(g,a,f,w,"_"), apply(g,e,a,"_")))))))
+    $sr1 apply_thm(singleton_recapprox, _sr, ["w","e","f","a","op","g"], ["w","e","f","a","op","g"], _sr_b, sr_ctx)
+    $sr1b head(right(sr1))
+    $sr2 mp(sr1, ax([om], [om], om), om, arg2(sr1b), left(sr1), [om])
+    $sr2b head(right(sr2))
+    $sr3 mp(sr2, ax([emp_e], [emp_e], emp_e), emp_e, arg2(sr2b), left(sr2), [emp_e])
+    $f_at_a exists("z", apply("f","a","z","_"))
+    $sr3b head(right(sr3))
+    $sr4 mp(sr3, ax([f_at_a], [f_at_a], f_at_a), f_at_a, arg2(sr3b), left(sr3), [f_at_a])
+    $sr4b head(right(sr4))
+    $opea ordered_pair("op","e","a","_")
+    $sr5 mp(sr4, ax([opea], [opea], opea), opea, arg2(sr4b), left(sr4), [opea])
+    $sr5b head(right(sr5))
+    $sing_g singleton("g","op","_")
+    $got_sr mp(sr5, ax([sing_g], [sing_g], sing_g), sing_g, arg2(sr5b), left(sr5), [sing_g])
+    # left(got_sr) |- and(rec_approx(g,a,f,w), apply(g,e,a))
+    # Has om, emp_e, f_at_a, opea, sing_g, sr_ctx on left.
+
+    # Extract rec_approx and apply, eir ∃y.apply(g,e,y), and combine, eir ∃g.
+    $ra_g rec_approx("g","a","f","w","_")
+    $app_gea apply("g","e","a","_")
+    $and_ra_app and(ra_g, app_gea)
+    $got_ra mp(and_elim_left(ra_g, app_gea, []), got_sr, and_ra_app, ra_g, [], left(got_sr))
+    $got_app mp(and_elim_right(ra_g, app_gea, []), got_sr, and_ra_app, app_gea, [], left(got_sr))
+
+    # eir y=a: ∃y.apply(g,e,y)
+    $got_ex_app eir(got_app, \y: apply("g","e",y,"_"), "y", "a", left(got_app))
+    $ex_app exists("y", apply("g","e","y","_"))
+
+    # and(ra_g, ex_app)
+    $got_and_base mp(mp(and_intro(ra_g, ex_app, []),
+        got_ra, ra_g, implies(ex_app, and(ra_g, ex_app)), [], left(got_ra)),
+        got_ex_app, ex_app, and(ra_g, ex_app), left(got_ra), left(got_ex_app))
+
+    # eir g: ∃g. and(ra(g), ∃y.apply(g,e,y)) = pred_e
+    $got_pred_e eir(got_and_base, \g: and(rec_approx(g,"a","f","w","_"), exists("y", apply(g,"e","y","_"))),
+        "g", "g", left(got_and_base))
+
+    # eel g from singleton_exists, eel op from ordpair_exists
+    $got_eel_g eel(got_pred_e, \v: singleton(v,"op","_"), "s", "g", left(got_pred_e), pred_e)
+    $_se head(right(singleton_exists))
+    $got_se apply_thm(singleton_exists, _se, ["op"], ["op"], \a: exists("s", singleton("s",a,"_")), left(singleton_exists))
+    $ex_sing exists("s", singleton("s","op","_"))
+    $got_cut_g cut_c(got_se, got_eel_g, ex_sing, left(got_se), left(got_eel_g), pred_e)
+
+    $got_eel_op eel(got_cut_g, \v: ordered_pair(v,"e","a","_"), "p", "op", left(got_cut_g), pred_e)
+    $_ope head(right(ordpair_exists))
+    $got_ope apply_thm(ordpair_exists, _ope, ["e","a"], ["e","b"],
+        \a: \b: exists("p", ordered_pair("p",a,b,"_")), left(ordpair_exists))
+    $ex_op exists("p", ordered_pair("p","e","a","_"))
+    $got_cut_op cut_c(got_ope, got_eel_op, ex_op, left(got_ope), left(got_eel_op), pred_e)
+    # left(got_cut_op) |- pred_e. Has om, emp_e, f_at_a, axiom deps.
+
+    # ir emp_e, fr e → base_hyp
+    $got_base_ir ir(got_cut_op, remove(same, emp_e, left(got_cut_op)), [implies(emp_e, pred_e)], implies(emp_e, pred_e))
+    $got_base fr(got_base_ir, left(got_base_ir), [base_hyp], base_hyp, "e")
+
+    $i2 mp(i1, got_base, base_hyp, after_base, left(i1), left(got_base))
+
+    $i2_body head(right(i2))
+    $step_hyp arg1(i2_body)
+    $fa_pred arg2(i2_body)
+
+    # === STEP CASE ===
+    # Given n∈w and pred(n) = ∃g.and(ra(g), ∃y.apply(g,n,y)), and succ(s,n): produce pred(s).
+    $nw mem("n","w")
+    $pred_n pred("w","n","_")
+    $succ_sn successor("s","n","_")
+    $pred_s pred("w","s","_")
+
+    # eel g from pred(n): get and(ra(g), ∃y.apply(g,n,y)) on left
+    $ra_gn rec_approx("g","a","f","w","_")
+    $ex_app_gn exists("yy", apply("g","n","yy","_"))
+    $and_pred and(ra_gn, ex_app_gn)
+    $got_ra_gn mp(and_elim_left(ra_gn, ex_app_gn, []),
+        ax([and_pred], [and_pred], and_pred), and_pred, ra_gn, [], [and_pred])
+    $got_ex_gn mp(and_elim_right(ra_gn, ex_app_gn, []),
+        ax([and_pred], [and_pred], and_pred), and_pred, ex_app_gn, [], [and_pred])
+
+    # eel y from ∃y.apply(g,n,y): get apply(g,n,y) on left
+    $app_gny apply("g","n","yy","_")
+
+    # ran_sub from ra(g): ∀x.∀y.apply(g,x,y)→∃z.apply(f,y,z)
+    # Extract ran_sub, instantiate x=n, y=y, mp app_gny → ∃z.apply(f,y,z)
+    $func_g function("g","_")
+    $dom_sub_g forall("x", implies(exists("y2", apply("g","x","y2","_")), mem("x","w")))
+    $ran_sub_g forall("x", forall("y2", implies(apply("g","x","y2","_"), exists("z", apply("f","y2","z","_")))))
+    $rest1_g and(dom_sub_g, and(ran_sub_g, and(forall("e2", implies(empty("e2","_"), implies(exists("y2", apply("g","e2","y2","_")), apply("g","e2","a","_")))),
+        forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
+            implies(exists("y2", apply("g","sn2","y2","_")), and(exists("y2", apply("g","n2","y2","_")),
+                forall("val", implies(apply("g","n2","val","_"), forall("fv", implies(apply("f","val","fv","_"), apply("g","sn2","fv","_"))))))))))))))
+    $got_rest1_g mp(and_elim_right(func_g, rest1_g, []),
+        ax([ra_gn], [ra_gn], ra_gn), ra_gn, rest1_g, [], [ra_gn])
+    $rest2_g and(ran_sub_g, and(forall("e2", implies(empty("e2","_"), implies(exists("y2", apply("g","e2","y2","_")), apply("g","e2","a","_")))),
+        forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
+            implies(exists("y2", apply("g","sn2","y2","_")), and(exists("y2", apply("g","n2","y2","_")),
+                forall("val", implies(apply("g","n2","val","_"), forall("fv", implies(apply("f","val","fv","_"), apply("g","sn2","fv","_")))))))))))))
+    $got_ran_sub_g mp(and_elim_left(ran_sub_g, and(forall("e2", implies(empty("e2","_"), implies(exists("y2", apply("g","e2","y2","_")), apply("g","e2","a","_")))),
+        forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
+            implies(exists("y2", apply("g","sn2","y2","_")), and(exists("y2", apply("g","n2","y2","_")),
+                forall("val", implies(apply("g","n2","val","_"), forall("fv", implies(apply("f","val","fv","_"), apply("g","sn2","fv","_")))))))))))), []),
+        mp(and_elim_right(dom_sub_g, rest2_g, []), got_rest1_g, rest1_g, rest2_g, [], [ra_gn]),
+        rest2_g, ran_sub_g, [], [ra_gn])
+    # [ra_gn] |- ran_sub_g
+
+    # Instantiate ran_sub at (n, y): apply(g,n,y) → ∃z.apply(f,y,z)
+    $ran1 apply_thm(got_ran_sub_g, ran_sub_g, ["n","yy"], ["n","yy"],
+        \x: \y: implies(apply("g",x,y,"_"), exists("z2", apply("f",y,"z2","_"))), [ra_gn])
+    $ran1b head(right(ran1))
+    $ex_fyz exists("zz", apply("f","yy","zz","_"))
+    $got_ex_fyz mp(ran1, ax([app_gny], [app_gny], app_gny), app_gny, ex_fyz, [ra_gn], [app_gny])
+    # [ra_gn, app_gny] |- ∃z.apply(f,y,z)
+
+    # eel z from ∃z.apply(f,y,z)
+    $app_fyz apply("f","yy","zz","_")
+
+    # Now have: ra_gn, app_gny, app_fyz, succ_sn on left.
+    # Need: ordpair(op,s,z), singleton(h,op), union(u,g,h).
+    # Then rec_exists_step gives and(ra(u), apply(u,s,z)).
+    # eir back into pred(s).
+
+    # rec_exists_step: instantiate and mp all hypotheses.
+    # rec_exists_step has 11 foralls. Instantiate with apply_thm.
+    $_res head(right(rec_exists_step))
+    $res_ctx left(rec_exists_step)
+    $_res_b \v: \a: \f: \w: \n: \val: \fval: \sn: \op: \h: \u: {
+        $func function(u,"_")
+        $dom forall("x", implies(exists("y", apply(u,"x","y","_")), mem("x",w)))
+        $ran forall("x", forall("y", implies(apply(u,"x","y","_"), exists("z", apply(f,"y","z","_")))))
+        $base forall("e", implies(empty("e","_"), implies(exists("y", apply(u,"e","y","_")), apply(u,"e",a,"_"))))
+        $step forall("m", implies(mem("m",w), forall("sm", implies(successor("sm","m","_"), implies(exists("y5", apply(u,"sm","y5","_")), and(exists("val5", apply(u,"m","val5","_")), forall("val5", implies(apply(u,"m","val5","_"), forall("fv5", implies(apply(f,"val5","fv5","_"), apply(u,"sm","fv5","_")))))))))))
+        $ra and(func, and(dom, and(ran, and(base, step))))
+        $rfc forall("r1", forall("r2", implies(apply(f,"r1","r2","_"), exists("w2", apply(f,"r2","w2","_")))))
+        implies(rec_approx(v,a,f,w,"_"), implies(function(f,"_"), implies(omega(w,"_"), implies(mem(n,w), implies(apply(v,n,val,"_"), implies(apply(f,val,fval,"_"), implies(rfc, implies(successor(sn,n,"_"), implies(ordered_pair(op,sn,fval,"_"), implies(singleton(h,op,"_"), implies(union(u,v,h,"_"), and(ra, apply(u,sn,fval,"_")))))))))))))
+    }
+    $res1 apply_thm(rec_exists_step, _res,
+        ["g","a","f","w","n","yy","zz","s","op","h","u"],
+        ["v","a","f","w","n","val","fval","sn","op","h","u"], _res_b, res_ctx)
+    # res1: res_ctx |- implies(ra_gn, implies(func_f, implies(om, ...)))
+    # mp each hypothesis one by one using arg2 to read the body:
+    $res2 mp(res1, ax([ra_gn], [ra_gn], ra_gn), ra_gn, arg2(head(right(res1))), left(res1), [ra_gn])
+    $func_f function("f","_")
+    $res3 mp(res2, ax([func_f], [func_f], func_f), func_f, arg2(head(right(res2))), left(res2), [func_f])
+    $res4 mp(res3, ax([om], [om], om), om, arg2(head(right(res3))), left(res3), [om])
+    $res5 mp(res4, ax([nw], [nw], nw), nw, arg2(head(right(res4))), left(res4), [nw])
+    $res6 mp(res5, ax([app_gny], [app_gny], app_gny), app_gny, arg2(head(right(res5))), left(res5), [app_gny])
+    $res7 mp(res6, ax([app_fyz], [app_fyz], app_fyz), app_fyz, arg2(head(right(res6))), left(res6), [app_fyz])
+    $ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
+    $res8 mp(res7, ax([ran_fc], [ran_fc], ran_fc), ran_fc, arg2(head(right(res7))), left(res7), [ran_fc])
+    $res9 mp(res8, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(res8))), left(res8), [succ_sn])
+    $op_sz ordered_pair("op","s","zz","_")
+    $res10 mp(res9, ax([op_sz], [op_sz], op_sz), op_sz, arg2(head(right(res9))), left(res9), [op_sz])
+    $sing_h singleton("h","op","_")
+    $res11 mp(res10, ax([sing_h], [sing_h], sing_h), sing_h, arg2(head(right(res10))), left(res10), [sing_h])
+    $un union("u","g","h","_")
+    $got_res mp(res11, ax([un], [un], un), un, arg2(head(right(res11))), left(res11), [un])
+    # left(got_res) |- and(rec_approx(u,a,f,w), apply(u,s,z))
+
+    # Extract ra_u and apply(u,s,z), build pred(s) via eir
+    $ra_u rec_approx("u","a","f","w","_")
+    $app_usz apply("u","s","zz","_")
+    $and_res and(ra_u, app_usz)
+    $got_ra_u mp(and_elim_left(ra_u, app_usz, []), got_res, and_res, ra_u, [], left(got_res))
+    $got_app_usz mp(and_elim_right(ra_u, app_usz, []), got_res, and_res, app_usz, [], left(got_res))
+
+    # ∃y.apply(u,s,y) via eir y=z
+    $got_ex_app_us eir(got_app_usz, \y: apply("u","s",y,"_"), "y", "zz", left(got_app_usz))
+    # and(ra_u, ∃y.apply(u,s,y))
+    $ex_app_us exists("y", apply("u","s","y","_"))
+    $got_and_step mp(mp(and_intro(ra_u, ex_app_us, []),
+        got_ra_u, ra_u, implies(ex_app_us, and(ra_u, ex_app_us)), [], left(got_ra_u)),
+        got_ex_app_us, ex_app_us, and(ra_u, ex_app_us), left(got_ra_u), left(got_ex_app_us))
+    # eir g=u: pred(s)
+    $got_pred_s eir(got_and_step, \g: and(rec_approx(g,"a","f","w","_"), exists("y", apply(g,"s","y","_"))),
+        "g", "u", left(got_and_step))
+
+    # eel u from union_exists, h from singleton_exists, op from ordpair_exists, z from ∃z.apply(f,y,z), y from ∃y.apply(g,n,y), g from pred(n)
+    $_ue head(right(union_exists))
+    $got_eel_u eel(got_pred_s, \v: union(v,"g","h","_"), "s", "u", left(got_pred_s), pred_s)
+    $ex_un exists("s", union("s","g","h","_"))
+    $got_ue apply_thm(union_exists, _ue, ["g","h"], ["g","b"],
+        \a: \b: exists("u", union("u",a,b,"_")), left(union_exists))
+    $got_cut_u cut_c(got_ue, got_eel_u, ex_un, left(got_ue), left(got_eel_u), pred_s)
+
+    $got_eel_h eel(got_cut_u, \v: singleton(v,"op","_"), "s", "h", left(got_cut_u), pred_s)
+    $_se2 head(right(singleton_exists))
+    $got_se2 apply_thm(singleton_exists, _se2, ["op"], ["op"],
+        \a: exists("s", singleton("s",a,"_")), left(singleton_exists))
+    $ex_sing2 exists("s", singleton("s","op","_"))
+    $got_cut_h cut_c(got_se2, got_eel_h, ex_sing2, left(got_se2), left(got_eel_h), pred_s)
+
+    $got_eel_op2 eel(got_cut_h, \v: ordered_pair(v,"s","zz","_"), "p", "op", left(got_cut_h), pred_s)
+    $_ope2 head(right(ordpair_exists))
+    $got_ope2 apply_thm(ordpair_exists, _ope2, ["s","zz"], ["s","b"],
+        \a: \b: exists("p", ordered_pair("p",a,b,"_")), left(ordpair_exists))
+    $ex_op2 exists("p", ordered_pair("p","s","zz","_"))
+    $got_cut_op2 cut_c(got_ope2, got_eel_op2, ex_op2, left(got_ope2), left(got_eel_op2), pred_s)
+
+    $got_eel_z eel(got_cut_op2, \v: apply("f","yy",v,"_"), "zz", "zz", left(got_cut_op2), pred_s)
+    $got_cut_z cut_c(got_ex_fyz, got_eel_z, ex_fyz, [ra_gn, app_gny], left(got_eel_z), pred_s)
+
+    $got_eel_y eel(got_cut_z, \v: apply("g","n",v,"_"), "yy", "yy", left(got_cut_z), pred_s)
+    $got_cut_y cut_c(got_ex_gn, got_eel_y, ex_app_gn, [and_pred], left(got_eel_y), pred_s)
+
+    # Also cut ra_gn (from ran_sub chain) with got_ra_gn (from and_pred):
+    $got_cut_ra cut_c(got_ra_gn, got_cut_y, ra_gn, [and_pred], left(got_cut_y), pred_s)
+
+    $got_eel_g2 eel(got_cut_ra, \v: and(rec_approx(v,"a","f","w","_"), exists("yy", apply(v,"n","yy","_"))),
+        "g", "g", left(got_cut_ra), pred_s)
+    # pred_n is now on left(got_eel_g2) — just use it directly (no cut needed)
+
+    # Close: ir succ_sn, fr s, ir pred_n, ir nw, fr n → step_hyp
+    $ctx_step left(got_eel_g2)
+    $s1 ir(got_eel_g2, remove(same, succ_sn, ctx_step), [implies(succ_sn, pred_s)], implies(succ_sn, pred_s))
+    $s2 fr(s1, left(s1), [forall("s", implies(succ_sn, pred_s))], forall("s", implies(succ_sn, pred_s)), "s")
+    $s3 ir(s2, remove(same, pred_n, left(s2)), [implies(pred_n, forall("s", implies(succ_sn, pred_s)))], implies(pred_n, forall("s", implies(succ_sn, pred_s))))
+    $s4 ir(s3, remove(same, nw, left(s3)), [implies(nw, implies(pred_n, forall("s", implies(succ_sn, pred_s))))], implies(nw, implies(pred_n, forall("s", implies(succ_sn, pred_s)))))
+    $got_step fr(s4, left(s4), [step_hyp], step_hyp, "n")
+
+    $i3 mp(i2, got_step, step_hyp, fa_pred, left(i2), left(got_step))
+
+    # Close: ir ran_fc, f_at_a, func_f, om. fr w, f, a.
+    $ctx_i3 left(i3)
+    $c1 ir(i3, remove(same, om, ctx_i3), [implies(om, fa_pred)], implies(om, fa_pred))
+    $c2 ir(c1, remove(same, ran_fc, left(c1)), [implies(ran_fc, implies(om, fa_pred))], implies(ran_fc, implies(om, fa_pred)))
+    $c3 ir(c2, remove(same, f_at_a, left(c2)), [implies(f_at_a, implies(ran_fc, implies(om, fa_pred)))], implies(f_at_a, implies(ran_fc, implies(om, fa_pred))))
+    $c4 ir(c3, remove(same, func_f, left(c3)), [implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_pred))))], implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_pred)))))
+    $top implies(func_f, implies(f_at_a, implies(ran_fc, implies(om, fa_pred))))
+    close(c4, left(c4), [top], ["a","f","w"])
+}
+

@@ -1,0 +1,335 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, inf_ax, ext_ax, left, right
+from vocab.sets import empty, successor
+from vocab.nat.omega import inductive
+from tactics import ax, wl, wr, fl, fr, ir, nl, nr, mp, cut, close, apply_thm, eel, eir, cut_c
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.empty_unique import empty_unique
+from theorems.sets.successor_unique import successor_unique
+from theorems.logic.ext_substitution import ext_substitution
+
+# Ext, Inf |- exists b. inductive(b)
+#
+# inf_ax: exists b. (exists e. e in b & empty(e)) & (forall y. y in b -> exists s. s in b & succ(s,y))
+# inductive(b) = (forall e. empty(e) -> e in b) & (forall x. x in b -> forall s. succ(s,x) -> s in b)
+#
+# Key conversion: exists witness + uniqueness + ext_substitution -> forall
+
+$infinity_gives_inductive {
+    $inf_f inf_ax
+    $ext_f ext_ax
+
+    # --- Helper: witness_to_forall ---
+    # Given: w0 in b, P(w0), unique(P) (P(a)->P(b)->eqv(a,b))
+    # Derive: forall w. P(w) -> w in b
+    # Via: P(w) -> eqv(w0,w) -> iff(w0 in b, w in b) -> w in b
+
+    # === Part 1: forall e. empty(e) -> e in b ===
+    # From unique_empty: empty(a) -> empty(b) -> eqv(a,b)
+    # From ext_substitution: eqv(a,b) -> iff(a in s, b in s)
+
+    $emp_e0 empty("e0", "_")
+    $emp_e empty("e", "_")
+    $e0_in_b mem("e0", "b")
+    $e_in_b mem("e", "b")
+    $eqv_e0_e eqv("e0", "e", "_")
+
+    # unique_empty: empty(e0) -> empty(e) -> eqv(e0, e)
+    $_ue head(right(empty_unique))
+    $got_ue apply_thm(empty_unique, _ue, ["e0", "e"], ["e0", "b"],
+        \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_"))), [])
+    $imp_emp_eqv implies(emp_e, eqv_e0_e)
+    $got_eqv mp(mp(got_ue, ax([emp_e0], [emp_e0], emp_e0), emp_e0, imp_emp_eqv, [], [emp_e0]),
+                ax([emp_e], [emp_e], emp_e), emp_e, eqv_e0_e, [emp_e0], [emp_e])
+    # [emp_e0, emp_e] |- [eqv_e0_e]
+
+    # ext_substitution: eqv(e0,e) -> iff(e0 in b, e in b)
+    $_es head(right(ext_substitution))
+    $es_ctx left(ext_substitution)
+    $got_es apply_thm(ext_substitution, _es, ["e0", "e", "b"], ["e0", "b", "s"],
+        \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx)
+    $iff_eb iff(e0_in_b, e_in_b)
+    $got_iff mp(got_es, got_eqv, eqv_e0_e, iff_eb, es_ctx, [emp_e0, emp_e])
+    # [ext_f, emp_e0, emp_e] |- [iff_eb]
+
+    # iff forward: e0 in b -> e in b
+    $imp_fwd implies(e0_in_b, e_in_b)
+    $got_fwd mp(iff_elim_left(e0_in_b, e_in_b, []), got_iff, iff_eb, imp_fwd, [], [ext_f, emp_e0, emp_e])
+    # [ext_f, emp_e0, emp_e] |- [e0_in_b -> e_in_b]
+
+    # mp with e0_in_b
+    $got_e_in_b mp(got_fwd, ax([e0_in_b], [e0_in_b], e0_in_b), e0_in_b, e_in_b,
+        [ext_f, emp_e0, emp_e], [e0_in_b])
+    # [ext_f, emp_e0, emp_e, e0_in_b] |- [e_in_b]
+
+    # implies_right: remove emp_e from left
+    $imp_emp_in implies(emp_e, e_in_b)
+    $got_imp_e ir(got_e_in_b, [ext_f, emp_e0, e0_in_b], [imp_emp_in], imp_emp_in)
+    # forall_right: forall e. empty(e) -> e in b
+    $fa_emp_in forall("e", imp_emp_in)
+    $got_part1 fr(got_imp_e, [ext_f, emp_e0, e0_in_b], [fa_emp_in], fa_emp_in, "e")
+    # [ext_f, emp_e0, e0_in_b] |- [fa_emp_in]
+
+    # === Part 2: forall x. x in b -> forall s. succ(s,x) -> s in b ===
+    # From infinity: forall y. y in b -> exists s0. s0 in b & succ(s0, y)
+    # Convert exists s0 to forall s via unique_successor + ext_substitution
+
+    $succ_s0 successor("s0", "x", "_")
+    $succ_s successor("s", "x", "_")
+    $s0_in_b mem("s0", "b")
+    $s_in_b mem("s", "b")
+    $eqv_s0_s eqv("s0", "s", "_")
+
+    # successor_unique: succ(s0,x) -> succ(s,x) -> eqv(s0,s)
+    # The formula has bound var "x" in successor expansion, so use renamed formula
+    $_su forall("a", forall("s1", forall("s2",
+        implies(successor("s1","a","_"), implies(successor("s2","a","_"), eqv("s1","s2","_"))))))
+    $got_us apply_thm(successor_unique, _su, ["x", "s0", "s"], ["x", "s1", "s2"],
+        \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_"))), [])
+    $imp_succ_eqv implies(succ_s, eqv_s0_s)
+    $got_eqvs mp(mp(got_us, ax([succ_s0], [succ_s0], succ_s0), succ_s0, imp_succ_eqv, [], [succ_s0]),
+                 ax([succ_s], [succ_s], succ_s), succ_s, eqv_s0_s, [succ_s0], [succ_s])
+    # [succ_s0, succ_s] |- [eqv_s0_s]
+
+    # ext_substitution: eqv(s0,s) -> iff(s0 in b, s in b)
+    # Renamed formula: ∀a.∀b.∀c. eqv(a,b) → iff(mem(a,c), mem(b,c))
+    $_es2_b \a: \b: \c: implies(eqv(a,b,"_"), iff(mem(a,c), mem(b,c)))
+    $_es2 forall("a", forall("b", forall("c", _es2_b("a")("b")("c"))))
+    $es2_thm wr(ext_substitution, es_ctx, [_es2], _es2)
+    $got_es2 apply_thm(es2_thm, _es2, ["s0", "s", "b"], ["s0", "b", "c"], _es2_b, es_ctx)
+    $iff_sb iff(s0_in_b, s_in_b)
+    $got_iff2 mp(got_es2, got_eqvs, eqv_s0_s, iff_sb, es_ctx, [succ_s0, succ_s])
+    # [ext_f, succ_s0, succ_s] |- [iff_sb]
+
+    $imp_fwd2 implies(s0_in_b, s_in_b)
+    $got_fwd2 mp(iff_elim_left(s0_in_b, s_in_b, []), got_iff2, iff_sb, imp_fwd2, [], [ext_f, succ_s0, succ_s])
+    $got_s_in_b mp(got_fwd2, ax([s0_in_b], [s0_in_b], s0_in_b), s0_in_b, s_in_b,
+        [ext_f, succ_s0, succ_s], [s0_in_b])
+    # [ext_f, succ_s0, succ_s, s0_in_b] |- [s_in_b]
+
+    # implies_right on succ_s, forall_right s
+    $imp_succ_in implies(succ_s, s_in_b)
+    $got_imp_s ir(got_s_in_b, [ext_f, succ_s0, s0_in_b], [imp_succ_in], imp_succ_in)
+    $fa_succ_in forall("s", imp_succ_in)
+    $got_fa_s fr(got_imp_s, [ext_f, succ_s0, s0_in_b], [fa_succ_in], fa_succ_in, "s")
+    # [ext_f, succ_s0, s0_in_b] |- [fa_succ_in]
+
+    # === Combine parts into inductive(b) ===
+    # part1 needs [ext_f, emp_e0, e0_in_b]
+    # part2 (fa_succ_in) needs [ext_f, succ_s0, s0_in_b] but also needs x in b context from infinity
+
+    # inductive(b) = and(fa_emp_in, forall(x, implies(mem(x,b), fa_succ_in)))
+    $x_in_b mem("x", "b")
+    $imp_x_fas implies(x_in_b, fa_succ_in)
+    $fa_x forall("x", imp_x_fas)
+    $ind_b inductive("b", "_")
+
+    # From infinity's second part: forall y. y in b -> exists s0. s0 in b & succ(s0,y)
+    # We have the witness s0. eel on s0:
+    $and_s0 and(s0_in_b, succ_s0)
+
+    # got_fa_s: [ext_f, succ_s0, s0_in_b] |- [fa_succ_in]
+    # Extract from and:
+    $got_s0_in_b2 mp(and_elim_left(s0_in_b, succ_s0, []),
+        ax([and_s0], [and_s0], and_s0), and_s0, s0_in_b, [], [and_s0])
+    $got_succ_s02 mp(and_elim_right(s0_in_b, succ_s0, []),
+        ax([and_s0], [and_s0], and_s0), and_s0, succ_s0, [], [and_s0])
+
+    $got_fa_s2 cut_c(got_s0_in_b2,
+        cut_c(got_succ_s02, got_fa_s, succ_s0, [and_s0], [ext_f, succ_s0, s0_in_b], fa_succ_in),
+        s0_in_b, [and_s0], [ext_f, and_s0], fa_succ_in)
+    # [ext_f, and_s0] |- [fa_succ_in]
+
+    # eel on s0: [ext_f, exists(s0, and_s0)] |- [fa_succ_in]
+    $ex_s0 exists("s0", and_s0)
+    $got_fa_s3 eel(got_fa_s2, \s0: and(mem(s0, "b"), successor(s0, "x", "_")), "s0", "s0",
+        [ext_f, and_s0], fa_succ_in)
+    # [ext_f, ex_s0] |- [fa_succ_in]
+
+    # implies_right on x_in_b... but we need x_in_b -> ex_s0 from infinity.
+    # inf_ax's second conjunct: forall y. y in b -> exists s0. s0 in b & succ(s0,y)
+    # Instantiate y with x: x in b -> ex_s0
+    $inf_part2 forall("y", implies(mem("y", "b"),
+        exists("s", and(mem("s", "b"),
+            forall("w", iff(mem("w", "s"), or(mem("w", "y"), eqv("w", "y", "_"))))))))
+
+    # Actually, infinity's second part uses "s" and "w" for bound vars.
+    # We need: x in b -> exists s0. s0 in b & succ(s0, x)
+    # succ(s0,x) = forall(w, iff(mem(w,s0), or(mem(w,x), eqv(w,x))))
+    # The infinity axiom says exactly this (with different var names).
+    # The exists "s" in infinity is our s0. The and body matches.
+
+    # Let's work with the actual infinity structure.
+    # inf_part2 instantiated with x: x_in_b -> exists(s, and(s_in_b_inf, succ_like))
+    # The exists body from infinity uses forall("w", iff(mem("w","s"), or(mem("w","y"), eqv("w","y","_"))))
+    # After y->x subst: forall("w", iff(mem("w","s"), or(mem("w","x"), eqv("w","x","_"))))
+    # This IS successor("s","x","_") ... but our succ_s0 uses "_" prefix.
+    # Alpha-equiv should handle it.
+
+    # For now, let's assume we have:
+    # [inf_part2, x_in_b] |- [ex_s0_inf]  (from infinity's second part)
+    # Then eel gives fa_succ_in. Then implies_right gives imp_x_fas. Then forall_right gives fa_x.
+
+    # Actually this is getting too complex to do in one file. Let me simplify.
+    # The infinity axiom IS on the left. We peel it directly.
+
+    # From inf_ax axiom (on left), eel on b to get both parts:
+    # inf = exists(b, and(part1_inf, part2_inf))
+    # part1_inf = exists(e, and(mem(e,b), empty(e)))
+    # part2_inf = forall(y, implies(mem(y,b), exists(s, and(mem(s,b), succ(s,y)))))
+
+    $emp_e0_raw forall("z", neg(mem("z", "e0")))
+    $and_e0 and(e0_in_b, emp_e0_raw)
+    $ex_e0 exists("e0", and_e0)
+
+    $succ_s0_raw forall("w", iff(mem("w","s0"), or(mem("w","x"), eqv("w","x","_"))))
+    $and_s0_raw and(mem("s0","b"), succ_s0_raw)
+    $ex_s0_raw exists("s0", and_s0_raw)
+    $imp_x_exs implies(x_in_b, ex_s0_raw)
+    $fa_y_imp forall("y", implies(mem("y","b"), exists("s0", and(mem("s0","b"),
+        forall("w", iff(mem("w","s0"), or(mem("w","y"), eqv("w","y","_"))))))))
+
+    # The two conjuncts from infinity (after eel on b):
+    $inf_conj and(ex_e0, fa_y_imp)
+
+    # --- Part 1 proof: [ext_f, emp_e0_raw, e0_in_b] |- [fa_emp_in] ---
+    # emp_e0_raw = forall(z, neg(mem(z, e0))) = empty(e0, "_") expansion... wait
+    # empty(e0, "_") = forall("_x", neg(mem("_x", "e0"))). That uses "_x" not "z".
+    # emp_e0_raw uses "z". These are alpha-equivalent but different .min formulas.
+    # Let me use the raw form from infinity.
+
+    # Actually, the issue is matching. empty(e0,"_") expands differently from the raw infinity formula.
+    # The infinity axiom uses "z": forall("z", neg(mem("z","e0"))).
+    # empty("e0","_") = forall("_x", neg(mem("_x","e0"))).
+    # These are alpha-equiv. unique_empty uses empty("a") and empty("b") with default prefix.
+
+    # unique_empty: forall(a, forall(b, implies(empty(a), implies(empty(b), eqv(a,b,"_")))))
+    # We need: emp_e0_raw, emp_e -> eqv(e0, e)
+    # emp_e0_raw IS empty(e0) (alpha-equiv). unique_empty takes empty(a) with some prefix.
+    # apply_thm + same() should handle alpha-equiv matching.
+
+    # Actually, the simplest approach: use emp_e0_raw as our emp_e0.
+    # unique_empty instantiated at e0, e:
+    # implies(empty(e0), implies(empty(e), eqv(e0,e)))
+    # Apply with emp_e0_raw as the first argument (alpha-equiv to empty(e0)).
+
+    # Let me redefine: the formulas on the left from infinity use raw structure.
+    # The tactics use same() which handles alpha-equiv.
+
+    # got_eqv already proves [emp_e0, emp_e] |- [eqv_e0_e] where emp_e0 = empty("e0","_")
+    # But the infinity axiom puts emp_e0_raw = forall("z", neg(mem("z","e0"))) on the left.
+    # same(emp_e0, emp_e0_raw) should be true since both flat to forall(v, neg(mem(v, "e0"))).
+
+    # So: got_e_in_b has [ext_f, emp_e0, emp_e, e0_in_b] |- [e_in_b]
+    # We need to weaken/match with the infinity context [ext_f, emp_e0_raw, e0_in_b].
+    # Since same(emp_e0, emp_e0_raw) = true, the kernel should accept it.
+
+    # Let me just use empty("e0") with no prefix so it matches whatever alpha-equiv form.
+
+    # --- Restart with cleaner approach ---
+    # Assume we have from infinity (after eel on b, and_elim):
+    #   [ex_e0] on left for part1  (exists e0. e0 in b & empty(e0))
+    #   [fa_y_imp] on left for part2
+
+    # Part 1: from [ex_e0, ext_f] derive [fa_emp_in]
+    # eel on e0: [e0_in_b, emp_e0_raw, ext_f] |- [fa_emp_in]
+    # We already have got_part1: [ext_f, emp_e0, e0_in_b] |- [fa_emp_in]
+    # emp_e0 and emp_e0_raw are alpha-equiv, so cut_c with and_elim should work.
+
+    # Extract from and_e0:
+    $got_e0_in_b3 mp(and_elim_left(e0_in_b, emp_e0_raw, []),
+        ax([and_e0], [and_e0], and_e0), and_e0, e0_in_b, [], [and_e0])
+    $got_emp_e0_raw mp(and_elim_right(e0_in_b, emp_e0_raw, []),
+        ax([and_e0], [and_e0], and_e0), and_e0, emp_e0_raw, [], [and_e0])
+
+    # got_part1 needs [ext_f, emp_e0, e0_in_b]. We have emp_e0_raw (alpha-equiv to emp_e0).
+    # Substitute into got_part1:
+    $got_p1_from_and cut_c(got_e0_in_b3,
+        cut_c(got_emp_e0_raw, got_part1, emp_e0, [and_e0], [ext_f, emp_e0, e0_in_b], fa_emp_in),
+        e0_in_b, [and_e0], [ext_f, and_e0], fa_emp_in)
+    # [ext_f, and_e0] |- [fa_emp_in]
+
+    # eel on e0:
+    $got_p1_ex eel(got_p1_from_and, \e0: and(mem(e0, "b"), forall("z", neg(mem("z", e0)))),
+        "e0", "e0", [ext_f, and_e0], fa_emp_in)
+    # [ext_f, ex_e0] |- [fa_emp_in]
+
+    # Part 2: from [fa_y_imp, ext_f] derive [fa_x]
+    # fa_y_imp instantiated with x: x_in_b -> ex_s0_raw
+    $got_imp_x fl(ax([imp_x_exs], [imp_x_exs], imp_x_exs), [fa_y_imp], [imp_x_exs], fa_y_imp, "x")
+    # [fa_y_imp] |- [x_in_b -> ex_s0_raw]
+
+    # From ex_s0_raw, eel on s0:
+    # and_s0_raw = and(mem(s0,b), succ_s0_raw)
+    # Extract s0_in_b and succ_s0_raw from and:
+    $got_s0b mp(and_elim_left(mem("s0","b"), succ_s0_raw, []),
+        ax([and_s0_raw], [and_s0_raw], and_s0_raw), and_s0_raw, mem("s0","b"), [], [and_s0_raw])
+    $got_succ_s0r mp(and_elim_right(mem("s0","b"), succ_s0_raw, []),
+        ax([and_s0_raw], [and_s0_raw], and_s0_raw), and_s0_raw, succ_s0_raw, [], [and_s0_raw])
+
+    # got_fa_s: [ext_f, succ_s0, s0_in_b] |- [fa_succ_in]
+    # succ_s0 uses "_" prefix, succ_s0_raw uses "_" prefix. Alpha-equiv.
+    $got_fas_raw cut_c(got_s0b,
+        cut_c(got_succ_s0r, got_fa_s, succ_s0, [and_s0_raw], [ext_f, succ_s0, s0_in_b], fa_succ_in),
+        s0_in_b, [and_s0_raw], [ext_f, and_s0_raw], fa_succ_in)
+    # [ext_f, and_s0_raw] |- [fa_succ_in]
+
+    # eel on s0:
+    $got_fas_ex eel(got_fas_raw,
+        \s0: and(mem(s0, "b"), forall("w", iff(mem("w", s0), or(mem("w", "x"), eqv("w", "x", "_"))))),
+        "s0", "s0", [ext_f, and_s0_raw], fa_succ_in)
+    # [ext_f, ex_s0_raw] |- [fa_succ_in]
+
+    # From [fa_y_imp, x_in_b]: get ex_s0_raw via mp with got_imp_x
+    $got_exs_from_x mp(got_imp_x, ax([x_in_b], [x_in_b], x_in_b), x_in_b, ex_s0_raw,
+        [fa_y_imp], [x_in_b])
+    # [fa_y_imp, x_in_b] |- [ex_s0_raw]
+
+    # cut_c: [ext_f, fa_y_imp, x_in_b] |- [fa_succ_in]
+    $got_fas_x cut_c(got_exs_from_x, got_fas_ex, ex_s0_raw,
+        [fa_y_imp, x_in_b], [ext_f, ex_s0_raw], fa_succ_in)
+
+    # implies_right x_in_b, forall_right x:
+    $got_imp_x2 ir(got_fas_x, [ext_f, fa_y_imp], [imp_x_fas], imp_x_fas)
+    $got_fa_x fr(got_imp_x2, [ext_f, fa_y_imp], [fa_x], fa_x, "x")
+    # [ext_f, fa_y_imp] |- [fa_x]
+
+    # === Combine: and(fa_emp_in, fa_x) = inductive(b) ===
+    # got_p1_ex: [ext_f, ex_e0] |- [fa_emp_in]
+    # got_fa_x: [ext_f, fa_y_imp] |- [fa_x]
+    $got_ind mp(mp(and_intro(fa_emp_in, fa_x, []),
+        got_p1_ex, fa_emp_in, implies(fa_x, ind_b), [], [ext_f, ex_e0]),
+        got_fa_x, fa_x, ind_b, [ext_f, ex_e0], [ext_f, fa_y_imp])
+    # [ext_f, ex_e0, fa_y_imp] |- [ind_b]
+
+    # Get ex_e0 and fa_y_imp from inf_conj via and_elim:
+    $got_ex_e0 mp(and_elim_left(ex_e0, fa_y_imp, []),
+        ax([inf_conj], [inf_conj], inf_conj), inf_conj, ex_e0, [], [inf_conj])
+    $got_fa_y mp(and_elim_right(ex_e0, fa_y_imp, []),
+        ax([inf_conj], [inf_conj], inf_conj), inf_conj, fa_y_imp, [], [inf_conj])
+
+    $got_ind2 cut_c(got_ex_e0,
+        cut_c(got_fa_y, got_ind, fa_y_imp, [inf_conj], [ext_f, ex_e0, fa_y_imp], ind_b),
+        ex_e0, [inf_conj], [ext_f, inf_conj], ind_b)
+    # [ext_f, inf_conj] |- [ind_b]
+
+    # eir: exists b. inductive(b)
+    $goal exists("b", ind_b)
+    $got_ex eir(got_ind2, \b: inductive(b, "_"), "b", "b", [ext_f, inf_conj])
+    # [ext_f, inf_conj] |- [goal]
+
+    # eel on b from infinity:
+    $got_eel_b eel(got_ex, \b: and(
+        exists("e0", and(mem("e0", b), forall("z", neg(mem("z", "e0"))))),
+        forall("y", implies(mem("y", b),
+            exists("s0", and(mem("s0", b),
+                forall("w", iff(mem("w","s0"), or(mem("w","y"), eqv("w","y","_"))))))))),
+        "b", "b", [ext_f, inf_conj], goal)
+    # [ext_f, exists(b, ...)] |- [goal]
+
+    # The exists(b, ...) is the inf_ax axiom itself.
+    # [ext_f, inf_f] |- [goal]
+    close(got_eel_b, [ext_f, inf_f], [goal], [])
+}

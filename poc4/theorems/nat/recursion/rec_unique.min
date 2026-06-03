@@ -1,0 +1,247 @@
+from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, ordered_pair, relation
+from vocab.functions import apply, function, domain
+from vocab.omega import omega
+from vocab.recursion import recursive, total_from
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.functions.apply_intro import apply_intro
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.functions.apply_val_transfer import apply_val_transfer
+from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.recursion.rec_values_agree import rec_values_agree
+from theorems.recursion.rec_apply_dom import rec_apply_dom
+
+# rec_unique: Rec(h)∧Rec(h2)∧Func(f)∧f_at_a∧ran_fc∧Omega(w) → eqv(h,h2)
+$rec_unique {
+    $rec_h recursive("h","a","f","w","_")
+    $rec_h2 recursive("h2","a","f","w","_")
+    $func_f function("f","_")
+    $tf total_from("f","a","_")
+    $f_at_a exists("z", apply("f","a","z","_"))
+    $ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
+    $got_f_at_a mp(and_elim_left(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, f_at_a, [], [tf])
+    $got_ran_fc mp(and_elim_right(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, ran_fc, [], [tf])
+    $om omega("w","_")
+
+    # Extract Function(h), Relation(h), sv(h)
+    $func_h function("h","_")
+    $dom_eq_h forall("d", implies(domain("d","h","_"), eqv("d","w","_")))
+    $base_h forall("e", implies(empty("e","_"), apply("h","e","a","_")))
+    $step_h forall("n", implies(mem("n","w"), forall("val", implies(apply("h","n","val","_"),
+        forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f","val","fval","_"), apply("h","sn","fval","_")))))))))
+    $rest_h and(dom_eq_h, and(base_h, step_h))
+    $got_func_h mp(and_elim_left(func_h, rest_h, []), ax([rec_h], [rec_h], rec_h), rec_h, func_h, [], [rec_h])
+    $rel_h relation("h","_")
+    $sv_h forall("q1", forall("q2", forall("q3", implies(and(apply("h","q1","q2","_"), apply("h","q1","q3","_")), eqv("q2","q3","_")))))
+    $got_rel_h mp(and_elim_left(rel_h, sv_h, []), got_func_h, func_h, rel_h, [], [rec_h])
+    $got_sv_h mp(and_elim_right(rel_h, sv_h, []), got_func_h, func_h, sv_h, [], [rec_h])
+
+    # Extract Function(h2), Relation(h2), sv(h2)
+    $func_h2 function("h2","_")
+    $dom_eq_h2 forall("d", implies(domain("d","h2","_"), eqv("d","w","_")))
+    $base_h2 forall("e", implies(empty("e","_"), apply("h2","e","a","_")))
+    $step_h2 forall("n", implies(mem("n","w"), forall("val", implies(apply("h2","n","val","_"),
+        forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f","val","fval","_"), apply("h2","sn","fval","_")))))))))
+    $rest_h2 and(dom_eq_h2, and(base_h2, step_h2))
+    $got_func_h2 mp(and_elim_left(func_h2, rest_h2, []), ax([rec_h2], [rec_h2], rec_h2), rec_h2, func_h2, [], [rec_h2])
+    $rel_h2 relation("h2","_")
+    $sv_h2 forall("q1", forall("q2", forall("q3", implies(and(apply("h2","q1","q2","_"), apply("h2","q1","q3","_")), eqv("q2","q3","_")))))
+    $got_rel_h2 mp(and_elim_left(rel_h2, sv_h2, []), got_func_h2, func_h2, rel_h2, [], [rec_h2])
+    $got_sv_h2 mp(and_elim_right(rel_h2, sv_h2, []), got_func_h2, func_h2, sv_h2, [], [rec_h2])
+
+    # Instantiate rec_values_agree: ∀n∈w. P(n)
+    $_rva head(right(rec_values_agree))
+    $_rva_b \h: \h2: \a: \f: \w: {
+        $rva_pred \w2 n p: exists(add(p,"y"), and(apply(h,n,add(p,"y"),add(p,"_")),
+            and(apply(h2,n,add(p,"y"),add(p,"_")), exists(add(p,"z"), apply(f,add(p,"y"),add(p,"z"),add(p,"_"))))))
+        implies(recursive(h,a,f,w,"_"), implies(recursive(h2,a,f,w,"_"),
+            implies(function(f,"_"), implies(total_from(f,a,"_"),
+                implies(omega(w,"_"), forall("n", implies(mem("n",w), rva_pred(w,"n","_"))))))))
+    }
+    $rva_inst apply_thm(rec_values_agree, _rva, ["h","h2","a","f","w"], ["h","h2","a","f","w"], _rva_b, left(rec_values_agree))
+    $r1 mp(rva_inst, ax([rec_h], [rec_h], rec_h), rec_h, arg2(head(right(rva_inst))), left(rva_inst), [rec_h])
+    $r2 mp(r1, ax([rec_h2], [rec_h2], rec_h2), rec_h2, arg2(head(right(r1))), left(r1), [rec_h2])
+    $r3 mp(r2, ax([func_f], [func_f], func_f), func_f, arg2(head(right(r2))), left(r2), [func_f])
+    $r4 mp(r3, ax([tf], [tf], tf), tf, arg2(head(right(r3))), left(r3), [tf])
+    $got_rva mp(r4, ax([om], [om], om), om, arg2(head(right(r4))), left(r4), [om])
+
+    # Instantiate rec_apply_dom for h
+    $_rad head(right(rec_apply_dom))
+    # close order is ["w","f","a","h","x","y"] → outermost ∀y, then ∀x, ∀h, ∀a, ∀f, ∀w
+    $_rad_b \y: \x: \h: \a: \f: \w: implies(recursive(h,a,f,w,"_"), implies(apply(h,x,y,"_"), mem(x,w)))
+    $rad_inst apply_thm(rec_apply_dom, _rad, ["yv","xv","h","a","f","w"], ["y","x","h","a","f","w"], _rad_b, left(rec_apply_dom))
+    $got_rad mp(rad_inst, ax([rec_h], [rec_h], rec_h), rec_h, arg2(head(right(rad_inst))), left(rad_inst), [rec_h])
+
+    # Instantiate rec_apply_dom for h2
+    $rad2_inst apply_thm(rec_apply_dom, _rad, ["yv","xv","h2","a","f","w"], ["y","x","h","a","f","w"], _rad_b, left(rec_apply_dom))
+    $got_rad2 mp(rad2_inst, ax([rec_h2], [rec_h2], rec_h2), rec_h2, arg2(head(right(rad2_inst))), left(rad2_inst), [rec_h2])
+
+    # Common formulas
+    $_ai head(right(apply_intro))
+    $_ai_b \p: \f: \x: \y: implies(ordered_pair(p,x,y,"_"), implies(mem(p,f), apply(f,x,y,"_")))
+    $_ou head(right(ordpair_unique))
+    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
+    $_avt head(right(apply_val_transfer))
+    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $_emr head(right(eqv_mem_right))
+    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $_fut head(right(func_unique_thm))
+    $_fut_b \f: \x: \y1: \y2: implies(forall("q1", forall("q2", forall("q3", implies(and(apply(f,"q1","q2","_"), apply(f,"q1","q3","_")), eqv("q2","q3","_"))))), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+
+    $zh mem("z","h")
+    $zh2 mem("z","h2")
+    $opz ordered_pair("z","xv","yv","_")
+    $xvw mem("xv","w")
+    $app_hxy apply("h","xv","yv","_")
+    $app_h2xy apply("h2","xv","yv","_")
+    $app_hxyy apply("h","xv","yy","_")
+    $app_h2xyy apply("h2","xv","yy","_")
+    $pred_xv exists("yy", and(app_hxyy, and(app_h2xyy, exists("zz", apply("f","yy","zz","_")))))
+    $triple_p and(app_hxyy, and(app_h2xyy, exists("zz", apply("f","yy","zz","_"))))
+    $eqv_yy_yv eqv("yy","yv","_")
+
+    # === Forward: z∈h → z∈h2 ===
+
+    # Relation(h) at z: z∈h → ∃xv.∃yv.OrdPair(z,xv,yv)
+    $got_rel_z mp(apply_thm(got_rel_h, rel_h, ["z"], ["z"],
+        \z: implies(mem(z,"h"), exists("xv", exists("yv", ordered_pair(z,"xv","yv","_")))), [rec_h]),
+        ax([zh], [zh], zh), zh, exists("xv", exists("yv", opz)), [rec_h], [zh])
+
+    # Assume OrdPair(z,xv,yv): apply_intro → Apply(h,xv,yv)
+    $got_app mp(mp(apply_thm(apply_intro, _ai, ["z","h","xv","yv"], ["p","f","x","y"], _ai_b, left(apply_intro)),
+        ax([opz], [opz], opz), opz, implies(zh, app_hxy), [], [opz]),
+        ax([zh], [zh], zh), zh, app_hxy, [opz], [zh])
+
+    # rec_apply_dom: Apply(h,xv,yv) → xv∈w
+    $got_xvw mp(got_rad, got_app, app_hxy, xvw, left(got_rad), [opz, zh])
+
+    # rec_values_agree at xv: xv∈w → P(xv)
+    $got_pxv mp(apply_thm(got_rva, head(right(got_rva)), ["xv"], ["xv"],
+        \n: implies(mem(n,"w"), pred_xv), left(got_rva)),
+        got_xvw, xvw, pred_xv, left(got_rva), left(got_xvw))
+
+    # Assume triple_p from P(xv). Extract Apply(h,xv,yy), Apply(h2,xv,yy).
+    $got_app_hxyy mp(and_elim_left(app_hxyy, and(app_h2xyy, exists("zz", apply("f","yy","zz","_"))), []),
+        ax([triple_p], [triple_p], triple_p), triple_p, app_hxyy, [], [triple_p])
+    $got_app_h2xyy mp(and_elim_left(app_h2xyy, exists("zz", apply("f","yy","zz","_")), []),
+        mp(and_elim_right(app_hxyy, and(app_h2xyy, exists("zz", apply("f","yy","zz","_"))), []),
+            ax([triple_p], [triple_p], triple_p), triple_p, and(app_h2xyy, exists("zz", apply("f","yy","zz","_"))), [], [triple_p]),
+        and(app_h2xyy, exists("zz", apply("f","yy","zz","_"))), app_h2xyy, [], [triple_p])
+
+    # sv(h): Apply(h,xv,yy) ∧ Apply(h,xv,yv) → eqv(yy,yv)
+    $fut_inst apply_thm(func_unique_thm, _fut, ["h","xv","yy","yv"], ["h","x","y1","y2"], _fut_b, left(func_unique_thm))
+    $e1 mp(fut_inst, got_sv_h, sv_h, arg2(head(right(fut_inst))), left(fut_inst), [rec_h])
+    $e2 mp(e1, got_app_hxyy, app_hxyy, arg2(head(right(e1))), left(e1), [triple_p])
+    $got_eqv mp(e2, got_app, app_hxy, eqv_yy_yv, left(e2), left(got_app))
+
+    # apply_val_transfer: eqv(yy,yv) → Apply(h2,xv,yy) → Apply(h2,xv,yv)
+    $got_h2xyv mp(mp(apply_thm(apply_val_transfer, _avt, ["h2","xv","yy","yv"], ["h2","x","y","y2"], _avt_b, left(apply_val_transfer)),
+        got_eqv, eqv_yy_yv, implies(app_h2xyy, app_h2xy), [], left(got_eqv)),
+        got_app_h2xyy, app_h2xyy, app_h2xy, left(got_eqv), [triple_p])
+
+    # Open Apply(h2,xv,yv), get OrdPair(p2,xv,yv)∧p2∈h2
+    $app_h2_body \p2: and(ordered_pair(p2,"xv","yv","_"), mem(p2,"h2"))
+    $got_op2 mp(and_elim_left(ordered_pair("p2","xv","yv","_"), mem("p2","h2"), []),
+        ax([app_h2_body("p2")], [app_h2_body("p2")], app_h2_body("p2")),
+        app_h2_body("p2"), ordered_pair("p2","xv","yv","_"), [], [app_h2_body("p2")])
+    $got_p2h2 mp(and_elim_right(ordered_pair("p2","xv","yv","_"), mem("p2","h2"), []),
+        ax([app_h2_body("p2")], [app_h2_body("p2")], app_h2_body("p2")),
+        app_h2_body("p2"), mem("p2","h2"), [], [app_h2_body("p2")])
+
+    # ordpair_unique(p2,z): OrdPair(p2,xv,yv)∧OrdPair(z,xv,yv) → eqv(p2,z)
+    $got_eqv_p2z mp(mp(apply_thm(ordpair_unique, _ou, ["xv","yv","p2","z"], ["a","b","s1","s2"], _ou_b, left(ordpair_unique)),
+        got_op2, ordered_pair("p2","xv","yv","_"), implies(opz, eqv("p2","z","_")), [], [app_h2_body("p2")]),
+        ax([opz], [opz], opz), opz, eqv("p2","z","_"), [app_h2_body("p2")], [opz])
+
+    # eqv_mem_right: eqv(p2,z) → p2∈h2 → z∈h2
+    $emr_inst apply_thm(eqv_mem_right, _emr, ["p2","z","h2"], ["x","y","a"], _emr_b, left(eqv_mem_right))
+    $em1 mp(emr_inst, got_eqv_p2z, eqv("p2","z","_"), arg2(head(right(emr_inst))), left(emr_inst), left(got_eqv_p2z))
+    $got_zh2 mp(em1, got_p2h2, mem("p2","h2"), zh2, left(em1), left(got_p2h2))
+
+    # Close existentials: eel p2, cut Apply; eel yy, cut P; eel yv, xv, cut Rel
+    $got_f1 eel(got_zh2, app_h2_body, "p2", "p2", left(got_zh2), zh2)
+    $got_f2 cut_c(got_h2xyv, got_f1, app_h2xy, left(got_h2xyv), left(got_f1), zh2)
+    $got_f3 eel(got_f2, \yy: and(app_hxyy, and(app_h2xyy, exists("zz", apply("f","yy","zz","_")))),
+        "yy", "yy", left(got_f2), zh2)
+    $got_f4 cut_c(got_pxv, got_f3, pred_xv, left(got_pxv), left(got_f3), zh2)
+    $got_f5 eel(got_f4, \yv: ordered_pair("z","xv",yv,"_"), "yv", "yv", left(got_f4), zh2)
+    $got_f6 eel(got_f5, \xv: exists("yv", ordered_pair("z",xv,"yv","_")), "xv", "xv", left(got_f5), zh2)
+    $got_f7 cut_c(got_rel_z, got_f6, exists("xv", exists("yv", opz)), left(got_rel_z), left(got_f6), zh2)
+    $got_fwd ir(got_f7, remove(same, zh, left(got_f7)), [implies(zh, zh2)], implies(zh, zh2))
+
+    # === Backward: z∈h2 → z∈h (symmetric, swap h↔h2) ===
+    $got_rel2_z mp(apply_thm(got_rel_h2, rel_h2, ["z"], ["z"],
+        \z: implies(mem(z,"h2"), exists("xv", exists("yv", ordered_pair(z,"xv","yv","_")))), [rec_h2]),
+        ax([zh2], [zh2], zh2), zh2, exists("xv", exists("yv", opz)), [rec_h2], [zh2])
+
+    $got_app2 mp(mp(apply_thm(apply_intro, _ai, ["z","h2","xv","yv"], ["p","f","x","y"], _ai_b, left(apply_intro)),
+        ax([opz], [opz], opz), opz, implies(zh2, app_h2xy), [], [opz]),
+        ax([zh2], [zh2], zh2), zh2, app_h2xy, [opz], [zh2])
+
+    $got_xvw2 mp(got_rad2, got_app2, app_h2xy, xvw, left(got_rad2), left(got_app2))
+
+    $got_pxv2 mp(apply_thm(got_rva, head(right(got_rva)), ["xv"], ["xv"],
+        \n: implies(mem(n,"w"), pred_xv), left(got_rva)),
+        got_xvw2, xvw, pred_xv, left(got_rva), left(got_xvw2))
+
+    # From P(xv): Apply(h,xv,yy). sv(h2) + Apply(h2,xv,yy) + Apply(h2,xv,yv) → eqv(yy,yv).
+    # apply_val_transfer: Apply(h,xv,yy) → Apply(h,xv,yv). Then open, ordpair, mem.
+    $fut2_inst apply_thm(func_unique_thm, _fut, ["h2","xv","yy","yv"], ["h","x","y1","y2"], _fut_b, left(func_unique_thm))
+    $er1 mp(fut2_inst, got_sv_h2, sv_h2, arg2(head(right(fut2_inst))), left(fut2_inst), [rec_h2])
+    $er2 mp(er1, got_app_h2xyy, app_h2xyy, arg2(head(right(er1))), left(er1), [triple_p])
+    $got_eqv_rev mp(er2, got_app2, app_h2xy, eqv_yy_yv, left(er2), left(got_app2))
+
+    $avt2_inst apply_thm(apply_val_transfer, _avt, ["h","xv","yy","yv"], ["h","x","y","y2"], _avt_b, left(apply_val_transfer))
+    $av1 mp(avt2_inst, got_eqv_rev, eqv_yy_yv, arg2(head(right(avt2_inst))), left(avt2_inst), left(got_eqv_rev))
+    $got_hxyv mp(av1, got_app_hxyy, app_hxyy, app_hxy, left(av1), [triple_p])
+
+    $app_h_body \p1: and(ordered_pair(p1,"xv","yv","_"), mem(p1,"h"))
+    $got_op1 mp(and_elim_left(ordered_pair("p1","xv","yv","_"), mem("p1","h"), []),
+        ax([app_h_body("p1")], [app_h_body("p1")], app_h_body("p1")),
+        app_h_body("p1"), ordered_pair("p1","xv","yv","_"), [], [app_h_body("p1")])
+    $got_p1h mp(and_elim_right(ordered_pair("p1","xv","yv","_"), mem("p1","h"), []),
+        ax([app_h_body("p1")], [app_h_body("p1")], app_h_body("p1")),
+        app_h_body("p1"), mem("p1","h"), [], [app_h_body("p1")])
+
+    $got_eqv_p1z mp(mp(apply_thm(ordpair_unique, _ou, ["xv","yv","p1","z"], ["a","b","s1","s2"], _ou_b, []),
+        got_op1, ordered_pair("p1","xv","yv","_"), implies(opz, eqv("p1","z","_")), [], [app_h_body("p1")]),
+        ax([opz], [opz], opz), opz, eqv("p1","z","_"), [app_h_body("p1")], [opz])
+
+    $emr2_inst apply_thm(eqv_mem_right, _emr, ["p1","z","h"], ["x","y","a"], _emr_b, left(eqv_mem_right))
+    $em2_1 mp(emr2_inst, got_eqv_p1z, eqv("p1","z","_"), arg2(head(right(emr2_inst))), left(emr2_inst), left(got_eqv_p1z))
+    $got_zh mp(em2_1, got_p1h, mem("p1","h"), zh, left(em2_1), left(got_p1h))
+
+    $got_b1 eel(got_zh, app_h_body, "p1", "p1", left(got_zh), zh)
+    $got_b2 cut_c(got_hxyv, got_b1, app_hxy, left(got_hxyv), left(got_b1), zh)
+    $got_b3 eel(got_b2, \yy: and(app_hxyy, and(app_h2xyy, exists("zz", apply("f","yy","zz","_")))),
+        "yy", "yy", left(got_b2), zh)
+    $got_b4 cut_c(got_pxv2, got_b3, pred_xv, left(got_pxv2), left(got_b3), zh)
+    $got_b5 eel(got_b4, \yv: ordered_pair("z","xv",yv,"_"), "yv", "yv", left(got_b4), zh)
+    $got_b6 eel(got_b5, \xv: exists("yv", ordered_pair("z",xv,"yv","_")), "xv", "xv", left(got_b5), zh)
+    $got_b7 cut_c(got_rel2_z, got_b6, exists("xv", exists("yv", opz)), left(got_rel2_z), left(got_b6), zh)
+    $got_bwd ir(got_b7, remove(same, zh2, left(got_b7)), [implies(zh2, zh)], implies(zh2, zh))
+
+    # === Combine: iff → eqv ===
+    $iff_zh iff(zh, zh2)
+    $got_iff mp(mp(iff_intro(zh, zh2, []),
+        got_fwd, implies(zh, zh2), implies(implies(zh2, zh), iff_zh), [], left(got_fwd)),
+        got_bwd, implies(zh2, zh), iff_zh, left(got_fwd), left(got_bwd))
+    $eqv_hh2 eqv("h","h2","_")
+    $got_eqv_hh2 fr(got_iff, left(got_iff), [eqv_hh2], eqv_hh2, "z")
+
+    # Discharge hypotheses and close
+    $hyps [rec_h, rec_h2, func_f, tf, om]
+    $final wl_all(got_eqv_hh2, left(got_eqv_hh2), [eqv_hh2], diff(same, hyps, left(got_eqv_hh2)))
+    $t1 ir(final, remove(same, om, left(final)), [implies(om, eqv_hh2)], implies(om, eqv_hh2))
+    $t2 ir(t1, remove(same, tf, left(t1)), [implies(tf, implies(om, eqv_hh2))], implies(tf, implies(om, eqv_hh2)))
+    $t3 ir(t2, remove(same, func_f, left(t2)), [implies(func_f, implies(tf, implies(om, eqv_hh2)))], implies(func_f, implies(tf, implies(om, eqv_hh2))))
+    $t4 ir(t3, remove(same, rec_h2, left(t3)), [implies(rec_h2, implies(func_f, implies(tf, implies(om, eqv_hh2))))], implies(rec_h2, implies(func_f, implies(tf, implies(om, eqv_hh2)))))
+    $top implies(rec_h, implies(rec_h2, implies(func_f, implies(tf, implies(om, eqv_hh2)))))
+    $t5 ir(t4, remove(same, rec_h, left(t4)), [top], top)
+    close(t5, left(t5), [top], ["w","f","a","h2","h"])
+}

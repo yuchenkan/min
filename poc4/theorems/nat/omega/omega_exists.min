@@ -1,0 +1,337 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, sep_ax, left, right
+from vocab.sets import empty, successor, subset
+from vocab.nat.omega import inductive, omega
+from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.nat.omega.infinity_gives_inductive import infinity_gives_inductive
+from theorems.nat.omega.omega_contains_empty import omega_contains_empty
+from theorems.nat.omega.omega_succ_closed import omega_succ_closed
+
+# Ext, Inf, Sep |- exists w. omega(w)
+#
+# Strategy:
+# 1. infinity_gives_inductive: ∃b. inductive(b)
+# 2. Separation on b with phi(x) = ∀c. inductive(c) → x∈c
+#    gives ∃w. ∀x.(x∈w ↔ x∈b ∧ phi(x))
+# 3. Show omega(w) = inductive(w) ∧ ∀c.(inductive(c) → subset(w,c))
+#
+# For smallest: if inductive(c), x∈w → phi(x) → x∈c. So subset(w,c).
+#
+# For inductive(w):
+#   empty part: empty(e) → e∈b (b inductive) ∧ ∀c.inductive(c)→e∈c (any inductive has empty)
+#               → e∈w (by char backward)
+#   succ part: n∈w → succ(s,n) → s∈b (b inductive, n∈b) ∧ ∀c.inductive(c)→s∈c
+#               → s∈w (by char backward)
+
+$omega_exists {
+    # phi(x) = forall c. inductive(c) -> x in c
+    # Using prefix "_" for inductive to avoid clash
+    $phi \x: forall("c", implies(inductive("c", "_"), mem(x, "c")))
+
+    # Separation: ∀a. ∃w. ∀x. (x∈w ↔ x∈a ∧ phi(x))
+    $sep_f sep_ax([], \x a p: phi(x), "_")
+
+    # Instantiate sep with b: ∃w. ∀x. (x∈w ↔ x∈b ∧ phi(x))
+    $sep_ctx [sep_f]
+    $got_sep apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, ["b"], ["b"],
+        \a: exists("s", forall("x", iff(mem("x","s"), and(mem("x",a), phi("x"))))), [sep_f])
+    # [sep_f] |- [∃w. ∀x. (x∈w ↔ x∈b ∧ phi(x))]
+
+    # The characterization of w:
+    $xw mem("x", "w")
+    $xb mem("x", "b")
+    $phi_x phi("x")
+    $and_xb_phi and(xb, phi_x)
+    $char_body iff(xw, and_xb_phi)
+    $char forall("x", char_body)
+
+    # From char, instantiate with x: iff(x∈w, x∈b ∧ phi(x))
+    # iff forward: x∈w → x∈b ∧ phi(x)
+    # iff backward: x∈b ∧ phi(x) → x∈w
+
+    # === Part: smallest — ∀d. inductive(d) → subset(w, d) ===
+    # If inductive(d), x∈w → phi(x) → inductive(d)→x∈d → x∈d
+    $ind_d inductive("d", "_")
+    $xd mem("x", "d")
+    $sub_wd subset("w", "d", "_")
+
+    # char instantiated: [char] |- iff(xw, and_xb_phi)
+    $char_inst fl(ax([char_body], [char_body], char_body), [char], [char_body], char, "x")
+
+    # forward: xw → and_xb_phi
+    $imp_fwd implies(xw, and_xb_phi)
+    $got_fwd mp(iff_elim_left(xw, and_xb_phi, []), char_inst, char_body, imp_fwd, [], [char])
+
+    # extract phi_x from and
+    $got_and mp(got_fwd, ax([xw], [xw], xw), xw, and_xb_phi, [char], [xw])
+    $got_phi mp(and_elim_right(xb, phi_x, []), got_and, and_xb_phi, phi_x, [], [char, xw])
+    # [char, xw] |- phi_x
+
+    # phi_x instantiated with d: inductive(d) → x∈d
+    $imp_ind_xd implies(ind_d, xd)
+    $got_imp_d apply_thm(got_phi, phi_x, ["d"], ["d"],
+        \c: implies(inductive(c,"_"), mem("x",c)), [char, xw])
+    $got_xd mp(got_imp_d, ax([ind_d], [ind_d], ind_d), ind_d, xd, [char, xw], [ind_d])
+    # [char, xw, ind_d] |- xd
+
+    # implies_right xw → xd, forall x → subset(w,d)
+    $imp_xw_xd implies(xw, xd)
+    $got_imp_xw ir(got_xd, [char, ind_d], [imp_xw_xd], imp_xw_xd)
+    $got_sub fr(got_imp_xw, [char, ind_d], [sub_wd], sub_wd, "x")
+    # [char, ind_d] |- subset(w,d)
+
+    $imp_ind_sub implies(ind_d, sub_wd)
+    $got_smallest ir(got_sub, [char], [imp_ind_sub], imp_ind_sub)
+    $fa_smallest forall("d", imp_ind_sub)
+    $got_fa_smallest fr(got_smallest, [char], [fa_smallest], fa_smallest, "d")
+    # [char] |- ∀d. inductive(d) → subset(w,d)
+
+    # === Part: inductive(w) ===
+    # Need: (∀e. empty(e)→e∈w) ∧ (∀n. n∈w → ∀s. succ(s,n)→s∈w)
+    #
+    # For empty: empty(e) → e∈b (b inductive) ∧ phi(e) → e∈w (char backward)
+    # For succ: n∈w → n∈b ∧ phi(n). succ(s,n) → s∈b (b inductive) ∧ phi(s) → s∈w
+    #   phi(s): ∀c. inductive(c) → s∈c. From n∈c (phi(n) gives this) + inductive(c) → s∈c.
+
+    # backward: x∈b ∧ phi(x) → x∈w
+    $imp_bwd implies(and_xb_phi, xw)
+    $got_bwd mp(iff_elim_right(xw, and_xb_phi, []), char_inst, char_body, imp_bwd, [], [char])
+    # [char] |- and_xb_phi → xw
+
+    # --- Empty part ---
+    $eb mem("e", "b")
+    $ew mem("e", "w")
+    $emp empty("e", "_")
+    $phi_e phi("e")
+    $and_eb_phi and(eb, phi_e)
+
+    # omega_contains_empty: omega(c) → empty(e) → e∈c
+    # But we don't have omega yet — we need: inductive(c) → empty(e) → e∈c
+    # From inductive(c), extract part1: ∀e. empty(e)→e∈c
+    # inductive(c,"_") = and(part1_c, part2_c)
+    $ind_c inductive("c", "_")
+    $part1_c forall("q1", implies(empty("q1", "_"), mem("q1", "c")))
+    $part2_c forall("q2", implies(mem("q2", "c"), forall("q3", implies(successor("q3", "q2", "_"), mem("q3", "c")))))
+
+    # For phi(e): ∀c. inductive(c) → e∈c
+    # From inductive(c): part1_c instantiated with e: empty(e) → e∈c
+    # So: empty(e) ∧ inductive(c) → e∈c
+    $got_p1c mp(and_elim_left(part1_c, part2_c, []),
+        ax([ind_c], [ind_c], ind_c), ind_c, part1_c, [], [ind_c])
+    $imp_emp_ec implies(emp, mem("e", "c"))
+    $got_emp_ec apply_thm(got_p1c, part1_c, ["e"], ["e"],
+        \q: implies(empty(q,"_"), mem(q,"c")), [ind_c])
+    $got_ec mp(got_emp_ec, ax([emp], [emp], emp), emp, mem("e","c"), [ind_c], [emp])
+    # [ind_c, emp] |- e∈c
+
+    # implies_right on ind_c, forall c → phi(e)
+    $imp_ind_ec implies(ind_c, mem("e","c"))
+    $got_phi_e_inner ir(got_ec, [emp], [imp_ind_ec], imp_ind_ec)
+    $got_phi_e fr(got_phi_e_inner, [emp], [phi_e], phi_e, "c")
+    # [emp] |- phi(e)
+
+    # For e∈b: same argument with ind_b
+    # We have ind_b on left from infinity. Let's keep it as hypothesis for now.
+    $ind_b inductive("b", "_")
+    $part1_b forall("q1", implies(empty("q1", "_"), mem("q1", "b")))
+    $part2_b forall("q2", implies(mem("q2", "b"), forall("q3", implies(successor("q3", "q2", "_"), mem("q3", "b")))))
+    $got_p1b2 mp(and_elim_left(part1_b, part2_b, []),
+        ax([ind_b], [ind_b], ind_b), ind_b, part1_b, [], [ind_b])
+    $got_emp_eb apply_thm(got_p1b2, part1_b, ["e"], ["e"],
+        \q: implies(empty(q,"_"), mem(q,"b")), [ind_b])
+    $got_eb mp(got_emp_eb, ax([emp], [emp], emp), emp, eb, [ind_b], [emp])
+    # [ind_b, emp] |- e∈b
+
+    # and_intro: e∈b ∧ phi(e)
+    $got_and_e mp(mp(and_intro(eb, phi_e, []),
+        got_eb, eb, implies(phi_e, and_eb_phi), [], [ind_b, emp]),
+        got_phi_e, phi_e, and_eb_phi, [ind_b, emp], [emp])
+    # [ind_b, emp] |- and(eb, phi_e)
+
+    # char backward at e: and(eb, phi_e) → ew
+    $char_inst_e fl(ax([iff(ew, and_eb_phi)], [iff(ew, and_eb_phi)], iff(ew, and_eb_phi)),
+        [char], [iff(ew, and_eb_phi)], char, "e")
+    $imp_bwd_e implies(and_eb_phi, ew)
+    $got_bwd_e mp(iff_elim_right(ew, and_eb_phi, []), char_inst_e, iff(ew, and_eb_phi), imp_bwd_e, [], [char])
+    $got_ew mp(got_bwd_e, got_and_e, and_eb_phi, ew, [char], [ind_b, emp])
+    # [char, ind_b, emp] |- ew
+
+    # implies_right emp, forall e
+    $imp_emp_ew implies(emp, ew)
+    $got_emp_imp ir(got_ew, [char, ind_b], [imp_emp_ew], imp_emp_ew)
+    $fa_emp forall("e", imp_emp_ew)
+    $got_fa_emp fr(got_emp_imp, [char, ind_b], [fa_emp], fa_emp, "e")
+    # [char, ind_b] |- ∀e. empty(e) → e∈w
+
+    # --- Succ part ---
+    # n∈w → succ(s,n) → s∈w
+    # From n∈w via char forward: n∈b ∧ phi(n)
+    # succ(s,n) + n∈b + inductive(b) → s∈b
+    # phi(s): ∀c. inductive(c) → s∈c
+    #   from phi(n): inductive(c) → n∈c
+    #   from inductive(c): n∈c + succ(s,n) → s∈c
+    # and(s∈b, phi(s)) → s∈w (char backward)
+
+    $nw mem("n", "w")
+    $nb mem("n", "b")
+    $sw mem("s", "w")
+    $sb mem("s", "b")
+    $succ_sn successor("s", "n", "_")
+    $phi_n phi("n")
+    $phi_s phi("s")
+    $and_nb_phi and(nb, phi_n)
+    $and_sb_phis and(sb, phi_s)
+
+    # char forward at n
+    $char_inst_n fl(ax([iff(nw, and_nb_phi)], [iff(nw, and_nb_phi)], iff(nw, and_nb_phi)),
+        [char], [iff(nw, and_nb_phi)], char, "n")
+    $imp_fwd_n implies(nw, and_nb_phi)
+    $got_fwd_n mp(iff_elim_left(nw, and_nb_phi, []), char_inst_n, iff(nw, and_nb_phi), imp_fwd_n, [], [char])
+    $got_and_n mp(got_fwd_n, ax([nw], [nw], nw), nw, and_nb_phi, [char], [nw])
+    # [char, nw] |- and(nb, phi_n)
+
+    $got_nb mp(and_elim_left(nb, phi_n, []), got_and_n, and_nb_phi, nb, [], [char, nw])
+    $got_phi_n mp(and_elim_right(nb, phi_n, []), got_and_n, and_nb_phi, phi_n, [], [char, nw])
+    # [char, nw] |- nb
+    # [char, nw] |- phi_n
+
+    # s∈b: from ind_b, nb, succ(s,n) → s∈b
+    $got_p2b mp(and_elim_right(part1_b, part2_b, []),
+        ax([ind_b], [ind_b], ind_b), ind_b, part2_b, [], [ind_b])
+    $fa_s_b forall("q3", implies(successor("q3", "n", "_"), mem("q3", "b")))
+    $got_p2b_n apply_thm(got_p2b, part2_b, ["n"], ["n"],
+        \q: implies(mem(q,"b"), forall("q3", implies(successor("q3",q,"_"), mem("q3","b")))), [ind_b])
+    $got_fas_b mp(got_p2b_n, got_nb, nb, fa_s_b, [ind_b], [char, nw])
+    $imp_succ_sb implies(succ_sn, sb)
+    $got_sb_inst apply_thm(got_fas_b, fa_s_b, ["s"], ["s"],
+        \q: implies(successor(q,"n","_"), mem(q,"b")), [ind_b, char, nw])
+    $got_sb mp(got_sb_inst, ax([succ_sn], [succ_sn], succ_sn), succ_sn, sb,
+        [ind_b, char, nw], [succ_sn])
+    # [ind_b, char, nw, succ_sn] |- sb
+
+    # phi(s): ∀c. inductive(c) → s∈c
+    # From phi(n): inductive(c) → n∈c
+    # From inductive(c) part2: n∈c → ∀s. succ(s,n) → s∈c
+    $nc mem("n", "c")
+    $sc mem("s", "c")
+    $imp_ind_nc implies(ind_c, nc)
+    $got_phi_n_c apply_thm(got_phi_n, phi_n, ["c"], ["c"],
+        \c: implies(inductive(c,"_"), mem("n",c)), [char, nw])
+    $got_nc mp(got_phi_n_c, ax([ind_c], [ind_c], ind_c), ind_c, nc, [char, nw], [ind_c])
+    # [char, nw, ind_c] |- nc
+
+    $got_p2c mp(and_elim_right(part1_c, part2_c, []),
+        ax([ind_c], [ind_c], ind_c), ind_c, part2_c, [], [ind_c])
+    $fa_s_c forall("q3", implies(successor("q3", "n", "_"), mem("q3", "c")))
+    $got_p2c_n apply_thm(got_p2c, part2_c, ["n"], ["n"],
+        \q: implies(mem(q,"c"), forall("q3", implies(successor("q3",q,"_"), mem("q3","c")))), [ind_c])
+    $got_fas_c mp(got_p2c_n, got_nc, nc, fa_s_c, [ind_c], [char, nw, ind_c])
+    # Hmm, nc is on the left of got_nc but we need it for mp. Let me fix:
+    # got_p2c_n: [ind_c] |- [nc → fa_s_c]
+    # got_nc: [char, nw, ind_c] |- [nc]
+    $got_fas_c2 mp(got_p2c_n, got_nc, nc, fa_s_c, [ind_c], [char, nw, ind_c])
+    $imp_succ_sc implies(succ_sn, sc)
+    $got_sc_inst apply_thm(got_fas_c2, fa_s_c, ["s"], ["s"],
+        \q: implies(successor(q,"n","_"), mem(q,"c")), [ind_c, char, nw])
+    $got_sc mp(got_sc_inst, ax([succ_sn], [succ_sn], succ_sn), succ_sn, sc,
+        [ind_c, char, nw], [succ_sn])
+    # [ind_c, char, nw, succ_sn] |- sc
+
+    # implies_right ind_c, forall c → phi(s)
+    $imp_ind_sc implies(ind_c, sc)
+    $got_phi_s_inner ir(got_sc, [char, nw, succ_sn], [imp_ind_sc], imp_ind_sc)
+    $got_phi_s fr(got_phi_s_inner, [char, nw, succ_sn], [phi_s], phi_s, "c")
+    # [char, nw, succ_sn] |- phi(s)
+
+    # and(sb, phi_s)
+    $got_and_s mp(mp(and_intro(sb, phi_s, []),
+        got_sb, sb, implies(phi_s, and_sb_phis), [], [ind_b, char, nw, succ_sn]),
+        got_phi_s, phi_s, and_sb_phis, [ind_b, char, nw, succ_sn], [char, nw, succ_sn])
+    # [ind_b, char, nw, succ_sn] |- and(sb, phi_s)
+
+    # char backward at s
+    $char_inst_s fl(ax([iff(sw, and_sb_phis)], [iff(sw, and_sb_phis)], iff(sw, and_sb_phis)),
+        [char], [iff(sw, and_sb_phis)], char, "s")
+    $imp_bwd_s implies(and_sb_phis, sw)
+    $got_bwd_s mp(iff_elim_right(sw, and_sb_phis, []), char_inst_s, iff(sw, and_sb_phis), imp_bwd_s, [], [char])
+    $got_sw mp(got_bwd_s, got_and_s, and_sb_phis, sw, [char], [ind_b, char, nw, succ_sn])
+    # [ind_b, char, nw, succ_sn] |- sw
+
+    # implies_right succ_sn, forall s, implies_right nw, forall n
+    $imp_succ_sw implies(succ_sn, sw)
+    $got_succ_imp ir(got_sw, [ind_b, char, nw], [imp_succ_sw], imp_succ_sw)
+    $fa_s_imp forall("s", imp_succ_sw)
+    $got_fa_s fr(got_succ_imp, [ind_b, char, nw], [fa_s_imp], fa_s_imp, "s")
+    $imp_nw_fas implies(nw, fa_s_imp)
+    $got_nw_imp ir(got_fa_s, [ind_b, char], [imp_nw_fas], imp_nw_fas)
+    $fa_n_imp forall("n", imp_nw_fas)
+    $got_fa_n fr(got_nw_imp, [ind_b, char], [fa_n_imp], fa_n_imp, "n")
+    # [ind_b, char] |- ∀n. n∈w → ∀s. succ(s,n) → s∈w
+
+    # === Combine into inductive(w) ===
+    $ind_w inductive("w", "_")
+    # inductive(w) = and(fa_emp_part, fa_succ_part)
+    # fa_emp = ∀e. empty(e) → e∈w  (with inductive's prefix)
+    # fa_succ = ∀x. x∈w → ∀s. succ(s,x) → s∈w (with inductive's prefix)
+    # These need to match inductive(w)'s expansion.
+    # inductive("w") with default prefix uses e, x, s.
+    # fa_emp uses "e", "empty with __", got_fa_emp ok
+    # fa_n_imp uses "n", "s" but inductive uses "x", "s"
+    # Alpha-equiv should handle the var name differences.
+
+    $ind_part1 forall("e", implies(empty("e", "_"), mem("e", "w")))
+    $ind_part2 forall("x", implies(mem("x", "w"), forall("s", implies(successor("s", "x", "_"), mem("s", "w")))))
+
+    $got_ind mp(mp(and_intro(ind_part1, ind_part2, []),
+        got_fa_emp, ind_part1, implies(ind_part2, ind_w), [], [char, ind_b]),
+        got_fa_n, ind_part2, ind_w, [char, ind_b], [ind_b, char])
+    # [char, ind_b] |- ind_w
+
+    # === Combine into omega(w) ===
+    # omega(w) = and(inductive(w, "_"), ∀d. inductive(d,"_") → subset(w,d,"_"))
+    $om omega("w", "_")
+    $om_part1 inductive("w", "_")
+    $om_part2 forall("d", implies(inductive("d", "_"), subset("w", "d", "_")))
+
+    # got_ind: [char, ind_b] |- ind_w
+    # got_fa_smallest: [char] |- ∀d...
+    # ind_w and om_part1 should be alpha-equiv (different prefix, same structure)
+
+    $got_om mp(mp(and_intro(om_part1, om_part2, []),
+        got_ind, om_part1, implies(om_part2, om), [], [char, ind_b]),
+        got_fa_smallest, om_part2, om, [char, ind_b], [char])
+    # [char, ind_b] |- omega(w)
+
+    # eir: exists w. omega(w)
+    $goal exists("w", om)
+    $got_ex eir(got_om, \w: omega(w, "_"), "w", "w", [char, ind_b])
+    # [char, ind_b] |- goal
+
+    # eel on w from sep_ax
+    $got_eel_w eel(got_ex, \w: forall("x", iff(mem("x",w), and(mem("x","b"), phi("x")))),
+        "w", "w", [char, ind_b], goal)
+    # [exists(w, char), ind_b] |- goal
+
+    # Get exists(w, char) from sep
+    $ex_char exists("w", char)
+    $got_cut_sep cut_c(got_sep, got_eel_w, ex_char, [sep_f], [ex_char, ind_b], goal)
+    # [sep_f, ind_b] |- goal
+
+    # eel on b from infinity_gives_inductive
+    $igi_ctx left(infinity_gives_inductive)
+    $igi_f head(right(infinity_gives_inductive))
+    $got_eel_b eel(got_cut_sep, \b: inductive(b, "_"), "b", "b", [sep_f, ind_b], goal)
+    # [sep_f, exists(b, ind_b)] |- goal
+
+    $ex_ind exists("b", inductive("b", "_"))
+    $got_cut_igi cut_c(infinity_gives_inductive, got_eel_b, ex_ind, igi_ctx, [sep_f, ex_ind], goal)
+    # [igi_ctx..., sep_f] |- goal
+
+    $all_ctx add(igi_ctx, [sep_f])
+    close(got_cut_igi, all_ctx, [goal], [])
+}

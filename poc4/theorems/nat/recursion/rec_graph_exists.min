@@ -1,0 +1,22 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2, sep_ax, power_ax
+from vocab.sets import empty, successor, ordered_pair, big_union, union
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import rec_approx
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
+
+# Sep |- ∀w,f,a. ∃h. ∀p. p∈h ↔ (p∈ppb ∧ ∃n.(n∈w ∧ ∃v.∃y.(ra(v)∧app(v,n,y)∧op(p,n,y))))
+# ppb is a free parameter (caller provides P(P(w∪∪∪f)) from power axiom).
+# The p∈ppb conjunct is from Separation's domain. It's redundant (via ordpair_bounded)
+# but kept — the recursion_theorem works with it directly.
+$rec_graph_exists {
+    $phi_fn \p a_dom np: exists(add(np,"n"), and(mem(add(np,"n"),"w"),
+        exists(add(np,"v"), exists(add(np,"y"), and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+            apply(add(np,"v"),add(np,"n"),add(np,"y"),add(np,"_"))), ordered_pair(p,add(np,"n"),add(np,"y"),add(np,"_")))))))
+    $sep sep_ax(["a","f","w"], phi_fn, "_")
+    $got_sep apply_thm(ax([sep], [sep], sep), sep, ["w","f","a","ppb"], ["w","f","a","d"],
+        \w: \f: \a: \dom: exists("b", forall("p", iff(mem("p","b"), and(mem("p",dom),
+            phi_fn("p", dom, "_"))))), [sep])
+    $sep_result head(right(got_sep))
+    close(got_sep, [sep], [sep_result], ["ppb","a","f","w"])
+}

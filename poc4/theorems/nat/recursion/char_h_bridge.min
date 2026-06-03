@@ -1,0 +1,203 @@
+from core.derived import mem, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from vocab.sets import empty, successor, ordered_pair, big_union, union, power_set
+from vocab.functions import apply, function
+from vocab.omega import omega
+from vocab.recursion import rec_approx
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.sets.ordpair_bounded import ordpair_bounded
+from theorems.functions.apply_in_double_union import apply_in_double_union
+
+# char_h_bridge: char_h_ppb ∧ set_conditions → char_h
+# Bridges the separation-based char (with p∈ppb) to the simple char (without ppb).
+
+$char_h_bridge {
+    $phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
+        and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+            apply(add(np,"v"),m,add(np,"y"),add(np,"_"))),
+            ordered_pair(p,m,add(np,"y"),add(np,"_")))))
+
+    $char_h_ppb forall("p", iff(mem("p","h"), and(mem("p","ppb"), exists("m", and(mem("m","w"), phi("m","p","_"))))))
+    $char_h forall("p", iff(mem("p","h"), exists("m", and(mem("m","w"), phi("m","p","_")))))
+
+    $bu_uf big_union("uf","f","_")
+    $bu_uuf big_union("uuf","uf","_")
+    $un_big union("big","w","uuf","_")
+    $ps_pb power_set("pb","big","_")
+    $ps_ppb power_set("ppb","pb","_")
+
+    $ph mem("p","h")
+    $p_ppb mem("p","ppb")
+    $phi_p exists("m", and(mem("m","w"), phi("m","p","_")))
+    $and_ppb_phi and(p_ppb, phi_p)
+
+    # === Forward: p∈h → phi_p ===
+    $iff_ppb iff(ph, and_ppb_phi)
+    $got_iff_ppb fl(ax([iff_ppb], [iff_ppb], iff_ppb), [char_h_ppb], [iff_ppb], char_h_ppb, "p")
+    $got_fwd_and mp(mp(iff_elim_left(ph, and_ppb_phi, []),
+        got_iff_ppb, iff_ppb, implies(ph, and_ppb_phi), [], [char_h_ppb]),
+        ax([ph], [ph], ph), ph, and_ppb_phi, [char_h_ppb], [ph])
+    $got_fwd_phi mp(and_elim_right(p_ppb, phi_p, []),
+        got_fwd_and, and_ppb_phi, phi_p, [], [char_h_ppb, ph])
+    $got_fwd ir(got_fwd_phi, remove(same, ph, left(got_fwd_phi)),
+        [implies(ph, phi_p)], implies(ph, phi_p))
+
+    # === Backward: phi_p → p∈ppb → p∈h ===
+    # Use eigenvars "mv","vv","yv" to avoid clashing with theorem bound vars.
+    $mw mem("mv","w")
+    $ra_vv rec_approx("vv","a","f","w","_")
+    $app_vmy apply("vv","mv","yv","_")
+    $op_pmy ordered_pair("p","mv","yv","_")
+    $and_ra_app and(ra_vv, app_vmy)
+    $and_all and(and_ra_app, op_pmy)
+
+    # Extract from and_all:
+    $got_ra mp(and_elim_left(and_ra_app, op_pmy, []),
+        ax([and_all], [and_all], and_all), and_all, and_ra_app, [], [and_all])
+    $got_ra_vv mp(and_elim_left(ra_vv, app_vmy, []), got_ra, and_ra_app, ra_vv, [], [and_all])
+    $got_app_vmy mp(and_elim_right(ra_vv, app_vmy, []), got_ra, and_ra_app, app_vmy, [], [and_all])
+    $got_op mp(and_elim_right(and_ra_app, op_pmy, []),
+        ax([and_all], [and_all], and_all), and_all, op_pmy, [], [and_all])
+
+    # Extract ran_sub from RA(vv):
+    $func_vv function("vv","_")
+    $ran_sub_vv forall("_x", forall("_y", implies(apply("vv","_x","_y","__"), exists("_z", apply("f","_y","_z","__")))))
+    $dom_sub_vv forall("_x", implies(exists("_y", apply("vv","_x","_y","__")), mem("_x","w")))
+    $base_vv forall("_e", implies(empty("_e","__"), implies(exists("_y", apply("vv","_e","_y","__")), apply("vv","_e","a","__"))))
+    $step_vv forall("_n", implies(mem("_n","w"), forall("_sn", implies(successor("_sn","_n","__"),
+        implies(exists("_y", apply("vv","_sn","_y","__")),
+            and(exists("_y", apply("vv","_n","_y","__")),
+                forall("_val", implies(apply("vv","_n","_val","__"),
+                    forall("_fval", implies(apply("f","_val","_fval","__"),
+                        apply("vv","_sn","_fval","__")))))))))))
+    $rest1_vv and(dom_sub_vv, and(ran_sub_vv, and(base_vv, step_vv)))
+    $rest2_vv and(ran_sub_vv, and(base_vv, step_vv))
+
+    $got_rest1_vv mp(and_elim_right(func_vv, rest1_vv, []),
+        got_ra_vv, ra_vv, rest1_vv, [], [and_all])
+    $got_rest2_vv mp(and_elim_right(dom_sub_vv, rest2_vv, []),
+        got_rest1_vv, rest1_vv, rest2_vv, [], [and_all])
+    $got_ran_sub mp(and_elim_left(ran_sub_vv, and(base_vv, step_vv), []),
+        got_rest2_vv, rest2_vv, ran_sub_vv, [], [and_all])
+
+    # Instantiate ran_sub at mv,yv: Apply(vv,mv,yv) → ∃z.Apply(f,yv,z)
+    $ran_inst1 apply_thm(got_ran_sub, ran_sub_vv, ["mv"], ["mv"],
+        \x: forall("_y", implies(apply("vv",x,"_y","__"), exists("_z", apply("f","_y","_z","__")))), [and_all])
+    $ran_inst2 apply_thm(ran_inst1, head(right(ran_inst1)), ["yv"], ["yv"],
+        \y: implies(apply("vv","mv",y,"__"), exists("_z", apply("f",y,"_z","__"))), [and_all])
+    $ex_fyz arg2(head(right(ran_inst2)))
+    $got_ex_fyz mp(ran_inst2, got_app_vmy, app_vmy, ex_fyz, [and_all], [and_all])
+    # [and_all] |- ∃z.Apply(f,yv,z)
+
+    # apply_in_double_union: ∀f.∀x.∀y.∀uf.∀uuf. Apply(f,x,y)→BU(uf,f)→BU(uuf,uf)→x∈uuf
+    # Instantiate: f→"f", x→"yv", y→"zv", uf→"uf", uuf→"uuf"
+    # "yv" doesn't clash with bound ∀y (which is the 3rd forall var)
+    $_aidu head(right(apply_in_double_union))
+    $_aidu_b \ff: \xx: \yy: \uf: \uuf: implies(apply(ff,xx,yy,"_"), implies(big_union(uf,ff,"_"), implies(big_union(uuf,uf,"_"), mem(xx,uuf))))
+    $yv_uuf mem("yv","uuf")
+    $aidu_inst apply_thm(apply_in_double_union, _aidu, ["f","yv","zv","uf","uuf"], ["ff","xx","yy","uf","uuf"], _aidu_b, left(apply_in_double_union))
+    $app_fyz_inst apply("f","yv","zv","_")
+    $a1 mp(aidu_inst, ax([app_fyz_inst], [app_fyz_inst], app_fyz_inst), app_fyz_inst, arg2(head(right(aidu_inst))), left(aidu_inst), [app_fyz_inst])
+    $a2 mp(a1, ax([bu_uf], [bu_uf], bu_uf), bu_uf, arg2(head(right(a1))), left(a1), [bu_uf])
+    $got_yv_uuf mp(a2, ax([bu_uuf], [bu_uuf], bu_uuf), bu_uuf, yv_uuf, left(a2), [bu_uuf])
+    # [app_fyz_inst, bu_uf, bu_uuf] |- yv∈uuf
+
+    # eel zv: ∃zv.Apply(f,yv,zv) → yv∈uuf
+    $got_yv_uuf2 eel(got_yv_uuf, \zv: apply("f","yv",zv,"_"), "zv", "zv", left(got_yv_uuf), yv_uuf)
+    $got_yv_uuf3 cut_c(got_ex_fyz, got_yv_uuf2, ex_fyz, left(got_ex_fyz), left(got_yv_uuf2), yv_uuf)
+    # [and_all, bu_uf, bu_uuf] |- yv∈uuf
+
+    # yv∈uuf → yv∈big via union(big,w,uuf)
+    $yv_big mem("yv","big")
+    $iff_yv iff(yv_big, or(mem("yv","w"), yv_uuf))
+    $got_iff_yv fl(ax([iff_yv], [iff_yv], iff_yv), [un_big], [iff_yv], un_big, "yv")
+    $got_or_yv mp(or_intro_right(mem("yv","w"), yv_uuf, []),
+        got_yv_uuf3, yv_uuf, or(mem("yv","w"), yv_uuf), [], left(got_yv_uuf3))
+    $got_yv_big mp(mp(iff_elim_right(yv_big, or(mem("yv","w"), yv_uuf), []),
+        got_iff_yv, iff_yv, implies(or(mem("yv","w"), yv_uuf), yv_big), [], [un_big]),
+        got_or_yv, or(mem("yv","w"), yv_uuf), yv_big, [un_big], left(got_or_yv))
+
+    # mv∈w → mv∈big via union(big,w,uuf)
+    $mv_big mem("mv","big")
+    $iff_mv iff(mv_big, or(mw, mem("mv","uuf")))
+    $got_iff_mv fl(ax([iff_mv], [iff_mv], iff_mv), [un_big], [iff_mv], un_big, "mv")
+    $got_or_mv mp(or_intro_left(mw, mem("mv","uuf"), []),
+        ax([mw], [mw], mw), mw, or(mw, mem("mv","uuf")), [], [mw])
+    $got_mv_big mp(mp(iff_elim_right(mv_big, or(mw, mem("mv","uuf")), []),
+        got_iff_mv, iff_mv, implies(or(mw, mem("mv","uuf")), mv_big), [], [un_big]),
+        got_or_mv, or(mw, mem("mv","uuf")), mv_big, [un_big], [mw])
+
+    # ordpair_bounded: mv∈big → yv∈big → OrdPair(p,mv,yv) → ps_pb → ps_ppb → p∈ppb
+    $_ob head(right(ordpair_bounded))
+    $_ob_b \ww: \xx: \yy: \pp: \pw: \ppw: implies(mem(xx,ww), implies(mem(yy,ww), implies(ordered_pair(pp,xx,yy,"_"),
+        implies(power_set(pw,ww,"_"), implies(power_set(ppw,pw,"_"), mem(pp,ppw))))))
+    $ob_inst apply_thm(ordpair_bounded, _ob, ["big","mv","yv","p","pb","ppb"], ["ww","xx","yy","pp","pw","ppw"], _ob_b, left(ordpair_bounded))
+    $ob1 mp(ob_inst, got_mv_big, mv_big, arg2(head(right(ob_inst))), left(ob_inst), left(got_mv_big))
+    $ob2 mp(ob1, got_yv_big, yv_big, arg2(head(right(ob1))), left(ob1), left(got_yv_big))
+    $ob3 mp(ob2, got_op, op_pmy, arg2(head(right(ob2))), left(ob2), [and_all])
+    $ob4 mp(ob3, ax([ps_pb], [ps_pb], ps_pb), ps_pb, arg2(head(right(ob3))), left(ob3), [ps_pb])
+    $got_p_ppb mp(ob4, ax([ps_ppb], [ps_ppb], ps_ppb), ps_ppb, p_ppb, left(ob4), [ps_ppb])
+
+    # eel yv, vv from and_all:
+    $got_ppb1 eel(got_p_ppb,
+        \yv: and(and(ra_vv, apply("vv","mv",yv,"_")), ordered_pair("p","mv",yv,"_")),
+        "yv", "yv", left(got_p_ppb), p_ppb)
+    $got_ppb2 eel(got_ppb1,
+        \vv: exists("yv", and(and(rec_approx(vv,"a","f","w","_"), apply(vv,"mv","yv","_")), ordered_pair("p","mv","yv","_"))),
+        "vv", "vv", left(got_ppb1), p_ppb)
+    # left has phi("mv","p","_") and mw. ir phi, ir mw, fr mv.
+    $phi_mv phi("mv","p","_")
+    $d1 ir(got_ppb2, remove(same, phi_mv, left(got_ppb2)), [implies(phi_mv, p_ppb)], implies(phi_mv, p_ppb))
+    $d2 ir(d1, remove(same, mw, left(d1)), [implies(mw, implies(phi_mv, p_ppb))], implies(mw, implies(phi_mv, p_ppb)))
+    $d3 fr(d2, left(d2), [forall("mv", implies(mw, implies(phi_mv, p_ppb)))],
+        forall("mv", implies(mw, implies(phi_mv, p_ppb))), "mv")
+
+    # Open phi_p = ∃m.(m∈w ∧ phi(m,p)). Assume and(mw', phi(mw',p)). mp to get p∈ppb. eel.
+    $and_mw_phi and(mem("mv","w"), phi("mv","p","_"))
+    $got_mw2 mp(and_elim_left(mem("mv","w"), phi("mv","p","_"), []),
+        ax([and_mw_phi], [and_mw_phi], and_mw_phi), and_mw_phi, mem("mv","w"), [], [and_mw_phi])
+    $got_phi2 mp(and_elim_right(mem("mv","w"), phi("mv","p","_"), []),
+        ax([and_mw_phi], [and_mw_phi], and_mw_phi), and_mw_phi, phi("mv","p","_"), [], [and_mw_phi])
+    $d3_inst apply_thm(d3, head(right(d3)), ["mv"], ["mv"],
+        \m: implies(mem(m,"w"), implies(phi(m,"p","_"), p_ppb)), left(d3))
+    $d4 mp(d3_inst, got_mw2, mem("mv","w"), arg2(head(right(d3_inst))), left(d3_inst), [and_mw_phi])
+    $d5 mp(d4, got_phi2, phi("mv","p","_"), p_ppb, left(d4), [and_mw_phi])
+    $d6 eel(d5, \mv: and(mem(mv,"w"), phi(mv,"p","_")), "mv", "mv", left(d5), p_ppb)
+    # [..., phi_p] |- p∈ppb
+
+    # and_intro(p_ppb, phi_p) then char_h_ppb backward → p∈h
+    $got_and_bwd mp(mp(and_intro(p_ppb, phi_p, []),
+        d6, p_ppb, implies(phi_p, and_ppb_phi), [], left(d6)),
+        ax([phi_p], [phi_p], phi_p), phi_p, and_ppb_phi, left(d6), [phi_p])
+    $got_bwd_ph mp(mp(iff_elim_right(ph, and_ppb_phi, []),
+        got_iff_ppb, iff_ppb, implies(and_ppb_phi, ph), [], [char_h_ppb]),
+        got_and_bwd, and_ppb_phi, ph, [char_h_ppb], left(got_and_bwd))
+    $got_bwd ir(got_bwd_ph, remove(same, phi_p, left(got_bwd_ph)),
+        [implies(phi_p, ph)], implies(phi_p, ph))
+
+    # === Combine: iff → char_h ===
+    $iff_h_phi iff(ph, phi_p)
+    $got_iff mp(mp(iff_intro(ph, phi_p, []),
+        got_fwd, implies(ph, phi_p), implies(implies(phi_p, ph), iff_h_phi), [], left(got_fwd)),
+        got_bwd, implies(phi_p, ph), iff_h_phi, left(got_fwd), left(got_bwd))
+    $got_char_h fr(got_iff, left(got_iff), [char_h], char_h, "p")
+
+    # Discharge and close:
+    $hyps [char_h_ppb, bu_uf, bu_uuf, un_big, ps_pb, ps_ppb]
+    $final wl_all(got_char_h, left(got_char_h), [char_h], diff(same, hyps, left(got_char_h)))
+    $s1 ir(final, remove(same, ps_ppb, left(final)), [implies(ps_ppb, char_h)], implies(ps_ppb, char_h))
+    $s2 ir(s1, remove(same, ps_pb, left(s1)), [implies(ps_pb, head(right(s1)))], implies(ps_pb, head(right(s1))))
+    $s3 ir(s2, remove(same, un_big, left(s2)), [implies(un_big, head(right(s2)))], implies(un_big, head(right(s2))))
+    $s4 ir(s3, remove(same, bu_uuf, left(s3)), [implies(bu_uuf, head(right(s3)))], implies(bu_uuf, head(right(s3))))
+    $s5 ir(s4, remove(same, bu_uf, left(s4)), [implies(bu_uf, head(right(s4)))], implies(bu_uf, head(right(s4))))
+    $top implies(char_h_ppb, head(right(s5)))
+    $s6 ir(s5, remove(same, char_h_ppb, left(s5)), [top], top)
+    close(s6, left(s6), [top], ["ppb","pb","big","uuf","uf","w","f","a","h"])
+}

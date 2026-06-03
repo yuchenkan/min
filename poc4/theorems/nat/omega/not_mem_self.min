@@ -1,0 +1,245 @@
+from core.derived import mem, neg, implies, forall, and, or, eqv, left, right
+from vocab.sets import empty, successor
+from vocab.nat.omega import omega
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.neg_mem_empty import neg_mem_empty
+from theorems.sets.mem_succ_self import mem_succ_self
+from theorems.sets.mem_succ_elim import mem_succ_elim
+from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.nat.omega.omega_induction import omega_induction
+
+# Sep, Ext |- forall w. omega(w) → ∀n∈w. ¬(n∈n)
+# pred(v) = ¬(v∈v) ∧ ∀z∈v. ¬(z∈z)
+$not_mem_self {
+    $pred \w v p: {
+        $z add(p, "z")
+        and(neg(mem(v, v)), forall(z, implies(mem(z, v), neg(mem(z, z)))))
+    }
+
+    $ind omega_induction(pred, [], "_")
+    $ind_ctx left(ind)
+    $_ind_f head(right(ind))
+
+    $om omega("w", "_")
+    $nw mem("n", "w")
+    $nn mem("n", "n")
+    $neg_nn neg(nn)
+    $pred_n pred("w", "n", "_")
+    $emp_e empty("e", "_")
+    $pred_e pred("w", "e", "_")
+
+    # === BASE: empty(e) → pred(e) ===
+    $ee mem("e", "e")
+    $ze mem("z", "e")
+    $zz mem("z", "z")
+    $neg_zz neg(zz)
+
+    $_nme head(right(neg_mem_empty))
+    $_nme_b \e: \x: implies(empty(e,"_"), neg(mem(x,e)))
+    $got_neg_ee mp(apply_thm(neg_mem_empty, _nme, ["e", "e"], ["e", "x"], _nme_b, []),
+        ax([emp_e], [emp_e], emp_e), emp_e, neg(ee), [], [emp_e])
+
+    # ∀z∈e.¬(z∈z): vacuous (z∈e impossible)
+    $ax_ze wl(ax([ze], [ze], ze), [emp_e, ze], [ze], emp_e)
+    $got_neg_ze mp(apply_thm(neg_mem_empty, _nme, ["e", "z"], ["e", "x"], _nme_b, []),
+        ax([emp_e], [emp_e], emp_e), emp_e, neg(ze), [], [emp_e])
+    $got_empty cut(wl(got_neg_ze, [emp_e, ze], [neg(ze)], ze),
+        nl(ax_ze, [emp_e, ze, neg(ze)], [], neg(ze)), [emp_e, ze], [], neg(ze))
+    $got_vac wr(got_empty, [emp_e, ze], [neg_zz], neg_zz)
+    $fa_z_e forall("z", implies(ze, neg_zz))
+    $got_fa_z fr(ir(got_vac, [emp_e], [implies(ze, neg_zz)], implies(ze, neg_zz)),
+        [emp_e], [fa_z_e], fa_z_e, "z")
+
+    $got_pred_e mp(mp(and_intro(neg(ee), fa_z_e, []),
+        got_neg_ee, neg(ee), implies(fa_z_e, pred_e), [], [emp_e]),
+        got_fa_z, fa_z_e, pred_e, [emp_e], [emp_e])
+
+    $base_hyp forall("e", implies(emp_e, pred_e))
+    $got_base fr(ir(got_pred_e, [], [implies(emp_e, pred_e)], implies(emp_e, pred_e)),
+        [], [base_hyp], base_hyp, "e")
+
+    # === STEP: n∈w → pred(n) → ∀s. succ(s,n) → pred(s) ===
+    $succ_sn successor("s", "n", "_")
+    $ss mem("s", "s")
+    $neg_ss neg(ss)
+    $pred_s pred("w", "s", "_")
+    $fa_z_n forall("z", implies(mem("z", "n"), neg_zz))
+    $fa_z_s forall("z", implies(mem("z", "s"), neg_zz))
+
+    $got_neg_nn mp(and_elim_left(neg_nn, fa_z_n, []),
+        ax([pred_n], [pred_n], pred_n), pred_n, neg_nn, [], [pred_n])
+    $got_fa_z_n mp(and_elim_right(neg_nn, fa_z_n, []),
+        ax([pred_n], [pred_n], pred_n), pred_n, fa_z_n, [], [pred_n])
+
+    # --- Part 1: ¬(s∈s) ---
+    $sn mem("s", "n")
+    $esn eqv("s", "n", "_")
+    $or_sn or(sn, esn)
+    $_mse head(right(mem_succ_elim))
+    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+    $mse_r forall("x", forall("p", forall("q", _mse_b("x")("p")("q"))))
+    $mse_r_thm wr(mem_succ_elim, [], [mse_r], mse_r)
+    $got_or_s mp(mp(apply_thm(mse_r_thm, mse_r, ["s", "s", "n"], ["s", "p", "q"], _mse_b, []),
+        ax([ss], [ss], ss), ss, implies(succ_sn, or_sn), [], [ss]),
+        ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_sn, [ss], [succ_sn])
+
+    # Case eqv(s,n): n∈s → n∈n via eqv_mem_left. Contradiction.
+    $_mss head(right(mem_succ_self))
+    $ns mem("n", "s")
+    $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
+    $got_ns mp(apply_thm(mem_succ_self, _mss, ["s", "n"], ["s", "n"], _mss_b, []),
+        ax([succ_sn], [succ_sn], succ_sn), succ_sn, ns, [], [succ_sn])
+    $_eml head(right(eqv_mem_left))
+    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $eml_r forall("a", forall("b", forall("q", _eml_b("a")("b")("q"))))
+    $eml_r_thm wr(eqv_mem_left, [], [eml_r], eml_r)
+    $got_nn_esn mp(mp(apply_thm(eml_r_thm, eml_r, ["s", "n", "n"], ["s", "b", "q"], _eml_b, []),
+        ax([esn], [esn], esn), esn, implies(ns, nn), [], [esn]),
+        got_ns, ns, nn, [esn], [succ_sn])
+    $case_esn nl(got_nn_esn, [esn, succ_sn, neg_nn], [], neg_nn)
+
+    # Case s∈n: fa_z_n(s) gives ¬(s∈s). Contradiction.
+    $got_neg_ss_sn mp(fl(ax([implies(sn, neg_ss)], [implies(sn, neg_ss)], implies(sn, neg_ss)),
+        [fa_z_n], [implies(sn, neg_ss)], fa_z_n, "s"),
+        ax([sn], [sn], sn), sn, neg_ss, [fa_z_n], [sn])
+    $ax_ss_w wl_all(ax([ss], [ss], ss), [ss], [ss], [fa_z_n, sn])
+    $case_sn cut(wl(got_neg_ss_sn, [fa_z_n, sn, ss], [neg_ss], ss),
+        nl(ax_ss_w, [fa_z_n, sn, ss, neg_ss], [], neg_ss), [fa_z_n, sn, ss], [], neg_ss)
+
+    # or_elim via il on or_sn = implies(neg(sn), esn)
+    # prf0: [pred_n, succ_sn, ss] |- [neg(sn)]
+    $p1_prf0_base nr(case_sn, [fa_z_n, ss], [neg(sn)], neg(sn))
+    $p1_prf0_for_cut wr(wl_all(got_fa_z_n, [pred_n], [fa_z_n], [succ_sn, ss]),
+        [pred_n, succ_sn, ss], [fa_z_n, neg(sn)], neg(sn))
+    $p1_prf0 cut(p1_prf0_for_cut,
+        wl_all(p1_prf0_base, [fa_z_n, ss], [neg(sn)], [pred_n, succ_sn]),
+        [pred_n, succ_sn, ss], [neg(sn)], fa_z_n)
+
+    # prf1: [pred_n, succ_sn, ss, esn] |- []
+    $p1_prf1_w wl_all(case_esn, [esn, succ_sn, neg_nn], [], [pred_n, ss])
+    $p1_prf1 cut(wl_all(got_neg_nn, [pred_n], [neg_nn], [esn, succ_sn, ss]),
+        p1_prf1_w, [pred_n, esn, succ_sn, ss], [], neg_nn)
+
+    $got_p1_contra il(p1_prf0, p1_prf1, [pred_n, succ_sn, ss, or_sn], [], or_sn)
+    $part1_contra cut(wl_all(got_or_s, [ss, succ_sn], [or_sn], [pred_n]),
+        got_p1_contra, [pred_n, succ_sn, ss], [], or_sn)
+    $got_part1 nr(part1_contra, [pred_n, succ_sn], [neg_ss], neg_ss)
+
+    # --- Part 2: ∀z∈s.¬(z∈z) ---
+    $zs mem("z", "s")
+    $zn mem("z", "n")
+    $ezn eqv("z", "n", "_")
+    $or_zn or(zn, ezn)
+    $got_or_z mp(mp(apply_thm(mse_r_thm, mse_r, ["z", "s", "n"], ["z", "p", "q"], _mse_b, []),
+        ax([zs], [zs], zs), zs, implies(succ_sn, or_zn), [], [zs]),
+        ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_zn, [zs], [succ_sn])
+
+    # Case z∈n: fa_z_n(z) gives ¬(z∈z)
+    $got_neg_zz_zn mp(fl(ax([implies(zn, neg_zz)], [implies(zn, neg_zz)], implies(zn, neg_zz)),
+        [fa_z_n], [implies(zn, neg_zz)], fa_z_n, "z"),
+        ax([zn], [zn], zn), zn, neg_zz, [fa_z_n], [zn])
+
+    # Case eqv(z,n): z∈z → n∈z → n∈n. Contradiction with ¬(n∈n).
+    $emr_ctx left(eqv_mem_right)
+    $_emr_f head(right(eqv_mem_right))
+    $nz mem("n", "z")
+    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $emr1 mp(apply_thm(eqv_mem_right, _emr_f, ["z", "n", "z"], ["z", "y", "a"], _emr_b, emr_ctx),
+        ax([ezn], [ezn], ezn), ezn, implies(zz, nz), emr_ctx, [ezn])
+    $got_nz mp(emr1, ax([zz], [zz], zz), zz, nz, left(emr1), [zz])
+    $eml1 mp(apply_thm(eml_r_thm, eml_r, ["z", "n", "n"], ["z", "b", "q"], _eml_b, []),
+        ax([ezn], [ezn], ezn), ezn, implies(nz, nn), [], [ezn])
+    $got_nn_zz mp(eml1, got_nz, nz, nn, [ezn], left(got_nz))
+    # left(got_nn_zz) |- nn
+    $ezn_contra nl(got_nn_zz, add(left(got_nn_zz), [neg_nn]), [], neg_nn)
+    $got_neg_zz_ezn nr(ezn_contra, remove(same, zz, add(left(got_nn_zz), [neg_nn])), [neg_zz], neg_zz)
+    # Has emr_ctx, ezn, neg_nn |- neg_zz
+
+    # Build prf1 first (ezn case), cut neg_nn, then compute gamma from result
+    # prf1: [Γ, ezn] |- [neg_zz]. Start from got_neg_zz_ezn, cut neg_nn.
+    $p2_prf1_raw wl_all(got_neg_zz_ezn, left(got_neg_zz_ezn), [neg_zz],
+        diff(same, add([pred_n, succ_sn, zs, ezn], diff(same, left(got_neg_zz_ezn), [pred_n, succ_sn, zs, ezn])), left(got_neg_zz_ezn)))
+    $p2_prf1_left_pre remove(same, neg_nn, left(p2_prf1_raw))
+    $p2_prf1_for_cut wr(wl_all(got_neg_nn, [pred_n], [neg_nn], diff(same, p2_prf1_left_pre, [pred_n])),
+        p2_prf1_left_pre, [neg_nn, neg_zz], neg_zz)
+    $p2_prf1 cut(p2_prf1_for_cut, p2_prf1_raw, p2_prf1_left_pre, [neg_zz], neg_nn)
+    # p2_prf1: left has pred_n, succ_sn, zs, ezn, emr_ctx (no neg_nn)
+
+    # Γ = prf1 left minus ezn
+    $gamma_z remove(same, ezn, left(p2_prf1))
+
+    # prf0: Γ |- [neg_zz, neg(zn)]
+    $p2_prf0_base nr(got_neg_zz_zn, [fa_z_n], [neg_zz, neg(zn)], neg(zn))
+    $p2_prf0_for_cut wr(wr(wl_all(got_fa_z_n, [pred_n], [fa_z_n], diff(same, gamma_z, [pred_n])),
+        gamma_z, [fa_z_n, neg_zz], neg_zz), gamma_z, [fa_z_n, neg_zz, neg(zn)], neg(zn))
+    $p2_prf0 cut(p2_prf0_for_cut,
+        wl_all(p2_prf0_base, [fa_z_n], [neg_zz, neg(zn)], diff(same, gamma_z, [fa_z_n])),
+        gamma_z, [neg_zz, neg(zn)], fa_z_n)
+
+    $got_neg_zz_or il(p2_prf0, p2_prf1, add(gamma_z, [or_zn]), [neg_zz], or_zn)
+
+    # Cut or_zn from got_or_z
+    $cut_left_z remove(same, or_zn, left(got_neg_zz_or))
+    $got_or_z_wr wr(wl_all(got_or_z, [zs, succ_sn], [or_zn], diff(same, cut_left_z, [zs, succ_sn])),
+        cut_left_z, [or_zn, neg_zz], neg_zz)
+    $got_neg_zz_final cut(got_or_z_wr, got_neg_zz_or, cut_left_z, [neg_zz], or_zn)
+
+    $got_imp_zs ir(got_neg_zz_final, remove(same, zs, left(got_neg_zz_final)),
+        [implies(zs, neg_zz)], implies(zs, neg_zz))
+    $got_part2 fr(got_imp_zs, left(got_imp_zs), [fa_z_s], fa_z_s, "z")
+
+    # --- Combine into pred(s) ---
+    $got_pred_s mp(mp(and_intro(neg_ss, fa_z_s, []),
+        got_part1, neg_ss, implies(fa_z_s, pred_s), [], left(got_part1)),
+        got_part2, fa_z_s, pred_s, left(got_part1), left(got_part2))
+
+    # --- Build step_hyp ---
+    $ctx_step left(got_pred_s)
+    $s1 ir(got_pred_s, remove(same, succ_sn, ctx_step), [implies(succ_sn, pred_s)], implies(succ_sn, pred_s))
+    $s2 fr(s1, left(s1), [forall("s", implies(succ_sn, pred_s))], forall("s", implies(succ_sn, pred_s)), "s")
+    $step_inner implies(pred_n, forall("s", implies(succ_sn, pred_s)))
+    $s3 ir(s2, remove(same, pred_n, left(s2)), [step_inner], step_inner)
+    $s3w wl(s3, add(left(s3), [nw]), [step_inner], nw)
+    $step_inner2 implies(nw, step_inner)
+    $s4 ir(s3w, remove(same, nw, left(s3w)), [step_inner2], step_inner2)
+    $step_hyp forall("n", step_inner2)
+    $got_step fr(s4, left(s4), [step_hyp], step_hyp, "n")
+
+    # === Apply induction ===
+    $_ind_body \w: {
+        $base forall("e", implies(empty("e","_"), pred(w,"e","_")))
+        $step forall("n", implies(mem("n",w), implies(pred(w,"n","_"),
+            forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
+        implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
+    }
+    $ind_inst apply_thm(ind, _ind_f, ["w"], ["w"], _ind_body, ind_ctx)
+    $fa_pred forall("n", implies(nw, pred_n))
+
+    $i1 mp(ind_inst, ax([om], [om], om), om,
+        implies(base_hyp, implies(step_hyp, fa_pred)), left(ind_inst), [om])
+    $i2 mp(i1, wl_all(got_base, [], [base_hyp], left(i1)),
+        base_hyp, implies(step_hyp, fa_pred), left(i1), left(i1))
+    $got_step_w wl_all(got_step, left(got_step), [step_hyp], diff(same, left(i2), left(got_step)))
+    $i3 mp(i2, got_step_w, step_hyp, fa_pred, left(i2), left(got_step_w))
+
+    # Extract ¬(n∈n)
+    $got_pred_n2 mp(fl(ax([implies(nw, pred_n)], [implies(nw, pred_n)], implies(nw, pred_n)),
+        [fa_pred], [implies(nw, pred_n)], fa_pred, "n"),
+        ax([nw], [nw], nw), nw, pred_n, [fa_pred], [nw])
+    $got_final_nn mp(and_elim_left(neg_nn, fa_z_n, []),
+        got_pred_n2, pred_n, neg_nn, [], [fa_pred, nw])
+
+    $got_cut cut_c(i3, got_final_nn, fa_pred, left(i3), [fa_pred, nw], neg_nn)
+
+    # Close
+    $ctx_pre left(got_cut)
+    $r1 ir(got_cut, remove(same, nw, ctx_pre), [implies(nw, neg_nn)], implies(nw, neg_nn))
+    $r2 fr(r1, left(r1), [forall("n", implies(nw, neg_nn))], forall("n", implies(nw, neg_nn)), "n")
+    $result_f forall("n", implies(nw, neg_nn))
+    $r3 ir(r2, remove(same, om, left(r2)), [implies(om, result_f)], implies(om, result_f))
+    close(r3, left(r3), [implies(om, result_f)], ["w"])
+}

@@ -1,0 +1,13 @@
+from core.derived import and, exists, eqv, implies, forall, left
+from vocab.nat.nat import num
+from tactics import mp
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.nat.nat.num_exists_unique import num_exists_unique
+
+# num_exists(k): ∃n. Num(n,k)
+$num_exists \k: {
+    $p num_exists_unique(k)
+    $ex exists("n", num("n",k,"_"))
+    $uniq forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eqv("n1","n2","_")))))
+    mp(and_elim_left(ex, uniq, []), p, and(ex, uniq), ex, [], left(p))
+}

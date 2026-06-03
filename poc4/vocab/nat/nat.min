@@ -1,0 +1,25 @@
+from core.derived import mem, implies, forall, and
+from vocab.sets import empty, successor
+from vocab.nat.omega import omega
+
+# nat(n, p): n is a natural number (n ∈ ω).
+# ∀w. Omega(w) → n ∈ w
+$nat \n p: {
+    $w add(p, "w")
+    $np add(p, "_")
+    ["nat", add(n, " in N"),
+        forall(w, implies(omega(w, np), mem(n, w)))]
+}
+
+# num(n, k, p): n equals the concrete natural number k.
+# num(n, 0, p) = Empty(n)
+# num(n, k+1, p) = ∀m. num(m, k) → Successor(n, m)
+$_num \self n k p: {
+    $np add(p, "_")
+    $m add(p, "m")
+    ?(eq(k, 0),
+        ["num", add(n, add(" = ", str(k))), empty(n, np)],
+        ["num", add(n, add(" = ", str(k))),
+            forall(m, implies(self(self, m, sub(k, 1), np), successor(n, m, np)))])
+}
+$num \n k p: _num(_num, n, k, p)

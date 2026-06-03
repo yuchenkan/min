@@ -1,0 +1,360 @@
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from vocab.sets import empty, successor, ordered_pair, big_union, union, power_set, relation
+from vocab.functions import apply, function, domain
+from vocab.omega import omega
+from vocab.recursion import rec_approx, recursive, total_from
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, inst, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_chain import iff_chain
+from theorems.recursion.rec_graph_exists import rec_graph_exists
+from theorems.recursion.rec_h_function import rec_h_function
+from theorems.recursion.rec_h_apply import rec_h_apply
+from theorems.recursion.rec_h_step import rec_h_step
+from theorems.recursion.rec_h_dom_sub import rec_h_dom_sub
+from theorems.recursion.rec_exists import rec_exists
+from theorems.recursion.rec_approx_zero import rec_approx_zero
+from theorems.recursion.rec_value import rec_value
+from theorems.recursion.char_h_bridge import char_h_bridge
+from theorems.functions.domain_exists import domain_exists
+from theorems.sets.big_union_exists import big_union_exists
+from theorems.sets.union_exists import union_exists
+from theorems.sets.power_set_exists import power_set_exists
+from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.functions.apply_val_transfer import apply_val_transfer
+from theorems.omega.omega_contains_empty import omega_contains_empty
+
+# Recursion Theorem (existence): func(f) → f_at_a → ran_fc → omega(w) → ∃h.Recursive(h,a,f,w)
+$rec_exists_full {
+    $func_f function("f","_")
+    $om omega("w","_")
+    $tf total_from("f","a","_")
+    $f_at_a exists("z", apply("f","a","z","_"))
+    $ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
+    $got_f_at_a mp(and_elim_left(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, f_at_a, [], [tf])
+    $got_ran_fc mp(and_elim_right(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, ran_fc, [], [tf])
+    $hyps [func_f, tf, om]
+
+    $phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
+        and(and(rec_approx(add(np,"v"),"a","f","w",add(np,"_")),
+            apply(add(np,"v"),m,add(np,"y"),add(np,"_"))),
+            ordered_pair(p,m,add(np,"y"),add(np,"_")))))
+    $char_h forall("p", iff(mem("p","h"), exists("m", and(mem("m","w"), phi("m","p","_")))))
+    $char_h_ppb forall("p", iff(mem("p","h"), and(mem("p","ppb"), exists("m", and(mem("m","w"), phi("m","p","_"))))))
+
+    # === Step 1: Construct ppb = P(P(w ∪ ∪∪f)) ===
+    # big_union_exists: ∀a.∃s.BU(s,a)
+    $_bu head(right(big_union_exists))
+    $_bu_b \a: exists("s", big_union("s",a,"_"))
+    $got_uf apply_thm(big_union_exists, _bu, ["f"], ["f"], _bu_b, left(big_union_exists))
+    # |- ∃uf.BU(uf,f)
+    $got_uuf apply_thm(big_union_exists, _bu, ["uf"], ["uf"], _bu_b, left(big_union_exists))
+    # |- ∃uuf.BU(uuf,uf)
+    $_un head(right(union_exists))
+    $_un_b \a: \b: exists("u", union("u",a,b,"_"))
+    $got_big apply_thm(union_exists, _un, ["w","uuf"], ["w","uuf"], _un_b, left(union_exists))
+    # |- ∃big.union(big,w,uuf)
+    $_ps head(right(power_set_exists))
+    $_ps_b \a: exists("s", power_set("s",a,"_"))
+    $got_pb apply_thm(power_set_exists, _ps, ["big"], ["big"], _ps_b, left(power_set_exists))
+    # |- ∃pb.PS(pb,big)
+    $got_ppb apply_thm(power_set_exists, _ps, ["pb"], ["pb"], _ps_b, left(power_set_exists))
+    # |- ∃ppb.PS(ppb,pb)
+
+    # === Step 2: Get h from rec_graph_exists + char_h_bridge ===
+    $_rge head(right(rec_graph_exists))
+    $rge_ctx left(rec_graph_exists)
+    $_rge_b \w: \f: \a: \dom: exists("h", forall("p", iff(mem("p","h"),
+        and(mem("p",dom), exists("m", and(mem("m",w), phi("m","p","_")))))))
+    $got_rge apply_thm(rec_graph_exists, _rge, ["w","f","a","ppb"], ["w","f","a","d"], _rge_b, rge_ctx)
+    # [Sep_rge] |- ∃h.char_h_ppb
+
+    # char_h_bridge: char_h_ppb → BU(uf,f) → BU(uuf,uf) → union(big,w,uuf) → PS(pb,big) → PS(ppb,pb) → char_h
+    $_chb head(right(char_h_bridge))
+    $_chb_b \h: \a: \f: \w: \uf: \uuf: \big: \pb: \ppb: implies(char_h_ppb,
+        implies(big_union(uf,f,"_"), implies(big_union(uuf,uf,"_"),
+            implies(union(big,w,uuf,"_"), implies(power_set(pb,big,"_"),
+                implies(power_set(ppb,pb,"_"), char_h))))))
+    $chb_inst apply_thm(char_h_bridge, _chb, ["h","a","f","w","uf","uuf","big","pb","ppb"],
+        ["h","a","f","w","uf","uuf","big","pb","ppb"], _chb_b, left(char_h_bridge))
+    # mp char_h_ppb:
+    $chb1 mp(chb_inst, ax([char_h_ppb], [char_h_ppb], char_h_ppb), char_h_ppb,
+        arg2(head(right(chb_inst))), left(chb_inst), [char_h_ppb])
+    # mp BU(uf,f):
+    $bu_uf big_union("uf","f","_")
+    $chb2 mp(chb1, ax([bu_uf], [bu_uf], bu_uf), bu_uf,
+        arg2(head(right(chb1))), left(chb1), [bu_uf])
+    # mp BU(uuf,uf):
+    $bu_uuf big_union("uuf","uf","_")
+    $chb3 mp(chb2, ax([bu_uuf], [bu_uuf], bu_uuf), bu_uuf,
+        arg2(head(right(chb2))), left(chb2), [bu_uuf])
+    # mp union(big,w,uuf):
+    $un_big union("big","w","uuf","_")
+    $chb4 mp(chb3, ax([un_big], [un_big], un_big), un_big,
+        arg2(head(right(chb3))), left(chb3), [un_big])
+    # mp PS(pb,big):
+    $ps_pb power_set("pb","big","_")
+    $chb5 mp(chb4, ax([ps_pb], [ps_pb], ps_pb), ps_pb,
+        arg2(head(right(chb4))), left(chb4), [ps_pb])
+    # mp PS(ppb,pb):
+    $ps_ppb power_set("ppb","pb","_")
+    $got_char_h mp(chb5, ax([ps_ppb], [ps_ppb], ps_ppb), ps_ppb,
+        char_h, left(chb5), [ps_ppb])
+    # [char_h_ppb, bu_uf, bu_uuf, un_big, ps_pb, ps_ppb] |- char_h
+
+    # Keep set construction formulas as hypotheses. Don't eel now (ppb free in char_h_ppb).
+    # Will eel at the very end after char_h_ppb is eliminated.
+    # got_char_h: [char_h_ppb, bu_uf, bu_uuf, un_big, ps_pb, ps_ppb] |- char_h
+
+
+
+    # === Step 3: Use char_h with sub-theorems (same as before) ===
+
+    # Function(h):
+    $_rhf head(right(rec_h_function))
+    $_rhf_b \h: \a: \f: \w: implies(char_h, implies(func_f, implies(om, implies(f_at_a, implies(ran_fc, function(h,"_"))))))
+    $got_func apply_thm(rec_h_function, _rhf, ["h","a","f","w"], ["h","a","f","w"], _rhf_b, left(rec_h_function))
+    $gf1 mp(got_func, got_char_h, char_h, arg2(head(right(got_func))), left(got_func), left(got_char_h))
+    $gf2 mp(gf1, ax([func_f], [func_f], func_f), func_f, arg2(head(right(gf1))), left(gf1), [func_f])
+    $gf3 mp(gf2, ax([om], [om], om), om, arg2(head(right(gf2))), left(gf2), [om])
+    $gf4 mp(gf3, got_f_at_a, f_at_a, arg2(head(right(gf3))), left(gf3), [tf])
+    $got_func_h mp(gf4, got_ran_fc, ran_fc, function("h","_"), left(gf4), [tf])
+
+
+
+    # Base: ∀e. empty(e) → Apply(h,e,a)
+    # (Same chain as original: rec_exists + rec_approx_zero + apply_val_transfer + rec_h_apply)
+    $emp empty("e","_")
+    $ew mem("e","w")
+    $app_hea apply("h","e","a","_")
+
+    $_oce head(right(omega_contains_empty))
+    $_oce_b \e: \w: implies(omega(w,"_"), implies(empty(e,"_"), mem(e,w)))
+    $got_ew mp(mp(apply_thm(omega_contains_empty, _oce, ["e","w"], ["e","w"], _oce_b, []),
+        ax([om], [om], om), om, implies(emp, ew), [], [om]),
+        ax([emp], [emp], emp), emp, ew, [om], [emp])
+
+    $_re head(right(rec_exists))
+    $re_ctx left(rec_exists)
+    $_re_body \w: \f: \a: {
+        $pred \w2 n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", w2, add(p,"_")),
+            exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
+        $rfc forall("y3", forall("z3", implies(apply(f,"y3","z3","_"), exists("w2", apply(f,"z3","w2","_")))))
+        implies(function(f,"_"), implies(exists("z", apply(f,"a","z","_")), implies(rfc,
+            implies(omega(w,"_"), forall("n", implies(mem("n",w), pred(w,"n","_")))))))
+    }
+    $got_re apply_thm(rec_exists, _re, ["w","f","a"], ["w","f","a"], _re_body, re_ctx)
+    $re1 mp(got_re, ax([func_f], [func_f], func_f), func_f, arg2(head(right(got_re))), left(got_re), [func_f])
+    $re2 mp(re1, got_f_at_a, f_at_a, arg2(head(right(re1))), left(re1), [tf])
+    $re3 mp(re2, got_ran_fc, ran_fc, arg2(head(right(re2))), left(re2), [tf])
+    $re4 mp(re3, ax([om], [om], om), om, arg2(head(right(re3))), left(re3), [om])
+    $re_pred_b \n: implies(mem(n,"w"), exists("g", and(rec_approx("g","a","f","w","_"),
+        exists("y", apply("g",n,"y","_")))))
+    $re5 apply_thm(re4, head(right(re4)), ["e"], ["e"], re_pred_b, left(re4))
+    $re6 mp(re5, got_ew, ew, exists("v0", and(rec_approx("v0","a","f","w","_"), exists("y0", apply("v0","e","y0","_")))),
+        left(re5), left(got_ew))
+
+    $ra_v0 rec_approx("v0","a","f","w","_")
+    $app_v0 apply("v0","e","y0","_")
+    $and_ra_ex and(ra_v0, exists("y0", app_v0))
+    $got_ra mp(and_elim_left(ra_v0, exists("y0", app_v0), []),
+        ax([and_ra_ex], [and_ra_ex], and_ra_ex), and_ra_ex, ra_v0, [], [and_ra_ex])
+    $got_ex_app mp(and_elim_right(ra_v0, exists("y0", app_v0), []),
+        ax([and_ra_ex], [and_ra_ex], and_ra_ex), and_ra_ex, exists("y0", app_v0), [], [and_ra_ex])
+
+    $_raz head(right(rec_approx_zero))
+    $_raz_b \v: \a: \f: \w: \e: \y: implies(rec_approx(v,a,f,w,"_"), implies(empty(e,"_"), implies(apply(v,e,y,"_"), eqv(y,a,"_"))))
+    $got_raz apply_thm(rec_approx_zero, _raz, ["v0","a","f","w","e","y0"], ["v0","a","f","w","e","y"], _raz_b, [])
+    $raz1 mp(got_raz, ax([ra_v0], [ra_v0], ra_v0), ra_v0, arg2(head(right(got_raz))), [], [ra_v0])
+    $raz2 mp(raz1, ax([emp], [emp], emp), emp, arg2(head(right(raz1))), [ra_v0], [emp])
+    $raz3 mp(raz2, ax([app_v0], [app_v0], app_v0), app_v0, eqv("y0","a","_"), [ra_v0, emp], [app_v0])
+
+    $_avt head(right(apply_val_transfer))
+    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $got_avt apply_thm(apply_val_transfer, _avt, ["v0","e","y0","a"], ["v0","x","y","y2"], _avt_b, [])
+    $avt1 mp(got_avt, raz3, eqv("y0","a","_"), implies(app_v0, apply("v0","e","a","_")), [], [ra_v0, emp, app_v0])
+    $got_v0ea mp(avt1, ax([app_v0], [app_v0], app_v0), app_v0, apply("v0","e","a","_"), [ra_v0, emp, app_v0], [app_v0])
+
+    $_rha head(right(rec_h_apply))
+    $_rha_b \h: \a: \f: \w: \v: \n: \y: implies(char_h, implies(mem(n,w), implies(rec_approx(v,a,f,w,"_"), implies(apply(v,n,y,"_"), apply(h,n,y,"_")))))
+    $got_rha apply_thm(rec_h_apply, _rha, ["h","a","f","w","v0","e","a"], ["h","a","f","w","v","n","y"], _rha_b, left(rec_h_apply))
+    $rha1 mp(got_rha, got_char_h, char_h, arg2(head(right(got_rha))), left(got_rha), left(got_char_h))
+    $rha2 mp(rha1, got_ew, ew, arg2(head(right(rha1))), left(rha1), left(got_ew))
+    $rha3 mp(rha2, ax([ra_v0], [ra_v0], ra_v0), ra_v0, arg2(head(right(rha2))), left(rha2), [ra_v0])
+    $got_hea mp(rha3, got_v0ea, apply("v0","e","a","_"), app_hea, left(rha3), [ra_v0, emp, app_v0])
+
+    $got_hea2 eel(got_hea, \y0: apply("v0","e",y0,"_"), "y0", "y0", left(got_hea), app_hea)
+    $got_hea3 cut_c(got_ex_app, got_hea2, exists("y0", app_v0), [and_ra_ex], left(got_hea2), app_hea)
+    $got_hea4 cut_c(got_ra, got_hea3, ra_v0, [and_ra_ex], left(got_hea3), app_hea)
+    $got_hea5 eel(got_hea4, \v0: and(rec_approx(v0,"a","f","w","_"), exists("y0", apply(v0,"e","y0","_"))),
+        "v0", "v0", left(got_hea4), app_hea)
+    $got_hea6 cut_c(re6, got_hea5, head(right(re6)), left(re6), left(got_hea5), app_hea)
+
+    $base_formula forall("e", implies(emp, app_hea))
+    $got_base ir(got_hea6, remove(same, emp, left(got_hea6)), [implies(emp, app_hea)], implies(emp, app_hea))
+    $got_base2 fr(got_base, left(got_base), [base_formula], base_formula, "e")
+
+
+
+    # Step: from rec_h_step (instantiate h,a,f,w only, then mp char_h..ran_fc, then ir+fr interleave)
+    $_rhs head(right(rec_h_step))
+    $rhs_ctx left(rec_h_step)
+    $_rhs_b \h: \a: \f: \w: \n: \val: \sn: \fval: implies(char_h, implies(func_f, implies(om, implies(f_at_a, implies(ran_fc,
+        implies(mem(n,w), implies(apply(h,n,val,"_"), implies(successor(sn,n,"_"), implies(apply(f,val,fval,"_"), apply(h,sn,fval,"_"))))))))))
+    $got_step apply_thm(rec_h_step, _rhs, ["h","a","f","w","n","val","sn","fval"], ["h","a","f","w","n","val","sn","fval"], _rhs_b, rhs_ctx)
+    $st1 mp(got_step, got_char_h, char_h, arg2(head(right(got_step))), left(got_step), left(got_char_h))
+    $st2 mp(st1, ax([func_f], [func_f], func_f), func_f, arg2(head(right(st1))), left(st1), [func_f])
+    $st3 mp(st2, ax([om], [om], om), om, arg2(head(right(st2))), left(st2), [om])
+    $st4 mp(st3, got_f_at_a, f_at_a, arg2(head(right(st3))), left(st3), [tf])
+    $st5 mp(st4, got_ran_fc, ran_fc, arg2(head(right(st4))), left(st4), [tf])
+    # st5: ctx |- n∈w → h(n)=val → sn=S(n) → f(val)=fval → h(sn)=fval
+    # Rebuild interleaved foralls by mp-ing each, then ir+fr back:
+    $nw_s mem("n","w")
+    $app_hnv apply("h","n","val","_")
+    $succ_s successor("sn","n","_")
+    $app_fvfv apply("f","val","fval","_")
+    $app_hsfv apply("h","sn","fval","_")
+    $st5_ctx left(st5)
+    $st5a mp(st5, ax([nw_s], [nw_s], nw_s), nw_s, arg2(head(right(st5))), st5_ctx, [nw_s])
+    $st5b mp(st5a, ax([app_hnv], [app_hnv], app_hnv), app_hnv, arg2(head(right(st5a))), left(st5a), [app_hnv])
+    $st5c mp(st5b, ax([succ_s], [succ_s], succ_s), succ_s, arg2(head(right(st5b))), left(st5b), [succ_s])
+    $st5d mp(st5c, ax([app_fvfv], [app_fvfv], app_fvfv), app_fvfv, arg2(head(right(st5c))), left(st5c), [app_fvfv])
+    # ir+fr interleave:
+    $s6 ir(st5d, remove(same, app_fvfv, left(st5d)), [implies(app_fvfv, app_hsfv)], implies(app_fvfv, app_hsfv))
+    $s7 fr(s6, left(s6), [forall("fval", implies(app_fvfv, app_hsfv))], forall("fval", implies(app_fvfv, app_hsfv)), "fval")
+    $s8 ir(s7, remove(same, succ_s, left(s7)), [implies(succ_s, head(right(s7)))], implies(succ_s, head(right(s7))))
+    $s9 fr(s8, left(s8), [forall("sn", head(right(s8)))], forall("sn", head(right(s8))), "sn")
+    $s10 ir(s9, remove(same, app_hnv, left(s9)), [implies(app_hnv, head(right(s9)))], implies(app_hnv, head(right(s9))))
+    $s11 fr(s10, left(s10), [forall("val", head(right(s10)))], forall("val", head(right(s10))), "val")
+    $s12 ir(s11, remove(same, nw_s, left(s11)), [implies(nw_s, head(right(s11)))], implies(nw_s, head(right(s11))))
+    $s13 fr(s12, left(s12), [forall("n", head(right(s12)))], forall("n", head(right(s12))), "n")
+    $step_formula head(right(s13))
+
+
+
+    # Dom_eq: ∀d. domain(d,h) → eqv(d,w)
+    $xw mem("x","w")
+    $ex_hxy exists("y", apply("h","x","y","_"))
+
+    $re_x apply_thm(re4, head(right(re4)), ["x"], ["x"], re_pred_b, left(re4))
+    $re_x2 mp(re_x, ax([xw], [xw], xw), xw,
+        exists("g", and(rec_approx("g","a","f","w","_"), exists("y", apply("g","x","y","_")))),
+        left(re_x), [xw])
+
+    $ra_g rec_approx("g","a","f","w","_")
+    $app_gxy apply("g","x","y","_")
+    $and_ra_g and(ra_g, exists("y", app_gxy))
+    $got_ra_g mp(and_elim_left(ra_g, exists("y", app_gxy), []),
+        ax([and_ra_g], [and_ra_g], and_ra_g), and_ra_g, ra_g, [], [and_ra_g])
+    $got_ex_gxy mp(and_elim_right(ra_g, exists("y", app_gxy), []),
+        ax([and_ra_g], [and_ra_g], and_ra_g), and_ra_g, exists("y", app_gxy), [], [and_ra_g])
+
+    $got_rha_x apply_thm(rec_h_apply, _rha, ["h","a","f","w","g","x","y"], ["h","a","f","w","v","n","y"], _rha_b, left(rec_h_apply))
+    $rhax1 mp(got_rha_x, got_char_h, char_h, arg2(head(right(got_rha_x))), left(got_rha_x), left(got_char_h))
+    $rhax2 mp(rhax1, ax([xw], [xw], xw), xw, arg2(head(right(rhax1))), left(rhax1), [xw])
+    $rhax3 mp(rhax2, ax([ra_g], [ra_g], ra_g), ra_g, arg2(head(right(rhax2))), left(rhax2), [ra_g])
+    $got_hxy mp(rhax3, ax([app_gxy], [app_gxy], app_gxy), app_gxy, apply("h","x","y","_"), left(rhax3), [app_gxy])
+
+    $got_ex_hxy eir(got_hxy, \y: apply("h","x",y,"_"), "y", "y", left(got_hxy))
+    $got_ex_hxy2 eel(got_ex_hxy, \y: apply("g","x",y,"_"), "y", "y", left(got_ex_hxy), ex_hxy)
+    $got_ex_hxy3 cut_c(got_ex_gxy, got_ex_hxy2, exists("y", app_gxy), [and_ra_g], left(got_ex_hxy2), ex_hxy)
+    $got_ex_hxy4 cut_c(got_ra_g, got_ex_hxy3, ra_g, [and_ra_g], left(got_ex_hxy3), ex_hxy)
+    $got_ex_hxy5 eel(got_ex_hxy4, \g: and(rec_approx(g,"a","f","w","_"), exists("y", apply(g,"x","y","_"))),
+        "g", "g", left(got_ex_hxy4), ex_hxy)
+    $got_total cut_c(re_x2, got_ex_hxy5, head(right(re_x2)), left(re_x2), left(got_ex_hxy5), ex_hxy)
+
+    $_ds head(right(rec_h_dom_sub))
+    $_ds_b \h: \a: \f: \w: \x: \y: implies(char_h, implies(apply(h,x,y,"_"), mem(x,w)))
+    $got_ds apply_thm(rec_h_dom_sub, _ds, ["h","a","f","w","x","y"], ["h","a","f","w","x","y"], _ds_b, left(rec_h_dom_sub))
+    $ds1 mp(got_ds, got_char_h, char_h, arg2(head(right(got_ds))), left(got_ds), left(got_char_h))
+
+    $got_xw_from_app mp(ds1, ax([apply("h","x","y","_")], [apply("h","x","y","_")], apply("h","x","y","_")),
+        apply("h","x","y","_"), xw, left(ds1), [apply("h","x","y","_")])
+    $got_xw_from_ex eel(got_xw_from_app, \y: apply("h","x",y,"_"), "y", "y", left(got_xw_from_app), xw)
+
+    $dom_hd domain("d","h","_")
+    $xd mem("x","d")
+    $iff_ex_xw iff(ex_hxy, xw)
+    $iff_dom iff(xd, ex_hxy)
+    $iff_xdw iff(xd, xw)
+
+    $got_fwd_ir ir(got_xw_from_ex, remove(same, ex_hxy, left(got_xw_from_ex)), [implies(ex_hxy, xw)], implies(ex_hxy, xw))
+    $got_bwd_ir ir(got_total, remove(same, xw, left(got_total)), [implies(xw, ex_hxy)], implies(xw, ex_hxy))
+    $got_iff_ex mp(mp(iff_intro(ex_hxy, xw, []),
+        got_fwd_ir, implies(ex_hxy, xw), implies(implies(xw, ex_hxy), iff_ex_xw), [], left(got_fwd_ir)),
+        got_bwd_ir, implies(xw, ex_hxy), iff_ex_xw, left(got_fwd_ir), left(got_bwd_ir))
+
+    $got_iff_dom fl(ax([iff_dom], [iff_dom], iff_dom), [dom_hd], [iff_dom], dom_hd, "x")
+    $got_iff_xdw mp(mp(iff_chain(xd, ex_hxy, xw, []),
+        got_iff_dom, iff_dom, implies(iff_ex_xw, iff_xdw), [], [dom_hd]),
+        got_iff_ex, iff_ex_xw, iff_xdw, [dom_hd], left(got_iff_ex))
+
+    $eqv_dw eqv("d","w","_")
+    $got_eqv_dw fr(got_iff_xdw, left(got_iff_xdw), [eqv_dw], eqv_dw, "x")
+    $dom_formula forall("d", implies(dom_hd, eqv_dw))
+    $got_dom ir(got_eqv_dw, remove(same, dom_hd, left(got_eqv_dw)), [implies(dom_hd, eqv_dw)], implies(dom_hd, eqv_dw))
+    $got_dom2 fr(got_dom, left(got_dom), [dom_formula], dom_formula, "d")
+
+
+
+    # === Package into recursive ===
+    $func_h function("h","_")
+    $and_bs and(base_formula, step_formula)
+    $got_bs mp(mp(and_intro(base_formula, step_formula, []),
+        got_base2, base_formula, implies(step_formula, and_bs), [], left(got_base2)),
+        s13, step_formula, and_bs, left(got_base2), left(s13))
+    $and_dbs and(dom_formula, and_bs)
+    $got_dbs mp(mp(and_intro(dom_formula, and_bs, []),
+        got_dom2, dom_formula, implies(and_bs, and_dbs), [], left(got_dom2)),
+        got_bs, and_bs, and_dbs, left(got_dom2), left(got_bs))
+    $rec_raw and(func_h, and_dbs)
+    $got_rec mp(mp(and_intro(func_h, and_dbs, []),
+        got_func_h, func_h, implies(and_dbs, rec_raw), [], left(got_func_h)),
+        got_dbs, and_dbs, rec_raw, left(got_func_h), left(got_dbs))
+
+
+
+    # eir h, eel h from char_h_ppb, eel ppb from char_h_ppb, cut with got_rge:
+    $_rec_body \h: and(function(h,"_"), and(forall("d", implies(domain("d",h,"_"), eqv("d","w","_"))),
+        and(forall("e", implies(empty("e","_"), apply(h,"e","a","_"))),
+            forall("n", implies(mem("n","w"), forall("val", implies(apply(h,"n","val","_"),
+                forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f","val","fval","_"), apply(h,"sn","fval","_"))))))))))))
+    $ex_rec exists("h", _rec_body("h"))
+    $got_ex_rec eir(got_rec, _rec_body, "h", "h", left(got_rec))
+
+    # eel h from char_h_ppb:
+    $got_eel_h eel(got_ex_rec,
+        \h: forall("p", iff(mem("p",h), and(mem("p","ppb"), exists("m", and(mem("m","w"), phi("m","p","_")))))),
+        "h", "h", left(got_ex_rec), ex_rec)
+    # Cut with got_rge:
+    $ex_char_ppb exists("h", char_h_ppb)
+    $got_cut cut_c(got_rge, got_eel_h, ex_char_ppb, left(got_rge), left(got_eel_h), ex_rec)
+
+
+
+    # Now eel the set construction vars (ppb free in ps_ppb, not in char_h_ppb which is gone):
+    $got_e1 eel(got_cut, \ppb: power_set(ppb,"pb","_"), "ppb", "ppb", left(got_cut), ex_rec)
+    $got_e2 cut_c(got_ppb, got_e1, exists("ppb", ps_ppb), left(got_ppb), left(got_e1), ex_rec)
+    $got_e3 eel(got_e2, \pb: power_set(pb,"big","_"), "pb", "pb", left(got_e2), ex_rec)
+    $got_e4 cut_c(got_pb, got_e3, exists("pb", ps_pb), left(got_pb), left(got_e3), ex_rec)
+    $got_e5 eel(got_e4, \big: union(big,"w","uuf","_"), "big", "big", left(got_e4), ex_rec)
+    $got_e6 cut_c(got_big, got_e5, exists("big", un_big), left(got_big), left(got_e5), ex_rec)
+    $got_e7 eel(got_e6, \uuf: big_union(uuf,"uf","_"), "uuf", "uuf", left(got_e6), ex_rec)
+    $got_e8 cut_c(got_uuf, got_e7, exists("uuf", bu_uuf), left(got_uuf), left(got_e7), ex_rec)
+    $got_e9 eel(got_e8, \uf: big_union(uf,"f","_"), "uf", "uf", left(got_e8), ex_rec)
+    $got_e10 cut_c(got_uf, got_e9, exists("uf", bu_uf), left(got_uf), left(got_e9), ex_rec)
+
+
+
+    # Discharge hyps and close:
+    $final wl_all(got_e10, left(got_e10), [ex_rec], diff(same, hyps, left(got_e10)))
+    $t1 ir(final, remove(same, om, left(final)), [implies(om, ex_rec)], implies(om, ex_rec))
+    $t2 ir(t1, remove(same, tf, left(t1)), [implies(tf, implies(om, ex_rec))], implies(tf, implies(om, ex_rec)))
+    $top implies(func_f, implies(tf, implies(om, ex_rec)))
+    $t3 ir(t2, remove(same, func_f, left(t2)), [top], top)
+    close(t3, left(t3), [top], ["w","f","a"])
+}

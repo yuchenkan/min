@@ -1,7 +1,7 @@
 from core.derived import mem, implies, forall, and, exists, eqv
 from vocab.sets import empty, successor, ordered_pair, product
 from vocab.functions import apply, function, domain
-from vocab.omega import omega
+from vocab.nat.omega import omega
 
 # plus_func(h, w, p): h is the addition function over omega w.
 # And(Function(h),

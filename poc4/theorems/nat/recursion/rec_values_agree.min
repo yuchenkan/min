@@ -1,0 +1,268 @@
+from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
+from vocab.sets import empty, successor, relation
+from vocab.functions import apply, function, domain
+from vocab.omega import omega
+from vocab.recursion import recursive, total_from
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.omega.omega_induction import omega_induction
+
+# rec_values_agree:
+# |- rec(h,a,f,w) → rec(h2,a,f,w) → func(f) → f_at_a → ran_fc → omega(w)
+#    → ∀n∈w. P(n)
+# where P(n) = ∃y.(Apply(h,n,y) ∧ Apply(h2,n,y) ∧ ∃z.Apply(f,y,z))
+
+$rec_values_agree {
+    $rec_h recursive("h","a","f","w","_")
+    $rec_h2 recursive("h2","a","f","w","_")
+    $func_f function("f","_")
+    $tf total_from("f","a","_")
+    $f_at_a exists("z", apply("f","a","z","_"))
+    $ran_fc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
+    $got_f_at_a mp(and_elim_left(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, f_at_a, [], [tf])
+    $got_ran_fc mp(and_elim_right(f_at_a, ran_fc, []), ax([tf], [tf], tf), tf, ran_fc, [], [tf])
+    $om omega("w","_")
+
+    # Predicate for omega_induction:
+    # P(n) = ∃y.(Apply(h,n,y) ∧ Apply(h2,n,y) ∧ ∃z.Apply(f,y,z))
+    $pred \w n p: exists(add(p,"y"), and(apply("h",n,add(p,"y"),add(p,"_")),
+        and(apply("h2",n,add(p,"y"),add(p,"_")), exists(add(p,"z"), apply("f",add(p,"y"),add(p,"z"),add(p,"_"))))))
+
+    # === Extract from Recursive(h) ===
+    $func_h function("h","_")
+    $dom_eq_h forall("d", implies(domain("d","h","_"), eqv("d","w","_")))
+    $base_h forall("e", implies(empty("e","_"), apply("h","e","a","_")))
+    $step_h forall("n", implies(mem("n","w"), forall("val", implies(apply("h","n","val","_"),
+        forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f","val","fval","_"), apply("h","sn","fval","_")))))))))
+    $rest_h and(dom_eq_h, and(base_h, step_h))
+
+    $got_func_h mp(and_elim_left(func_h, rest_h, []), ax([rec_h], [rec_h], rec_h), rec_h, func_h, [], [rec_h])
+    $got_rest_h mp(and_elim_right(func_h, rest_h, []), ax([rec_h], [rec_h], rec_h), rec_h, rest_h, [], [rec_h])
+    $got_bs_h mp(and_elim_right(dom_eq_h, and(base_h, step_h), []), got_rest_h, rest_h, and(base_h, step_h), [], [rec_h])
+    $got_base_h mp(and_elim_left(base_h, step_h, []), got_bs_h, and(base_h, step_h), base_h, [], [rec_h])
+    $got_step_h mp(and_elim_right(base_h, step_h, []), got_bs_h, and(base_h, step_h), step_h, [], [rec_h])
+
+    # === Extract from Recursive(h2) ===
+    $func_h2 function("h2","_")
+    $dom_eq_h2 forall("d", implies(domain("d","h2","_"), eqv("d","w","_")))
+    $base_h2 forall("e", implies(empty("e","_"), apply("h2","e","a","_")))
+    $step_h2 forall("n", implies(mem("n","w"), forall("val", implies(apply("h2","n","val","_"),
+        forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f","val","fval","_"), apply("h2","sn","fval","_")))))))))
+    $rest_h2 and(dom_eq_h2, and(base_h2, step_h2))
+
+    $got_func_h2 mp(and_elim_left(func_h2, rest_h2, []), ax([rec_h2], [rec_h2], rec_h2), rec_h2, func_h2, [], [rec_h2])
+    $got_rest_h2 mp(and_elim_right(func_h2, rest_h2, []), ax([rec_h2], [rec_h2], rec_h2), rec_h2, rest_h2, [], [rec_h2])
+    $got_bs_h2 mp(and_elim_right(dom_eq_h2, and(base_h2, step_h2), []), got_rest_h2, rest_h2, and(base_h2, step_h2), [], [rec_h2])
+    $got_base_h2 mp(and_elim_left(base_h2, step_h2, []), got_bs_h2, and(base_h2, step_h2), base_h2, [], [rec_h2])
+    $got_step_h2 mp(and_elim_right(base_h2, step_h2, []), got_bs_h2, and(base_h2, step_h2), step_h2, [], [rec_h2])
+
+
+
+    # === BASE: empty(e) → P(e) ===
+    $emp empty("e","_")
+
+    # Apply(h,e,a) from base_h:
+    $app_hea apply("h","e","a","_")
+    $got_hea mp(apply_thm(got_base_h, base_h, ["e"], ["e"],
+        \e: implies(empty(e,"_"), apply("h",e,"a","_")), [rec_h]),
+        ax([emp], [emp], emp), emp, app_hea, [rec_h], [emp])
+
+    # Apply(h2,e,a) from base_h2:
+    $app_h2ea apply("h2","e","a","_")
+    $got_h2ea mp(apply_thm(got_base_h2, base_h2, ["e"], ["e"],
+        \e: implies(empty(e,"_"), apply("h2",e,"a","_")), [rec_h2]),
+        ax([emp], [emp], emp), emp, app_h2ea, [rec_h2], [emp])
+
+    # Package: and(app_hea, and(app_h2ea, f_at_a))
+    $inner_base and(app_h2ea, f_at_a)
+    $triple_base and(app_hea, inner_base)
+    $got_inner_b mp(mp(and_intro(app_h2ea, f_at_a, []),
+        got_h2ea, app_h2ea, implies(f_at_a, inner_base), [], [rec_h2, emp]),
+        got_f_at_a, f_at_a, inner_base, [rec_h2, emp], [tf])
+    $got_triple_b mp(mp(and_intro(app_hea, inner_base, []),
+        got_hea, app_hea, implies(inner_base, triple_base), [], [rec_h, emp]),
+        got_inner_b, inner_base, triple_base, [rec_h, emp], [rec_h2, emp, tf])
+
+    # eir y=a: ∃y.(Apply(h,e,y) ∧ Apply(h2,e,y) ∧ ∃z.Apply(f,y,z))
+    $pred_e pred("w","e","_")
+    $got_pred_e eir(got_triple_b, \y: and(apply("h","e",y,"_"), and(apply("h2","e",y,"_"), exists("z", apply("f",y,"z","_")))),
+        "y", "a", left(got_triple_b))
+
+    # Discharge empty:
+    $got_base ir(got_pred_e, remove(same, emp, left(got_pred_e)), [implies(emp, pred_e)], implies(emp, pred_e))
+
+
+
+    # === STEP: n∈w → P(n) → succ(s,n) → P(s) ===
+    $nw mem("n","w")
+    $pred_n pred("w","n","_")
+    $succ_sn successor("s","n","_")
+    $pred_s pred("w","s","_")
+
+    # Assume triple_n = Apply(h,n,y) ∧ Apply(h2,n,y) ∧ ∃z.Apply(f,y,z) on left
+    # (the inner body of P(n) after eel y)
+    $app_hny apply("h","n","y","_")
+    $app_h2ny apply("h2","n","y","_")
+    $ex_fyz exists("z", apply("f","y","z","_"))
+    $inner_n and(app_h2ny, ex_fyz)
+    $triple_n and(app_hny, inner_n)
+
+    $got_app_hny mp(and_elim_left(app_hny, inner_n, []),
+        ax([triple_n], [triple_n], triple_n), triple_n, app_hny, [], [triple_n])
+    $got_inner_n mp(and_elim_right(app_hny, inner_n, []),
+        ax([triple_n], [triple_n], triple_n), triple_n, inner_n, [], [triple_n])
+    $got_app_h2ny mp(and_elim_left(app_h2ny, ex_fyz, []),
+        got_inner_n, inner_n, app_h2ny, [], [triple_n])
+    $got_ex_fyz mp(and_elim_right(app_h2ny, ex_fyz, []),
+        got_inner_n, inner_n, ex_fyz, [], [triple_n])
+
+    # Assume Apply(f,y,fval) on left (from ∃z.Apply(f,y,z) via eel later)
+    $app_fyfv apply("f","y","fval","_")
+
+    # step_h: inst at n, mp nw, inst val=y, mp app_hny, inst sn=s, mp succ_sn, inst fval, mp app_fyfv
+    # Use arg2 to extract consequent at each mp step (avoids manual formula specification)
+    $step_h_inst apply_thm(got_step_h, step_h, ["n"], ["n"],
+        \n: implies(mem(n,"w"), forall("val", implies(apply("h",n,"val","_"),
+            forall("sn", implies(successor("sn",n,"_"), forall("fval", implies(apply("f","val","fval","_"), apply("h","sn","fval","_")))))))),
+        [rec_h])
+    $sh1 mp(step_h_inst, ax([nw], [nw], nw), nw, arg2(head(right(step_h_inst))), [rec_h], [nw])
+    $sh1b apply_thm(sh1, head(right(sh1)), ["y"], ["y"],
+        \val: implies(apply("h","n",val,"_"), forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f",val,"fval","_"), apply("h","sn","fval","_")))))),
+        left(sh1))
+    $sh2 mp(sh1b, got_app_hny, app_hny, arg2(head(right(sh1b))), left(sh1b), [triple_n])
+    $sh2b apply_thm(sh2, head(right(sh2)), ["s"], ["s"],
+        \sn: implies(successor(sn,"n","_"), forall("fval", implies(apply("f","y","fval","_"), apply("h",sn,"fval","_")))),
+        left(sh2))
+    $sh3 mp(sh2b, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(sh2b))), left(sh2b), [succ_sn])
+    $sh3b apply_thm(sh3, head(right(sh3)), ["fval"], ["fval"],
+        \fval: implies(apply("f","y",fval,"_"), apply("h","s",fval,"_")),
+        left(sh3))
+    $app_hsfv apply("h","s","fval","_")
+    $got_hsfv mp(sh3b, ax([app_fyfv], [app_fyfv], app_fyfv), app_fyfv, app_hsfv, left(sh3b), [app_fyfv])
+
+
+
+    # step_h2: same chain
+    $step_h2_inst apply_thm(got_step_h2, step_h2, ["n"], ["n"],
+        \n: implies(mem(n,"w"), forall("val", implies(apply("h2",n,"val","_"),
+            forall("sn", implies(successor("sn",n,"_"), forall("fval", implies(apply("f","val","fval","_"), apply("h2","sn","fval","_")))))))),
+        [rec_h2])
+    $s2h1 mp(step_h2_inst, ax([nw], [nw], nw), nw, arg2(head(right(step_h2_inst))), [rec_h2], [nw])
+    $s2h1b apply_thm(s2h1, head(right(s2h1)), ["y"], ["y"],
+        \val: implies(apply("h2","n",val,"_"), forall("sn", implies(successor("sn","n","_"), forall("fval", implies(apply("f",val,"fval","_"), apply("h2","sn","fval","_")))))),
+        left(s2h1))
+    $s2h2 mp(s2h1b, got_app_h2ny, app_h2ny, arg2(head(right(s2h1b))), left(s2h1b), [triple_n])
+    $s2h2b apply_thm(s2h2, head(right(s2h2)), ["s"], ["s"],
+        \sn: implies(successor(sn,"n","_"), forall("fval", implies(apply("f","y","fval","_"), apply("h2",sn,"fval","_")))),
+        left(s2h2))
+    $s2h3 mp(s2h2b, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(s2h2b))), left(s2h2b), [succ_sn])
+    $s2h3b apply_thm(s2h3, head(right(s2h3)), ["fval"], ["fval"],
+        \fval: implies(apply("f","y",fval,"_"), apply("h2","s",fval,"_")),
+        left(s2h3))
+    $app_h2sfv apply("h2","s","fval","_")
+    $got_h2sfv mp(s2h3b, ax([app_fyfv], [app_fyfv], app_fyfv), app_fyfv, app_h2sfv, left(s2h3b), [app_fyfv])
+
+
+
+    # ran_fc at y,fval: Apply(f,y,fval) → ∃w2.Apply(f,fval,w2)
+    $ran1 apply_thm(got_ran_fc, ran_fc, ["y"], ["y"],
+        \y: forall("z3", implies(apply("f",y,"z3","_"), exists("w2", apply("f","z3","w2","_")))),
+        [tf])
+    $ran2 apply_thm(ran1, head(right(ran1)), ["fval"], ["fval"],
+        \z: implies(apply("f","y",z,"_"), exists("w2", apply("f",z,"w2","_"))),
+        [tf])
+    $ex_ffval exists("w2", apply("f","fval","w2","_"))
+    $got_ran mp(ran2, ax([app_fyfv], [app_fyfv], app_fyfv), app_fyfv, ex_ffval, [tf], [app_fyfv])
+
+
+
+    # Package P(s) = ∃y.(Apply(h,s,y) ∧ Apply(h2,s,y) ∧ ∃z.Apply(f,y,z))
+    # with y=fval
+    $inner_s and(app_h2sfv, ex_ffval)
+    $triple_s and(app_hsfv, inner_s)
+    $got_inner_s mp(mp(and_intro(app_h2sfv, ex_ffval, []),
+        got_h2sfv, app_h2sfv, implies(ex_ffval, inner_s), [], left(got_h2sfv)),
+        got_ran, ex_ffval, inner_s, left(got_h2sfv), [tf, app_fyfv])
+    $got_triple_s mp(mp(and_intro(app_hsfv, inner_s, []),
+        got_hsfv, app_hsfv, implies(inner_s, triple_s), [], left(got_hsfv)),
+        got_inner_s, inner_s, triple_s, left(got_hsfv), left(got_inner_s))
+
+    # eir y=fval:
+    $got_pred_s eir(got_triple_s,
+        \y: and(apply("h","s",y,"_"), and(apply("h2","s",y,"_"), exists("z", apply("f",y,"z","_")))),
+        "y", "fval", left(got_triple_s))
+
+
+
+    # eel fval from app_fyfv:
+    $got_pred_s2 eel(got_pred_s, \fval: apply("f","y",fval,"_"), "fval", "fval", left(got_pred_s), pred_s)
+    # Cut ∃fval with got_ex_fyz:
+    $got_pred_s3 cut_c(got_ex_fyz, got_pred_s2, ex_fyz, [triple_n], left(got_pred_s2), pred_s)
+
+
+
+    # eel y from triple_n: converts triple_n on left to ∃y.triple_n on left
+    $got_pred_s4 eel(got_pred_s3, \y: and(apply("h","n",y,"_"), and(apply("h2","n",y,"_"), exists("z", apply("f",y,"z","_")))),
+        "y", "y", left(got_pred_s3), pred_s)
+    # Now left has ∃y.triple = pred_n (alpha-equiv). Just use it directly.
+
+
+
+    # Discharge: ir succ_sn, fr s, ir pred_n, ir nw
+    $d1 ir(got_pred_s4, remove(same, succ_sn, left(got_pred_s4)),
+        [implies(succ_sn, pred_s)], implies(succ_sn, pred_s))
+    $d2 fr(d1, left(d1), [forall("s", implies(succ_sn, pred_s))],
+        forall("s", implies(succ_sn, pred_s)), "s")
+    $d3 ir(d2, remove(same, pred_n, left(d2)),
+        [implies(pred_n, forall("s", implies(succ_sn, pred_s)))],
+        implies(pred_n, forall("s", implies(succ_sn, pred_s))))
+    $got_step ir(d3, remove(same, nw, left(d3)),
+        [implies(nw, implies(pred_n, forall("s", implies(succ_sn, pred_s))))],
+        implies(nw, implies(pred_n, forall("s", implies(succ_sn, pred_s)))))
+
+
+
+    # === Apply omega_induction ===
+    $oi omega_induction(pred, ["h","h2","f","a"], "_")
+    $oi_ctx left(oi)
+
+    # oi: [sep] |- ∀_w.∀a.∀f.∀h2.∀h. omega(w) → base → step → ∀n.n∈w→P(n)
+    # Outermost-first order: _w, a, f, h2, h
+    $_oi_f head(right(oi))
+    $_oi_b \w: \a: \f: \h2: \h: implies(omega(w,"_"), implies(
+        forall("e", implies(empty("e","_"), pred(w,"e","_"))),
+        implies(forall("n", implies(mem("n",w), implies(pred(w,"n","_"),
+            forall("s", implies(successor("s","n","_"), pred(w,"s","_")))))),
+            forall("n", implies(mem("n",w), pred(w,"n","_"))))))
+    $oi0 apply_thm(oi, _oi_f, ["w","a","f","h2","h"], ["w","a","f","h2","h"], _oi_b, oi_ctx)
+    $oi1 mp(oi0, ax([om], [om], om), om, arg2(head(right(oi0))), left(oi0), [om])
+
+    # mp base: oi1 |- implies(∀e.base, implies(step_hyp, result))
+    # got_base |- implies(emp, pred_e). Need to fr e first.
+    $base_fa forall("e", implies(emp, pred_e))
+    $got_base_fa fr(got_base, left(got_base), [base_fa], base_fa, "e")
+    $oi2 mp(oi1, got_base_fa, base_fa, arg2(head(right(oi1))), left(oi1), left(got_base_fa))
+
+    # mp step: oi2 |- implies(step_hyp, result)
+    $step_raw forall("n", implies(nw, implies(pred_n, forall("s", implies(succ_sn, pred_s)))))
+    $got_step_fa fr(got_step, left(got_step), [step_raw], step_raw, "n")
+    $oi_step_hyp head(right(got_step_fa))
+    $oi3 mp(oi2, got_step_fa, oi_step_hyp, arg2(head(right(oi2))), left(oi2), left(got_step_fa))
+    $fa_result head(right(oi3))
+
+
+
+    # Discharge hypotheses and close:
+    $hyps [rec_h, rec_h2, func_f, tf, om]
+    $result wr(oi3, left(oi3), [fa_result], fa_result)
+    $final wl_all(result, left(result), [fa_result], diff(same, hyps, left(result)))
+    $t1 ir(final, remove(same, om, left(final)), [implies(om, fa_result)], implies(om, fa_result))
+    $t2 ir(t1, remove(same, tf, left(t1)), [implies(tf, implies(om, fa_result))], implies(tf, implies(om, fa_result)))
+    $t3 ir(t2, remove(same, func_f, left(t2)), [implies(func_f, implies(tf, implies(om, fa_result)))], implies(func_f, implies(tf, implies(om, fa_result))))
+    $t4 ir(t3, remove(same, rec_h2, left(t3)), [implies(rec_h2, implies(func_f, implies(tf, implies(om, fa_result))))], implies(rec_h2, implies(func_f, implies(tf, implies(om, fa_result)))))
+    $top implies(rec_h, implies(rec_h2, implies(func_f, implies(tf, implies(om, fa_result)))))
+    $t5 ir(t4, remove(same, rec_h, left(t4)), [top], top)
+    close(t5, left(t5), [top], ["w","f","a","h2","h"])
+}
