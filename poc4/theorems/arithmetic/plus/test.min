@@ -25,7 +25,10 @@ from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
 from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
 from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
 from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
-from vocab.arithmetic.plus import plus_func
+from theorems.arithmetic.plus.plus_base import plus_base
+from theorems.arithmetic.plus.plus_step import plus_step
+from vocab.arithmetic.plus import plus_func, plus
+from vocab.arithmetic.nat import nat, num
 
 $sfe_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
@@ -163,5 +166,15 @@ $_ print("plus_func_unique ok")
 
 $_ qed(unique_plus_func, forall("w", implies(omega("w","_"), exists_unique(\h p: plus_func(h,"w",p), "_"))))
 $_ print("unique_plus_func ok")
+
+$_ qed(plus_base, forall("m", implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
+    forall("w", implies(omega("w","_"), forall("h", implies(plus_func("h","w","_"),
+        forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_"))))))))))))
+$_ print("plus_base ok")
+
+$_ qed(plus_step, forall("m", implies(nat("m","_"), forall("n", implies(nat("n","_"),
+    forall("p", implies(plus("m","n","p","_"), forall("sn", implies(successor("sn","n","_"),
+        forall("sp", implies(successor("sp","p","_"), plus("m","sn","sp","_"))))))))))))
+$_ print("plus_step ok")
 
 $ok true

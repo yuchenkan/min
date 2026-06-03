@@ -1,7 +1,7 @@
 from core.derived import implies, forall, exists, eqv, left, right
 from vocab.arithmetic.nat import num
 from vocab.logic import exists_unique
-from tactics import ax, fr, mp, apply_thm, eel, cut_c, close
+from tactics import ax, wr, wl_all, fr, mp, apply_thm, eel, cut, cut_c, close, same, diff
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.arithmetic.nat.num_exists import num_exists
 from theorems.arithmetic.nat.num_unique import num_unique
@@ -38,8 +38,7 @@ $unique_num \k: {
 
     # eel t from num_exists(k)
     $ne num_exists(k)
-    $ne_ctx left(ne)
     $cur eel(got_eu, \v: num(v,k,"_"), "n", "t", left(got_eu), eu)
-    $cur cut_c(ne, cur, head(right(ne)), ne_ctx, left(cur), eu)
+    $cur cut_c(ne, cur, head(right(ne)), left(ne), left(cur), eu)
     close(cur, left(cur), [eu], [])
 }

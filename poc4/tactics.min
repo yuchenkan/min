@@ -197,7 +197,8 @@ $eel \prf pred_fn x y ctx D: {
 # prf: ctx2 |- [D]  (with pred in ctx2)
 # result: merged |- [D]
 $cut_c \got_pred prf pred ctx1 ctx2 D: {
-    $merged add(remove(same, pred, ctx2), diff(same, ctx1, ctx2))
+    $ctx2_no_pred remove(same, pred, ctx2)
+    $merged add(ctx2_no_pred, diff(same, ctx1, ctx2_no_pred))
     $p0 wl_all(got_pred, ctx1, [pred], diff(same, merged, ctx1))
     $p0r wr(p0, merged, [pred, D], D)
     $p1 wl_all(prf, ctx2, [D], diff(same, merged, ctx2))
