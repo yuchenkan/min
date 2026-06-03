@@ -6,7 +6,7 @@ from tactics import ax, wr, fr, ir, mp, apply_thm, eel, cut_c, close, same, remo
 from theorems.omega.omega_contains_empty import omega_contains_empty
 from theorems.omega.omega_succ_closed import omega_succ_closed
 from theorems.arithmetic.nat.nat_elim import nat_elim
-from theorems.arithmetic.nat.num_props import num_exists
+from theorems.arithmetic.nat.num_exists import num_exists
 
 # num_nat(k): ∀n. Num(n,k) → Nat(n)
 

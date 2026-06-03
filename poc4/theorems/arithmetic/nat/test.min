@@ -4,12 +4,23 @@ from vocab.omega import omega
 from vocab.arithmetic.nat import nat, num
 from vocab.logic import exists_unique
 from theorems.arithmetic.nat.nat_elim import nat_elim
-from theorems.arithmetic.nat.num_props import num_exists, num_unique
+from theorems.arithmetic.nat.num_exists_unique import num_exists_unique
+from theorems.arithmetic.nat.num_exists import num_exists
+from theorems.arithmetic.nat.num_unique import num_unique
+from core.derived import and
 from theorems.arithmetic.nat.num_nat import num_nat
 from theorems.arithmetic.nat.unique_num import unique_num
 
 $_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))))
 $_ print("nat_elim ok")
+
+$neu_body \k: and(exists("n", num("n",k,"_")), forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eqv("n1","n2","_"))))))
+$_ qed(num_exists_unique(0), neu_body(0))
+$_ print("num_exists_unique(0) ok")
+$_ qed(num_exists_unique(1), neu_body(1))
+$_ print("num_exists_unique(1) ok")
+$_ qed(num_exists_unique(2), neu_body(2))
+$_ print("num_exists_unique(2) ok")
 
 $_ qed(num_exists(0), exists("s", empty("s","_")))
 $_ print("num_exists(0) ok")

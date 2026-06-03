@@ -3,7 +3,8 @@ from vocab.arithmetic.nat import num
 from vocab.logic import exists_unique
 from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
 from theorems.logic.exists_unique_intro import exists_unique_intro
-from theorems.arithmetic.nat.num_props import num_exists, num_unique
+from theorems.arithmetic.nat.num_exists import num_exists
+from theorems.arithmetic.nat.num_unique import num_unique
 
 # unique_num(k): ∃!n. Num(n,k)
 

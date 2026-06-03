@@ -1,60 +1,13 @@
-from core.derived import mem, implies, forall, eqv, left, right
-from vocab.sets import empty, successor
+from core.derived import and, exists, eqv, implies, forall, left
 from vocab.arithmetic.nat import num
-from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
-from theorems.sets.empty_unique import empty_unique
-from theorems.sets.successor_unique import successor_unique
-from theorems.arithmetic.nat.num_exists import num_exists
+from tactics import mp
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.arithmetic.nat.num_exists_unique import num_exists_unique
 
 # num_unique(k): ∀n1,n2. Num(n1,k) → Num(n2,k) → Eqv(n1,n2)
-# k=0: empty_unique
-# k+1: Num(n1,k+1) = ∀m.Num(m,k)→Succ(n1,m). Same for n2.
-#       From num_exists(k): ∃m.Num(m,k). Inst both at m: Succ(n1,m), Succ(n2,m).
-#       successor_unique: Eqv(n1,n2).
-
-$_num_unique \self k: ?(eq(k, 0), {
-    $_eu_b \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_")))
-    $eu_r forall("ra", forall("rb", _eu_b("ra")("rb")))
-    $eu_thm wr(empty_unique, left(empty_unique), [eu_r], eu_r)
-    $num1 num("n1",0,"_")
-    $num2 num("n2",0,"_")
-    $g1 mp(apply_thm(eu_thm, eu_r, ["n1","n2"], ["ra","rb"], _eu_b, left(empty_unique)),
-        ax([num1], [num1], num1), num1, implies(num2, eqv("n1","n2","_")), left(empty_unique), [num1])
-    $got mp(g1, ax([num2], [num2], num2), num2, eqv("n1","n2","_"), left(g1), [num2])
-    $top implies(num1, implies(num2, eqv("n1","n2","_")))
-    $cur ir(got, [num1], [implies(num2, eqv("n1","n2","_"))], implies(num2, eqv("n1","n2","_")))
-    $cur ir(cur, [], [top], top)
-    close(cur, left(cur), [top], ["n2","n1"])
-}, {
-    $num1 num("n1",k,"_")
-    $num2 num("n2",k,"_")
-    $ne num_exists(sub(k,1))
-    $num_m num("m",sub(k,1),"_")
-    # Inst Num(n1,k) at m: Num(m,k-1)→Succ(n1,m)
-    $succ_n1m successor("n1","m","_")
-    $got_s1 mp(apply_thm(ax([num1], [num1], num1), num1, ["m"], ["m"],
-        \m: implies(num(m,sub(k,1),"_"), successor("n1",m,"_")), [num1]),
-        ax([num_m], [num_m], num_m), num_m, succ_n1m, [num1], [num_m])
-    # Inst Num(n2,k) at m: Num(m,k-1)→Succ(n2,m)
-    $succ_n2m successor("n2","m","_")
-    $got_s2 mp(apply_thm(ax([num2], [num2], num2), num2, ["m"], ["m"],
-        \m: implies(num(m,sub(k,1),"_"), successor("n2",m,"_")), [num2]),
-        ax([num_m], [num_m], num_m), num_m, succ_n2m, [num2], [num_m])
-    # successor_unique: Succ(n1,m)→Succ(n2,m)→Eqv(n1,n2)
-    $_su_b \a: \b: \c: implies(successor(a,c,"_"), implies(successor(b,c,"_"), eqv(a,b,"_")))
-    $su_r forall("ra", forall("rb", forall("rc", _su_b("ra")("rb")("rc"))))
-    $su_thm wr(successor_unique, [], [su_r], su_r)
-    $got_eqv mp(mp(apply_thm(su_thm, su_r, ["n1","n2","m"], ["ra","rb","rc"], _su_b, []),
-        got_s1, succ_n1m, implies(succ_n2m, eqv("n1","n2","_")), [], left(got_s1)),
-        got_s2, succ_n2m, eqv("n1","n2","_"), left(got_s1), left(got_s2))
-    # eel m from num_exists(k-1)
-    $cur eel(got_eqv, \m: num(m,sub(k,1),"_"), "n", "m", left(got_eqv), eqv("n1","n2","_"))
-    $cur cut_c(ne, cur, head(right(ne)), left(ne), left(cur), eqv("n1","n2","_"))
-    # ir num2, num1, fr n2, n1
-    $cur ir(cur, remove(same, num2, left(cur)), [implies(num2, eqv("n1","n2","_"))], implies(num2, eqv("n1","n2","_")))
-    $cur ir(cur, remove(same, num1, left(cur)), [implies(num1, implies(num2, eqv("n1","n2","_")))],
-        implies(num1, implies(num2, eqv("n1","n2","_"))))
-    close(cur, left(cur), [head(right(cur))], ["n2","n1"])
-})
-
-$num_unique \k: _num_unique(_num_unique, k)
+$num_unique \k: {
+    $p num_exists_unique(k)
+    $ex exists("n", num("n",k,"_"))
+    $uniq forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eqv("n1","n2","_")))))
+    mp(and_elim_right(ex, uniq, []), p, and(ex, uniq), uniq, [], left(p))
+}

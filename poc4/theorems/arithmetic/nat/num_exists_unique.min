@@ -13,11 +13,11 @@ from theorems.sets.eq_succ_transfer import eq_succ_transfer
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 
-# num_props(k): ∃n.Num(n,k) ∧ (∀n1,n2. Num(n1,k)→Num(n2,k)→Eqv(n1,n2))
+# num_exists_unique(k): ∃n.Num(n,k) ∧ (∀n1,n2. Num(n1,k)→Num(n2,k)→Eqv(n1,n2))
 # Single conjunction theorem. Recursive on k.
 # num_exists(k) and num_unique(k) extract via and_elim.
 
-$_num_props \self k: {
+$_num_exists_unique \self k: {
     $ex_part exists("n", num("n",k,"_"))
     $uniq_part forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eqv("n1","n2","_")))))
     $goal and(ex_part, uniq_part)
@@ -124,18 +124,5 @@ $_num_props \self k: {
     })
 }
 
-$num_props \k: _num_props(_num_props, k)
+$num_exists_unique \k: _num_exists_unique(_num_exists_unique, k)
 
-$num_exists \k: {
-    $p num_props(k)
-    $ex exists("n", num("n",k,"_"))
-    $uniq forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eqv("n1","n2","_")))))
-    mp(and_elim_left(ex, uniq, []), p, and(ex, uniq), ex, [], left(p))
-}
-
-$num_unique \k: {
-    $p num_props(k)
-    $ex exists("n", num("n",k,"_"))
-    $uniq forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eqv("n1","n2","_")))))
-    mp(and_elim_right(ex, uniq, []), p, and(ex, uniq), uniq, [], left(p))
-}
