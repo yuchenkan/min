@@ -1,19 +1,14 @@
-from core.derived import mem, implies, forall, exists
+from core.derived import mem, implies, forall, exists, eqv, left, right
 from vocab.sets import empty, successor
 from vocab.omega import omega
 from vocab.arithmetic.nat import nat, num
-from tactics import ax, wr, fr, ir, mp, apply_thm, eel, cut_c, close
+from tactics import ax, wr, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
 from theorems.omega.omega_contains_empty import omega_contains_empty
 from theorems.omega.omega_succ_closed import omega_succ_closed
 from theorems.arithmetic.nat.nat_elim import nat_elim
-from theorems.arithmetic.nat.num_exists import num_exists
+from theorems.arithmetic.nat.num_props import num_exists
 
 # num_nat(k): ∀n. Num(n,k) → Nat(n)
-# k=0: Empty(n) → Omega(w) → n∈w via omega_contains_empty.
-# k+1: Num(n,k+1) = ∀m.Num(m,k)→Succ(n,m).
-#       From num_exists(k): ∃m.Num(m,k). Assume Num(m,k).
-#       IH: Nat(m). nat_elim: m∈w. Inst Num(n,k+1) at m: Succ(n,m).
-#       omega_succ_closed: m∈w→Succ(n,m)→n∈w. ir ow, fr w → Nat(n).
 
 $_num_nat \self k: ?(eq(k, 0), {
     $num_n num("n",0,"_")
@@ -41,21 +36,16 @@ $_num_nat \self k: ?(eq(k, 0), {
     $nat_m nat("m","_")
     $succ_nm successor("n","m","_")
     $mw mem("m","w")
-
-    # prev at m: Num(m,k-1)→Nat(m)
     $_prev_b \n: implies(num(n,sub(k,1),"_"), nat(n,"_"))
     $got_nat_m mp(apply_thm(prev, head(right(prev)), ["m"], ["m"], _prev_b, left(prev)),
         ax([num_m], [num_m], num_m), num_m, nat_m, left(prev), [num_m])
-    # nat_elim: Nat(m)→Omega(w)→m∈w
     $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
     $got_mw mp(mp(apply_thm(nat_elim, head(right(nat_elim)), ["m","w"], ["m","w"], _ne_b, []),
         got_nat_m, nat_m, implies(ow, mw), [], left(got_nat_m)),
         ax([ow], [ow], ow), ow, mw, left(got_nat_m), [ow])
-    # num_n at m: Num(m,k-1)→Succ(n,m)
     $got_succ mp(apply_thm(ax([num_n], [num_n], num_n), num_n, ["m"], ["m"],
         \m: implies(num(m,sub(k,1),"_"), successor("n",m,"_")), [num_n]),
         ax([num_m], [num_m], num_m), num_m, succ_nm, [num_n], [num_m])
-    # omega_succ_closed: Omega(w)→m∈w→Succ(n,m)→n∈w
     $_osc_b \p1: \p2: \p3: implies(omega(p3,"_"), implies(mem(p2,p3), implies(successor(p1,p2,"_"), mem(p1,p3))))
     $osc_r forall("p1", forall("p2", forall("p3", _osc_b("p1")("p2")("p3"))))
     $osc_thm wr(omega_succ_closed, [], [osc_r], osc_r)
@@ -63,12 +53,9 @@ $_num_nat \self k: ?(eq(k, 0), {
         ax([ow], [ow], ow), ow, implies(mw, implies(succ_nm, nw)), [], [ow]),
         got_mw, mw, implies(succ_nm, nw), [ow], left(got_mw)),
         got_succ, succ_nm, nw, left(got_mw), left(got_succ))
-    # eel m from num_exists(k-1)
-    $ne num_exists(sub(k,1))
-    $ne_ctx left(ne)
+    $ne_prev num_exists(sub(k,1))
     $cur eel(got_nw, \m: num(m,sub(k,1),"_"), "m", "m", left(got_nw), nw)
-    $cur cut_c(ne, cur, head(right(ne)), ne_ctx, left(cur), nw)
-    # ir ow, fr w → Nat(n). ir num_n, fr n.
+    $cur cut_c(ne_prev, cur, head(right(ne_prev)), left(ne_prev), left(cur), nw)
     $cur ir(cur, remove(same, ow, left(cur)), [implies(ow, nw)], implies(ow, nw))
     $cur fr(cur, left(cur), [nat_n], nat_n, "w")
     $top implies(num_n, nat_n)

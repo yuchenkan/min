@@ -4,7 +4,8 @@ from vocab.omega import omega
 from vocab.arithmetic.nat import nat, num
 from vocab.logic import exists_unique
 from theorems.arithmetic.nat.nat_elim import nat_elim
-from theorems.arithmetic.nat.num_props import num_exists, num_unique, num_nat
+from theorems.arithmetic.nat.num_props import num_exists, num_unique
+from theorems.arithmetic.nat.num_nat import num_nat
 from theorems.arithmetic.nat.unique_num import unique_num
 
 $_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))))
