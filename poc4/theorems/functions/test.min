@@ -2,35 +2,49 @@ from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, q
 from vocab.sets import ordered_pair, successor, singleton, big_union, union, relation, product
 from vocab.functions import apply, function, single_valued, domain
 from vocab.logic import exists_unique
-
 from theorems.functions.domain_exists import domain_exists
+from theorems.functions.unique_domain import unique_domain
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.functions.func_preserves_eq import func_preserves_eq
+from theorems.functions.apply_intro import apply_intro
+from theorems.functions.func_ext_from_agree import func_ext_from_agree
+from theorems.functions.apply_in_double_union import apply_in_double_union
+from theorems.functions.domain_unique import domain_unique
+from theorems.functions.union_apply_left import union_apply_left
+from theorems.functions.union_apply_right import union_apply_right
+from theorems.functions.domain_mem_intro import domain_mem_intro
+from theorems.functions.domain_mem_elim import domain_mem_elim
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
+from theorems.functions.union_apply_elim import union_apply_elim
+from theorems.functions.domain_neg_no_apply import domain_neg_no_apply
+from theorems.functions.extend_apply_new import extend_apply_new
+from theorems.functions.extend_apply_old import extend_apply_old
+from theorems.functions.eqv_apply import eqv_apply
+from theorems.functions.extend_function import extend_function
+
 $_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))))
 $_ print("domain_exists ok")
 
-from theorems.functions.unique_domain import unique_domain
 $_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")))
 $_ print("unique_domain ok")
 
-from theorems.functions.func_unique_thm import func_unique_thm
 $_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
     implies(single_valued("f","_"),
         implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))))
 $_ print("func_unique_thm ok")
 
-from theorems.functions.func_preserves_eq import func_preserves_eq
 $_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
     implies(single_valued("f","_"), implies(eqv("x1","x2","_"), implies(apply("f","x1","y1","_"),
         implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))))
 $_ print("func_preserves_eq ok")
 
-from theorems.functions.apply_intro import apply_intro
 $_ qed(apply_intro, forall("p", forall("f", forall("x", forall("y",
     implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))))
 $_ print("apply_intro ok")
 
 
 
-from theorems.functions.func_ext_from_agree import func_ext_from_agree
 $_fea_agree forall("x", forall("v1", forall("v2", implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
 $_fea_df forall("x", forall("v", implies(apply("h1","x","v","_"), exists("v2", apply("h2","x","v2","_")))))
 $_fea_db forall("x", forall("v", implies(apply("h2","x","v","_"), exists("v1", apply("h1","x","v1","_")))))
@@ -38,114 +52,95 @@ $_fea_top implies(relation("h1","_"), implies(relation("h2","_"), implies(_fea_a
 $_ qed(func_ext_from_agree, forall("h1", forall("h2", _fea_top)))
 $_ print("func_ext_from_agree ok")
 
-from theorems.functions.apply_in_double_union import apply_in_double_union
 $_ qed(apply_in_double_union,
     forall("f", forall("x", forall("y", forall("uf", forall("uuf",
         implies(apply("f","x","y","_"), implies(big_union("uf","f","_"),
             implies(big_union("uuf","uf","_"), mem("x","uuf"))))))))))
 $_ print("apply_in_double_union ok")
 
-from theorems.functions.domain_exists import domain_exists
 $_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))))
 $_ print("domain_exists ok")
 
-from theorems.functions.domain_unique import domain_unique
 $_ qed(domain_unique,
     forall("f", forall("s1", forall("s2",
         implies(domain("s1","f","_"), implies(domain("s2","f","_"), eqv("s1","s2","_")))))))
 $_ print("domain_unique ok")
 
-from theorems.functions.unique_domain import unique_domain
 $_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")))
 $_ print("unique_domain ok")
 
-from theorems.functions.func_unique_thm import func_unique_thm
 $sv single_valued("f","_")
 $_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
     implies(sv, implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))))
 $_ print("func_unique_thm ok")
 
-from theorems.functions.func_preserves_eq import func_preserves_eq
 $_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
     implies(sv, implies(eqv("x1","x2","_"), implies(apply("f","x1","y1","_"),
         implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))))
 $_ print("func_preserves_eq ok")
 
-from theorems.functions.apply_intro import apply_intro
 $_ qed(apply_intro,
     forall("p", forall("f", forall("x", forall("y",
         implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))))
 $_ print("apply_intro ok")
 
-from theorems.functions.union_apply_left import union_apply_left
 $_ qed(union_apply_left,
     forall("u", forall("a", forall("b", forall("x", forall("y",
         implies(apply("a","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))))
 $_ print("union_apply_left ok")
 
-from theorems.functions.union_apply_right import union_apply_right
 $_ qed(union_apply_right,
     forall("u", forall("a", forall("b", forall("x", forall("y",
         implies(apply("b","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))))
 $_ print("union_apply_right ok")
 
-from theorems.functions.domain_mem_intro import domain_mem_intro
 $_ qed(domain_mem_intro,
     forall("f", forall("d", forall("x", forall("y",
         implies(apply("f","x","y","_"), implies(domain("d","f","_"), mem("x","d"))))))))
 $_ print("domain_mem_intro ok")
 
-from theorems.functions.domain_mem_elim import domain_mem_elim
 $_ qed(domain_mem_elim,
     forall("f", forall("d", forall("x",
         implies(domain("d","f","_"), implies(mem("x","d"), exists("_y", apply("f","x","_y","__"))))))))
 $_ print("domain_mem_elim ok")
 
-from theorems.functions.apply_key_transfer import apply_key_transfer
 $_ qed(apply_key_transfer,
     forall("f", forall("x", forall("x2", forall("y",
         implies(eqv("x","x2","_"), implies(apply("f","x","y","_"), apply("f","x2","y","_"))))))))
 $_ print("apply_key_transfer ok")
 
-from theorems.functions.apply_val_transfer import apply_val_transfer
 $_ qed(apply_val_transfer,
     forall("f", forall("x", forall("y", forall("y2",
         implies(eqv("y","y2","_"), implies(apply("f","x","y","_"), apply("f","x","y2","_"))))))))
 $_ print("apply_val_transfer ok")
 
-from theorems.functions.union_apply_elim import union_apply_elim
 $_ qed(union_apply_elim,
     forall("u", forall("a", forall("b", forall("x", forall("y",
         implies(apply("u","x","y","_"), implies(union("u","a","b","_"),
             or(apply("a","x","y","_"), apply("b","x","y","_"))))))))))
 $_ print("union_apply_elim ok")
 
-from theorems.functions.domain_neg_no_apply import domain_neg_no_apply
 $_ qed(domain_neg_no_apply,
     forall("f", forall("d", forall("x", forall("y",
         implies(domain("d","f","_"), implies(neg(mem("x","d")), neg(apply("f","x","y","_")))))))))
 $_ print("domain_neg_no_apply ok")
 
-from theorems.functions.extend_apply_new import extend_apply_new
 $_ qed(extend_apply_new,
     forall("u", forall("h", forall("op", forall("g", forall("k", forall("v",
         implies(singleton("h","op","_"), implies(ordered_pair("op","k","v","_"),
             implies(union("u","g","h","_"), apply("u","k","v","_")))))))))))
 $_ print("extend_apply_new ok")
 
-from theorems.functions.extend_apply_old import extend_apply_old
 $_ qed(extend_apply_old,
     forall("u", forall("g", forall("h", forall("x", forall("y",
         implies(apply("g","x","y","_"), implies(union("u","g","h","_"), apply("u","x","y","_")))))))))
 $_ print("extend_apply_old ok")
 
-from theorems.functions.eqv_apply import eqv_apply
 $_ qed(eqv_apply,
     forall("f", forall("g", forall("x", forall("y",
         implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))))
 $_ print("eqv_apply ok")
 
-from theorems.functions.extend_function import extend_function
 $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","k","y0","_"),
     implies(forall("z", implies(apply("v","k","z","_"), eqv("y0","z","_"))),
         implies(union("u","v","h","_"), function("u","_"))))))

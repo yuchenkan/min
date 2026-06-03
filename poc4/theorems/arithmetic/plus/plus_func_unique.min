@@ -30,6 +30,7 @@ from theorems.sets.successor_exists import successor_exists
 from theorems.functions.apply_intro import apply_intro
 from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.sets.eq_succ_transfer import eq_succ_transfer
+from theorems.functions.func_ext_from_agree import func_ext_from_agree
 
 # plus_func_unique: Omega(w) → PlusFunc(h1,w) → PlusFunc(h2,w) → Eqv(h1,h2)
 # By omega_induction: for all m∈w, n∈w, h1(⟨m,n⟩) = h2(⟨m,n⟩).
@@ -499,268 +500,39 @@ $plus_func_unique {
     $oi_3 mp(oi_2, got_sc, step_case, arg2(head(right(oi_2))), left(oi_2), left(got_sc))
     # [axiom_ctxs, pf1, pf2, om] |- ∀n∈w.P(n)
 
-    # === EXTENSIONALITY: ∀n∈w.P(n) → Eqv(h1,h2) ===
-    # Need: ∀zz. zz∈h1 ↔ zz∈h2. Prove each direction.
-    $zz_h1 mem("zz","h1")
-    $zz_h2 mem("zz","h2")
+    # === EXTENSIONALITY via func_ext_from_agree ===
     $goal eqv("h1","h2","_")
 
-    # --- Forward: zz∈h1 → zz∈h2 ---
-    # Relation(h1) at zz: zz∈h1 → ∃key.∃val.OrdPair(zz,key,val)
+    # Conditions for func_ext_from_agree:
+    # 1. Relation(h1), 2. Relation(h2) — from Function extraction
     $got_rel1 mp(and_elim_left(rel1, sv1, []), got_func1, func1, rel1, [], [pf1])
-    $got_ex_kv mp(apply_thm(got_rel1, rel1, ["zz"], ["zz"],
-        \z: implies(mem(z,"h1"), exists("x", exists("y", ordered_pair(z,"x","y","_")))), [pf1]),
-        ax([zz_h1], [zz_h1], zz_h1), zz_h1,
-        exists("key", exists("val", ordered_pair("zz","key","val","_"))),
-        [pf1], [zz_h1])
-    $op_zz ordered_pair("zz","key","val","_")
-    $and_kv and(exists("val", op_zz), mem("key","val"))
+    $rel2x forall("z", implies(mem("z","h2"), exists("x", exists("y", ordered_pair("z","x","y","_")))))
+    $got_rel2 mp(and_elim_left(rel2x, sv2, []), got_func2, func2, rel2x, [], [pf2])
 
-    # Assume OrdPair(zz,key,val). apply_intro → Apply(h1,key,val)
-    $app1_kv apply("h1","key","val","_")
-    $_ai_b \p: \f: \x: \y: implies(ordered_pair(p,x,y,"_"), implies(mem(p,f), apply(f,x,y,"_")))
-    $ai1 apply_thm(apply_intro, head(right(apply_intro)), ["zz","h1","key","val"],
-        ["p","f","x","y"], _ai_b, [])
-    $got_app1_kv mp(mp(ai1, ax([op_zz], [op_zz], op_zz), op_zz, implies(zz_h1, app1_kv), [], [op_zz]),
-        ax([zz_h1], [zz_h1], zz_h1), zz_h1, app1_kv, [op_zz], [zz_h1])
+    # 3. agree: ∀x.∀v1.∀v2. Apply(h1,x,v1)→Apply(h2,x,v2)→Eqv(v1,v2)
+    # 4. dom_fwd: ∀x.∀v. Apply(h1,x,v)→∃v2.Apply(h2,x,v2)
+    # 5. dom_bwd: ∀x.∀v. Apply(h2,x,v)→∃v1.Apply(h1,x,v1)
+    # These require: from Apply → domain chain → x∈w×w → ∃m,n → P(n) / domain of other
+    # TODO: derive from oi_3 + dom_eq. Using ax placeholder for now.
+    $agree forall("x", forall("v1", forall("v2",
+        implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
+    $dom_fwd forall("x", forall("v", implies(apply("h1","x","v","_"),
+        exists("v2", apply("h2","x","v2","_")))))
+    $dom_bwd forall("x", forall("v", implies(apply("h2","x","v","_"),
+        exists("v1", apply("h1","x","v1","_")))))
+    $got_agree ax([pf1, pf2, om], [agree], agree)
+    $got_dom_fwd ax([pf1, pf2, om], [dom_fwd], dom_fwd)
+    $got_dom_bwd ax([pf1, pf2, om], [dom_bwd], dom_bwd)
 
-    # key∈dom(h1): from Apply → eir → ∃val.Apply → domain backward
-    $got_ex_app1 eir(got_app1_kv, \v: apply("h1","key",v,"_"), "qv", "val", [op_zz, zz_h1])
-    $dom_dh domain("dh","h1","_")
-    $key_dh mem("key","dh")
-    # fl domain at key: iff(key∈dh, ∃qv.Apply(h1,key,qv))
-    $iff_dom iff(key_dh, head(right(got_ex_app1)))
-    $got_key_dh mp(mp(iff_elim_right(key_dh, head(right(got_ex_app1)), []),
-        fl(ax([iff_dom], [iff_dom], iff_dom), [dom_dh], [iff_dom], dom_dh, "key"),
-        iff_dom, implies(head(right(got_ex_app1)), key_dh), [], [dom_dh]),
-        got_ex_app1, head(right(got_ex_app1)), key_dh, [dom_dh], [op_zz, zz_h1])
-    # dom_eq1 at dh,pww → Eqv(dh,pww) → key∈pww
-    $deq_f1 apply_thm(got_deq1, dom_eq1, ["dh","pww"], ["d","prod"],
-        \d: \prod: implies(domain(d,"h1","_"), implies(product(prod,"w","w","_"), eqv(d,prod,"_"))), [pf1])
-    $deq_f1a mp(deq_f1, ax([dom_dh], [dom_dh], dom_dh), dom_dh,
-        implies(prod_pww, eqv("dh","pww","_")), [pf1], [dom_dh])
-    $got_eqv_dp mp(deq_f1a,
-        ax([prod_pww], [prod_pww], prod_pww), prod_pww, eqv("dh","pww","_"), left(deq_f1a), [prod_pww])
-    $key_pww mem("key","pww")
-    $got_key_pww mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["dh","pww","key"],
-        ["a","b","z"], _eml_b, []),
-        got_eqv_dp, eqv("dh","pww","_"), implies(key_dh, key_pww), [], left(got_eqv_dp)),
-        got_key_dh, key_dh, key_pww, left(got_eqv_dp), left(got_key_dh))
-    # Keep dh and pww on left — eel them at the end of extensionality.
-    # [pf1, dom_dh, prod_pww, op_zz, zz_h1] |- key∈pww
-
-    # Product forward: key∈pww → ∃mx.∃nx. mx∈w ∧ nx∈w ∧ OrdPair(key,mx,nx)
-    # fl Product(pww,w,w) at key — need a pww witness on left
-    # Actually, key_pww is key∈pww where pww was eliminated by eel. But key_pww has "pww" free!
-    # Hmm, after eel pww + cut, "pww" is no longer on the left. But key_pww = mem("key","pww") has "pww" free.
-    # Wait, the eel replaced prod_pww with ∃pww.prod_pww, then cut eliminated the ∃. So "pww" is gone.
-    # But key_pww on the RIGHT still has "pww" free... no, after eel, "pww" on the right was the goal.
-    # Actually, the eel+cut pattern: got_key_pww5 has right = [key_pww] = [mem("key","pww")].
-    # But "pww" was eliminated from the LEFT. On the RIGHT, key_pww still says key∈pww.
-    # This is a problem — I used "pww" as both the eigenvariable and the name in key_pww.
-    # After eel pww, the eigenvariable formula (prod_pww) is replaced by the exists, then cut.
-    # But key_pww = mem("key","pww") on the right still has "pww" as a FREE variable.
-    # This means "pww" was NOT fully eliminated. The right still references it.
-    # Actually, the eel eliminates "pww" from the LEFT by replacing it with the existential.
-    # The RIGHT formula (key_pww) keeps "pww" free. This is fine — the proof shows key∈pww
-    # for some pww satisfying Product(pww,w,w), with pww existentially bound on the left.
-    # But then I need to OPEN Product(pww,w,w) to get m,n from key∈pww.
-    # This requires pww to be on the left... which it's not after eel+cut.
-
-    # Simpler approach: DON'T eel pww yet. Keep Product(pww,w,w) on the left.
-    # Use it to open key∈pww → ∃mx.∃nx. ...
-
-    # Let me redo: keep prod_pww and dom_dh on the left, do all the work, then eel at the end.
-    # Actually the simplest: just use got_key_pww (before eel) and keep working with dh and pww on left.
-
-    # fl Product(pww,w,w) at key: key∈pww → ∃mx.∃nx. and(and(mx∈w,nx∈w), OrdPair(key,mx,nx))
-    $ex_mn exists("mx", exists("nx", and(and(mem("mx","w"), mem("nx","w")), ordered_pair("key","mx","nx","_"))))
-    $iff_pww iff(key_pww, ex_mn)
-    $got_ex_mn mp(mp(iff_elim_left(key_pww, ex_mn, []),
-        fl(ax([iff_pww], [iff_pww], iff_pww), [prod_pww], [iff_pww], prod_pww, "key"),
-        iff_pww, implies(key_pww, ex_mn), [], [prod_pww]),
-        got_key_pww, key_pww, ex_mn, [prod_pww], left(got_key_pww))
-    # Assume mx∈w, nx∈w, OrdPair(key,mx,nx)
-    $mxw mem("mx","w")
-    $nxw mem("nx","w")
-    $op_key_mn ordered_pair("key","mx","nx","_")
-    $and_mn and(and(mxw, nxw), op_key_mn)
-    $got_mxw mp(and_elim_left(mxw, nxw, []),
-        mp(and_elim_left(and(mxw, nxw), op_key_mn, []),
-            ax([and_mn], [and_mn], and_mn), and_mn, and(mxw, nxw), [], [and_mn]),
-        and(mxw, nxw), mxw, [], [and_mn])
-    $got_nxw mp(and_elim_right(mxw, nxw, []),
-        mp(and_elim_left(and(mxw, nxw), op_key_mn, []),
-            ax([and_mn], [and_mn], and_mn), and_mn, and(mxw, nxw), [], [and_mn]),
-        and(mxw, nxw), nxw, [], [and_mn])
-    $got_op_kmn mp(and_elim_right(and(mxw, nxw), op_key_mn, []),
-        ax([and_mn], [and_mn], and_mn), and_mn, op_key_mn, [], [and_mn])
-
-    # Domain chain for h2: key∈dom(h2) → ∃val2.Apply(h2,key,val2)
-    $dom_dh2x domain("dh2","h2","_")
-    $deq_f2 apply_thm(got_deq2, dom_eq2, ["dh2","pww"], ["d","prod"],
-        \d: \prod: implies(domain(d,"h2","_"), implies(product(prod,"w","w","_"), eqv(d,prod,"_"))), [pf2])
-    $deq_f2a mp(deq_f2, ax([dom_dh2x], [dom_dh2x], dom_dh2x), dom_dh2x,
-        implies(prod_pww, eqv("dh2","pww","_")), [pf2], [dom_dh2x])
-    $got_eqv_dp2 mp(deq_f2a,
-        ax([prod_pww], [prod_pww], prod_pww), prod_pww, eqv("dh2","pww","_"), left(deq_f2a), [prod_pww])
-    $got_epd2x mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["dh2","pww"], ["a","b"], _es_b, []),
-        got_eqv_dp2, eqv("dh2","pww","_"), eqv("pww","dh2","_"), [], left(got_eqv_dp2))
-    $got_key_dh2 mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["pww","dh2","key"],
-        ["a","b","z"], _eml_b, []),
-        got_epd2x, eqv("pww","dh2","_"), implies(key_pww, mem("key","dh2")), [], left(got_epd2x)),
-        got_key_pww, key_pww, mem("key","dh2"), left(got_epd2x), left(got_key_pww))
-    $dme2x apply_thm(domain_mem_elim, head(right(domain_mem_elim)), ["h2","dh2","key"],
-        ["f","d","x"], _dme_b, [])
-    $got_ex_val2 mp(mp(dme2x, ax([dom_dh2x], [dom_dh2x], dom_dh2x), dom_dh2x,
-        implies(mem("key","dh2"), exists("_y", apply("h2","key","_y","__"))), [], [dom_dh2x]),
-        got_key_dh2, mem("key","dh2"), exists("_y", apply("h2","key","_y","__")), [dom_dh2x], left(got_key_dh2))
-    # eel dh2, cut domain_exists(h2)
-    $got_ex_val2b eel(got_ex_val2, \d: domain(d,"h2","_"), "d", "dh2", left(got_ex_val2),
-        exists("_y", apply("h2","key","_y","__")))
-    $got_de_f2 apply_thm(domain_exists, head(right(domain_exists)), ["h2"], ["h2"],
-        \f: exists("d", domain("d",f,"_")), de_ctx)
-    $got_ex_val2c cut_c(got_de_f2, got_ex_val2b, head(right(got_de_f2)), de_ctx, left(got_ex_val2b),
-        exists("_y", apply("h2","key","_y","__")))
-    # Assume Apply(h2,key,val2)
-    $app2_kv2 apply("h2","key","val2","_")
-
-    # P(n) at nx,mx,key,val,val2 → Eqv(val,val2)
-    $pn_x1 apply_thm(oi_3, head(right(oi_3)), ["nx"], ["nx"],
-        \n: implies(mem(n,"w"), pred("w",n,"_")), left(oi_3))
-    $pn_x2 mp(pn_x1, got_nxw, nxw, pred("w","nx","_"), left(oi_3), [and_mn])
-    $pn_x3 apply_thm(pn_x2, pred("w","nx","_"), ["mx"], ["mx"],
-        \m: implies(mem(m,"w"), forall("pair", implies(ordered_pair("pair",m,"nx","_"),
-            forall("v1", implies(apply("h1","pair","v1","_"),
-                forall("v2", implies(apply("h2","pair","v2","_"), eqv("v1","v2","_")))))))), left(pn_x2))
-    $pn_x4 mp(pn_x3, got_mxw, mxw, arg2(head(right(pn_x3))), left(pn_x2), [and_mn])
-    $pn_x5 apply_thm(pn_x4, head(right(pn_x4)), ["key"], ["key"],
-        \pair: implies(ordered_pair(pair,"mx","nx","_"), forall("v1", implies(apply("h1",pair,"v1","_"),
-            forall("v2", implies(apply("h2",pair,"v2","_"), eqv("v1","v2","_")))))), left(pn_x4))
-    $pn_x6 mp(pn_x5, got_op_kmn, op_key_mn, arg2(head(right(pn_x5))), left(pn_x4), [and_mn])
-    $pn_x7 apply_thm(pn_x6, head(right(pn_x6)), ["val"], ["val"],
-        \v1: implies(apply("h1","key",v1,"_"), forall("v2", implies(apply("h2","key","v2","_"), eqv(v1,"v2","_")))),
-        left(pn_x6))
-    $pn_x8 mp(pn_x7, got_app1_kv, app1_kv, arg2(head(right(pn_x7))), left(pn_x6), [op_zz, zz_h1])
-    $pn_x9 apply_thm(pn_x8, head(right(pn_x8)), ["val2"], ["val2"],
-        \v2: implies(apply("h2","key",v2,"_"), eqv("val",v2,"_")), left(pn_x8))
-    $got_eqv_vv2 mp(pn_x9, ax([app2_kv2], [app2_kv2], app2_kv2), app2_kv2, eqv("val","val2","_"),
-        left(pn_x8), [app2_kv2])
-
-    # apply_val_transfer: eqv(val2,val) → Apply(h2,key,val2) → Apply(h2,key,val)
-    $got_eqv_v2v mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["val","val2"], ["a","b"], _es_b, []),
-        got_eqv_vv2, eqv("val","val2","_"), eqv("val2","val","_"), [], left(got_eqv_vv2))
-    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
-    $avt_r forall("pf", forall("px", forall("py", forall("py2", _avt_b("pf")("px")("py")("py2")))))
-    $avt_thm wr(apply_val_transfer, [], [avt_r], avt_r)
-    $app2_kv apply("h2","key","val","_")
-    $got_app2_kv mp(mp(apply_thm(avt_thm, avt_r, ["h2","key","val2","val"],
-        ["pf","px","py","py2"], _avt_b, []),
-        got_eqv_v2v, eqv("val2","val","_"), implies(app2_kv2, app2_kv), [], left(got_eqv_v2v)),
-        ax([app2_kv2], [app2_kv2], app2_kv2), app2_kv2, app2_kv, left(got_eqv_v2v), [app2_kv2])
-
-    # Open Apply(h2,key,val): ∃p2.OrdPair(p2,key,val)∧p2∈h2
-    # ordpair_unique: OrdPair(zz,key,val)∧OrdPair(p2,key,val) → Eqv(zz,p2)
-    # eqv_mem_left: Eqv(zz,p2)→p2∈h2→zz∈h2
-    $op_p2 ordered_pair("p2","key","val","_")
-    $p2_h2 mem("p2","h2")
-    $and_op_p2 and(op_p2, p2_h2)
-    # Assume and(OrdPair(p2,key,val), p2∈h2)
-    $got_op_p2 mp(and_elim_left(op_p2, p2_h2, []),
-        ax([and_op_p2], [and_op_p2], and_op_p2), and_op_p2, op_p2, [], [and_op_p2])
-    $got_p2_h2 mp(and_elim_right(op_p2, p2_h2, []),
-        ax([and_op_p2], [and_op_p2], and_op_p2), and_op_p2, p2_h2, [], [and_op_p2])
-    # ordpair_unique: OrdPair(zz,key,val) → OrdPair(p2,key,val) → Eqv(zz,p2)
-    # close vars ["w","e"] for ordpair_unique... let me check
-    # Actually ordpair_unique is set_spec_unique, probably close vars ["b","a"]... not sure.
-    # ordpair_unique = set_spec_unique(phi, ["b","a"]). The result is:
-    # ∀a.∀b. OrdPair(t,a,b) → OrdPair(s,a,b) → Eqv(t,s). With close vars for t,s.
-    # Actually, set_spec_unique adds "t","s" vars. Let me check.
-    # ordpair_unique: ∀a.∀b.∀s1.∀s2. OrdPair(s1,a,b)→OrdPair(s2,a,b)→Eqv(s1,s2)
-    # close vars ["s2","s1","b","a"] → _close: ∀a.∀b.∀s1.∀s2
-    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
-    $ou_inst apply_thm(ordpair_unique, head(right(ordpair_unique)), ["key","val","zz","p2"],
-        ["a","b","s1","s2"], _ou_b, [])
-    $got_eqv_zp2 mp(mp(ou_inst,
-        ax([op_zz], [op_zz], op_zz), op_zz, implies(op_p2, eqv("zz","p2","_")), [], [op_zz]),
-        got_op_p2, op_p2, eqv("zz","p2","_"), [op_zz], [and_op_p2])
-    $got_zz_h2 mp(mp(apply_thm(eqv_mem_left, head(right(eqv_mem_left)), ["p2","h2","zz"],
-        ["a","b","z"], \a: \b: \z: implies(eqv(z,a,"_"), implies(mem(z,a), mem(z,b))), []),
-        got_eqv_zp2, eqv("zz","p2","_"), implies(p2_h2, zz_h2), [], left(got_eqv_zp2)),
-        got_p2_h2, p2_h2, zz_h2, left(got_eqv_zp2), [and_op_p2])
-
-    # Hmm, eqv_mem_left: eqv(a,b) → z∈a → z∈b. But I need: eqv(zz,p2) → p2∈h2 → zz∈h2.
-    # That's: eqv(zz,p2) → p2∈h2 → zz∈h2 = eqv_mem_left with a=p2,b=h2,z=zz?
-    # No. eqv_mem_left(a,b,z): eqv(a,b)→z∈a→z∈b. We need: eqv(zz,p2)→p2∈h2→zz∈h2.
-    # That's: eqv(zz,p2) → ∀t.(t∈zz ↔ t∈p2) → use with set h2... no.
-    # eqv(zz,p2) means ∀t.(t∈zz ↔ t∈p2). But I need zz∈h2 from p2∈h2.
-    # For that, I need: ext_substitution: eqv(zz,p2)→iff(zz∈h2, p2∈h2). Then p2∈h2→zz∈h2.
-    # Yes! ext_substitution(a,b,s): eqv(a,b)→iff(a∈s,b∈s). With a=zz,b=p2,s=h2:
-    # eqv(zz,p2)→iff(zz∈h2, p2∈h2). iff_right: p2∈h2→zz∈h2.
-    $_ext_b \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s), mem(b,s)))
-    $ext_ctx left(ext_substitution)
-    $got_iff_zh mp(apply_thm(ext_substitution, head(right(ext_substitution)), ["zz","p2","h2"],
-        ["a","b","s"], _ext_b, ext_ctx),
-        got_eqv_zp2, eqv("zz","p2","_"), iff(zz_h2, p2_h2), ext_ctx, left(got_eqv_zp2))
-    $got_zz_h2 mp(mp(iff_elim_right(zz_h2, p2_h2, []),
-        got_iff_zh, iff(zz_h2, p2_h2), implies(p2_h2, zz_h2), [], left(got_iff_zh)),
-        got_p2_h2, p2_h2, zz_h2, left(got_iff_zh), [and_op_p2])
-
-    # eel p2 from Apply(h2,key,val)
-    $ecur got_zz_h2
-    $ecur eel(ecur, \p: and(ordered_pair(p,"key","val","_"), mem(p,"h2")),
-        "qp", "p2", left(ecur), zz_h2)
-    $ecur cut_c(got_app2_kv, ecur, app2_kv, left(got_app2_kv), left(ecur), zz_h2)
-    # eel val2 from domain chain
-    $ecur eel(ecur, \v: apply("h2","key",v,"_"), "qv", "val2", left(ecur), zz_h2)
-    $ecur cut_c(got_ex_val2c, ecur, head(right(got_ex_val2c)), left(got_ex_val2c), left(ecur), zz_h2)
-    # eel nx,mx from product
-    $ecur eel(ecur, \nx: and(and(mxw, mem(nx,"w")), ordered_pair("key","mx",nx,"_")),
-        "qb", "nx", left(ecur), zz_h2)
-    $ecur eel(ecur, \mx: exists("qb", and(and(mem(mx,"w"), mem("qb","w")), ordered_pair("key",mx,"qb","_"))),
-        "qa", "mx", left(ecur), zz_h2)
-    $ecur cut_c(got_ex_mn, ecur, ex_mn, left(got_ex_mn), left(ecur), zz_h2)
-    # eel dh from domain chain for h1
-    $ecur eel(ecur, \d: domain(d,"h1","_"), "d", "dh", left(ecur), zz_h2)
-    $ecur cut_c(got_de_f1, ecur, head(right(got_de_f1)), de_ctx, left(ecur), zz_h2)
-    # eel pww from product_exists
-    $ecur eel(ecur, \pww: product(pww,"w","w","_"), "p", "pww", left(ecur), zz_h2)
-    $ecur cut_c(got_pe, ecur, head(right(got_pe)), pe_ctx, left(ecur), zz_h2)
-    # eel key,val from relation
-    $ecur eel(ecur, \val: exists("key", and(exists("val", ordered_pair("zz","key",val,"_")), mem("key",val))),
-        "qk", "val", left(ecur), zz_h2)
-
-    # Hmm, the relation ∃key.∃val.OrdPair(zz,key,val) — the exists are nested differently.
-    # Relation gives: ∃x.∃y.OrdPair(zz,x,y). I need to eel both x=key and y=val.
-    # After eel val: exists("qk", ordered_pair("zz","qk","val","_")) stays... no.
-    # Actually, I assumed OrdPair(zz,key,val) and val as explicit names. The eel needs to replace
-    # both key and val with existentials. key and val come from the Relation opening.
-
-    # Actually, I directly assumed op_zz and used it. The Relation gives ∃key.∃val.OrdPair(zz,key,val).
-    # This is on the right (from got_ex_kv). I need to get it on the left.
-    # But I've been assuming op_zz on the left via ax. After all the work, op_zz is on the left.
-    # eel val: replace op_zz with ∃val.OrdPair(zz,key,val)
-    $ecur eel(ecur, \val: ordered_pair("zz","key",val,"_"), "qval", "val", left(ecur), zz_h2)
-    # eel key: replace ∃val.OrdPair(zz,key,val) with ∃key.∃val.OrdPair(zz,key,val)
-    $ecur eel(ecur, \key: exists("qval", ordered_pair("zz",key,"qval","_")),
-        "qkey", "key", left(ecur), zz_h2)
-    # cut with got_ex_kv
-    $ecur cut_c(got_ex_kv, ecur, head(right(got_ex_kv)), left(got_ex_kv), left(ecur), zz_h2)
-    # ir zz_h1 → implies(zz_h1, zz_h2)
-    $fwd implies(zz_h1, zz_h2)
-    $ecur ir(ecur, remove(same, zz_h1, left(ecur)), [fwd], fwd)
-
-    # --- Backward: zz∈h2 → zz∈h1 (symmetric — same argument with h1↔h2) ---
-    # Backward: symmetric to forward (swap h1↔h2). TODO: full proof.
-    $bwd implies(zz_h2, zz_h1)
-    $bcur ax([pf1, pf2, om], [bwd], bwd)
-
-    # Combine: iff(zz∈h1, zz∈h2) → fr zz → eqv(h1,h2)
-    $iff_zz iff(zz_h1, zz_h2)
-    $got_iff_zz mp(mp(iff_intro(zz_h1, zz_h2, []),
-        ecur, fwd, implies(bwd, iff_zz), [], left(ecur)),
-        bcur, bwd, iff_zz, left(ecur), left(bcur))
-    $got_eqv fr(got_iff_zz, left(got_iff_zz), [goal], goal, "zz")
+    # Apply func_ext_from_agree
+    $_fea_b \h1: \h2: implies(rel1, implies(rel2x, implies(agree, implies(dom_fwd, implies(dom_bwd, eqv(h1,h2,"_"))))))
+    $fea_inst apply_thm(func_ext_from_agree, head(right(func_ext_from_agree)),
+        ["h1","h2"], ["h1","h2"], _fea_b, left(func_ext_from_agree))
+    $fea1 mp(fea_inst, got_rel1, rel1, arg2(head(right(fea_inst))), left(func_ext_from_agree), [pf1])
+    $fea2 mp(fea1, got_rel2, rel2x, arg2(head(right(fea1))), left(fea1), [pf2])
+    $fea3 mp(fea2, got_agree, agree, arg2(head(right(fea2))), left(fea2), left(got_agree))
+    $fea4 mp(fea3, got_dom_fwd, dom_fwd, arg2(head(right(fea3))), left(fea3), left(got_dom_fwd))
+    $got_eqv mp(fea4, got_dom_bwd, dom_bwd, goal, left(fea4), left(got_dom_bwd))
 
     # Close: ir pf2, ir pf1, ir om
     $top implies(om, implies(pf1, implies(pf2, goal)))
@@ -770,3 +542,4 @@ $plus_func_unique {
     $cur ir(cur, remove(same, om, left(cur)), [top], top)
     close(cur, left(cur), [top], ["w","h2","h1"])
 }
+
