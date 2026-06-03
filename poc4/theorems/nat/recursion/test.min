@@ -4,10 +4,10 @@ from vocab.functions import apply, function
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.nat.recursion import rec_approx, recursive, total_from
 from vocab.logic import exists_unique
-from theorems.recursion.rec_base import rec_base
+from theorems.nat.recursion.rec_base import rec_base
 from theorems.nat.recursion.rec_approx_zero import rec_approx_zero
 from theorems.nat.recursion.extend_consistency import extend_consistency
-from theorems.recursion.extend_base import extend_base
+from theorems.nat.recursion.extend_base import extend_base
 from theorems.nat.nat.succ_set_transfer import succ_set_transfer
 from theorems.nat.recursion.extend_dom_sub import extend_dom_sub
 from theorems.nat.recursion.extend_ran_sub import extend_ran_sub
@@ -23,12 +23,12 @@ from theorems.nat.recursion.rec_value import rec_value
 from theorems.nat.recursion.rec_h_apply_fwd import rec_h_apply_fwd
 from theorems.nat.recursion.rec_h_step import rec_h_step
 from theorems.nat.recursion.rec_h_function import rec_h_function
-from theorems.recursion.rec_apply_dom import rec_apply_dom
+from theorems.nat.recursion.rec_apply_dom import rec_apply_dom
 from theorems.nat.recursion.rec_values_agree import rec_values_agree
 from theorems.nat.recursion.char_h_bridge import char_h_bridge
 from theorems.nat.recursion.rec_exists_full import rec_exists_full
 from theorems.nat.recursion.rec_unique import rec_unique
-from theorems.recursion.recursion_theorem import recursion_theorem
+from theorems.nat.recursion.recursion_theorem import recursion_theorem
 
 $_ qed(rec_base, forall("e0", forall("a", implies(num("e0",0,"_"), exists("h", and(function("h","_"), forall("e", implies(num("e",0,"_"), apply("h","e","a","_")))))))))
 $_ print("rec_base ok")
@@ -152,8 +152,8 @@ $rhf_body implies(rha_char, implies(function("f","_"),
 $_ qed(rec_h_function, forall("h", forall("a", forall("f", rhf_body))))
 $_ print("rec_h_function ok")
 
-$rad_body implies(recursive("h","a","f","w","_"), implies(apply("h","x","y","_"), mem("x","w")))
-$_ qed(rec_apply_dom, forall("y", forall("x", forall("h", forall("a", forall("f", forall("w", rad_body)))))))
+$rad_body implies(recursive("h","a","f","_"), implies(apply("h","x","y","_"), nat("x","_")))
+$_ qed(rec_apply_dom, forall("h", forall("a", forall("f", forall("x", forall("y", rad_body))))))
 $_ print("rec_apply_dom ok")
 
 $rva_pred \w n p: exists(add(p,"y"), and(apply("h",n,add(p,"y"),add(p,"_")),
@@ -184,9 +184,9 @@ $ru_body implies(recursive("h","a","f","_"), implies(recursive("h2","a","f","_")
 $_ qed(rec_unique, forall("h", forall("h2", forall("a", forall("f", ru_body)))))
 $_ print("rec_unique ok")
 
-$eu_body \h p: recursive(h,"a","f","w",p)
-$rt_body implies(function("f","_"), implies(total_from("f","a","_"), implies(omega("w","_"), exists_unique(eu_body, "_"))))
-$_ qed(recursion_theorem, forall("a", forall("f", forall("w", rt_body))))
+$eu_body \h p: recursive(h,"a","f",p)
+$rt_body implies(function("f","_"), implies(total_from("f","a","_"), exists_unique(eu_body, "_")))
+$_ qed(recursion_theorem, forall("a", forall("f", rt_body)))
 $_ print("recursion_theorem ok")
 
 $ok true

@@ -1,0 +1,3 @@
+from theorems.nat.recursion.rec_exists import rec_exists
+$_ print("rec_exists loaded")
+$ok true
