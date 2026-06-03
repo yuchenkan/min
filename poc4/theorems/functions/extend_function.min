@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right
-from vocab.sets import singleton, ordered_pair, union
-from vocab.functions import apply, function, relation, single_valued
+from vocab.sets import singleton, ordered_pair, union, relation
+from vocab.functions import apply, function, single_valued
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

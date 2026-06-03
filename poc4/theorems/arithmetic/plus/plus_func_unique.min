@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, successor, ordered_pair
-from vocab.functions import apply, function, single_valued, domain, product
+from vocab.sets import empty, successor, ordered_pair, product
+from vocab.functions import apply, function, single_valued, domain
 from vocab.omega import omega
 from vocab.arithmetic.plus import plus_func
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
@@ -19,8 +19,8 @@ from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.functions.domain_exists import domain_exists
 from theorems.functions.domain_mem_elim import domain_mem_elim
-from theorems.functions.product_exists import product_exists
-from theorems.functions.product_in_intro import product_in_intro
+from theorems.sets.product_exists import product_exists
+from theorems.sets.product_in_intro import product_in_intro
 from theorems.omega.omega_induction import omega_induction
 from theorems.omega.omega_contains_empty import omega_contains_empty
 from theorems.omega.omega_succ_closed import omega_succ_closed

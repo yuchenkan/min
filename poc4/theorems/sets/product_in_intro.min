@@ -1,6 +1,5 @@
 from core.derived import mem, implies, forall, and, iff, exists, left, right
-from vocab.sets import ordered_pair
-from vocab.functions import product
+from vocab.sets import ordered_pair, product
 from tactics import ax, fl, ir, fr, mp, apply_thm, eir, close
 from theorems.logic.and_intro import and_intro
 from theorems.logic.iff_elim_right import iff_elim_right

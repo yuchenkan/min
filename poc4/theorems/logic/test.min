@@ -31,6 +31,11 @@ from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
 from theorems.logic.eqv_mem_left import eqv_mem_left
+from vocab.logic import exists_unique
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.logic.ext_substitution import ext_substitution
+from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.exists_unique_bridge import exists_unique_bridge
 
 $A mem("a", "b")
 $B mem("b", "a")
@@ -139,10 +144,6 @@ $_ print("eqv_transitive ok")
 $_ qed(eqv_mem_left, forall("a", forall("b", forall("z", implies(eqv("a", "b", "_"), implies(mem("z", "a"), mem("z", "b")))))))
 $_ print("eqv_mem_left ok")
 
-from vocab.logic import exists_unique
-from theorems.logic.exists_unique_intro import exists_unique_intro
-from theorems.logic.ext_substitution import ext_substitution
-
 $_ qed(exists_unique_intro(\v: mem(v, "a"), "b", ["b", "a"]),
     forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eqv("b", "y", "_"))), exists_unique(\v: mem(v, "a"), "_"))))))
 $_ print("exists_unique_intro ok")
@@ -151,13 +152,11 @@ $_ qed(ext_substitution,
     forall("a", forall("b", forall("s", implies(eqv("a", "b", "_"), iff(mem("a", "s"), mem("b", "s")))))))
 $_ print("ext_substitution ok")
 
-from theorems.logic.eqv_mem_right import eqv_mem_right
 $_ qed(eqv_mem_right,
     forall("x", forall("y", forall("a",
         implies(eqv("x", "y", "_"), implies(mem("x", "a"), mem("y", "a")))))))
 $_ print("eqv_mem_right ok")
 
-from theorems.logic.exists_unique_bridge import exists_unique_bridge
 $phi_fn \v: mem(v, "a")
 $bridge_f implies(exists_unique(phi_fn, "_"), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s")))))
 $_ qed(exists_unique_bridge(phi_fn, "s", ["s", "a"]), forall("a", forall("s", bridge_f)))

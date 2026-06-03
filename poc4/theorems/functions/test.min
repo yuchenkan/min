@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
-from vocab.sets import ordered_pair, successor, singleton, big_union, union
-from vocab.functions import apply, function, relation, single_valued, domain, product
+from vocab.sets import ordered_pair, successor, singleton, big_union, union, relation, product
+from vocab.functions import apply, function, single_valued, domain
 from vocab.logic import exists_unique
 
 from theorems.functions.domain_exists import domain_exists
@@ -28,15 +28,7 @@ $_ qed(apply_intro, forall("p", forall("f", forall("x", forall("y",
     implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))))
 $_ print("apply_intro ok")
 
-from theorems.functions.product_exists import product_exists
-$_ qed(product_exists, forall("a", forall("b", exists("s", product("s","a","b","_")))))
-$_ print("product_exists ok")
 
-from theorems.functions.product_in_intro import product_in_intro
-$_ qed(product_in_intro, forall("s", forall("a", forall("b", forall("x", forall("y", forall("z",
-    implies(product("s","a","b","_"), implies(mem("x","a"), implies(mem("y","b"),
-        implies(ordered_pair("z","x","y","_"), mem("z","s"))))))))))))
-$_ print("product_in_intro ok")
 
 from theorems.functions.func_ext_from_agree import func_ext_from_agree
 $_fea_agree forall("x", forall("v1", forall("v2", implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
@@ -160,23 +152,8 @@ $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ord
 $_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
 $_ print("extend_function ok")
 
-from theorems.functions.product_exists import product_exists
 
-from theorems.functions.product_unique import product_unique
-$_ qed(product_unique, forall("a", forall("b", forall("s1", forall("s2",
-    implies(product("s1","a","b","_"), implies(product("s2","a","b","_"), eqv("s1","s2","_"))))))))
-$_ print("product_unique ok")
 
-from theorems.functions.unique_product import unique_product
-$up_fn \s p: product(s,"a","b",p)
-$_ qed(unique_product, forall("a", forall("b", exists_unique(up_fn, "_"))))
-$_ print("unique_product ok")
 
-from theorems.functions.product_in_intro import product_in_intro
-$_ qed(product_in_intro,
-    forall("s", forall("a", forall("b", forall("x", forall("y", forall("z",
-        implies(product("s","a","b","_"), implies(mem("x","a"), implies(mem("y","b"),
-            implies(ordered_pair("z","x","y","_"), mem("z","s"))))))))))))
-$_ print("product_in_intro ok")
 
 $ok true

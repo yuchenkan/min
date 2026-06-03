@@ -1,26 +1,80 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists, qed, sep_ax
-from vocab.sets import empty, singleton, pair_set, big_union, power_set, successor, ordered_pair, intersect, subset, union
+from vocab.sets import empty, singleton, pair_set, big_union, power_set, successor, ordered_pair, intersect, subset, union, relation, product
 from vocab.functions import apply, domain, function
 from vocab.logic import exists_unique
 
 from theorems.sets.empty_exists import empty_exists
+from theorems.sets.pair_set_exists import pair_set_exists
+from theorems.sets.big_union_exists import big_union_exists
+from theorems.sets.empty_unique import empty_unique
+from theorems.sets.set_spec_unique import set_spec_unique
+from theorems.sets.singleton_unique import singleton_unique
+from theorems.sets.power_set_exists import power_set_exists
+from theorems.sets.singleton_exists import singleton_exists
+from theorems.sets.unique_empty import unique_empty
+from theorems.sets.unique_singleton import unique_singleton
+from theorems.sets.unique_pair_set import unique_pair_set
+from theorems.sets.unique_big_union import unique_big_union
+from theorems.sets.unique_power_set import unique_power_set
+from theorems.sets.successor_exists import successor_exists
+from theorems.sets.unique_successor import unique_successor
+from theorems.sets.singleton_injection import singleton_injection
+from theorems.sets.singleton_pair_eq import singleton_pair_eq
+from theorems.sets.pair_injection import pair_injection
+from theorems.sets.kuratowski import kuratowski
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.sets.unique_ordpair import unique_ordpair
+from theorems.sets.succ_not_empty import succ_not_empty
+from theorems.sets.intersect_exists import intersect_exists
+from theorems.sets.intersect_unique import intersect_unique
+from theorems.sets.unique_intersect import unique_intersect
+from theorems.sets.subset_antisymmetric import subset_antisymmetric
+from theorems.sets.eq_transfer import eq_transfer
+from theorems.sets.eq_in_eq import eq_in_eq
+from theorems.sets.successor_unique import successor_unique
+from theorems.sets.ordpair_mem_left import ordpair_mem_left
+from theorems.sets.singleton_mem import singleton_mem
+from theorems.sets.big_union_mem_intro import big_union_mem_intro
+from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
+from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
+from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
+from theorems.sets.union_exists import union_exists
+from theorems.sets.union_unique import union_unique
+from theorems.sets.unique_union import unique_union
+from theorems.sets.union_mem_left import union_mem_left
+from theorems.sets.union_mem_right import union_mem_right
+from theorems.sets.subset_mem import subset_mem
+from theorems.sets.singleton_apply import singleton_apply
+from theorems.sets.singleton_mem_eq import singleton_mem_eq
+from theorems.sets.singleton_function import singleton_function
+from theorems.sets.mem_succ_self import mem_succ_self
+from theorems.sets.mem_succ_intro import mem_succ_intro
+from theorems.sets.mem_succ_elim import mem_succ_elim
+from theorems.sets.neg_mem_empty import neg_mem_empty
+from theorems.sets.subset_union_left import subset_union_left
+from theorems.sets.subset_union_right import subset_union_right
+from theorems.sets.ordpair_bounded import ordpair_bounded
+from theorems.sets.succ_set_transfer import succ_set_transfer
+from theorems.sets.eq_succ_transfer import eq_succ_transfer
+from theorems.sets.product_exists import product_exists
+from theorems.sets.product_unique import product_unique
+from theorems.sets.unique_product import unique_product
+from theorems.sets.product_in_intro import product_in_intro
+
 $_ qed(empty_exists, exists("s", empty("s", "_")))
 $_ print("empty_exists ok")
 
-from theorems.sets.pair_set_exists import pair_set_exists
 $_ qed(pair_set_exists, forall("a", forall("b", exists("s", pair_set("s", "a", "b", "_")))))
 $_ print("pair_set_exists ok")
 
-from theorems.sets.big_union_exists import big_union_exists
 $_ qed(big_union_exists, forall("a", exists("s", big_union("s", "a", "_"))))
 $_ print("big_union_exists ok")
 
-from theorems.sets.empty_unique import empty_unique
 $_ qed(empty_unique,
     forall("a", forall("b", implies(empty("a", "_"), implies(empty("b", "_"), eqv("a", "b", "_"))))))
 $_ print("empty_unique ok")
 
-from theorems.sets.set_spec_unique import set_spec_unique
 $_ qed(set_spec_unique(\v p: mem(v, "a"), ["a"]),
     forall("a", forall("s1", forall("s2",
         implies(forall("_x", iff(mem("_x", "s1"), mem("_x", "a"))),
@@ -28,168 +82,127 @@ $_ qed(set_spec_unique(\v p: mem(v, "a"), ["a"]),
                         eqv("s1", "s2", "_")))))))
 $_ print("set_spec_unique ok")
 
-from theorems.sets.singleton_unique import singleton_unique
 $_ qed(singleton_unique,
     forall("a", forall("s1", forall("s2",
         implies(singleton("s1", "a", "_"), implies(singleton("s2", "a", "_"), eqv("s1", "s2", "_")))))))
 $_ print("singleton_unique ok")
 
-from theorems.sets.power_set_exists import power_set_exists
 $_ qed(power_set_exists, forall("a", exists("s", power_set("s", "a", "_"))))
 $_ print("power_set_exists ok")
 
-from theorems.sets.singleton_exists import singleton_exists
 $_ qed(singleton_exists, forall("a", exists("s", singleton("s", "a", "_"))))
 $_ print("singleton_exists ok")
 
-from theorems.sets.unique_empty import unique_empty
 $_ qed(unique_empty, exists_unique(\v p: empty(v, p), "_"))
 $_ print("unique_empty ok")
 
-from theorems.sets.unique_singleton import unique_singleton
 $_ qed(unique_singleton, forall("a", exists_unique(\v p: singleton(v, "a", p), "_")))
 $_ print("unique_singleton ok")
 
-from theorems.sets.unique_pair_set import unique_pair_set
 $_ qed(unique_pair_set, forall("a", forall("b", exists_unique(\v p: pair_set(v, "a", "b", p), "_"))))
 $_ print("unique_pair_set ok")
 
-from theorems.sets.unique_big_union import unique_big_union
 $_ qed(unique_big_union, forall("a", exists_unique(\v p: big_union(v, "a", p), "_")))
 $_ print("unique_big_union ok")
 
-from theorems.sets.unique_power_set import unique_power_set
 $_ qed(unique_power_set, forall("a", exists_unique(\v p: power_set(v, "a", p), "_")))
 $_ print("unique_power_set ok")
 
-from theorems.sets.successor_exists import successor_exists
 $_ qed(successor_exists, forall("a", exists("s", successor("s", "a", "_"))))
 $_ print("successor_exists ok")
 
-from theorems.sets.unique_successor import unique_successor
 $_ qed(unique_successor, forall("a", exists_unique(\v p: successor(v, "a", p), "_")))
 $_ print("unique_successor ok")
 
-from theorems.sets.singleton_injection import singleton_injection
 $_ qed(singleton_injection,
     forall("a", forall("b", implies(forall("w", iff(eqv("w","a","_"), eqv("w","b","_"))), eqv("a","b","_")))))
 $_ print("singleton_injection ok")
 
-from theorems.sets.singleton_pair_eq import singleton_pair_eq
 $_ qed(singleton_pair_eq,
     forall("a", forall("c", forall("d",
         implies(forall("w", iff(eqv("w","a","_"), or(eqv("w","c","_"), eqv("w","d","_")))),
                 and(eqv("c","a","_"), eqv("d","a","_")))))))
 $_ print("singleton_pair_eq ok")
 
-from theorems.sets.pair_injection import pair_injection
 $_ qed(pair_injection,
     forall("a", forall("b", forall("c", forall("d",
         implies(forall("w", iff(or(eqv("w","a","_"),eqv("w","b","_")), or(eqv("w","c","_"),eqv("w","d","_")))),
                 or(and(eqv("a","c","_"),eqv("b","d","_")), and(eqv("a","d","_"),eqv("b","c","_")))))))))
 $_ print("pair_injection ok")
 
-from theorems.sets.kuratowski import kuratowski
 $op \t a b: ordered_pair(t, a, b, "_")
 $_ qed(kuratowski, forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
     implies(op("t1","a","b"), implies(op("t2","c","d"), implies(eqv("t1","t2","_"), and(eqv("a","c","_"), eqv("b","d","_"))))))))))))
 $_ print("kuratowski ok")
 
-from theorems.sets.ordpair_exists import ordpair_exists
 $_ qed(ordpair_exists, forall("a", forall("b", exists("p", ordered_pair("p", "a", "b", "_")))))
 $_ print("ordpair_exists ok")
 
-from theorems.sets.ordpair_unique import ordpair_unique
-from theorems.sets.unique_ordpair import unique_ordpair
 $_ qed(ordpair_unique, forall("a", forall("b", forall("s1", forall("s2",
     implies(ordered_pair("s1","a","b","_"), implies(ordered_pair("s2","a","b","_"), eqv("s1","s2","_"))))))))
 $_ print("ordpair_unique ok")
 $_ qed(unique_ordpair, forall("a", forall("b", exists_unique(\v p: ordered_pair(v, "a", "b", p), "_"))))
 $_ print("unique_ordpair ok")
 
-from theorems.sets.succ_not_empty import succ_not_empty
 $_ qed(succ_not_empty, forall("sn", forall("n", implies(successor("sn","n","_"), neg(empty("sn","_"))))))
 $_ print("succ_not_empty ok")
 
-from theorems.sets.intersect_exists import intersect_exists
 $_ qed(intersect_exists, sep_ax(["b"], \x a p: mem(x, "b"), "_"))
 $_ print("intersect_exists ok")
 
-from theorems.sets.intersect_unique import intersect_unique
 $_ qed(intersect_unique,
     forall("a", forall("b", forall("s1", forall("s2",
         implies(intersect("s1","a","b","_"), implies(intersect("s2","a","b","_"), eqv("s1","s2","_"))))))))
 $_ print("intersect_unique ok")
 
-from theorems.sets.unique_intersect import unique_intersect
 $_ qed(unique_intersect, forall("a", forall("b", exists_unique(\v p: intersect(v, "a", "b", p), "_"))))
 $_ print("unique_intersect ok")
 
-from theorems.sets.subset_antisymmetric import subset_antisymmetric
 $_ qed(subset_antisymmetric, forall("a", forall("b",
     implies(subset("a","b","_"), implies(subset("b","a","_"), eqv("a","b","_"))))))
 $_ print("subset_antisymmetric ok")
 
-from theorems.sets.eq_transfer import eq_transfer
 $_ qed(eq_transfer, forall("a", forall("b", forall("z",
     implies(eqv("a","b","_"), iff(mem("z","a"), mem("z","b")))))))
 $_ print("eq_transfer ok")
 
-from theorems.sets.eq_in_eq import eq_in_eq
 $_ qed(eq_in_eq, forall("z", forall("x1", forall("x2",
     implies(eqv("x1","x2","_"), iff(eqv("z","x1","_"), eqv("z","x2","_")))))))
 $_ print("eq_in_eq ok")
 
-from theorems.sets.successor_unique import successor_unique
 $_ qed(successor_unique,
     forall("a", forall("s1", forall("s2",
         implies(successor("s1","a","_"), implies(successor("s2","a","_"), eqv("s1","s2","_")))))))
 $_ print("successor_unique ok")
 
-from theorems.sets.ordpair_mem_left import ordpair_mem_left
 $_ qed(ordpair_mem_left,
     forall("s", forall("p", forall("a", forall("b",
         implies(ordered_pair("p","a","b","_"), implies(singleton("s","a","_"), mem("s","p"))))))))
 $_ print("ordpair_mem_left ok")
 
-from theorems.sets.singleton_mem import singleton_mem
 $_ qed(singleton_mem, forall("s", forall("a", implies(singleton("s","a","_"), mem("a","s")))))
 $_ print("singleton_mem ok")
 
-from theorems.sets.big_union_mem_intro import big_union_mem_intro
 $_ qed(big_union_mem_intro,
     forall("x", forall("y", forall("u", forall("a",
         implies(mem("x","y"), implies(mem("y","a"), implies(big_union("u","a","_"), mem("x","u")))))))))
 $_ print("big_union_mem_intro ok")
 
-
-
-
-
-from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
 $_ qed(ordpair_val_transfer,
     forall("t", forall("a", forall("b", forall("c",
         implies(eqv("b","c","_"), implies(ordered_pair("t","a","b","_"), ordered_pair("t","a","c","_"))))))))
 $_ print("ordpair_val_transfer ok")
 
-from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
 $_ qed(ordpair_key_transfer,
     forall("t", forall("a", forall("b", forall("c",
         implies(eqv("a","c","_"), implies(ordered_pair("t","a","b","_"), ordered_pair("t","c","b","_"))))))))
 $_ print("ordpair_key_transfer ok")
 
-from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
 $_ qed(ordpair_eq_transfer,
     forall("t", forall("a", forall("b", forall("c", forall("d",
         implies(eqv("a","c","_"), implies(eqv("b","d","_"),
             implies(ordered_pair("t","a","b","_"), ordered_pair("t","c","d","_"))))))))))
 $_ print("ordpair_eq_transfer ok")
-
-
-
-from theorems.sets.union_exists import union_exists
-from theorems.sets.union_unique import union_unique
-from theorems.sets.unique_union import unique_union
 
 $_ qed(union_exists, forall("a", forall("b", exists("u", union("u","a","b","_")))))
 $_ print("union_exists ok")
@@ -202,91 +215,64 @@ $_ print("union_unique ok")
 $_ qed(unique_union, forall("a", forall("b", exists_unique(\v p: union(v, "a", "b", p), "_"))))
 $_ print("unique_union ok")
 
-
-
-
-from theorems.sets.union_mem_left import union_mem_left
 $_ qed(union_mem_left,
     forall("x", forall("u", forall("a", forall("b",
         implies(mem("x","a"), implies(union("u","a","b","_"), mem("x","u"))))))))
 $_ print("union_mem_left ok")
 
-from theorems.sets.union_mem_right import union_mem_right
 $_ qed(union_mem_right,
     forall("x", forall("u", forall("a", forall("b",
         implies(mem("x","b"), implies(union("u","a","b","_"), mem("x","u"))))))))
 $_ print("union_mem_right ok")
 
-from theorems.sets.subset_mem import subset_mem
 $_ qed(subset_mem,
     forall("x", forall("a", forall("b",
         implies(subset("a","b","_"), implies(mem("x","a"), mem("x","b")))))))
 $_ print("subset_mem ok")
 
-from theorems.sets.singleton_apply import singleton_apply
 $_ qed(singleton_apply,
     forall("f", forall("op", forall("x", forall("y",
         implies(singleton("f","op","_"), implies(ordered_pair("op","x","y","_"), apply("f","x","y","_"))))))))
 $_ print("singleton_apply ok")
 
-from theorems.sets.singleton_mem_eq import singleton_mem_eq
 $_ qed(singleton_mem_eq,
     forall("x", forall("f", forall("a",
         implies(singleton("f","a","_"), implies(mem("x","f"), eqv("x","a","_")))))))
 $_ print("singleton_mem_eq ok")
 
-from theorems.sets.singleton_function import singleton_function
 $_ qed(singleton_function,
     forall("f", forall("op", forall("x", forall("y",
         implies(singleton("f","op","_"), implies(ordered_pair("op","x","y","_"), function("f","_"))))))))
 $_ print("singleton_function ok")
 
-
-
-
-
-
-from core.derived import neg
-
-
-
-
-from theorems.sets.mem_succ_self import mem_succ_self
 $_ qed(mem_succ_self,
     forall("s", forall("n", implies(successor("s","n","_"), mem("n","s")))))
 $_ print("mem_succ_self ok")
 
-from theorems.sets.mem_succ_intro import mem_succ_intro
 $_ qed(mem_succ_intro,
     forall("x", forall("s", forall("n",
         implies(mem("x","n"), implies(successor("s","n","_"), mem("x","s")))))))
 $_ print("mem_succ_intro ok")
 
-from theorems.sets.mem_succ_elim import mem_succ_elim
 $_ qed(mem_succ_elim,
     forall("x", forall("s", forall("n",
         implies(mem("x","s"), implies(successor("s","n","_"), or(mem("x","n"), eqv("x","n","_"))))))))
 $_ print("mem_succ_elim ok")
 
-from theorems.sets.neg_mem_empty import neg_mem_empty
 $_ qed(neg_mem_empty,
     forall("e", forall("x", implies(empty("e","_"), neg(mem("x","e"))))))
 $_ print("neg_mem_empty ok")
 
-from theorems.sets.subset_union_left import subset_union_left
 $_ qed(subset_union_left,
     forall("u", forall("a", forall("b",
         implies(union("u","a","b","_"), subset("a","u","_"))))))
 $_ print("subset_union_left ok")
 
-from theorems.sets.subset_union_right import subset_union_right
 $_ qed(subset_union_right,
     forall("u", forall("a", forall("b",
         implies(union("u","a","b","_"), subset("b","u","_"))))))
 $_ print("subset_union_right ok")
 
-
-from theorems.sets.ordpair_bounded import ordpair_bounded
 $ob_sub_w forall("d", implies(mem("d","s"), mem("d","w")))
 $ob_pw forall("s", iff(mem("s","pw"), ob_sub_w))
 $ob_sub_pw forall("d", implies(mem("d","s"), mem("d","pw")))
@@ -295,20 +281,31 @@ $ob_body implies(mem("x","w"), implies(mem("y","w"), implies(ordered_pair("p","x
 $_ qed(ordpair_bounded, forall("w", forall("x", forall("y", forall("p", forall("pw", forall("ppw", ob_body)))))))
 $_ print("ordpair_bounded ok")
 
-
-from theorems.sets.succ_set_transfer import succ_set_transfer
 $_ qed(succ_set_transfer,
     forall("s1", forall("s2", forall("n",
         implies(eqv("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))))
 $_ print("succ_set_transfer ok")
 
-from theorems.sets.eq_succ_transfer import eq_succ_transfer
 $_ qed(eq_succ_transfer,
     forall("a", forall("b", forall("c", forall("d",
         implies(eqv("a","c","_"), implies(eqv("b","d","_"),
             implies(successor("c","d","_"), successor("a","b","_")))))))))
 $_ print("eq_succ_transfer ok")
 
+$_ qed(product_exists, forall("a", forall("b", exists("s", product("s","a","b","_")))))
+$_ print("product_exists ok")
 
+$_ qed(product_unique, forall("a", forall("b", forall("s1", forall("s2",
+    implies(product("s1","a","b","_"), implies(product("s2","a","b","_"), eqv("s1","s2","_"))))))))
+$_ print("product_unique ok")
+
+$up_fn \s p: product(s,"a","b",p)
+$_ qed(unique_product, forall("a", forall("b", exists_unique(up_fn, "_"))))
+$_ print("unique_product ok")
+
+$_ qed(product_in_intro, forall("s", forall("a", forall("b", forall("x", forall("y", forall("z",
+    implies(product("s","a","b","_"), implies(mem("x","a"), implies(mem("y","b"),
+        implies(ordered_pair("z","x","y","_"), mem("z","s"))))))))))))
+$_ print("product_in_intro ok")
 
 $ok true

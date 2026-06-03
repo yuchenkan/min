@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right
-from vocab.sets import successor, ordered_pair
-from vocab.functions import apply, function, product, relation
+from vocab.sets import successor, ordered_pair, product, relation
+from vocab.functions import apply, function
 from vocab.omega import omega
 from vocab.recursion import recursive
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove

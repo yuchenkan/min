@@ -1,6 +1,6 @@
 from core.derived import mem, neg, implies, forall, and, exists, eqv, left, right
-from vocab.sets import empty, successor
-from vocab.functions import apply, single_valued, function, relation
+from vocab.sets import empty, successor, relation
+from vocab.functions import apply, single_valued, function
 from vocab.recursion import rec_approx
 from tactics import ax, fl, ir, mp, eir, apply_thm, cut_c, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left

@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right, arg2
-from vocab.sets import empty, successor, ordered_pair
-from vocab.functions import apply, function, domain, product, relation
+from vocab.sets import empty, successor, ordered_pair, product, relation
+from vocab.functions import apply, function, domain
 from vocab.omega import omega, inductive
 from vocab.recursion import recursive
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
@@ -8,7 +8,7 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
-from theorems.functions.product_exists import product_exists
+from theorems.sets.product_exists import product_exists
 from theorems.arithmetic.plus.sf_props import sf_props
 from theorems.arithmetic.plus.pf_base import pf_base
 from theorems.arithmetic.plus.pf_relation import pf_relation

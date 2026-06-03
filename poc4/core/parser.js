@@ -160,10 +160,14 @@ class Parser {
 
     parseProgram() {
         const items = [];
+        while (this.peek()[0] !== "EOF" && this.peek()[1] === "from")
+            items.push(this.parseImport());
+        if (items.length === 0 && this.peek()[1] !== "$" && this.peek()[0] !== "EOF")
+            this.error(`expected import or bind, got ${JSON.stringify(this.peek()[1])}`);
         while (this.peek()[0] !== "EOF") {
-            if (this.peek()[1] === "from") items.push(this.parseImport());
+            if (this.peek()[1] === "from") this.error("imports must come before all bindings");
             else if (this.peek()[1] === "$") items.push(this.parseBind());
-            else this.error(`expected import or bind, got ${JSON.stringify(this.peek()[1])}`);
+            else this.error(`expected bind, got ${JSON.stringify(this.peek()[1])}`);
         }
         return items;
     }
