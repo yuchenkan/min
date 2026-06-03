@@ -1,7 +1,8 @@
 from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
 from vocab.sets import empty, successor, singleton, ordered_pair, union
 from vocab.functions import apply, function
-from vocab.recursion import rec_approx
+from vocab.nat.omega import omega
+from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
@@ -11,18 +12,14 @@ from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.nat.omega.omega_exists import omega_exists
 
-# pa |- rec_approx(v,a,f,w) → apply(f,val,fval) →
+# |- rec_approx(v,a,f) → apply(f,val,fval) →
 #   (∀y z. apply(f,y,z) → ∃w. apply(f,z,w)) →
 #   singleton(h,op) → ordered_pair(op,sn,fval) → union(u,v,h) →
 #   ∀x y. apply(u,x,y) → ∃z. apply(f,y,z)
-#
-# Condition 3: range of u is subset of domain of f.
-# Case v: ran_sub of RecApprox(v).
-# Case h: kuratowski → y=fval. ran_f_closed + apply(f,val,fval) → ∃z.apply(f,fval,z).
-#   Then eqv(y,fval) transfers: ∃z.apply(f,y,z).
 $extend_ran_sub {
-    $ra_v rec_approx("v", "a", "f", "w", "_")
+    $ra_v rec_approx("v", "a", "f", "_")
     $app_f_val apply("f", "val", "fval", "_")
     $ran_f_closed forall("y2", forall("z2", implies(apply("f","y2","z2","_"), exists("w2", apply("f","z2","w2","_")))))
     $sing_h singleton("h", "op", "_")
@@ -35,37 +32,40 @@ $extend_ran_sub {
     $or_vh or(app_vx, app_hx)
     $ex_fyz exists("z", apply("f", "y", "z", "_"))
 
-    # Extract ran_sub from rec_approx(v)
+    # Body components (alpha-equiv to vocab expansion)
     $func_v function("v", "_")
     $dom_sub forall("x2", implies(exists("y2", apply("v","x2","y2","_")), mem("x2","w")))
-    $ran_sub forall("x2", forall("y2", implies(apply("v","x2","y2","_"), exists("z", apply("f","y2","z","_")))))
-    $rest1 and(dom_sub, and(ran_sub, and(forall("e", implies(empty("e","_"), implies(exists("y2", apply("v","e","y2","_")), apply("v","e","a","_")))),
-        forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
-            implies(exists("y2", apply("v","sn2","y2","_")), and(exists("y2", apply("v","n2","y2","_")),
-                forall("val2", implies(apply("v","n2","val2","_"), forall("fval2", implies(apply("f","val2","fval2","_"), apply("v","sn2","fval2","_"))))))))))))))
+    $ran_sub forall("x2", forall("y2", implies(apply("v","x2","y2","_"), exists("z2", apply("f","y2","z2","_")))))
+    $base_v forall("e2", implies(empty("e2","_"),
+        implies(exists("y2", apply("v","e2","y2","_")), apply("v","e2","a","_"))))
+    $step_v forall("n2", implies(mem("n2","w"),
+        forall("sn2", implies(successor("sn2","n2","_"),
+            implies(exists("y2", apply("v","sn2","y2","_")),
+                and(exists("y2", apply("v","n2","y2","_")),
+                    forall("val2", implies(apply("v","n2","val2","_"),
+                        forall("fval2", implies(apply("f","val2","fval2","_"),
+                            apply("v","sn2","fval2","_")))))))))))
 
+    $body and(func_v, and(dom_sub, and(ran_sub, and(base_v, step_v))))
+
+    # Extract ran_sub from body
+    $rest1 and(dom_sub, and(ran_sub, and(base_v, step_v)))
     $got_rest1 mp(and_elim_right(func_v, rest1, []),
-        ax([ra_v], [ra_v], ra_v), ra_v, rest1, [], [ra_v])
-    $rest2 and(ran_sub, and(forall("e", implies(empty("e","_"), implies(exists("y2", apply("v","e","y2","_")), apply("v","e","a","_")))),
-        forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
-            implies(exists("y2", apply("v","sn2","y2","_")), and(exists("y2", apply("v","n2","y2","_")),
-                forall("val2", implies(apply("v","n2","val2","_"), forall("fval2", implies(apply("f","val2","fval2","_"), apply("v","sn2","fval2","_")))))))))))))
+        ax([body], [body], body), body, rest1, [], [body])
+    $rest2 and(ran_sub, and(base_v, step_v))
     $got_rest2 mp(and_elim_right(dom_sub, rest2, []),
-        got_rest1, rest1, rest2, [], [ra_v])
-    $got_ran_sub mp(and_elim_left(ran_sub, and(forall("e", implies(empty("e","_"), implies(exists("y2", apply("v","e","y2","_")), apply("v","e","a","_")))),
-        forall("n2", implies(mem("n2","w"), forall("sn2", implies(successor("sn2","n2","_"),
-            implies(exists("y2", apply("v","sn2","y2","_")), and(exists("y2", apply("v","n2","y2","_")),
-                forall("val2", implies(apply("v","n2","val2","_"), forall("fval2", implies(apply("f","val2","fval2","_"), apply("v","sn2","fval2","_")))))))))))), []),
-        got_rest2, rest2, ran_sub, [], [ra_v])
-    # [ra_v] |- ran_sub
+        got_rest1, rest1, rest2, [], [body])
+    $got_ran_sub mp(and_elim_left(ran_sub, and(base_v, step_v), []),
+        got_rest2, rest2, ran_sub, [], [body])
+    # [body] |- ran_sub
 
     # === Case v: ran_sub inst (x, y), mp app_vx → ∃z.apply(f,y,z) ===
-    $got_ran_inst apply_thm(got_ran_sub, ran_sub, ["x", "y"], ["x", "y"],
-        \x: \y: implies(apply("v",x,y,"_"), exists("z2", apply("f",y,"z2","_"))), [ra_v])
+    $got_ran_inst apply_thm(got_ran_sub, ran_sub, ["x", "y"], ["x2", "y2"],
+        \x: \y: implies(apply("v",x,y,"_"), exists("z2", apply("f",y,"z2","_"))), [body])
     $ran_body head(right(got_ran_inst))
     $got_case_v mp(got_ran_inst, ax([app_vx], [app_vx], app_vx), app_vx,
-        arg2(ran_body), [ra_v], [app_vx])
-    # [ra_v, app_vx] |- ∃z.apply(f,y,z)
+        arg2(ran_body), [body], [app_vx])
+    # [body, app_vx] |- ∃z.apply(f,y,z)
 
     # === Case h: kuratowski → y=fval, ran_f_closed → ∃z.apply(f,fval,z), transfer → ∃z.apply(f,y,z) ===
     $_sme head(right(singleton_mem_eq))
@@ -96,7 +96,6 @@ $extend_ran_sub {
     $km3 mp(km2, got_eqv_q, eqv_q_op, goal_and, left(km2), [sing_h, and_q])
     $got_y_fval mp(and_elim_right(eqv("x","sn","_"), eqv_y_fval, []),
         km3, goal_and, eqv_y_fval, [], left(km3))
-    # left(got_y_fval) |- eqv(y, fval)
 
     # ran_f_closed: apply(f,val,fval) → ∃w2.apply(f,fval,w2)
     $ex_f_fval exists("w2", apply("f","fval","w2","_"))
@@ -104,23 +103,13 @@ $extend_ran_sub {
         \y: \z: implies(apply("f",y,z,"_"), exists("w2", apply("f",z,"w2","_"))), [ran_f_closed])
     $got_rfc2 mp(got_rfc, ax([app_f_val], [app_f_val], app_f_val), app_f_val, ex_f_fval,
         [ran_f_closed], [app_f_val])
-    # [ran_f_closed, app_f_val] |- ∃w2.apply(f,fval,w2)
 
-    # Transfer: eqv(y,fval) → apply(f,fval,z) → apply(f,y,z) via apply_key_transfer with eqv(fval,y)
-    # Actually I need: from ∃z.apply(f,fval,z) and eqv(y,fval), derive ∃z.apply(f,y,z).
-    # eqv_symmetric: eqv(y,fval) → eqv(fval,y).
-    # apply_key_transfer: eqv(fval,y) → apply(f,fval,z) → apply(f,y,z).
-    # Then eir.
+    # Transfer: eqv(fval,y) → apply(f,fval,z) → apply(f,y,z)
     $_es head(right(eqv_symmetric))
     $eqv_fval_y eqv("fval", "y", "_")
     $got_fval_y mp(apply_thm(eqv_symmetric, _es, ["y", "fval"], ["y", "b"], _es_b, []),
         got_y_fval, eqv_y_fval, eqv_fval_y, [], left(got_y_fval))
 
-    $_avt head(right(apply_val_transfer))
-    # Hmm, apply_val_transfer is eqv(y,y2) → apply(f,x,y) → apply(f,x,y2).
-    # I need to transfer the KEY (first arg), not the value.
-    # apply_key_transfer: eqv(x,x2) → apply(f,x,y) → apply(f,x2,y).
-    # So: eqv(fval,y) → apply(f,fval,z3) → apply(f,y,z3). ✓
     $_akt head(right(apply_key_transfer))
     $app_f_fval_z3 apply("f", "fval", "z3", "_")
     $app_f_y_z3 apply("f", "y", "z3", "_")
@@ -130,11 +119,8 @@ $extend_ran_sub {
         got_fval_y, eqv_fval_y, implies(app_f_fval_z3, app_f_y_z3), [], left(got_fval_y))
     $got_f_y_z3 mp(akt1, ax([app_f_fval_z3], [app_f_fval_z3], app_f_fval_z3),
         app_f_fval_z3, app_f_y_z3, left(akt1), [app_f_fval_z3])
-    # left |- apply(f,y,z3). eir:
     $got_ex_fy eir(got_f_y_z3, \z: apply("f","y",z,"_"), "z", "z3", left(got_f_y_z3))
-    # eel z3 from ∃w2.apply(f,fval,w2):
     $got_ex_fy2 eel(got_ex_fy, \z: apply("f","fval",z,"_"), "w2", "z3", left(got_ex_fy), ex_fyz)
-    # Cut ∃w2.apply(f,fval,w2) from got_rfc2:
     $got_case_h_inner cut_c(got_rfc2, got_ex_fy2, exists("w2", apply("f","fval","w2","_")),
         [ran_f_closed, app_f_val], left(got_ex_fy2), ex_fyz)
 
@@ -148,7 +134,7 @@ $extend_ran_sub {
         ax([app_ux], [app_ux], app_ux), app_ux, implies(un, or_vh), [], [app_ux]),
         ax([un], [un], un), un, or_vh, [app_ux], [un])
 
-    $hyps [ra_v, app_f_val, ran_f_closed, sing_h, opkv, un, head(left(kuratowski))]
+    $hyps [body, app_f_val, ran_f_closed, sing_h, opkv, un, head(left(kuratowski))]
     $got_v_w wl_all(got_case_v, left(got_case_v), [ex_fyz], diff(same, add(hyps, [app_vx]), left(got_case_v)))
     $got_h_w wl_all(got_case_h, left(got_case_h), [ex_fyz], diff(same, add(hyps, [app_hx]), left(got_case_h)))
 
@@ -162,10 +148,22 @@ $extend_ran_sub {
     $got_or_wr wr(got_or_wl, left(got_or_wl), [or_vh, ex_fyz], ex_fyz)
     $got_ex_w wl_all(got_ex, left(got_ex), [ex_fyz], diff(same, add(left(got_or_wl), [or_vh]), left(got_ex)))
     $got_result cut(got_or_wr, got_ex_w, left(got_or_wl), [ex_fyz], or_vh)
+    # left(got_result) has body + other hyps |- ex_fyz
+
+    # === Unwrap: replace body with ra via omega_exists ===
+    $om omega("w", "_")
+    $_ra_b \w: implies(omega(w, "_"), body)
+    $ra_inst apply_thm(ax([ra_v], [ra_v], ra_v), ra_v, ["w"], ["w"], _ra_b, [ra_v])
+    $got_body mp(ra_inst, ax([om], [om], om), om, body, [ra_v], [om])
+
+    $m1 cut_c(got_body, got_result, body, [ra_v, om], left(got_result), ex_fyz)
+    $m2 eel(m1, \w: omega(w, "_"), "w", "w", remove(same, om, left(m1)), ex_fyz)
+    $ex_om exists("w", omega("w", "_"))
+    $m3 cut_c(omega_exists, m2, ex_om, left(omega_exists), left(m2), ex_fyz)
 
     # Close: ir app_ux, fr y, fr x
-    $ctx left(got_result)
-    $r1 ir(got_result, remove(same, app_ux, ctx), [implies(app_ux, ex_fyz)], implies(app_ux, ex_fyz))
+    $ctx left(m3)
+    $r1 ir(m3, remove(same, app_ux, ctx), [implies(app_ux, ex_fyz)], implies(app_ux, ex_fyz))
     $ran_sub_u forall("x", forall("y", implies(app_ux, ex_fyz)))
     $r2 fr(r1, left(r1), [forall("y", implies(app_ux, ex_fyz))], forall("y", implies(app_ux, ex_fyz)), "y")
     $r3 fr(r2, left(r2), [ran_sub_u], ran_sub_u, "x")
@@ -178,5 +176,5 @@ $extend_ran_sub {
     $s5 ir(s4, remove(same, app_f_val, left(s4)), [implies(app_f_val, implies(ran_f_closed, implies(sing_h, implies(opkv, implies(un, ran_sub_u)))))], implies(app_f_val, implies(ran_f_closed, implies(sing_h, implies(opkv, implies(un, ran_sub_u))))))
     $top implies(ra_v, implies(app_f_val, implies(ran_f_closed, implies(sing_h, implies(opkv, implies(un, ran_sub_u))))))
     $s6 ir(s5, remove(same, ra_v, left(s5)), [top], top)
-    close(s6, left(s6), [top], ["fval","val","sn","op","h","u","w","f","a","v"])
+    close(s6, left(s6), [top], ["fval","val","sn","op","h","u","f","a","v"])
 }
