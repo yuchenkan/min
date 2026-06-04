@@ -1,3 +1,0 @@
-from theorems.arithmetic.plus.sf_total_from import sf_total_from
-$_ print("sf_total_from loaded")
-$ok true
