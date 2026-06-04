@@ -1,5 +1,5 @@
 from core.derived import neg, implies, iff
-from tactics import ax, wl, nl, il, nr, ir, close
+from tactics import ax, wl, nl, il, nr, ir, close, same
 
 # |- (A -> B) -> (B -> A) -> iff(A, B)
 $iff_intro \A B vars: {
@@ -8,7 +8,7 @@ $iff_intro \A B vars: {
     $not_bwd neg(bwd)
     $imp_fwd_not_bwd implies(fwd, not_bwd)
     $iff_AB iff(A, B)
-    $core ?(eq(fwd, bwd),
+    $core ?(same(fwd, bwd),
         {
             $t1 nl(ax([fwd], [fwd], fwd), [fwd, not_bwd], [], not_bwd)
             $t2 il(ax([fwd], [fwd], fwd), t1, [fwd, imp_fwd_not_bwd], [], imp_fwd_not_bwd)

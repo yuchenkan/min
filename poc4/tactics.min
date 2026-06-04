@@ -13,7 +13,6 @@ $_veq \self va vb env: ?(eq(len(env), 0), eq(va, vb), {
 
 # alpha-equiv on .min core formulas [tag, display, arg1, arg2]
 $_aeq \self a b env:
-    ?(eq(a, b), true,
     ?(eq(tag(a), "mem"),
         ?(eq(tag(b), "mem"),
             ?(not(_veq(_veq, arg1(a), arg1(b), env)), false,
@@ -30,7 +29,8 @@ $_aeq \self a b env:
         ?(eq(tag(b), "forall"),
             self(self, arg2(a), arg2(b), add([[arg1(a), arg1(b)]], env)),
         false),
-    false)))))
+    _fail("_aeq: unknown tag")))))
+
 
 # flat: expand vocab to core for comparison
 $_flat \self f: {
