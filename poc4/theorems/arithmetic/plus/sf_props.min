@@ -2,14 +2,14 @@ from core.derived import mem, implies, forall, and, iff, exists, eqv, left, righ
 from vocab.sets import ordered_pair, relation
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function
-from vocab.arithmetic.plus import succ_char
+from vocab.arithmetic.plus import succ_char, succ_func
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, wr
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_intro import iff_intro
 from theorems.nat.nat.unique_successor import unique_successor
-from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
+from theorems.arithmetic.plus.sf_sep_exists import sf_sep_exists
 from theorems.arithmetic.plus.sf_apply_to_succ import sf_apply_to_succ
 from theorems.arithmetic.plus.sf_succ_to_apply import sf_succ_to_apply
 from theorems.arithmetic.plus.sf_relation import sf_relation
@@ -50,12 +50,12 @@ $sf_props {
     $got_succ_closed mp(and_elim_right(forall("e", implies(num("e",0,"_"), mem("e","w"))), succ_closed, []),
         got_ind, ind_w, succ_closed, [], [om])
 
-    # === succ_func_exists → ∃sf.sf_char ===
-    $_sfe head(right(succ_func_exists))
+    # === sf_sep_exists → ∃sf.sf_char ===
+    $_sfe head(right(sf_sep_exists))
     $_sfe_b \w: implies(forall("x", implies(mem("x",w), forall("s", implies(successor("s","x","_"), mem("s",w))))),
         exists("sf", forall("p", iff(mem("p","sf"), phi("p","_")))))
-    $sfe_ctx left(succ_func_exists)
-    $got_sfe apply_thm(succ_func_exists, _sfe, ["w"], ["w"], _sfe_b, sfe_ctx)
+    $sfe_ctx left(sf_sep_exists)
+    $got_sfe apply_thm(sf_sep_exists, _sfe, ["w"], ["w"], _sfe_b, sfe_ctx)
     $got_ex_sf mp(got_sfe, got_succ_closed, succ_closed,
         exists("sf", sf_char), sfe_ctx, left(got_succ_closed))
     # [sfe_ctx..., succ_closed] |- ∃sf.sf_char

@@ -3,7 +3,7 @@ from vocab.sets import empty, ordered_pair, relation
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain, single_valued
 from vocab.nat.recursion import recursive, total_from
-from vocab.arithmetic.plus import succ_char
+from vocab.arithmetic.plus import succ_char, succ_func
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -18,7 +18,7 @@ from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.nat.recursion.rec_unique import rec_unique
 from theorems.nat.nat.nat_elim import nat_elim
 from theorems.nat.nat.omega_exists import omega_exists
-from theorems.arithmetic.plus.sf_total_from import sf_total_from
+from theorems.arithmetic.plus.succ_func_total_from import succ_func_total_from
 from theorems.arithmetic.plus.pf_forward import pf_forward
 
 # pf_single_valued:
@@ -40,10 +40,10 @@ $pf_single_valued {
                     apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
 
     $char_fwd forall("xv", implies(mem("xv","h"), phi("xv","_")))
+    $sf_all succ_func("sf","_")
     $sc succ_char("sf","_")
     $func_sf function("sf","_")
     $dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), nat("xd","_")))
-    $sf_all and(sc, and(func_sf, dom_sub))
     $om omega("w","_")
 
     $app1 apply("h","key","y1","_")
@@ -209,12 +209,12 @@ $pf_single_valued {
         got_func_sf, and(func_sf, dom_sub), func_sf, [], [sf_all])
     $ru3 mp(ru2, got_func_sf2, func_sf, arg2(head(right(ru2))), left(ru2), [sf_all])
 
-    # TotalFrom(sf,mv) from sf_total_from: sf_all → Nat(mv) → TotalFrom(sf,mv)
-    $_stf head(right(sf_total_from))
+    # TotalFrom(sf,mv) from succ_func_total_from: sf_all → Nat(mv) → TotalFrom(sf,mv)
+    $_stf head(right(succ_func_total_from))
     $_stf_b \sf: \m: implies(sf_all, implies(nat(m,"_"), total_from(sf,m,"_")))
-    $stf_ctx left(sf_total_from)
+    $stf_ctx left(succ_func_total_from)
     $tf total_from("sf","mv","_")
-    $got_tf mp(mp(apply_thm(sf_total_from, _stf, ["sf","mv"], ["sf","m"], _stf_b, stf_ctx),
+    $got_tf mp(mp(apply_thm(succ_func_total_from, _stf, ["sf","mv"], ["sf","m"], _stf_b, stf_ctx),
         ax([sf_all], [sf_all], sf_all), sf_all, implies(nat_mv, tf), stf_ctx, [sf_all]),
         ax([nat_mv], [nat_mv], nat_mv), nat_mv, tf, add(stf_ctx, [sf_all]), [nat_mv])
 

@@ -50,6 +50,17 @@ $succ_char \sf p: {
             forall(yc, iff(apply(sf, xc, yc, np), successor(yc, xc, np)))))]
 }
 
+# succ_func(sf, p): sf is the successor function.
+# And(SuccChar(sf), And(Function(sf), ∀xd.(∃yd.Apply(sf,xd,yd))→Nat(xd)))
+$succ_func \sf p: {
+    $np add(p, "_")
+    $xd add(p, "xd")
+    $yd add(p, "yd")
+    $dom_sub forall(xd, implies(exists(yd, apply(sf, xd, yd, np)), nat(xd, np)))
+    ["succ_func", add("SuccFunc(", add(sf, ")")),
+        and(succ_char(sf, np), and(function(sf, np), dom_sub))]
+}
+
 # plus(m, n, p, prefix): m + n = p.
 # ∀h. PlusFunc(h) → ∀pair. OrdPair(pair,m,n) → Apply(h,pair,p)
 $plus \m n p prefix: {

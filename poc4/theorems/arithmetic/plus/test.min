@@ -1,9 +1,9 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
 from vocab.sets import ordered_pair, relation, product, empty
-from vocab.nat.nat import nat, omega, successor
+from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
 from vocab.nat.recursion import recursive, total_from
-from vocab.arithmetic.plus import succ_char, plus_func
+from vocab.arithmetic.plus import succ_char, succ_func, plus_func
 from vocab.logic import exists_unique
 from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
 from theorems.arithmetic.plus.succ_func_unique import succ_func_unique
@@ -23,13 +23,12 @@ from theorems.arithmetic.plus.pf_dom_eq import pf_dom_eq
 from theorems.arithmetic.plus.pf_backward import pf_backward
 from theorems.arithmetic.plus.pf_step import pf_step
 from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
-from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
-from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
-from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
-from theorems.arithmetic.plus.plus_base import plus_base
-from theorems.arithmetic.plus.plus_step import plus_step
-from vocab.arithmetic.plus import plus_func, plus
-from vocab.arithmetic.nat import nat, num
+# TODO: uncomment when converted
+# from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
+# from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
+# from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
+# from theorems.arithmetic.plus.plus_base import plus_base
+# from theorems.arithmetic.plus.plus_step import plus_step
 
 $sfe_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
@@ -72,20 +71,15 @@ $_ qed(sf_dom_sub,
         implies(sf_char_fn("sf","w"), implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))))))
 $_ print("sf_dom_sub ok")
 
-$sfp_succ_char forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
-$sfp_dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))
-$sfp_body implies(sfe_sc, exists("sf", and(sfp_succ_char, and(function("sf","_"), sfp_dom_sub))))
-$_ qed(sf_props, forall("w", sfp_body))
+$_ qed(sf_props, exists("sf", succ_func("sf","_")))
 $_ print("sf_props ok")
-
-$sfp_all and(sfp_succ_char, and(function("sf","_"), sfp_dom_sub))
-$sftf_body implies(sfp_all, implies(omega("w","_"), implies(mem("m","w"), total_from("sf","m","_"))))
-$_ qed(sf_total_from, forall("sf", forall("w", forall("m", sftf_body))))
+$_ qed(sf_total_from, forall("sf", forall("m",
+    implies(succ_func("sf","_"), implies(nat("m","_"), total_from("sf","m","_"))))))
 $_ print("sf_total_from ok")
 
-$rfem_body implies(sfp_all, implies(nat("m","_"),
-    exists_unique(\h p: recursive(h,"m","sf",p), "_")))
-$_ qed(rec_for_each_m, forall("sf", forall("m", rfem_body)))
+$_ qed(rec_for_each_m, forall("sf", forall("m",
+    implies(succ_func("sf","_"), implies(nat("m","_"),
+        exists_unique(\h p: recursive(h,"m","sf",p), "_"))))))
 $_ print("rec_for_each_m ok")
 
 $pf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
@@ -97,7 +91,7 @@ $pf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
 $pf_char_h forall("xv", iff(mem("xv","h"), pf_phi("xv","_")))
 $pf_base_body implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
     forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_"))))))
-$pf_base_top implies(pf_char_h, implies(sfp_all, forall("m", pf_base_body)))
+$pf_base_top implies(pf_char_h, implies(succ_func("sf","_"), forall("m", pf_base_body)))
 $_ qed(pf_base, forall("h", forall("sf", pf_base_top)))
 $_ print("pf_base ok")
 
@@ -114,18 +108,17 @@ $_ print("pf_forward ok")
 
 $pf_sv_body forall("key", forall("y1", forall("y2",
     implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")), eqv("y1","y2","_")))))
-$pf_sv_top implies(pf_char_fwd, implies(sfp_all, implies(omega("w","_"), pf_sv_body)))
-$_ qed(pf_single_valued, forall("h", forall("sf", forall("w", pf_sv_top))))
+$pf_sv_top implies(pf_char_fwd, implies(succ_func("sf","_"), pf_sv_body))
+$_ qed(pf_single_valued, forall("h", forall("sf", pf_sv_top)))
 $_ print("pf_single_valued ok")
 
 $pf_deq_body forall("dd", forall("prod", implies(domain("dd","h","_"),
     implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
-$pf_deq_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
-    implies(sfp_all, implies(omega("w","_"), pf_deq_body)))))
-$_ qed(pf_dom_eq, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_deq_top))))))
+$pf_deq_top implies(pf_char_h, implies(succ_func("sf","_"), implies(omega("w","_"), pf_deq_body)))
+$_ qed(pf_dom_eq, forall("h", forall("sf", forall("w", pf_deq_top))))
 $_ print("pf_dom_eq ok")
 
-$pf_bwd_body implies(sfp_all, forall("m", implies(nat("m","_"),
+$pf_bwd_body implies(succ_func("sf","_"), forall("m", implies(nat("m","_"),
     forall("n", implies(nat("n","_"),
         forall("hm", implies(recursive("hm","m","sf","_"),
             forall("yv", implies(apply("hm","n","yv","_"),
@@ -135,17 +128,16 @@ $pf_bwd_top implies(pf_char_h, pf_bwd_body)
 $_ qed(pf_backward, forall("h", forall("sf", pf_bwd_top)))
 $_ print("pf_backward ok")
 
-$pf_step_body forall("m", implies(mem("m","w"),
-    forall("n", implies(mem("n","w"),
+$pf_step_body forall("m", implies(nat("m","_"),
+    forall("n", implies(nat("n","_"),
         forall("pair", implies(ordered_pair("pair","m","n","_"),
             forall("p", implies(apply("h","pair","p","_"),
                 forall("sn", implies(successor("sn","n","_"),
                     forall("sp", implies(successor("sp","p","_"),
                         forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
                             apply("h","pair2","sp","_")))))))))))))))
-$pf_step_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
-    implies(sfp_all, implies(omega("w","_"), pf_step_body)))))
-$_ qed(pf_step, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_step_top))))))
+$pf_step_top implies(pf_char_h, implies(succ_func("sf","_"), pf_step_body))
+$_ qed(pf_step, forall("h", forall("sf", pf_step_top)))
 $_ print("pf_step ok")
 
 $rvo_body implies(succ_char("sf","_"), implies(recursive("h","a","sf","_"),
@@ -153,24 +145,11 @@ $rvo_body implies(succ_char("sf","_"), implies(recursive("h","a","sf","_"),
 $_ qed(rec_val_in_omega, forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body))))))
 $_ print("rec_val_in_omega ok")
 
-$_ qed(plus_func_exists, forall("w", implies(omega("w","_"), exists("h", plus_func("h","w","_")))))
-$_ print("plus_func_exists ok")
-
-$pfu_body implies(omega("w","_"), implies(plus_func("h1","w","_"), implies(plus_func("h2","w","_"), eqv("h1","h2","_"))))
-$_ qed(plus_func_unique, forall("h1", forall("h2", forall("w", pfu_body))))
-$_ print("plus_func_unique ok")
-
-$_ qed(unique_plus_func, forall("w", implies(omega("w","_"), exists_unique(\h p: plus_func(h,"w",p), "_"))))
-$_ print("unique_plus_func ok")
-
-$_ qed(plus_base, forall("m", implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
-    forall("w", implies(omega("w","_"), forall("h", implies(plus_func("h","w","_"),
-        forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_"))))))))))))
-$_ print("plus_base ok")
-
-$_ qed(plus_step, forall("m", implies(nat("m","_"), forall("n", implies(nat("n","_"),
-    forall("p", implies(plus("m","n","p","_"), forall("sn", implies(successor("sn","n","_"),
-        forall("sp", implies(successor("sp","p","_"), plus("m","sn","sp","_"))))))))))))
-$_ print("plus_step ok")
+# TODO: convert plus_func_exists, plus_func_unique, unique_plus_func, plus_base (new form), plus_step
+# $_ qed(plus_func_exists, ...)
+# $_ qed(plus_func_unique, ...)
+# $_ qed(unique_plus_func, ...)
+# $_ qed(plus_base, ...)
+# $_ qed(plus_step, ...)
 
 $ok true

@@ -4,7 +4,7 @@ from vocab.nat.nat import successor
 from vocab.logic import exists_unique
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.exists_unique_intro import exists_unique_intro
-from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
+from theorems.arithmetic.plus.sf_sep_exists import sf_sep_exists
 from theorems.arithmetic.plus.succ_func_unique import succ_func_unique
 
 # unique_succ_func:
@@ -22,12 +22,12 @@ $unique_succ_func {
     # exists_unique_intro: char(sf) → (∀y.char(y)→eqv(sf,y)) → ∃!
     $eui exists_unique_intro(char_fn, "sf", [], "_")
 
-    # Existence: succ_func_exists gives ∃sf.char(sf)
-    $_sfe head(right(succ_func_exists))
+    # Existence: sf_sep_exists gives ∃sf.char(sf)
+    $_sfe head(right(sf_sep_exists))
     $_sfe_b \w: implies(succ_closed, exists("sf", char_sf))
-    $got_ex mp(apply_thm(succ_func_exists, _sfe, ["w"], ["w"], _sfe_b, left(succ_func_exists)),
+    $got_ex mp(apply_thm(sf_sep_exists, _sfe, ["w"], ["w"], _sfe_b, left(sf_sep_exists)),
         ax([succ_closed], [succ_closed], succ_closed), succ_closed, exists("sf", char_sf),
-        left(succ_func_exists), [succ_closed])
+        left(sf_sep_exists), [succ_closed])
 
     # Uniqueness: succ_func_unique gives char(sf1)→char(sf2)→eqv(sf1,sf2)
     $_sfu head(right(succ_func_unique))

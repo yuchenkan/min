@@ -23,7 +23,7 @@ from theorems.sets.eq_transfer import eq_transfer
 # Actually: SuccChar(sf) → Nat(m) → TotalFrom(sf,m) if we handle dom_sub internally.
 # But dom_sub requires knowing sf's domain. Keep omega+dom_sub for now.
 
-$sf_total_from {
+$succ_func_total_from {
     $sf_all succ_func("sf","_")
     $sc succ_char("sf","_")
     $func_sf function("sf","_")

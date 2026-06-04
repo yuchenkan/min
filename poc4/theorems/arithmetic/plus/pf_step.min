@@ -3,7 +3,7 @@ from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
 from vocab.nat.recursion import recursive
-from vocab.arithmetic.plus import succ_char
+from vocab.arithmetic.plus import succ_char, succ_func
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -39,10 +39,10 @@ $pf_step {
                     apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
 
     # Hypotheses:
+    $sf_all succ_func("sf","_")
     $sc succ_char("sf","_")
     $func_sf function("sf","_")
     $dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), nat("xd","_")))
-    $sf_all and(sc, and(func_sf, dom_sub))
     $char_h forall("xv", iff(mem("xv","h"), phi("xv","_")))
 
     # Outer assumptions:

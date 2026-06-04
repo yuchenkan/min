@@ -1,0 +1,3 @@
+from theorems.arithmetic.plus.plus_base import plus_base
+$_ print("plus_base loaded")
+$ok true
