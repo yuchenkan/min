@@ -5,13 +5,26 @@ from vocab.sets import empty, set_spec, subset
 $successor \s a p: ["successor", add(s, add(" = S(", add(a, ")"))),
     set_spec(s, \x np: or(mem(x, a), eqv(x, a, np)), p)]
 
-# inductive(a, p): 0∈a ∧ ∀x∈a. S(x)∈a
+# num(n, k, p): n equals the concrete natural number k.
+# num(n, 0, p) = Empty(n)
+# num(n, k+1, p) = ∀m. num(m, k) → Successor(n, m)
+$_num \self n k p: {
+    $np add(p, "_")
+    $m add(p, "m")
+    ?(eq(k, 0),
+        ["num", add(n, add(" = ", str(k))), empty(n, np)],
+        ["num", add(n, add(" = ", str(k))),
+            forall(m, implies(self(self, m, sub(k, 1), np), successor(n, m, np)))])
+}
+$num \n k p: _num(_num, n, k, p)
+
+# inductive(a, p): Num(0)∈a ∧ ∀x∈a. S(x)∈a
 $inductive \a p: {
     $e add(p, "e")
     $x add(p, "x")
     $s add(p, "s")
+    $part1 forall(e, implies(num(e, 0, p), mem(e, a)))
     $np add(p, "_")
-    $part1 forall(e, implies(empty(e, np), mem(e, a)))
     $part2 forall(x, implies(mem(x, a), forall(s, implies(successor(s, x, np), mem(s, a)))))
     ["inductive", add("Ind(", add(a, ")")), and(part1, part2)]
 }
@@ -33,16 +46,3 @@ $nat \n p: {
     ["nat", add(n, " in N"),
         forall(w, implies(omega(w, np), mem(n, w)))]
 }
-
-# num(n, k, p): n equals the concrete natural number k.
-# num(n, 0, p) = Empty(n)
-# num(n, k+1, p) = ∀m. num(m, k) → Successor(n, m)
-$_num \self n k p: {
-    $np add(p, "_")
-    $m add(p, "m")
-    ?(eq(k, 0),
-        ["num", add(n, add(" = ", str(k))), empty(n, np)],
-        ["num", add(n, add(" = ", str(k))),
-            forall(m, implies(self(self, m, sub(k, 1), np), successor(n, m, np)))])
-}
-$num \n k p: _num(_num, n, k, p)
