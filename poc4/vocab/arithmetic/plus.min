@@ -1,7 +1,7 @@
-from core.derived import mem, implies, forall, and, exists, eqv
+from core.derived import mem, implies, forall, and, iff, exists, eqv
 from vocab.sets import ordered_pair, product
 from vocab.functions import apply, function, domain
-from vocab.nat.nat import num, omega, successor
+from vocab.nat.nat import nat, num, omega, successor
 
 # plus_func(h, p): ∀w. Omega(w) → Function(h) ∧ dom(h)=w×w ∧ base ∧ step
 $plus_func \h p: {
@@ -37,6 +37,17 @@ $plus_func \h p: {
     ["plus_func", add("PlusFunc(", add(h, ")")),
         forall(w, implies(omega(w, np),
             and(func_h, and(dom_eq, and(base, step)))))]
+}
+
+# succ_char(sf, p): sf is the successor function on naturals.
+# ∀xc. Nat(xc) → ∀yc. iff(Apply(sf,xc,yc), Succ(yc,xc))
+$succ_char \sf p: {
+    $np add(p, "_")
+    $xc add(p, "xc")
+    $yc add(p, "yc")
+    ["succ_char", add("SuccChar(", add(sf, ")")),
+        forall(xc, implies(nat(xc, np),
+            forall(yc, iff(apply(sf, xc, yc, np), successor(yc, xc, np)))))]
 }
 
 # plus(m, n, p, prefix): m + n = p.

@@ -1,9 +1,8 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
 from vocab.sets import ordered_pair
-from vocab.nat.nat import successor
+from vocab.nat.nat import successor, omega
 from vocab.functions import apply, function
-from vocab.omega import omega
-from vocab.recursion import total_from
+from vocab.nat.recursion import total_from
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -11,7 +10,7 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.nat.nat.successor_exists import successor_exists
-from theorems.omega.omega_succ_closed import omega_succ_closed
+from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 
 # sf_total_from:
 # sf_props_result(sf,w) ∧ Omega(w) ∧ m∈w → TotalFrom(sf,m)

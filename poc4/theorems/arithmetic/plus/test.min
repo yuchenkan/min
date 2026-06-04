@@ -2,8 +2,8 @@ from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
 from vocab.sets import ordered_pair, relation, product, empty
 from vocab.nat.nat import nat, successor
 from vocab.functions import apply, function, domain
-from vocab.omega import omega
-from vocab.recursion import recursive, total_from
+from vocab.nat.nat import omega
+from vocab.nat.recursion import recursive, total_from
 from vocab.logic import exists_unique
 from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
 from theorems.arithmetic.plus.succ_func_unique import succ_func_unique
