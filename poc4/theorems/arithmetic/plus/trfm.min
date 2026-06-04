@@ -1,3 +1,0 @@
-from theorems.arithmetic.plus.rec_for_each_m import rec_for_each_m
-$_ print("rec_for_each_m loaded")
-$ok true
