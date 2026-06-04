@@ -1,9 +1,9 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right
 from vocab.sets import ordered_pair, product, relation
-from vocab.nat.nat import successor
+from vocab.nat.nat import nat, successor
 from vocab.functions import apply, function
-from vocab.omega import omega
-from vocab.recursion import recursive
+from vocab.nat.nat import omega
+from vocab.nat.recursion import recursive
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
@@ -13,11 +13,11 @@ from theorems.logic.iff_elim_left import iff_elim_left
 # From z∈h → char_h forward → z∈pwww → Product forward → ∃a.∃b.OrdPair(z,a,b)
 
 $pf_relation {
-    $phi \xv np: exists(add(np,"m"), and(mem(add(np,"m"),"w"),
+    $phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
         exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
             and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
             and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
-                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf","w",add(np,"_")),
+                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf",add(np,"_")),
                     apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
 
     $prod_pwww product("pwww","pww","w","_")
