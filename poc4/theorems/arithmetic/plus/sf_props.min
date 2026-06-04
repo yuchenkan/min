@@ -150,10 +150,7 @@ $sf_props {
     # === Function(sf) = And(Relation(sf), sv_formula) ===
     $func_sf function("sf","_")
     $rel_sf relation("sf","_")
-    # func_sf expansion = and(rel_sf, sv_formula) — but the sv_formula vars might differ from function vocab.
-    # function(sf,"_") = and(relation(sf,"_"), forall("_x", forall("_y1", forall("_y2",
-    #     implies(and(apply(sf,"_x","_y1","__"), apply(sf,"_x","_y2","__")), eqv("_y1","_y2","__"))))))
-    # My sv_formula uses "xsv","y1","y2" but that's alpha-equivalent.
+    # func_sf expansion = and(rel_sf, sv_formula). Alpha-equiv handles var naming.
     $got_func mp(mp(and_intro(rel_sf, sv_formula, []),
         got_rel, rel_sf, implies(sv_formula, func_sf), [], left(got_rel)),
         got_sv, sv_formula, func_sf, left(got_rel), left(got_sv))
