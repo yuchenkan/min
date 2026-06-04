@@ -1,6 +1,6 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
 from vocab.sets import ordered_pair, relation, product, empty
-from vocab.nat.nat import successor
+from vocab.nat.nat import nat, successor
 from vocab.functions import apply, function, domain
 from vocab.omega import omega
 from vocab.recursion import recursive, total_from
@@ -88,11 +88,11 @@ $rfem_body implies(sfp_all, implies(omega("w","_"), implies(mem("m","w"),
 $_ qed(rec_for_each_m, forall("sf", forall("w", forall("m", rfem_body))))
 $_ print("rec_for_each_m ok")
 
-$pf_phi \xv np: exists(add(np,"m"), and(mem(add(np,"m"),"w"),
+$pf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
     exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
         and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
         and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
-            exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf","w",add(np,"_")),
+            exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf",add(np,"_")),
                 apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
 $pf_char_h forall("xv", iff(mem("xv","h"), and(mem("xv","pwww"), pf_phi("xv","_"))))
 $pf_base_body forall("m", implies(mem("m","w"),
@@ -109,10 +109,10 @@ $_ qed(pf_relation, forall("h", forall("pww", forall("pwww", forall("sf", forall
 $_ print("pf_relation ok")
 
 $pf_char_fwd forall("xv", implies(mem("xv","h"), pf_phi("xv","_")))
-$pf_fwd_result \key val: exists("mv", and(mem("mv","w"), exists("nv",
-    and(ordered_pair(key,"mv","nv","_"), exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv",val,"_")))))))
+$pf_fwd_result \key val: exists("mv", and(nat("mv","_"), exists("nv",
+    and(ordered_pair(key,"mv","nv","_"), exists("hm", and(recursive("hm","mv","sf","_"), apply("hm","nv",val,"_")))))))
 $pf_fwd_top implies(pf_char_fwd, implies(apply("h","key","val","_"), pf_fwd_result("key","val")))
-$_ qed(pf_forward, forall("h", forall("sf", forall("w", forall("key", forall("val", pf_fwd_top))))))
+$_ qed(pf_forward, forall("h", forall("sf", forall("key", forall("val", pf_fwd_top)))))
 $_ print("pf_forward ok")
 
 $pf_sv_body forall("key", forall("y1", forall("y2",
@@ -154,7 +154,7 @@ $_ print("pf_step ok")
 
 $rvo_sc forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
 $rvo_body implies(omega("w","_"), implies(mem("a","w"), implies(rvo_sc,
-    implies(recursive("h","a","sf","w","_"), implies(mem("x","w"), implies(apply("h","x","y","_"), mem("y","w")))))))
+    implies(recursive("h","a","sf","_"), implies(mem("x","w"), implies(apply("h","x","y","_"), mem("y","w")))))))
 $_ qed(rec_val_in_omega, forall("w", forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body)))))))
 $_ print("rec_val_in_omega ok")
 
