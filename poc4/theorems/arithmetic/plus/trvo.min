@@ -1,3 +1,0 @@
-from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
-$_ print("rec_val_in_omega loaded")
-$ok true

@@ -1,3 +1,0 @@
-from theorems.arithmetic.plus.pf_relation import pf_relation
-$_ print("pf_relation loaded")
-$ok true
