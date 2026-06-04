@@ -1,15 +1,16 @@
-from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import ordered_pair, relation
+from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2, sep_ax, power_ax
+from vocab.sets import ordered_pair, power_set, relation
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function
 from vocab.arithmetic.plus import succ_char, succ_func
-from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, wr
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_intro import iff_intro
 from theorems.nat.nat.unique_successor import unique_successor
-from theorems.arithmetic.plus.sf_sep_exists import sf_sep_exists
+from theorems.sets.ordpair_bounded import ordpair_bounded
+from theorems.sets.power_set_exists import power_set_exists
 from theorems.arithmetic.plus.sf_apply_to_succ import sf_apply_to_succ
 from theorems.arithmetic.plus.sf_succ_to_apply import sf_succ_to_apply
 from theorems.arithmetic.plus.sf_relation import sf_relation
@@ -25,7 +26,7 @@ from theorems.logic.iff_elim_left import iff_elim_left
 # sf_props: ∃sf. SuccChar(sf) ∧ Function(sf) ∧ ∀xd.(∃yd.Apply(sf,xd,yd))→Nat(xd)
 # No omega in statement — omega_exists internal.
 
-$succ_func_exists {
+$sf_props {
     $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
         exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
             ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
@@ -50,15 +51,100 @@ $succ_func_exists {
     $got_succ_closed mp(and_elim_right(forall("e", implies(num("e",0,"_"), mem("e","w"))), succ_closed, []),
         got_ind, ind_w, succ_closed, [], [om])
 
-    # === succ_func_exists → ∃sf.sf_char ===
-    $_sfe head(right(succ_func_exists))
-    $_sfe_b \w: implies(forall("x", implies(mem("x",w), forall("s", implies(successor("s","x","_"), mem("s",w))))),
-        exists("sf", forall("p", iff(mem("p","sf"), phi("p","_")))))
-    $sfe_ctx left(sf_sep_exists)
-    $got_sfe apply_thm(sf_sep_exists, _sfe, ["w"], ["w"], _sfe_b, sfe_ctx)
-    $got_ex_sf mp(got_sfe, got_succ_closed, succ_closed,
-        exists("sf", sf_char), sfe_ctx, left(got_succ_closed))
-    # [sfe_ctx..., succ_closed] |- ∃sf.sf_char
+    # === Separation → ∃sf.∀p.(p∈sf ↔ p∈ppw ∧ phi(p)) ===
+    $sep sep_ax(["w"], \p dom np: phi(p, np), "_")
+    $_ps head(right(power_set_exists))
+    $_ps_b \a: exists("s", power_set("s",a,"_"))
+    $got_pw apply_thm(power_set_exists, _ps, ["w"], ["w"], _ps_b, left(power_set_exists))
+    $got_ppw apply_thm(power_set_exists, _ps, ["pw"], ["pw"], _ps_b, left(power_set_exists))
+    $sep_inner \d: exists("sf", forall("p", iff(mem("p","sf"), and(mem("p",d), phi("p","_")))))
+    $_sep_outer \w: forall("d", sep_inner("d"))
+    $got_sep_w apply_thm(ax([sep],[sep],sep), sep, ["w"], ["w"], _sep_outer, [sep])
+    $got_sep_inst apply_thm(got_sep_w, head(right(got_sep_w)), ["ppw"], ["ppw"], sep_inner, [sep])
+
+    $char_ppw forall("p", iff(mem("p","sf"), and(mem("p","ppw"), phi("p","_"))))
+
+    # Bridge: char_ppw → sf_char (drop p∈ppw via ordpair_bounded + succ_closed)
+    $ph mem("p","h2")
+    $phi_p phi("p","_")
+    $p_ppw mem("p","ppw")
+    $and_ppw and(p_ppw, phi_p)
+
+    # Forward: p∈sf → and(p∈ppw, phi) → phi
+    $iff_ppw iff(mem("p","sf"), and_ppw)
+    $got_iff_ppw fl(ax([iff_ppw],[iff_ppw],iff_ppw), [char_ppw], [iff_ppw], char_ppw, "p")
+    $got_fwd_and mp(mp(iff_elim_left(mem("p","sf"), and_ppw, []),
+        got_iff_ppw, iff_ppw, implies(mem("p","sf"), and_ppw), [], [char_ppw]),
+        ax([mem("p","sf")],[mem("p","sf")],mem("p","sf")), mem("p","sf"), and_ppw, [char_ppw], [mem("p","sf")])
+    $got_fwd mp(and_elim_right(p_ppw, phi_p, []), got_fwd_and, and_ppw, phi_p, [], left(got_fwd_and))
+    $got_fwd_ir ir(got_fwd, remove(same, mem("p","sf"), left(got_fwd)), [implies(mem("p","sf"), phi_p)], implies(mem("p","sf"), phi_p))
+
+    # Backward: phi → p∈ppw (ordpair_bounded) → and → p∈sf
+    # phi(p) = ∃x.(x∈w ∧ ∃s.(Succ(s,x) ∧ OrdPair(p,x,s)))
+    # x∈w, succ_closed → s∈w. ordpair_bounded(x∈w, s∈w, OrdPair, PS(pw,w), PS(ppw,pw)) → p∈ppw.
+    $xw mem("xv","w")
+    $sw mem("sv","w")
+    $succ_sv successor("sv","xv","_")
+    $op_p ordered_pair("p","xv","sv","_")
+    $and_succ and(succ_sv, op_p)
+    $and_inner and(xw, exists("sv", and_succ))
+
+    # succ_closed: xv∈w → Succ(sv,xv) → sv∈w
+    $sc_inst apply_thm(got_succ_closed, succ_closed, ["xv"], ["xv"],
+        \x: implies(mem(x,"w"), forall("s", implies(successor("s",x,"_"), mem("s","w")))), left(got_succ_closed))
+    $sc_mp1 mp(sc_inst, ax([xw],[xw],xw), xw,
+        forall("s", implies(successor("s","xv","_"), mem("s","w"))), left(sc_inst), [xw])
+    $sc_mp2 apply_thm(sc_mp1, head(right(sc_mp1)), ["sv"], ["sv"],
+        \s: implies(successor(s,"xv","_"), mem(s,"w")), left(sc_mp1))
+    $got_sw mp(sc_mp2, ax([succ_sv],[succ_sv],succ_sv), succ_sv, sw, left(sc_mp2), [succ_sv])
+
+    # ordpair_bounded: xv∈w → sv∈w → OrdPair(p,xv,sv) → PS(pw,w) → PS(ppw,pw) → p∈ppw
+    $_ob head(right(ordpair_bounded))
+    $_ob_b \ww: \xx: \yy: \pp: \pw: \ppw: implies(mem(xx,ww), implies(mem(yy,ww), implies(ordered_pair(pp,xx,yy,"_"),
+        implies(power_set(pw,ww,"_"), implies(power_set(ppw,pw,"_"), mem(pp,ppw))))))
+    $ps_pw power_set("pw","w","_")
+    $ps_ppw power_set("ppw","pw","_")
+    $ob_inst apply_thm(ordpair_bounded, _ob, ["w","xv","sv","p","pw","ppw"], ["ww","xx","yy","pp","pw","ppw"], _ob_b, left(ordpair_bounded))
+    $ob1 mp(ob_inst, ax([xw],[xw],xw), xw, arg2(head(right(ob_inst))), left(ob_inst), [xw])
+    $ob2 mp(ob1, got_sw, sw, arg2(head(right(ob1))), left(ob1), left(got_sw))
+    $ob3 mp(ob2, ax([op_p],[op_p],op_p), op_p, arg2(head(right(ob2))), left(ob2), [op_p])
+    $ob4 mp(ob3, ax([ps_pw],[ps_pw],ps_pw), ps_pw, arg2(head(right(ob3))), left(ob3), [ps_pw])
+    $got_p_ppw mp(ob4, ax([ps_ppw],[ps_ppw],ps_ppw), ps_ppw, p_ppw, left(ob4), [ps_ppw])
+
+    # eel sv, xv from phi; and_intro(p_ppw, phi) → iff backward → p∈sf
+    $got_p_ppw2 eel(got_p_ppw, \sv: and(succ_sv, op_p), "sv", "sv", left(got_p_ppw), p_ppw)
+    $got_p_ppw3 eel(got_p_ppw2, \xv: and(mem(xv,"w"), exists("sv", and(successor("sv",xv,"_"), ordered_pair("p",xv,"sv","_")))),
+        "xv", "xv", left(got_p_ppw2), p_ppw)
+    # [..., phi_p, succ_closed, ps_pw, ps_ppw] |- p∈ppw
+
+    $got_bwd_and mp(mp(and_intro(p_ppw, phi_p, []),
+        got_p_ppw3, p_ppw, implies(phi_p, and_ppw), [], left(got_p_ppw3)),
+        ax([phi_p],[phi_p],phi_p), phi_p, and_ppw, left(got_p_ppw3), [phi_p])
+    $got_bwd mp(mp(iff_elim_right(mem("p","sf"), and_ppw, []),
+        got_iff_ppw, iff_ppw, implies(and_ppw, mem("p","sf")), [], [char_ppw]),
+        got_bwd_and, and_ppw, mem("p","sf"), [char_ppw], left(got_bwd_and))
+    $got_bwd_ir ir(got_bwd, remove(same, phi_p, left(got_bwd)), [implies(phi_p, mem("p","sf"))], implies(phi_p, mem("p","sf")))
+
+    # iff_intro → sf_char
+    $iff_clean iff(mem("p","sf"), phi_p)
+    $got_iff_clean mp(mp(iff_intro(mem("p","sf"), phi_p, []),
+        got_fwd_ir, implies(mem("p","sf"), phi_p), implies(implies(phi_p, mem("p","sf")), iff_clean), [], left(got_fwd_ir)),
+        got_bwd_ir, implies(phi_p, mem("p","sf")), iff_clean, left(got_fwd_ir), left(got_bwd_ir))
+    $got_sf_char fr(got_iff_clean, left(got_iff_clean), [sf_char], sf_char, "p")
+    # [..., char_ppw, succ_closed, ps_pw, ps_ppw] |- sf_char
+
+    # eel sf from char_ppw, cut with sep:
+    $got_sf_char2 eel(got_sf_char, \sf: forall("p", iff(mem("p",sf), and(mem("p","ppw"), phi("p","_")))),
+        "sf", "sf", left(got_sf_char), exists("sf", sf_char))
+    $got_ex_sf cut_c(got_sep_inst, got_sf_char2,
+        exists("sf", char_ppw), left(got_sep_inst), left(got_sf_char2), exists("sf", sf_char))
+    # eel ppw from PS:
+    $got_ex_sf2 eel(got_ex_sf, \ppw: power_set(ppw,"pw","_"), "ppw", "ppw", left(got_ex_sf), exists("sf", sf_char))
+    $got_ex_sf3 cut_c(got_ppw, got_ex_sf2, exists("ppw", ps_ppw), left(got_ppw), left(got_ex_sf2), exists("sf", sf_char))
+    # eel pw from PS:
+    $got_ex_sf4 eel(got_ex_sf3, \pw: power_set(pw,"w","_"), "pw", "pw", left(got_ex_sf3), exists("sf", sf_char))
+    $got_ex_sf5 cut_c(got_pw, got_ex_sf4, exists("pw", ps_pw), left(got_pw), left(got_ex_sf4), exists("sf", sf_char))
+    # [..., succ_closed] |- ∃sf.sf_char
 
     # === Build succ_char from sf_apply_to_succ + sf_succ_to_apply ===
     # sf_apply_to_succ: sf_char → Apply(sf,xc,yc) → Succ(yc,xc)
