@@ -1,7 +1,8 @@
-from core.derived import implies, forall, eqv, exists, left, right, arg2
+from derived import implies, forall, eqv, exists, left, right, arg2
 from vocab.arithmetic.plus import plus_func
 from vocab.logic import exists_unique
-from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
+from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same
+from util import remove
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
 from theorems.arithmetic.plus.plus_func_unique import plus_func_unique

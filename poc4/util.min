@@ -4,5 +4,19 @@
 $_rev \self lst acc: ?(eq(len(lst), 0), acc, self(self, tail(lst), add([head(lst)], acc)))
 $rev \lst: _rev(_rev, lst, [])
 
-# max: max of two ints
-$max \a b: ?(gt(a, b), a, b)
+# === list operations (take compare fn) ===
+
+$_contains \self cmp f lst: ?(eq(len(lst), 0), false,
+    ?(cmp(head(lst), f), true, self(self, cmp, f, tail(lst))))
+$contains \cmp f lst: _contains(_contains, cmp, f, lst)
+$set_add \cmp f lst: ?(contains(cmp, f, lst), lst, add(lst, [f]))
+
+$_remove \self cmp f lst: ?(eq(len(lst), 0), [],
+    ?(cmp(head(lst), f), tail(lst), add([head(lst)], self(self, cmp, f, tail(lst)))))
+$remove \cmp f lst: _remove(_remove, cmp, f, lst)
+
+$_diff \self cmp lst1 lst2: ?(eq(len(lst1), 0), [],
+    ?(contains(cmp, head(lst1), lst2),
+        self(self, cmp, tail(lst1), lst2),
+        add([head(lst1)], self(self, cmp, tail(lst1), lst2))))
+$diff \cmp lst1 lst2: _diff(_diff, cmp, lst1, lst2)

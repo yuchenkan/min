@@ -1,4 +1,4 @@
-from core.derived import mem, or, eqv
+from derived import mem, or, eqv
 from vocab.nat.nat import successor
 from theorems.sets.set_spec_unique import set_spec_unique
 

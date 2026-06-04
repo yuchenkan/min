@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, left, right
+from derived import mem, neg, implies, forall, left, right
 from vocab.functions import apply, domain
 from tactics import ax, wl, nl, nr, ir, mp, apply_thm, close
 from theorems.functions.domain_mem_intro import domain_mem_intro

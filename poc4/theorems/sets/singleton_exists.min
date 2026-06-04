@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, or, iff, eqv, exists, pairing_ax
+from derived import mem, implies, forall, or, iff, eqv, exists, pairing_ax
 from vocab.sets import singleton, pair_set
 from tactics import ax, fl, fr, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_chain import iff_chain

@@ -1,4 +1,4 @@
-from core.derived import union_ax
+from derived import union_ax
 from tactics import ax
 
 # union_ax |- forall(a, exists(s, big_union(s, a)))

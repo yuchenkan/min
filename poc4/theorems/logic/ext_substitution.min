@@ -1,4 +1,4 @@
-from core.derived import mem, implies, iff, forall, eqv, ext_ax
+from derived import mem, implies, iff, forall, eqv, ext_ax
 from tactics import ax, ir, fl, mp, apply_thm, close
 
 # Ext |- eqv(a, b) -> iff(mem(a, s), mem(b, s))

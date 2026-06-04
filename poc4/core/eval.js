@@ -199,7 +199,6 @@ function makeGlobal() {
         },
         sub: (a, b) => a - b,
         str: (a) => String(a),
-        gt: (a, b) => a > b,
         mul: (a, b) => a * b,
         eq: (a, b) => {
             if (typeof a !== "string" && typeof a !== "number" && typeof a !== "boolean")
@@ -252,12 +251,15 @@ function loadFile(filepath) {
 function loadImport(node, env) {
     const parts = node.module.split(".");
     const filepath = path.join(ROOT, ...parts) + ".min";
-    if (!fs.existsSync(filepath)) return;
+    if (!fs.existsSync(filepath))
+        throw new EvalError(`module not found: ${node.module} (${filepath})`);
     const imported = loadFile(filepath);
     for (const { name, alias } of node.names) {
         if (name.startsWith("_"))
             throw new EvalError(`cannot import private name "${name}" from ${node.module}`);
-        if (name in imported) env.d[alias] = imported[name];
+        if (!(name in imported))
+            throw new EvalError(`name "${name}" not found in ${node.module}`);
+        env.d[alias] = imported[name];
     }
 }
 

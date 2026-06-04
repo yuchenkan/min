@@ -1,4 +1,4 @@
-from core.derived import neg, implies, forall, and, eqv
+from derived import neg, implies, forall, and, eqv
 from vocab.logic import exists_unique
 from tactics import ax, wl, nl, fl, nr, ir, cut, mp, close
 from theorems.logic.and_intro import and_intro

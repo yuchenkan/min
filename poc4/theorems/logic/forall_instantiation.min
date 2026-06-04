@@ -1,4 +1,4 @@
-from core.derived import implies, forall
+from derived import implies, forall
 from tactics import ax, fl, ir, close
 
 # |- forall(x, body(x)) -> body(t)

@@ -1,4 +1,5 @@
-from core.derived import proof, mem, forall, neg, implies, iff, tag, arg1, arg2, exp, kp, left, right
+from derived import proof, mem, forall, neg, implies, iff, tag, arg1, arg2, exp, kp, left, right
+from util import contains, set_add, remove, diff
 
 
 # === alpha-equivalence for formulas ===
@@ -42,23 +43,6 @@ $_flat \self f: {
     self(self, exp(f))))))
 }
 $same \a b: _aeq(_aeq, _flat(_flat, a), _flat(_flat, b), [])
-
-# === set helpers (take compare fn) ===
-
-$_contains \self cmp f lst: ?(eq(len(lst), 0), false,
-    ?(cmp(head(lst), f), true, self(self, cmp, f, tail(lst))))
-$contains \cmp f lst: _contains(_contains, cmp, f, lst)
-$set_add \cmp f lst: ?(contains(cmp, f, lst), lst, add(lst, [f]))
-
-$_remove \self cmp f lst: ?(eq(len(lst), 0), [],
-    ?(cmp(head(lst), f), tail(lst), add([head(lst)], self(self, cmp, f, tail(lst)))))
-$remove \cmp f lst: _remove(_remove, cmp, f, lst)
-
-$_diff \self cmp lst1 lst2: ?(eq(len(lst1), 0), [],
-    ?(contains(cmp, head(lst1), lst2),
-        self(self, cmp, tail(lst1), lst2),
-        add([head(lst1)], self(self, cmp, tail(lst1), lst2))))
-$diff \cmp lst1 lst2: _diff(_diff, cmp, lst1, lst2)
 
 # === basic rule wrappers ===
 

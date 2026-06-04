@@ -1,4 +1,4 @@
-from core.derived import implies, forall, exists, or, eqv, pairing_ax, left, right
+from derived import implies, forall, exists, or, eqv, pairing_ax, left, right
 from vocab.sets import singleton, pair_set, ordered_pair
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close

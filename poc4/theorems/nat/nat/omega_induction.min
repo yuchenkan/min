@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
+from derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
 from vocab.sets import empty, subset
 from vocab.nat.nat import inductive, omega, successor
 from util import rev

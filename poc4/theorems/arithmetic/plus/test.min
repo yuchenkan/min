@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
+from derived import mem, implies, forall, and, iff, exists, eqv, qed
 from vocab.sets import ordered_pair, relation, product, empty
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain

@@ -1,7 +1,8 @@
-from core.derived import mem, implies, forall, and, or, exists, left, right
+from derived import mem, implies, forall, and, or, exists, left, right
 from vocab.sets import empty
 from vocab.nat.nat import omega, successor
-from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, close, same, remove, diff, wl_all
+from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, close, same, wl_all
+from util import remove, diff
 from theorems.logic.or_intro_left import or_intro_left
 from theorems.logic.or_intro_right import or_intro_right
 from theorems.nat.nat.omega_induction import omega_induction

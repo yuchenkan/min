@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, eqv
+from derived import mem, implies, forall, and, eqv
 from vocab.functions import apply, single_valued, function
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.and_intro import and_intro

@@ -1,4 +1,4 @@
-from core.derived import eqv
+from derived import eqv
 from theorems.sets.set_spec_unique import set_spec_unique
 
 $singleton_unique set_spec_unique(\v p: eqv(v, "a", p), ["a"], "_")

@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall
+from derived import mem, implies, forall
 from vocab.sets import subset
 from tactics import ax, fl, ir, mp, close
 

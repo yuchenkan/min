@@ -1,4 +1,4 @@
-from core.derived import mem, iff, eqv
+from derived import mem, iff, eqv
 from tactics import fr, close
 from theorems.logic.iff_refl import iff_refl
 

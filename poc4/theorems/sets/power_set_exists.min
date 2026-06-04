@@ -1,4 +1,4 @@
-from core.derived import power_ax
+from derived import power_ax
 from tactics import ax
 
 # power_ax |- forall(a, exists(s, power_set(s, a)))

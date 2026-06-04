@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, show, qed
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, show, qed
 from theorems.logic.modus_ponens import modus_ponens
 from theorems.logic.double_negation import double_negation
 from theorems.logic.and_intro import and_intro

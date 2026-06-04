@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, eqv, right
+from derived import mem, implies, forall, eqv, right
 from vocab.sets import ordered_pair
 from tactics import ax, wr, ir, mp, apply_thm, close
 

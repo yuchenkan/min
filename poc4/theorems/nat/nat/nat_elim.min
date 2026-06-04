@@ -1,4 +1,4 @@
-from core.derived import mem, implies
+from derived import mem, implies
 from vocab.nat.nat import nat, omega
 from tactics import ax, fr, ir, mp, apply_thm, close
 

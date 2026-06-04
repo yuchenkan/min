@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, left, right
+from derived import mem, implies, forall, left, right
 from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply
 from tactics import ax, ir, mp, apply_thm, close

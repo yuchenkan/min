@@ -1,4 +1,4 @@
-from core.derived import neg, implies, or
+from derived import neg, implies, or
 from tactics import ax, nl, wr, ir, close
 
 # |- A -> or(A, B)

@@ -1,4 +1,4 @@
-from core.derived import mem, and, eqv
+from derived import mem, and, eqv
 from vocab.sets import intersect
 from theorems.sets.set_spec_unique import set_spec_unique
 

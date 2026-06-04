@@ -1,4 +1,4 @@
-from core.derived import neg, implies, iff
+from derived import neg, implies, iff
 from tactics import ax, wl, wr, nl, ir, mp, close
 from theorems.logic.iff_intro import iff_intro
 

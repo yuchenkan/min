@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists, left, right
+from derived import mem, neg, implies, forall, and, or, iff, eqv, exists, left, right
 from vocab.sets import pair_set, big_union, union
 from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c
 from theorems.logic.iff_elim_left import iff_elim_left

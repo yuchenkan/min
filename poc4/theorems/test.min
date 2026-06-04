@@ -1,6 +1,5 @@
 from theorems.logic.test import ok
 from theorems.sets.test import ok
 from theorems.functions.test import ok
-from theorems.omega.test import ok
-from theorems.recursion.test import ok
+from theorems.nat.test import ok
 from theorems.arithmetic.test import ok

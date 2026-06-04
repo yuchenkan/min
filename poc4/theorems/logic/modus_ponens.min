@@ -1,4 +1,4 @@
-from core.derived import implies
+from derived import implies
 from tactics import ax, wl, wr, il, ir, close
 
 # modus_ponens(A, B, vars) returns proof of:

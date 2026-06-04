@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
 from vocab.nat.nat import num, successor, omega
 from vocab.functions import apply, domain, function
 

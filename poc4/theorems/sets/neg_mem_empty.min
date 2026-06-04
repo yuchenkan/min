@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall
+from derived import mem, neg, implies, forall
 from vocab.sets import empty
 from tactics import ax, fl, ir, close
 

@@ -1,4 +1,4 @@
-from core.derived import neg, implies, iff
+from derived import neg, implies, iff
 from tactics import ax, wl, nl, il, nr, ir, close, same
 
 # |- (A -> B) -> (B -> A) -> iff(A, B)

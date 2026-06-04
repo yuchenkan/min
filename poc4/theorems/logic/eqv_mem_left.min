@@ -1,4 +1,4 @@
-from core.derived import mem, implies, iff, eqv
+from derived import mem, implies, iff, eqv
 from tactics import ax, fl, ir, mp, close
 from theorems.logic.iff_elim_left import iff_elim_left
 

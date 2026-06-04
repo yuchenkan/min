@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
 from vocab.sets import singleton, ordered_pair, union, big_union, power_set
 from vocab.functions import apply, function
 from vocab.nat.nat import nat, num, omega, successor

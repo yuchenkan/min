@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
 from vocab.sets import empty, set_spec, subset
 
 # successor(s, a, p): s = a ∪ {a}

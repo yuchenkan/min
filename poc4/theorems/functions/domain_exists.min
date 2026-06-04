@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, and, exists, iff, sep_ax, left, right
+from derived import mem, implies, forall, and, exists, iff, sep_ax, left, right
 from vocab.sets import big_union
 from vocab.functions import apply, domain
 from tactics import ax, wl, fl, fr, ir, mp, cut, apply_thm, eel, eir, cut_c, close

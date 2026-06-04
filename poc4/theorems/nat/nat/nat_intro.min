@@ -1,6 +1,7 @@
-from core.derived import mem, implies, forall, iff, eqv, left, right
+from derived import mem, implies, forall, iff, eqv, left, right
 from vocab.nat.nat import nat, omega
-from tactics import ax, fr, ir, mp, apply_thm, close, same, remove
+from tactics import ax, fr, ir, mp, apply_thm, close, same
+from util import remove
 from theorems.nat.nat.omega_unique import omega_unique
 from theorems.sets.eq_transfer import eq_transfer
 from theorems.logic.iff_elim_left import iff_elim_left

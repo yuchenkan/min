@@ -1,9 +1,10 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2, sep_ax, power_ax
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2, sep_ax, power_ax
 from vocab.sets import ordered_pair, power_set, relation
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function
 from vocab.arithmetic.plus import succ_char, succ_func
-from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same
+from util import remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

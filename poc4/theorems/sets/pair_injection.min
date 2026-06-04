@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, or, iff, eqv, and, right
+from derived import mem, neg, implies, forall, or, iff, eqv, and, right
 from tactics import ax, fl, ir, mp, wr, apply_thm, close
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right

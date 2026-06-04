@@ -1,4 +1,4 @@
-from core.derived import neg, implies
+from derived import neg, implies
 from tactics import ax, wl, wr, nl, nr, il, ir, close
 
 # |- (P -> Q) -> (~Q -> ~P)

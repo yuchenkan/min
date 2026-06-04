@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, right
+from derived import mem, implies, forall, right
 from vocab.sets import empty
 from vocab.nat.nat import inductive, omega, successor
 from tactics import ax, ir, mp, apply_thm, close

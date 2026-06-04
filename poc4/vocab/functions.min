@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
 from vocab.sets import ordered_pair, relation
 
 # apply(f, x, y, p): f(x) = y, i.e. exists p. ordered_pair(p,x,y) & p in f

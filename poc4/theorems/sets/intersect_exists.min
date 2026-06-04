@@ -1,4 +1,4 @@
-from core.derived import mem, and, sep_ax
+from derived import mem, and, sep_ax
 from tactics import ax
 
 # Separation |- forall b a. exists s. forall x. iff(mem(x,s), and(mem(x,a), mem(x,b)))

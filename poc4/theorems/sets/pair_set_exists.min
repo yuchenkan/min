@@ -1,4 +1,4 @@
-from core.derived import pairing_ax
+from derived import pairing_ax
 from tactics import ax
 
 # pairing_ax |- forall(a, forall(b, exists(s, pair_set(s, a, b))))

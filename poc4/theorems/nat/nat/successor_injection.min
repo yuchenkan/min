@@ -1,7 +1,8 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, eqv, left, right, arg2
+from derived import mem, neg, implies, forall, and, or, iff, eqv, left, right, arg2
 from vocab.sets import transitive_set, subset
 from vocab.nat.nat import omega, successor
-from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same, remove, diff
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same
+from util import remove, diff
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.or_intro_right import or_intro_right

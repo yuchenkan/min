@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, show, proof, qed
+from derived import mem, implies, forall, show, proof, qed
 
 # prove: Aa.Ax.(x in a -> x in a)
 $A mem("x", "a")

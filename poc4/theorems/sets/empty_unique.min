@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, iff, eqv
+from derived import mem, neg, implies, iff, eqv
 from vocab.sets import empty
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.neg_neg_iff import neg_neg_iff

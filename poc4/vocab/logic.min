@@ -1,4 +1,4 @@
-from core.derived import and, exists, forall, implies, eqv, d
+from derived import and, exists, forall, implies, eqv, d
 
 # exists_unique(body_fn, p): E!x.(body(x) & Ay.(body(y) -> x = y))
 # body_fn: \v p: formula using v, p is deeper prefix for nested vocab

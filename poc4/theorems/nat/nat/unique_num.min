@@ -1,7 +1,8 @@
-from core.derived import implies, forall, exists, eqv, left, right
+from derived import implies, forall, exists, eqv, left, right
 from vocab.nat.nat import num
 from vocab.logic import exists_unique
-from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same, remove
+from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same
+from util import remove
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.nat.nat.num_exists import num_exists
 from theorems.nat.nat.num_unique import num_unique

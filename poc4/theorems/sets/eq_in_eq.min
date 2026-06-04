@@ -1,4 +1,4 @@
-from core.derived import mem, iff, implies, eqv, forall, right
+from derived import mem, iff, implies, eqv, forall, right
 from tactics import ax, fl, fr, ir, mp, wl, cut, close, apply_thm
 from theorems.sets.eq_transfer import eq_transfer
 from theorems.logic.iff_chain import iff_chain

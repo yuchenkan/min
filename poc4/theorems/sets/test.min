@@ -1,4 +1,4 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, eqv, exists, qed, sep_ax
+from derived import mem, neg, implies, forall, and, or, iff, eqv, exists, qed, sep_ax
 from vocab.sets import empty, singleton, pair_set, big_union, power_set, ordered_pair, intersect, subset, union, relation, product
 from vocab.functions import apply, domain, function
 from vocab.logic import exists_unique

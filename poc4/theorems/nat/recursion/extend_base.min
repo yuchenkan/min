@@ -1,8 +1,9 @@
-from core.derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
 from vocab.sets import empty, singleton, ordered_pair, union
 from vocab.nat.nat import successor
 from vocab.functions import apply
-from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same, remove, diff
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same
+from util import remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_right import iff_elim_right

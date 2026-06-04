@@ -1,9 +1,10 @@
-from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax
+from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, omega, successor
 from vocab.functions import apply, function
 from vocab.nat.recursion import recursive
-from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util import remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

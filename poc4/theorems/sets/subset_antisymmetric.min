@@ -1,4 +1,4 @@
-from core.derived import mem, implies, iff, forall, eqv
+from derived import mem, implies, iff, forall, eqv
 from vocab.sets import subset
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.iff_intro import iff_intro

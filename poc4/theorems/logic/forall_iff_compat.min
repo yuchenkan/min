@@ -1,4 +1,4 @@
-from core.derived import implies, iff, forall
+from derived import implies, iff, forall
 from tactics import ax, wl, wr, il, ir, fl, fr, cut, mp, close
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right

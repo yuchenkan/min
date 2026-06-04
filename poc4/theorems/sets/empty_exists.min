@@ -1,4 +1,4 @@
-from core.derived import empty_ax
+from derived import empty_ax
 from tactics import ax
 
 # empty_ax |- exists(s, empty(s))

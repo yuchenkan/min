@@ -1,4 +1,4 @@
-from core.derived import mem, implies, iff, and, exists
+from derived import mem, implies, iff, and, exists
 from vocab.sets import big_union
 from tactics import ax, fl, ir, mp, eir, close
 from theorems.logic.iff_elim_right import iff_elim_right

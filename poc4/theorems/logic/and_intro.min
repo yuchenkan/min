@@ -1,4 +1,4 @@
-from core.derived import neg, implies, and
+from derived import neg, implies, and
 from tactics import ax, wl, nl, il, nr, ir, close, same
 
 # |- A -> B -> and(A, B)

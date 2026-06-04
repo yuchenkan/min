@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, or, iff, eqv, left, right
+from derived import mem, implies, forall, or, iff, eqv, left, right
 from vocab.nat.nat import successor
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.iff_chain import iff_chain

@@ -1,4 +1,4 @@
-from core.derived import mem, implies, forall, iff, exists, left, right
+from derived import mem, implies, forall, iff, exists, left, right
 from vocab.functions import apply, domain
 from tactics import ax, fl, ir, mp, close
 from theorems.logic.iff_elim_left import iff_elim_left

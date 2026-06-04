@@ -1,4 +1,4 @@
-from core.derived import neg, implies, forall, exists, iff
+from derived import neg, implies, forall, exists, iff
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.neg_iff_compat import neg_iff_compat
 from theorems.logic.forall_iff_compat import forall_iff_compat
