@@ -34,7 +34,4 @@ void gc_push_root(Env *e);
 void gc_pop_root(void);
 void gc_mark_roots(void);
 
-/* gc_strdup: allocate string via GC */
-char *gc_strdup(const char *s);
-
 #endif

@@ -1,36 +1,6 @@
 #include "parse.h"
 
 /* ============================================================
- * Interned strings
- * ============================================================ */
-
-#define INTERN_BUCKETS 4096
-
-typedef struct InternEntry {
-    const char *str;
-    struct InternEntry *next;
-} InternEntry;
-
-static InternEntry *intern_table[INTERN_BUCKETS];
-
-static unsigned intern_hash(const char *s) {
-    unsigned h = 5381;
-    for (; *s; s++) h = h * 33 + (unsigned char)*s;
-    return h;
-}
-
-const char *intern(const char *s) {
-    unsigned idx = intern_hash(s) % INTERN_BUCKETS;
-    for (InternEntry *e = intern_table[idx]; e; e = e->next)
-        if (strcmp(e->str, s) == 0) return e->str;
-    InternEntry *e = gc_alloc(sizeof(InternEntry), GC_KIND_RAW);
-    e->str = gc_strdup(s);
-    e->next = intern_table[idx];
-    intern_table[idx] = e;
-    return e->str;
-}
-
-/* ============================================================
  * Tokenizer
  * ============================================================ */
 
@@ -86,7 +56,7 @@ TokenList tokenize(const char *src, const char *filepath) {
             if (pos >= srclen) die("%s:%d:%d: unterminated string", filepath, line, col);
             pos++;
             buf[bi] = 0;
-            tok_push(&tl, (Token){ T_STR, intern(buf), 0, line, col });
+            tok_push(&tl, (Token){ T_STR, strdup(buf), 0, line, col });
             continue;
         }
 
@@ -101,7 +71,7 @@ TokenList tokenize(const char *src, const char *filepath) {
             if (len >= 256) die("%s:%d:%d: name too long", filepath, line, col);
             memcpy(buf, src + start, len);
             buf[len] = 0;
-            tok_push(&tl, (Token){ T_NAME, intern(buf), 0, line, col });
+            tok_push(&tl, (Token){ T_NAME, strdup(buf), 0, line, col });
             continue;
         }
 
@@ -115,7 +85,7 @@ TokenList tokenize(const char *src, const char *filepath) {
 
         if (strchr(punctuation, c)) {
             char buf[2] = { c, 0 };
-            tok_push(&tl, (Token){ T_PUNCT, intern(buf), 0, line, col });
+            tok_push(&tl, (Token){ T_PUNCT, strdup(buf), 0, line, col });
             pos++;
             continue;
         }
@@ -154,7 +124,7 @@ static Token padvance(Parser *p) { return p->tl.toks[p->pos++]; }
 
 static Token pexpect(Parser *p, TokTag tag, const char *val) {
     Token t = padvance(p);
-    if (t.tag != tag || (val && t.sval != intern(val)))
+    if (t.tag != tag || (val && strcmp(t.sval, val) != 0))
         die("%s:%d:%d: expected %d %s, got %d %s",
             p->filepath, t.line, t.col, tag, val ? val : "", t.tag, t.sval ? t.sval : "");
     return t;
@@ -162,7 +132,7 @@ static Token pexpect(Parser *p, TokTag tag, const char *val) {
 
 static bool ppunct(Parser *p, const char *val) {
     Token t = ppeek(p);
-    return t.tag == T_PUNCT && t.sval == intern(val);
+    return t.tag == T_PUNCT && strcmp(t.sval, val) == 0;
 }
 
 static int parse_fn(Parser *p) {
@@ -356,7 +326,7 @@ static void parse_import(Parser *p, int *imports, int *nimports) {
     int nn = 0;
     names[nn] = pexpect(p, T_NAME, NULL).sval;
     aliases[nn] = names[nn];
-    if (ppeek(p).tag == T_NAME && ppeek(p).sval == intern("as")) {
+    if (ppeek(p).tag == T_NAME && strcmp(ppeek(p).sval, "as") == 0) {
         padvance(p);
         aliases[nn] = pexpect(p, T_NAME, NULL).sval;
     }
@@ -365,7 +335,7 @@ static void parse_import(Parser *p, int *imports, int *nimports) {
         padvance(p);
         names[nn] = pexpect(p, T_NAME, NULL).sval;
         aliases[nn] = names[nn];
-        if (ppeek(p).tag == T_NAME && ppeek(p).sval == intern("as")) {
+        if (ppeek(p).tag == T_NAME && strcmp(ppeek(p).sval, "as") == 0) {
             padvance(p);
             aliases[nn] = pexpect(p, T_NAME, NULL).sval;
         }
@@ -377,7 +347,7 @@ static void parse_import(Parser *p, int *imports, int *nimports) {
     nodes[id].file = p->filepath;
     nodes[id].line = 0;
     nodes[id].col = 0;
-    nodes[id].import.module = intern(module);
+    nodes[id].import.module = strdup(module);
     nodes[id].import.names = gc_alloc(sizeof(const char*) * nn, GC_KIND_RAW);
     memcpy(nodes[id].import.names, names, sizeof(const char*) * nn);
     nodes[id].import.aliases = gc_alloc(sizeof(const char*) * nn, GC_KIND_RAW);
@@ -391,12 +361,12 @@ Program parse_program(Parser *p) {
     int ni = 0;
 
     /* imports first */
-    while (ppeek(p).tag != T_EOF && ppeek(p).tag == T_NAME && ppeek(p).sval == intern("from"))
+    while (ppeek(p).tag != T_EOF && ppeek(p).tag == T_NAME && strcmp(ppeek(p).sval, "from") == 0)
         parse_import(p, items, &ni);
 
     /* then binds */
     while (ppeek(p).tag != T_EOF) {
-        if (ppeek(p).tag == T_NAME && ppeek(p).sval == intern("from"))
+        if (ppeek(p).tag == T_NAME && strcmp(ppeek(p).sval, "from") == 0)
             die("%s:%d:%d: imports must come before all bindings",
                 p->filepath, ppeek(p).line, ppeek(p).col);
         if (ppunct(p, "$"))

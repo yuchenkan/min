@@ -150,7 +150,7 @@ static Val *builtin_fail(Val **args, int n) {
 
 static Val *builtin_do_proof(Val **args, int n) {
     Val *left_list = args[0], *right_list = args[1];
-    const char *rule = intern(args[2]->s);
+    const char *rule = args[2]->s;
     Val *premises_list = args[3];
     Val *principal_raw = args[4];
     Val *term_val = args[5];
@@ -200,7 +200,7 @@ static Val *builtin_do_proof(Val **args, int n) {
 static Val *builtin_do_qed(Val **args, int n) {
     Val *proof = args[0];
     Val *expected_raw = args[1];
-    const char *system = args[2]->tag == V_STR ? args[2]->s : intern("z");
+    const char *system = args[2]->tag == V_STR ? args[2]->s : "z";
 
     Val *expected = build_formula(expected_raw);
 
@@ -238,24 +238,24 @@ static Val *builtin_do_qed(Val **args, int n) {
 
 Env *make_global(void) {
     Env *e = env_new();
-    env_set(e, intern("true"), VAL_TRUE);
-    env_set(e, intern("false"), VAL_FALSE);
-    env_set(e, intern("none"), VAL_NIL);
-    env_set(e, intern("add"), val_builtin(builtin_add, "add", false));
-    env_set(e, intern("sub"), val_builtin(builtin_sub, "sub", false));
-    env_set(e, intern("mul"), val_builtin(builtin_mul, "mul", false));
-    env_set(e, intern("gt"), val_builtin(builtin_gt, "gt", false));
-    env_set(e, intern("str"), val_builtin(builtin_str, "str", false));
-    env_set(e, intern("eq"), val_builtin(builtin_eq, "eq", false));
-    env_set(e, intern("not"), val_builtin(builtin_not, "not", false));
-    env_set(e, intern("head"), val_builtin(builtin_head, "head", false));
-    env_set(e, intern("tail"), val_builtin(builtin_tail, "tail", false));
-    env_set(e, intern("nth"), val_builtin(builtin_nth, "nth", false));
-    env_set(e, intern("len"), val_builtin(builtin_len, "len", false));
-    env_set(e, intern("print"), val_builtin(builtin_print, "print", true));
-    env_set(e, intern("_do_proof"), val_builtin(builtin_do_proof, "_do_proof", false));
-    env_set(e, intern("_do_qed"), val_builtin(builtin_do_qed, "_do_qed", false));
-    env_set(e, intern("_fail"), val_builtin(builtin_fail, "_fail", true));
+    env_set(e, "true", VAL_TRUE);
+    env_set(e, "false", VAL_FALSE);
+    env_set(e, "none", VAL_NIL);
+    env_set(e, "add", val_builtin(builtin_add, "add", false));
+    env_set(e, "sub", val_builtin(builtin_sub, "sub", false));
+    env_set(e, "mul", val_builtin(builtin_mul, "mul", false));
+    env_set(e, "gt", val_builtin(builtin_gt, "gt", false));
+    env_set(e, "str", val_builtin(builtin_str, "str", false));
+    env_set(e, "eq", val_builtin(builtin_eq, "eq", false));
+    env_set(e, "not", val_builtin(builtin_not, "not", false));
+    env_set(e, "head", val_builtin(builtin_head, "head", false));
+    env_set(e, "tail", val_builtin(builtin_tail, "tail", false));
+    env_set(e, "nth", val_builtin(builtin_nth, "nth", false));
+    env_set(e, "len", val_builtin(builtin_len, "len", false));
+    env_set(e, "print", val_builtin(builtin_print, "print", true));
+    env_set(e, "_do_proof", val_builtin(builtin_do_proof, "_do_proof", false));
+    env_set(e, "_do_qed", val_builtin(builtin_do_qed, "_do_qed", false));
+    env_set(e, "_fail", val_builtin(builtin_fail, "_fail", true));
     return e;
 }
 
@@ -303,13 +303,12 @@ void load_import(ASTNode *n, Env *env) {
 
 Env *load_file(const char *filepath) {
     /* check cache */
-    const char *fp = intern(filepath);
     for (int i = 0; i < nloaded; i++)
-        if (loaded_files[i].filepath == fp) return loaded_files[i].exports;
+        if (strcmp(loaded_files[i].filepath, filepath) == 0) return loaded_files[i].exports;
 
     /* mark as loading */
     Env *exports = env_new();
-    loaded_files[nloaded].filepath = fp;
+    loaded_files[nloaded].filepath = strdup(filepath);
     loaded_files[nloaded].exports = exports;
     nloaded++;
 

@@ -24,13 +24,6 @@ void *gc_alloc(size_t size, unsigned char kind) {
 
 GCHeader *gc_header(void *ptr) { return ((GCHeader*)ptr) - 1; }
 
-char *gc_strdup(const char *s) {
-    size_t len = strlen(s) + 1;
-    char *p = gc_alloc(len, GC_KIND_RAW);
-    memcpy(p, s, len);
-    return p;
-}
-
 /* Forward declarations for mark helpers */
 static void gc_mark_val(Val *v);
 static void gc_mark_env(Env *e);

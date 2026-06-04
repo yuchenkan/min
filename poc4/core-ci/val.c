@@ -34,7 +34,7 @@ Val *val_int(int i) {
 
 Val *val_str(const char *s) {
     Val *v = gc_alloc(sizeof(Val), GC_KIND_VAL);
-    v->tag = V_STR; v->s = intern(s);
+    v->tag = V_STR; v->s = strdup(s);
     return v;
 }
 
@@ -76,7 +76,7 @@ Val *val_implies(Val *left, Val *right) {
 
 Val *val_forall(const char *var, Val *body) {
     Val *v = gc_alloc(sizeof(Val), GC_KIND_VAL);
-    v->tag = V_FORALL; v->forall.var = intern(var); v->forall.body = body;
+    v->tag = V_FORALL; v->forall.var = strdup(var); v->forall.body = body;
     return v;
 }
 
@@ -116,7 +116,7 @@ Env *env_snapshot(Env *e) {
 void env_set(Env *e, const char *name, Val *val) {
     /* overwrite if exists */
     for (int i = e->len - 1; i >= 0; i--)
-        if (e->entries[i].name == name) { e->entries[i].val = val; return; }
+        if (strcmp(e->entries[i].name, name) == 0) { e->entries[i].val = val; return; }
     if (e->len >= e->cap) {
         e->cap *= 2;
         EnvEntry *ne = gc_alloc(sizeof(EnvEntry) * e->cap, GC_KIND_RAW);
@@ -130,6 +130,6 @@ void env_set(Env *e, const char *name, Val *val) {
 
 Val *env_get(Env *e, const char *name) {
     for (int i = e->len - 1; i >= 0; i--)
-        if (e->entries[i].name == name) return e->entries[i].val;
+        if (strcmp(e->entries[i].name, name) == 0) return e->entries[i].val;
     return NULL;
 }

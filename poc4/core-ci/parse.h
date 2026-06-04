@@ -4,12 +4,6 @@
 #include "val.h"
 
 /* ============================================================
- * Interned strings
- * ============================================================ */
-
-const char *intern(const char *s);
-
-/* ============================================================
  * Tokenizer
  * ============================================================ */
 
@@ -48,9 +42,7 @@ struct ASTNode {
     int line, col;
     union {
         int lit_int;
-        const char *lit_str;        /* interned */
-        const char *ref_name;       /* interned */
-        struct { const char **params; int nparams; int body; } fn;
+        const char *lit_str;                const char *ref_name;               struct { const char **params; int nparams; int body; } fn;
         struct { int callee; int *args; int nargs; } call;
         struct { int *elems; int nelems; } list;
         struct { int cond, then_, else_; } if_;

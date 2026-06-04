@@ -31,8 +31,7 @@ struct Val {
     union {
         bool b;
         int i;
-        const char *s;          /* interned */
-        struct { Val **items; int len; } list;
+        const char *s;                  struct { Val **items; int len; } list;
         struct { const char **params; int nparams; int body; Env *env; } fn;
         /* body is index into global AST node array */
         struct { BuiltinFn fn; const char *name; bool nocache; } builtin;
@@ -51,8 +50,7 @@ struct Val {
  * ============================================================ */
 
 typedef struct EnvEntry {
-    const char *name;   /* interned */
-    Val *val;
+    const char *name;       Val *val;
 } EnvEntry;
 
 struct Env {

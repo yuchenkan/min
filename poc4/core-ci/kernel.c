@@ -13,10 +13,10 @@ bool formula_eq(Val *a, Val *b, void *env) {
     if (a->tag == V_STR && b->tag == V_STR) {
         /* check bound var mapping */
         for (VarPair *p = venv; p; p = p->next) {
-            if (a->s == p->a) return b->s == p->b;
-            if (b->s == p->b) return false;
+            if (strcmp(a->s, p->a) == 0) return strcmp(b->s, p->b) == 0;
+            if (strcmp(b->s, p->b) == 0) return false;
         }
-        return a->s == b->s;
+        return strcmp(a->s, b->s) == 0;
     }
     if (a->tag != b->tag) return false;
     if (a->tag == V_MEM)
@@ -44,7 +44,7 @@ bool same(Val *a, Val *b) {
 
 Val *subst(Val *f, const char *old, Val *new_) {
     if (f->tag == V_STR)
-        return f->s == old ? new_ : f;
+        return strcmp(f->s, old) == 0 ? new_ : f;
     if (f->tag == V_MEM)
         return val_mem(subst(f->mem.left, old, new_), subst(f->mem.right, old, new_));
     if (f->tag == V_NEG)
@@ -52,7 +52,7 @@ Val *subst(Val *f, const char *old, Val *new_) {
     if (f->tag == V_IMPLIES)
         return val_implies(subst(f->implies.left, old, new_), subst(f->implies.right, old, new_));
     if (f->tag == V_FORALL) {
-        if (f->forall.var == old) return f;
+        if (strcmp(f->forall.var, old) == 0) return f;
         return val_forall(f->forall.var, subst(f->forall.body, old, new_));
     }
     die("subst: unknown formula tag %d", f->tag);
@@ -69,7 +69,7 @@ VarSet *varset_new(void) {
 
 bool varset_has(VarSet *s, const char *v) {
     for (int i = 0; i < s->len; i++)
-        if (s->vars[i] == v) return true;
+        if (strcmp(s->vars[i], v) == 0) return true;
     return false;
 }
 
@@ -168,25 +168,14 @@ const char *check_rule(
     const char *rule, Val **premises, int npremises,
     Val *principal, const char *term)
 {
-    const char *r_axiom = intern("axiom");
-    const char *r_neg_left = intern("neg_left");
-    const char *r_neg_right = intern("neg_right");
-    const char *r_implies_left = intern("implies_left");
-    const char *r_implies_right = intern("implies_right");
-    const char *r_forall_left = intern("forall_left");
-    const char *r_forall_right = intern("forall_right");
-    const char *r_cut = intern("cut");
-    const char *r_wl = intern("weakening_left");
-    const char *r_wr = intern("weakening_right");
-
-    if (rule == r_axiom) {
+    if (strcmp(rule, "axiom") == 0) {
         if (npremises != 0) return "axiom: premises not empty";
         if (!fin(principal, left, nleft)) return "axiom: principal not in left";
         if (!fin(principal, right, nright)) return "axiom: principal not in right";
         return NULL;
     }
 
-    if (rule == r_neg_left) {
+    if (strcmp(rule, "neg_left") == 0) {
         if (npremises != 1 || principal->tag != V_NEG) return "neg_left: bad";
         if (!fin(principal, left, nleft)) return "neg_left: principal not in left";
         int gnl; Val **gl = list_remove(left, nleft, principal, &gnl);
@@ -197,7 +186,7 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_neg_right) {
+    if (strcmp(rule, "neg_right") == 0) {
         if (npremises != 1 || principal->tag != V_NEG) return "neg_right: bad";
         if (!fin(principal, right, nright)) return "neg_right: principal not in right";
         int gnl; Val **gl = list_add(left, nleft, principal->neg.operand, &gnl);
@@ -208,7 +197,7 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_implies_left) {
+    if (strcmp(rule, "implies_left") == 0) {
         if (npremises != 2 || principal->tag != V_IMPLIES) return "implies_left: bad";
         if (!fin(principal, left, nleft)) return "implies_left: principal not in left";
         int gnl; Val **gl = list_remove(left, nleft, principal, &gnl);
@@ -222,7 +211,7 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_implies_right) {
+    if (strcmp(rule, "implies_right") == 0) {
         if (npremises != 1 || principal->tag != V_IMPLIES) return "implies_right: bad";
         if (!fin(principal, right, nright)) return "implies_right: principal not in right";
         int gdn; Val **gd = list_remove(right, nright, principal, &gdn);
@@ -234,12 +223,12 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_forall_left) {
+    if (strcmp(rule, "forall_left") == 0) {
         if (npremises != 1 || !term || principal->tag != V_FORALL) return "forall_left: bad";
         if (!fin(principal, left, nleft)) return "forall_left: principal not in left";
         VarSet *bv = varset_new();
         collect_bound_vars(principal->forall.body, bv);
-        if (varset_has(bv, intern(term))) return "forall_left: term clashes with boundVars";
+        if (varset_has(bv, term)) return "forall_left: term clashes with boundVars";
         int gnl; Val **gl = list_remove(left, nleft, principal, &gnl);
         Val *substituted = subst(principal->forall.body, principal->forall.var, val_str(term));
         int gln; Val **gl2 = list_add(gl, gnl, substituted, &gln);
@@ -249,15 +238,15 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_forall_right) {
+    if (strcmp(rule, "forall_right") == 0) {
         if (npremises != 1 || !term || principal->tag != V_FORALL) return "forall_right: bad";
         if (!fin(principal, right, nright)) return "forall_right: principal not in right";
         VarSet *bv = varset_new();
         collect_bound_vars(principal->forall.body, bv);
-        if (varset_has(bv, intern(term))) return "forall_right: term clashes with boundVars";
+        if (varset_has(bv, term)) return "forall_right: term clashes with boundVars";
         int gdn; Val **gd = list_remove(right, nright, principal, &gdn);
         /* eigenvariable check */
-        const char *ti = intern(term);
+        const char *ti = term;
         for (int i = 0; i < nleft; i++) {
             VarSet *fv = varset_new();
             collect_free_vars(left[i], varset_new(), fv);
@@ -276,7 +265,7 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_cut) {
+    if (strcmp(rule, "cut") == 0) {
         if (npremises != 2) return "cut: need 2 premises";
         int gr0n; Val **gr0 = list_add(right, nright, principal, &gr0n);
         int gl1n; Val **gl1 = list_add(left, nleft, principal, &gl1n);
@@ -288,7 +277,7 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_wl) {
+    if (strcmp(rule, "weakening_left") == 0) {
         if (npremises != 1) return "weakening_left: need 1 premise";
         if (!fin(principal, left, nleft)) return "weakening_left: principal not in left";
         Val *p = premises[0];
@@ -303,7 +292,7 @@ const char *check_rule(
         return NULL;
     }
 
-    if (rule == r_wr) {
+    if (strcmp(rule, "weakening_right") == 0) {
         if (npremises != 1) return "weakening_right: need 1 premise";
         if (!fin(principal, right, nright)) return "weakening_right: principal not in right";
         Val *p = premises[0];
@@ -329,10 +318,10 @@ Val *build_formula(Val *f) {
     if (f->tag == V_STR) return f;
     if (f->tag != V_LIST || f->list.len < 1) die("build_formula: bad input");
     const char *tag = f->list.items[0]->s;
-    if (tag == intern("mem")) return val_mem(build_formula(f->list.items[1]), build_formula(f->list.items[2]));
-    if (tag == intern("neg")) return val_neg(build_formula(f->list.items[1]));
-    if (tag == intern("implies")) return val_implies(build_formula(f->list.items[1]), build_formula(f->list.items[2]));
-    if (tag == intern("forall")) return val_forall(f->list.items[1]->s, build_formula(f->list.items[2]));
+    if (strcmp(tag, "mem") == 0) return val_mem(build_formula(f->list.items[1]), build_formula(f->list.items[2]));
+    if (strcmp(tag, "neg") == 0) return val_neg(build_formula(f->list.items[1]));
+    if (strcmp(tag, "implies") == 0) return val_implies(build_formula(f->list.items[1]), build_formula(f->list.items[2]));
+    if (strcmp(tag, "forall") == 0) return val_forall(f->list.items[1]->s, build_formula(f->list.items[2]));
     die("build_formula: unknown tag %s", tag);
     return NULL;
 }
