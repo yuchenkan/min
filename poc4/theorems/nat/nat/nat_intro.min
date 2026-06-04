@@ -1,0 +1,48 @@
+from core.derived import mem, implies, forall, iff, eqv, left, right
+from vocab.nat.nat import nat, omega
+from tactics import ax, fr, ir, mp, apply_thm, close, same, remove
+from theorems.nat.nat.omega_unique import omega_unique
+from theorems.sets.eq_transfer import eq_transfer
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# nat_intro: Omega(w) → m∈w → Nat(m)
+# Nat(m) = ∀w2. Omega(w2) → m∈w2
+# Given Omega(w), m∈w, Omega(w2):
+#   omega_unique → Eqv(w,w2)
+#   eq_transfer → iff(m∈w, m∈w2)
+#   iff_elim_left → m∈w → m∈w2
+
+$nat_intro {
+    $ow omega("w","_")
+    $ow2 omega("w2","_")
+    $mw mem("m","w")
+    $mw2 mem("m","w2")
+    $nat_m nat("m","_")
+
+    # omega_unique: Omega(w) → Omega(w2) → Eqv(w,w2)
+    $_ou head(right(omega_unique))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w1","w2"], _ou_b, left(omega_unique))
+    $ou1 mp(ou_inst, ax([ow],[ow],ow), ow, implies(ow2, eqv("w","w2","_")), left(omega_unique), [ow])
+    $got_eqv mp(ou1, ax([ow2],[ow2],ow2), ow2, eqv("w","w2","_"), left(ou1), [ow2])
+
+    # eq_transfer: Eqv(w,w2) → iff(m∈w, m∈w2)
+    $_et head(right(eq_transfer))
+    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $et_inst apply_thm(eq_transfer, _et, ["w","w2","m"], ["a","b","z"], _et_b, left(eq_transfer))
+    $got_iff mp(et_inst, got_eqv, eqv("w","w2","_"), iff(mw, mw2), left(eq_transfer), left(got_eqv))
+
+    # iff_elim_left: iff(m∈w, m∈w2) → m∈w → m∈w2
+    $got_impl mp(iff_elim_left(mw, mw2, []), got_iff, iff(mw, mw2), implies(mw, mw2), [], left(got_iff))
+    $got_mw2 mp(got_impl, ax([mw],[mw],mw), mw, mw2, left(got_impl), [mw])
+
+    # ir ow2, fr w2 → ∀w2. Omega(w2) → m∈w2 = Nat(m)
+    $g1 ir(got_mw2, remove(same, ow2, left(got_mw2)), [implies(ow2, mw2)], implies(ow2, mw2))
+    $g2 fr(g1, left(g1), [nat_m], nat_m, "w2")
+
+    # ir mw, ir ow, close
+    $top implies(ow, implies(mw, nat_m))
+    $g3 ir(g2, remove(same, mw, left(g2)), [implies(mw, nat_m)], implies(mw, nat_m))
+    $g4 ir(g3, remove(same, ow, left(g3)), [top], top)
+    close(g4, left(g4), [top], ["m","w"])
+}

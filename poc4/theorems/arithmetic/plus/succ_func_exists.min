@@ -27,7 +27,7 @@ from theorems.logic.iff_elim_right import iff_elim_right
 # sf_props: ∃sf. SuccChar(sf) ∧ Function(sf) ∧ ∀xd.(∃yd.Apply(sf,xd,yd))→Nat(xd)
 # No omega in statement — omega_exists internal.
 
-$sf_props {
+$succ_func_exists {
     $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
         exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
             ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))

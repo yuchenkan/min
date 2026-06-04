@@ -3,7 +3,7 @@ from vocab.sets import ordered_pair, relation, product, empty
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
 from vocab.nat.recursion import recursive, total_from
-from vocab.arithmetic.plus import succ_char, succ_func, plus_func
+from vocab.arithmetic.plus import succ_char, succ_func, plus_func, plus
 from vocab.logic import exists_unique
 from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
 from theorems.arithmetic.plus.succ_func_unique import succ_func_unique
@@ -12,7 +12,6 @@ from theorems.arithmetic.plus.sf_apply_to_succ import sf_apply_to_succ
 from theorems.arithmetic.plus.sf_succ_to_apply import sf_succ_to_apply
 from theorems.arithmetic.plus.sf_relation import sf_relation
 from theorems.arithmetic.plus.sf_dom_sub import sf_dom_sub
-from theorems.arithmetic.plus.sf_props import sf_props
 from theorems.arithmetic.plus.sf_total_from import sf_total_from
 from theorems.arithmetic.plus.rec_for_each_m import rec_for_each_m
 from theorems.arithmetic.plus.pf_base import pf_base
@@ -23,32 +22,25 @@ from theorems.arithmetic.plus.pf_dom_eq import pf_dom_eq
 from theorems.arithmetic.plus.pf_backward import pf_backward
 from theorems.arithmetic.plus.pf_step import pf_step
 from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
-# TODO: uncomment when converted
-# from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
-# from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
-# from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
-# from theorems.arithmetic.plus.plus_base import plus_base
-# from theorems.arithmetic.plus.plus_step import plus_step
+from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
+from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
+from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
+from theorems.arithmetic.plus.plus_base import plus_base
+from theorems.arithmetic.plus.plus_step import plus_step
+
+$_ qed(succ_func_exists, exists("sf", succ_func("sf","_")))
+$_ print("succ_func_exists ok")
+
+$_ qed(succ_func_unique, forall("sf1", forall("sf2",
+    implies(succ_func("sf1","_"), implies(succ_func("sf2","_"), eqv("sf1","sf2","_"))))))
+$_ print("succ_func_unique ok")
+
+$_ qed(unique_succ_func, exists_unique(\sf p: succ_func(sf, p), "_"))
+$_ print("unique_succ_func ok")
 
 $sfe_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
         ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
-$sfe_sc forall("x", implies(mem("x","w"), forall("s", implies(successor("s","x","_"), mem("s","w")))))
-
-$sfe_body implies(sfe_sc, exists("sf", forall("p", iff(mem("p","sf"), sfe_phi("p","_")))))
-$_ qed(succ_func_exists, forall("w", sfe_body))
-$_ print("succ_func_exists ok")
-
-$sfu_body implies(forall("p", iff(mem("p","sf1"), sfe_phi("p","_"))),
-    implies(forall("p", iff(mem("p","sf2"), sfe_phi("p","_"))), eqv("sf1","sf2","_")))
-$_ qed(succ_func_unique, forall("sf1", forall("sf2", forall("w", sfu_body))))
-$_ print("succ_func_unique ok")
-
-$usf_char_fn \sf p: forall("p", iff(mem("p",sf), sfe_phi("p",p)))
-$usf_body implies(sfe_sc, exists_unique(usf_char_fn, "_"))
-$_ qed(unique_succ_func, forall("w", usf_body))
-$_ print("unique_succ_func ok")
-
 $sf_char_fn \sf w: forall("p", iff(mem("p",sf), sfe_phi("p","_")))
 
 $_ qed(sf_apply_to_succ,
@@ -71,8 +63,6 @@ $_ qed(sf_dom_sub,
         implies(sf_char_fn("sf","w"), implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))))))
 $_ print("sf_dom_sub ok")
 
-$_ qed(sf_props, exists("sf", succ_func("sf","_")))
-$_ print("sf_props ok")
 $_ qed(sf_total_from, forall("sf", forall("m",
     implies(succ_func("sf","_"), implies(nat("m","_"), total_from("sf","m","_"))))))
 $_ print("sf_total_from ok")
@@ -120,9 +110,9 @@ $_ print("pf_dom_eq ok")
 
 $pf_bwd_body implies(succ_func("sf","_"), forall("m", implies(nat("m","_"),
     forall("n", implies(nat("n","_"),
-        forall("hm", implies(recursive("hm","m","sf","_"),
-            forall("yv", implies(apply("hm","n","yv","_"),
-                forall("pair", implies(ordered_pair("pair","m","n","_"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"),
+            forall("hm", implies(recursive("hm","m","sf","_"),
+                forall("yv", implies(apply("hm","n","yv","_"),
                     apply("h","pair","yv","_"))))))))))))
 $pf_bwd_top implies(pf_char_h, pf_bwd_body)
 $_ qed(pf_backward, forall("h", forall("sf", pf_bwd_top)))
@@ -145,11 +135,24 @@ $rvo_body implies(succ_char("sf","_"), implies(recursive("h","a","sf","_"),
 $_ qed(rec_val_in_omega, forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body))))))
 $_ print("rec_val_in_omega ok")
 
-# TODO: convert plus_func_exists, plus_func_unique, unique_plus_func, plus_base (new form), plus_step
-# $_ qed(plus_func_exists, ...)
-# $_ qed(plus_func_unique, ...)
-# $_ qed(unique_plus_func, ...)
-# $_ qed(plus_base, ...)
-# $_ qed(plus_step, ...)
+$_ qed(plus_func_exists, exists("h", plus_func("h","_")))
+$_ print("plus_func_exists ok")
+
+$_ qed(plus_func_unique, forall("h1", forall("h2",
+    implies(plus_func("h1","_"), implies(plus_func("h2","_"), eqv("h1","h2","_"))))))
+$_ print("plus_func_unique ok")
+
+$_ qed(unique_plus_func, exists_unique(\h p: plus_func(h, p), "_"))
+$_ print("unique_plus_func ok")
+
+$_ qed(plus_base, forall("m", implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
+    plus("m","z","m","_"))))))
+$_ print("plus_base ok")
+
+$ps_body forall("m", implies(nat("m","_"), forall("n", implies(nat("n","_"),
+    forall("p", implies(plus("m","n","p","_"), forall("sn", implies(successor("sn","n","_"),
+        forall("sp", implies(successor("sp","p","_"), plus("m","sn","sp","_")))))))))))
+$_ qed(plus_step, ps_body)
+$_ print("plus_step ok")
 
 $ok true
