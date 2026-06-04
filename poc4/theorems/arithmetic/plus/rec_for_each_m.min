@@ -1,71 +1,58 @@
-from core.derived import mem, implies, forall, and, exists, eqv, left, right, arg2
-from vocab.sets import empty
-from vocab.nat.nat import successor
+from core.derived import mem, implies, forall, and, exists, eqv, iff, left, right, arg2
+from vocab.nat.nat import nat, successor
 from vocab.functions import apply, function
-from core.derived import iff
-from vocab.omega import omega
-from vocab.recursion import recursive, total_from
+from vocab.nat.recursion import recursive, total_from
+from vocab.arithmetic.plus import succ_char
 from vocab.logic import exists_unique
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.recursion.recursion_theorem import recursion_theorem
+from theorems.nat.recursion.recursion_theorem import recursion_theorem
 from theorems.arithmetic.plus.sf_total_from import sf_total_from
 
 # rec_for_each_m:
-# sf_props(sf,w) ∧ Omega(w) ∧ m∈w → ∃!hm. Recursive(hm, m, sf, w)
-# Combines sf_total_from (→ TotalFrom(sf,m)) + recursion_theorem.
+# sf_all → Nat(m) → ∃!hm. Recursive(hm, m, sf)
+# sf_all = And(SuccChar(sf), And(Function(sf), dom_sub_nat))
 
 $rec_for_each_m {
-    # sf_props components:
-    $succ_char forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
+    $sc succ_char("sf","_")
     $func_sf function("sf","_")
-    $dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))
-    $sf_all and(succ_char, and(func_sf, dom_sub))
-    $om omega("w","_")
-    $mw mem("m","w")
-    $eu_body \h p: recursive(h,"m","sf","w",p)
+    $dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), nat("xd","_")))
+    $sf_all and(sc, and(func_sf, dom_sub))
+    $nat_m nat("m","_")
+    $eu_body \h p: recursive(h,"m","sf",p)
     $eu exists_unique(eu_body, "_")
 
     # Extract Function(sf) from sf_all:
-    $got_fd mp(and_elim_right(succ_char, and(func_sf, dom_sub), []),
+    $got_fd mp(and_elim_right(sc, and(func_sf, dom_sub), []),
         ax([sf_all], [sf_all], sf_all), sf_all, and(func_sf, dom_sub), [], [sf_all])
     $got_func_sf mp(and_elim_left(func_sf, dom_sub, []),
         got_fd, and(func_sf, dom_sub), func_sf, [], [sf_all])
-    # [sf_all] |- Function(sf)
 
-    # sf_total_from: sf_all → Omega(w) → m∈w → TotalFrom(sf,m)
+    # sf_total_from: sf_all → Nat(m) → TotalFrom(sf,m)
     $_stf head(right(sf_total_from))
-    $_stf_b \sf: \w: \m: implies(
-        and(forall("xc", implies(mem("xc",w), forall("yc", iff(apply(sf,"xc","yc","_"), successor("yc","xc","_"))))),
-            and(function(sf,"_"),
-                forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), mem("xd",w))))),
-        implies(omega(w,"_"), implies(mem(m,w), total_from(sf,m,"_"))))
     $stf_ctx left(sf_total_from)
-    $stf_inst apply_thm(sf_total_from, _stf, ["sf","w","m"], ["sf","w","m"], _stf_b, stf_ctx)
+    $_stf_b \sf: \m: implies(
+        and(succ_char(sf,"_"), and(function(sf,"_"),
+            forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), nat("xd","_"))))),
+        implies(nat(m,"_"), total_from(sf,m,"_")))
+    $stf_inst apply_thm(sf_total_from, _stf, ["sf","m"], ["sf","m"], _stf_b, stf_ctx)
     $tf total_from("sf","m","_")
-    $stf1 mp(stf_inst, ax([sf_all], [sf_all], sf_all), sf_all, implies(om, implies(mw, tf)), stf_ctx, [sf_all])
-    $stf2 mp(stf1, ax([om], [om], om), om, implies(mw, tf), left(stf1), [om])
-    $got_tf mp(stf2, ax([mw], [mw], mw), mw, tf, left(stf2), [mw])
-    # [stf_ctx, sf_all, om, mw] |- TotalFrom(sf,m)
+    $stf1 mp(stf_inst, ax([sf_all], [sf_all], sf_all), sf_all, implies(nat_m, tf), stf_ctx, [sf_all])
+    $got_tf mp(stf1, ax([nat_m], [nat_m], nat_m), nat_m, tf, left(stf1), [nat_m])
 
-    # recursion_theorem: Function(f) → TotalFrom(f,a) → Omega(w) → ∃!h.Recursive(h,a,f,w)
+    # recursion_theorem: Function(f) → TotalFrom(f,a) → ∃!h.Recursive(h,a,f)
     $_rt head(right(recursion_theorem))
-    $_rt_b \a: \f: \w: implies(function(f,"_"), implies(total_from(f,a,"_"), implies(omega(w,"_"),
-        exists_unique(\h p: recursive(h,a,f,w,p), "_"))))
     $rt_ctx left(recursion_theorem)
-    $rt_inst apply_thm(recursion_theorem, _rt, ["m","sf","w"], ["a","f","w"], _rt_b, rt_ctx)
-    $rt1 mp(rt_inst, got_func_sf, func_sf, arg2(head(right(rt_inst))), rt_ctx, [sf_all])
-    $rt2 mp(rt1, got_tf, tf, arg2(head(right(rt1))), left(rt1), left(got_tf))
-    $got_eu mp(rt2, ax([om], [om], om), om, eu, left(rt2), [om])
-    # [rt_ctx, stf_ctx, sf_all, om, mw] |- ∃!hm.Recursive(hm,m,sf,w)
+    $_rt_b \a: \f: implies(function(f,"_"), implies(total_from(f,a,"_"),
+        exists_unique(\h p: recursive(h,a,f,p), "_")))
+    $rt_inst apply_thm(recursion_theorem, _rt, ["m","sf"], ["a","f"], _rt_b, rt_ctx)
+    $rt1 mp(rt_inst, got_func_sf, func_sf, implies(tf, eu), rt_ctx, [sf_all])
+    $got_eu mp(rt1, got_tf, tf, eu, left(rt1), left(got_tf))
 
-    # Close: sf_all → Omega(w) → m∈w → ∃!hm.Recursive(hm,m,sf,w)
-    $imp3 implies(mw, eu)
-    $imp2 implies(om, imp3)
-    $top implies(sf_all, imp2)
-    $r1 ir(got_eu, remove(same, mw, left(got_eu)), [imp3], imp3)
-    $r2 ir(r1, remove(same, om, left(r1)), [imp2], imp2)
-    $r3 ir(r2, remove(same, sf_all, left(r2)), [top], top)
-    close(r3, left(r3), [top], ["m","w","sf"])
+    # Close: sf_all → Nat(m) → ∃!hm.Recursive(hm,m,sf)
+    $top implies(sf_all, implies(nat_m, eu))
+    $r1 ir(got_eu, remove(same, nat_m, left(got_eu)), [implies(nat_m, eu)], implies(nat_m, eu))
+    $r2 ir(r1, remove(same, sf_all, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["m","sf"])
 }
