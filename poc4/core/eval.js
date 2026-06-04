@@ -202,13 +202,13 @@ function makeGlobal() {
         gt: (a, b) => a > b,
         mul: (a, b) => a * b,
         eq: (a, b) => {
-            if (a === null || b === null) return a === b;
             if (typeof a !== "string" && typeof a !== "number" && typeof a !== "boolean")
                 throw new EvalError(`eq: unsupported type ${typeof a}`);
             if (typeof a !== typeof b)
                 throw new EvalError(`eq: type mismatch ${typeof a} vs ${typeof b}`);
             return a === b;
         },
+        is_none: (a) => a === null,
         not: (a) => !a,
         head: (a) => a[0],
         tail: (a) => a.slice(1),

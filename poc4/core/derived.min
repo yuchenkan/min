@@ -63,14 +63,14 @@ $proof \left right rule premises principal term: {
         $_ print(add("  left:  ", _show_list(_show_list, left)))
         $_ print(add("  right: ", _show_list(_show_list, right)))
         $_ print(add("  principal: ", show(principal)))
-        $_ ?(eq(term, none), none, print(add("  term: ", term)))
+        $_ ?(is_none(term), none, print(add("  term: ", term)))
         _fail(nth(result, 1))
     })
 }
 
 # qed: flat expected, then call kernel bridge
 $qed \p expected system: {
-    $result _do_qed(kp(p), _core(_core, expected), ?(eq(system, none), "z", system))
+    $result _do_qed(kp(p), _core(_core, expected), ?(is_none(system), "z", system))
     ?(nth(result, 0), expected, {
         $_ print("qed failed:")
         $_ print(add("  expected: ", show(expected)))
