@@ -83,9 +83,9 @@ $sftf_body implies(sfp_all, implies(omega("w","_"), implies(mem("m","w"), total_
 $_ qed(sf_total_from, forall("sf", forall("w", forall("m", sftf_body))))
 $_ print("sf_total_from ok")
 
-$rfem_body implies(sfp_all, implies(omega("w","_"), implies(mem("m","w"),
-    exists_unique(\h p: recursive(h,"m","sf","w",p), "_"))))
-$_ qed(rec_for_each_m, forall("sf", forall("w", forall("m", rfem_body))))
+$rfem_body implies(sfp_all, implies(nat("m","_"),
+    exists_unique(\h p: recursive(h,"m","sf",p), "_")))
+$_ qed(rec_for_each_m, forall("sf", forall("m", rfem_body)))
 $_ print("rec_for_each_m ok")
 
 $pf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
@@ -94,18 +94,15 @@ $pf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
         and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
             exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf",add(np,"_")),
                 apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
-$pf_char_h forall("xv", iff(mem("xv","h"), and(mem("xv","pwww"), pf_phi("xv","_"))))
-$pf_base_body forall("m", implies(mem("m","w"),
-    forall("z", implies(empty("z","_"),
-        forall("pair", implies(ordered_pair("pair","m","z","_"),
-            apply("h","pair","m","_")))))))
-$pf_base_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
-    implies(sfp_all, implies(omega("w","_"), pf_base_body)))))
-$_ qed(pf_base, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_base_top))))))
+$pf_char_h forall("xv", iff(mem("xv","h"), pf_phi("xv","_")))
+$pf_base_body implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
+    forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_"))))))
+$pf_base_top implies(pf_char_h, implies(sfp_all, forall("m", pf_base_body)))
+$_ qed(pf_base, forall("h", forall("sf", pf_base_top)))
 $_ print("pf_base ok")
 
-$pf_rel_top implies(pf_char_h, implies(product("pwww","pww","w","_"), relation("h","_")))
-$_ qed(pf_relation, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_rel_top))))))
+$pf_rel_top implies(pf_char_h, relation("h","_"))
+$_ qed(pf_relation, forall("h", forall("sf", pf_rel_top)))
 $_ print("pf_relation ok")
 
 $pf_char_fwd forall("xv", implies(mem("xv","h"), pf_phi("xv","_")))
@@ -128,15 +125,14 @@ $pf_deq_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(produ
 $_ qed(pf_dom_eq, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_deq_top))))))
 $_ print("pf_dom_eq ok")
 
-$pf_bwd_body forall("m", implies(mem("m","w"),
-    forall("n", implies(mem("n","w"),
-        forall("pair", implies(ordered_pair("pair","m","n","_"),
-            forall("hm", implies(recursive("hm","m","sf","w","_"),
-                forall("yv", implies(apply("hm","n","yv","_"),
-                    apply("h","pair","yv","_")))))))))))
-$pf_bwd_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(product("pwww","pww","w","_"),
-    implies(sfp_all, implies(omega("w","_"), pf_bwd_body)))))
-$_ qed(pf_backward, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_bwd_top))))))
+$pf_bwd_body implies(sfp_all, forall("m", implies(nat("m","_"),
+    forall("n", implies(nat("n","_"),
+        forall("hm", implies(recursive("hm","m","sf","_"),
+            forall("yv", implies(apply("hm","n","yv","_"),
+                forall("pair", implies(ordered_pair("pair","m","n","_"),
+                    apply("h","pair","yv","_"))))))))))))
+$pf_bwd_top implies(pf_char_h, pf_bwd_body)
+$_ qed(pf_backward, forall("h", forall("sf", pf_bwd_top)))
 $_ print("pf_backward ok")
 
 $pf_step_body forall("m", implies(mem("m","w"),
