@@ -1,7 +1,8 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
 from vocab.sets import ordered_pair, relation
-from vocab.nat.nat import successor
+from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function
+from vocab.arithmetic.plus import succ_char
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove, wr
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -14,10 +15,15 @@ from theorems.arithmetic.plus.sf_succ_to_apply import sf_succ_to_apply
 from theorems.arithmetic.plus.sf_relation import sf_relation
 from theorems.arithmetic.plus.sf_dom_sub import sf_dom_sub
 from theorems.nat.nat.successor_unique import successor_unique
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.nat.nat.omega_is_inductive import omega_is_inductive
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.omega_unique import omega_unique
+from theorems.sets.eq_transfer import eq_transfer
+from theorems.logic.iff_elim_left import iff_elim_left
 
-# sf_props: succ_closed(w) → ∃sf. succ_char(sf,w) ∧ Function(sf) ∧ dom_sub(sf,w)
-# succ_char = ∀x∈w.∀y.Apply(sf,x,y)↔Successor(y,x)
-# dom_sub = ∀xd.(∃yd.Apply(sf,xd,yd)) → xd∈w
+# sf_props: ∃sf. SuccChar(sf) ∧ Function(sf) ∧ ∀xd.(∃yd.Apply(sf,xd,yd))→Nat(xd)
+# No omega in statement — omega_exists internal.
 
 $sf_props {
     $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
@@ -25,7 +31,24 @@ $sf_props {
             ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
 
     $sf_char forall("p", iff(mem("p","sf"), phi("p","_")))
+    $om omega("w","_")
     $succ_closed forall("x", implies(mem("x","w"), forall("s", implies(successor("s","x","_"), mem("s","w")))))
+
+    # Derive succ_closed from Omega(w):
+    # omega_is_inductive: Omega(w)→Inductive(w). Inductive = And(base, succ_closed).
+    $_oi head(right(omega_is_inductive))
+    $_oi_b \w: implies(omega(w,"_"), and(
+        forall("e", implies(num("e",0,"_"), mem("e",w))),
+        forall("x", implies(mem("x",w), forall("s", implies(successor("s","x","_"), mem("s",w)))))))
+    # Actually omega_is_inductive gives inductive(w) which is the and-tree.
+    # Just instantiate and mp, then and_elim_right.
+    $ind_w and(forall("e", implies(num("e",0,"_"), mem("e","w"))), succ_closed)
+    $oi_inst apply_thm(omega_is_inductive, _oi, ["w"], ["w"],
+        \w: implies(omega(w,"_"), ind_w), [])
+    # Hmm, inductive(w) has its own prefix. Alpha-equiv handles it.
+    $got_ind mp(oi_inst, ax([om],[om],om), om, ind_w, [], [om])
+    $got_succ_closed mp(and_elim_right(forall("e", implies(num("e",0,"_"), mem("e","w"))), succ_closed, []),
+        got_ind, ind_w, succ_closed, [], [om])
 
     # === succ_func_exists → ∃sf.sf_char ===
     $_sfe head(right(succ_func_exists))
@@ -33,8 +56,8 @@ $sf_props {
         exists("sf", forall("p", iff(mem("p","sf"), phi("p","_")))))
     $sfe_ctx left(succ_func_exists)
     $got_sfe apply_thm(succ_func_exists, _sfe, ["w"], ["w"], _sfe_b, sfe_ctx)
-    $got_ex_sf mp(got_sfe, ax([succ_closed], [succ_closed], succ_closed), succ_closed,
-        exists("sf", sf_char), sfe_ctx, [succ_closed])
+    $got_ex_sf mp(got_sfe, got_succ_closed, succ_closed,
+        exists("sf", sf_char), sfe_ctx, left(got_succ_closed))
     # [sfe_ctx..., succ_closed] |- ∃sf.sf_char
 
     # === Build succ_char from sf_apply_to_succ + sf_succ_to_apply ===
@@ -85,8 +108,8 @@ $sf_props {
     $got_imp_xc ir(got_fa_yc, remove(same, xc_w, left(got_fa_yc)), [imp_xc], imp_xc)
 
     # fr xc → succ_char
-    $succ_char forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
-    $got_succ_char fr(got_imp_xc, left(got_imp_xc), [succ_char], succ_char, "xc")
+    $sc_old forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
+    $got_succ_char fr(got_imp_xc, left(got_imp_xc), [sc_old], sc_old, "xc")
     # [axioms, sf_char] |- succ_char
 
     # === Single-valued: sf_apply_to_succ + unique_successor ===
@@ -169,36 +192,80 @@ $sf_props {
     $got_dom_sub fr(got_ds_body, left(got_ds_body), [dom_sub], dom_sub, "xd")
     # [axioms, sf_char] |- dom_sub
 
-    # === Package: And(succ_char, And(Function(sf), dom_sub)) ===
-    $and_func_dom and(func_sf, dom_sub)
-    $result and(succ_char, and_func_dom)
+    # === Wrap succ_char → SuccChar(sf): ∀xc.Nat(xc)→∀yc.iff(...) ===
+    # got_succ_char: [...,om] |- succ_char = ∀xc.xc∈w→∀yc.iff(...)
+    # For Nat(xc): nat_elim → xc∈w. succ_char → ∀yc.iff(...). ir Nat, fr xc.
+    $nat_xc nat("xc","_")
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $ne_xc apply_thm(nat_elim, head(right(nat_elim)), ["xc","w"], ["m","w"], _ne_b, [])
+    $got_xcw mp(mp(ne_xc, ax([nat_xc],[nat_xc],nat_xc), nat_xc, implies(om, mem("xc","w")), [], [nat_xc]),
+        ax([om],[om],om), om, mem("xc","w"), [nat_xc], [om])
+    $sc_inner forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))
+    $sc_inst apply_thm(got_succ_char, sc_old, ["xc"], ["xc"],
+        \xc: implies(mem(xc,"w"), sc_inner), left(got_succ_char))
+    $got_sc_xc mp(sc_inst, got_xcw, mem("xc","w"), sc_inner, left(sc_inst), left(got_xcw))
+    $got_sc_ir ir(got_sc_xc, remove(same, nat_xc, left(got_sc_xc)),
+        [implies(nat_xc, sc_inner)], implies(nat_xc, sc_inner))
+    $new_sc succ_char("sf","_")
+    $got_new_sc fr(got_sc_ir, left(got_sc_ir), [new_sc], new_sc, "xc")
 
-    $got_fd mp(mp(and_intro(func_sf, dom_sub, []),
-        got_func, func_sf, implies(dom_sub, and_func_dom), [], left(got_func)),
-        got_dom_sub, dom_sub, and_func_dom, left(got_func), left(got_dom_sub))
+    # === Wrap dom_sub → ∀xd.(∃yd.App)→Nat(xd) ===
+    # got_dom_sub: [...,om] |- ∀xd.(∃yd.App)→xd∈w. From xd∈w + omega: Nat(xd).
+    $_ou head(right(omega_unique))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_et head(right(eq_transfer))
+    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $om2 omega("w2","_")
+    $xdw mem("xd","w")
+    $xdw2 mem("xd","w2")
+    $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w1","w2"], _ou_b, [])
+    $ou1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eqv("w","w2","_")), [], [om])
+    $ou2 mp(ou1, ax([om2],[om2],om2), om2, eqv("w","w2","_"), [om], [om2])
+    $et_inst apply_thm(eq_transfer, _et, ["w","w2","xd"], ["a","b","z"], _et_b, [])
+    $et_mp mp(et_inst, ou2, eqv("w","w2","_"), iff(xdw, xdw2), [], left(ou2))
+    $got_xdw2 mp(mp(iff_elim_left(xdw, xdw2, []), et_mp, iff(xdw, xdw2), implies(xdw, xdw2), [], left(et_mp)),
+        ax([xdw],[xdw],xdw), xdw, xdw2, left(et_mp), [xdw])
+    $got_nat_xd_ir ir(got_xdw2, remove(same, om2, left(got_xdw2)), [implies(om2, xdw2)], implies(om2, xdw2))
+    $nat_xd nat("xd","_")
+    $got_nat_xd fr(got_nat_xd_ir, left(got_nat_xd_ir), [nat_xd], nat_xd, "w2")
+    # [om, xdw] |- Nat(xd)
 
-    $got_res mp(mp(and_intro(succ_char, and_func_dom, []),
-        got_succ_char, succ_char, implies(and_func_dom, result), [], left(got_succ_char)),
-        got_fd, and_func_dom, result, left(got_succ_char), left(got_fd))
+    # Chain: dom_sub at xd → xd∈w → Nat(xd)
+    $ds_inst2 apply_thm(got_dom_sub, dom_sub, ["xd"], ["xd"],
+        \xd: implies(exists("yd", apply("sf",xd,"yd","_")), mem(xd,"w")), left(got_dom_sub))
+    $ex_app_xd exists("yd", apply("sf","xd","yd","_"))
+    $got_xdw_from mp(ds_inst2, ax([ex_app_xd],[ex_app_xd],ex_app_xd), ex_app_xd, xdw, left(ds_inst2), [ex_app_xd])
+    $got_nat_xd2 cut_c(got_xdw_from, got_nat_xd, xdw, left(got_xdw_from), left(got_nat_xd), nat_xd)
+    $got_new_ds_ir ir(got_nat_xd2, remove(same, ex_app_xd, left(got_nat_xd2)),
+        [implies(ex_app_xd, nat_xd)], implies(ex_app_xd, nat_xd))
+    $new_ds forall("xd", implies(ex_app_xd, nat_xd))
+    $got_new_ds fr(got_new_ds_ir, left(got_new_ds_ir), [new_ds], new_ds, "xd")
+
+    # === Package: And(SuccChar(sf), And(Function(sf), new_ds)) ===
+    $and_func_dom and(func_sf, new_ds)
+    $result and(new_sc, and_func_dom)
+
+    $got_fd mp(mp(and_intro(func_sf, new_ds, []),
+        got_func, func_sf, implies(new_ds, and_func_dom), [], left(got_func)),
+        got_new_ds, new_ds, and_func_dom, left(got_func), left(got_new_ds))
+    $got_res mp(mp(and_intro(new_sc, and_func_dom, []),
+        got_new_sc, new_sc, implies(and_func_dom, result), [], left(got_new_sc)),
+        got_fd, and_func_dom, result, left(got_new_sc), left(got_fd))
 
     # eir sf, eel sf from sf_char, cut with got_ex_sf:
-    $ex_result exists("sf", and(
-        forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_"))))),
-        and(function("sf","_"),
-            forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w"))))))
-    $got_ex eir(got_res, \sf: and(
-        forall("xc", implies(mem("xc","w"), forall("yc", iff(apply(sf,"xc","yc","_"), successor("yc","xc","_"))))),
-        and(function(sf,"_"),
-            forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), mem("xd","w"))))),
+    $ex_result exists("sf", result)
+    $got_ex eir(got_res, \sf: and(succ_char(sf,"_"), and(function(sf,"_"),
+        forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), nat("xd","_"))))),
         "sf", "sf", left(got_res))
     $got_eel eel(got_ex, \sf: forall("p", iff(mem("p",sf), phi("p","_"))),
         "sf", "sf", left(got_ex), ex_result)
     $got_cut cut_c(got_ex_sf, got_eel, exists("sf", sf_char), left(got_ex_sf), left(got_eel), ex_result)
 
-    # Discharge succ_closed:
-    $top_body implies(succ_closed, ex_result)
-    $got_top ir(got_cut, remove(same, succ_closed, left(got_cut)), [top_body], top_body)
+    # eel omega (ex_result is w-free):
+    $got_eel_om eel(got_cut, \w: omega(w,"_"), "w", "w", remove(same, om, left(got_cut)), ex_result)
+    $ex_om exists("w", omega("w","_"))
+    $got_final cut_c(omega_exists, got_eel_om, ex_om, left(omega_exists), left(got_eel_om), ex_result)
 
-    # Close ∀w:
-    close(got_top, left(got_top), [top_body], ["w"])
+    # Close: no hypotheses, just axiom context
+    close(got_final, left(got_final), [ex_result], [])
 }
