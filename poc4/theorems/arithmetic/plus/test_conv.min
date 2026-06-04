@@ -1,0 +1,7 @@
+from theorems.arithmetic.plus.pf_relation import pf_relation
+from theorems.arithmetic.plus.pf_forward import pf_forward
+from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
+from theorems.arithmetic.plus.sf_total_from import sf_total_from
+from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
+$_ print("all 5 converted plus theorems ok")
+$ok true
