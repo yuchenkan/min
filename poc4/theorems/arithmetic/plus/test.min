@@ -1,9 +1,9 @@
 from core.derived import mem, implies, forall, and, iff, exists, eqv, qed
 from vocab.sets import ordered_pair, relation, product, empty
-from vocab.nat.nat import nat, successor
+from vocab.nat.nat import nat, omega, successor
 from vocab.functions import apply, function, domain
-from vocab.nat.nat import omega
 from vocab.nat.recursion import recursive, total_from
+from vocab.arithmetic.plus import succ_char, plus_func
 from vocab.logic import exists_unique
 from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
 from theorems.arithmetic.plus.succ_func_unique import succ_func_unique
@@ -152,10 +152,9 @@ $pf_step_top implies(pf_char_h, implies(product("pww","w","w","_"), implies(prod
 $_ qed(pf_step, forall("h", forall("pww", forall("pwww", forall("sf", forall("w", pf_step_top))))))
 $_ print("pf_step ok")
 
-$rvo_sc forall("xc", implies(mem("xc","w"), forall("yc", iff(apply("sf","xc","yc","_"), successor("yc","xc","_")))))
-$rvo_body implies(omega("w","_"), implies(mem("a","w"), implies(rvo_sc,
-    implies(recursive("h","a","sf","_"), implies(mem("x","w"), implies(apply("h","x","y","_"), mem("y","w")))))))
-$_ qed(rec_val_in_omega, forall("w", forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body)))))))
+$rvo_body implies(succ_char("sf","_"), implies(recursive("h","a","sf","_"),
+    implies(nat("a","_"), implies(nat("x","_"), implies(apply("h","x","y","_"), nat("y","_"))))))
+$_ qed(rec_val_in_omega, forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body))))))
 $_ print("rec_val_in_omega ok")
 
 $_ qed(plus_func_exists, forall("w", implies(omega("w","_"), exists("h", plus_func("h","w","_")))))
