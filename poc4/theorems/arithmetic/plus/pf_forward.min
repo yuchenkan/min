@@ -2,8 +2,8 @@ from core.derived import mem, implies, forall, and, iff, exists, eqv, left, righ
 from vocab.sets import ordered_pair
 from vocab.nat.nat import successor
 from vocab.functions import apply, function
-from vocab.omega import omega
-from vocab.recursion import recursive
+from vocab.nat.nat import nat, omega
+from vocab.nat.recursion import recursive
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same, remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -20,19 +20,19 @@ from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
 #   ∃mv. mv∈w ∧ ∃nv. OrdPair(key,mv,nv) ∧ ∃hm. Recursive(hm,mv,sf,w) ∧ Apply(hm,nv,val)
 
 $pf_forward {
-    $phi \xv np: exists(add(np,"m"), and(mem(add(np,"m"),"w"),
+    $phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
         exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
             and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
             and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
-                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf","w",add(np,"_")),
+                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf",add(np,"_")),
                     apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
 
     $char_fwd forall("xv", implies(mem("xv","h"), phi("xv","_")))
     $app_hkv apply("h","key","val","_")
 
     # Result formula:
-    $result_body \mv: and(mem(mv,"w"), exists("nv", and(ordered_pair("key",mv,"nv","_"),
-        exists("hm", and(recursive("hm",mv,"sf","w","_"), apply("hm","nv","val","_"))))))
+    $result_body \mv: and(nat(mv,"_"), exists("nv", and(ordered_pair("key",mv,"nv","_"),
+        exists("hm", and(recursive("hm",mv,"sf","_"), apply("hm","nv","val","_"))))))
     $result exists("mv", result_body("mv"))
 
     # === Open Apply: ∃qv. OrdPair(qv,key,val) ∧ qv∈h ===
@@ -51,10 +51,10 @@ $pf_forward {
     # === Open phi existentials one by one, derive result, close back ===
     # phi(qv) = ∃mv.and(mvw, ∃nv.∃yv.∃pv.and(op_pv, and(op_qv_py, ∃hm.and(rec,app))))
     # Define the inner body names:
-    $mvw mem("mv","w")
+    $mvw nat("mv","_")
     $op_pv ordered_pair("pv","mv","nv","_")
     $op_qv_py ordered_pair("qv","pv","yv","_")
-    $rec_hm recursive("hm","mv","sf","w","_")
+    $rec_hm recursive("hm","mv","sf","_")
     $app_hm apply("hm","nv","yv","_")
     $and_rec_app and(rec_hm, app_hm)
     $and_inner and(op_qv_py, exists("hm", and_rec_app))
@@ -131,7 +131,7 @@ $pf_forward {
         got_rec, rec_hm, implies(app_hm_val, and(rec_hm, app_hm_val)), [], [and_rec_app]),
         got_app_val, app_hm_val, and(rec_hm, app_hm_val), [and_rec_app], left(got_app_val))
     # eir hm → ∃hm.and(rec,app_val)
-    $got_ex_hm2 eir(got_ra, \hm: and(recursive(hm,"mv","sf","w","_"), apply(hm,"nv","val","_")),
+    $got_ex_hm2 eir(got_ra, \hm: and(recursive(hm,"mv","sf","_"), apply(hm,"nv","val","_")),
         "hm", "hm", left(got_ra))
     $ex_hm_val head(right(got_ex_hm2))
     # and(op_key, ∃hm.(...))
@@ -140,7 +140,7 @@ $pf_forward {
         got_ex_hm2, ex_hm_val, and(op_key, ex_hm_val), left(got_op_key), left(got_ex_hm2))
     # eir nv
     $got_ex_nv eir(got_and_op, \nv: and(ordered_pair("key","mv",nv,"_"),
-        exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm",nv,"val","_")))),
+        exists("hm", and(recursive("hm","mv","sf","_"), apply("hm",nv,"val","_")))),
         "nv", "nv", left(got_and_op))
     $ex_nv head(right(got_ex_nv))
     # and(mvw, ∃nv.(...))
@@ -154,7 +154,7 @@ $pf_forward {
 
     # === Close phi existentials (eel from inside out) ===
     # eel hm from and_rec_app (only formula with hm free):
-    $cur eel(got_result, \hm: and(recursive(hm,"mv","sf","w","_"), apply(hm,"nv","yv","_")),
+    $cur eel(got_result, \hm: and(recursive(hm,"mv","sf","_"), apply(hm,"nv","yv","_")),
         "hm", "hm", left(got_result), result)
     # cut ∃hm.and_rec_app with got_ex_hm:
     $cur cut_c(got_ex_hm, cur, exists("hm", and_rec_app), left(got_ex_hm), left(cur), result)
@@ -163,24 +163,24 @@ $pf_forward {
     # eel pv from body_pv (only formula with pv free):
     $cur eel(cur, \pv: and(ordered_pair(pv,"mv","nv","_"),
         and(ordered_pair("qv",pv,"yv","_"),
-            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv","yv","_"))))),
+            exists("hm", and(recursive("hm","mv","sf","_"), apply("hm","nv","yv","_"))))),
         "pv", "pv", left(cur), result)
     # eel yv: exists("pv",...) has yv free. Also mvw and and_op_qv don't have yv.
     $cur eel(cur, \yv: exists("pv", and(ordered_pair("pv","mv","nv","_"),
         and(ordered_pair("qv","pv",yv,"_"),
-            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv",yv,"_")))))),
+            exists("hm", and(recursive("hm","mv","sf","_"), apply("hm","nv",yv,"_")))))),
         "yv", "yv", left(cur), result)
     # eel nv:
     $cur eel(cur, \nv: exists("yv", exists("pv", and(ordered_pair("pv","mv",nv,"_"),
         and(ordered_pair("qv","pv","yv","_"),
-            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm",nv,"yv","_"))))))),
+            exists("hm", and(recursive("hm","mv","sf","_"), apply("hm",nv,"yv","_"))))))),
         "nv", "nv", left(cur), result)
     # Left has: mvw, ∃nv..., and_op_qv, char_fwd, pairing_ax (mvw and ∃nv separate)
     # Recombine mvw and ∃nv... into and(mvw, ∃nv...) = phi body for eel mv:
     $ex_nv_body exists("nv", exists("yv", exists("pv",
         and(ordered_pair("pv","mv","nv","_"),
         and(ordered_pair("qv","pv","yv","_"),
-            exists("hm", and(recursive("hm","mv","sf","w","_"), apply("hm","nv","yv","_"))))))))
+            exists("hm", and(recursive("hm","mv","sf","_"), apply("hm","nv","yv","_"))))))))
     $and_mv_body and(mvw, ex_nv_body)
     # Source mvw from and: [and_mv_body] |- mvw
     $got_mvw_from mp(and_elim_left(mvw, ex_nv_body, []),
@@ -194,10 +194,10 @@ $pf_forward {
     $cur cut_c(got_exn_from, cur, ex_nv_body, [and_mv_body], left(cur), result)
     # Now left has: and_mv_body (with mv free), and_op_qv, char_fwd, pairing_ax
     # eel mv:
-    $cur eel(cur, \mv: and(mem(mv,"w"), exists("nv", exists("yv", exists("pv",
+    $cur eel(cur, \mv: and(nat(mv,"_"), exists("nv", exists("yv", exists("pv",
         and(ordered_pair("pv",mv,"nv","_"),
         and(ordered_pair("qv","pv","yv","_"),
-            exists("hm", and(recursive("hm",mv,"sf","w","_"), apply("hm","nv","yv","_"))))))))),
+            exists("hm", and(recursive("hm",mv,"sf","_"), apply("hm","nv","yv","_"))))))))),
         "mv", "mv", left(cur), result)
     # cut with phi_qv:
     $cur cut_c(got_phi, cur, phi_qv, left(got_phi), left(cur), result)
@@ -211,5 +211,5 @@ $pf_forward {
     $top implies(char_fwd, imp2)
     $r1 ir(cur, remove(same, app_hkv, left(cur)), [imp2], imp2)
     $r2 ir(r1, remove(same, char_fwd, left(r1)), [top], top)
-    close(r2, left(r2), [top], ["val","key","w","sf","h"])
+    close(r2, left(r2), [top], ["val","key","sf","h"])
 }
