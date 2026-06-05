@@ -1,15 +1,14 @@
 from derived import mem, implies, forall, and, or, exists, left, right
-from vocab.sets import empty
-from vocab.nat.nat import omega, successor
+from vocab.nat.nat import num, omega, successor
 from tactics import ax, wl, fl, fr, ir, mp, apply_thm, eir, close, same, wl_all
 from util import remove, diff
 from theorems.logic.or_intro_left import or_intro_left
 from theorems.logic.or_intro_right import or_intro_right
 from theorems.nat.nat.omega_induction import omega_induction
 
-# Sep |- forall w. omega(w) → ∀n∈w. or(empty(n), ∃q. successor(n,q))
+# Sep |- forall w. omega(w) → ∀n∈w. or(num(n,0), ∃q. successor(n,q))
 $zero_or_succ {
-    $pred \w v p: or(empty(v, p), exists(add(p, "q"), successor(v, add(p, "q"), p)))
+    $pred \w v p: or(num(v, 0, p), exists(add(p, "q"), successor(v, add(p, "q"), p)))
 
     $ind omega_induction(pred, [], "_")
     $ind_ctx left(ind)
@@ -18,10 +17,10 @@ $zero_or_succ {
     $om omega("w", "_")
     $nw mem("n", "w")
     $pred_n pred("w", "n", "_")
-    $emp_e empty("e", "_")
+    $emp_e num("e", 0, "_")
     $pred_e pred("w", "e", "_")
 
-    # === BASE: empty(e) → pred(e) ===
+    # === BASE: num(e,0) → pred(e) ===
     $ex_q_e exists("_q", successor("e", "_q", "_"))
     $got_base_inner mp(or_intro_left(emp_e, ex_q_e, []),
         ax([emp_e], [emp_e], emp_e), emp_e, pred_e, [], [emp_e])
@@ -32,7 +31,7 @@ $zero_or_succ {
     # === STEP: n∈w → pred(n) → ∀s. succ(s,n) → pred(s) ===
     $succ_sn successor("s", "n", "_")
     $pred_s pred("w", "s", "_")
-    $emp_s empty("s", "_")
+    $emp_s num("s", 0, "_")
     $ex_q_s exists("_q", successor("s", "_q", "_"))
 
     # succ(s,n) → eir with witness q=n: ∃_q. successor(s,_q)
@@ -57,7 +56,7 @@ $zero_or_succ {
     # === Apply induction ===
     $fa_pred forall("n", implies(nw, pred_n))
     $_ind_body \w: {
-        $base forall("e", implies(empty("e","_"), pred(w,"e","_")))
+        $base forall("e", implies(num("e",0,"_"), pred(w,"e","_")))
         $step forall("n", implies(mem("n",w), implies(pred(w,"n","_"),
             forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
         implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))

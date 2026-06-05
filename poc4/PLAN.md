@@ -14,7 +14,7 @@
 ## poc4/theorems/omega/ (~9)
 - infinity_gives_inductive: Inf → ∃b. inductive(b)
 - omega_is_inductive: inductive(ω)
-- omega_contains_empty: ∅ ∈ ω
+- omega_contains_zero: ∅ ∈ ω
 - omega_succ_closed: n ∈ ω → S(n) ∈ ω
 - omega_smallest_inductive: inductive(x) → subset(ω, x)
 - omega_exists: ∃ω. omega(ω)

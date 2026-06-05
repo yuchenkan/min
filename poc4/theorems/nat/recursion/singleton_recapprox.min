@@ -12,7 +12,7 @@ from theorems.sets.singleton_function import singleton_function
 from theorems.sets.singleton_apply import singleton_apply
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
-from theorems.nat.nat.succ_not_empty import succ_not_empty
+from theorems.nat.nat.succ_not_zero import succ_not_zero
 from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.functions.apply_key_transfer import apply_key_transfer
@@ -20,7 +20,7 @@ from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_mem_right import eqv_mem_right
 from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 
 # pa, ext |- num(e,0) → (∃z.apply(f,a,z)) →
 #   ordered_pair(op,e,a) → singleton(g,op) →
@@ -87,11 +87,11 @@ $singleton_recapprox {
     $got_xe mp(and_elim_left(eqv_xe, eqv("y2","a","_"), []), k4, and(eqv_xe, eqv("y2","a","_")), eqv_xe, [], left(k4))
     # left(got_xe) |- eqv(x,e). Has kur_ctx, and_q, opea, sing.
 
-    # omega_contains_empty: om → emp → e∈w
-    $_oce head(right(omega_contains_empty))
+    # omega_contains_zero: om → emp → e∈w
+    $_oce head(right(omega_contains_zero))
     $ew mem("e","w")
-    $oce1 apply_thm(omega_contains_empty, _oce, ["e", "w"], ["e", "w"],
-        \e: \w: implies(omega(w,"_"), implies(empty(e,"_"), mem(e,w))), [])
+    $oce1 apply_thm(omega_contains_zero, _oce, ["e", "w"], ["e", "w"],
+        \e: \w: implies(omega(w,"_"), implies(num(e,0,"_"), mem(e,w))), [])
     $oce2 mp(oce1, ax([om], [om], om), om, implies(emp, ew), left(oce1), [om])
     $got_ew mp(oce2, ax([emp], [emp], emp), emp, ew, left(oce2), [emp])
 
@@ -155,10 +155,10 @@ $singleton_recapprox {
     $got_ran_fr fr(got_ran_ir, left(got_ran_ir), [forall("y2", ran_sub_body)], forall("y2", ran_sub_body), "y2")
     $got_ran_sub fr(got_ran_fr, left(got_ran_fr), [ran_sub_u], ran_sub_u, "x")
 
-    # === Condition 4: base = ∀e2. empty(e2) → (∃y.apply(g,e2,y)) → apply(g,e2,a) ===
+    # === Condition 4: base = ∀e2. num(e2,0) → (∃y.apply(g,e2,y)) → apply(g,e2,a) ===
     # From apply(g,e2,y): kuratowski → e2=e, y=a. So apply(g,e2,a): key_transfer with eqv(e,e2) on got_app.
     # eqv(e2,e) from kuratowski. symmetric → eqv(e,e2). apply_key_transfer → apply(g,e2,a).
-    # (The empty(e2) hypothesis is unused — we derive from singleton structure alone.)
+    # (The num(e2,0) hypothesis is unused — we derive from singleton structure alone.)
     $app_ge2y apply("g","e2","y3","_")
     $app_ge2a apply("g","e2","a","_")
     $op_q2 ordered_pair("q2","e2","y3","_")
@@ -183,7 +183,7 @@ $singleton_recapprox {
     $got_ge2a mp(mp(apply_thm(apply_key_transfer, _akt, ["g", "e", "e2", "a"], ["g", "x", "x2", "y"], _akt_b, []),
         got_ee2, eqv_ee2, implies(app_gea, app_ge2a), [], left(got_ee2)),
         got_app, app_gea, app_ge2a, left(got_ee2), left(got_app))
-    # eel q2, eel y3, ir (∃y.apply), ir empty(e2), fr e2
+    # eel q2, eel y3, ir (∃y.apply), ir num(e2,0), fr e2
     $got_base_eel eel(got_ge2a, \v: and(ordered_pair(v,"e2","y3","_"), mem(v,"g")), "p", "q2", left(got_ge2a), app_ge2a)
     $got_base_eel2 eel(got_base_eel, \v: apply("g","e2",v,"_"), "y3", "y3", left(got_base_eel), app_ge2a)
     $ex_ge2 exists("y3", apply("g","e2","y3","_"))
@@ -196,7 +196,7 @@ $singleton_recapprox {
     $base_u forall("e2", implies(emp_e2, base_inner))
     $got_base fr(got_base_ir3, left(got_base_ir3), [base_u], base_u, "e2")
 
-    # === Condition 5: step = vacuous via succ_not_empty ===
+    # === Condition 5: step = vacuous via succ_not_zero ===
     # ∀n2∈w. ∀sn. succ(sn,n2) → (∃y.apply(g,sn,y)) → and(...)
     # From ∃y.apply(g,sn,y): eel → kuratowski → eqv(sn,e).
     # mem_succ_self: n2∈sn. eqv_mem_left(sn,e): n2∈e. neg_mem_empty: contradiction.

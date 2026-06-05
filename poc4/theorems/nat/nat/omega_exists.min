@@ -1,6 +1,6 @@
 from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, sep_ax, left, right
-from vocab.sets import empty, subset
-from vocab.nat.nat import inductive, omega, successor
+from vocab.sets import subset
+from vocab.nat.nat import num, inductive, omega, successor
 from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
@@ -9,7 +9,7 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.nat.nat.infinity_gives_inductive import infinity_gives_inductive
-from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 
 # Ext, Inf, Sep |- exists w. omega(w)
@@ -23,7 +23,7 @@ from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 # For smallest: if inductive(c), x∈w → phi(x) → x∈c. So subset(w,c).
 #
 # For inductive(w):
-#   empty part: empty(e) → e∈b (b inductive) ∧ ∀c.inductive(c)→e∈c (any inductive has empty)
+#   zero part: num(e,0) → e∈b (b inductive) ∧ ∀c.inductive(c)→e∈c (any inductive has zero)
 #               → e∈w (by char backward)
 #   succ part: n∈w → succ(s,n) → s∈b (b inductive, n∈b) ∧ ∀c.inductive(c)→s∈c
 #               → s∈w (by char backward)
@@ -92,9 +92,9 @@ $omega_exists {
     # [char] |- ∀d. inductive(d) → subset(w,d)
 
     # === Part: inductive(w) ===
-    # Need: (∀e. empty(e)→e∈w) ∧ (∀n. n∈w → ∀s. succ(s,n)→s∈w)
+    # Need: (∀e. num(e,0)→e∈w) ∧ (∀n. n∈w → ∀s. succ(s,n)→s∈w)
     #
-    # For empty: empty(e) → e∈b (b inductive) ∧ phi(e) → e∈w (char backward)
+    # For zero: num(e,0) → e∈b (b inductive) ∧ phi(e) → e∈w (char backward)
     # For succ: n∈w → n∈b ∧ phi(n). succ(s,n) → s∈b (b inductive) ∧ phi(s) → s∈w
     #   phi(s): ∀c. inductive(c) → s∈c. From n∈c (phi(n) gives this) + inductive(c) → s∈c.
 
@@ -106,26 +106,26 @@ $omega_exists {
     # --- Empty part ---
     $eb mem("e", "b")
     $ew mem("e", "w")
-    $emp empty("e", "_")
+    $emp num("e", 0, "_")
     $phi_e phi("e")
     $and_eb_phi and(eb, phi_e)
 
-    # omega_contains_empty: omega(c) → empty(e) → e∈c
-    # But we don't have omega yet — we need: inductive(c) → empty(e) → e∈c
-    # From inductive(c), extract part1: ∀e. empty(e)→e∈c
+    # omega_contains_zero: omega(c) → num(e,0) → e∈c
+    # But we don't have omega yet — we need: inductive(c) → num(e,0) → e∈c
+    # From inductive(c), extract part1: ∀e. num(e,0)→e∈c
     # inductive(c,"_") = and(part1_c, part2_c)
     $ind_c inductive("c", "_")
-    $part1_c forall("q1", implies(empty("q1", "_"), mem("q1", "c")))
+    $part1_c forall("q1", implies(num("q1", 0, "_"), mem("q1", "c")))
     $part2_c forall("q2", implies(mem("q2", "c"), forall("q3", implies(successor("q3", "q2", "_"), mem("q3", "c")))))
 
     # For phi(e): ∀c. inductive(c) → e∈c
-    # From inductive(c): part1_c instantiated with e: empty(e) → e∈c
-    # So: empty(e) ∧ inductive(c) → e∈c
+    # From inductive(c): part1_c instantiated with e: num(e,0) → e∈c
+    # So: num(e,0) ∧ inductive(c) → e∈c
     $got_p1c mp(and_elim_left(part1_c, part2_c, []),
         ax([ind_c], [ind_c], ind_c), ind_c, part1_c, [], [ind_c])
     $imp_emp_ec implies(emp, mem("e", "c"))
     $got_emp_ec apply_thm(got_p1c, part1_c, ["e"], ["e"],
-        \q: implies(empty(q,"_"), mem(q,"c")), [ind_c])
+        \q: implies(num(q,0,"_"), mem(q,"c")), [ind_c])
     $got_ec mp(got_emp_ec, ax([emp], [emp], emp), emp, mem("e","c"), [ind_c], [emp])
     # [ind_c, emp] |- e∈c
 
@@ -138,12 +138,12 @@ $omega_exists {
     # For e∈b: same argument with ind_b
     # We have ind_b on left from infinity. Let's keep it as hypothesis for now.
     $ind_b inductive("b", "_")
-    $part1_b forall("q1", implies(empty("q1", "_"), mem("q1", "b")))
+    $part1_b forall("q1", implies(num("q1", 0, "_"), mem("q1", "b")))
     $part2_b forall("q2", implies(mem("q2", "b"), forall("q3", implies(successor("q3", "q2", "_"), mem("q3", "b")))))
     $got_p1b2 mp(and_elim_left(part1_b, part2_b, []),
         ax([ind_b], [ind_b], ind_b), ind_b, part1_b, [], [ind_b])
     $got_emp_eb apply_thm(got_p1b2, part1_b, ["e"], ["e"],
-        \q: implies(empty(q,"_"), mem(q,"b")), [ind_b])
+        \q: implies(num(q,0,"_"), mem(q,"b")), [ind_b])
     $got_eb mp(got_emp_eb, ax([emp], [emp], emp), emp, eb, [ind_b], [emp])
     # [ind_b, emp] |- e∈b
 
@@ -166,7 +166,7 @@ $omega_exists {
     $got_emp_imp ir(got_ew, [char, ind_b], [imp_emp_ew], imp_emp_ew)
     $fa_emp forall("e", imp_emp_ew)
     $got_fa_emp fr(got_emp_imp, [char, ind_b], [fa_emp], fa_emp, "e")
-    # [char, ind_b] |- ∀e. empty(e) → e∈w
+    # [char, ind_b] |- ∀e. num(e,0) → e∈w
 
     # --- Succ part ---
     # n∈w → succ(s,n) → s∈w
@@ -276,15 +276,15 @@ $omega_exists {
     # === Combine into inductive(w) ===
     $ind_w inductive("w", "_")
     # inductive(w) = and(fa_emp_part, fa_succ_part)
-    # fa_emp = ∀e. empty(e) → e∈w  (with inductive's prefix)
+    # fa_emp = ∀e. num(e,0) → e∈w  (with inductive's prefix)
     # fa_succ = ∀x. x∈w → ∀s. succ(s,x) → s∈w (with inductive's prefix)
     # These need to match inductive(w)'s expansion.
     # inductive("w") with default prefix uses e, x, s.
-    # fa_emp uses "e", "empty with __", got_fa_emp ok
+    # fa_emp uses "e", "num with __", got_fa_emp ok
     # fa_n_imp uses "n", "s" but inductive uses "x", "s"
     # Alpha-equiv should handle the var name differences.
 
-    $ind_part1 forall("e", implies(empty("e", "_"), mem("e", "w")))
+    $ind_part1 forall("e", implies(num("e", 0, "_"), mem("e", "w")))
     $ind_part2 forall("x", implies(mem("x", "w"), forall("s", implies(successor("s", "x", "_"), mem("s", "w")))))
 
     $got_ind mp(mp(and_intro(ind_part1, ind_part2, []),

@@ -1,6 +1,6 @@
 from derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
-from vocab.sets import empty, subset
-from vocab.nat.nat import inductive, omega, successor
+from vocab.sets import subset
+from vocab.nat.nat import num, inductive, omega, successor
 from util import rev
 from tactics import ax, wl, wr, fl, fr, ir, mp, inst, apply_thm, eel, eir, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
@@ -9,12 +9,12 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.nat.nat.omega_is_inductive import omega_is_inductive
-from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 from theorems.nat.nat.omega_smallest_inductive import omega_smallest_inductive
 
 # omega_induction(pred, vars):
-# omega(w) → (∀e. empty(e) → pred(e)) → (∀n. n∈w → pred(n) → ∀s. succ(s,n) → pred(s)) → ∀n. n∈w → pred(n)
+# omega(w) → (∀e. num(e,0) → pred(e)) → (∀n. n∈w → pred(n) → ∀s. succ(s,n) → pred(s)) → ∀n. n∈w → pred(n)
 #
 # Proof: S = {n∈w | pred(n)} is inductive. omega smallest → w⊆S → n∈w → pred(n).
 #
@@ -35,7 +35,7 @@ $omega_induction \pred vars p: {
     $pn pred(w, n, np)
 
     # Hypotheses
-    $base_hyp forall(e, implies(empty(e, np), pred(w, e, np)))
+    $base_hyp forall(e, implies(num(e, 0, np), pred(w, e, np)))
     $step_hyp forall(n, implies(nw, implies(pn, forall(s, implies(successor(s, n, np), pred(w, s, np))))))
 
     # Separation: S = {n∈w | pred(n)}
@@ -46,22 +46,22 @@ $omega_induction \pred vars p: {
     $char forall(n, iff_ns)
 
     # === Show S is inductive ===
-    # Part 1: ∀e. empty(e) → e∈s
-    $emp empty(e, np)
+    # Part 1: ∀e. num(e,0) → e∈s
+    $emp num(e, 0, np)
     $es mem(e, s)
     $ew mem(e, w)
 
-    # From base_hyp: empty(e) → pred(e)
+    # From base_hyp: num(e,0) → pred(e)
     $got_pe apply_thm(ax([base_hyp], [base_hyp], base_hyp), base_hyp, [e], [e],
-        \v: implies(empty(v, np), pred(w, v, np)), [base_hyp])
+        \v: implies(num(v, 0, np), pred(w, v, np)), [base_hyp])
     $pe pred(w, e, np)
     $got_pe2 mp(got_pe, ax([emp], [emp], emp), emp, pe, [base_hyp], [emp])
     # [base_hyp, emp] |- pred(e)
 
-    # From omega_contains_empty: omega(w) → empty(e) → e∈w
-    $_oce head(right(omega_contains_empty))
-    $got_oce apply_thm(omega_contains_empty, _oce, [e, w], [e, "w"],
-        \e: \w: implies(omega(w,"_"), implies(empty(e,"_"), mem(e,w))), [])
+    # From omega_contains_zero: omega(w) → num(e,0) → e∈w
+    $_oce head(right(omega_contains_zero))
+    $got_oce apply_thm(omega_contains_zero, _oce, [e, w], [e, "w"],
+        \e: \w: implies(omega(w,"_"), implies(num(e,0,"_"), mem(e,w))), [])
     $got_ew mp(mp(got_oce, ax([om], [om], om), om, implies(emp, ew), [], [om]),
         ax([emp], [emp], emp), emp, ew, [om], [emp])
     # [om, emp] |- e∈w
@@ -83,7 +83,7 @@ $omega_induction \pred vars p: {
 
     $imp_emp_es implies(emp, es)
     $got_fa_emp ir(got_es, [char, om, base_hyp], [imp_emp_es], imp_emp_es)
-    $ind_part1 forall(e, implies(empty(e, np), mem(e,s)))
+    $ind_part1 forall(e, implies(num(e, 0, np), mem(e,s)))
     $got_ind_p1 fr(got_fa_emp, [char, om, base_hyp], [ind_part1], ind_part1, e)
     # [char, om, base_hyp] |- ind_part1
 

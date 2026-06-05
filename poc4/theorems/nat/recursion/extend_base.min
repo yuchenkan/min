@@ -1,6 +1,6 @@
 from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
 from vocab.sets import empty, singleton, ordered_pair, union
-from vocab.nat.nat import successor
+from vocab.nat.nat import num, successor
 from vocab.functions import apply
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same
 from util import remove, diff
@@ -11,28 +11,28 @@ from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.functions.extend_apply_old import extend_apply_old
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
-from theorems.nat.nat.succ_not_empty import succ_not_empty
+from theorems.nat.nat.succ_not_zero import succ_not_zero
 from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.logic.eqv_mem_left import eqv_mem_left
 
 # pa |- base_v → successor(sn,n) → singleton(h,op) → ordered_pair(op,sn,fval) →
-#       union(u,v,h) → forall e. empty(e) → (∃y.apply(u,e,y)) → apply(u,e,a)
+#       union(u,v,h) → forall e. num(e,0) → (∃y.apply(u,e,y)) → apply(u,e,a)
 #
-# base_v = forall(e, implies(empty(e), implies(∃y.apply(v,e,y), apply(v,e,a))))
+# base_v = forall(e, implies(num(e,0), implies(∃y.apply(v,e,y), apply(v,e,a))))
 # Proves: the base condition of RecApprox transfers from v to u=v∪h.
 # Case apply from v: base_v gives apply(v,e,a), extend_apply_old gives apply(u,e,a).
-# Case apply from h: kuratowski gives e=sn, succ_not_empty contradicts empty(e).
+# Case apply from h: kuratowski gives e=sn, succ_not_zero contradicts num(e,0).
 $extend_base {
     $succ_sn successor("sn", "n", "_")
     $sing_h singleton("h", "op", "_")
     $opkv ordered_pair("op", "sn", "fval", "_")
     $un union("u", "v", "h", "_")
 
-    $base_v forall("e", implies(empty("e", "_"),
+    $base_v forall("e", implies(num("e", 0, "_"),
         implies(exists("y", apply("v", "e", "y", "_")), apply("v", "e", "a", "_"))))
 
-    $emp_e empty("e", "_")
+    $emp_e num("e", 0, "_")
     $app_ve apply("v", "e", "y2", "_")
     $app_he apply("h", "e", "y2", "_")
     $app_ue apply("u", "e", "y2", "_")
@@ -41,7 +41,7 @@ $extend_base {
     $or_ve_he or(app_ve, app_he)
 
     # === Case v: base_v + extend_apply_old ===
-    # base_v inst e: empty(e) → (∃y.apply(v,e,y)) → apply(v,e,a)
+    # base_v inst e: num(e,0) → (∃y.apply(v,e,y)) → apply(v,e,a)
     $imp_base implies(emp_e, implies(exists("y", apply("v","e","y","_")), app_vea))
     $got_base_inst fl(ax([imp_base], [imp_base], imp_base), [base_v], [imp_base], base_v, "e")
     $got_base_mp mp(got_base_inst, ax([emp_e], [emp_e], emp_e), emp_e,
@@ -61,14 +61,14 @@ $extend_base {
         ax([un], [un], un), un, app_uea, [base_v, emp_e, app_ve], [un])
     # [base_v, emp_e, app_ve, un] |- apply(u,e,a)
 
-    # === Case h: singleton+kuratowski → e=sn, succ_not_empty → contradiction ===
+    # === Case h: singleton+kuratowski → e=sn, succ_not_zero → contradiction ===
     # From apply(h,e,y2): eel eigenvariable q. op(q,e,y2) ∧ q∈h.
     # singleton_mem_eq → eqv(q,op). kuratowski → eqv(e,sn).
-    # succ_not_empty: succ(sn,n) → neg(empty(sn)). eqv(e,sn) + empty(e) → empty(sn). Contradiction.
+    # succ_not_zero: succ(sn,n) → neg(num(sn,0)). eqv(e,sn) + num(e,0) → num(sn,0). Contradiction.
     $_sme head(right(singleton_mem_eq))
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
-    $_sne head(right(succ_not_empty))
+    $_sne head(right(succ_not_zero))
 
     $op_q ordered_pair("q", "e", "y2", "_")
     $qh mem("q", "h")
@@ -96,20 +96,14 @@ $extend_base {
         km3, goal_and, eqv_e_sn, [], left(km3))
     # left(got_e_sn) |- eqv(e, sn). Has pa_f, and_q, opkv, sing_h.
 
-    # succ_not_empty: succ(sn,n) → neg(empty(sn))
-    $neg_emp_sn neg(empty("sn", "_"))
-    $got_neg_sn mp(apply_thm(succ_not_empty, _sne, ["sn", "n"], ["sn", "n"],
-        \sn: \n: implies(successor(sn,n,"_"), neg(empty(sn,"_"))), []),
+    # succ_not_zero: succ(sn,n) → neg(num(sn,0))
+    $neg_emp_sn neg(num("sn", 0, "_"))
+    $got_neg_sn mp(apply_thm(succ_not_zero, _sne, ["sn", "n"], ["sn", "n"],
+        \sn: \n: implies(successor(sn,n,"_"), neg(num(sn,0,"_"))), []),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, neg_emp_sn, [], [succ_sn])
-    # [succ_sn] |- neg(empty(sn))
+    # [succ_sn] |- neg(num(sn,0))
 
-    # eqv(e,sn) + empty(e) → empty(sn) via eq_transfer on empty's characterization
-    # Actually simpler: eqv_mem_left(e,sn): z∈e → z∈sn. So empty(e) = ∀z.¬(z∈e).
-    # empty(sn) = ∀z.¬(z∈sn). From ¬(z∈e) and z∈sn→z∈e (iff backward from eqv): ¬(z∈sn).
-    # But this requires detailed work. Simpler: use the fact that empty is a set_spec,
-    # and eqv means same elements. Transfer directly.
-    #
-    # Actually even simpler for contradiction:
+    # eqv(e,sn) + num(e,0) → contradiction via mem_succ_self + eqv_mem_left + neg_mem_empty
     # From eqv(e,sn): mem_succ_self gives n∈sn. eqv_mem_left(e,sn): n∈e. neg_mem_empty contradicts.
     # n∈sn from succ_sn:
     $_mss head(right(mem_succ_self))
@@ -186,7 +180,7 @@ $extend_base {
     $got_eel_y eel(got_app_uea, \y: apply("u","e",y,"_"), "y", "y2", left(got_app_uea), app_uea)
     $ex_app_ue exists("y", apply("u","e","y","_"))
 
-    # ir: ∃y.apply(u,e,y) → apply(u,e,a), then empty(e) → ..., then forall e
+    # ir: ∃y.apply(u,e,y) → apply(u,e,a), then num(e,0) → ..., then forall e
     $ctx_pre left(got_eel_y)
     $r1 ir(got_eel_y, remove(same, ex_app_ue, ctx_pre), [implies(ex_app_ue, app_uea)], implies(ex_app_ue, app_uea))
     $r2 ir(r1, remove(same, emp_e, left(r1)), [implies(emp_e, implies(ex_app_ue, app_uea))], implies(emp_e, implies(ex_app_ue, app_uea)))

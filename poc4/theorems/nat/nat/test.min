@@ -1,5 +1,5 @@
 from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed, sep_ax
-from vocab.sets import empty, subset, transitive_set
+from vocab.sets import subset, transitive_set
 from vocab.nat.nat import nat, num, inductive, omega, successor
 from vocab.logic import exists_unique
 from theorems.nat.nat.nat_elim import nat_elim
@@ -14,13 +14,13 @@ from theorems.nat.nat.unique_successor import unique_successor
 from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.nat.nat.mem_succ_intro import mem_succ_intro
 from theorems.nat.nat.mem_succ_elim import mem_succ_elim
-from theorems.nat.nat.succ_not_empty import succ_not_empty
+from theorems.nat.nat.succ_not_zero import succ_not_zero
 from theorems.nat.nat.succ_set_transfer import succ_set_transfer
 from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
 from theorems.nat.nat.infinity_gives_inductive import infinity_gives_inductive
 from theorems.nat.nat.omega_is_inductive import omega_is_inductive
 from theorems.nat.nat.omega_smallest_inductive import omega_smallest_inductive
-from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 from theorems.nat.nat.omega_exists import omega_exists
 from theorems.nat.nat.omega_unique import omega_unique
@@ -43,7 +43,7 @@ $_ print("num_exists_unique(1) ok")
 $_ qed(num_exists_unique(2), neu_body(2))
 $_ print("num_exists_unique(2) ok")
 
-$_ qed(num_exists(0), exists("s", empty("s","_")))
+$_ qed(num_exists(0), exists("s", num("s",0,"_")))
 $_ print("num_exists(0) ok")
 
 $_ qed(num_unique(0), forall("n1", forall("n2", implies(num("n1",0,"_"), implies(num("n2",0,"_"), eqv("n1","n2","_"))))))
@@ -96,8 +96,8 @@ $_ qed(mem_succ_elim, forall("x", forall("s", forall("n",
     implies(mem("x","s"), implies(successor("s","n","_"), or(mem("x","n"), eqv("x","n","_"))))))))
 $_ print("mem_succ_elim ok")
 
-$_ qed(succ_not_empty, forall("sn", forall("n", implies(successor("sn","n","_"), neg(empty("sn","_"))))))
-$_ print("succ_not_empty ok")
+$_ qed(succ_not_zero, forall("sn", forall("n", implies(successor("sn","n","_"), neg(num("sn",0,"_"))))))
+$_ print("succ_not_zero ok")
 
 $_ qed(succ_set_transfer, forall("s1", forall("s2", forall("n",
     implies(eqv("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))))
@@ -118,9 +118,9 @@ $_ qed(omega_smallest_inductive,
     forall("c", forall("w", implies(omega("w", "_"), implies(inductive("c", "_"), subset("w", "c", "_"))))))
 $_ print("omega_smallest_inductive ok")
 
-$_ qed(omega_contains_empty,
-    forall("e", forall("w", implies(omega("w", "_"), implies(empty("e", "_"), mem("e", "w"))))))
-$_ print("omega_contains_empty ok")
+$_ qed(omega_contains_zero,
+    forall("e", forall("w", implies(omega("w", "_"), implies(num("e", 0, "_"), mem("e", "w"))))))
+$_ print("omega_contains_zero ok")
 
 $_ qed(omega_succ_closed,
     forall("s", forall("n", forall("w",
@@ -141,7 +141,7 @@ $trivial_pred \w v p: mem(v, w)
 $trivial_ind omega_induction(trivial_pred, [], "_")
 $_ qed(trivial_ind,
     forall("w", implies(omega("w", "_"), implies(
-        forall("e", implies(empty("e","_"), mem("e","w"))),
+        forall("e", implies(num("e",0,"_"), mem("e","w"))),
         implies(forall("n", implies(mem("n","w"), implies(mem("n","w"), forall("s", implies(successor("s","n","_"), mem("s","w")))))),
             forall("n", implies(mem("n","w"), mem("n","w"))))))))
 $_ print("omega_induction ok")
@@ -149,7 +149,7 @@ $_ print("omega_induction ok")
 $_ qed(not_mem_self, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), neg(mem("n","n")))))))
 $_ print("not_mem_self ok")
 
-$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(empty("n","_"), exists("_q", successor("n","_q","_"))))))))
+$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(num("n",0,"_"), exists("_q", successor("n","_q","_"))))))))
 $_ print("zero_or_succ ok")
 
 $_ qed(omega_transitive_set, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), transitive_set("n","_"))))))

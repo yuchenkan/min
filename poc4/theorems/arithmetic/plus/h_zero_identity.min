@@ -9,7 +9,7 @@ from util import remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.nat.nat.omega_induction import omega_induction
-from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 from theorems.nat.nat.omega_exists import omega_exists
 from theorems.nat.nat.nat_elim import nat_elim
 from theorems.nat.nat.num_unique import num_unique
@@ -72,11 +72,11 @@ $h_zero_identity {
     $app_z apply("h","pair","z","_")
     $app_e apply("h","pair","e","_")
 
-    # z∈w from omega_contains_empty + Num(z,0)
-    $_oce head(right(omega_contains_empty))
+    # z∈w from omega_contains_zero + Num(z,0)
+    $_oce head(right(omega_contains_zero))
     $_oce_b \e: \w: implies(omega(w,"_"), implies(num(e,0,"_"), mem(e,w)))
-    $oce_inst apply_thm(omega_contains_empty, _oce, ["z","w"], ["e","w"], _oce_b, left(omega_contains_empty))
-    $oce1 mp(oce_inst, ax([om],[om],om), om, implies(num_z, mem("z","w")), left(omega_contains_empty), [om])
+    $oce_inst apply_thm(omega_contains_zero, _oce, ["z","w"], ["e","w"], _oce_b, left(omega_contains_zero))
+    $oce1 mp(oce_inst, ax([om],[om],om), om, implies(num_z, mem("z","w")), left(omega_contains_zero), [om])
     $got_zw mp(oce1, ax([num_z],[num_z],num_z), num_z, mem("z","w"), left(oce1), [num_z])
 
     # base_f at m=z, z'=e, pair → Apply(h,pair,z)
@@ -137,8 +137,8 @@ $h_zero_identity {
     $got_app_a mp(pa3, ax([op_za],[op_za],op_za), op_za, app_a, left(pa3), [op_za])
 
     # z∈w (same as base case)
-    $oce2 apply_thm(omega_contains_empty, _oce, ["z","w"], ["e","w"], _oce_b, left(omega_contains_empty))
-    $oce2a mp(oce2, ax([om],[om],om), om, implies(num_z, mem("z","w")), left(omega_contains_empty), [om])
+    $oce2 apply_thm(omega_contains_zero, _oce, ["z","w"], ["e","w"], _oce_b, left(omega_contains_zero))
+    $oce2a mp(oce2, ax([om],[om],om), om, implies(num_z, mem("z","w")), left(omega_contains_zero), [om])
     $got_zw2 mp(oce2a, ax([num_z],[num_z],num_z), num_z, mem("z","w"), left(oce2a), [num_z])
 
     # step_f at m=z, n=a, pair=pair0, p=a, sn=s, sp=s, pair2=pair_s → Apply(h,pair_s,s)

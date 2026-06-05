@@ -1,15 +1,14 @@
 from derived import mem, implies, forall, right
-from vocab.sets import empty
-from vocab.nat.nat import inductive, omega, successor
+from vocab.nat.nat import num, inductive, omega, successor
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.nat.nat.omega_is_inductive import omega_is_inductive
 
-# |- omega(w) -> empty(e) -> mem(e, w)
-$omega_contains_empty {
+# |- omega(w) -> num(e,0) -> mem(e, w)
+$omega_contains_zero {
     $om omega("w", "_")
     $ind inductive("w", "_")
-    $emp empty("e", "_")
+    $emp num("e", 0, "_")
     $e_in_w mem("e", "w")
 
     $_oi head(right(omega_is_inductive))
@@ -17,14 +16,14 @@ $omega_contains_empty {
         \w: implies(omega(w,"_"), inductive(w,"_")), []),
         ax([om], [om], om), om, ind, [], [om])
 
-    $part1 forall("q", implies(empty("q", "_"), mem("q", "w")))
+    $part1 forall("q", implies(num("q", 0, "_"), mem("q", "w")))
     $part2 forall("q", implies(mem("q", "w"), forall("r", implies(successor("r", "q", "_"), mem("r", "w")))))
 
     $got_p1 mp(and_elim_left(part1, part2, []),
         got_ind, ind, part1, [], [om])
 
     $got_inst apply_thm(got_p1, part1, ["e"], ["e"],
-        \q: implies(empty(q,"_"), mem(q,"w")), [om])
+        \q: implies(num(q,0,"_"), mem(q,"w")), [om])
 
     $got_in mp(got_inst, ax([emp], [emp], emp), emp, e_in_w, [om], [emp])
 

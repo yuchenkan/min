@@ -1,5 +1,5 @@
 from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
-from vocab.sets import empty, ordered_pair, product
+from vocab.sets import ordered_pair, product
 from vocab.nat.nat import num, omega, successor
 from vocab.functions import apply, function, single_valued, domain
 from vocab.arithmetic.plus import plus_func
@@ -23,7 +23,7 @@ from theorems.functions.domain_mem_elim import domain_mem_elim
 from theorems.sets.product_exists import product_exists
 from theorems.sets.product_in_intro import product_in_intro
 from theorems.nat.nat.omega_induction import omega_induction
-from theorems.nat.nat.omega_contains_empty import omega_contains_empty
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 from theorems.nat.nat.omega_exists import omega_exists
 from theorems.sets.ordpair_unique import ordpair_unique
@@ -132,7 +132,7 @@ $plus_func_unique {
     # eqv_trans via iff_chain on membership:
     $_ic_b \a: \b: \c: implies(iff(a,b), implies(iff(b,c), iff(a,c)))
 
-    # === BASE CASE: ∀e.empty(e)→P(e) ===
+    # === BASE CASE: ∀e.num(e,0)→P(e) ===
     $emp num("e",0,"_")
     $mw mem("m","w")
     $op_pair ordered_pair("pair","m","e","_")
