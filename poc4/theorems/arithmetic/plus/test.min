@@ -1,5 +1,5 @@
 from derived import mem, implies, forall, and, iff, exists, eqv, qed
-from vocab.sets import ordered_pair, relation, product, empty
+from vocab.sets import ordered_pair, relation, product
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
 from vocab.nat.recursion import recursive, total_from
@@ -29,6 +29,7 @@ from theorems.arithmetic.plus.plus_base import plus_base
 from theorems.arithmetic.plus.plus_step import plus_step
 from theorems.arithmetic.plus.h_zero_identity import h_zero_identity
 from theorems.arithmetic.plus.plus_zero_left import plus_zero_left
+from theorems.arithmetic.plus.h_succ_left import h_succ_left
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")))
 $_ print("succ_func_exists ok")
@@ -168,5 +169,16 @@ $_ qed(plus_zero_left, forall("a", implies(nat("a","_"),
     forall("b", implies(num("b",0,"_"),
         forall("c", implies(plus("b","a","c","_"), eqv("c","a","_"))))))))
 $_ print("plus_zero_left ok")
+
+$_ qed(h_succ_left, forall("h", implies(plus_func("h","_"),
+    forall("m", implies(nat("m","_"),
+        forall("sm", implies(successor("sm","m","_"),
+            forall("n", implies(nat("n","_"),
+                forall("pair", implies(ordered_pair("pair","m","n","_"),
+                    forall("p", implies(apply("h","pair","p","_"),
+                        forall("pair_sm", implies(ordered_pair("pair_sm","sm","n","_"),
+                            forall("sp", implies(successor("sp","p","_"),
+                                apply("h","pair_sm","sp","_"))))))))))))))))))
+$_ print("h_succ_left ok")
 
 $ok true
