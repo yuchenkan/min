@@ -28,6 +28,7 @@ from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
 from theorems.arithmetic.plus.plus_base import plus_base
 from theorems.arithmetic.plus.plus_step import plus_step
 from theorems.arithmetic.plus.h_zero_identity import h_zero_identity
+from theorems.arithmetic.plus.plus_zero_left import plus_zero_left
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")))
 $_ print("succ_func_exists ok")
@@ -162,5 +163,10 @@ $_ qed(h_zero_identity, forall("h", implies(plus_func("h","_"),
             forall("pair", implies(ordered_pair("pair","z","a","_"),
                 apply("h","pair","a","_"))))))))))
 $_ print("h_zero_identity ok")
+
+$_ qed(plus_zero_left, forall("a", implies(nat("a","_"),
+    forall("b", implies(num("b",0,"_"),
+        forall("c", implies(plus("b","a","c","_"), eqv("c","a","_"))))))))
+$_ print("plus_zero_left ok")
 
 $ok true
