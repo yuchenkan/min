@@ -31,6 +31,7 @@ from theorems.arithmetic.plus.h_zero_identity import h_zero_identity
 from theorems.arithmetic.plus.plus_zero_left import plus_zero_left
 from theorems.arithmetic.plus.h_succ_left import h_succ_left
 from theorems.arithmetic.plus.h_comm_identity import h_comm_identity
+from theorems.arithmetic.plus.plus_comm import plus_comm
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")))
 $_ print("succ_func_exists ok")
@@ -190,5 +191,10 @@ $_ qed(h_comm_identity, forall("h", implies(plus_func("h","_"),
                     forall("p", implies(apply("h","pair_mn","p","_"),
                         apply("h","pair_nm","p","_"))))))))))))))
 $_ print("h_comm_identity ok")
+
+$_ qed(plus_comm, forall("m", implies(nat("m","_"),
+    forall("n", implies(nat("n","_"),
+        forall("p", implies(plus("m","n","p","_"), plus("n","m","p","_"))))))))
+$_ print("plus_comm ok")
 
 $ok true
