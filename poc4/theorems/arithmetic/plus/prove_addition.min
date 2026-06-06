@@ -1,0 +1,218 @@
+from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import ordered_pair
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.functions import apply
+from vocab.arithmetic.plus import plus_func, plus
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.functions.apply_val_transfer import apply_val_transfer
+from theorems.nat.nat.num_unique import num_unique
+from theorems.nat.nat.num_exists import num_exists
+from theorems.nat.nat.num_nat import num_nat
+from theorems.arithmetic.plus.plus_base import plus_base
+from theorems.arithmetic.plus.plus_step import plus_step
+
+# prove_addition(m, n): proves Num(a,m) → Num(b,n) → Num(c,m+n) → Plus(a,b,c)
+#
+# Base (n=0): plus_base gives Plus(a,b,a). num_unique(m) gives Eqv(a,c).
+#   apply_val_transfer: Apply(h,pair,a) → Apply(h,pair,c). Close as Plus(a,b,c).
+#
+# Step (n→n+1): prove_addition(m,n) gives Plus(a,b',c').
+#   plus_step: Plus(a,b',c') → Succ(b,b') → Succ(c,c') → Plus(a,b,c).
+#   Succ(b,b') from Num(b,n+1) + Num(b',n).
+#   Succ(c,c') from Num(c,m+n+1) + Num(c',m+n).
+#   eel b',c' from num_exists.
+
+$_es head(right(eqv_symmetric))
+$_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+$_avt head(right(apply_val_transfer))
+$_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+
+# Helper: from Num(a,k) and Num(c,k), derive Eqv(a,c)
+$_num_eqv \k a c: {
+    $_nu head(right(num_unique(k)))
+    $_nu_b \n1: \n2: implies(num(n1,k,"_"), implies(num(n2,k,"_"), eqv(n1,n2,"_")))
+    $nu1 mp(apply_thm(num_unique(k), _nu, [a,c], ["n1","n2"], _nu_b, left(num_unique(k))),
+        ax([num(a,k,"_")],[num(a,k,"_")],num(a,k,"_")), num(a,k,"_"),
+        implies(num(c,k,"_"), eqv(a,c,"_")), left(num_unique(k)), [num(a,k,"_")])
+    mp(nu1, ax([num(c,k,"_")],[num(c,k,"_")],num(c,k,"_")), num(c,k,"_"),
+        eqv(a,c,"_"), left(nu1), [num(c,k,"_")])
+}
+
+# Helper: from Plus(a,b,a) + Eqv(a,c), build Plus(a,b,c)
+# Plus(a,b,x) = ∀h.PF(h)→∀pair.OP(pair,a,b)→Apply(h,pair,x)
+# Transfer: Apply(h,pair,a) + Eqv(a,c) → Apply(h,pair,c) → Plus(a,b,c)
+$_plus_transfer \a b c got_plus_aba got_eqv_ac: {
+    $pf_h plus_func("h","_")
+    $op ordered_pair("pair",a,b,"_")
+    $app_a apply("h","pair",a,"_")
+    $app_c apply("h","pair",c,"_")
+
+    # Open Plus(a,b,a) at h, pair
+    $p1 apply_thm(ax([plus(a,b,a,"_")],[plus(a,b,a,"_")],plus(a,b,a,"_")),
+        plus(a,b,a,"_"), ["h"], ["h"],
+        \h: implies(plus_func(h,"_"), forall("pair", implies(ordered_pair("pair",a,b,"_"),
+            apply(h,"pair",a,"_")))), [plus(a,b,a,"_")])
+    $p2 mp(p1, ax([pf_h],[pf_h],pf_h), pf_h,
+        forall("pair", implies(op, app_a)), [plus(a,b,a,"_")], [pf_h])
+    $p3 apply_thm(p2, head(right(p2)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,a,b,"_"), apply("h",pair,a,"_")), left(p2))
+    $got_app_a mp(p3, ax([op],[op],op), op, app_a, left(p3), [op])
+
+    # Eqv(a,c) → Apply(h,pair,c)
+    $got_app_c mp(mp(apply_thm(apply_val_transfer, _avt, ["h","pair",a,c], ["f","x","y","y2"], _avt_b, []),
+        got_eqv_ac, eqv(a,c,"_"), implies(app_a, app_c), [], left(got_eqv_ac)),
+        got_app_a, app_a, app_c, left(got_eqv_ac), left(got_app_a))
+
+    # Close as Plus(a,b,c): ir op, fr pair, ir pf_h, fr h
+    $cur got_app_c
+    $cur ir(cur, remove(same, op, left(cur)), [implies(op, app_c)], implies(op, app_c))
+    $cur fr(cur, left(cur), [forall("pair", head(right(cur)))], forall("pair", head(right(cur))), "pair")
+    $cur ir(cur, remove(same, pf_h, left(cur)), [implies(pf_h, head(right(cur)))], implies(pf_h, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
+
+    # Cut Plus(a,b,a) from left
+    $cur cut_c(got_plus_aba, cur, plus(a,b,a,"_"), left(got_plus_aba), left(cur), head(right(cur)))
+    cur
+}
+
+# Main recursive function
+$_prove_add \self m n: {
+    $p add(m, n)
+    $num_a num("a",m,"_")
+    $num_b num("b",n,"_")
+    $num_c num("c",p,"_")
+    $plus_abc plus("a","b","c","_")
+
+    ?(eq(n, 0), {
+        # Base: n=0. plus_base: Nat(a)→Num(b,0)→Plus(a,b,a).
+        # num_nat: Num(a,m)→Nat(a).
+        $_nn head(right(num_nat(m)))
+        $_nn_b \a: implies(num(a,m,"_"), nat(a,"_"))
+        $got_nat_a mp(apply_thm(num_nat(m), _nn, ["a"], ["a"], _nn_b, left(num_nat(m))),
+            ax([num_a],[num_a],num_a), num_a, nat("a","_"), left(num_nat(m)), [num_a])
+
+        # plus_base: Nat(a) → Num(b,0) → Plus(a,b,a)
+        $_pb head(right(plus_base))
+        $_pb_b \a: implies(nat(a,"_"), forall("b", implies(num("b",0,"_"), plus(a,"b",a,"_"))))
+        $pb1 mp(apply_thm(plus_base, _pb, ["a"], ["a"], _pb_b, left(plus_base)),
+            got_nat_a, nat("a","_"), forall("b", implies(num_b, plus("a","b","a","_"))),
+            left(plus_base), left(got_nat_a))
+        $pb2 apply_thm(pb1, head(right(pb1)), ["b"], ["b"],
+            \b: implies(num(b,0,"_"), plus("a",b,"a","_")), left(pb1))
+        $got_plus_aba mp(pb2, ax([num_b],[num_b],num_b), num_b, plus("a","b","a","_"),
+            left(pb2), [num_b])
+
+        # p = m+0 = m. num_unique(m): Num(a,m) → Num(c,m) → Eqv(a,c)
+        $got_eqv_ac _num_eqv(m, "a", "c")
+
+        # Transfer Plus(a,b,a) → Plus(a,b,c)
+        $got_plus_abc _plus_transfer("a", "b", "c", got_plus_aba, got_eqv_ac)
+
+        # Close: ir num_c, fr c, ir num_b, fr b, ir num_a, fr a
+        $cur got_plus_abc
+        $cur ir(cur, remove(same, num_c, left(cur)), [implies(num_c, head(right(cur)))], implies(num_c, head(right(cur))))
+        $cur fr(cur, left(cur), [forall("c", head(right(cur)))], forall("c", head(right(cur))), "c")
+        $cur ir(cur, remove(same, num_b, left(cur)), [implies(num_b, head(right(cur)))], implies(num_b, head(right(cur))))
+        $cur fr(cur, left(cur), [forall("b", head(right(cur)))], forall("b", head(right(cur))), "b")
+        $cur ir(cur, remove(same, num_a, left(cur)), [implies(num_a, head(right(cur)))], implies(num_a, head(right(cur))))
+        $top forall("a", head(right(cur)))
+        fr(cur, left(cur), [top], top, "a")
+    }, {
+        # Step: n = k+1. Have prove_addition(m,k): Num(a,m)→Num(b',k)→Num(c',m+k)→Plus(a,b',c').
+        $k sub(n, 1)
+        $pk add(m, k)
+        $prev self(self, m, k)
+
+        # Instantiate prev at a, then need b'=bp, c'=cp witnesses from num_exists
+        $num_bp num("bp",k,"_")
+        $num_cp num("cp",pk,"_")
+
+        $_prev head(right(prev))
+        $_prev_b \a: implies(num(a,m,"_"), forall("bp", implies(num("bp",k,"_"),
+            forall("cp", implies(num("cp",pk,"_"), plus(a,"bp","cp","_"))))))
+        $prev1 mp(apply_thm(prev, _prev, ["a"], ["a"], _prev_b, left(prev)),
+            ax([num_a],[num_a],num_a), num_a, arg2(head(right(apply_thm(prev, _prev, ["a"], ["a"], _prev_b, left(prev))))),
+            left(prev), [num_a])
+        $prev2 apply_thm(prev1, head(right(prev1)), ["bp"], ["bp"],
+            \bp: implies(num(bp,k,"_"), forall("cp", implies(num("cp",pk,"_"), plus("a",bp,"cp","_")))), left(prev1))
+        $prev3 mp(prev2, ax([num_bp],[num_bp],num_bp), num_bp, arg2(head(right(prev2))), left(prev2), [num_bp])
+        $prev4 apply_thm(prev3, head(right(prev3)), ["cp"], ["cp"],
+            \cp: implies(num(cp,pk,"_"), plus("a","bp",cp,"_")), left(prev3))
+        $got_prev mp(prev4, ax([num_cp],[num_cp],num_cp), num_cp, plus("a","bp","cp","_"), left(prev4), [num_cp])
+
+        # plus_step: Nat(a)→Nat(bp)→Plus(a,bp,cp)→Succ(b,bp)→Succ(c,cp)→Plus(a,b,c)
+        $nat_a nat("a","_")
+        $nat_bp nat("bp","_")
+        $succ_b successor("b","bp","_")
+        $succ_c successor("c","cp","_")
+
+        # Nat(a) from num_nat(m)
+        $_nn head(right(num_nat(m)))
+        $_nn_b \a: implies(num(a,m,"_"), nat(a,"_"))
+        $got_nat_a mp(apply_thm(num_nat(m), _nn, ["a"], ["a"], _nn_b, left(num_nat(m))),
+            ax([num_a],[num_a],num_a), num_a, nat_a, left(num_nat(m)), [num_a])
+        # Nat(bp) from num_nat(k)
+        $_nnk head(right(num_nat(k)))
+        $_nnk_b \bp: implies(num(bp,k,"_"), nat(bp,"_"))
+        $got_nat_bp mp(apply_thm(num_nat(k), _nnk, ["bp"], ["bp"], _nnk_b, left(num_nat(k))),
+            ax([num_bp],[num_bp],num_bp), num_bp, nat_bp, left(num_nat(k)), [num_bp])
+
+        # Succ(b,bp) from Num(b,n) = Num(b,k+1): ∀m.Num(m,k)→Succ(b,m). At bp.
+        # num(b,k+1) = forall(m, implies(num(m,k), successor(b,m)))
+        $got_succ_b mp(apply_thm(ax([num_b],[num_b],num_b), num_b, ["bp"], ["m"],
+            \m: implies(num(m,k,"_"), successor("b",m,"_")), [num_b]),
+            ax([num_bp],[num_bp],num_bp), num_bp, succ_b, [num_b], [num_bp])
+
+        # Succ(c,cp) from Num(c,m+n) = Num(c,pk+1): ∀m.Num(m,pk)→Succ(c,m). At cp.
+        $got_succ_c mp(apply_thm(ax([num_c],[num_c],num_c), num_c, ["cp"], ["m"],
+            \m: implies(num(m,pk,"_"), successor("c",m,"_")), [num_c]),
+            ax([num_cp],[num_cp],num_cp), num_cp, succ_c, [num_c], [num_cp])
+
+        # plus_step at a, bp, cp, b, c:
+        # Nat(a)→Nat(bp)→Plus(a,bp,cp)→Succ(b,bp)→Succ(c,cp)→Plus(a,b,c)
+        $_ps head(right(plus_step))
+        $_ps_b \a: implies(nat(a,"_"), forall("n", implies(nat("n","_"),
+            forall("p", implies(plus(a,"n","p","_"), forall("sn", implies(successor("sn","n","_"),
+                forall("sp", implies(successor("sp","p","_"), plus(a,"sn","sp","_"))))))))))
+        $ps1 mp(apply_thm(plus_step, _ps, ["a"], ["a"], _ps_b, left(plus_step)),
+            got_nat_a, nat_a, arg2(head(right(apply_thm(plus_step, _ps, ["a"], ["a"], _ps_b, left(plus_step))))),
+            left(plus_step), left(got_nat_a))
+        $ps2 apply_thm(ps1, head(right(ps1)), ["bp"], ["n"],
+            \n: implies(nat(n,"_"), forall("p", implies(plus("a",n,"p","_"),
+                forall("sn", implies(successor("sn",n,"_"),
+                    forall("sp", implies(successor("sp","p","_"), plus("a","sn","sp","_")))))))), left(ps1))
+        $ps3 mp(ps2, got_nat_bp, nat_bp, arg2(head(right(ps2))), left(ps2), left(got_nat_bp))
+        $ps4 apply_thm(ps3, head(right(ps3)), ["cp"], ["p"],
+            \p: implies(plus("a","bp",p,"_"), forall("sn", implies(successor("sn","bp","_"),
+                forall("sp", implies(successor("sp",p,"_"), plus("a","sn","sp","_")))))), left(ps3))
+        $ps5 mp(ps4, got_prev, plus("a","bp","cp","_"), arg2(head(right(ps4))), left(ps4), left(got_prev))
+        $ps6 apply_thm(ps5, head(right(ps5)), ["b"], ["sn"],
+            \sn: implies(successor(sn,"bp","_"), forall("sp", implies(successor("sp","cp","_"),
+                plus("a",sn,"sp","_")))), left(ps5))
+        $ps7 mp(ps6, got_succ_b, succ_b, arg2(head(right(ps6))), left(ps6), left(got_succ_b))
+        $ps8 apply_thm(ps7, head(right(ps7)), ["c"], ["sp"],
+            \sp: implies(successor(sp,"cp","_"), plus("a","b",sp,"_")), left(ps7))
+        $got_plus_abc mp(ps8, got_succ_c, succ_c, plus_abc, left(ps8), left(got_succ_c))
+
+        # eel bp from num_exists(k), cp from num_exists(pk)
+        $ne_k num_exists(k)
+        $ne_pk num_exists(pk)
+        $cur eel(got_plus_abc, \bp: num(bp,k,"_"), "bp", "bp", left(got_plus_abc), plus_abc)
+        $cur cut_c(ne_k, cur, head(right(ne_k)), left(ne_k), left(cur), plus_abc)
+        $cur eel(cur, \cp: num(cp,pk,"_"), "cp", "cp", left(cur), plus_abc)
+        $cur cut_c(ne_pk, cur, head(right(ne_pk)), left(ne_pk), left(cur), plus_abc)
+
+        # Close: ir num_c, fr c, ir num_b, fr b, ir num_a, fr a
+        $cur ir(cur, remove(same, num_c, left(cur)), [implies(num_c, plus_abc)], implies(num_c, plus_abc))
+        $cur fr(cur, left(cur), [forall("c", head(right(cur)))], forall("c", head(right(cur))), "c")
+        $cur ir(cur, remove(same, num_b, left(cur)), [implies(num_b, head(right(cur)))], implies(num_b, head(right(cur))))
+        $cur fr(cur, left(cur), [forall("b", head(right(cur)))], forall("b", head(right(cur))), "b")
+        $cur ir(cur, remove(same, num_a, left(cur)), [implies(num_a, head(right(cur)))], implies(num_a, head(right(cur))))
+        $top forall("a", head(right(cur)))
+        fr(cur, left(cur), [top], top, "a")
+    })
+}
+$prove_addition \m n: _prove_add(_prove_add, m, n)
