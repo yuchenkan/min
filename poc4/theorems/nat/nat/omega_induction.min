@@ -211,7 +211,9 @@ $omega_induction \pred vars p: {
     $sep_f sep_ax(all_vars, \x a pp: pred(w, x, pp), np)
     # Instantiate sep with identity for outer vars, then domain=w
     # Use inst directly for each step
-    $_sep_inner \a: exists("b", forall("x", iff(mem("x","b"), and(mem("x",a), pred(w,"x",np)))))
+    $sb add(p, "b")
+    $sx add(p, "x")
+    $_sep_inner \a: exists(sb, forall(sx, iff(mem(sx,sb), and(mem(sx,a), pred(w,sx,np)))))
     # _last: get last element of list
     $_last \self lst: ?(eq(len(lst), 1), head(lst), self(self, tail(lst)))
     # _wrap_foralls_around: wrap forall for each remaining term
