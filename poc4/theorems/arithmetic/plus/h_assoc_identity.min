@@ -25,7 +25,7 @@ from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.ordpair_unique import ordpair_unique
 from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
 from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
-from theorems.arithmetic.plus.h_val_in_omega import h_val_in_omega
+from theorems.arithmetic.plus.h_val_nat import h_val_nat
 
 # h_assoc_identity: PlusFunc(h) → Nat(a) → Nat(b) → OrdPair(pab,a,b) → Apply(h,pab,d) →
 #   Nat(c) → OrdPair(pdc,d,c) → Apply(h,pdc,s) →
@@ -85,37 +85,35 @@ $h_assoc_identity {
         ax([nat_b],[nat_b],nat_b), nat_b, implies(om, mem("b","w")), [], [nat_b]),
         ax([om],[om],om), om, mem("b","w"), [nat_b], [om])
 
-    # === d∈w from h_val_in_omega ===
-    # h_val_in_omega: ∀w.Omega(w)→∀h.PlusFunc(h)→∀m.Nat→∀n.Nat→∀pair.OP→∀p.Apply→p∈w
-    # Instantiate w first, mp Omega, then h, then m,n,pair,p
-    $_hvi head(right(h_val_in_omega))
-    $_hvi_b1 \w: implies(omega(w,"_"), forall("h", implies(plus_func("h","_"),
-        forall("m", implies(nat("m","_"), forall("n", implies(nat("n","_"),
-            forall("pair", implies(ordered_pair("pair","m","n","_"),
-                forall("p", implies(apply("h","pair","p","_"), mem("p",w))))))))))))
-    $hvi0 apply_thm(h_val_in_omega, _hvi, ["w"], ["w"], _hvi_b1, left(h_val_in_omega))
-    $hvi0a mp(hvi0, ax([om],[om],om), om, arg2(head(right(hvi0))), left(h_val_in_omega), [om])
-    $_hvi_b2 \h: implies(plus_func(h,"_"), forall("m", implies(nat("m","_"),
+    # === Nat(d) from h_val_nat, then d∈w ===
+    # h_val_nat: ∀h.PlusFunc(h)→∀m.Nat→∀n.Nat→∀pair.OP→∀p.Apply→Nat(p)
+    $_hvi head(right(h_val_nat))
+    $_hvi_b \h: implies(plus_func(h,"_"), forall("m", implies(nat("m","_"),
         forall("n", implies(nat("n","_"), forall("pair", implies(ordered_pair("pair","m","n","_"),
-            forall("p", implies(apply(h,"pair","p","_"), mem("p","w"))))))))))
-    $hvi1 mp(apply_thm(hvi0a, head(right(hvi0a)), ["h"], ["h"], _hvi_b2, left(hvi0a)),
-        ax([pf_abs],[pf_abs],pf_abs), pf_abs, arg2(head(right(apply_thm(hvi0a, head(right(hvi0a)), ["h"], ["h"], _hvi_b2, left(hvi0a))))),
-        left(hvi0a), [pf_abs])
+            forall("p", implies(apply(h,"pair","p","_"), nat("p","_"))))))))))
+    $hvi1 mp(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat)),
+        ax([pf_abs],[pf_abs],pf_abs), pf_abs, arg2(head(right(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat))))),
+        left(h_val_nat), [pf_abs])
     $hvi2 apply_thm(hvi1, head(right(hvi1)), ["a"], ["m"],
         \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
             forall("pair", implies(ordered_pair("pair",m,"n","_"),
-                forall("p", implies(apply("h","pair","p","_"), mem("p","w")))))))), left(hvi1))
+                forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))))), left(hvi1))
     $hvi3 mp(hvi2, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(hvi2))), left(hvi2), [nat_a])
     $hvi4 apply_thm(hvi3, head(right(hvi3)), ["b"], ["n"],
         \n: implies(nat(n,"_"), forall("pair", implies(ordered_pair("pair","a",n,"_"),
-            forall("p", implies(apply("h","pair","p","_"), mem("p","w")))))), left(hvi3))
+            forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))), left(hvi3))
     $hvi5 mp(hvi4, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(hvi4))), left(hvi4), [nat_b])
     $hvi6 apply_thm(hvi5, head(right(hvi5)), ["pab"], ["pair"],
-        \pair: implies(ordered_pair(pair,"a","b","_"), forall("p", implies(apply("h",pair,"p","_"), mem("p","w")))), left(hvi5))
+        \pair: implies(ordered_pair(pair,"a","b","_"), forall("p", implies(apply("h",pair,"p","_"), nat("p","_")))), left(hvi5))
     $hvi7 mp(hvi6, ax([op_ab],[op_ab],op_ab), op_ab, arg2(head(right(hvi6))), left(hvi6), [op_ab])
     $hvi8 apply_thm(hvi7, head(right(hvi7)), ["d"], ["p"],
-        \p: implies(apply("h","pab",p,"_"), mem(p,"w")), left(hvi7))
-    $got_dw mp(hvi8, ax([app_abd],[app_abd],app_abd), app_abd, mem("d","w"), left(hvi8), [app_abd])
+        \p: implies(apply("h","pab",p,"_"), nat(p,"_")), left(hvi7))
+    $nat_d_proof mp(hvi8, ax([app_abd],[app_abd],app_abd), app_abd, nat("d","_"), left(hvi8), [app_abd])
+    # d∈w from Nat(d)
+    $nat_d nat("d","_")
+    $got_dw mp(mp(apply_thm(nat_elim, _ne, ["d","w"], ["m","w"], _ne_b, []),
+        nat_d_proof, nat_d, implies(om, mem("d","w")), [], left(nat_d_proof)),
+        ax([om],[om],om), om, mem("d","w"), left(nat_d_proof), [om])
 
     # === Omega induction predicate ===
     # R(c) = ∃pdc.∃sv.∃pbc.∃tv. And(OP(pdc,d,c), And(App(h,pdc,sv),
@@ -367,16 +365,16 @@ $h_assoc_identity {
         \pat: implies(ordered_pair(pat,"a","tv","_"), apply("h",pat,"sv","_")), [r_body])
     $got_app_atv mp(q1, ax([op_atv],[op_atv],op_atv), op_atv, apply("h","pat0","sv","_"), [r_body], [op_atv])
 
-    # tv∈w from h_val_in_omega at b,c — reuse hvi0a (already at w, Omega discharged)
-    $hvi_tv1 mp(apply_thm(hvi0a, head(right(hvi0a)), ["h"], ["h"], _hvi_b2, left(hvi0a)),
-        ax([pf_abs],[pf_abs],pf_abs), pf_abs, arg2(head(right(apply_thm(hvi0a, head(right(hvi0a)), ["h"], ["h"], _hvi_b2, left(hvi0a))))),
-        left(hvi0a), [pf_abs])
+    # Nat(tv) from h_val_nat at b,c, then tv∈w via nat_elim
+    $hvi_tv1 mp(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat)),
+        ax([pf_abs],[pf_abs],pf_abs), pf_abs, arg2(head(right(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat))))),
+        left(h_val_nat), [pf_abs])
     $hvi_tv2 apply_thm(hvi_tv1, head(right(hvi_tv1)), ["b"], ["m"],
         \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
             forall("pair", implies(ordered_pair("pair",m,"n","_"),
-                forall("p", implies(apply("h","pair","p","_"), mem("p","w")))))))), left(hvi_tv1))
+                forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))))), left(hvi_tv1))
     $hvi_tv3 mp(hvi_tv2, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(hvi_tv2))), left(hvi_tv2), [nat_b])
-    # Need Nat(c) — derive from c∈w + Omega(w) via nat_intro
+    # Nat(c) from c∈w + Omega(w) via nat_intro
     $_ni head(right(nat_intro))
     $_ni_b \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
     $got_nat_c mp(mp(apply_thm(nat_intro, _ni, ["w","c"], ["w","m"], _ni_b, left(nat_intro)),
@@ -384,14 +382,18 @@ $h_assoc_identity {
         ax([cw],[cw],cw), cw, nat_c, [om], [cw])
     $hvi_tv4 apply_thm(hvi_tv3, head(right(hvi_tv3)), ["c"], ["n"],
         \n: implies(nat(n,"_"), forall("pair", implies(ordered_pair("pair","b",n,"_"),
-            forall("p", implies(apply("h","pair","p","_"), mem("p","w")))))), left(hvi_tv3))
+            forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))), left(hvi_tv3))
     $hvi_tv5 mp(hvi_tv4, got_nat_c, nat_c, arg2(head(right(hvi_tv4))), left(hvi_tv4), left(got_nat_c))
     $hvi_tv6 apply_thm(hvi_tv5, head(right(hvi_tv5)), ["pbc"], ["pair"],
-        \pair: implies(ordered_pair(pair,"b","c","_"), forall("p", implies(apply("h",pair,"p","_"), mem("p","w")))), left(hvi_tv5))
+        \pair: implies(ordered_pair(pair,"b","c","_"), forall("p", implies(apply("h",pair,"p","_"), nat("p","_")))), left(hvi_tv5))
     $hvi_tv7 mp(hvi_tv6, got_op_bc, op_bc, arg2(head(right(hvi_tv6))), left(hvi_tv6), left(got_op_bc))
     $hvi_tv8 apply_thm(hvi_tv7, head(right(hvi_tv7)), ["tv"], ["p"],
-        \p: implies(apply("h","pbc",p,"_"), mem(p,"w")), left(hvi_tv7))
-    $got_tvw mp(hvi_tv8, got_app_bc, app_bc, mem("tv","w"), left(hvi_tv8), left(got_app_bc))
+        \p: implies(apply("h","pbc",p,"_"), nat(p,"_")), left(hvi_tv7))
+    $nat_tv mp(hvi_tv8, got_app_bc, app_bc, nat("tv","_"), left(hvi_tv8), left(got_app_bc))
+    # tv∈w from Nat(tv)
+    $got_tvw mp(mp(apply_thm(nat_elim, _ne, ["tv","w"], ["m","w"], _ne_b, []),
+        nat_tv, nat("tv","_"), implies(om, mem("tv","w")), [], left(nat_tv)),
+        ax([om],[om],om), om, mem("tv","w"), left(nat_tv), [om])
 
     # step_f at a,tv → fully instantiate to Apply(h,pat_new,ssv2)
     $op_astv ordered_pair("pat_new","a","stv","_")

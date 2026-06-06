@@ -23,7 +23,7 @@ from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.ordpair_unique import ordpair_unique
 from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
 
-# h_val_in_omega: PlusFunc(h) → Nat(m) → Nat(n) →
+# h_val_nat: PlusFunc(h) → Nat(m) → Nat(n) →
 #   ∀pair.OrdPair(pair,m,n) → ∀p.Apply(h,pair,p) → Nat(p)
 #
 # i.e. values of h are natural numbers.
@@ -34,7 +34,7 @@ from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
 # Base: PlusFunc base h(⟨m,0⟩)=m, m∈w.
 # Step: PlusFunc step h(⟨m,S(n)⟩)=S(p0), omega_succ_closed In(p0,w)→In(S(p0),w).
 
-$h_val_in_omega {
+$h_val_nat {
     $pf_abs plus_func("h","_")
     $nat_m nat("m","_")
     $nat_n nat("n","_")
@@ -352,10 +352,13 @@ $h_val_in_omega {
         "pair0", "pair0", left(cur), pw)
     $cur cut_c(got_rn, cur, rn, left(got_rn), left(cur), pw)
 
-    # Close: ir app_caller, fr p, ir op_caller, fr pair
-    # ir nat_n, fr n, ir nat_m, fr m, ir pf_abs, fr h
-    # eel w from omega_exists
-    $cur ir(cur, remove(same, app_caller, left(cur)), [implies(app_caller, pw)], implies(app_caller, pw))
+    # Close omega FIRST to form Nat(p) = ∀w.Omega(w)→p∈w at innermost level
+    $nat_p nat("p","_")
+    $cur ir(cur, remove(same, om, left(cur)), [implies(om, pw)], implies(om, pw))
+    $cur fr(cur, left(cur), [nat_p], nat_p, "w")
+
+    # Now right = Nat(p). Close the rest.
+    $cur ir(cur, remove(same, app_caller, left(cur)), [implies(app_caller, nat_p)], implies(app_caller, nat_p))
     $cur fr(cur, left(cur), [forall("p", head(right(cur)))], forall("p", head(right(cur))), "p")
     $cur ir(cur, remove(same, op_caller, left(cur)), [implies(op_caller, head(right(cur)))], implies(op_caller, head(right(cur))))
     $cur fr(cur, left(cur), [forall("pair", head(right(cur)))], forall("pair", head(right(cur))), "pair")
@@ -365,48 +368,6 @@ $h_val_in_omega {
     $cur fr(cur, left(cur), [forall("m", head(right(cur)))], forall("m", head(right(cur))), "m")
     $cur ir(cur, remove(same, pf_abs, left(cur)), [implies(pf_abs, head(right(cur)))], implies(pf_abs, head(right(cur))))
     $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
-
-    # The result has p∈w for a specific w. To get Nat(p) = ∀w.Omega(w)→p∈w,
-    # we need to show this for ALL omega sets. But our proof used a specific w.
-    # Actually, the omega induction was done inside PlusFunc's ∀w.Omega(w)→...
-    # After closing PlusFunc (ir pf_abs, fr h), we still have Omega(w) on the left.
-    # The result is: Omega(w) → ... → p∈w.
-    # To get Nat(p) = ∀w.Omega(w)→p∈w, we eel w from omega_exists? No.
-    # Actually Nat(p) IS ∀w.Omega(w)→p∈w. And our result after close should have
-    # ∀h.PlusFunc(h) → ∀m.Nat(m) → ∀n.Nat(n) → ∀pair.OP → ∀p.Apply → p∈w
-    # with Omega(w) on the left.
-    # We need to ir Omega(w) and fr w to get:
-    # ∀w.Omega(w) → ∀h.PlusFunc(h) → ... → p∈w
-    # But Nat(p) = ∀w.Omega(w) → p∈w. After ir/fr for w and omega:
-    # The right becomes ∀w.(Omega(w) → PlusFunc(h) → ... → p∈w) but PlusFunc also has w...
-    # Hmm, this is getting complex. Let me just close Omega(w) inside:
-    # ir om → implies(Omega(w), ∀h.PlusFunc→...→p∈w)
-    # fr w → ∀w.implies(Omega(w), ∀h.PlusFunc→...→p∈w)
-    # But p∈w has w free. After fr w, it becomes ∀w.(Omega(w)→...→p∈w).
-    # This is not Nat(p). It's a formula about p for all omega sets.
-    # Actually, the close should produce the Nat result if we structure it correctly.
-    # After ir pf_abs, fr h: right = ∀h.(PlusFunc(h) → ... → p∈w)
-    # This doesn't depend on h anymore. p∈w still has w free.
-    # Then: we're at ctx = [pf_abs removed, nat_m removed, etc.] with Omega(w) remaining.
-    # And right = ∀h.PlusFunc(h) → ∀m.Nat(m) → ... → p∈w
-    # Wait, after ir nat_m and fr m, nat_m is consumed. Same for nat_n.
-    # The remaining left should have just Omega(w) and ZFC axioms.
-    # ir om: right = implies(Omega(w), ∀h.PF→∀m.Nat→∀n.Nat→∀pair.OP→∀p.Apply→p∈w)
-    # fr w: right = ∀w.(Omega(w)→∀h.PF→...→p∈w)
-    # But p∈w has w as the set being tested. So ∀w closes over w.
-    # This IS the right form: for any omega set w, p is in w.
-    # This = Nat(m)→Nat(n)→∀pair.OP→∀p.Apply→∀h.PF→∀w.(Omega(w)→p∈w) = ...→Nat(p)
-    # Hmm, the quantifier order is wrong. Nat(p) = ∀w.Omega(w)→p∈w needs to be
-    # inside the outer quantifiers.
-    # Actually, after closing h first, then w: we get ∀w.(Omega(w)→∀h.PF→...→p∈w).
-    # But PF itself has ∀w... inside. After omega absorption, PF = ∀w.Omega(w)→...
-    # The w in PF is different from our w. Alpha-eq handles this.
-    # So the final form should be OK. Let me just close and see.
-
-    # eel w from omega_exists (to get Nat(p) = ∀w.Omega(w)→p∈w)
-    # Actually, we DON'T eel w. We ir om and fr w to bind w, getting the Nat formula.
-    $cur ir(cur, remove(same, om, left(cur)), [implies(om, head(right(cur)))], implies(om, head(right(cur))))
-    $cur fr(cur, left(cur), [forall("w", head(right(cur)))], forall("w", head(right(cur))), "w")
 
     $top head(right(cur))
     close(cur, left(cur), [top], [])

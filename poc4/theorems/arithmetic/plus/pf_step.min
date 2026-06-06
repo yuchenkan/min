@@ -24,7 +24,7 @@ from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 from theorems.nat.nat.omega_exists import omega_exists
 from theorems.nat.nat.nat_elim import nat_elim
 from theorems.arithmetic.plus.pf_forward import pf_forward
-from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
+from theorems.arithmetic.plus.rec_val_nat import rec_val_nat
 
 # pf_step: PlusFunc step condition (absorbed vocab, w-free).
 # char_h → sf_all →
@@ -146,14 +146,14 @@ $pf_step {
         got_app_hm, app_hm_nv, app_hm_n, left(got_eqv_nv_n), [and_rec_app])
     # [ku_ctx, op_mn, and_op_ex, and_rec_app] |- Apply(hm,n,p)
 
-    # === Phase F: rec_val_in_omega → Nat(p) ===
-    # rec_val_in_omega: SuccChar(sf) → Recursive(hm,mv,sf) → Nat(mv) → Nat(n) → Apply(hm,n,p) → Nat(p)
-    $rvo_ctx left(rec_val_in_omega)
-    $_rvo head(right(rec_val_in_omega))
+    # === Phase F: rec_val_nat → Nat(p) ===
+    # rec_val_nat: SuccChar(sf) → Recursive(hm,mv,sf) → Nat(mv) → Nat(n) → Apply(hm,n,p) → Nat(p)
+    $rvo_ctx left(rec_val_nat)
+    $_rvo head(right(rec_val_nat))
     $_rvo_b \sf: \a: \h: \x: \y: implies(succ_char(sf,"_"),
         implies(recursive(h,a,sf,"_"), implies(nat(a,"_"),
             implies(nat(x,"_"), implies(apply(h,x,y,"_"), nat(y,"_"))))))
-    $rvo_inst apply_thm(rec_val_in_omega, _rvo, ["sf","mv","hm","n","p"],
+    $rvo_inst apply_thm(rec_val_nat, _rvo, ["sf","mv","hm","n","p"],
         ["sf","a","h","x","y"], _rvo_b, rvo_ctx)
     $nat_p nat("p","_")
     # Extract succ_char from sf_all:

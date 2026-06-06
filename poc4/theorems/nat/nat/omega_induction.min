@@ -201,7 +201,7 @@ $omega_induction \pred vars p: {
 
     # eel on s from Separation
     $got_eel_s eel(got_fa, \sv: forall(n, iff(mem(n,sv), and(mem(n, w), pred(w, n, np)))),
-        "s", s, [char, om, base_hyp, step_hyp], fa_n)
+        s, s, [char, om, base_hyp, step_hyp], fa_n)
     # [exists(s,char), om, base_hyp, step_hyp] |- fa_n
 
     # Get exists(s,char) from sep instantiated at w

@@ -24,7 +24,7 @@ from theorems.nat.nat.omega_exists import omega_exists
 from theorems.nat.nat.nat_elim import nat_elim
 from theorems.nat.nat.nat_intro import nat_intro
 from theorems.nat.recursion.rec_apply_dom import rec_apply_dom
-from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
+from theorems.arithmetic.plus.rec_val_nat import rec_val_nat
 
 # plus_func_exists: ∃h. PlusFunc(h)
 # PlusFunc(h) = ∀w.Omega(w)→And(Function(h), dom_eq(h,w), base(h,w), step(h,w))
@@ -98,7 +98,7 @@ $plus_func_exists {
     $got_sc mp(and_elim_left(sc_sf, and(function("sf","_"),
         forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), nat("xd","_")))), []),
         ax([sf_all],[sf_all],sf_all), sf_all, sc_sf, [], [sf_all])
-    $_rvo head(right(rec_val_in_omega))
+    $_rvo head(right(rec_val_nat))
     $_rvo_b \sf2: \a: \h: \x: \y: implies(succ_char(sf2,"_"), implies(recursive(h,a,sf2,"_"),
         implies(nat(a,"_"), implies(nat(x,"_"), implies(apply(h,x,y,"_"), nat(y,"_"))))))
     $_pi head(right(product_in_intro))
@@ -121,9 +121,9 @@ $plus_func_exists {
     $ne_n1 mp(ne_n, got_nat_n2, nat_n, implies(om0, nw0), left(nat_elim), left(got_nat_n2))
     $got_nw0 mp(ne_n1, ax([om0],[om0],om0), om0, nw0, left(ne_n1), [om0])
 
-    # Nat(y) from rec_val_in_omega
-    $rvo_inst apply_thm(rec_val_in_omega, _rvo, ["sf","m","hm","n","y"], ["sf","a","h","x","y"], _rvo_b, left(rec_val_in_omega))
-    $rvo1 mp(rvo_inst, got_sc, sc_sf, arg2(head(right(rvo_inst))), left(rec_val_in_omega), [sf_all])
+    # Nat(y) from rec_val_nat
+    $rvo_inst apply_thm(rec_val_nat, _rvo, ["sf","m","hm","n","y"], ["sf","a","h","x","y"], _rvo_b, left(rec_val_nat))
+    $rvo1 mp(rvo_inst, got_sc, sc_sf, arg2(head(right(rvo_inst))), left(rec_val_nat), [sf_all])
     $rvo2 mp(rvo1, got_rec_from, rec_hm, arg2(head(right(rvo1))), left(rvo1), [b_and])
     $rvo3 mp(rvo2, ax([nat_m],[nat_m],nat_m), nat_m, arg2(head(right(rvo2))), left(rvo2), [nat_m])
     $rvo4 mp(rvo3, got_nat_n2, nat_n, arg2(head(right(rvo3))), left(rvo3), left(got_nat_n2))

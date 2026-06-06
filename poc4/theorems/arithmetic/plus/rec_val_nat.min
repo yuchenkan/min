@@ -25,7 +25,7 @@ from theorems.functions.domain_exists import domain_exists
 from theorems.functions.domain_mem_elim import domain_mem_elim
 from theorems.nat.nat.successor_exists import successor_exists
 
-# rec_val_in_omega:
+# rec_val_nat:
 # SuccChar(sf) → Recursive(h,a,sf) → Nat(a) → Nat(x) → Apply(h,x,y) → Nat(y)
 #
 # By omega_induction on x with P(x) = ∀yi. Apply(h,x,yi) → yi∈w.
@@ -33,7 +33,7 @@ from theorems.nat.nat.successor_exists import successor_exists
 # Step: Apply(h,S(x),yi) → Recursive step + IH → yi = sf(h(x)) → yi∈w.
 # Then y∈w + Omega(w) → Nat(y) via omega_unique+eq_transfer, eel w.
 
-$rec_val_in_omega {
+$rec_val_nat {
     $sc_h succ_char("sf","_")
     $rec_h recursive("h","a","sf","_")
     $nat_a nat("a","_")

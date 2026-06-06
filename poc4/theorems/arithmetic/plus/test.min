@@ -21,7 +21,7 @@ from theorems.arithmetic.plus.pf_single_valued import pf_single_valued
 from theorems.arithmetic.plus.pf_dom_eq import pf_dom_eq
 from theorems.arithmetic.plus.pf_backward import pf_backward
 from theorems.arithmetic.plus.pf_step import pf_step
-from theorems.arithmetic.plus.rec_val_in_omega import rec_val_in_omega
+from theorems.arithmetic.plus.rec_val_nat import rec_val_nat
 from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
 from theorems.arithmetic.plus.plus_func_unique import plus_func_unique
 from theorems.arithmetic.plus.unique_plus_func import unique_plus_func
@@ -32,7 +32,8 @@ from theorems.arithmetic.plus.plus_zero_left import plus_zero_left
 from theorems.arithmetic.plus.h_succ_left import h_succ_left
 from theorems.arithmetic.plus.h_comm_identity import h_comm_identity
 from theorems.arithmetic.plus.plus_comm import plus_comm
-from theorems.arithmetic.plus.h_val_in_omega import h_val_in_omega
+from theorems.arithmetic.plus.h_val_nat import h_val_nat
+from theorems.arithmetic.plus.h_assoc_identity import h_assoc_identity
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")))
 $_ print("succ_func_exists ok")
@@ -138,8 +139,8 @@ $_ print("pf_step ok")
 
 $rvo_body implies(succ_char("sf","_"), implies(recursive("h","a","sf","_"),
     implies(nat("a","_"), implies(nat("x","_"), implies(apply("h","x","y","_"), nat("y","_"))))))
-$_ qed(rec_val_in_omega, forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body))))))
-$_ print("rec_val_in_omega ok")
+$_ qed(rec_val_nat, forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body))))))
+$_ print("rec_val_nat ok")
 
 $_ qed(plus_func_exists, exists("h", plus_func("h","_")))
 $_ print("plus_func_exists ok")
@@ -198,12 +199,26 @@ $_ qed(plus_comm, forall("m", implies(nat("m","_"),
         forall("p", implies(plus("m","n","p","_"), plus("n","m","p","_"))))))))
 $_ print("plus_comm ok")
 
-$_ qed(h_val_in_omega, forall("h", implies(plus_func("h","_"),
+$_ qed(h_val_nat, forall("h", implies(plus_func("h","_"),
     forall("m", implies(nat("m","_"),
         forall("n", implies(nat("n","_"),
             forall("pair", implies(ordered_pair("pair","m","n","_"),
                 forall("p", implies(apply("h","pair","p","_"),
                     nat("p","_"))))))))))))
-$_ print("h_val_in_omega ok")
+$_ print("h_val_nat ok")
+
+$_ qed(h_assoc_identity, forall("h", implies(plus_func("h","_"),
+    forall("a", implies(nat("a","_"),
+        forall("b", implies(nat("b","_"),
+            forall("pab", implies(ordered_pair("pab","a","b","_"),
+                forall("d", implies(apply("h","pab","d","_"),
+                    forall("c", implies(nat("c","_"),
+                        forall("pdc", implies(ordered_pair("pdc","d","c","_"),
+                            forall("s", implies(apply("h","pdc","s","_"),
+                                forall("pbc", implies(ordered_pair("pbc","b","c","_"),
+                                    forall("t", implies(apply("h","pbc","t","_"),
+                                        forall("pat", implies(ordered_pair("pat","a","t","_"),
+                                            apply("h","pat","s","_"))))))))))))))))))))))))
+$_ print("h_assoc_identity ok")
 
 $ok true
