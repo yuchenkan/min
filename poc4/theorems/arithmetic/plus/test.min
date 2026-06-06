@@ -34,6 +34,7 @@ from theorems.arithmetic.plus.h_comm_identity import h_comm_identity
 from theorems.arithmetic.plus.plus_comm import plus_comm
 from theorems.arithmetic.plus.h_val_nat import h_val_nat
 from theorems.arithmetic.plus.h_assoc_identity import h_assoc_identity
+from theorems.arithmetic.plus.plus_assoc import plus_assoc
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")))
 $_ print("succ_func_exists ok")
@@ -220,5 +221,14 @@ $_ qed(h_assoc_identity, forall("h", implies(plus_func("h","_"),
                                         forall("pat", implies(ordered_pair("pat","a","t","_"),
                                             apply("h","pat","s","_"))))))))))))))))))))))))
 $_ print("h_assoc_identity ok")
+
+$_ qed(plus_assoc, forall("a", implies(nat("a","_"),
+    forall("b", implies(nat("b","_"),
+        forall("c", implies(nat("c","_"),
+            forall("d", implies(plus("a","b","d","_"),
+                forall("s", implies(plus("d","c","s","_"),
+                    forall("t", implies(plus("b","c","t","_"),
+                        plus("a","t","s","_"))))))))))))))
+$_ print("plus_assoc ok")
 
 $ok true

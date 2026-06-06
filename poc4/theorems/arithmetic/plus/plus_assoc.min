@@ -83,7 +83,7 @@ $plus_assoc {
                 forall("pdc", implies(ordered_pair("pdc","d","c","_"), forall("s", implies(apply(h,"pdc","s","_"),
                     forall("pbc", implies(ordered_pair("pbc","b","c","_"), forall("t", implies(apply(h,"pbc","t","_"),
                         forall("pat", implies(ordered_pair("pat","a","t","_"),
-                            apply(h,"pat","s","_"))))))))))))))))))))
+                            apply(h,"pat","s","_"))))))))))))))))))))))
     $hai1 mp(apply_thm(h_assoc_identity, _hai, ["h"], ["h"], _hai_b, left(h_assoc_identity)),
         ax([pf_h],[pf_h],pf_h), pf_h, arg2(head(right(apply_thm(h_assoc_identity, _hai, ["h"], ["h"], _hai_b, left(h_assoc_identity))))),
         left(h_assoc_identity), [pf_h])
@@ -110,39 +110,39 @@ $plus_assoc {
             forall("c", implies(nat("c","_"), forall("pdc", implies(ordered_pair("pdc","d","c","_"),
                 forall("s", implies(apply("h","pdc","s","_"), forall("pbc", implies(ordered_pair("pbc","b","c","_"),
                     forall("t", implies(apply("h","pbc","t","_"), forall("pat", implies(ordered_pair("pat","a","t","_"),
-                        apply("h","pat","s","_"))))))))))))))))), left(hai5))
+                        apply("h","pat","s","_")))))))))))))))), left(hai5))
     $hai7 mp(hai6, ax([op_ab],[op_ab],op_ab), op_ab, arg2(head(right(hai6))), left(hai6), [op_ab])
     $hai8 apply_thm(hai7, head(right(hai7)), ["d"], ["d"],
         \d: implies(apply("h","pab",d,"_"), forall("c", implies(nat("c","_"),
             forall("pdc", implies(ordered_pair("pdc",d,"c","_"), forall("s", implies(apply("h","pdc","s","_"),
                 forall("pbc", implies(ordered_pair("pbc","b","c","_"), forall("t", implies(apply("h","pbc","t","_"),
                     forall("pat", implies(ordered_pair("pat","a","t","_"),
-                        apply("h","pat","s","_"))))))))))))))))), left(hai7))
+                        apply("h","pat","s","_")))))))))))))), left(hai7))
     $hai9 mp(hai8, got_abd, app_abd, arg2(head(right(hai8))), left(hai8), left(got_abd))
     # c
     $hai10 apply_thm(hai9, head(right(hai9)), ["c"], ["c"],
         \c: implies(nat(c,"_"), forall("pdc", implies(ordered_pair("pdc","d",c,"_"),
             forall("s", implies(apply("h","pdc","s","_"), forall("pbc", implies(ordered_pair("pbc","b",c,"_"),
                 forall("t", implies(apply("h","pbc","t","_"), forall("pat", implies(ordered_pair("pat","a","t","_"),
-                    apply("h","pat","s","_")))))))))))))))), left(hai9))
+                    apply("h","pat","s","_")))))))))))), left(hai9))
     $hai11 mp(hai10, ax([nat_c],[nat_c],nat_c), nat_c, arg2(head(right(hai10))), left(hai10), [nat_c])
     # pdc, s
     $hai12 apply_thm(hai11, head(right(hai11)), ["pdc"], ["pdc"],
         \pdc: implies(ordered_pair(pdc,"d","c","_"), forall("s", implies(apply("h",pdc,"s","_"),
             forall("pbc", implies(ordered_pair("pbc","b","c","_"), forall("t", implies(apply("h","pbc","t","_"),
                 forall("pat", implies(ordered_pair("pat","a","t","_"),
-                    apply("h","pat","s","_")))))))))))))), left(hai11))
+                    apply("h","pat","s","_")))))))))), left(hai11))
     $hai13 mp(hai12, ax([op_dc],[op_dc],op_dc), op_dc, arg2(head(right(hai12))), left(hai12), [op_dc])
     $hai14 apply_thm(hai13, head(right(hai13)), ["s"], ["s"],
         \s: implies(apply("h","pdc",s,"_"), forall("pbc", implies(ordered_pair("pbc","b","c","_"),
             forall("t", implies(apply("h","pbc","t","_"), forall("pat", implies(ordered_pair("pat","a","t","_"),
-                apply("h","pat",s,"_")))))))))))), left(hai13))
+                apply("h","pat",s,"_")))))))), left(hai13))
     $hai15 mp(hai14, got_dcs, app_dcs, arg2(head(right(hai14))), left(hai14), left(got_dcs))
     # pbc, t
     $hai16 apply_thm(hai15, head(right(hai15)), ["pbc"], ["pbc"],
         \pbc: implies(ordered_pair(pbc,"b","c","_"), forall("t", implies(apply("h",pbc,"t","_"),
             forall("pat", implies(ordered_pair("pat","a","t","_"),
-                apply("h","pat","s","_"))))))), left(hai15))
+                apply("h","pat","s","_")))))), left(hai15))
     $hai17 mp(hai16, ax([op_bc],[op_bc],op_bc), op_bc, arg2(head(right(hai16))), left(hai16), [op_bc])
     $hai18 apply_thm(hai17, head(right(hai17)), ["t"], ["t"],
         \t: implies(apply("h","pbc",t,"_"), forall("pat", implies(ordered_pair("pat","a",t,"_"),
