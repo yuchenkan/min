@@ -52,6 +52,7 @@ from theorems.sets.product_exists import product_exists
 from theorems.sets.product_unique import product_unique
 from theorems.sets.unique_product import unique_product
 from theorems.sets.product_in_intro import product_in_intro
+from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
 
 $_ qed(empty_exists, exists("s", empty("s", "_")))
 $_ print("empty_exists ok")
@@ -264,5 +265,9 @@ $_ qed(product_in_intro, forall("s", forall("a", forall("b", forall("x", forall(
     implies(product("s","a","b","_"), implies(mem("x","a"), implies(mem("y","b"),
         implies(ordered_pair("z","x","y","_"), mem("z","s"))))))))))))
 $_ print("product_in_intro ok")
+
+$_ qed(eqv_mem_transfer, forall("a", forall("b", forall("c",
+    implies(eqv("a","b","_"), implies(mem("a","c"), mem("b","c")))))))
+$_ print("eqv_mem_transfer ok")
 
 $ok true

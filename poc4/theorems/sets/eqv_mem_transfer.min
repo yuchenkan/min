@@ -1,0 +1,37 @@
+from derived import mem, iff, implies, eqv, forall, ext_ax, left, right
+from tactics import ax, ir, mp, apply_thm, close
+from util import remove
+from tactics import same
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# |- eqv(a,b) -> mem(a,c) -> mem(b,c)
+# From extensionality: eqv(a,b) → ∀z.(a∈z↔b∈z). At z=c: a∈c→b∈c via iff_elim_left.
+$eqv_mem_transfer {
+    $eqv_ab eqv("a","b","_")
+    $ac mem("a","c")
+    $bc mem("b","c")
+    $ext ext_ax
+
+    # Extensionality: ∀x.∀y.(∀z.(z∈x↔z∈y)) → ∀z.(x∈z↔y∈z)
+    # apply_thm at x=a, y=b: (∀z.(z∈a↔z∈b)) → ∀z.(a∈z↔b∈z)
+    $_ext_b \x: \y: implies(forall("z", iff(mem("z",x), mem("z",y))),
+        forall("z", iff(mem(x,"z"), mem(y,"z"))))
+    $ext1 apply_thm(ax([ext],[ext],ext), ext, ["a","b"], ["x","y"], _ext_b, [ext])
+    # mp with eqv(a,b)
+    $concl_all forall("z", iff(mem("a","z"), mem("b","z")))
+    $ext2 mp(ext1, ax([eqv_ab],[eqv_ab],eqv_ab), eqv_ab, concl_all, [ext], [eqv_ab])
+    # apply_thm at z=c: a∈c↔b∈c
+    $iff_ac_bc iff(ac, bc)
+    $ext3 apply_thm(ext2, concl_all, ["c"], ["z"],
+        \z: iff(mem("a",z), mem("b",z)), left(ext2))
+    # iff_elim_left: iff(a∈c,b∈c) → a∈c → b∈c
+    $got mp(mp(iff_elim_left(ac, bc, []),
+        ext3, iff_ac_bc, implies(ac, bc), [], left(ext3)),
+        ax([ac],[ac],ac), ac, bc, left(ext3), [ac])
+
+    $imp2 implies(ac, bc)
+    $top implies(eqv_ab, imp2)
+    $r1 ir(got, remove(same, ac, left(got)), [imp2], imp2)
+    $r2 ir(r1, remove(same, eqv_ab, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["c","b","a"])
+}
