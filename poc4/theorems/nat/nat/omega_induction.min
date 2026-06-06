@@ -216,9 +216,10 @@ $omega_induction \pred vars p: {
     $_last \self lst: ?(eq(len(lst), 1), head(lst), self(self, tail(lst)))
     # _wrap_foralls_around: wrap forall for each remaining term
     # Last term is the domain value. Before that are outer forall vars.
-    # Domain forall uses a fresh var "d" to avoid capture with the domain value.
+    # Domain forall uses a prefixed var to avoid capture with user variables.
+    $dv add(p, "d")
     $_wrap_fa \self rest: ?(eq(len(rest), 1),
-        forall("d", _sep_inner("d")),
+        forall(dv, _sep_inner(dv)),
         forall(head(rest), self(self, tail(rest))))
     $_peel_sep \self thm formula terms: ?(eq(len(terms), 0), thm, {
         $t head(terms)
