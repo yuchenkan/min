@@ -4,13 +4,13 @@
 #include <string.h>
 
 typedef struct {
-  SourceMap *sm;
+  GCMap *sources;
   char *filepath;
 } Root;
 
 static void root_trace(void *data) {
   Root *r = data;
-  gc_mark(r->sm);
+  gc_mark(r->sources);
   gc_mark(r->filepath);
 }
 
@@ -32,12 +32,12 @@ int main(int argc, char **argv) {
 
   GC *gc;
   Root *root = gc_init(sizeof(Root), root_trace, 4096, 64 * 1024 * 1024, &gc);
-  root->sm = NULL;
+  root->sources = NULL;
   root->filepath = NULL;
   root->filepath = gc_strdup(gc, argv[1]);
-  source_map_new(gc, (void **)&root->sm);
+  root->sources = gc_map_new(gc);
 
-  source_map_parse(gc, root->sm, root->filepath, read_file);
+  parse(gc, root->sources, root->filepath, read_file);
 
   gc_fini(gc);
   return 0;

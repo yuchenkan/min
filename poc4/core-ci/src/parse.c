@@ -397,30 +397,14 @@ struct Source {
   int loading;
 };
 
-struct SourceMap {
-  GCMap *map;
-};
-
 static void source_trace(void *data) {
   Source *s = data;
   gc_mark(s->imports);
   gc_mark(s->binds);
 }
 
-static void source_map_trace(void *data) {
-  SourceMap *sm = data;
-  gc_mark(sm->map);
-}
-
-void source_map_new(GC *gc, void **slot) {
-  SourceMap *sm = gc_alloc(gc, sizeof(SourceMap), source_map_trace);
-  sm->map = NULL;
-  *slot = sm;
-  sm->map = gc_map_new(gc);
-}
-
-Source *source_map_parse(GC *gc, SourceMap *sm, const char *filepath, ReadFileFn read_file) {
-  void **slot = gc_map_get(gc, sm->map, filepath);
+Source *parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file) {
+  void **slot = gc_map_get(gc, sources, filepath);
   if (*slot) {
     Source *s = *slot;
     if (s->loading) {
@@ -447,7 +431,7 @@ Source *source_map_parse(GC *gc, SourceMap *sm, const char *filepath, ReadFileFn
     void **islot = gc_list_append(gc, s->imports);
     *islot = node_new(gc, N_IMPORT);
     parse_import(gc, *islot, &t);
-    source_map_parse(gc, sm, ((Node *)*islot)->import.filepath, read_file);
+    parse(gc, sources, ((Node *)*islot)->import.filepath, read_file);
   }
 
   while (peek(&t)->type != T_EOF) {

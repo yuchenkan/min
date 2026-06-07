@@ -109,25 +109,25 @@ static char *fake_read_file(const char *path) {
 }
 
 typedef struct {
-  SourceMap *sm;
+  GCMap *sources;
   char *filepath;
 } Root;
 
 static void root_trace(void *data) {
   Root *r = data;
-  gc_mark(r->sm);
+  gc_mark(r->sources);
   gc_mark(r->filepath);
 }
 
 static void run_test(const char *name, const char *file) {
   GC *gc;
   Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
-  root->sm = NULL;
+  root->sources = NULL;
   root->filepath = NULL;
   root->filepath = gc_strdup(gc, file);
-  source_map_new(gc, (void **)&root->sm);
+  root->sources = gc_map_new(gc);
 
-  Source *s = source_map_parse(gc, root->sm, root->filepath, fake_read_file);
+  Source *s = parse(gc, root->sources, root->filepath, fake_read_file);
   assert(s != NULL);
 
   gc_fini(gc);
