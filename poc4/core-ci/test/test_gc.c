@@ -1,113 +1,234 @@
 #include "../src/gc.h"
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 
-typedef struct { GCObject *child; } Node;
+typedef struct { void *a; void *b; GCList *list; GCMap *map; } Root;
 
-static void node_trace(GCObject *obj) {
-    Node *n = gc_data(obj);
-    gc_mark(n->child);
+static void root_trace(void *data) {
+  Root *r = data;
+  gc_mark(r->a);
+  gc_mark(r->b);
+  gc_mark(r->list);
+  gc_mark(r->map);
 }
 
-static void test_alloc_release(void) {
-    size_t before = gc_memory();
-    GCObject *obj = gc_alloc(sizeof(int), NULL);
-    int *p = gc_data(obj);
-    *p = 42;
-    assert(*p == 42);
-    assert(gc_memory() > before);
-    gc_release(obj);
-    assert(gc_memory() == before);
-    printf("  alloc_release: ok\n");
+typedef struct { void *child; } Node;
+
+static void node_trace(void *data) {
+  Node *n = data;
+  gc_mark(n->child);
 }
 
-static void test_retain_release(void) {
-    size_t before = gc_memory();
-    GCObject *obj = gc_alloc(8, NULL);
-    gc_retain(obj);     /* refcount = 2 */
-    gc_release(obj);    /* refcount = 1, alive */
-    assert(gc_memory() > before);
-    gc_release(obj);    /* refcount = 0, freed */
-    assert(gc_memory() == before);
-    printf("  retain_release: ok\n");
+/* threshold=1 forces GC on every alloc */
+
+static void test_basic(void) {
+  GC *gc;
+  Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
+  root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL;
+
+  int *p = gc_alloc(gc, sizeof(int), NULL);
+  root->a = p;
+  *p = 42;
+
+  /* alloc again, triggers GC, root->a keeps p alive */
+  int *q = gc_alloc(gc, sizeof(int), NULL);
+  root->b = q;
+  *q = 99;
+
+  assert(*(int *)root->a == 42);
+  assert(*(int *)root->b == 99);
+  gc_fini(gc);
+  printf("  basic: ok\n");
 }
 
-static void test_collect_keeps_marked(void) {
-    size_t before = gc_memory();
-    GCObject *obj = gc_alloc(8, NULL);
-    gc_mark(obj);
-    gc_collect();
-    assert(gc_memory() > before);  /* still alive */
-    gc_release(obj);
-    assert(gc_memory() == before);
-    printf("  collect_keeps_marked: ok\n");
+static void test_cycle(void) {
+  GC *gc;
+  Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
+  root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL;
+
+  Node *a = gc_alloc(gc, sizeof(Node), node_trace);
+  a->child = NULL;
+  root->a = a;
+  Node *b = gc_alloc(gc, sizeof(Node), node_trace);
+  b->child = NULL;
+  root->b = b;
+  a->child = b;
+  b->child = a;
+
+  /* trigger many GCs — cycle survives */
+  for (int i = 0; i < 100; i++)
+    gc_alloc(gc, 64, NULL);
+
+  assert(((Node *)root->a)->child == b);
+  assert(b->child == a);
+
+  /* drop refs — cycle becomes garbage */
+  root->a = NULL;
+  root->b = NULL;
+  for (int i = 0; i < 10; i++)
+    gc_alloc(gc, 64, NULL);
+
+  gc_fini(gc);
+  printf("  cycle: ok\n");
 }
 
-static void test_collect_cycle(void) {
-    size_t before = gc_memory();
+static void test_list(void) {
+  GC *gc;
+  Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
+  root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL;
 
-    GCObject *a = gc_alloc(sizeof(Node), node_trace);
-    GCObject *b = gc_alloc(sizeof(Node), node_trace);
-    Node *na = gc_data(a);
-    Node *nb = gc_data(b);
+  root->list = gc_list_new(gc);
 
-    na->child = b;
-    nb->child = a;
-    gc_retain(b);   /* a owns b */
-    gc_retain(a);   /* b owns a */
+  for (int i = 0; i < 200; i++) {
+    void **slot = gc_list_append(gc, root->list);
+    int *p = gc_alloc(gc, sizeof(int), NULL);
+    *p = i;
+    *slot = p;
+  }
 
-    gc_release(a);  /* drop our ref */
-    gc_release(b);  /* drop our ref */
+  /* append and verify a known value */
+  void **slot = gc_list_append(gc, root->list);
+  int *check = gc_alloc(gc, sizeof(int), NULL);
+  *check = 12345;
+  *slot = check;
 
-    /* cycle keeps both alive, refcount = 1 each */
-    assert(gc_memory() > before);
+  /* trigger more GCs */
+  for (int i = 0; i < 50; i++)
+    gc_alloc(gc, 64, NULL);
 
-    /* no marks, collect frees the cycle */
-    gc_collect();
-    assert(gc_memory() == before);
-    printf("  collect_cycle: ok\n");
+  assert(*(int *)*slot == 12345);
+
+  gc_fini(gc);
+  printf("  list: ok\n");
 }
 
-static void test_collect_reachable_cycle(void) {
-    size_t before = gc_memory();
+static int list_sum;
+static void sum_item(void *item, void *ctx) {
+  (void)ctx;
+  list_sum += *(int *)item;
+}
 
-    GCObject *root = gc_alloc(sizeof(Node), node_trace);
-    GCObject *a = gc_alloc(sizeof(Node), node_trace);
-    GCObject *b = gc_alloc(sizeof(Node), node_trace);
+static void test_list_each(void) {
+  GC *gc;
+  Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
+  root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL;
 
-    Node *nr = gc_data(root);
-    Node *na = gc_data(a);
-    Node *nb = gc_data(b);
+  root->list = gc_list_new(gc);
 
-    nr->child = a;
-    na->child = b;
-    nb->child = a;  /* cycle: a <-> b */
-    gc_retain(a);   /* root owns a */
-    gc_retain(b);   /* a owns b */
-    gc_retain(a);   /* b owns a */
+  int expected = 0;
+  for (int i = 0; i < 100; i++) {
+    void **slot = gc_list_append(gc, root->list);
+    int *p = gc_alloc(gc, sizeof(int), NULL);
+    *p = i;
+    *slot = p;
+    expected += i;
+  }
 
-    gc_release(a);  /* drop our ref to a */
-    gc_release(b);  /* drop our ref to b */
+  /* trigger many GCs */
+  for (int i = 0; i < 50; i++)
+    gc_alloc(gc, 64, NULL);
 
-    /* mark from root, should keep a and b alive */
-    gc_mark(root);
-    gc_collect();
-    assert(gc_memory() > before);
+  list_sum = 0;
+  gc_list_each(root->list, sum_item, NULL);
+  assert(list_sum == expected);
 
-    /* now release root, cycle remains */
-    gc_release(root);
-    gc_collect();
-    assert(gc_memory() == before);
-    printf("  collect_reachable_cycle: ok\n");
+  gc_fini(gc);
+  printf("  list_each: ok\n");
+}
+
+static char *gc_str(GC *gc, const char *s) {
+  size_t len = strlen(s) + 1;
+  char *p = gc_alloc(gc, len, NULL);
+  memcpy(p, s, len);
+  return p;
+}
+
+static void test_map(void) {
+  GC *gc;
+  Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
+  root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL;
+
+  root->map = gc_map_new(gc);
+
+  /* store gc keys in list so they stay reachable */
+  root->list = gc_list_new(gc);
+
+  for (int i = 0; i < 200; i++) {
+    char buf[16];
+    sprintf(buf, "key_%d", i);
+    void **kslot = gc_list_append(gc, root->list);
+    char *key = gc_str(gc, buf);
+    *kslot = key;
+    void **slot = gc_map_get(gc, root->map, key);
+    int *p = gc_alloc(gc, sizeof(int), NULL);
+    *p = i * 7;
+    *slot = p;
+  }
+
+  /* trigger many GCs */
+  for (int i = 0; i < 50; i++)
+    gc_alloc(gc, 64, NULL);
+
+  /* verify all values survived */
+  for (int i = 0; i < 200; i++) {
+    char buf[16];
+    sprintf(buf, "key_%d", i);
+    void **slot = gc_map_get(gc, root->map, buf);
+    assert(*(int *)*slot == i * 7);
+  }
+
+  /* update existing key */
+  void **slot = gc_map_get(gc, root->map, "key_0");
+  int *p = gc_alloc(gc, sizeof(int), NULL);
+  *p = 999;
+  *slot = p;
+
+  for (int i = 0; i < 50; i++)
+    gc_alloc(gc, 64, NULL);
+
+  slot = gc_map_get(gc, root->map, "key_0");
+  assert(*(int *)*slot == 999);
+
+  gc_fini(gc);
+  printf("  map: ok\n");
+}
+
+static void test_map_overwrite(void) {
+  GC *gc;
+  Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
+  root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL;
+
+  root->map = gc_map_new(gc);
+
+  char *key = gc_str(gc, "same");
+  root->a = key; /* keep key reachable */
+
+  for (int round = 0; round < 10; round++) {
+    void **slot = gc_map_get(gc, root->map, key);
+    int *p = gc_alloc(gc, sizeof(int), NULL);
+    *p = round;
+    *slot = p;
+  }
+
+  for (int i = 0; i < 50; i++)
+    gc_alloc(gc, 64, NULL);
+
+  void **slot = gc_map_get(gc, root->map, key);
+  assert(*(int *)*slot == 9);
+
+  gc_fini(gc);
+  printf("  map_overwrite: ok\n");
 }
 
 int main(void) {
-    printf("gc tests:\n");
-    test_alloc_release();
-    test_retain_release();
-    test_collect_keeps_marked();
-    test_collect_cycle();
-    test_collect_reachable_cycle();
-    printf("all gc tests passed\n");
-    return 0;
+  printf("gc tests:\n");
+  test_basic();
+  test_cycle();
+  test_list();
+  test_list_each();
+  test_map();
+  test_map_overwrite();
+  printf("all gc tests passed\n");
+  return 0;
 }

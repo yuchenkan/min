@@ -3,25 +3,27 @@
 
 #include <stddef.h>
 
-typedef struct GCObject GCObject;
-typedef void (*GCTraceFn)(GCObject *obj);
+typedef struct GC GC;
+typedef void (*GCTraceFn)(void *data);
 
-/* allocate size bytes after header, trace_fn may be NULL for leaves */
-GCObject *gc_alloc(size_t size, GCTraceFn trace_fn);
+void *gc_init(size_t root_size, GCTraceFn root_trace, size_t min_thresh, size_t max_thresh, GC **gc);
+void gc_fini(GC *gc);
 
-/* pointer to user data after header */
-void *gc_data(GCObject *obj);
+void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn);
+void gc_mark(void *data);
 
-void gc_retain(GCObject *obj);
-void gc_release(GCObject *obj);
+/* append-only singly-linked list */
+typedef struct GCList GCList;
+typedef void (*GCListFn)(void *item, void *ctx);
 
-/* mark object and its children via trace */
-void gc_mark(GCObject *obj);
+GCList *gc_list_new(GC *gc);
+void **gc_list_append(GC *gc, GCList *list);
+void gc_list_each(GCList *list, GCListFn fn, void *ctx);
 
-/* sweep all unmarked, reset marks */
-void gc_collect(void);
+/* string-to-void* map, insert-only */
+typedef struct GCMap GCMap;
 
-/* total bytes allocated by gc */
-size_t gc_memory(void);
+GCMap *gc_map_new(GC *gc);
+void **gc_map_get(GC *gc, GCMap *map, const char *key);
 
 #endif
