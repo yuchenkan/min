@@ -137,12 +137,6 @@ static void test_list_each(void) {
   printf("  list_each: ok\n");
 }
 
-static char *gc_str(GC *gc, const char *s) {
-  size_t len = strlen(s) + 1;
-  char *p = gc_alloc(gc, len, NULL);
-  memcpy(p, s, len);
-  return p;
-}
 
 static void test_map(void) {
   GC *gc;
@@ -158,7 +152,7 @@ static void test_map(void) {
     char buf[16];
     sprintf(buf, "key_%d", i);
     void **kslot = gc_list_append(gc, root->list);
-    char *key = gc_str(gc, buf);
+    char *key = gc_strdup(gc, buf);
     *kslot = key;
     void **slot = gc_map_get(gc, root->map, key);
     int *p = gc_alloc(gc, sizeof(int), NULL);
@@ -201,7 +195,7 @@ static void test_map_overwrite(void) {
 
   root->map = gc_map_new(gc);
 
-  char *key = gc_str(gc, "same");
+  char *key = gc_strdup(gc, "same");
   root->a = key; /* keep key reachable */
 
   for (int round = 0; round < 10; round++) {

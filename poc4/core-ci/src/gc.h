@@ -10,6 +10,7 @@ void *gc_init(size_t root_size, GCTraceFn root_trace, size_t min_thresh, size_t 
 void gc_fini(GC *gc);
 
 void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn);
+char *gc_strdup(GC *gc, const char *s);
 void gc_mark(void *data);
 
 /* append-only singly-linked list */

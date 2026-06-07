@@ -1,29 +1,43 @@
-#include "module.h"
+#include "parse.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct {
-  ModuleMap *mm;
+  SourceMap *sm;
   char *filepath;
 } Root;
 
 static void root_trace(void *data) {
   Root *r = data;
-  gc_mark(r->mm);
+  gc_mark(r->sm);
   gc_mark(r->filepath);
+}
+
+static char *read_file(const char *path) {
+  FILE *f = fopen(path, "r");
+  if (!f) { perror(path); exit(1); }
+  fseek(f, 0, SEEK_END);
+  long size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  char *buf = malloc(size + 1);
+  fread(buf, 1, size, f);
+  buf[size] = '\0';
+  fclose(f);
+  return buf;
 }
 
 int main(int argc, char **argv) {
   if (argc < 2) { fprintf(stderr, "usage: min <file>\n"); return 1; }
 
   GC *gc;
-  Root *root = gc_init(sizeof(Root), root_trace, 4096, 64*1024*1024, &gc);
-  root->mm = NULL;
+  Root *root = gc_init(sizeof(Root), root_trace, 4096, 64 * 1024 * 1024, &gc);
+  root->sm = NULL;
   root->filepath = NULL;
   root->filepath = gc_strdup(gc, argv[1]);
-  module_map_new(gc, (void **)&root->mm);
+  source_map_new(gc, (void **)&root->sm);
 
-  module_map_parse(gc, root->mm, root->filepath);
+  source_map_parse(gc, root->sm, root->filepath, read_file);
 
   gc_fini(gc);
   return 0;

@@ -102,6 +102,13 @@ void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn) {
   return obj_data(obj);
 }
 
+char *gc_strdup(GC *gc, const char *s) {
+  size_t len = strlen(s) + 1;
+  char *p = gc_alloc(gc, len, NULL);
+  memcpy(p, s, len);
+  return p;
+}
+
 void gc_mark(void *data) {
   if (!data) return;
   GCObject *obj = data_obj(data);
