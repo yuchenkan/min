@@ -10,13 +10,13 @@
 
 enum { T_NAME, T_INT, T_STR, T_PUNCT, T_EOF };
 
-typedef struct {
+typedef struct Token {
   int type;
   char *val;
   int line, col;
 } Token;
 
-typedef struct {
+typedef struct Tokenizer {
   Token *tokens;
   int len, cap;
   int pos;
@@ -225,7 +225,7 @@ static void parse_block(GC *gc, Node *n, Tokenizer *t) {
 
   while (is_punct(t, '$')) {
     void **slot = gc_list_append(gc, n->block.binds);
-    *slot = node_new(gc, N_BIND);
+    node_new(gc, (void **)slot, N_BIND);
     parse_bind(gc, *slot, t);
   }
 
@@ -254,19 +254,19 @@ static void parse_expr(GC *gc, Node **slot, Tokenizer *t) {
   Token *tok = peek(t);
 
   if (is_punct(t, '\\')) {
-    *slot = node_new(gc, N_FN);
+    node_new(gc, (void **)slot, N_FN);
     parse_fn(gc, *slot, t);
   }
   else if (is_punct(t, '[')) {
-    *slot = node_new(gc, N_LIST);
+    node_new(gc, (void **)slot, N_LIST);
     parse_list(gc, *slot, t);
   }
   else if (is_punct(t, '?')) {
-    *slot = node_new(gc, N_IF);
+    node_new(gc, (void **)slot, N_IF);
     parse_if(gc, *slot, t);
   }
   else if (is_punct(t, '{')) {
-    *slot = node_new(gc, N_BLOCK);
+    node_new(gc, (void **)slot, N_BLOCK);
     parse_block(gc, *slot, t);
   }
   else if (is_punct(t, '(')) {
@@ -276,7 +276,7 @@ static void parse_expr(GC *gc, Node **slot, Tokenizer *t) {
   }
   else if (tok->type == T_INT) {
     advance(t);
-    *slot = node_new(gc, N_INT);
+    node_new(gc, (void **)slot, N_INT);
     Node *n = *slot;
     const char *s = tok->val;
     int slen = strlen(s);
@@ -302,19 +302,22 @@ static void parse_expr(GC *gc, Node **slot, Tokenizer *t) {
       }
       if (carry) limbs[nlimbs++] = (uint32_t)carry;
     }
-    n->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * nlimbs, NULL);
-    memcpy(n->integer.limbs, limbs, sizeof(uint32_t) * nlimbs);
+    while (nlimbs > 0 && limbs[nlimbs - 1] == 0) nlimbs--;
+    if (nlimbs > 0) {
+      n->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * nlimbs, NULL);
+      memcpy(n->integer.limbs, limbs, sizeof(uint32_t) * nlimbs);
+    }
     n->integer.len = nlimbs;
     free(limbs);
   }
   else if (tok->type == T_STR) {
     advance(t);
-    *slot = node_new(gc, N_STR);
+    node_new(gc, (void **)slot, N_STR);
     (*slot)->str = gc_strdup(gc, tok->val);
   }
   else if (tok->type == T_NAME) {
     advance(t);
-    *slot = node_new(gc, N_REF);
+    node_new(gc, (void **)slot, N_REF);
     (*slot)->ref = gc_strdup(gc, tok->val);
   }
   else {
@@ -325,7 +328,7 @@ static void parse_expr(GC *gc, Node **slot, Tokenizer *t) {
   /* trailing calls: f(args)(args)... */
   while (is_punct(t, '(')) {
     Node *callee = *slot;
-    *slot = node_new(gc, N_CALL);
+    node_new(gc, (void **)slot, N_CALL);
     (*slot)->call.callee = callee;
     parse_args(gc, *slot, t);
   }
@@ -391,19 +394,13 @@ static void parse_import(GC *gc, Node *n, Tokenizer *t) {
  * Source
  * ============================================================ */
 
-struct Source {
-  GCList *imports;
-  GCList *binds;
-  int loading;
-};
-
 static void source_trace(void *data) {
   Source *s = data;
   gc_mark(s->imports);
   gc_mark(s->binds);
 }
 
-Source *parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file) {
+void parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file) {
   void **slot = gc_map_get(gc, sources, filepath);
   if (*slot) {
     Source *s = *slot;
@@ -411,7 +408,7 @@ Source *parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file
       fprintf(stderr, "cycle import: %s\n", filepath);
       exit(1);
     }
-    return s;
+    return;
   }
 
   Source *s = gc_alloc(gc, sizeof(Source), source_trace);
@@ -429,18 +426,17 @@ Source *parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file
 
   while (peek(&t)->type != T_EOF && is_name(&t, "from")) {
     void **islot = gc_list_append(gc, s->imports);
-    *islot = node_new(gc, N_IMPORT);
+    node_new(gc, islot, N_IMPORT);
     parse_import(gc, *islot, &t);
     parse(gc, sources, ((Node *)*islot)->import.filepath, read_file);
   }
 
   while (peek(&t)->type != T_EOF) {
     void **bslot = gc_list_append(gc, s->binds);
-    *bslot = node_new(gc, N_BIND);
+    node_new(gc, bslot, N_BIND);
     parse_bind(gc, *bslot, &t);
   }
 
   tokenizer_free(&t);
   s->loading = 0;
-  return s;
 }

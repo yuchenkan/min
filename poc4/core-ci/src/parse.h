@@ -3,9 +3,13 @@
 
 #include "node.h"
 
-typedef struct Source Source;
+typedef struct Source {
+  GCList *imports;
+  GCList *binds;
+  int loading;
+} Source;
 typedef char *(*ReadFileFn)(const char *path);
 
-Source *parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file);
+void parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file);
 
 #endif

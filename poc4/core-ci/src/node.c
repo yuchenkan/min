@@ -33,12 +33,45 @@ static void node_trace(void *data) {
     gc_mark(n->import.filepath);
     gc_mark(n->import.names);
     break;
+  case N_ARR:
+    gc_mark(n->arr.data);
+    break;
+  case N_ENV:
+    gc_mark(n->env);
+    break;
+  case N_CLOSURE:
+    gc_mark(n->closure.params);
+    gc_mark(n->closure.body);
+    gc_mark(n->closure.env);
+    break;
   }
 }
 
-Node *node_new(GC *gc, int tag) {
+void node_new(GC *gc, void **slot, int tag) {
   Node *n = gc_alloc(gc, sizeof(Node), node_trace);
   memset(n, 0, sizeof(Node));
   n->tag = tag;
-  return n;
+  *slot = n;
+  if (tag == N_ENV)
+    n->env = gc_map_new(gc);
+}
+
+Node **env_get(GC *gc, Node *e, const char *name) {
+  return (Node **)gc_map_get(gc, e->env, name);
+}
+
+Node **env_find(Node *e, const char *name) {
+  return (Node **)gc_map_find(e->env, name);
+}
+
+static void snapshot_copy(const char *key, void *val, void *ctx) {
+  Node **pair = ctx; /* pair[0] = gc (as Node*), pair[1] = new env */
+  GC *gc = (GC *)pair[0];
+  *gc_map_get(gc, pair[1]->env, key) = val;
+}
+
+void env_snapshot(GC *gc, void **slot, Node *e) {
+  node_new(gc, slot, N_ENV);
+  void *pair[2] = { gc, *slot };
+  gc_map_each(e->env, snapshot_copy, pair);
 }

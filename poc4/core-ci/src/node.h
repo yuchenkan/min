@@ -5,8 +5,12 @@
 #include <stdint.h>
 
 enum {
-  N_INT, N_STR, N_LIST,
-  N_REF, N_FN, N_CALL, N_IF, N_BLOCK, N_BIND, N_IMPORT,
+  /* shared */
+  N_INT, N_STR,
+  /* AST */
+  N_LIST, N_REF, N_FN, N_CALL, N_IF, N_BLOCK, N_BIND, N_IMPORT,
+  /* runtime */
+  N_ARR, N_ENV, N_CLOSURE, N_TRUE, N_FALSE, N_NONE, N_BUILTIN
 };
 
 typedef struct Node Node;
@@ -24,9 +28,17 @@ struct Node {
     struct { GCList *binds; Node *expr; } block;
     struct { char *name; Node *expr; } bind;
     struct { char *filepath; GCList *names; } import;
+    /* runtime */
+    struct { void *data; int len; } arr;
+    GCMap *env;
+    struct { GCList *params; Node *body; Node *env; } closure;
+    struct { void (*fn)(GC *gc, GCStack *stack); int nparams; } builtin;
   };
 };
 
-Node *node_new(GC *gc, int tag);
+void node_new(GC *gc, void **slot, int tag);
+Node **env_get(GC *gc, Node *env, const char *name);
+Node **env_find(Node *env, const char *name);
+void env_snapshot(GC *gc, void **slot, Node *env);
 
 #endif
