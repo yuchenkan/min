@@ -46,16 +46,16 @@ $same \a b: _aeq(_aeq, _flat(_flat, a), _flat(_flat, b), [])
 
 # === basic rule wrappers ===
 
-$ax \left right A: proof(left, right, "axiom", [], A)
-$nl \prf left right A: proof(left, right, "neg_left", [prf], A)
-$nr \prf left right A: proof(left, right, "neg_right", [prf], A)
-$il \p1 p2 left right A: proof(left, right, "implies_left", [p1, p2], A)
-$ir \prf left right A: proof(left, right, "implies_right", [prf], A)
+$ax \left right A: proof(left, right, "axiom", [], A, none)
+$nl \prf left right A: proof(left, right, "neg_left", [prf], A, none)
+$nr \prf left right A: proof(left, right, "neg_right", [prf], A, none)
+$il \p1 p2 left right A: proof(left, right, "implies_left", [p1, p2], A, none)
+$ir \prf left right A: proof(left, right, "implies_right", [prf], A, none)
 $fl \prf left right A t: proof(left, right, "forall_left", [prf], A, t)
 $fr \prf left right A t: proof(left, right, "forall_right", [prf], A, t)
-$wl \prf left right A: proof(left, right, "weakening_left", [prf], A)
-$wr \prf left right A: proof(left, right, "weakening_right", [prf], A)
-$cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A)
+$wl \prf left right A: proof(left, right, "weakening_left", [prf], A, none)
+$wr \prf left right A: proof(left, right, "weakening_right", [prf], A, none)
+$cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A, none)
 
 # === weakening helpers ===
 

@@ -24,24 +24,24 @@ from theorems.functions.extend_apply_old import extend_apply_old
 from theorems.functions.eqv_apply import eqv_apply
 from theorems.functions.extend_function import extend_function
 
-$_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))))
+$_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))), "z")
 $_ print("domain_exists ok")
 
-$_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")))
+$_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")), "z")
 $_ print("unique_domain ok")
 
 $_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
     implies(single_valued("f","_"),
-        implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))))
+        implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))), "z")
 $_ print("func_unique_thm ok")
 
 $_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
     implies(single_valued("f","_"), implies(eqv("x1","x2","_"), implies(apply("f","x1","y1","_"),
-        implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))))
+        implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))), "z")
 $_ print("func_preserves_eq ok")
 
 $_ qed(apply_intro, forall("p", forall("f", forall("x", forall("y",
-    implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))))
+    implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))), "z")
 $_ print("apply_intro ok")
 
 
@@ -50,102 +50,102 @@ $_fea_agree forall("x", forall("v1", forall("v2", implies(apply("h1","x","v1","_
 $_fea_df forall("x", forall("v", implies(apply("h1","x","v","_"), exists("v2", apply("h2","x","v2","_")))))
 $_fea_db forall("x", forall("v", implies(apply("h2","x","v","_"), exists("v1", apply("h1","x","v1","_")))))
 $_fea_top implies(relation("h1","_"), implies(relation("h2","_"), implies(_fea_agree, implies(_fea_df, implies(_fea_db, eqv("h1","h2","_"))))))
-$_ qed(func_ext_from_agree, forall("h1", forall("h2", _fea_top)))
+$_ qed(func_ext_from_agree, forall("h1", forall("h2", _fea_top)), "z")
 $_ print("func_ext_from_agree ok")
 
 $_ qed(apply_in_double_union,
     forall("f", forall("x", forall("y", forall("uf", forall("uuf",
         implies(apply("f","x","y","_"), implies(big_union("uf","f","_"),
-            implies(big_union("uuf","uf","_"), mem("x","uuf"))))))))))
+            implies(big_union("uuf","uf","_"), mem("x","uuf"))))))))), "z")
 $_ print("apply_in_double_union ok")
 
-$_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))))
+$_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))), "z")
 $_ print("domain_exists ok")
 
 $_ qed(domain_unique,
     forall("f", forall("s1", forall("s2",
-        implies(domain("s1","f","_"), implies(domain("s2","f","_"), eqv("s1","s2","_")))))))
+        implies(domain("s1","f","_"), implies(domain("s2","f","_"), eqv("s1","s2","_")))))), "z")
 $_ print("domain_unique ok")
 
-$_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")))
+$_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")), "z")
 $_ print("unique_domain ok")
 
 $sv single_valued("f","_")
 $_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
-    implies(sv, implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))))
+    implies(sv, implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))), "z")
 $_ print("func_unique_thm ok")
 
 $_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
     implies(sv, implies(eqv("x1","x2","_"), implies(apply("f","x1","y1","_"),
-        implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))))
+        implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))), "z")
 $_ print("func_preserves_eq ok")
 
 $_ qed(apply_intro,
     forall("p", forall("f", forall("x", forall("y",
-        implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))))
+        implies(ordered_pair("p","x","y","_"), implies(mem("p","f"), apply("f","x","y","_"))))))), "z")
 $_ print("apply_intro ok")
 
 $_ qed(union_apply_left,
     forall("u", forall("a", forall("b", forall("x", forall("y",
-        implies(apply("a","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))))
+        implies(apply("a","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))), "z")
 $_ print("union_apply_left ok")
 
 $_ qed(union_apply_right,
     forall("u", forall("a", forall("b", forall("x", forall("y",
-        implies(apply("b","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))))
+        implies(apply("b","x","y","_"), implies(union("u","a","b","_"), apply("u","x","y","_")))))))), "z")
 $_ print("union_apply_right ok")
 
 $_ qed(domain_mem_intro,
     forall("f", forall("d", forall("x", forall("y",
-        implies(apply("f","x","y","_"), implies(domain("d","f","_"), mem("x","d"))))))))
+        implies(apply("f","x","y","_"), implies(domain("d","f","_"), mem("x","d"))))))), "z")
 $_ print("domain_mem_intro ok")
 
 $_ qed(domain_mem_elim,
     forall("f", forall("d", forall("x",
-        implies(domain("d","f","_"), implies(mem("x","d"), exists("y2", apply("f","x","y2","_"))))))))
+        implies(domain("d","f","_"), implies(mem("x","d"), exists("y2", apply("f","x","y2","_"))))))), "z")
 $_ print("domain_mem_elim ok")
 
 $_ qed(apply_key_transfer,
     forall("f", forall("x", forall("x2", forall("y",
-        implies(eqv("x","x2","_"), implies(apply("f","x","y","_"), apply("f","x2","y","_"))))))))
+        implies(eqv("x","x2","_"), implies(apply("f","x","y","_"), apply("f","x2","y","_"))))))), "z")
 $_ print("apply_key_transfer ok")
 
 $_ qed(apply_val_transfer,
     forall("f", forall("x", forall("y", forall("y2",
-        implies(eqv("y","y2","_"), implies(apply("f","x","y","_"), apply("f","x","y2","_"))))))))
+        implies(eqv("y","y2","_"), implies(apply("f","x","y","_"), apply("f","x","y2","_"))))))), "z")
 $_ print("apply_val_transfer ok")
 
 $_ qed(union_apply_elim,
     forall("u", forall("a", forall("b", forall("x", forall("y",
         implies(apply("u","x","y","_"), implies(union("u","a","b","_"),
-            or(apply("a","x","y","_"), apply("b","x","y","_"))))))))))
+            or(apply("a","x","y","_"), apply("b","x","y","_"))))))))), "z")
 $_ print("union_apply_elim ok")
 
 $_ qed(domain_neg_no_apply,
     forall("f", forall("d", forall("x", forall("y",
-        implies(domain("d","f","_"), implies(neg(mem("x","d")), neg(apply("f","x","y","_")))))))))
+        implies(domain("d","f","_"), implies(neg(mem("x","d")), neg(apply("f","x","y","_")))))))), "z")
 $_ print("domain_neg_no_apply ok")
 
 $_ qed(extend_apply_new,
     forall("u", forall("h", forall("op", forall("g", forall("k", forall("v",
         implies(singleton("h","op","_"), implies(ordered_pair("op","k","v","_"),
-            implies(union("u","g","h","_"), apply("u","k","v","_")))))))))))
+            implies(union("u","g","h","_"), apply("u","k","v","_")))))))))), "z")
 $_ print("extend_apply_new ok")
 
 $_ qed(extend_apply_old,
     forall("u", forall("g", forall("h", forall("x", forall("y",
-        implies(apply("g","x","y","_"), implies(union("u","g","h","_"), apply("u","x","y","_")))))))))
+        implies(apply("g","x","y","_"), implies(union("u","g","h","_"), apply("u","x","y","_")))))))), "z")
 $_ print("extend_apply_old ok")
 
 $_ qed(eqv_apply,
     forall("f", forall("g", forall("x", forall("y",
-        implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))))
+        implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))), "z")
 $_ print("eqv_apply ok")
 
 $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","k","y0","_"),
     implies(forall("z", implies(apply("v","k","z","_"), eqv("y0","z","_"))),
         implies(union("u","v","h","_"), function("u","_"))))))
-$_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))))
+$_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))), "z")
 $_ print("extend_function ok")
 
 

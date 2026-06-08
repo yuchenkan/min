@@ -117,11 +117,15 @@ function compile(node) {
 
 function exec(callee, args) {
     if (callee instanceof Fn) {
+        if (args.length !== callee.params.length)
+            throw new EvalError(`arity: expected ${callee.params.length} args, got ${args.length}`);
         const env = callee.env.snapshot();
         for (let i = 0; i < callee.params.length; i++)
-            env.d[callee.params[i]] = i < args.length ? args[i] : null;
+            env.d[callee.params[i]] = args[i];
         return callee.bodyFn(env);
     }
+    if (callee._arity !== undefined && args.length !== callee._arity)
+        throw new EvalError(`arity: expected ${callee._arity} args, got ${args.length}`);
     return callee(...args);
 }
 
@@ -190,33 +194,39 @@ function fail(msg) { throw new EvalError(msg); }
 
 // === Builtins ===
 
+function builtin(arity, fn, opts) {
+    fn._arity = arity;
+    if (opts && opts.nocache) fn._nocache = true;
+    return fn;
+}
+
 function makeGlobal() {
     return new Env({
         true: true, false: false, none: null,
-        add: (a, b) => {
+        add: builtin(2, (a, b) => {
             if (a === null || b === null) throw new EvalError("add: null argument");
             return Array.isArray(a) ? [...a, ...b] : a + b;
-        },
-        sub: (a, b) => a - b,
-        str: (a) => String(a),
-        mul: (a, b) => a * b,
-        eq: (a, b) => {
+        }),
+        sub: builtin(2, (a, b) => a - b),
+        str: builtin(1, (a) => String(a)),
+        mul: builtin(2, (a, b) => a * b),
+        eq: builtin(2, (a, b) => {
             if (typeof a !== "string" && typeof a !== "number" && typeof a !== "boolean")
                 throw new EvalError(`eq: unsupported type ${typeof a}`);
             if (typeof a !== typeof b)
                 throw new EvalError(`eq: type mismatch ${typeof a} vs ${typeof b}`);
             return a === b;
-        },
-        is_none: (a) => a === null,
-        not: (a) => !a,
-        head: (a) => a[0],
-        tail: (a) => a.slice(1),
-        nth: (a, n) => a[n],
-        len: (a) => a.length,
-        print: Object.assign((a) => { console.log(a); return a; }, { _nocache: true }),
-        _do_proof: doProof,
-        _do_qed: doQed,
-        _fail: Object.assign(fail, { _nocache: true }),
+        }),
+        is_none: builtin(1, (a) => a === null),
+        not: builtin(1, (a) => !a),
+        head: builtin(1, (a) => a[0]),
+        tail: builtin(1, (a) => a.slice(1)),
+        nth: builtin(2, (a, n) => a[n]),
+        len: builtin(1, (a) => a.length),
+        print: builtin(1, (a) => { console.log(a); return a; }, { nocache: true }),
+        _do_proof: builtin(6, doProof),
+        _do_qed: builtin(3, doQed),
+        _fail: builtin(1, fail, { nocache: true }),
     });
 }
 
