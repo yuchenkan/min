@@ -50,6 +50,100 @@ static void builtin_add(GC *gc, GCStack *stack) {
   gc_stack_pop(stack, 3);
 }
 
+static void builtin_sub(GC *gc, GCStack *stack) {
+  int top = gc_stack_len(stack);
+  Node *a = *gc_stack_nth(stack, top - 2);
+  Node *b = *gc_stack_nth(stack, top - 1);
+  int alen = a->integer.len, blen = b->integer.len;
+  int rlen = alen > blen ? alen : blen;
+  if (rlen == 0) rlen = 1;
+
+  uint32_t *tmp = malloc(sizeof(uint32_t) * rlen);
+  uint32_t *al = a->integer.limbs, *bl = b->integer.limbs;
+  int64_t borrow = 0;
+  for (int i = 0; i < rlen; i++) {
+    int64_t diff = borrow;
+    if (i < alen) diff += al[i];
+    if (i < blen) diff -= bl[i];
+    if (diff < 0) { tmp[i] = (uint32_t)(diff + ((int64_t)1 << 32)); borrow = -1; }
+    else { tmp[i] = (uint32_t)diff; borrow = 0; }
+  }
+  while (rlen > 0 && tmp[rlen - 1] == 0) rlen--;
+
+  void **slot = gc_stack_push(gc, stack);
+  node_new(gc, slot, N_INT);
+  Node *r = *slot;
+  if (rlen > 0) {
+    r->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * rlen, NULL);
+    memcpy(r->integer.limbs, tmp, sizeof(uint32_t) * rlen);
+  }
+  r->integer.len = rlen;
+  free(tmp);
+  *gc_stack_nth(stack, top - 3) = r;
+  gc_stack_pop(stack, 3);
+}
+
+static void builtin_mul(GC *gc, GCStack *stack) {
+  int top = gc_stack_len(stack);
+  Node *a = *gc_stack_nth(stack, top - 2);
+  Node *b = *gc_stack_nth(stack, top - 1);
+  int alen = a->integer.len, blen = b->integer.len;
+  if (alen == 0 || blen == 0) {
+    void **slot = gc_stack_push(gc, stack);
+    node_new(gc, slot, N_INT);
+    *gc_stack_nth(stack, top - 3) = *slot;
+    gc_stack_pop(stack, 3);
+    return;
+  }
+  int rlen = alen + blen;
+  uint32_t *tmp = calloc(rlen, sizeof(uint32_t));
+  uint32_t *al = a->integer.limbs, *bl = b->integer.limbs;
+  for (int i = 0; i < alen; i++) {
+    uint64_t carry = 0;
+    for (int j = 0; j < blen; j++) {
+      uint64_t prod = (uint64_t)al[i] * bl[j] + tmp[i + j] + carry;
+      tmp[i + j] = (uint32_t)prod;
+      carry = prod >> 32;
+    }
+    tmp[i + blen] += (uint32_t)carry;
+  }
+  while (rlen > 0 && tmp[rlen - 1] == 0) rlen--;
+
+  void **slot = gc_stack_push(gc, stack);
+  node_new(gc, slot, N_INT);
+  Node *r = *slot;
+  if (rlen > 0) {
+    r->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * rlen, NULL);
+    memcpy(r->integer.limbs, tmp, sizeof(uint32_t) * rlen);
+  }
+  r->integer.len = rlen;
+  free(tmp);
+  *gc_stack_nth(stack, top - 3) = r;
+  gc_stack_pop(stack, 3);
+}
+
+static void builtin_eq(GC *gc, GCStack *stack) {
+  int top = gc_stack_len(stack);
+  Node *a = *gc_stack_nth(stack, top - 2);
+  Node *b = *gc_stack_nth(stack, top - 1);
+  int equal = 0;
+  if (a->tag == b->tag) {
+    if (a->tag == N_INT) {
+      equal = a->integer.len == b->integer.len &&
+        (a->integer.len == 0 ||
+         memcmp(a->integer.limbs, b->integer.limbs, a->integer.len * sizeof(uint32_t)) == 0);
+    } else if (a->tag == N_STR) {
+      equal = strcmp(a->str, b->str) == 0;
+    } else if (a->tag == N_TRUE || a->tag == N_FALSE || a->tag == N_NONE) {
+      equal = 1;
+    }
+  }
+  void **slot = gc_stack_push(gc, stack);
+  node_new(gc, slot, equal ? N_TRUE : N_FALSE);
+  *gc_stack_nth(stack, top - 3) = *slot;
+  gc_stack_pop(stack, 3);
+}
+
 static void set_builtin(GC *gc, Node *env, const char *name, void (*fn)(GC *, GCStack *), int nparams) {
   Node **slot = env_get(gc, env, name);
   node_new(gc, (void **)slot, N_BUILTIN);
@@ -63,6 +157,9 @@ void init_global(GC *gc, Node *global, void **s) {
   *s = gc_strdup(gc, "none");  node_new(gc, (void **)env_get(gc, global, *s), N_NONE);
   *s = gc_strdup(gc, "is_none"); set_builtin(gc, global, *s, builtin_is_none, 1);
   *s = gc_strdup(gc, "add");    set_builtin(gc, global, *s, builtin_add, 2);
+  *s = gc_strdup(gc, "sub");    set_builtin(gc, global, *s, builtin_sub, 2);
+  *s = gc_strdup(gc, "mul");    set_builtin(gc, global, *s, builtin_mul, 2);
+  *s = gc_strdup(gc, "eq");     set_builtin(gc, global, *s, builtin_eq, 2);
   *s = NULL;
 }
 

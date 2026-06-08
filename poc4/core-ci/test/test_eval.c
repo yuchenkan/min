@@ -49,6 +49,52 @@ static char *fake_read_file(const char *path) {
     src = "from lib import double\n"
           "$r double(5)\n";
 
+  else if (strcmp(path, "complex.min") == 0)
+    src =
+      "from math import sub, mul, eq\n"
+      "\n"
+      "$double \\n: add(n, n)\n"
+      "$triple \\n: add(n, double(n))\n"
+      "\n"
+      "# higher-order\n"
+      "$apply \\f x: f(x)\n"
+      "$compose \\f g: \\x: f(g(x))\n"
+      "$quad compose(double, double)\n"
+      "\n"
+      "# recursion via self-application\n"
+      "$fact \\self n: ?(eq(n, 0), 1, mul(n, self(self, sub(n, 1))))\n"
+      "$f5 fact(fact, 5)\n"
+      "\n"
+      "# nested blocks\n"
+      "$nested {\n"
+      "  $a 10\n"
+      "  $b {\n"
+      "    $c 20\n"
+      "    add(a, c)\n"
+      "  }\n"
+      "  add(b, a)\n"
+      "}\n"
+      "\n"
+      "# closure capture\n"
+      "$make_adder \\x: \\y: add(x, y)\n"
+      "$add5 make_adder(5)\n"
+      "$r_add5 add5(10)\n"
+      "\n"
+      "# chained calls\n"
+      "$r_chain compose(double, triple)(2)\n"
+      "\n"
+      "# if with complex exprs\n"
+      "$r_if ?(eq(add(1, 2), 3), triple(7), 0)\n"
+      "\n"
+      "# apply\n"
+      "$r_apply apply(double, 8)\n";
+
+  else if (strcmp(path, "math.min") == 0)
+    src =
+      "$sub \\a b: sub(a, b)\n"
+      "$mul \\a b: mul(a, b)\n"
+      "$eq \\a b: eq(a, b)\n";
+
   else {
     fprintf(stderr, "unknown file: %s\n", path);
     exit(1);
@@ -183,6 +229,27 @@ static void test_import(void) {
   printf("  import: ok\n");
 }
 
+static void test_complex(void) {
+  GC *gc; TestRoot *root;
+  Node *env = run_eval("complex.min", &gc, &root);
+  /* $double \n: add(n,n) => double(3)=6, triple(3)=9 */
+  /* $quad compose(double,double) => quad(3)=12 */
+  /* $fact(fact,5) = 120 */
+  assert(int_val(*env_find(env, "f5")) == 120);
+  /* $nested: {a=10, b={c=20, add(a,c)=30}, add(b,a)=40} */
+  assert(int_val(*env_find(env, "nested")) == 40);
+  /* $make_adder \x: \y: add(x,y), add5=make_adder(5), add5(10)=15 */
+  assert(int_val(*env_find(env, "r_add5")) == 15);
+  /* $r_chain compose(double,triple)(2) = double(triple(2)) = double(6) = 12 */
+  assert(int_val(*env_find(env, "r_chain")) == 12);
+  /* $r_if ?(eq(add(1,2),3), triple(7), 0) = triple(7) = 21 */
+  assert(int_val(*env_find(env, "r_if")) == 21);
+  /* $r_apply apply(double, 8) = 16 */
+  assert(int_val(*env_find(env, "r_apply")) == 16);
+  gc_fini(gc);
+  printf("  complex: ok\n");
+}
+
 int main(void) {
   printf("eval tests:\n");
   test_basic();
@@ -194,6 +261,7 @@ int main(void) {
   test_is_none();
   test_zero();
   test_import();
+  test_complex();
   printf("all eval tests passed\n");
   return 0;
 }
