@@ -10,7 +10,7 @@ enum {
   /* AST */
   N_LIST, N_REF, N_FN, N_CALL, N_IF, N_BLOCK, N_BIND, N_IMPORT,
   /* runtime */
-  N_ARR, N_ENV, N_CLOSURE, N_TRUE, N_FALSE, N_NONE, N_BUILTIN
+  N_ARR, N_ENV, N_CLOSURE, N_TRUE, N_FALSE, N_NONE, N_BUILTIN, N_PROOF
 };
 
 typedef struct Node Node;
@@ -29,10 +29,11 @@ struct Node {
     struct { char *name; Node *expr; } bind;
     struct { char *filepath; GCList *names; } import;
     /* runtime */
-    struct { void *data; int len; } arr;
+    struct { void *data; uint64_t len; } arr;
     GCMap *env;
     struct { GCList *params; Node *body; Node *env; } closure;
     struct { void (*fn)(GC *gc, GCStack *stack); int nparams; } builtin;
+    struct { Node *left; Node *right; } proof; /* sequent: left=N_ARR, right=N_ARR */
   };
 };
 

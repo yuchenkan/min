@@ -44,6 +44,10 @@ static void node_trace(void *data) {
     gc_mark(n->closure.body);
     gc_mark(n->closure.env);
     break;
+  case N_PROOF:
+    gc_mark(n->proof.left);
+    gc_mark(n->proof.right);
+    break;
   }
 }
 

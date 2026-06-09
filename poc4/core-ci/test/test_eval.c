@@ -89,6 +89,44 @@ static char *fake_read_file(const char *path) {
       "# apply\n"
       "$r_apply apply(double, 8)\n";
 
+  else if (strcmp(path, "str_add.min") == 0)
+    src = "$r add(\"hello \", \"world\")\n"
+          "$s add(\"\", \"x\")\n"
+          "$t add(\"a\", \"\")\n";
+
+  else if (strcmp(path, "arr_add.min") == 0)
+    src = "$r add([1, 2], [3, 4])\n"
+          "$s add([], [1])\n"
+          "$t add([1], [])\n"
+          "$u add([], [])\n";
+
+  else if (strcmp(path, "list_ops.min") == 0)
+    src = "$a [10, 20, 30]\n"
+          "$h head(a)\n"
+          "$t tail(a)\n"
+          "$n nth(a, 1)\n"
+          "$l len(a)\n"
+          "$e len([])\n"
+          "$nt not(true)\n"
+          "$nf not(false)\n";
+
+  else if (strcmp(path, "tap.min") == 0)
+    src = "$a tap(42)\n"
+          "$b tap(\"hello\\tworld\")\n"
+          "$c tap(true)\n"
+          "$d tap(false)\n"
+          "$e tap(none)\n"
+          "$f tap([1, \"two\", true, none])\n"
+          "$g tap(0)\n"
+          "$h tap([])\n"
+          "$i tap(add(\"a\", \"b\"))\n";
+
+  else if (strcmp(path, "str_conv.min") == 0)
+    src = "$a str(0)\n"
+          "$b str(42)\n"
+          "$c str(1000000)\n"
+          "$d str(add(999, 1))\n";
+
   else if (strcmp(path, "math.min") == 0)
     src =
       "$sub \\a b: sub(a, b)\n"
@@ -250,6 +288,81 @@ static void test_complex(void) {
   printf("  complex: ok\n");
 }
 
+static void test_str_add(void) {
+  GC *gc; TestRoot *root;
+  Node *env = run_eval("str_add.min", &gc, &root);
+  assert(strcmp((*env_find(env, "r"))->str, "hello world") == 0);
+  assert(strcmp((*env_find(env, "s"))->str, "x") == 0);
+  assert(strcmp((*env_find(env, "t"))->str, "a") == 0);
+  gc_fini(gc);
+  printf("  str_add: ok\n");
+}
+
+static void test_arr_add(void) {
+  GC *gc; TestRoot *root;
+  Node *env = run_eval("arr_add.min", &gc, &root);
+  Node *r = *env_find(env, "r");
+  assert(r->tag == N_ARR && r->arr.len == 4);
+  assert(int_val(((Node **)r->arr.data)[0]) == 1);
+  assert(int_val(((Node **)r->arr.data)[3]) == 4);
+  Node *s = *env_find(env, "s");
+  assert(s->tag == N_ARR && s->arr.len == 1);
+  Node *t = *env_find(env, "t");
+  assert(t->tag == N_ARR && t->arr.len == 1);
+  Node *u = *env_find(env, "u");
+  assert(u->tag == N_ARR && u->arr.len == 0);
+  gc_fini(gc);
+  printf("  arr_add: ok\n");
+}
+
+static void test_list_ops(void) {
+  GC *gc; TestRoot *root;
+  Node *env = run_eval("list_ops.min", &gc, &root);
+  assert(int_val(*env_find(env, "h")) == 10);
+  Node *t = *env_find(env, "t");
+  assert(t->tag == N_ARR && t->arr.len == 2);
+  assert(int_val(((Node **)t->arr.data)[0]) == 20);
+  assert(int_val(((Node **)t->arr.data)[1]) == 30);
+  assert(int_val(*env_find(env, "n")) == 20);
+  assert(int_val(*env_find(env, "l")) == 3);
+  assert(int_val(*env_find(env, "e")) == 0);
+  assert((*env_find(env, "nt"))->tag == N_FALSE);
+  assert((*env_find(env, "nf"))->tag == N_TRUE);
+  gc_fini(gc);
+  printf("  list_ops: ok\n");
+}
+
+static void test_tap(void) {
+  GC *gc; TestRoot *root;
+  printf("  tap output:\n");
+  Node *env = run_eval("tap.min", &gc, &root);
+  /* tap returns its argument */
+  assert(int_val(*env_find(env, "a")) == 42);
+  assert(strcmp((*env_find(env, "b"))->str, "hello\tworld") == 0);
+  assert((*env_find(env, "c"))->tag == N_TRUE);
+  assert((*env_find(env, "d"))->tag == N_FALSE);
+  assert((*env_find(env, "e"))->tag == N_NONE);
+  Node *f = *env_find(env, "f");
+  assert(f->tag == N_ARR && f->arr.len == 4);
+  assert(int_val(*env_find(env, "g")) == 0);
+  Node *h = *env_find(env, "h");
+  assert(h->tag == N_ARR && h->arr.len == 0);
+  assert(strcmp((*env_find(env, "i"))->str, "ab") == 0);
+  gc_fini(gc);
+  printf("  tap: ok\n");
+}
+
+static void test_str_conv(void) {
+  GC *gc; TestRoot *root;
+  Node *env = run_eval("str_conv.min", &gc, &root);
+  assert(strcmp((*env_find(env, "a"))->str, "0") == 0);
+  assert(strcmp((*env_find(env, "b"))->str, "42") == 0);
+  assert(strcmp((*env_find(env, "c"))->str, "1000000") == 0);
+  assert(strcmp((*env_find(env, "d"))->str, "1000") == 0);
+  gc_fini(gc);
+  printf("  str_conv: ok\n");
+}
+
 int main(void) {
   printf("eval tests:\n");
   test_basic();
@@ -262,6 +375,11 @@ int main(void) {
   test_zero();
   test_import();
   test_complex();
+  test_str_add();
+  test_arr_add();
+  test_list_ops();
+  test_tap();
+  test_str_conv();
   printf("all eval tests passed\n");
   return 0;
 }
