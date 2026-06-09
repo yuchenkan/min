@@ -127,6 +127,27 @@ static char *fake_read_file(const char *path) {
           "$c str(1000000)\n"
           "$d str(add(999, 1))\n";
 
+  else if (strcmp(path, "proof.min") == 0)
+    src =
+      "# axiom: A |- A\n"
+      "$mem [\"mem\", \"x\", \"y\"]\n"
+      "$left [mem]\n"
+      "$right [mem]\n"
+      "$premises []\n"
+      "$p1 _do_proof(left, right, \"axiom\", premises, mem, none)\n"
+      "$ok1 head(p1)\n"
+      "$proof1 nth(p1, 1)\n"
+      "\n"
+      "# neg_right: from {A |- A, B} derive {|- A, neg(A)}\n"
+      "# neg(A) on right, premise: A,Gamma |- Delta\n"
+      "$negA [\"neg\", mem]\n"
+      "$p2 _do_proof([], [mem, negA], \"neg_right\", [proof1], negA, none)\n"
+      "$ok2 head(p2)\n"
+      "\n"
+      "# bad proof should fail\n"
+      "$p3 _do_proof([], [mem], \"axiom\", [], mem, none)\n"
+      "$ok3 head(p3)\n";
+
   else if (strcmp(path, "math.min") == 0)
     src =
       "$sub \\a b: sub(a, b)\n"
@@ -352,6 +373,20 @@ static void test_tap(void) {
   printf("  tap: ok\n");
 }
 
+static void test_proof(void) {
+  GC *gc; TestRoot *root;
+  Node *env = run_eval("proof.min", &gc, &root);
+  /* axiom proof succeeds */
+  assert((*env_find(env, "ok1"))->tag == N_TRUE);
+  assert((*env_find(env, "proof1"))->tag == N_PROOF);
+  /* neg_right succeeds */
+  assert((*env_find(env, "ok2"))->tag == N_TRUE);
+  /* bad axiom fails (principal not in left) */
+  assert((*env_find(env, "ok3"))->tag == N_FALSE);
+  gc_fini(gc);
+  printf("  proof: ok\n");
+}
+
 static void test_str_conv(void) {
   GC *gc; TestRoot *root;
   Node *env = run_eval("str_conv.min", &gc, &root);
@@ -379,6 +414,7 @@ int main(void) {
   test_arr_add();
   test_list_ops();
   test_tap();
+  test_proof();
   test_str_conv();
   printf("all eval tests passed\n");
   return 0;

@@ -1,5 +1,6 @@
 #include "node.h"
 #include "parse.h"
+#include "kernel.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -385,6 +386,83 @@ static void builtin_tap(GC *gc, GCStack *stack) {
   (void)gc;
 }
 
+/* _do_proof(left, right, rule, premises, principal, term)
+   returns [true, proof] or [false, error_msg] */
+static void builtin_do_proof(GC *gc, GCStack *stack) {
+  int top = gc_stack_len(stack);
+  Node *left      = *gc_stack_nth(stack, top - 6);
+  Node *right     = *gc_stack_nth(stack, top - 5);
+  Node *rule      = *gc_stack_nth(stack, top - 4);
+  Node *premises  = *gc_stack_nth(stack, top - 3);
+  Node *principal = *gc_stack_nth(stack, top - 2);
+  Node *term      = *gc_stack_nth(stack, top - 1);
+
+  Node *term_or_null = (term->tag == N_NONE) ? NULL : term;
+  const char *err = kernel_check(gc, stack, left, right, rule->str, premises, principal, term_or_null);
+
+  /* build result array [ok, value] */
+  void **slot = gc_stack_push(gc, stack);
+  node_new(gc, slot, N_ARR);
+  Node *result = *slot;
+  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL);
+  result->arr.len = 2;
+  Node **rd = result->arr.data;
+  rd[0] = NULL; rd[1] = NULL;
+
+  if (err) {
+    node_new(gc, (void **)&rd[0], N_FALSE);
+    node_new(gc, (void **)&rd[1], N_STR);
+    rd[1]->str = gc_strdup(gc, err);
+  } else {
+    node_new(gc, (void **)&rd[0], N_TRUE);
+    node_new(gc, (void **)&rd[1], N_PROOF);
+    rd[1]->proof.left = left;
+    rd[1]->proof.right = right;
+  }
+
+  *gc_stack_nth(stack, top - 7) = result;
+  gc_stack_pop(stack, 7);
+}
+
+/* _do_qed(proof, expected, system)
+   returns [true, none] or [false, error_msg] */
+static void builtin_do_qed(GC *gc, GCStack *stack) {
+  int top = gc_stack_len(stack);
+  Node *proof    = *gc_stack_nth(stack, top - 3);
+  Node *expected = *gc_stack_nth(stack, top - 2);
+  Node *system   = *gc_stack_nth(stack, top - 1);
+
+  const char *err = kernel_qed(gc, stack, proof, expected, system->str);
+
+  void **slot = gc_stack_push(gc, stack);
+  node_new(gc, slot, N_ARR);
+  Node *result = *slot;
+  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL);
+  result->arr.len = 2;
+  Node **rd = result->arr.data;
+  rd[0] = NULL; rd[1] = NULL;
+
+  if (err) {
+    node_new(gc, (void **)&rd[0], N_FALSE);
+    node_new(gc, (void **)&rd[1], N_STR);
+    rd[1]->str = gc_strdup(gc, err);
+  } else {
+    node_new(gc, (void **)&rd[0], N_TRUE);
+    node_new(gc, (void **)&rd[1], N_NONE);
+  }
+
+  *gc_stack_nth(stack, top - 4) = result;
+  gc_stack_pop(stack, 4);
+}
+
+static void builtin_fail(GC *gc, GCStack *stack) {
+  int top = gc_stack_len(stack);
+  Node *msg = *gc_stack_nth(stack, top - 1);
+  fprintf(stderr, "%s\n", msg->str);
+  exit(1);
+  (void)gc;
+}
+
 static void set_builtin(GC *gc, Node *env, const char *name, void (*fn)(GC *, GCStack *), int nparams) {
   Node **slot = env_get(gc, env, name);
   node_new(gc, (void **)slot, N_BUILTIN);
@@ -407,7 +485,10 @@ void init_global(GC *gc, Node *global, void **s) {
   *s = gc_strdup(gc, "tail");   set_builtin(gc, global, *s, builtin_tail, 1);
   *s = gc_strdup(gc, "nth");    set_builtin(gc, global, *s, builtin_nth, 2);
   *s = gc_strdup(gc, "len");    set_builtin(gc, global, *s, builtin_len, 1);
-  *s = gc_strdup(gc, "tap");    set_builtin(gc, global, *s, builtin_tap, 1);
+  *s = gc_strdup(gc, "tap");        set_builtin(gc, global, *s, builtin_tap, 1);
+  *s = gc_strdup(gc, "_do_proof");  set_builtin(gc, global, *s, builtin_do_proof, 6);
+  *s = gc_strdup(gc, "_do_qed");    set_builtin(gc, global, *s, builtin_do_qed, 3);
+  *s = gc_strdup(gc, "_fail");      set_builtin(gc, global, *s, builtin_fail, 1);
   *s = NULL;
 }
 

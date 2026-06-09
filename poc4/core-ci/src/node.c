@@ -35,6 +35,8 @@ static void node_trace(void *data) {
     break;
   case N_ARR:
     gc_mark(n->arr.data);
+    for (uint64_t i = 0; i < n->arr.len; i++)
+      gc_mark(((Node **)n->arr.data)[i]);
     break;
   case N_ENV:
     gc_mark(n->env);
