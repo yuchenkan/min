@@ -201,12 +201,12 @@ function builtin(arity, fn) {
 function makeGlobal() {
     return new Env({
         true: true, false: false, none: null,
+        is_none: builtin(1, (a) => a === null),
         add: builtin(2, (a, b) => {
             if (a === null || b === null) throw new EvalError("add: null argument");
             return Array.isArray(a) ? [...a, ...b] : a + b;
         }),
         sub: builtin(2, (a, b) => a - b),
-        str: builtin(1, (a) => String(a)),
         mul: builtin(2, (a, b) => a * b),
         eq: builtin(2, (a, b) => {
             if (typeof a !== "string" && typeof a !== "number" && typeof a !== "boolean")
@@ -215,13 +215,13 @@ function makeGlobal() {
                 throw new EvalError(`eq: type mismatch ${typeof a} vs ${typeof b}`);
             return a === b;
         }),
-        is_none: builtin(1, (a) => a === null),
+        str: builtin(1, (a) => String(a)),
         not: builtin(1, (a) => !a),
         head: builtin(1, (a) => a[0]),
         tail: builtin(1, (a) => a.slice(1)),
         nth: builtin(2, (a, n) => a[n]),
         len: builtin(1, (a) => a.length),
-        trace: builtin(1, (a) => { console.log(a); return a; }),
+        tap: builtin(1, (a) => { console.log(a); return a; }),
         _do_proof: builtin(6, doProof),
         _do_qed: builtin(3, doQed),
         _fail: builtin(1, fail),
@@ -295,21 +295,21 @@ if (require.main === module) {
 
     const src = `
 $double \\n: add(n, n)
-$r1 trace(double(3))
-$r2 trace(add("double(1+2) = ", str(double(add(1, 2)))))
+$r1 tap(double(3))
+$r2 tap(add("double(1+2) = ", str(double(add(1, 2)))))
 
 $id \\x: x
-$r3 trace(id(42))
+$r3 tap(id(42))
 
 $pair \\a b: [a, b]
-$r4 trace(pair(1, 2))
+$r4 tap(pair(1, 2))
 
 $compose \\f g: \\x: f(g(x))
 $quadruple compose(double, double)
-$r5 trace(quadruple(3))
+$r5 tap(quadruple(3))
 
 $fact \\self n: ?(eq(n, 0), 1, mul(n, self(self, sub(n, 1))))
-$r6 trace(fact(fact, 5))
+$r6 tap(fact(fact, 5))
 `;
     const env = makeGlobal();
     const nodes = parser.parse(src, "<test>");

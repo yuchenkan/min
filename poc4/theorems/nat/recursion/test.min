@@ -31,42 +31,42 @@ from theorems.nat.recursion.rec_unique import rec_unique
 from theorems.nat.recursion.recursion_theorem import recursion_theorem
 
 $_ qed(rec_base, forall("e0", forall("a", implies(num("e0",0,"_"), exists("h", and(function("h","_"), forall("e", implies(num("e",0,"_"), apply("h","e","a","_")))))))), "z")
-$_ trace("rec_base ok")
+$_ tap("rec_base ok")
 
 $_ qed(rec_approx_zero, forall("v", forall("a", forall("f", forall("e", forall("y",
     implies(rec_approx("v","a","f","_"), implies(num("e",0,"_"), implies(apply("v","e","y","_"), eqv("y","a","_"))))))))), "z")
-$_ trace("rec_approx_zero ok")
+$_ tap("rec_approx_zero ok")
 
 $ec_body implies(rec_approx("v","a","f","_"), implies(nat("n","_"), implies(apply("v","n","val","_"), implies(apply("f","val","fval","_"), implies(successor("sn","n","_"), implies(apply("v","sn","z","_"), eqv("fval","z","_")))))))
 $_ qed(extend_consistency, forall("v", forall("a", forall("f", forall("n", forall("sn", forall("val", forall("fval", forall("z", ec_body)))))))), "z")
-$_ trace("extend_consistency ok")
+$_ tap("extend_consistency ok")
 
 $eb_body implies(forall("e", implies(num("e",0,"_"), implies(exists("y", apply("v","e","y","_")), apply("v","e","a","_")))),
     implies(successor("sn","n","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","sn","fval","_"),
         implies(union("u","v","h","_"), forall("e", implies(num("e",0,"_"), implies(exists("y", apply("u","e","y","_")), apply("u","e","a","_")))))))))
 $_ qed(extend_base, forall("v", forall("u", forall("h", forall("op", forall("sn", forall("n", forall("a", forall("fval", eb_body)))))))), "z")
-$_ trace("extend_base ok")
+$_ tap("extend_base ok")
 
 $_ qed(succ_set_transfer, forall("s1", forall("s2", forall("n", implies(eqv("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))), "z")
-$_ trace("succ_set_transfer ok")
+$_ tap("succ_set_transfer ok")
 
 $eds_body implies(rec_approx("v","a","f","_"), implies(omega("w","_"), implies(nat("n","_"), implies(successor("sn","n","_"),
     implies(singleton("h","op","_"), implies(ordered_pair("op","sn","fval","_"),
         implies(union("u","v","h","_"), forall("x", implies(exists("y", apply("u","x","y","_")), mem("x","w"))))))))))
 $_ qed(extend_dom_sub, forall("v", forall("a", forall("f", forall("w", forall("n", forall("sn", forall("u", forall("h", forall("op", forall("fval", eds_body)))))))))), "z")
-$_ trace("extend_dom_sub ok")
+$_ tap("extend_dom_sub ok")
 
 $ers_body implies(rec_approx("v","a","f","_"), implies(apply("f","val","fval","_"),
     implies(forall("y2", forall("z2", implies(apply("f","y2","z2","_"), exists("w2", apply("f","z2","w2","_"))))),
         implies(singleton("h","op","_"), implies(ordered_pair("op","sn","fval","_"),
             implies(union("u","v","h","_"), forall("x", forall("y", implies(apply("u","x","y","_"), exists("z", apply("f","y","z","_")))))))))))
 $_ qed(extend_ran_sub, forall("v", forall("a", forall("f", forall("u", forall("h", forall("op", forall("sn", forall("val", forall("fval", ers_body))))))))), "z")
-$_ trace("extend_ran_sub ok")
+$_ tap("extend_ran_sub ok")
 
 $es_inner forall("m", implies(mem("m","w"), forall("sm", implies(successor("sm","m","_"), implies(exists("y5", apply("u","sm","y5","_")), and(exists("val5", apply("u","m","val5","_")), forall("val5", implies(apply("u","m","val5","_"), forall("fv5", implies(apply("f","val5","fv5","_"), apply("u","sm","fv5","_")))))))))))
 $es_body implies(rec_approx("v","a","f","_"), implies(function("f","_"), implies(omega("w","_"), implies(nat("n","_"), implies(apply("v","n","val","_"), implies(apply("f","val","fval","_"), implies(successor("sn","n","_"), implies(ordered_pair("op","sn","fval","_"), implies(singleton("h","op","_"), implies(union("u","v","h","_"), implies(function("u","_"), implies(apply("u","sn","fval","_"), es_inner))))))))))))
 $_ qed(extend_step, forall("v", forall("a", forall("f", forall("w", forall("n", forall("val", forall("fval", forall("sn", forall("op", forall("h", forall("u", es_body))))))))))), "z")
-$_ trace("extend_step ok")
+$_ tap("extend_step ok")
 
 $res_func function("u", "_")
 $res_dom forall("x2", implies(exists("y2", apply("u","x2","y2","_")), mem("x2","w")))
@@ -79,19 +79,19 @@ $res_goal and(res_ra, apply("u","sn","fval","_"))
 $res_rfc forall("y", forall("z", implies(apply("f","y","z","_"), exists("w2", apply("f","z","w2","_")))))
 $res_body implies(rec_approx("v","a","f","_"), implies(function("f","_"), implies(nat("n","_"), implies(apply("v","n","val","_"), implies(apply("f","val","fval","_"), implies(res_rfc, implies(successor("sn","n","_"), implies(ordered_pair("op","sn","fval","_"), implies(singleton("h","op","_"), implies(union("u","v","h","_"), res_goal))))))))))
 $_ qed(rec_exists_step, forall("v", forall("a", forall("f", forall("n", forall("val", forall("fval", forall("sn", forall("op", forall("h", forall("u", res_body)))))))))), "z")
-$_ trace("rec_exists_step ok")
+$_ tap("rec_exists_step ok")
 
 $sr_body implies(num("e",0,"_"), implies(exists("z", apply("f","a","z","_")),
     implies(ordered_pair("op","e","a","_"), implies(singleton("g","op","_"),
         and(rec_approx("g","a","f","_"), apply("g","e","a","_"))))))
 $_ qed(singleton_recapprox, forall("e", forall("f", forall("a", forall("op", forall("g", sr_body))))), "z")
-$_ trace("singleton_recapprox ok")
+$_ tap("singleton_recapprox ok")
 
 $re_pred \w n p: exists(add(p,"g"), and(rec_approx(add(p,"g"), "a", "f", add(p,"_")), exists(add(p,"y"), apply(add(p,"g"), n, add(p,"y"), add(p,"_")))))
 $re_rfc forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_")))))
 $re_body implies(function("f","_"), implies(exists("z", apply("f","a","z","_")), implies(re_rfc, implies(omega("w","_"), forall("n", implies(mem("n","w"), re_pred("w","n","_")))))))
 $_ qed(rec_exists, forall("w", forall("f", forall("a", re_body))), "z")
-$_ trace("rec_exists ok")
+$_ tap("rec_exists ok")
 
 $ra_pred \w n p: forall(add(p,"v1"), forall(add(p,"v2"), forall(add(p,"y1"), forall(add(p,"y2"),
     implies(rec_approx(add(p,"v1"),"a","f",add(p,"_")),
@@ -101,14 +101,14 @@ $ra_pred \w n p: forall(add(p,"v1"), forall(add(p,"v2"), forall(add(p,"y1"), for
         eqv(add(p,"y1"),add(p,"y2"),add(p,"_"))))))))))
 $ra_body implies(omega("w","_"), implies(function("f","_"), forall("n", implies(mem("n","w"), ra_pred("w","n","_")))))
 $_ qed(rec_agree, forall("w", forall("f", forall("a", ra_body))), "z")
-$_ trace("rec_agree ok")
+$_ tap("rec_agree ok")
 
 $rge_phi \p np: exists(add(np,"n"), and(nat(add(np,"n"),np),
     exists(add(np,"v"), exists(add(np,"y"), and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
         apply(add(np,"v"),add(np,"n"),add(np,"y"),add(np,"_"))), ordered_pair(p,add(np,"n"),add(np,"y"),add(np,"_")))))))
 $rge_body exists("h", forall("p", iff(mem("p","h"), and(mem("p","ppb"), rge_phi("p","_")))))
 $_ qed(rec_graph_exists, forall("f", forall("a", forall("ppb", rge_body))), "z")
-$_ trace("rec_graph_exists ok")
+$_ tap("rec_graph_exists ok")
 
 $rha_phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
     and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
@@ -119,23 +119,23 @@ $rha_body implies(rha_char, implies(nat("n","_"), implies(rec_approx("v","a","f"
     implies(apply("v","n","y","_"), apply("h","n","y","_")))))
 $_ qed(rec_h_apply, forall("h", forall("a", forall("f",
     forall("v", forall("n", forall("y", rha_body)))))), "z")
-$_ trace("rec_h_apply ok")
+$_ tap("rec_h_apply ok")
 
 $rhds_body implies(rha_char, implies(apply("h","x","y","_"), nat("x","_")))
 $_ qed(rec_h_dom_sub, forall("h", forall("a", forall("f",
     forall("x", forall("y", rhds_body))))), "z")
-$_ trace("rec_h_dom_sub ok")
+$_ tap("rec_h_dom_sub ok")
 
 $rv_ex \v y: and(rec_approx(v,"a","f","_"), apply(v,"n",y,"_"))
 $rv_body implies(function("f","_"), implies(omega("w","_"), implies(mem("n","w"),
     implies(exists("v1", rv_ex("v1","y1")), implies(exists("v2", rv_ex("v2","y2")), eqv("y1","y2","_"))))))
 $_ qed(rec_value, forall("a", forall("f", forall("w", forall("n", forall("y1", forall("y2", rv_body)))))), "z")
-$_ trace("rec_value ok")
+$_ tap("rec_value ok")
 
 $rhaf_goal exists("v", and(rec_approx("v","a","f","_"), apply("v","n","y","_")))
 $rhaf_body implies(rha_char, implies(apply("h","n","y","_"), rhaf_goal))
 $_ qed(rec_h_apply_fwd, forall("h", forall("a", forall("f", forall("n", forall("y", rhaf_body))))), "z")
-$_ trace("rec_h_apply_fwd ok")
+$_ tap("rec_h_apply_fwd ok")
 
 $rhs_body implies(rha_char, implies(function("f","_"), implies(exists("z", apply("f","a","z","_")),
     implies(forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_"))))),
@@ -143,18 +143,18 @@ $rhs_body implies(rha_char, implies(function("f","_"), implies(exists("z", apply
     implies(apply("f","val","fval","_"), apply("h","sn","fval","_")))))))))
 $_ qed(rec_h_step, forall("h", forall("a", forall("f",
     forall("n", forall("val", forall("sn", forall("fval", rhs_body))))))), "z")
-$_ trace("rec_h_step ok")
+$_ tap("rec_h_step ok")
 
 $rhf_body implies(rha_char, implies(function("f","_"),
     implies(exists("z", apply("f","a","z","_")),
     implies(forall("y3", forall("z3", implies(apply("f","y3","z3","_"), exists("w2", apply("f","z3","w2","_"))))),
     function("h","_")))))
 $_ qed(rec_h_function, forall("h", forall("a", forall("f", rhf_body))), "z")
-$_ trace("rec_h_function ok")
+$_ tap("rec_h_function ok")
 
 $rad_body implies(recursive("h","a","f","_"), implies(apply("h","x","y","_"), nat("x","_")))
 $_ qed(rec_apply_dom, forall("h", forall("a", forall("f", forall("x", forall("y", rad_body))))), "z")
-$_ trace("rec_apply_dom ok")
+$_ tap("rec_apply_dom ok")
 
 $rva_pred \w n p: exists(add(p,"y"), and(apply("h",n,add(p,"y"),add(p,"_")),
     and(apply("h2",n,add(p,"y"),add(p,"_")), exists(add(p,"z"), apply("f",add(p,"y"),add(p,"z"),add(p,"_"))))))
@@ -162,7 +162,7 @@ $rva_body implies(recursive("h","a","f","_"), implies(recursive("h2","a","f","_"
     implies(function("f","_"), implies(total_from("f","a","_"),
         implies(omega("w","_"), forall("n", implies(mem("n","w"), rva_pred("w","n","_"))))))))
 $_ qed(rec_values_agree, forall("h", forall("h2", forall("a", forall("f", forall("w", rva_body))))), "z")
-$_ trace("rec_values_agree ok")
+$_ tap("rec_values_agree ok")
 
 $chb_phi \m p np: exists(add(np,"v"), exists(add(np,"y"),
     and(and(rec_approx(add(np,"v"),"a","f",add(np,"_")),
@@ -172,21 +172,21 @@ $chb_char_h_ppb forall("ppb", exists("h", forall("p", iff(mem("p","h"),
     and(mem("p","ppb"), exists("m", and(nat("m","_"), chb_phi("m","p","_"))))))))
 $chb_char_h exists("h", forall("p", iff(mem("p","h"), exists("m", and(nat("m","_"), chb_phi("m","p","_"))))))
 $_ qed(char_h_bridge, forall("a", forall("f", implies(chb_char_h_ppb, chb_char_h))), "z")
-$_ trace("char_h_bridge ok")
+$_ tap("char_h_bridge ok")
 
 $ref_body implies(function("f","_"), implies(total_from("f","a","_"),
     exists("h", recursive("h","a","f","_"))))
 $_ qed(rec_exists_full, forall("a", forall("f", ref_body)), "z")
-$_ trace("rec_exists_full ok")
+$_ tap("rec_exists_full ok")
 
 $ru_body implies(recursive("h","a","f","_"), implies(recursive("h2","a","f","_"),
     implies(function("f","_"), implies(total_from("f","a","_"), eqv("h","h2","_")))))
 $_ qed(rec_unique, forall("h", forall("h2", forall("a", forall("f", ru_body)))), "z")
-$_ trace("rec_unique ok")
+$_ tap("rec_unique ok")
 
 $eu_body \h p: recursive(h,"a","f",p)
 $rt_body implies(function("f","_"), implies(total_from("f","a","_"), exists_unique(eu_body, "_")))
 $_ qed(recursion_theorem, forall("a", forall("f", rt_body)), "z")
-$_ trace("recursion_theorem ok")
+$_ tap("recursion_theorem ok")
 
 $ok true
