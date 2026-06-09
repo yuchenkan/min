@@ -277,38 +277,10 @@ static void parse_expr(GC *gc, Node **slot, Tokenizer *t) {
   else if (tok->type == T_INT) {
     advance(t);
     node_new(gc, (void **)slot, N_INT);
-    Node *n = *slot;
-    const char *s = tok->val;
-    int slen = strlen(s);
-    int cap = slen / 9 + 2;
-    uint32_t *limbs = malloc(sizeof(uint32_t) * cap);
-    int nlimbs = 1;
-    limbs[0] = 0;
-    for (int i = 0; i < slen; i++) {
-      uint64_t carry = 0;
-      for (int j = 0; j < nlimbs; j++) {
-        uint64_t v = (uint64_t)limbs[j] * 10 + carry;
-        limbs[j] = (uint32_t)v;
-        carry = v >> 32;
-      }
-      if (carry) limbs[nlimbs++] = (uint32_t)carry;
-      uint64_t sum = (uint64_t)limbs[0] + (s[i] - '0');
-      limbs[0] = (uint32_t)sum;
-      carry = sum >> 32;
-      for (int j = 1; j < nlimbs && carry; j++) {
-        sum = (uint64_t)limbs[j] + carry;
-        limbs[j] = (uint32_t)sum;
-        carry = sum >> 32;
-      }
-      if (carry) limbs[nlimbs++] = (uint32_t)carry;
-    }
-    while (nlimbs > 0 && limbs[nlimbs - 1] == 0) nlimbs--;
-    if (nlimbs > 0) {
-      n->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * nlimbs, NULL);
-      memcpy(n->integer.limbs, limbs, sizeof(uint32_t) * nlimbs);
-    }
-    n->integer.len = nlimbs;
-    free(limbs);
+    uint64_t v = 0;
+    for (const char *s = tok->val; *s; s++)
+      v = v * 10 + (*s - '0');
+    (*slot)->integer = v;
   }
   else if (tok->type == T_STR) {
     advance(t);

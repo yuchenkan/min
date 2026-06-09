@@ -17,29 +17,10 @@ static void builtin_is_none(GC *gc, GCStack *stack) {
 }
 
 static void builtin_add_int(GC *gc, GCStack *stack, int top, Node *a, Node *b) {
-  int alen = a->integer.len, blen = b->integer.len;
-  int rlen = (alen > blen ? alen : blen) + 1;
-  uint32_t *tmp = malloc(sizeof(uint32_t) * rlen);
-  uint32_t *al = a->integer.limbs, *bl = b->integer.limbs;
-  uint64_t carry = 0;
-  for (int i = 0; i < rlen; i++) {
-    uint64_t sum = carry;
-    if (i < alen) sum += al[i];
-    if (i < blen) sum += bl[i];
-    tmp[i] = (uint32_t)sum;
-    carry = sum >> 32;
-  }
-  while (rlen > 0 && tmp[rlen - 1] == 0) rlen--;
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_INT);
-  Node *r = *slot;
-  if (rlen > 0) {
-    r->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * rlen, NULL);
-    memcpy(r->integer.limbs, tmp, sizeof(uint32_t) * rlen);
-  }
-  r->integer.len = rlen;
-  free(tmp);
-  *gc_stack_nth(stack, top - 3) = r;
+  ((Node *)*slot)->integer = a->integer + b->integer;
+  *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
 
@@ -90,32 +71,10 @@ static void builtin_sub(GC *gc, GCStack *stack) {
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT || b->tag != N_INT) { fprintf(stderr, "sub: expected int\n"); exit(1); }
-  int alen = a->integer.len, blen = b->integer.len;
-  int rlen = alen > blen ? alen : blen;
-  if (rlen == 0) rlen = 1;
-
-  uint32_t *tmp = malloc(sizeof(uint32_t) * rlen);
-  uint32_t *al = a->integer.limbs, *bl = b->integer.limbs;
-  int64_t borrow = 0;
-  for (int i = 0; i < rlen; i++) {
-    int64_t diff = borrow;
-    if (i < alen) diff += al[i];
-    if (i < blen) diff -= bl[i];
-    if (diff < 0) { tmp[i] = (uint32_t)(diff + ((int64_t)1 << 32)); borrow = -1; }
-    else { tmp[i] = (uint32_t)diff; borrow = 0; }
-  }
-  while (rlen > 0 && tmp[rlen - 1] == 0) rlen--;
-
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_INT);
-  Node *r = *slot;
-  if (rlen > 0) {
-    r->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * rlen, NULL);
-    memcpy(r->integer.limbs, tmp, sizeof(uint32_t) * rlen);
-  }
-  r->integer.len = rlen;
-  free(tmp);
-  *gc_stack_nth(stack, top - 3) = r;
+  ((Node *)*slot)->integer = a->integer - b->integer;
+  *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
 
@@ -124,38 +83,11 @@ static void builtin_mul(GC *gc, GCStack *stack) {
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT || b->tag != N_INT) { fprintf(stderr, "mul: expected int\n"); exit(1); }
-  int alen = a->integer.len, blen = b->integer.len;
-  if (alen == 0 || blen == 0) {
-    void **slot = gc_stack_push(gc, stack);
-    node_new(gc, slot, N_INT);
-    *gc_stack_nth(stack, top - 3) = *slot;
-    gc_stack_pop(stack, 3);
-    return;
-  }
-  int rlen = alen + blen;
-  uint32_t *tmp = calloc(rlen, sizeof(uint32_t));
-  uint32_t *al = a->integer.limbs, *bl = b->integer.limbs;
-  for (int i = 0; i < alen; i++) {
-    uint64_t carry = 0;
-    for (int j = 0; j < blen; j++) {
-      uint64_t prod = (uint64_t)al[i] * bl[j] + tmp[i + j] + carry;
-      tmp[i + j] = (uint32_t)prod;
-      carry = prod >> 32;
-    }
-    tmp[i + blen] += (uint32_t)carry;
-  }
-  while (rlen > 0 && tmp[rlen - 1] == 0) rlen--;
 
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_INT);
-  Node *r = *slot;
-  if (rlen > 0) {
-    r->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * rlen, NULL);
-    memcpy(r->integer.limbs, tmp, sizeof(uint32_t) * rlen);
-  }
-  r->integer.len = rlen;
-  free(tmp);
-  *gc_stack_nth(stack, top - 3) = r;
+  ((Node *)*slot)->integer = a->integer * b->integer;
+  *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
 
@@ -170,15 +102,9 @@ static void builtin_eq(GC *gc, GCStack *stack) {
     fprintf(stderr, "eq: type mismatch %d vs %d\n", a->tag, b->tag); exit(1);
   }
   int equal = 0;
-  if (a->tag == N_INT) {
-    equal = a->integer.len == b->integer.len &&
-      (a->integer.len == 0 ||
-       memcmp(a->integer.limbs, b->integer.limbs, a->integer.len * sizeof(uint32_t)) == 0);
-  } else if (a->tag == N_STR) {
-    equal = strcmp(a->str, b->str) == 0;
-  } else {
-    equal = 1; /* same tag (N_TRUE==N_TRUE, N_FALSE==N_FALSE) */
-  }
+  if (a->tag == N_INT) equal = a->integer == b->integer;
+  else if (a->tag == N_STR) equal = strcmp(a->str, b->str) == 0;
+  else equal = 1;
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, equal ? N_TRUE : N_FALSE);
   *gc_stack_nth(stack, top - 3) = *slot;
@@ -190,46 +116,11 @@ static void builtin_str(GC *gc, GCStack *stack) {
   Node *a = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT) { fprintf(stderr, "str: expected int\n"); exit(1); }
 
-  /* convert bigint to decimal string */
-  if (a->integer.len == 0) {
-    void **slot = gc_stack_push(gc, stack);
-    node_new(gc, slot, N_STR);
-    ((Node *)*slot)->str = gc_strdup(gc, "0");
-    *gc_stack_nth(stack, top - 2) = *slot;
-    gc_stack_pop(stack, 2);
-    return;
-  }
-
-  /* work on a malloc'd copy of limbs to do repeated division */
-  int nlen = a->integer.len;
-  uint32_t *tmp = malloc(sizeof(uint32_t) * nlen);
-  memcpy(tmp, a->integer.limbs, sizeof(uint32_t) * nlen);
-  int cap = nlen * 10 + 1;
-  char *buf = malloc(cap);
-  int blen = 0;
-
-  while (nlen > 0) {
-    uint64_t rem = 0;
-    for (int i = nlen - 1; i >= 0; i--) {
-      uint64_t cur = (rem << 32) | tmp[i];
-      tmp[i] = (uint32_t)(cur / 10);
-      rem = cur % 10;
-    }
-    buf[blen++] = '0' + (int)rem;
-    while (nlen > 0 && tmp[nlen - 1] == 0) nlen--;
-  }
-
-  /* reverse */
-  for (int i = 0; i < blen / 2; i++) {
-    char c = buf[i]; buf[i] = buf[blen - 1 - i]; buf[blen - 1 - i] = c;
-  }
-  buf[blen] = '\0';
-
+  char buf[21]; /* max uint64 is 20 digits */
+  snprintf(buf, sizeof(buf), "%lu", (unsigned long)a->integer);
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_STR);
   ((Node *)*slot)->str = gc_strdup(gc, buf);
-  free(tmp);
-  free(buf);
   *gc_stack_nth(stack, top - 2) = *slot;
   gc_stack_pop(stack, 2);
 }
@@ -277,11 +168,8 @@ static void builtin_nth(GC *gc, GCStack *stack) {
   Node *n = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_ARR) { fprintf(stderr, "nth: expected arr\n"); exit(1); }
   if (n->tag != N_INT) { fprintf(stderr, "nth: expected int index\n"); exit(1); }
-  if (n->integer.len > 2) { fprintf(stderr, "nth: index out of bounds\n"); exit(1); }
-  uint64_t idx = 0;
-  if (n->integer.len >= 1) idx = ((uint32_t *)n->integer.limbs)[0];
-  if (n->integer.len == 2) idx |= (uint64_t)((uint32_t *)n->integer.limbs)[1] << 32;
-  if (idx >= a->arr.len) { fprintf(stderr, "nth: index out of bounds\n"); exit(1); }
+  if (n->integer >= a->arr.len) { fprintf(stderr, "nth: index out of bounds\n"); exit(1); }
+  uint64_t idx = n->integer;
   *gc_stack_nth(stack, top - 3) = ((Node **)a->arr.data)[idx];
   gc_stack_pop(stack, 2);
   (void)gc;
@@ -291,18 +179,10 @@ static void builtin_len(GC *gc, GCStack *stack) {
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_ARR) { fprintf(stderr, "len: expected arr\n"); exit(1); }
-  uint64_t len = a->arr.len;
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_INT);
-  Node *r = *slot;
-  if (len > 0) {
-    int nlimbs = (len >> 32) ? 2 : 1;
-    r->integer.limbs = gc_alloc(gc, sizeof(uint32_t) * nlimbs, NULL);
-    ((uint32_t *)r->integer.limbs)[0] = (uint32_t)len;
-    if (nlimbs == 2) ((uint32_t *)r->integer.limbs)[1] = (uint32_t)(len >> 32);
-    r->integer.len = nlimbs;
-  }
-  *gc_stack_nth(stack, top - 2) = r;
+  ((Node *)*slot)->integer = a->arr.len;
+  *gc_stack_nth(stack, top - 2) = *slot;
   gc_stack_pop(stack, 2);
 }
 
@@ -312,33 +192,7 @@ static void print_node(Node *n) {
   case N_FALSE: printf("false"); break;
   case N_NONE:  printf("none"); break;
   case N_STR:   printf("%s", n->str); break;
-  case N_INT:
-    if (n->integer.len == 0) { printf("0"); break; }
-    /* convert to decimal — reuse builtin_str logic inline */
-    { int nlen = n->integer.len;
-      uint32_t *tmp = malloc(sizeof(uint32_t) * nlen);
-      memcpy(tmp, n->integer.limbs, sizeof(uint32_t) * nlen);
-      int cap = nlen * 10 + 1;
-      char *buf = malloc(cap);
-      int blen = 0;
-      while (nlen > 0) {
-        uint64_t rem = 0;
-        for (int i = nlen - 1; i >= 0; i--) {
-          uint64_t cur = (rem << 32) | tmp[i];
-          tmp[i] = (uint32_t)(cur / 10);
-          rem = cur % 10;
-        }
-        buf[blen++] = '0' + (int)rem;
-        while (nlen > 0 && tmp[nlen - 1] == 0) nlen--;
-      }
-      for (int i = 0; i < blen / 2; i++) {
-        char c = buf[i]; buf[i] = buf[blen - 1 - i]; buf[blen - 1 - i] = c;
-      }
-      buf[blen] = '\0';
-      printf("%s", buf);
-      free(tmp); free(buf);
-    }
-    break;
+  case N_INT: printf("%lu", (unsigned long)n->integer); break;
   case N_ARR:
     printf("[");
     for (uint64_t i = 0; i < n->arr.len; i++) {

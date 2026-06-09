@@ -28,8 +28,7 @@ GCMap *gc_map_new(GC *gc);
 void **gc_map_get(GC *gc, GCMap *map, const char *key);
 void **gc_map_find(GCMap *map, const char *key);
 void gc_map_delete(GCMap *map, const char *key);
-typedef void (*GCMapFn)(const char *key, void *val, void *ctx);
-void gc_map_each(GCMap *map, GCMapFn fn, void *ctx);
+void gc_map_copy(GC *gc, void **slot, GCMap *src);
 
 /* growable stack */
 typedef struct GCStack GCStack;

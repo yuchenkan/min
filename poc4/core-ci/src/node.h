@@ -18,7 +18,7 @@ typedef struct Node Node;
 struct Node {
   int tag;
   union {
-    struct { void *limbs; int len; } integer;
+    uint64_t integer;
     char *str;
     GCList *list;
     char *ref;

@@ -351,15 +351,24 @@ void **gc_map_find(GCMap *map, const char *key) {
   return NULL;
 }
 
-static void rb_each(GCMapNode *n, GCMapFn fn, void *ctx) {
+static void rb_copy(GC *gc, GCMapNode **slot, GCMapNode *n) {
   if (!n) return;
-  rb_each(n->left, fn, ctx);
-  fn(n->key, n->val, ctx);
-  rb_each(n->right, fn, ctx);
+  GCMapNode *c = gc_alloc(gc, sizeof(GCMapNode), gc_map_node_trace);
+  c->key = n->key;
+  c->val = n->val;
+  c->color = n->color;
+  c->left = NULL;
+  c->right = NULL;
+  *slot = c;
+  rb_copy(gc, &c->left, n->left);
+  rb_copy(gc, &c->right, n->right);
 }
 
-void gc_map_each(GCMap *map, GCMapFn fn, void *ctx) {
-  rb_each(map->root, fn, ctx);
+void gc_map_copy(GC *gc, void **slot, GCMap *src) {
+  GCMap *dst = gc_alloc(gc, sizeof(GCMap), gc_map_trace);
+  dst->root = NULL;
+  *slot = dst;
+  rb_copy(gc, &dst->root, src->root);
 }
 
 /* growable stack */

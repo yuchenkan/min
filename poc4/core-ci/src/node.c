@@ -4,7 +4,7 @@
 static void node_trace(void *data) {
   Node *n = data;
   switch (n->tag) {
-  case N_INT: gc_mark(n->integer.limbs); break;
+  case N_INT: break;
   case N_STR: gc_mark(n->str); break;
   case N_LIST: gc_mark(n->list); break;
   case N_REF: gc_mark(n->ref); break;
@@ -70,14 +70,10 @@ Node **env_find(Node *e, const char *name) {
   return (Node **)gc_map_find(e->env, name);
 }
 
-static void snapshot_copy(const char *key, void *val, void *ctx) {
-  Node **pair = ctx; /* pair[0] = gc (as Node*), pair[1] = new env */
-  GC *gc = (GC *)pair[0];
-  *gc_map_get(gc, pair[1]->env, key) = val;
-}
-
 void env_snapshot(GC *gc, void **slot, Node *e) {
-  node_new(gc, slot, N_ENV);
-  void *pair[2] = { gc, *slot };
-  gc_map_each(e->env, snapshot_copy, pair);
+  Node *n = gc_alloc(gc, sizeof(Node), node_trace);
+  memset(n, 0, sizeof(Node));
+  n->tag = N_ENV;
+  *slot = n;
+  gc_map_copy(gc, (void **)&n->env, e->env);
 }

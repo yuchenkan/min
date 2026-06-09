@@ -207,8 +207,7 @@ static Node *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
 
 static int int_val(Node *n) {
   assert(n->tag == N_INT);
-  if (n->integer.len == 0) return 0;
-  return (int)((uint32_t *)n->integer.limbs)[0];
+  return (int)n->integer;
 }
 
 static void test_basic(void) {
@@ -275,7 +274,7 @@ static void test_zero(void) {
   Node *env = run_eval("zero.min", &gc, &root);
   Node *r = *env_find(env, "r");
   assert(r->tag == N_INT);
-  assert(r->integer.len == 0);
+  assert(r->integer == 0);
   gc_fini(gc);
   printf("  zero: ok\n");
 }
