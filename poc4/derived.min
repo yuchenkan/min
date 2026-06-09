@@ -59,11 +59,11 @@ $proof \left right rule premises principal term: {
         _map(_map, fl, right),
         rule, kps, fl(principal), term)
     ?(nth(result, 0), [nth(result, 1), left, right], {
-        $_ print(add("proof failed: ", rule))
-        $_ print(add("  left:  ", _show_list(_show_list, left)))
-        $_ print(add("  right: ", _show_list(_show_list, right)))
-        $_ print(add("  principal: ", show(principal)))
-        $_ ?(is_none(term), none, print(add("  term: ", term)))
+        $_ trace(add("proof failed: ", rule))
+        $_ trace(add("  left:  ", _show_list(_show_list, left)))
+        $_ trace(add("  right: ", _show_list(_show_list, right)))
+        $_ trace(add("  principal: ", show(principal)))
+        $_ ?(is_none(term), none, trace(add("  term: ", term)))
         _fail(nth(result, 1))
     })
 }
@@ -72,8 +72,8 @@ $proof \left right rule premises principal term: {
 $qed \p expected system: {
     $result _do_qed(kp(p), _core(_core, expected), system)
     ?(nth(result, 0), expected, {
-        $_ print("qed failed:")
-        $_ print(add("  expected: ", show(expected)))
+        $_ trace("qed failed:")
+        $_ trace(add("  expected: ", show(expected)))
         _fail(nth(result, 1))
     })
 }

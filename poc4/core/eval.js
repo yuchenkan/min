@@ -142,7 +142,6 @@ function cacheSet(m, args, val) {
 }
 
 function call(callee, args, node) {
-    if (callee._nocache) return exec(callee, args);
     if (!callee._c) { callee._c = new Map(); callee._n = 0; }
     const hit = cacheGet(callee._c, args);
     if (hit !== undefined) return hit;
@@ -194,9 +193,8 @@ function fail(msg) { throw new EvalError(msg); }
 
 // === Builtins ===
 
-function builtin(arity, fn, opts) {
+function builtin(arity, fn) {
     fn._arity = arity;
-    if (opts && opts.nocache) fn._nocache = true;
     return fn;
 }
 
@@ -223,10 +221,10 @@ function makeGlobal() {
         tail: builtin(1, (a) => a.slice(1)),
         nth: builtin(2, (a, n) => a[n]),
         len: builtin(1, (a) => a.length),
-        print: builtin(1, (a) => { console.log(a); return a; }, { nocache: true }),
+        trace: builtin(1, (a) => { console.log(a); return a; }),
         _do_proof: builtin(6, doProof),
         _do_qed: builtin(3, doQed),
-        _fail: builtin(1, fail, { nocache: true }),
+        _fail: builtin(1, fail),
     });
 }
 
@@ -297,21 +295,21 @@ if (require.main === module) {
 
     const src = `
 $double \\n: add(n, n)
-$r1 print(double(3))
-$r2 print(double(add(1, 2)))
+$r1 trace(double(3))
+$r2 trace(add("double(1+2) = ", str(double(add(1, 2)))))
 
 $id \\x: x
-$r3 print(id(42))
+$r3 trace(id(42))
 
 $pair \\a b: [a, b]
-$r4 print(pair(1, 2))
+$r4 trace(pair(1, 2))
 
 $compose \\f g: \\x: f(g(x))
 $quadruple compose(double, double)
-$r5 print(quadruple(3))
+$r5 trace(quadruple(3))
 
 $fact \\self n: ?(eq(n, 0), 1, mul(n, self(self, sub(n, 1))))
-$r6 print(fact(fact, 5))
+$r6 trace(fact(fact, 5))
 `;
     const env = makeGlobal();
     const nodes = parser.parse(src, "<test>");

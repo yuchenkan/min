@@ -38,14 +38,14 @@ from theorems.arithmetic.plus.plus_assoc import plus_assoc
 from theorems.arithmetic.plus.prove_addition import prove_addition
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")), "z")
-$_ print("succ_func_exists ok")
+$_ trace("succ_func_exists ok")
 
 $_ qed(succ_func_unique, forall("sf1", forall("sf2",
     implies(succ_func("sf1","_"), implies(succ_func("sf2","_"), eqv("sf1","sf2","_"))))), "z")
-$_ print("succ_func_unique ok")
+$_ trace("succ_func_unique ok")
 
 $_ qed(unique_succ_func, exists_unique(\sf p: succ_func(sf, p), "_"), "z")
-$_ print("unique_succ_func ok")
+$_ trace("unique_succ_func ok")
 
 $sfe_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
@@ -55,31 +55,31 @@ $sf_char_fn \sf w: forall("p", iff(mem("p",sf), sfe_phi("p","_")))
 $_ qed(sf_apply_to_succ,
     forall("sf", forall("w", forall("x", forall("y",
         implies(sf_char_fn("sf","w"), implies(apply("sf","x","y","_"), successor("y","x","_"))))))), "z")
-$_ print("sf_apply_to_succ ok")
+$_ trace("sf_apply_to_succ ok")
 
 $_ qed(sf_succ_to_apply,
     forall("sf", forall("w", forall("x", forall("y",
         implies(sf_char_fn("sf","w"), implies(mem("x","w"), implies(successor("y","x","_"), apply("sf","x","y","_")))))))), "z")
-$_ print("sf_succ_to_apply ok")
+$_ trace("sf_succ_to_apply ok")
 
 $_ qed(sf_relation,
     forall("sf", forall("w",
         implies(sf_char_fn("sf","w"), relation("sf","_")))), "z")
-$_ print("sf_relation ok")
+$_ trace("sf_relation ok")
 
 $_ qed(sf_dom_sub,
     forall("sf", forall("w", forall("xd",
         implies(sf_char_fn("sf","w"), implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))))), "z")
-$_ print("sf_dom_sub ok")
+$_ trace("sf_dom_sub ok")
 
 $_ qed(sf_total_from, forall("sf", forall("m",
     implies(succ_func("sf","_"), implies(nat("m","_"), total_from("sf","m","_"))))), "z")
-$_ print("sf_total_from ok")
+$_ trace("sf_total_from ok")
 
 $_ qed(rec_for_each_m, forall("sf", forall("m",
     implies(succ_func("sf","_"), implies(nat("m","_"),
         exists_unique(\h p: recursive(h,"m","sf",p), "_"))))), "z")
-$_ print("rec_for_each_m ok")
+$_ trace("rec_for_each_m ok")
 
 $pf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
     exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
@@ -92,30 +92,30 @@ $pf_base_body implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
     forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_"))))))
 $pf_base_top implies(pf_char_h, implies(succ_func("sf","_"), forall("m", pf_base_body)))
 $_ qed(pf_base, forall("h", forall("sf", pf_base_top)), "z")
-$_ print("pf_base ok")
+$_ trace("pf_base ok")
 
 $pf_rel_top implies(pf_char_h, relation("h","_"))
 $_ qed(pf_relation, forall("h", forall("sf", pf_rel_top)), "z")
-$_ print("pf_relation ok")
+$_ trace("pf_relation ok")
 
 $pf_char_fwd forall("xv", implies(mem("xv","h"), pf_phi("xv","_")))
 $pf_fwd_result \key val: exists("mv", and(nat("mv","_"), exists("nv",
     and(ordered_pair(key,"mv","nv","_"), exists("hm", and(recursive("hm","mv","sf","_"), apply("hm","nv",val,"_")))))))
 $pf_fwd_top implies(pf_char_fwd, implies(apply("h","key","val","_"), pf_fwd_result("key","val")))
 $_ qed(pf_forward, forall("h", forall("sf", forall("key", forall("val", pf_fwd_top)))), "z")
-$_ print("pf_forward ok")
+$_ trace("pf_forward ok")
 
 $pf_sv_body forall("key", forall("y1", forall("y2",
     implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")), eqv("y1","y2","_")))))
 $pf_sv_top implies(pf_char_fwd, implies(succ_func("sf","_"), pf_sv_body))
 $_ qed(pf_single_valued, forall("h", forall("sf", pf_sv_top)), "z")
-$_ print("pf_single_valued ok")
+$_ trace("pf_single_valued ok")
 
 $pf_deq_body forall("dd", forall("prod", implies(domain("dd","h","_"),
     implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
 $pf_deq_top implies(pf_char_h, implies(succ_func("sf","_"), implies(omega("w","_"), pf_deq_body)))
 $_ qed(pf_dom_eq, forall("h", forall("sf", forall("w", pf_deq_top))), "z")
-$_ print("pf_dom_eq ok")
+$_ trace("pf_dom_eq ok")
 
 $pf_bwd_body implies(succ_func("sf","_"), forall("m", implies(nat("m","_"),
     forall("n", implies(nat("n","_"),
@@ -125,7 +125,7 @@ $pf_bwd_body implies(succ_func("sf","_"), forall("m", implies(nat("m","_"),
                     apply("h","pair","yv","_"))))))))))))
 $pf_bwd_top implies(pf_char_h, pf_bwd_body)
 $_ qed(pf_backward, forall("h", forall("sf", pf_bwd_top)), "z")
-$_ print("pf_backward ok")
+$_ trace("pf_backward ok")
 
 $pf_step_body forall("m", implies(nat("m","_"),
     forall("n", implies(nat("n","_"),
@@ -137,44 +137,44 @@ $pf_step_body forall("m", implies(nat("m","_"),
                             apply("h","pair2","sp","_")))))))))))))))
 $pf_step_top implies(pf_char_h, implies(succ_func("sf","_"), pf_step_body))
 $_ qed(pf_step, forall("h", forall("sf", pf_step_top)), "z")
-$_ print("pf_step ok")
+$_ trace("pf_step ok")
 
 $rvo_body implies(succ_char("sf","_"), implies(recursive("h","a","sf","_"),
     implies(nat("a","_"), implies(nat("x","_"), implies(apply("h","x","y","_"), nat("y","_"))))))
 $_ qed(rec_val_nat, forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body))))), "z")
-$_ print("rec_val_nat ok")
+$_ trace("rec_val_nat ok")
 
 $_ qed(plus_func_exists, exists("h", plus_func("h","_")), "z")
-$_ print("plus_func_exists ok")
+$_ trace("plus_func_exists ok")
 
 $_ qed(plus_func_unique, forall("h1", forall("h2",
     implies(plus_func("h1","_"), implies(plus_func("h2","_"), eqv("h1","h2","_"))))), "z")
-$_ print("plus_func_unique ok")
+$_ trace("plus_func_unique ok")
 
 $_ qed(unique_plus_func, exists_unique(\h p: plus_func(h, p), "_"), "z")
-$_ print("unique_plus_func ok")
+$_ trace("unique_plus_func ok")
 
 $_ qed(plus_base, forall("m", implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
     plus("m","z","m","_"))))), "z")
-$_ print("plus_base ok")
+$_ trace("plus_base ok")
 
 $ps_body forall("m", implies(nat("m","_"), forall("n", implies(nat("n","_"),
     forall("p", implies(plus("m","n","p","_"), forall("sn", implies(successor("sn","n","_"),
         forall("sp", implies(successor("sp","p","_"), plus("m","sn","sp","_")))))))))))
 $_ qed(plus_step, ps_body, "z")
-$_ print("plus_step ok")
+$_ trace("plus_step ok")
 
 $_ qed(h_zero_identity, forall("h", implies(plus_func("h","_"),
     forall("a", implies(nat("a","_"),
         forall("z", implies(num("z",0,"_"),
             forall("pair", implies(ordered_pair("pair","z","a","_"),
                 apply("h","pair","a","_"))))))))), "z")
-$_ print("h_zero_identity ok")
+$_ trace("h_zero_identity ok")
 
 $_ qed(plus_zero_left, forall("a", implies(nat("a","_"),
     forall("b", implies(num("b",0,"_"),
         forall("c", implies(plus("b","a","c","_"), eqv("c","a","_"))))))), "z")
-$_ print("plus_zero_left ok")
+$_ trace("plus_zero_left ok")
 
 $_ qed(h_succ_left, forall("h", implies(plus_func("h","_"),
     forall("m", implies(nat("m","_"),
@@ -185,7 +185,7 @@ $_ qed(h_succ_left, forall("h", implies(plus_func("h","_"),
                         forall("pair_sm", implies(ordered_pair("pair_sm","sm","n","_"),
                             forall("sp", implies(successor("sp","p","_"),
                                 apply("h","pair_sm","sp","_"))))))))))))))))), "z")
-$_ print("h_succ_left ok")
+$_ trace("h_succ_left ok")
 
 $_ qed(h_comm_identity, forall("h", implies(plus_func("h","_"),
     forall("m", implies(nat("m","_"),
@@ -194,12 +194,12 @@ $_ qed(h_comm_identity, forall("h", implies(plus_func("h","_"),
                 forall("pair_nm", implies(ordered_pair("pair_nm","n","m","_"),
                     forall("p", implies(apply("h","pair_mn","p","_"),
                         apply("h","pair_nm","p","_"))))))))))))), "z")
-$_ print("h_comm_identity ok")
+$_ trace("h_comm_identity ok")
 
 $_ qed(plus_comm, forall("m", implies(nat("m","_"),
     forall("n", implies(nat("n","_"),
         forall("p", implies(plus("m","n","p","_"), plus("n","m","p","_"))))))), "z")
-$_ print("plus_comm ok")
+$_ trace("plus_comm ok")
 
 $_ qed(h_val_nat, forall("h", implies(plus_func("h","_"),
     forall("m", implies(nat("m","_"),
@@ -207,7 +207,7 @@ $_ qed(h_val_nat, forall("h", implies(plus_func("h","_"),
             forall("pair", implies(ordered_pair("pair","m","n","_"),
                 forall("p", implies(apply("h","pair","p","_"),
                     nat("p","_"))))))))))), "z")
-$_ print("h_val_nat ok")
+$_ trace("h_val_nat ok")
 
 $_ qed(h_assoc_identity, forall("h", implies(plus_func("h","_"),
     forall("a", implies(nat("a","_"),
@@ -221,7 +221,7 @@ $_ qed(h_assoc_identity, forall("h", implies(plus_func("h","_"),
                                     forall("t", implies(apply("h","pbc","t","_"),
                                         forall("pat", implies(ordered_pair("pat","a","t","_"),
                                             apply("h","pat","s","_"))))))))))))))))))))))), "z")
-$_ print("h_assoc_identity ok")
+$_ trace("h_assoc_identity ok")
 
 $_ qed(plus_assoc, forall("a", implies(nat("a","_"),
     forall("b", implies(nat("b","_"),
@@ -230,7 +230,7 @@ $_ qed(plus_assoc, forall("a", implies(nat("a","_"),
                 forall("s", implies(plus("d","c","s","_"),
                     forall("t", implies(plus("b","c","t","_"),
                         plus("a","t","s","_"))))))))))))), "z")
-$_ print("plus_assoc ok")
+$_ trace("plus_assoc ok")
 
 $_pa_qed \m n: {
     $p add(m, n)
@@ -240,14 +240,14 @@ $_pa_qed \m n: {
 }
 
 $_ _pa_qed(0, 0)
-$_ print("0+0=0 ok")
+$_ trace("0+0=0 ok")
 $_ _pa_qed(1, 0)
-$_ print("1+0=1 ok")
+$_ trace("1+0=1 ok")
 $_ _pa_qed(0, 1)
-$_ print("0+1=1 ok")
+$_ trace("0+1=1 ok")
 $_ _pa_qed(1, 1)
-$_ print("1+1=2 ok")
+$_ trace("1+1=2 ok")
 $_ _pa_qed(2, 3)
-$_ print("2+3=5 ok")
+$_ trace("2+3=5 ok")
 
 $ok true
