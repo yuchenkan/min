@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   if (argc < 2) { fprintf(stderr, "usage: min <file>\n"); return 1; }
 
   GC *gc;
-  Root *root = gc_init(sizeof(Root), root_trace, 4 * 1024 * 1024, 512 * 1024 * 1024, &gc);
+  Root *root = gc_init(sizeof(Root), root_trace, 1024UL * 1024 * 1024, 8UL * 1024 * 1024 * 1024, &gc);
   root->global = NULL;
   root->sources = NULL;
   root->modules = NULL;
