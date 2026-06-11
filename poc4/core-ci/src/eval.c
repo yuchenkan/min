@@ -334,6 +334,84 @@ void init_global(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *gl
   *s = NULL;
 }
 
+/* ---- free variable capture ---- */
+
+static void capture_free(GC *gc, Node *src, Node *dst, GCStack *stack, Node *e);
+
+typedef struct { GC *gc; Node *src; Node *dst; GCStack *stack; } CaptureCtx;
+
+static int capture_list_cb(void *item, void *ctx) {
+  CaptureCtx *c = ctx;
+  capture_free(c->gc, c->src, c->dst, c->stack, item);
+  return 0;
+}
+
+static int shadow_param_cb(void *item, void *ctx) {
+  void **p = ctx;
+  *env_get(p[0], p[1], item) = NULL;
+  return 0;
+}
+
+static int capture_block_cb(void *item, void *ctx) {
+  CaptureCtx *c = ctx;
+  Node *bind = item;
+  capture_free(c->gc, c->src, c->dst, c->stack, bind->bind.expr);
+  *env_get(c->gc, c->src, bind->bind.name) = NULL;
+  return 0;
+}
+
+static void capture_free(GC *gc, Node *src, Node *dst, GCStack *stack, Node *e) {
+  switch (e->tag) {
+  case N_INT: case N_STR: break;
+  case N_REF: {
+    if (env_find(dst, e->ref)) break;
+    Node **v = env_find(src, e->ref);
+    if (v && *v)
+      *env_get(gc, dst, e->ref) = *v;
+    break;
+  }
+  case N_LIST: {
+    CaptureCtx ctx = { gc, src, dst, stack };
+    gc_list_each(e->list, capture_list_cb, &ctx);
+    break;
+  }
+  case N_FN: {
+    node_new(gc, gc_stack_push(gc, stack), N_ENV);
+    Node *shadow = *gc_stack_top(stack);
+    shadow->env.parent = src;
+    void *sp[2] = { gc, shadow };
+    gc_list_each(e->fn.params, shadow_param_cb, sp);
+    capture_free(gc, shadow, dst, stack, e->fn.body);
+    gc_stack_pop(stack, 1);
+    break;
+  }
+  case N_CALL: {
+    capture_free(gc, src, dst, stack, e->call.callee);
+    CaptureCtx ctx = { gc, src, dst, stack };
+    gc_list_each(e->call.args, capture_list_cb, &ctx);
+    break;
+  }
+  case N_IF:
+    capture_free(gc, src, dst, stack, e->if_.cond);
+    capture_free(gc, src, dst, stack, e->if_.then);
+    capture_free(gc, src, dst, stack, e->if_.else_);
+    break;
+  case N_BLOCK: {
+    node_new(gc, gc_stack_push(gc, stack), N_ENV);
+    Node *shadow = *gc_stack_top(stack);
+    shadow->env.parent = src;
+    CaptureCtx ctx = { gc, shadow, dst, stack };
+    gc_list_each(e->block.binds, capture_block_cb, &ctx);
+    capture_free(gc, shadow, dst, stack, e->block.expr);
+    gc_stack_pop(stack, 1);
+    break;
+  }
+  default: break;
+  }
+}
+
+/* ---- evaluation ---- */
+
 static int eval_each(void *item, void *ctx) {
   void **p = ctx;
   GC *gc = p[0]; Node *env = p[1]; GCStack *stack = p[2]; const char **tags = p[3]; Intern *it = p[4];
@@ -357,11 +435,17 @@ static int eval_list(GC *gc, Node *env, GCStack *stack, const char **tags, Inter
 static void eval_fn(GC *gc, Node *env, GCStack *stack, Node *e) {
   node_new(gc, gc_stack_push(gc, stack), N_CLOSURE);
   Node *c = *gc_stack_top(stack);
-
   c->closure.params = e->fn.params;
   c->closure.body = e->fn.body;
 
-  env_snapshot(gc, (void **)&c->closure.env, env);
+  node_new(gc, (void **)&c->closure.env, N_ENV);
+  node_new(gc, gc_stack_push(gc, stack), N_ENV);
+  Node *shadow = *gc_stack_top(stack);
+  shadow->env.parent = env;
+  void *sp[2] = { gc, shadow };
+  gc_list_each(e->fn.params, shadow_param_cb, sp);
+  capture_free(gc, shadow, c->closure.env, stack, e->fn.body);
+  gc_stack_pop(stack, 1);
 }
 
 typedef struct BindParamContext {
@@ -407,8 +491,9 @@ static int eval_call(GC *gc, Node *env, GCStack *stack, const char **tags, Inter
       return 0;
     }
 
-    env_snapshot(gc, gc_stack_push(gc, stack), callee->closure.env);
+    node_new(gc, gc_stack_push(gc, stack), N_ENV);
     Node *call_env = *gc_stack_top(stack);
+    call_env->env.parent = callee->closure.env;
 
     BindParamContext bp = { gc, call_env, stack, base, nargs, 0 };
     err = gc_list_each(callee->closure.params, bind_param, &bp);
@@ -472,8 +557,9 @@ static int eval_expr(GC *gc, Node *env, GCStack *stack, const char **tags, Inter
   }
   else if (e->tag == N_BLOCK) {
     int base = gc_stack_len(stack);
-    env_snapshot(gc, gc_stack_push(gc, stack), env);
+    node_new(gc, gc_stack_push(gc, stack), N_ENV);
     Node *block_env = *gc_stack_top(stack);
+    block_env->env.parent = env;
 
     void *bc[5] = { gc, block_env, stack, (void *)tags, it };
     int err = gc_list_each(e->block.binds, do_bind, bc);
@@ -552,7 +638,8 @@ int eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Node *glo
   void **slot = gc_map_get(gc, modules, filepath);
   if (*slot) { *out = *slot; return 0; }
 
-  env_snapshot(gc, slot, global);
+  node_new(gc, slot, N_ENV);
+  ((Node *)*slot)->env.parent = global;
 
   Source *s = *gc_map_find(sources, filepath);
 

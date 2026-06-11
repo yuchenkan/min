@@ -246,19 +246,6 @@ void **gc_map_find(GCMap *map, const char *key) {
   return ht_find(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
 }
 
-void gc_map_copy(GC *gc, void **slot, GCMap *src) {
-  GCMap *dst = gc_alloc(gc, sizeof(GCMap), gc_map_trace, NULL, NULL);
-  memset(dst, 0, sizeof(GCMap));
-  dst->gc = gc;
-  *slot = dst;
-  if (src->ht.entries) {
-    dst->ht.cap = src->ht.cap;
-    dst->ht.entries = gc_alloc(gc, sizeof(HTEntry) * src->ht.cap, NULL, NULL, NULL);
-    memset(dst->ht.entries, 0, sizeof(HTEntry) * src->ht.cap);
-    ht_rehash(&dst->ht, &src->ht, gc_ptr_hash);
-  }
-}
-
 /* call cache: flat open-addressing, keys are inline arg sequences */
 
 #define CC_INIT_CAP 16

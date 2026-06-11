@@ -41,7 +41,8 @@ void node_trace(void *data) {
       gc_mark(((Node **)n->arr.data)[i]);
     break;
   case N_ENV:
-    gc_mark(n->env);
+    gc_mark(n->env.map);
+    gc_mark(n->env.parent);
     break;
   case N_CLOSURE:
     gc_mark(n->closure.params);
@@ -67,21 +68,18 @@ void node_new(GC *gc, void **slot, int tag) {
   n->tag = tag;
   *slot = n;
   if (tag == N_ENV)
-    n->env = gc_map_new(gc);
+    n->env.map = gc_map_new(gc);
 }
 
 Node **env_get(GC *gc, Node *e, const char *name) {
-  return (Node **)gc_map_get(gc, e->env, name);
+  return (Node **)gc_map_get(gc, e->env.map, name);
 }
 
 Node **env_find(Node *e, const char *name) {
-  return (Node **)gc_map_find(e->env, name);
-}
-
-void env_snapshot(GC *gc, void **slot, Node *e) {
-  Node *n = gc_alloc(gc, sizeof(Node), node_trace, NULL, NULL);
-  memset(n, 0, sizeof(Node));
-  n->tag = N_ENV;
-  *slot = n;
-  gc_map_copy(gc, (void **)&n->env, e->env);
+  while (e) {
+    void **slot = gc_map_find(e->env.map, name);
+    if (slot) return (Node **)slot;
+    e = e->env.parent;
+  }
+  return NULL;
 }

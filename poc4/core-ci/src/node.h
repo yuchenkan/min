@@ -33,7 +33,7 @@ struct Node {
     struct { char *filepath; GCList *names; } import;
     /* runtime */
     struct { void *data; uint64_t len; } arr;
-    GCMap *env;
+    struct { GCMap *map; Node *parent; } env;
     struct { GCList *params; Node *body; Node *env; GCCallCache *cache; } closure;
     struct { int (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; GCCallCache *cache; void *ctx; } builtin;
     struct { Node *left; Node *right; } proof; /* sequent: left=N_ARR, right=N_ARR */
@@ -44,6 +44,5 @@ void node_trace(void *data);
 void node_new(GC *gc, void **slot, int tag);
 Node **env_get(GC *gc, Node *env, const char *name);
 Node **env_find(Node *env, const char *name);
-void env_snapshot(GC *gc, void **slot, Node *env);
 
 #endif
