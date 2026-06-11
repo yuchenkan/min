@@ -538,9 +538,11 @@ Node *eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Node *g
   void *ic[7] = { gc, modules, sources, *slot, stack, (void *)tags, it };
   gc_list_each(s->imports, do_import, ic);
 
+  slot = gc_map_find(modules, filepath);
   void *bc[5] = { gc, *slot, stack, (void *)tags, it };
   gc_list_each(s->binds, do_bind, bc);
 
+  slot = gc_map_find(modules, filepath);
   gc_map_delete(sources, filepath);
   return *slot;
 }

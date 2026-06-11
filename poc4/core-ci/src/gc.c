@@ -1,5 +1,5 @@
 #include "gc.h"
-#include "rbtree.h"
+#include "htable.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -164,91 +164,130 @@ void gc_list_each(GCList *list, GCListFn fn, void *ctx) {
     fn(node->item, ctx);
 }
 
-/* string-to-void* map backed by generic rbtree */
+/* string-to-void* map backed by hash table */
+
+#define GC_MAP_INIT_CAP 16
+
+static int gc_ptr_eq(const void *a, const void *b) { return a == b; }
+static uint64_t gc_ptr_hash(const void *p) { return (uintptr_t)p; }
 
 struct GCMap {
-  RBTree tree;
+  HTable ht;
+  GC *gc;
 };
 
-static void rb_node_trace(void *data) {
-  RBNode *n = data;
-  gc_mark((void *)n->key);
-  gc_mark(n->val);
-  gc_mark(n->left);
-  gc_mark(n->right);
+static void gc_ht_trace(HTable *ht) {
+  if (!ht->entries) return;
+  gc_mark(ht->entries);
+  for (int i = 0; i < ht->cap; i++) {
+    HTEntry *e = &ht->entries[i];
+    if (e->key && e->key != HT_TOMB) {
+      gc_mark((void *)e->key);
+      gc_mark(e->val);
+    }
+  }
 }
 
 static void gc_map_trace(void *data) {
   GCMap *m = data;
-  gc_mark(m->tree.root);
+  gc_ht_trace(&m->ht);
 }
 
-static int gc_rb_cmp(const void *a, const void *b) {
-  return (a > b) - (a < b);
+static void gc_ht_resize(GC *gc, HTable *t, int newcap) {
+  HTable fresh;
+  fresh.entries = gc_alloc(gc, sizeof(HTEntry) * newcap, NULL, NULL, NULL);
+  fresh.cap = newcap;
+  fresh.count = 0;
+  fresh.ghost = 0;
+  memset(fresh.entries, 0, sizeof(HTEntry) * newcap);
+  ht_rehash(&fresh, t, gc_ptr_hash);
+  *t = fresh;
 }
 
-static RBNode *gc_rb_alloc(void *ctx) {
-  return gc_alloc(ctx, sizeof(RBNode), rb_node_trace, NULL, NULL);
+static void gc_ht_maybe_resize(GC *gc, HTable *t) {
+  if (ht_needs_grow(t))
+    gc_ht_resize(gc, t, t->cap * 2);
+  else if (ht_needs_shrink(t, GC_MAP_INIT_CAP))
+    gc_ht_resize(gc, t, t->cap / 2);
 }
 
-static void gc_rb_nop(RBNode *node, void *ctx) {
-  (void)node; (void)ctx;
+static void gc_ht_ensure(GC *gc, HTable *ht) {
+  if (!ht->entries) {
+    ht->cap = GC_MAP_INIT_CAP;
+    ht->entries = gc_alloc(gc, sizeof(HTEntry) * GC_MAP_INIT_CAP, NULL, NULL, NULL);
+    memset(ht->entries, 0, sizeof(HTEntry) * GC_MAP_INIT_CAP);
+  }
 }
 
 GCMap *gc_map_new(GC *gc) {
   GCMap *m = gc_alloc(gc, sizeof(GCMap), gc_map_trace, NULL, NULL);
-  rb_init(&m->tree, gc_rb_cmp, gc_rb_alloc, gc_rb_nop, gc);
+  memset(m, 0, sizeof(GCMap));
+  m->gc = gc;
   return m;
 }
 
 void **gc_map_get(GC *gc, GCMap *map, const char *key) {
-  (void)gc;
-  return rb_get(&map->tree, key);
+  gc_ht_ensure(gc, &map->ht);
+  gc_ht_maybe_resize(gc, &map->ht);
+  return ht_get(&map->ht, (uintptr_t)key, (void *)key, gc_ptr_eq);
 }
 
 void gc_map_delete(GCMap *map, const char *key) {
-  rb_delete(&map->tree, key);
+  if (!map->ht.entries) return;
+  ht_del(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
+  gc_ht_maybe_resize(map->gc, &map->ht);
 }
 
 void **gc_map_find(GCMap *map, const char *key) {
-  return rb_find(&map->tree, key);
+  if (!map->ht.entries) return NULL;
+  return ht_find(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
 }
 
 void gc_map_copy(GC *gc, void **slot, GCMap *src) {
   GCMap *dst = gc_alloc(gc, sizeof(GCMap), gc_map_trace, NULL, NULL);
-  rb_init(&dst->tree, gc_rb_cmp, gc_rb_alloc, gc_rb_nop, gc);
+  memset(dst, 0, sizeof(GCMap));
+  dst->gc = gc;
   *slot = dst;
-  rb_copy(&dst->tree, &src->tree);
+  if (src->ht.entries) {
+    dst->ht.cap = src->ht.cap;
+    dst->ht.entries = gc_alloc(gc, sizeof(HTEntry) * src->ht.cap, NULL, NULL, NULL);
+    memset(dst->ht.entries, 0, sizeof(HTEntry) * src->ht.cap);
+    ht_rehash(&dst->ht, &src->ht, gc_ptr_hash);
+  }
 }
 
 /* pointer-to-void* map */
 
 struct GCNMap {
-  RBTree tree;
+  HTable ht;
+  GC *gc;
 };
 
 static void gc_nmap_trace(void *data) {
   GCNMap *m = data;
-  gc_mark(m->tree.root);
+  gc_ht_trace(&m->ht);
 }
 
 GCNMap *gc_nmap_new(GC *gc) {
   GCNMap *m = gc_alloc(gc, sizeof(GCNMap), gc_nmap_trace, NULL, NULL);
-  rb_init(&m->tree, gc_rb_cmp, gc_rb_alloc, gc_rb_nop, gc);
+  memset(m, 0, sizeof(GCNMap));
+  m->gc = gc;
   return m;
 }
 
 void **gc_nmap_get(GC *gc, GCNMap *map, void *key) {
-  (void)gc;
-  return rb_get(&map->tree, key);
+  gc_ht_ensure(gc, &map->ht);
+  gc_ht_maybe_resize(gc, &map->ht);
+  return ht_get(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
 }
 
 void **gc_nmap_find(GCNMap *map, void *key) {
-  return rb_find(&map->tree, key);
+  if (!map->ht.entries) return NULL;
+  return ht_find(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
 }
 
 void gc_nmap_clear(GCNMap *map) {
-  map->tree.root = NULL;
+  ht_clear(&map->ht);
 }
 
 /* growable stack */

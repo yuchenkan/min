@@ -248,6 +248,7 @@ static void test_basic(void) {
   assert(int_val(*F(env,"x")) == 42);
   assert(int_val(*F(env,"y")) == 7);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  basic: ok\n");
 }
 
@@ -256,6 +257,7 @@ static void test_add(void) {
   Node *env = run_eval("add.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 3);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  add: ok\n");
 }
 
@@ -264,6 +266,7 @@ static void test_fn(void) {
   Node *env = run_eval("fn.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 6);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  fn: ok\n");
 }
 
@@ -272,6 +275,7 @@ static void test_nested_fn(void) {
   Node *env = run_eval("nested_fn.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 12);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  nested_fn: ok\n");
 }
 
@@ -281,6 +285,7 @@ static void test_if(void) {
   assert(int_val(*F(env,"r")) == 1);
   assert(int_val(*F(env,"s")) == 2);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  if: ok\n");
 }
 
@@ -289,6 +294,7 @@ static void test_block(void) {
   Node *env = run_eval("block.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 30);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  block: ok\n");
 }
 
@@ -298,6 +304,7 @@ static void test_is_none(void) {
   assert((*F(env,"a"))->tag == N_TRUE);
   assert((*F(env,"b"))->tag == N_FALSE);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  is_none: ok\n");
 }
 
@@ -308,6 +315,7 @@ static void test_zero(void) {
   assert(r->tag == N_INT);
   assert(r->integer == 0);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  zero: ok\n");
 }
 
@@ -316,6 +324,7 @@ static void test_import(void) {
   Node *env = run_eval("import.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 10);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  import: ok\n");
 }
 
@@ -337,6 +346,7 @@ static void test_complex(void) {
   /* $r_apply apply(double, 8) = 16 */
   assert(int_val(*F(env,"r_apply")) == 16);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  complex: ok\n");
 }
 
@@ -347,6 +357,7 @@ static void test_str_add(void) {
   assert(strcmp((*F(env,"s"))->str, "x") == 0);
   assert(strcmp((*F(env,"t"))->str, "a") == 0);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  str_add: ok\n");
 }
 
@@ -364,6 +375,7 @@ static void test_arr_add(void) {
   Node *u = *F(env,"u");
   assert(u->tag == N_ARR && u->arr.len == 0);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  arr_add: ok\n");
 }
 
@@ -381,6 +393,7 @@ static void test_list_ops(void) {
   assert((*F(env,"nt"))->tag == N_FALSE);
   assert((*F(env,"nf"))->tag == N_TRUE);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  list_ops: ok\n");
 }
 
@@ -401,6 +414,7 @@ static void test_tap(void) {
   assert(h->tag == N_ARR && h->arr.len == 0);
   assert(strcmp((*F(env,"i"))->str, "ab") == 0);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  tap: ok\n");
 }
 
@@ -415,6 +429,7 @@ static void test_proof(void) {
   /* bad axiom fails (principal not in left) */
   assert((*F(env,"ok3"))->tag == N_FALSE);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  proof: ok\n");
 }
 
@@ -426,6 +441,7 @@ static void test_str_conv(void) {
   assert(strcmp((*F(env,"c"))->str, "1000000") == 0);
   assert(strcmp((*F(env,"d"))->str, "1000") == 0);
   gc_fini(gc);
+  intern_fini(G_it);
   printf("  str_conv: ok\n");
 }
 
