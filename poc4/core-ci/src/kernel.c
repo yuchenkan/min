@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 /* ============================================================
  * Formula helpers
@@ -411,9 +412,26 @@ static int pmatch(Node *pat, Node *f, PBindings *b, const char **tags) {
   return 0;
 }
 
-static int matchAxiom(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f, int idx) {
+struct KernelData {
+  Node *axiom_pat[8];
+  Node *sep_pat;
+  Node *rep_pat;
+};
+
+static void kd_trace(void *data) {
+  KernelData *kd = data;
+  for (int i = 0; i < 8; i++) gc_mark(kd->axiom_pat[i]);
+  gc_mark(kd->sep_pat);
+  gc_mark(kd->rep_pat);
+}
+
+void kernel_precompute(GC *gc, GCStack *stack, const char **tags, Intern *it, void **slot) {
   int save = gc_stack_len(stack);
-  PBindings b = { .n = 0 };
+
+  KernelData *kd = gc_alloc(gc, sizeof(KernelData), kd_trace, NULL, NULL);
+  memset(kd, 0, sizeof(KernelData));
+  *slot = kd;
+
   #define M(a,b) p_mem(gc,stack,tags,it,a,b)
   #define N(a) p_neg(gc,stack,tags,it,a)
   #define I(a,b) p_imp(gc,stack,tags,it,a,b)
@@ -426,21 +444,23 @@ static int matchAxiom(GC *gc, GCStack *stack, const char **tags, Intern *it, Nod
 
   Node *x=PT(K_X),*y=PT(K_Y),*z=PT(K_Z),*a=PT(K_A),*w=PT(K_W);
   Node *_b=PT(K_B),*e=PT(K_E),*s=PT(K_S),*_z=PT(K_UZ),*c=PT(K_C);
-  Node *pat = NULL;
-  switch (idx) {
-  case 0: pat=F(x,F(y,I(F(z,IF(M(z,x),M(z,y))),F(z,IF(M(x,z),M(y,z)))))); break;
-  case 1: pat=E(_b,F(x,N(M(x,_b)))); break;
-  case 2: pat=F(x,F(y,E(_b,F(z,IF(M(z,_b),O(EQ(z,x,_z),EQ(z,y,_z))))))); break;
-  case 3: pat=F(a,E(_b,F(x,IF(M(x,_b),E(y,A(M(y,a),M(x,y))))))); break;
-  case 4: pat=F(a,E(_b,F(x,IF(M(x,_b),F(y,I(M(y,x),M(y,a))))))); break;
-  case 5: pat=E(_b,A(E(e,A(M(e,_b),F(z,N(M(z,e))))),
-    F(y,I(M(y,_b),E(s,A(M(s,_b),F(w,IF(M(w,s),O(M(w,y),EQ(w,y,_z)))))))))); break;
-  case 6: pat=F(a,I(E(y,M(y,a)),E(y,A(M(y,a),N(E(z,A(M(z,a),M(z,y)))))))); break;
-  case 7: pat=F(x,I(F(y,I(M(y,x),E(z,M(z,y)))),
-    E(c,F(y,I(M(y,x),E(z,A(A(M(z,y),M(z,c)),F(w,I(A(M(w,y),M(w,c)),EQ(w,z,_z)))))))))); break;
-  }
-  int result = pat ? pmatch(pat, f, &b, tags) : 0;
-  gc_stack_pop(stack, gc_stack_len(stack) - save);
+  Node *phi=PC, *uniq=PC;
+  kd->axiom_pat[0] = F(x,F(y,I(F(z,IF(M(z,x),M(z,y))),F(z,IF(M(x,z),M(y,z))))));
+  kd->axiom_pat[1] = E(_b,F(x,N(M(x,_b))));
+  kd->axiom_pat[2] = F(x,F(y,E(_b,F(z,IF(M(z,_b),O(EQ(z,x,_z),EQ(z,y,_z)))))));
+  kd->axiom_pat[3] = F(a,E(_b,F(x,IF(M(x,_b),E(y,A(M(y,a),M(x,y)))))));
+  kd->axiom_pat[4] = F(a,E(_b,F(x,IF(M(x,_b),F(y,I(M(y,x),M(y,a)))))));
+  kd->axiom_pat[5] = E(_b,A(E(e,A(M(e,_b),F(z,N(M(z,e))))),
+    F(y,I(M(y,_b),E(s,A(M(s,_b),F(w,IF(M(w,s),O(M(w,y),EQ(w,y,_z))))))))));
+  kd->axiom_pat[6] = F(a,I(E(y,M(y,a)),E(y,A(M(y,a),N(E(z,A(M(z,a),M(z,y))))))));
+  kd->axiom_pat[7] = F(x,I(F(y,I(M(y,x),E(z,M(z,y)))),
+    E(c,F(y,I(M(y,x),E(z,A(A(M(z,y),M(z,c)),F(w,I(A(M(w,y),M(w,c)),EQ(w,z,_z))))))))));
+
+  kd->sep_pat = F(a, E(_b, F(x,
+    IF(M(x,_b), A(M(x,a), phi)))));
+
+  kd->rep_pat = F(a, I(uniq, E(_b, F(y,
+    IF(M(y,_b), E(x, A(M(x,a), phi)))))));
 
   #undef M
   #undef N
@@ -451,28 +471,30 @@ static int matchAxiom(GC *gc, GCStack *stack, const char **tags, Intern *it, Nod
   #undef IF
   #undef E
   #undef EQ
-  return result;
+
+  gc_stack_pop(stack, gc_stack_len(stack) - save);
 }
 
-static int isSeparation(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f) {
+static int matchAxiom(KernelData *kd, Node *f, int idx, const char **tags) {
+  PBindings b = { .n = 0 };
+  return pmatch(kd->axiom_pat[idx], f, &b, tags);
+}
+
+static int isSeparation(KernelData *kd, Node *f, const char **tags) {
   const char **stripped = malloc(sizeof(char*) * 8);
   int nstripped = 0, cap = 8;
   Node *cur = f;
   int found = 0;
   while (!found) {
-    int save = gc_stack_len(stack);
-    Node *phi=PC, *a=PT(K_A), *_b=PT(K_B), *x=PT(K_X);
-    Node *pat = p_fa(gc,stack,tags,it, a, p_exists(gc,stack,tags,it, _b, p_fa(gc,stack,tags,it, x,
-      p_iff(gc,stack,tags,it, p_mem(gc,stack,tags,it,x,_b), p_and(gc,stack,tags,it, p_mem(gc,stack,tags,it,x,a), phi)))));
     PBindings b = { .n = 0 };
-    if (pmatch(pat, cur, &b, tags)) {
+    if (pmatch(kd->sep_pat, cur, &b, tags)) {
       Node *mp = pbind_get(&b, tags[K_UNDERSCORE]);
       if (mp) {
         StrSet fv = freeVars(mp, tags);
         int ok = 1;
         for (int i = 0; i < fv.len && ok; i++) {
           int f2 = 0;
-          Node *ba = pbind_get(&b, a->str), *bx = pbind_get(&b, x->str);
+          Node *ba = pbind_get(&b, tags[K_A]), *bx = pbind_get(&b, tags[K_X]);
           if (ba && fv.items[i] == ba->str) f2=1;
           if (bx && fv.items[i] == bx->str) f2=1;
           for (int j = 0; j < nstripped && !f2; j++) if (fv.items[i] == stripped[j]) f2=1;
@@ -482,7 +504,6 @@ static int isSeparation(GC *gc, GCStack *stack, const char **tags, Intern *it, N
         if (ok) found = 1;
       }
     }
-    gc_stack_pop(stack, gc_stack_len(stack) - save);
     if (found || !is_forall(cur, tags)) break;
     if (nstripped >= cap) { cap *= 2; stripped = realloc(stripped, sizeof(char*) * cap); }
     stripped[nstripped++] = farg(cur,0)->str;
@@ -492,18 +513,14 @@ static int isSeparation(GC *gc, GCStack *stack, const char **tags, Intern *it, N
   return found;
 }
 
-static int isReplacement(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f) {
+static int isReplacement(KernelData *kd, Node *f, const char **tags) {
   const char **stripped = malloc(sizeof(char*) * 8);
   int nstripped = 0, cap = 8;
   Node *cur = f;
   int found = 0;
   while (!found) {
-    int save = gc_stack_len(stack);
-    Node *phi=PC, *uniq=PC, *a=PT(K_A), *_b=PT(K_B), *x=PT(K_X), *y=PT(K_Y);
-    Node *pat = p_fa(gc,stack,tags,it, a, p_imp(gc,stack,tags,it, uniq, p_exists(gc,stack,tags,it, _b, p_fa(gc,stack,tags,it, y,
-      p_iff(gc,stack,tags,it, p_mem(gc,stack,tags,it,y,_b), p_exists(gc,stack,tags,it, x, p_and(gc,stack,tags,it, p_mem(gc,stack,tags,it,x,a), phi)))))));
     PBindings b = { .n = 0 };
-    if (pmatch(pat, cur, &b, tags)) {
+    if (pmatch(kd->rep_pat, cur, &b, tags)) {
       Node *mp = NULL;
       for (int i = b.n-1; i >= 0; i--) if (b.items[i].key == tags[K_UNDERSCORE]) { mp = b.items[i].val; break; }
       if (mp) {
@@ -511,7 +528,7 @@ static int isReplacement(GC *gc, GCStack *stack, const char **tags, Intern *it, 
         int ok = 1;
         for (int i = 0; i < fv.len && ok; i++) {
           int f2 = 0;
-          Node *ba=pbind_get(&b, a->str), *bx=pbind_get(&b, x->str), *by=pbind_get(&b, y->str);
+          Node *ba=pbind_get(&b, tags[K_A]), *bx=pbind_get(&b, tags[K_X]), *by=pbind_get(&b, tags[K_Y]);
           if (ba && fv.items[i] == ba->str) f2=1;
           if (bx && fv.items[i] == bx->str) f2=1;
           if (by && fv.items[i] == by->str) f2=1;
@@ -522,7 +539,6 @@ static int isReplacement(GC *gc, GCStack *stack, const char **tags, Intern *it, 
         if (ok) found = 1;
       }
     }
-    gc_stack_pop(stack, gc_stack_len(stack) - save);
     if (found || !is_forall(cur, tags)) break;
     if (nstripped >= cap) { cap *= 2; stripped = realloc(stripped, sizeof(char*) * cap); }
     stripped[nstripped++] = farg(cur,0)->str;
@@ -532,11 +548,11 @@ static int isReplacement(GC *gc, GCStack *stack, const char **tags, Intern *it, 
   return found;
 }
 
-static int isAxiom(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f, const char *system) {
+static int isAxiom(KernelData *kd, Node *f, const char **tags, const char *system) {
   int limit = (system == tags[K_Z] || system == tags[K_ZF]) ? 7 : 8;
-  for (int i = 0; i < limit; i++) if (matchAxiom(gc, stack, tags, it, f, i)) return 1;
-  if (isSeparation(gc, stack, tags, it, f)) return 1;
-  if ((system == tags[K_ZF] || system == tags[K_ZFC]) && isReplacement(gc, stack, tags, it, f)) return 1;
+  for (int i = 0; i < limit; i++) if (matchAxiom(kd, f, i, tags)) return 1;
+  if (isSeparation(kd, f, tags)) return 1;
+  if ((system == tags[K_ZF] || system == tags[K_ZFC]) && isReplacement(kd, f, tags)) return 1;
   return 0;
 }
 
@@ -554,14 +570,16 @@ const char *kernel_check(GC *gc, GCStack *stack, const char **tags, Intern *it,
 }
 
 const char *kernel_qed(GC *gc, GCStack *stack, const char **tags, Intern *it,
+                       KernelData *kd,
                        Node *proof, Node *expected, const char *system) {
+  (void)gc; (void)stack; (void)it;
   Node *sl = proof->proof.left, *sr = proof->proof.right;
   if (ALEN(sr) != 1) return "qed: expected 1 formula on right";
   StrSet fv = freeVars(AGET(sr, 0), tags);
   int has_fv = fv.len > 0; ss_free(&fv);
   if (has_fv) return "qed: theorem has free variables";
   for (int i = 0; i < ALEN(sl); i++)
-    if (!isAxiom(gc, stack, tags, it, AGET(sl, i), system)) return "qed: non-axiom on left";
+    if (!isAxiom(kd, AGET(sl, i), tags, system)) return "qed: non-axiom on left";
   if (!same(AGET(sr, 0), expected, tags)) return "qed: theorem does not match expected";
   return NULL;
 }

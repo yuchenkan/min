@@ -50,6 +50,7 @@ void node_trace(void *data) {
     break;
   case N_BUILTIN:
     gc_mark(n->builtin.cache);
+    gc_mark(n->builtin.ctx);
     break;
   case N_PROOF:
     gc_mark(n->proof.left);

@@ -271,7 +271,9 @@ static void builtin_do_qed(GC *gc, GCStack *stack, const char **tags, Intern *it
   Node *expected = *gc_stack_nth(stack, top - 2);
   Node *system   = *gc_stack_nth(stack, top - 1);
 
-  const char *err = kernel_qed(gc, stack, tags, it, proof, expected, system->str);
+  Node *self = *gc_stack_nth(stack, top - 4);
+  KernelData *kd = self->builtin.ctx;
+  const char *err = kernel_qed(gc, stack, tags, it, kd, proof, expected, system->str);
 
   void **slot = gc_stack_push(gc, stack);
   if (err) {
@@ -303,7 +305,7 @@ static void set_builtin(GC *gc, Node *env, const char *name, void (*fn)(GC *, GC
   (*slot)->builtin.nparams = nparams;
 }
 
-void init_global(GC *gc, Intern *it, Node *global, void **s) {
+void init_global(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *global, void **s) {
   *s = (void *)intern(it, "true");  *env_get(gc, global, *s) = intern_true(it);
   *s = (void *)intern(it, "false"); *env_get(gc, global, *s) = intern_false(it);
   *s = (void *)intern(it, "none");  *env_get(gc, global, *s) = intern_none(it);
@@ -321,6 +323,8 @@ void init_global(GC *gc, Intern *it, Node *global, void **s) {
   *s = (void *)intern(it, "tap");        set_builtin(gc, global, *s, builtin_tap, 1);
   *s = (void *)intern(it, "_do_proof");  set_builtin(gc, global, *s, builtin_do_proof, 6);
   *s = (void *)intern(it, "_do_qed");    set_builtin(gc, global, *s, builtin_do_qed, 3);
+  Node *qed_node = *env_find(global, *s);
+  kernel_precompute(gc, stack, tags, it, &qed_node->builtin.ctx);
   *s = (void *)intern(it, "_fail");      set_builtin(gc, global, *s, builtin_fail, 1);
   *s = NULL;
 }

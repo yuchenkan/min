@@ -33,7 +33,7 @@ struct Node {
     struct { void *data; uint64_t len; } arr;
     GCMap *env;
     struct { GCList *params; Node *body; Node *env; GCNMap *cache; int ncache; } closure;
-    struct { void (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; GCNMap *cache; int ncache; } builtin;
+    struct { void (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; GCNMap *cache; int ncache; void *ctx; } builtin;
     struct { Node *left; Node *right; } proof; /* sequent: left=N_ARR, right=N_ARR */
   };
 };

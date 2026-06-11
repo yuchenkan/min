@@ -223,7 +223,7 @@ static Node *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
   for (int i = 0; i < K_COUNT; i++) tags[i] = NULL;
   root->tags = tags;
   for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
-  init_global(gc, intern_t, root->global, &root->scratch);
+  init_global(gc, root->stack, tags, intern_t, root->global, &root->scratch);
   parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
   Node *env = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, tags, intern_t);
 

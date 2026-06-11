@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   if (argc < 2) { fprintf(stderr, "usage: min <file>\n"); return 1; }
 
   GC *gc;
-  Root *root = gc_init(sizeof(Root), root_trace, 4096, 64 * 1024 * 1024, &gc);
+  Root *root = gc_init(sizeof(Root), root_trace, 4 * 1024 * 1024, 512 * 1024 * 1024, &gc);
   root->global = NULL;
   root->sources = NULL;
   root->modules = NULL;
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
   parse(gc, intern_t, root->sources, root->filepath, read_file);
 
-  init_global(gc, intern_t, root->global, &root->scratch);
+  init_global(gc, root->stack, (const char **)root->tags, intern_t, root->global, &root->scratch);
   eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t);
 
   gc_fini(gc);

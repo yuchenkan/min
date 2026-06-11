@@ -16,11 +16,16 @@ enum {
   K_COUNT
 };
 
+typedef struct KernelData KernelData;
+
+void kernel_precompute(GC *gc, GCStack *stack, const char **tags, Intern *it, void **slot);
+
 const char *kernel_check(GC *gc, GCStack *stack, const char **tags, Intern *it,
                          Node *left, Node *right, const char *rule,
                          Node *premises, Node *principal, Node *term);
 
 const char *kernel_qed(GC *gc, GCStack *stack, const char **tags, Intern *it,
+                       KernelData *kd,
                        Node *proof, Node *expected, const char *system);
 
 #endif
