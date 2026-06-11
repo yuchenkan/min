@@ -10,6 +10,7 @@ struct GCObject {
   GCObject *next;
   GCTraceFn trace;
   GCFreeFn free_fn;
+  void *free_ctx;
   size_t size;
   unsigned char mark;
 };
@@ -50,7 +51,7 @@ static void gc_sweep(GC *gc) {
     GCObject *next = obj->next;
     if (!obj->mark) {
       gc_unlink(obj);
-      if (obj->free_fn) obj->free_fn(obj_data(obj));
+      if (obj->free_fn) obj->free_fn(obj_data(obj), obj->free_ctx);
       gc->total -= obj->size;
       free(obj);
     } else {
@@ -75,7 +76,7 @@ void *gc_init(size_t root_size, GCTraceFn root_trace, size_t min_thresh, size_t 
   gc->threshold = min_thresh;
 
   gc->root = NULL;
-  void *root = gc_alloc(gc, root_size, root_trace, NULL);
+  void *root = gc_alloc(gc, root_size, root_trace, NULL, NULL);
   gc->root = data_obj(root);
   *out = gc;
   return root;
@@ -85,13 +86,14 @@ void gc_fini(GC *gc) {
   GCObject *obj = gc->sentinel.next;
   while (obj != &gc->sentinel) {
     GCObject *next = obj->next;
+    if (obj->free_fn) obj->free_fn(obj_data(obj), obj->free_ctx);
     free(obj);
     obj = next;
   }
   free(gc);
 }
 
-void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn, GCFreeFn free_fn) {
+void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn, GCFreeFn free_fn, void *free_ctx) {
   if (gc->root && gc->total >= gc->threshold) {
     gc_mark(obj_data(gc->root));
     gc_sweep(gc);
@@ -99,6 +101,7 @@ void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn, GCFreeFn free_fn) {
   GCObject *obj = malloc(sizeof(GCObject) + size);
   obj->trace = trace_fn;
   obj->free_fn = free_fn;
+  obj->free_ctx = free_ctx;
   obj->size = sizeof(GCObject) + size;
   obj->mark = 0;
   gc_link(gc, obj);
@@ -106,12 +109,6 @@ void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn, GCFreeFn free_fn) {
   return obj_data(obj);
 }
 
-char *gc_strdup(GC *gc, const char *s) {
-  size_t len = strlen(s) + 1;
-  char *p = gc_alloc(gc, len, NULL, NULL);
-  memcpy(p, s, len);
-  return p;
-}
 
 void gc_mark(void *data) {
   if (!data) return;
@@ -147,14 +144,14 @@ static void gc_list_trace(void *data) {
 }
 
 GCList *gc_list_new(GC *gc) {
-  GCList *list = gc_alloc(gc, sizeof(GCList), gc_list_trace, NULL);
+  GCList *list = gc_alloc(gc, sizeof(GCList), gc_list_trace, NULL, NULL);
   list->head = NULL;
   list->tail = &list->head;
   return list;
 }
 
 void **gc_list_append(GC *gc, GCList *list) {
-  GCListNode *node = gc_alloc(gc, sizeof(GCListNode), gc_list_node_trace, NULL);
+  GCListNode *node = gc_alloc(gc, sizeof(GCListNode), gc_list_node_trace, NULL, NULL);
   node->item = NULL;
   node->next = NULL;
   *list->tail = node;
@@ -187,11 +184,11 @@ static void gc_map_trace(void *data) {
 }
 
 static int gc_rb_cmp(const void *a, const void *b) {
-  return strcmp(a, b);
+  return (a > b) - (a < b);
 }
 
 static RBNode *gc_rb_alloc(void *ctx) {
-  return gc_alloc(ctx, sizeof(RBNode), rb_node_trace, NULL);
+  return gc_alloc(ctx, sizeof(RBNode), rb_node_trace, NULL, NULL);
 }
 
 static void gc_rb_nop(RBNode *node, void *ctx) {
@@ -199,7 +196,7 @@ static void gc_rb_nop(RBNode *node, void *ctx) {
 }
 
 GCMap *gc_map_new(GC *gc) {
-  GCMap *m = gc_alloc(gc, sizeof(GCMap), gc_map_trace, NULL);
+  GCMap *m = gc_alloc(gc, sizeof(GCMap), gc_map_trace, NULL, NULL);
   rb_init(&m->tree, gc_rb_cmp, gc_rb_alloc, gc_rb_nop, gc);
   return m;
 }
@@ -218,7 +215,7 @@ void **gc_map_find(GCMap *map, const char *key) {
 }
 
 void gc_map_copy(GC *gc, void **slot, GCMap *src) {
-  GCMap *dst = gc_alloc(gc, sizeof(GCMap), gc_map_trace, NULL);
+  GCMap *dst = gc_alloc(gc, sizeof(GCMap), gc_map_trace, NULL, NULL);
   rb_init(&dst->tree, gc_rb_cmp, gc_rb_alloc, gc_rb_nop, gc);
   *slot = dst;
   rb_copy(&dst->tree, &src->tree);
@@ -241,18 +238,18 @@ static void gc_stack_trace(void *d) {
 }
 
 void gc_stack_new(GC *gc, void **slot) {
-  GCStack *s = gc_alloc(gc, sizeof(GCStack), gc_stack_trace, NULL);
+  GCStack *s = gc_alloc(gc, sizeof(GCStack), gc_stack_trace, NULL, NULL);
   s->data = NULL;
   s->len = 0;
   s->cap = 16;
   *slot = s;
-  s->data = gc_alloc(gc, sizeof(void *) * 16, NULL, NULL);
+  s->data = gc_alloc(gc, sizeof(void *) * 16, NULL, NULL, NULL);
 }
 
 void **gc_stack_push(GC *gc, GCStack *s) {
   if (s->len >= s->cap) {
     int newcap = s->cap * 2;
-    void *newdata = gc_alloc(gc, sizeof(void *) * newcap, NULL, NULL);
+    void *newdata = gc_alloc(gc, sizeof(void *) * newcap, NULL, NULL, NULL);
     memcpy(newdata, s->data, sizeof(void *) * s->len);
     s->data = newdata;
     s->cap = newcap;

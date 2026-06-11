@@ -124,12 +124,14 @@ static void run_test(const char *name, const char *file) {
   Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
   root->sources = NULL;
   root->filepath = NULL;
-  root->filepath = gc_strdup(gc, file);
   root->sources = gc_map_new(gc);
+  Intern *intern_t = intern_init(gc);
+  root->filepath = (char *)intern(intern_t, file);
 
-  parse(gc, root->sources, root->filepath, fake_read_file);
+  parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
 
   gc_fini(gc);
+  intern_fini(intern_t);
   printf("  %s: ok\n", name);
 }
 

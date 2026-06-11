@@ -1,7 +1,8 @@
 #include "eval.h"
+#include "intern.h"
+#include "kernel.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 typedef struct Root {
   Node *global;
@@ -10,6 +11,7 @@ typedef struct Root {
   GCStack *stack;
   char *filepath;
   void *scratch;
+  void *tags;
 } Root;
 
 static void root_trace(void *data) {
@@ -20,7 +22,24 @@ static void root_trace(void *data) {
   gc_mark(r->stack);
   gc_mark(r->filepath);
   gc_mark(r->scratch);
+  gc_mark(r->tags);
 }
+
+static void tags_trace(void *data) {
+  const char **t = data;
+  for (int i = 0; i < K_COUNT; i++) gc_mark((void *)t[i]);
+}
+
+static const char *tag_names[] = {
+  "mem", "neg", "implies", "forall",
+  "axiom", "neg_left", "neg_right",
+  "implies_left", "implies_right",
+  "forall_left", "forall_right",
+  "cut", "weakening_left", "weakening_right",
+  "z", "zf", "zfc",
+  "a", "b", "x", "y", "_",
+  "w", "c", "e", "s", "_z",
+};
 
 static char *read_file(const char *path) {
   FILE *f = fopen(path, "r");
@@ -46,17 +65,25 @@ int main(int argc, char **argv) {
   root->stack = NULL;
   root->filepath = NULL;
   root->scratch = NULL;
-  root->filepath = gc_strdup(gc, argv[1]);
+  root->tags = NULL;
   node_new(gc, (void **)&root->global, N_ENV);
   root->sources = gc_map_new(gc);
   root->modules = gc_map_new(gc);
   gc_stack_new(gc, (void **)&root->stack);
 
-  parse(gc, root->sources, root->filepath, read_file);
+  Intern *intern_t = intern_init(gc);
+  root->filepath = (char *)intern(intern_t, argv[1]);
+  const char **tags = gc_alloc(gc, sizeof(const char *) * K_COUNT, tags_trace, NULL, NULL);
+  for (int i = 0; i < K_COUNT; i++) tags[i] = NULL;
+  root->tags = tags;
+  for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
 
-  init_global(gc, root->global, &root->scratch);
-  eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack);
+  parse(gc, intern_t, root->sources, root->filepath, read_file);
+
+  init_global(gc, intern_t, root->global, &root->scratch);
+  eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t);
 
   gc_fini(gc);
+  intern_fini(intern_t);
   return 0;
 }

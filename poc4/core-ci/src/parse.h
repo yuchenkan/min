@@ -2,6 +2,7 @@
 #define PARSE_H
 
 #include "node.h"
+#include "intern.h"
 
 typedef struct Source {
   GCList *imports;
@@ -10,6 +11,6 @@ typedef struct Source {
 } Source;
 typedef char *(*ReadFileFn)(const char *path);
 
-void parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file);
+void parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFileFn read_file);
 
 #endif

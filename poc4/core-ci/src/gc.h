@@ -5,13 +5,13 @@
 
 typedef struct GC GC;
 typedef void (*GCTraceFn)(void *data);
-typedef void (*GCFreeFn)(void *data);
+typedef void (*GCFreeFn)(void *data, void *free_ctx);
 
 void *gc_init(size_t root_size, GCTraceFn root_trace, size_t min_thresh, size_t max_thresh, GC **gc);
 void gc_fini(GC *gc);
 
-void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn, GCFreeFn free_fn);
-char *gc_strdup(GC *gc, const char *s);
+void *gc_alloc(GC *gc, size_t size, GCTraceFn trace_fn, GCFreeFn free_fn, void *free_ctx);
+
 void gc_mark(void *data);
 
 /* append-only singly-linked list */
