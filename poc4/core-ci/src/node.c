@@ -4,6 +4,7 @@
 
 void node_trace(void *data) {
   Node *n = data;
+  gc_mark((void *)n->file);
   switch (n->tag) {
   case N_INT: break;
   case N_STR: gc_mark(n->str); break;

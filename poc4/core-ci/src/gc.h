@@ -16,11 +16,11 @@ void gc_mark(void *data);
 
 /* append-only singly-linked list */
 typedef struct GCList GCList;
-typedef void (*GCListFn)(void *item, void *ctx);
+typedef int (*GCListFn)(void *item, void *ctx);
 
 GCList *gc_list_new(GC *gc);
 void **gc_list_append(GC *gc, GCList *list);
-void gc_list_each(GCList *list, GCListFn fn, void *ctx);
+int gc_list_each(GCList *list, GCListFn fn, void *ctx);
 
 /* string-to-void* map, insert-only */
 typedef struct GCMap GCMap;

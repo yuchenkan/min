@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 
 static char *fake_read_file(const char *path) {
   const char *src = NULL;
@@ -155,6 +156,23 @@ static char *fake_read_file(const char *path) {
       "$mul \\a b: mul(a, b)\n"
       "$eq \\a b: eq(a, b)\n";
 
+  else if (strcmp(path, "err_undef.min") == 0)
+    src = "$x foo\n";
+
+  else if (strcmp(path, "err_call.min") == 0)
+    src = "$f \\x: foo\n"
+          "$r f(1)\n";
+
+  else if (strcmp(path, "err_lib.min") == 0)
+    src = "$x foo\n";
+
+  else if (strcmp(path, "err_import.min") == 0)
+    src = "from err_lib import x\n"
+          "$r x\n";
+
+  else if (strcmp(path, "err_builtin.min") == 0)
+    src = "$r add(1, \"x\")\n";
+
   else {
     fprintf(stderr, "unknown file: %s\n", path);
     exit(1);
@@ -225,7 +243,8 @@ static Node *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
   for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
   init_global(gc, root->stack, tags, intern_t, root->global, &root->scratch);
   parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
-  Node *env = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, tags, intern_t);
+  Node *env;
+  eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, tags, intern_t, &env);
 
   G_it = intern_t;
   *out_gc = gc;
@@ -445,6 +464,97 @@ static void test_str_conv(void) {
   printf("  str_conv: ok\n");
 }
 
+static int run_eval_err(const char *file, char *errbuf, int bufsize) {
+  GC *gc;
+  TestRoot *root = gc_init(sizeof(TestRoot), root_trace, 1, 1, &gc);
+  root->global = NULL; root->sources = NULL; root->modules = NULL;
+  root->stack = NULL; root->filepath = NULL; root->scratch = NULL; root->tags = NULL;
+  node_new(gc, (void **)&root->global, N_ENV);
+  root->sources = gc_map_new(gc);
+  root->modules = gc_map_new(gc);
+  gc_stack_new(gc, (void **)&root->stack);
+
+  Intern *intern_t = intern_init(gc);
+  root->filepath = (char *)intern(intern_t, file);
+  const char **tags = gc_alloc(gc, sizeof(const char *) * K_COUNT, tags_trace, NULL, NULL);
+  for (int i = 0; i < K_COUNT; i++) tags[i] = NULL;
+  root->tags = tags;
+  for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
+  init_global(gc, root->stack, tags, intern_t, root->global, &root->scratch);
+  parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
+
+  fflush(stderr);
+  int saved = dup(2);
+  char tmpname[] = "/tmp/test_err_XXXXXX";
+  int fd = mkstemp(tmpname);
+  dup2(fd, 2);
+  close(fd);
+
+  Node *env;
+  int err = eval(gc, root->modules, root->sources, root->filepath, root->global,
+                 root->stack, tags, intern_t, &env);
+
+  fflush(stderr);
+  dup2(saved, 2);
+  close(saved);
+
+  FILE *f = fopen(tmpname, "r");
+  int n = fread(errbuf, 1, bufsize - 1, f);
+  errbuf[n] = '\0';
+  fclose(f);
+  unlink(tmpname);
+
+  gc_fini(gc);
+  intern_fini(intern_t);
+  return err;
+}
+
+static void test_err_undef(void) {
+  char buf[4096];
+  int err = run_eval_err("err_undef.min", buf, sizeof(buf));
+  assert(err != 0);
+  assert(strstr(buf, "undefined: foo") != NULL);
+  assert(strstr(buf, "at err_undef.min:1:4 (ref)") != NULL);
+  assert(strstr(buf, "at err_undef.min:1:1 (bind)") != NULL);
+  assert(strstr(buf, "in err_undef.min") != NULL);
+  printf("  err_undef: ok\n");
+}
+
+static void test_err_call(void) {
+  char buf[4096];
+  int err = run_eval_err("err_call.min", buf, sizeof(buf));
+  assert(err != 0);
+  assert(strstr(buf, "undefined: foo") != NULL);
+  assert(strstr(buf, "at err_call.min:1:8 (ref)") != NULL);
+  assert(strstr(buf, "at err_call.min:2:5 (call)") != NULL);
+  assert(strstr(buf, "at err_call.min:2:1 (bind)") != NULL);
+  assert(strstr(buf, "in err_call.min") != NULL);
+  printf("  err_call: ok\n");
+}
+
+static void test_err_import(void) {
+  char buf[4096];
+  int err = run_eval_err("err_import.min", buf, sizeof(buf));
+  assert(err != 0);
+  assert(strstr(buf, "undefined: foo") != NULL);
+  assert(strstr(buf, "at err_lib.min:1:1 (bind)") != NULL);
+  assert(strstr(buf, "in err_lib.min") != NULL);
+  assert(strstr(buf, "at err_import.min:1:1 (import)") != NULL);
+  assert(strstr(buf, "in err_import.min") != NULL);
+  printf("  err_import: ok\n");
+}
+
+static void test_err_builtin(void) {
+  char buf[4096];
+  int err = run_eval_err("err_builtin.min", buf, sizeof(buf));
+  assert(err != 0);
+  assert(strstr(buf, "add: type mismatch") != NULL);
+  assert(strstr(buf, "at err_builtin.min:1:7 (call)") != NULL);
+  assert(strstr(buf, "at err_builtin.min:1:1 (bind)") != NULL);
+  assert(strstr(buf, "in err_builtin.min") != NULL);
+  printf("  err_builtin: ok\n");
+}
+
 int main(void) {
   printf("eval tests:\n");
   test_basic();
@@ -463,6 +573,10 @@ int main(void) {
   test_tap();
   test_proof();
   test_str_conv();
+  test_err_undef();
+  test_err_call();
+  test_err_import();
+  test_err_builtin();
   printf("all eval tests passed\n");
   return 0;
 }

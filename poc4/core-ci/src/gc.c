@@ -159,9 +159,12 @@ void **gc_list_append(GC *gc, GCList *list) {
   return &node->item;
 }
 
-void gc_list_each(GCList *list, GCListFn fn, void *ctx) {
-  for (GCListNode *node = list->head; node; node = node->next)
-    fn(node->item, ctx);
+int gc_list_each(GCList *list, GCListFn fn, void *ctx) {
+  for (GCListNode *node = list->head; node; node = node->next) {
+    int err = fn(node->item, ctx);
+    if (err) return err;
+  }
+  return 0;
 }
 
 /* string-to-void* map backed by hash table */

@@ -106,9 +106,10 @@ static void test_list(void) {
 }
 
 static int list_sum;
-static void sum_item(void *item, void *ctx) {
+static int sum_item(void *item, void *ctx) {
   (void)ctx;
   list_sum += *(int *)item;
+  return 0;
 }
 
 static void test_list_each(void) {

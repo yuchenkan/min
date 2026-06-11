@@ -18,6 +18,8 @@ typedef struct Node Node;
 
 struct Node {
   int tag;
+  const char *file;
+  int line, col;
   union {
     uint64_t integer;
     char *str;
@@ -33,7 +35,7 @@ struct Node {
     struct { void *data; uint64_t len; } arr;
     GCMap *env;
     struct { GCList *params; Node *body; Node *env; GCCallCache *cache; } closure;
-    struct { void (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; GCCallCache *cache; void *ctx; } builtin;
+    struct { int (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; GCCallCache *cache; void *ctx; } builtin;
     struct { Node *left; Node *right; } proof; /* sequent: left=N_ARR, right=N_ARR */
   };
 };

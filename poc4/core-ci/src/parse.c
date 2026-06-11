@@ -44,7 +44,7 @@ static void tok_push(Tokenizer *t, int type, char *s, int line, int col) {
 
 static const char *PUNCTUATION = "(){}[]$,.:?\\!";
 
-static void tokenize(Tokenizer *t, const char *src) {
+static int tokenize(Tokenizer *t, const char *src) {
   int pos = 0, line = 1, colStart = 0;
   int slen = strlen(src);
 
@@ -74,7 +74,8 @@ static void tokenize(Tokenizer *t, const char *src) {
           pos++;
           if (pos >= slen) {
             fprintf(stderr, "%s:%d:%d: unterminated escape\n", t->filepath, line, col);
-            exit(1);
+            free(buf);
+            return 1;
           }
           char e = src[pos];
           if (e == 'n') buf[blen++] = '\n';
@@ -83,7 +84,8 @@ static void tokenize(Tokenizer *t, const char *src) {
           else if (e == '"') buf[blen++] = '"';
           else {
             fprintf(stderr, "%s:%d:%d: invalid escape: \\%c\n", t->filepath, line, col, e);
-            exit(1);
+            free(buf);
+            return 1;
           }
         } else {
           buf[blen++] = src[pos];
@@ -93,7 +95,8 @@ static void tokenize(Tokenizer *t, const char *src) {
       }
       if (pos >= slen) {
         fprintf(stderr, "%s:%d:%d: unterminated string\n", t->filepath, line, col);
-        exit(1);
+        free(buf);
+        return 1;
       }
       pos++;
       buf[blen] = '\0';
@@ -122,10 +125,11 @@ static void tokenize(Tokenizer *t, const char *src) {
     }
 
     fprintf(stderr, "%s:%d:%d: unexpected char: '%c'\n", t->filepath, line, col, c);
-    exit(1);
+    return 1;
   }
 
   tok_push(t, T_EOF, NULL, line, 1);
+  return 0;
 }
 
 static void tokenizer_free(Tokenizer *t) {
@@ -151,128 +155,145 @@ static int is_name(Tokenizer *t, const char *s) {
   return tok->type == T_NAME && strcmp(tok->val, s) == 0;
 }
 
-static void expect_punct(Tokenizer *t, char c) {
+static int expect_punct(Tokenizer *t, char c) {
   Token *tok = advance(t);
   if (tok->type != T_PUNCT || tok->val[0] != c) {
     fprintf(stderr, "%s:%d:%d: expected '%c'\n", t->filepath, tok->line, tok->col, c);
-    exit(1);
+    return 1;
   }
+  return 0;
 }
 
-static const char *expect_name(Tokenizer *t) {
+static int expect_name(Tokenizer *t, const char **out) {
   Token *tok = advance(t);
   if (tok->type != T_NAME) {
     fprintf(stderr, "%s:%d:%d: expected name\n", t->filepath, tok->line, tok->col);
-    exit(1);
+    return 1;
   }
-  return tok->val;
+  *out = tok->val;
+  return 0;
 }
 
-static void parse_expr(GC *gc, Intern *it, Node **slot, Tokenizer *t);
+static void set_loc(Node *n, Token *tok, const char *file) {
+  n->file = file;
+  n->line = tok->line;
+  n->col = tok->col;
+}
 
-static void parse_bind(GC *gc, Intern *it, Node *n, Tokenizer *t) {
-  expect_punct(t, '$');
+static int parse_expr(GC *gc, Intern *it, Node **slot, Tokenizer *t);
+
+static int parse_bind(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+  if (expect_punct(t, '$')) return 1;
   n->tag = N_BIND;
   n->bind.name = NULL;
   n->bind.expr = NULL;
-  n->bind.name = (char *)intern(it, expect_name(t));
-  parse_expr(gc, it, &n->bind.expr, t);
+  const char *name;
+  if (expect_name(t, &name)) return 1;
+  n->bind.name = (char *)intern(it, name);
+  return parse_expr(gc, it, &n->bind.expr, t);
 }
 
-static void parse_fn(GC *gc, Intern *it, Node *n, Tokenizer *t) {
-  expect_punct(t, '\\');
+static int parse_fn(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+  if (expect_punct(t, '\\')) return 1;
   n->fn.params = gc_list_new(gc);
 
   while (peek(t)->type == T_NAME) {
     void **slot = gc_list_append(gc, n->fn.params);
-    *slot = (char *)intern(it, expect_name(t));
+    const char *name;
+    if (expect_name(t, &name)) return 1;
+    *slot = (char *)intern(it, name);
   }
 
-  expect_punct(t, ':');
-  parse_expr(gc, it, &n->fn.body, t);
+  if (expect_punct(t, ':')) return 1;
+  return parse_expr(gc, it, &n->fn.body, t);
 }
 
-static void parse_list(GC *gc, Intern *it, Node *n, Tokenizer *t) {
-  expect_punct(t, '[');
+static int parse_list(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+  if (expect_punct(t, '[')) return 1;
   n->list = gc_list_new(gc);
 
   if (!is_punct(t, ']')) {
     void **slot = gc_list_append(gc, n->list);
-    parse_expr(gc, it, (Node **)slot, t);
+    if (parse_expr(gc, it, (Node **)slot, t)) return 1;
     while (is_punct(t, ',')) {
       advance(t);
       slot = gc_list_append(gc, n->list);
-      parse_expr(gc, it, (Node **)slot, t);
+      if (parse_expr(gc, it, (Node **)slot, t)) return 1;
     }
   }
-  expect_punct(t, ']');
+  return expect_punct(t, ']');
 }
 
-static void parse_if(GC *gc, Intern *it, Node *n, Tokenizer *t) {
-  expect_punct(t, '?');
-  expect_punct(t, '(');
-  parse_expr(gc, it, &n->if_.cond, t);
-  expect_punct(t, ',');
-  parse_expr(gc, it, &n->if_.then, t);
-  expect_punct(t, ',');
-  parse_expr(gc, it, &n->if_.else_, t);
-  expect_punct(t, ')');
+static int parse_if(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+  if (expect_punct(t, '?')) return 1;
+  if (expect_punct(t, '(')) return 1;
+  if (parse_expr(gc, it, &n->if_.cond, t)) return 1;
+  if (expect_punct(t, ',')) return 1;
+  if (parse_expr(gc, it, &n->if_.then, t)) return 1;
+  if (expect_punct(t, ',')) return 1;
+  if (parse_expr(gc, it, &n->if_.else_, t)) return 1;
+  return expect_punct(t, ')');
 }
 
-static void parse_block(GC *gc, Intern *it, Node *n, Tokenizer *t) {
-  expect_punct(t, '{');
+static int parse_block(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+  if (expect_punct(t, '{')) return 1;
   n->block.binds = gc_list_new(gc);
 
   while (is_punct(t, '$')) {
     void **slot = gc_list_append(gc, n->block.binds);
     node_new(gc, (void **)slot, N_BIND);
-    parse_bind(gc, it, *slot, t);
+    set_loc(*slot, peek(t), t->filepath);
+    if (parse_bind(gc, it, *slot, t)) return 1;
   }
 
-  parse_expr(gc, it, &n->block.expr, t);
-  expect_punct(t, '}');
+  if (parse_expr(gc, it, &n->block.expr, t)) return 1;
+  return expect_punct(t, '}');
 }
 
-static void parse_args(GC *gc, Intern *it, Node *n, Tokenizer *t) {
-  expect_punct(t, '(');
+static int parse_args(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+  if (expect_punct(t, '(')) return 1;
   n->call.args = gc_list_new(gc);
 
   if (!is_punct(t, ')')) {
     void **slot = gc_list_append(gc, n->call.args);
-    parse_expr(gc, it, (Node **)slot, t);
+    if (parse_expr(gc, it, (Node **)slot, t)) return 1;
     while (is_punct(t, ',')) {
       advance(t);
       slot = gc_list_append(gc, n->call.args);
-      parse_expr(gc, it, (Node **)slot, t);
+      if (parse_expr(gc, it, (Node **)slot, t)) return 1;
     }
   }
-  expect_punct(t, ')');
+  return expect_punct(t, ')');
 }
 
-static void parse_expr(GC *gc, Intern *it, Node **slot, Tokenizer *t) {
+static int parse_expr(GC *gc, Intern *it, Node **slot, Tokenizer *t) {
 
   Token *tok = peek(t);
 
   if (is_punct(t, '\\')) {
     node_new(gc, (void **)slot, N_FN);
-    parse_fn(gc, it, *slot, t);
+    set_loc(*slot, tok, t->filepath);
+    if (parse_fn(gc, it, *slot, t)) return 1;
   }
   else if (is_punct(t, '[')) {
     node_new(gc, (void **)slot, N_LIST);
-    parse_list(gc, it, *slot, t);
+    set_loc(*slot, tok, t->filepath);
+    if (parse_list(gc, it, *slot, t)) return 1;
   }
   else if (is_punct(t, '?')) {
     node_new(gc, (void **)slot, N_IF);
-    parse_if(gc, it, *slot, t);
+    set_loc(*slot, tok, t->filepath);
+    if (parse_if(gc, it, *slot, t)) return 1;
   }
   else if (is_punct(t, '{')) {
     node_new(gc, (void **)slot, N_BLOCK);
-    parse_block(gc, it, *slot, t);
+    set_loc(*slot, tok, t->filepath);
+    if (parse_block(gc, it, *slot, t)) return 1;
   }
   else if (is_punct(t, '(')) {
     advance(t);
-    parse_expr(gc, it, slot, t);
-    expect_punct(t, ')');
+    if (parse_expr(gc, it, slot, t)) return 1;
+    if (expect_punct(t, ')')) return 1;
   }
   else if (tok->type == T_INT) {
     advance(t);
@@ -289,20 +310,24 @@ static void parse_expr(GC *gc, Intern *it, Node **slot, Tokenizer *t) {
   else if (tok->type == T_NAME) {
     advance(t);
     node_new(gc, (void **)slot, N_REF);
+    set_loc(*slot, tok, t->filepath);
     (*slot)->ref = (char *)intern(it, tok->val);
   }
   else {
     fprintf(stderr, "%s:%d:%d: expected expression\n", t->filepath, tok->line, tok->col);
-    exit(1);
+    return 1;
   }
 
   /* trailing calls: f(args)(args)... */
   while (is_punct(t, '(')) {
+    Token *call_tok = peek(t);
     Node *callee = *slot;
     node_new(gc, (void **)slot, N_CALL);
+    set_loc(*slot, call_tok, t->filepath);
     (*slot)->call.callee = callee;
-    parse_args(gc, it, *slot, t);
+    if (parse_args(gc, it, *slot, t)) return 1;
   }
+  return 0;
 }
 
 static void import_name_trace(void *data) {
@@ -311,7 +336,7 @@ static void import_name_trace(void *data) {
   gc_mark(n[1]);
 }
 
-static void import_names_append(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+static int import_names_append(GC *gc, Intern *it, Node *n, Tokenizer *t) {
 
   void **slot = gc_list_append(gc, n->import.names);
   *slot = gc_alloc(gc, 2 * sizeof(char *), import_name_trace, NULL, NULL);
@@ -319,18 +344,28 @@ static void import_names_append(GC *gc, Intern *it, Node *n, Tokenizer *t) {
   name[0] = NULL;
   name[1] = NULL;
 
-  name[0] = (char *)intern(it, expect_name(t));
-  if (is_name(t, "as")) { advance(t); name[1] = (char *)intern(it, expect_name(t)); }
+  const char *nm;
+  if (expect_name(t, &nm)) return 1;
+  name[0] = (char *)intern(it, nm);
+  if (is_name(t, "as")) {
+    advance(t);
+    if (expect_name(t, &nm)) return 1;
+    name[1] = (char *)intern(it, nm);
+  }
+  return 0;
 }
 
-static void parse_import(GC *gc, Intern *it, Node *n, Tokenizer *t) {
+static int parse_import(GC *gc, Intern *it, Node *n, Tokenizer *t) {
   advance(t); /* skip "from" */
   int from = t->pos;
-  int len = strlen(expect_name(t));
+  const char *nm;
+  if (expect_name(t, &nm)) return 1;
+  int len = strlen(nm);
   int nf = 0;
   while (is_punct(t, '.')) {
     advance(t);
-    len += 1 + strlen(expect_name(t));
+    if (expect_name(t, &nm)) return 1;
+    len += 1 + strlen(nm);
     nf++;
   }
 
@@ -351,16 +386,17 @@ static void parse_import(GC *gc, Intern *it, Node *n, Tokenizer *t) {
 
   if (!is_name(t, "import")) {
     fprintf(stderr, "%s:%d:%d: expected 'import'\n", t->filepath, peek(t)->line, peek(t)->col);
-    exit(1);
+    return 1;
   }
   advance(t);
 
   n->import.names = gc_list_new(gc);
-  import_names_append(gc, it, n, t);
+  if (import_names_append(gc, it, n, t)) return 1;
   while (is_punct(t, ',')) {
     advance(t);
-    import_names_append(gc, it, n, t);
+    if (import_names_append(gc, it, n, t)) return 1;
   }
+  return 0;
 }
 
 /* ============================================================
@@ -373,15 +409,15 @@ static void source_trace(void *data) {
   gc_mark(s->binds);
 }
 
-void parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFileFn read_file) {
+int parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFileFn read_file) {
   void **slot = gc_map_get(gc, sources, filepath);
   if (*slot) {
     Source *s = *slot;
     if (s->loading) {
       fprintf(stderr, "cycle import: %s\n", filepath);
-      exit(1);
+      return 1;
     }
-    return;
+    return 0;
   }
 
   Source *s = gc_alloc(gc, sizeof(Source), source_trace, NULL, NULL);
@@ -393,23 +429,28 @@ void parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadF
   s->binds = gc_list_new(gc);
 
   char *src = read_file(filepath);
+  if (!src) return 1;
   Tokenizer t = { malloc(sizeof(Token) * 64), 0, 64, 0, filepath };
-  tokenize(&t, src);
+  if (tokenize(&t, src)) { free(src); tokenizer_free(&t); return 1; }
   free(src);
 
   while (peek(&t)->type != T_EOF && is_name(&t, "from")) {
     void **islot = gc_list_append(gc, s->imports);
     node_new(gc, islot, N_IMPORT);
-    parse_import(gc, intern_t, *islot, &t);
-    parse(gc, intern_t, sources, ((Node *)*islot)->import.filepath, read_file);
+    set_loc(*islot, peek(&t), t.filepath);
+    if (parse_import(gc, intern_t, *islot, &t)) { tokenizer_free(&t); return 1; }
+    int err = parse(gc, intern_t, sources, ((Node *)*islot)->import.filepath, read_file);
+    if (err) { tokenizer_free(&t); return err; }
   }
 
   while (peek(&t)->type != T_EOF) {
     void **bslot = gc_list_append(gc, s->binds);
     node_new(gc, bslot, N_BIND);
-    parse_bind(gc, intern_t, *bslot, &t);
+    set_loc(*bslot, peek(&t), t.filepath);
+    if (parse_bind(gc, intern_t, *bslot, &t)) { tokenizer_free(&t); return 1; }
   }
 
   tokenizer_free(&t);
   s->loading = 0;
+  return 0;
 }

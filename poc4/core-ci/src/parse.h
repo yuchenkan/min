@@ -11,6 +11,6 @@ typedef struct Source {
 } Source;
 typedef char *(*ReadFileFn)(const char *path);
 
-void parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFileFn read_file);
+int parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFileFn read_file);
 
 #endif

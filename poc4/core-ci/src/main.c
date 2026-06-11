@@ -43,7 +43,7 @@ static const char *tag_names[] = {
 
 static char *read_file(const char *path) {
   FILE *f = fopen(path, "r");
-  if (!f) { perror(path); exit(1); }
+  if (!f) { perror(path); return NULL; }
   fseek(f, 0, SEEK_END);
   long size = ftell(f);
   fseek(f, 0, SEEK_SET);
@@ -78,12 +78,14 @@ int main(int argc, char **argv) {
   root->tags = tags;
   for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
 
-  parse(gc, intern_t, root->sources, root->filepath, read_file);
+  int err = parse(gc, intern_t, root->sources, root->filepath, read_file);
+  if (err) { gc_fini(gc); intern_fini(intern_t); return 1; }
 
   init_global(gc, root->stack, (const char **)root->tags, intern_t, root->global, &root->scratch);
-  eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t);
+  Node *result;
+  err = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t, &result);
 
   gc_fini(gc);
   intern_fini(intern_t);
-  return 0;
+  return err ? 1 : 0;
 }
