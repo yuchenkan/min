@@ -182,7 +182,7 @@ static char *fake_read_file(const char *path) {
 }
 
 typedef struct TestRoot {
-  Node *global;
+  Env *global;
   GCMap *sources;
   GCMap *modules;
   GCStack *stack;
@@ -220,7 +220,7 @@ static const char *tag_names[] = {
 
 static Intern *G_it;
 
-static Node *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
+static Env *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
   GC *gc;
   TestRoot *root = gc_init(sizeof(TestRoot), root_trace, 1, 1, &gc);
   root->global = NULL;
@@ -230,7 +230,7 @@ static Node *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
   root->filepath = NULL;
   root->scratch = NULL;
   root->tags = NULL;
-  node_new(gc, (void **)&root->global, N_ENV);
+  env_new(gc, (void **)&root->global);
   root->sources = gc_map_new(gc);
   root->modules = gc_map_new(gc);
   gc_stack_new(gc, (void **)&root->stack);
@@ -243,7 +243,7 @@ static Node *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
   for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
   init_global(gc, root->stack, tags, intern_t, root->global, &root->scratch);
   parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
-  Node *env;
+  Env *env;
   eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, tags, intern_t, &env);
 
   G_it = intern_t;
@@ -252,7 +252,7 @@ static Node *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
   return env;
 }
 
-static Node **F(Node *env, const char *name) {
+static Node **F(Env *env, const char *name) {
   return env_find(env, intern(G_it, name));
 }
 
@@ -263,7 +263,7 @@ static int int_val(Node *n) {
 
 static void test_basic(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("basic.min", &gc, &root);
+  Env *env = run_eval("basic.min", &gc, &root);
   assert(int_val(*F(env,"x")) == 42);
   assert(int_val(*F(env,"y")) == 7);
   gc_fini(gc);
@@ -273,7 +273,7 @@ static void test_basic(void) {
 
 static void test_add(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("add.min", &gc, &root);
+  Env *env = run_eval("add.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 3);
   gc_fini(gc);
   intern_fini(G_it);
@@ -282,7 +282,7 @@ static void test_add(void) {
 
 static void test_fn(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("fn.min", &gc, &root);
+  Env *env = run_eval("fn.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 6);
   gc_fini(gc);
   intern_fini(G_it);
@@ -291,7 +291,7 @@ static void test_fn(void) {
 
 static void test_nested_fn(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("nested_fn.min", &gc, &root);
+  Env *env = run_eval("nested_fn.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 12);
   gc_fini(gc);
   intern_fini(G_it);
@@ -300,7 +300,7 @@ static void test_nested_fn(void) {
 
 static void test_if(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("if.min", &gc, &root);
+  Env *env = run_eval("if.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 1);
   assert(int_val(*F(env,"s")) == 2);
   gc_fini(gc);
@@ -310,7 +310,7 @@ static void test_if(void) {
 
 static void test_block(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("block.min", &gc, &root);
+  Env *env = run_eval("block.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 30);
   gc_fini(gc);
   intern_fini(G_it);
@@ -319,7 +319,7 @@ static void test_block(void) {
 
 static void test_is_none(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("is_none.min", &gc, &root);
+  Env *env = run_eval("is_none.min", &gc, &root);
   assert((*F(env,"a"))->tag == N_TRUE);
   assert((*F(env,"b"))->tag == N_FALSE);
   gc_fini(gc);
@@ -329,7 +329,7 @@ static void test_is_none(void) {
 
 static void test_zero(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("zero.min", &gc, &root);
+  Env *env = run_eval("zero.min", &gc, &root);
   Node *r = *F(env,"r");
   assert(r->tag == N_INT);
   assert(r->integer == 0);
@@ -340,7 +340,7 @@ static void test_zero(void) {
 
 static void test_import(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("import.min", &gc, &root);
+  Env *env = run_eval("import.min", &gc, &root);
   assert(int_val(*F(env,"r")) == 10);
   gc_fini(gc);
   intern_fini(G_it);
@@ -349,7 +349,7 @@ static void test_import(void) {
 
 static void test_complex(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("complex.min", &gc, &root);
+  Env *env = run_eval("complex.min", &gc, &root);
   /* $double \n: add(n,n) => double(3)=6, triple(3)=9 */
   /* $quad compose(double,double) => quad(3)=12 */
   /* $fact(fact,5) = 120 */
@@ -371,7 +371,7 @@ static void test_complex(void) {
 
 static void test_str_add(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("str_add.min", &gc, &root);
+  Env *env = run_eval("str_add.min", &gc, &root);
   assert(strcmp((*F(env,"r"))->str, "hello world") == 0);
   assert(strcmp((*F(env,"s"))->str, "x") == 0);
   assert(strcmp((*F(env,"t"))->str, "a") == 0);
@@ -382,7 +382,7 @@ static void test_str_add(void) {
 
 static void test_arr_add(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("arr_add.min", &gc, &root);
+  Env *env = run_eval("arr_add.min", &gc, &root);
   Node *r = *F(env,"r");
   assert(r->tag == N_ARR && r->arr.len == 4);
   assert(int_val(((Node **)r->arr.data)[0]) == 1);
@@ -400,7 +400,7 @@ static void test_arr_add(void) {
 
 static void test_list_ops(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("list_ops.min", &gc, &root);
+  Env *env = run_eval("list_ops.min", &gc, &root);
   assert(int_val(*F(env,"h")) == 10);
   Node *t = *F(env,"t");
   assert(t->tag == N_ARR && t->arr.len == 2);
@@ -419,7 +419,7 @@ static void test_list_ops(void) {
 static void test_tap(void) {
   GC *gc; TestRoot *root;
   printf("  tap output:\n");
-  Node *env = run_eval("tap.min", &gc, &root);
+  Env *env = run_eval("tap.min", &gc, &root);
   /* tap returns its argument */
   assert(int_val(*F(env,"a")) == 42);
   assert(strcmp((*F(env,"b"))->str, "hello\tworld") == 0);
@@ -439,7 +439,7 @@ static void test_tap(void) {
 
 static void test_proof(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("proof.min", &gc, &root);
+  Env *env = run_eval("proof.min", &gc, &root);
   /* axiom proof succeeds */
   assert((*F(env,"ok1"))->tag == N_TRUE);
   assert((*F(env,"proof1"))->tag == N_PROOF);
@@ -454,7 +454,7 @@ static void test_proof(void) {
 
 static void test_str_conv(void) {
   GC *gc; TestRoot *root;
-  Node *env = run_eval("str_conv.min", &gc, &root);
+  Env *env = run_eval("str_conv.min", &gc, &root);
   assert(strcmp((*F(env,"a"))->str, "0") == 0);
   assert(strcmp((*F(env,"b"))->str, "42") == 0);
   assert(strcmp((*F(env,"c"))->str, "1000000") == 0);
@@ -469,7 +469,7 @@ static int run_eval_err(const char *file, char *errbuf, int bufsize) {
   TestRoot *root = gc_init(sizeof(TestRoot), root_trace, 1, 1, &gc);
   root->global = NULL; root->sources = NULL; root->modules = NULL;
   root->stack = NULL; root->filepath = NULL; root->scratch = NULL; root->tags = NULL;
-  node_new(gc, (void **)&root->global, N_ENV);
+  env_new(gc, (void **)&root->global);
   root->sources = gc_map_new(gc);
   root->modules = gc_map_new(gc);
   gc_stack_new(gc, (void **)&root->stack);
@@ -490,7 +490,7 @@ static int run_eval_err(const char *file, char *errbuf, int bufsize) {
   dup2(fd, 2);
   close(fd);
 
-  Node *env;
+  Env *env;
   int err = eval(gc, root->modules, root->sources, root->filepath, root->global,
                  root->stack, tags, intern_t, &env);
 

@@ -10,11 +10,17 @@ enum {
   /* AST */
   N_LIST, N_REF, N_FN, N_CALL, N_IF, N_BLOCK, N_BIND, N_IMPORT,
   /* runtime */
-  N_ARR, N_ENV, N_CLOSURE, N_TRUE, N_FALSE, N_NONE, N_BUILTIN, N_PROOF
+  N_ARR, N_CLOSURE, N_TRUE, N_FALSE, N_NONE, N_BUILTIN, N_PROOF
 };
 
 typedef struct Intern Intern;
+typedef struct Env Env;
 typedef struct Node Node;
+
+struct Env {
+  GCMap *map;
+  Env *parent;
+};
 
 struct Node {
   int tag;
@@ -33,8 +39,7 @@ struct Node {
     struct { char *filepath; GCList *names; } import;
     /* runtime */
     struct { void *data; uint64_t len; } arr;
-    struct { GCMap *map; Node *parent; } env;
-    struct { GCList *params; Node *body; Node *env; GCCallCache *cache; } closure;
+    struct { GCList *params; Node *body; Env *env; GCCallCache *cache; } closure;
     struct { int (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; GCCallCache *cache; void *ctx; } builtin;
     struct { Node *left; Node *right; } proof; /* sequent: left=N_ARR, right=N_ARR */
   };
@@ -42,7 +47,8 @@ struct Node {
 
 void node_trace(void *data);
 void node_new(GC *gc, void **slot, int tag);
-Node **env_get(GC *gc, Node *env, const char *name);
-Node **env_find(Node *env, const char *name);
+void env_new(GC *gc, void **slot);
+Node **env_get(GC *gc, Env *e, const char *name);
+Node **env_find(Env *e, const char *name);
 
 #endif

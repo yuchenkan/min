@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 typedef struct Root {
-  Node *global;
+  Env *global;
   GCMap *sources;
   GCMap *modules;
   GCStack *stack;
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   root->filepath = NULL;
   root->scratch = NULL;
   root->tags = NULL;
-  node_new(gc, (void **)&root->global, N_ENV);
+  env_new(gc, (void **)&root->global);
   root->sources = gc_map_new(gc);
   root->modules = gc_map_new(gc);
   gc_stack_new(gc, (void **)&root->stack);
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
   if (err) { gc_fini(gc); intern_fini(intern_t); return 1; }
 
   init_global(gc, root->stack, (const char **)root->tags, intern_t, root->global, &root->scratch);
-  Node *result;
+  Env *result;
   err = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t, &result);
 
   gc_fini(gc);

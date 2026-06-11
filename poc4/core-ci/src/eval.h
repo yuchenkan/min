@@ -4,7 +4,7 @@
 #include "node.h"
 #include "parse.h"
 
-void init_global(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *global, void **slot);
-int eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Node *global, GCStack *stack, const char **tags, Intern *it, Node **out);
+void init_global(GC *gc, GCStack *stack, const char **tags, Intern *it, Env *global, void **slot);
+int eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Env *global, GCStack *stack, const char **tags, Intern *it, Env **out);
 
 #endif
