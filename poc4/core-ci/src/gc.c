@@ -256,38 +256,120 @@ void gc_map_copy(GC *gc, void **slot, GCMap *src) {
   }
 }
 
-/* pointer-to-void* map */
+/* call cache: flat open-addressing, keys are inline arg sequences */
 
-struct GCNMap {
-  HTable ht;
-  GC *gc;
+#define CC_INIT_CAP 16
+
+struct GCCallCache {
+  void *data;   /* gc_alloc'd: (nargs+1) * cap pointers, [arg0..argN, result] per slot */
+  int nargs;
+  int cap;
+  int count;
 };
 
-static void gc_nmap_trace(void *data) {
-  GCNMap *m = data;
-  gc_ht_trace(&m->ht);
+static void gc_cc_trace(void *d) {
+  GCCallCache *cc = d;
+  if (!cc->data) return;
+  gc_mark(cc->data);
+  int stride = cc->nargs + 1;
+  void **arr = cc->data;
+  for (int i = 0; i < cc->cap; i++) {
+    int base = i * stride;
+    if (arr[base])
+      for (int j = 0; j < stride; j++)
+        gc_mark(arr[base + j]);
+  }
 }
 
-GCNMap *gc_nmap_new(GC *gc) {
-  GCNMap *m = gc_alloc(gc, sizeof(GCNMap), gc_nmap_trace, NULL, NULL);
-  memset(m, 0, sizeof(GCNMap));
-  m->gc = gc;
-  return m;
+static uint64_t cc_hash(void **args, int n) {
+  uint64_t h = (uint64_t)n;
+  for (int i = 0; i < n; i++)
+    h = h * 0x9e3779b97f4a7c15ULL + (uintptr_t)args[i];
+  return h;
 }
 
-void **gc_nmap_get(GC *gc, GCNMap *map, void *key) {
-  gc_ht_ensure(gc, &map->ht);
-  gc_ht_maybe_resize(gc, &map->ht);
-  return ht_get(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
+static int cc_slot(uint64_t hash, int mask) {
+  return (int)((hash * 0x9e3779b97f4a7c15ULL) >> 32) & mask;
 }
 
-void **gc_nmap_find(GCNMap *map, void *key) {
-  if (!map->ht.entries) return NULL;
-  return ht_find(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
+GCCallCache *gc_cc_new(GC *gc, int nargs) {
+  GCCallCache *cc = gc_alloc(gc, sizeof(GCCallCache), gc_cc_trace, NULL, NULL);
+  cc->data = NULL;
+  cc->nargs = nargs;
+  cc->cap = 0;
+  cc->count = 0;
+  return cc;
 }
 
-void gc_nmap_clear(GCNMap *map) {
-  ht_clear(&map->ht);
+void **gc_cc_find(GCCallCache *cc, void **args) {
+  if (!cc->data) return NULL;
+  int stride = cc->nargs + 1;
+  int n = cc->nargs;
+  void **arr = cc->data;
+  int mask = cc->cap - 1;
+  for (int i = cc_slot(cc_hash(args, n), mask); ; i = (i + 1) & mask) {
+    int base = i * stride;
+    if (!arr[base]) return NULL;
+    int match = 1;
+    for (int j = 0; j < n; j++)
+      if (arr[base + j] != args[j]) { match = 0; break; }
+    if (match) return &arr[base + n];
+  }
+}
+
+void **gc_cc_get(GC *gc, GCCallCache *cc, void **args) {
+  int stride = cc->nargs + 1;
+  int n = cc->nargs;
+  if (!cc->data) {
+    cc->cap = CC_INIT_CAP;
+    cc->data = gc_alloc(gc, sizeof(void *) * stride * CC_INIT_CAP, NULL, NULL, NULL);
+    memset(cc->data, 0, sizeof(void *) * stride * CC_INIT_CAP);
+  }
+  if (cc->count * 4 > cc->cap * 3) {
+    int newcap = cc->cap * 2;
+    void *newdata = gc_alloc(gc, sizeof(void *) * stride * newcap, NULL, NULL, NULL);
+    memset(newdata, 0, sizeof(void *) * stride * newcap);
+    void **old = cc->data;
+    void **nw = newdata;
+    int mask = newcap - 1;
+    for (int i = 0; i < cc->cap; i++) {
+      int base = i * stride;
+      if (old[base]) {
+        int slot = cc_slot(cc_hash(&old[base], n), mask);
+        while (nw[slot * stride]) slot = (slot + 1) & mask;
+        memcpy(&nw[slot * stride], &old[base], sizeof(void *) * stride);
+      }
+    }
+    cc->data = newdata;
+    cc->cap = newcap;
+  }
+  void **arr = cc->data;
+  int mask = cc->cap - 1;
+  uint64_t h = cc_hash(args, n);
+  for (int i = cc_slot(h, mask); ; i = (i + 1) & mask) {
+    int base = i * stride;
+    if (!arr[base]) {
+      memcpy(&arr[base], args, sizeof(void *) * n);
+      arr[base + n] = NULL;
+      cc->count++;
+      return &arr[base + n];
+    }
+    int match = 1;
+    for (int j = 0; j < n; j++)
+      if (arr[base + j] != args[j]) { match = 0; break; }
+    if (match) return &arr[base + n];
+  }
+}
+
+void gc_cc_clear(GCCallCache *cc) {
+  if (cc->data) {
+    memset(cc->data, 0, sizeof(void *) * (cc->nargs + 1) * cc->cap);
+    cc->count = 0;
+  }
+}
+
+int gc_cc_count(GCCallCache *cc) {
+  return cc->count;
 }
 
 /* growable stack */

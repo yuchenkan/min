@@ -390,16 +390,11 @@ static void eval_call(GC *gc, Node *env, GCStack *stack, const char **tags, Inte
 
   if (callee->tag == N_CLOSURE) {
     /* cache lookup */
-    void **key_slot = gc_stack_push(gc, stack);
-    intern_arr(it, (Node **)gc_stack_nth(stack, base), nargs, key_slot);
-    Node *cache_key = *key_slot;
-
     if (!callee->closure.cache)
-      callee->closure.cache = gc_nmap_new(gc);
+      callee->closure.cache = gc_cc_new(gc, nargs);
 
-    void **hit = gc_nmap_find(callee->closure.cache, cache_key);
+    void **hit = gc_cc_find(callee->closure.cache, gc_stack_nth(stack, base));
     if (hit) {
-      gc_stack_pop(stack, 1);
       *gc_stack_nth(stack, base - 1) = *hit;
       gc_stack_pop(stack, nargs);
       return;
@@ -422,12 +417,10 @@ static void eval_call(GC *gc, Node *env, GCStack *stack, const char **tags, Inte
     /* cache store */
     Node *result = *gc_stack_top(stack);
     callee = *gc_stack_nth(stack, base - 1);
-    if (callee->closure.ncache > 1024) {
-      gc_nmap_clear(callee->closure.cache);
-      callee->closure.ncache = 0;
+    if (gc_cc_count(callee->closure.cache) > 1024) {
+      gc_cc_clear(callee->closure.cache);
     }
-    *gc_nmap_get(gc, callee->closure.cache, cache_key) = result;
-    callee->closure.ncache++;
+    *gc_cc_get(gc, callee->closure.cache, gc_stack_nth(stack, base)) = result;
 
     /* result is on top; move it to callee's slot */
     *gc_stack_nth(stack, base - 1) = result;

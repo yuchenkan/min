@@ -31,13 +31,14 @@ void **gc_map_find(GCMap *map, const char *key);
 void gc_map_delete(GCMap *map, const char *key);
 void gc_map_copy(GC *gc, void **slot, GCMap *src);
 
-/* pointer-to-void* map */
-typedef struct GCNMap GCNMap;
+/* call cache: (arg0..argN) -> result, no interning needed */
+typedef struct GCCallCache GCCallCache;
 
-GCNMap *gc_nmap_new(GC *gc);
-void **gc_nmap_get(GC *gc, GCNMap *map, void *key);
-void **gc_nmap_find(GCNMap *map, void *key);
-void gc_nmap_clear(GCNMap *map);
+GCCallCache *gc_cc_new(GC *gc, int nargs);
+void **gc_cc_find(GCCallCache *cc, void **args);
+void **gc_cc_get(GC *gc, GCCallCache *cc, void **args);
+void gc_cc_clear(GCCallCache *cc);
+int gc_cc_count(GCCallCache *cc);
 
 /* growable stack */
 typedef struct GCStack GCStack;
