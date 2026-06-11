@@ -315,7 +315,7 @@ static void import_name_trace(void *data) {
 static void import_names_append(GC *gc, Node *n, Tokenizer *t) {
 
   void **slot = gc_list_append(gc, n->import.names);
-  *slot = gc_alloc(gc, 2 * sizeof(char *), import_name_trace);
+  *slot = gc_alloc(gc, 2 * sizeof(char *), import_name_trace, NULL);
   char **name = *slot;
   name[0] = NULL;
   name[1] = NULL;
@@ -335,7 +335,7 @@ static void parse_import(GC *gc, Node *n, Tokenizer *t) {
     nf++;
   }
 
-  n->import.filepath = gc_alloc(gc, len + 5, NULL);
+  n->import.filepath = gc_alloc(gc, len + 5, NULL, NULL);
   char *filepath = n->import.filepath;
   const char *f = t->tokens[from].val;
   strcpy(filepath, f);
@@ -383,7 +383,7 @@ void parse(GC *gc, GCMap *sources, const char *filepath, ReadFileFn read_file) {
     return;
   }
 
-  Source *s = gc_alloc(gc, sizeof(Source), source_trace);
+  Source *s = gc_alloc(gc, sizeof(Source), source_trace, NULL);
   s->imports = NULL;
   s->binds = NULL;
   s->loading = 1;

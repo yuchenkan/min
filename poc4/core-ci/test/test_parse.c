@@ -127,8 +127,7 @@ static void run_test(const char *name, const char *file) {
   root->filepath = gc_strdup(gc, file);
   root->sources = gc_map_new(gc);
 
-  Source *s = parse(gc, root->sources, root->filepath, fake_read_file);
-  assert(s != NULL);
+  parse(gc, root->sources, root->filepath, fake_read_file);
 
   gc_fini(gc);
   printf("  %s: ok\n", name);

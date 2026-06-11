@@ -54,7 +54,7 @@ static void node_trace(void *data) {
 }
 
 void node_new(GC *gc, void **slot, int tag) {
-  Node *n = gc_alloc(gc, sizeof(Node), node_trace);
+  Node *n = gc_alloc(gc, sizeof(Node), node_trace, NULL);
   memset(n, 0, sizeof(Node));
   n->tag = tag;
   *slot = n;
@@ -71,7 +71,7 @@ Node **env_find(Node *e, const char *name) {
 }
 
 void env_snapshot(GC *gc, void **slot, Node *e) {
-  Node *n = gc_alloc(gc, sizeof(Node), node_trace);
+  Node *n = gc_alloc(gc, sizeof(Node), node_trace, NULL);
   memset(n, 0, sizeof(Node));
   n->tag = N_ENV;
   *slot = n;

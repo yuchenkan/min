@@ -109,7 +109,7 @@ static StrSet boundVars(Node *f) {
 static Node *make_arr(GC *gc, GCStack *stack, int len, ...) {
   node_new(gc, gc_stack_push(gc, stack), N_ARR);
   Node *n = *gc_stack_top(stack);
-  n->arr.data = gc_alloc(gc, sizeof(Node *) * len, NULL);
+  n->arr.data = gc_alloc(gc, sizeof(Node *) * len, NULL, NULL);
   n->arr.len = len;
   va_list ap;
   va_start(ap, len);
@@ -173,7 +173,7 @@ static Node *seq_remove(GC *gc, GCStack *stack, Node *lst, Node *f) {
   int len = ALEN(lst);
   node_new(gc, gc_stack_push(gc, stack), N_ARR);
   Node *r = *gc_stack_top(stack);
-  r->arr.data = gc_alloc(gc, sizeof(Node *) * len, NULL);
+  r->arr.data = gc_alloc(gc, sizeof(Node *) * len, NULL, NULL);
   int j = 0, removed = 0;
   for (int i = 0; i < len; i++) {
     if (!removed && same(f, AGET(lst, i))) { removed = 1; continue; }
@@ -188,7 +188,7 @@ static Node *seq_add(GC *gc, GCStack *stack, Node *lst, Node *f) {
   int len = ALEN(lst);
   node_new(gc, gc_stack_push(gc, stack), N_ARR);
   Node *r = *gc_stack_top(stack);
-  r->arr.data = gc_alloc(gc, sizeof(Node *) * (len + 1), NULL);
+  r->arr.data = gc_alloc(gc, sizeof(Node *) * (len + 1), NULL, NULL);
   for (int i = 0; i < len; i++) ((Node **)r->arr.data)[i] = AGET(lst, i);
   ((Node **)r->arr.data)[len] = f;
   r->arr.len = len + 1;
@@ -384,7 +384,7 @@ static Node *p_arr(GC *gc, GCStack *stack, int len, ...) {
   va_end(ap);
   node_new(gc, gc_stack_push(gc, stack), N_ARR);
   Node *n = *gc_stack_top(stack);
-  n->arr.data = gc_alloc(gc, sizeof(Node*) * len, NULL);
+  n->arr.data = gc_alloc(gc, sizeof(Node*) * len, NULL, NULL);
   n->arr.len = len;
   for (int i = 0; i < len; i++) ((Node**)n->arr.data)[i] = args[i];
   return n;

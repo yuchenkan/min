@@ -28,7 +28,7 @@ static void builtin_add_str(GC *gc, GCStack *stack, int top, Node *a, Node *b) {
   int alen = strlen(a->str), blen = strlen(b->str);
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_STR);
-  ((Node *)*slot)->str = gc_alloc(gc, alen + blen + 1, NULL);
+  ((Node *)*slot)->str = gc_alloc(gc, alen + blen + 1, NULL, NULL);
   a = *gc_stack_nth(stack, top - 2);
   b = *gc_stack_nth(stack, top - 1);
   memcpy(((Node *)*slot)->str, a->str, alen);
@@ -44,7 +44,7 @@ static void builtin_add_arr(GC *gc, GCStack *stack, int top, Node *a, Node *b) {
   node_new(gc, slot, N_ARR);
   Node *r = *slot;
   if (rlen > 0) {
-    r->arr.data = gc_alloc(gc, sizeof(Node *) * rlen, NULL);
+    r->arr.data = gc_alloc(gc, sizeof(Node *) * rlen, NULL, NULL);
     a = *gc_stack_nth(stack, top - 2);
     b = *gc_stack_nth(stack, top - 1);
     memcpy(r->arr.data, a->arr.data, sizeof(Node *) * alen);
@@ -153,7 +153,7 @@ static void builtin_tail(GC *gc, GCStack *stack) {
   node_new(gc, slot, N_ARR);
   Node *r = *slot;
   if (rlen > 0) {
-    r->arr.data = gc_alloc(gc, sizeof(Node *) * rlen, NULL);
+    r->arr.data = gc_alloc(gc, sizeof(Node *) * rlen, NULL, NULL);
     a = *gc_stack_nth(stack, top - 1);
     memcpy(r->arr.data, (char *)a->arr.data + sizeof(Node *), sizeof(Node *) * rlen);
   }
@@ -258,7 +258,7 @@ static void builtin_do_proof(GC *gc, GCStack *stack) {
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_ARR);
   Node *result = *slot;
-  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL);
+  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL, NULL);
   result->arr.len = 2;
   Node **rd = result->arr.data;
   rd[0] = NULL; rd[1] = NULL;
@@ -291,7 +291,7 @@ static void builtin_do_qed(GC *gc, GCStack *stack) {
   void **slot = gc_stack_push(gc, stack);
   node_new(gc, slot, N_ARR);
   Node *result = *slot;
-  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL);
+  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL, NULL);
   result->arr.len = 2;
   Node **rd = result->arr.data;
   rd[0] = NULL; rd[1] = NULL;
@@ -361,7 +361,7 @@ static void eval_list(GC *gc, Node *env, GCStack *stack, Node *e) {
   gc_list_each(e->list, eval_each, p);
   int l = gc_stack_len(stack) - t;
 
-  a->arr.data = gc_alloc(gc, sizeof(Node *) * l, NULL);
+  a->arr.data = gc_alloc(gc, sizeof(Node *) * l, NULL, NULL);
   for (int i = 0; i < l; i++)
     ((Node **)a->arr.data)[i] = *gc_stack_nth(stack, t + i);
   a->arr.len = l;

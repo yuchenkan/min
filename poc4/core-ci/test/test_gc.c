@@ -28,12 +28,12 @@ static void test_basic(void) {
   Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
   root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL; root->stack = NULL;
 
-  int *p = gc_alloc(gc, sizeof(int), NULL);
+  int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
   root->a = p;
   *p = 42;
 
   /* alloc again, triggers GC, root->a keeps p alive */
-  int *q = gc_alloc(gc, sizeof(int), NULL);
+  int *q = gc_alloc(gc, sizeof(int), NULL, NULL);
   root->b = q;
   *q = 99;
 
@@ -48,10 +48,10 @@ static void test_cycle(void) {
   Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
   root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL; root->stack = NULL;
 
-  Node *a = gc_alloc(gc, sizeof(Node), node_trace);
+  Node *a = gc_alloc(gc, sizeof(Node), node_trace, NULL);
   a->child = NULL;
   root->a = a;
-  Node *b = gc_alloc(gc, sizeof(Node), node_trace);
+  Node *b = gc_alloc(gc, sizeof(Node), node_trace, NULL);
   b->child = NULL;
   root->b = b;
   a->child = b;
@@ -59,7 +59,7 @@ static void test_cycle(void) {
 
   /* trigger many GCs — cycle survives */
   for (int i = 0; i < 100; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   assert(((Node *)root->a)->child == b);
   assert(b->child == a);
@@ -68,7 +68,7 @@ static void test_cycle(void) {
   root->a = NULL;
   root->b = NULL;
   for (int i = 0; i < 10; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   gc_fini(gc);
   printf("  cycle: ok\n");
@@ -83,20 +83,20 @@ static void test_list(void) {
 
   for (int i = 0; i < 200; i++) {
     void **slot = gc_list_append(gc, root->list);
-    int *p = gc_alloc(gc, sizeof(int), NULL);
+    int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
     *p = i;
     *slot = p;
   }
 
   /* append and verify a known value */
   void **slot = gc_list_append(gc, root->list);
-  int *check = gc_alloc(gc, sizeof(int), NULL);
+  int *check = gc_alloc(gc, sizeof(int), NULL, NULL);
   *check = 12345;
   *slot = check;
 
   /* trigger more GCs */
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   assert(*(int *)*slot == 12345);
 
@@ -120,7 +120,7 @@ static void test_list_each(void) {
   int expected = 0;
   for (int i = 0; i < 100; i++) {
     void **slot = gc_list_append(gc, root->list);
-    int *p = gc_alloc(gc, sizeof(int), NULL);
+    int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
     *p = i;
     *slot = p;
     expected += i;
@@ -128,7 +128,7 @@ static void test_list_each(void) {
 
   /* trigger many GCs */
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   list_sum = 0;
   gc_list_each(root->list, sum_item, NULL);
@@ -156,14 +156,14 @@ static void test_map(void) {
     char *key = gc_strdup(gc, buf);
     *kslot = key;
     void **slot = gc_map_get(gc, root->map, key);
-    int *p = gc_alloc(gc, sizeof(int), NULL);
+    int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
     *p = i * 7;
     *slot = p;
   }
 
   /* trigger many GCs */
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   /* verify all values survived */
   for (int i = 0; i < 200; i++) {
@@ -175,12 +175,12 @@ static void test_map(void) {
 
   /* update existing key */
   void **slot = gc_map_get(gc, root->map, "key_0");
-  int *p = gc_alloc(gc, sizeof(int), NULL);
+  int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
   *p = 999;
   *slot = p;
 
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   slot = gc_map_get(gc, root->map, "key_0");
   assert(*(int *)*slot == 999);
@@ -201,13 +201,13 @@ static void test_map_overwrite(void) {
 
   for (int round = 0; round < 10; round++) {
     void **slot = gc_map_get(gc, root->map, key);
-    int *p = gc_alloc(gc, sizeof(int), NULL);
+    int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
     *p = round;
     *slot = p;
   }
 
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   void **slot = gc_map_get(gc, root->map, key);
   assert(*(int *)*slot == 9);
@@ -225,7 +225,7 @@ static void test_stack(void) {
   /* push 100 items */
   for (int i = 0; i < 100; i++) {
     void **slot = gc_stack_push(gc, root->stack);
-    int *p = gc_alloc(gc, sizeof(int), NULL);
+    int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
     *p = i * 3;
     *slot = p;
   }
@@ -234,7 +234,7 @@ static void test_stack(void) {
 
   /* trigger GCs — all items should survive */
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   for (int i = 0; i < 100; i++)
     assert(*(int *)*gc_stack_nth(root->stack, i) == i * 3);
@@ -245,7 +245,7 @@ static void test_stack(void) {
 
   /* trigger GCs — remaining items survive */
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   for (int i = 0; i < 50; i++)
     assert(*(int *)*gc_stack_nth(root->stack, i) == i * 3);
@@ -274,7 +274,7 @@ static void test_map_delete(void) {
     char *key = gc_strdup(gc, buf);
     *kslot = key;
     void **slot = gc_map_get(gc, root->map, key);
-    int *p = gc_alloc(gc, sizeof(int), NULL);
+    int *p = gc_alloc(gc, sizeof(int), NULL, NULL);
     *p = i;
     *slot = p;
   }
@@ -288,7 +288,7 @@ static void test_map_delete(void) {
 
   /* trigger GCs */
   for (int i = 0; i < 50; i++)
-    gc_alloc(gc, 64, NULL);
+    gc_alloc(gc, 64, NULL, NULL);
 
   /* verify deleted keys are gone, others remain */
   for (int i = 0; i < 100; i++) {
