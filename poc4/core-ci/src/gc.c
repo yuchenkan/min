@@ -221,6 +221,36 @@ void gc_map_copy(GC *gc, void **slot, GCMap *src) {
   rb_copy(&dst->tree, &src->tree);
 }
 
+/* pointer-to-void* map */
+
+struct GCNMap {
+  RBTree tree;
+};
+
+static void gc_nmap_trace(void *data) {
+  GCNMap *m = data;
+  gc_mark(m->tree.root);
+}
+
+GCNMap *gc_nmap_new(GC *gc) {
+  GCNMap *m = gc_alloc(gc, sizeof(GCNMap), gc_nmap_trace, NULL, NULL);
+  rb_init(&m->tree, gc_rb_cmp, gc_rb_alloc, gc_rb_nop, gc);
+  return m;
+}
+
+void **gc_nmap_get(GC *gc, GCNMap *map, void *key) {
+  (void)gc;
+  return rb_get(&map->tree, key);
+}
+
+void **gc_nmap_find(GCNMap *map, void *key) {
+  return rb_find(&map->tree, key);
+}
+
+void gc_nmap_clear(GCNMap *map) {
+  map->tree.root = NULL;
+}
+
 /* growable stack */
 
 struct GCStack {

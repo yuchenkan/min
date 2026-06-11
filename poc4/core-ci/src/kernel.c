@@ -105,25 +105,22 @@ static StrSet boundVars(Node *f, const char **tags) {
  * Substitution (gc_alloc'd, pushed onto stack)
  * ============================================================ */
 
-static Node *make_arr(GC *gc, GCStack *stack, int len, ...) {
-  node_new(gc, gc_stack_push(gc, stack), N_ARR);
-  Node *n = *gc_stack_top(stack);
-  n->arr.data = gc_alloc(gc, sizeof(Node *) * len, NULL, NULL, NULL);
-  n->arr.len = len;
+static Node *make_arr(GC *gc, GCStack *stack, Intern *it, int len, ...) {
+  Node *args[8];
   va_list ap;
   va_start(ap, len);
-  for (int i = 0; i < len; i++) ((Node **)n->arr.data)[i] = va_arg(ap, Node *);
+  for (int i = 0; i < len; i++) args[i] = va_arg(ap, Node *);
   va_end(ap);
-  return n;
+  void **slot = gc_stack_push(gc, stack);
+  intern_arr(it, args, len, slot);
+  return *slot;
 }
 
-static Node *subst(GC *gc, GCStack *stack, const char **tags, Node *f, const char *old, const char *new_str) {
+static Node *subst(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f, const char *old, const char *new_str) {
   if (f->tag == N_STR) {
     if (f->str == old) {
-      node_new(gc, gc_stack_push(gc, stack), N_STR);
-      Node *n = *gc_stack_top(stack);
-      n->str = (char *)new_str;
-      return n;
+      *gc_stack_push(gc, stack) = intern_str(it, new_str);
+      return *gc_stack_top(stack);
     }
     return f;
   }
@@ -131,26 +128,26 @@ static Node *subst(GC *gc, GCStack *stack, const char **tags, Node *f, const cha
 
   Node *tag_node = ((Node **)f->arr.data)[0];
   if (is_mem(f, tags)) {
-    Node *l = subst(gc, stack, tags, farg(f,0), old, new_str);
-    Node *r = subst(gc, stack, tags, farg(f,1), old, new_str);
+    Node *l = subst(gc, stack, tags, it, farg(f,0), old, new_str);
+    Node *r = subst(gc, stack, tags, it, farg(f,1), old, new_str);
     if (l == farg(f,0) && r == farg(f,1)) return f;
-    return make_arr(gc, stack, 3, tag_node, l, r);
+    return make_arr(gc, stack, it, 3, tag_node, l, r);
   }
   if (is_neg(f, tags)) {
-    Node *a = subst(gc, stack, tags, farg(f,0), old, new_str);
+    Node *a = subst(gc, stack, tags, it, farg(f,0), old, new_str);
     if (a == farg(f,0)) return f;
-    return make_arr(gc, stack, 2, tag_node, a);
+    return make_arr(gc, stack, it, 2, tag_node, a);
   }
   if (is_implies(f, tags)) {
-    Node *l = subst(gc, stack, tags, farg(f,0), old, new_str);
-    Node *r = subst(gc, stack, tags, farg(f,1), old, new_str);
+    Node *l = subst(gc, stack, tags, it, farg(f,0), old, new_str);
+    Node *r = subst(gc, stack, tags, it, farg(f,1), old, new_str);
     if (l == farg(f,0) && r == farg(f,1)) return f;
-    return make_arr(gc, stack, 3, tag_node, l, r);
+    return make_arr(gc, stack, it, 3, tag_node, l, r);
   }
   if (is_forall(f, tags)) {
-    Node *body = subst(gc, stack, tags, farg(f,1), old, new_str);
+    Node *body = subst(gc, stack, tags, it, farg(f,1), old, new_str);
     if (body == farg(f,1)) return f;
-    return make_arr(gc, stack, 3, tag_node, farg(f,0), body);
+    return make_arr(gc, stack, it, 3, tag_node, farg(f,0), body);
   }
   return f;
 }
@@ -168,30 +165,30 @@ static int fin(Node *f, Node *lst, const char **tags) {
   return 0;
 }
 
-static Node *seq_remove(GC *gc, GCStack *stack, const char **tags, Node *lst, Node *f) {
+static Node *seq_remove(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *lst, Node *f) {
   int len = ALEN(lst);
-  node_new(gc, gc_stack_push(gc, stack), N_ARR);
-  Node *r = *gc_stack_top(stack);
-  r->arr.data = gc_alloc(gc, sizeof(Node *) * len, NULL, NULL, NULL);
+  Node **tmp = malloc(sizeof(Node *) * len);
   int j = 0, removed = 0;
   for (int i = 0; i < len; i++) {
     if (!removed && same(f, AGET(lst, i), tags)) { removed = 1; continue; }
-    ((Node **)r->arr.data)[j++] = AGET(lst, i);
+    tmp[j++] = AGET(lst, i);
   }
-  r->arr.len = j;
-  return r;
+  void **slot = gc_stack_push(gc, stack);
+  intern_arr(it, tmp, j, slot);
+  free(tmp);
+  return *slot;
 }
 
-static Node *seq_add(GC *gc, GCStack *stack, const char **tags, Node *lst, Node *f) {
+static Node *seq_add(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *lst, Node *f) {
   if (fin(f, lst, tags)) return lst;
   int len = ALEN(lst);
-  node_new(gc, gc_stack_push(gc, stack), N_ARR);
-  Node *r = *gc_stack_top(stack);
-  r->arr.data = gc_alloc(gc, sizeof(Node *) * (len + 1), NULL, NULL, NULL);
-  for (int i = 0; i < len; i++) ((Node **)r->arr.data)[i] = AGET(lst, i);
-  ((Node **)r->arr.data)[len] = f;
-  r->arr.len = len + 1;
-  return r;
+  Node **tmp = malloc(sizeof(Node *) * (len + 1));
+  for (int i = 0; i < len; i++) tmp[i] = AGET(lst, i);
+  tmp[len] = f;
+  void **slot = gc_stack_push(gc, stack);
+  intern_arr(it, tmp, len + 1, slot);
+  free(tmp);
+  return *slot;
 }
 
 static int isPermutation(Node *a, Node *b, const char **tags) {
@@ -229,7 +226,7 @@ static const char *checkSet(Node *lst, const char **tags) {
 #define PL(i) (AGET(premises, i))->proof.left
 #define PR(i) (AGET(premises, i))->proof.right
 
-static const char *checkRule(GC *gc, GCStack *stack, const char **tags,
+static const char *checkRule(GC *gc, GCStack *stack, const char **tags, Intern *it,
                              Node *sl, Node *sr, const char *rule,
                              Node *premises, Node *principal, Node *term) {
   int np = ALEN(premises);
@@ -245,32 +242,32 @@ static const char *checkRule(GC *gc, GCStack *stack, const char **tags,
   else if (rule == tags[K_NEG_LEFT]) {
     if (np != 1 || !is_neg(principal, tags)) { err = "neg_left: bad principal/premises"; goto done; }
     if (!fin(principal, sl, tags)) { err = "neg_left: principal not in left"; goto done; }
-    Node *G = seq_remove(gc, stack, tags, sl, principal);
-    Node *D = seq_add(gc, stack, tags, sr, farg(principal, 0));
+    Node *G = seq_remove(gc, stack, tags, it, sl, principal);
+    Node *D = seq_add(gc, stack, tags, it, sr, farg(principal, 0));
     if (!eqSeq(PL(0), PR(0), G, D, tags)) err = "neg_left: premise mismatch";
   }
   else if (rule == tags[K_NEG_RIGHT]) {
     if (np != 1 || !is_neg(principal, tags)) { err = "neg_right: bad principal/premises"; goto done; }
     if (!fin(principal, sr, tags)) { err = "neg_right: principal not in right"; goto done; }
-    Node *G = seq_add(gc, stack, tags, sl, farg(principal, 0));
-    Node *D = seq_remove(gc, stack, tags, sr, principal);
+    Node *G = seq_add(gc, stack, tags, it, sl, farg(principal, 0));
+    Node *D = seq_remove(gc, stack, tags, it, sr, principal);
     if (!eqSeq(PL(0), PR(0), G, D, tags)) err = "neg_right: premise mismatch";
   }
   else if (rule == tags[K_IMPLIES_LEFT]) {
     if (np != 2 || !is_implies(principal, tags)) { err = "implies_left: bad principal/premises"; goto done; }
     if (!fin(principal, sl, tags)) { err = "implies_left: principal not in left"; goto done; }
-    Node *G = seq_remove(gc, stack, tags, sl, principal);
-    Node *D0 = seq_add(gc, stack, tags, sr, farg(principal, 0));
-    Node *G1 = seq_add(gc, stack, tags, G, farg(principal, 1));
+    Node *G = seq_remove(gc, stack, tags, it, sl, principal);
+    Node *D0 = seq_add(gc, stack, tags, it, sr, farg(principal, 0));
+    Node *G1 = seq_add(gc, stack, tags, it, G, farg(principal, 1));
     if (!eqSeq(PL(0), PR(0), G, D0, tags)) { err = "implies_left: premise 0 mismatch"; goto done; }
     if (!eqSeq(PL(1), PR(1), G1, sr, tags)) err = "implies_left: premise 1 mismatch";
   }
   else if (rule == tags[K_IMPLIES_RIGHT]) {
     if (np != 1 || !is_implies(principal, tags)) { err = "implies_right: bad principal/premises"; goto done; }
     if (!fin(principal, sr, tags)) { err = "implies_right: principal not in right"; goto done; }
-    Node *D = seq_remove(gc, stack, tags, sr, principal);
-    Node *G = seq_add(gc, stack, tags, sl, farg(principal, 0));
-    Node *D2 = seq_add(gc, stack, tags, D, farg(principal, 1));
+    Node *D = seq_remove(gc, stack, tags, it, sr, principal);
+    Node *G = seq_add(gc, stack, tags, it, sl, farg(principal, 0));
+    Node *D2 = seq_add(gc, stack, tags, it, D, farg(principal, 1));
     if (!eqSeq(PL(0), PR(0), G, D2, tags)) err = "implies_right: premise mismatch";
   }
   else if (rule == tags[K_FORALL_LEFT]) {
@@ -280,9 +277,9 @@ static const char *checkRule(GC *gc, GCStack *stack, const char **tags,
     StrSet bv = boundVars(farg(principal, 1), tags);
     if (ss_has(&bv, term->str)) { ss_free(&bv); err = "forall_left: term clashes with bound vars"; goto done; }
     ss_free(&bv);
-    Node *G = seq_remove(gc, stack, tags, sl, principal);
-    Node *substituted = subst(gc, stack, tags, farg(principal, 1), farg(principal, 0)->str, term->str);
-    Node *G2 = seq_add(gc, stack, tags, G, substituted);
+    Node *G = seq_remove(gc, stack, tags, it, sl, principal);
+    Node *substituted = subst(gc, stack, tags, it, farg(principal, 1), farg(principal, 0)->str, term->str);
+    Node *G2 = seq_add(gc, stack, tags, it, G, substituted);
     if (!eqSeq(PL(0), PR(0), G2, sr, tags)) err = "forall_left: premise mismatch";
   }
   else if (rule == tags[K_FORALL_RIGHT]) {
@@ -292,7 +289,7 @@ static const char *checkRule(GC *gc, GCStack *stack, const char **tags,
     StrSet bv = boundVars(farg(principal, 1), tags);
     if (ss_has(&bv, term->str)) { ss_free(&bv); err = "forall_right: term clashes with bound vars"; goto done; }
     ss_free(&bv);
-    Node *D = seq_remove(gc, stack, tags, sr, principal);
+    Node *D = seq_remove(gc, stack, tags, it, sr, principal);
     for (int i = 0; i < ALEN(sl); i++) {
       StrSet fv = freeVars(AGET(sl, i), tags);
       int has = ss_has(&fv, term->str); ss_free(&fv);
@@ -303,14 +300,14 @@ static const char *checkRule(GC *gc, GCStack *stack, const char **tags,
       int has = ss_has(&fv, term->str); ss_free(&fv);
       if (has) { err = "forall_right: term free in context"; goto done; }
     }
-    Node *substituted = subst(gc, stack, tags, farg(principal, 1), farg(principal, 0)->str, term->str);
-    Node *D2 = seq_add(gc, stack, tags, D, substituted);
+    Node *substituted = subst(gc, stack, tags, it, farg(principal, 1), farg(principal, 0)->str, term->str);
+    Node *D2 = seq_add(gc, stack, tags, it, D, substituted);
     if (!eqSeq(PL(0), PR(0), sl, D2, tags)) err = "forall_right: premise mismatch";
   }
   else if (rule == tags[K_CUT]) {
     if (np != 2) { err = "cut: need 2 premises"; goto done; }
-    Node *D0 = seq_add(gc, stack, tags, sr, principal);
-    Node *G1 = seq_add(gc, stack, tags, sl, principal);
+    Node *D0 = seq_add(gc, stack, tags, it, sr, principal);
+    Node *G1 = seq_add(gc, stack, tags, it, sl, principal);
     if (!eqSeq(PL(0), PR(0), sl, D0, tags)) { err = "cut: premise 0 mismatch"; goto done; }
     if (!eqSeq(PL(1), PR(1), G1, sr, tags)) err = "cut: premise 1 mismatch";
   }
@@ -321,7 +318,7 @@ static const char *checkRule(GC *gc, GCStack *stack, const char **tags,
       if (!eqSeq(PL(0), PR(0), sl, sr, tags)) err = "weakening_left: premise mismatch (already present)";
       goto done;
     }
-    Node *G = seq_remove(gc, stack, tags, sl, principal);
+    Node *G = seq_remove(gc, stack, tags, it, sl, principal);
     if (!eqSeq(PL(0), PR(0), G, sr, tags)) err = "weakening_left: premise mismatch";
   }
   else if (rule == tags[K_WEAKENING_RIGHT]) {
@@ -331,7 +328,7 @@ static const char *checkRule(GC *gc, GCStack *stack, const char **tags,
       if (!eqSeq(PL(0), PR(0), sl, sr, tags)) err = "weakening_right: premise mismatch (already present)";
       goto done;
     }
-    Node *D = seq_remove(gc, stack, tags, sr, principal);
+    Node *D = seq_remove(gc, stack, tags, it, sr, principal);
     if (!eqSeq(PL(0), PR(0), sl, D, tags)) err = "weakening_right: premise mismatch";
   }
   else {
@@ -359,48 +356,42 @@ static void pbind_set(PBindings *b, const char *key, Node *val) {
   b->items[b->n++] = (PBind){ key, val };
 }
 
-static Node *p_tag(GC *gc, GCStack *stack, const char *s) {
-  node_new(gc, gc_stack_push(gc, stack), N_STR);
-  Node *n = *gc_stack_top(stack);
-  n->str = (char *)s;
-  return n;
-}
-
-
-static Node *p_cap(GC *gc, GCStack *stack) {
-  node_new(gc, gc_stack_push(gc, stack), N_NONE);
+static Node *p_tag(GC *gc, GCStack *stack, Intern *it, const char *s) {
+  *gc_stack_push(gc, stack) = intern_str(it, s);
   return *gc_stack_top(stack);
 }
 
-static Node *p_arr(GC *gc, GCStack *stack, int len, ...) {
+static Node *p_cap(GC *gc, GCStack *stack, Intern *it) {
+  *gc_stack_push(gc, stack) = intern_none(it);
+  return *gc_stack_top(stack);
+}
+
+static Node *p_arr(GC *gc, GCStack *stack, Intern *it, int len, ...) {
   va_list ap; va_start(ap, len);
   Node *args[8];
   for (int i = 0; i < len; i++) args[i] = va_arg(ap, Node*);
   va_end(ap);
-  node_new(gc, gc_stack_push(gc, stack), N_ARR);
-  Node *n = *gc_stack_top(stack);
-  n->arr.data = gc_alloc(gc, sizeof(Node*) * len, NULL, NULL, NULL);
-  n->arr.len = len;
-  for (int i = 0; i < len; i++) ((Node**)n->arr.data)[i] = args[i];
-  return n;
+  void **slot = gc_stack_push(gc, stack);
+  intern_arr(it, args, len, slot);
+  return *slot;
 }
 
-#define PT(k) p_tag(gc, stack, tags[k])
-#define PC    p_cap(gc, stack)
-#define PA(...) p_arr(gc, stack, __VA_ARGS__)
+#define PT(k) p_tag(gc, stack, it, tags[k])
+#define PC    p_cap(gc, stack, it)
+#define PA(...) p_arr(gc, stack, it, __VA_ARGS__)
 
-static Node *p_mem(GC *gc, GCStack *stack, const char **tags, Node *a, Node *b) { return PA(3, PT(K_MEM), a, b); }
-static Node *p_neg(GC *gc, GCStack *stack, const char **tags, Node *a) { return PA(2, PT(K_NEG), a); }
-static Node *p_imp(GC *gc, GCStack *stack, const char **tags, Node *a, Node *b) { return PA(3, PT(K_IMPLIES), a, b); }
-static Node *p_fa(GC *gc, GCStack *stack, const char **tags, Node *v, Node *body) { return PA(3, PT(K_FORALL), v, body); }
-static Node *p_and(GC *gc, GCStack *stack, const char **tags, Node *a, Node *b) { return p_neg(gc,stack,tags, p_imp(gc,stack,tags, a, p_neg(gc,stack,tags, b))); }
-static Node *p_or(GC *gc, GCStack *stack, const char **tags, Node *a, Node *b) { return p_imp(gc,stack,tags, p_neg(gc,stack,tags, a), b); }
-static Node *p_iff(GC *gc, GCStack *stack, const char **tags, Node *a, Node *b) {
-  return p_neg(gc,stack,tags, p_imp(gc,stack,tags, p_imp(gc,stack,tags,a,b), p_neg(gc,stack,tags, p_imp(gc,stack,tags,b,a))));
+static Node *p_mem(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *a, Node *b) { return PA(3, PT(K_MEM), a, b); }
+static Node *p_neg(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *a) { return PA(2, PT(K_NEG), a); }
+static Node *p_imp(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *a, Node *b) { return PA(3, PT(K_IMPLIES), a, b); }
+static Node *p_fa(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *v, Node *body) { return PA(3, PT(K_FORALL), v, body); }
+static Node *p_and(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *a, Node *b) { return p_neg(gc,stack,tags,it, p_imp(gc,stack,tags,it, a, p_neg(gc,stack,tags,it, b))); }
+static Node *p_or(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *a, Node *b) { return p_imp(gc,stack,tags,it, p_neg(gc,stack,tags,it, a), b); }
+static Node *p_iff(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *a, Node *b) {
+  return p_neg(gc,stack,tags,it, p_imp(gc,stack,tags,it, p_imp(gc,stack,tags,it,a,b), p_neg(gc,stack,tags,it, p_imp(gc,stack,tags,it,b,a))));
 }
-static Node *p_exists(GC *gc, GCStack *stack, const char **tags, Node *v, Node *body) { return p_neg(gc,stack,tags, p_fa(gc,stack,tags, v, p_neg(gc,stack,tags, body))); }
-static Node *p_eqv(GC *gc, GCStack *stack, const char **tags, Node *a, Node *b, Node *z) {
-  return p_fa(gc,stack,tags, z, p_iff(gc,stack,tags, p_mem(gc,stack,tags,z,a), p_mem(gc,stack,tags,z,b)));
+static Node *p_exists(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *v, Node *body) { return p_neg(gc,stack,tags,it, p_fa(gc,stack,tags,it, v, p_neg(gc,stack,tags,it, body))); }
+static Node *p_eqv(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *a, Node *b, Node *z) {
+  return p_fa(gc,stack,tags,it, z, p_iff(gc,stack,tags,it, p_mem(gc,stack,tags,it,z,a), p_mem(gc,stack,tags,it,z,b)));
 }
 
 static int pmatch(Node *pat, Node *f, PBindings *b, const char **tags) {
@@ -420,18 +411,18 @@ static int pmatch(Node *pat, Node *f, PBindings *b, const char **tags) {
   return 0;
 }
 
-static int matchAxiom(GC *gc, GCStack *stack, const char **tags, Node *f, int idx) {
+static int matchAxiom(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f, int idx) {
   int save = gc_stack_len(stack);
   PBindings b = { .n = 0 };
-  #define M(a,b) p_mem(gc,stack,tags,a,b)
-  #define N(a) p_neg(gc,stack,tags,a)
-  #define I(a,b) p_imp(gc,stack,tags,a,b)
-  #define F(v,body) p_fa(gc,stack,tags,v,body)
-  #define A(a,b) p_and(gc,stack,tags,a,b)
-  #define O(a,b) p_or(gc,stack,tags,a,b)
-  #define IF(a,b) p_iff(gc,stack,tags,a,b)
-  #define E(v,body) p_exists(gc,stack,tags,v,body)
-  #define EQ(a,b,z) p_eqv(gc,stack,tags,a,b,z)
+  #define M(a,b) p_mem(gc,stack,tags,it,a,b)
+  #define N(a) p_neg(gc,stack,tags,it,a)
+  #define I(a,b) p_imp(gc,stack,tags,it,a,b)
+  #define F(v,body) p_fa(gc,stack,tags,it,v,body)
+  #define A(a,b) p_and(gc,stack,tags,it,a,b)
+  #define O(a,b) p_or(gc,stack,tags,it,a,b)
+  #define IF(a,b) p_iff(gc,stack,tags,it,a,b)
+  #define E(v,body) p_exists(gc,stack,tags,it,v,body)
+  #define EQ(a,b,z) p_eqv(gc,stack,tags,it,a,b,z)
 
   Node *x=PT(K_X),*y=PT(K_Y),*z=PT(K_Z),*a=PT(K_A),*w=PT(K_W);
   Node *_b=PT(K_B),*e=PT(K_E),*s=PT(K_S),*_z=PT(K_UZ),*c=PT(K_C);
@@ -463,7 +454,7 @@ static int matchAxiom(GC *gc, GCStack *stack, const char **tags, Node *f, int id
   return result;
 }
 
-static int isSeparation(GC *gc, GCStack *stack, const char **tags, Node *f) {
+static int isSeparation(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f) {
   const char **stripped = malloc(sizeof(char*) * 8);
   int nstripped = 0, cap = 8;
   Node *cur = f;
@@ -471,8 +462,8 @@ static int isSeparation(GC *gc, GCStack *stack, const char **tags, Node *f) {
   while (!found) {
     int save = gc_stack_len(stack);
     Node *phi=PC, *a=PT(K_A), *_b=PT(K_B), *x=PT(K_X);
-    Node *pat = p_fa(gc,stack,tags, a, p_exists(gc,stack,tags, _b, p_fa(gc,stack,tags, x,
-      p_iff(gc,stack,tags, p_mem(gc,stack,tags,x,_b), p_and(gc,stack,tags, p_mem(gc,stack,tags,x,a), phi)))));
+    Node *pat = p_fa(gc,stack,tags,it, a, p_exists(gc,stack,tags,it, _b, p_fa(gc,stack,tags,it, x,
+      p_iff(gc,stack,tags,it, p_mem(gc,stack,tags,it,x,_b), p_and(gc,stack,tags,it, p_mem(gc,stack,tags,it,x,a), phi)))));
     PBindings b = { .n = 0 };
     if (pmatch(pat, cur, &b, tags)) {
       Node *mp = pbind_get(&b, tags[K_UNDERSCORE]);
@@ -501,7 +492,7 @@ static int isSeparation(GC *gc, GCStack *stack, const char **tags, Node *f) {
   return found;
 }
 
-static int isReplacement(GC *gc, GCStack *stack, const char **tags, Node *f) {
+static int isReplacement(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f) {
   const char **stripped = malloc(sizeof(char*) * 8);
   int nstripped = 0, cap = 8;
   Node *cur = f;
@@ -509,8 +500,8 @@ static int isReplacement(GC *gc, GCStack *stack, const char **tags, Node *f) {
   while (!found) {
     int save = gc_stack_len(stack);
     Node *phi=PC, *uniq=PC, *a=PT(K_A), *_b=PT(K_B), *x=PT(K_X), *y=PT(K_Y);
-    Node *pat = p_fa(gc,stack,tags, a, p_imp(gc,stack,tags, uniq, p_exists(gc,stack,tags, _b, p_fa(gc,stack,tags, y,
-      p_iff(gc,stack,tags, p_mem(gc,stack,tags,y,_b), p_exists(gc,stack,tags, x, p_and(gc,stack,tags, p_mem(gc,stack,tags,x,a), phi)))))));
+    Node *pat = p_fa(gc,stack,tags,it, a, p_imp(gc,stack,tags,it, uniq, p_exists(gc,stack,tags,it, _b, p_fa(gc,stack,tags,it, y,
+      p_iff(gc,stack,tags,it, p_mem(gc,stack,tags,it,y,_b), p_exists(gc,stack,tags,it, x, p_and(gc,stack,tags,it, p_mem(gc,stack,tags,it,x,a), phi)))))));
     PBindings b = { .n = 0 };
     if (pmatch(pat, cur, &b, tags)) {
       Node *mp = NULL;
@@ -541,11 +532,11 @@ static int isReplacement(GC *gc, GCStack *stack, const char **tags, Node *f) {
   return found;
 }
 
-static int isAxiom(GC *gc, GCStack *stack, const char **tags, Node *f, const char *system) {
+static int isAxiom(GC *gc, GCStack *stack, const char **tags, Intern *it, Node *f, const char *system) {
   int limit = (system == tags[K_Z] || system == tags[K_ZF]) ? 7 : 8;
-  for (int i = 0; i < limit; i++) if (matchAxiom(gc, stack, tags, f, i)) return 1;
-  if (isSeparation(gc, stack, tags, f)) return 1;
-  if ((system == tags[K_ZF] || system == tags[K_ZFC]) && isReplacement(gc, stack, tags, f)) return 1;
+  for (int i = 0; i < limit; i++) if (matchAxiom(gc, stack, tags, it, f, i)) return 1;
+  if (isSeparation(gc, stack, tags, it, f)) return 1;
+  if ((system == tags[K_ZF] || system == tags[K_ZFC]) && isReplacement(gc, stack, tags, it, f)) return 1;
   return 0;
 }
 
@@ -553,16 +544,16 @@ static int isAxiom(GC *gc, GCStack *stack, const char **tags, Node *f, const cha
  * Public API
  * ============================================================ */
 
-const char *kernel_check(GC *gc, GCStack *stack, const char **tags,
+const char *kernel_check(GC *gc, GCStack *stack, const char **tags, Intern *it,
                          Node *left, Node *right, const char *rule,
                          Node *premises, Node *principal, Node *term) {
   const char *err;
   err = checkSet(left, tags);  if (err) return err;
   err = checkSet(right, tags); if (err) return err;
-  return checkRule(gc, stack, tags, left, right, rule, premises, principal, term);
+  return checkRule(gc, stack, tags, it, left, right, rule, premises, principal, term);
 }
 
-const char *kernel_qed(GC *gc, GCStack *stack, const char **tags,
+const char *kernel_qed(GC *gc, GCStack *stack, const char **tags, Intern *it,
                        Node *proof, Node *expected, const char *system) {
   Node *sl = proof->proof.left, *sr = proof->proof.right;
   if (ALEN(sr) != 1) return "qed: expected 1 formula on right";
@@ -570,7 +561,7 @@ const char *kernel_qed(GC *gc, GCStack *stack, const char **tags,
   int has_fv = fv.len > 0; ss_free(&fv);
   if (has_fv) return "qed: theorem has free variables";
   for (int i = 0; i < ALEN(sl); i++)
-    if (!isAxiom(gc, stack, tags, AGET(sl, i), system)) return "qed: non-axiom on left";
+    if (!isAxiom(gc, stack, tags, it, AGET(sl, i), system)) return "qed: non-axiom on left";
   if (!same(AGET(sr, 0), expected, tags)) return "qed: theorem does not match expected";
   return NULL;
 }

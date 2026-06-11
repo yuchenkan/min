@@ -276,16 +276,15 @@ static void parse_expr(GC *gc, Intern *it, Node **slot, Tokenizer *t) {
   }
   else if (tok->type == T_INT) {
     advance(t);
-    node_new(gc, (void **)slot, N_INT);
     uint64_t v = 0;
     for (const char *s = tok->val; *s; s++)
       v = v * 10 + (*s - '0');
-    (*slot)->integer = v;
+    *slot = intern_int(it, v);
   }
   else if (tok->type == T_STR) {
     advance(t);
-    node_new(gc, (void **)slot, N_STR);
-    (*slot)->str = (char *)intern(it, tok->val);
+    *slot = (Node *)intern(it, tok->val);
+    *slot = intern_str(it, (const char *)*slot);
   }
   else if (tok->type == T_NAME) {
     advance(t);

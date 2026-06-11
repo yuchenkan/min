@@ -1,7 +1,8 @@
 #include "node.h"
+#include <assert.h>
 #include <string.h>
 
-static void node_trace(void *data) {
+void node_trace(void *data) {
   Node *n = data;
   switch (n->tag) {
   case N_INT: break;
@@ -45,6 +46,10 @@ static void node_trace(void *data) {
     gc_mark(n->closure.params);
     gc_mark(n->closure.body);
     gc_mark(n->closure.env);
+    gc_mark(n->closure.cache);
+    break;
+  case N_BUILTIN:
+    gc_mark(n->builtin.cache);
     break;
   case N_PROOF:
     gc_mark(n->proof.left);
@@ -54,6 +59,7 @@ static void node_trace(void *data) {
 }
 
 void node_new(GC *gc, void **slot, int tag) {
+  assert(tag != N_INT && tag != N_STR && tag != N_ARR && tag != N_TRUE && tag != N_FALSE && tag != N_NONE);
   Node *n = gc_alloc(gc, sizeof(Node), node_trace, NULL, NULL);
   memset(n, 0, sizeof(Node));
   n->tag = tag;

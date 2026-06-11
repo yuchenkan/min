@@ -15,10 +15,10 @@ static void root_trace(void *data) {
   gc_mark(r->stack);
 }
 
-typedef struct { void *child; } Node;
+typedef struct { void *child; } TNode;
 
-static void node_trace(void *data) {
-  Node *n = data;
+static void tnode_trace(void *data) {
+  TNode *n = data;
   gc_mark(n->child);
 }
 
@@ -49,10 +49,10 @@ static void test_cycle(void) {
   Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
   root->a = NULL; root->b = NULL; root->list = NULL; root->map = NULL; root->stack = NULL;
 
-  Node *a = gc_alloc(gc, sizeof(Node), node_trace, NULL, NULL);
+  TNode *a = gc_alloc(gc, sizeof(TNode), tnode_trace, NULL, NULL);
   a->child = NULL;
   root->a = a;
-  Node *b = gc_alloc(gc, sizeof(Node), node_trace, NULL, NULL);
+  TNode *b = gc_alloc(gc, sizeof(TNode), tnode_trace, NULL, NULL);
   b->child = NULL;
   root->b = b;
   a->child = b;
@@ -62,7 +62,7 @@ static void test_cycle(void) {
   for (int i = 0; i < 100; i++)
     gc_alloc(gc, 64, NULL, NULL, NULL);
 
-  assert(((Node *)root->a)->child == b);
+  assert(((TNode *)root->a)->child == b);
   assert(b->child == a);
 
   /* drop refs — cycle becomes garbage */

@@ -11,16 +11,15 @@ static void do_bind(void *item, void *ctx);
 Node *eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Node *global, GCStack *stack, const char **tags, Intern *it);
 
 static void builtin_is_none(GC *gc, GCStack *stack, const char **tags, Intern *it) {
-  (void)tags; (void)it;
+  (void)tags;
   int tag = ((Node *)*gc_stack_top(stack))->tag;
-  gc_stack_pop(stack, 2); /* arg + callee */
-  node_new(gc, gc_stack_push(gc, stack), tag == N_NONE ? N_TRUE : N_FALSE);
+  gc_stack_pop(stack, 2);
+  *gc_stack_push(gc, stack) = tag == N_NONE ? intern_true(it) : intern_false(it);
 }
 
-static void builtin_add_int(GC *gc, GCStack *stack, int top, Node *a, Node *b) {
+static void builtin_add_int(GC *gc, GCStack *stack, int top, Node *a, Node *b, Intern *it) {
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_INT);
-  ((Node *)*slot)->integer = a->integer + b->integer;
+  *slot = intern_int(it, a->integer + b->integer);
   *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
@@ -31,28 +30,23 @@ static void builtin_add_str(GC *gc, GCStack *stack, int top, Node *a, Node *b, I
   memcpy(buf, a->str, alen);
   memcpy(buf + alen, b->str, blen + 1);
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_STR);
-  ((Node *)*slot)->str = (char *)intern(it, buf);
+  *slot = (void *)intern(it, buf);
   free(buf);
+  *slot = intern_str(it, (const char *)*slot);
   *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
 
-static void builtin_add_arr(GC *gc, GCStack *stack, int top, Node *a, Node *b) {
+static void builtin_add_arr(GC *gc, GCStack *stack, int top, Node *a, Node *b, Intern *it) {
   int alen = a->arr.len, blen = b->arr.len;
   int rlen = alen + blen;
+  Node **tmp = malloc(sizeof(Node *) * rlen);
+  memcpy(tmp, a->arr.data, sizeof(Node *) * alen);
+  memcpy(tmp + alen, b->arr.data, sizeof(Node *) * blen);
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_ARR);
-  Node *r = *slot;
-  if (rlen > 0) {
-    r->arr.data = gc_alloc(gc, sizeof(Node *) * rlen, NULL, NULL, NULL);
-    a = *gc_stack_nth(stack, top - 2);
-    b = *gc_stack_nth(stack, top - 1);
-    memcpy(r->arr.data, a->arr.data, sizeof(Node *) * alen);
-    memcpy((char *)r->arr.data + sizeof(Node *) * alen, b->arr.data, sizeof(Node *) * blen);
-  }
-  r->arr.len = rlen;
-  *gc_stack_nth(stack, top - 3) = r;
+  intern_arr(it, tmp, rlen, slot);
+  free(tmp);
+  *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
 
@@ -62,35 +56,32 @@ static void builtin_add(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
   if (a->tag != b->tag) { fprintf(stderr, "add: type mismatch %d vs %d\n", a->tag, b->tag); exit(1); }
-  if (a->tag == N_INT)       builtin_add_int(gc, stack, top, a, b);
+  if (a->tag == N_INT)       builtin_add_int(gc, stack, top, a, b, it);
   else if (a->tag == N_STR)  builtin_add_str(gc, stack, top, a, b, it);
-  else if (a->tag == N_ARR)  builtin_add_arr(gc, stack, top, a, b);
+  else if (a->tag == N_ARR)  builtin_add_arr(gc, stack, top, a, b, it);
   else { fprintf(stderr, "add: unsupported type %d\n", a->tag); exit(1); }
 }
 
 static void builtin_sub(GC *gc, GCStack *stack, const char **tags, Intern *it) {
-  (void)tags; (void)it;
+  (void)tags;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT || b->tag != N_INT) { fprintf(stderr, "sub: expected int\n"); exit(1); }
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_INT);
-  ((Node *)*slot)->integer = a->integer - b->integer;
+  *slot = intern_int(it, a->integer - b->integer);
   *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
 
 static void builtin_mul(GC *gc, GCStack *stack, const char **tags, Intern *it) {
-  (void)tags; (void)it;
+  (void)tags;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT || b->tag != N_INT) { fprintf(stderr, "mul: expected int\n"); exit(1); }
-
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_INT);
-  ((Node *)*slot)->integer = a->integer * b->integer;
+  *slot = intern_int(it, a->integer * b->integer);
   *gc_stack_nth(stack, top - 3) = *slot;
   gc_stack_pop(stack, 3);
 }
@@ -110,10 +101,8 @@ static void builtin_eq(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   if (a->tag == N_INT) equal = a->integer == b->integer;
   else if (a->tag == N_STR) equal = a->str == b->str;
   else equal = 1;
-  void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, equal ? N_TRUE : N_FALSE);
-  *gc_stack_nth(stack, top - 3) = *slot;
-  gc_stack_pop(stack, 3);
+  *gc_stack_nth(stack, top - 3) = equal ? intern_true(it) : intern_false(it);
+  gc_stack_pop(stack, 2);
 }
 
 static void builtin_str(GC *gc, GCStack *stack, const char **tags, Intern *it) {
@@ -121,25 +110,22 @@ static void builtin_str(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT) { fprintf(stderr, "str: expected int\n"); exit(1); }
-
-  char buf[21]; /* max uint64 is 20 digits */
+  char buf[21];
   snprintf(buf, sizeof(buf), "%lu", (unsigned long)a->integer);
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_STR);
-  ((Node *)*slot)->str = (char *)intern(it, buf);
+  *slot = (void *)intern(it, buf);
+  *slot = intern_str(it, (const char *)*slot);
   *gc_stack_nth(stack, top - 2) = *slot;
   gc_stack_pop(stack, 2);
 }
 
 static void builtin_not(GC *gc, GCStack *stack, const char **tags, Intern *it) {
-  (void)tags; (void)it;
+  (void)tags;
   int top = gc_stack_len(stack);
   int tag = ((Node *)*gc_stack_top(stack))->tag;
   if (tag != N_TRUE && tag != N_FALSE) { fprintf(stderr, "not: expected bool\n"); exit(1); }
-  void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, tag == N_TRUE ? N_FALSE : N_TRUE);
-  *gc_stack_nth(stack, top - 2) = *slot;
-  gc_stack_pop(stack, 2);
+  *gc_stack_nth(stack, top - 2) = tag == N_TRUE ? intern_false(it) : intern_true(it);
+  gc_stack_pop(stack, 1);
 }
 
 static void builtin_head(GC *gc, GCStack *stack, const char **tags, Intern *it) {
@@ -153,21 +139,14 @@ static void builtin_head(GC *gc, GCStack *stack, const char **tags, Intern *it) 
 }
 
 static void builtin_tail(GC *gc, GCStack *stack, const char **tags, Intern *it) {
-  (void)tags; (void)it;
+  (void)tags;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_ARR || a->arr.len == 0) { fprintf(stderr, "tail: expected non-empty arr\n"); exit(1); }
   int rlen = a->arr.len - 1;
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_ARR);
-  Node *r = *slot;
-  if (rlen > 0) {
-    r->arr.data = gc_alloc(gc, sizeof(Node *) * rlen, NULL, NULL, NULL);
-    a = *gc_stack_nth(stack, top - 1);
-    memcpy(r->arr.data, (char *)a->arr.data + sizeof(Node *), sizeof(Node *) * rlen);
-  }
-  r->arr.len = rlen;
-  *gc_stack_nth(stack, top - 2) = r;
+  intern_arr(it, (Node **)a->arr.data + 1, rlen, slot);
+  *gc_stack_nth(stack, top - 2) = *slot;
   gc_stack_pop(stack, 2);
 }
 
@@ -186,13 +165,12 @@ static void builtin_nth(GC *gc, GCStack *stack, const char **tags, Intern *it) {
 }
 
 static void builtin_len(GC *gc, GCStack *stack, const char **tags, Intern *it) {
-  (void)tags; (void)it;
+  (void)tags;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_ARR) { fprintf(stderr, "len: expected arr\n"); exit(1); }
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_INT);
-  ((Node *)*slot)->integer = a->arr.len;
+  *slot = intern_int(it, a->arr.len);
   *gc_stack_nth(stack, top - 2) = *slot;
   gc_stack_pop(stack, 2);
 }
@@ -264,29 +242,24 @@ static void builtin_do_proof(GC *gc, GCStack *stack, const char **tags, Intern *
   Node *term      = *gc_stack_nth(stack, top - 1);
 
   Node *term_or_null = (term->tag == N_NONE) ? NULL : term;
-  const char *err = kernel_check(gc, stack, tags, left, right, rule->str, premises, principal, term_or_null);
+  const char *err = kernel_check(gc, stack, tags, it, left, right, rule->str, premises, principal, term_or_null);
 
-  /* build result array [ok, value] */
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_ARR);
-  Node *result = *slot;
-  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL, NULL, NULL);
-  result->arr.len = 2;
-  Node **rd = result->arr.data;
-  rd[0] = NULL; rd[1] = NULL;
-
   if (err) {
-    node_new(gc, (void **)&rd[0], N_FALSE);
-    node_new(gc, (void **)&rd[1], N_STR);
-    rd[1]->str = (char *)intern(it, err);
+    const char *s = intern(it, err);
+    Node *elems[2] = { intern_false(it), intern_str(it, s) };
+    intern_arr(it, elems, 2, slot);
   } else {
-    node_new(gc, (void **)&rd[0], N_TRUE);
-    node_new(gc, (void **)&rd[1], N_PROOF);
-    rd[1]->proof.left = left;
-    rd[1]->proof.right = right;
+    void **pslot = gc_stack_push(gc, stack);
+    node_new(gc, pslot, N_PROOF);
+    ((Node *)*pslot)->proof.left = left;
+    ((Node *)*pslot)->proof.right = right;
+    Node *elems[2] = { intern_true(it), *pslot };
+    intern_arr(it, elems, 2, slot);
+    gc_stack_pop(stack, 1);
   }
 
-  *gc_stack_nth(stack, top - 7) = result;
+  *gc_stack_nth(stack, top - 7) = *slot;
   gc_stack_pop(stack, 7);
 }
 
@@ -298,26 +271,19 @@ static void builtin_do_qed(GC *gc, GCStack *stack, const char **tags, Intern *it
   Node *expected = *gc_stack_nth(stack, top - 2);
   Node *system   = *gc_stack_nth(stack, top - 1);
 
-  const char *err = kernel_qed(gc, stack, tags, proof, expected, system->str);
+  const char *err = kernel_qed(gc, stack, tags, it, proof, expected, system->str);
 
   void **slot = gc_stack_push(gc, stack);
-  node_new(gc, slot, N_ARR);
-  Node *result = *slot;
-  result->arr.data = gc_alloc(gc, sizeof(Node *) * 2, NULL, NULL, NULL);
-  result->arr.len = 2;
-  Node **rd = result->arr.data;
-  rd[0] = NULL; rd[1] = NULL;
-
   if (err) {
-    node_new(gc, (void **)&rd[0], N_FALSE);
-    node_new(gc, (void **)&rd[1], N_STR);
-    rd[1]->str = (char *)intern(it, err);
+    const char *s = intern(it, err);
+    Node *elems[2] = { intern_false(it), intern_str(it, s) };
+    intern_arr(it, elems, 2, slot);
   } else {
-    node_new(gc, (void **)&rd[0], N_TRUE);
-    node_new(gc, (void **)&rd[1], N_NONE);
+    Node *elems[2] = { intern_true(it), intern_none(it) };
+    intern_arr(it, elems, 2, slot);
   }
 
-  *gc_stack_nth(stack, top - 4) = result;
+  *gc_stack_nth(stack, top - 4) = *slot;
   gc_stack_pop(stack, 4);
 }
 
@@ -338,9 +304,9 @@ static void set_builtin(GC *gc, Node *env, const char *name, void (*fn)(GC *, GC
 }
 
 void init_global(GC *gc, Intern *it, Node *global, void **s) {
-  *s = (void *)intern(it, "true");  node_new(gc, (void **)env_get(gc, global, *s), N_TRUE);
-  *s = (void *)intern(it, "false"); node_new(gc, (void **)env_get(gc, global, *s), N_FALSE);
-  *s = (void *)intern(it, "none");  node_new(gc, (void **)env_get(gc, global, *s), N_NONE);
+  *s = (void *)intern(it, "true");  *env_get(gc, global, *s) = intern_true(it);
+  *s = (void *)intern(it, "false"); *env_get(gc, global, *s) = intern_false(it);
+  *s = (void *)intern(it, "none");  *env_get(gc, global, *s) = intern_none(it);
   *s = (void *)intern(it, "is_none"); set_builtin(gc, global, *s, builtin_is_none, 1);
   *s = (void *)intern(it, "add");    set_builtin(gc, global, *s, builtin_add, 2);
   *s = (void *)intern(it, "sub");    set_builtin(gc, global, *s, builtin_sub, 2);
@@ -366,18 +332,14 @@ static void eval_each(void *item, void *ctx) {
 }
 
 static void eval_list(GC *gc, Node *env, GCStack *stack, const char **tags, Intern *it, Node *e) {
-  node_new(gc, gc_stack_push(gc, stack), N_ARR);
-  Node *a = *gc_stack_top(stack);
-
-  int t = gc_stack_len(stack);
+  int base = gc_stack_len(stack);
   void *p[5] = { gc, env, stack, (void *)tags, it };
   gc_list_each(e->list, eval_each, p);
-  int l = gc_stack_len(stack) - t;
+  int l = gc_stack_len(stack) - base;
 
-  a->arr.data = gc_alloc(gc, sizeof(Node *) * l, NULL, NULL, NULL);
-  for (int i = 0; i < l; i++)
-    ((Node **)a->arr.data)[i] = *gc_stack_nth(stack, t + i);
-  a->arr.len = l;
+  void **slot = gc_stack_push(gc, stack);
+  intern_arr(it, (Node **)gc_stack_nth(stack, base), l, slot);
+  *gc_stack_nth(stack, base) = *slot;
   gc_stack_pop(stack, l);
 }
 
@@ -423,6 +385,22 @@ static void eval_call(GC *gc, Node *env, GCStack *stack, const char **tags, Inte
   Node *callee = *gc_stack_nth(stack, base - 1);
 
   if (callee->tag == N_CLOSURE) {
+    /* cache lookup */
+    void **key_slot = gc_stack_push(gc, stack);
+    intern_arr(it, (Node **)gc_stack_nth(stack, base), nargs, key_slot);
+    Node *cache_key = *key_slot;
+
+    if (!callee->closure.cache)
+      callee->closure.cache = gc_nmap_new(gc);
+
+    void **hit = gc_nmap_find(callee->closure.cache, cache_key);
+    if (hit) {
+      gc_stack_pop(stack, 1);
+      *gc_stack_nth(stack, base - 1) = *hit;
+      gc_stack_pop(stack, nargs);
+      return;
+    }
+
     /* snapshot closure env, bind params */
     env_snapshot(gc, gc_stack_push(gc, stack), callee->closure.env);
     Node *call_env = *gc_stack_top(stack);
@@ -437,8 +415,18 @@ static void eval_call(GC *gc, Node *env, GCStack *stack, const char **tags, Inte
     /* eval body in closure env */
     eval_expr(gc, call_env, stack, tags, it, callee->closure.body);
 
+    /* cache store */
+    Node *result = *gc_stack_top(stack);
+    callee = *gc_stack_nth(stack, base - 1);
+    if (callee->closure.ncache > 1024) {
+      gc_nmap_clear(callee->closure.cache);
+      callee->closure.ncache = 0;
+    }
+    *gc_nmap_get(gc, callee->closure.cache, cache_key) = result;
+    callee->closure.ncache++;
+
     /* result is on top; move it to callee's slot */
-    *gc_stack_nth(stack, base - 1) = *gc_stack_top(stack);
+    *gc_stack_nth(stack, base - 1) = result;
     gc_stack_pop(stack, gc_stack_len(stack) - base);
   } else if (callee->tag == N_BUILTIN) {
     if (nargs != callee->builtin.nparams) {

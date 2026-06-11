@@ -32,12 +32,13 @@ struct Node {
     /* runtime */
     struct { void *data; uint64_t len; } arr;
     GCMap *env;
-    struct { GCList *params; Node *body; Node *env; } closure;
-    struct { void (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; } builtin;
+    struct { GCList *params; Node *body; Node *env; GCNMap *cache; int ncache; } closure;
+    struct { void (*fn)(GC *gc, GCStack *stack, const char **tags, Intern *it); int nparams; GCNMap *cache; int ncache; } builtin;
     struct { Node *left; Node *right; } proof; /* sequent: left=N_ARR, right=N_ARR */
   };
 };
 
+void node_trace(void *data);
 void node_new(GC *gc, void **slot, int tag);
 Node **env_get(GC *gc, Node *env, const char *name);
 Node **env_find(Node *env, const char *name);

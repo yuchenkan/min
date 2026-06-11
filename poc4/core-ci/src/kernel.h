@@ -2,6 +2,7 @@
 #define KERNEL_H
 
 #include "node.h"
+#include "intern.h"
 
 enum {
   K_MEM, K_NEG, K_IMPLIES, K_FORALL,
@@ -15,11 +16,11 @@ enum {
   K_COUNT
 };
 
-const char *kernel_check(GC *gc, GCStack *stack, const char **tags,
+const char *kernel_check(GC *gc, GCStack *stack, const char **tags, Intern *it,
                          Node *left, Node *right, const char *rule,
                          Node *premises, Node *principal, Node *term);
 
-const char *kernel_qed(GC *gc, GCStack *stack, const char **tags,
+const char *kernel_qed(GC *gc, GCStack *stack, const char **tags, Intern *it,
                        Node *proof, Node *expected, const char *system);
 
 #endif
