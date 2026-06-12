@@ -1,0 +1,276 @@
+from derived import mem, neg, implies, forall, and
+from vocab.tm.tm import tm_config, tm_transition, tape_update, tm_reaches
+from vocab.functions import apply, function
+from vocab.nat.nat import num, omega, successor
+from vocab.arithmetic.plus import plus
+
+# unary_tape(tape, a, b, p): tape = 1^a 0 1^b then all 0
+$unary_tape \tape a b p: {
+    $np add(p, "_")
+    $i add(p, "i")
+    $one add(p, "one")
+    $zero add(p, "zero")
+    $sa add(p, "sa")
+    $j add(p, "j")
+    $pos add(p, "pos")
+    $ep add(p, "end")
+    $func function(tape, np)
+    $low forall(i, implies(mem(i, a),
+        forall(one, implies(num(one, 1, np), apply(tape, i, one, np)))))
+    $sep forall(zero, implies(num(zero, 0, np), apply(tape, a, zero, np)))
+    $high forall(j, implies(mem(j, b),
+        forall(sa, implies(successor(sa, a, np),
+            forall(pos, implies(plus(sa, j, pos, np),
+                forall(one, implies(num(one, 1, np),
+                    apply(tape, pos, one, np)))))))))
+    $beyond forall(sa, implies(successor(sa, a, np),
+        forall(ep, implies(plus(sa, b, ep, np),
+            forall(i, implies(neg(mem(i, ep)),
+                forall(zero, implies(num(zero, 0, np),
+                    apply(tape, i, zero, np)))))))))
+    $expansion and(func, and(low, and(sep, and(high, beyond))))
+    ["unary_tape", add("Tape(1^", add(a, add(" 0 1^", add(b, ")")))), expansion]
+}
+
+# unary_output(tape, c, p): tape = 1^c then all 0
+$unary_output \tape c p: {
+    $np add(p, "_")
+    $i add(p, "i")
+    $one add(p, "one")
+    $zero add(p, "zero")
+    $ones forall(i, implies(mem(i, c),
+        forall(one, implies(num(one, 1, np), apply(tape, i, one, np)))))
+    $zeros forall(i, implies(neg(mem(i, c)),
+        forall(zero, implies(num(zero, 0, np), apply(tape, i, zero, np)))))
+    $expansion and(function(tape, np), and(ones, zeros))
+    ["unary_output", add("Output(1^", add(c, ")")), expansion]
+}
+
+# phase1p(p): scan right past a ones. a steps.
+$phase1p \p: {
+    $np add(p, "_")
+    $dd add(p, "d")
+    $q0 add(p, "q0")
+    $z add(p, "z")
+    $a add(p, "a")
+    $tape add(p, "tape")
+    $c0 add(p, "c0")
+    $c1 add(p, "c1")
+    $w add(p, "w")
+    $one add(p, "one")
+    $b add(p, "b")
+    $body implies(tm_transition(dd, q0, one, one, one, q0, np),
+        implies(omega(w, np), implies(mem(a, w),
+        implies(function(dd, np), implies(function(tape, np),
+        implies(num(one, 1, np), implies(num(z, 0, np),
+        implies(unary_tape(tape, a, b, np),
+        implies(tm_config(c0, q0, z, tape, np),
+        implies(tm_config(c1, q0, a, tape, np),
+        tm_reaches(dd, c0, a, c1, np)))))))))))
+    $formula forall(dd, forall(q0, forall(z, forall(a, forall(tape,
+        forall(w, forall(one, forall(b,
+        forall(c0, forall(c1, body))))))))))
+    ["phase1p", "Phase1P", formula]
+}
+
+# phase2p(p): write 1 over separator, move R. 1 step.
+$phase2p \p: {
+    $np add(p, "_")
+    $dd add(p, "d")
+    $q0 add(p, "q0")
+    $q1 add(p, "q1")
+    $a add(p, "a")
+    $sa add(p, "sa")
+    $one add(p, "one")
+    $tape add(p, "tape")
+    $tape2 add(p, "t2")
+    $c1 add(p, "c1")
+    $c2 add(p, "c2")
+    $zero add(p, "z")
+    $body implies(tm_transition(dd, q0, zero, one, one, q1, np),
+        implies(function(dd, np), implies(function(tape, np),
+        implies(num(one, 1, np), implies(num(zero, 0, np),
+        implies(apply(tape, a, zero, np),
+        implies(successor(sa, a, np),
+        implies(tape_update(tape2, tape, a, one, np),
+        implies(tm_config(c1, q0, a, tape, np),
+        implies(tm_config(c2, q1, sa, tape2, np),
+        tm_reaches(dd, c1, one, c2, np)))))))))))
+    $formula forall(dd, forall(q0, forall(q1, forall(a, forall(sa,
+        forall(one, forall(tape, forall(tape2,
+        forall(zero, forall(c1, forall(c2, body)))))))))))
+    ["phase2p", "Phase2P", formula]
+}
+
+# phase3p(p): scan right past b ones. b steps.
+$phase3p \p: {
+    $np add(p, "_")
+    $dd add(p, "d")
+    $q1 add(p, "q1")
+    $sa add(p, "sa")
+    $b add(p, "b")
+    $pos add(p, "pos")
+    $tape2 add(p, "t2")
+    $c1 add(p, "c1")
+    $c2 add(p, "c2")
+    $w add(p, "w")
+    $one add(p, "one")
+    $pv add(p, "p")
+    $pp add(p, "pp")
+    $tape_read forall(pv, implies(mem(pv, b),
+        forall(pp, implies(plus(sa, pv, pp, np), apply(tape2, pp, one, np)))))
+    $body implies(tm_transition(dd, q1, one, one, one, q1, np),
+        implies(omega(w, np), implies(mem(b, w), implies(mem(sa, w),
+        implies(function(dd, np), implies(function(tape2, np),
+        implies(num(one, 1, np), implies(tape_read,
+        implies(plus(sa, b, pos, np),
+        implies(tm_config(c1, q1, sa, tape2, np),
+        implies(tm_config(c2, q1, pos, tape2, np),
+        tm_reaches(dd, c1, b, c2, np))))))))))))
+    $formula forall(dd, forall(q1, forall(sa, forall(b, forall(pos,
+        forall(tape2, forall(w, forall(one,
+        forall(c1, forall(c2, body))))))))))
+    ["phase3p", "Phase3P", formula]
+}
+
+# phase4p(p): read 0 past ones, write 0, move L. 1 step.
+$phase4p \p: {
+    $np add(p, "_")
+    $dd add(p, "d")
+    $q1 add(p, "q1")
+    $q2 add(p, "q2")
+    $hf add(p, "hf")
+    $c add(p, "c")
+    $one add(p, "one")
+    $zero add(p, "z")
+    $tape2 add(p, "t2")
+    $c1 add(p, "c1")
+    $c2 add(p, "c2")
+    $w add(p, "w")
+    $body implies(tm_transition(dd, q1, zero, zero, zero, q2, np),
+        implies(function(dd, np), implies(function(tape2, np),
+        implies(num(one, 1, np), implies(num(zero, 0, np),
+        implies(omega(w, np), implies(mem(c, w),
+        implies(successor(hf, c, np), implies(apply(tape2, hf, zero, np),
+        implies(tm_config(c1, q1, hf, tape2, np),
+        implies(tm_config(c2, q2, c, tape2, np),
+        tm_reaches(dd, c1, one, c2, np))))))))))))
+    $formula forall(dd, forall(q1, forall(q2, forall(hf, forall(c,
+        forall(one, forall(zero, forall(tape2,
+        forall(c1, forall(c2, forall(w, body)))))))))))
+    ["phase4p", "Phase4P", formula]
+}
+
+# phase5p(p): erase last 1, move R, halt. 1 step.
+$phase5p \p: {
+    $np add(p, "_")
+    $dd add(p, "d")
+    $q2 add(p, "q2")
+    $qH add(p, "qH")
+    $c add(p, "c")
+    $hf add(p, "hf")
+    $one add(p, "one")
+    $zero add(p, "z")
+    $tape2 add(p, "t2")
+    $tf add(p, "tf")
+    $c1 add(p, "c1")
+    $c2 add(p, "c2")
+    $body implies(tm_transition(dd, q2, one, zero, one, qH, np),
+        implies(function(dd, np), implies(function(tape2, np),
+        implies(num(one, 1, np), implies(num(zero, 0, np),
+        implies(successor(hf, c, np), implies(apply(tape2, c, one, np),
+        implies(tape_update(tf, tape2, c, zero, np),
+        implies(tm_config(c1, q2, c, tape2, np),
+        implies(tm_config(c2, qH, hf, tf, np),
+        tm_reaches(dd, c1, one, c2, np)))))))))))
+    $formula forall(dd, forall(q2, forall(qH, forall(c, forall(hf,
+        forall(one, forall(zero, forall(tape2,
+        forall(tf, forall(c1, forall(c2, body)))))))))))
+    ["phase5p", "Phase5P", formula]
+}
+
+# _rule: one transition characterization
+$_rule \delta qs rs ws ds qns p: {
+    $np add(p, "_")
+    $qv add(p, "q")
+    $rv add(p, "r")
+    $wv add(p, "w")
+    $dv add(p, "d")
+    $qnv add(p, "qn")
+    forall(qv, forall(rv, forall(wv, forall(dv, forall(qnv,
+        implies(num(qv, qs, np), implies(num(rv, rs, np),
+        implies(num(wv, ws, np), implies(num(dv, ds, np),
+        implies(num(qnv, qns, np),
+            tm_transition(delta, qv, rv, wv, dv, qnv, np)))))))))))
+}
+
+# delta_char(delta, p): conjunction of 6 transition rules for addition TM
+# q0=0, qH=1, q1=2, q2=3. dir: R=1, L=0
+$delta_char \delta p: {
+    $np add(p, "_")
+    $t1 _rule(delta, 0, 1, 1, 1, 0, np)
+    $t2 _rule(delta, 0, 0, 1, 1, 2, np)
+    $t3 _rule(delta, 2, 1, 1, 1, 2, np)
+    $t4 _rule(delta, 2, 0, 0, 0, 3, np)
+    $t5 _rule(delta, 3, 1, 0, 1, 1, np)
+    $t6 _rule(delta, 3, 0, 0, 1, 1, np)
+    and(and(and(and(and(t1, t2), t3), t4), t5), t6)
+}
+
+# add_goal(p): full correctness spec for TM addition
+$add_goal \p: {
+    $np add(p, "_")
+    $delta add(p, "delta")
+    $q0 add(p, "q0")
+    $qH add(p, "qH")
+    $tin add(p, "tin")
+    $z add(p, "z")
+    $c0 add(p, "c0")
+    $w add(p, "w")
+    $a add(p, "a")
+    $b add(p, "b")
+    $c add(p, "c")
+    $hf add(p, "hf")
+    $ssc add(p, "ssc")
+    $n add(p, "n")
+    $tf add(p, "tf")
+    $cf add(p, "cf")
+    $body implies(omega(w, np), implies(mem(a, w), implies(mem(b, w),
+        implies(function(delta, np), implies(function(tin, np),
+        implies(delta_char(delta, np),
+        implies(num(q0, 0, np), implies(num(qH, 1, np), implies(num(z, 0, np),
+        implies(unary_tape(tin, a, b, np),
+        implies(tm_config(c0, q0, z, tin, np),
+        implies(plus(a, b, c, np),
+        implies(successor(hf, c, np),
+        implies(successor(ssc, hf, np),
+        implies(successor(n, ssc, np),
+        implies(unary_output(tf, c, np),
+        implies(tm_config(cf, qH, hf, tf, np),
+        tm_reaches(delta, c0, n, cf, np))))))))))))))))))
+    $formula forall(delta, forall(q0, forall(qH, forall(hf, forall(ssc,
+        forall(n, forall(tf, forall(cf, forall(tin, forall(z,
+        forall(c0, forall(w, forall(a, forall(b, forall(c, body)))))))))))))))
+    ["add_goal", "TM_Add_Correct", formula]
+}
+
+# tmreaches_compose(p): chain two TMReaches via Plus
+$tmreaches_compose \p: {
+    $np add(p, "_")
+    $dd add(p, "d")
+    $x add(p, "x")
+    $y add(p, "y")
+    $z add(p, "z")
+    $a add(p, "a")
+    $b add(p, "b")
+    $n add(p, "n")
+    $w add(p, "w")
+    $body implies(tm_reaches(dd, x, a, y, np),
+        implies(tm_reaches(dd, y, b, z, np),
+        implies(plus(a, b, n, np),
+        implies(omega(w, np), implies(mem(a, w), implies(mem(b, w),
+        tm_reaches(dd, x, n, z, np)))))))
+    $formula forall(dd, forall(x, forall(y, forall(z, forall(a,
+        forall(b, forall(n, forall(w, body))))))))
+    ["tmreaches_compose", "TMReachesCompose", formula]
+}

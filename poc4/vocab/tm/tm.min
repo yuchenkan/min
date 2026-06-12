@@ -1,0 +1,92 @@
+from derived import mem, neg, implies, forall, and, or, iff, exists, eqv
+from vocab.sets import ordered_pair
+from vocab.functions import apply, function
+from vocab.nat.nat import num, successor, empty
+
+# tm_config(c, q, h, tape, p): c = (q, (h, tape))
+$tm_config \c q h tape p: {
+    $np add(p, "_")
+    $inner add(p, "i")
+    ["tm_config", add("Config(", add(q, add(",", add(h, add(",", add(tape, ")")))))),
+        forall(inner, implies(ordered_pair(inner, h, tape, np), ordered_pair(c, q, inner, np)))]
+}
+
+# tm_transition(delta, q, r, w, d, qn, p): delta maps (q,r) to (w,(d,qn))
+$tm_transition \delta q r w d qn p: {
+    $np add(p, "_")
+    $inp add(p, "inp")
+    $out add(p, "out")
+    $dp add(p, "dp")
+    ["tm_transition", add("T(", add(q, add(",", add(r, add("->", add(w, add(",", add(d, add(",", add(qn, ")")))))))))),
+        forall(inp, implies(ordered_pair(inp, q, r, np),
+            forall(dp, implies(ordered_pair(dp, d, qn, np),
+                forall(out, implies(ordered_pair(out, w, dp, np),
+                    apply(delta, inp, out, np)))))))]
+}
+
+# tape_update(tapen, tape, h, w, p): tapen = tape[h:=w]
+$tape_update \tapen tape h w p: {
+    $np add(p, "_")
+    $pv add(p, "p")
+    $y add(p, "y")
+    ["tape_update", add(tapen, add("=", add(tape, add("[", add(h, add(":=", add(w, "]"))))))),
+        forall(pv, iff(mem(pv, tapen),
+            or(ordered_pair(pv, h, w, np),
+               and(mem(pv, tape), neg(exists(y, ordered_pair(pv, h, y, np)))))))]
+}
+
+# head_move(h, hn, d, p): hn is h moved by d (1=right, 0=left)
+$head_move \h hn d p: {
+    $np add(p, "_")
+    ["head_move", add("Move(", add(h, add(",", add(hn, add(",", add(d, ")")))))),
+        or(and(num(d, 1, np), successor(hn, h, np)),
+           and(num(d, 0, np), successor(h, hn, np)))]
+}
+
+# tm_step(delta, c1, c2, p): c2 is one step from c1 under delta
+$tm_step \delta c1 c2 p: {
+    $np add(p, "_")
+    $q add(p, "q")
+    $h add(p, "h")
+    $tape add(p, "tape")
+    $sym add(p, "sym")
+    $w add(p, "w")
+    $dv add(p, "dv")
+    $qn add(p, "qn")
+    $hn add(p, "hn")
+    $tn add(p, "tn")
+    $body forall(q, forall(h, forall(tape, forall(sym,
+        forall(w, forall(dv, forall(qn, forall(hn, forall(tn,
+            implies(tm_config(c1, q, h, tape, np),
+            implies(apply(tape, h, sym, np),
+            implies(tm_transition(delta, q, sym, w, dv, qn, np),
+            implies(tape_update(tn, tape, h, w, np),
+            implies(head_move(h, hn, dv, np),
+                tm_config(c2, qn, hn, tn, np)))))))))))))))
+    ["tm_step", add("Step(", add(c1, add("->", add(c2, ")")))), body]
+}
+
+# tm_reaches(delta, c0, n, cf, p): TM reaches cf from c0 in n steps
+$tm_reaches \delta c0 n cf p: {
+    $np add(p, "_")
+    $trace add(p, "tr")
+    $z add(p, "z")
+    $k add(p, "k")
+    $sk add(p, "sk")
+    $ck add(p, "ck")
+    $ck1 add(p, "ck1")
+    $xd add(p, "xd")
+    $yd add(p, "yd")
+    $base forall(z, implies(empty(z, np), apply(trace, z, c0, np)))
+    $step forall(k, implies(mem(k, n),
+        forall(sk, implies(successor(sk, k, np),
+            forall(ck, implies(apply(trace, k, ck, np),
+                exists(ck1, and(apply(trace, sk, ck1, np),
+                    tm_step(delta, ck, ck1, np)))))))))
+    $reached apply(trace, n, cf, np)
+    $func function(trace, np)
+    $dom_bound forall(xd, forall(yd, implies(apply(trace, xd, yd, np),
+        or(mem(xd, n), eqv(xd, n, np)))))
+    ["tm_reaches", add("Reaches(", add(delta, add(",", add(c0, add(",", add(n, add(",", add(cf, ")")))))))),
+        exists(trace, and(func, and(dom_bound, and(base, and(step, reached)))))]
+}

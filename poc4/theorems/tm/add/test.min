@@ -1,0 +1,27 @@
+from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step, tm_reaches
+from vocab.tm.add import unary_tape, unary_output, phase1p, phase2p, phase3p, phase4p, phase5p, tmreaches_compose, delta_char, add_goal
+
+$_ tap("--- tm vocab ---")
+$_ tap(nth(tm_config("c", "q", "h", "t", "_"), 1))
+$_ tap(nth(tm_transition("d", "q", "r", "w", "mv", "qn", "_"), 1))
+$_ tap(nth(tape_update("t2", "t", "h", "w", "_"), 1))
+$_ tap(nth(head_move("h", "hn", "d", "_"), 1))
+$_ tap(nth(tm_step("d", "c1", "c2", "_"), 1))
+$_ tap(nth(tm_reaches("d", "c0", "n", "cf", "_"), 1))
+
+$_ tap("--- add vocab ---")
+$_ tap(nth(unary_tape("t", "a", "b", "_"), 1))
+$_ tap(nth(unary_output("t", "c", "_"), 1))
+
+$_ tap("--- phases ---")
+$_ tap(nth(phase1p("_"), 1))
+$_ tap(nth(phase2p("_"), 1))
+$_ tap(nth(phase3p("_"), 1))
+$_ tap(nth(phase4p("_"), 1))
+$_ tap(nth(phase5p("_"), 1))
+$_ tap(nth(tmreaches_compose("_"), 1))
+
+$_ tap("--- spec ---")
+$_ tap(nth(add_goal("_"), 1))
+
+$ok true
