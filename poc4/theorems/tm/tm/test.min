@@ -14,6 +14,7 @@ from theorems.tm.tm.config_decompose import config_decompose
 from theorems.tm.tm.transition_unique import transition_unique
 from theorems.tm.tm.headmove_right_elim import headmove_right_elim
 from theorems.tm.tm.tape_update_eq_args import tape_update_eq_args
+from theorems.tm.tm.tape_update_eq import tape_update_eq
 from vocab.functions import function
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
 $ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
@@ -114,5 +115,13 @@ $tuea_expected forall("t1", forall("t2", forall("tape1", forall("h1", forall("w1
         eqv("t1", "t2", "_"))))))))))))))
 $_ qed(tape_update_eq_args, tuea_expected, "z")
 $_ tap("tape_update_eq_args ok")
+
+$tue_expected forall("tapen", forall("tape", forall("h", forall("w",
+    implies(function("tape", "_"),
+    implies(apply("tape", "h", "w", "_"),
+    implies(tape_update("tapen", "tape", "h", "w", "_"),
+        eqv("tapen", "tape", "_"))))))))
+$_ qed(tape_update_eq, tue_expected, "z")
+$_ tap("tape_update_eq ok")
 
 $ok true

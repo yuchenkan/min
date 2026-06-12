@@ -1,0 +1,230 @@
+from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.sets import relation
+from vocab.functions import apply, single_valued, function
+from vocab.tm.tm import tape_update
+from tactics import ax, fl, fr, ir, wr, wl, nl, nr, mp, cut, cut_c, inst, apply_thm, eir, eel, close, same
+from util import remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.ext_substitution import ext_substitution
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
+from theorems.functions.func_unique_thm import func_unique_thm
+
+# |- forall tapen, tape, h, w.
+#     Function(tape) -> Apply(tape,h,w) -> TapeUpdate(tapen,tape,h,w) -> Eq(tapen, tape)
+$tape_update_eq {
+    $tu tape_update("tapen", "tape", "h", "w", "_")
+    $func_tape function("tape", "_")
+    $app_hw apply("tape", "h", "w", "_")
+    $eq_tn_tp eqv("tapen", "tape", "_")
+
+    # TapeUpdate expansion components
+    $in_p_tn mem("p", "tapen")
+    $in_p_tp mem("p", "tape")
+    $op_phw ordered_pair("p", "h", "w", "_")
+    $op_phy ordered_pair("p", "h", "y", "_")
+    $not_ex_y neg(exists("y", op_phy))
+    $right_and and(in_p_tp, not_ex_y)
+    $or_form or(op_phw, right_and)
+    $iff_tu iff(in_p_tn, or_form)
+
+    # === Forward: In(p, tapen) → In(p, tape) ===
+
+    # Step F1: [tu] inst p -> Iff(In(p,tapen), Or(...))
+    $got_iff fl(ax([iff_tu], [iff_tu], iff_tu), [tu], [iff_tu], tu, "p")
+
+    # Step F2: Iff forward → In(p,tapen) → Or(...)
+    $imp_fwd implies(in_p_tn, or_form)
+    $got_imp_fwd mp(iff_elim_left(in_p_tn, or_form, []),
+        got_iff, iff_tu, imp_fwd, [], [tu])
+    $got_or mp(got_imp_fwd, ax([in_p_tn],[in_p_tn],in_p_tn),
+        in_p_tn, or_form, [tu], [in_p_tn])
+
+    # Step F3: Left case: OrdPair(p,h,w) → In(p,tape)
+    # From Apply(tape,h,w) = ∃q. OrdPair(q,h,w) ∧ In(q,tape)
+    # ordpair_unique: OrdPair(p,h,w) ∧ OrdPair(q,h,w) → Eq(p,q)
+    # ext_substitution: Eq(p,q) → Iff(In(p,tape), In(q,tape))
+    # Iff backward + In(q,tape) → In(p,tape)
+
+    $op_qhw ordered_pair("q", "h", "w", "_")
+    $in_q_tp mem("q", "tape")
+    $and_q and(op_qhw, in_q_tp)
+    $eq_pq eqv("p", "q", "_")
+
+    # ordpair_unique inst h,w,p,q: OrdPair(p,h,w) -> OrdPair(q,h,w) -> Eq(p,q)
+    $_ou head(right(ordpair_unique))
+    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
+    $got_eq_pq mp(mp(apply_thm(ordpair_unique, _ou, ["h","w","p","q"], ["a","b","s1","s2"], _ou_b, []),
+        ax([op_phw],[op_phw],op_phw), op_phw, implies(op_qhw, eq_pq), [], [op_phw]),
+        ax([op_qhw],[op_qhw],op_qhw), op_qhw, eq_pq, [op_phw], [op_qhw])
+
+    # ext_substitution inst p,q,tape: Eq(p,q) -> Iff(In(p,tape), In(q,tape))
+    $_es head(right(ext_substitution))
+    $_es_b \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s), mem(b,s)))
+    $iff_in iff(in_p_tp, in_q_tp)
+    $got_iff_in mp(apply_thm(ext_substitution, _es, ["p","q","tape"], ["a","b","s"], _es_b, left(ext_substitution)),
+        got_eq_pq, eq_pq, iff_in, left(ext_substitution), left(got_eq_pq))
+
+    # Iff backward: In(q,tape) -> In(p,tape)
+    $imp_rev implies(in_q_tp, in_p_tp)
+    $got_imp_rev mp(iff_elim_right(in_p_tp, in_q_tp, []),
+        got_iff_in, iff_in, imp_rev, [], left(got_iff_in))
+    $got_in_from_q mp(got_imp_rev, ax([in_q_tp],[in_q_tp],in_q_tp),
+        in_q_tp, in_p_tp, left(got_imp_rev), [in_q_tp])
+
+    # Extract OrdPair(q,h,w) and In(q,tape) from And
+    $got_opq mp(and_elim_left(op_qhw, in_q_tp, []),
+        ax([and_q],[and_q],and_q), and_q, op_qhw, [], [and_q])
+    $got_inq mp(and_elim_right(op_qhw, in_q_tp, []),
+        ax([and_q],[and_q],and_q), and_q, in_q_tp, [], [and_q])
+
+    # Cut OrdPair(q,h,w) and In(q,tape) via And
+    $got_in_c1 cut_c(got_opq, got_in_from_q, op_qhw,
+        left(got_opq), left(got_in_from_q), in_p_tp)
+    $got_in_c2 cut_c(got_inq, got_in_c1, in_q_tp,
+        left(got_inq), left(got_in_c1), in_p_tp)
+
+    # eel q: Exists(q, And(op_qhw, in_q_tp)) = Apply(tape,h,w)
+    $got_in_left eel(got_in_c2, \q: and(ordered_pair(q,"h","w","_"), mem(q,"tape")), "q", "q", left(got_in_c2), in_p_tp)
+    # [op_phw, app_hw] |- in_p_tp
+
+    # Step F4: Right case: And(In(p,tape), ¬∃y.OrdPair(p,h,y)) → In(p,tape)
+    $got_in_right mp(and_elim_left(in_p_tp, not_ex_y, []),
+        ax([right_and],[right_and],right_and), right_and, in_p_tp, [], [right_and])
+
+    # Step F5: or_elim: Or(A,B) → (A→C) → (B→C) → C
+    $imp_ac implies(op_phw, in_p_tp)
+    $got_imp_ac ir(got_in_left, remove(same, op_phw, left(got_in_left)),
+        [imp_ac], imp_ac)
+    $imp_bc implies(right_and, in_p_tp)
+    $got_imp_bc ir(got_in_right, remove(same, right_and, left(got_in_right)),
+        [imp_bc], imp_bc)
+
+    $got_oe mp(or_elim(op_phw, right_and, in_p_tp, []),
+        got_or, or_form, implies(imp_ac, implies(imp_bc, in_p_tp)), [], left(got_or))
+    $got_oe mp(got_oe, got_imp_ac, imp_ac, implies(imp_bc, in_p_tp),
+        left(got_oe), left(got_imp_ac))
+    $got_fwd_result mp(got_oe, got_imp_bc, imp_bc, in_p_tp,
+        left(got_oe), left(got_imp_bc))
+    # [tu, in_p_tn, app_hw] |- in_p_tp
+
+    # === Backward: In(p, tape) → In(p, tapen) ===
+
+    # Or(A,B) = Implies(Not(A), B). Assume ¬OrdPair(p,h,w).
+    # Build And(In(p,tape), ¬∃y.OrdPair(p,h,y)):
+    #   In(p,tape) we have.
+    #   ¬∃y.OrdPair(p,h,y): assume OrdPair(p,h,y).
+    #     Apply(tape,h,y) via eir with witness p.
+    #     func_unique + Apply(tape,h,w) → Eq(y,w).
+    #     ordpair_val_transfer + OrdPair(p,h,y) + Eq(y,w) → OrdPair(p,h,w).
+    #     Contradicts Not(OrdPair(p,h,w)).
+
+    # Build Apply(tape,h,y) from OrdPair(p,h,y) + In(p,tape):
+    $and_phy and(op_phy, in_p_tp)
+    $got_and_phy mp(mp(and_intro(op_phy, in_p_tp, []),
+        ax([op_phy],[op_phy],op_phy), op_phy, implies(in_p_tp, and_phy), [], [op_phy]),
+        ax([in_p_tp],[in_p_tp],in_p_tp), in_p_tp, and_phy, [op_phy], [in_p_tp])
+    $app_hy apply("tape", "h", "y", "_")
+    $got_app_hy eir(got_and_phy, \p: and(ordered_pair(p,"h","y","_"), mem(p,"tape")), "p", "p", [op_phy, in_p_tp])
+
+    # func_unique_thm: SV(tape) -> Apply(tape,h,y) -> Apply(tape,h,w) -> Eq(y,w)
+    $sv_tape single_valued("tape", "_")
+    $eq_yw eqv("y", "w", "_")
+    $_fu head(right(func_unique_thm))
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $got_fu apply_thm(func_unique_thm, _fu, ["tape","h","y","w"], ["f","x","y1","y2"], _fu_b, [])
+
+    # Extract SV(tape) from Function(tape) = And(Relation(tape), SV(tape))
+    $rel_tape relation("tape", "_")
+    $got_sv mp(and_elim_right(rel_tape, sv_tape, []),
+        ax([func_tape],[func_tape],func_tape), func_tape, sv_tape, [], [func_tape])
+
+    $got_eq_yw mp(mp(mp(got_fu,
+        got_sv, sv_tape, implies(app_hy, implies(app_hw, eq_yw)), [], [func_tape]),
+        got_app_hy, app_hy, implies(app_hw, eq_yw), [func_tape], [op_phy, in_p_tp]),
+        ax([app_hw],[app_hw],app_hw), app_hw, eq_yw, left(mp(mp(got_fu,
+            got_sv, sv_tape, implies(app_hy, implies(app_hw, eq_yw)), [], [func_tape]),
+            got_app_hy, app_hy, implies(app_hw, eq_yw), [func_tape], [op_phy, in_p_tp])), [app_hw])
+    # [func_tape, op_phy, in_p_tp, app_hw] |- eq_yw
+
+    # ordpair_val_transfer: Eq(y,w) -> OrdPair(p,h,y) -> OrdPair(p,h,w)
+    $_ovt head(right(ordpair_val_transfer))
+    $_ovt_b \t: \a: \b: \c: implies(eqv(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $got_ophw mp(mp(apply_thm(ordpair_val_transfer, _ovt, ["p","h","y","w"], ["t","a","b","c"], _ovt_b, []),
+        got_eq_yw, eq_yw, implies(op_phy, op_phw), [], left(got_eq_yw)),
+        ax([op_phy],[op_phy],op_phy), op_phy, op_phw, left(got_eq_yw), [op_phy])
+    # [func_tape, op_phy, in_p_tp, app_hw] |- op_phw
+
+    # Contradiction with Not(OrdPair(p,h,w)):
+    $not_ophw neg(op_phw)
+    $got_bot nl(got_ophw, add(left(got_ophw), [not_ophw]), [], not_ophw)
+
+    # not_right on OrdPair(p,h,y) → ¬OrdPair(p,h,y)
+    $not_ophy neg(op_phy)
+    $got_not_ophy nr(got_bot, remove(same, op_phy, left(got_bot)), [not_ophy], not_ophy)
+
+    # forall_right y → ∀y. ¬OrdPair(p,h,y)
+    $fa_not_ophy forall("y", not_ophy)
+    $got_fa_not fr(got_not_ophy, left(got_not_ophy), [fa_not_ophy], fa_not_ophy, "y")
+
+    # Convert: ∀y.¬OrdPair(p,h,y) → ¬∃y.OrdPair(p,h,y)
+    # nl on exists: fa_not + [exists] |- []
+    $ex_phy exists("y", op_phy)
+    $got_bot2 nl(got_fa_not, add(left(got_fa_not), [ex_phy]), [], ex_phy)
+    # nr on exists: remove exists, add neg(exists)
+    $got_not_ex nr(got_bot2, remove(same, ex_phy, left(got_bot2)), [not_ex_y], not_ex_y)
+    # [func_tape, in_p_tp, app_hw, not_ophw] |- not_ex_y
+
+    # And(In(p,tape), not_ex_y)
+    $got_back_and mp(mp(and_intro(in_p_tp, not_ex_y, []),
+        ax([in_p_tp],[in_p_tp],in_p_tp), in_p_tp, implies(not_ex_y, right_and), [], [in_p_tp]),
+        got_not_ex, not_ex_y, right_and, [in_p_tp], left(got_not_ex))
+
+    # ir Not(OrdPair(p,h,w)) → Or(op_phw, right_and)
+    $got_or_back ir(got_back_and, remove(same, not_ophw, left(got_back_and)),
+        [or_form], or_form)
+    # [func_tape, in_p_tp, app_hw] |- or_form
+
+    # Iff backward: Or → In(p,tapen)
+    $got_iff2 fl(ax([iff_tu],[iff_tu],iff_tu), [tu], [iff_tu], tu, "p")
+    $imp_rev2 implies(or_form, in_p_tn)
+    $got_imp_rev2 mp(iff_elim_right(in_p_tn, or_form, []),
+        got_iff2, iff_tu, imp_rev2, [], [tu])
+    $got_back_result mp(got_imp_rev2, got_or_back, or_form, in_p_tn,
+        [tu], left(got_or_back))
+    # [tu, func_tape, in_p_tp, app_hw] |- in_p_tn
+
+    # === Iff: In(p,tapen) ↔ In(p,tape) ===
+
+    $iff_tn_tp iff(in_p_tn, in_p_tp)
+
+    # ir to get implications
+    $got_imp_fwd_final ir(got_fwd_result, remove(same, in_p_tn, left(got_fwd_result)),
+        [implies(in_p_tn, in_p_tp)], implies(in_p_tn, in_p_tp))
+    $got_imp_back_final ir(got_back_result, remove(same, in_p_tp, left(got_back_result)),
+        [implies(in_p_tp, in_p_tn)], implies(in_p_tp, in_p_tn))
+
+    # iff_intro: (A→B) → (B→A) → Iff(A,B)
+    $got_iff_final mp(mp(iff_intro(in_p_tn, in_p_tp, []),
+        got_imp_fwd_final, implies(in_p_tn, in_p_tp), implies(implies(in_p_tp, in_p_tn), iff_tn_tp),
+        [], left(got_imp_fwd_final)),
+        got_imp_back_final, implies(in_p_tp, in_p_tn), iff_tn_tp,
+        left(got_imp_fwd_final), left(got_imp_back_final))
+
+    # fr p → Eq(tapen, tape)
+    $got_eq fr(got_iff_final, left(got_iff_final), [eq_tn_tp], eq_tn_tp, "p")
+
+    # Close: ir for tu, app_hw, func_tape; fr for w, h, tape, tapen
+    $cur got_eq
+    $cur ir(cur, remove(same, tu, left(cur)), [implies(tu, head(right(cur)))], implies(tu, head(right(cur))))
+    $cur ir(cur, remove(same, app_hw, left(cur)), [implies(app_hw, head(right(cur)))], implies(app_hw, head(right(cur))))
+    $cur ir(cur, remove(same, func_tape, left(cur)), [implies(func_tape, head(right(cur)))], implies(func_tape, head(right(cur))))
+    close(cur, left(cur), [head(right(cur))], ["w", "h", "tape", "tapen"])
+}
