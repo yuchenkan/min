@@ -17,7 +17,7 @@ $apply_intro {
     # [op, pf] |- and_op_pf
 
     $got_app eir(got_and, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "f")),
-        "_p", "p", [op, pf])
+        "p", "p", [op, pf])
     # [op, pf] |- app
 
     $imp2 implies(pf, app)

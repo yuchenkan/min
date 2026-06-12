@@ -31,7 +31,7 @@ $successor_exists {
     $goal exists("s", successor("s", "a", "_"))
 
     # === Forward: exists(w, and(mem(w,p1), mem(v,w))) -> or(mem(v,"a"), eqv(v,"a")) ===
-    $ex_cond exists("_y", and(mem("_y", "p1"), mem("v", "_y")))
+    $ex_cond exists("y", and(mem("y", "p1"), mem("v", "y")))
     $or_goal or(mem("v", "a"), eqv("v", "a", "_"))
 
     # Assume and(mem(w,p1), mem(v,w))

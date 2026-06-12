@@ -11,7 +11,7 @@ $big_union_mem_intro {
     $xu mem("x", "u")
     $bu big_union("u", "a", "_")
     $and_ya_xy and(ya, xy)
-    $ex_w exists("_y", and(mem("_y","a"), mem("x","_y")))
+    $ex_w exists("y", and(mem("y","a"), mem("x","y")))
     $iff_xu iff(xu, ex_w)
 
     # instantiate big_union with x
@@ -24,7 +24,7 @@ $big_union_mem_intro {
     # [ya, xy] |- and_ya_xy
 
     # eir: exists _y. and(mem(_y,a), mem(x,_y)) with witness y
-    $got_ex eir(got_and, \w: and(mem(w, "a"), mem("x", w)), "_y", "y", [ya, xy])
+    $got_ex eir(got_and, \w: and(mem(w, "a"), mem("x", w)), "y", "y", [ya, xy])
     # [ya, xy] |- ex_w
 
     # iff backward: ex_w -> xu

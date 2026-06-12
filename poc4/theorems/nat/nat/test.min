@@ -149,7 +149,7 @@ $_ tap("omega_induction ok")
 $_ qed(not_mem_self, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), neg(mem("n","n")))))), "z")
 $_ tap("not_mem_self ok")
 
-$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(num("n",0,"_"), exists("_q", successor("n","_q","_"))))))), "z")
+$_ qed(zero_or_succ, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), or(num("n",0,"_"), exists("q", successor("n","q","_"))))))), "z")
 $_ tap("zero_or_succ ok")
 
 $_ qed(omega_transitive_set, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), transitive_set("n","_"))))), "z")

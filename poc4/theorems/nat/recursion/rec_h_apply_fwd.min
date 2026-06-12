@@ -116,10 +116,10 @@ $rec_h_apply_fwd {
 
     # eel yr from and_inner:
     $g5 eel(g4, \yr: and(and(rec_approx("v2","a","f","_"), apply("v2","m",yr,"_")), ordered_pair("q","m",yr,"_")),
-        "_y", "yr", left(g4), goal)
+        "y", "yr", left(g4), goal)
     # eel v2:
-    $g6 eel(g5, \v2: exists("_y", and(and(rec_approx(v2,"a","f","_"), apply(v2,"m","_y","_")), ordered_pair("q","m","_y","_"))),
-        "_v", "v2", left(g5), goal)
+    $g6 eel(g5, \v2: exists("y", and(and(rec_approx(v2,"a","f","_"), apply(v2,"m","y","_")), ordered_pair("q","m","y","_"))),
+        "v", "v2", left(g5), goal)
 
     # Weaken g6 to include Nat(m) on left:
     $nat_m nat("m","_")

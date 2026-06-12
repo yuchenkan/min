@@ -233,7 +233,7 @@ $union_exists {
     # Step 4: get exists(p, pair_set(p,a,b)) from pair_set_exists
     # pairing_ax = forall(x, forall(y, exists(b, ...))).
     # Instantiating y with "b" clashes with bound "b" in exists.
-    # Use renamed formula with "_b" for the existential var.
+    # Use renamed formula for the existential var.
     $ex_ps exists("p", pair_set("p", "a", "b", "_"))
     $_ps_f head(right(pair_set_exists))
     $ps_ctx left(pair_set_exists)

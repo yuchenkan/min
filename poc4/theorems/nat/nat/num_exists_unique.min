@@ -108,7 +108,7 @@ $_num_exists_unique \self k: {
             ax([num_m2], [num_m2], num_m2), num_m2, succ_n2m, [num2], [num_m2])
         $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_")))
         $su1 mp(apply_thm(successor_unique, head(right(successor_unique)), ["m","n1","n2"],
-            ["a","_s1","_s2"], _su_b, []),
+            ["a","s1","s2"], _su_b, []),
             got_s1, succ_n1m, implies(succ_n2m, eqv("n1","n2","_")), [], left(got_s1))
         $got_eqv_u mp(su1, got_s2, succ_n2m, eqv("n1","n2","_"), left(su1), left(got_s2))
         $cur eel(got_eqv_u, \m: num(m,sub(k,1),"_"), "n", "m", left(got_eqv_u), eqv("n1","n2","_"))

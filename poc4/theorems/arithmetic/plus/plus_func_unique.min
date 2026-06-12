@@ -272,24 +272,24 @@ $plus_func_unique {
         got_pmn_pww, pmn_pww, mem("pmn","dh1"), left(got_epd1), left(got_pmn_pww))
     # domain_mem_elim: dom_dh1 → pmn∈dh1 → ∃p1.Apply(h1,pmn,p1)
     # close vars ["x","d","f"] → outermost "f"
-    $_dme_b \f: \d: \x: implies(domain(d,f,"_"), implies(mem(x,d), exists("_y", apply(f,x,"_y","__"))))
+    $_dme_b \f: \d: \x: implies(domain(d,f,"_"), implies(mem(x,d), exists("y", apply(f,x,"y","_"))))
     $dme1 apply_thm(domain_mem_elim, head(right(domain_mem_elim)), ["h1","dh1","pmn"],
         ["f","d","x"], _dme_b, [])
     $got_ex_p1 mp(mp(dme1, ax([dom_dh1], [dom_dh1], dom_dh1), dom_dh1,
-        implies(mem("pmn","dh1"), exists("_y", apply("h1","pmn","_y","__"))), [], [dom_dh1]),
-        got_pmn_dh1, mem("pmn","dh1"), exists("_y", apply("h1","pmn","_y","__")), [dom_dh1], left(got_pmn_dh1))
+        implies(mem("pmn","dh1"), exists("y", apply("h1","pmn","y","_"))), [], [dom_dh1]),
+        got_pmn_dh1, mem("pmn","dh1"), exists("y", apply("h1","pmn","y","_")), [dom_dh1], left(got_pmn_dh1))
     # eel dh1, cut domain_exists
     $got_ex_p1b eel(got_ex_p1, \d: domain(d,"h1","_"), "d", "dh1", left(got_ex_p1),
-        exists("_y", apply("h1","pmn","_y","__")))
+        exists("y", apply("h1","pmn","y","_")))
     $got_de1 apply_thm(domain_exists, head(right(domain_exists)), ["h1"], ["h1"],
         \f: exists("d", domain("d",f,"_")), de_ctx)
     $got_ex_p1c cut_c(got_de1, got_ex_p1b, head(right(got_de1)), de_ctx, left(got_ex_p1b),
-        exists("_y", apply("h1","pmn","_y","__")))
+        exists("y", apply("h1","pmn","y","_")))
     # eel pww, cut product_exists
     $got_ex_p1d eel(got_ex_p1c, \pww: product(pww,"w","w","_"), "p", "pww", left(got_ex_p1c),
-        exists("_y", apply("h1","pmn","_y","__")))
+        exists("y", apply("h1","pmn","y","_")))
     $got_ex_p1e cut_c(got_pe, got_ex_p1d, head(right(got_pe)), pe_ctx, left(got_ex_p1d),
-        exists("_y", apply("h1","pmn","_y","__")))
+        exists("y", apply("h1","pmn","y","_")))
     # [pe_ctx, de_ctx, pf1, op_pmn, nw, mw] |- ∃p1.Apply(h1,pmn,p1)
 
     # --- D. Same domain chain for h2 ---
@@ -307,18 +307,18 @@ $plus_func_unique {
     $dme2 apply_thm(domain_mem_elim, head(right(domain_mem_elim)), ["h2","dh2","pmn"],
         ["f","d","x"], _dme_b, [])
     $got_ex_p2 mp(mp(dme2, ax([dom_dh2], [dom_dh2], dom_dh2), dom_dh2,
-        implies(mem("pmn","dh2"), exists("_y", apply("h2","pmn","_y","__"))), [], [dom_dh2]),
-        got_pmn_dh2, mem("pmn","dh2"), exists("_y", apply("h2","pmn","_y","__")), [dom_dh2], left(got_pmn_dh2))
+        implies(mem("pmn","dh2"), exists("y", apply("h2","pmn","y","_"))), [], [dom_dh2]),
+        got_pmn_dh2, mem("pmn","dh2"), exists("y", apply("h2","pmn","y","_")), [dom_dh2], left(got_pmn_dh2))
     $got_ex_p2b eel(got_ex_p2, \d: domain(d,"h2","_"), "d", "dh2", left(got_ex_p2),
-        exists("_y", apply("h2","pmn","_y","__")))
+        exists("y", apply("h2","pmn","y","_")))
     $got_de2 apply_thm(domain_exists, head(right(domain_exists)), ["h2"], ["h2"],
         \f: exists("d", domain("d",f,"_")), de_ctx)
     $got_ex_p2c cut_c(got_de2, got_ex_p2b, head(right(got_de2)), de_ctx, left(got_ex_p2b),
-        exists("_y", apply("h2","pmn","_y","__")))
+        exists("y", apply("h2","pmn","y","_")))
     $got_ex_p2d eel(got_ex_p2c, \pww: product(pww,"w","w","_"), "p", "pww", left(got_ex_p2c),
-        exists("_y", apply("h2","pmn","_y","__")))
+        exists("y", apply("h2","pmn","y","_")))
     $got_ex_p2e cut_c(got_pe, got_ex_p2d, head(right(got_pe)), pe_ctx, left(got_ex_p2d),
-        exists("_y", apply("h2","pmn","_y","__")))
+        exists("y", apply("h2","pmn","y","_")))
 
     # --- E. Assume Apply(h1,pmn,p1), Apply(h2,pmn,p2). IH → Eqv(p1,p2) ---
     $app1_pmn apply("h1","pmn","p1","_")
@@ -522,7 +522,7 @@ $plus_func_unique {
     $got_sc fr(scur, left(scur), [step_case], step_case, "n")
 
     # === ASSEMBLY: omega_induction → ∀n∈w.P(n) ===
-    # oi close vars: _close(["h1","h2","_w"]) → ∀_w.∀h2.∀h1. Outermost first: _w,h2,h1.
+    # oi close vars: outermost first: w, h2, h1.
     $oi_body \w: \h2: \h1: implies(omega(w,"_"), implies(base_case, implies(step_case,
         forall("n", implies(mem("n",w), pred(w,"n","_"))))))
     $oi_inst apply_thm(oi, head(right(oi)), ["w","h2","h1"], ["w","h2","h1"], oi_body, left(oi))

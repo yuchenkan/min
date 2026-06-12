@@ -312,7 +312,7 @@ $rec_val_nat {
     $oi_body \w: \sf: \a: \h: implies(omega(w,"_"), implies(
         forall("e", implies(num("e",0,"_"), pred(w,"e","_"))),
         implies(step_case, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
-    $oi_inst apply_thm(oi, head(right(oi)), ["w","sf","a","h"], ["_w","sf","a","h"],
+    $oi_inst apply_thm(oi, head(right(oi)), ["w","sf","a","h"], ["w","sf","a","h"],
         oi_body, left(oi))
     $oi_r1 arg2(head(right(oi_inst)))
     $oi_mp1 mp(oi_inst, ax([om], [om], om), om, oi_r1, left(oi), [om])

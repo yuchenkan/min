@@ -1,0 +1,220 @@
+from derived import implies, forall, eqv, and, exists, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply, function, relation, single_valued
+from vocab.tm.tm import tm_transition
+from tactics import ax, wr, ir, inst, mp, apply_thm, eel, cut_c, close, same
+from util import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.tuple_injection import tuple_injection
+from theorems.functions.func_unique_thm import func_unique_thm
+
+# pairing |- forall delta,q,sym,w,d,qn,w2,d2,qn2.
+#   Function(delta) -> TMTransition(delta,q,sym,w,d,qn) ->
+#   TMTransition(delta,q,sym,w2,d2,qn2) ->
+#   And(Eqv(w,w2), And(Eqv(d,d2), Eqv(qn,qn2)))
+$transition_unique {
+    $func_d function("delta", "_")
+    $rel_d relation("delta", "_")
+    $sv_d single_valued("delta", "_")
+    $trans1 tm_transition("delta", "q", "sym", "w", "d", "qn", "_")
+    $trans2 tm_transition("delta", "q", "sym", "w2", "d2", "qn2", "_")
+
+    $op_inp ordered_pair("inp", "q", "sym", "_")
+    $op_dp1 ordered_pair("dp1", "d", "qn", "_")
+    $op_dp2 ordered_pair("dp2", "d2", "qn2", "_")
+    $op_out1 ordered_pair("out1", "w", "dp1", "_")
+    $op_out2 ordered_pair("out2", "w2", "dp2", "_")
+    $app_d1 apply("delta", "inp", "out1", "_")
+    $app_d2 apply("delta", "inp", "out2", "_")
+
+    # ordpair_exists witnesses
+    $_oe head(right(ordpair_exists))
+    $_oe_b \a: \b: exists("p", ordered_pair("p", a, b, "_"))
+    $got_ex_inp apply_thm(ordpair_exists, _oe, ["q", "sym"], ["a", "b"], _oe_b, left(ordpair_exists))
+    $got_ex_dp1 apply_thm(ordpair_exists, _oe, ["d", "qn"], ["a", "b"], _oe_b, left(ordpair_exists))
+    $got_ex_dp2 apply_thm(ordpair_exists, _oe, ["d2", "qn2"], ["a", "b"], _oe_b, left(ordpair_exists))
+    $got_ex_out1 apply_thm(ordpair_exists, _oe, ["w", "dp1"], ["a", "b"], _oe_b, left(ordpair_exists))
+    $got_ex_out2 apply_thm(ordpair_exists, _oe, ["w2", "dp2"], ["a", "b"], _oe_b, left(ordpair_exists))
+
+    # Instantiate trans1: inst+mp for each forall layer (interspersed with implies)
+    $inner1_out forall("out1", implies(ordered_pair("out1", "w", "dp1", "_"),
+        apply("delta", "inp", "out1", "_")))
+    $inner1 forall("dp1", implies(op_dp1, inner1_out))
+    $target1 implies(op_inp, inner1)
+
+    $s_t1_0 inst(ax([trans1], [trans1], trans1), trans1, target1, "inp", [trans1])
+    $s_t1_1 mp(s_t1_0, ax([op_inp], [op_inp], op_inp), op_inp, inner1, [trans1], [op_inp])
+
+    $target1b implies(op_dp1, inner1_out)
+    $s_t1_2 inst(s_t1_1, inner1, target1b, "dp1", left(s_t1_1))
+    $s_t1_3 mp(s_t1_2, ax([op_dp1], [op_dp1], op_dp1), op_dp1, inner1_out, left(s_t1_2), [op_dp1])
+
+    $target1c implies(op_out1, app_d1)
+    $s_t1_4 inst(s_t1_3, inner1_out, target1c, "out1", left(s_t1_3))
+    $got_t1 mp(s_t1_4, ax([op_out1], [op_out1], op_out1), op_out1, app_d1, left(s_t1_4), [op_out1])
+
+    # Instantiate trans2: same pattern
+    $inner2_out forall("out2", implies(ordered_pair("out2", "w2", "dp2", "_"),
+        apply("delta", "inp", "out2", "_")))
+    $inner2 forall("dp2", implies(op_dp2, inner2_out))
+    $target2 implies(op_inp, inner2)
+
+    $s_t2_0 inst(ax([trans2], [trans2], trans2), trans2, target2, "inp", [trans2])
+    $s_t2_1 mp(s_t2_0, ax([op_inp], [op_inp], op_inp), op_inp, inner2, [trans2], [op_inp])
+
+    $target2b implies(op_dp2, inner2_out)
+    $s_t2_2 inst(s_t2_1, inner2, target2b, "dp2", left(s_t2_1))
+    $s_t2_3 mp(s_t2_2, ax([op_dp2], [op_dp2], op_dp2), op_dp2, inner2_out, left(s_t2_2), [op_dp2])
+
+    $target2c implies(op_out2, app_d2)
+    $s_t2_4 inst(s_t2_3, inner2_out, target2c, "out2", left(s_t2_3))
+    $got_t2 mp(s_t2_4, ax([op_out2], [op_out2], op_out2), op_out2, app_d2, left(s_t2_4), [op_out2])
+
+    # func_unique_thm: sv(delta) -> Apply(delta,inp,out1) -> Apply(delta,inp,out2) -> Eqv(out1,out2)
+    $eq_out eqv("out1", "out2", "_")
+    $_fu head(right(func_unique_thm))
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f, "_"),
+        implies(apply(f, x, y1, "_"), implies(apply(f, x, y2, "_"), eqv(y1, y2, "_"))))
+    $got_fu apply_thm(func_unique_thm, _fu, ["delta", "inp", "out1", "out2"],
+        ["f", "x", "y1", "y2"], _fu_b, [])
+
+    # Extract sv(delta) from Function(delta)
+    $got_sv mp(and_elim_right(rel_d, sv_d, []),
+        ax([func_d], [func_d], func_d), func_d, sv_d, [], [func_d])
+
+    $fu_q1 implies(app_d1, implies(app_d2, eq_out))
+    $got_fu_a mp(got_fu, got_sv, sv_d, fu_q1, [], left(got_sv))
+    $fu_q2 implies(app_d2, eq_out)
+    $got_fu_b mp(got_fu_a, got_t1, app_d1, fu_q2, left(got_fu_a), left(got_t1))
+    $got_eq_out mp(got_fu_b, got_t2, app_d2, eq_out, left(got_fu_b), left(got_t2))
+
+    # eqv_ordpair_transfer: Eqv(out1,out2) -> OrdPair(out2,w2,dp2) -> OrdPair(out1,w2,dp2)
+    $op_out1_w2dp2 ordered_pair("out1", "w2", "dp2", "_")
+    $_eot head(right(eqv_ordpair_transfer))
+    $_eot_b \z: \t: \x: \y:
+        implies(eqv(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
+    $got_eot1 apply_thm(eqv_ordpair_transfer, _eot, ["out1", "out2", "w2", "dp2"],
+        ["z", "t", "x", "y"], _eot_b, [])
+    $got_eot1a mp(got_eot1, got_eq_out, eq_out, implies(op_out2, op_out1_w2dp2),
+        [], left(got_eq_out))
+    $got_out1_w2dp2 mp(got_eot1a, ax([op_out2], [op_out2], op_out2), op_out2, op_out1_w2dp2,
+        left(got_eot1a), [op_out2])
+
+    # Alpha-rename tuple_injection to avoid bound var clashes with terms
+    $_ti_b \a1: \a2: \a3: \a4: \a5:
+        implies(ordered_pair(a1, a2, a3, "_"), implies(ordered_pair(a1, a4, a5, "_"), and(eqv(a2, a4, "_"), eqv(a3, a5, "_"))))
+    $ti_r forall("a1", forall("a2", forall("a3", forall("a4", forall("a5",
+        _ti_b("a1")("a2")("a3")("a4")("a5"))))))
+    $ti_thm wr(tuple_injection, left(tuple_injection), [ti_r], ti_r)
+
+    # tuple_injection on OrdPair(out1,w,dp1) and OrdPair(out1,w2,dp2)
+    $eq_w eqv("w", "w2", "_")
+    $eq_dp eqv("dp1", "dp2", "_")
+    $and_wdp and(eq_w, eq_dp)
+    $got_ti1 apply_thm(ti_thm, ti_r, ["out1", "w", "dp1", "w2", "dp2"],
+        ["a1", "a2", "a3", "a4", "a5"], _ti_b, left(ti_thm))
+    $got_ti1a mp(got_ti1, ax([op_out1], [op_out1], op_out1), op_out1,
+        implies(op_out1_w2dp2, and_wdp), left(got_ti1), [op_out1])
+    $got_ti1b mp(got_ti1a, got_out1_w2dp2, op_out1_w2dp2, and_wdp,
+        left(got_ti1a), left(got_out1_w2dp2))
+
+    $got_eq_w mp(and_elim_left(eq_w, eq_dp, []),
+        got_ti1b, and_wdp, eq_w, [], left(got_ti1b))
+    $got_eq_dp mp(and_elim_right(eq_w, eq_dp, []),
+        got_ti1b, and_wdp, eq_dp, [], left(got_ti1b))
+
+    # eqv_ordpair_transfer: Eqv(dp1,dp2) -> OrdPair(dp2,d2,qn2) -> OrdPair(dp1,d2,qn2)
+    $op_dp1_d2qn2 ordered_pair("dp1", "d2", "qn2", "_")
+    $got_eot2 apply_thm(eqv_ordpair_transfer, _eot, ["dp1", "dp2", "d2", "qn2"],
+        ["z", "t", "x", "y"], _eot_b, [])
+    $got_eot2a mp(got_eot2, got_eq_dp, eq_dp, implies(op_dp2, op_dp1_d2qn2),
+        [], left(got_eq_dp))
+    $got_dp1_d2qn2 mp(got_eot2a, ax([op_dp2], [op_dp2], op_dp2), op_dp2, op_dp1_d2qn2,
+        left(got_eot2a), [op_dp2])
+
+    # tuple_injection on OrdPair(dp1,d,qn) and OrdPair(dp1,d2,qn2)
+    $eq_d eqv("d", "d2", "_")
+    $eq_qn eqv("qn", "qn2", "_")
+    $and_dqn and(eq_d, eq_qn)
+    $got_ti2 apply_thm(ti_thm, ti_r, ["dp1", "d", "qn", "d2", "qn2"],
+        ["a1", "a2", "a3", "a4", "a5"], _ti_b, left(ti_thm))
+    $got_ti2a mp(got_ti2, ax([op_dp1], [op_dp1], op_dp1), op_dp1,
+        implies(op_dp1_d2qn2, and_dqn), left(got_ti2), [op_dp1])
+    $got_ti2b mp(got_ti2a, got_dp1_d2qn2, op_dp1_d2qn2, and_dqn,
+        left(got_ti2a), left(got_dp1_d2qn2))
+
+    $got_eq_d mp(and_elim_left(eq_d, eq_qn, []),
+        got_ti2b, and_dqn, eq_d, [], left(got_ti2b))
+    $got_eq_qn mp(and_elim_right(eq_d, eq_qn, []),
+        got_ti2b, and_dqn, eq_qn, [], left(got_ti2b))
+
+    # Eliminate existential witnesses: out2, dp2, out1, dp1, inp
+    $op_inp_fn \v: ordered_pair(v, "q", "sym", "_")
+    $op_dp1_fn \v: ordered_pair(v, "d", "qn", "_")
+    $op_dp2_fn \v: ordered_pair(v, "d2", "qn2", "_")
+    $op_out1_fn \v: ordered_pair(v, "w", "dp1", "_")
+    $op_out2_fn \v: ordered_pair(v, "w2", "dp2", "_")
+    $ex_inp head(right(got_ex_inp))
+    $ex_dp1 head(right(got_ex_dp1))
+    $ex_dp2 head(right(got_ex_dp2))
+    $ex_out1 head(right(got_ex_out1))
+    $ex_out2 head(right(got_ex_out2))
+
+    # Eliminate from got_eq_w
+    $w1 eel(got_eq_w, op_out2_fn, "out2", "out2", left(got_eq_w), eq_w)
+    $w2_ cut_c(got_ex_out2, w1, ex_out2, left(got_ex_out2), left(w1), eq_w)
+    $w3 eel(w2_, op_dp2_fn, "dp2", "dp2", left(w2_), eq_w)
+    $w4 cut_c(got_ex_dp2, w3, ex_dp2, left(got_ex_dp2), left(w3), eq_w)
+    $w5 eel(w4, op_out1_fn, "out1", "out1", left(w4), eq_w)
+    $w6 cut_c(got_ex_out1, w5, ex_out1, left(got_ex_out1), left(w5), eq_w)
+    $w7 eel(w6, op_dp1_fn, "dp1", "dp1", left(w6), eq_w)
+    $w8 cut_c(got_ex_dp1, w7, ex_dp1, left(got_ex_dp1), left(w7), eq_w)
+    $w9 eel(w8, op_inp_fn, "inp", "inp", left(w8), eq_w)
+    $ew cut_c(got_ex_inp, w9, ex_inp, left(got_ex_inp), left(w9), eq_w)
+
+    # Eliminate from got_eq_d
+    $d1 eel(got_eq_d, op_out2_fn, "out2", "out2", left(got_eq_d), eq_d)
+    $d2_ cut_c(got_ex_out2, d1, ex_out2, left(got_ex_out2), left(d1), eq_d)
+    $d3 eel(d2_, op_dp2_fn, "dp2", "dp2", left(d2_), eq_d)
+    $d4 cut_c(got_ex_dp2, d3, ex_dp2, left(got_ex_dp2), left(d3), eq_d)
+    $d5 eel(d4, op_out1_fn, "out1", "out1", left(d4), eq_d)
+    $d6 cut_c(got_ex_out1, d5, ex_out1, left(got_ex_out1), left(d5), eq_d)
+    $d7 eel(d6, op_dp1_fn, "dp1", "dp1", left(d6), eq_d)
+    $d8 cut_c(got_ex_dp1, d7, ex_dp1, left(got_ex_dp1), left(d7), eq_d)
+    $d9 eel(d8, op_inp_fn, "inp", "inp", left(d8), eq_d)
+    $ed cut_c(got_ex_inp, d9, ex_inp, left(got_ex_inp), left(d9), eq_d)
+
+    # Eliminate from got_eq_qn
+    $qn1 eel(got_eq_qn, op_out2_fn, "out2", "out2", left(got_eq_qn), eq_qn)
+    $qn2_ cut_c(got_ex_out2, qn1, ex_out2, left(got_ex_out2), left(qn1), eq_qn)
+    $qn3 eel(qn2_, op_dp2_fn, "dp2", "dp2", left(qn2_), eq_qn)
+    $qn4 cut_c(got_ex_dp2, qn3, ex_dp2, left(got_ex_dp2), left(qn3), eq_qn)
+    $qn5 eel(qn4, op_out1_fn, "out1", "out1", left(qn4), eq_qn)
+    $qn6 cut_c(got_ex_out1, qn5, ex_out1, left(got_ex_out1), left(qn5), eq_qn)
+    $qn7 eel(qn6, op_dp1_fn, "dp1", "dp1", left(qn6), eq_qn)
+    $qn8 cut_c(got_ex_dp1, qn7, ex_dp1, left(got_ex_dp1), left(qn7), eq_qn)
+    $qn9 eel(qn8, op_inp_fn, "inp", "inp", left(qn8), eq_qn)
+    $eqn cut_c(got_ex_inp, qn9, ex_inp, left(got_ex_inp), left(qn9), eq_qn)
+
+    # Build And(Eqv(d,d2), Eqv(qn,qn2))
+    $got_dqn mp(mp(and_intro(eq_d, eq_qn, []),
+        ed, eq_d, implies(eq_qn, and_dqn), [], left(ed)),
+        eqn, eq_qn, and_dqn, left(ed), left(eqn))
+
+    # Build And(Eqv(w,w2), And(Eqv(d,d2), Eqv(qn,qn2)))
+    $result and(eq_w, and_dqn)
+    $got_result mp(mp(and_intro(eq_w, and_dqn, []),
+        ew, eq_w, implies(and_dqn, result), [], left(ew)),
+        got_dqn, and_dqn, result, left(ew), left(got_dqn))
+
+    # Close
+    $i1 ir(got_result, remove(same, trans2, left(got_result)), [implies(trans2, result)], implies(trans2, result))
+    $i2 ir(i1, remove(same, trans1, left(i1)), [implies(trans1, head(right(i1)))], implies(trans1, head(right(i1))))
+    $top implies(func_d, head(right(i2)))
+    $i3 ir(i2, remove(same, func_d, left(i2)), [top], top)
+    close(i3, left(i3), [top], ["qn2", "d2", "w2", "qn", "d", "w", "sym", "q", "delta"])
+}

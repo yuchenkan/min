@@ -94,7 +94,7 @@ $rec_approx_zero {
     # Derive body from ra + omega(w)
     $om omega("w", "_")
     $_ra_b \w: implies(omega(w, "_"), body)
-    $ra_inst apply_thm(ax([ra], [ra], ra), ra, ["w"], ["_w"], _ra_b, [ra])
+    $ra_inst apply_thm(ax([ra], [ra], ra), ra, ["w"], ["w"], _ra_b, [ra])
     $got_body mp(ra_inst, ax([om], [om], om), om, body, [ra], [om])
     # [ra, om] |- [body]
 

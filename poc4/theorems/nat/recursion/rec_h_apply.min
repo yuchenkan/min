@@ -43,10 +43,10 @@ $rec_h_apply {
     $phi_nq phi("n","q","_")
     $got_ex_y eir(got_full,
         \yr: and(and(rec_approx("v","a","f","_"), apply("v","n",yr,"_")), ordered_pair("q","n",yr,"_")),
-        "_y", "y", [ra_v, app_v, opq])
+        "y", "y", [ra_v, app_v, opq])
     $got_phi eir(got_ex_y,
-        \vr: exists("_y", and(and(rec_approx(vr,"a","f","_"), apply(vr,"n","_y","_")), ordered_pair("q","n","_y","_"))),
-        "_v", "v", [ra_v, app_v, opq])
+        \vr: exists("y", and(and(rec_approx(vr,"a","f","_"), apply(vr,"n","y","_")), ordered_pair("q","n","y","_"))),
+        "v", "v", [ra_v, app_v, opq])
 
     # And(Nat(n), phi(n,q))
     $and_nat_phi and(nat_n, phi_nq)

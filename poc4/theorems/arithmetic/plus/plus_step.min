@@ -56,16 +56,16 @@ $plus_step {
     # Open Plus(m,n,p): ∀_h. PlusFunc(_h) → ∀_pair. OrdPair → Apply
     # inst _h→h, mp pf_abs
     $pi1 apply_thm(ax([plus_mnp], [plus_mnp], plus_mnp), plus_mnp, ["h"], ["h"],
-        \h: implies(plus_func(h,"_"), forall("_pair", implies(ordered_pair("_pair","m","n","_"), apply(h,"_pair","p","_")))),
+        \h: implies(plus_func(h,"_"), forall("pair", implies(ordered_pair("pair","m","n","_"), apply(h,"pair","p","_")))),
         [plus_mnp])
     $pi2 mp(pi1, ax([pf_abs],[pf_abs],pf_abs), pf_abs,
-        forall("_pair", implies(ordered_pair("_pair","m","n","_"), apply("h","_pair","p","_"))),
+        forall("pair", implies(ordered_pair("pair","m","n","_"), apply("h","pair","p","_"))),
         [plus_mnp], [pf_abs])
 
     # Inst at _pair, assume OrdPair → Apply(h,_pair,p)
-    $op_mn ordered_pair("_pair","m","n","_")
-    $app_p apply("h","_pair","p","_")
-    $pi3 apply_thm(pi2, head(right(pi2)), ["_pair"], ["_pair"],
+    $op_mn ordered_pair("pair","m","n","_")
+    $app_p apply("h","pair","p","_")
+    $pi3 apply_thm(pi2, head(right(pi2)), ["pair"], ["pair"],
         \pair: implies(ordered_pair(pair,"m","n","_"), apply("h",pair,"p","_")), left(pi2))
     $got_app_p mp(pi3, ax([op_mn], [op_mn], op_mn), op_mn, app_p, left(pi2), [op_mn])
 
@@ -90,14 +90,14 @@ $plus_step {
                 forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","sp","_")))))))))))),
         left(t1))
     $t3 mp(t2, got_nw, nw, arg2(head(right(t2))), left(t1), left(got_nw))
-    $t4 apply_thm(t3, head(right(t3)), ["_pair"], ["_pair"],
+    $t4 apply_thm(t3, head(right(t3)), ["pair"], ["pair"],
         \pair: implies(ordered_pair(pair,"m","n","_"), forall("p", implies(apply("h",pair,"p","_"),
             forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"),
                 forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","sp","_")))))))))),
         left(t3))
     $t5 mp(t4, ax([op_mn], [op_mn], op_mn), op_mn, arg2(head(right(t4))), left(t3), [op_mn])
     $t6 apply_thm(t5, head(right(t5)), ["p"], ["p"],
-        \p: implies(apply("h","_pair",p,"_"), forall("sn", implies(successor("sn","n","_"),
+        \p: implies(apply("h","pair",p,"_"), forall("sn", implies(successor("sn","n","_"),
             forall("sp", implies(successor("sp",p,"_"), forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
                 apply("h","pair2","sp","_")))))))), left(t5))
     $t7 mp(t6, got_app_p, app_p, arg2(head(right(t6))), left(t5), left(got_app_p))
@@ -116,7 +116,7 @@ $plus_step {
     $_oe_b \a: \b: exists("p", ordered_pair("p",a,b,"_"))
     $got_oe apply_thm(ordpair_exists, head(right(ordpair_exists)), ["m","n"], ["a","b"], _oe_b, oe_ctx)
     $inner_body head(right(t11))
-    $cur eel(t11, \pair: ordered_pair(pair,"m","n","_"), "_pair", "_pair", left(t11), inner_body)
+    $cur eel(t11, \pair: ordered_pair(pair,"m","n","_"), "pair", "pair", left(t11), inner_body)
     $cur cut_c(got_oe, cur, head(right(got_oe)), oe_ctx, left(cur), inner_body)
 
     # Close Plus(m,sn,sp): ir pf_abs, fr h (no omega layer in Plus)

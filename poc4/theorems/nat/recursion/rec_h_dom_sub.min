@@ -107,10 +107,10 @@ $rec_h_dom_sub {
 
     # eel y2 from and_inner:
     $got_nx3 eel(got_nx2, \y2: and(and(rec_approx("v2","a","f","_"), apply("v2","m",y2,"_")), ordered_pair("q","m",y2,"_")),
-        "_y", "y2", left(got_nx2), nat_x)
+        "y", "y2", left(got_nx2), nat_x)
     # eel v2:
-    $got_nx4 eel(got_nx3, \v2: exists("_y", and(and(rec_approx(v2,"a","f","_"), apply(v2,"m","_y","_")), ordered_pair("q","m","_y","_"))),
-        "_v", "v2", left(got_nx3), nat_x)
+    $got_nx4 eel(got_nx3, \v2: exists("y", and(and(rec_approx(v2,"a","f","_"), apply(v2,"m","y","_")), ordered_pair("q","m","y","_"))),
+        "v", "v2", left(got_nx3), nat_x)
 
     # Package Nat(m) and phi into and(Nat(m), phi(m,q)):
     $and_nat_phi and(nat_m, phi("m","q","_"))

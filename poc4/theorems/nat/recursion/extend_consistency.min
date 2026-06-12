@@ -131,7 +131,7 @@ $extend_consistency {
 
     # Derive body from ra + omega
     $_ra_b \w: implies(omega(w, "_"), body)
-    $ra_inst apply_thm(ax([ra_v], [ra_v], ra_v), ra_v, ["w"], ["_w"], _ra_b, [ra_v])
+    $ra_inst apply_thm(ax([ra_v], [ra_v], ra_v), ra_v, ["w"], ["w"], _ra_b, [ra_v])
     $got_body mp(ra_inst, ax([om], [om], om), om, body, [ra_v], [om])
     # [ra_v, om] |- [body]
 

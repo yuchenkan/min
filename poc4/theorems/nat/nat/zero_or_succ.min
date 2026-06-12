@@ -21,7 +21,7 @@ $zero_or_succ {
     $pred_e pred("w", "e", "_")
 
     # === BASE: num(e,0) → pred(e) ===
-    $ex_q_e exists("_q", successor("e", "_q", "_"))
+    $ex_q_e exists("q", successor("e", "q", "_"))
     $got_base_inner mp(or_intro_left(emp_e, ex_q_e, []),
         ax([emp_e], [emp_e], emp_e), emp_e, pred_e, [], [emp_e])
     $base_hyp forall("e", implies(emp_e, pred_e))
@@ -32,11 +32,11 @@ $zero_or_succ {
     $succ_sn successor("s", "n", "_")
     $pred_s pred("w", "s", "_")
     $emp_s num("s", 0, "_")
-    $ex_q_s exists("_q", successor("s", "_q", "_"))
+    $ex_q_s exists("q", successor("s", "q", "_"))
 
     # succ(s,n) → eir with witness q=n: ∃_q. successor(s,_q)
     $got_ex eir(ax([succ_sn], [succ_sn], succ_sn),
-        \v: successor("s", v, "_"), "_q", "n", [succ_sn])
+        \v: successor("s", v, "_"), "q", "n", [succ_sn])
 
     $got_step_inner mp(or_intro_right(emp_s, ex_q_s, []),
         got_ex, ex_q_s, pred_s, [], [succ_sn])

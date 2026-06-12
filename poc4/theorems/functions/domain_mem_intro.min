@@ -11,10 +11,10 @@ $domain_mem_intro {
     $ex_app exists("y2", apply("f", "x", "y2", "_"))
     $iff_xd iff(xd, ex_app)
 
-    # apply(f,x,y) → ∃_y. apply(f,x,_y) via eir
+    # apply(f,x,y) → ∃y. apply(f,x,y) via eir
     $got_ex eir(ax([app], [app], app), \v: apply("f", "x", v, "_"),
         "y", "y", [app])
-    # [app] |- ex_app  (alpha-equiv: exists("y",...) ~ exists("_y",...))
+    # [app] |- ex_app
 
     # domain(d,f) instantiated with x: iff(x∈d, ex_app)
     $got_iff fl(ax([iff_xd], [iff_xd], iff_xd), [dom], [iff_xd], dom, "x")

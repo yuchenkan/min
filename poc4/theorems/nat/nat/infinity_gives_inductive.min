@@ -196,13 +196,13 @@ $infinity_gives_inductive {
 
     # --- Part 1 proof: [ext_f, emp_e0_raw, e0_in_b] |- [fa_emp_in] ---
     # emp_e0_raw = forall(z, neg(mem(z, e0))) = empty(e0, "_") expansion... wait
-    # empty(e0, "_") = forall("_x", neg(mem("_x", "e0"))). That uses "_x" not "z".
+    # empty(e0, "_") expands to forall with neg(mem(...)). That uses a different var from "z".
     # emp_e0_raw uses "z". These are alpha-equivalent but different .min formulas.
     # Let me use the raw form from infinity.
 
     # Actually, the issue is matching. empty(e0,"_") expands differently from the raw infinity formula.
     # The infinity axiom uses "z": forall("z", neg(mem("z","e0"))).
-    # empty("e0","_") = forall("_x", neg(mem("_x","e0"))).
+    # empty("e0","_") expands with alpha-equiv bound vars.
     # These are alpha-equiv. unique_empty uses empty("a") and empty("b") with default prefix.
 
     # unique_empty: forall(a, forall(b, implies(empty(a), implies(empty(b), eqv(a,b,"_")))))

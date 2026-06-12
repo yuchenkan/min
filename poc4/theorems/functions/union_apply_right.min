@@ -14,10 +14,10 @@ $union_apply_right {
     $un union("u", "a", "b", "_")
     $app_u apply("u", "x", "y", "_")
 
-    $op ordered_pair("_p", "x", "y", "_")
-    $p_b mem("_p", "b")
-    $p_u mem("_p", "u")
-    $p_a mem("_p", "a")
+    $op ordered_pair("p", "x", "y", "_")
+    $p_b mem("p", "b")
+    $p_u mem("p", "u")
+    $p_a mem("p", "a")
     $and_op_pb and(op, p_b)
     $and_op_pu and(op, p_u)
     $or_ab or(p_a, p_b)
@@ -30,7 +30,7 @@ $union_apply_right {
 
     # union char: z∈u ↔ z∈a ∨ z∈b, instantiate with _p
     $iff_pu iff(p_u, or_ab)
-    $got_iff fl(ax([iff_pu], [iff_pu], iff_pu), [un], [iff_pu], un, "_p")
+    $got_iff fl(ax([iff_pu], [iff_pu], iff_pu), [un], [iff_pu], un, "p")
 
     # p_b -> or(p_a, p_b)
     $got_or mp(or_intro_right(p_a, p_b, []),
@@ -51,11 +51,11 @@ $union_apply_right {
 
     # eir: exists _p. and(op(_p,x,y), _p in u) = apply(u,x,y)
     $got_app_u eir(got_and, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "u")),
-        "_p", "_p", [un, and_op_pb])
+        "p", "p", [un, and_op_pb])
 
     # eel on _p from app_b
     $got_eel eel(got_app_u, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "b")),
-        "_p", "_p", [un, and_op_pb], app_u)
+        "p", "p", [un, and_op_pb], app_u)
 
     $imp2 implies(un, app_u)
     $s1 ir(got_eel, [app_b], [imp2], imp2)

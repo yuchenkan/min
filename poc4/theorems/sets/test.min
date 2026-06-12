@@ -71,8 +71,8 @@ $_ tap("empty_unique ok")
 
 $_ qed(set_spec_unique(\v p: mem(v, "a"), ["a"], "_"),
     forall("a", forall("s1", forall("s2",
-        implies(forall("_x", iff(mem("_x", "s1"), mem("_x", "a"))),
-                implies(forall("_x", iff(mem("_x", "s2"), mem("_x", "a"))),
+        implies(forall("x", iff(mem("x", "s1"), mem("x", "a"))),
+                implies(forall("x", iff(mem("x", "s2"), mem("x", "a"))),
                         eqv("s1", "s2", "_")))))), "z")
 $_ tap("set_spec_unique ok")
 

@@ -12,6 +12,8 @@ from theorems.tm.tm.config_eq_transfer import config_eq_transfer
 from theorems.tm.tm.apply_func_transfer import apply_func_transfer
 from theorems.tm.tm.tape_update_unique import tape_update_unique
 from theorems.tm.tm.config_decompose import config_decompose
+from theorems.tm.tm.transition_unique import transition_unique
+from vocab.functions import function
 
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
 $ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
@@ -88,5 +90,14 @@ $cd_expected forall("c", forall("q", forall("h", forall("tape",
         and(eqv("q", "q2", "_"), and(eqv("h", "h2", "_"), eqv("tape", "tape2", "_"))))))))))))
 $_ qed(config_decompose, cd_expected, "z")
 $_ tap("config_decompose ok")
+
+$tu_expected forall("delta", forall("q", forall("sym", forall("w", forall("d", forall("qn",
+    forall("w2", forall("d2", forall("qn2",
+    implies(function("delta", "_"),
+    implies(tm_transition("delta", "q", "sym", "w", "d", "qn", "_"),
+    implies(tm_transition("delta", "q", "sym", "w2", "d2", "qn2", "_"),
+        and(eqv("w", "w2", "_"), and(eqv("d", "d2", "_"), eqv("qn", "qn2", "_")))))))))))))))
+$_ qed(transition_unique, tu_expected, "z")
+$_ tap("transition_unique ok")
 
 $ok true

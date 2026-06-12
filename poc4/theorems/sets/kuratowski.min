@@ -20,39 +20,39 @@ from theorems.sets.pair_injection import pair_injection
 
 # transfer: from char1, eqv(s1,s2), char2, derive forall(v, iff(P(v), Q(v)))
 $transfer \char1 eqv12 char2 body_P body_Q s1 s2 v: {
-    $iff1 iff(mem("_tv", s1), body_P("_tv"))
-    $iff2 iff(mem("_tv", s2), body_Q("_tv"))
-    $iff_eq iff(mem("_tv", s1), mem("_tv", s2))
-    $g1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "_tv")
-    $g2 fl(ax([iff_eq], [iff_eq], iff_eq), [eqv12], [iff_eq], eqv12, "_tv")
-    $g3 fl(ax([iff2], [iff2], iff2), [char2], [iff2], char2, "_tv")
-    $g1r mp(iff_sym(mem("_tv", s1), body_P("_tv"), []), g1, iff1, iff(body_P("_tv"), mem("_tv", s1)), [], [char1])
-    $g12 mp(mp(iff_chain(body_P("_tv"), mem("_tv", s1), mem("_tv", s2), []),
-               g1r, iff(body_P("_tv"), mem("_tv", s1)), implies(iff_eq, iff(body_P("_tv"), mem("_tv", s2))), [], [char1]),
-            g2, iff_eq, iff(body_P("_tv"), mem("_tv", s2)), [char1], [eqv12])
-    $result_iff iff(body_P("_tv"), body_Q("_tv"))
-    $g_pq mp(mp(iff_chain(body_P("_tv"), mem("_tv", s2), body_Q("_tv"), []),
-                g12, iff(body_P("_tv"), mem("_tv", s2)), implies(iff2, result_iff), [], [char1, eqv12]),
+    $iff1 iff(mem("v", s1), body_P("v"))
+    $iff2 iff(mem("v", s2), body_Q("v"))
+    $iff_eq iff(mem("v", s1), mem("v", s2))
+    $g1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "v")
+    $g2 fl(ax([iff_eq], [iff_eq], iff_eq), [eqv12], [iff_eq], eqv12, "v")
+    $g3 fl(ax([iff2], [iff2], iff2), [char2], [iff2], char2, "v")
+    $g1r mp(iff_sym(mem("v", s1), body_P("v"), []), g1, iff1, iff(body_P("v"), mem("v", s1)), [], [char1])
+    $g12 mp(mp(iff_chain(body_P("v"), mem("v", s1), mem("v", s2), []),
+               g1r, iff(body_P("v"), mem("v", s1)), implies(iff_eq, iff(body_P("v"), mem("v", s2))), [], [char1]),
+            g2, iff_eq, iff(body_P("v"), mem("v", s2)), [char1], [eqv12])
+    $result_iff iff(body_P("v"), body_Q("v"))
+    $g_pq mp(mp(iff_chain(body_P("v"), mem("v", s2), body_Q("v"), []),
+                g12, iff(body_P("v"), mem("v", s2)), implies(iff2, result_iff), [], [char1, eqv12]),
              g3, iff2, result_iff, [char1, eqv12], [char2])
     $fa_result forall(v, iff(body_P(v), body_Q(v)))
-    fr(g_pq, [char1, eqv12, char2], [fa_result], fa_result, "_tv")
+    fr(g_pq, [char1, eqv12, char2], [fa_result], fa_result, "v")
 }
 
 # Helper: from two characterizations of same set, derive pointwise iff
 # char1 = forall(_x, iff(mem(_x,s), P(_x))), char2 = forall(_x, iff(mem(_x,s), Q(_x)))
 # Result: [char1, char2] |- [forall(w, iff(P(w), Q(w)))]
 $char_iff \char1 char2 s body_P body_Q: {
-    $iff1 iff(mem("_cv", s), body_P("_cv"))
-    $iff2 iff(mem("_cv", s), body_Q("_cv"))
-    $g1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "_cv")
-    $g2 fl(ax([iff2], [iff2], iff2), [char2], [iff2], char2, "_cv")
-    $g1r mp(iff_sym(mem("_cv", s), body_P("_cv"), []), g1, iff1, iff(body_P("_cv"), mem("_cv", s)), [], [char1])
-    $result_iff iff(body_P("_cv"), body_Q("_cv"))
-    $g12 mp(mp(iff_chain(body_P("_cv"), mem("_cv", s), body_Q("_cv"), []),
-               g1r, iff(body_P("_cv"), mem("_cv", s)), implies(iff2, result_iff), [], [char1]),
+    $iff1 iff(mem("v", s), body_P("v"))
+    $iff2 iff(mem("v", s), body_Q("v"))
+    $g1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "v")
+    $g2 fl(ax([iff2], [iff2], iff2), [char2], [iff2], char2, "v")
+    $g1r mp(iff_sym(mem("v", s), body_P("v"), []), g1, iff1, iff(body_P("v"), mem("v", s)), [], [char1])
+    $result_iff iff(body_P("v"), body_Q("v"))
+    $g12 mp(mp(iff_chain(body_P("v"), mem("v", s), body_Q("v"), []),
+               g1r, iff(body_P("v"), mem("v", s)), implies(iff2, result_iff), [], [char1]),
             g2, iff2, result_iff, [char1], [char2])
     $fa forall("w", iff(body_P("w"), body_Q("w")))
-    fr(g12, [char1, char2], [fa], fa, "_cv")
+    fr(g12, [char1, char2], [fa], fa, "v")
 }
 
 # pairing_ax |- op(t1,a,b) -> op(t2,c,d) -> eqv(t1,t2) -> and(eqv(a,c), eqv(b,d))
@@ -159,15 +159,15 @@ $kuratowski {
     $fa_ps_form forall("w", iff(or(eqv("w", "a", "_"), eqv("w", "b", "_")), eqv("w", "c", "_")))
     $fa_ps_sym forall("w", iff(eqv("w", "c", "_"), or(eqv("w", "a", "_"), eqv("w", "b", "_"))))
     # Flip iff: fl on fa_ps_form, iff_sym, fr
-    $g_flip fl(ax([iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))],
-                   [iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))],
-                   iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))),
-               [fa_ps_form], [iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))], fa_ps_form, "_cv")
-    $g_flip2 mp(iff_sym(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"), []),
-                cut_c(fa_ps, g_flip, fa_ps_form, [pab_char, sing_c("pab")], [fa_ps_form], iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))),
-                iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_")),
-                iff(eqv("_cv", "c", "_"), or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_"))), [], [pab_char, sing_c("pab")])
-    $g_flip3 fr(g_flip2, [pab_char, sing_c("pab")], [fa_ps_sym], fa_ps_sym, "_cv")
+    $g_flip fl(ax([iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))],
+                   [iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))],
+                   iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))),
+               [fa_ps_form], [iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))], fa_ps_form, "v")
+    $g_flip2 mp(iff_sym(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"), []),
+                cut_c(fa_ps, g_flip, fa_ps_form, [pab_char, sing_c("pab")], [fa_ps_form], iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))),
+                iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_")),
+                iff(eqv("v", "c", "_"), or(eqv("v", "a", "_"),eqv("v", "b", "_"))), [], [pab_char, sing_c("pab")])
+    $g_flip3 fr(g_flip2, [pab_char, sing_c("pab")], [fa_ps_sym], fa_ps_sym, "v")
     $g_ac_bc mp(apply_thm(sp_r_thm, sp_r, ["c", "a", "b"], ["c", "p", "q"], _sp_b, []), g_flip3, fa_ps_sym, and(eqv("a", "c", "_"), eqv("b", "c", "_")), [], [pab_char, sing_c("pab")])
     # [pab_char, sing(pab,"c")] |- [and(eqv("a", "c", "_"), eqv("b", "c", "_"))]
 
@@ -325,17 +325,17 @@ $kuratowski {
     $fa_dc char_iff(pcd_char, sing_a_pcd, "pcd", \v: or(eqv(v, "c", "_"), eqv(v, "d", "_")), \v: eqv(v, "a", "_"))
     $fa_dc_form forall("w", iff(or(eqv("w", "c", "_"), eqv("w", "d", "_")), eqv("w", "a", "_")))
     # iff_sym pointwise: forall(w, iff(eqv(w,"a"), or(eqv(w,"c"),eqv(w,"d"))))
-    $fl_dc fl(ax([iff(or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_")), eqv("_cv", "a", "_"))],
-                  [iff(or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_")), eqv("_cv", "a", "_"))],
-                  iff(or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_")), eqv("_cv", "a", "_"))),
-              [fa_dc_form], [iff(or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_")), eqv("_cv", "a", "_"))], fa_dc_form, "_cv")
-    $g_dc_flip mp(iff_sym(or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_")), eqv("_cv", "a", "_"), []),
+    $fl_dc fl(ax([iff(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_"))],
+                  [iff(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_"))],
+                  iff(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_"))),
+              [fa_dc_form], [iff(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_"))], fa_dc_form, "v")
+    $g_dc_flip mp(iff_sym(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_"), []),
                   cut_c(fa_dc, fl_dc, fa_dc_form, [pcd_char, sing_a_pcd], [fa_dc_form],
-                        iff(or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_")), eqv("_cv", "a", "_"))),
-                  iff(or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_")), eqv("_cv", "a", "_")),
-                  iff(eqv("_cv", "a", "_"), or(eqv("_cv", "c", "_"),eqv("_cv", "d", "_"))), [], [pcd_char, sing_a_pcd])
+                        iff(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_"))),
+                  iff(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_")),
+                  iff(eqv("v", "a", "_"), or(eqv("v", "c", "_"),eqv("v", "d", "_"))), [], [pcd_char, sing_a_pcd])
     $fa_dc_sym forall("w", iff(eqv("w", "a", "_"), or(eqv("w", "c", "_"), eqv("w", "d", "_"))))
-    $g_dc_fa fr(g_dc_flip, [pcd_char, sing_a_pcd], [fa_dc_sym], fa_dc_sym, "_cv")
+    $g_dc_fa fr(g_dc_flip, [pcd_char, sing_a_pcd], [fa_dc_sym], fa_dc_sym, "v")
     $g_da mp(and_elim_right(eqv("c", "a", "_"), eqv("d", "a", "_"), []),
              mp(apply_thm(singleton_pair_eq, _sp, ["a", "c", "d"], ["a", "c", "d"], _sp_b, []), g_dc_fa, fa_dc_sym, and(eqv("c", "a", "_"), eqv("d", "a", "_")), [], [pcd_char, sing_a_pcd]),
              and(eqv("c", "a", "_"), eqv("d", "a", "_")), eqv("d", "a", "_"), [], [pcd_char, sing_a_pcd])
@@ -464,17 +464,17 @@ $kuratowski {
     # singleton_pair_eq("c", "a", "b") -> and(eqv("a", "c", "_"), eqv("b", "c", "_")) -> eqv("b", "c", "_")
     # With "c"="a": eqv("b", "a", "_")
     $fa_ba_form forall("w", iff(or(eqv("w", "a", "_"),eqv("w", "b", "_")), eqv("w", "c", "_")))
-    $fl_ba fl(ax([iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))],
-                  [iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))],
-                  iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))),
-              [fa_ba_form], [iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))], fa_ba_form, "_cv")
-    $g_ba_flip mp(iff_sym(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"), []),
+    $fl_ba fl(ax([iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))],
+                  [iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))],
+                  iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))),
+              [fa_ba_form], [iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))], fa_ba_form, "v")
+    $g_ba_flip mp(iff_sym(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"), []),
                   cut_c(fa_ba, fl_ba, fa_ba_form, [pab_char, sing_c_pab], [fa_ba_form],
-                        iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_"))),
-                  iff(or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_")), eqv("_cv", "c", "_")),
-                  iff(eqv("_cv", "c", "_"), or(eqv("_cv", "a", "_"),eqv("_cv", "b", "_"))), [], [pab_char, sing_c_pab])
+                        iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_"))),
+                  iff(or(eqv("v", "a", "_"),eqv("v", "b", "_")), eqv("v", "c", "_")),
+                  iff(eqv("v", "c", "_"), or(eqv("v", "a", "_"),eqv("v", "b", "_"))), [], [pab_char, sing_c_pab])
     $fa_ba_sym forall("w", iff(eqv("w", "c", "_"), or(eqv("w", "a", "_"),eqv("w", "b", "_"))))
-    $g_ba_fa fr(g_ba_flip, [pab_char, sing_c_pab], [fa_ba_sym], fa_ba_sym, "_cv")
+    $g_ba_fa fr(g_ba_flip, [pab_char, sing_c_pab], [fa_ba_sym], fa_ba_sym, "v")
     $g_bc_B mp(and_elim_right(eqv("a", "c", "_"), eqv("b", "c", "_"), []),
                mp(apply_thm(sp_r_thm, sp_r, ["c", "a", "b"], ["c", "p", "q"], _sp_b, []), g_ba_fa, fa_ba_sym, and(eqv("a", "c", "_"),eqv("b", "c", "_")), [], [pab_char, sing_c_pab]),
                and(eqv("a", "c", "_"), eqv("b", "c", "_")), eqv("b", "c", "_"), [], [pab_char, sing_c_pab])
