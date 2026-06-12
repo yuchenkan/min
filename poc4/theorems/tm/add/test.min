@@ -1,1 +1,23 @@
+from derived import implies, forall, exists, and, eqv, qed
+from vocab.sets import ordered_pair
+from vocab.functions import apply, function
+from vocab.tm.tm import tm_config, tm_transition, tm_step
+from vocab.nat.nat import num, successor
+from theorems.tm.add.phase1_step_tmstep import phase1_step_tmstep
+
+$pst_expected forall("delta", forall("q0", forall("ka", forall("ska",
+    forall("tape_in", forall("ca", forall("one", forall("d1",
+    implies(function("delta", "_"),
+    implies(tm_transition("delta", "q0", "one", "one", "d1", "q0", "_"),
+    implies(tm_config("ca", "q0", "ka", "tape_in", "_"),
+    implies(function("tape_in", "_"),
+    implies(apply("tape_in", "ka", "one", "_"),
+    implies(num("d1", 1, "_"),
+    implies(successor("ska", "ka", "_"),
+        exists("ca_new", and(
+            tm_config("ca_new", "q0", "ska", "tape_in", "_"),
+            tm_step("delta", "ca", "ca_new", "_"))))))))))))))))))
+$_ qed(phase1_step_tmstep, pst_expected, "z")
+$_ tap("phase1_step_tmstep ok")
+
 $ok true
