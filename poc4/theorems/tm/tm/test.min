@@ -16,6 +16,7 @@ from theorems.tm.tm.headmove_right_elim import headmove_right_elim
 from theorems.tm.tm.tape_update_eq_args import tape_update_eq_args
 from theorems.tm.tm.tape_update_eq import tape_update_eq
 from theorems.tm.tm.config_intro import config_intro
+from theorems.tm.tm.tmstep_c1_transfer import tmstep_c1_transfer
 from vocab.functions import function
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
 $ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
@@ -131,5 +132,12 @@ $ci_expected forall("c", forall("q", forall("h", forall("t", forall("inner",
         tm_config("c", "q", "h", "t", "_"))))))))
 $_ qed(config_intro, ci_expected, "z")
 $_ tap("config_intro ok")
+
+$tct_expected forall("d", forall("c1", forall("c2", forall("c3",
+    implies(eqv("c1", "c3", "_"),
+    implies(tm_step("d", "c3", "c2", "_"),
+        tm_step("d", "c1", "c2", "_")))))))
+$_ qed(tmstep_c1_transfer, tct_expected, "z")
+$_ tap("tmstep_c1_transfer ok")
 
 $ok true

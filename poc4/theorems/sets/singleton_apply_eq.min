@@ -1,0 +1,89 @@
+from derived import mem, implies, forall, and, exists, eqv, left, right
+from vocab.sets import ordered_pair, singleton
+from vocab.functions import apply
+from tactics import ax, wl_all, ir, mp, apply_thm, eel, close, same
+from util import remove, diff
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.sets.singleton_mem_eq import singleton_mem_eq
+from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.tuple_injection import tuple_injection
+
+# Pair |- ∀e,b,op,f,xe,ye. OP(op,e,b) → Sing(f,op) → Apply(f,xe,ye) → And(Eq(e,xe), Eq(b,ye))
+$singleton_apply_eq {
+    $op_eb ordered_pair("op", "e", "b", "_")
+    $sing_f singleton("f", "op", "_")
+    $app_fxy apply("f", "xe", "ye", "_")
+    $goal and(eqv("e", "xe", "_"), eqv("b", "ye", "_"))
+
+    # eigenvariable q from opening Apply
+    $op_q ordered_pair("q", "xe", "ye", "_")
+    $qf mem("q", "f")
+    $and_q and(op_q, qf)
+
+    # and_elim: OP(q,xe,ye) and q∈f
+    $got_op mp(and_elim_left(op_q, qf, []),
+        ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
+    $got_qf mp(and_elim_right(op_q, qf, []),
+        ax([and_q], [and_q], and_q), and_q, qf, [], [and_q])
+
+    # singleton_mem_eq: Sing(f,op) → q∈f → Eq(q,op)
+    $eq_q_op eqv("q", "op", "_")
+    $_sme_b \x: \f: \a: implies(singleton(f, a, "_"), implies(mem(x, f), eqv(x, a, "_")))
+    $sme_inst apply_thm(singleton_mem_eq, head(right(singleton_mem_eq)),
+        ["q", "f", "op"], ["x", "f", "a"], _sme_b, [])
+    $sme_s1 mp(sme_inst,
+        ax([sing_f], [sing_f], sing_f), sing_f, implies(qf, eq_q_op),
+        [], [sing_f])
+    $got_eq_q mp(sme_s1,
+        got_qf, qf, eq_q_op,
+        [sing_f], [and_q])
+
+    # eqv_symmetric: Eq(q,op) → Eq(op,q)
+    $eq_op_q eqv("op", "q", "_")
+    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
+    $es_inst apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        ["q", "op"], ["a", "b"], _es_b, [])
+    $got_eq_opq mp(es_inst,
+        got_eq_q, eq_q_op, eq_op_q,
+        [], left(got_eq_q))
+
+    # eqv_ordpair_transfer: Eq(op,q) → OP(q,xe,ye) → OP(op,xe,ye)
+    $op_opxy ordered_pair("op", "xe", "ye", "_")
+    $_eot_b \z: \t: \x: \y: implies(eqv(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
+    $eot_inst apply_thm(eqv_ordpair_transfer, head(right(eqv_ordpair_transfer)),
+        ["op", "q", "xe", "ye"], ["z", "t", "x", "y"], _eot_b, [])
+    $eot_s1 mp(eot_inst,
+        got_eq_opq, eq_op_q, implies(op_q, op_opxy),
+        [], left(got_eq_opq))
+    $got_op_opxy mp(eot_s1,
+        got_op, op_q, op_opxy,
+        left(eot_s1), [and_q])
+
+    # tuple_injection: OP(op,e,b) → OP(op,xe,ye) → And(Eq(e,xe), Eq(b,ye))
+    $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t, a, b, "_"), implies(ordered_pair(t, c, d, "_"), and(eqv(a, c, "_"), eqv(b, d, "_"))))
+    $ti_inst apply_thm(tuple_injection, head(right(tuple_injection)),
+        ["op", "e", "b", "xe", "ye"], ["t", "a", "b", "c", "d"], _ti_b, left(tuple_injection))
+    $ti_s1 mp(ti_inst,
+        ax([op_eb], [op_eb], op_eb), op_eb, implies(op_opxy, goal),
+        left(ti_inst), [op_eb])
+    $got_goal mp(ti_s1,
+        got_op_opxy, op_opxy, goal,
+        left(ti_s1), left(got_op_opxy))
+
+    $_ tap("pre-eel ok")
+
+    # eel on q: close existential from Apply
+    $got_eel eel(got_goal, \v: and(ordered_pair(v, "xe", "ye", "_"), mem(v, "f")),
+        "p", "q", left(got_goal), goal)
+
+    # close: ir for 3 hypotheses, fr for 6 foralls
+    $imp3 implies(app_fxy, goal)
+    $s1 ir(got_eel, remove(same, app_fxy, left(got_eel)), [imp3], imp3)
+    $imp2 implies(sing_f, imp3)
+    $s2 ir(s1, remove(same, sing_f, left(s1)), [imp2], imp2)
+    $imp1 implies(op_eb, imp2)
+    $s3 ir(s2, remove(same, op_eb, left(s2)), [imp1], imp1)
+    close(s3, left(s3), [imp1], ["ye", "xe", "f", "op", "b", "e"])
+}

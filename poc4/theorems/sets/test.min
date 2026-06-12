@@ -55,6 +55,7 @@ from theorems.sets.product_in_intro import product_in_intro
 from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
 from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
 from theorems.sets.tuple_injection import tuple_injection
+from theorems.sets.singleton_apply_eq import singleton_apply_eq
 
 $_ qed(empty_exists, exists("s", empty("s", "_")), "z")
 $_ tap("empty_exists ok")
@@ -280,5 +281,10 @@ $_ qed(tuple_injection, forall("t", forall("a", forall("b", forall("c", forall("
     implies(ordered_pair("t","a","b","_"), implies(ordered_pair("t","c","d","_"),
         and(eqv("a","c","_"), eqv("b","d","_"))))))))), "z")
 $_ tap("tuple_injection ok")
+
+$_ qed(singleton_apply_eq, forall("e", forall("b", forall("op", forall("f", forall("xe", forall("ye",
+    implies(ordered_pair("op","e","b","_"), implies(singleton("f","op","_"), implies(apply("f","xe","ye","_"),
+        and(eqv("e","xe","_"), eqv("b","ye","_"))))))))))), "z")
+$_ tap("singleton_apply_eq ok")
 
 $ok true

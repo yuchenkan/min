@@ -1,0 +1,126 @@
+from derived import mem, implies, forall, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.tm.tm import tm_step, tm_config, tm_transition, tape_update, head_move
+from tactics import ax, fl, fr, ir, mp, apply_thm, close, same
+from util import remove
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+
+# |- ∀d,c1,c2,c3. Eq(c1,c3) → TMStep(d,c3,c2) → TMStep(d,c1,c2)
+$tmstep_c1_transfer {
+    $eq_13 eqv("c1", "c3", "_")
+    $step_c3 tm_step("d", "c3", "c2", "_")
+    $step_c1 tm_step("d", "c1", "c2", "_")
+
+    # eqv_symmetric: Eq(c1,c3) → Eq(c3,c1)
+    $eq_31 eqv("c3", "c1", "_")
+    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
+    $got_eq_31 mp(
+        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+            ["c1", "c3"], ["a", "b"], _es_b, []),
+        ax([eq_13], [eq_13], eq_13), eq_13, eq_31, [], [eq_13])
+
+    # Open TMStep(d,c3,c2) with 9 vars
+    $_ts_b \q: \h: \tape: \sym: \w: \dv: \qn: \hn: \tn:
+        implies(tm_config("c3", q, h, tape, "__"),
+        implies(apply(tape, h, sym, "__"),
+        implies(tm_transition("d", q, sym, w, dv, qn, "__"),
+        implies(tape_update(tn, tape, h, w, "__"),
+        implies(head_move(h, hn, dv, "__"),
+            tm_config("c2", qn, hn, tn, "__"))))))
+
+    $ts_inst apply_thm(ax([step_c3], [step_c3], step_c3),
+        head(right(ax([step_c3], [step_c3], step_c3))),
+        ["rq", "rh", "rt", "rs", "rw", "rd", "rn", "rhn", "rtn"],
+        ["_q", "_h", "_tape", "_sym", "_w", "_dv", "_qn", "_hn", "_tn"],
+        _ts_b, [step_c3])
+
+    # Config formulas
+    $cfg_c3 tm_config("c3", "rq", "rh", "rt", "__")
+    $cfg_c1 tm_config("c1", "rq", "rh", "rt", "__")
+    $app_read apply("rt", "rh", "rs", "__")
+    $trans_in tm_transition("d", "rq", "rs", "rw", "rd", "rn", "__")
+    $upd_in tape_update("rtn", "rt", "rh", "rw", "__")
+    $move_in head_move("rh", "rhn", "rd", "__")
+    $cfg_c2 tm_config("c2", "rn", "rhn", "rtn", "__")
+    $rest implies(app_read, implies(trans_in, implies(upd_in, implies(move_in, cfg_c2))))
+
+    # Config transfer: Config(c1,...) + Eq(c3,c1) → Config(c3,...)
+    # Config(c1) = ∀v. OP(v,rh,rt) → OP(c1,rq,v)
+    # Open with fl, inst v=rv
+    $op_rv ordered_pair("rv", "rh", "rt", "___")
+    $op_c1 ordered_pair("c1", "rq", "rv", "___")
+    $op_c3 ordered_pair("c3", "rq", "rv", "___")
+    $_cfg_inner \v: implies(ordered_pair(v, "rh", "rt", "___"), ordered_pair("c1", "rq", v, "___"))
+    $cfg_c1_inst apply_thm(ax([cfg_c1], [cfg_c1], cfg_c1),
+        head(right(ax([cfg_c1], [cfg_c1], cfg_c1))),
+        ["rv"], ["__i"], _cfg_inner, [cfg_c1])
+    $got_op_c1 mp(cfg_c1_inst,
+        ax([op_rv], [op_rv], op_rv), op_rv, op_c1, [cfg_c1], [op_rv])
+
+    # eqv_ordpair_transfer: Eq(c3,c1) → OP(c1,rq,rv) → OP(c3,rq,rv)
+    $_eot_b \z: \t: \x: \y: implies(eqv(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
+    $eot_inst apply_thm(eqv_ordpair_transfer, head(right(eqv_ordpair_transfer)),
+        ["c3", "c1", "rq", "rv"], ["z", "t", "x", "y"], _eot_b, [])
+    $eot_s1 mp(eot_inst,
+        got_eq_31, eq_31, implies(op_c1, op_c3), [], left(got_eq_31))
+    $got_op_c3 mp(eot_s1,
+        got_op_c1, op_c1, op_c3, left(eot_s1), left(got_op_c1))
+
+    # Close: ir op_rv, fr rv → Config(c3,...)
+    $imp_rv implies(op_rv, op_c3)
+    $got_cfg_ir ir(got_op_c3, remove(same, op_rv, left(got_op_c3)), [imp_rv], imp_rv)
+    $got_cfg_c3 fr(got_cfg_ir, left(got_cfg_ir), [cfg_c3], cfg_c3, "rv")
+
+    $_ tap("config transfer ok")
+
+    # mp through TMStep body
+    $got_rest mp(ts_inst, got_cfg_c3, cfg_c3, rest, left(ts_inst), left(got_cfg_c3))
+    $got_s1 mp(got_rest,
+        ax([app_read],[app_read],app_read), app_read,
+        implies(trans_in, implies(upd_in, implies(move_in, cfg_c2))),
+        left(got_rest), [app_read])
+    $got_s2 mp(got_s1,
+        ax([trans_in],[trans_in],trans_in), trans_in,
+        implies(upd_in, implies(move_in, cfg_c2)),
+        left(got_s1), [trans_in])
+    $got_s3 mp(got_s2,
+        ax([upd_in],[upd_in],upd_in), upd_in,
+        implies(move_in, cfg_c2),
+        left(got_s2), [upd_in])
+    $got_cfg_c2 mp(got_s3,
+        ax([move_in],[move_in],move_in), move_in, cfg_c2,
+        left(got_s3), [move_in])
+
+    # Discharge 5 premises + Config(c1): ir for each
+    $imp_move implies(move_in, cfg_c2)
+    $d1 ir(got_cfg_c2, remove(same, move_in, left(got_cfg_c2)), [imp_move], imp_move)
+    $imp_upd implies(upd_in, imp_move)
+    $d2 ir(d1, remove(same, upd_in, left(d1)), [imp_upd], imp_upd)
+    $imp_trans implies(trans_in, imp_upd)
+    $d3 ir(d2, remove(same, trans_in, left(d2)), [imp_trans], imp_trans)
+    $imp_app implies(app_read, imp_trans)
+    $d4 ir(d3, remove(same, app_read, left(d3)), [imp_app], imp_app)
+    $imp_cfg implies(cfg_c1, imp_app)
+    $d5 ir(d4, remove(same, cfg_c1, left(d4)), [imp_cfg], imp_cfg)
+
+    # Close 9 foralls
+    $body_now imp_cfg
+    $f1 fr(d5, left(d5), [forall("rtn", body_now)], forall("rtn", body_now), "rtn")
+    $f2 fr(f1, left(f1), [forall("rhn", forall("rtn", body_now))], forall("rhn", forall("rtn", body_now)), "rhn")
+    $f3 fr(f2, left(f2), [forall("rn", forall("rhn", forall("rtn", body_now)))], forall("rn", forall("rhn", forall("rtn", body_now))), "rn")
+    $f4 fr(f3, left(f3), [forall("rd", forall("rn", forall("rhn", forall("rtn", body_now))))], forall("rd", forall("rn", forall("rhn", forall("rtn", body_now)))), "rd")
+    $f5 fr(f4, left(f4), [forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now)))))], forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now))))), "rw")
+    $f6 fr(f5, left(f5), [forall("rs", forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now))))))], forall("rs", forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now)))))), "rs")
+    $f7 fr(f6, left(f6), [forall("rt", forall("rs", forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now)))))))], forall("rt", forall("rs", forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now))))))), "rt")
+    $f8 fr(f7, left(f7), [forall("rh", forall("rt", forall("rs", forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now))))))))], forall("rh", forall("rt", forall("rs", forall("rw", forall("rd", forall("rn", forall("rhn", forall("rtn", body_now)))))))), "rh")
+    $f9 fr(f8, left(f8), [step_c1], step_c1, "rq")
+
+    # Close: ir for step_c3 and eq_13
+    $imp_step implies(step_c3, step_c1)
+    $g1 ir(f9, remove(same, step_c3, left(f9)), [imp_step], imp_step)
+    $top implies(eq_13, imp_step)
+    $g2 ir(g1, remove(same, eq_13, left(g1)), [top], top)
+    close(g2, left(g2), [top], ["c3", "c2", "c1", "d"])
+}
