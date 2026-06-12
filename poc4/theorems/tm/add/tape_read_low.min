@@ -1,0 +1,90 @@
+from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right
+from vocab.functions import apply, function
+from vocab.tm.add import unary_tape
+from vocab.nat.nat import num, successor
+from vocab.arithmetic.plus import plus
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, inst, apply_thm, close, same
+from util import remove
+
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+
+# [] |- ∀tape,a,b,i,one. UnaryTape(tape,a,b) → In(i,a) → Num(one,1) → Apply(tape,i,one)
+$tape_read_low {
+    $ut unary_tape("tape", "a", "b", "_")
+    $in_i_a mem("i", "a")
+    $num_one num("one", 1, "_")
+    $app_tape apply("tape", "i", "one", "_")
+
+    # UnaryTape expands to And(func, And(low, And(sep, And(high, beyond))))
+    # Reconstruct the two halves for and_elim with clean prefix
+    $func_f function("tape", "_")
+    $low forall("i", implies(mem("i", "a"),
+        forall("one", implies(num("one", 1, "_"), apply("tape", "i", "one", "_")))))
+    $sep forall("zero", implies(num("zero", 0, "_"), apply("tape", "a", "zero", "_")))
+    $high forall("j", implies(mem("j", "b"),
+        forall("sa", implies(successor("sa", "a", "_"),
+            forall("pos", implies(plus("sa", "j", "pos", "_"),
+                forall("one", implies(num("one", 1, "_"),
+                    apply("tape", "pos", "one", "_")))))))))
+    $beyond forall("sa", implies(successor("sa", "a", "_"),
+        forall("ep", implies(plus("sa", "b", "ep", "_"),
+            forall("i", implies(neg(mem("i", "ep")),
+                forall("zero", implies(num("zero", 0, "_"),
+                    apply("tape", "i", "zero", "_")))))))))
+    $rest0 and(low, and(sep, and(high, beyond)))
+
+    # ut |- rest0
+    $got_rest0 mp(and_elim_right(func_f, rest0, []),
+        ax([ut],[ut],ut), ut, rest0, [], [ut])
+
+    # ut |- low
+    $got_low mp(and_elim_left(low, and(sep, and(high, beyond)), []),
+        got_rest0, rest0, low, [], left(got_rest0))
+
+    # low = ∀i. i∈a → ∀one. Num(one,1) → Apply(tape,i,one)
+    # Instantiate i
+    $inner_fa forall("one", implies(num_one, app_tape))
+    $low_inst implies(in_i_a, inner_fa)
+    $got_inst inst(got_low, low, low_inst, "i", left(got_low))
+
+    # mp: discharge In(i,a)
+    $got_inner mp(got_inst,
+        ax([in_i_a],[in_i_a],in_i_a), in_i_a, inner_fa,
+        left(got_inst), [in_i_a])
+
+    # inst one
+    $got_imp inst(got_inner, inner_fa, implies(num_one, app_tape), "one", left(got_inner))
+
+    # mp: discharge Num(one,1)
+    $got_app mp(got_imp,
+        ax([num_one],[num_one],num_one), num_one, app_tape,
+        left(got_imp), [num_one])
+
+    # Discharge: num_one, in_i_a, ut
+    $proof got_app
+    $goal_f app_tape
+    $proof ir(proof, remove(same, num_one, left(proof)),
+        [implies(num_one, goal_f)], implies(num_one, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, in_i_a, left(proof)),
+        [implies(in_i_a, goal_f)], implies(in_i_a, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, ut, left(proof)),
+        [implies(ut, goal_f)], implies(ut, goal_f))
+    $goal_f head(right(proof))
+
+    # Close foralls: one, i, b, a, tape
+    $proof fr(proof, left(proof), [forall("one", goal_f)], forall("one", goal_f), "one")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("i", goal_f)], forall("i", goal_f), "i")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("b", goal_f)], forall("b", goal_f), "b")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("a", goal_f)], forall("a", goal_f), "a")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("tape", goal_f)], forall("tape", goal_f), "tape")
+
+    $_ tap("tape_read_low ok")
+    proof
+}
