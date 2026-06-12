@@ -1,4 +1,4 @@
-from derived import implies, forall, qed
+from derived import implies, forall, eqv, qed
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
 from vocab.sets import ordered_pair
 from vocab.functions import apply
@@ -8,6 +8,7 @@ from theorems.tm.tm.transition_apply import transition_apply
 from theorems.tm.tm.head_move_right import head_move_right
 from theorems.tm.tm.head_move_left import head_move_left
 from theorems.tm.tm.step_elim import step_elim
+from theorems.tm.tm.config_eq_transfer import config_eq_transfer
 
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
 $ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
@@ -55,5 +56,13 @@ $se_expected forall("d", forall("c1", forall("c2", forall("q", forall("h", foral
         tm_config("c2", "qn", "hn", "tn", "_")))))))))))))))))))
 $_ qed(se, se_expected, "z")
 $_ tap("step_elim ok")
+
+$cet_expected forall("c", forall("q1", forall("h1", forall("t1",
+    forall("q2", forall("h2", forall("t2",
+    implies(tm_config("c", "q1", "h1", "t1", "_"),
+    implies(eqv("q1", "q2", "_"), implies(eqv("h1", "h2", "_"), implies(eqv("t1", "t2", "_"),
+        tm_config("c", "q2", "h2", "t2", "_"))))))))))))
+$_ qed(config_eq_transfer, cet_expected, "z")
+$_ tap("config_eq_transfer ok")
 
 $ok true

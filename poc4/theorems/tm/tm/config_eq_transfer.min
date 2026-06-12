@@ -1,0 +1,86 @@
+from derived import implies, forall, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.tm.tm import tm_config
+from tactics import ax, wr, fr, ir, inst, mp, apply_thm, close, same
+from util import remove
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
+
+# |- forall c,q1,h1,t1,q2,h2,t2.
+#      TMConfig(c,q1,h1,t1) -> Eqv(q1,q2) -> Eqv(h1,h2) -> Eqv(t1,t2) ->
+#      TMConfig(c,q2,h2,t2)
+$config_eq_transfer {
+    $cfg1 tm_config("c", "q1", "h1", "t1", "_")
+    $eq_q eqv("q1", "q2", "_")
+    $eq_h eqv("h1", "h2", "_")
+    $eq_t eqv("t1", "t2", "_")
+
+    # Eqv(h2,h1) and Eqv(t2,t1) from symmetry
+    $eq_h_sym eqv("h2", "h1", "_")
+    $eq_t_sym eqv("t2", "t1", "_")
+    $_es head(right(eqv_symmetric))
+    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
+    $got_eq_h_sym mp(apply_thm(eqv_symmetric, _es, ["h1", "h2"], ["a", "b"], _es_b, []),
+        ax([eq_h], [eq_h], eq_h), eq_h, eq_h_sym, [], [eq_h])
+    $got_eq_t_sym mp(apply_thm(eqv_symmetric, _es, ["t1", "t2"], ["a", "b"], _es_b, []),
+        ax([eq_t], [eq_t], eq_t), eq_t, eq_t_sym, [], [eq_t])
+
+    # Alpha-rename ordpair_eq_transfer: t,a,b,c,d -> s,p,q,r,u
+    $_oet_b \s: \p: \q: \r: \u: implies(eqv(p,r,"_"), implies(eqv(q,u,"_"),
+        implies(ordered_pair(s,p,q,"_"), ordered_pair(s,r,u,"_"))))
+    $oet_r forall("s", forall("p", forall("q", forall("r", forall("u",
+        _oet_b("s")("p")("q")("r")("u"))))))
+    $oet_thm wr(ordpair_eq_transfer, [], [oet_r], oet_r)
+
+    # OrdPair(v,h2,t2) -> OrdPair(v,h1,t1) via oet
+    $op_v_h2t2 ordered_pair("v", "h2", "t2", "_")
+    $op_v_h1t1 ordered_pair("v", "h1", "t1", "_")
+    $got_oet1 apply_thm(oet_thm, oet_r,
+        ["v", "h2", "t2", "h1", "t1"], ["s","p","q","r","u"], _oet_b, [])
+    $got_oet1a mp(got_oet1, got_eq_h_sym, eq_h_sym,
+        implies(eq_t_sym, implies(op_v_h2t2, op_v_h1t1)), [], [eq_h])
+    $got_oet1b mp(got_oet1a, got_eq_t_sym, eq_t_sym,
+        implies(op_v_h2t2, op_v_h1t1), [eq_h], [eq_t])
+    $got_op_v mp(got_oet1b, ax([op_v_h2t2], [op_v_h2t2], op_v_h2t2),
+        op_v_h2t2, op_v_h1t1, [eq_h, eq_t], [op_v_h2t2])
+
+    # TMConfig(c,q1,h1,t1) instantiated with v
+    $op_c_q1_v ordered_pair("c", "q1", "v", "_")
+    $target implies(op_v_h1t1, op_c_q1_v)
+    $got_cfg_inst inst(ax([cfg1], [cfg1], cfg1), cfg1, target, "v", [cfg1])
+    $got_op_c_q1 mp(got_cfg_inst, got_op_v, op_v_h1t1, op_c_q1_v,
+        [cfg1], [eq_h, eq_t, op_v_h2t2])
+
+    # Eqv(v,v) from reflexivity
+    $eq_vv eqv("v", "v", "_")
+    $_er head(right(eqv_reflexive))
+    $_er_b \a: eqv(a, a, "_")
+    $got_eq_vv apply_thm(eqv_reflexive, _er, ["v"], ["a"], _er_b, [])
+
+    # OrdPair(c,q1,v) -> OrdPair(c,q2,v) via oet
+    $op_c_q2_v ordered_pair("c", "q2", "v", "_")
+    $got_oet2 apply_thm(oet_thm, oet_r,
+        ["c", "q1", "v", "q2", "v"], ["s","p","q","r","u"], _oet_b, [])
+    $got_oet2a mp(got_oet2, ax([eq_q], [eq_q], eq_q), eq_q,
+        implies(eq_vv, implies(op_c_q1_v, op_c_q2_v)), [], [eq_q])
+    $got_oet2b mp(got_oet2a, got_eq_vv, eq_vv,
+        implies(op_c_q1_v, op_c_q2_v), [eq_q], [])
+    $got_op_c_q2 mp(got_oet2b, got_op_c_q1, op_c_q1_v, op_c_q2_v,
+        [eq_q], [cfg1, eq_h, eq_t, op_v_h2t2])
+
+    # Close inner: ir on op_v_h2t2, fr on v
+    $imp_inner implies(op_v_h2t2, op_c_q2_v)
+    $s1 ir(got_op_c_q2, remove(same, op_v_h2t2, left(got_op_c_q2)), [imp_inner], imp_inner)
+    $fa_v forall("v", imp_inner)
+    $s2 fr(s1, left(s1), [fa_v], fa_v, "v")
+
+    # Close outer implies
+    $i1 ir(s2, remove(same, eq_t, left(s2)), [implies(eq_t, head(right(s2)))], implies(eq_t, head(right(s2))))
+    $i2 ir(i1, remove(same, eq_h, left(i1)), [implies(eq_h, head(right(i1)))], implies(eq_h, head(right(i1))))
+    $i3 ir(i2, remove(same, eq_q, left(i2)), [implies(eq_q, head(right(i2)))], implies(eq_q, head(right(i2))))
+    $top implies(cfg1, head(right(i3)))
+    $i4 ir(i3, remove(same, cfg1, left(i3)), [top], top)
+
+    close(i4, left(i4), [top], ["t2", "h2", "q2", "t1", "h1", "q1", "c"])
+}
