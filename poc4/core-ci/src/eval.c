@@ -533,7 +533,13 @@ static int eval_call(GC *gc, Env *env, GCStack *stack, const char **tags, Intern
     err = callee->builtin.fn(gc, stack, tags, it);
     if (err) { frame(e, "call"); return err; }
   } else {
-    fprintf(stderr, "not callable: tag=%d\n", callee->tag);
+    static const char *typenames[] = {
+      "int", "str", "list", "ref", "fn", "call", "if", "block", "bind", "import",
+      "arr", "closure", "true", "false", "none", "builtin", "proof"
+    };
+    const char *name = (callee->tag >= 0 && callee->tag < (int)(sizeof(typenames)/sizeof(typenames[0])))
+      ? typenames[callee->tag] : "unknown";
+    fprintf(stderr, "not callable: got %s (expected function)\n", name);
     frame(e, "call");
     return 1;
   }

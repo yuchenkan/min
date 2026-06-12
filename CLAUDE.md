@@ -86,6 +86,10 @@ TMTransition has interspersed forall/implies. Use manual `inst` + `mp` chains in
 
 Never use `"__"` as prefix or `"_x"` style variable names in proof files. Use clean names (`"y"` not `"_y"`, `"_"` not `"__"`). The kernel's alpha-equivalence handles matching with vocab expansions. Run `lint.sh` to check.
 
+### Cache suppresses tap output
+
+`tap` with the same string only prints once per cache cycle. To avoid suppression, build a unique string per call site (e.g. `tap(add("test_name", " ok"))`). To invalidate module cache, `touch` the source file.
+
 ## Project structure
 
 - /vol/formal/bp/ — business plan (LaTeX, git tracked)
