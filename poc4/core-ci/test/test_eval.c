@@ -171,6 +171,13 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
     src = "from err_lib import x\n"
           "$r x\n";
 
+  else if (strcmp(path, "priv_lib.min") == 0)
+    src = "$_secret 42\n";
+
+  else if (strcmp(path, "err_priv_import.min") == 0)
+    src = "from priv_lib import _secret\n"
+          "$r _secret\n";
+
   else if (strcmp(path, "err_builtin.min") == 0)
     src = "$r add(1, \"x\")\n";
 
@@ -545,6 +552,16 @@ static void test_err_import(void) {
   printf("  err_import: ok\n");
 }
 
+static void test_err_priv_import(void) {
+  char buf[4096];
+  int err = run_eval_err("err_priv_import.min", buf, sizeof(buf));
+  assert(err != 0);
+  assert(strstr(buf, "import: private name: _secret") != NULL);
+  assert(strstr(buf, "at err_priv_import.min:1:1 (import)") != NULL);
+  assert(strstr(buf, "in err_priv_import.min") != NULL);
+  printf("  err_priv_import: ok\n");
+}
+
 static void test_err_builtin(void) {
   char buf[4096];
   int err = run_eval_err("err_builtin.min", buf, sizeof(buf));
@@ -577,6 +594,7 @@ int main(void) {
   test_err_undef();
   test_err_call();
   test_err_import();
+  test_err_priv_import();
   test_err_builtin();
   printf("all eval tests passed\n");
   return 0;
