@@ -13,6 +13,7 @@ from theorems.tm.tm.apply_func_transfer import apply_func_transfer
 from theorems.tm.tm.tape_update_unique import tape_update_unique
 from theorems.tm.tm.config_decompose import config_decompose
 from theorems.tm.tm.transition_unique import transition_unique
+from theorems.tm.tm.headmove_right_elim import headmove_right_elim
 from vocab.functions import function
 
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
@@ -99,5 +100,15 @@ $tu_expected forall("delta", forall("q", forall("sym", forall("w", forall("d", f
         and(eqv("w", "w2", "_"), and(eqv("d", "d2", "_"), eqv("qn", "qn2", "_")))))))))))))))
 $_ qed(transition_unique, tu_expected, "z")
 $_ tap("transition_unique ok")
+
+$hre_expected forall("h", forall("hn", forall("d", forall("ka", forall("ska", forall("d1",
+    implies(head_move("h", "hn", "d", "_"),
+    implies(eqv("h", "ka", "_"),
+    implies(eqv("d", "d1", "_"),
+    implies(num("d1", 1, "_"),
+    implies(successor("ska", "ka", "_"),
+        eqv("hn", "ska", "_"))))))))))))
+$_ qed(headmove_right_elim, hre_expected, "z")
+$_ tap("headmove_right_elim ok")
 
 $ok true
