@@ -1,7 +1,0 @@
-from core.derived import and, exists, eqv
-
-# exists_unique(body_fn): exists x. body(x) and forall y. body(y) -> eqv(x, y)
-$exists_unique \\(body_fn : {
-    $x var("x") $y var("y")
-    exists(x, and(body_fn(x), forall(y, implies(body_fn(y), eqv(x, y)))))
-})

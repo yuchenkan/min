@@ -1,8 +1,0 @@
-from core.derived import eqv
-from vocab.sets import singleton
-from theorems.sets.set_spec_unique import set_spec_unique
-
-# |- singleton(s1, a) -> singleton(s2, a) -> eqv(s1, s2)
-# singleton = set_spec with cond = \(x : eqv(x, a))
-$singleton_unique \(s1 s2 a vars :
-    set_spec_unique(s1, s2, \(v : eqv(v, a)), vars))

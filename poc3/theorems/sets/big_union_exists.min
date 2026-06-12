@@ -1,5 +1,0 @@
-from core.derived import Union
-from tactics import ax
-
-# Union |- forall(a, exists(s, big_union(s, a)))
-$big_union_exists ax([Union], [Union], Union)
