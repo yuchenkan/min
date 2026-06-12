@@ -424,11 +424,14 @@ int parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFi
   s->imports = NULL;
   s->binds = NULL;
   s->loading = 1;
+  s->mtime = 0;
   *slot = s;
   s->imports = gc_list_new(gc);
   s->binds = gc_list_new(gc);
 
-  char *src = read_file(filepath);
+  int64_t mtime = 0;
+  char *src = read_file(filepath, &mtime);
+  s->mtime = mtime;
   if (!src) return 1;
   Tokenizer t = { malloc(sizeof(Token) * 64), 0, 64, 0, filepath };
   if (tokenize(&t, src)) { free(src); tokenizer_free(&t); return 1; }

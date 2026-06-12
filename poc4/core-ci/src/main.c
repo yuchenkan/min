@@ -3,6 +3,7 @@
 #include "kernel.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 typedef struct Root {
   Env *global;
@@ -41,7 +42,10 @@ static const char *tag_names[] = {
   "w", "c", "e", "s", "_z",
 };
 
-static char *read_file(const char *path) {
+static char *read_file(const char *path, int64_t *mtime) {
+  struct stat st;
+  if (stat(path, &st) != 0) { perror(path); return NULL; }
+  *mtime = (int64_t)st.st_mtime;
   FILE *f = fopen(path, "r");
   if (!f) { perror(path); return NULL; }
   fseek(f, 0, SEEK_END);

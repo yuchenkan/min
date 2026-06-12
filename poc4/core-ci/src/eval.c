@@ -634,26 +634,38 @@ static int do_bind(void *item, void *ctx) {
   return 0;
 }
 
+static void module_trace(void *data) {
+  Module *m = data;
+  gc_mark(m->env);
+}
+
 int eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Env *global, GCStack *stack, const char **tags, Intern *it, Env **out) {
   void **slot = gc_map_get(gc, modules, filepath);
-  if (*slot) { *out = *slot; return 0; }
+  if (*slot) { *out = ((Module *)*slot)->env; return 0; }
 
-  env_new(gc, slot);
-  ((Env *)*slot)->parent = global;
+  Module *mod = gc_alloc(gc, sizeof(Module), module_trace, NULL, NULL);
+  mod->env = NULL;
+  mod->mtime = 0;
+  *slot = mod;
+
+  env_new(gc, (void **)&mod->env);
+  mod->env->parent = global;
 
   Source *s = *gc_map_find(sources, filepath);
+  mod->mtime = s->mtime;
 
-  void *ic[7] = { gc, modules, sources, *slot, stack, (void *)tags, it };
+  void *ic[7] = { gc, modules, sources, mod->env, stack, (void *)tags, it };
   int err = gc_list_each(s->imports, do_import, ic);
   if (err) { fprintf(stderr, "  in %s\n", filepath); return err; }
 
   slot = gc_map_find(modules, filepath);
-  void *bc[5] = { gc, *slot, stack, (void *)tags, it };
+  *out = ((Module *)*slot)->env;
+
+  void *bc[5] = { gc, *out, stack, (void *)tags, it };
   err = gc_list_each(s->binds, do_bind, bc);
   if (err) { fprintf(stderr, "  in %s\n", filepath); return err; }
 
-  slot = gc_map_find(modules, filepath);
   gc_map_delete(sources, filepath);
-  *out = *slot;
+  *out = ((Module *)*slot)->env;
   return 0;
 }

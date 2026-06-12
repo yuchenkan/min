@@ -6,7 +6,8 @@
 #include <assert.h>
 #include <unistd.h>
 
-static char *fake_read_file(const char *path) {
+static char *fake_read_file(const char *path, int64_t *mtime) {
+  *mtime = 0;
   const char *src = NULL;
 
   if (strcmp(path, "basic.min") == 0)
