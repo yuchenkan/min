@@ -29,6 +29,8 @@ GCMap *gc_map_new(GC *gc);
 void **gc_map_get(GC *gc, GCMap *map, const char *key);
 void **gc_map_find(GCMap *map, const char *key);
 void gc_map_delete(GCMap *map, const char *key);
+typedef int (*GCMapFn)(const char *key, void *val, void *ctx);
+int gc_map_each(GCMap *map, GCMapFn fn, void *ctx);
 
 /* call cache: (arg0..argN) -> result, no interning needed */
 typedef struct GCCallCache GCCallCache;

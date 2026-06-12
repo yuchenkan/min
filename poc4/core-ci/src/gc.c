@@ -246,6 +246,18 @@ void **gc_map_find(GCMap *map, const char *key) {
   return ht_find(&map->ht, (uintptr_t)key, key, gc_ptr_eq);
 }
 
+int gc_map_each(GCMap *map, GCMapFn fn, void *ctx) {
+  if (!map->ht.entries) return 0;
+  for (int i = 0; i < map->ht.cap; i++) {
+    HTEntry *e = &map->ht.entries[i];
+    if (e->key && e->key != HT_TOMB) {
+      int err = fn(e->key, e->val, ctx);
+      if (err) return err;
+    }
+  }
+  return 0;
+}
+
 /* call cache: flat open-addressing, keys are inline arg sequences */
 
 #define CC_INIT_CAP 16

@@ -48,9 +48,9 @@ static int builtin_add(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   } else if (a->tag == N_ARR) {
     int alen = a->arr.len, blen = b->arr.len;
     int rlen = alen + blen;
-    Node **tmp = malloc(sizeof(Node *) * rlen);
-    memcpy(tmp, a->arr.data, sizeof(Node *) * alen);
-    memcpy(tmp + alen, b->arr.data, sizeof(Node *) * blen);
+    Node **tmp = rlen ? malloc(sizeof(Node *) * rlen) : NULL;
+    if (alen) memcpy(tmp, a->arr.data, sizeof(Node *) * alen);
+    if (blen) memcpy(tmp + alen, b->arr.data, sizeof(Node *) * blen);
     void **slot = gc_stack_push(gc, stack);
     intern_arr(it, tmp, rlen, slot);
     free(tmp);
@@ -252,9 +252,13 @@ static int builtin_do_proof(GC *gc, GCStack *stack, const char **tags, Intern *i
 
   void **slot = gc_stack_push(gc, stack);
   if (err) {
-    const char *s = intern(it, err);
-    Node *elems[2] = { intern_false(it), intern_str(it, s) };
+    void **sslot = gc_stack_push(gc, stack);
+    *sslot = (void *)intern(it, err);
+    void **nslot = gc_stack_push(gc, stack);
+    *nslot = intern_str(it, (const char *)*sslot);
+    Node *elems[2] = { intern_false(it), *nslot };
     intern_arr(it, elems, 2, slot);
+    gc_stack_pop(stack, 2);
   } else {
     void **pslot = gc_stack_push(gc, stack);
     node_new(gc, pslot, N_PROOF);
@@ -282,9 +286,13 @@ static int builtin_do_qed(GC *gc, GCStack *stack, const char **tags, Intern *it)
 
   void **slot = gc_stack_push(gc, stack);
   if (err) {
-    const char *s = intern(it, err);
-    Node *elems[2] = { intern_false(it), intern_str(it, s) };
+    void **sslot = gc_stack_push(gc, stack);
+    *sslot = (void *)intern(it, err);
+    void **nslot = gc_stack_push(gc, stack);
+    *nslot = intern_str(it, (const char *)*sslot);
+    Node *elems[2] = { intern_false(it), *nslot };
     intern_arr(it, elems, 2, slot);
+    gc_stack_pop(stack, 2);
   } else {
     Node *elems[2] = { intern_true(it), intern_none(it) };
     intern_arr(it, elems, 2, slot);
@@ -634,9 +642,12 @@ static int do_bind(void *item, void *ctx) {
   return 0;
 }
 
-static void module_trace(void *data) {
-  Module *m = data;
-  gc_mark(m->env);
+
+static int collect_import_path(void *item, void *ctx) {
+  Node *n = item;
+  void **p = ctx;
+  *gc_list_append(p[0], p[1]) = n->import.filepath;
+  return 0;
 }
 
 int eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Env *global, GCStack *stack, const char **tags, Intern *it, Env **out) {
@@ -646,6 +657,7 @@ int eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Env *glob
   Module *mod = gc_alloc(gc, sizeof(Module), module_trace, NULL, NULL);
   mod->env = NULL;
   mod->mtime = 0;
+  mod->imports = NULL;
   *slot = mod;
 
   env_new(gc, (void **)&mod->env);
@@ -664,6 +676,10 @@ int eval(GC *gc, GCMap *modules, GCMap *sources, const char *filepath, Env *glob
   void *bc[5] = { gc, *out, stack, (void *)tags, it };
   err = gc_list_each(s->binds, do_bind, bc);
   if (err) { fprintf(stderr, "  in %s\n", filepath); return err; }
+
+  mod->imports = gc_list_new(gc);
+  void *cp[2] = { gc, mod->imports };
+  gc_list_each(s->imports, collect_import_path, cp);
 
   gc_map_delete(sources, filepath);
   *out = ((Module *)*slot)->env;

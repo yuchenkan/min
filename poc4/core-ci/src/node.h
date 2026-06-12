@@ -45,7 +45,14 @@ struct Node {
   };
 };
 
+typedef struct Module {
+  Env *env;
+  int64_t mtime;
+  GCList *imports;
+} Module;
+
 void node_trace(void *data);
+void module_trace(void *data);
 void node_new(GC *gc, void **slot, int tag);
 void env_new(GC *gc, void **slot);
 Node **env_get(GC *gc, Env *e, const char *name);

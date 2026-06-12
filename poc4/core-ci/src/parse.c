@@ -409,7 +409,9 @@ static void source_trace(void *data) {
   gc_mark(s->binds);
 }
 
-int parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFileFn read_file) {
+int parse(GC *gc, Intern *intern_t, GCMap *sources, GCMap *modules, const char *filepath, ReadFileFn read_file) {
+  if (gc_map_find(modules, filepath)) return 0;
+
   void **slot = gc_map_get(gc, sources, filepath);
   if (*slot) {
     Source *s = *slot;
@@ -442,7 +444,7 @@ int parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFi
     node_new(gc, islot, N_IMPORT);
     set_loc(*islot, peek(&t), t.filepath);
     if (parse_import(gc, intern_t, *islot, &t)) { tokenizer_free(&t); return 1; }
-    int err = parse(gc, intern_t, sources, ((Node *)*islot)->import.filepath, read_file);
+    int err = parse(gc, intern_t, sources, modules, ((Node *)*islot)->import.filepath, read_file);
     if (err) { tokenizer_free(&t); return err; }
   }
 

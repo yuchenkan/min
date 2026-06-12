@@ -91,3 +91,9 @@ Node **env_find(Env *e, const char *name) {
   }
   return NULL;
 }
+
+void module_trace(void *data) {
+  Module *m = data;
+  gc_mark(m->env);
+  gc_mark(m->imports);
+}

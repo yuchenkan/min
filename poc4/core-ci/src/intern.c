@@ -212,10 +212,8 @@ void intern_arr(Intern *t, Node **elems, uint64_t len, void **slot) {
   memset(n, 0, sizeof(Node));
   n->tag = N_ARR;
   *slot = n;
-  if (len > 0) {
-    n->arr.data = gc_alloc(t->gc, sizeof(Node *) * len, NULL, NULL, NULL);
-    memcpy(n->arr.data, elems, sizeof(Node *) * len);
-  }
+  n->arr.data = gc_alloc(t->gc, sizeof(Node *) * (len > 0 ? len : 1), NULL, NULL, NULL);
+  if (len > 0) memcpy(n->arr.data, elems, sizeof(Node *) * len);
   n->arr.len = len;
 
   d = ht_get(&t->arrs, h, key, arrkey_eq);

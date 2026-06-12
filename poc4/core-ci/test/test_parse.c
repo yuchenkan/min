@@ -111,12 +111,14 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
 
 typedef struct {
   GCMap *sources;
+  GCMap *modules;
   char *filepath;
 } Root;
 
 static void root_trace(void *data) {
   Root *r = data;
   gc_mark(r->sources);
+  gc_mark(r->modules);
   gc_mark(r->filepath);
 }
 
@@ -124,12 +126,14 @@ static void run_test(const char *name, const char *file) {
   GC *gc;
   Root *root = gc_init(sizeof(Root), root_trace, 1, 1, &gc);
   root->sources = NULL;
+  root->modules = NULL;
   root->filepath = NULL;
   root->sources = gc_map_new(gc);
+  root->modules = gc_map_new(gc);
   Intern *intern_t = intern_init(gc);
   root->filepath = (char *)intern(intern_t, file);
 
-  parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
+  parse(gc, intern_t, root->sources, root->modules, root->filepath, fake_read_file);
 
   gc_fini(gc);
   intern_fini(intern_t);

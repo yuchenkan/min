@@ -243,7 +243,7 @@ static Env *run_eval(const char *file, GC **out_gc, TestRoot **out_root) {
   root->tags = tags;
   for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
   init_global(gc, root->stack, tags, intern_t, root->global, &root->scratch);
-  parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
+  parse(gc, intern_t, root->sources, root->modules, root->filepath, fake_read_file);
   Env *env;
   eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, tags, intern_t, &env);
 
@@ -482,7 +482,7 @@ static int run_eval_err(const char *file, char *errbuf, int bufsize) {
   root->tags = tags;
   for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
   init_global(gc, root->stack, tags, intern_t, root->global, &root->scratch);
-  parse(gc, intern_t, root->sources, root->filepath, fake_read_file);
+  parse(gc, intern_t, root->sources, root->modules, root->filepath, fake_read_file);
 
   fflush(stderr);
   int saved = dup(2);

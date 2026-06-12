@@ -12,12 +12,8 @@ typedef struct Source {
   int64_t mtime;
 } Source;
 
-typedef struct Module {
-  Env *env;
-  int64_t mtime;
-} Module;
 typedef char *(*ReadFileFn)(const char *path, int64_t *mtime);
 
-int parse(GC *gc, Intern *intern_t, GCMap *sources, const char *filepath, ReadFileFn read_file);
+int parse(GC *gc, Intern *intern_t, GCMap *sources, GCMap *modules, const char *filepath, ReadFileFn read_file);
 
 #endif

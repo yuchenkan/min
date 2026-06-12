@@ -1,4 +1,5 @@
 #include "eval.h"
+#include "cache.h"
 #include "intern.h"
 #include "kernel.h"
 #include <stdio.h>
@@ -42,6 +43,21 @@ static const char *tag_names[] = {
   "w", "c", "e", "s", "_z",
 };
 
+static void *cache_fopen(const char *path, const char *mode) { return fopen(path, mode); }
+static int cache_fclose(void *f) { return fclose(f); }
+static size_t cache_fread(void *buf, size_t size, size_t count, void *f) { return fread(buf, size, count, f); }
+static size_t cache_fwrite(const void *buf, size_t size, size_t count, void *f) { return fwrite(buf, size, count, f); }
+static int cache_fseek(void *f, long offset, int whence) { return fseek(f, offset, whence); }
+static int64_t cache_mtime(const char *path) {
+  struct stat st;
+  if (stat(path, &st) != 0) return 0;
+  return (int64_t)st.st_mtime;
+}
+
+static CacheOps real_cache_ops = {
+  cache_fopen, cache_fclose, cache_fread, cache_fwrite, cache_fseek, cache_mtime
+};
+
 static char *read_file(const char *path, int64_t *mtime) {
   struct stat st;
   if (stat(path, &st) != 0) { perror(path); return NULL; }
@@ -82,12 +98,17 @@ int main(int argc, char **argv) {
   root->tags = tags;
   for (int i = 0; i < K_COUNT; i++) tags[i] = intern(intern_t, tag_names[i]);
 
-  int err = parse(gc, intern_t, root->sources, root->filepath, read_file);
-  if (err) { gc_fini(gc); intern_fini(intern_t); return 1; }
-
   init_global(gc, root->stack, (const char **)root->tags, intern_t, root->global, &root->scratch);
+
+  cache_load("min.cache", gc, intern_t, root->modules, root->global, &root->scratch, &real_cache_ops);
+
+  int err = parse(gc, intern_t, root->sources, root->modules, root->filepath, read_file);
+  if (err) { gc_fini(gc); intern_fini(intern_t); return 1; }
   Env *result;
   err = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t, &result);
+
+  if (!err)
+    cache_save("min.cache", gc, root->modules, root->global, &real_cache_ops);
 
   gc_fini(gc);
   intern_fini(intern_t);
