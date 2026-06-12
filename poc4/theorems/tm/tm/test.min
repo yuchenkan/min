@@ -1,0 +1,59 @@
+from derived import implies, forall, qed
+from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.nat.nat import num, successor
+from theorems.tm.tm.config_elim import config_elim
+from theorems.tm.tm.transition_apply import transition_apply
+from theorems.tm.tm.head_move_right import head_move_right
+from theorems.tm.tm.head_move_left import head_move_left
+from theorems.tm.tm.step_elim import step_elim
+
+$ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
+$ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
+    implies(tm_config("c", "q", "h", "tape", "_"),
+        implies(ordered_pair("inner", "h", "tape", "_"),
+            ordered_pair("c", "q", "inner", "_"))))))))
+$_ qed(ce, ce_expected, "z")
+$_ tap("config_elim ok")
+
+$ta transition_apply("d", "q", "r", "w", "dv", "qn", "inp", "dp", "out",
+    ["inp", "qn", "dv", "w", "r", "q", "d"])
+$ta_expected forall("d", forall("q", forall("r", forall("w", forall("dv", forall("qn", forall("inp",
+    implies(tm_transition("d", "q", "r", "w", "dv", "qn", "_"),
+        implies(ordered_pair("inp", "q", "r", "_"),
+            forall("dp", implies(ordered_pair("dp", "dv", "qn", "_"),
+                forall("out", implies(ordered_pair("out", "w", "dp", "_"),
+                    apply("d", "inp", "out", "_"))))))))))))))
+$_ qed(ta, ta_expected, "z")
+$_ tap("transition_apply ok")
+
+$hmr head_move_right("h", "hn", "d", ["d", "hn", "h"])
+$hmr_expected forall("h", forall("hn", forall("d",
+    implies(num("d", 1, "_"), implies(successor("hn", "h", "_"),
+        head_move("h", "hn", "d", "_"))))))
+$_ qed(hmr, hmr_expected, "z")
+$_ tap("head_move_right ok")
+
+$hml head_move_left("h", "hn", "d", ["d", "hn", "h"])
+$hml_expected forall("h", forall("hn", forall("d",
+    implies(num("d", 0, "_"), implies(successor("h", "hn", "_"),
+        head_move("h", "hn", "d", "_"))))))
+$_ qed(hml, hml_expected, "z")
+$_ tap("head_move_left ok")
+
+$se step_elim("d", "c1", "c2", "q", "h", "tape", "sym", "w", "dv", "qn", "hn", "tn",
+    ["tn", "hn", "qn", "dv", "w", "sym", "tape", "h", "q", "c2", "c1", "d"])
+$se_expected forall("d", forall("c1", forall("c2", forall("q", forall("h", forall("tape",
+    forall("sym", forall("w", forall("dv", forall("qn", forall("hn", forall("tn",
+    implies(tm_step("d", "c1", "c2", "_"),
+    implies(tm_config("c1", "q", "h", "tape", "_"),
+    implies(apply("tape", "h", "sym", "_"),
+    implies(tm_transition("d", "q", "sym", "w", "dv", "qn", "_"),
+    implies(tape_update("tn", "tape", "h", "w", "_"),
+    implies(head_move("h", "hn", "dv", "_"),
+        tm_config("c2", "qn", "hn", "tn", "_")))))))))))))))))))
+$_ qed(se, se_expected, "z")
+$_ tap("step_elim ok")
+
+$ok true

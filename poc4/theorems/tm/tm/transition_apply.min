@@ -1,0 +1,23 @@
+from derived import implies, forall
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.tm.tm import tm_transition
+from tactics import ax, ir, inst, mp, close
+
+# transition_apply: TMTransition(d,q,r,w,dv,qn) -> OrdPair(inp,q,r) ->
+#   forall dp. OrdPair(dp,dv,qn) -> forall out. OrdPair(out,w,dp) -> Apply(d,inp,out)
+$transition_apply \delta q r w dv qn inp dp out vars: {
+    $trans tm_transition(delta, q, r, w, dv, qn, "_")
+    $op_inp ordered_pair(inp, q, r, "_")
+    $inner forall(dp, implies(ordered_pair(dp, dv, qn, "_"),
+        forall(out, implies(ordered_pair(out, w, dp, "_"),
+            apply(delta, inp, out, "_")))))
+
+    $target implies(op_inp, inner)
+    $s0 inst(ax([trans], [trans], trans), trans, target, inp, [trans])
+    $s1 mp(s0, ax([op_inp], [op_inp], op_inp), op_inp, inner, [trans], [op_inp])
+    $s2 ir(s1, [trans], [implies(op_inp, inner)], implies(op_inp, inner))
+    $top implies(trans, implies(op_inp, inner))
+    $s3 ir(s2, [], [top], top)
+    close(s3, [], [top], vars)
+}

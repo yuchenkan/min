@@ -1,0 +1,19 @@
+from derived import implies
+from vocab.sets import ordered_pair
+from vocab.tm.tm import tm_config
+from tactics import ax, ir, inst, mp, close
+
+# config_elim: TMConfig(c,q,h,tape) -> OrdPair(inner,h,tape) -> OrdPair(c,q,inner)
+$config_elim \c q h tape inner vars: {
+    $cfg tm_config(c, q, h, tape, "_")
+    $op_inner ordered_pair(inner, h, tape, "_")
+    $op_c ordered_pair(c, q, inner, "_")
+    $target implies(op_inner, op_c)
+
+    $s0 inst(ax([cfg], [cfg], cfg), cfg, target, inner, [cfg])
+    $s1 mp(s0, ax([op_inner], [op_inner], op_inner), op_inner, op_c, [cfg], [op_inner])
+    $s2 ir(s1, [cfg], [implies(op_inner, op_c)], implies(op_inner, op_c))
+    $top implies(cfg, implies(op_inner, op_c))
+    $s3 ir(s2, [], [top], top)
+    close(s3, [], [top], vars)
+}

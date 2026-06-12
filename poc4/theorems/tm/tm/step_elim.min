@@ -1,0 +1,54 @@
+from derived import implies, left
+from vocab.functions import apply
+from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
+from tactics import ax, ir, mp, apply_thm, close, same
+from util import remove
+
+# |- forall delta,c1,c2,q,h,tape,sym,w,dv,qn,hn,tn.
+#      TMStep(d,c1,c2) -> TMConfig(c1,q,h,tape) -> Apply(tape,h,sym) ->
+#      TMTransition(d,q,sym,w,dv,qn) -> TapeUpdate(tn,tape,h,w) ->
+#      HeadMove(h,hn,dv) -> TMConfig(c2,qn,hn,tn)
+$step_elim \delta c1 c2 q h tape sym w dv qn hn tn vars: {
+    $step tm_step(delta, c1, c2, "_")
+    $cfg1 tm_config(c1, q, h, tape, "_")
+    $app_read apply(tape, h, sym, "_")
+    $trans tm_transition(delta, q, sym, w, dv, qn, "_")
+    $tupd tape_update(tn, tape, h, w, "_")
+    $hmov head_move(h, hn, dv, "_")
+    $cfg2 tm_config(c2, qn, hn, tn, "_")
+
+    $imp5 implies(hmov, cfg2)
+    $imp4 implies(tupd, imp5)
+    $imp3 implies(trans, imp4)
+    $imp2 implies(app_read, imp3)
+    $imp1 implies(cfg1, imp2)
+
+    $body_fn \q: \h: \tape: \sym: \w: \dv: \qn: \hn: \tn:
+        implies(tm_config(c1, q, h, tape, "_"),
+        implies(apply(tape, h, sym, "_"),
+        implies(tm_transition(delta, q, sym, w, dv, qn, "_"),
+        implies(tape_update(tn, tape, h, w, "_"),
+        implies(head_move(h, hn, dv, "_"),
+            tm_config(c2, qn, hn, tn, "_"))))))
+
+    $s0 apply_thm(ax([step], [step], step), step,
+        [q, h, tape, sym, w, dv, qn, hn, tn],
+        [q, h, tape, sym, w, dv, qn, hn, tn],
+        body_fn, [step])
+
+    $s1 mp(s0, ax([cfg1], [cfg1], cfg1), cfg1, imp2, [step], [cfg1])
+    $s2 mp(s1, ax([app_read], [app_read], app_read), app_read, imp3, left(s1), [app_read])
+    $s3 mp(s2, ax([trans], [trans], trans), trans, imp4, left(s2), [trans])
+    $s4 mp(s3, ax([tupd], [tupd], tupd), tupd, imp5, left(s3), [tupd])
+    $s5 mp(s4, ax([hmov], [hmov], hmov), hmov, cfg2, left(s4), [hmov])
+
+    $i1 ir(s5, remove(same, hmov, left(s5)), [imp5], imp5)
+    $i2 ir(i1, remove(same, tupd, left(i1)), [imp4], imp4)
+    $i3 ir(i2, remove(same, trans, left(i2)), [imp3], imp3)
+    $i4 ir(i3, remove(same, app_read, left(i3)), [imp2], imp2)
+    $i5 ir(i4, remove(same, cfg1, left(i4)), [imp1], imp1)
+    $top implies(step, imp1)
+    $i6 ir(i5, remove(same, step, left(i5)), [top], top)
+
+    close(i6, left(i6), [top], vars)
+}

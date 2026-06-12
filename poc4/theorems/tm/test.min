@@ -1,0 +1,2 @@
+from theorems.tm.tm.test import ok
+from theorems.tm.add.test import ok

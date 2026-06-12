@@ -1,0 +1,31 @@
+from derived import neg, implies, and
+from vocab.nat.nat import num, successor
+from vocab.tm.tm import head_move
+from tactics import ax, wl, nl, nr, il, ir, close
+
+# |- forall h, hn, d. Num(d,0) -> Successor(h,hn) -> HeadMove(h,hn,d)
+$head_move_left \h hn dv vars: {
+    $num_d num(dv, 0, "_")
+    $succ successor(h, hn, "_")
+    $left_and and(num(dv, 1, "_"), successor(hn, h, "_"))
+    $right_and and(num_d, succ)
+    $or_form implies(neg(left_and), right_and)
+
+    # [num_d, succ] |- [right_and]
+    $b2_prem ax([num_d, succ], [succ], succ)
+    $b2 nl(b2_prem, [num_d, succ, neg(succ)], [], neg(succ))
+    $b1 wl(ax([num_d], [num_d], num_d), [num_d, succ], [num_d], succ)
+    $imp_inner implies(num_d, neg(succ))
+    $s_il il(b1, b2, [num_d, succ, imp_inner], [], imp_inner)
+    $p_and nr(s_il, [num_d, succ], [right_and], right_and)
+
+    # [num_d, succ] |- [or_form]
+    $p_wl wl(p_and, [num_d, succ, neg(left_and)], [right_and], neg(left_and))
+    $p_or ir(p_wl, [num_d, succ], [or_form], or_form)
+
+    $imp1 implies(succ, or_form)
+    $s1 ir(p_or, [num_d], [imp1], imp1)
+    $imp2 implies(num_d, imp1)
+    $s2 ir(s1, [], [imp2], imp2)
+    close(s2, [], [imp2], vars)
+}
