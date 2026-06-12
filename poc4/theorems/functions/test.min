@@ -23,6 +23,8 @@ from theorems.functions.extend_apply_new import extend_apply_new
 from theorems.functions.extend_apply_old import extend_apply_old
 from theorems.functions.eqv_apply import eqv_apply
 from theorems.functions.extend_function import extend_function
+from theorems.functions.apply_func_transfer import apply_func_transfer
+from theorems.functions.func_eq_transfer import func_eq_transfer
 
 $_ qed(domain_exists, forall("f", exists("d", domain("d", "f", "_"))), "z")
 $_ tap("domain_exists ok")
@@ -148,8 +150,14 @@ $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ord
 $_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))), "z")
 $_ tap("extend_function ok")
 
+$_ qed(apply_func_transfer, forall("f", forall("g", forall("x", forall("y",
+    implies(eqv("f", "g", "_"), implies(apply("f", "x", "y", "_"),
+        apply("g", "x", "y", "_"))))))), "z")
+$_ tap("apply_func_transfer ok")
 
-
+$_ qed(func_eq_transfer, forall("f", forall("g",
+    implies(eqv("f", "g", "_"), implies(function("f", "_"), function("g", "_"))))), "z")
+$_ tap("func_eq_transfer ok")
 
 
 $ok true

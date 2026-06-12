@@ -1,0 +1,143 @@
+from derived import mem, neg, implies, iff, and, or, exists, eqv, left, right
+from vocab.sets import ordered_pair, relation
+from vocab.functions import function, apply, single_valued
+from tactics import ax, fl, fr, ir, wr, mp, apply_thm, inst, cut_c, close, same
+from util import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.functions.apply_func_transfer import apply_func_transfer
+
+# |- forall f,g. Eq(f,g) -> Function(f) -> Function(g)
+$func_eq_transfer {
+    $eq_fg eqv("f", "g", "_")
+    $func_f function("f", "_")
+    $func_g function("g", "_")
+    $rel_f relation("f", "_")
+    $rel_g relation("g", "_")
+    $sv_f single_valued("f", "_")
+    $sv_g single_valued("g", "_")
+
+    # Extract Relation(f) and SingleValued(f) from Function(f)
+    $got_rel_f mp(and_elim_left(rel_f, sv_f, []),
+        ax([func_f], [func_f], func_f), func_f, rel_f, [], [func_f])
+    $got_sv_f mp(and_elim_right(rel_f, sv_f, []),
+        ax([func_f], [func_f], func_f), func_f, sv_f, [], [func_f])
+
+    # === Build Relation(g) ===
+    # Relation(f) = forall(p, implies(In(p,f), exists(x, exists(y, OrdPair(p,x,y)))))
+    # Need: In(p,g) -> In(p,f) via Eq(f,g) backward
+    $in_pf mem("p", "f")
+    $in_pg mem("p", "g")
+    $iff_fg iff(in_pf, in_pg)
+    $got_iff fl(ax([iff_fg], [iff_fg], iff_fg), [eq_fg], [iff_fg], eq_fg, "p")
+
+    # Backward: In(p,g) -> In(p,f)
+    $imp_gf implies(in_pg, in_pf)
+    $got_imp_gf mp(iff_elim_right(in_pf, in_pg, []),
+        got_iff, iff_fg, imp_gf, [], [eq_fg])
+    $got_in_pf mp(got_imp_gf, ax([in_pg],[in_pg],in_pg),
+        in_pg, in_pf, [eq_fg], [in_pg])
+
+    # Instantiate Relation(f) with "p": In(p,f) -> exists(x, exists(y, OrdPair(p,x,y)))
+    $op_pxy ordered_pair("p", "x", "y", "_")
+    $ex_body exists("x", exists("y", op_pxy))
+    $imp_rel implies(in_pf, ex_body)
+    $got_rel_inst inst(got_rel_f, rel_f, imp_rel, "p", [func_f])
+
+    # Chain: In(p,g) -> In(p,f) -> exists(...)
+    $got_ex_from_g mp(got_rel_inst, got_in_pf, in_pf, ex_body,
+        [func_f], [eq_fg, in_pg])
+
+    # Close to get Relation(g): ir In(p,g), fr "p"
+    $imp_rel_g implies(in_pg, ex_body)
+    $got_rel_g_imp ir(got_ex_from_g, remove(same, in_pg, left(got_ex_from_g)),
+        [imp_rel_g], imp_rel_g)
+    $got_rel_g_done fr(got_rel_g_imp, left(got_rel_g_imp), [rel_g], rel_g, "p")
+
+    # === Build SingleValued(g) ===
+    # sv(f) = forall(x, forall(y1, forall(y2,
+    #     implies(and(apply(f,x,y1), apply(f,x,y2)), eqv(y1,y2)))))
+    # Need: Apply(g,x,y) -> Apply(f,x,y) via apply_func_transfer + Eq(g,f)
+    $eq_gf eqv("g", "f", "_")
+    $_sym head(right(eqv_symmetric))
+    $_sym_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eq_gf mp(apply_thm(eqv_symmetric, _sym, ["f","g"], ["a","b"], _sym_b, []),
+        ax([eq_fg],[eq_fg],eq_fg), eq_fg, eq_gf, [], [eq_fg])
+
+    # apply_func_transfer: forall f,g,x,y. Eq(f,g) -> Apply(f,x,y) -> Apply(g,x,y)
+    # Instantiate with g,f,x,y1: Eq(g,f) -> Apply(g,x,y1) -> Apply(f,x,y1)
+    $app_gx1 apply("g", "x", "y1", "_")
+    $app_gx2 apply("g", "x", "y2", "_")
+    $app_fx1 apply("f", "x", "y1", "_")
+    $app_fx2 apply("f", "x", "y2", "_")
+    $eq_y12 eqv("y1", "y2", "_")
+
+    # Alpha-rename apply_func_transfer to avoid f/g clash
+    $_aft_r_b \a1: \a2: \a3: \a4: implies(eqv(a1,a2,"_"), implies(apply(a1,a3,a4,"_"), apply(a2,a3,a4,"_")))
+    $_aft_r forall("a1", forall("a2", forall("a3", forall("a4", _aft_r_b("a1")("a2")("a3")("a4")))))
+    $aft_renamed wr(apply_func_transfer, left(apply_func_transfer), [_aft_r], _aft_r)
+
+    $got_aft1 apply_thm(aft_renamed, _aft_r, ["g","f","x","y1"], ["a1","a2","a3","a4"], _aft_r_b, [])
+    $got_fx1 mp(mp(got_aft1,
+        got_eq_gf, eq_gf, implies(app_gx1, app_fx1), [], [eq_fg]),
+        ax([app_gx1],[app_gx1],app_gx1), app_gx1, app_fx1, [eq_fg], [app_gx1])
+
+    $got_aft2 apply_thm(aft_renamed, _aft_r, ["g","f","x","y2"], ["a1","a2","a3","a4"], _aft_r_b, [])
+    $got_fx2 mp(mp(got_aft2,
+        got_eq_gf, eq_gf, implies(app_gx2, app_fx2), [], [eq_fg]),
+        ax([app_gx2],[app_gx2],app_gx2), app_gx2, app_fx2, [eq_fg], [app_gx2])
+
+    # And(Apply(f,x,y1), Apply(f,x,y2))
+    $and_fx and(app_fx1, app_fx2)
+    $got_and_f mp(mp(and_intro(app_fx1, app_fx2, []),
+        got_fx1, app_fx1, implies(app_fx2, and_fx), [], left(got_fx1)),
+        got_fx2, app_fx2, and_fx, left(got_fx1), left(got_fx2))
+
+    # Instantiate sv(f) with x,y1,y2: And(Apply(f,x,y1),Apply(f,x,y2)) -> Eq(y1,y2)
+    $sv_body implies(and_fx, eq_y12)
+    $_sv_b \x: \y1: \y2: implies(and(apply("f",x,y1,"_"), apply("f",x,y2,"_")), eqv(y1,y2,"_"))
+    $got_sv_inst apply_thm(got_sv_f, sv_f, ["x","y1","y2"], ["x","y1","y2"], _sv_b, [func_f])
+
+    # Chain: And(Apply(f,...)) -> Eq(y1,y2) with our got_and_f
+    $got_eq_y12 mp(got_sv_inst, got_and_f, and_fx, eq_y12,
+        [func_f], left(got_and_f))
+
+    # Now got_eq_y12 has [func_f, eq_fg, app_gx1, app_gx2] |- eq_y12
+    # Need to discharge via And(Apply(g,x,y1), Apply(g,x,y2))
+    $and_gx and(app_gx1, app_gx2)
+    $got_gx1 mp(and_elim_left(app_gx1, app_gx2, []),
+        ax([and_gx],[and_gx],and_gx), and_gx, app_gx1, [], [and_gx])
+    $got_gx2 mp(and_elim_right(app_gx1, app_gx2, []),
+        ax([and_gx],[and_gx],and_gx), and_gx, app_gx2, [], [and_gx])
+
+    # Cut app_gx1 and app_gx2 using got_gx1 and got_gx2
+    $got_sv_cut1 cut_c(got_gx1, got_eq_y12, app_gx1,
+        left(got_gx1), left(got_eq_y12), eq_y12)
+    $got_sv_cut2 cut_c(got_gx2, got_sv_cut1, app_gx2,
+        left(got_gx2), left(got_sv_cut1), eq_y12)
+
+    # Close sv(g): ir And(app_gx), fr y2, y1, x
+    $imp_sv implies(and_gx, eq_y12)
+    $got_sv_g_imp ir(got_sv_cut2, remove(same, and_gx, left(got_sv_cut2)), [imp_sv], imp_sv)
+    $my_sv_inner forall("y2", imp_sv)
+    $s1 fr(got_sv_g_imp, left(got_sv_g_imp), [my_sv_inner], my_sv_inner, "y2")
+    $my_sv_mid forall("y1", my_sv_inner)
+    $s2 fr(s1, left(s1), [my_sv_mid], my_sv_mid, "y1")
+    $my_sv forall("x", my_sv_mid)
+    $s3 fr(s2, left(s2), [my_sv], my_sv, "x")
+    $got_sv_g_done wr(s3, left(s3), [sv_g], sv_g)
+
+    # === Combine: Function(g) = And(Relation(g), SingleValued(g)) ===
+    $got_func_g mp(mp(and_intro(rel_g, sv_g, []),
+        got_rel_g_done, rel_g, implies(sv_g, func_g), [], left(got_rel_g_done)),
+        got_sv_g_done, sv_g, func_g, left(got_rel_g_done), left(got_sv_g_done))
+
+    # Close: ir for func_f, eq_fg; fr for g, f
+    $cur got_func_g
+    $cur ir(cur, remove(same, func_f, left(cur)), [implies(func_f, head(right(cur)))], implies(func_f, head(right(cur))))
+    $cur ir(cur, remove(same, eq_fg, left(cur)), [implies(eq_fg, head(right(cur)))], implies(eq_fg, head(right(cur))))
+    close(cur, left(cur), [head(right(cur))], ["g", "f"])
+}
