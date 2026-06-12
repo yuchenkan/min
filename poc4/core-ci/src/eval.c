@@ -610,6 +610,11 @@ static int import_bind(void *item, void *ctx) {
   void **p = ctx;
   GC *gc = p[0]; Env *env = p[1]; Env *from = p[2];
 
+  if (names[0][0] == '_') {
+    fprintf(stderr, "import: private name: %s\n", names[0]);
+    return 1;
+  }
+
   Node **v = env_find(from, names[0]);
   if (!v) {
     fprintf(stderr, "import: undefined: %s\n", names[0]);
