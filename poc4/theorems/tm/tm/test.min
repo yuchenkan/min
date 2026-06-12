@@ -1,4 +1,4 @@
-from derived import implies, forall, eqv, qed
+from derived import implies, forall, eqv, and, qed
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
 from vocab.sets import ordered_pair
 from vocab.functions import apply
@@ -9,6 +9,9 @@ from theorems.tm.tm.head_move_right import head_move_right
 from theorems.tm.tm.head_move_left import head_move_left
 from theorems.tm.tm.step_elim import step_elim
 from theorems.tm.tm.config_eq_transfer import config_eq_transfer
+from theorems.tm.tm.apply_func_transfer import apply_func_transfer
+from theorems.tm.tm.tape_update_unique import tape_update_unique
+from theorems.tm.tm.config_decompose import config_decompose
 
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
 $ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
@@ -64,5 +67,26 @@ $cet_expected forall("c", forall("q1", forall("h1", forall("t1",
         tm_config("c", "q2", "h2", "t2", "_"))))))))))))
 $_ qed(config_eq_transfer, cet_expected, "z")
 $_ tap("config_eq_transfer ok")
+
+$aft_expected forall("f", forall("g", forall("x", forall("y",
+    implies(eqv("f", "g", "_"), implies(apply("f", "x", "y", "_"),
+        apply("g", "x", "y", "_")))))))
+$_ qed(apply_func_transfer, aft_expected, "z")
+$_ tap("apply_func_transfer ok")
+
+$tuu_expected forall("t1", forall("t2", forall("tape", forall("h", forall("w",
+    implies(tape_update("t1", "tape", "h", "w", "_"),
+    implies(tape_update("t2", "tape", "h", "w", "_"),
+        eqv("t1", "t2", "_"))))))))
+$_ qed(tape_update_unique, tuu_expected, "z")
+$_ tap("tape_update_unique ok")
+
+$cd_expected forall("c", forall("q", forall("h", forall("tape",
+    forall("q2", forall("h2", forall("tape2",
+    implies(tm_config("c", "q", "h", "tape", "_"),
+    implies(tm_config("c", "q2", "h2", "tape2", "_"),
+        and(eqv("q", "q2", "_"), and(eqv("h", "h2", "_"), eqv("tape", "tape2", "_"))))))))))))
+$_ qed(config_decompose, cd_expected, "z")
+$_ tap("config_decompose ok")
 
 $ok true

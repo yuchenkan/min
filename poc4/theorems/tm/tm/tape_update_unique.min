@@ -1,0 +1,69 @@
+from derived import mem, neg, implies, iff, and, or, exists, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.tm.tm import tape_update
+from tactics import ax, fr, ir, inst, mp, close
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_intro import iff_intro
+
+# |- forall t1,t2,tape,h,w. TapeUpdate(t1,tape,h,w) -> TapeUpdate(t2,tape,h,w) -> Eqv(t1,t2)
+$tape_update_unique {
+    $tu1 tape_update("t1", "tape", "h", "w", "_")
+    $tu2 tape_update("t2", "tape", "h", "w", "_")
+    $in_p_t1 mem("p", "t1")
+    $in_p_t2 mem("p", "t2")
+    $op_phw ordered_pair("p", "h", "w", "_")
+    $op_phy ordered_pair("p", "h", "y", "_")
+    $not_ex_y neg(exists("y", op_phy))
+    $right_and and(mem("p", "tape"), not_ex_y)
+    $or_form or(op_phw, right_and)
+    $iff1 iff(in_p_t1, or_form)
+    $iff2 iff(in_p_t2, or_form)
+
+    $got_iff1 inst(ax([tu1], [tu1], tu1), tu1, iff1, "p", [tu1])
+    $got_iff2 inst(ax([tu2], [tu2], tu2), tu2, iff2, "p", [tu2])
+
+    # Forward: In(p,t1) -> or_form -> In(p,t2)
+    $imp_t1_or implies(in_p_t1, or_form)
+    $got_fwd1 mp(iff_elim_left(in_p_t1, or_form, []),
+        got_iff1, iff1, imp_t1_or, [], [tu1])
+    $got_or mp(got_fwd1, ax([in_p_t1], [in_p_t1], in_p_t1),
+        in_p_t1, or_form, [tu1], [in_p_t1])
+    $imp_or_t2 implies(or_form, in_p_t2)
+    $got_rev2 mp(iff_elim_right(in_p_t2, or_form, []),
+        got_iff2, iff2, imp_or_t2, [], [tu2])
+    $got_fwd mp(got_rev2, got_or, or_form, in_p_t2, [tu2], [tu1, in_p_t1])
+
+    # Backward: In(p,t2) -> or_form -> In(p,t1)
+    $imp_t2_or implies(in_p_t2, or_form)
+    $got_fwd2 mp(iff_elim_left(in_p_t2, or_form, []),
+        got_iff2, iff2, imp_t2_or, [], [tu2])
+    $got_or2 mp(got_fwd2, ax([in_p_t2], [in_p_t2], in_p_t2),
+        in_p_t2, or_form, [tu2], [in_p_t2])
+    $imp_or_t1 implies(or_form, in_p_t1)
+    $got_rev1 mp(iff_elim_right(in_p_t1, or_form, []),
+        got_iff1, iff1, imp_or_t1, [], [tu1])
+    $got_back mp(got_rev1, got_or2, or_form, in_p_t1, [tu1], [tu2, in_p_t2])
+
+    # Build Iff(In(p,t1), In(p,t2))
+    $imp_fwd implies(in_p_t1, in_p_t2)
+    $imp_back implies(in_p_t2, in_p_t1)
+    $got_imp_fwd ir(got_fwd, [tu1, tu2], [imp_fwd], imp_fwd)
+    $got_imp_back ir(got_back, [tu1, tu2], [imp_back], imp_back)
+
+    $iff_t1t2 iff(in_p_t1, in_p_t2)
+    $imp_back_iff implies(imp_back, iff_t1t2)
+    $got_ii1 mp(iff_intro(in_p_t1, in_p_t2, []),
+        got_imp_fwd, imp_fwd, imp_back_iff, [], [tu1, tu2])
+    $got_iff_final mp(got_ii1, got_imp_back, imp_back, iff_t1t2, [tu1, tu2], [tu1, tu2])
+
+    # forall_right p → Eqv(t1,t2)
+    $eq_t1t2 eqv("t1", "t2", "_")
+    $s_fr fr(got_iff_final, [tu1, tu2], [eq_t1t2], eq_t1t2, "p")
+
+    # Close
+    $i1 ir(s_fr, [tu1], [implies(tu2, eq_t1t2)], implies(tu2, eq_t1t2))
+    $top implies(tu1, implies(tu2, eq_t1t2))
+    $i2 ir(i1, [], [top], top)
+    close(i2, [], [top], ["w", "h", "tape", "t2", "t1"])
+}

@@ -53,6 +53,8 @@ from theorems.sets.product_unique import product_unique
 from theorems.sets.unique_product import unique_product
 from theorems.sets.product_in_intro import product_in_intro
 from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
+from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.tuple_injection import tuple_injection
 
 $_ qed(empty_exists, exists("s", empty("s", "_")), "z")
 $_ tap("empty_exists ok")
@@ -269,5 +271,14 @@ $_ tap("product_in_intro ok")
 $_ qed(eqv_mem_transfer, forall("a", forall("b", forall("c",
     implies(eqv("a","b","_"), implies(mem("a","c"), mem("b","c")))))), "z")
 $_ tap("eqv_mem_transfer ok")
+
+$_ qed(eqv_ordpair_transfer, forall("z", forall("t", forall("x", forall("y",
+    implies(eqv("z","t","_"), implies(ordered_pair("t","x","y","_"), ordered_pair("z","x","y","_"))))))), "z")
+$_ tap("eqv_ordpair_transfer ok")
+
+$_ qed(tuple_injection, forall("t", forall("a", forall("b", forall("c", forall("d",
+    implies(ordered_pair("t","a","b","_"), implies(ordered_pair("t","c","d","_"),
+        and(eqv("a","c","_"), eqv("b","d","_"))))))))), "z")
+$_ tap("tuple_injection ok")
 
 $ok true

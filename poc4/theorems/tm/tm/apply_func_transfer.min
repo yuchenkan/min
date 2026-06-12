@@ -1,0 +1,60 @@
+from derived import mem, implies, iff, and, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from tactics import ax, ir, inst, mp, apply_thm, eir, eel, cut_c, close, same
+from util import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# |- forall f,g,x,y. Eqv(f,g) -> Apply(f,x,y) -> Apply(g,x,y)
+$apply_func_transfer {
+    $eq_fg eqv("f", "g", "_")
+    $app_f apply("f", "x", "y", "_")
+    $app_g apply("g", "x", "y", "_")
+    $op_p ordered_pair("p", "x", "y", "_")
+    $in_p_f mem("p", "f")
+    $in_p_g mem("p", "g")
+
+    # Eqv(f,g) instantiated with p: Iff(In(p,f), In(p,g))
+    $iff_in iff(in_p_f, in_p_g)
+    $got_iff inst(ax([eq_fg], [eq_fg], eq_fg), eq_fg, iff_in, "p", [eq_fg])
+
+    # Iff forward: In(p,f) -> In(p,g)
+    $_ie head(right(iff_elim_left(in_p_f, in_p_g, [])))
+    $_ie_b implies(iff_in, implies(in_p_f, in_p_g))
+    $got_fwd mp(iff_elim_left(in_p_f, in_p_g, []),
+        got_iff, iff_in, implies(in_p_f, in_p_g), [], [eq_fg])
+    $got_in_g mp(got_fwd, ax([in_p_f], [in_p_f], in_p_f),
+        in_p_f, in_p_g, [eq_fg], [in_p_f])
+
+    # And(OrdPair(p,x,y), In(p,g)) → eir → Apply(g,x,y)
+    $and_pg and(op_p, in_p_g)
+    $got_and mp(mp(and_intro(op_p, in_p_g, []),
+        ax([op_p], [op_p], op_p), op_p, implies(in_p_g, and_pg), [], [op_p]),
+        got_in_g, in_p_g, and_pg, [op_p], [eq_fg, in_p_f])
+    $got_app_g eir(got_and, \p: and(ordered_pair(p, "x", "y", "_"), mem(p, "g")),
+        "p", "p", left(got_and))
+
+    # Extract OrdPair(p,x,y) and In(p,f) from And(op_p, in_p_f)
+    $and_pf and(op_p, in_p_f)
+    $got_op mp(and_elim_left(op_p, in_p_f, []),
+        ax([and_pf], [and_pf], and_pf), and_pf, op_p, [], [and_pf])
+    $got_in mp(and_elim_right(op_p, in_p_f, []),
+        ax([and_pf], [and_pf], and_pf), and_pf, in_p_f, [], [and_pf])
+
+    # Cut op_p and in_p_f from got_app_g's left, replace with and_pf
+    $s1 cut_c(got_op, got_app_g, op_p, left(got_op), left(got_app_g), app_g)
+    $s2 cut_c(got_in, s1, in_p_f, left(got_in), left(s1), app_g)
+
+    # eel p from and_pf → Exists(p, and_pf) = Apply(f,x,y)
+    $s3 eel(s2, \p: and(ordered_pair(p, "x", "y", "_"), mem(p, "f")),
+        "p", "p", left(s2), app_g)
+
+    # Close
+    $i1 ir(s3, remove(same, app_f, left(s3)), [implies(app_f, app_g)], implies(app_f, app_g))
+    $top implies(eq_fg, head(right(i1)))
+    $i2 ir(i1, remove(same, eq_fg, left(i1)), [top], top)
+    close(i2, left(i2), [top], ["y", "x", "g", "f"])
+}
