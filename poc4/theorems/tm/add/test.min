@@ -8,7 +8,8 @@ from theorems.tm.add.phase1_step_extend_trace import phase1_step_extend_trace
 from theorems.tm.add.phase1_base import phase1_base
 from theorems.tm.add.tape_read_low import tape_read_low
 from theorems.tm.add.phase1_step_case import phase1_step_case
-from vocab.tm.add import phase1_ind, unary_tape
+from theorems.tm.add.phase1 import phase1
+from vocab.tm.add import phase1_ind, unary_tape, phase1p
 
 $pst_expected forall("delta", forall("q0", forall("ka", forall("ska",
     forall("tape_in", forall("ca", forall("one", forall("d1",
@@ -85,5 +86,8 @@ $psc_expected forall("d", forall("q0", forall("a", forall("b",
         phase1_ind("sn", "d", "q0", "tape", "c0", "_"))))))))))))))))))))))
 $_ qed(phase1_step_case, psc_expected, "z")
 $_ tap("phase1_step_case ok")
+
+$_ qed(phase1, phase1p("_"), "z")
+$_ tap("phase1 ok")
 
 $ok true
