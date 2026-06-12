@@ -1,0 +1,263 @@
+from derived import mem, neg, implies, iff, and, or, exists, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.tm.tm import tape_update
+from tactics import ax, fl, fr, nl, nr, ir, mp, apply_thm, inst, eir, eel, cut_c, close, same
+from util import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
+
+# |- forall t1,t2,tape1,h1,w1,tape2,h2,w2.
+#     TapeUpdate(t1,tape1,h1,w1) -> TapeUpdate(t2,tape2,h2,w2) ->
+#     Eq(tape1,tape2) -> Eq(h1,h2) -> Eq(w1,w2) -> Eq(t1,t2)
+$tape_update_eq_args {
+    $tu1 tape_update("t1", "tape1", "h1", "w1", "_")
+    $tu2 tape_update("t2", "tape2", "h2", "w2", "_")
+    $eq_tp eqv("tape1", "tape2", "_")
+    $eq_hd eqv("h1", "h2", "_")
+    $eq_wr eqv("w1", "w2", "_")
+    $eq_t1t2 eqv("t1", "t2", "_")
+
+    # === TapeUpdate Iff components after inst with "p" ===
+    $in_p_t1 mem("p", "t1")
+    $in_p_t2 mem("p", "t2")
+    $in_p_tape1 mem("p", "tape1")
+    $in_p_tape2 mem("p", "tape2")
+
+    $op1 ordered_pair("p", "h1", "w1", "_")
+    $op1y ordered_pair("p", "h1", "y", "_")
+    $not_ex1 neg(exists("y", op1y))
+    $right1 and(in_p_tape1, not_ex1)
+    $or1 or(op1, right1)
+    $iff1 iff(in_p_t1, or1)
+    $got_iff1 inst(ax([tu1], [tu1], tu1), tu1, iff1, "p", [tu1])
+
+    $op2 ordered_pair("p", "h2", "w2", "_")
+    $op2y ordered_pair("p", "h2", "y", "_")
+    $not_ex2 neg(exists("y", op2y))
+    $right2 and(in_p_tape2, not_ex2)
+    $or2 or(op2, right2)
+    $iff2 iff(in_p_t2, or2)
+    $got_iff2 inst(ax([tu2], [tu2], tu2), tu2, iff2, "p", [tu2])
+
+    # === Shared setup ===
+    $_oet head(right(ordpair_eq_transfer))
+    $_oet_b \t: \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,d,"_"))))
+
+    $_sym head(right(eqv_symmetric))
+    $_sym_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+
+    $iff_tp iff(in_p_tape1, in_p_tape2)
+    $got_iff_tp fl(ax([iff_tp], [iff_tp], iff_tp), [eq_tp], [iff_tp], eq_tp, "p")
+
+    $eq_hd_rev eqv("h2", "h1", "_")
+    $got_eq_hd_rev mp(apply_thm(eqv_symmetric, _sym, ["h1","h2"], ["a","b"], _sym_b, []),
+        ax([eq_hd], [eq_hd], eq_hd), eq_hd, eq_hd_rev, [], [eq_hd])
+
+    $eq_wr_rev eqv("w2", "w1", "_")
+    $got_eq_wr_rev mp(apply_thm(eqv_symmetric, _sym, ["w1","w2"], ["a","b"], _sym_b, []),
+        ax([eq_wr], [eq_wr], eq_wr), eq_wr, eq_wr_rev, [], [eq_wr])
+
+    $_ref head(right(eqv_reflexive))
+    $_ref_b \a: eqv(a,a,"_")
+    $eq_y2y2 eqv("y2", "y2", "_")
+    $got_eq_y2y2 apply_thm(eqv_reflexive, _ref, ["y2"], ["a"], _ref_b, [])
+
+    $op1y_fn \v: ordered_pair("p", "h1", v, "_")
+    $op2y_fn \v: ordered_pair("p", "h2", v, "_")
+    $ex1 exists("y", op1y)
+    $ex2 exists("y", op2y)
+    $not_op1 neg(op1)
+    $not_op2 neg(op2)
+    $op_h2y2 ordered_pair("p", "h2", "y2", "_")
+    $op_h1y2 ordered_pair("p", "h1", "y2", "_")
+
+    # ============================================================
+    # Forward: In(p,t1) -> In(p,t2)
+    # ============================================================
+
+    # OrdPair transfer: op1 -> op2 via Eq(h1,h2) + Eq(w1,w2)
+    $got_oet_fwd apply_thm(ordpair_eq_transfer, _oet, ["p","h1","w1","h2","w2"], ["t","a","b","c","d"], _oet_b, [])
+    $got_op12 mp(mp(mp(got_oet_fwd,
+        ax([eq_hd],[eq_hd],eq_hd), eq_hd, implies(eq_wr, implies(op1, op2)), [], [eq_hd]),
+        ax([eq_wr],[eq_wr],eq_wr), eq_wr, implies(op1, op2), [eq_hd], [eq_wr]),
+        ax([op1],[op1],op1), op1, op2, [eq_hd, eq_wr], [op1])
+
+    # Contrapositive: Not(op2) + op1 -> bot -> Not(op1)
+    $got_bot_fwd nl(got_op12, add(left(got_op12), [not_op2]), [], not_op2)
+    $got_not_op1 nr(got_bot_fwd, remove(same, op1, left(got_bot_fwd)), [not_op1], not_op1)
+
+    # In(p,t1) -> or1 via iff1 fwd
+    $imp_t1_or implies(in_p_t1, or1)
+    $got_fwd1 mp(iff_elim_left(in_p_t1, or1, []),
+        got_iff1, iff1, imp_t1_or, [], [tu1])
+    $got_or1 mp(got_fwd1, ax([in_p_t1],[in_p_t1],in_p_t1),
+        in_p_t1, or1, [tu1], [in_p_t1])
+
+    # or1 + not_op1 -> right1 (or = implies(neg(A), B))
+    $got_right1 mp(got_or1, got_not_op1, not_op1, right1,
+        left(got_or1), left(got_not_op1))
+
+    # Decompose right1
+    $got_in_tape1 mp(and_elim_left(in_p_tape1, not_ex1, []),
+        got_right1, right1, in_p_tape1, [], left(got_right1))
+    $got_not_ex1 mp(and_elim_right(in_p_tape1, not_ex1, []),
+        got_right1, right1, not_ex1, [], left(got_right1))
+
+    # Transfer In(p,tape1) -> In(p,tape2) via Eq(tape1,tape2)
+    $imp_tp12 implies(in_p_tape1, in_p_tape2)
+    $got_imp_tp12 mp(iff_elim_left(in_p_tape1, in_p_tape2, []),
+        got_iff_tp, iff_tp, imp_tp12, [], [eq_tp])
+    $got_in_tape2 mp(got_imp_tp12, got_in_tape1,
+        in_p_tape1, in_p_tape2, [eq_tp], left(got_in_tape1))
+
+    # Transfer Not(Exists(y,op1y)) -> Not(Exists(y,op2y))
+    # Contrapositive: Exists(y,op2y) -> Exists(y,op1y)
+    # From OrdPair(p,h2,y2) + Eq(h2,h1) + Eq(y2,y2) -> OrdPair(p,h1,y2)
+    $got_oet_ex_fwd apply_thm(ordpair_eq_transfer, _oet,
+        ["p","h2","y2","h1","y2"], ["t","a","b","c","d"], _oet_b, [])
+    $got_op_h1y2 mp(mp(mp(got_oet_ex_fwd,
+        got_eq_hd_rev, eq_hd_rev, implies(eq_y2y2, implies(op_h2y2, op_h1y2)), [], [eq_hd]),
+        got_eq_y2y2, eq_y2y2, implies(op_h2y2, op_h1y2), [eq_hd], []),
+        ax([op_h2y2],[op_h2y2],op_h2y2), op_h2y2, op_h1y2, [eq_hd], [op_h2y2])
+
+    # eir: OrdPair(p,h1,y2) -> Exists(y, OrdPair(p,h1,y))
+    $got_ex1_eir eir(got_op_h1y2, op1y_fn, "y", "y2", left(got_op_h1y2))
+    # eel: replace OrdPair(p,h2,y2) on left with Exists(y, OrdPair(p,h2,y))
+    $got_ex1_eel eel(got_ex1_eir, op2y_fn, "y", "y2", left(got_ex1_eir), ex1)
+
+    # Contrapositive: Not(ex1) + ex2 -> bot -> Not(ex2)
+    $got_ex_bot_fwd nl(got_ex1_eel, add(left(got_ex1_eel), [not_ex1]), [], not_ex1)
+    $got_not_ex2_raw nr(got_ex_bot_fwd, remove(same, ex2, left(got_ex_bot_fwd)), [not_ex2], not_ex2)
+
+    # Cut not_ex1 from got_not_ex1
+    $got_not_ex2_final cut_c(got_not_ex1, got_not_ex2_raw, not_ex1,
+        left(got_not_ex1), left(got_not_ex2_raw), not_ex2)
+
+    # Build right2 = And(In(p,tape2), not_ex2)
+    $got_r2_imp mp(and_intro(in_p_tape2, not_ex2, []),
+        got_in_tape2, in_p_tape2, implies(not_ex2, right2), [], left(got_in_tape2))
+    $got_right2 mp(got_r2_imp, got_not_ex2_final, not_ex2, right2,
+        left(got_r2_imp), left(got_not_ex2_final))
+
+    # Build or2: discharge not_op2 = neg(op2)
+    $got_or2 ir(got_right2, remove(same, not_op2, left(got_right2)), [or2], or2)
+
+    # or2 -> In(p,t2) via iff2 rev
+    $imp_or2_t2 implies(or2, in_p_t2)
+    $got_rev2 mp(iff_elim_right(in_p_t2, or2, []),
+        got_iff2, iff2, imp_or2_t2, [], [tu2])
+    $got_fwd_final mp(got_rev2, got_or2, or2, in_p_t2,
+        left(got_rev2), left(got_or2))
+
+    # ============================================================
+    # Backward: In(p,t2) -> In(p,t1)
+    # ============================================================
+
+    # OrdPair transfer: op2 -> op1 via Eq(h2,h1) + Eq(w2,w1)
+    $got_oet_back apply_thm(ordpair_eq_transfer, _oet,
+        ["p","h2","w2","h1","w1"], ["t","a","b","c","d"], _oet_b, [])
+    $got_op21 mp(mp(mp(got_oet_back,
+        got_eq_hd_rev, eq_hd_rev, implies(eq_wr_rev, implies(op2, op1)), [], [eq_hd]),
+        got_eq_wr_rev, eq_wr_rev, implies(op2, op1), [eq_hd], [eq_wr]),
+        ax([op2],[op2],op2), op2, op1, [eq_hd, eq_wr], [op2])
+
+    # Contrapositive: Not(op1) + op2 -> bot -> Not(op2)
+    $got_bot_back nl(got_op21, add(left(got_op21), [not_op1]), [], not_op1)
+    $got_not_op2_back nr(got_bot_back, remove(same, op2, left(got_bot_back)), [not_op2], not_op2)
+
+    # In(p,t2) -> or2 via iff2 fwd
+    $imp_t2_or implies(in_p_t2, or2)
+    $got_fwd2 mp(iff_elim_left(in_p_t2, or2, []),
+        got_iff2, iff2, imp_t2_or, [], [tu2])
+    $got_or2_back mp(got_fwd2, ax([in_p_t2],[in_p_t2],in_p_t2),
+        in_p_t2, or2, [tu2], [in_p_t2])
+
+    # or2 + not_op2 -> right2
+    $got_right2_back mp(got_or2_back, got_not_op2_back, not_op2, right2,
+        left(got_or2_back), left(got_not_op2_back))
+
+    # Decompose right2
+    $got_in_tape2_back mp(and_elim_left(in_p_tape2, not_ex2, []),
+        got_right2_back, right2, in_p_tape2, [], left(got_right2_back))
+    $got_not_ex2_back mp(and_elim_right(in_p_tape2, not_ex2, []),
+        got_right2_back, right2, not_ex2, [], left(got_right2_back))
+
+    # Transfer In(p,tape2) -> In(p,tape1) via Eq(tape1,tape2) iff reverse
+    $imp_tp21 implies(in_p_tape2, in_p_tape1)
+    $got_imp_tp21 mp(iff_elim_right(in_p_tape1, in_p_tape2, []),
+        got_iff_tp, iff_tp, imp_tp21, [], [eq_tp])
+    $got_in_tape1_back mp(got_imp_tp21, got_in_tape2_back,
+        in_p_tape2, in_p_tape1, [eq_tp], left(got_in_tape2_back))
+
+    # Transfer Not(Exists(y,op2y)) -> Not(Exists(y,op1y))
+    # Contrapositive: Exists(y,op1y) -> Exists(y,op2y)
+    # From OrdPair(p,h1,y2) + Eq(h1,h2) + Eq(y2,y2) -> OrdPair(p,h2,y2)
+    $got_oet_ex_back apply_thm(ordpair_eq_transfer, _oet,
+        ["p","h1","y2","h2","y2"], ["t","a","b","c","d"], _oet_b, [])
+    $got_op_h2y2 mp(mp(mp(got_oet_ex_back,
+        ax([eq_hd],[eq_hd],eq_hd), eq_hd, implies(eq_y2y2, implies(op_h1y2, op_h2y2)), [], [eq_hd]),
+        got_eq_y2y2, eq_y2y2, implies(op_h1y2, op_h2y2), [eq_hd], []),
+        ax([op_h1y2],[op_h1y2],op_h1y2), op_h1y2, op_h2y2, [eq_hd], [op_h1y2])
+
+    # eir: OrdPair(p,h2,y2) -> Exists(y, OrdPair(p,h2,y))
+    $got_ex2_eir eir(got_op_h2y2, op2y_fn, "y", "y2", left(got_op_h2y2))
+    # eel: replace OrdPair(p,h1,y2) on left with Exists(y, OrdPair(p,h1,y))
+    $got_ex2_eel eel(got_ex2_eir, op1y_fn, "y", "y2", left(got_ex2_eir), ex2)
+
+    # Contrapositive: Not(ex2) + ex1 -> bot -> Not(ex1)
+    $got_ex_bot_back nl(got_ex2_eel, add(left(got_ex2_eel), [not_ex2]), [], not_ex2)
+    $got_not_ex1_raw nr(got_ex_bot_back, remove(same, ex1, left(got_ex_bot_back)), [not_ex1], not_ex1)
+
+    # Cut not_ex2 from got_not_ex2_back
+    $got_not_ex1_final cut_c(got_not_ex2_back, got_not_ex1_raw, not_ex2,
+        left(got_not_ex2_back), left(got_not_ex1_raw), not_ex1)
+
+    # Build right1 = And(In(p,tape1), not_ex1)
+    $got_r1_imp mp(and_intro(in_p_tape1, not_ex1, []),
+        got_in_tape1_back, in_p_tape1, implies(not_ex1, right1), [], left(got_in_tape1_back))
+    $got_right1_back mp(got_r1_imp, got_not_ex1_final, not_ex1, right1,
+        left(got_r1_imp), left(got_not_ex1_final))
+
+    # Build or1: discharge not_op1 = neg(op1)
+    $got_or1_back ir(got_right1_back, remove(same, not_op1, left(got_right1_back)), [or1], or1)
+
+    # or1 -> In(p,t1) via iff1 rev
+    $imp_or1_t1 implies(or1, in_p_t1)
+    $got_rev1 mp(iff_elim_right(in_p_t1, or1, []),
+        got_iff1, iff1, imp_or1_t1, [], [tu1])
+    $got_back_final mp(got_rev1, got_or1_back, or1, in_p_t1,
+        left(got_rev1), left(got_or1_back))
+
+    # ============================================================
+    # Combine: Iff(In(p,t1), In(p,t2)) -> Eq(t1,t2)
+    # ============================================================
+
+    $imp_fwd implies(in_p_t1, in_p_t2)
+    $imp_back implies(in_p_t2, in_p_t1)
+    $got_imp_fwd ir(got_fwd_final, remove(same, in_p_t1, left(got_fwd_final)), [imp_fwd], imp_fwd)
+    $got_imp_back ir(got_back_final, remove(same, in_p_t2, left(got_back_final)), [imp_back], imp_back)
+
+    $iff_t1t2 iff(in_p_t1, in_p_t2)
+    $got_ii mp(iff_intro(in_p_t1, in_p_t2, []),
+        got_imp_fwd, imp_fwd, implies(imp_back, iff_t1t2), [], left(got_imp_fwd))
+    $got_iff_final mp(got_ii, got_imp_back, imp_back, iff_t1t2,
+        left(got_ii), left(got_imp_back))
+
+    $got_eq fr(got_iff_final, left(got_iff_final), [eq_t1t2], eq_t1t2, "p")
+
+    # Close: implies_right for each premise, forall_right for each var
+    $cur got_eq
+    $cur ir(cur, remove(same, eq_wr, left(cur)), [implies(eq_wr, head(right(cur)))], implies(eq_wr, head(right(cur))))
+    $cur ir(cur, remove(same, eq_hd, left(cur)), [implies(eq_hd, head(right(cur)))], implies(eq_hd, head(right(cur))))
+    $cur ir(cur, remove(same, eq_tp, left(cur)), [implies(eq_tp, head(right(cur)))], implies(eq_tp, head(right(cur))))
+    $cur ir(cur, remove(same, tu2, left(cur)), [implies(tu2, head(right(cur)))], implies(tu2, head(right(cur))))
+    $cur ir(cur, remove(same, tu1, left(cur)), [implies(tu1, head(right(cur)))], implies(tu1, head(right(cur))))
+    close(cur, left(cur), [head(right(cur))], ["w2","h2","tape2","w1","h1","tape1","t2","t1"])
+}
