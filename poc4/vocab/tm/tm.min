@@ -1,7 +1,8 @@
 from derived import mem, neg, implies, forall, and, or, iff, exists, eqv
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
-from vocab.nat.nat import num, successor, empty
+from vocab.nat.nat import num, nat, successor, empty
+from vocab.arithmetic.plus import plus
 
 # tm_config(c, q, h, tape, p): c = (q, (h, tape))
 $tm_config \c q h tape p: {
@@ -89,4 +90,24 @@ $tm_reaches \delta c0 n cf p: {
         or(mem(xd, n), eqv(xd, n, np)))))
     ["tm_reaches", add("Reaches(", add(delta, add(",", add(c0, add(",", add(n, add(",", add(cf, ")")))))))),
         exists(trace, and(func, and(dom_bound, and(base, and(step, reached)))))]
+}
+
+# tmreaches_compose(p): chain two TMReaches via Plus
+$tmreaches_compose \p: {
+    $np add(p, "_")
+    $dd add(p, "d")
+    $x add(p, "x")
+    $y add(p, "y")
+    $z add(p, "z")
+    $a add(p, "a")
+    $b add(p, "b")
+    $n add(p, "n")
+    $body implies(tm_reaches(dd, x, a, y, np),
+        implies(tm_reaches(dd, y, b, z, np),
+        implies(plus(a, b, n, np),
+        implies(nat(a, np), implies(nat(b, np),
+        tm_reaches(dd, x, n, z, np))))))
+    $formula forall(dd, forall(x, forall(y, forall(z, forall(a,
+        forall(b, forall(n, body)))))))
+    ["tmreaches_compose", "TMReachesCompose", formula]
 }

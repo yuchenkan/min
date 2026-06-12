@@ -1,7 +1,8 @@
-from derived import mem, neg, implies, forall, and
-from vocab.tm.tm import tm_config, tm_transition, tape_update, tm_reaches
+from derived import mem, neg, implies, forall, exists, and, or, eqv
+from vocab.sets import empty
+from vocab.tm.tm import tm_config, tm_transition, tape_update, tm_step, tm_reaches
 from vocab.functions import apply, function
-from vocab.nat.nat import num, omega, successor
+from vocab.nat.nat import num, nat, successor
 from vocab.arithmetic.plus import plus
 
 # unary_tape(tape, a, b, p): tape = 1^a 0 1^b then all 0
@@ -56,20 +57,19 @@ $phase1p \p: {
     $tape add(p, "tape")
     $c0 add(p, "c0")
     $c1 add(p, "c1")
-    $w add(p, "w")
     $one add(p, "one")
     $b add(p, "b")
     $body implies(tm_transition(dd, q0, one, one, one, q0, np),
-        implies(omega(w, np), implies(mem(a, w),
+        implies(nat(a, np),
         implies(function(dd, np), implies(function(tape, np),
         implies(num(one, 1, np), implies(num(z, 0, np),
         implies(unary_tape(tape, a, b, np),
         implies(tm_config(c0, q0, z, tape, np),
         implies(tm_config(c1, q0, a, tape, np),
-        tm_reaches(dd, c0, a, c1, np)))))))))))
+        tm_reaches(dd, c0, a, c1, np))))))))))
     $formula forall(dd, forall(q0, forall(z, forall(a, forall(tape,
-        forall(w, forall(one, forall(b,
-        forall(c0, forall(c1, body))))))))))
+        forall(one, forall(b,
+        forall(c0, forall(c1, body)))))))))
     ["phase1p", "Phase1P", formula]
 }
 
@@ -113,23 +113,22 @@ $phase3p \p: {
     $tape2 add(p, "t2")
     $c1 add(p, "c1")
     $c2 add(p, "c2")
-    $w add(p, "w")
     $one add(p, "one")
     $pv add(p, "p")
     $pp add(p, "pp")
     $tape_read forall(pv, implies(mem(pv, b),
         forall(pp, implies(plus(sa, pv, pp, np), apply(tape2, pp, one, np)))))
     $body implies(tm_transition(dd, q1, one, one, one, q1, np),
-        implies(omega(w, np), implies(mem(b, w), implies(mem(sa, w),
+        implies(nat(b, np), implies(nat(sa, np),
         implies(function(dd, np), implies(function(tape2, np),
         implies(num(one, 1, np), implies(tape_read,
         implies(plus(sa, b, pos, np),
         implies(tm_config(c1, q1, sa, tape2, np),
         implies(tm_config(c2, q1, pos, tape2, np),
-        tm_reaches(dd, c1, b, c2, np))))))))))))
+        tm_reaches(dd, c1, b, c2, np)))))))))))
     $formula forall(dd, forall(q1, forall(sa, forall(b, forall(pos,
-        forall(tape2, forall(w, forall(one,
-        forall(c1, forall(c2, body))))))))))
+        forall(tape2, forall(one,
+        forall(c1, forall(c2, body)))))))))
     ["phase3p", "Phase3P", formula]
 }
 
@@ -146,18 +145,17 @@ $phase4p \p: {
     $tape2 add(p, "t2")
     $c1 add(p, "c1")
     $c2 add(p, "c2")
-    $w add(p, "w")
     $body implies(tm_transition(dd, q1, zero, zero, zero, q2, np),
         implies(function(dd, np), implies(function(tape2, np),
         implies(num(one, 1, np), implies(num(zero, 0, np),
-        implies(omega(w, np), implies(mem(c, w),
+        implies(nat(c, np),
         implies(successor(hf, c, np), implies(apply(tape2, hf, zero, np),
         implies(tm_config(c1, q1, hf, tape2, np),
         implies(tm_config(c2, q2, c, tape2, np),
-        tm_reaches(dd, c1, one, c2, np))))))))))))
+            tm_reaches(dd, c1, one, c2, np)))))))))))
     $formula forall(dd, forall(q1, forall(q2, forall(hf, forall(c,
         forall(one, forall(zero, forall(tape2,
-        forall(c1, forall(c2, forall(w, body)))))))))))
+        forall(c1, forall(c2, body))))))))))
     ["phase4p", "Phase4P", formula]
 }
 
@@ -226,7 +224,6 @@ $add_goal \p: {
     $tin add(p, "tin")
     $z add(p, "z")
     $c0 add(p, "c0")
-    $w add(p, "w")
     $a add(p, "a")
     $b add(p, "b")
     $c add(p, "c")
@@ -235,7 +232,7 @@ $add_goal \p: {
     $n add(p, "n")
     $tf add(p, "tf")
     $cf add(p, "cf")
-    $body implies(omega(w, np), implies(mem(a, w), implies(mem(b, w),
+    $body implies(nat(a, np), implies(nat(b, np),
         implies(function(delta, np), implies(function(tin, np),
         implies(delta_char(delta, np),
         implies(num(q0, 0, np), implies(num(qH, 1, np), implies(num(z, 0, np),
@@ -247,30 +244,40 @@ $add_goal \p: {
         implies(successor(n, ssc, np),
         implies(unary_output(tf, c, np),
         implies(tm_config(cf, qH, hf, tf, np),
-        tm_reaches(delta, c0, n, cf, np))))))))))))))))))
+        tm_reaches(delta, c0, n, cf, np)))))))))))))))))
     $formula forall(delta, forall(q0, forall(qH, forall(hf, forall(ssc,
         forall(n, forall(tf, forall(cf, forall(tin, forall(z,
-        forall(c0, forall(w, forall(a, forall(b, forall(c, body)))))))))))))))
+        forall(c0, forall(a, forall(b, forall(c, body))))))))))))))
     ["add_goal", "TM_Add_Correct", formula]
 }
 
-# tmreaches_compose(p): chain two TMReaches via Plus
-$tmreaches_compose \p: {
+# phase1_ind(n, d, q0, tape, c0, p): strong induction predicate for Phase1
+# ∃tra,cn. Function(tra) ∧ dom_bound(tra,n) ∧ base_cond(tra,c0) ∧
+#           TMConfig(cn,q0,n,tape) ∧ Apply(tra,n,cn) ∧ step_valid(tra,n,d)
+$phase1_ind \n d q0 tape c0 p: {
     $np add(p, "_")
-    $dd add(p, "d")
-    $x add(p, "x")
-    $y add(p, "y")
-    $z add(p, "z")
-    $a add(p, "a")
-    $b add(p, "b")
-    $n add(p, "n")
-    $w add(p, "w")
-    $body implies(tm_reaches(dd, x, a, y, np),
-        implies(tm_reaches(dd, y, b, z, np),
-        implies(plus(a, b, n, np),
-        implies(omega(w, np), implies(mem(a, w), implies(mem(b, w),
-        tm_reaches(dd, x, n, z, np)))))))
-    $formula forall(dd, forall(x, forall(y, forall(z, forall(a,
-        forall(b, forall(n, forall(w, body))))))))
-    ["tmreaches_compose", "TMReachesCompose", formula]
+    $tra add(np, "tra")
+    $cn add(np, "cn")
+    $k add(np, "k")
+    $sk add(np, "sk")
+    $ck add(np, "ck")
+    $ck1 add(np, "ck1")
+    $zp add(np, "zp")
+    $xd add(np, "xd")
+    $yd add(np, "yd")
+    $base_cond forall(zp, implies(empty(zp, np), apply(tra, zp, c0, np)))
+    $dom_bound forall(xd, forall(yd, implies(apply(tra, xd, yd, np),
+        or(mem(xd, n), eqv(xd, n, np)))))
+    $step_valid forall(k, implies(mem(k, n),
+        forall(sk, implies(successor(sk, k, np),
+            forall(ck, implies(apply(tra, k, ck, np),
+                exists(ck1, and(apply(tra, sk, ck1, np),
+                    tm_step(d, ck, ck1, np)))))))))
+    $expansion exists(tra, exists(cn, and(function(tra, np),
+        and(dom_bound,
+        and(base_cond,
+        and(tm_config(cn, q0, n, tape, np),
+        and(apply(tra, n, cn, np),
+            step_valid)))))))
+    ["phase1_ind", add("P1Ind(", add(n, ")")), expansion]
 }

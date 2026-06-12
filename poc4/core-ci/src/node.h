@@ -51,6 +51,18 @@ typedef struct Module {
   GCList *imports;
 } Module;
 
+static inline const char *type_name(int tag) {
+  static const char *names[] = {
+    [N_INT]="int", [N_STR]="str", [N_LIST]="list", [N_REF]="ref",
+    [N_FN]="fn", [N_CALL]="call", [N_IF]="if", [N_BLOCK]="block",
+    [N_BIND]="bind", [N_IMPORT]="import", [N_ARR]="arr",
+    [N_CLOSURE]="closure", [N_TRUE]="true", [N_FALSE]="false",
+    [N_NONE]="none", [N_BUILTIN]="builtin", [N_PROOF]="proof"
+  };
+  if (tag >= 0 && tag <= N_PROOF) return names[tag];
+  return "unknown";
+}
+
 void node_trace(void *data);
 void module_trace(void *data);
 void node_new(GC *gc, void **slot, int tag);

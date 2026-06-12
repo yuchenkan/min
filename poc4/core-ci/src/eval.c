@@ -28,7 +28,7 @@ static int builtin_add(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
-  if (a->tag != b->tag) { fprintf(stderr, "add: type mismatch %d vs %d\n", a->tag, b->tag); return 1; }
+  if (a->tag != b->tag) { fprintf(stderr, "add: type mismatch %s vs %s\n", type_name(a->tag), type_name(b->tag)); return 1; }
   if (a->tag == N_INT) {
     void **slot = gc_stack_push(gc, stack);
     *slot = intern_int(it, a->integer + b->integer);
@@ -57,7 +57,7 @@ static int builtin_add(GC *gc, GCStack *stack, const char **tags, Intern *it) {
     *gc_stack_nth(stack, top - 3) = *slot;
     gc_stack_pop(stack, 3);
   } else {
-    fprintf(stderr, "add: unsupported type %d\n", a->tag); return 1;
+    fprintf(stderr, "add: unsupported type %s\n", type_name(a->tag)); return 1;
   }
   return 0;
 }
@@ -94,10 +94,10 @@ static int builtin_eq(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT && a->tag != N_STR && a->tag != N_TRUE && a->tag != N_FALSE) {
-    fprintf(stderr, "eq: unsupported type %d\n", a->tag); return 1;
+    fprintf(stderr, "eq: unsupported type %s\n", type_name(a->tag)); return 1;
   }
   if (a->tag != b->tag) {
-    fprintf(stderr, "eq: type mismatch %d vs %d\n", a->tag, b->tag); return 1;
+    fprintf(stderr, "eq: type mismatch %s vs %s\n", type_name(a->tag), type_name(b->tag)); return 1;
   }
   int equal = 0;
   if (a->tag == N_INT) equal = a->integer == b->integer;
@@ -533,13 +533,7 @@ static int eval_call(GC *gc, Env *env, GCStack *stack, const char **tags, Intern
     err = callee->builtin.fn(gc, stack, tags, it);
     if (err) { frame(e, "call"); return err; }
   } else {
-    static const char *typenames[] = {
-      "int", "str", "list", "ref", "fn", "call", "if", "block", "bind", "import",
-      "arr", "closure", "true", "false", "none", "builtin", "proof"
-    };
-    const char *name = (callee->tag >= 0 && callee->tag < (int)(sizeof(typenames)/sizeof(typenames[0])))
-      ? typenames[callee->tag] : "unknown";
-    fprintf(stderr, "not callable: got %s (expected function)\n", name);
+    fprintf(stderr, "not callable: got %s (expected function)\n", type_name(callee->tag));
     frame(e, "call");
     return 1;
   }
