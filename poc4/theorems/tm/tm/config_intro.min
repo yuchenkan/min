@@ -1,0 +1,56 @@
+from derived import implies, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.tm.tm import tm_config
+from derived import forall
+from tactics import ax, ir, fr, wr, mp, apply_thm, close, same
+from util import remove
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
+
+# |- forall c,q,h,t,inner.
+#     OrdPair(inner,h,t) -> OrdPair(c,q,inner) -> TMConfig(c,q,h,t)
+$config_intro {
+    $op_inner ordered_pair("inner", "h", "t", "_")
+    $op_inner2 ordered_pair("inner2", "h", "t", "_")
+    $op_c ordered_pair("c", "q", "inner", "_")
+    $op_c2 ordered_pair("c", "q", "inner2", "_")
+    $cfg tm_config("c", "q", "h", "t", "_")
+
+    $eq_i2_i eqv("inner2", "inner", "_")
+    $eq_i_i2 eqv("inner", "inner2", "_")
+
+    # ordpair_unique inst h,t,inner2,inner: OP(inner2,h,t) -> OP(inner,h,t) -> Eq(inner2,inner)
+    $_ou head(right(ordpair_unique))
+    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
+    $got_eq mp(mp(apply_thm(ordpair_unique, _ou, ["h","t","inner2","inner"], ["a","b","s1","s2"], _ou_b, []),
+        ax([op_inner2],[op_inner2],op_inner2), op_inner2, implies(op_inner, eq_i2_i), [], [op_inner2]),
+        ax([op_inner],[op_inner],op_inner), op_inner, eq_i2_i, [op_inner2], [op_inner])
+
+    # eq_symmetric: Eq(inner2,inner) -> Eq(inner,inner2)
+    $_sym head(right(eqv_symmetric))
+    $_sym_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eq_rev mp(apply_thm(eqv_symmetric, _sym, ["inner2","inner"], ["a","b"], _sym_b, []),
+        got_eq, eq_i2_i, eq_i_i2, [], left(got_eq))
+
+    # ordpair_val_transfer: alpha-rename to avoid "c" clash with bound var
+    $_ovt_r_b \a1: \a2: \a3: \a4: implies(eqv(a3,a4,"_"), implies(ordered_pair(a1,a2,a3,"_"), ordered_pair(a1,a2,a4,"_")))
+    $_ovt_r forall("a1", forall("a2", forall("a3", forall("a4", _ovt_r_b("a1")("a2")("a3")("a4")))))
+    $ovt_renamed wr(ordpair_val_transfer, left(ordpair_val_transfer), [_ovt_r], _ovt_r)
+
+    $got_op_c2 mp(mp(apply_thm(ovt_renamed, _ovt_r, ["c","q","inner","inner2"], ["a1","a2","a3","a4"], _ovt_r_b, []),
+        got_eq_rev, eq_i_i2, implies(op_c, op_c2), [], left(got_eq_rev)),
+        ax([op_c],[op_c],op_c), op_c, op_c2, left(got_eq_rev), [op_c])
+    # [op_inner2, op_inner, op_c] |- op_c2
+
+    # ir op_inner2, fr inner2 → TMConfig body
+    $imp_inner2 implies(op_inner2, op_c2)
+    $got_imp ir(got_op_c2, remove(same, op_inner2, left(got_op_c2)), [imp_inner2], imp_inner2)
+    $got_cfg fr(got_imp, left(got_imp), [cfg], cfg, "inner2")
+
+    # Close: ir for op_c, op_inner; fr for inner, t, h, q, c
+    $cur got_cfg
+    $cur ir(cur, remove(same, op_c, left(cur)), [implies(op_c, head(right(cur)))], implies(op_c, head(right(cur))))
+    $cur ir(cur, remove(same, op_inner, left(cur)), [implies(op_inner, head(right(cur)))], implies(op_inner, head(right(cur))))
+    close(cur, left(cur), [head(right(cur))], ["inner", "t", "h", "q", "c"])
+}
