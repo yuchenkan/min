@@ -109,15 +109,78 @@ static int builtin_eq(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   (void)gc;
 }
 
+typedef struct { char *buf; size_t len, cap; } Sbuf;
+
+static void sb_putc(Sbuf *s, char c) {
+  if (s->len + 1 > s->cap) {
+    s->cap = s->cap ? s->cap * 2 : 64;
+    s->buf = realloc(s->buf, s->cap);
+  }
+  s->buf[s->len++] = c;
+}
+
+static void sb_puts(Sbuf *s, const char *str) {
+  for (; *str; str++) sb_putc(s, *str);
+}
+
+static void node_str(Sbuf *s, Node *n) {
+  switch (n->tag) {
+  case N_TRUE:  sb_puts(s, "true"); break;
+  case N_FALSE: sb_puts(s, "false"); break;
+  case N_NONE:  sb_puts(s, "none"); break;
+  case N_STR:
+    sb_putc(s, '"');
+    for (char *p = n->str; *p; p++) {
+      if (*p == '\n') sb_puts(s, "\\n");
+      else if (*p == '\t') sb_puts(s, "\\t");
+      else if (*p == '\\') sb_puts(s, "\\\\");
+      else if (*p == '"') sb_puts(s, "\\\"");
+      else sb_putc(s, *p);
+    }
+    sb_putc(s, '"');
+    break;
+  case N_INT: {
+    char b[21];
+    snprintf(b, sizeof(b), "%lu", (unsigned long)n->integer);
+    sb_puts(s, b);
+    break;
+  }
+  case N_ARR:
+    sb_putc(s, '[');
+    for (uint64_t i = 0; i < n->arr.len; i++) {
+      if (i) sb_puts(s, ", ");
+      Node *item = ((Node **)n->arr.data)[i];
+      switch (item->tag) {
+      case N_TRUE:  sb_puts(s, "true"); break;
+      case N_FALSE: sb_puts(s, "false"); break;
+      case N_NONE:  sb_puts(s, "none"); break;
+      case N_STR:   case N_INT: node_str(s, item); break;
+      case N_CLOSURE: sb_puts(s, "<closure>"); break;
+      case N_BUILTIN: sb_puts(s, "<builtin>"); break;
+      case N_PROOF:   sb_puts(s, "<proof>"); break;
+      case N_ARR:     sb_puts(s, "<arr>"); break;
+      default: assert(0 && "unreachable");
+      }
+    }
+    sb_putc(s, ']');
+    break;
+  case N_CLOSURE: sb_puts(s, "<closure>"); break;
+  case N_BUILTIN: sb_puts(s, "<builtin>"); break;
+  case N_PROOF:   sb_puts(s, "<proof>"); break;
+  default: assert(0 && "unreachable");
+  }
+}
+
 static int builtin_str(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   (void)tags;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 1);
-  if (a->tag != N_INT) { fprintf(stderr, "str: expected int\n"); return 1; }
-  char buf[21];
-  snprintf(buf, sizeof(buf), "%lu", (unsigned long)a->integer);
+  Sbuf s = {0};
+  node_str(&s, a);
+  sb_putc(&s, '\0');
   void **slot = gc_stack_push(gc, stack);
-  *slot = (void *)intern(it, buf);
+  *slot = (void *)intern(it, s.buf);
+  free(s.buf);
   *slot = intern_str(it, (const char *)*slot);
   *gc_stack_nth(stack, top - 2) = *slot;
   gc_stack_pop(stack, 2);

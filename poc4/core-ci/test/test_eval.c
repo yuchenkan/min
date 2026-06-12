@@ -128,7 +128,13 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
     src = "$a str(0)\n"
           "$b str(42)\n"
           "$c str(1000000)\n"
-          "$d str(add(999, 1))\n";
+          "$d str(add(999, 1))\n"
+          "$e str(\"hi\")\n"
+          "$f str(\"a\\\"b\\nc\\td\\\\e\")\n"
+          "$g str(true)\n"
+          "$h str(false)\n"
+          "$i str(none)\n"
+          "$j str([1, \"x\", true, [2]])\n";
 
   else if (strcmp(path, "proof.min") == 0)
     src =
@@ -467,6 +473,12 @@ static void test_str_conv(void) {
   assert(strcmp((*F(env,"b"))->str, "42") == 0);
   assert(strcmp((*F(env,"c"))->str, "1000000") == 0);
   assert(strcmp((*F(env,"d"))->str, "1000") == 0);
+  assert(strcmp((*F(env,"e"))->str, "\"hi\"") == 0);
+  assert(strcmp((*F(env,"f"))->str, "\"a\\\"b\\nc\\td\\\\e\"") == 0);
+  assert(strcmp((*F(env,"g"))->str, "true") == 0);
+  assert(strcmp((*F(env,"h"))->str, "false") == 0);
+  assert(strcmp((*F(env,"i"))->str, "none") == 0);
+  assert(strcmp((*F(env,"j"))->str, "[1, \"x\", true, <arr>]") == 0);
   gc_fini(gc);
   intern_fini(G_it);
   printf("  str_conv: ok\n");
