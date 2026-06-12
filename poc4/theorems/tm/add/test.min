@@ -7,6 +7,7 @@ from theorems.tm.add.phase1_step_tmstep import phase1_step_tmstep
 from theorems.tm.add.phase1_step_extend_trace import phase1_step_extend_trace
 from theorems.tm.add.phase1_base import phase1_base
 from theorems.tm.add.tape_read_low import tape_read_low
+from theorems.tm.add.phase1_step_case import phase1_step_case
 from vocab.tm.add import phase1_ind, unary_tape
 
 $pst_expected forall("delta", forall("q0", forall("ka", forall("ska",
@@ -66,5 +67,23 @@ $pb_expected forall("d", forall("q0", forall("z", forall("tape", forall("c0",
         phase1_ind("z", "d", "q0", "tape", "c0", "_"))))))))
 $_ qed(phase1_base, pb_expected, "z")
 $_ tap("phase1_base ok")
+
+$psc_expected forall("d", forall("q0", forall("a", forall("b",
+    forall("tape", forall("c0", forall("n", forall("sn",
+    forall("w", forall("one",
+    implies(tm_transition("d", "q0", "one", "one", "one", "q0", "_"),
+    implies(omega("w", "_"),
+    implies(mem("a", "w"),
+    implies(mem("n", "w"),
+    implies(function("d", "_"),
+    implies(function("tape", "_"),
+    implies(unary_tape("tape", "a", "b", "_"),
+    implies(num("one", 1, "_"),
+    implies(successor("sn", "n", "_"),
+    implies(mem("n", "a"),
+    implies(phase1_ind("n", "d", "q0", "tape", "c0", "_"),
+        phase1_ind("sn", "d", "q0", "tape", "c0", "_"))))))))))))))))))))))
+$_ qed(phase1_step_case, psc_expected, "z")
+$_ tap("phase1_step_case ok")
 
 $ok true

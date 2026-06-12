@@ -1,0 +1,419 @@
+from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right, exp, arg1, arg2, empty
+from vocab.sets import ordered_pair, singleton
+from vocab.functions import apply, function
+from vocab.tm.tm import tm_config, tm_step, tm_transition
+from vocab.tm.add import phase1_ind, unary_tape
+from vocab.nat.nat import num, successor, omega
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, ir, mp, cut, apply_thm, eir, eel, cut_c, inst, close, same
+from util import remove, diff
+
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.tm.add.tape_read_low import tape_read_low
+from theorems.tm.add.phase1_step_tmstep import phase1_step_tmstep
+from theorems.tm.add.phase1_step_extend_trace import phase1_step_extend_trace
+
+# [] |- ∀d,q0,a,b,tape,c0,n,sn,w,one.
+#   Trans(d,q0,one,one,one,q0) → Omega(w) → In(a,w) → In(n,w) →
+#   Func(d) → Func(tape) → Num(one,1) → UnaryTape(tape,a,b) →
+#   Succ(sn,n) → In(n,a) → Phase1Ind(n,...) → Phase1Ind(sn,...)
+
+$phase1_step_case {
+    # === Hypotheses ===
+    $trans tm_transition("d", "q0", "one", "one", "one", "q0", "_")
+    $omega_w omega("w", "_")
+    $in_a_w mem("a", "w")
+    $in_n_w mem("n", "w")
+    $func_d function("d", "_")
+    $func_tape function("tape", "_")
+    $num_one num("one", 1, "_")
+    $utape unary_tape("tape", "a", "b", "_")
+    $succ_sn successor("sn", "n", "_")
+    $in_n_a mem("n", "a")
+    $pn phase1_ind("n", "d", "q0", "tape", "c0", "_")
+    $psn phase1_ind("sn", "d", "q0", "tape", "c0", "_")
+
+    # === 1. Decompose Phase1Ind(n) ===
+    # Construct the And-tree body (clean names, alpha-eq matches vocab internals)
+    $pn_func function("tra", "_")
+    $pn_db forall("xd", forall("yd", implies(apply("tra","xd","yd","_"),
+        or(mem("xd","n"), eqv("xd","n","_")))))
+    $pn_bc forall("zp", implies(empty("zp","_"), apply("tra","zp","c0","_")))
+    $pn_cfg tm_config("cn","q0","n","tape","_")
+    $pn_app apply("tra","n","cn","_")
+    $pn_sv forall("k", implies(mem("k","n"),
+        forall("sk", implies(successor("sk","k","_"),
+            forall("ck", implies(apply("tra","k","ck","_"),
+                exists("ck1", and(apply("tra","sk","ck1","_"),
+                    tm_step("d","ck","ck1","_")))))))))
+
+    $b4 and(pn_app, pn_sv)
+    $b3 and(pn_cfg, b4)
+    $b2 and(pn_bc, b3)
+    $b1 and(pn_db, b2)
+    $b0 and(pn_func, b1)
+    $pn_inner exists("cn", b0)
+    $pn_exp exists("tra", pn_inner)
+
+    # and_elim chain: [b0] |- each component
+    $gft mp(and_elim_left(pn_func, b1, []),
+        ax([b0],[b0],b0), b0, pn_func, [], [b0])
+    $gb1 mp(and_elim_right(pn_func, b1, []),
+        ax([b0],[b0],b0), b0, b1, [], [b0])
+    $gdb mp(and_elim_left(pn_db, b2, []),
+        gb1, b1, pn_db, [], left(gb1))
+    $gb2 mp(and_elim_right(pn_db, b2, []),
+        gb1, b1, b2, [], left(gb1))
+    $gbt mp(and_elim_left(pn_bc, b3, []),
+        gb2, b2, pn_bc, [], left(gb2))
+    $gb3 mp(and_elim_right(pn_bc, b3, []),
+        gb2, b2, b3, [], left(gb2))
+    $gcn mp(and_elim_left(pn_cfg, b4, []),
+        gb3, b3, pn_cfg, [], left(gb3))
+    $gb4 mp(and_elim_right(pn_cfg, b4, []),
+        gb3, b3, b4, [], left(gb3))
+    $gatn mp(and_elim_left(pn_app, pn_sv, []),
+        gb4, b4, pn_app, [], left(gb4))
+    $gsvn mp(and_elim_right(pn_app, pn_sv, []),
+        gb4, b4, pn_sv, [], left(gb4))
+
+    $_ tap("decompose ok")
+
+    # === 2. tape_read_low: In(n,a) → Apply(tape,n,one) ===
+    $app_tape_n apply("tape", "n", "one", "_")
+    $_trl_b \tape: \a: \b: \i: \one:
+        implies(unary_tape(tape, a, b, "_"),
+        implies(mem(i, a),
+        implies(num(one, 1, "_"), apply(tape, i, one, "_"))))
+    $trl_inst apply_thm(tape_read_low, head(right(tape_read_low)),
+        ["tape","a","b","n","one"], ["tape","a","b","i","one"],
+        _trl_b, left(tape_read_low))
+    $trl_s1 mp(trl_inst,
+        ax([utape],[utape],utape), utape,
+        implies(in_n_a, implies(num_one, app_tape_n)),
+        left(trl_inst), [utape])
+    $trl_s2 mp(trl_s1,
+        ax([in_n_a],[in_n_a],in_n_a), in_n_a,
+        implies(num_one, app_tape_n),
+        left(trl_s1), [in_n_a])
+    $gat mp(trl_s2,
+        ax([num_one],[num_one],num_one), num_one, app_tape_n,
+        left(trl_s2), [num_one])
+
+    $_ tap("tape_read ok")
+
+    # === 3. phase1_step_tmstep ===
+    # ∃cn_new. And(TMConfig(cn_new,q0,sn,tape), TMStep(d,cn,cn_new))
+    $cfg_cn_new tm_config("cn_new","q0","sn","tape","_")
+    $step_cn tm_step("d","cn","cn_new","_")
+    $tsx exists("cn_new", and(cfg_cn_new, step_cn))
+
+    $_pst_b \delta: \q0v: \ka: \ska: \tapev: \ca: \onev: \d1:
+        implies(function(delta,"_"),
+        implies(tm_transition(delta,q0v,onev,onev,d1,q0v,"_"),
+        implies(tm_config(ca,q0v,ka,tapev,"_"),
+        implies(function(tapev,"_"),
+        implies(apply(tapev,ka,onev,"_"),
+        implies(num(d1,1,"_"),
+        implies(successor(ska,ka,"_"),
+            exists("cn_new", and(tm_config("cn_new",q0v,ska,tapev,"_"),
+                tm_step(delta,ca,"cn_new","_"))))))))))
+    $pst_inst apply_thm(phase1_step_tmstep, head(right(phase1_step_tmstep)),
+        ["d","q0","n","sn","tape","cn","one","one"],
+        ["delta","q0","ka","ska","tape_in","ca","one","d1"],
+        _pst_b, left(phase1_step_tmstep))
+    $pst_q1 arg2(head(right(pst_inst)))
+    $pst_s1 mp(pst_inst,
+        ax([func_d],[func_d],func_d), func_d, pst_q1,
+        left(pst_inst), [func_d])
+    $pst_q2 arg2(head(right(pst_s1)))
+    $pst_s2 mp(pst_s1,
+        ax([trans],[trans],trans), trans, pst_q2,
+        left(pst_s1), [trans])
+    $pst_q3 arg2(head(right(pst_s2)))
+    $pst_s3 mp(pst_s2,
+        gcn, pn_cfg, pst_q3,
+        left(pst_s2), left(gcn))
+    $pst_q4 arg2(head(right(pst_s3)))
+    $pst_s4 mp(pst_s3,
+        ax([func_tape],[func_tape],func_tape), func_tape, pst_q4,
+        left(pst_s3), [func_tape])
+    $pst_q5 arg2(head(right(pst_s4)))
+    $pst_s5 mp(pst_s4,
+        gat, app_tape_n, pst_q5,
+        left(pst_s4), left(gat))
+    $pst_q6 arg2(head(right(pst_s5)))
+    $pst_s6 mp(pst_s5,
+        ax([num_one],[num_one],num_one), num_one, pst_q6,
+        left(pst_s5), [num_one])
+    $gts mp(pst_s6,
+        ax([succ_sn],[succ_sn],succ_sn), succ_sn, tsx,
+        left(pst_s6), [succ_sn])
+
+    $_ tap("tmstep ok")
+
+    # === 4. Open ∃cn_new, extract TMConfig and TMStep ===
+    $tsb and(cfg_cn_new, step_cn)
+    $gcfn mp(and_elim_left(cfg_cn_new, step_cn, []),
+        ax([tsb],[tsb],tsb), tsb, cfg_cn_new, [], [tsb])
+    $gstn mp(and_elim_right(cfg_cn_new, step_cn, []),
+        ax([tsb],[tsb],tsb), tsb, step_cn, [], [tsb])
+
+    # === 5. phase1_step_extend_trace ===
+    # ∃trn. And(Func(trn), And(db(trn,sn), And(bc(trn), And(Apply(trn,sn,cn_new), sv(trn,sn)))))
+    $ext_func function("trn", "_")
+    $ext_db forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
+        or(mem("xdn","sn"), eqv("xdn","sn","_")))))
+    $ext_bc forall("zp2", implies(empty("zp2","_"), apply("trn","zp2","c0","_")))
+    $ext_app apply("trn","sn","cn_new","_")
+    $ext_sv forall("ja", implies(mem("ja","sn"),
+        forall("sja", implies(successor("sja","ja","_"),
+            forall("cja", implies(apply("trn","ja","cja","_"),
+                exists("cja1", and(apply("trn","sja","cja1","_"),
+                    tm_step("d","cja","cja1","_")))))))))
+    $extx exists("trn", and(ext_func, and(ext_db, and(ext_bc, and(ext_app, ext_sv)))))
+
+    $_pet_b \tra: \ska: \cn_new: \c0v: \ka: \delta: \ca: \wv:
+        implies(function(tra,"_"),
+        implies(forall("xdn", forall("ydn", implies(apply(tra,"xdn","ydn","_"),
+            or(mem("xdn",ka), eqv("xdn",ka,"_"))))),
+        implies(omega(wv,"_"),
+        implies(mem(ka, wv),
+        implies(successor(ska, ka, "_"),
+        implies(forall("zp", implies(empty("zp","_"), apply(tra,"zp",c0v,"_"))),
+        implies(forall("ja", implies(mem("ja",ka),
+            forall("sja", implies(successor("sja","ja","_"),
+                forall("cja", implies(apply(tra,"ja","cja","_"),
+                    exists("cja1", and(apply(tra,"sja","cja1","_"),
+                        tm_step(delta,"cja","cja1","_"))))))))),
+        implies(tm_step(delta, ca, cn_new, "_"),
+        implies(apply(tra, ka, ca, "_"),
+            exists("trn", and(function("trn","_"), and(
+                forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
+                    or(mem("xdn",ska), eqv("xdn",ska,"_"))))),
+                and(forall("zp2", implies(empty("zp2","_"), apply("trn","zp2",c0v,"_"))),
+                    and(apply("trn",ska,cn_new,"_"),
+                        forall("ja", implies(mem("ja",ska),
+                            forall("sja", implies(successor("sja","ja","_"),
+                                forall("cja", implies(apply("trn","ja","cja","_"),
+                                    exists("cja1", and(apply("trn","sja","cja1","_"),
+                                        tm_step(delta,"cja","cja1","_")))))))))))))))))))))))
+    $pet_inst apply_thm(phase1_step_extend_trace, head(right(phase1_step_extend_trace)),
+        ["tra","sn","cn_new","c0","n","d","cn","w"],
+        ["tra","ska","ca_new","c0","ka","delta","ca","w"],
+        _pet_b, left(phase1_step_extend_trace))
+
+    $pet_s1 mp(pet_inst,
+        gft, pn_func, arg2(head(right(pet_inst))),
+        left(pet_inst), left(gft))
+    $pet_s2 mp(pet_s1,
+        gdb, pn_db, arg2(head(right(pet_s1))),
+        left(pet_s1), left(gdb))
+    $pet_s3 mp(pet_s2,
+        ax([omega_w],[omega_w],omega_w), omega_w, arg2(head(right(pet_s2))),
+        left(pet_s2), [omega_w])
+    $pet_s4 mp(pet_s3,
+        ax([in_n_w],[in_n_w],in_n_w), in_n_w, arg2(head(right(pet_s3))),
+        left(pet_s3), [in_n_w])
+    $pet_s5 mp(pet_s4,
+        ax([succ_sn],[succ_sn],succ_sn), succ_sn, arg2(head(right(pet_s4))),
+        left(pet_s4), [succ_sn])
+    $pet_s6 mp(pet_s5,
+        gbt, pn_bc, arg2(head(right(pet_s5))),
+        left(pet_s5), left(gbt))
+    $pet_s7 mp(pet_s6,
+        gsvn, pn_sv, arg2(head(right(pet_s6))),
+        left(pet_s6), left(gsvn))
+    $pet_s8 mp(pet_s7,
+        gstn, step_cn, arg2(head(right(pet_s7))),
+        left(pet_s7), left(gstn))
+    $gext mp(pet_s8,
+        gatn, pn_app, extx,
+        left(pet_s8), left(gatn))
+
+    $_ tap("extend ok")
+
+    # === 6. Open ∃trn, decompose extend_trace output ===
+    $extb and(ext_func, and(ext_db, and(ext_bc, and(ext_app, ext_sv))))
+    $e0 extb
+    $e1 and(ext_db, and(ext_bc, and(ext_app, ext_sv)))
+    $e2 and(ext_bc, and(ext_app, ext_sv))
+    $e3 and(ext_app, ext_sv)
+
+    $gef mp(and_elim_left(ext_func, e1, []),
+        ax([e0],[e0],e0), e0, ext_func, [], [e0])
+    $ge1 mp(and_elim_right(ext_func, e1, []),
+        ax([e0],[e0],e0), e0, e1, [], [e0])
+    $gedb mp(and_elim_left(ext_db, e2, []),
+        ge1, e1, ext_db, [], left(ge1))
+    $ge2 mp(and_elim_right(ext_db, e2, []),
+        ge1, e1, e2, [], left(ge1))
+    $gebc mp(and_elim_left(ext_bc, e3, []),
+        ge2, e2, ext_bc, [], left(ge2))
+    $ge3 mp(and_elim_right(ext_bc, e3, []),
+        ge2, e2, e3, [], left(ge2))
+    $geap mp(and_elim_left(ext_app, ext_sv, []),
+        ge3, e3, ext_app, [], left(ge3))
+    $gesv mp(and_elim_right(ext_app, ext_sv, []),
+        ge3, e3, ext_sv, [], left(ge3))
+
+    # === 7. Reassemble with TMConfig inserted ===
+    # Target: And(Func, And(db, And(bc, And(TMConfig, And(Apply, sv)))))
+    $mk_and \gl gr: {
+        $L head(right(gl))
+        $R head(right(gr))
+        $and_LR and(L, R)
+        mp(mp(and_intro(L, R, []),
+            gl, L, implies(R, and_LR), [], left(gl)),
+            gr, R, and_LR, left(gl), left(gr))
+    }
+
+    $psna mk_and(geap, gesv)
+    $psna mk_and(gcfn, psna)
+    $psna mk_and(gebc, psna)
+    $psna mk_and(gedb, psna)
+    $psna mk_and(gef, psna)
+
+    $_ tap("reassemble ok")
+
+    # === 8. eir: create Phase1Ind(sn,...) ===
+    # psn = phase1_ind("sn",...) has exists("tra", exists("cn", body))
+    # body uses trn for tra and cn_new for cn
+    $psn_func function("tra", "_")
+    $psn_db forall("xd", forall("yd", implies(apply("tra","xd","yd","_"),
+        or(mem("xd","sn"), eqv("xd","sn","_")))))
+    $psn_bc forall("zp", implies(empty("zp","_"), apply("tra","zp","c0","_")))
+    $psn_cfg tm_config("cn","q0","sn","tape","_")
+    $psn_app apply("tra","sn","cn","_")
+    $psn_sv forall("k", implies(mem("k","sn"),
+        forall("sk", implies(successor("sk","k","_"),
+            forall("ck", implies(apply("tra","k","ck","_"),
+                exists("ck1", and(apply("tra","sk","ck1","_"),
+                    tm_step("d","ck","ck1","_")))))))))
+    $psn_and and(psn_func, and(psn_db, and(psn_bc, and(psn_cfg, and(psn_app, psn_sv)))))
+    $psn_inner exists("cn", psn_and)
+
+    # body_fn for cn: substitute tra=trn in psn_and
+    $_psn_body \tra_v: \cn_v: and(function(tra_v,"_"), and(
+        forall("xd", forall("yd", implies(apply(tra_v,"xd","yd","_"),
+            or(mem("xd","sn"), eqv("xd","sn","_"))))),
+        and(forall("zp", implies(empty("zp","_"), apply(tra_v,"zp","c0","_"))),
+            and(tm_config(cn_v,"q0","sn","tape","_"),
+                and(apply(tra_v,"sn",cn_v,"_"),
+                    forall("k", implies(mem("k","sn"),
+                        forall("sk", implies(successor("sk","k","_"),
+                            forall("ck", implies(apply(tra_v,"k","ck","_"),
+                                exists("ck1", and(apply(tra_v,"sk","ck1","_"),
+                                    tm_step("d","ck","ck1","_"))))))))))))))
+
+    # eir cn = cn_new
+    $got_ecn eir(psna, _psn_body("trn"), "cn", "cn_new", left(psna))
+
+    # eir tra = trn
+    $got_etr eir(got_ecn, \tra_v: exists("cn", _psn_body(tra_v)("cn")),
+        "tra", "trn", left(got_ecn))
+
+    $_ tap("eir ok")
+
+    # === 9. eel + cut: close eigenvariables ===
+    $_sv_fn \v: \d2: \k: forall(k, implies(mem(k, v),
+        forall("sk", implies(successor("sk", k, "_"),
+            forall("ck", implies(apply(d2, k, "ck", "_"),
+                exists("ck1", and(apply(d2, "sk", "ck1", "_"),
+                    tm_step("d", "ck", "ck1", "_")))))))))
+    $_db_fn \v: \d2: forall("xd", forall("yd",
+        implies(apply(d2, "xd", "yd", "_"), or(mem("xd", v), eqv("xd", v, "_")))))
+    $_bc_fn \d2: forall("zp", implies(empty("zp", "_"), apply(d2, "zp", "c0", "_")))
+
+    # eel trn from extx
+    $_eel_trn_fn \v: and(function(v, "_"), and(
+        _db_fn("sn")(v), and(_bc_fn(v), and(
+            apply(v, "sn", "cn_new", "_"), _sv_fn("sn")(v)("ja")))))
+    $got_etr eel(got_etr, _eel_trn_fn, "trn", "trn",
+        left(got_etr), head(right(got_etr)))
+    $got_etr cut_c(gext, got_etr, extx,
+        left(gext), left(got_etr), head(right(got_etr)))
+
+    # eel cn_new from tsx
+    $_eel_cnw_fn \v: and(tm_config(v, "q0", "sn", "tape", "_"),
+        tm_step("d", "cn", v, "_"))
+    $got_etr eel(got_etr, _eel_cnw_fn, "cn_new", "cn_new",
+        left(got_etr), head(right(got_etr)))
+    $got_etr cut_c(gts, got_etr, tsx,
+        left(gts), left(got_etr), head(right(got_etr)))
+
+    # eel cn from pn_inner
+    $_eel_cn_fn \v: and(function("tra", "_"), and(
+        _db_fn("n")("tra"), and(_bc_fn("tra"), and(
+            tm_config(v, "q0", "n", "tape", "_"), and(
+                apply("tra", "n", v, "_"), _sv_fn("n")("tra")("k"))))))
+    $got_etr eel(got_etr, _eel_cn_fn, "cn", "cn",
+        left(got_etr), head(right(got_etr)))
+    $got_etr cut_c(ax([pn_inner],[pn_inner],pn_inner), got_etr,
+        pn_inner, [pn_inner], left(got_etr), head(right(got_etr)))
+
+    # eel tra from pn_exp
+    $_eel_tra_fn \v: exists("cn", and(function(v, "_"), and(
+        _db_fn("n")(v), and(_bc_fn(v), and(
+            tm_config("cn", "q0", "n", "tape", "_"), and(
+                apply(v, "n", "cn", "_"), _sv_fn("n")(v)("k")))))))
+    $got_etr eel(got_etr, _eel_tra_fn, "tra", "tra",
+        left(got_etr), head(right(got_etr)))
+    $got_etr cut_c(ax([pn],[pn],pn), got_etr,
+        pn_exp, [pn], left(got_etr), head(right(got_etr)))
+
+    $_ tap("eel ok")
+
+    # === 10. Discharge hypotheses ===
+    $proof got_etr
+    $goal_f head(right(proof))
+
+    $proof ir(proof, remove(same, pn, left(proof)), [implies(pn, goal_f)], implies(pn, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, in_n_a, left(proof)), [implies(in_n_a, goal_f)], implies(in_n_a, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, succ_sn, left(proof)), [implies(succ_sn, goal_f)], implies(succ_sn, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, num_one, left(proof)), [implies(num_one, goal_f)], implies(num_one, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, utape, left(proof)), [implies(utape, goal_f)], implies(utape, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, func_tape, left(proof)), [implies(func_tape, goal_f)], implies(func_tape, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, func_d, left(proof)), [implies(func_d, goal_f)], implies(func_d, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, in_n_w, left(proof)), [implies(in_n_w, goal_f)], implies(in_n_w, goal_f))
+    $goal_f head(right(proof))
+    $proof wl(proof, add(left(proof), [in_a_w]), right(proof), in_a_w)
+    $proof ir(proof, remove(same, in_a_w, left(proof)), [implies(in_a_w, goal_f)], implies(in_a_w, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, omega_w, left(proof)), [implies(omega_w, goal_f)], implies(omega_w, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, trans, left(proof)), [implies(trans, goal_f)], implies(trans, goal_f))
+    $goal_f head(right(proof))
+
+    # === 11. Close foralls ===
+    $proof fr(proof, left(proof), [forall("one", goal_f)], forall("one", goal_f), "one")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("w", goal_f)], forall("w", goal_f), "w")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("sn", goal_f)], forall("sn", goal_f), "sn")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("n", goal_f)], forall("n", goal_f), "n")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("c0", goal_f)], forall("c0", goal_f), "c0")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("tape", goal_f)], forall("tape", goal_f), "tape")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("b", goal_f)], forall("b", goal_f), "b")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("a", goal_f)], forall("a", goal_f), "a")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("q0", goal_f)], forall("q0", goal_f), "q0")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("d", goal_f)], forall("d", goal_f), "d")
+
+    $_ tap("phase1_step_case ok")
+    proof
+}
