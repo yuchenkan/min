@@ -186,12 +186,14 @@ function checkRule(s, rule, premises, principal, term) {
     const ps = premises.map(p => p.sequent);
 
     switch (rule) {
+        // A in G, A in D  =>  G |- D
         case "axiom":
             if (ps.length !== 0) return "axiom: premises not empty";
             if (!fin(principal, s.left)) return "axiom: principal not in left";
             if (!fin(principal, s.right)) return "axiom: principal not in right";
             return null;
 
+        // G |- D, A  =>  G, ~A |- D
         case "neg_left":
             if (ps.length !== 1 || !(principal instanceof Neg)) return "neg_left: bad principal/premises";
             if (!fin(principal, s.left)) return "neg_left: principal not in left";
@@ -199,6 +201,7 @@ function checkRule(s, rule, premises, principal, term) {
                 return "neg_left: premise mismatch";
             return null;
 
+        // A, G |- D  =>  G |- D, ~A
         case "neg_right":
             if (ps.length !== 1 || !(principal instanceof Neg)) return "neg_right: bad principal/premises";
             if (!fin(principal, s.right)) return "neg_right: principal not in right";
@@ -206,6 +209,7 @@ function checkRule(s, rule, premises, principal, term) {
                 return "neg_right: premise mismatch";
             return null;
 
+        // G |- D, A    B, G |- D  =>  G, A->B |- D
         case "implies_left": {
             if (ps.length !== 2 || !(principal instanceof Implies)) return "implies_left: bad principal/premises";
             if (!fin(principal, s.left)) return "implies_left: principal not in left";
@@ -217,6 +221,7 @@ function checkRule(s, rule, premises, principal, term) {
             return null;
         }
 
+        // A, G |- D, B  =>  G |- D, A->B
         case "implies_right": {
             if (ps.length !== 1 || !(principal instanceof Implies)) return "implies_right: bad principal/premises";
             if (!fin(principal, s.right)) return "implies_right: principal not in right";
@@ -226,6 +231,7 @@ function checkRule(s, rule, premises, principal, term) {
             return null;
         }
 
+        // p[t/x], G |- D  =>  G, Ax.p |- D   (t is var, no capture)
         case "forall_left": {
             if (ps.length !== 1 || typeof term !== "string" || !(principal instanceof Forall))
                 return "forall_left: bad principal/premises/term";
@@ -239,6 +245,7 @@ function checkRule(s, rule, premises, principal, term) {
             return null;
         }
 
+        // G |- D, p[t/x]  =>  G |- D, Ax.p   (t eigenvariable: not free in G,D, no capture)
         case "forall_right": {
             if (ps.length !== 1 || typeof term !== "string" || !(principal instanceof Forall))
                 return "forall_right: bad principal/premises/term";
@@ -255,6 +262,7 @@ function checkRule(s, rule, premises, principal, term) {
             return null;
         }
 
+        // G |- D, A    A, G |- D  =>  G |- D
         case "cut":
             if (ps.length !== 2) return "cut: need 2 premises";
             if (!eqSequent(ps[0], new Sequent(s.left, setAdd(s.right, principal))))
@@ -263,6 +271,7 @@ function checkRule(s, rule, premises, principal, term) {
                 return "cut: premise 1 mismatch";
             return null;
 
+        // G |- D  =>  G, A |- D
         case "weakening_left": {
             if (ps.length !== 1) return "weakening_left: need 1 premise";
             if (!fin(principal, s.left)) return "weakening_left: principal not in left";
@@ -275,6 +284,7 @@ function checkRule(s, rule, premises, principal, term) {
             return null;
         }
 
+        // G |- D  =>  G |- D, A
         case "weakening_right": {
             if (ps.length !== 1) return "weakening_right: need 1 premise";
             if (!fin(principal, s.right)) return "weakening_right: principal not in right";
