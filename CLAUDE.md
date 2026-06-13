@@ -84,9 +84,22 @@ TMTransition has interspersed forall/implies. Use manual `inst` + `mp` chains in
 
 ### No vocab-internal names in proofs
 
-Never use `"__"` as prefix or `"_x"` style variable names in proof files. Use clean names (`"y"` not `"_y"`, `"_"` not `"__"`). The kernel's alpha-equivalence handles matching with vocab expansions. Run `poc4/lint.sh` to check.
+Never use `"__"` as prefix or `"_x"` style variable names in proof files. Use clean names (`"y"` not `"_y"`, `"_"` not `"__"`). The kernel's alpha-equivalence handles matching with vocab expansions. Run `./lint.sh` from the `poc4/` directory to check.
 
 A tracked pre-commit hook (`.githooks/pre-commit`) runs `lint.sh` and aborts the commit on failure (bypass with `git commit --no-verify`). It is wired via `core.hooksPath`, which lives in `.git/config` and is NOT tracked, so a fresh clone must activate it once: `git config core.hooksPath .githooks`.
+
+### Running .min files
+
+Run from the `poc4/` directory with `./core-ci/dst/min <path>`, e.g.:
+
+```
+cd poc4
+./core-ci/dst/min theorems/arithmetic/plus/test.min
+```
+
+### Imports must be at top
+
+All `from ... import ...` lines must appear before any `$` bindings in a `.min` file. The parser does not support `from` after `$` lines.
 
 ### Cache suppresses tap output
 

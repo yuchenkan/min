@@ -8,6 +8,11 @@
 #    b. each theorems/*.min is qed-tested in its folder's test.min
 #    c. every folder is listed (imported) in its parent folder's test.min
 
+if [ ! -f lint.sh ]; then
+    echo "error: lint.sh must be run from the poc4 directory" >&2
+    exit 1
+fi
+
 DIR="${1:-theorems}"
 
 # ---- 1. vocab-internal prefixed names ----
