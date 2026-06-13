@@ -4,3 +4,4 @@ __pycache__/
 resume.sh
 vendor/
 min.cache
+min.cache.lock

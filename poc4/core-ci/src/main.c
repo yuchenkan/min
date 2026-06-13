@@ -4,7 +4,10 @@
 #include "kernel.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/file.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 typedef struct Root {
   Env *global;
@@ -58,6 +61,34 @@ static CacheOps real_cache_ops = {
   cache_fopen, cache_fclose, cache_fread, cache_fwrite, cache_fseek, cache_mtime
 };
 
+/* Advisory lock around the on-disk cache. Concurrent runs share one min.cache;
+   without serialization two cache_save() writes (each truncates + rewrites)
+   interleave and corrupt the file. We hold an exclusive lock for the whole run
+   (load -> eval -> save): this not only avoids corruption but keeps the cache
+   coherent — a later run loads exactly what the earlier run saved, with no lost
+   updates from two runs racing on stale state. The runs serialize, trading
+   parallelism for a cache that actually accumulates.
+   Returns the lock fd (>=0) to pass to cache_unlock, or -1 if locking failed
+   (in which case we proceed without the cache rather than block forever). */
+#define CACHE_LOCK_PATH "min.cache.lock"
+
+static int cache_lock(void) {
+  int fd = open(CACHE_LOCK_PATH, O_RDWR | O_CREAT, 0644);
+  if (fd < 0) { perror(CACHE_LOCK_PATH); return -1; }
+  if (flock(fd, LOCK_EX) != 0) {
+    perror("flock");
+    close(fd);
+    return -1;
+  }
+  return fd;
+}
+
+static void cache_unlock(int fd) {
+  if (fd < 0) return;
+  flock(fd, LOCK_UN);
+  close(fd);
+}
+
 static char *read_file(const char *path, int64_t *mtime) {
   struct stat st;
   if (stat(path, &st) != 0) { perror(path); return NULL; }
@@ -100,15 +131,19 @@ int main(int argc, char **argv) {
 
   init_global(gc, root->stack, (const char **)root->tags, intern_t, root->global, &root->scratch);
 
+  int lock_fd = cache_lock();
+
   cache_load("min.cache", gc, intern_t, root->modules, root->global, &root->scratch, &real_cache_ops);
 
   int err = parse(gc, intern_t, root->sources, root->modules, root->filepath, read_file);
-  if (err) { gc_fini(gc); intern_fini(intern_t); return 1; }
+  if (err) { cache_unlock(lock_fd); gc_fini(gc); intern_fini(intern_t); return 1; }
   Env *result;
   err = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t, &result);
 
   if (!err)
     cache_save("min.cache", gc, root->modules, root->global, &real_cache_ops);
+
+  cache_unlock(lock_fd);
 
   gc_fini(gc);
   intern_fini(intern_t);
