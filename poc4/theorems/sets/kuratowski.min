@@ -19,7 +19,7 @@ from theorems.sets.singleton_pair_eq import singleton_pair_eq
 from theorems.sets.pair_injection import pair_injection
 
 # transfer: from char1, eqv(s1,s2), char2, derive forall(v, iff(P(v), Q(v)))
-$transfer \char1 eqv12 char2 body_P body_Q s1 s2 v: {
+$_transfer \char1 eqv12 char2 body_P body_Q s1 s2 v: {
     $iff1 iff(mem("v", s1), body_P("v"))
     $iff2 iff(mem("v", s2), body_Q("v"))
     $iff_eq iff(mem("v", s1), mem("v", s2))
@@ -41,7 +41,7 @@ $transfer \char1 eqv12 char2 body_P body_Q s1 s2 v: {
 # Helper: from two characterizations of same set, derive pointwise iff
 # char1 = forall(_x, iff(mem(_x,s), P(_x))), char2 = forall(_x, iff(mem(_x,s), Q(_x)))
 # Result: [char1, char2] |- [forall(w, iff(P(w), Q(w)))]
-$char_iff \char1 char2 s body_P body_Q: {
+$_char_iff \char1 char2 s body_P body_Q: {
     $iff1 iff(mem("v", s), body_P("v"))
     $iff2 iff(mem("v", s), body_Q("v"))
     $g1 fl(ax([iff1], [iff1], iff1), [char1], [iff1], char1, "v")
@@ -100,7 +100,7 @@ $kuratowski {
     $pi_r_thm wr(pair_injection, [], [pi_r], pi_r)
 
     # === Outer transfer ===
-    $ot_prf transfer(op1, eq12, op2, cond1, cond2, "t1", "t2", "v")
+    $ot_prf _transfer(op1, eq12, op2, cond1, cond2, "t1", "t2", "v")
     $ot forall("v", iff(cond1("v"), cond2("v")))
 
     # === Introduce sa witness from singleton_exists("a") ===
@@ -132,30 +132,30 @@ $kuratowski {
 
     # sing(sa,"a") + sing(sa,"c") -> eqv("a", "c", "_")
     $g_ac_from_sing mp(apply_thm(singleton_injection, _si, ["a", "c"], ["a", "b"], _si_b, []),
-                       char_iff(sa_char, sing_c("sa"), "sa", \v: eqv(v, "a", "_"), \v: eqv(v, "c", "_")),
+                       _char_iff(sa_char, sing_c("sa"), "sa", \v: eqv(v, "a", "_"), \v: eqv(v, "c", "_")),
                        forall("w", iff(eqv("w", "a", "_"), eqv("w", "c", "_"))), eq_ac,
                        [], [sa_char, sing_c("sa")])
 
     # sing(sa,"a") + pair(sa,"c","d") -> and(eqv("c", "a", "_"), eqv("d", "a", "_"))
     $g_ca_da_from_sp mp(apply_thm(singleton_pair_eq, _sp, ["a", "c", "d"], ["a", "c", "d"], _sp_b, []),
-                        char_iff(sa_char, pair_cd("sa"), "sa", \v: eqv(v, "a", "_"), \v: or(eqv(v, "c", "_"), eqv(v, "d", "_"))),
+                        _char_iff(sa_char, pair_cd("sa"), "sa", \v: eqv(v, "a", "_"), \v: or(eqv(v, "c", "_"), eqv(v, "d", "_"))),
                         forall("w", iff(eqv("w", "a", "_"), or(eqv("w", "c", "_"), eqv("w", "d", "_")))), and(eqv("c", "a", "_"), eqv("d", "a", "_")),
                         [], [sa_char, pair_cd("sa")])
 
     # pair(pab,"a","b") + pair(pab,"c","d") -> or(and(ac,bd), and(ad,bc))
     $or_inj or(and(eq_ac, eq_bd), and(eqv("a", "d", "_"), eqv("b", "c", "_")))
     $g_inj_from_pair mp(apply_thm(pair_injection, _pi, ["a", "b", "c", "d"], ["a", "b", "c", "d"], _pi_b, []),
-                        char_iff(pab_char, pair_cd("pab"), "pab",
+                        _char_iff(pab_char, pair_cd("pab"), "pab",
                                  \v: or(eqv(v, "a", "_"), eqv(v, "b", "_")), \v: or(eqv(v, "c", "_"), eqv(v, "d", "_"))),
                         forall("w", iff(or(eqv("w", "a", "_"), eqv("w", "b", "_")), or(eqv("w", "c", "_"), eqv("w", "d", "_")))), or_inj,
                         [], [pab_char, pair_cd("pab")])
 
     # pair(pab,"a","b") + sing(pab,"c") -> and(eqv("a", "c", "_"), eqv("b", "c", "_"))
     # Need iff(or(eqv(w,"a"),eqv(w,"b")), eqv(w,"c")) -> singleton_pair_eq reversed
-    # Actually: char_iff gives forall(w, iff(or(eqv(w,"a"),eqv(w,"b")), eqv(w,"c")))
+    # Actually: _char_iff gives forall(w, iff(or(eqv(w,"a"),eqv(w,"b")), eqv(w,"c")))
     # iff_sym each: forall(w, iff(eqv(w,"c"), or(eqv(w,"a"),eqv(w,"b"))))
     # singleton_pair_eq: and(eqv("a", "c", "_"), eqv("b", "c", "_"))
-    $fa_ps char_iff(pab_char, sing_c("pab"), "pab", \v: or(eqv(v, "a", "_"), eqv(v, "b", "_")), \v: eqv(v, "c", "_"))
+    $fa_ps _char_iff(pab_char, sing_c("pab"), "pab", \v: or(eqv(v, "a", "_"), eqv(v, "b", "_")), \v: eqv(v, "c", "_"))
     $fa_ps_form forall("w", iff(or(eqv("w", "a", "_"), eqv("w", "b", "_")), eqv("w", "c", "_")))
     $fa_ps_sym forall("w", iff(eqv("w", "c", "_"), or(eqv("w", "a", "_"), eqv("w", "b", "_"))))
     # Flip iff: fl on fa_ps_form, iff_sym, fr
@@ -212,7 +212,7 @@ $kuratowski {
     # Instantiate outer_transfer backward with pcd: pair(pcd,"c","d") true -> cond2(pcd) true -> cond1(pcd) true
     # cond1(pcd) = or(sing(pcd,"a"), pair(pcd,"a","b"))
     # Since "a"="c", "b"="c": pair(pcd,"a","b") = pair(pcd,"c","c"). Combined with pair(pcd,"c","d"):
-    # char_iff: forall(w, iff(or(eqv(w,"c"),eqv(w,"c")), or(eqv(w,"c"),eqv(w,"d"))))
+    # _char_iff: forall(w, iff(or(eqv(w,"c"),eqv(w,"c")), or(eqv(w,"c"),eqv(w,"d"))))
     # Actually this is getting too complex. Use "a" simpler approach:
     # Since "a"="c" and "b"="c", just need "d"="a" (which is "d"="c" since "a"="c").
     # From sa_char + sing(sa,"c"): "a"="c" (already have).
@@ -245,7 +245,7 @@ $kuratowski {
     # With "a"="c", "b"="c": sing(pcd,"c") or pair(pcd,"c","c").
     # From pair(pcd,"c","d") and sing(pcd,"c"): singleton_injection-like gives all elements of pcd equal "c".
     # But pcd={"c","d"} has "d" as element. So "d"="c". Then eqv("b", "d", "_") since "b"="c"="d".
-    # Formalize: char_iff(pair(pcd,"c","d"), sing_a(pcd)) with "a"="c":
+    # Formalize: _char_iff(pair(pcd,"c","d"), sing_a(pcd)) with "a"="c":
     # forall(w, iff(or(eqv(w,"c"),eqv(w,"d")), eqv(w,"c")))
     # iff_sym: forall(w, iff(eqv(w,"c"), or(eqv(w,"c"),eqv(w,"d"))))
     # singleton_pair_eq("c", "c", "d"): and(eqv("c", "c", "_"), eqv("d", "c", "_"))
@@ -283,14 +283,14 @@ $kuratowski {
 
     # In A2 context: "a"="c", "b"="c". sing(pcd,"a")=sing(pcd,"c"), pair(pcd,"a","b")=pair(pcd,"c","c").
     # From pair(pcd,"c","d") + either sing(pcd,"c") or pair(pcd,"c","c"):
-    # char_iff gives iff about elements. For sing(pcd,"c") case:
+    # _char_iff gives iff about elements. For sing(pcd,"c") case:
     # forall(w, iff(eqv(w,"c"), or(eqv(w,"c"),eqv(w,"d")))) -> singleton_pair_eq("c","c","d") -> eqv("d", "c", "_")
     # For pair(pcd,"c","c") case: forall(w, iff(or(eqv(w,"c"),eqv(w,"c")), or(eqv(w,"c"),eqv(w,"d"))))
     # -> or_idempotent gives iff(eqv(w,"c"), or(eqv(w,"c"),eqv(w,"d"))) same thing -> eqv("d", "c", "_")
 
     # Either case gives eqv("d", "c", "_"). Use or_elim.
     # Case sing(pcd,"a"): with "a"="c" context, sing(pcd,"c").
-    # char_iff(pcd_char, sing(pcd,"c")): forall(w, iff(or(eqv(w,"c"),eqv(w,"d")), eqv(w,"c")))
+    # _char_iff(pcd_char, sing(pcd,"c")): forall(w, iff(or(eqv(w,"c"),eqv(w,"d")), eqv(w,"c")))
     # iff_sym: forall(w, iff(eqv(w,"c"), or(eqv(w,"c"),eqv(w,"d"))))
     # singleton_pair_eq("c","c","d") -> and(eqv("c", "c", "_"), eqv("d", "c", "_")) -> eqv("d", "c", "_")
 
@@ -305,12 +305,12 @@ $kuratowski {
     # g_ac2: eqv("a", "c", "_"). g_bc: eqv("b", "c", "_").
     # From backward cond1(pcd): or(sing(pcd,"a"), pair(pcd,"a","b")).
     # Case sing(pcd,"a"):
-    #   char_iff(pcd_char, sing_a("pcd")): forall(w, iff(or(eqv(w,"c"),eqv(w,"d")), eqv(w,"a")))
+    #   _char_iff(pcd_char, sing_a("pcd")): forall(w, iff(or(eqv(w,"c"),eqv(w,"d")), eqv(w,"a")))
     #   singleton_pair_eq("a", "c", "d"): needs forall(w, iff(eqv(w,"a"), or(eqv(w,"c"),eqv(w,"d"))))
     #   iff_sym gives that. -> and(eqv("c", "a", "_"), eqv("d", "a", "_")) -> eqv("d", "a", "_").
     #   eqv("d", "a", "_") + eqv("a", "c", "_") -> eqv("d", "c", "_"). eqv("b", "c", "_") + sym(eqv("d", "c", "_")) -> eqv("b", "d", "_") via trans.
     # Case pair(pcd,"a","b"):
-    #   char_iff(pcd_char, pair_ab("pcd")): forall(w, iff(or(eqv(w,"c"),eqv(w,"d")), or(eqv(w,"a"),eqv(w,"b"))))
+    #   _char_iff(pcd_char, pair_ab("pcd")): forall(w, iff(or(eqv(w,"c"),eqv(w,"d")), or(eqv(w,"a"),eqv(w,"b"))))
     #   pair_injection("c","d","a","b"): or(and(eqv("c", "a", "_"),eqv("d", "b", "_")), and(eqv("c", "b", "_"),eqv("d", "a", "_")))
     #   Either case: eqv("d", "a", "_") or eqv("d", "b", "_"). With "a"="c","b"="c": eqv("d", "c", "_").
     #   Then eqv("b", "d", "_") as above.
@@ -322,7 +322,7 @@ $kuratowski {
     # I'll simplify: extract eqv("d", "a", "_") from singleton_pair_eq in the sing(pcd,"a") sub-case.
 
     $sing_a_pcd sing_a("pcd")
-    $fa_dc char_iff(pcd_char, sing_a_pcd, "pcd", \v: or(eqv(v, "c", "_"), eqv(v, "d", "_")), \v: eqv(v, "a", "_"))
+    $fa_dc _char_iff(pcd_char, sing_a_pcd, "pcd", \v: or(eqv(v, "c", "_"), eqv(v, "d", "_")), \v: eqv(v, "a", "_"))
     $fa_dc_form forall("w", iff(or(eqv("w", "c", "_"), eqv("w", "d", "_")), eqv("w", "a", "_")))
     # iff_sym pointwise: forall(w, iff(eqv(w,"a"), or(eqv(w,"c"),eqv(w,"d"))))
     $fl_dc fl(ax([iff(or(eqv("v", "c", "_"),eqv("v", "d", "_")), eqv("v", "a", "_"))],
@@ -350,11 +350,11 @@ $kuratowski {
     # [pab_char, sing(pab,"c"), pcd_char, sing(pcd,"a")] |- [eqv("b", "d", "_")]
 
     # For pair(pcd,"a","b") sub-case: same result via pair_injection. Use simpler: eqv("d", "a", "_") or eqv("d", "b", "_").
-    # From char_iff: pair_injection("c","d","a","b") -> or(and("c"="a","d"="b"), and("c"="b","d"="a")) -> eqv("d", "a", "_") or eqv("d", "b", "_").
+    # From _char_iff: pair_injection("c","d","a","b") -> or(and("c"="a","d"="b"), and("c"="b","d"="a")) -> eqv("d", "a", "_") or eqv("d", "b", "_").
     # Since "a"="c"="b", both give "d"="c". Same as above. For brevity, use sing case only via or_elim.
     # Actually, pair(pcd,"a","b") sub-case:
     $pair_a_pcd pair_ab("pcd")
-    $fa_dc2 char_iff(pcd_char, pair_a_pcd, "pcd", \v: or(eqv(v, "c", "_"),eqv(v, "d", "_")), \v: or(eqv(v, "a", "_"),eqv(v, "b", "_")))
+    $fa_dc2 _char_iff(pcd_char, pair_a_pcd, "pcd", \v: or(eqv(v, "c", "_"),eqv(v, "d", "_")), \v: or(eqv(v, "a", "_"),eqv(v, "b", "_")))
     $or_inj2 or(and(eqv("c", "a", "_"),eqv("d", "b", "_")), and(eqv("c", "b", "_"),eqv("d", "a", "_")))
     $g_inj2 mp(apply_thm(pi_r_thm, pi_r, ["c", "d", "a", "b"], ["c", "p", "q", "r"], _pi_b, []), fa_dc2,
                forall("w", iff(or(eqv("w", "c", "_"),eqv("w", "d", "_")), or(eqv("w", "a", "_"),eqv("w", "b", "_")))), or_inj2,
@@ -439,7 +439,7 @@ $kuratowski {
     # Forward: cond2(pab) true. or(sing(pab,"c"), pair(pab,"c","d")).
     # With "c"="a", "d"="a": these are sing(pab,"a") and pair(pab,"a","a").
     # Both describe {"a"}. Combined with pair(pab,"a","b"):
-    # forall(w, iff(or(eqv(w,"a"),eqv(w,"b")), eqv(w,"a"))) via char_iff+simplification
+    # forall(w, iff(or(eqv(w,"a"),eqv(w,"b")), eqv(w,"a"))) via _char_iff+simplification
     # This means for all w, eqv(w,"a")|eqv(w,"b") iff eqv(w,"a"). So eqv(w,"b")->eqv(w,"a") for all w.
     # Instantiate w="b": eqv("b", "b", "_")->eqv("b", "a", "_"). eqv("b", "b", "_") true -> eqv("b", "a", "_"). Then eqv("a", "c", "_")->eqv("b", "c", "_"). eqv("d", "a", "_")->eqv("d", "c", "_").
     # eqv("b", "a", "_") + eqv("a", "c", "_") -> eqv("b", "c", "_"). eqv("d", "a", "_") + eqv("a", "c", "_") -> eqv("d", "c", "_"). sym -> eqv("c", "d", "_"). eqv("b", "c", "_")+eqv("c", "d", "_")->eqv("b", "d", "_").
@@ -447,10 +447,10 @@ $kuratowski {
     # Simpler: eqv("b", "a", "_") from {"a"}={"c"}={"c","d"} argument. Then eqv("b", "d", "_") = eqv("b", "a", "_")*eqv("a", "c", "_")*sym(eqv("d", "c", "_"))...
     # Actually: "d"="a" (have). Need "b"="d", i.e. "b"="a".
     # From cond2(pab): or(sing(pab,"c"), pair(pab,"c","d")). With "c"="a", "d"="a":
-    # Case sing(pab,"a"): char_iff(pair_ab(pab), sing_a(pab)):
+    # Case sing(pab,"a"): _char_iff(pair_ab(pab), sing_a(pab)):
     #   forall(w, iff(or(eqv(w,"a"),eqv(w,"b")), eqv(w,"a")))
     #   singleton_pair_eq("a","a","b") reversed: and(eqv("a", "a", "_"), eqv("b", "a", "_")) -> eqv("b", "a", "_")
-    # Case pair(pab,"a","a"): char_iff(pair_ab(pab), pair_set(pab,"a","a")):
+    # Case pair(pab,"a","a"): _char_iff(pair_ab(pab), pair_set(pab,"a","a")):
     #   forall(w, iff(or(eqv(w,"a"),eqv(w,"b")), or(eqv(w,"a"),eqv(w,"a"))))
     #   or_idempotent + iff_chain: iff(or(eqv(w,"a"),eqv(w,"b")), eqv(w,"a"))
     #   Same as sing case -> eqv("b", "a", "_")
@@ -459,7 +459,7 @@ $kuratowski {
 
     # For brevity: handle sing(pab,"c") sub-case ("c"="a" by context, so sing(pab,"a")):
     $sing_c_pab sing_c("pab")
-    $fa_ba char_iff(pab_char, sing_c_pab, "pab", \v: or(eqv(v, "a", "_"), eqv(v, "b", "_")), \v: eqv(v, "c", "_"))
+    $fa_ba _char_iff(pab_char, sing_c_pab, "pab", \v: or(eqv(v, "a", "_"), eqv(v, "b", "_")), \v: eqv(v, "c", "_"))
     # iff_sym: forall(w, iff(eqv(w,"c"), or(eqv(w,"a"),eqv(w,"b"))))
     # singleton_pair_eq("c", "a", "b") -> and(eqv("a", "c", "_"), eqv("b", "c", "_")) -> eqv("b", "c", "_")
     # With "c"="a": eqv("b", "a", "_")
@@ -499,7 +499,7 @@ $kuratowski {
     # pair(pab,"a","b") + pair(pab,"c","d") with "c"="a","d"="a": pair_injection("a","b","a","a") -> trivially "a"="a","b"="a"
     $pair_cd_pab pair_cd("pab")
     $g_inj_B mp(apply_thm(pair_injection, _pi, ["a", "b", "c", "d"], ["a", "b", "c", "d"], _pi_b, []),
-                char_iff(pab_char, pair_cd_pab, "pab", \v: or(eqv(v, "a", "_"),eqv(v, "b", "_")), \v: or(eqv(v, "c", "_"),eqv(v, "d", "_"))),
+                _char_iff(pab_char, pair_cd_pab, "pab", \v: or(eqv(v, "a", "_"),eqv(v, "b", "_")), \v: or(eqv(v, "c", "_"),eqv(v, "d", "_"))),
                 forall("w", iff(or(eqv("w", "a", "_"),eqv("w", "b", "_")), or(eqv("w", "c", "_"),eqv("w", "d", "_")))), or_inj,
                 [], [pab_char, pair_cd_pab])
     # or(and("a"="c","b"="d"), and("a"="d","b"="c")). Either gives goal directly or with "d"="a".
