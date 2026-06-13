@@ -28,6 +28,8 @@ from theorems.tm.tm.tape_update_exists import tape_update_exists
 from theorems.tm.tm.tape_update_function import tape_update_function
 from vocab.tm.tm import tm_reaches
 from vocab.nat.nat import nat
+from vocab.arithmetic.plus import plus
+from theorems.tm.tm.tmreaches_compose import tmreaches_compose
 
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
 $ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
@@ -239,5 +241,18 @@ $tuf_expected forall("t2", forall("t", forall("pos", forall("val",
         function("t2","_")))))))
 $_ qed(tape_update_function, tuf_expected, "z")
 $_ tap("tape_update_function ok")
+
+$trc_expected forall("d", forall("x", forall("a", forall("y", forall("b", forall("z", forall("n",
+    forall("w", forall("zb",
+    implies(num("zb",0,"_"),
+    implies(omega("w","_"),
+    implies(tm_reaches("d","x","a","y","_"),
+    implies(tm_reaches("d","y","b","z","_"),
+    implies(plus("a","b","n","_"),
+    implies(nat("a","_"),
+    implies(nat("b","_"),
+        tm_reaches("d","x","n","z","_")))))))))))))))))
+$_ qed(tmreaches_compose, trc_expected, "z")
+$_ tap("tmreaches_compose ok")
 
 $ok true

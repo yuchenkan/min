@@ -1,0 +1,1305 @@
+from derived import mem, implies, forall, exists, and, or, eqv, iff
+from derived import left, right, arg2, head, sep_ax, show
+from vocab.nat.nat import num, successor, omega, nat, inductive, subset
+from vocab.sets import ordered_pair, transitive_set
+from vocab.functions import apply, function, single_valued, relation
+from vocab.arithmetic.plus import plus
+from vocab.tm.tm import tm_reaches, tm_step
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, cut, apply_thm, eir, eel, cut_c, inst, close, same
+from util import remove, diff
+
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.ext_substitution import ext_substitution
+
+from theorems.nat.nat.omega_smallest_inductive import omega_smallest_inductive
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
+from theorems.nat.nat.omega_succ_closed import omega_succ_closed
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.omega_transitive_set import omega_transitive_set
+from theorems.nat.nat.successor_exists import successor_exists
+from theorems.nat.nat.num_exists import num_exists
+
+from theorems.sets.empty_unique import empty_unique
+from theorems.sets.eq_transfer import eq_transfer
+from theorems.sets.subset_antisymmetric import subset_antisymmetric
+
+from theorems.arithmetic.plus.plus_base import plus_base
+from theorems.arithmetic.plus.plus_step import plus_step
+from theorems.arithmetic.plus.plus_val_nat import plus_val_nat
+from theorems.arithmetic.plus.plus_val_unique import plus_val_unique
+
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.functions.apply_val_transfer import apply_val_transfer
+from theorems.functions.func_unique_thm import func_unique_thm
+
+from theorems.tm.tm.extend_trace import extend_trace
+
+# tmreaches_compose:
+# ∀d,x,y,z,a,b,n.
+#   TMReaches(d,x,a,y) → TMReaches(d,y,b,z) → Plus(a,b,n) →
+#   Nat(a) → Nat(b) → TMReaches(d,x,n,z)
+#
+# Omega induction on b (second reaches).
+# Q(j) = (j ≤ b) → ∃pos,cj. Plus(a,j,pos) ∧ Apply(tr2,j,cj) ∧ TMReaches(d,x,pos,cj)
+
+$tmreaches_compose {
+    # === Hypotheses ===
+    $reaches1 tm_reaches("d", "x", "a", "y", "_")
+    $reaches2 tm_reaches("d", "y", "b", "z", "_")
+    $plus_abn plus("a", "b", "n", "_")
+    $nat_a nat("a", "_")
+    $nat_b nat("b", "_")
+
+    # Derive Omega(w), In(a,w), In(b,w) from Nat
+    $omega_w omega("w", "_")
+    $in_a_w mem("a", "w")
+    $in_b_w mem("b", "w")
+
+    $ne_body \vm: \vw: implies(nat(vm,"_"), implies(omega(vw,"_"), mem(vm,vw)))
+    $got_iaw apply_thm(nat_elim, head(right(nat_elim)),
+        ["a","w"], ["m","w"], ne_body, left(nat_elim))
+    $got_iaw mp(got_iaw, ax([nat_a],[nat_a],nat_a), nat_a,
+        implies(omega_w, in_a_w), left(got_iaw), [nat_a])
+    $got_iaw mp(got_iaw, ax([omega_w],[omega_w],omega_w), omega_w,
+        in_a_w, left(got_iaw), [omega_w])
+
+    $got_ibw apply_thm(nat_elim, head(right(nat_elim)),
+        ["b","w"], ["m","w"], ne_body, left(nat_elim))
+    $got_ibw mp(got_ibw, ax([nat_b],[nat_b],nat_b), nat_b,
+        implies(omega_w, in_b_w), left(got_ibw), [nat_b])
+    $got_ibw mp(got_ibw, ax([omega_w],[omega_w],omega_w), omega_w,
+        in_b_w, left(got_ibw), [omega_w])
+
+    # === Open TMReaches(d,y,b,z) ===
+    # Expansion: ∃tr2. And(Func(tr2), And(db(tr2,b), And(base(tr2,y), And(step(tr2,b), Apply(tr2,b,z)))))
+    $r2_func function("tr2", "_")
+    $r2_db forall("xd", forall("yd", implies(apply("tr2","xd","yd","_"),
+        or(mem("xd","b"), eqv("xd","b","_")))))
+    $r2_base forall("zr", implies(num("zr",0,"_"), apply("tr2","zr","y","_")))
+    $r2_step forall("k", implies(mem("k","b"),
+        forall("sk", implies(successor("sk","k","_"),
+            forall("ck", implies(apply("tr2","k","ck","_"),
+                exists("ck1", and(apply("tr2","sk","ck1","_"),
+                    tm_step("d","ck","ck1","_")))))))))
+    $r2_reached apply("tr2","b","z","_")
+    $r2_r3 and(r2_step, r2_reached)
+    $r2_r2 and(r2_base, r2_r3)
+    $r2_r1 and(r2_db, r2_r2)
+    $r2_body and(r2_func, r2_r1)
+
+    $got_r2_func mp(and_elim_left(r2_func, r2_r1, []),
+        ax([r2_body],[r2_body],r2_body), r2_body, r2_func, [], [r2_body])
+    $got_r2_r1 mp(and_elim_right(r2_func, r2_r1, []),
+        ax([r2_body],[r2_body],r2_body), r2_body, r2_r1, [], [r2_body])
+    $got_r2_db mp(and_elim_left(r2_db, r2_r2, []),
+        got_r2_r1, r2_r1, r2_db, [], left(got_r2_r1))
+    $got_r2_r2 mp(and_elim_right(r2_db, r2_r2, []),
+        got_r2_r1, r2_r1, r2_r2, [], left(got_r2_r1))
+    $got_r2_base mp(and_elim_left(r2_base, r2_r3, []),
+        got_r2_r2, r2_r2, r2_base, [], left(got_r2_r2))
+    $got_r2_r3 mp(and_elim_right(r2_base, r2_r3, []),
+        got_r2_r2, r2_r2, r2_r3, [], left(got_r2_r2))
+    $got_r2_step mp(and_elim_left(r2_step, r2_reached, []),
+        got_r2_r3, r2_r3, r2_step, [], left(got_r2_r3))
+    $got_r2_reached mp(and_elim_right(r2_step, r2_reached, []),
+        got_r2_r3, r2_r3, r2_reached, [], left(got_r2_r3))
+
+    $_ tap("setup ok")
+
+    # Q_inner(j,p) = ∃p+"rp",p+"rc". Plus(a,j,rp) ∧ Apply(tr2,j,rc) ∧ TMReaches(d,x,rp,rc)
+    $_Q_inner \j p: exists(add(p,"rp"), exists(add(p,"rc"),
+        and(plus("a",j,add(p,"rp"),"_"),
+        and(apply("tr2",j,add(p,"rc"),"_"),
+            tm_reaches("d","x",add(p,"rp"),add(p,"rc"),"_")))))
+    # Q(j,p) = Or(In(j,b),Eq(j,b)) → Q_inner(j,p)
+    $_Q \j p: implies(or(mem(j,"b"), eqv(j,"b","_")), _Q_inner(j,p))
+
+    # === 1. Separation ===
+    $sep sep_ax(["a","b","d","x","tr2"], \sv a np: _Q(sv,np), "_")
+
+    $sep_inner \vtr2: \vx: \vd: \vb: \va: \vdom:
+        exists("res", forall("el",
+            iff(mem("el","res"), and(mem("el",vdom), _Q("el","_")))))
+    $got_sep apply_thm(ax([sep],[sep],sep), head(right(ax([sep],[sep],sep))),
+        ["tr2","x","d","b","a","w"],
+        ["tr2","x","d","b","a","sa"],
+        sep_inner, [sep])
+
+    $char_xv iff(mem("xv","pv"), and(mem("xv","w"), _Q("xv","_")))
+    $char_pv forall("xv", char_xv)
+    $ex_pv exists("pv", char_pv)
+
+    $_ tap("sep ok")
+
+    # === 2. Base: Q(zb) where zb is zero ===
+    $num_zb num("zb",0,"_")
+
+    # zb ∈ w from omega_contains_zero
+    $ocz_body \ve: \vw: implies(omega(vw,"_"), implies(num(ve,0,"_"), mem(ve,vw)))
+    $got_ocz apply_thm(omega_contains_zero, head(right(omega_contains_zero)),
+        ["zb","w"], ["e","w"], ocz_body, left(omega_contains_zero))
+    $got_ocz mp(got_ocz, ax([omega_w],[omega_w],omega_w), omega_w,
+        implies(num_zb, mem("zb","w")), left(got_ocz), [omega_w])
+    $got_zbw mp(got_ocz, ax([num_zb],[num_zb],num_zb), num_zb,
+        mem("zb","w"), left(got_ocz), [num_zb])
+
+    # Plus(a,zb,a) from plus_base
+    $pb_body \vm: implies(nat(vm,"_"), forall("zb", implies(num("zb",0,"_"), plus(vm,"zb",vm,"_"))))
+    $got_pb apply_thm(plus_base, head(right(plus_base)),
+        ["a"], ["m"], pb_body, left(plus_base))
+    $plus_azba plus("a","zb","a","_")
+    $got_pb mp(got_pb, ax([nat_a],[nat_a],nat_a), nat_a,
+        forall("zb", implies(num_zb, plus_azba)), left(got_pb), [nat_a])
+    $got_pb apply_thm(got_pb, head(right(got_pb)),
+        ["zb"], ["zb"], \vz: implies(num(vz,0,"_"), plus("a",vz,"a","_")), left(got_pb))
+    $got_pb mp(got_pb, ax([num_zb],[num_zb],num_zb), num_zb, plus_azba,
+        left(got_pb), [num_zb])
+
+    $_ tap("Plus(a,zb,a) ok")
+
+    # Apply(tr2,zb,y) from r2_base
+    $app_zb_y apply("tr2","zb","y","_")
+    $got_app_zb apply_thm(got_r2_base, r2_base,
+        ["zb"], ["zr"], \vz: implies(num(vz,0,"_"), apply("tr2",vz,"y","_")), left(got_r2_base))
+    $got_app_zb mp(got_app_zb, ax([num_zb],[num_zb],num_zb), num_zb, app_zb_y,
+        left(got_r2_base), [num_zb])
+
+    # Assemble Q_inner(zb): ∃pos,cj. Plus(a,zb,pos) ∧ Apply(tr2,zb,cj) ∧ TMReaches(d,x,pos,cj)
+    # Witnesses: pos=a, cj=y
+    $and_app_reach and(app_zb_y, reaches1)
+    $got_and_ar mp(mp(and_intro(app_zb_y, reaches1, []),
+        got_app_zb, app_zb_y, implies(reaches1, and_app_reach), [], left(got_app_zb)),
+        ax([reaches1],[reaches1],reaches1), reaches1, and_app_reach,
+        left(got_app_zb), [reaches1])
+    $and_plus_ar and(plus_azba, and_app_reach)
+    $got_and_par mp(mp(and_intro(plus_azba, and_app_reach, []),
+        got_pb, plus_azba, implies(and_app_reach, and_plus_ar), [], left(got_pb)),
+        got_and_ar, and_app_reach, and_plus_ar, left(got_pb), left(got_and_ar))
+
+    # eir rc=y, rp=a
+    $_np add("_","rc")
+    $_np2 add("_","rp")
+    $got_qi_zb eir(got_and_par,
+        \v: and(plus("a","zb","a","_"), and(apply("tr2","zb",v,"_"), tm_reaches("d","x","a",v,"_"))),
+        _np, "y", left(got_and_par))
+    $got_qi_zb eir(got_qi_zb,
+        \v: exists(_np, and(plus("a","zb",v,"_"), and(apply("tr2","zb",_np,"_"), tm_reaches("d","x",v,_np,"_")))),
+        _np2, "a", left(got_qi_zb))
+
+    $_ tap("Q_inner(zb) ok")
+
+    # Q(zb) = Or(In(zb,b),Eq(zb,b)) → Q_inner(zb). Weaken with guard, then ir.
+    $or_zbb or(mem("zb","b"), eqv("zb","b","_"))
+    $qi_zb _Q_inner("zb","_")
+    $got_Qzb wl(got_qi_zb, add(left(got_qi_zb), [or_zbb]), [qi_zb], or_zbb)
+    $imp_qzb implies(or_zbb, qi_zb)
+    $got_Qzb ir(got_Qzb, remove(same, or_zbb, left(got_Qzb)),
+        [imp_qzb], imp_qzb)
+
+    # char_bwd(zb): In(zb,w) + Q(zb) → In(zb,pv)
+    $char_zb iff(mem("zb","pv"), and(mem("zb","w"), _Q("zb","_")))
+    $char_zb_inst inst(ax([char_pv],[char_pv],char_pv), char_pv, char_zb, "zb", [char_pv])
+    $bwd_zb implies(and(mem("zb","w"), _Q("zb","_")), mem("zb","pv"))
+    $got_bwd_zb mp(iff_elim_right(mem("zb","pv"), and(mem("zb","w"), _Q("zb","_")), []),
+        char_zb_inst, char_zb, bwd_zb, [], [char_pv])
+    $and_zbw and(mem("zb","w"), _Q("zb","_"))
+    $got_and_zb mp(mp(and_intro(mem("zb","w"), _Q("zb","_"), []),
+        got_zbw, mem("zb","w"), implies(_Q("zb","_"), and_zbw), [], left(got_zbw)),
+        got_Qzb, _Q("zb","_"), and_zbw, left(got_zbw), left(got_Qzb))
+    $got_zbpv mp(got_bwd_zb, got_and_zb, and_zbw, mem("zb","pv"),
+        [char_pv], left(got_and_zb))
+
+    $_ tap("zb in pv ok")
+
+    # === Inductive base: ∀zero. Empty(zero) → In(zero,pv) ===
+    $eu_body \va: \vb: implies(num(va,0,"_"), implies(num(vb,0,"_"), eqv(va,vb,"_")))
+    $got_eu apply_thm(empty_unique, head(right(empty_unique)),
+        ["zero","zb"], ["a","b"], eu_body, left(empty_unique))
+    $emp_zero num("zero",0,"_")
+    $got_eu mp(got_eu, ax([emp_zero],[emp_zero],emp_zero), emp_zero,
+        implies(num_zb, eqv("zero","zb","_")), left(got_eu), [emp_zero])
+    $got_eq mp(got_eu, ax([num_zb],[num_zb],num_zb), num_zb,
+        eqv("zero","zb","_"), left(got_eu), [num_zb])
+
+    $es_body \va: \vb: \vs: implies(eqv(va,vb,"_"), iff(mem(va,vs), mem(vb,vs)))
+    $got_es apply_thm(ext_substitution, head(right(ext_substitution)),
+        ["zero","zb","pv"], ["a","b","s"], es_body, left(ext_substitution))
+    $iff_zpv iff(mem("zero","pv"), mem("zb","pv"))
+    $got_iff_zpv mp(got_es, got_eq, eqv("zero","zb","_"), iff_zpv,
+        left(got_es), left(got_eq))
+
+    $got_bwd_zpv mp(iff_elim_right(mem("zero","pv"), mem("zb","pv"), []),
+        got_iff_zpv, iff_zpv, implies(mem("zb","pv"), mem("zero","pv")),
+        [], left(got_iff_zpv))
+    $got_zero_pv mp(got_bwd_zpv, got_zbpv, mem("zb","pv"), mem("zero","pv"),
+        left(got_bwd_zpv), left(got_zbpv))
+
+    $imp_ez implies(emp_zero, mem("zero","pv"))
+    $got_ind_base ir(got_zero_pv, remove(same, emp_zero, left(got_zero_pv)),
+        [imp_ez], imp_ez)
+    $got_ind_base fr(got_ind_base, left(got_ind_base),
+        [forall("zero", imp_ez)], forall("zero", imp_ez), "zero")
+
+    $_ tap("ind_base ok")
+
+    # === 3. Inductive step: In(nn,pv) → ∀sn. Succ(sn,nn) → In(sn,pv) ===
+
+    # char_fwd(nn)
+    $in_nnpv mem("nn","pv")
+    $char_nn iff(mem("nn","pv"), and(mem("nn","w"), _Q("nn","_")))
+    $char_nn_inst inst(ax([char_pv],[char_pv],char_pv), char_pv, char_nn, "nn", [char_pv])
+    $fwd_nn implies(in_nnpv, and(mem("nn","w"), _Q("nn","_")))
+    $got_fwd_nn mp(iff_elim_left(in_nnpv, and(mem("nn","w"), _Q("nn","_")), []),
+        char_nn_inst, char_nn, fwd_nn, [], [char_pv])
+    $and_nnw and(mem("nn","w"), _Q("nn","_"))
+    $got_and_nn mp(got_fwd_nn, ax([in_nnpv],[in_nnpv],in_nnpv), in_nnpv, and_nnw,
+        [char_pv], [in_nnpv])
+    $in_nnw mem("nn","w")
+    $got_nnw mp(and_elim_left(in_nnw, _Q("nn","_"), []),
+        got_and_nn, and_nnw, in_nnw, [], left(got_and_nn))
+    $got_Qnn mp(and_elim_right(in_nnw, _Q("nn","_"), []),
+        got_and_nn, and_nnw, _Q("nn","_"), [], left(got_and_nn))
+
+    $_ tap("char_fwd(nn) ok")
+
+    # omega_succ_closed: In(sn,w)
+    $succ_sn successor("sn","nn","_")
+    $osc_body \vs: \vn: \vw: implies(omega(vw,"_"),
+        implies(mem(vn,vw), implies(successor(vs,vn,"_"), mem(vs,vw))))
+    $got_osc apply_thm(omega_succ_closed, head(right(omega_succ_closed)),
+        ["sn","nn","w"], ["s","n","w"], osc_body, left(omega_succ_closed))
+    $got_osc mp(got_osc, ax([omega_w],[omega_w],omega_w), omega_w,
+        arg2(head(right(got_osc))), left(got_osc), [omega_w])
+    $got_osc mp(got_osc, got_nnw, in_nnw, arg2(head(right(got_osc))),
+        left(got_osc), left(got_nnw))
+    $got_snw mp(got_osc, ax([succ_sn],[succ_sn],succ_sn), succ_sn,
+        mem("sn","w"), left(got_osc), [succ_sn])
+
+    $_ tap("sn in w ok")
+
+    # === Derive In(nn,b) from Or(In(sn,b),Eq(sn,b)) ===
+    # Need: nn ∈ sn (from Successor) + TransitiveSet(b) or Eq(sn,b)
+    $or_snb or(mem("sn","b"), eqv("sn","b","_"))
+
+    # nn ∈ sn from Successor(sn,nn): inst x=nn gives Iff(nn∈sn, Or(nn∈nn, nn=nn))
+    $succ_body_nn \v: iff(mem(v,"sn"), or(mem(v,"nn"), eqv(v,"nn","_")))
+    $got_succ_nn apply_thm(ax([succ_sn],[succ_sn],succ_sn), succ_sn,
+        ["nn"], ["v"], succ_body_nn, [succ_sn])
+    $or_nn or(mem("nn","nn"), eqv("nn","nn","_"))
+    $eq_nnnn eqv("nn","nn","_")
+    $er_body \v: eqv(v,v,"_")
+    $got_eqnn apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
+        ["nn"], ["a"], er_body, left(eqv_reflexive))
+    $oir_body \va: \vb: implies(vb, or(va, vb))
+    $got_or_nn mp(apply_thm(or_intro_right(mem("nn","nn"), eq_nnnn, []),
+        head(right(or_intro_right(mem("nn","nn"), eq_nnnn, []))),
+        [], [], oir_body, []),
+        got_eqnn, eq_nnnn, or_nn, [], left(got_eqnn))
+    $iff_nn_sn iff(mem("nn","sn"), or_nn)
+    $got_nn_in_sn mp(apply_thm(iff_elim_right(mem("nn","sn"), or_nn, []),
+        head(right(iff_elim_right(mem("nn","sn"), or_nn, []))),
+        [], [], \va: \vb: implies(iff(va,vb), implies(vb, va)), []),
+        got_succ_nn, iff_nn_sn, implies(or_nn, mem("nn","sn")),
+        [], [succ_sn])
+    $got_nn_in_sn mp(got_nn_in_sn, got_or_nn, or_nn, mem("nn","sn"),
+        [succ_sn], left(got_or_nn))
+
+    $_ tap("nn in sn ok")
+
+    # Case 1: In(sn,b) → In(nn,b) via TransitiveSet(b)
+    # omega_transitive_set: ∀w. Omega(w) → ∀n. n∈w → Trans(n)
+    $ots_body \vw: implies(omega(vw,"_"), forall("n", implies(mem("n",vw), transitive_set("n","_"))))
+    $got_ots apply_thm(omega_transitive_set, head(right(omega_transitive_set)),
+        ["w"], ["w"], ots_body, left(omega_transitive_set))
+    $got_ots mp(got_ots, ax([omega_w],[omega_w],omega_w), omega_w,
+        forall("n", implies(mem("n","w"), transitive_set("n","_"))), left(got_ots), [omega_w])
+    $ots_body2 \vn: implies(mem(vn,"w"), transitive_set(vn,"_"))
+    $got_ots apply_thm(got_ots, head(right(got_ots)),
+        ["b"], ["n"], ots_body2, left(got_ots))
+    $got_ots mp(got_ots, got_ibw, in_b_w, transitive_set("b","_"),
+        left(got_ots), left(got_ibw))
+    # TransitiveSet(b): ∀x. x∈b → ∀y. y∈x → y∈b
+    $ts_body \vx: implies(mem(vx,"b"), forall("ty", implies(mem("ty",vx), mem("ty","b"))))
+    $got_ts_sn apply_thm(got_ots, transitive_set("b","_"),
+        ["sn"], ["x"], ts_body, left(got_ots))
+    $got_ts_sn mp(got_ts_sn, ax([mem("sn","b")],[mem("sn","b")],mem("sn","b")), mem("sn","b"),
+        forall("ty", implies(mem("ty","sn"), mem("ty","b"))),
+        left(got_ts_sn), [mem("sn","b")])
+    $ts2_body \vy: implies(mem(vy,"sn"), mem(vy,"b"))
+    $got_ts_nn apply_thm(got_ts_sn, head(right(got_ts_sn)),
+        ["nn"], ["ty"], ts2_body, left(got_ts_sn))
+    $got_case1 mp(got_ts_nn, got_nn_in_sn, mem("nn","sn"), mem("nn","b"),
+        left(got_ts_nn), left(got_nn_in_sn))
+    # Discharge In(sn,b)
+    $imp_case1 implies(mem("sn","b"), mem("nn","b"))
+    $got_case1 ir(got_case1, remove(same, mem("sn","b"), left(got_case1)),
+        [imp_case1], imp_case1)
+
+    $_ tap("case1 ok")
+
+    # Case 2: Eq(sn,b) → In(nn,b) via eq_transfer
+    $et_body \va: \vb: \vz: implies(eqv(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
+    $got_et apply_thm(eq_transfer, head(right(eq_transfer)),
+        ["sn","b","nn"], ["a","b","z"], et_body, left(eq_transfer))
+    $iff_nn_snb iff(mem("nn","sn"), mem("nn","b"))
+    $got_iff_nn mp(got_et, ax([eqv("sn","b","_")],[eqv("sn","b","_")],eqv("sn","b","_")),
+        eqv("sn","b","_"), iff_nn_snb, left(got_et), [eqv("sn","b","_")])
+    $got_case2 mp(apply_thm(iff_elim_left(mem("nn","sn"), mem("nn","b"), []),
+        head(right(iff_elim_left(mem("nn","sn"), mem("nn","b"), []))),
+        [], [], \va: \vb: implies(iff(va,vb), implies(va, vb)), []),
+        got_iff_nn, iff_nn_snb, implies(mem("nn","sn"), mem("nn","b")),
+        [], left(got_iff_nn))
+    $got_case2 mp(got_case2, got_nn_in_sn, mem("nn","sn"), mem("nn","b"),
+        left(got_iff_nn), left(got_nn_in_sn))
+    # Discharge Eq(sn,b)
+    $imp_case2 implies(eqv("sn","b","_"), mem("nn","b"))
+    $got_case2 ir(got_case2, remove(same, eqv("sn","b","_"), left(got_case2)),
+        [imp_case2], imp_case2)
+
+    $_ tap("case2 ok")
+
+    # or_elim: Or(In(sn,b),Eq(sn,b)) → In(nn,b)
+    $oe_body \va: \vb: \vc: implies(or(va,vb),
+        implies(implies(va,vc), implies(implies(vb,vc), vc)))
+    $got_oe apply_thm(or_elim(mem("sn","b"), eqv("sn","b","_"), mem("nn","b"), []),
+        head(right(or_elim(mem("sn","b"), eqv("sn","b","_"), mem("nn","b"), []))),
+        [], [], oe_body, [])
+    $got_inb mp(got_oe, ax([or_snb],[or_snb],or_snb), or_snb,
+        implies(imp_case1, implies(imp_case2, mem("nn","b"))),
+        [], [or_snb])
+    $got_inb mp(got_inb, got_case1, imp_case1,
+        implies(imp_case2, mem("nn","b")),
+        [or_snb], left(got_case1))
+    $got_inb mp(got_inb, got_case2, imp_case2, mem("nn","b"),
+        left(got_inb), left(got_case2))
+
+    # Or(In(nn,b),Eq(nn,b)) via or_intro_left
+    $or_nnb or(mem("nn","b"), eqv("nn","b","_"))
+    $oil_body \va: \vb: implies(va, or(va,vb))
+    $got_ornb mp(apply_thm(or_intro_left(mem("nn","b"), eqv("nn","b","_"), []),
+        head(right(or_intro_left(mem("nn","b"), eqv("nn","b","_"), []))),
+        [], [], oil_body, []),
+        got_inb, mem("nn","b"), or_nnb, [], left(got_inb))
+
+    # Q(nn) guard → Q_inner(nn)
+    $got_Qnn_val mp(got_Qnn, got_ornb, or_nnb, _Q_inner("nn","_"),
+        left(got_Qnn), left(got_ornb))
+
+    $_ tap("Q_inner(nn) extracted ok")
+
+    # === Open Q_inner(nn): ∃pos,cj. Plus(a,nn,pos) ∧ Apply(tr2,nn,cj) ∧ TMReaches(d,x,pos,cj) ===
+    $qn_and and(plus("a","nn","pos","_"), and(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_")))
+    $got_plus_nn mp(and_elim_left(plus("a","nn","pos","_"), and(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_")), []),
+        ax([qn_and],[qn_and],qn_and), qn_and, plus("a","nn","pos","_"), [], [qn_and])
+    $got_rest_nn mp(and_elim_right(plus("a","nn","pos","_"), and(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_")), []),
+        ax([qn_and],[qn_and],qn_and), qn_and, and(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_")), [], [qn_and])
+    $got_app_nn mp(and_elim_left(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_"), []),
+        got_rest_nn, and(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_")),
+        apply("tr2","nn","cj","_"), [], left(got_rest_nn))
+    $got_reaches_nn mp(and_elim_right(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_"), []),
+        got_rest_nn, and(apply("tr2","nn","cj","_"), tm_reaches("d","x","pos","cj","_")),
+        tm_reaches("d","x","pos","cj","_"), [], left(got_rest_nn))
+
+    $_ tap("Q_inner(nn) opened ok")
+
+    # === Open TMReaches(d,x,pos,cj) to get trace components ===
+    $rn_func function("tra", "_")
+    $rn_db forall("xdn", forall("ydn", implies(apply("tra","xdn","ydn","_"),
+        or(mem("xdn","pos"), eqv("xdn","pos","_")))))
+    $rn_base forall("zp", implies(num("zp",0,"_"), apply("tra","zp","x","_")))
+    $rn_step forall("ka", implies(mem("ka","pos"),
+        forall("ska", implies(successor("ska","ka","_"),
+            forall("cka", implies(apply("tra","ka","cka","_"),
+                exists("cka1", and(apply("tra","ska","cka1","_"),
+                    tm_step("d","cka","cka1","_")))))))))
+    $rn_reached apply("tra","pos","cj","_")
+    $rn_r3 and(rn_step, rn_reached)
+    $rn_r2 and(rn_base, rn_r3)
+    $rn_r1 and(rn_db, rn_r2)
+    $rn_body and(rn_func, rn_r1)
+
+    $got_rn_func mp(and_elim_left(rn_func, rn_r1, []),
+        ax([rn_body],[rn_body],rn_body), rn_body, rn_func, [], [rn_body])
+    $got_rn_r1 mp(and_elim_right(rn_func, rn_r1, []),
+        ax([rn_body],[rn_body],rn_body), rn_body, rn_r1, [], [rn_body])
+    $got_rn_db mp(and_elim_left(rn_db, rn_r2, []),
+        got_rn_r1, rn_r1, rn_db, [], left(got_rn_r1))
+    $got_rn_r2 mp(and_elim_right(rn_db, rn_r2, []),
+        got_rn_r1, rn_r1, rn_r2, [], left(got_rn_r1))
+    $got_rn_base mp(and_elim_left(rn_base, rn_r3, []),
+        got_rn_r2, rn_r2, rn_base, [], left(got_rn_r2))
+    $got_rn_r3 mp(and_elim_right(rn_base, rn_r3, []),
+        got_rn_r2, rn_r2, rn_r3, [], left(got_rn_r2))
+    $got_rn_step mp(and_elim_left(rn_step, rn_reached, []),
+        got_rn_r3, rn_r3, rn_step, [], left(got_rn_r3))
+    $got_rn_reached mp(and_elim_right(rn_step, rn_reached, []),
+        got_rn_r3, rn_r3, rn_reached, [], left(got_rn_r3))
+
+    $_ tap("TMReaches(d,x,pos,cj) decomposed ok")
+
+    # === step2 at nn: ∃ck1. And(Apply(tr2,sn,ck1), TMStep(d,cj,ck1)) from r2_step ===
+    $r2s_body1 \vk: implies(mem(vk,"b"),
+        forall("sk", implies(successor("sk",vk,"_"),
+            forall("ck", implies(apply("tr2",vk,"ck","_"),
+                exists("ck1", and(apply("tr2","sk","ck1","_"),
+                    tm_step("d","ck","ck1","_"))))))))
+    $got_r2s apply_thm(got_r2_step, r2_step,
+        ["nn"], ["k"], r2s_body1, left(got_r2_step))
+    $got_r2s mp(got_r2s, got_inb, mem("nn","b"), arg2(head(right(got_r2s))),
+        left(got_r2_step), left(got_inb))
+    $r2s_body2 \vs: implies(successor(vs,"nn","_"),
+        forall("ck", implies(apply("tr2","nn","ck","_"),
+            exists("ck1", and(apply("tr2",vs,"ck1","_"),
+                tm_step("d","ck","ck1","_"))))))
+    $got_r2s apply_thm(got_r2s, head(right(got_r2s)),
+        ["sn"], ["sk"], r2s_body2, left(got_r2s))
+    $got_r2s mp(got_r2s, ax([succ_sn],[succ_sn],succ_sn), succ_sn, arg2(head(right(got_r2s))),
+        left(got_r2s), [succ_sn])
+    $r2s_body3 \vc: implies(apply("tr2","nn",vc,"_"),
+        exists("ck1", and(apply("tr2","sn","ck1","_"), tm_step("d",vc,"ck1","_"))))
+    $got_r2s apply_thm(got_r2s, head(right(got_r2s)),
+        ["cj"], ["ck"], r2s_body3, left(got_r2s))
+    $got_step2 mp(got_r2s, got_app_nn, apply("tr2","nn","cj","_"),
+        exists("ck1", and(apply("tr2","sn","ck1","_"), tm_step("d","cj","ck1","_"))),
+        left(got_r2s), left(got_app_nn))
+
+    # Open ∃ck1
+    $ck1_body and(apply("tr2","sn","ck1","_"), tm_step("d","cj","ck1","_"))
+    $got_app_sn mp(and_elim_left(apply("tr2","sn","ck1","_"), tm_step("d","cj","ck1","_"), []),
+        ax([ck1_body],[ck1_body],ck1_body), ck1_body, apply("tr2","sn","ck1","_"), [], [ck1_body])
+    $got_tmstep mp(and_elim_right(apply("tr2","sn","ck1","_"), tm_step("d","cj","ck1","_"), []),
+        ax([ck1_body],[ck1_body],ck1_body), ck1_body, tm_step("d","cj","ck1","_"), [], [ck1_body])
+
+    $_ tap("step2 ok")
+
+    # === Successor(spos, pos) for new position ===
+    $succ_spos successor("spos","pos","_")
+    $se_body \vx: exists("spos", successor("spos",vx,"_"))
+    $got_ex_spos apply_thm(successor_exists, head(right(successor_exists)),
+        ["pos"], ["x"], se_body, left(successor_exists))
+
+    # === In(pos,w) from plus_val_nat + nat_elim ===
+    # plus_val_nat: Nat(a) → Nat(nn) → Plus(a,nn,pos) → Nat(pos)
+    # First derive Nat(nn) from nat_intro
+    $ni_body \vw: \vm: implies(omega(vw,"_"), implies(mem(vm,vw), nat(vm,"_")))
+    $got_nat_nn apply_thm(nat_intro, head(right(nat_intro)),
+        ["w","nn"], ["w","m"], ni_body, left(nat_intro))
+    $nat_nn nat("nn","_")
+    $got_nat_nn mp(got_nat_nn, ax([omega_w],[omega_w],omega_w), omega_w,
+        implies(in_nnw, nat_nn), left(got_nat_nn), [omega_w])
+    $got_nat_nn mp(got_nat_nn, got_nnw, in_nnw, nat_nn,
+        left(got_nat_nn), left(got_nnw))
+
+    # plus_val_nat: ∀m,n,p. Nat(m) → Nat(n) → Plus(m,n,p) → Nat(p)
+    $pvn_body \vm: \vn: \vp: implies(nat(vm,"_"), implies(nat(vn,"_"), implies(plus(vm,vn,vp,"_"), nat(vp,"_"))))
+    $got_pvn apply_thm(plus_val_nat, head(right(plus_val_nat)),
+        ["a","nn","pos"], ["m","n","p"], pvn_body, left(plus_val_nat))
+    $got_pvn mp(got_pvn, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(got_pvn))),
+        left(got_pvn), [nat_a])
+    $got_pvn mp(got_pvn, got_nat_nn, nat_nn, arg2(head(right(got_pvn))),
+        left(got_pvn), left(got_nat_nn))
+    $nat_pos nat("pos","_")
+    $got_nat_pos mp(got_pvn, got_plus_nn, plus("a","nn","pos","_"), nat_pos,
+        left(got_pvn), left(got_plus_nn))
+
+    # nat_elim: Nat(pos) → Omega(w) → In(pos,w)
+    $got_posw apply_thm(nat_elim, head(right(nat_elim)),
+        ["pos","w"], ["m","w"], ne_body, left(nat_elim))
+    $got_posw mp(got_posw, got_nat_pos, nat_pos,
+        implies(omega_w, mem("pos","w")), left(got_posw), left(got_nat_pos))
+    $got_posw mp(got_posw, ax([omega_w],[omega_w],omega_w), omega_w,
+        mem("pos","w"), left(got_posw), [omega_w])
+
+    $_ tap("In(pos,w) ok")
+
+    # === extend_trace: extend the TMReaches trace ===
+    # extend_trace: ∀tra,ska,ca_new,c0,ka,delta,ca,w.
+    #   Func(tra) → db(tra,ka) → Omega(w) → In(ka,w) → Succ(ska,ka) →
+    #   base(tra,c0) → step(tra,ka) → TMStep(delta,ca,ca_new) →
+    #   Apply(tra,ka,ca) →
+    #   ∃trn. And(Func(trn), And(db(trn,ska), And(base(trn,c0), And(Apply(trn,ska,ca_new), step(trn,ska)))))
+
+    $_et_body \vtra: \vska: \vca_new: \vc0: \vka: \vdelta: \vca: \vw:
+        implies(function(vtra,"_"),
+        implies(forall("xdn", forall("ydn", implies(apply(vtra,"xdn","ydn","_"),
+            or(mem("xdn",vka), eqv("xdn",vka,"_"))))),
+        implies(omega(vw,"_"),
+        implies(mem(vka,vw),
+        implies(successor(vska,vka,"_"),
+        implies(forall("zp", implies(num("zp",0,"_"), apply(vtra,"zp",vc0,"_"))),
+        implies(forall("ja", implies(mem("ja",vka),
+            forall("sja", implies(successor("sja","ja","_"),
+                forall("cja", implies(apply(vtra,"ja","cja","_"),
+                    exists("cja1", and(apply(vtra,"sja","cja1","_"),
+                        tm_step(vdelta,"cja","cja1","_"))))))))),
+        implies(tm_step(vdelta,vca,vca_new,"_"),
+        implies(apply(vtra,vka,vca,"_"),
+            exists("trn", and(function("trn","_"), and(
+                forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
+                    or(mem("xdn",vska), eqv("xdn",vska,"_"))))),
+                and(forall("zp2", implies(num("zp2",0,"_"), apply("trn","zp2",vc0,"_"))),
+                    and(apply("trn",vska,vca_new,"_"),
+                        forall("ja", implies(mem("ja",vska),
+                            forall("sja", implies(successor("sja","ja","_"),
+                                forall("cja", implies(apply("trn","ja","cja","_"),
+                                    exists("cja1", and(apply("trn","sja","cja1","_"),
+                                        tm_step(vdelta,"cja","cja1","_")))))))))))))))))))))))
+
+    $got_et apply_thm(extend_trace, head(right(extend_trace)),
+        ["tra","spos","ck1","x","pos","d","cj","w"],
+        ["tra","ska","ca_new","c0","ka","delta","ca","w"],
+        _et_body, left(extend_trace))
+
+    $_ tap("et apply_thm ok")
+    $_ tap(head(right(got_et)))
+
+    # Feed hypotheses one by one
+    $got_et mp(got_et, got_rn_func, rn_func, arg2(head(right(got_et))),
+        left(got_et), left(got_rn_func))
+    $_ tap("et mp1 ok")
+    $got_et mp(got_et, got_rn_db, rn_db, arg2(head(right(got_et))),
+        left(got_et), left(got_rn_db))
+    $_ tap("et mp2 ok")
+    $got_et mp(got_et, ax([omega_w],[omega_w],omega_w), omega_w, arg2(head(right(got_et))),
+        left(got_et), [omega_w])
+    $_ tap("et mp3 ok")
+    $got_et mp(got_et, got_posw, mem("pos","w"), arg2(head(right(got_et))),
+        left(got_et), left(got_posw))
+    $_ tap("et mp4 ok")
+    $got_et mp(got_et, ax([succ_spos],[succ_spos],succ_spos), succ_spos, arg2(head(right(got_et))),
+        left(got_et), [succ_spos])
+    $_ tap("et mp5 ok")
+    $got_et mp(got_et, got_rn_base, rn_base, arg2(head(right(got_et))),
+        left(got_et), left(got_rn_base))
+    $_ tap("et mp6 ok")
+    $got_et mp(got_et, got_rn_step, rn_step, arg2(head(right(got_et))),
+        left(got_et), left(got_rn_step))
+    $_ tap("et mp7 ok")
+    $got_et mp(got_et, got_tmstep, tm_step("d","cj","ck1","_"), arg2(head(right(got_et))),
+        left(got_et), left(got_tmstep))
+    $_ tap("et mp8 ok")
+    $_ tap(head(right(got_et)))
+    $got_et mp(got_et, got_rn_reached, rn_reached, arg2(head(right(got_et))),
+        left(got_et), left(got_rn_reached))
+
+    $_ tap("extend_trace done")
+
+    # === Build TMReaches(d,x,spos,ck1) from the extended trace ===
+    # got_et: ∃trn. And(Func, And(db(trn,spos), And(base(trn,x), And(Apply(trn,spos,ck1), step(trn,spos)))))
+    # Need to rearrange into TMReaches expansion: ∃trn. And(Func, And(db, And(base, And(step, Apply))))
+    $et_func function("trn","_")
+    $et_db forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
+        or(mem("xdn","spos"), eqv("xdn","spos","_")))))
+    $et_base forall("zp2", implies(num("zp2",0,"_"), apply("trn","zp2","x","_")))
+    $et_app apply("trn","spos","ck1","_")
+    $et_step forall("ja", implies(mem("ja","spos"),
+        forall("sja", implies(successor("sja","ja","_"),
+            forall("cja", implies(apply("trn","ja","cja","_"),
+                exists("cja1", and(apply("trn","sja","cja1","_"),
+                    tm_step("d","cja","cja1","_")))))))))
+    $et_body_and and(et_func, and(et_db, and(et_base, and(et_app, et_step))))
+
+    # Decompose the extended trace result
+    $g_func mp(and_elim_left(et_func, and(et_db, and(et_base, and(et_app, et_step))), []),
+        ax([et_body_and],[et_body_and],et_body_and), et_body_and, et_func, [], [et_body_and])
+    $g_r1 mp(and_elim_right(et_func, and(et_db, and(et_base, and(et_app, et_step))), []),
+        ax([et_body_and],[et_body_and],et_body_and), et_body_and,
+        and(et_db, and(et_base, and(et_app, et_step))), [], [et_body_and])
+    $g_db mp(and_elim_left(et_db, and(et_base, and(et_app, et_step)), []),
+        g_r1, and(et_db, and(et_base, and(et_app, et_step))), et_db, [], left(g_r1))
+    $g_r2 mp(and_elim_right(et_db, and(et_base, and(et_app, et_step)), []),
+        g_r1, and(et_db, and(et_base, and(et_app, et_step))),
+        and(et_base, and(et_app, et_step)), [], left(g_r1))
+    $g_base mp(and_elim_left(et_base, and(et_app, et_step), []),
+        g_r2, and(et_base, and(et_app, et_step)), et_base, [], left(g_r2))
+    $g_r3 mp(and_elim_right(et_base, and(et_app, et_step), []),
+        g_r2, and(et_base, and(et_app, et_step)),
+        and(et_app, et_step), [], left(g_r2))
+    $g_app mp(and_elim_left(et_app, et_step, []),
+        g_r3, and(et_app, et_step), et_app, [], left(g_r3))
+    $g_step mp(and_elim_right(et_app, et_step, []),
+        g_r3, and(et_app, et_step), et_step, [], left(g_r3))
+
+    # Reassemble as TMReaches order: And(Func, And(db, And(base, And(step, reached))))
+    $rn_new_r3 and(et_step, et_app)
+    $got_rn_r3_new mp(mp(and_intro(et_step, et_app, []),
+        g_step, et_step, implies(et_app, rn_new_r3), [], left(g_step)),
+        g_app, et_app, rn_new_r3, left(g_step), left(g_app))
+    $rn_new_r2 and(et_base, rn_new_r3)
+    $got_rn_r2_new mp(mp(and_intro(et_base, rn_new_r3, []),
+        g_base, et_base, implies(rn_new_r3, rn_new_r2), [], left(g_base)),
+        got_rn_r3_new, rn_new_r3, rn_new_r2, left(g_base), left(got_rn_r3_new))
+    $rn_new_r1 and(et_db, rn_new_r2)
+    $got_rn_r1_new mp(mp(and_intro(et_db, rn_new_r2, []),
+        g_db, et_db, implies(rn_new_r2, rn_new_r1), [], left(g_db)),
+        got_rn_r2_new, rn_new_r2, rn_new_r1, left(g_db), left(got_rn_r2_new))
+    $rn_new_body and(et_func, rn_new_r1)
+    $got_rn_new mp(mp(and_intro(et_func, rn_new_r1, []),
+        g_func, et_func, implies(rn_new_r1, rn_new_body), [], left(g_func)),
+        got_rn_r1_new, rn_new_r1, rn_new_body, left(g_func), left(got_rn_r1_new))
+
+    # eir trn → ∃trn. TMReaches body, then cut with TMReaches vocab
+    $reaches_new tm_reaches("d","x","spos","ck1","_")
+    $got_reaches_new eir(got_rn_new,
+        \v: and(function(v,"_"), and(
+            forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
+                or(mem("xdn","spos"), eqv("xdn","spos","_"))))),
+            and(forall("zp2", implies(num("zp2",0,"_"), apply(v,"zp2","x","_"))),
+                and(forall("ja", implies(mem("ja","spos"),
+                    forall("sja", implies(successor("sja","ja","_"),
+                        forall("cja", implies(apply(v,"ja","cja","_"),
+                            exists("cja1", and(apply(v,"sja","cja1","_"),
+                                tm_step("d","cja","cja1","_"))))))))),
+                    apply(v,"spos","ck1","_"))))),
+        "trn", "trn", left(got_rn_new))
+    $_ tap("TMReaches(d,x,spos,ck1) ok")
+
+    # === Plus(a,sn,spos) from plus_step ===
+    $plus_asn_spos plus("a","sn","spos","_")
+    $ps_body \vm: implies(nat(vm,"_"), forall("nn2", implies(nat("nn2","_"),
+        forall("pos2", implies(plus(vm,"nn2","pos2","_"), forall("sn2", implies(successor("sn2","nn2","_"),
+            forall("spos2", implies(successor("spos2","pos2","_"), plus(vm,"sn2","spos2","_"))))))))))
+    $got_ps apply_thm(plus_step, head(right(plus_step)),
+        ["a"], ["m"], ps_body, left(plus_step))
+    $got_ps mp(got_ps, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(got_ps))),
+        left(got_ps), [nat_a])
+
+    $ps2 \vn: implies(nat(vn,"_"),
+        forall("pos2", implies(plus("a",vn,"pos2","_"), forall("sn2", implies(successor("sn2",vn,"_"),
+            forall("spos2", implies(successor("spos2","pos2","_"), plus("a","sn2","spos2","_"))))))))
+    $got_ps apply_thm(got_ps, head(right(got_ps)),
+        ["nn"], ["nn2"], ps2, left(got_ps))
+    $got_ps mp(got_ps, got_nat_nn, nat_nn, arg2(head(right(got_ps))),
+        left(got_ps), left(got_nat_nn))
+
+    $ps3 \vp: implies(plus("a","nn",vp,"_"), forall("sn2", implies(successor("sn2","nn","_"),
+        forall("spos2", implies(successor("spos2",vp,"_"), plus("a","sn2","spos2","_"))))))
+    $got_ps apply_thm(got_ps, head(right(got_ps)),
+        ["pos"], ["pos2"], ps3, left(got_ps))
+    $got_ps mp(got_ps, got_plus_nn, plus("a","nn","pos","_"), arg2(head(right(got_ps))),
+        left(got_ps), left(got_plus_nn))
+
+    $ps4 \vsn: implies(successor(vsn,"nn","_"),
+        forall("spos2", implies(successor("spos2","pos","_"), plus("a",vsn,"spos2","_"))))
+    $got_ps apply_thm(got_ps, head(right(got_ps)),
+        ["sn"], ["sn2"], ps4, left(got_ps))
+    $got_ps mp(got_ps, ax([succ_sn],[succ_sn],succ_sn), succ_sn, arg2(head(right(got_ps))),
+        left(got_ps), [succ_sn])
+
+    $ps5 \vsp: implies(successor(vsp,"pos","_"), plus("a","sn",vsp,"_"))
+    $got_ps apply_thm(got_ps, head(right(got_ps)),
+        ["spos"], ["spos2"], ps5, left(got_ps))
+    $got_ps mp(got_ps, ax([succ_spos],[succ_spos],succ_spos), succ_spos, plus_asn_spos,
+        left(got_ps), [succ_spos])
+
+    $_ tap("Plus(a,sn,spos) ok")
+
+    # === Assemble Q_inner(sn) ===
+    # Q_inner(sn) = ∃pos,cj. Plus(a,sn,pos) ∧ Apply(tr2,sn,cj) ∧ TMReaches(d,x,pos,cj)
+    # Witnesses: pos=spos, cj=ck1
+    $and_app_reach_sn and(apply("tr2","sn","ck1","_"), reaches_new)
+    $got_and_ar_sn mp(mp(and_intro(apply("tr2","sn","ck1","_"), reaches_new, []),
+        got_app_sn, apply("tr2","sn","ck1","_"), implies(reaches_new, and_app_reach_sn),
+        [], left(got_app_sn)),
+        got_reaches_new, reaches_new, and_app_reach_sn,
+        left(got_app_sn), left(got_reaches_new))
+    $and_plus_ar_sn and(plus_asn_spos, and_app_reach_sn)
+    $got_and_par_sn mp(mp(and_intro(plus_asn_spos, and_app_reach_sn, []),
+        got_ps, plus_asn_spos, implies(and_app_reach_sn, and_plus_ar_sn),
+        [], left(got_ps)),
+        got_and_ar_sn, and_app_reach_sn, and_plus_ar_sn,
+        left(got_ps), left(got_and_ar_sn))
+
+    # eir rc=ck1, rp=spos
+    $got_qi_sn eir(got_and_par_sn,
+        \v: and(plus("a","sn","spos","_"), and(apply("tr2","sn",v,"_"), tm_reaches("d","x","spos",v,"_"))),
+        _np, "ck1", left(got_and_par_sn))
+    $got_qi_sn eir(got_qi_sn,
+        \v: exists(_np, and(plus("a","sn",v,"_"), and(apply("tr2","sn",_np,"_"), tm_reaches("d","x",v,_np,"_")))),
+        _np2, "spos", left(got_qi_sn))
+
+    $_ tap("Q_inner(sn) ok")
+
+    # === eel eigenvars: trn, ck1, spos, tra, cj, pos ===
+    # eel trn from et_body_and (inside got_et)
+    $got_qi_sn eel(got_qi_sn, \v: and(function(v,"_"), and(
+        forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
+            or(mem("xdn","spos"), eqv("xdn","spos","_"))))),
+        and(forall("zp2", implies(num("zp2",0,"_"), apply(v,"zp2","x","_"))),
+            and(apply(v,"spos","ck1","_"),
+                forall("ja", implies(mem("ja","spos"),
+                    forall("sja", implies(successor("sja","ja","_"),
+                        forall("cja", implies(apply(v,"ja","cja","_"),
+                            exists("cja1", and(apply(v,"sja","cja1","_"),
+                                tm_step("d","cja","cja1","_")))))))))
+        )))),
+        "trn", "trn", remove(same, et_body_and, left(got_qi_sn)), _Q_inner("sn","_"))
+    $got_qi_sn cut_c(got_et, got_qi_sn,
+        exists("trn", et_body_and),
+        left(got_et), left(got_qi_sn), _Q_inner("sn","_"))
+
+    # eel spos from Succ(spos,pos)
+    $got_qi_sn eel(got_qi_sn, \v: successor(v,"pos","_"),
+        "spos", "spos", remove(same, succ_spos, left(got_qi_sn)), _Q_inner("sn","_"))
+    $got_qi_sn cut_c(got_ex_spos, got_qi_sn, exists("spos", succ_spos),
+        left(got_ex_spos), left(got_qi_sn), _Q_inner("sn","_"))
+
+    # eel ck1 from ck1_body
+    $got_qi_sn eel(got_qi_sn, \v: and(apply("tr2","sn",v,"_"), tm_step("d","cj",v,"_")),
+        "ck1", "ck1", remove(same, ck1_body, left(got_qi_sn)), _Q_inner("sn","_"))
+    $got_qi_sn cut_c(got_step2, got_qi_sn,
+        exists("ck1", ck1_body),
+        left(got_step2), left(got_qi_sn), _Q_inner("sn","_"))
+
+    # eel tra from rn_body (TMReaches(d,x,pos,cj) expansion)
+    $got_qi_sn eel(got_qi_sn, \v: and(function(v,"_"), and(
+        forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
+            or(mem("xdn","pos"), eqv("xdn","pos","_"))))),
+        and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","x","_"))),
+            and(forall("ka", implies(mem("ka","pos"),
+                forall("ska", implies(successor("ska","ka","_"),
+                    forall("cka", implies(apply(v,"ka","cka","_"),
+                        exists("cka1", and(apply(v,"ska","cka1","_"),
+                            tm_step("d","cka","cka1","_"))))))))),
+                apply(v,"pos","cj","_"))))),
+        "tra", "tra", remove(same, rn_body, left(got_qi_sn)), _Q_inner("sn","_"))
+    $reaches_nn tm_reaches("d","x","pos","cj","_")
+    $got_qi_sn cut_c(got_reaches_nn, got_qi_sn, reaches_nn,
+        left(got_reaches_nn), left(got_qi_sn), _Q_inner("sn","_"))
+
+    # eel cj from qn_and (the body of Q_inner(nn) after opening ∃_rc,∃_rp)
+    $qn_inner exists(_np, qn_and)
+    $got_qi_sn eel(got_qi_sn,
+        \v: and(plus("a","nn","pos","_"), and(apply("tr2","nn",v,"_"), tm_reaches("d","x","pos",v,"_"))),
+        _np, "cj", remove(same, qn_and, left(got_qi_sn)), _Q_inner("sn","_"))
+
+    # eel pos from qn_inner
+    $qi_nn _Q_inner("nn","_")
+    $got_qi_sn eel(got_qi_sn,
+        \v: exists(_np, and(plus("a","nn",v,"_"), and(apply("tr2","nn",_np,"_"), tm_reaches("d","x",v,_np,"_")))),
+        _np2, "pos", remove(same, qn_inner, left(got_qi_sn)), _Q_inner("sn","_"))
+    $got_qi_sn cut_c(got_Qnn_val, got_qi_sn, qi_nn,
+        left(got_Qnn_val), left(got_qi_sn), _Q_inner("sn","_"))
+
+    $_ tap("eigenvars cleaned ok")
+
+    # === Q(sn) = Or(In(sn,b),Eq(sn,b)) → Q_inner(sn). Weaken with guard, then ir. ===
+    $imp_qsn implies(or_snb, _Q_inner("sn","_"))
+    $got_Qsn ir(got_qi_sn, remove(same, or_snb, left(got_qi_sn)),
+        [imp_qsn], imp_qsn)
+
+    # char_bwd(sn): In(sn,w) + Q(sn) → In(sn,pv)
+    $char_sn iff(mem("sn","pv"), and(mem("sn","w"), _Q("sn","_")))
+    $char_sn_inst inst(ax([char_pv],[char_pv],char_pv), char_pv, char_sn, "sn", [char_pv])
+    $bwd_sn implies(and(mem("sn","w"), _Q("sn","_")), mem("sn","pv"))
+    $got_bwd_sn mp(iff_elim_right(mem("sn","pv"), and(mem("sn","w"), _Q("sn","_")), []),
+        char_sn_inst, char_sn, bwd_sn, [], [char_pv])
+    $and_snw and(mem("sn","w"), _Q("sn","_"))
+    $got_and_sn mp(mp(and_intro(mem("sn","w"), _Q("sn","_"), []),
+        got_snw, mem("sn","w"), implies(_Q("sn","_"), and_snw), [], left(got_snw)),
+        got_Qsn, _Q("sn","_"), and_snw, left(got_snw), left(got_Qsn))
+    $got_snpv mp(got_bwd_sn, got_and_sn, and_snw, mem("sn","pv"),
+        [char_pv], left(got_and_sn))
+
+    $_ tap("sn in pv ok")
+
+    # === Discharge sn, nn, close ∀ ===
+    $proof got_snpv
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, succ_sn, left(proof)), [implies(succ_sn, goal_f)], implies(succ_sn, goal_f))
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("sn", goal_f)], forall("sn", goal_f), "sn")
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, in_nnpv, left(proof)), [implies(in_nnpv, goal_f)], implies(in_nnpv, goal_f))
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("nn", goal_f)], forall("nn", goal_f), "nn")
+    $got_ind_step proof
+
+    $_ tap("ind_step ok")
+
+    # === 5. OSI: pv = w ===
+    $ibf head(right(got_ind_base))
+    $isf head(right(got_ind_step))
+    $ai and(ibf, isf)
+    $all_ctx diff(same, left(got_ind_step), left(got_ind_base))
+    $gib_w wl_all(got_ind_base, left(got_ind_base), right(got_ind_base), all_ctx)
+    $gis_w wl_all(got_ind_step, left(got_ind_step), right(got_ind_step),
+        diff(same, left(got_ind_base), left(got_ind_step)))
+    $got_ind mp(mp(and_intro(ibf, isf, []),
+        gib_w, ibf, implies(isf, ai), [], left(gib_w)),
+        gis_w, isf, ai, left(gib_w), left(gis_w))
+
+    # pv ⊆ w
+    $in_x2pv mem("x2","pv")
+    $in_x2w mem("x2","w")
+    $char_x2 iff(in_x2pv, and(in_x2w, _Q("x2","_")))
+    $char_x2_inst inst(ax([char_pv],[char_pv],char_pv), char_pv, char_x2, "x2", [char_pv])
+    $fwd_x2 implies(in_x2pv, and(in_x2w, _Q("x2","_")))
+    $got_fwd_x2 mp(iff_elim_left(in_x2pv, and(in_x2w, _Q("x2","_")), []),
+        char_x2_inst, char_x2, fwd_x2, [], [char_pv])
+    $got_x2w mp(and_elim_left(in_x2w, _Q("x2","_"), []),
+        mp(got_fwd_x2, ax([in_x2pv],[in_x2pv],in_x2pv), in_x2pv, and(in_x2w, _Q("x2","_")),
+            [char_pv], [in_x2pv]),
+        and(in_x2w, _Q("x2","_")), in_x2w, [], [char_pv, in_x2pv])
+    $imp_sub implies(in_x2pv, in_x2w)
+    $got_sub ir(got_x2w, remove(same, in_x2pv, left(got_x2w)), [imp_sub], imp_sub)
+    $spw forall("x2", imp_sub)
+    $got_sub fr(got_sub, left(got_sub), [spw], spw, "x2")
+
+    # OSI
+    $osi_body \vc: \vw: implies(omega(vw,"_"),
+        implies(inductive(vc,"_"), subset(vw,vc,"_")))
+    $got_osi apply_thm(omega_smallest_inductive, head(right(omega_smallest_inductive)),
+        ["pv","w"], ["c","w"], osi_body, left(omega_smallest_inductive))
+    $got_osi mp(got_osi, ax([omega_w],[omega_w],omega_w), omega_w,
+        arg2(head(right(got_osi))), left(got_osi), [omega_w])
+    $ind_pv inductive("pv","_")
+    $wpv subset("w","pv","_")
+    $got_osi mp(got_osi, got_ind, ind_pv, wpv, left(got_osi), left(got_ind))
+
+    # subset_antisymmetric → pv = w
+    $sa_body \va: \vb: implies(subset(va,vb,"_"), implies(subset(vb,va,"_"), eqv(va,vb,"_")))
+    $got_sa apply_thm(subset_antisymmetric, head(right(subset_antisymmetric)),
+        ["pv","w"], ["a","b"], sa_body, left(subset_antisymmetric))
+    $pvw subset("pv","w","_")
+    $eq_pvw eqv("pv","w","_")
+    $got_sa mp(got_sa, got_sub, pvw, implies(wpv, eq_pvw), left(got_sa), left(got_sub))
+    $got_eq_pvw mp(got_sa, got_osi, wpv, eq_pvw, left(got_sa), left(got_osi))
+
+    $_ tap("pv = w ok")
+
+    # === 6. Extract Q(b) ===
+    $eqt_body \va: \vb: \vz: implies(eqv(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
+    $got_eqt apply_thm(eq_transfer, head(right(eq_transfer)),
+        ["pv","w","b"], ["a","b","z"], eqt_body, left(eq_transfer))
+    $iff_bpvw iff(mem("b","pv"), mem("b","w"))
+    $got_iff_bpvw mp(got_eqt, got_eq_pvw, eq_pvw, iff_bpvw,
+        left(got_eqt), left(got_eq_pvw))
+    $got_bwd_bpv mp(iff_elim_right(mem("b","pv"), in_b_w, []),
+        got_iff_bpvw, iff_bpvw, implies(in_b_w, mem("b","pv")),
+        [], left(got_iff_bpvw))
+    $got_bpv mp(got_bwd_bpv, got_ibw, in_b_w, mem("b","pv"),
+        left(got_bwd_bpv), left(got_ibw))
+
+    $char_b iff(mem("b","pv"), and(in_b_w, _Q("b","_")))
+    $char_b_inst inst(ax([char_pv],[char_pv],char_pv), char_pv, char_b, "b", [char_pv])
+    $fwd_b implies(mem("b","pv"), and(in_b_w, _Q("b","_")))
+    $got_fwd_b mp(iff_elim_left(mem("b","pv"), and(in_b_w, _Q("b","_")), []),
+        char_b_inst, char_b, fwd_b, [], [char_pv])
+    $got_and_b mp(got_fwd_b, got_bpv, mem("b","pv"), and(in_b_w, _Q("b","_")),
+        [char_pv], left(got_bpv))
+    $got_Qb mp(and_elim_right(in_b_w, _Q("b","_"), []),
+        got_and_b, and(in_b_w, _Q("b","_")), _Q("b","_"), [], left(got_and_b))
+
+    # Or(In(b,b),Eq(b,b)) via Eq reflexive
+    $eq_bb eqv("b","b","_")
+    $got_eqbb apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
+        ["b"], ["a"], er_body, left(eqv_reflexive))
+    $or_bb or(mem("b","b"), eq_bb)
+    $got_orbb mp(apply_thm(or_intro_right(mem("b","b"), eq_bb, []),
+        head(right(or_intro_right(mem("b","b"), eq_bb, []))),
+        [], [], oir_body, []),
+        got_eqbb, eq_bb, or_bb, [], left(got_eqbb))
+
+    # Q(b) = guard → Q_inner(b). Apply guard.
+    $got_Qb_val mp(got_Qb, got_orbb, or_bb, _Q_inner("b","_"),
+        left(got_Qb), left(got_orbb))
+
+    $_ tap("Q(b) extracted ok")
+
+    # === 7. Eliminate pv ===
+    $got_Qb_val eel(got_Qb_val, \v: forall("xv", iff(mem("xv",v), and(mem("xv","w"), _Q("xv","_")))),
+        "sv", "pv", remove(same, char_pv, left(got_Qb_val)), _Q_inner("b","_"))
+    $got_Qb_val cut_c(got_sep, got_Qb_val, ex_pv,
+        left(got_sep), left(got_Qb_val), _Q_inner("b","_"))
+
+    $_ tap("pv eliminated ok")
+
+    # === 8. Extract TMReaches(d,x,n,z) from Q_inner(b) ===
+    # Q_inner(b) = ∃pos,cj. Plus(a,b,pos) ∧ Apply(tr2,b,cj) ∧ TMReaches(d,x,pos,cj)
+    # Open ∃pos,∃cj. Get pos_b and cb free.
+    $qb_and and(plus("a","b","pb","_"), and(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_")))
+    $got_qb_plus mp(and_elim_left(plus("a","b","pb","_"),
+        and(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_")), []),
+        ax([qb_and],[qb_and],qb_and), qb_and, plus("a","b","pb","_"), [], [qb_and])
+    $got_qb_rest mp(and_elim_right(plus("a","b","pb","_"),
+        and(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_")), []),
+        ax([qb_and],[qb_and],qb_and), qb_and,
+        and(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_")), [], [qb_and])
+    $got_qb_app mp(and_elim_left(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_"), []),
+        got_qb_rest, and(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_")),
+        apply("tr2","b","cb","_"), [], left(got_qb_rest))
+    $got_qb_reaches mp(and_elim_right(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_"), []),
+        got_qb_rest, and(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_")),
+        tm_reaches("d","x","pb","cb","_"), [], left(got_qb_rest))
+
+    # Eq(pb,n) from plus_val_unique: Plus(a,b,pb) + Plus(a,b,n) → Eq(pb,n)
+    $pvu_body \va: \vb: \vc: \vc2: implies(plus(va,vb,vc,"_"), implies(plus(va,vb,vc2,"_"), eqv(vc,vc2,"_")))
+    $got_pvu apply_thm(plus_val_unique, head(right(plus_val_unique)),
+        ["a","b","pb","n"], ["a","b","c","c2"], pvu_body, left(plus_val_unique))
+    $got_eq_pb mp(got_pvu, got_qb_plus, plus("a","b","pb","_"),
+        implies(plus_abn, eqv("pb","n","_")),
+        left(got_pvu), left(got_qb_plus))
+    $got_eq_pb mp(got_eq_pb, ax([plus_abn],[plus_abn],plus_abn), plus_abn,
+        eqv("pb","n","_"), left(got_eq_pb), [plus_abn])
+
+    # Eq(cb,z) from func_unique: Func(tr2) + Apply(tr2,b,cb) + Apply(tr2,b,z) → Eq(cb,z)
+    # func_unique_thm: single_valued(f) → Apply(f,x,y1) → Apply(f,x,y2) → Eq(y1,y2)
+    # But tr2 is Function, not just single-valued. Need to extract single-valued from Function.
+    # Actually, func_unique_thm statement uses single_valued. Let me check.
+    # For now, let me check what func_unique_thm actually says.
+
+    # Actually, I'll use the Apply expansion + ordpair uniqueness approach.
+    # But func_unique_thm exists. Let me check its actual statement.
+    # From test.min it's not shown. Let me just try: Function(f) → Apply(f,x,y1) → Apply(f,x,y2) → Eq(y1,y2)
+    # This should work because Function implies single-valued.
+
+    # Actually let me check func_unique_thm
+    $_ tap("got Eq(pb,n) ok")
+
+    # For now: use apply_key_transfer and apply_val_transfer to transfer TMReaches components
+    # Open TMReaches(d,x,pb,cb): get trace rq_tra with components
+    $rq_func function("rtra", "_")
+    $rq_db forall("xdn", forall("ydn", implies(apply("rtra","xdn","ydn","_"),
+        or(mem("xdn","pb"), eqv("xdn","pb","_")))))
+    $rq_base forall("zp", implies(num("zp",0,"_"), apply("rtra","zp","x","_")))
+    $rq_step forall("kq", implies(mem("kq","pb"),
+        forall("skq", implies(successor("skq","kq","_"),
+            forall("ckq", implies(apply("rtra","kq","ckq","_"),
+                exists("ckq1", and(apply("rtra","skq","ckq1","_"),
+                    tm_step("d","ckq","ckq1","_")))))))))
+    $rq_reached apply("rtra","pb","cb","_")
+    $rq_r3 and(rq_step, rq_reached)
+    $rq_r2 and(rq_base, rq_r3)
+    $rq_r1 and(rq_db, rq_r2)
+    $rq_body and(rq_func, rq_r1)
+
+    $g_rq_func mp(and_elim_left(rq_func, rq_r1, []),
+        ax([rq_body],[rq_body],rq_body), rq_body, rq_func, [], [rq_body])
+    $g_rq_r1 mp(and_elim_right(rq_func, rq_r1, []),
+        ax([rq_body],[rq_body],rq_body), rq_body, rq_r1, [], [rq_body])
+    $g_rq_db mp(and_elim_left(rq_db, rq_r2, []),
+        g_rq_r1, rq_r1, rq_db, [], left(g_rq_r1))
+    $g_rq_r2 mp(and_elim_right(rq_db, rq_r2, []),
+        g_rq_r1, rq_r1, rq_r2, [], left(g_rq_r1))
+    $g_rq_base mp(and_elim_left(rq_base, rq_r3, []),
+        g_rq_r2, rq_r2, rq_base, [], left(g_rq_r2))
+    $g_rq_r3 mp(and_elim_right(rq_base, rq_r3, []),
+        g_rq_r2, rq_r2, rq_r3, [], left(g_rq_r2))
+    $g_rq_step mp(and_elim_left(rq_step, rq_reached, []),
+        g_rq_r3, rq_r3, rq_step, [], left(g_rq_r3))
+    $g_rq_reached mp(and_elim_right(rq_step, rq_reached, []),
+        g_rq_r3, rq_r3, rq_reached, [], left(g_rq_r3))
+
+    $_ tap("TMReaches(d,x,pb,cb) decomposed ok")
+
+    # === Transfer reached: Apply(rtra,pb,cb) → Apply(rtra,n,cb) → Apply(rtra,n,z) ===
+    # apply_key_transfer: Eq(pb,n) → Apply(rtra,pb,cb) → Apply(rtra,n,cb)
+    $akt_body \vf: \vx: \vx2: \vy:
+        implies(eqv(vx,vx2,"_"), implies(apply(vf,vx,vy,"_"), apply(vf,vx2,vy,"_")))
+    $got_app_n mp(mp(apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
+        ["rtra","pb","n","cb"], ["f","x","x2","y"], akt_body, left(apply_key_transfer)),
+        got_eq_pb, eqv("pb","n","_"), implies(rq_reached, apply("rtra","n","cb","_")),
+        left(apply_key_transfer), left(got_eq_pb)),
+        g_rq_reached, rq_reached, apply("rtra","n","cb","_"),
+        left(got_eq_pb), left(g_rq_reached))
+
+    # Eq(cb,z) from func_unique_thm: ∀f,x,y1,y2. SV(f) → Apply(f,x,y1) → Apply(f,x,y2) → Eq(y1,y2)
+    # Extract SV(tr2) from Function(tr2) = And(Relation(tr2), SV(tr2))
+    $sv_tr2 single_valued("tr2","_")
+    $got_sv_tr2 mp(and_elim_right(relation("tr2","_"), sv_tr2, []),
+        got_r2_func, r2_func, sv_tr2, [], left(got_r2_func))
+    $fut_body \vf: \vx: \vy: \vy2:
+        implies(single_valued(vf,"_"), implies(apply(vf,vx,vy,"_"), implies(apply(vf,vx,vy2,"_"), eqv(vy,vy2,"_"))))
+    $got_eq_cb apply_thm(func_unique_thm, head(right(func_unique_thm)),
+        ["tr2","b","cb","z"], ["f","x","y","y2"], fut_body, left(func_unique_thm))
+    $got_eq_cb mp(got_eq_cb, got_sv_tr2, sv_tr2,
+        arg2(head(right(got_eq_cb))), left(got_eq_cb), left(got_sv_tr2))
+    $got_eq_cb mp(got_eq_cb, got_qb_app, apply("tr2","b","cb","_"),
+        implies(r2_reached, eqv("cb","z","_")),
+        left(got_eq_cb), left(got_qb_app))
+    $got_eq_cb mp(got_eq_cb, got_r2_reached, r2_reached,
+        eqv("cb","z","_"), left(got_eq_cb), left(got_r2_reached))
+
+    $_ tap("got Eq(cb,z) ok")
+
+    # apply_val_transfer: Eq(cb,z) → Apply(rtra,n,cb) → Apply(rtra,n,z)
+    $avt_body \vf: \vx: \vy: \vy2:
+        implies(eqv(vy,vy2,"_"), implies(apply(vf,vx,vy,"_"), apply(vf,vx,vy2,"_")))
+    $got_app_nz mp(mp(apply_thm(apply_val_transfer, head(right(apply_val_transfer)),
+        ["rtra","n","cb","z"], ["f","x","y","y2"], avt_body, left(apply_val_transfer)),
+        got_eq_cb, eqv("cb","z","_"), implies(apply("rtra","n","cb","_"), apply("rtra","n","z","_")),
+        left(apply_val_transfer), left(got_eq_cb)),
+        got_app_n, apply("rtra","n","cb","_"), apply("rtra","n","z","_"),
+        left(got_eq_cb), left(got_app_n))
+
+    $_ tap("reached transferred ok")
+
+    # === Transfer dom_bound: Or(In(xdn,pb),Eq(xdn,pb)) → Or(In(xdn,n),Eq(xdn,n)) ===
+    # Open ∀xdn,ydn in rq_db
+    $db_outer_body \vx: forall("ydn", implies(apply("rtra",vx,"ydn","_"),
+        or(mem(vx,"pb"), eqv(vx,"pb","_"))))
+    $db_inner_body \vy: implies(apply("rtra","xdn",vy,"_"),
+        or(mem("xdn","pb"), eqv("xdn","pb","_")))
+    $got_db_inst apply_thm(g_rq_db, rq_db,
+        ["xdn"], ["xdn"], db_outer_body, left(g_rq_db))
+    $got_db_inst apply_thm(got_db_inst, head(right(got_db_inst)),
+        ["ydn"], ["ydn"], db_inner_body, left(got_db_inst))
+    $got_db_inst mp(got_db_inst,
+        ax([apply("rtra","xdn","ydn","_")],[apply("rtra","xdn","ydn","_")],apply("rtra","xdn","ydn","_")),
+        apply("rtra","xdn","ydn","_"), or(mem("xdn","pb"), eqv("xdn","pb","_")),
+        left(got_db_inst), [apply("rtra","xdn","ydn","_")])
+
+    # Case In(xdn,pb) → In(xdn,n) via eq_transfer
+    $et2_body \va: \vb: \vz: implies(eqv(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
+    $got_iff_xdn apply_thm(eq_transfer, head(right(eq_transfer)),
+        ["pb","n","xdn"], ["a","b","z"], et2_body, left(eq_transfer))
+    $got_iff_xdn mp(got_iff_xdn, got_eq_pb, eqv("pb","n","_"),
+        iff(mem("xdn","pb"), mem("xdn","n")),
+        left(got_iff_xdn), left(got_eq_pb))
+    $got_in_xdn_n mp(apply_thm(iff_elim_left(mem("xdn","pb"), mem("xdn","n"), []),
+        head(right(iff_elim_left(mem("xdn","pb"), mem("xdn","n"), []))),
+        [], [], \va: \vb: implies(iff(va,vb), implies(va,vb)), []),
+        got_iff_xdn, iff(mem("xdn","pb"), mem("xdn","n")),
+        implies(mem("xdn","pb"), mem("xdn","n")),
+        [], left(got_iff_xdn))
+    $got_in_xdn_n mp(got_in_xdn_n,
+        ax([mem("xdn","pb")],[mem("xdn","pb")],mem("xdn","pb")),
+        mem("xdn","pb"), mem("xdn","n"),
+        left(got_iff_xdn), [mem("xdn","pb")])
+    $or_xdn_n or(mem("xdn","n"), eqv("xdn","n","_"))
+    $got_or_in mp(apply_thm(or_intro_left(mem("xdn","n"), eqv("xdn","n","_"), []),
+        head(right(or_intro_left(mem("xdn","n"), eqv("xdn","n","_"), []))),
+        [], [], oil_body, []),
+        got_in_xdn_n, mem("xdn","n"), or_xdn_n, [], left(got_in_xdn_n))
+    $imp_db_case1 implies(mem("xdn","pb"), or_xdn_n)
+    $got_or_in ir(got_or_in, remove(same, mem("xdn","pb"), left(got_or_in)),
+        [imp_db_case1], imp_db_case1)
+
+    # Case Eq(xdn,pb) → Eq(xdn,n) via eqv_transitive
+    $etr_body \va: \vb: \vc: implies(eqv(va,vb,"_"), implies(eqv(vb,vc,"_"), eqv(va,vc,"_")))
+    $got_eq_xdn_n apply_thm(eqv_transitive, head(right(eqv_transitive)),
+        ["xdn","pb","n"], ["a","b","c"], etr_body, left(eqv_transitive))
+    $got_eq_xdn_n mp(got_eq_xdn_n,
+        ax([eqv("xdn","pb","_")],[eqv("xdn","pb","_")],eqv("xdn","pb","_")),
+        eqv("xdn","pb","_"), implies(eqv("pb","n","_"), eqv("xdn","n","_")),
+        left(got_eq_xdn_n), [eqv("xdn","pb","_")])
+    $got_eq_xdn_n mp(got_eq_xdn_n, got_eq_pb, eqv("pb","n","_"),
+        eqv("xdn","n","_"), left(got_eq_xdn_n), left(got_eq_pb))
+    $got_or_eq mp(apply_thm(or_intro_right(mem("xdn","n"), eqv("xdn","n","_"), []),
+        head(right(or_intro_right(mem("xdn","n"), eqv("xdn","n","_"), []))),
+        [], [], oir_body, []),
+        got_eq_xdn_n, eqv("xdn","n","_"), or_xdn_n, [], left(got_eq_xdn_n))
+    $imp_db_case2 implies(eqv("xdn","pb","_"), or_xdn_n)
+    $got_or_eq ir(got_or_eq, remove(same, eqv("xdn","pb","_"), left(got_or_eq)),
+        [imp_db_case2], imp_db_case2)
+
+    # or_elim
+    $got_oe2 apply_thm(or_elim(mem("xdn","pb"), eqv("xdn","pb","_"), or_xdn_n, []),
+        head(right(or_elim(mem("xdn","pb"), eqv("xdn","pb","_"), or_xdn_n, []))),
+        [], [], oe_body, [])
+    $or_old or(mem("xdn","pb"), eqv("xdn","pb","_"))
+    $got_or_new mp(got_oe2, got_db_inst, or_old,
+        implies(imp_db_case1, implies(imp_db_case2, or_xdn_n)),
+        [], left(got_db_inst))
+    $got_or_new mp(got_or_new, got_or_in, imp_db_case1,
+        implies(imp_db_case2, or_xdn_n),
+        left(got_or_new), left(got_or_in))
+    $got_or_new mp(got_or_new, got_or_eq, imp_db_case2, or_xdn_n,
+        left(got_or_new), left(got_or_eq))
+
+    # Close ∀xdn,ydn with Apply guard
+    $imp_db_new implies(apply("rtra","xdn","ydn","_"), or_xdn_n)
+    $got_db_new ir(got_or_new, remove(same, apply("rtra","xdn","ydn","_"), left(got_or_new)),
+        [imp_db_new], imp_db_new)
+    $got_db_new fr(got_db_new, left(got_db_new),
+        [forall("ydn", imp_db_new)], forall("ydn", imp_db_new), "ydn")
+    $got_db_new fr(got_db_new, left(got_db_new),
+        [forall("xdn", forall("ydn", imp_db_new))],
+        forall("xdn", forall("ydn", imp_db_new)), "xdn")
+
+    $_ tap("db transferred ok")
+
+    # === Transfer step: In(kq,pb) → In(kq,n) via eq_transfer reverse ===
+    # Open rq_step at kq
+    $step_inst_body \vk: implies(mem(vk,"pb"),
+        forall("skq", implies(successor("skq",vk,"_"),
+            forall("ckq", implies(apply("rtra",vk,"ckq","_"),
+                exists("ckq1", and(apply("rtra","skq","ckq1","_"),
+                    tm_step("d","ckq","ckq1","_"))))))))
+    $got_step_inst apply_thm(g_rq_step, rq_step,
+        ["kq"], ["kq"], step_inst_body, left(g_rq_step))
+    # Need: In(kq,n) → In(kq,pb) via eq_transfer reverse
+    $got_iff_kq apply_thm(eq_transfer, head(right(eq_transfer)),
+        ["pb","n","kq"], ["a","b","z"], et2_body, left(eq_transfer))
+    $got_iff_kq mp(got_iff_kq, got_eq_pb, eqv("pb","n","_"),
+        iff(mem("kq","pb"), mem("kq","n")),
+        left(got_iff_kq), left(got_eq_pb))
+    $got_in_kq_pb mp(apply_thm(iff_elim_right(mem("kq","pb"), mem("kq","n"), []),
+        head(right(iff_elim_right(mem("kq","pb"), mem("kq","n"), []))),
+        [], [], \va: \vb: implies(iff(va,vb), implies(vb,va)), []),
+        got_iff_kq, iff(mem("kq","pb"), mem("kq","n")),
+        implies(mem("kq","n"), mem("kq","pb")),
+        [], left(got_iff_kq))
+    $got_in_kq_pb mp(got_in_kq_pb,
+        ax([mem("kq","n")],[mem("kq","n")],mem("kq","n")),
+        mem("kq","n"), mem("kq","pb"),
+        left(got_iff_kq), [mem("kq","n")])
+    $got_step_nv mp(got_step_inst, got_in_kq_pb, mem("kq","pb"),
+        arg2(head(right(got_step_inst))),
+        left(got_step_inst), left(got_in_kq_pb))
+
+    # Close ∀kq with In(kq,n) guard
+    $step_nv_body head(right(got_step_nv))
+    $imp_step_nv implies(mem("kq","n"), step_nv_body)
+    $got_step_new ir(got_step_nv, remove(same, mem("kq","n"), left(got_step_nv)),
+        [imp_step_nv], imp_step_nv)
+    $got_step_new fr(got_step_new, left(got_step_new),
+        [forall("kq", imp_step_nv)], forall("kq", imp_step_nv), "kq")
+
+    $_ tap("step transferred ok")
+
+    # === Assemble TMReaches(d,x,n,z) ===
+    # Need: And(Func, And(db_new, And(base, And(step_new, reached_new))))
+    $rf_reached apply("rtra","n","z","_")
+    $rf_step forall("kq", imp_step_nv)
+    $rf_db forall("xdn", forall("ydn", imp_db_new))
+
+    $rf_r3 and(rf_step, rf_reached)
+    $got_rf_r3 mp(mp(and_intro(rf_step, rf_reached, []),
+        got_step_new, rf_step, implies(rf_reached, rf_r3), [], left(got_step_new)),
+        got_app_nz, rf_reached, rf_r3, left(got_step_new), left(got_app_nz))
+    $rf_r2 and(rq_base, rf_r3)
+    $got_rf_r2 mp(mp(and_intro(rq_base, rf_r3, []),
+        g_rq_base, rq_base, implies(rf_r3, rf_r2), [], left(g_rq_base)),
+        got_rf_r3, rf_r3, rf_r2, left(g_rq_base), left(got_rf_r3))
+    $rf_r1 and(rf_db, rf_r2)
+    $got_rf_r1 mp(mp(and_intro(rf_db, rf_r2, []),
+        got_db_new, rf_db, implies(rf_r2, rf_r1), [], left(got_db_new)),
+        got_rf_r2, rf_r2, rf_r1, left(got_db_new), left(got_rf_r2))
+    $rf_body and(rq_func, rf_r1)
+    $got_rf mp(mp(and_intro(rq_func, rf_r1, []),
+        g_rq_func, rq_func, implies(rf_r1, rf_body), [], left(g_rq_func)),
+        got_rf_r1, rf_r1, rf_body, left(g_rq_func), left(got_rf_r1))
+
+    # eir rtra → TMReaches(d,x,n,z)
+    $reaches_final tm_reaches("d","x","n","z","_")
+    $got_final eir(got_rf,
+        \v: and(function(v,"_"), and(
+            forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
+                or(mem("xdn","n"), eqv("xdn","n","_"))))),
+            and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","x","_"))),
+                and(forall("kq", implies(mem("kq","n"),
+                    forall("skq", implies(successor("skq","kq","_"),
+                        forall("ckq", implies(apply(v,"kq","ckq","_"),
+                            exists("ckq1", and(apply(v,"skq","ckq1","_"),
+                                tm_step("d","ckq","ckq1","_"))))))))),
+                    apply(v,"n","z","_"))))),
+        "rtra", "rtra", left(got_rf))
+    $_ tap("TMReaches(d,x,n,z) assembled ok")
+
+    # === 9. eel eigenvars, discharge hypotheses ===
+
+    # eel rtra from rq_body → reaches_pb, cut with got_qb_reaches
+    $got_final eel(got_final,
+        \v: and(function(v,"_"), and(
+            forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
+                or(mem("xdn","pb"), eqv("xdn","pb","_"))))),
+            and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","x","_"))),
+                and(forall("kq", implies(mem("kq","pb"),
+                    forall("skq", implies(successor("skq","kq","_"),
+                        forall("ckq", implies(apply(v,"kq","ckq","_"),
+                            exists("ckq1", and(apply(v,"skq","ckq1","_"),
+                                tm_step("d","ckq","ckq1","_"))))))))),
+                    apply(v,"pb","cb","_"))))),
+        "rtra", "rtra", remove(same, rq_body, left(got_final)), reaches_final)
+    $reaches_pb tm_reaches("d","x","pb","cb","_")
+    $got_final cut_c(got_qb_reaches, got_final, reaches_pb,
+        left(got_qb_reaches), left(got_final), reaches_final)
+
+    $_ tap("eel rtra ok")
+
+    # eel cb from qb_and
+    $got_final eel(got_final,
+        \v: and(plus("a","b","pb","_"), and(apply("tr2","b",v,"_"), tm_reaches("d","x","pb",v,"_"))),
+        "cb", "cb", remove(same, qb_and, left(got_final)), reaches_final)
+
+    # eel pb
+    $qb_inner exists("cb", and(plus("a","b","pb","_"), and(apply("tr2","b","cb","_"), tm_reaches("d","x","pb","cb","_"))))
+    $qi_b _Q_inner("b","_")
+    $got_final eel(got_final,
+        \v: exists("cb", and(plus("a","b",v,"_"), and(apply("tr2","b","cb","_"), tm_reaches("d","x",v,"cb","_")))),
+        "pb", "pb", remove(same, qb_inner, left(got_final)), reaches_final)
+    $got_final cut_c(got_Qb_val, got_final, qi_b,
+        left(got_Qb_val), left(got_final), reaches_final)
+
+    $_ tap("eel pb,cb ok")
+
+    # eel tr2 from r2_body → reaches2
+    $got_final eel(got_final,
+        \v: and(function(v,"_"), and(
+            forall("xd", forall("yd", implies(apply(v,"xd","yd","_"),
+                or(mem("xd","b"), eqv("xd","b","_"))))),
+            and(forall("zr", implies(num("zr",0,"_"), apply(v,"zr","y","_"))),
+                and(forall("k", implies(mem("k","b"),
+                    forall("sk", implies(successor("sk","k","_"),
+                        forall("ck", implies(apply(v,"k","ck","_"),
+                            exists("ck1", and(apply(v,"sk","ck1","_"),
+                                tm_step("d","ck","ck1","_"))))))))),
+                    apply(v,"b","z","_"))))),
+        "tr2", "tr2", remove(same, r2_body, left(got_final)), reaches_final)
+    $got_final cut_c(ax([reaches2],[reaches2],reaches2), got_final, reaches2,
+        [reaches2], left(got_final), reaches_final)
+
+    $_ tap("eel tr2 ok")
+
+    # === 10. Discharge hypotheses, close foralls ===
+    $proof got_final
+    $goal_f reaches_final
+
+    $proof ir(proof, remove(same, nat_b, left(proof)), [implies(nat_b, goal_f)], implies(nat_b, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, nat_a, left(proof)), [implies(nat_a, goal_f)], implies(nat_a, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, plus_abn, left(proof)), [implies(plus_abn, goal_f)], implies(plus_abn, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, reaches2, left(proof)), [implies(reaches2, goal_f)], implies(reaches2, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, reaches1, left(proof)), [implies(reaches1, goal_f)], implies(reaches1, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, omega_w, left(proof)), [implies(omega_w, goal_f)], implies(omega_w, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, num_zb, left(proof)), [implies(num_zb, goal_f)], implies(num_zb, goal_f))
+    $goal_f head(right(proof))
+
+    $proof fr(proof, left(proof), [forall("zb", goal_f)], forall("zb", goal_f), "zb")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("w", goal_f)], forall("w", goal_f), "w")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("n", goal_f)], forall("n", goal_f), "n")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("z", goal_f)], forall("z", goal_f), "z")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("b", goal_f)], forall("b", goal_f), "b")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("y", goal_f)], forall("y", goal_f), "y")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("a", goal_f)], forall("a", goal_f), "a")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("x", goal_f)], forall("x", goal_f), "x")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("d", goal_f)], forall("d", goal_f), "d")
+
+    proof
+}

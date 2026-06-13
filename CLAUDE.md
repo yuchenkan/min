@@ -82,6 +82,22 @@ Key rules:
 
 TMTransition has interspersed forall/implies. Use manual `inst` + `mp` chains instead (see `transition_apply.min`, `transition_unique.min`).
 
+### sep_ax vars and np prefix
+
+`sep_ax(vars, phi_fn, prefix)` creates a separation axiom instance. `phi_fn` receives 3 args `(x, a, np)` where `np = add(prefix, "_")`. Two critical rules:
+
+1. **vars must be the actual free variables** of `phi_fn`'s body — not arbitrary names. `_close` wraps `forall(var, ...)` around the body but does NOT substitute, so using names like `["v1","v2"]` creates vacuous foralls while the real free variables stay free. This causes `forall_right: term free in context` errors when you try to eel those variables later.
+
+2. **Bound vars in phi_fn must use `np`** (via `add(np, "name")`) to avoid clashing with terms that will be instantiated through `forall_left` during separation. If `phi_fn` uses `exists("rp", ...)` directly, the bound var `"rp"` may collide with a term passed to `apply_thm`/`inst`. Use `exists(add(np,"rp"), ...)` instead.
+
+```
+# WRONG: vars don't match free variables, bound vars don't use np
+$sep sep_ax(["v1","v2","v3"], \sv a np: exists("rp", apply("f",sv,"rp","_")), "_")
+
+# RIGHT: vars = actual free variables, bound vars use np prefix
+$sep sep_ax(["f"], \sv a np: exists(add(np,"rp"), apply("f",sv,add(np,"rp"),"_")), "_")
+```
+
 ### No vocab-internal names in proofs
 
 Never use `"__"` as prefix or `"_x"` style variable names in proof files. Use clean names (`"y"` not `"_y"`, `"_"` not `"__"`). The kernel's alpha-equivalence handles matching with vocab expansions. Run `./lint.sh` from the `poc4/` directory to check.
