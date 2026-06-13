@@ -1,0 +1,523 @@
+from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right
+from vocab.sets import ordered_pair, relation
+from vocab.functions import apply, function, single_valued
+from vocab.tm.tm import tape_update
+from tactics import ax, fl, fr, ir, wl, wl_all, wr, nl, nr, mp, cut, cut_c, apply_thm, eir, eel, close, same, inst
+from util import remove, diff, add, head
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.sets.tuple_injection import tuple_injection
+from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
+from theorems.functions.func_unique_thm import func_unique_thm
+
+# Pairing |- ∀t2,t,pos,val. TapeUpdate(t2,t,pos,val) → Function(t) → Function(t2)
+$tape_update_function {
+    $tu tape_update("t2", "t", "pos", "val", "_")
+    $func_t function("t", "_")
+    $func_t2 function("t2", "_")
+
+    # TapeUpdate expansion components (bound var is "_p", y is "_y")
+    $in_z_t2 mem("z", "t2")
+    $in_z_t mem("z", "t")
+    $op_zpv ordered_pair("z", "pos", "val", "_")
+    $op_zpy ordered_pair("z", "pos", "yv", "_")
+    $not_ex_y neg(exists("yv", op_zpy))
+    $right_and and(in_z_t, not_ex_y)
+    $or_z or(op_zpv, right_and)
+    $iff_z iff(in_z_t2, or_z)
+
+    # =============== Part 1: Relation(t2) ===============
+    # Instantiate TapeUpdate at z
+    $got_iff_z fl(ax([iff_z],[iff_z],iff_z), [tu], [iff_z], tu, "z")
+    # [tu] |- Iff(z∈t2, Or(...))
+
+    $imp_fwd implies(in_z_t2, or_z)
+    $got_fwd mp(iff_elim_left(in_z_t2, or_z, []),
+        got_iff_z, iff_z, imp_fwd, [], [tu])
+    # [tu] |- z∈t2 → Or(...)
+
+    $got_or mp(got_fwd, ax([in_z_t2],[in_z_t2],in_z_t2), in_z_t2,
+        or_z, [tu], [in_z_t2])
+    # [tu, z∈t2] |- Or(OP(z,pos,val), And(z∈t, ¬∃y...))
+
+    # --- Case 1: OP(z,pos,val) → ∃x,y.OP(z,x,y) ---
+    $ex_xy exists("xv", exists("yv2", ordered_pair("z", "xv", "yv2", "_")))
+    $ex_y_pos exists("yv2", ordered_pair("z", "pos", "yv2", "_"))
+    $got_c1 eir(ax([op_zpv],[op_zpv],op_zpv), \v: ordered_pair("z","pos",v,"_"),
+        "yv2", "val", [op_zpv])
+    # [OP(z,pos,val)] |- ∃yv2. OP(z,pos,yv2)
+    $got_c1 eir(got_c1, \v: exists("yv2", ordered_pair("z", v, "yv2", "_")),
+        "xv", "pos", left(got_c1))
+    # [OP(z,pos,val)] |- ∃xv.∃yv2.OP(z,xv,yv2)
+
+    # ir to discharge OP(z,pos,val)
+    $imp_c1 implies(op_zpv, ex_xy)
+    $got_c1_imp ir(got_c1, remove(same, op_zpv, left(got_c1)),
+        [imp_c1], imp_c1)
+
+    # --- Case 2: And(z∈t, ¬∃...) → z∈t → Relation(t) → ∃x,y.OP(z,x,y) ---
+    # Extract z∈t from right_and
+    $got_in_zt mp(and_elim_left(in_z_t, not_ex_y, []),
+        ax([right_and],[right_and],right_and), right_and, in_z_t, [], [right_and])
+
+    # Relation(t) from Function(t) = And(Relation(t), SingleValued(t))
+    $rel_t relation("t", "_")
+    $sv_t single_valued("t", "_")
+    $got_rel mp(and_elim_left(rel_t, sv_t, []),
+        ax([func_t],[func_t],func_t), func_t, rel_t, [], [func_t])
+    # [Function(t)] |- Relation(t)
+
+    # Instantiate Relation(t) at z: z∈t → ∃x,y.OP(z,x,y)
+    $rel_imp implies(in_z_t, exists("xv", exists("yv2", ordered_pair("z","xv","yv2","_"))))
+    $got_rel_z fl(ax([rel_imp],[rel_imp],rel_imp), [rel_t], [rel_imp], rel_t, "z")
+    $got_rel_z cut_c(got_rel, got_rel_z, rel_t,
+        left(got_rel), left(got_rel_z), rel_imp)
+
+    $got_c2 mp(got_rel_z, got_in_zt, in_z_t,
+        ex_xy, [func_t], [right_and])
+    # [Function(t), right_and] |- ∃x,y.OP(z,x,y)
+
+    # ir to discharge right_and
+    $imp_c2 implies(right_and, ex_xy)
+    $got_c2_imp ir(got_c2, remove(same, right_and, left(got_c2)),
+        [imp_c2], imp_c2)
+
+    # --- or_elim ---
+    $oe or_elim(op_zpv, right_and, ex_xy, [])
+    $got_or_ex mp(oe, ax([or_z],[or_z],or_z), or_z,
+        implies(imp_c1, implies(imp_c2, ex_xy)), [], [or_z])
+    $got_or_ex mp(got_or_ex, got_c1_imp, imp_c1,
+        implies(imp_c2, ex_xy), [or_z], left(got_c1_imp))
+    $got_or_ex mp(got_or_ex, got_c2_imp, imp_c2,
+        ex_xy, left(got_or_ex), left(got_c2_imp))
+
+    # cut_c with got_or
+    $got_rel_t2_inner cut_c(got_or, got_or_ex, or_z,
+        left(got_or), left(got_or_ex), ex_xy)
+    # [tu, z∈t2, Pairing, Function(t)] |- ∃x,y.OP(z,x,y)
+
+    # Discharge z∈t2, close ∀z → Relation(t2)
+    $imp_in implies(in_z_t2, ex_xy)
+    $got_rel_t2 ir(got_rel_t2_inner, remove(same, in_z_t2, left(got_rel_t2_inner)),
+        [imp_in], imp_in)
+    $fa_rel forall("z", imp_in)
+    $got_rel_t2 fr(got_rel_t2, left(got_rel_t2), [fa_rel], fa_rel, "z")
+
+    $rel_t2 relation("t2", "_")
+    $_ tap("Relation(t2) done")
+
+    # =============== Part 2: SingleValued(t2) ===============
+    # ∀a,b1,b2. Apply(t2,a,b1) ∧ Apply(t2,a,b2) → Eq(b1,b2)
+    $app1 apply("t2", "a", "b1", "_")
+    $app2 apply("t2", "a", "b2", "_")
+    $eq_b eqv("b1", "b2", "_")
+
+    # Open Apply(t2,a,b1): ∃p1. OP(p1,a,b1) ∧ p1∈t2
+    $op1 ordered_pair("p1", "a", "b1", "_")
+    $in_p1 mem("p1", "t2")
+    $and_app1 and(op1, in_p1)
+
+    # Open Apply(t2,a,b2): ∃p2. OP(p2,a,b2) ∧ p2∈t2
+    $op2 ordered_pair("p2", "a", "b2", "_")
+    $in_p2 mem("p2", "t2")
+    $and_app2 and(op2, in_p2)
+
+    # TapeUpdate fwd at p1: p1∈t2 → Or(OP(p1,pos,val), And(p1∈t, ¬∃y...))
+    $in_p1_t2 mem("p1", "t2")
+    $in_p1_t mem("p1", "t")
+    $op1_pv ordered_pair("p1", "pos", "val", "_")
+    $op1_py ordered_pair("p1", "pos", "y1v", "_")
+    $not_ex1 neg(exists("y1v", op1_py))
+    $and1_t and(in_p1_t, not_ex1)
+    $or_p1 or(op1_pv, and1_t)
+    $iff_p1 iff(in_p1_t2, or_p1)
+
+    $got_iff_p1 fl(ax([iff_p1],[iff_p1],iff_p1), [tu], [iff_p1], tu, "p1")
+    $got_in_p1 mp(and_elim_right(op1, in_p1, []),
+        ax([and_app1],[and_app1],and_app1), and_app1, in_p1, [], [and_app1])
+    $got_or_p1 mp(mp(iff_elim_left(in_p1_t2, or_p1, []),
+        got_iff_p1, iff_p1, implies(in_p1_t2, or_p1), [], [tu]),
+        got_in_p1, in_p1_t2, or_p1, [tu], [and_app1])
+    # [tu, and_app1] |- Or(OP(p1,pos,val), And(p1∈t, ¬∃...))
+
+    # TapeUpdate fwd at p2
+    $in_p2_t2 mem("p2", "t2")
+    $in_p2_t mem("p2", "t")
+    $op2_pv ordered_pair("p2", "pos", "val", "_")
+    $op2_py ordered_pair("p2", "pos", "y2v", "_")
+    $not_ex2 neg(exists("y2v", op2_py))
+    $and2_t and(in_p2_t, not_ex2)
+    $or_p2 or(op2_pv, and2_t)
+    $iff_p2 iff(in_p2_t2, or_p2)
+
+    $got_iff_p2 fl(ax([iff_p2],[iff_p2],iff_p2), [tu], [iff_p2], tu, "p2")
+    $got_in_p2 mp(and_elim_right(op2, in_p2, []),
+        ax([and_app2],[and_app2],and_app2), and_app2, in_p2, [], [and_app2])
+    $got_or_p2 mp(mp(iff_elim_left(in_p2_t2, or_p2, []),
+        got_iff_p2, iff_p2, implies(in_p2_t2, or_p2), [], [tu]),
+        got_in_p2, in_p2_t2, or_p2, [tu], [and_app2])
+    # [tu, and_app2] |- Or(OP(p2,pos,val), And(p2∈t, ¬∃...))
+
+    # === Case (1,1): OP(p1,pos,val) + OP(p2,pos,val) → Eq(b1,b2) ===
+    # tuple_injection: OP(p,a,b) + OP(p,c,d) → And(Eq(a,c), Eq(b,d))
+    $_ti head(right(tuple_injection))
+    $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t,a,b,"_"),
+        implies(ordered_pair(t,c,d,"_"), and(eqv(a,c,"_"), eqv(b,d,"_"))))
+
+    # Eq(b1,val) from OP(p1,a,b1) + OP(p1,pos,val) via tuple_injection
+    $got_ti1 apply_thm(tuple_injection, _ti, ["p1","a","b1","pos","val"],
+        ["t","a","b","c","d"], _ti_b, left(tuple_injection))
+    $got_ti1 mp(got_ti1, ax([op1],[op1],op1), op1,
+        implies(op1_pv, and(eqv("a","pos","_"), eqv("b1","val","_"))),
+        left(got_ti1), [op1])
+    $got_ti1 mp(got_ti1, ax([op1_pv],[op1_pv],op1_pv), op1_pv,
+        and(eqv("a","pos","_"), eqv("b1","val","_")),
+        left(got_ti1), [op1_pv])
+    # [Pairing, op1, op1_pv] |- And(Eq(a,pos), Eq(b1,val))
+    $eq_b1v eqv("b1", "val", "_")
+    $got_eq_b1v mp(and_elim_right(eqv("a","pos","_"), eq_b1v, []),
+        got_ti1, and(eqv("a","pos","_"), eq_b1v), eq_b1v, [], left(got_ti1))
+    # [Pairing, op1, op1_pv] |- Eq(b1,val)
+
+    # Eq(b2,val) from OP(p2,a,b2) + OP(p2,pos,val) via tuple_injection
+    $got_ti2 apply_thm(tuple_injection, _ti, ["p2","a","b2","pos","val"],
+        ["t","a","b","c","d"], _ti_b, left(tuple_injection))
+    $got_ti2 mp(got_ti2, ax([op2],[op2],op2), op2,
+        implies(op2_pv, and(eqv("a","pos","_"), eqv("b2","val","_"))),
+        left(got_ti2), [op2])
+    $got_ti2 mp(got_ti2, ax([op2_pv],[op2_pv],op2_pv), op2_pv,
+        and(eqv("a","pos","_"), eqv("b2","val","_")),
+        left(got_ti2), [op2_pv])
+    $eq_b2v eqv("b2", "val", "_")
+    $got_eq_b2v mp(and_elim_right(eqv("a","pos","_"), eq_b2v, []),
+        got_ti2, and(eqv("a","pos","_"), eq_b2v), eq_b2v, [], left(got_ti2))
+    # [Pairing, op2, op2_pv] |- Eq(b2,val)
+
+    # Eq(b2,val) → Eq(val,b2) via eqv_symmetric
+    $_es head(right(eqv_symmetric))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eq_vb2 apply_thm(eqv_symmetric, _es, ["b2","val"], ["a","b"], _es_b, [])
+    $got_eq_vb2 mp(got_eq_vb2, got_eq_b2v, eq_b2v, eqv("val","b2","_"), [], left(got_eq_b2v))
+    # [Pairing, op2, op2_pv] |- Eq(val,b2)
+
+    # Eq(b1,val) + Eq(val,b2) → Eq(b1,b2) via eqv_transitive
+    $_et head(right(eqv_transitive))
+    $_et_b \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
+    $got_case11 apply_thm(eqv_transitive, _et, ["b1","val","b2"], ["a","b","c"], _et_b, [])
+    $got_case11 mp(got_case11, got_eq_b1v, eq_b1v,
+        implies(eqv("val","b2","_"), eq_b), [], left(got_eq_b1v))
+    $got_case11 mp(got_case11, got_eq_vb2, eqv("val","b2","_"),
+        eq_b, left(got_case11), left(got_eq_vb2))
+    # [Pairing, op1, op1_pv, op2, op2_pv] |- Eq(b1,b2)
+    $_ tap("case(1,1) done")
+
+    # === Case (2,2): and1_t + and2_t → Apply(t,a,b1) + Apply(t,a,b2) → Eq(b1,b2) ===
+    # Extract p1∈t from and1_t, p2∈t from and2_t
+    $got_in_p1_t mp(and_elim_left(in_p1_t, not_ex1, []),
+        ax([and1_t],[and1_t],and1_t), and1_t, in_p1_t, [], [and1_t])
+    $got_in_p2_t mp(and_elim_left(in_p2_t, not_ex2, []),
+        ax([and2_t],[and2_t],and2_t), and2_t, in_p2_t, [], [and2_t])
+
+    # Build Apply(t,a,b1) from OP(p1,a,b1) + p1∈t
+    $app_t_b1 apply("t", "a", "b1", "_")
+    $app_t_b2 apply("t", "a", "b2", "_")
+    $and_op1_in1 and(op1, in_p1_t)
+    $got_and1 mp(mp(and_intro(op1, in_p1_t, []),
+        ax([op1],[op1],op1), op1, implies(in_p1_t, and_op1_in1), [], [op1]),
+        got_in_p1_t, in_p1_t, and_op1_in1, [op1], [and1_t])
+    $got_app_t1 eir(got_and1, \v: and(ordered_pair(v,"a","b1","_"), mem(v,"t")),
+        "p1", "p1", left(got_and1))
+
+    # Build Apply(t,a,b2) from OP(p2,a,b2) + p2∈t
+    $and_op2_in2 and(op2, in_p2_t)
+    $got_and2 mp(mp(and_intro(op2, in_p2_t, []),
+        ax([op2],[op2],op2), op2, implies(in_p2_t, and_op2_in2), [], [op2]),
+        got_in_p2_t, in_p2_t, and_op2_in2, [op2], [and2_t])
+    $got_app_t2 eir(got_and2, \v: and(ordered_pair(v,"a","b2","_"), mem(v,"t")),
+        "p2", "p2", left(got_and2))
+
+    # func_unique_thm: ∀f,x,y1,y2. sv(f) → Apply(f,x,y1) → Apply(f,x,y2) → Eq(y1,y2)
+    # But .min version starts from sv, not Function. Extract sv from Function(t).
+    $got_sv mp(and_elim_right(rel_t, sv_t, []),
+        ax([func_t],[func_t],func_t), func_t, sv_t, [], [func_t])
+    # [Function(t)] |- sv(t)
+
+    $_fu head(right(func_unique_thm))
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"),
+        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $got_fu apply_thm(func_unique_thm, _fu, ["t","a","b1","b2"],
+        ["f","x","y1","y2"], _fu_b, left(func_unique_thm))
+    $got_fu mp(got_fu, got_sv, sv_t,
+        implies(app_t_b1, implies(app_t_b2, eq_b)),
+        left(func_unique_thm), [func_t])
+    $got_fu mp(got_fu, got_app_t1, app_t_b1,
+        implies(app_t_b2, eq_b), left(got_fu), left(got_app_t1))
+    $got_case22 mp(got_fu, got_app_t2, app_t_b2,
+        eq_b, left(got_fu), left(got_app_t2))
+    # [and1_t, and2_t, op1, op2, Function(t)] |- Eq(b1,b2)
+    $_ tap("case(2,2) done")
+
+    # === Case (1,2): op1_pv + and2_t → contradiction → Eq(b1,b2) ===
+    # OP(p1,a,b1) + OP(p1,pos,val) → Eq(a,pos) via tuple_injection
+    $got_ti_12 apply_thm(tuple_injection, _ti, ["p1","a","b1","pos","val"],
+        ["t","a","b","c","d"], _ti_b, left(tuple_injection))
+    $got_ti_12 mp(got_ti_12, ax([op1],[op1],op1), op1,
+        implies(op1_pv, and(eqv("a","pos","_"), eqv("b1","val","_"))),
+        left(got_ti_12), [op1])
+    $got_ti_12 mp(got_ti_12, ax([op1_pv],[op1_pv],op1_pv), op1_pv,
+        and(eqv("a","pos","_"), eqv("b1","val","_")),
+        left(got_ti_12), [op1_pv])
+    $eq_ap eqv("a", "pos", "_")
+    $got_eq_ap mp(and_elim_left(eq_ap, eqv("b1","val","_"), []),
+        got_ti_12, and(eq_ap, eqv("b1","val","_")), eq_ap, [], left(got_ti_12))
+    # [Pairing, op1, op1_pv] |- Eq(a,pos)
+
+    # Transfer OP(p2,a,b2) to OP(p2,pos,b2) via Eq(a,pos) + Eq(b2,b2)
+    $_oet head(right(ordpair_eq_transfer))
+    $_oet_b \tt: \aa: \bb: \cc: \dd: implies(eqv(aa,cc,"_"),
+        implies(eqv(bb,dd,"_"), implies(ordered_pair(tt,aa,bb,"_"), ordered_pair(tt,cc,dd,"_"))))
+    $op2_pos_b2 ordered_pair("p2", "pos", "b2", "_")
+    $got_op2_pb apply_thm(ordpair_eq_transfer, _oet,
+        ["p2","a","b2","pos","b2"], ["t","a","b","c","d"], _oet_b, [])
+    $got_op2_pb mp(got_op2_pb, got_eq_ap, eq_ap,
+        implies(eqv("b2","b2","_"), implies(op2, op2_pos_b2)),
+        [], left(got_eq_ap))
+
+    # Eq(b2,b2) via eqv_reflexive
+    $_er head(right(eqv_reflexive))
+    $_er_b \a: eqv(a,a,"_")
+    $got_eq_b2b2 apply_thm(eqv_reflexive, _er, ["b2"], ["a"], _er_b, [])
+    $eq_b2b2 eqv("b2", "b2", "_")
+    $got_op2_pb mp(got_op2_pb, got_eq_b2b2, eq_b2b2,
+        implies(op2, op2_pos_b2), left(got_op2_pb), [])
+    $got_op2_pb mp(got_op2_pb, ax([op2],[op2],op2), op2,
+        op2_pos_b2, left(got_op2_pb), [op2])
+    # [Pairing, op1, op1_pv, op2] |- OP(p2,pos,b2)
+
+    # ∃y.OP(p2,pos,y)
+    $op2_pos_yy ordered_pair("p2", "pos", "yy", "_")
+    $ex_p2 exists("yy", op2_pos_yy)
+    $got_ex_p2 eir(got_op2_pb, \v: ordered_pair("p2","pos",v,"_"),
+        "yy", "b2", left(got_op2_pb))
+    # [Pairing, op1, op1_pv, op2] |- ∃yy.OP(p2,pos,yy)
+
+    # ¬∃y.OP(p2,pos,y) from and2_t
+    $got_not_ex2 mp(and_elim_right(in_p2_t, not_ex2, []),
+        ax([and2_t],[and2_t],and2_t), and2_t, not_ex2, [], [and2_t])
+    # [and2_t] |- ¬∃y2v.OP(p2,pos,y2v)
+
+    # Contradiction: nl
+    $got_contra12 nl(got_ex_p2, add(left(got_ex_p2), [not_ex2]), [], not_ex2)
+    # [Pairing, op1, op1_pv, op2, ¬∃...] |- []
+
+    # wr to add eq_b
+    $got_contra12 wr(got_contra12, left(got_contra12), [eq_b], eq_b)
+
+    # cut not_ex2 with got_not_ex2
+    $got_case12 cut_c(got_not_ex2, got_contra12, not_ex2,
+        left(got_not_ex2), left(got_contra12), eq_b)
+    # [Pairing, op1, op1_pv, op2, and2_t] |- Eq(b1,b2)
+    $_ tap("case(1,2) done")
+
+    # === Case (2,1): and1_t + op2_pv → contradiction → Eq(b1,b2) ===
+    # Symmetric to case (1,2): OP(p2,a,b2) + OP(p2,pos,val) → Eq(a,pos)
+    $got_ti_21 apply_thm(tuple_injection, _ti, ["p2","a","b2","pos","val"],
+        ["t","a","b","c","d"], _ti_b, left(tuple_injection))
+    $got_ti_21 mp(got_ti_21, ax([op2],[op2],op2), op2,
+        implies(op2_pv, and(eqv("a","pos","_"), eqv("b2","val","_"))),
+        left(got_ti_21), [op2])
+    $got_ti_21 mp(got_ti_21, ax([op2_pv],[op2_pv],op2_pv), op2_pv,
+        and(eqv("a","pos","_"), eqv("b2","val","_")),
+        left(got_ti_21), [op2_pv])
+    $got_eq_ap2 mp(and_elim_left(eq_ap, eqv("b2","val","_"), []),
+        got_ti_21, and(eq_ap, eqv("b2","val","_")), eq_ap, [], left(got_ti_21))
+    # [Pairing, op2, op2_pv] |- Eq(a,pos)
+
+    # Transfer OP(p1,a,b1) to OP(p1,pos,b1) via Eq(a,pos) + Eq(b1,b1)
+    $op1_pos_b1 ordered_pair("p1", "pos", "b1", "_")
+    $got_op1_pb apply_thm(ordpair_eq_transfer, _oet,
+        ["p1","a","b1","pos","b1"], ["t","a","b","c","d"], _oet_b, [])
+    $got_op1_pb mp(got_op1_pb, got_eq_ap2, eq_ap,
+        implies(eqv("b1","b1","_"), implies(op1, op1_pos_b1)),
+        [], left(got_eq_ap2))
+    $got_eq_b1b1 apply_thm(eqv_reflexive, _er, ["b1"], ["a"], _er_b, [])
+    $eq_b1b1 eqv("b1", "b1", "_")
+    $got_op1_pb mp(got_op1_pb, got_eq_b1b1, eq_b1b1,
+        implies(op1, op1_pos_b1), left(got_op1_pb), [])
+    $got_op1_pb mp(got_op1_pb, ax([op1],[op1],op1), op1,
+        op1_pos_b1, left(got_op1_pb), [op1])
+    # [Pairing, op2, op2_pv, op1] |- OP(p1,pos,b1)
+
+    # ∃y.OP(p1,pos,y)
+    $op1_pos_yy ordered_pair("p1", "pos", "yy2", "_")
+    $ex_p1 exists("yy2", op1_pos_yy)
+    $got_ex_p1 eir(got_op1_pb, \v: ordered_pair("p1","pos",v,"_"),
+        "yy2", "b1", left(got_op1_pb))
+
+    # ¬∃y.OP(p1,pos,y) from and1_t
+    $got_not_ex1 mp(and_elim_right(in_p1_t, not_ex1, []),
+        ax([and1_t],[and1_t],and1_t), and1_t, not_ex1, [], [and1_t])
+
+    # Contradiction
+    $got_contra21 nl(got_ex_p1, add(left(got_ex_p1), [not_ex1]), [], not_ex1)
+    $got_contra21 wr(got_contra21, left(got_contra21), [eq_b], eq_b)
+    $got_case21 cut_c(got_not_ex1, got_contra21, not_ex1,
+        left(got_not_ex1), left(got_contra21), eq_b)
+    # [Pairing, op2, op2_pv, op1, and1_t] |- Eq(b1,b2)
+    $_ tap("case(2,1) done")
+
+    # === 4-case or_elim ===
+    # Inner or_elim on or_p2 for case of or_p1=op1_pv:
+    $imp_c11 implies(op2_pv, eq_b)
+    $got_c11_imp ir(got_case11, remove(same, op2_pv, left(got_case11)),
+        [imp_c11], imp_c11)
+    $imp_c12 implies(and2_t, eq_b)
+    $got_c12_imp ir(got_case12, remove(same, and2_t, left(got_case12)),
+        [imp_c12], imp_c12)
+
+    $oe2 or_elim(op2_pv, and2_t, eq_b, [])
+    $got_inner1 mp(oe2, ax([or_p2],[or_p2],or_p2), or_p2,
+        implies(imp_c11, implies(imp_c12, eq_b)), [], [or_p2])
+    $got_inner1 mp(got_inner1, got_c11_imp, imp_c11,
+        implies(imp_c12, eq_b), [or_p2], left(got_c11_imp))
+    $got_inner1 mp(got_inner1, got_c12_imp, imp_c12,
+        eq_b, left(got_inner1), left(got_c12_imp))
+    # [or_p2, op1, op1_pv, op2, Pairing, Function(t)] |- Eq(b1,b2)
+
+    # Inner or_elim on or_p2 for case of or_p1=and1_t:
+    $imp_c21 implies(op2_pv, eq_b)
+    $got_c21_imp ir(got_case21, remove(same, op2_pv, left(got_case21)),
+        [imp_c21], imp_c21)
+    $imp_c22 implies(and2_t, eq_b)
+    $got_c22_imp ir(got_case22, remove(same, and2_t, left(got_case22)),
+        [imp_c22], imp_c22)
+
+    $got_inner2 mp(oe2, ax([or_p2],[or_p2],or_p2), or_p2,
+        implies(imp_c21, implies(imp_c22, eq_b)), [], [or_p2])
+    $got_inner2 mp(got_inner2, got_c21_imp, imp_c21,
+        implies(imp_c22, eq_b), [or_p2], left(got_c21_imp))
+    $got_inner2 mp(got_inner2, got_c22_imp, imp_c22,
+        eq_b, left(got_inner2), left(got_c22_imp))
+    # [or_p2, op1, and1_t, op2, Pairing, Function(t)] |- Eq(b1,b2)
+
+    # Outer or_elim on or_p1:
+    $imp_i1 implies(op1_pv, eq_b)
+    $got_i1_imp ir(got_inner1, remove(same, op1_pv, left(got_inner1)),
+        [imp_i1], imp_i1)
+    $imp_i2 implies(and1_t, eq_b)
+    $got_i2_imp ir(got_inner2, remove(same, and1_t, left(got_inner2)),
+        [imp_i2], imp_i2)
+
+    $oe1 or_elim(op1_pv, and1_t, eq_b, [])
+    $got_sv_result mp(oe1, ax([or_p1],[or_p1],or_p1), or_p1,
+        implies(imp_i1, implies(imp_i2, eq_b)), [], [or_p1])
+    $got_sv_result mp(got_sv_result, got_i1_imp, imp_i1,
+        implies(imp_i2, eq_b), [or_p1], left(got_i1_imp))
+    $got_sv_result mp(got_sv_result, got_i2_imp, imp_i2,
+        eq_b, left(got_sv_result), left(got_i2_imp))
+    # [or_p1, or_p2, op1, op2, Pairing, Function(t)] |- Eq(b1,b2)
+
+    # Cut or_p1 and or_p2 with got_or_p1 and got_or_p2
+    $got_sv_result cut_c(got_or_p1, got_sv_result, or_p1,
+        left(got_or_p1), left(got_sv_result), eq_b)
+    $got_sv_result cut_c(got_or_p2, got_sv_result, or_p2,
+        left(got_or_p2), left(got_sv_result), eq_b)
+    # [tu, and_app1, and_app2, op1, op2, Pairing, Function(t)] |- Eq(b1,b2)
+
+    # Cut op1 from and_app1, op2 from and_app2
+    $got_op1_from_and mp(and_elim_left(op1, in_p1, []),
+        ax([and_app1],[and_app1],and_app1), and_app1, op1, [], [and_app1])
+    $got_op2_from_and mp(and_elim_left(op2, in_p2, []),
+        ax([and_app2],[and_app2],and_app2), and_app2, op2, [], [and_app2])
+    $got_sv_result cut_c(got_op1_from_and, got_sv_result, op1,
+        left(got_op1_from_and), left(got_sv_result), eq_b)
+    $got_sv_result cut_c(got_op2_from_and, got_sv_result, op2,
+        left(got_op2_from_and), left(got_sv_result), eq_b)
+
+    # eel p1 from and_app1, cut with app1
+    $got_sv_result eel(got_sv_result, \v: and(ordered_pair(v,"a","b1","_"), mem(v,"t2")),
+        "p1", "p1", remove(same, and_app1, left(got_sv_result)), eq_b)
+    $ex_and1 exists("p1", and_app1)
+    $got_sv_result cut_c(ax([app1],[app1],app1), got_sv_result, ex_and1,
+        [app1], left(got_sv_result), eq_b)
+
+    # eel p2 from and_app2, cut with app2
+    $got_sv_result eel(got_sv_result, \v: and(ordered_pair(v,"a","b2","_"), mem(v,"t2")),
+        "p2", "p2", remove(same, and_app2, left(got_sv_result)), eq_b)
+    $ex_and2 exists("p2", and_app2)
+    $got_sv_result cut_c(ax([app2],[app2],app2), got_sv_result, ex_and2,
+        [app2], left(got_sv_result), eq_b)
+    # [tu, app1, app2, Pairing, Function(t)] |- Eq(b1,b2)
+    $_ tap("SingleValued core done")
+
+    # Discharge app1, app2 → And(app1,app2) → implies → forall
+    $and_apps and(app1, app2)
+    $got_and_apps mp(mp(and_intro(app1, app2, []),
+        ax([app1],[app1],app1), app1, implies(app2, and_apps), [], [app1]),
+        ax([app2],[app2],app2), app2, and_apps, [app1], [app2])
+    # [app1, app2] |- And(app1, app2)
+
+    $got_app1_from_and mp(and_elim_left(app1, app2, []),
+        ax([and_apps],[and_apps],and_apps), and_apps, app1, [], [and_apps])
+    $got_app2_from_and mp(and_elim_right(app1, app2, []),
+        ax([and_apps],[and_apps],and_apps), and_apps, app2, [], [and_apps])
+
+    $got_sv_result cut_c(got_app1_from_and, got_sv_result, app1,
+        left(got_app1_from_and), left(got_sv_result), eq_b)
+    $got_sv_result cut_c(got_app2_from_and, got_sv_result, app2,
+        left(got_app2_from_and), left(got_sv_result), eq_b)
+    # [tu, and_apps, Pairing, Function(t)] |- Eq(b1,b2)
+
+    $imp_sv implies(and_apps, eq_b)
+    $got_sv_result ir(got_sv_result, remove(same, and_apps, left(got_sv_result)),
+        [imp_sv], imp_sv)
+    $got_sv_body head(right(got_sv_result))
+    $got_sv_result fr(got_sv_result, left(got_sv_result),
+        [forall("b2", got_sv_body)], forall("b2", got_sv_body), "b2")
+    $got_sv_body head(right(got_sv_result))
+    $got_sv_result fr(got_sv_result, left(got_sv_result),
+        [forall("b1", got_sv_body)], forall("b1", got_sv_body), "b1")
+    $got_sv_body head(right(got_sv_result))
+    $got_sv_result fr(got_sv_result, left(got_sv_result),
+        [forall("a", got_sv_body)], forall("a", got_sv_body), "a")
+
+    $sv_t2_f head(right(got_sv_result))
+    $_ tap("SingleValued(t2) done")
+
+    # =============== Part 3: Function(t2) = And(Relation(t2), SingleValued(t2)) ===============
+    $rel_t2_f head(right(got_rel_t2))
+    $func_t2_and and(rel_t2_f, sv_t2_f)
+    $got_func_t2 mp(mp(and_intro(rel_t2_f, sv_t2_f, []),
+        got_rel_t2, rel_t2_f, implies(sv_t2_f, func_t2_and), [], left(got_rel_t2)),
+        got_sv_result, sv_t2_f, func_t2_and, left(got_rel_t2), left(got_sv_result))
+    $_ tap("Function(t2) done")
+
+    # =============== Discharge and close ===============
+    $proof got_func_t2
+    $goal_f func_t2_and
+    $proof ir(proof, remove(same, func_t, left(proof)),
+        [implies(func_t, goal_f)], implies(func_t, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, tu, left(proof)),
+        [implies(tu, goal_f)], implies(tu, goal_f))
+    $goal_f head(right(proof))
+
+    # Close foralls: val, pos, t, t2
+    $proof fr(proof, left(proof), [forall("val", goal_f)], forall("val", goal_f), "val")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("pos", goal_f)], forall("pos", goal_f), "pos")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("t", goal_f)], forall("t", goal_f), "t")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("t2", goal_f)], forall("t2", goal_f), "t2")
+
+    proof
+}

@@ -25,6 +25,7 @@ from theorems.tm.tm.tape_update_other import tape_update_other
 from theorems.tm.tm.tape_update_at import tape_update_at
 from theorems.tm.tm.tape_update_other_rev import tape_update_other_rev
 from theorems.tm.tm.tape_update_exists import tape_update_exists
+from theorems.tm.tm.tape_update_function import tape_update_function
 from vocab.tm.tm import tm_reaches
 from vocab.nat.nat import nat
 
@@ -231,5 +232,12 @@ $tue_ex_expected forall("tape", forall("h", forall("w",
     exists("tapen", tape_update("tapen","tape","h","w","_")))))
 $_ qed(tape_update_exists, tue_ex_expected, "z")
 $_ tap("tape_update_exists ok")
+
+$tuf_expected forall("t2", forall("t", forall("pos", forall("val",
+    implies(tape_update("t2","t","pos","val","_"),
+    implies(function("t","_"),
+        function("t2","_")))))))
+$_ qed(tape_update_function, tuf_expected, "z")
+$_ tap("tape_update_function ok")
 
 $ok true
