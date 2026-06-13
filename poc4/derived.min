@@ -49,6 +49,10 @@ $_show_list \self lst: ?(eq(len(lst), 0), "",
     ?(eq(len(lst), 1), show(head(lst)),
         add(show(head(lst)), add(", ", self(self, tail(lst))))))
 
+# shows: extract each formula's display string into an array
+# (show on a list of formulas; e.g. shows(left(proof)) -> ["a in b", ...])
+$shows \lst: _map(_map, show, lst)
+
 # proof: flat formulas, then call kernel bridge
 # returns [kernel_proof, left, right]
 $proof \left right rule premises principal term: {
