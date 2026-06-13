@@ -14,6 +14,8 @@ from theorems.tm.add.phase3_step_case import phase3_step_case
 from theorems.tm.add.phase3 import phase3
 from theorems.tm.add.phase4 import phase4
 from theorems.tm.add.phase5 import phase5
+from theorems.tm.add.tape_read_sep import tape_read_sep
+from theorems.tm.add.tape_read_high import tape_read_high
 from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p, phase4p, phase5p
 from vocab.nat.nat import nat, omega
 from vocab.arithmetic.plus import plus
@@ -108,5 +110,23 @@ $_ tap("phase4 ok")
 
 $_ qed(phase5, phase5p("_"), "z")
 $_ tap("phase5 ok")
+
+$trs_expected forall("tape", forall("a", forall("b", forall("zero",
+    implies(unary_tape("tape", "a", "b", "_"),
+    implies(num("zero", 0, "_"),
+        apply("tape", "a", "zero", "_")))))))
+$_ qed(tape_read_sep, trs_expected, "z")
+$_ tap("tape_read_sep ok")
+
+$trh_expected forall("tape", forall("a", forall("b", forall("j", forall("sa",
+    forall("pos", forall("one",
+    implies(unary_tape("tape", "a", "b", "_"),
+    implies(mem("j", "b"),
+    implies(successor("sa", "a", "_"),
+    implies(plus("sa", "j", "pos", "_"),
+    implies(num("one", 1, "_"),
+        apply("tape", "pos", "one", "_")))))))))))))
+$_ qed(tape_read_high, trh_expected, "z")
+$_ tap("tape_read_high ok")
 
 $ok true

@@ -46,3 +46,6 @@ $nat \n p: {
     ["nat", add(n, " in N"),
         forall(w, implies(omega(w, np), mem(n, w)))]
 }
+
+# nat_lt(a, b, p): a < b (natural number ordering, a ∈ b)
+$nat_lt \a b p: ["nat_lt", add(a, add(" < ", b)), mem(a, b)]

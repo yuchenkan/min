@@ -1,0 +1,61 @@
+from derived import implies, forall, exists, left, right
+from vocab.sets import ordered_pair
+from vocab.tm.tm import tm_config
+from tactics import ax, ir, fr, mp, inst, apply_thm, eir, eel, cut_c, close
+
+from theorems.tm.tm.config_intro import config_intro
+from theorems.sets.ordpair_exists import ordpair_exists
+
+# Pairing |- ∀q,h,t. ∃c. TMConfig(c,q,h,t)
+$config_exists {
+    $op_inner ordered_pair("inner", "h", "t", "_")
+    $op_c ordered_pair("c", "q", "inner", "_")
+    $cfg tm_config("c", "q", "h", "t", "_")
+
+    # config_intro: ∀c,q,h,t,inner. OP(inner,h,t) → OP(c,q,inner) → TMConfig(c,q,h,t)
+    # Instantiate with c,q,h,t,inner
+    $_ci head(right(config_intro))
+    $_ci_b \c: \q: \h: \t: \inner: implies(ordered_pair(inner,h,t,"_"),
+        implies(ordered_pair(c,q,inner,"_"), tm_config(c,q,h,t,"_")))
+    $got apply_thm(config_intro, _ci, ["c","q","h","t","inner"], ["c","q","h","t","inner"], _ci_b, left(config_intro))
+
+    # mp with OP(inner,h,t) and OP(c,q,inner)
+    $got mp(got,
+        ax([op_inner],[op_inner],op_inner), op_inner, implies(op_c, cfg),
+        [], [op_inner])
+    $got mp(got,
+        ax([op_c],[op_c],op_c), op_c, cfg,
+        [op_inner], [op_c])
+    # [op_inner, op_c, Pairing] |- TMConfig(c,q,h,t)
+
+    # eir c → ∃c.TMConfig(c,q,h,t)
+    $ex_cfg exists("c", cfg)
+    $got eir(got, \v: tm_config(v, "q", "h", "t", "_"), "c", "c", left(got))
+
+    # eel c from OP(c,q,inner), cut with ordpair_exists
+    $got eel(got, \v: ordered_pair(v, "q", "inner", "_"), "c", "c",
+        left(got), head(right(got)))
+    $_oe head(right(ordpair_exists))
+    $_oe_b \a: \b: exists("p", ordered_pair("p", a, b, "_"))
+    $got_ex_c apply_thm(ordpair_exists, _oe, ["q","inner"], ["a","b"], _oe_b, left(ordpair_exists))
+    $got cut_c(got_ex_c, got, exists("c", op_c),
+        left(got_ex_c), left(got), head(right(got)))
+
+    # eel inner from OP(inner,h,t), cut with ordpair_exists
+    $got eel(got, \v: ordered_pair(v, "h", "t", "_"), "inner", "inner",
+        left(got), head(right(got)))
+    $got_ex_inner apply_thm(ordpair_exists, _oe, ["h","t"], ["a","b"], _oe_b, left(ordpair_exists))
+    $got cut_c(got_ex_inner, got, exists("inner", op_inner),
+        left(got_ex_inner), left(got), head(right(got)))
+    # [Pairing] |- ∃c.TMConfig(c,q,h,t)
+
+    # Close ∀ over t, h, q
+    $goal_f head(right(got))
+    $got fr(got, left(got), [forall("t", goal_f)], forall("t", goal_f), "t")
+    $goal_f head(right(got))
+    $got fr(got, left(got), [forall("h", goal_f)], forall("h", goal_f), "h")
+    $goal_f head(right(got))
+    $got fr(got, left(got), [forall("q", goal_f)], forall("q", goal_f), "q")
+
+    got
+}

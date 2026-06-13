@@ -1,0 +1,78 @@
+from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right
+from vocab.functions import apply, function
+from vocab.tm.add import unary_tape
+from vocab.nat.nat import num, successor
+from vocab.arithmetic.plus import plus
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, inst, apply_thm, close, same
+from util import remove
+
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+
+# [] |- ∀tape,a,b,zero. UnaryTape(tape,a,b) → Num(zero,0) → Apply(tape,a,zero)
+$tape_read_sep {
+    $ut unary_tape("tape", "a", "b", "_")
+    $num_zero num("zero", 0, "_")
+    $app_tape apply("tape", "a", "zero", "_")
+
+    # UnaryTape expands to And(func, And(low, And(sep, And(high, beyond))))
+    $func_f function("tape", "_")
+    $low forall("i", implies(mem("i", "a"),
+        forall("one", implies(num("one", 1, "_"), apply("tape", "i", "one", "_")))))
+    $sep forall("zero", implies(num("zero", 0, "_"), apply("tape", "a", "zero", "_")))
+    $high forall("j", implies(mem("j", "b"),
+        forall("sa", implies(successor("sa", "a", "_"),
+            forall("pos", implies(plus("sa", "j", "pos", "_"),
+                forall("one", implies(num("one", 1, "_"),
+                    apply("tape", "pos", "one", "_")))))))))
+    $beyond forall("sa", implies(successor("sa", "a", "_"),
+        forall("ep", implies(plus("sa", "b", "ep", "_"),
+            forall("i", implies(neg(mem("i", "ep")),
+                forall("zero", implies(num("zero", 0, "_"),
+                    apply("tape", "i", "zero", "_")))))))))
+    $rest0 and(low, and(sep, and(high, beyond)))
+
+    # ut |- rest0
+    $got_rest0 mp(and_elim_right(func_f, rest0, []),
+        ax([ut],[ut],ut), ut, rest0, [], [ut])
+
+    # ut |- And(sep, And(high, beyond))
+    $rest1 and(sep, and(high, beyond))
+    $got_rest1 mp(and_elim_right(low, rest1, []),
+        got_rest0, rest0, rest1, [], left(got_rest0))
+
+    # ut |- sep
+    $got_sep mp(and_elim_left(sep, and(high, beyond), []),
+        got_rest1, rest1, sep, [], left(got_rest1))
+
+    # sep = ∀zero. Num(zero,0) → Apply(tape,a,zero)
+    # Instantiate zero
+    $sep_inst implies(num_zero, app_tape)
+    $got_inst inst(got_sep, sep, sep_inst, "zero", left(got_sep))
+
+    # mp: discharge Num(zero,0)
+    $got_app mp(got_inst,
+        ax([num_zero],[num_zero],num_zero), num_zero, app_tape,
+        left(got_inst), [num_zero])
+
+    # Discharge: num_zero, ut
+    $proof got_app
+    $goal_f app_tape
+    $proof ir(proof, remove(same, num_zero, left(proof)),
+        [implies(num_zero, goal_f)], implies(num_zero, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, ut, left(proof)),
+        [implies(ut, goal_f)], implies(ut, goal_f))
+    $goal_f head(right(proof))
+
+    # Close foralls: zero, b, a, tape
+    $proof fr(proof, left(proof), [forall("zero", goal_f)], forall("zero", goal_f), "zero")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("b", goal_f)], forall("b", goal_f), "b")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("a", goal_f)], forall("a", goal_f), "a")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("tape", goal_f)], forall("tape", goal_f), "tape")
+
+    proof
+}
