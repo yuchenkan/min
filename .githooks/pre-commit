@@ -1,0 +1,13 @@
+#!/bin/bash
+# Run the .min lint check before allowing a commit.
+# lint.sh lives in poc4/ and checks proof files for vocab-internal prefixed names.
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/poc4" || exit 1
+
+if ! bash lint.sh; then
+    echo ""
+    echo "pre-commit: lint.sh failed — commit aborted."
+    echo "Fix the names above, or run 'git commit --no-verify' to bypass."
+    exit 1
+fi
