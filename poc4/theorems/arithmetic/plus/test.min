@@ -1,6 +1,7 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, qed
+from derived import mem, implies, forall, and, iff, exists, eqv, or, qed
 from vocab.sets import ordered_pair, relation, product
 from vocab.nat.nat import nat, num, omega, successor
+from vocab.nat.order import nat_le
 from vocab.functions import apply, function, domain
 from vocab.nat.recursion import recursive, total_from
 from vocab.arithmetic.plus import succ_char, succ_func, plus_func, plus
@@ -39,6 +40,7 @@ from theorems.arithmetic.plus.plus_assoc import plus_assoc
 from theorems.arithmetic.plus.plus_val_unique import plus_val_unique
 from theorems.arithmetic.plus.prove_addition import prove_addition
 from theorems.arithmetic.plus.plus_val_nat import plus_val_nat
+from theorems.arithmetic.plus.plus_ge import plus_ge
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")), "z")
 $_ tap("succ_func_exists ok")
@@ -265,5 +267,10 @@ $_ qed(plus_val_nat, forall("m", forall("n", forall("p",
     implies(nat("m","_"), implies(nat("n","_"),
         implies(plus("m","n","p","_"), nat("p","_"))))))), "z")
 $_ tap("plus_val_nat ok")
+
+$_ qed(plus_ge, forall("a", forall("b",
+    implies(nat("a","_"), implies(nat("b","_"),
+        exists("c", and(plus("a","b","c","_"), nat_le("a","c","_"))))))), "z")
+$_ tap("plus_ge ok")
 
 $ok true
