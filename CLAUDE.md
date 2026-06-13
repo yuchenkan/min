@@ -121,6 +121,17 @@ All `from ... import ...` lines must appear before any `$` bindings in a `.min` 
 
 `tap` with the same string only prints once per cache cycle. To avoid suppression, build a unique string per call site (e.g. `tap(add("test_name", " ok"))`). To invalidate module cache, `touch` the source file.
 
+### Displaying formulas and contexts (`show` / `shows`)
+
+A formula is `[tag, display, arg1, arg2]`; `show(f)` returns its precomputed display string (`d(f)`). A proof's `left(p)` / `right(p)` are *lists* of formulas, so `tap(show(left(p)))` prints `[ <arr>, <arr>, ... ]` — the printer renders nested formula-arrays as `<arr>`. Use `shows(lst)` (also from `derived`) to map `show` over a list and get an array of display strings the printer renders directly:
+
+```
+$_ tap(shows(left(p)))    # ["a in b", "b in c"]
+$_ tap(show(principal))   # single formula: "a in b"
+```
+
+`show` is not overloaded for lists — a formula and a 1-element context are indistinguishable, so dispatching would be ambiguous; `shows` is the explicit list version.
+
 ## Project structure
 
 - /vol/formal/bp/ — business plan (LaTeX, git tracked)
