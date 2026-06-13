@@ -13,6 +13,7 @@ from theorems.tm.tm.tape_update_unique import tape_update_unique
 from theorems.tm.tm.config_decompose import config_decompose
 from theorems.tm.tm.transition_unique import transition_unique
 from theorems.tm.tm.headmove_right_elim import headmove_right_elim
+from theorems.tm.tm.headmove_left_elim import headmove_left_elim
 from theorems.tm.tm.tape_update_eq_args import tape_update_eq_args
 from theorems.tm.tm.tape_update_eq import tape_update_eq
 from theorems.tm.tm.config_intro import config_intro
@@ -110,6 +111,18 @@ $hre_expected forall("h", forall("hn", forall("d", forall("ka", forall("ska", fo
         eqv("hn", "ska", "_"))))))))))))
 $_ qed(headmove_right_elim, hre_expected, "z")
 $_ tap("headmove_right_elim ok")
+
+$hle_expected forall("h", forall("hn", forall("d", forall("hf", forall("c", forall("d0", forall("w",
+    implies(head_move("h", "hn", "d", "_"),
+    implies(eqv("h", "hf", "_"),
+    implies(eqv("d", "d0", "_"),
+    implies(num("d0", 0, "_"),
+    implies(successor("hf", "c", "_"),
+    implies(omega("w", "_"),
+    implies(mem("c", "w"),
+        eqv("hn", "c", "_")))))))))))))))
+$_ qed(headmove_left_elim, hle_expected, "z")
+$_ tap("headmove_left_elim ok")
 
 $tuea_expected forall("t1", forall("t2", forall("tape1", forall("h1", forall("w1",
     forall("tape2", forall("h2", forall("w2",

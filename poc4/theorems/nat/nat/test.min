@@ -30,6 +30,7 @@ from theorems.nat.nat.not_mem_self import not_mem_self
 from theorems.nat.nat.zero_or_succ import zero_or_succ
 from theorems.nat.nat.omega_transitive_set import omega_transitive_set
 from theorems.nat.nat.successor_injection import successor_injection
+from theorems.nat.nat.omega_transitive import omega_transitive
 from theorems.nat.nat.nat_intro import nat_intro
 
 $_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))), "z")
@@ -154,6 +155,10 @@ $_ tap("zero_or_succ ok")
 
 $_ qed(omega_transitive_set, forall("w", implies(omega("w","_"), forall("n", implies(mem("n","w"), transitive_set("n","_"))))), "z")
 $_ tap("omega_transitive_set ok")
+
+$_ qed(omega_transitive, forall("w", forall("b", forall("k",
+    implies(omega("w","_"), implies(mem("b","w"), implies(mem("k","b"), mem("k","w"))))))), "z")
+$_ tap("omega_transitive ok")
 
 $_ qed(nat_intro, forall("w", forall("m", implies(omega("w","_"), implies(mem("m","w"), nat("m","_"))))), "z")
 $_ tap("nat_intro ok")

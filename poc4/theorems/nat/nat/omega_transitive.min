@@ -1,0 +1,177 @@
+from derived import mem, neg, implies, forall, and, or, eqv, left, right
+from vocab.nat.nat import omega, num, successor
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same
+from util import remove, diff
+from theorems.sets.neg_mem_empty import neg_mem_empty
+from theorems.nat.nat.mem_succ_elim import mem_succ_elim
+from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.nat.nat.omega_induction import omega_induction
+
+# Omega is a transitive set: ∀w,b,k. Omega(w) → In(b,w) → In(k,b) → In(k,w)
+# Predicate: P(b) = ∀k. k∈b → k∈w
+
+$omega_transitive {
+    $pred \w v p: forall(add(p, "k"), implies(mem(add(p, "k"), v), mem(add(p, "k"), w)))
+
+    $ind omega_induction(pred, [], "_")
+    $ind_ctx left(ind)
+    $_ind_f head(right(ind))
+
+    $om omega("w", "_")
+    $bw mem("b", "w")
+    $nw mem("n", "w")
+    $pred_n pred("w", "n", "_")
+    $pred_e pred("w", "e", "_")
+
+    # === BASE: num(e,0) → ∀k. k∈e → k∈w ===
+    # Vacuously true: nothing is in the empty set.
+    $ke mem("k", "e")
+    $kw mem("k", "w")
+
+    $_nme head(right(neg_mem_empty))
+    $_nme_b \e: \x: implies(num(e,0,"_"), neg(mem(x,e)))
+    $got_neg_ke mp(apply_thm(neg_mem_empty, _nme, ["e", "k"], ["e", "x"], _nme_b, []),
+        ax([num("e", 0, "_")], [num("e", 0, "_")], num("e", 0, "_")),
+        num("e", 0, "_"), neg(ke), [], [num("e", 0, "_")])
+    $ax_ke wl(ax([ke], [ke], ke), [num("e", 0, "_"), ke], [ke], num("e", 0, "_"))
+    $got_false cut(wl(got_neg_ke, [num("e", 0, "_"), ke], [neg(ke)], ke),
+        nl(ax_ke, [num("e", 0, "_"), ke, neg(ke)], [], neg(ke)),
+        [num("e", 0, "_"), ke], [], neg(ke))
+    $got_kw wr(got_false, [num("e", 0, "_"), ke], [kw], kw)
+    $got_base_inner fr(ir(got_kw, [num("e", 0, "_")],
+        [implies(ke, kw)], implies(ke, kw)),
+        [num("e", 0, "_")], [pred_e], pred_e, "k")
+
+    $base_hyp forall("e", implies(num("e", 0, "_"), pred_e))
+    $got_base fr(ir(got_base_inner, [], [implies(num("e", 0, "_"), pred_e)],
+        implies(num("e", 0, "_"), pred_e)),
+        [], [base_hyp], base_hyp, "e")
+
+    $_ tap("omega_transitive base ok")
+
+    # === STEP: n∈w → P(n) → ∀s. succ(s,n) → P(s) ===
+    # P(s) = ∀k. k∈s → k∈w.
+    # k∈s: mem_succ_elim → k∈n ∨ eqv(k,n).
+    # Case k∈n: P(n) gives k∈w.
+    # Case eqv(k,n): eqv_symmetric → eqv(n,k). eqv_mem_right: n∈w → k∈w.
+    $succ_sn successor("s", "n", "_")
+    $ks mem("k", "s")
+    $kn mem("k", "n")
+    $ekn eqv("k", "n", "_")
+    $or_kn or(kn, ekn)
+
+    # mem_succ_elim: k∈s → succ(s,n) → or(k∈n, eqv(k,n))
+    $_mse head(right(mem_succ_elim))
+    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+    $got_or_k mp(mp(apply_thm(mem_succ_elim, _mse, ["k", "s", "n"], ["x", "s", "n"], _mse_b, []),
+        ax([ks], [ks], ks), ks, implies(succ_sn, or_kn), [], [ks]),
+        ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_kn, [ks], [succ_sn])
+    # [ks, succ_sn] |- or(kn, ekn)
+
+    # Case k∈n: P(n) = ∀k. k∈n → k∈w. Instantiate at k.
+    $imp_kn_kw implies(kn, kw)
+    $pn_body forall("k", implies(mem("k", "n"), mem("k", "w")))
+    $got_kw_case1 mp(fl(ax([imp_kn_kw], [imp_kn_kw], imp_kn_kw),
+        [pn_body], [imp_kn_kw], pn_body, "k"),
+        ax([kn], [kn], kn), kn, kw, [pn_body], [kn])
+    # [pn_body, kn] |- kw
+
+    # Case eqv(k,n): eqv_symmetric → eqv(n,k). eqv_mem_right(n,k,w): n∈w → k∈w.
+    $enk eqv("n", "k", "_")
+    $_es head(right(eqv_symmetric))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_enk mp(apply_thm(eqv_symmetric, _es, ["k", "n"], ["a", "b"], _es_b, []),
+        ax([ekn], [ekn], ekn), ekn, enk, [], [ekn])
+    # [ekn] |- eqv(n,k)
+
+    $_emr head(right(eqv_mem_right))
+    $emr_ctx left(eqv_mem_right)
+    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $got_emr mp(apply_thm(eqv_mem_right, _emr, ["n", "k", "w"], ["x", "y", "a"], _emr_b, emr_ctx),
+        got_enk, enk, implies(nw, kw), emr_ctx, [ekn])
+    $got_kw_case2 mp(got_emr, ax([nw], [nw], nw), nw, kw, left(got_emr), [nw])
+    # [emr_ctx, ekn, nw] |- kw
+
+    # or_elim: combine both cases
+    $common add([succ_sn, ks, nw, pn_body], emr_ctx)
+    $got_kw_c1 wl_all(got_kw_case1, left(got_kw_case1), [kw], diff(same, common, left(got_kw_case1)))
+    $got_kw_c2 wl_all(got_kw_case2, left(got_kw_case2), [kw], diff(same, common, left(got_kw_case2)))
+    $prf0_or nr(got_kw_c1, remove(same, kn, left(got_kw_c1)), [kw, neg(kn)], neg(kn))
+    $prf1_or wl_all(got_kw_c2, left(got_kw_c2), [kw], diff(same, add(common, [ekn]), left(got_kw_c2)))
+    $got_kw_or il(prf0_or, prf1_or, add(common, [or_kn]), [kw], or_kn)
+
+    # Cut or_kn from got_or_k
+    $cut_left remove(same, or_kn, left(got_kw_or))
+    $got_or_k_w wr(wl_all(got_or_k, [ks, succ_sn], [or_kn], diff(same, cut_left, [ks, succ_sn])),
+        cut_left, [or_kn, kw], kw)
+    $got_kw_final cut(got_or_k_w, got_kw_or, cut_left, [kw], or_kn)
+    # cut_left |- kw. Has succ_sn, ks, nw, pn_body.
+
+    # Close: ir ks, fr k → P(s). ir succ_sn, fr s.
+    $pred_s pred("w", "s", "_")
+    $r1 ir(got_kw_final, remove(same, ks, left(got_kw_final)),
+        [implies(ks, kw)], implies(ks, kw))
+    $got_ps fr(r1, left(r1), [pred_s], pred_s, "k")
+    # Has nw, pn_body, succ_sn.
+
+    $got_step_inner ir(got_ps, remove(same, succ_sn, left(got_ps)),
+        [implies(succ_sn, pred_s)], implies(succ_sn, pred_s))
+    $got_step_fa fr(got_step_inner, left(got_step_inner),
+        [forall("s", implies(succ_sn, pred_s))],
+        forall("s", implies(succ_sn, pred_s)), "s")
+    $step_inner implies(pred_n, forall("s", implies(succ_sn, pred("w", "s", "_"))))
+    $got_step_ir ir(got_step_fa, remove(same, pn_body, left(got_step_fa)),
+        [step_inner], step_inner)
+    $step_hyp forall("n", implies(nw, step_inner))
+    $got_step fr(ir(got_step_ir, remove(same, nw, left(got_step_ir)),
+        [implies(nw, step_inner)], implies(nw, step_inner)),
+        remove(same, nw, left(got_step_ir)), [step_hyp], step_hyp, "n")
+
+    $_ tap("omega_transitive step ok")
+
+    # === Apply induction ===
+    $fa_pred forall("n", implies(nw, pred_n))
+    $_ind_body \w: {
+        $base forall("e", implies(num("e",0,"_"), pred(w,"e","_")))
+        $step forall("n", implies(mem("n",w), implies(pred(w,"n","_"),
+            forall("s", implies(successor("s","n","_"), pred(w,"s","_"))))))
+        implies(omega(w,"_"), implies(base, implies(step, forall("n", implies(mem("n",w), pred(w,"n","_"))))))
+    }
+    $ind_inst apply_thm(ind, _ind_f, ["w"], ["w"], _ind_body, ind_ctx)
+    $i1 mp(ind_inst, ax([om], [om], om), om,
+        implies(base_hyp, implies(step_hyp, fa_pred)), left(ind_inst), [om])
+    $i2 mp(i1, wl_all(got_base, [], [base_hyp], left(i1)),
+        base_hyp, implies(step_hyp, fa_pred), left(i1), left(i1))
+    $got_step_w wl_all(got_step, left(got_step), [step_hyp], diff(same, left(i2), left(got_step)))
+    $i3 mp(i2, got_step_w, step_hyp, fa_pred, left(i2), left(got_step_w))
+
+    $_ tap("omega_transitive induction ok")
+
+    # === Instantiate at b, extract k∈b → k∈w ===
+    $pred_b pred("w", "b", "_")
+    $kb mem("k", "b")
+    $imp_bw implies(bw, pred_b)
+    $got_pred_b fl(ax([imp_bw], [imp_bw], imp_bw), [fa_pred], [imp_bw], fa_pred, "b")
+    $got_pred_b2 mp(cut_c(i3, got_pred_b, fa_pred, left(i3), [fa_pred], imp_bw),
+        ax([bw], [bw], bw), bw, pred_b, left(i3), [bw])
+    # Instantiate pred_b at k: k∈b → k∈w
+    $imp_kb_kw implies(kb, kw)
+    $got_imp_kb fl(ax([imp_kb_kw], [imp_kb_kw], imp_kb_kw),
+        [pred_b], [imp_kb_kw], pred_b, "k")
+    $got_result mp(cut_c(got_pred_b2, got_imp_kb, pred_b,
+        left(got_pred_b2), [pred_b], imp_kb_kw),
+        ax([kb], [kb], kb), kb, kw, left(got_pred_b2), [kb])
+    # left(got_result) + [bw, kb] |- kw
+
+    # === Discharge and close ===
+    $r4 ir(got_result, remove(same, kb, left(got_result)),
+        [implies(kb, kw)], implies(kb, kw))
+    $r5 ir(r4, remove(same, bw, left(r4)),
+        [implies(bw, head(right(r4)))], implies(bw, head(right(r4))))
+    $r6 ir(r5, remove(same, om, left(r5)),
+        [implies(om, head(right(r5)))], implies(om, head(right(r5))))
+
+    $top head(right(r6))
+    close(r6, left(r6), [top], ["k", "b", "w"])
+}

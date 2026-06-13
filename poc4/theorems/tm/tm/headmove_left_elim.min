@@ -1,0 +1,261 @@
+from derived import mem, neg, implies, or, and, iff, eqv, forall, left, right
+from vocab.nat.nat import num, omega, successor
+from vocab.tm.tm import head_move
+from tactics import ax, wl, wl_all, fl, fr, nl, nr, il, ir, wr, mp, apply_thm, cut, cut_c, close, same
+from util import remove, diff
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.or_elim import or_elim
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_sym import iff_sym
+from theorems.logic.neg_iff_compat import neg_iff_compat
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.nat.nat.succ_not_zero import succ_not_zero
+from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
+from theorems.nat.nat.mem_succ_self import mem_succ_self
+from theorems.nat.nat.omega_succ_closed import omega_succ_closed
+from theorems.nat.nat.omega_transitive import omega_transitive
+from theorems.nat.nat.successor_injection import successor_injection
+
+# |- forall h,hn,d,hf,c,d0,w.
+#     HeadMove(h,hn,d) -> Eq(h,hf) -> Eq(d,d0) -> Num(d0,0) ->
+#     Succ(hf,c) -> Omega(w) -> In(c,w) -> Eq(hn,c)
+$headmove_left_elim {
+    $hm head_move("h", "hn", "d", "_")
+    $eqv_h_hf eqv("h", "hf", "_")
+    $eqv_d_d0 eqv("d", "d0", "_")
+    $num_d0_0 num("d0", 0, "_")
+    $succ_hf_c successor("hf", "c", "_")
+    $om omega("w", "_")
+    $cw mem("c", "w")
+    $goal eqv("hn", "c", "_")
+
+    # HeadMove = Or(left_and, right_and)
+    $num_d_1 num("d", 1, "_")
+    $num_d_0 num("d", 0, "_")
+    $succ_hnh successor("hn", "h", "_")
+    $succ_hhn successor("h", "hn", "_")
+    $left_and and(num_d_1, succ_hnh)
+    $right_and and(num_d_0, succ_hhn)
+
+    # === LEFT CASE: And(Num(d,1), Succ(hn,h)) -> contradiction -> Eq(hn,c) ===
+
+    # Extract Num(d,1) from left_and
+    $got_numd1 mp(and_elim_left(num_d_1, succ_hnh, []),
+        ax([left_and], [left_and], left_and), left_and, num_d_1, [], [left_and])
+
+    # Num(d0,0) fl at "d": Empty(d) → Succ(d0,d) (from num(d0,1) pattern... no)
+    # Actually num(d,1) = ∀m. num(m,0) → Succ(d,m). fl at d0: num(d0,0) → Succ(d,d0)
+    $succ_d_d0 successor("d", "d0", "_")
+    $imp_emp_succ implies(num_d0_0, succ_d_d0)
+    $s_fl fl(ax([imp_emp_succ], [imp_emp_succ], imp_emp_succ),
+        [num_d_1], [imp_emp_succ], num_d_1, "d0")
+    $got_succ_d_d0 mp(cut_c(got_numd1, s_fl, num_d_1, [left_and], [num_d_1], imp_emp_succ),
+        ax([num_d0_0], [num_d0_0], num_d0_0), num_d0_0, succ_d_d0,
+        [left_and], [num_d0_0])
+    # [left_and, num_d0_0] |- Succ(d,d0)
+
+    # succ_not_zero at (d,d0): Succ(d,d0) -> neg(Empty(d))
+    $num_d_0_empty num("d", 0, "_")
+    $neg_num_d_0 neg(num_d_0_empty)
+    $_sn head(right(succ_not_zero))
+    $_sn_b \sn: \n: implies(successor(sn, n, "_"), neg(num(sn, 0, "_")))
+    $got_sn0 apply_thm(succ_not_zero, _sn, ["d", "d0"], ["sn", "n"], _sn_b, [])
+    $got_not_emp_d mp(got_sn0, got_succ_d_d0, succ_d_d0, neg_num_d_0,
+        [], [left_and, num_d0_0])
+    # [left_and, num_d0_0] |- neg(Empty(d))
+
+    # Derive Empty(d) from Empty(d0) + Eq(d,d0):
+    # fl Eq(d,d0) at z: Iff(In(z,d), In(z,d0))
+    $in_zd mem("z", "d")
+    $in_zd0 mem("z", "d0")
+    $iff_dd0 iff(in_zd, in_zd0)
+    $got_iff_dd0 fl(ax([iff_dd0], [iff_dd0], iff_dd0), [eqv_d_d0], [iff_dd0], eqv_d_d0, "z")
+
+    # neg_iff_compat: Iff(In(z,d),In(z,d0)) -> Iff(neg(In(z,d)), neg(In(z,d0)))
+    $neg_in_zd neg(in_zd)
+    $neg_in_zd0 neg(in_zd0)
+    $iff_neg iff(neg_in_zd, neg_in_zd0)
+    $got_iff_neg mp(neg_iff_compat(in_zd, in_zd0, []),
+        got_iff_dd0, iff_dd0, iff_neg, [], [eqv_d_d0])
+
+    # iff_elim_left backward: neg(In(z,d0)) -> neg(In(z,d))
+    # Actually need iff_elim_right direction: neg(In(z,d0)) -> neg(In(z,d))
+    # iff_elim_left gives left->right: neg(In(z,d)) -> neg(In(z,d0))
+    # I need right->left: neg(In(z,d0)) -> neg(In(z,d))
+    # Use iff_sym + iff_elim_left, or just use iff_elim_right
+    $imp_neg implies(neg_in_zd0, neg_in_zd)
+    $got_imp_neg mp(iff_elim_left(neg_in_zd0, neg_in_zd, []),
+        mp(iff_sym(neg_in_zd, neg_in_zd0, []),
+            got_iff_neg, iff_neg, iff(neg_in_zd0, neg_in_zd), [], [eqv_d_d0]),
+        iff(neg_in_zd0, neg_in_zd), imp_neg, [], [eqv_d_d0])
+
+    # fl Empty(d0) at z: neg(In(z,d0))
+    $got_neg_in_zd0 fl(ax([neg_in_zd0], [neg_in_zd0], neg_in_zd0),
+        [num_d0_0], [neg_in_zd0], num_d0_0, "z")
+
+    # mp: neg(In(z,d))
+    $got_neg_in_zd mp(got_imp_neg, got_neg_in_zd0, neg_in_zd0, neg_in_zd,
+        [eqv_d_d0], [num_d0_0])
+
+    # fr z: Empty(d) = forall(z, neg(In(z,d)))
+    $got_empty_d fr(got_neg_in_zd, left(got_neg_in_zd), [num_d_0_empty], num_d_0_empty, "z")
+
+    # Contradiction: Empty(d) + neg(Empty(d))
+    $ctx_left [left_and, eqv_d_d0, num_d0_0]
+    $got_empty_d_w wl_all(got_empty_d, left(got_empty_d), [num_d_0_empty],
+        diff(same, ctx_left, left(got_empty_d)))
+    $got_not_emp_d_w wl_all(got_not_emp_d, left(got_not_emp_d), [neg_num_d_0],
+        diff(same, ctx_left, left(got_not_emp_d)))
+    $got_bot_nl nl(got_empty_d_w, add(ctx_left, [neg_num_d_0]), [], neg_num_d_0)
+    $got_bot cut(got_not_emp_d_w, got_bot_nl, ctx_left, [], neg_num_d_0)
+    $got_left wr(got_bot, ctx_left, [goal], goal)
+    # ctx_left |- Eq(hn,c)
+
+    $_ tap("headmove_left left ok")
+
+    # === RIGHT CASE: And(Num(d,0), Succ(h,hn)) -> Eq(hn,c) ===
+
+    # Extract Succ(h,hn) from right_and
+    $got_succ_hhn mp(and_elim_right(num_d_0, succ_hhn, []),
+        ax([right_and], [right_and], right_and), right_and, succ_hhn, [], [right_and])
+    # [right_and] |- Succ(h,hn)
+
+    # Transfer Succ(h,hn) to Succ(hf,hn) via eq_succ_transfer:
+    # eq_succ_transfer: Eq(a,c) → Eq(b,d) → Succ(c,d) → Succ(a,b)
+    # With a=hf, b=hn, c=h, d=hn: Eq(hf,h) → Eq(hn,hn) → Succ(h,hn) → Succ(hf,hn)
+
+    # Eq(hf,h) from eqv_symmetric(Eq(h,hf))
+    $eqv_hf_h eqv("hf", "h", "_")
+    $_es head(right(eqv_symmetric))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eqv_hf_h mp(apply_thm(eqv_symmetric, _es, ["h", "hf"], ["a", "b"], _es_b, []),
+        ax([eqv_h_hf], [eqv_h_hf], eqv_h_hf), eqv_h_hf, eqv_hf_h, [], [eqv_h_hf])
+
+    # Eq(hn,hn) from eqv_reflexive
+    $eqv_hn_hn eqv("hn", "hn", "_")
+    $_er head(right(eqv_reflexive))
+    $got_eqv_hn_hn apply_thm(eqv_reflexive, _er, ["hn"], ["a"],
+        \a: eqv(a,a,"_"), [])
+
+    # eq_succ_transfer: Eq(hf,h) → Eq(hn,hn) → Succ(h,hn) → Succ(hf,hn)
+    $succ_hf_hn successor("hf", "hn", "_")
+    $_est head(right(eq_succ_transfer))
+    $_est_b \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"),
+        implies(successor(c,d,"_"), successor(a,b,"_"))))
+    $got_est apply_thm(eq_succ_transfer, _est, ["hf","hn","h","hn"],
+        ["a","b","c","d"], _est_b, [])
+    $got_est mp(got_est, got_eqv_hf_h, eqv_hf_h,
+        implies(eqv_hn_hn, implies(succ_hhn, succ_hf_hn)), [], [eqv_h_hf])
+    $got_est mp(got_est, got_eqv_hn_hn, eqv_hn_hn,
+        implies(succ_hhn, succ_hf_hn), [eqv_h_hf], [])
+    $got_succ_hf_hn mp(got_est, got_succ_hhn, succ_hhn, succ_hf_hn,
+        left(got_est), [right_and])
+    # [eqv_h_hf, right_and] |- Succ(hf,hn)
+
+    $_ tap("headmove_left succ_transfer ok")
+
+    # mem_succ_self: Succ(hf,hn) → In(hn,hf)
+    $hn_hf mem("hn", "hf")
+    $_mss head(right(mem_succ_self))
+    $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
+    $got_hn_hf mp(apply_thm(mem_succ_self, _mss, ["hf","hn"], ["s","n"], _mss_b, []),
+        got_succ_hf_hn, succ_hf_hn, hn_hf, [], left(got_succ_hf_hn))
+    # [eqv_h_hf, right_and] |- In(hn,hf)
+
+    # omega_succ_closed: Omega(w) → In(c,w) → Succ(hf,c) → In(hf,w)
+    $hf_w mem("hf", "w")
+    $_osc head(right(omega_succ_closed))
+    $_osc_b \s: \n: \w: implies(omega(w,"_"), implies(mem(n,w), implies(successor(s,n,"_"), mem(s,w))))
+    $got_hf_w mp(mp(mp(
+        apply_thm(omega_succ_closed, _osc, ["hf","c","w"], ["s","n","w"], _osc_b, []),
+        ax([om], [om], om), om, implies(cw, implies(succ_hf_c, hf_w)), [], [om]),
+        ax([cw], [cw], cw), cw, implies(succ_hf_c, hf_w), [om], [cw]),
+        ax([succ_hf_c], [succ_hf_c], succ_hf_c), succ_hf_c, hf_w, [om, cw], [succ_hf_c])
+    # [om, cw, succ_hf_c] |- In(hf,w)
+
+    # omega_transitive: Omega(w) → In(hf,w) → In(hn,hf) → In(hn,w)
+    $hn_w mem("hn", "w")
+    $_ot head(right(omega_transitive))
+    $ot_ctx left(omega_transitive)
+    $_ot_b \w: \b: \k: implies(omega(w,"_"), implies(mem(b,w), implies(mem(k,b), mem(k,w))))
+    $got_ot apply_thm(omega_transitive, _ot, ["w","hf","hn"], ["w","b","k"], _ot_b, ot_ctx)
+    $got_ot mp(got_ot, ax([om], [om], om), om,
+        implies(hf_w, implies(hn_hf, hn_w)), ot_ctx, [om])
+    $got_ot mp(got_ot, got_hf_w, hf_w,
+        implies(hn_hf, hn_w), left(got_ot), [om, cw, succ_hf_c])
+    $got_hn_w mp(got_ot, got_hn_hf, hn_hf, hn_w,
+        left(got_ot), left(got_hn_hf))
+    # ctx |- In(hn,w)
+
+    $_ tap("headmove_left hn_w ok")
+
+    # successor_injection: Omega(w) → In(c,w) → In(hn,w) → Succ(hf,c) → Succ(hf,hn) → Eq(c,hn)
+    $eqv_c_hn eqv("c", "hn", "_")
+    $_si head(right(successor_injection))
+    $si_ctx left(successor_injection)
+    $_si_b \w: \m: \n: \sn: implies(omega(w,"_"), implies(mem(m,w), implies(mem(n,w),
+        implies(successor(sn,m,"_"), implies(successor(sn,n,"_"), eqv(m,n,"_"))))))
+    $got_si apply_thm(successor_injection, _si, ["w","c","hn","hf"],
+        ["w","m","n","sn"], _si_b, si_ctx)
+    $got_si mp(got_si, ax([om], [om], om), om,
+        implies(cw, implies(hn_w, implies(succ_hf_c, implies(succ_hf_hn, eqv_c_hn)))),
+        si_ctx, [om])
+    $got_si mp(got_si, ax([cw], [cw], cw), cw,
+        implies(hn_w, implies(succ_hf_c, implies(succ_hf_hn, eqv_c_hn))),
+        left(got_si), [cw])
+    $got_si mp(got_si, got_hn_w, hn_w,
+        implies(succ_hf_c, implies(succ_hf_hn, eqv_c_hn)),
+        left(got_si), left(got_hn_w))
+    $got_si mp(got_si, ax([succ_hf_c], [succ_hf_c], succ_hf_c), succ_hf_c,
+        implies(succ_hf_hn, eqv_c_hn),
+        left(got_si), [succ_hf_c])
+    $got_eqv_c_hn mp(got_si, got_succ_hf_hn, succ_hf_hn, eqv_c_hn,
+        left(got_si), left(got_succ_hf_hn))
+    # ctx |- Eq(c,hn)
+
+    # eqv_symmetric: Eq(c,hn) → Eq(hn,c)
+    $got_right mp(apply_thm(eqv_symmetric, _es, ["c", "hn"], ["a", "b"], _es_b, []),
+        got_eqv_c_hn, eqv_c_hn, goal, [], left(got_eqv_c_hn))
+    # ctx |- Eq(hn,c)
+
+    $_ tap("headmove_left right ok")
+
+    # === Or-elim to combine ===
+
+    # Build implies for left case
+    $imp_la implies(left_and, goal)
+    $got_imp_la ir(got_left, remove(same, left_and, left(got_left)), [imp_la], imp_la)
+
+    # Build implies for right case
+    $imp_ra implies(right_and, goal)
+    $got_imp_ra ir(got_right, remove(same, right_and, left(got_right)), [imp_ra], imp_ra)
+
+    # or_elim: hm -> imp_la -> imp_ra -> goal
+    $got_oe mp(or_elim(left_and, right_and, goal, []),
+        ax([hm], [hm], hm), hm, implies(imp_la, implies(imp_ra, goal)), [], [hm])
+    # Weaken got_imp_la context to match
+    $oe_ctx left(got_oe)
+    $got_imp_la_w wl_all(got_imp_la, left(got_imp_la), [imp_la],
+        diff(same, oe_ctx, left(got_imp_la)))
+    $got_oe mp(got_oe, got_imp_la_w, imp_la, implies(imp_ra, goal),
+        oe_ctx, left(got_imp_la_w))
+    $got_imp_ra_w wl_all(got_imp_ra, left(got_imp_ra), [imp_ra],
+        diff(same, left(got_oe), left(got_imp_ra)))
+    $got_result mp(got_oe, got_imp_ra_w, imp_ra, goal,
+        left(got_oe), left(got_imp_ra_w))
+
+    $_ tap("headmove_left or_elim ok")
+
+    # Close: discharge each premise, then close foralls
+    $cur got_result
+    $cur ir(cur, remove(same, cw, left(cur)), [implies(cw, head(right(cur)))], implies(cw, head(right(cur))))
+    $cur ir(cur, remove(same, om, left(cur)), [implies(om, head(right(cur)))], implies(om, head(right(cur))))
+    $cur ir(cur, remove(same, succ_hf_c, left(cur)), [implies(succ_hf_c, head(right(cur)))], implies(succ_hf_c, head(right(cur))))
+    $cur ir(cur, remove(same, num_d0_0, left(cur)), [implies(num_d0_0, head(right(cur)))], implies(num_d0_0, head(right(cur))))
+    $cur ir(cur, remove(same, eqv_d_d0, left(cur)), [implies(eqv_d_d0, head(right(cur)))], implies(eqv_d_d0, head(right(cur))))
+    $cur ir(cur, remove(same, eqv_h_hf, left(cur)), [implies(eqv_h_hf, head(right(cur)))], implies(eqv_h_hf, head(right(cur))))
+    $cur ir(cur, remove(same, hm, left(cur)), [implies(hm, head(right(cur)))], implies(hm, head(right(cur))))
+    close(cur, left(cur), [head(right(cur))], ["w", "d0", "c", "hf", "d", "hn", "h"])
+}
