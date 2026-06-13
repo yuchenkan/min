@@ -95,12 +95,28 @@ if [ "$(basename "$DIR")" = "theorems" ] && [ -d "$DIR" ]; then
         fi
     done < <(find "$DIR" -mindepth 1 -type d | sort)
 
+    # d. theorems mirror vocab: a theorems/<P> folder holds the theorems about the
+    #    vocab named <P>, so it must correspond to vocab/<P>.min (a module) or
+    #    vocab/<P>/ (a namespace dir). vocab without theorems is allowed (proofs
+    #    may lag definitions); a theorems folder without vocab is not.
+    VOCAB="$(dirname "$DIR")/vocab"
+    if [ -d "$VOCAB" ]; then
+        while IFS= read -r d; do
+            rel="${d#"$DIR"/}"
+            if [ ! -f "$VOCAB/$rel.min" ] && [ ! -d "$VOCAB/$rel" ]; then
+                echo "  $d: no corresponding vocab ($VOCAB/$rel.min or $VOCAB/$rel/)"
+                STRUCT_ERRORS=$((STRUCT_ERRORS + 1))
+            fi
+        done < <(find "$DIR" -mindepth 1 -type d | sort)
+    fi
+
     if [ "$STRUCT_ERRORS" -gt 0 ]; then
         echo ""
         echo "Found $STRUCT_ERRORS theorems-structure violation(s)."
         echo "Each theorems/*.min must (a) export exactly one public bind = its filename,"
-        echo "(b) be qed-tested in its folder's test.min, and (c) every folder must be"
-        echo "listed in its parent folder's test.min."
+        echo "(b) be qed-tested in its folder's test.min; (c) every folder must be listed"
+        echo "in its parent folder's test.min; and (d) every folder must correspond to a"
+        echo "vocab module (vocab/<path>.min) or namespace dir (vocab/<path>/)."
     fi
 fi
 
