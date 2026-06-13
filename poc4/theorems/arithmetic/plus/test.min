@@ -38,6 +38,7 @@ from theorems.arithmetic.plus.h_assoc_identity import h_assoc_identity
 from theorems.arithmetic.plus.plus_assoc import plus_assoc
 from theorems.arithmetic.plus.plus_val_unique import plus_val_unique
 from theorems.arithmetic.plus.prove_addition import prove_addition
+from theorems.arithmetic.plus.plus_val_nat import plus_val_nat
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")), "z")
 $_ tap("succ_func_exists ok")
@@ -259,5 +260,10 @@ $_ _pa_qed(1, 1)
 $_ tap("1+1=2 ok")
 $_ _pa_qed(2, 3)
 $_ tap("2+3=5 ok")
+
+$_ qed(plus_val_nat, forall("m", forall("n", forall("p",
+    implies(nat("m","_"), implies(nat("n","_"),
+        implies(plus("m","n","p","_"), nat("p","_"))))))), "z")
+$_ tap("plus_val_nat ok")
 
 $ok true
