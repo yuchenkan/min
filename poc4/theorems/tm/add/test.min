@@ -4,12 +4,12 @@ from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_transition, tm_step
 from vocab.nat.nat import num, successor, omega
 from theorems.tm.add.phase1_step_tmstep import phase1_step_tmstep
-from theorems.tm.add.phase1_step_extend_trace import phase1_step_extend_trace
 from theorems.tm.add.phase1_base import phase1_base
 from theorems.tm.add.tape_read_low import tape_read_low
 from theorems.tm.add.phase1_step_case import phase1_step_case
 from theorems.tm.add.phase1 import phase1
-from vocab.tm.add import phase1_ind, unary_tape, phase1p
+from theorems.tm.add.phase2 import phase2
+from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p
 
 $pst_expected forall("delta", forall("q0", forall("ka", forall("ska",
     forall("tape_in", forall("ca", forall("one", forall("d1",
@@ -26,33 +26,6 @@ $pst_expected forall("delta", forall("q0", forall("ka", forall("ska",
 $_ qed(phase1_step_tmstep, pst_expected, "z")
 $_ tap("phase1_step_tmstep ok")
 
-$_sv_body \v: \n: forall("ja", implies(mem("ja", n),
-    forall("sja", implies(successor("sja", "ja", "_"),
-        forall("cja", implies(apply(v, "ja", "cja", "_"),
-            exists("cja1", and(apply(v, "sja", "cja1", "_"),
-                tm_step("delta", "cja", "cja1", "_")))))))))
-$_db_body \v: \n: forall("xdn", forall("ydn",
-    implies(apply(v, "xdn", "ydn", "_"), or(mem("xdn", n), eqv("xdn", n, "_")))))
-$_base_body \v: forall("zp2", implies(empty("zp2", "_"), apply(v, "zp2", "c0", "_")))
-
-$pet_expected forall("tra", forall("ska", forall("ca_new", forall("c0",
-    forall("ka", forall("delta", forall("ca", forall("w",
-    implies(function("tra", "_"),
-    implies(_db_body("tra")("ka"),
-    implies(omega("w", "_"),
-    implies(mem("ka", "w"),
-    implies(successor("ska", "ka", "_"),
-    implies(forall("zp", implies(empty("zp", "_"), apply("tra", "zp", "c0", "_"))),
-    implies(_sv_body("tra")("ka"),
-    implies(tm_step("delta", "ca", "ca_new", "_"),
-    implies(apply("tra", "ka", "ca", "_"),
-        exists("trn", and(function("trn", "_"), and(
-            _db_body("trn")("ska"),
-            and(_base_body("trn"),
-                and(apply("trn", "ska", "ca_new", "_"),
-                    _sv_body("trn")("ska")))))))))))))))))))))))
-$_ qed(phase1_step_extend_trace, pet_expected, "z")
-$_ tap("phase1_step_extend_trace ok")
 
 $trl_expected forall("tape", forall("a", forall("b", forall("i", forall("one",
     implies(unary_tape("tape", "a", "b", "_"),
@@ -89,5 +62,8 @@ $_ tap("phase1_step_case ok")
 
 $_ qed(phase1, phase1p("_"), "z")
 $_ tap("phase1 ok")
+
+$_ qed(phase2, phase2p("_"), "z")
+$_ tap("phase2 ok")
 
 $ok true

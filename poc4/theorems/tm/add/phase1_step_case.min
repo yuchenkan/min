@@ -12,7 +12,7 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.tm.add.tape_read_low import tape_read_low
 from theorems.tm.add.phase1_step_tmstep import phase1_step_tmstep
-from theorems.tm.add.phase1_step_extend_trace import phase1_step_extend_trace
+from theorems.tm.tm.extend_trace import extend_trace
 
 # [] |- ∀d,q0,a,b,tape,c0,n,sn,w,one.
 #   Trans(d,q0,one,one,one,q0) → Omega(w) → In(a,w) → In(n,w) →
@@ -160,7 +160,7 @@ $phase1_step_case {
     $gstn mp(and_elim_right(cfg_cn_new, step_cn, []),
         ax([tsb],[tsb],tsb), tsb, step_cn, [], [tsb])
 
-    # === 5. phase1_step_extend_trace ===
+    # === 5. extend_trace ===
     # ∃trn. And(Func(trn), And(db(trn,sn), And(bc(trn), And(Apply(trn,sn,cn_new), sv(trn,sn)))))
     $ext_func function("trn", "_")
     $ext_db forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
@@ -199,10 +199,10 @@ $phase1_step_case {
                                 forall("cja", implies(apply("trn","ja","cja","_"),
                                     exists("cja1", and(apply("trn","sja","cja1","_"),
                                         tm_step(delta,"cja","cja1","_")))))))))))))))))))))))
-    $pet_inst apply_thm(phase1_step_extend_trace, head(right(phase1_step_extend_trace)),
+    $pet_inst apply_thm(extend_trace, head(right(extend_trace)),
         ["tra","sn","cn_new","c0","n","d","cn","w"],
         ["tra","ska","ca_new","c0","ka","delta","ca","w"],
-        _pet_b, left(phase1_step_extend_trace))
+        _pet_b, left(extend_trace))
 
     $pet_s1 mp(pet_inst,
         gft, pn_func, arg2(head(right(pet_inst))),

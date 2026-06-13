@@ -52,7 +52,7 @@ from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
 from theorems.nat.nat.successor_unique import successor_unique
 
-$phase1_step_extend_trace {
+$extend_trace {
     # --- Formulas ---
     $func_tra function("tra", "_")
     $omega_w omega("w", "_")

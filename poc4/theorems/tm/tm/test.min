@@ -1,8 +1,8 @@
-from derived import implies, forall, eqv, and, qed
+from derived import implies, forall, exists, eqv, and, qed, mem, or, empty
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
 from vocab.sets import ordered_pair
-from vocab.functions import apply
-from vocab.nat.nat import num, successor
+from vocab.functions import apply, function
+from vocab.nat.nat import num, successor, omega
 from theorems.tm.tm.config_elim import config_elim
 from theorems.tm.tm.transition_apply import transition_apply
 from theorems.tm.tm.head_move_right import head_move_right
@@ -17,7 +17,11 @@ from theorems.tm.tm.tape_update_eq_args import tape_update_eq_args
 from theorems.tm.tm.tape_update_eq import tape_update_eq
 from theorems.tm.tm.config_intro import config_intro
 from theorems.tm.tm.tmstep_c1_transfer import tmstep_c1_transfer
-from vocab.functions import function
+from theorems.tm.tm.extend_trace import extend_trace
+from theorems.tm.tm.step_to_reaches import step_to_reaches
+from vocab.tm.tm import tm_reaches
+from vocab.nat.nat import nat
+
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
 $ce_expected forall("c", forall("q", forall("h", forall("tape", forall("inner",
     implies(tm_config("c", "q", "h", "tape", "_"),
@@ -139,5 +143,42 @@ $tct_expected forall("d", forall("c1", forall("c2", forall("c3",
         tm_step("d", "c1", "c2", "_")))))))
 $_ qed(tmstep_c1_transfer, tct_expected, "z")
 $_ tap("tmstep_c1_transfer ok")
+
+$_sv_body \v: \n: forall("ja", implies(mem("ja", n),
+    forall("sja", implies(successor("sja", "ja", "_"),
+        forall("cja", implies(apply(v, "ja", "cja", "_"),
+            exists("cja1", and(apply(v, "sja", "cja1", "_"),
+                tm_step("delta", "cja", "cja1", "_")))))))))
+$_db_body \v: \n: forall("xdn", forall("ydn",
+    implies(apply(v, "xdn", "ydn", "_"), or(mem("xdn", n), eqv("xdn", n, "_")))))
+$_base_body \v: forall("zp2", implies(empty("zp2", "_"), apply(v, "zp2", "c0", "_")))
+
+$et_expected forall("tra", forall("ska", forall("ca_new", forall("c0",
+    forall("ka", forall("delta", forall("ca", forall("w",
+    implies(function("tra", "_"),
+    implies(_db_body("tra")("ka"),
+    implies(omega("w", "_"),
+    implies(mem("ka", "w"),
+    implies(successor("ska", "ka", "_"),
+    implies(forall("zp", implies(empty("zp", "_"), apply("tra", "zp", "c0", "_"))),
+    implies(_sv_body("tra")("ka"),
+    implies(tm_step("delta", "ca", "ca_new", "_"),
+    implies(apply("tra", "ka", "ca", "_"),
+        exists("trn", and(function("trn", "_"), and(
+            _db_body("trn")("ska"),
+            and(_base_body("trn"),
+                and(apply("trn", "ska", "ca_new", "_"),
+                    _sv_body("trn")("ska")))))))))))))))))))))))
+$_ qed(extend_trace, et_expected, "z")
+$_ tap("extend_trace ok")
+
+$str_expected forall("d", forall("c1", forall("c2", forall("z", forall("one",
+    implies(tm_step("d","c1","c2","_"),
+    implies(num("z",0,"_"),
+    implies(successor("one","z","_"),
+    implies(nat("z","_"),
+        tm_reaches("d","c1","one","c2","_"))))))))))
+$_ qed(step_to_reaches, str_expected, "z")
+$_ tap("step_to_reaches ok")
 
 $ok true
