@@ -1,0 +1,120 @@
+from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.tm.tm import tape_update
+from tactics import ax, fl, fr, ir, mp, cut_c, apply_thm, eir, eel, close, same
+from util import remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
+
+# Pairing |- ∀tapen,tape,h,w,x,y.
+#   TapeUpdate(tapen,tape,h,w) → Eq(x,h) → Eq(y,w) → Apply(tapen,x,y)
+$tape_update_at {
+    $tu tape_update("tapen", "tape", "h", "w", "_")
+    $eq_xh eqv("x", "h", "_")
+    $eq_yw eqv("y", "w", "_")
+
+    # TapeUpdate expansion components
+    $in_p_tn mem("p", "tapen")
+    $in_p_tp mem("p", "tape")
+    $op_phw ordered_pair("p", "h", "w", "_")
+    $op_phy ordered_pair("p", "h", "yv", "_")
+    $not_ex_y neg(exists("yv", op_phy))
+    $right_and and(in_p_tp, not_ex_y)
+    $or_form or(op_phw, right_and)
+    $iff_tu iff(in_p_tn, or_form)
+
+    $op_pxy ordered_pair("p", "x", "y", "_")
+
+    # === Step 1: ordpair_exists → ∃p. OP(p,x,y) ===
+    $_oe head(right(ordpair_exists))
+    $_oe_b \a: \b: exists("p", ordered_pair("p", a, b, "_"))
+    $got_ex_p apply_thm(ordpair_exists, _oe, ["x","y"], ["a","b"], _oe_b, left(ordpair_exists))
+    # [Pairing] |- ∃p. OP(p,x,y)
+
+    # === Step 2: Transfer OP(p,x,y) to OP(p,h,w) via Eq(x,h), Eq(y,w) ===
+    $_oet head(right(ordpair_eq_transfer))
+    $_oet_b \t: \a: \b: \c: \d: implies(eqv(a,c,"_"),
+        implies(eqv(b,d,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,d,"_"))))
+    $got_ophw apply_thm(ordpair_eq_transfer, _oet,
+        ["p","x","y","h","w"], ["t","a","b","c","d"], _oet_b, [])
+    # [] |- Eq(x,h) → Eq(y,w) → OP(p,x,y) → OP(p,h,w)
+    $got_ophw mp(got_ophw, ax([eq_xh],[eq_xh],eq_xh), eq_xh,
+        implies(eq_yw, implies(op_pxy, op_phw)), [], [eq_xh])
+    $got_ophw mp(got_ophw, ax([eq_yw],[eq_yw],eq_yw), eq_yw,
+        implies(op_pxy, op_phw), [eq_xh], [eq_yw])
+    $got_ophw mp(got_ophw, ax([op_pxy],[op_pxy],op_pxy), op_pxy,
+        op_phw, [eq_xh, eq_yw], [op_pxy])
+    # [Eq(x,h), Eq(y,w), OP(p,x,y)] |- OP(p,h,w)
+
+    # === Step 3: TapeUpdate Iff reverse → Or → In(p,tapen) ===
+    $got_iff fl(ax([iff_tu],[iff_tu],iff_tu), [tu], [iff_tu], tu, "p")
+    # [tu] |- Iff(In(p,tapen), or_form)
+
+    $imp_rev implies(or_form, in_p_tn)
+    $got_imp mp(iff_elim_right(in_p_tn, or_form, []),
+        got_iff, iff_tu, imp_rev, [], [tu])
+    # [tu] |- or_form → In(p,tapen)
+
+    # or_intro_left: OP(p,h,w) → Or(OP(p,h,w), And(...))
+    $got_or mp(or_intro_left(op_phw, right_and, []),
+        got_ophw, op_phw, or_form, [], left(got_ophw))
+    # [Eq(x,h), Eq(y,w), OP(p,x,y)] |- Or(...)
+
+    # mp: In(p, tapen)
+    $got_in mp(got_imp, got_or, or_form, in_p_tn, [tu], left(got_or))
+    # [tu, Eq(x,h), Eq(y,w), OP(p,x,y)] |- In(p,tapen)
+
+    # === Step 4: Build Apply(tapen,x,y) ===
+    $and_new and(op_pxy, in_p_tn)
+    $got_and mp(mp(and_intro(op_pxy, in_p_tn, []),
+        ax([op_pxy],[op_pxy],op_pxy), op_pxy, implies(in_p_tn, and_new),
+        [], [op_pxy]),
+        got_in, in_p_tn, and_new, [op_pxy], left(got_in))
+
+    # eir p
+    $got_apply eir(got_and, \v: and(ordered_pair(v,"x","y","_"), mem(v,"tapen")),
+        "p", "p", left(got_and))
+
+    # === Step 5: eel p on op_pxy from left, cut with ordpair_exists ===
+    $goal_f head(right(got_apply))
+    $got_apply eel(got_apply, \v: ordered_pair(v,"x","y","_"),
+        "p", "p", remove(same, op_pxy, left(got_apply)), goal_f)
+    # [∃p.OP(p,x,y), tu, Eq(x,h), Eq(y,w)] |- Apply(tapen,x,y)
+
+    $ex_op exists("p", op_pxy)
+    $got_apply cut_c(got_ex_p, got_apply, ex_op,
+        left(got_ex_p), left(got_apply), goal_f)
+    # [Pairing, tu, Eq(x,h), Eq(y,w)] |- Apply(tapen,x,y)
+
+    # === Step 6: Discharge and close ===
+    $proof got_apply
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, eq_yw, left(proof)),
+        [implies(eq_yw, goal_f)], implies(eq_yw, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, eq_xh, left(proof)),
+        [implies(eq_xh, goal_f)], implies(eq_xh, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, tu, left(proof)),
+        [implies(tu, goal_f)], implies(tu, goal_f))
+    $goal_f head(right(proof))
+
+    # Close foralls: y, x, w, h, tape, tapen
+    $proof fr(proof, left(proof), [forall("y", goal_f)], forall("y", goal_f), "y")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("x", goal_f)], forall("x", goal_f), "x")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("w", goal_f)], forall("w", goal_f), "w")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("h", goal_f)], forall("h", goal_f), "h")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("tape", goal_f)], forall("tape", goal_f), "tape")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("tapen", goal_f)], forall("tapen", goal_f), "tapen")
+
+    proof
+}

@@ -22,6 +22,7 @@ from theorems.tm.tm.extend_trace import extend_trace
 from theorems.tm.tm.step_to_reaches import step_to_reaches
 from theorems.tm.tm.config_exists import config_exists
 from theorems.tm.tm.tape_update_other import tape_update_other
+from theorems.tm.tm.tape_update_at import tape_update_at
 from vocab.tm.tm import tm_reaches
 from vocab.nat.nat import nat
 
@@ -207,5 +208,13 @@ $tuo_expected forall("tapen", forall("tape", forall("h", forall("w", forall("x",
         apply("tapen","x","y","_"))))))))))
 $_ qed(tape_update_other, tuo_expected, "z")
 $_ tap("tape_update_other ok")
+
+$tua_expected forall("tapen", forall("tape", forall("h", forall("w", forall("x", forall("y",
+    implies(tape_update("tapen","tape","h","w","_"),
+    implies(eqv("x","h","_"),
+    implies(eqv("y","w","_"),
+        apply("tapen","x","y","_"))))))))))
+$_ qed(tape_update_at, tua_expected, "z")
+$_ tap("tape_update_at ok")
 
 $ok true
