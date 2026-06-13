@@ -12,7 +12,8 @@ from theorems.tm.add.phase2 import phase2
 from theorems.tm.add.phase3_base import phase3_base
 from theorems.tm.add.phase3_step_case import phase3_step_case
 from theorems.tm.add.phase3 import phase3
-from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p
+from theorems.tm.add.phase4 import phase4
+from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p, phase4p
 from vocab.nat.nat import nat, omega
 from vocab.arithmetic.plus import plus
 
@@ -100,5 +101,8 @@ $_ tap("phase3_step_case ok")
 
 $_ qed(phase3, phase3p("_"), "z")
 $_ tap("phase3 ok")
+
+$_ qed(phase4, phase4p("_"), "z")
+$_ tap("phase4 ok")
 
 $ok true
