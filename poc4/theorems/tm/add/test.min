@@ -9,7 +9,12 @@ from theorems.tm.add.tape_read_low import tape_read_low
 from theorems.tm.add.phase1_step_case import phase1_step_case
 from theorems.tm.add.phase1 import phase1
 from theorems.tm.add.phase2 import phase2
-from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p
+from theorems.tm.add.phase3_base import phase3_base
+from theorems.tm.add.phase3_step_case import phase3_step_case
+from theorems.tm.add.phase3 import phase3
+from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p
+from vocab.nat.nat import nat, omega
+from vocab.arithmetic.plus import plus
 
 $pst_expected forall("delta", forall("q0", forall("ka", forall("ska",
     forall("tape_in", forall("ca", forall("one", forall("d1",
@@ -65,5 +70,35 @@ $_ tap("phase1 ok")
 
 $_ qed(phase2, phase2p("_"), "z")
 $_ tap("phase2 ok")
+
+$p3b_expected forall("d", forall("q1", forall("sa", forall("tape2", forall("c1", forall("z",
+    implies(num("z", 0, "_"),
+    implies(nat("sa", "_"),
+    implies(tm_config("c1", "q1", "sa", "tape2", "_"),
+        phase3_ind("z", "d", "q1", "sa", "tape2", "c1", "_"))))))))))
+$_ qed(phase3_base, p3b_expected, "z")
+$_ tap("phase3_base ok")
+
+$p3sc_expected forall("d", forall("q1", forall("sa", forall("tape2", forall("c1",
+    forall("n", forall("sn", forall("b", forall("w", forall("one",
+    implies(tm_transition("d","q1","one","one","one","q1","_"),
+    implies(omega("w","_"),
+    implies(mem("b","w"),
+    implies(mem("sa","w"),
+    implies(mem("n","w"),
+    implies(function("d","_"),
+    implies(function("tape2","_"),
+    implies(num("one",1,"_"),
+    implies(forall("p", implies(mem("p","b"),
+        forall("pp", implies(plus("sa","p","pp","_"), apply("tape2","pp","one","_"))))),
+    implies(successor("sn","n","_"),
+    implies(mem("n","b"),
+    implies(phase3_ind("n","d","q1","sa","tape2","c1","_"),
+        phase3_ind("sn","d","q1","sa","tape2","c1","_")))))))))))))))))))))))
+$_ qed(phase3_step_case, p3sc_expected, "z")
+$_ tap("phase3_step_case ok")
+
+$_ qed(phase3, phase3p("_"), "z")
+$_ tap("phase3 ok")
 
 $ok true

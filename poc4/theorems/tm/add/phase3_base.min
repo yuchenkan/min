@@ -1,0 +1,256 @@
+from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right
+from vocab.sets import empty, ordered_pair, singleton
+from vocab.functions import apply, function
+from vocab.tm.tm import tm_config, tm_step
+from vocab.tm.add import phase3_ind
+from vocab.nat.nat import num, nat, successor
+from vocab.arithmetic.plus import plus
+from tactics import ax, wl, wr, fl, fr, nl, nr, ir, mp, cut, cut_c, apply_thm, eir, eel, close, same, inst
+from util import remove, diff
+
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.singleton_exists import singleton_exists
+from theorems.sets.singleton_apply import singleton_apply
+from theorems.sets.singleton_apply_eq import singleton_apply_eq
+from theorems.sets.singleton_function import singleton_function
+from theorems.sets.empty_unique import empty_unique
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.arithmetic.plus.plus_base import plus_base
+
+# |- ∀d,q1,sa,tape2,c1,z. Num(z,0) → Nat(sa) → TMConfig(c1,q1,sa,tape2) → Phase3Ind(z,d,q1,sa,tape2,c1)
+$phase3_base {
+    $num_z num("z", 0, "_")
+    $nat_sa nat("sa", "_")
+    $cfg_c1 tm_config("c1", "q1", "sa", "tape2", "_")
+    $goal phase3_ind("z", "d", "q1", "sa", "tape2", "c1", "_")
+
+    # --- 1. Plus(sa,z,sa) from plus_base ---
+    $plus_sa_z plus("sa", "z", "sa", "_")
+    $_pb head(right(plus_base))
+    $_pb_b \m: implies(nat(m,"_"), forall("z", implies(num("z",0,"_"), plus(m,"z",m,"_"))))
+    $pb_inst apply_thm(plus_base, _pb, ["sa"], ["m"], _pb_b, left(plus_base))
+    $pb_s1 mp(pb_inst,
+        ax([nat_sa],[nat_sa],nat_sa), nat_sa,
+        forall("z", implies(num("z",0,"_"), plus("sa","z","sa","_"))),
+        left(pb_inst), [nat_sa])
+    $_pb_inner implies(num_z, plus_sa_z)
+    $pb_s2 mp(inst(pb_s1, head(right(pb_s1)), _pb_inner, "z", left(pb_s1)),
+        ax([num_z],[num_z],num_z), num_z, plus_sa_z,
+        left(pb_s1), [num_z])
+
+    # --- 2. Construct singleton trace {z→c1} ---
+    $op_pair ordered_pair("pzc", "z", "c1", "_")
+    $sing_t singleton("ts", "pzc", "_")
+
+    $_oe_b \a: \b: exists("p", ordered_pair("p", a, b, "_"))
+    $got_ex_pair apply_thm(ordpair_exists, head(right(ordpair_exists)),
+        ["z", "c1"], ["a", "b"], _oe_b, left(ordpair_exists))
+
+    $_se_b \a: exists("s", singleton("s", a, "_"))
+    $got_ex_sing apply_thm(singleton_exists, head(right(singleton_exists)),
+        ["pzc"], ["a"], _se_b, left(singleton_exists))
+
+    # Function(ts)
+    $func_ts function("ts", "_")
+    $_sf_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), function(f,"_")))
+    $sf_inst apply_thm(singleton_function, head(right(singleton_function)),
+        ["ts","pzc","z","c1"], ["f","op","x","y"], _sf_b, left(singleton_function))
+    $sf_s1 mp(sf_inst,
+        ax([sing_t],[sing_t],sing_t), sing_t,
+        implies(op_pair, func_ts), left(sf_inst), [sing_t])
+    $got_func_ts mp(sf_s1,
+        ax([op_pair],[op_pair],op_pair), op_pair, func_ts,
+        left(sf_s1), [op_pair])
+
+    # Apply(ts, z, c1)
+    $app_ts_z apply("ts", "z", "c1", "_")
+    $_sa_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), apply(f,x,y,"_")))
+    $sa_inst apply_thm(singleton_apply, head(right(singleton_apply)),
+        ["ts","pzc","z","c1"], ["f","op","x","y"], _sa_b, [])
+    $sa_s1 mp(sa_inst,
+        ax([sing_t],[sing_t],sing_t), sing_t,
+        implies(op_pair, app_ts_z), [], [sing_t])
+    $got_app_ts mp(sa_s1,
+        ax([op_pair],[op_pair],op_pair), op_pair, app_ts_z,
+        [sing_t], [op_pair])
+
+    # --- 3. base_cond: ∀zp. Empty(zp) → Apply(ts, zp, c1) ---
+    $empty_zp empty("zp", "_")
+    $app_ts_zp apply("ts", "zp", "c1", "_")
+    $eq_zp_z eqv("zp", "z", "_")
+    $eq_z_zp eqv("z", "zp", "_")
+
+    $_eu_b \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_")))
+    $eu_inst apply_thm(empty_unique, head(right(empty_unique)),
+        ["zp","z"], ["a","b"], _eu_b, [])
+    $eu_s1 mp(eu_inst,
+        ax([empty_zp],[empty_zp],empty_zp), empty_zp,
+        implies(num_z, eq_zp_z), [], [empty_zp])
+    $got_eq_zp_z mp(eu_s1,
+        ax([num_z],[num_z],num_z), num_z, eq_zp_z,
+        [empty_zp], [num_z])
+
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eq_z_zp mp(
+        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+            ["zp","z"], ["a","b"], _es_b, []),
+        got_eq_zp_z, eq_zp_z, eq_z_zp, [], left(got_eq_zp_z))
+
+    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $akt_inst apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
+        ["ts","z","zp","c1"], ["f","x","x2","y"], _akt_b, [])
+    $akt_s1 mp(akt_inst,
+        got_eq_z_zp, eq_z_zp, implies(app_ts_z, app_ts_zp),
+        [], left(got_eq_z_zp))
+    $got_app_zp mp(akt_s1,
+        got_app_ts, app_ts_z, app_ts_zp,
+        left(akt_s1), left(got_app_ts))
+
+    $imp_base implies(empty_zp, app_ts_zp)
+    $got_base_ir ir(got_app_zp, remove(same, empty_zp, left(got_app_zp)),
+        [imp_base], imp_base)
+    $base_cond forall("zp", imp_base)
+    $got_base fr(got_base_ir, left(got_base_ir), [base_cond], base_cond, "zp")
+
+    # --- 4. dom_bound: ∀xd,yd. Apply(ts,xd,yd) → Or(In(xd,z), Eq(xd,z)) ---
+    $app_ts_xd apply("ts", "xd", "yd", "_")
+    $or_xd_z or(mem("xd", "z"), eqv("xd", "z", "_"))
+    $eq_z_xd eqv("z", "xd", "_")
+    $eq_xd_z eqv("xd", "z", "_")
+    $and_sae and(eq_z_xd, eqv("c1", "yd", "_"))
+
+    $_sae_b \e: \b: \op: \f: \xe: \ye:
+        implies(ordered_pair(op,e,b,"_"), implies(singleton(f,op,"_"), implies(apply(f,xe,ye,"_"),
+            and(eqv(e,xe,"_"), eqv(b,ye,"_")))))
+    $sae_inst apply_thm(singleton_apply_eq, head(right(singleton_apply_eq)),
+        ["z","c1","pzc","ts","xd","yd"],
+        ["e","b","op","f","xe","ye"], _sae_b, left(singleton_apply_eq))
+    $sae_s1 mp(sae_inst,
+        ax([op_pair],[op_pair],op_pair), op_pair,
+        implies(sing_t, implies(app_ts_xd, and_sae)),
+        left(sae_inst), [op_pair])
+    $sae_s2 mp(sae_s1,
+        ax([sing_t],[sing_t],sing_t), sing_t,
+        implies(app_ts_xd, and_sae),
+        left(sae_s1), [sing_t])
+    $got_and_sae mp(sae_s2,
+        ax([app_ts_xd],[app_ts_xd],app_ts_xd), app_ts_xd, and_sae,
+        left(sae_s2), [app_ts_xd])
+    $got_eq_z_xd mp(and_elim_left(eq_z_xd, eqv("c1","yd","_"), []),
+        got_and_sae, and_sae, eq_z_xd, [], left(got_and_sae))
+    $got_eq_xd_z mp(
+        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+            ["z","xd"], ["a","b"], _es_b, []),
+        got_eq_z_xd, eq_z_xd, eq_xd_z, [], left(got_eq_z_xd))
+
+    $_oir_b \A: \B: implies(B, or(A,B))
+    $got_or_xd mp(
+        apply_thm(or_intro_right(mem("xd","z"), eq_xd_z, []),
+            head(right(or_intro_right(mem("xd","z"), eq_xd_z, []))),
+            [], [], _oir_b, []),
+        got_eq_xd_z, eq_xd_z, or_xd_z, [], left(got_eq_xd_z))
+
+    $imp_dom implies(app_ts_xd, or_xd_z)
+    $got_dom_ir ir(got_or_xd, remove(same, app_ts_xd, left(got_or_xd)),
+        [imp_dom], imp_dom)
+    $fa_yd forall("yd", imp_dom)
+    $got_dom_fr1 fr(got_dom_ir, left(got_dom_ir), [fa_yd], fa_yd, "yd")
+    $dom_bound forall("xd", fa_yd)
+    $got_dom fr(got_dom_fr1, left(got_dom_fr1), [dom_bound], dom_bound, "xd")
+
+    # --- 5. step_valid: vacuous (z is empty) ---
+    $in_k_z mem("k", "z")
+    $not_k_z neg(in_k_z)
+    $sv_inner forall("sk", implies(successor("sk","k","_"),
+        forall("ck", implies(apply("ts","k","ck","_"),
+            exists("ck1", and(apply("ts","sk","ck1","_"),
+                tm_step("d","ck","ck1","_")))))))
+
+    $_nz_b \x: neg(mem(x, "z"))
+    $nz_inst apply_thm(ax([num_z],[num_z],num_z), num_z,
+        ["k"], ["x"], _nz_b, [num_z])
+
+    $got_bot nl(ax([in_k_z],[in_k_z],in_k_z), [in_k_z, not_k_z], [], not_k_z)
+    $got_bot_sv wr(got_bot, [in_k_z, not_k_z], [sv_inner], sv_inner)
+    $got_bot_sv2 cut_c(nz_inst, got_bot_sv, not_k_z,
+        left(nz_inst), [in_k_z, not_k_z], sv_inner)
+
+    $imp_sv implies(in_k_z, sv_inner)
+    $got_sv_ir ir(got_bot_sv2, remove(same, in_k_z, left(got_bot_sv2)),
+        [imp_sv], imp_sv)
+    $sv_body forall("k", imp_sv)
+    $got_sv fr(got_sv_ir, left(got_sv_ir), [sv_body], sv_body, "k")
+
+    # --- 6. Assemble inner conjunction ---
+    # Phase3Ind inner: And(Func(ts), And(db, And(bc, And(Config(c1,q1,sa,tape2), And(Apply(ts,z,c1), sv)))))
+    $mk_and \gl gr: {
+        $L head(right(gl))
+        $R head(right(gr))
+        $and_LR and(L, R)
+        mp(mp(and_intro(L, R, []),
+            gl, L, implies(R, and_LR), [], left(gl)),
+            gr, R, and_LR, left(gl), left(gr))
+    }
+
+    $r_and mk_and(got_app_ts, got_sv)
+    $r_and mk_and(ax([cfg_c1],[cfg_c1],cfg_c1), r_and)
+    $r_and mk_and(got_base, r_and)
+    $r_and mk_and(got_dom, r_and)
+    $r_and mk_and(got_func_ts, r_and)
+
+    # --- 7. eir cn=c1, tra=ts ---
+    $inner_body \pos_n: \tra: \cn: and(function(tra,"_"), and(
+        forall("xd", forall("yd", implies(apply(tra,"xd","yd","_"), or(mem("xd","z"), eqv("xd","z","_"))))),
+        and(forall("zp", implies(empty("zp","_"), apply(tra,"zp","c1","_"))),
+            and(tm_config(cn,"q1",pos_n,"tape2","_"),
+                and(apply(tra,"z",cn,"_"),
+                    forall("k", implies(mem("k","z"),
+                        forall("sk", implies(successor("sk","k","_"),
+                            forall("ck", implies(apply(tra,"k","ck","_"),
+                                exists("ck1", and(apply(tra,"sk","ck1","_"),
+                                    tm_step("d","ck","ck1","_"))))))))))))))
+
+    $got_ex_cn eir(r_and, \v: inner_body("sa")("ts")(v),
+        "cn", "c1", left(r_and))
+    $got_ex_tra eir(got_ex_cn, \v: exists("cn", inner_body("sa")(v)("cn")),
+        "tra", "ts", left(got_ex_cn))
+
+    # --- 8. And(Plus(sa,z,sa), inner) → eir pos_n=sa ---
+    $got_and_plus mk_and(pb_s2, got_ex_tra)
+    $_p3_body \pos_n: and(plus("sa","z",pos_n,"_"),
+        exists("tra", exists("cn", inner_body(pos_n)("tra")("cn"))))
+    $got_goal eir(got_and_plus, _p3_body, "pn", "sa", left(got_and_plus))
+
+    # wr to Phase3Ind vocab
+    $got_goal wr(got_goal, left(got_goal), [goal], goal)
+
+    # --- 9. eel singleton eigenvars ---
+    $got_goal eel(got_goal, \v: singleton(v,"pzc","_"), "ts", "ts",
+        left(got_goal), goal)
+    $got_goal cut_c(got_ex_sing, got_goal,
+        exists("ts", singleton("ts","pzc","_")),
+        left(got_ex_sing), left(got_goal), goal)
+
+    $got_goal eel(got_goal, \v: ordered_pair(v,"z","c1","_"), "pzc", "pzc",
+        left(got_goal), goal)
+    $got_goal cut_c(got_ex_pair, got_goal,
+        exists("pzc", ordered_pair("pzc","z","c1","_")),
+        left(got_ex_pair), left(got_goal), goal)
+
+    # --- 10. Discharge hypotheses + close foralls ---
+    $proof got_goal
+    $proof ir(proof, remove(same, cfg_c1, left(proof)), [implies(cfg_c1, goal)], implies(cfg_c1, goal))
+    $goal_f implies(cfg_c1, goal)
+    $proof ir(proof, remove(same, nat_sa, left(proof)), [implies(nat_sa, goal_f)], implies(nat_sa, goal_f))
+    $goal_f implies(nat_sa, goal_f)
+    $proof ir(proof, remove(same, num_z, left(proof)), [implies(num_z, goal_f)], implies(num_z, goal_f))
+    $goal_f implies(num_z, goal_f)
+
+    $proof close(proof, left(proof), [goal_f], ["z","c1","tape2","sa","q1","d"])
+    proof
+}

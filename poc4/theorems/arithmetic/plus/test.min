@@ -35,6 +35,7 @@ from theorems.arithmetic.plus.plus_comm import plus_comm
 from theorems.arithmetic.plus.h_val_nat import h_val_nat
 from theorems.arithmetic.plus.h_assoc_identity import h_assoc_identity
 from theorems.arithmetic.plus.plus_assoc import plus_assoc
+from theorems.arithmetic.plus.plus_val_unique import plus_val_unique
 from theorems.arithmetic.plus.prove_addition import prove_addition
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")), "z")
@@ -231,6 +232,10 @@ $_ qed(plus_assoc, forall("a", implies(nat("a","_"),
                     forall("t", implies(plus("b","c","t","_"),
                         plus("a","t","s","_"))))))))))))), "z")
 $_ tap("plus_assoc ok")
+
+$_ qed(plus_val_unique, forall("a", forall("b", forall("c", forall("c2",
+    implies(plus("a","b","c","_"), implies(plus("a","b","c2","_"), eqv("c","c2","_"))))))), "z")
+$_ tap("plus_val_unique ok")
 
 $_pa_qed \m n: {
     $p add(m, n)

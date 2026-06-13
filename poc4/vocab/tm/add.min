@@ -281,3 +281,36 @@ $phase1_ind \n d q0 tape c0 p: {
             step_valid)))))))
     ["phase1_ind", add("P1Ind(", add(n, ")")), expansion]
 }
+
+# phase3_ind(n, d, q1, sa, tape2, c1, p): strong induction predicate for Phase3
+# ∃pos_n. Plus(sa,n,pos_n) ∧ ∃tra,cn. Function(tra) ∧ dom_bound(tra,n) ∧ base_cond(tra,c1) ∧
+#           TMConfig(cn,q1,pos_n,tape2) ∧ Apply(tra,n,cn) ∧ step_valid(tra,n,d)
+$phase3_ind \n d q1 sa tape2 c1 p: {
+    $np add(p, "_")
+    $pos_n add(np, "pn")
+    $tra add(np, "tra")
+    $cn add(np, "cn")
+    $k add(np, "k")
+    $sk add(np, "sk")
+    $ck add(np, "ck")
+    $ck1 add(np, "ck1")
+    $zp add(np, "zp")
+    $xd add(np, "xd")
+    $yd add(np, "yd")
+    $base_cond forall(zp, implies(empty(zp, np), apply(tra, zp, c1, np)))
+    $dom_bound forall(xd, forall(yd, implies(apply(tra, xd, yd, np),
+        or(mem(xd, n), eqv(xd, n, np)))))
+    $step_valid forall(k, implies(mem(k, n),
+        forall(sk, implies(successor(sk, k, np),
+            forall(ck, implies(apply(tra, k, ck, np),
+                exists(ck1, and(apply(tra, sk, ck1, np),
+                    tm_step(d, ck, ck1, np)))))))))
+    $inner exists(tra, exists(cn, and(function(tra, np),
+        and(dom_bound,
+        and(base_cond,
+        and(tm_config(cn, q1, pos_n, tape2, np),
+        and(apply(tra, n, cn, np),
+            step_valid)))))))
+    $expansion exists(pos_n, and(plus(sa, n, pos_n, np), inner))
+    ["phase3_ind", add("P3Ind(", add(n, ")")), expansion]
+}
