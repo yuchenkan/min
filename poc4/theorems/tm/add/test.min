@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, and, eqv, qed, mem, or, empty
+from derived import implies, forall, exists, and, eqv, qed, mem, or
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_transition, tm_step

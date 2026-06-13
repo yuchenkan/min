@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, eqv, iff, empty
+from derived import mem, neg, implies, forall, exists, and, or, eqv, iff
 from derived import left, right, exp, arg1, arg2, head, tail, sep_ax, show
 from vocab.functions import apply, function
 from vocab.sets import ordered_pair
@@ -182,11 +182,11 @@ $phase1 {
 
     # === 4. Inductive base: ∀zero. Empty(zero) → In(zero,pv) ===
     # empty_unique(zero,z): Empty(zero) → Empty(z) → Eq(zero,z)
-    $eu_body \va: \vb: implies(empty(va, "_"), implies(empty(vb, "_"), eqv(va, vb, "_")))
+    $eu_body \va: \vb: implies(num(va, 0, "_"), implies(num(vb, 0, "_"), eqv(va, vb, "_")))
     $got_eu apply_thm(empty_unique, head(right(empty_unique)),
         ["zero","z"], ["a","b"], eu_body, left(empty_unique))
     # MP with Empty(zero) as hypothesis, then num_z (= Empty(z))
-    $emp_zero empty("zero", "_")
+    $emp_zero num("zero", 0, "_")
     $got_eu mp(got_eu, ax([emp_zero],[emp_zero],emp_zero), emp_zero,
         implies(num_z, eqv("zero","z","_")), left(got_eu), [emp_zero])
     $got_eq mp(got_eu, ax([num_z],[num_z],num_z), num_z,
@@ -592,7 +592,7 @@ $phase1 {
     $func_tra function("tra", "_")
     $dom_bnd forall("xd", forall("yd", implies(apply("tra","xd","yd","_"),
         or(mem("xd","a"), eqv("xd","a","_")))))
-    $base_cnd forall("zp", implies(empty("zp","_"), apply("tra","zp","c0","_")))
+    $base_cnd forall("zp", implies(num("zp",0,"_"), apply("tra","zp","c0","_")))
     $cfg_cn tm_config("cn", "q0", "a", "tape", "_")
     $app_tcn apply("tra", "a", "cn", "_")
     $stp_valid forall("k", implies(mem("k","a"), forall("sk", implies(successor("sk","k","_"),
@@ -715,7 +715,7 @@ $phase1 {
     $r_body_fn \v: and(function(v, "_"),
         and(forall("xd", forall("yd", implies(apply(v,"xd","yd","_"),
             or(mem("xd","a"), eqv("xd","a","_"))))),
-        and(forall("zp", implies(empty("zp","_"), apply(v,"zp","c0","_"))),
+        and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","c0","_"))),
         and(forall("k", implies(mem("k","a"), forall("sk", implies(successor("sk","k","_"),
             forall("ck", implies(apply(v,"k","ck","_"),
                 exists("ck1", and(apply(v,"sk","ck1","_"), tm_step("d","ck","ck1","_"))))))))),
@@ -735,7 +735,7 @@ $phase1 {
     $pa_outer_fn \v: exists("cn", and(function(v, "_"),
         and(forall("xd", forall("yd", implies(apply(v,"xd","yd","_"),
             or(mem("xd","a"), eqv("xd","a","_"))))),
-        and(forall("zp", implies(empty("zp","_"), apply(v,"zp","c0","_"))),
+        and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","c0","_"))),
         and(tm_config("cn", "q0", "a", "tape", "_"),
             and(apply(v, "a", "cn", "_"),
                 forall("k", implies(mem("k","a"), forall("sk", implies(successor("sk","k","_"),

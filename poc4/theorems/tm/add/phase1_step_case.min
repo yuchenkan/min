@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right, exp, arg1, arg2, empty
+from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right, exp, arg1, arg2
 from vocab.sets import ordered_pair, singleton
 from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_step, tm_transition
@@ -39,7 +39,7 @@ $phase1_step_case {
     $pn_func function("tra", "_")
     $pn_db forall("xd", forall("yd", implies(apply("tra","xd","yd","_"),
         or(mem("xd","n"), eqv("xd","n","_")))))
-    $pn_bc forall("zp", implies(empty("zp","_"), apply("tra","zp","c0","_")))
+    $pn_bc forall("zp", implies(num("zp",0,"_"), apply("tra","zp","c0","_")))
     $pn_cfg tm_config("cn","q0","n","tape","_")
     $pn_app apply("tra","n","cn","_")
     $pn_sv forall("k", implies(mem("k","n"),
@@ -165,7 +165,7 @@ $phase1_step_case {
     $ext_func function("trn", "_")
     $ext_db forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
         or(mem("xdn","sn"), eqv("xdn","sn","_")))))
-    $ext_bc forall("zp2", implies(empty("zp2","_"), apply("trn","zp2","c0","_")))
+    $ext_bc forall("zp2", implies(num("zp2",0,"_"), apply("trn","zp2","c0","_")))
     $ext_app apply("trn","sn","cn_new","_")
     $ext_sv forall("ja", implies(mem("ja","sn"),
         forall("sja", implies(successor("sja","ja","_"),
@@ -181,7 +181,7 @@ $phase1_step_case {
         implies(omega(wv,"_"),
         implies(mem(ka, wv),
         implies(successor(ska, ka, "_"),
-        implies(forall("zp", implies(empty("zp","_"), apply(tra,"zp",c0v,"_"))),
+        implies(forall("zp", implies(num("zp",0,"_"), apply(tra,"zp",c0v,"_"))),
         implies(forall("ja", implies(mem("ja",ka),
             forall("sja", implies(successor("sja","ja","_"),
                 forall("cja", implies(apply(tra,"ja","cja","_"),
@@ -192,7 +192,7 @@ $phase1_step_case {
             exists("trn", and(function("trn","_"), and(
                 forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
                     or(mem("xdn",ska), eqv("xdn",ska,"_"))))),
-                and(forall("zp2", implies(empty("zp2","_"), apply("trn","zp2",c0v,"_"))),
+                and(forall("zp2", implies(num("zp2",0,"_"), apply("trn","zp2",c0v,"_"))),
                     and(apply("trn",ska,cn_new,"_"),
                         forall("ja", implies(mem("ja",ska),
                             forall("sja", implies(successor("sja","ja","_"),
@@ -283,7 +283,7 @@ $phase1_step_case {
     $psn_func function("tra", "_")
     $psn_db forall("xd", forall("yd", implies(apply("tra","xd","yd","_"),
         or(mem("xd","sn"), eqv("xd","sn","_")))))
-    $psn_bc forall("zp", implies(empty("zp","_"), apply("tra","zp","c0","_")))
+    $psn_bc forall("zp", implies(num("zp",0,"_"), apply("tra","zp","c0","_")))
     $psn_cfg tm_config("cn","q0","sn","tape","_")
     $psn_app apply("tra","sn","cn","_")
     $psn_sv forall("k", implies(mem("k","sn"),
@@ -298,7 +298,7 @@ $phase1_step_case {
     $_psn_body \tra_v: \cn_v: and(function(tra_v,"_"), and(
         forall("xd", forall("yd", implies(apply(tra_v,"xd","yd","_"),
             or(mem("xd","sn"), eqv("xd","sn","_"))))),
-        and(forall("zp", implies(empty("zp","_"), apply(tra_v,"zp","c0","_"))),
+        and(forall("zp", implies(num("zp",0,"_"), apply(tra_v,"zp","c0","_"))),
             and(tm_config(cn_v,"q0","sn","tape","_"),
                 and(apply(tra_v,"sn",cn_v,"_"),
                     forall("k", implies(mem("k","sn"),
@@ -324,7 +324,7 @@ $phase1_step_case {
                     tm_step("d", "ck", "ck1", "_")))))))))
     $_db_fn \v: \d2: forall("xd", forall("yd",
         implies(apply(d2, "xd", "yd", "_"), or(mem("xd", v), eqv("xd", v, "_")))))
-    $_bc_fn \d2: forall("zp", implies(empty("zp", "_"), apply(d2, "zp", "c0", "_")))
+    $_bc_fn \d2: forall("zp", implies(num("zp", 0, "_"), apply(d2, "zp", "c0", "_")))
 
     # eel trn from extx
     $_eel_trn_fn \v: and(function(v, "_"), and(

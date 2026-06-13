@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, eqv, and, qed, mem, or, empty
+from derived import implies, forall, exists, eqv, and, qed, mem, or, neg
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
@@ -21,6 +21,7 @@ from theorems.tm.tm.tmstep_c1_transfer import tmstep_c1_transfer
 from theorems.tm.tm.extend_trace import extend_trace
 from theorems.tm.tm.step_to_reaches import step_to_reaches
 from theorems.tm.tm.config_exists import config_exists
+from theorems.tm.tm.tape_update_other import tape_update_other
 from vocab.tm.tm import tm_reaches
 from vocab.nat.nat import nat
 
@@ -165,7 +166,7 @@ $_sv_body \v: \n: forall("ja", implies(mem("ja", n),
                 tm_step("delta", "cja", "cja1", "_")))))))))
 $_db_body \v: \n: forall("xdn", forall("ydn",
     implies(apply(v, "xdn", "ydn", "_"), or(mem("xdn", n), eqv("xdn", n, "_")))))
-$_base_body \v: forall("zp2", implies(empty("zp2", "_"), apply(v, "zp2", "c0", "_")))
+$_base_body \v: forall("zp2", implies(num("zp2", 0, "_"), apply(v, "zp2", "c0", "_")))
 
 $et_expected forall("tra", forall("ska", forall("ca_new", forall("c0",
     forall("ka", forall("delta", forall("ca", forall("w",
@@ -174,7 +175,7 @@ $et_expected forall("tra", forall("ska", forall("ca_new", forall("c0",
     implies(omega("w", "_"),
     implies(mem("ka", "w"),
     implies(successor("ska", "ka", "_"),
-    implies(forall("zp", implies(empty("zp", "_"), apply("tra", "zp", "c0", "_"))),
+    implies(forall("zp", implies(num("zp", 0, "_"), apply("tra", "zp", "c0", "_"))),
     implies(_sv_body("tra")("ka"),
     implies(tm_step("delta", "ca", "ca_new", "_"),
     implies(apply("tra", "ka", "ca", "_"),
@@ -198,5 +199,13 @@ $_ tap("step_to_reaches ok")
 $_ qed(config_exists, forall("q", forall("h", forall("t",
     exists("c", tm_config("c","q","h","t","_"))))), "z")
 $_ tap("config_exists ok")
+
+$tuo_expected forall("tapen", forall("tape", forall("h", forall("w", forall("x", forall("y",
+    implies(tape_update("tapen","tape","h","w","_"),
+    implies(apply("tape","x","y","_"),
+    implies(neg(eqv("x","h","_")),
+        apply("tapen","x","y","_"))))))))))
+$_ qed(tape_update_other, tuo_expected, "z")
+$_ tap("tape_update_other ok")
 
 $ok true
