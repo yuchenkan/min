@@ -1,0 +1,287 @@
+from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right, sep_ax
+from vocab.sets import ordered_pair, singleton, union
+from vocab.tm.tm import tape_update
+from tactics import ax, fl, fr, ir, wl, wl_all, wr, mp, cut_c, inst, apply_thm, eir, eel, close, same
+from util import remove, diff
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.or_intro_left import or_intro_left
+from theorems.logic.or_intro_right import or_intro_right
+from theorems.logic.or_elim import or_elim
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.sets.singleton_exists import singleton_exists
+from theorems.sets.union_exists import union_exists
+from theorems.sets.union_mem_left import union_mem_left
+from theorems.sets.union_mem_right import union_mem_right
+
+# [Pairing, Union, Separation] |- ∀tape,h,w. ∃tapen. TapeUpdate(tapen,tape,h,w)
+$tape_update_exists {
+    # φ(z) = OP(z,h,w) ∨ (z∈tape ∧ ¬∃yv.OP(z,h,yv))
+    $phi \z a np: or(ordered_pair(z, "h", "w", np),
+        and(mem(z, "tape"), neg(exists(add(np, "yv"), ordered_pair(z, "h", add(np, "yv"), add(np, "_"))))))
+
+    # Separation axiom instance: ∀base. ∃tapen. ∀z. z∈tapen ↔ (z∈base ∧ φ(z))
+    $sep sep_ax(["h","w","tape"], phi, "_")
+
+    # Existence chain: pair, sing, base
+    $_oe head(right(ordpair_exists))
+    $_oe_b \a: \b: exists("pair", ordered_pair("pair", a, b, "_"))
+    $got_ex_pair apply_thm(ordpair_exists, _oe, ["h","w"], ["a","b"], _oe_b, left(ordpair_exists))
+
+    $op_pair ordered_pair("pair", "h", "w", "_")
+
+    $_se head(right(singleton_exists))
+    $_se_b \a: exists("sing", singleton("sing", a, "_"))
+    $got_ex_sing apply_thm(singleton_exists, _se, ["pair"], ["a"], _se_b, left(singleton_exists))
+
+    $sing_pair singleton("sing", "pair", "_")
+
+    $_ue head(right(union_exists))
+    $_ue_b \a: \b: exists("base", union("base", a, b, "_"))
+    $got_ex_base apply_thm(union_exists, _ue, ["tape","sing"], ["a","b"], _ue_b, left(union_exists))
+
+    $union_base union("base", "tape", "sing", "_")
+
+    # TapeUpdate expansion components (with "z" as bound var)
+    $in_z_tn mem("z", "tapen")
+    $op_zhw ordered_pair("z", "h", "w", "_")
+    $op_zhy ordered_pair("z", "h", "yv", "_")
+    $not_ex_y neg(exists("yv", op_zhy))
+    $right_and and(mem("z", "tape"), not_ex_y)
+    $phi_z or(op_zhw, right_and)
+    $iff_tu iff(in_z_tn, phi_z)
+    $tu tape_update("tapen", "tape", "h", "w", "_")
+
+    # Separation gives: ∀base. ∃tapen. ∀z. z∈tapen ↔ (z∈base ∧ φ(z))
+    $in_z_base mem("z", "base")
+    $and_base_phi and(in_z_base, phi_z)
+    $iff_sep iff(in_z_tn, and_base_phi)
+
+    $_ tap("setup ok")
+
+    # === Prove φ(z) → z∈base ===
+
+    # Case 1: OP(z,h,w) → z∈base
+    # ordpair_unique: OP(z,h,w) ∧ OP(pair,h,w) → Eq(z,pair)
+    $_ou head(right(ordpair_unique))
+    $_ou_b \a: \b: \c: \d: implies(ordered_pair(c,a,b,"_"),
+        implies(ordered_pair(d,a,b,"_"), eqv(c,d,"_")))
+    $got_ou apply_thm(ordpair_unique, _ou, ["h","w","z","pair"],
+        ["a","b","c","d"], _ou_b, left(ordpair_unique))
+    $got_ou mp(got_ou, ax([op_zhw],[op_zhw],op_zhw), op_zhw,
+        implies(op_pair, eqv("z","pair","_")), left(got_ou), [op_zhw])
+    $got_ou mp(got_ou, ax([op_pair],[op_pair],op_pair), op_pair,
+        eqv("z","pair","_"), left(got_ou), [op_pair])
+    # [Pairing, OP(z,h,w), OP(pair,h,w)] |- Eq(z,pair)
+
+    # Singleton(sing,pair): ∀x. x∈sing ↔ x=pair
+    # fl with "z" → Iff(z∈sing, z=pair), iff_elim_right → z=pair → z∈sing
+    $iff_z_sing iff(mem("z","sing"), eqv("z","pair","_"))
+    $got_iff_z fl(ax([iff_z_sing],[iff_z_sing],iff_z_sing),
+        [sing_pair], [iff_z_sing], sing_pair, "z")
+    $got_rev mp(iff_elim_right(mem("z","sing"), eqv("z","pair","_"), []),
+        got_iff_z, iff_z_sing, implies(eqv("z","pair","_"), mem("z","sing")),
+        [], [sing_pair])
+    $got_in_z_sing mp(got_rev, got_ou, eqv("z","pair","_"),
+        mem("z","sing"), [sing_pair], left(got_ou))
+    # [..., OP(z,h,w), OP(pair,h,w), Singleton(sing,pair)] |- In(z,sing)
+
+    # union_mem_right: ∀x.∀u.∀a.∀b. In(x,b) → Union(u,a,b) → In(x,u)
+    $_umr head(right(union_mem_right))
+    $_umr_b \x: \u: \a: \b: implies(mem(x,b),
+        implies(union(u,a,b,"_"), mem(x,u)))
+    $got_umr apply_thm(union_mem_right, _umr, ["z","base","tape","sing"],
+        ["x","u","a","b"], _umr_b, left(union_mem_right))
+    $got_umr mp(got_umr, got_in_z_sing, mem("z","sing"),
+        implies(union_base, in_z_base), left(got_umr), left(got_in_z_sing))
+    $got_c1 mp(got_umr, ax([union_base],[union_base],union_base), union_base,
+        in_z_base, left(got_umr), [union_base])
+    # [Union(base,tape,sing), Singleton(sing,pair), OP(pair,h,w), OP(z,h,w), Pairing] |- In(z,base)
+
+    # ir to discharge OP(z,h,w) → case 1 implication
+    $imp_c1 implies(op_zhw, in_z_base)
+    $got_imp_c1 ir(got_c1, remove(same, op_zhw, left(got_c1)),
+        [imp_c1], imp_c1)
+
+    $_ tap("case1 ok")
+
+    # Case 2: And(In(z,tape), ¬∃yv.OP(z,h,yv)) → z∈base
+    # In(z,tape) → z∈base via union_mem_left
+    # union_mem_left: ∀x.∀u.∀a.∀b. In(x,a) → Union(u,a,b) → In(x,u)
+    $in_z_tape mem("z", "tape")
+    $_uml head(right(union_mem_left))
+    $_uml_b \x: \u: \a: \b: implies(mem(x,a),
+        implies(union(u,a,b,"_"), mem(x,u)))
+    $got_uml apply_thm(union_mem_left, _uml, ["z","base","tape","sing"],
+        ["x","u","a","b"], _uml_b, left(union_mem_left))
+
+    # Extract In(z,tape) from And(In(z,tape), ¬∃...)
+    $got_in_z_t mp(and_elim_left(in_z_tape, not_ex_y, []),
+        ax([right_and],[right_and],right_and), right_and, in_z_tape, [], [right_and])
+
+    # In(z,tape) → Union → In(z,base)
+    $got_c2_inner mp(got_uml, got_in_z_t, in_z_tape,
+        implies(union_base, in_z_base), left(got_uml), [right_and])
+    $got_c2_inner mp(got_c2_inner, ax([union_base],[union_base],union_base), union_base,
+        in_z_base, left(got_c2_inner), [union_base])
+
+    $imp_c2 implies(right_and, in_z_base)
+    $got_imp_c2 ir(got_c2_inner, remove(same, right_and, left(got_c2_inner)),
+        [imp_c2], imp_c2)
+
+    $_ tap("case2 ok")
+
+    # or_elim: φ(z) → In(z,base)
+    $oe or_elim(op_zhw, right_and, in_z_base, [])
+    $got_phi_base mp(oe, ax([phi_z],[phi_z],phi_z), phi_z,
+        implies(imp_c1, implies(imp_c2, in_z_base)), [], [phi_z])
+    $got_phi_base mp(got_phi_base, got_imp_c1, imp_c1,
+        implies(imp_c2, in_z_base), [phi_z], left(got_imp_c1))
+    $got_phi_base mp(got_phi_base, got_imp_c2, imp_c2,
+        in_z_base, left(got_phi_base), left(got_imp_c2))
+    # [phi_z, Union, Singleton, OP(pair), Pairing] |- In(z,base)
+
+    $_ tap("phi_to_base ok")
+
+    # === Prove char → TapeUpdate ===
+    # char_body: z∈tapen ↔ (z∈base ∧ φ(z))
+    # Want: z∈tapen ↔ φ(z)
+    # Forward: char → z∈tapen → z∈base ∧ φ(z) → φ(z)
+    # Backward: char + φ(z) → z∈base (above) → z∈base ∧ φ(z) → z∈tapen
+
+    # Get char_body from sep via fl on "base", then inst "tapen" from ∃, etc.
+    # Actually, sep gives: ∀base. ∃tapen. ∀z. Iff(z∈tapen, z∈base ∧ φ(z))
+    # We'll work with iff_sep directly as an assumption.
+
+    # Forward: iff_sep → z∈tapen → φ(z)
+    $got_fwd_iff mp(iff_elim_left(in_z_tn, and_base_phi, []),
+        ax([iff_sep],[iff_sep],iff_sep), iff_sep,
+        implies(in_z_tn, and_base_phi), [], [iff_sep])
+    $got_fwd_and mp(got_fwd_iff, ax([in_z_tn],[in_z_tn],in_z_tn),
+        in_z_tn, and_base_phi, [iff_sep], [in_z_tn])
+    $got_fwd mp(and_elim_right(in_z_base, phi_z, []),
+        got_fwd_and, and_base_phi, phi_z, [], left(got_fwd_and))
+    # [iff_sep, in_z_tn] |- phi_z
+    $imp_fwd implies(in_z_tn, phi_z)
+    $got_imp_fwd ir(got_fwd, remove(same, in_z_tn, left(got_fwd)),
+        [imp_fwd], imp_fwd)
+
+    # Backward: iff_sep + φ(z) → z∈tapen
+    # First build And(In(z,base), φ(z)) from φ(z) + got_phi_base
+    $got_and_bp mp(mp(and_intro(in_z_base, phi_z, []),
+        got_phi_base, in_z_base, implies(phi_z, and_base_phi),
+        [], left(got_phi_base)),
+        ax([phi_z],[phi_z],phi_z), phi_z, and_base_phi,
+        left(got_phi_base), [phi_z])
+    # [phi_z, Union, Singleton, OP(pair), Pairing] |- And(In(z,base), φ(z))
+
+    $got_bwd_iff mp(iff_elim_right(in_z_tn, and_base_phi, []),
+        ax([iff_sep],[iff_sep],iff_sep), iff_sep,
+        implies(and_base_phi, in_z_tn), [], [iff_sep])
+    $got_bwd mp(got_bwd_iff, got_and_bp, and_base_phi,
+        in_z_tn, [iff_sep], left(got_and_bp))
+    # [iff_sep, phi_z, Union, Singleton, OP(pair), Pairing] |- In(z,tapen)
+    $imp_bwd implies(phi_z, in_z_tn)
+    $got_imp_bwd ir(got_bwd, remove(same, phi_z, left(got_bwd)),
+        [imp_bwd], imp_bwd)
+
+    $_ tap("fwd_bwd ok")
+
+    # iff_intro: (fwd → bwd → Iff)
+    $got_tu_iff mp(mp(iff_intro(in_z_tn, phi_z, []),
+        got_imp_fwd, imp_fwd, implies(imp_bwd, iff_tu),
+        [], left(got_imp_fwd)),
+        got_imp_bwd, imp_bwd, iff_tu,
+        left(got_imp_fwd), left(got_imp_bwd))
+    # [iff_sep, Union, Singleton, OP(pair), Pairing] |- Iff(In(z,tapen), φ(z))
+
+    $_ tap("iff ok")
+
+    # Discharge iff_sep, close ∀z
+    # iff_sep has z free, so we need to get it from ∀z.iff_sep via fl
+    # Actually, we assumed iff_sep directly. We need to restructure:
+    # Get iff_sep from char = ∀z.iff_sep via fl, so char (not iff_sep) is on the left.
+    $char forall("z", iff_sep)
+    $got_iff_from_char fl(ax([iff_sep],[iff_sep],iff_sep), [char], [iff_sep], char, "z")
+
+    # Replace iff_sep in got_tu_iff with char via cut_c
+    $got_tu_iff cut_c(got_iff_from_char, got_tu_iff, iff_sep,
+        [char], left(got_tu_iff), iff_tu)
+    # [char, Union, Singleton, OP(pair), Pairing] |- Iff(In(z,tapen), φ(z))
+
+    # Also replace iff_sep in got_imp_fwd/bwd... no, those were already consumed.
+    # got_tu_iff should have char on its left now, not iff_sep.
+
+    # Close ∀z
+    $fa_tu forall("z", iff_tu)
+    $got_fa_tu fr(got_tu_iff, left(got_tu_iff), [fa_tu], fa_tu, "z")
+    # [char, Union, Singleton, OP(pair), Pairing] |- ∀z. Iff(In(z,tapen), φ(z)) = TapeUpdate
+
+    $_ tap("forall_z ok")
+
+    # fa_tu is alpha-eq to TapeUpdate, eir tapen directly
+    $got_ex_tu eir(got_fa_tu, \v: tape_update(v, "tape", "h", "w", "_"),
+        "tapen", "tapen", left(got_fa_tu))
+
+    $_ tap("eir_tapen ok")
+
+    # eel tapen from char → ∃tapen.∀z.iff_sep
+    $ex_char exists("tapen", char)
+    $got_ex_tu eel(got_ex_tu, \v: forall("z", iff(mem("z",v), and_base_phi)),
+        "tapen", "tapen", remove(same, char, left(got_ex_tu)), head(right(got_ex_tu)))
+
+    # sep = ∀tape.∀w.∀h.∀_a. ∃_b. ∀_x. Iff(_x∈_b, _x∈_a ∧ φ(_x))
+    # Instantiate all 4 foralls: tape→tape, w→w, h→h, _a→base
+    $inner_sep exists("tapen", forall("z", iff_sep))
+    $_sep_b \tape: \w: \h: \a: exists("tapen", forall("z",
+        iff(mem("z","tapen"), and(mem("z",a), phi("z", a, "_")))))
+    $got_sep_inst apply_thm(ax([sep],[sep],sep), sep,
+        ["tape","w","h","base"], ["tape","w","h","a"], _sep_b, [sep])
+    $got_ex_tu cut_c(got_sep_inst, got_ex_tu, ex_char,
+        [sep], left(got_ex_tu), head(right(got_ex_tu)))
+
+    $_ tap("eel_tapen ok")
+
+    # eel base from union_base
+    $got_ex_tu eel(got_ex_tu, \v: union(v, "tape", "sing", "_"),
+        "base", "base", remove(same, union_base, left(got_ex_tu)), head(right(got_ex_tu)))
+    $ex_union exists("base", union_base)
+    $got_ex_tu cut_c(got_ex_base, got_ex_tu, ex_union,
+        left(got_ex_base), left(got_ex_tu), head(right(got_ex_tu)))
+
+    $_ tap("eel_base ok")
+
+    # eel sing from sing_pair
+    $got_ex_tu eel(got_ex_tu, \v: singleton(v, "pair", "_"),
+        "sing", "sing", remove(same, sing_pair, left(got_ex_tu)), head(right(got_ex_tu)))
+    $ex_sing exists("sing", sing_pair)
+    $got_ex_tu cut_c(got_ex_sing, got_ex_tu, ex_sing,
+        left(got_ex_sing), left(got_ex_tu), head(right(got_ex_tu)))
+
+    $_ tap("eel_sing ok")
+
+    # eel pair from op_pair
+    $got_ex_tu eel(got_ex_tu, \v: ordered_pair(v, "h", "w", "_"),
+        "pair", "pair", remove(same, op_pair, left(got_ex_tu)), head(right(got_ex_tu)))
+    $ex_pair exists("pair", op_pair)
+    $got_ex_tu cut_c(got_ex_pair, got_ex_tu, ex_pair,
+        left(got_ex_pair), left(got_ex_tu), head(right(got_ex_tu)))
+
+    $_ tap("eel_pair ok")
+
+    # Close ∀w, ∀h, ∀tape
+    $proof got_ex_tu
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("w", goal_f)], forall("w", goal_f), "w")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("h", goal_f)], forall("h", goal_f), "h")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("tape", goal_f)], forall("tape", goal_f), "tape")
+
+    proof
+}
