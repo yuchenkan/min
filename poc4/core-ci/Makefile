@@ -14,8 +14,9 @@ dst/min: $(OBJS)
 dst/%.o: src/%.c | dst
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-dst/%: test/%.c $(OBJS) | dst
-	$(CC) $(CFLAGS) -o $@ $< $(filter-out dst/main.o,$(OBJS))
+TEST_SRCS = $(filter-out src/main.c,$(SRCS))
+dst/%: test/%.c $(TEST_SRCS) | dst
+	$(CC) $(CFLAGS) -fsanitize=address -o $@ $< $(TEST_SRCS)
 
 dst:
 	mkdir -p dst

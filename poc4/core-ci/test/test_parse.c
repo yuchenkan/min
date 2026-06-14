@@ -39,7 +39,7 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
 
   else if (strcmp(path, "string.min") == 0)
     src = "$s \"hello world\"\n"
-          "$t \"tab\\there\"\n";
+          "$t \"tab\there\"\n";
 
   else if (strcmp(path, "complex.min") == 0)
     src =
@@ -80,7 +80,7 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
       "$multi add(1, 2)()\n"
       "\n"
       "# strings with escapes\n"
-      "$greeting \"hello\\tworld\\n\"\n"
+      "$greeting \"hello\tworld\n\"\n"
       "$quote \"she said \\\"hi\\\"\"\n"
       "$empty \"\"\n"
       "\n"

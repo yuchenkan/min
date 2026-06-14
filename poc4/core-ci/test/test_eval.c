@@ -115,7 +115,7 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
 
   else if (strcmp(path, "tap.min") == 0)
     src = "$a tap(42)\n"
-          "$b tap(\"hello\\tworld\")\n"
+          "$b tap(\"hello world\")\n"
           "$c tap(true)\n"
           "$d tap(false)\n"
           "$e tap(none)\n"
@@ -130,11 +130,19 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
           "$c str(1000000)\n"
           "$d str(add(999, 1))\n"
           "$e str(\"hi\")\n"
-          "$f str(\"a\\\"b\\nc\\td\\\\e\")\n"
+          "$f str(\"a\\\"b\\\\c\")\n"
           "$g str(true)\n"
           "$h str(false)\n"
           "$i str(none)\n"
           "$j str([1, \"x\", true, [2]])\n";
+
+  else if (strcmp(path, "str_ops.min") == 0)
+    src = "$s \"hello\"\n"
+          "$a len(s)\n"
+          "$b nth(s, 0)\n"
+          "$c nth(s, 4)\n"
+          "$d add(nth(s, 0), nth(s, 1))\n"
+          "$e len(\"\")\n";
 
   else if (strcmp(path, "proof.min") == 0)
     src =
@@ -436,7 +444,7 @@ static void test_tap(void) {
   Env *env = run_eval("tap.min", &gc, &root);
   /* tap returns its argument */
   assert(int_val(*F(env,"a")) == 42);
-  assert(strcmp((*F(env,"b"))->str, "hello\tworld") == 0);
+  assert(strcmp((*F(env,"b"))->str, "hello world") == 0);
   assert((*F(env,"c"))->tag == N_TRUE);
   assert((*F(env,"d"))->tag == N_FALSE);
   assert((*F(env,"e"))->tag == N_NONE);
@@ -474,7 +482,7 @@ static void test_str_conv(void) {
   assert(strcmp((*F(env,"c"))->str, "1000000") == 0);
   assert(strcmp((*F(env,"d"))->str, "1000") == 0);
   assert(strcmp((*F(env,"e"))->str, "\"hi\"") == 0);
-  assert(strcmp((*F(env,"f"))->str, "\"a\\\"b\\nc\\td\\\\e\"") == 0);
+  assert(strcmp((*F(env,"f"))->str, "\"a\\\"b\\\\c\"") == 0);
   assert(strcmp((*F(env,"g"))->str, "true") == 0);
   assert(strcmp((*F(env,"h"))->str, "false") == 0);
   assert(strcmp((*F(env,"i"))->str, "none") == 0);
@@ -482,6 +490,19 @@ static void test_str_conv(void) {
   gc_fini(gc);
   intern_fini(G_it);
   printf("  str_conv: ok\n");
+}
+
+static void test_str_ops(void) {
+  GC *gc; TestRoot *root;
+  Env *env = run_eval("str_ops.min", &gc, &root);
+  assert(int_val(*F(env,"a")) == 5);
+  assert(strcmp((*F(env,"b"))->str, "h") == 0);
+  assert(strcmp((*F(env,"c"))->str, "o") == 0);
+  assert(strcmp((*F(env,"d"))->str, "he") == 0);
+  assert(int_val(*F(env,"e")) == 0);
+  gc_fini(gc);
+  intern_fini(G_it);
+  printf("  str_ops: ok\n");
 }
 
 static int run_eval_err(const char *file, char *errbuf, int bufsize) {
@@ -603,6 +624,7 @@ int main(void) {
   test_tap();
   test_proof();
   test_str_conv();
+  test_str_ops();
   test_err_undef();
   test_err_call();
   test_err_import();

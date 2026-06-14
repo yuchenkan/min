@@ -78,9 +78,7 @@ static int tokenize(Tokenizer *t, const char *src) {
             return 1;
           }
           char e = src[pos];
-          if (e == 'n') buf[blen++] = '\n';
-          else if (e == 't') buf[blen++] = '\t';
-          else if (e == '\\') buf[blen++] = '\\';
+          if (e == '\\') buf[blen++] = '\\';
           else if (e == '"') buf[blen++] = '"';
           else {
             fprintf(stderr, "%s:%d:%d: invalid escape: \\%c\n", t->filepath, line, col, e);

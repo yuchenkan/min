@@ -131,9 +131,7 @@ static void node_str(Sbuf *s, Node *n) {
   case N_STR:
     sb_putc(s, '"');
     for (char *p = n->str; *p; p++) {
-      if (*p == '\n') sb_puts(s, "\\n");
-      else if (*p == '\t') sb_puts(s, "\\t");
-      else if (*p == '\\') sb_puts(s, "\\\\");
+      if (*p == '\\') sb_puts(s, "\\\\");
       else if (*p == '"') sb_puts(s, "\\\"");
       else sb_putc(s, *p);
     }
@@ -221,26 +219,40 @@ static int builtin_tail(GC *gc, GCStack *stack, const char **tags, Intern *it) {
 }
 
 static int builtin_nth(GC *gc, GCStack *stack, const char **tags, Intern *it) {
-  (void)tags; (void)it; (void)gc;
+  (void)tags;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *n = *gc_stack_nth(stack, top - 1);
-  if (a->tag != N_ARR) { fprintf(stderr, "nth: expected arr\n"); return 1; }
   if (n->tag != N_INT) { fprintf(stderr, "nth: expected int index\n"); return 1; }
-  if (n->integer >= a->arr.len) { fprintf(stderr, "nth: index out of bounds\n"); return 1; }
-  uint64_t idx = n->integer;
-  *gc_stack_nth(stack, top - 3) = ((Node **)a->arr.data)[idx];
-  gc_stack_pop(stack, 2);
-  return 0;
+  if (a->tag == N_ARR) {
+    if (n->integer >= a->arr.len) { fprintf(stderr, "nth: index out of bounds\n"); return 1; }
+    *gc_stack_nth(stack, top - 3) = ((Node **)a->arr.data)[n->integer];
+    gc_stack_pop(stack, 2);
+    return 0;
+  } else if (a->tag == N_STR) {
+    uint64_t slen = strlen(a->str);
+    if (n->integer >= slen) { fprintf(stderr, "nth: string index out of bounds\n"); return 1; }
+    char buf[2] = { a->str[n->integer], '\0' };
+    void **slot = gc_stack_push(gc, stack);
+    *slot = (void *)intern(it, buf);
+    *slot = intern_str(it, (const char *)*slot);
+    *gc_stack_nth(stack, top - 3) = *slot;
+    gc_stack_pop(stack, 3);
+    return 0;
+  }
+  fprintf(stderr, "nth: expected arr or str\n"); return 1;
 }
 
 static int builtin_len(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   (void)tags;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 1);
-  if (a->tag != N_ARR) { fprintf(stderr, "len: expected arr\n"); return 1; }
+  uint64_t result;
+  if (a->tag == N_ARR) result = a->arr.len;
+  else if (a->tag == N_STR) result = strlen(a->str);
+  else { fprintf(stderr, "len: expected arr or str\n"); return 1; }
   void **slot = gc_stack_push(gc, stack);
-  *slot = intern_int(it, a->arr.len);
+  *slot = intern_int(it, result);
   *gc_stack_nth(stack, top - 2) = *slot;
   gc_stack_pop(stack, 2);
   return 0;
@@ -265,9 +277,7 @@ static void print_node(Node *n) {
       case N_STR:
         putchar('"');
         for (char *p = item->str; *p; p++) {
-          if (*p == '\n') printf("\\n");
-          else if (*p == '\t') printf("\\t");
-          else if (*p == '\\') printf("\\\\");
+          if (*p == '\\') printf("\\\\");
           else if (*p == '"') printf("\\\"");
           else putchar(*p);
         }
