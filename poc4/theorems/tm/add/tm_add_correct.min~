@@ -20,6 +20,8 @@ from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_transitive import eqv_transitive
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.exists_unique_bridge import exists_unique_bridge
+from theorems.nat.nat.unique_omega import unique_omega
 from theorems.logic.iff_intro import iff_intro
 from theorems.logic.ext_substitution import ext_substitution
 
@@ -467,7 +469,149 @@ $tm_add_correct {
     $proof wl(proof, add(left(proof), [succ_n]), right(proof), succ_n)
     $proof wl(proof, add(left(proof), [unary_out]), right(proof), unary_out)
 
-    # === Section 14: ir goal hypotheses (reverse order = innermost first) ===
+    # === Helpers for eu_bridge nat derivations ===
+    # mk_transfer(var): [] |- [∀v1,v2. v1=v2 → var∈v1 → var∈v2]
+    $et_body \aa: \bb: \zz: implies(eqv(aa, bb, "_"), iff(mem(zz, aa), mem(zz, bb)))
+    $eqv_et eqv("v1", "v2", "_")
+    $mk_transfer \var: {
+        $et_i apply_thm(eq_transfer, head(right(eq_transfer)),
+            ["v1", "v2", var], ["a", "b", "z"], et_body, [])
+        $iff_e iff(mem(var, "v1"), mem(var, "v2"))
+        $fwd_e implies(mem(var, "v1"), mem(var, "v2"))
+        $got_fwd mp(iff_elim_left(mem(var, "v1"), mem(var, "v2"), []),
+            mp(et_i, ax([eqv_et],[eqv_et],eqv_et), eqv_et, iff_e, [], [eqv_et]),
+            iff_e, fwd_e, [], [eqv_et])
+        $tc ir(got_fwd, remove(same, eqv_et, left(got_fwd)),
+            [implies(eqv_et, fwd_e)], implies(eqv_et, fwd_e))
+        $tg head(right(tc))
+        $tc fr(tc, left(tc), [forall("v2", tg)], forall("v2", tg), "v2")
+        $tg head(right(tc))
+        fr(tc, left(tc), [forall("v1", tg)], forall("v1", tg), "v1")
+    }
+
+    # nat_fwd(var, nat_var): [ZFC, nat_var] |- [∃w.Omega(w)∧var∈w]
+    $nat_fwd \var nat_var: {
+        $ow_f omega("w","_")
+        $ex_ow_f exists("w", and(ow_f, mem(var,"w")))
+        $eub_f exists_unique_bridge(\v p: omega(v, p), \v: mem(var, v), [], "_")
+        $br1 mp(eub_f, mk_transfer(var), arg1(head(right(eub_f))), arg2(head(right(eub_f))), [], [])
+        $iff_f mp(br1, unique_omega,
+            arg1(head(right(br1))), arg2(head(right(br1))),
+            left(br1), left(unique_omega))
+        $fwd mp(iff_elim_left(nat_var, ex_ow_f, []),
+            iff_f, head(right(iff_f)), implies(nat_var, ex_ow_f), [], left(iff_f))
+        mp(fwd, ax([nat_var],[nat_var],nat_var), nat_var, ex_ow_f, left(fwd), [nat_var])
+    }
+
+    # nat_bwd(var, nat_var): [ZFC] |- [implies(∃w.Omega(w)∧var∈w, nat_var)]
+    $nat_bwd \var nat_var: {
+        $ow_f omega("w","_")
+        $ex_ow_f exists("w", and(ow_f, mem(var,"w")))
+        $eub_f exists_unique_bridge(\v p: omega(v, p), \v: mem(var, v), [], "_")
+        $br1 mp(eub_f, mk_transfer(var), arg1(head(right(eub_f))), arg2(head(right(eub_f))), [], [])
+        $iff_f mp(br1, unique_omega,
+            arg1(head(right(br1))), arg2(head(right(br1))),
+            left(br1), left(unique_omega))
+        mp(iff_elim_right(nat_var, ex_ow_f, []),
+            iff_f, head(right(iff_f)), implies(ex_ow_f, nat_var), [], left(iff_f))
+    }
+
+    # === Section 14: Derive and cut intermediates ===
+    # Replace each intermediate assumption (from ax() in _mp_ax) with an actual
+    # derivation from goal hypotheses + ZFC theorems, then cut_c to remove from left.
+    # Order: cut dependents before dependencies.
+
+    # --- app_tin_a_z: from tape_read_sep ---
+    # tape_read_sep: [] |- ∀tape,a,b,zero. UnaryTape(tape,a,b) → Num(zero,0) → Apply(tape,a,zero)
+    $_trs_b \tape: \a: \b: \zero: implies(unary_tape(tape,a,b,"_"), implies(num(zero,0,"_"), apply(tape,a,zero,"_")))
+    $trs_inst apply_thm(tape_read_sep, head(right(tape_read_sep)),
+        ["tin","a","b","z"], ["tape","a","b","zero"], _trs_b, left(tape_read_sep))
+    $trs_s1 mp(trs_inst,
+        ax([utape],[utape],utape), utape, implies(num_z, app_tin_a_z),
+        left(trs_inst), [utape])
+    $got_app_tin mp(trs_s1,
+        ax([num_z],[num_z],num_z), num_z, app_tin_a_z,
+        left(trs_s1), [num_z])
+    $proof cut_c(got_app_tin, proof, app_tin_a_z,
+        left(got_app_tin), left(proof), head(right(proof)))
+    $_ tap("derived app_tin_a_z ok")
+
+    # --- nat_succ_step: helper for Nat(x) + Succ(y,x) → Nat(y) ---
+    # Returns [ZFC, nat_x, succ_yx] |- [nat_y]
+    $nat_succ_step \xvar yvar nat_x nat_y succ_yx: {
+        $ow_s omega("w","_")
+        $xw_s mem(xvar,"w")
+        $yw_s mem(yvar,"w")
+        $got_ex_x nat_fwd(xvar, nat_x)
+        $and_ow_x and(ow_s, xw_s)
+        $got_ow_s mp(and_elim_left(ow_s, xw_s, []),
+            ax([and_ow_x],[and_ow_x],and_ow_x), and_ow_x, ow_s, [], [and_ow_x])
+        $got_xw mp(and_elim_right(ow_s, xw_s, []),
+            ax([and_ow_x],[and_ow_x],and_ow_x), and_ow_x, xw_s, [], [and_ow_x])
+        $_osc_b \s: \n: \w: implies(omega(w,"_"), implies(mem(n,w), implies(successor(s,n,"_"), mem(s,w))))
+        $osc_i apply_thm(omega_succ_closed, head(right(omega_succ_closed)),
+            [yvar,xvar,"w"], ["s","n","w"], _osc_b, [])
+        $osc1 mp(osc_i, got_ow_s, ow_s, implies(xw_s, implies(succ_yx, yw_s)),
+            [], [and_ow_x])
+        $osc2 mp(osc1, got_xw, xw_s, implies(succ_yx, yw_s),
+            [and_ow_x], [and_ow_x])
+        $got_yw mp(osc2,
+            ax([succ_yx],[succ_yx],succ_yx), succ_yx, yw_s,
+            left(osc2), [succ_yx])
+        $and_ow_y and(ow_s, yw_s)
+        $got_and_y mp(mp(and_intro(ow_s, yw_s, []),
+            got_ow_s, ow_s, implies(yw_s, and_ow_y), [], [and_ow_x]),
+            got_yw, yw_s, and_ow_y, [and_ow_x], left(got_yw))
+        $ex_ow_y exists("w", and(ow_s, yw_s))
+        $ex_ow_x exists("w", and(ow_s, xw_s))
+        $got_ex_raw eir(got_and_y, \w: and(omega(w,"_"), mem(yvar,w)), "w", "w", left(got_and_y))
+        $got_ex eel(got_ex_raw, \w: and(omega(w,"_"), mem(xvar,w)), "w", "w",
+            remove(same, and_ow_x, left(got_ex_raw)), ex_ow_y)
+        $got_ex2 cut_c(got_ex_x, got_ex, ex_ow_x,
+            left(got_ex_x), left(got_ex), ex_ow_y)
+        $got_bwd nat_bwd(yvar, nat_y)
+        mp(got_bwd, got_ex2, ex_ow_y, nat_y, left(got_bwd), left(got_ex2))
+    }
+
+    # Cut order: dependents first (nat_ssc, nat_hf, nat_sa before nat_c)
+
+    # --- nat_ssc: Nat(hf) + Succ(ssc,hf) → Nat(ssc) ---
+    $got_nat_ssc nat_succ_step("hf", "ssc", nat_hf, nat_ssc, succ_ssc)
+    $proof cut_c(got_nat_ssc, proof, nat_ssc,
+        left(got_nat_ssc), left(proof), head(right(proof)))
+    $_ tap("derived nat_ssc ok")
+
+    # --- nat_hf: Nat(c) + Succ(hf,c) → Nat(hf) ---
+    $got_nat_hf nat_succ_step("c", "hf", nat_c, nat_hf, succ_hf)
+    $proof cut_c(got_nat_hf, proof, nat_hf,
+        left(got_nat_hf), left(proof), head(right(proof)))
+    $_ tap("derived nat_hf ok")
+
+    # --- nat_sa: Nat(a) + Succ(sa,a) → Nat(sa) ---
+    $got_nat_sa nat_succ_step("a", "sa", nat_a, nat_sa, succ_sa)
+    $proof cut_c(got_nat_sa, proof, nat_sa,
+        left(got_nat_sa), left(proof), head(right(proof)))
+    $_ tap("derived nat_sa ok")
+
+    # --- nat_c: from plus_val_nat ---
+    # plus_val_nat: [ZFC] |- ∀m,n,p. Nat(m) → Nat(n) → Plus(m,n,p) → Nat(p)
+    $_pvn_b \m: \n: \p: implies(nat(m,"_"), implies(nat(n,"_"), implies(plus(m,n,p,"_"), nat(p,"_"))))
+    $pvn_inst apply_thm(plus_val_nat, head(right(plus_val_nat)),
+        ["a","b","c"], ["m","n","p"], _pvn_b, left(plus_val_nat))
+    $pvn_s1 mp(pvn_inst,
+        ax([nat_a],[nat_a],nat_a), nat_a, implies(nat_b, implies(plus_abc, nat_c)),
+        left(pvn_inst), [nat_a])
+    $pvn_s2 mp(pvn_s1,
+        ax([nat_b],[nat_b],nat_b), nat_b, implies(plus_abc, nat_c),
+        left(pvn_s1), [nat_b])
+    $got_nat_c mp(pvn_s2,
+        ax([plus_abc],[plus_abc],plus_abc), plus_abc, nat_c,
+        left(pvn_s2), [plus_abc])
+    $proof cut_c(got_nat_c, proof, nat_c,
+        left(got_nat_c), left(proof), head(right(proof)))
+    $_ tap("derived nat_c ok")
+
+    # === Section 15: ir goal hypotheses (reverse order = innermost first) ===
     # ir order: cfg_cf, cfg_c0, unary_out, succ_n, succ_ssc, succ_hf, plus_abc,
     #           utape, nat_b, nat_a, num_z, num_qH, num_q0, dc, func_tin, func_delta
 
@@ -544,14 +688,9 @@ $tm_add_correct {
     $body implies(func_tape2, body)
     $proof ir(proof, remove(same, tu_tape2, left(proof)), [implies(tu_tape2, body)], implies(tu_tape2, body))
     $body implies(tu_tape2, body)
-    $proof ir(proof, remove(same, app_tin_a_z, left(proof)), [implies(app_tin_a_z, body)], implies(app_tin_a_z, body))
-    $body implies(app_tin_a_z, body)
     $proof ir(proof, remove(same, tape_read, left(proof)), [implies(tape_read, body)], implies(tape_read, body))
     $body implies(tape_read, body)
-    $proof ir(proof, remove(same, nat_c, left(proof)), [implies(nat_c, body)], implies(nat_c, body))
-    $body implies(nat_c, body)
-    $proof ir(proof, remove(same, nat_sa, left(proof)), [implies(nat_sa, body)], implies(nat_sa, body))
-    $body implies(nat_sa, body)
+    # nat_sa: derived in Section 14
     $proof ir(proof, remove(same, succ_sa, left(proof)), [implies(succ_sa, body)], implies(succ_sa, body))
     $body implies(succ_sa, body)
     $proof ir(proof, remove(same, plus_sa_b_hf, left(proof)), [implies(plus_sa_b_hf, body)], implies(plus_sa_b_hf, body))
@@ -572,10 +711,8 @@ $tm_add_correct {
     $body implies(plus_hf_one_ssc, body)
     $proof ir(proof, remove(same, plus_a_one_sa, left(proof)), [implies(plus_a_one_sa, body)], implies(plus_a_one_sa, body))
     $body implies(plus_a_one_sa, body)
-    $proof ir(proof, remove(same, nat_ssc, left(proof)), [implies(nat_ssc, body)], implies(nat_ssc, body))
-    $body implies(nat_ssc, body)
-    $proof ir(proof, remove(same, nat_hf, left(proof)), [implies(nat_hf, body)], implies(nat_hf, body))
-    $body implies(nat_hf, body)
+    # nat_ssc: derived in Section 14
+    # nat_hf: derived in Section 14
     $proof ir(proof, remove(same, nat_one, left(proof)), [implies(nat_one, body)], implies(nat_one, body))
     $body implies(nat_one, body)
     $proof ir(proof, remove(same, omega_w, left(proof)), [implies(omega_w, body)], implies(omega_w, body))
