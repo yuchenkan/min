@@ -832,15 +832,7 @@ $tm_add_correct {
     $proof ir(proof, remove(same, succ_sa, left(proof)), [implies(succ_sa, body)], implies(succ_sa, body))
     $body implies(succ_sa, body)
     # plus_sa_b_hf: derived in Section 14
-    $proof ir(proof, remove(same, cfg_c4, left(proof)), [implies(cfg_c4, body)], implies(cfg_c4, body))
-    $body implies(cfg_c4, body)
-    $proof ir(proof, remove(same, cfg_c3, left(proof)), [implies(cfg_c3, body)], implies(cfg_c3, body))
-    $body implies(cfg_c3, body)
-    $proof ir(proof, remove(same, cfg_c2, left(proof)), [implies(cfg_c2, body)], implies(cfg_c2, body))
-    $body implies(cfg_c2, body)
-    $proof ir(proof, remove(same, cfg_c1, left(proof)), [implies(cfg_c1, body)], implies(cfg_c1, body))
-    $body implies(cfg_c1, body)
-
+    # cfg_c1-c4: eel+cut below
     # Plus/Nat intermediates
     # plus_ssc_one_n: derived in Section 14
     # plus_hf_one_ssc: derived in Section 14
@@ -848,23 +840,90 @@ $tm_add_correct {
     # nat_ssc: derived in Section 14
     # nat_hf: derived in Section 14
     # nat_one: derived in Section 14
-    $proof ir(proof, remove(same, omega_w, left(proof)), [implies(omega_w, body)], implies(omega_w, body))
-    $body implies(omega_w, body)
-    $proof ir(proof, remove(same, num_q2, left(proof)), [implies(num_q2, body)], implies(num_q2, body))
-    $body implies(num_q2, body)
-    $proof ir(proof, remove(same, num_q1, left(proof)), [implies(num_q1, body)], implies(num_q1, body))
-    $body implies(num_q1, body)
+    # omega_w, num_q1, num_q2: eel+cut below
     $proof ir(proof, remove(same, num_one, left(proof)), [implies(num_one, body)], implies(num_one, body))
     $body implies(num_one, body)
 
     $_ tap("intermediates ir'd ok")
 
+    # === Section 15b: eel+cut existential intermediates ===
+    # Variables appearing in only one formula on the left can be
+    # eliminated via eel (existential elimination) + cut with existence theorem.
+
+    # config_exists body template
+    $_ce_b \q: \h: \t: exists("c", tm_config("c", q, h, t, "_"))
+
+    # c1: eel from cfg_c1, cut with config_exists(q0,a,tin)
+    $proof eel(proof, \v: tm_config(v, "q0", "a", "tin", "_"), "c1", "c1",
+        remove(same, cfg_c1, left(proof)), head(right(proof)))
+    $ce_c1 apply_thm(config_exists, head(right(config_exists)),
+        ["q0", "a", "tin"], ["q", "h", "t"], _ce_b, left(config_exists))
+    $proof cut_c(ce_c1, proof, head(right(ce_c1)),
+        left(ce_c1), left(proof), head(right(proof)))
+    $_ tap("eel+cut c1 ok")
+
+    # c2: eel from cfg_c2, cut with config_exists(q1,sa,tape2)
+    $proof eel(proof, \v: tm_config(v, "q1", "sa", "tape2", "_"), "c2", "c2",
+        remove(same, cfg_c2, left(proof)), head(right(proof)))
+    $ce_c2 apply_thm(config_exists, head(right(config_exists)),
+        ["q1", "sa", "tape2"], ["q", "h", "t"], _ce_b, left(config_exists))
+    $proof cut_c(ce_c2, proof, head(right(ce_c2)),
+        left(ce_c2), left(proof), head(right(proof)))
+    $_ tap("eel+cut c2 ok")
+
+    # c3: eel from cfg_c3, cut with config_exists(q1,hf,tape2)
+    $proof eel(proof, \v: tm_config(v, "q1", "hf", "tape2", "_"), "c3", "c3",
+        remove(same, cfg_c3, left(proof)), head(right(proof)))
+    $ce_c3 apply_thm(config_exists, head(right(config_exists)),
+        ["q1", "hf", "tape2"], ["q", "h", "t"], _ce_b, left(config_exists))
+    $proof cut_c(ce_c3, proof, head(right(ce_c3)),
+        left(ce_c3), left(proof), head(right(proof)))
+    $_ tap("eel+cut c3 ok")
+
+    # c4: eel from cfg_c4, cut with config_exists(q2,c,tape2)
+    # Term "c" clashes with bound var "c" in ∃c.Config — alpha-rename to "v"
+    $_ce_b_v \q: \h: \t: exists("v", tm_config("v", q, h, t, "_"))
+    $_ce_renamed_f forall("q", forall("h", forall("t", exists("v", tm_config("v", "q", "h", "t", "_")))))
+    $ce_renamed wr(config_exists, left(config_exists), [_ce_renamed_f], _ce_renamed_f)
+    $proof eel(proof, \v: tm_config(v, "q2", "c", "tape2", "_"), "c4", "c4",
+        remove(same, cfg_c4, left(proof)), head(right(proof)))
+    $ce_c4 apply_thm(ce_renamed, head(right(ce_renamed)),
+        ["q2", "c", "tape2"], ["q", "h", "t"], _ce_b_v, left(ce_renamed))
+    $proof cut_c(ce_c4, proof, head(right(ce_c4)),
+        left(ce_c4), left(proof), head(right(proof)))
+    $_ tap("eel+cut c4 ok")
+
+    # w: eel from omega_w, cut with omega_exists
+    $proof eel(proof, \v: omega(v, "_"), "w", "w",
+        remove(same, omega_w, left(proof)), head(right(proof)))
+    $proof cut_c(omega_exists, proof, head(right(omega_exists)),
+        left(omega_exists), left(proof), head(right(proof)))
+    $_ tap("eel+cut w ok")
+
+    # q1: eel from num_q1, cut with num_exists(2)
+    # (cfg_c2, cfg_c3 already eliminated above, q1 only in num_q1 now)
+    $proof eel(proof, \v: num(v, 2, "_"), "q1", "q1",
+        remove(same, num_q1, left(proof)), head(right(proof)))
+    $ne_q1 num_exists(2)
+    $proof cut_c(ne_q1, proof, head(right(ne_q1)),
+        left(ne_q1), left(proof), head(right(proof)))
+    $_ tap("eel+cut q1 ok")
+
+    # q2: eel from num_q2, cut with num_exists(3)
+    # (cfg_c4 already eliminated above, q2 only in num_q2 now)
+    $proof eel(proof, \v: num(v, 3, "_"), "q2", "q2",
+        remove(same, num_q2, left(proof)), head(right(proof)))
+    $ne_q2 num_exists(3)
+    $proof cut_c(ne_q2, proof, head(right(ne_q2)),
+        left(ne_q2), left(proof), head(right(proof)))
+    $_ tap("eel+cut q2 ok")
+
     # === Section 16: close foralls over all variables ===
-    # Intermediate variables: one, q1, q2, sa, tape2, c1, c2, c3, c4, w
+    # Remaining intermediate variables: one, sa, tape2
     # Goal variables: delta, q0, qH, tin, z, c0, cf, n, hf, tf, a, b, c, ssc
     # close order: innermost first (intermediates, then goal vars)
     $proof close(proof, left(proof), right(proof),
-        ["one", "q1", "q2", "sa", "tape2", "c1", "c2", "c3", "c4", "w",
+        ["one", "sa", "tape2",
          "ssc", "c", "b", "a", "tf", "hf", "n", "cf", "c0", "z", "tin", "qH", "q0", "delta"])
     $_ tap("close ok")
 
