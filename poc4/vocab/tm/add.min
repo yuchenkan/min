@@ -1,6 +1,7 @@
 from derived import mem, neg, implies, forall, exists, and, or, eqv
 from vocab.sets import empty
 from vocab.tm.tm import tm_config, tm_transition, tape_update, tm_step, tm_reaches
+from vocab.tm.source import tm_correct
 from vocab.functions import apply, function
 from vocab.nat.nat import num, nat, successor
 from vocab.arithmetic.plus import plus
@@ -215,41 +216,28 @@ $delta_char \delta p: {
     and(and(and(and(and(t1, t2), t3), t4), t5), t6)
 }
 
-# add_goal(p): full correctness spec for TM addition
-$add_goal \p: {
-    $np add(p, "_")
-    $delta add(p, "delta")
-    $q0 add(p, "q0")
-    $qH add(p, "qH")
-    $tin add(p, "tin")
-    $z add(p, "z")
-    $c0 add(p, "c0")
-    $a add(p, "a")
-    $b add(p, "b")
-    $c add(p, "c")
-    $hf add(p, "hf")
-    $ssc add(p, "ssc")
-    $n add(p, "n")
-    $tf add(p, "tf")
-    $cf add(p, "cf")
-    $body implies(nat(a, np), implies(nat(b, np),
-        implies(function(delta, np), implies(function(tin, np),
-        implies(delta_char(delta, np),
-        implies(num(q0, 0, np), implies(num(qH, 1, np), implies(num(z, 0, np),
-        implies(unary_tape(tin, a, b, np),
-        implies(tm_config(c0, q0, z, tin, np),
-        implies(plus(a, b, c, np),
-        implies(successor(hf, c, np),
-        implies(successor(ssc, hf, np),
-        implies(successor(n, ssc, np),
-        implies(unary_output(tf, c, np),
-        implies(tm_config(cf, qH, hf, tf, np),
-        tm_reaches(delta, c0, n, cf, np)))))))))))))))))
-    $formula forall(delta, forall(q0, forall(qH, forall(hf, forall(ssc,
-        forall(n, forall(tf, forall(cf, forall(tin, forall(z,
-        forall(c0, forall(a, forall(b, forall(c, body))))))))))))))
-    ["add_goal", "TM_Add_Correct", formula]
+$_add_src "0 1 1 R 0; 0 0 1 R 2; 2 1 1 R 2; 2 0 0 L 3; 3 1 0 R 1; 3 0 0 R 1"
+
+$_add_spec \tin n hf tf np: {
+    $a add(np, "a")
+    $b add(np, "b")
+    $c add(np, "c")
+    $ssc add(np, "ssc")
+    [
+        [a, b, c, ssc],
+        [
+            nat(a, np), nat(b, np),
+            unary_tape(tin, a, b, np),
+            plus(a, b, c, np),
+            successor(hf, c, np),
+            successor(ssc, hf, np),
+            successor(n, ssc, np),
+            unary_output(tf, c, np)
+        ]
+    ]
 }
+
+$add_goal \p: tm_correct(_add_src, 0, 1, _add_spec, p)
 
 # phase1_ind(n, d, q0, tape, c0, p): strong induction predicate for Phase1
 # ∃tra,cn. Function(tra) ∧ dom_bound(tra,n) ∧ base_cond(tra,c0) ∧

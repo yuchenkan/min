@@ -1,7 +1,7 @@
 from derived import neg, implies, forall, and, iff, exists, eqv, left, right
 from vocab.logic import exists_unique
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

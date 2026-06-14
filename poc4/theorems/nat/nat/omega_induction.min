@@ -1,7 +1,7 @@
 from derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
 from vocab.sets import subset
 from vocab.nat.nat import num, inductive, omega, successor
-from util import rev
+from util.list import rev
 from tactics import ax, wl, wr, fl, fr, ir, mp, inst, apply_thm, eel, eir, cut_c, close
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right

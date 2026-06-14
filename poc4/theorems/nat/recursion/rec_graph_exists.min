@@ -4,7 +4,7 @@ from vocab.functions import apply, function
 from vocab.nat.nat import nat
 from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same
-from util import remove, diff
+from util.list import remove, diff
 
 # Sep |- ∀f,a. ∃h. ∀p. p∈h ↔ (p∈ppb ∧ ∃n.(Nat(n) ∧ ∃v.∃y.(RA(v,a,f)∧App(v,n,y)∧OrdPair(p,n,y))))
 # No "w" — nat and rec_approx absorb omega internally.

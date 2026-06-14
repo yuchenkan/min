@@ -2,7 +2,7 @@ from derived import implies, left
 from vocab.functions import apply
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
 from tactics import ax, ir, mp, apply_thm, close, same
-from util import remove
+from util.list import remove
 
 # |- forall delta,c1,c2,q,h,tape,sym,w,dv,qn,hn,tn.
 #      TMStep(d,c1,c2) -> TMConfig(c1,q,h,tape) -> Apply(tape,h,sym) ->

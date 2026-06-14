@@ -4,7 +4,7 @@ from vocab.functions import apply, function
 from vocab.tm.tm import tm_step, tm_reaches
 from vocab.nat.nat import num, successor, omega, nat
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, ir, mp, cut, cut_c, apply_thm, eir, eel, close, same, inst
-from util import remove, diff
+from util.list import remove, diff
 
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left

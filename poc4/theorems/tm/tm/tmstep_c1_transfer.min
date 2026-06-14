@@ -3,7 +3,7 @@ from vocab.sets import ordered_pair
 from vocab.functions import apply
 from vocab.tm.tm import tm_step, tm_config, tm_transition, tape_update, head_move
 from tactics import ax, fl, fr, ir, mp, apply_thm, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
 

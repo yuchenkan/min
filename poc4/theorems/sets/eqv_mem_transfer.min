@@ -1,6 +1,6 @@
 from derived import mem, iff, implies, eqv, forall, ext_ax, left, right
 from tactics import ax, ir, mp, apply_thm, close
-from util import remove
+from util.list import remove
 from tactics import same
 from theorems.logic.iff_elim_left import iff_elim_left
 

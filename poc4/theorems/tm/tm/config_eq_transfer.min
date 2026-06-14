@@ -2,7 +2,7 @@ from derived import implies, forall, eqv, left, right
 from vocab.sets import ordered_pair
 from vocab.tm.tm import tm_config
 from tactics import ax, wr, fr, ir, inst, mp, apply_thm, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer

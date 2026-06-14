@@ -5,7 +5,7 @@ from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_ste
 from vocab.tm.add import phase5p
 from vocab.nat.nat import num, successor, nat
 from tactics import ax, fl, fr, ir, wr, wl, mp, inst, cut, cut_c, apply_thm, eir, eel, close, same
-from util import remove, diff
+from util.list import remove, diff
 
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

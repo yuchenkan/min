@@ -3,7 +3,7 @@ from vocab.sets import ordered_pair, product
 from vocab.logic import exists_unique
 from derived import left, right, arg2
 from tactics import ax, wl, wr, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.sets.product_exists import product_exists
 from theorems.sets.product_unique import product_unique

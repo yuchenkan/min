@@ -1,7 +1,7 @@
 from derived import implies, eqv, and, left, right
 from vocab.sets import ordered_pair
 from tactics import ax, ir, mp, apply_thm, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.eqv_reflexive import eqv_reflexive
 from theorems.sets.kuratowski import kuratowski
 

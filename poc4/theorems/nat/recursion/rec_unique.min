@@ -4,7 +4,7 @@ from vocab.functions import apply, function, domain
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.nat.recursion import recursive, total_from
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove, diff
+from util.list import remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

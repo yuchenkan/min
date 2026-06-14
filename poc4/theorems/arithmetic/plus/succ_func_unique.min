@@ -4,7 +4,7 @@ from vocab.nat.nat import nat, successor
 from vocab.functions import apply, function
 from vocab.arithmetic.plus import succ_char, succ_func
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left

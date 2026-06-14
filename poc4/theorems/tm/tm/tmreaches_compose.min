@@ -6,7 +6,7 @@ from vocab.functions import apply, function, single_valued, relation
 from vocab.arithmetic.plus import plus
 from vocab.tm.tm import tm_reaches, tm_step
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, cut, apply_thm, eir, eel, cut_c, inst, close, same
-from util import remove, diff
+from util.list import remove, diff
 
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left

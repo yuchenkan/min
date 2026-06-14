@@ -7,7 +7,7 @@ from vocab.tm.add import unary_tape, unary_output, delta_char, add_goal, phase1p
 from vocab.nat.nat import num, successor, omega, nat
 from vocab.arithmetic.plus import plus
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, ir, mp, cut, cut_c, apply_thm, eir, eel, close, same, inst
-from util import remove, diff
+from util.list import remove, diff
 
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
@@ -68,32 +68,33 @@ from theorems.tm.add.tape_read_sep import tape_read_sep
 # =============================================
 # tm_add_correct: TM addition is correct
 # =============================================
-# Goal (from add_goal):
-# ∀delta,q0,qH,hf,ssc,n,tf,cf,tin,z,c0,a,b,c.
-#   Nat(a) → Nat(b) → Function(delta) → Function(tin) →
-#   delta_char(delta) → Num(q0,0) → Num(qH,1) → Num(z,0) →
-#   UnaryTape(tin,a,b) → TMConfig(c0,q0,z,tin) → Plus(a,b,c) →
-#   Successor(hf,c) → Successor(ssc,hf) → Successor(n,ssc) →
-#   UnaryOutput(tf,c) → TMConfig(cf,qH,hf,tf) →
-#   TMReaches(delta,c0,n,cf)
+# Goal (from add_goal via tm_correct):
+# ∀delta,q0,qH,tin,z,c0,cf,n,hf,tf,a,b,c,ssc.
+#   Func(delta) → Func(tin) → DeltaChar(delta) →
+#   Num(q0,0) → Num(qH,1) → Num(z,0) →
+#   Nat(a) → Nat(b) → UnaryTape(tin,a,b) →
+#   Plus(a,b,c) → S(hf,c) → S(ssc,hf) → S(n,ssc) →
+#   UnaryOutput(tf,c) →
+#   Config(c0,q0,z,tin) → Config(cf,qH,hf,tf) →
+#   Reaches(delta,c0,n,cf)
 
 $tm_add_correct {
     # === Section 1: Goal hypotheses ===
-    $nat_a nat("a", "_")
-    $nat_b nat("b", "_")
     $func_delta function("delta", "_")
     $func_tin function("tin", "_")
     $dc delta_char("delta", "_")
     $num_q0 num("q0", 0, "_")
     $num_qH num("qH", 1, "_")
     $num_z num("z", 0, "_")
+    $nat_a nat("a", "_")
+    $nat_b nat("b", "_")
     $utape unary_tape("tin", "a", "b", "_")
-    $cfg_c0 tm_config("c0", "q0", "z", "tin", "_")
     $plus_abc plus("a", "b", "c", "_")
     $succ_hf successor("hf", "c", "_")
     $succ_ssc successor("ssc", "hf", "_")
     $succ_n successor("n", "ssc", "_")
     $unary_out unary_output("tf", "c", "_")
+    $cfg_c0 tm_config("c0", "q0", "z", "tin", "_")
     $cfg_cf tm_config("cf", "qH", "hf", "tf", "_")
     $reaches_goal tm_reaches("delta", "c0", "n", "cf", "_")
 
@@ -467,13 +468,15 @@ $tm_add_correct {
     $proof wl(proof, add(left(proof), [unary_out]), right(proof), unary_out)
 
     # === Section 14: ir goal hypotheses (reverse order = innermost first) ===
-    # Goal: implies(nat_a, implies(nat_b, ... implies(cfg_cf, reaches_goal) ...))
-    # ir order: cfg_cf, unary_out, succ_n, succ_ssc, succ_hf, plus_abc, cfg_c0,
-    #           utape, num_z, num_qH, num_q0, dc, func_tin, func_delta, nat_b, nat_a
+    # ir order: cfg_cf, cfg_c0, unary_out, succ_n, succ_ssc, succ_hf, plus_abc,
+    #           utape, nat_b, nat_a, num_z, num_qH, num_q0, dc, func_tin, func_delta
 
     $body reaches_goal
     $proof ir(proof, remove(same, cfg_cf, left(proof)), [implies(cfg_cf, body)], implies(cfg_cf, body))
     $body implies(cfg_cf, body)
+
+    $proof ir(proof, remove(same, cfg_c0, left(proof)), [implies(cfg_c0, body)], implies(cfg_c0, body))
+    $body implies(cfg_c0, body)
 
     $proof ir(proof, remove(same, unary_out, left(proof)), [implies(unary_out, body)], implies(unary_out, body))
     $body implies(unary_out, body)
@@ -490,11 +493,14 @@ $tm_add_correct {
     $proof ir(proof, remove(same, plus_abc, left(proof)), [implies(plus_abc, body)], implies(plus_abc, body))
     $body implies(plus_abc, body)
 
-    $proof ir(proof, remove(same, cfg_c0, left(proof)), [implies(cfg_c0, body)], implies(cfg_c0, body))
-    $body implies(cfg_c0, body)
-
     $proof ir(proof, remove(same, utape, left(proof)), [implies(utape, body)], implies(utape, body))
     $body implies(utape, body)
+
+    $proof ir(proof, remove(same, nat_b, left(proof)), [implies(nat_b, body)], implies(nat_b, body))
+    $body implies(nat_b, body)
+
+    $proof ir(proof, remove(same, nat_a, left(proof)), [implies(nat_a, body)], implies(nat_a, body))
+    $body implies(nat_a, body)
 
     $proof ir(proof, remove(same, num_z, left(proof)), [implies(num_z, body)], implies(num_z, body))
     $body implies(num_z, body)
@@ -513,12 +519,6 @@ $tm_add_correct {
 
     $proof ir(proof, remove(same, func_delta, left(proof)), [implies(func_delta, body)], implies(func_delta, body))
     $body implies(func_delta, body)
-
-    $proof ir(proof, remove(same, nat_b, left(proof)), [implies(nat_b, body)], implies(nat_b, body))
-    $body implies(nat_b, body)
-
-    $proof ir(proof, remove(same, nat_a, left(proof)), [implies(nat_a, body)], implies(nat_a, body))
-    $body implies(nat_a, body)
 
     $_ tap("Goal hypotheses ir'd ok")
 
@@ -591,11 +591,11 @@ $tm_add_correct {
 
     # === Section 16: close foralls over all variables ===
     # Intermediate variables: one, q1, q2, sa, tape2, c1, c2, c3, c4, w
-    # Goal variables: delta, q0, qH, hf, ssc, n, tf, cf, tin, z, c0, a, b, c
+    # Goal variables: delta, q0, qH, tin, z, c0, cf, n, hf, tf, a, b, c, ssc
     # close order: innermost first (intermediates, then goal vars)
     $proof close(proof, left(proof), right(proof),
         ["one", "q1", "q2", "sa", "tape2", "c1", "c2", "c3", "c4", "w",
-         "c", "b", "a", "c0", "z", "tin", "cf", "tf", "n", "ssc", "hf", "qH", "q0", "delta"])
+         "ssc", "c", "b", "a", "tf", "hf", "n", "cf", "c0", "z", "tin", "qH", "q0", "delta"])
     $_ tap("close ok")
 
     # The proof is now closed with all 24 foralls.

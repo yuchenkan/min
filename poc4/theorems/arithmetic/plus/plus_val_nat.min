@@ -4,7 +4,7 @@ from vocab.nat.nat import nat
 from vocab.functions import apply
 from vocab.arithmetic.plus import plus_func, plus
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove, head
+from util.list import remove, head
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.arithmetic.plus.plus_func_exists import plus_func_exists
 from theorems.arithmetic.plus.h_val_nat import h_val_nat

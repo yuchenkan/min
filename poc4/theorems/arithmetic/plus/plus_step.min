@@ -4,7 +4,7 @@ from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
 from vocab.arithmetic.plus import plus_func, plus
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.ordpair_exists import ordpair_exists

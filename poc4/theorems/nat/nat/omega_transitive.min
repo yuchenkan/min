@@ -1,7 +1,7 @@
 from derived import mem, neg, implies, forall, and, or, eqv, left, right
 from vocab.nat.nat import omega, num, successor
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same
-from util import remove, diff
+from util.list import remove, diff
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.nat.nat.mem_succ_elim import mem_succ_elim
 from theorems.logic.eqv_mem_right import eqv_mem_right

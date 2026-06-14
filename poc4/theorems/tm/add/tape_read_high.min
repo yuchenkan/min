@@ -4,7 +4,7 @@ from vocab.tm.add import unary_tape
 from vocab.nat.nat import num, successor
 from vocab.arithmetic.plus import plus
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, inst, apply_thm, close, same
-from util import remove
+from util.list import remove
 
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

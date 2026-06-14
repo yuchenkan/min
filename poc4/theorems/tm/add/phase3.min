@@ -7,7 +7,7 @@ from vocab.tm.add import phase3_ind, phase3p
 from vocab.nat.nat import num, successor, omega, nat, inductive, subset
 from vocab.arithmetic.plus import plus
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, ir, mp, cut, apply_thm, eir, eel, cut_c, inst, same
-from util import remove, diff
+from util.list import remove, diff
 
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left

@@ -1,5 +1,5 @@
 from derived import proof, mem, forall, neg, implies, iff, tag, arg1, arg2, exp, kp, left, right
-from util import contains, set_add, remove, diff
+from util.list import contains, set_add, remove, diff
 
 
 # === alpha-equivalence for formulas ===

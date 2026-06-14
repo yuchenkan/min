@@ -2,7 +2,7 @@ from derived import mem, implies, forall, and, exists, eqv, left, right, arg2
 from vocab.sets import empty
 from vocab.nat.nat import num, successor
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

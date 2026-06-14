@@ -3,7 +3,7 @@ from vocab.sets import ordered_pair, relation
 from vocab.functions import apply, function, single_valued
 from vocab.tm.tm import tape_update
 from tactics import ax, fl, fr, ir, wl, wl_all, wr, nl, nr, mp, cut, cut_c, apply_thm, eir, eel, close, same, inst
-from util import remove, diff, add, head
+from util.list import remove, diff, add, head
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right

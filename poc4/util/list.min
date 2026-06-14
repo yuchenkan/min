@@ -1,6 +1,5 @@
-# Proof-irrelevant utilities
+# List utilities
 
-# rev: reverse a list
 $_rev \self lst acc: ?(eq(len(lst), 0), acc, self(self, tail(lst), add([head(lst)], acc)))
 $rev \lst: _rev(_rev, lst, [])
 

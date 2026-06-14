@@ -2,7 +2,7 @@ from derived import implies, forall, eqv, exists, left, right, arg2
 from vocab.arithmetic.plus import succ_func
 from vocab.logic import exists_unique
 from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.arithmetic.plus.succ_func_exists import succ_func_exists
 from theorems.arithmetic.plus.succ_func_unique import succ_func_unique

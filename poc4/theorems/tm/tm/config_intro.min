@@ -3,7 +3,7 @@ from vocab.sets import ordered_pair
 from vocab.tm.tm import tm_config
 from derived import forall
 from tactics import ax, ir, fr, wr, mp, apply_thm, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.eqv_symmetric import eqv_symmetric
 from theorems.sets.ordpair_unique import ordpair_unique
 from theorems.sets.ordpair_val_transfer import ordpair_val_transfer

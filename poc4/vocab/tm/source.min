@@ -1,0 +1,99 @@
+from derived import implies, forall, and
+from vocab.tm.tm import tm_config, tm_transition, tm_reaches
+from vocab.nat.nat import num
+from vocab.functions import function
+from util.str import parse_nat, split, substr
+
+# _rule: one transition characterization formula
+$_rule \delta qs rs ws ds qns p: {
+    $np add(p, "_")
+    $qv add(p, "q")
+    $rv add(p, "r")
+    $wv add(p, "w")
+    $dv add(p, "d")
+    $qnv add(p, "qn")
+    forall(qv, forall(rv, forall(wv, forall(dv, forall(qnv,
+        implies(num(qv, qs, np), implies(num(rv, rs, np),
+        implies(num(wv, ws, np), implies(num(dv, ds, np),
+        implies(num(qnv, qns, np),
+            tm_transition(delta, qv, rv, wv, dv, qnv, np)))))))))))
+}
+
+$_parse_dir \d: ?(eq(d, "R"), 1, ?(eq(d, "L"), 0, none))
+
+$_parse_transition \line delta p: {
+    $parts split(line, " ")
+    $qs head(parse_nat(nth(parts, 0), 0))
+    $rs head(parse_nat(nth(parts, 1), 0))
+    $ws head(parse_nat(nth(parts, 2), 0))
+    $ds _parse_dir(nth(parts, 3))
+    $qns head(parse_nat(nth(parts, 4), 0))
+    _rule(delta, qs, rs, ws, ds, qns, p)
+}
+
+$_trim \line: ?(eq(len(line), 0), line,
+    ?(eq(nth(line, 0), " "), substr(line, 1, len(line)), line))
+
+# delta_from_source(src, delta, p): parse transition table into delta characterization
+# src: semicolon-separated "state read write dir next_state", dir is R or L
+$delta_from_source \src delta p: {
+    $np add(p, "_")
+    $lines split(src, ";")
+    $_build \self lines2 delta2 p2 i acc: {
+        $rule _parse_transition(_trim(nth(lines2, i)), delta2, p2)
+        $combined ?(is_none(acc), rule, and(acc, rule))
+        $next add(i, 1)
+        ?(eq(next, len(lines2)), combined,
+            self(self, lines2, delta2, p2, next, combined))
+    }
+    _build(_build, lines, delta, np, 0, none)
+}
+
+# fold right-to-left: build implies chain from array
+$_fold_implies \self lst body i: ?(eq(i, 0), body,
+    self(self, lst, implies(nth(lst, sub(i, 1)), body), sub(i, 1)))
+
+# wrap foralls right-to-left
+$_wrap_foralls \self vars body i: ?(eq(i, 0), body,
+    self(self, vars, forall(nth(vars, sub(i, 1)), body), sub(i, 1)))
+
+# spec(tin, n, hf, tf, np) returns [vars, hyps]
+# vars: problem-specific forall variables
+# hyps: problem-specific hypotheses in order
+$tm_correct \src init_state halt_state spec p: {
+    $np add(p, "_")
+    $delta add(p, "delta")
+    $q0v add(p, "q0")
+    $qHv add(p, "qH")
+    $zv add(p, "z")
+    $tinv add(p, "tin")
+    $c0 add(p, "c0")
+    $cf add(p, "cf")
+    $n add(p, "n")
+    $hf add(p, "hf")
+    $tf add(p, "tf")
+
+    $dc delta_from_source(src, delta, p)
+
+    $sp spec(tinv, n, hf, tf, np)
+    $extra_vars nth(sp, 0)
+    $hyps nth(sp, 1)
+
+    $reaches tm_reaches(delta, c0, n, cf, np)
+    $with_cf implies(tm_config(cf, qHv, hf, tf, np), reaches)
+    $with_c0 implies(tm_config(c0, q0v, zv, tinv, np), with_cf)
+    $with_hyps _fold_implies(_fold_implies, hyps, with_c0, len(hyps))
+
+    $with_z implies(num(zv, 0, np), with_hyps)
+    $with_qH implies(num(qHv, halt_state, np), with_z)
+    $with_q0 implies(num(q0v, init_state, np), with_qH)
+    $with_dc implies(dc, with_q0)
+    $with_ftin implies(function(tinv, np), with_dc)
+    $body implies(function(delta, np), with_ftin)
+
+    $infra_vars [delta, q0v, qHv, tinv, zv, c0, cf, n, hf, tf]
+    $all_vars add(infra_vars, extra_vars)
+    $formula _wrap_foralls(_wrap_foralls, all_vars, body, len(all_vars))
+
+    ["tm_correct", "TM_Correct", formula]
+}

@@ -2,7 +2,7 @@ from derived import mem, implies, forall, and, exists, eqv, left, right
 from vocab.sets import ordered_pair, singleton
 from vocab.functions import apply
 from tactics import ax, wl_all, ir, mp, apply_thm, eel, close, same
-from util import remove, diff
+from util.list import remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.eqv_symmetric import eqv_symmetric

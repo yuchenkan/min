@@ -4,7 +4,7 @@ from vocab.functions import apply
 from vocab.nat.nat import nat
 from vocab.nat.recursion import rec_approx
 from tactics import ax, wl, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove
+from util.list import remove
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left

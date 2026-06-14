@@ -3,7 +3,7 @@ from vocab.sets import empty, ordered_pair, power_set, union, product
 from vocab.nat.nat import successor
 from vocab.functions import apply
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
-from util import remove, diff
+from util.list import remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
