@@ -2,33 +2,37 @@ from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
 from vocab.sets import ordered_pair, relation
 
 # apply(f, x, y, p): f(x) = y, i.e. exists p. ordered_pair(p,x,y) & p in f
+$_d_apply \f: add(nth(f, 3), add("(", add(nth(f, 4), add(") = ", nth(f, 5)))))
 $apply \f x y p: {
     $pv add(p, "p")
     $np add(p, "_")
-    ["apply", add(f, add("(", add(x, add(") = ", y)))),
-        exists(pv, and(ordered_pair(pv, x, y, np), mem(pv, f)))]
+    ["apply", _d_apply,
+        exists(pv, and(ordered_pair(pv, x, y, np), mem(pv, f))), f, x, y]
 }
 
 # domain(d, f, p): d = dom(f). forall x. x in d iff exists y. apply(f, x, y)
+$_d_domain \f: add(nth(f, 3), add(" = dom(", add(nth(f, 4), ")")))
 $domain \d f p: {
     $x add(p, "x")
     $y add(p, "y")
     $np add(p, "_")
-    ["domain", add(d, add(" = dom(", add(f, ")"))),
-        forall(x, iff(mem(x, d), exists(y, apply(f, x, y, np))))]
+    ["domain", _d_domain,
+        forall(x, iff(mem(x, d), exists(y, apply(f, x, y, np)))), d, f]
 }
 
 # single_valued(f, p): forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2)
+$_d_single_valued \f: add("SV(", add(nth(f, 3), ")"))
 $single_valued \f p: {
     $x add(p, "x")
     $y1 add(p, "y1")
     $y2 add(p, "y2")
     $np add(p, "_")
-    ["single_valued", add("SV(", add(f, ")")),
+    ["single_valued", _d_single_valued,
         forall(x, forall(y1, forall(y2,
-            implies(and(apply(f, x, y1, np), apply(f, x, y2, np)), eqv(y1, y2, np)))))]
+            implies(and(apply(f, x, y1, np), apply(f, x, y2, np)), eqv(y1, y2, np))))), f]
 }
 
 # function(f, p): relation(f) and single_valued(f)
-$function \f p: ["function", add("Func(", add(f, ")")),
-    and(relation(f, p), single_valued(f, p))]
+$_d_function \f: add("Func(", add(nth(f, 3), ")"))
+$function \f p: ["function", _d_function,
+    and(relation(f, p), single_valued(f, p)), f]

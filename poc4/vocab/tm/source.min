@@ -60,6 +60,7 @@ $_wrap_foralls \self vars body i: ?(eq(i, 0), body,
 # spec(tin, n, hf, tf, np) returns [vars, hyps]
 # vars: problem-specific forall variables
 # hyps: problem-specific hypotheses in order
+$_d_tm_correct \f: "TM_Correct"
 $tm_correct \src init_state halt_state spec p: {
     $np add(p, "_")
     $delta add(p, "delta")
@@ -95,5 +96,5 @@ $tm_correct \src init_state halt_state spec p: {
     $all_vars add(infra_vars, extra_vars)
     $formula _wrap_foralls(_wrap_foralls, all_vars, body, len(all_vars))
 
-    ["tm_correct", "TM_Correct", formula]
+    ["tm_correct", _d_tm_correct, formula]
 }

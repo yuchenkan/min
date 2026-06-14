@@ -1,10 +1,16 @@
-# formula: [tag, display, arg1, arg2]
+# formula layouts:
+#   core:  [tag, disp_fn, arg1, arg2]            (logical args at 2,3)
+#   vocab: [tag, disp_fn, expansion, dargs...]   (expansion at 2, display args at 3+)
+# disp_fn: \f -> display string, applied lazily by d. Each disp_fn is a GLOBAL
+# (no captured args) so structurally-equal formulas keep the same slot-1 pointer
+# and still hash-cons. The kernel never reads slot 1; only show/tap do.
 $tag \f: nth(f, 0)
-$d \f: nth(f, 1)
 $arg1 \f: nth(f, 2)
 $arg2 \f: nth(f, 3)
 # vocab: expansion at same position as arg1
 $exp \f: nth(f, 2)
+# d: render a formula lazily by applying its disp_fn to itself
+$d \f: (nth(f, 1))(f)
 
 # proof: [kernel_proof, left, right]
 $kp \p: nth(p, 0)
@@ -12,23 +18,32 @@ $left \p: nth(p, 1)
 $right \p: nth(p, 2)
 $_p \s: add("(", add(s, ")"))
 
-# core constructors: [tag, display, args...]
-$mem \a b: ["mem", add(a, add(" in ", b)), a, b]
-$neg \a: ["neg", add("~", _p(d(a))), a]
-$implies \a b: ["implies", _p(add(d(a), add(" -> ", d(b)))), a, b]
-$forall \v b: ["forall", add("A", add(v, add(".", d(b)))), v, b]
+# core constructors: [tag, disp_fn, arg1, arg2] — disp reads arg1(f)/arg2(f)
+$_d_mem \f: add(arg1(f), add(" in ", arg2(f)))
+$mem \a b: ["mem", _d_mem, a, b]
+$_d_neg \f: add("~", _p(d(arg1(f))))
+$neg \a: ["neg", _d_neg, a]
+$_d_implies \f: _p(add(d(arg1(f)), add(" -> ", d(arg2(f)))))
+$implies \a b: ["implies", _d_implies, a, b]
+$_d_forall \f: add("A", add(arg1(f), add(".", d(arg2(f)))))
+$forall \v b: ["forall", _d_forall, v, b]
 
-# vocab constructors: [tag, display, expansion]
-$and \a b: ["and", _p(add(d(a), add(" & ", d(b)))), neg(implies(a, neg(b)))]
-$or \a b: ["or", _p(add(d(a), add(" | ", d(b)))), implies(neg(a), b)]
-$iff \a b: ["iff", _p(add(d(a), add(" <-> ", d(b)))), neg(implies(implies(a, b), neg(implies(b, a))))]
-$exists \v b: ["exists", add("E", add(v, add(".", d(b)))), neg(forall(v, neg(b)))]
+# vocab constructors: [tag, disp_fn, expansion, dargs...] — disp reads nth(f,3+)
+$_d_and \f: _p(add(d(nth(f, 3)), add(" & ", d(nth(f, 4)))))
+$and \a b: ["and", _d_and, neg(implies(a, neg(b))), a, b]
+$_d_or \f: _p(add(d(nth(f, 3)), add(" | ", d(nth(f, 4)))))
+$or \a b: ["or", _d_or, implies(neg(a), b), a, b]
+$_d_iff \f: _p(add(d(nth(f, 3)), add(" <-> ", d(nth(f, 4)))))
+$iff \a b: ["iff", _d_iff, neg(implies(implies(a, b), neg(implies(b, a)))), a, b]
+$_d_exists \f: add("E", add(nth(f, 3), add(".", d(nth(f, 4)))))
+$exists \v b: ["exists", _d_exists, neg(forall(v, neg(b))), v, b]
+$_d_eqv \f: add(nth(f, 3), add(" = ", nth(f, 4)))
 $eqv \a b p: {
     $v add(p, "z")
-    ["eqv", add(a, add(" = ", b)), forall(v, iff(mem(v, a), mem(v, b)))]
+    ["eqv", _d_eqv, forall(v, iff(mem(v, a), mem(v, b))), a, b]
 }
 
-# show: return precomputed display string
+# show: render a formula's display string
 $show \f: d(f)
 
 # core: expand vocab to core [tag, args...] for kernel bridge
