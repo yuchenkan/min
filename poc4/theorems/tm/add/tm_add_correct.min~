@@ -587,11 +587,69 @@ $tm_add_correct {
         left(got_nat_hf), left(proof), head(right(proof)))
     $_ tap("derived nat_hf ok")
 
+    # --- plus_sa_b_hf: Plus(sa,b,hf) from Plus(a,b,c) via comm+step+comm ---
+    # Step 1: plus_comm(a,b,c) → Plus(b,a,c)
+    $_pc1_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"), forall("p", implies(plus(m,"n","p","_"), plus("n",m,"p","_"))))))
+    $pc1 inst(plus_comm, head(right(plus_comm)), _pc1_b("a"), "a", left(plus_comm))
+    $pc1 mp(pc1, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(pc1))), left(pc1), [nat_a])
+    $_pc2_b \n: implies(nat(n,"_"), forall("p", implies(plus("a",n,"p","_"), plus(n,"a","p","_"))))
+    $pc1 inst(pc1, head(right(pc1)), _pc2_b("b"), "b", left(pc1))
+    $pc1 mp(pc1, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(pc1))), left(pc1), [nat_b])
+    $_pc3_b \p: implies(plus("a","b",p,"_"), plus("b","a",p,"_"))
+    $pc1 inst(pc1, head(right(pc1)), _pc3_b("c"), "c", left(pc1))
+    $plus_bac plus("b","a","c","_")
+    $got_bac mp(pc1, ax([plus_abc],[plus_abc],plus_abc), plus_abc, plus_bac, left(pc1), [plus_abc])
+
+    # Step 2: plus_step(b,a,c,sa,hf) → Plus(b,sa,hf)
+    $_ps1_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"), forall("p", implies(plus(m,"n","p","_"), forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"), plus(m,"sn","sp","_"))))))))))
+    $ps1 inst(plus_step, head(right(plus_step)), _ps1_b("b"), "b", left(plus_step))
+    $ps1 mp(ps1, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(ps1))), left(ps1), [nat_b])
+    $_ps2_b \n: implies(nat(n,"_"), forall("p", implies(plus("b",n,"p","_"), forall("sn", implies(successor("sn",n,"_"), forall("sp", implies(successor("sp","p","_"), plus("b","sn","sp","_"))))))))
+    $ps1 inst(ps1, head(right(ps1)), _ps2_b("a"), "a", left(ps1))
+    $ps1 mp(ps1, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(ps1))), left(ps1), [nat_a])
+    $_ps3_b \p: implies(plus("b","a",p,"_"), forall("sn", implies(successor("sn","a","_"), forall("sp", implies(successor("sp",p,"_"), plus("b","sn","sp","_"))))))
+    $ps1 inst(ps1, head(right(ps1)), _ps3_b("c"), "c", left(ps1))
+    $ps1 mp(ps1, got_bac, plus_bac, arg2(head(right(ps1))), left(ps1), left(got_bac))
+    $_ps4_b \sn: implies(successor(sn,"a","_"), forall("sp", implies(successor("sp","c","_"), plus("b",sn,"sp","_"))))
+    $ps1 inst(ps1, head(right(ps1)), _ps4_b("sa"), "sa", left(ps1))
+    $ps1 mp(ps1, ax([succ_sa],[succ_sa],succ_sa), succ_sa, arg2(head(right(ps1))), left(ps1), [succ_sa])
+    $_ps5_b \sp: implies(successor(sp,"c","_"), plus("b","sa",sp,"_"))
+    $ps1 inst(ps1, head(right(ps1)), _ps5_b("hf"), "hf", left(ps1))
+    $plus_bsa_hf plus("b","sa","hf","_")
+    $got_bsa_hf mp(ps1, ax([succ_hf],[succ_hf],succ_hf), succ_hf, plus_bsa_hf, left(ps1), [succ_hf])
+
+    # Step 3: plus_comm(b,sa,hf) → Plus(sa,b,hf)
+    $pc2 inst(plus_comm, head(right(plus_comm)), _pc1_b("b"), "b", left(plus_comm))
+    $pc2 mp(pc2, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(pc2))), left(pc2), [nat_b])
+    $_pc2_b2 \n: implies(nat(n,"_"), forall("p", implies(plus("b",n,"p","_"), plus(n,"b","p","_"))))
+    $pc2 inst(pc2, head(right(pc2)), _pc2_b2("sa"), "sa", left(pc2))
+    $pc2 mp(pc2, ax([nat_sa],[nat_sa],nat_sa), nat_sa, arg2(head(right(pc2))), left(pc2), [nat_sa])
+    $_pc3_b2 \p: implies(plus("b","sa",p,"_"), plus("sa","b",p,"_"))
+    $pc2 inst(pc2, head(right(pc2)), _pc3_b2("hf"), "hf", left(pc2))
+    $got_plus_sa_b_hf mp(pc2, got_bsa_hf, plus_bsa_hf, plus_sa_b_hf, left(pc2), left(got_bsa_hf))
+    $proof cut_c(got_plus_sa_b_hf, proof, plus_sa_b_hf,
+        left(got_plus_sa_b_hf), left(proof), head(right(proof)))
+    $_ tap("derived plus_sa_b_hf ok")
+
     # --- nat_sa: Nat(a) + Succ(sa,a) → Nat(sa) ---
     $got_nat_sa nat_succ_step("a", "sa", nat_a, nat_sa, succ_sa)
     $proof cut_c(got_nat_sa, proof, nat_sa,
         left(got_nat_sa), left(proof), head(right(proof)))
     $_ tap("derived nat_sa ok")
+
+    # --- func_tape2: TU(tape2,tin,a,one) + Func(tin) → Func(tape2) ---
+    $_tuf_b \t2: \t: \pos: \val: implies(tape_update(t2,t,pos,val,"_"), implies(function(t,"_"), function(t2,"_")))
+    $tuf_inst apply_thm(tape_update_function, head(right(tape_update_function)),
+        ["tape2","tin","a","one"], ["t2","t","pos","val"], _tuf_b, left(tape_update_function))
+    $tuf_s1 mp(tuf_inst,
+        ax([tu_tape2],[tu_tape2],tu_tape2), tu_tape2, implies(func_tin, func_tape2),
+        left(tuf_inst), [tu_tape2])
+    $got_func_tape2 mp(tuf_s1,
+        ax([func_tin],[func_tin],func_tin), func_tin, func_tape2,
+        left(tuf_s1), [func_tin])
+    $proof cut_c(got_func_tape2, proof, func_tape2,
+        left(got_func_tape2), left(proof), head(right(proof)))
+    $_ tap("derived func_tape2 ok")
 
     # --- nat_c: from plus_val_nat ---
     # plus_val_nat: [ZFC] |- ∀m,n,p. Nat(m) → Nat(n) → Plus(m,n,p) → Nat(p)
@@ -684,8 +742,7 @@ $tm_add_correct {
     $body implies(app_tape2_c_one, body)
     $proof ir(proof, remove(same, app_tape2_hf_z, left(proof)), [implies(app_tape2_hf_z, body)], implies(app_tape2_hf_z, body))
     $body implies(app_tape2_hf_z, body)
-    $proof ir(proof, remove(same, func_tape2, left(proof)), [implies(func_tape2, body)], implies(func_tape2, body))
-    $body implies(func_tape2, body)
+    # func_tape2: derived in Section 14
     $proof ir(proof, remove(same, tu_tape2, left(proof)), [implies(tu_tape2, body)], implies(tu_tape2, body))
     $body implies(tu_tape2, body)
     $proof ir(proof, remove(same, tape_read, left(proof)), [implies(tape_read, body)], implies(tape_read, body))
@@ -693,8 +750,7 @@ $tm_add_correct {
     # nat_sa: derived in Section 14
     $proof ir(proof, remove(same, succ_sa, left(proof)), [implies(succ_sa, body)], implies(succ_sa, body))
     $body implies(succ_sa, body)
-    $proof ir(proof, remove(same, plus_sa_b_hf, left(proof)), [implies(plus_sa_b_hf, body)], implies(plus_sa_b_hf, body))
-    $body implies(plus_sa_b_hf, body)
+    # plus_sa_b_hf: derived in Section 14
     $proof ir(proof, remove(same, cfg_c4, left(proof)), [implies(cfg_c4, body)], implies(cfg_c4, body))
     $body implies(cfg_c4, body)
     $proof ir(proof, remove(same, cfg_c3, left(proof)), [implies(cfg_c3, body)], implies(cfg_c3, body))
