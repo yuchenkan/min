@@ -33,6 +33,7 @@ from theorems.nat.nat.nat_intro import nat_intro
 from theorems.nat.nat.nat_elim import nat_elim
 from theorems.nat.nat.not_mem_self import not_mem_self
 from theorems.nat.nat.num_exists import num_exists
+from theorems.nat.nat.num_nat import num_nat
 from theorems.nat.nat.successor_exists import successor_exists
 from theorems.nat.nat.successor_injection import successor_injection
 from theorems.nat.nat.zero_or_succ import zero_or_succ
@@ -516,6 +517,57 @@ $tm_add_correct {
             iff_f, head(right(iff_f)), implies(ex_ow_f, nat_var), [], left(iff_f))
     }
 
+    # plus_one_step(xvar, sxvar, nat_x, succ_sx_x):
+    # [ZFC, nat_x, num_z, num_one, succ_sx_x] |- [Plus(x,one,sx)]
+    # Derives Plus(x,one,sx) from plus_base(x,z)→Plus(x,z,x) then plus_step→Plus(x,one,sx)
+    $plus_one_step \xvar sxvar nat_x succ_sx_x: {
+        $plus_x_one_sx plus(xvar, "one", sxvar, "_")
+
+        # plus_base → Plus(x,z,x)
+        $_pb_b \m: implies(nat(m,"_"), forall("z", implies(num("z",0,"_"), plus(m,"z",m,"_"))))
+        $pb inst(plus_base, head(right(plus_base)), _pb_b(xvar), xvar, left(plus_base))
+        $pb mp(pb, ax([nat_x],[nat_x],nat_x), nat_x, arg2(head(right(pb))), left(pb), [nat_x])
+        $_pb_b2 \z: implies(num(z,0,"_"), plus(xvar,z,xvar,"_"))
+        $pb inst(pb, head(right(pb)), _pb_b2("z"), "z", left(pb))
+        $plus_xzx plus(xvar,"z",xvar,"_")
+        $got_xzx mp(pb, ax([num_z],[num_z],num_z), num_z, plus_xzx, left(pb), [num_z])
+
+        # num_nat(0) → Nat(z)
+        $_nn0_b \n: implies(num(n,0,"_"), nat(n,"_"))
+        $nn0_inst apply_thm(num_nat(0), head(right(num_nat(0))),
+            ["z"], ["n"], _nn0_b, left(num_nat(0)))
+        $nat_z_f nat("z","_")
+        $got_nat_z mp(nn0_inst,
+            ax([num_z],[num_z],num_z), num_z, nat_z_f,
+            left(nn0_inst), [num_z])
+
+        # Succ(one,z) from Num(one,1) = ∀m.Num(m,0)→Succ(one,m)
+        $_succ_b \m: implies(num(m,0,"_"), successor("one",m,"_"))
+        $succ_inst inst(ax([num_one],[num_one],num_one),
+            num_one, _succ_b("z"), "z", [num_one])
+        $succ_one_z successor("one","z","_")
+        $got_succ_oz mp(succ_inst,
+            ax([num_z],[num_z],num_z), num_z, succ_one_z,
+            [num_one], [num_z])
+
+        # plus_step(x,z,x,one,sx) → Plus(x,one,sx)
+        $_ps_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"), forall("p", implies(plus(m,"n","p","_"), forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"), plus(m,"sn","sp","_"))))))))))
+        $ps inst(plus_step, head(right(plus_step)), _ps_b(xvar), xvar, left(plus_step))
+        $ps mp(ps, ax([nat_x],[nat_x],nat_x), nat_x, arg2(head(right(ps))), left(ps), [nat_x])
+        $_ps2_b \n: implies(nat(n,"_"), forall("p", implies(plus(xvar,n,"p","_"), forall("sn", implies(successor("sn",n,"_"), forall("sp", implies(successor("sp","p","_"), plus(xvar,"sn","sp","_"))))))))
+        $ps inst(ps, head(right(ps)), _ps2_b("z"), "z", left(ps))
+        $ps mp(ps, got_nat_z, nat_z_f, arg2(head(right(ps))), left(ps), left(got_nat_z))
+        $_ps3_b \p: implies(plus(xvar,"z",p,"_"), forall("sn", implies(successor("sn","z","_"), forall("sp", implies(successor("sp",p,"_"), plus(xvar,"sn","sp","_"))))))
+        $ps inst(ps, head(right(ps)), _ps3_b(xvar), xvar, left(ps))
+        $ps mp(ps, got_xzx, plus_xzx, arg2(head(right(ps))), left(ps), left(got_xzx))
+        $_ps4_b \sn: implies(successor(sn,"z","_"), forall("sp", implies(successor("sp",xvar,"_"), plus(xvar,sn,"sp","_"))))
+        $ps inst(ps, head(right(ps)), _ps4_b("one"), "one", left(ps))
+        $ps mp(ps, got_succ_oz, succ_one_z, arg2(head(right(ps))), left(ps), left(got_succ_oz))
+        $_ps5_b \sp: implies(successor(sp,xvar,"_"), plus(xvar,"one",sp,"_"))
+        $ps inst(ps, head(right(ps)), _ps5_b(sxvar), sxvar, left(ps))
+        mp(ps, ax([succ_sx_x],[succ_sx_x],succ_sx_x), succ_sx_x, plus_x_one_sx, left(ps), [succ_sx_x])
+    }
+
     # === Section 14: Derive and cut intermediates ===
     # Replace each intermediate assumption (from ax() in _mp_ax) with an actual
     # derivation from goal hypotheses + ZFC theorems, then cut_c to remove from left.
@@ -573,13 +625,25 @@ $tm_add_correct {
         mp(got_bwd, got_ex2, ex_ow_y, nat_y, left(got_bwd), left(got_ex2))
     }
 
-    # Cut order: dependents first (nat_ssc, nat_hf, nat_sa before nat_c)
+    # Cut order: dependents first. Each cut's ax() deps must still be on left.
+
+    # --- plus_ssc_one_n: Plus(ssc,one,n) via plus_base+plus_step ---
+    $got_plus_ssc_one_n plus_one_step("ssc", "n", nat_ssc, succ_n)
+    $proof cut_c(got_plus_ssc_one_n, proof, plus_ssc_one_n,
+        left(got_plus_ssc_one_n), left(proof), head(right(proof)))
+    $_ tap("derived plus_ssc_one_n ok")
 
     # --- nat_ssc: Nat(hf) + Succ(ssc,hf) → Nat(ssc) ---
     $got_nat_ssc nat_succ_step("hf", "ssc", nat_hf, nat_ssc, succ_ssc)
     $proof cut_c(got_nat_ssc, proof, nat_ssc,
         left(got_nat_ssc), left(proof), head(right(proof)))
     $_ tap("derived nat_ssc ok")
+
+    # --- plus_hf_one_ssc: Plus(hf,one,ssc) via plus_base+plus_step ---
+    $got_plus_hf_one_ssc plus_one_step("hf", "ssc", nat_hf, succ_ssc)
+    $proof cut_c(got_plus_hf_one_ssc, proof, plus_hf_one_ssc,
+        left(got_plus_hf_one_ssc), left(proof), head(right(proof)))
+    $_ tap("derived plus_hf_one_ssc ok")
 
     # --- nat_hf: Nat(c) + Succ(hf,c) → Nat(hf) ---
     $got_nat_hf nat_succ_step("c", "hf", nat_c, nat_hf, succ_hf)
@@ -631,11 +695,28 @@ $tm_add_correct {
         left(got_plus_sa_b_hf), left(proof), head(right(proof)))
     $_ tap("derived plus_sa_b_hf ok")
 
+    # --- plus_a_one_sa: Plus(a,one,sa) via plus_base+plus_step ---
+    $got_plus_a_one_sa plus_one_step("a", "sa", nat_a, succ_sa)
+    $proof cut_c(got_plus_a_one_sa, proof, plus_a_one_sa,
+        left(got_plus_a_one_sa), left(proof), head(right(proof)))
+    $_ tap("derived plus_a_one_sa ok")
+
     # --- nat_sa: Nat(a) + Succ(sa,a) → Nat(sa) ---
     $got_nat_sa nat_succ_step("a", "sa", nat_a, nat_sa, succ_sa)
     $proof cut_c(got_nat_sa, proof, nat_sa,
         left(got_nat_sa), left(proof), head(right(proof)))
     $_ tap("derived nat_sa ok")
+
+    # --- nat_one: Nat(one) from num_nat(1) + Num(one,1) ---
+    $_nn1_b \n: implies(num(n,1,"_"), nat(n,"_"))
+    $nn1_inst apply_thm(num_nat(1), head(right(num_nat(1))),
+        ["one"], ["n"], _nn1_b, left(num_nat(1)))
+    $got_nat_one mp(nn1_inst,
+        ax([num_one],[num_one],num_one), num_one, nat_one,
+        left(nn1_inst), [num_one])
+    $proof cut_c(got_nat_one, proof, nat_one,
+        left(got_nat_one), left(proof), head(right(proof)))
+    $_ tap("derived nat_one ok")
 
     # --- func_tape2: TU(tape2,tin,a,one) + Func(tin) → Func(tape2) ---
     $_tuf_b \t2: \t: \pos: \val: implies(tape_update(t2,t,pos,val,"_"), implies(function(t,"_"), function(t2,"_")))
@@ -761,16 +842,12 @@ $tm_add_correct {
     $body implies(cfg_c1, body)
 
     # Plus/Nat intermediates
-    $proof ir(proof, remove(same, plus_ssc_one_n, left(proof)), [implies(plus_ssc_one_n, body)], implies(plus_ssc_one_n, body))
-    $body implies(plus_ssc_one_n, body)
-    $proof ir(proof, remove(same, plus_hf_one_ssc, left(proof)), [implies(plus_hf_one_ssc, body)], implies(plus_hf_one_ssc, body))
-    $body implies(plus_hf_one_ssc, body)
-    $proof ir(proof, remove(same, plus_a_one_sa, left(proof)), [implies(plus_a_one_sa, body)], implies(plus_a_one_sa, body))
-    $body implies(plus_a_one_sa, body)
+    # plus_ssc_one_n: derived in Section 14
+    # plus_hf_one_ssc: derived in Section 14
+    # plus_a_one_sa: derived in Section 14
     # nat_ssc: derived in Section 14
     # nat_hf: derived in Section 14
-    $proof ir(proof, remove(same, nat_one, left(proof)), [implies(nat_one, body)], implies(nat_one, body))
-    $body implies(nat_one, body)
+    # nat_one: derived in Section 14
     $proof ir(proof, remove(same, omega_w, left(proof)), [implies(omega_w, body)], implies(omega_w, body))
     $body implies(omega_w, body)
     $proof ir(proof, remove(same, num_q2, left(proof)), [implies(num_q2, body)], implies(num_q2, body))
