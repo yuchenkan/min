@@ -18,7 +18,9 @@ from theorems.tm.add.tape_read_sep import tape_read_sep
 from theorems.tm.add.tape_read_high import tape_read_high
 from theorems.tm.add.tape_read_beyond import tape_read_beyond
 from theorems.tm.add.unary_output_unique import unary_output_unique
+from theorems.tm.add.output_is_update import output_is_update
 from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p, phase4p, phase5p, unary_output
+from vocab.tm.tm import tape_update
 from vocab.nat.nat import nat, omega
 from vocab.nat.arithmetic.plus import plus
 
@@ -148,5 +150,26 @@ $uou_expected forall("c", forall("f1", forall("f2",
     eqv("f1", "f2", "_"))))))
 $_ qed(unary_output_unique, uou_expected, "z")
 $_ tap("unary_output_unique ok")
+
+$oiu_expected forall("tf", forall("tin", forall("tape2", forall("hf",
+    forall("a", forall("b", forall("c", forall("sa",
+    forall("one", forall("z", forall("w",
+    implies(unary_output("tf", "c", "_"),
+    implies(unary_tape("tin", "a", "b", "_"),
+    implies(tape_update("tape2", "tin", "a", "one", "_"),
+    implies(plus("a", "b", "c", "_"),
+    implies(successor("sa", "a", "_"),
+    implies(plus("sa", "b", "hf", "_"),
+    implies(successor("hf", "c", "_"),
+    implies(nat("a", "_"),
+    implies(nat("b", "_"),
+    implies(nat("c", "_"),
+    implies(nat("sa", "_"),
+    implies(num("one", 1, "_"),
+    implies(num("z", 0, "_"),
+    implies(omega("w", "_"),
+    tape_update("tf", "tape2", "c", "z", "_"))))))))))))))))))))))))))
+$_ qed(output_is_update, oiu_expected, "z")
+$_ tap("output_is_update ok")
 
 $ok true

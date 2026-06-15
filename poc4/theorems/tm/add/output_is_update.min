@@ -1,0 +1,973 @@
+from derived import mem, neg, implies, forall, exists, and, or, eqv, iff
+from derived import left, right, exp, arg1, arg2, head, tail, show, shows
+from vocab.functions import apply, function, relation
+from vocab.sets import ordered_pair, transitive_set
+from vocab.tm.tm import tape_update
+from vocab.tm.add import unary_tape, unary_output
+from vocab.nat.nat import num, nat, successor, omega
+from vocab.nat.arithmetic.plus import plus
+from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, cut_c, apply_thm, inst, eir, eel, close, same
+from util.list import remove, diff
+
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.or_elim import or_elim
+
+from theorems.sets.eq_transfer import eq_transfer
+
+from theorems.nat.nat.not_mem_self import not_mem_self
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.nat.num_unique import num_unique
+from theorems.nat.nat.omega_transitive import omega_transitive
+from theorems.nat.nat.zero_or_succ import zero_or_succ
+from theorems.nat.nat.mem_succ_self import mem_succ_self
+from theorems.nat.nat.mem_succ_elim import mem_succ_elim
+from theorems.nat.nat.successor_exists import successor_exists
+from theorems.nat.nat.nat_transitive import nat_transitive
+
+from theorems.nat.arithmetic.plus.plus_base import plus_base
+from theorems.nat.arithmetic.plus.plus_step import plus_step
+from theorems.nat.arithmetic.plus.plus_comm import plus_comm
+from theorems.nat.arithmetic.plus.plus_val_unique import plus_val_unique
+from theorems.nat.arithmetic.plus.plus_val_exists import plus_val_exists
+from theorems.nat.arithmetic.plus.plus_val_nat import plus_val_nat
+from theorems.nat.arithmetic.plus.plus_val_transfer import plus_val_transfer
+from theorems.nat.arithmetic.plus.plus_sub import plus_sub
+from theorems.nat.arithmetic.plus.plus_geq import plus_geq
+
+from theorems.tm.tm.tape_update_exists import tape_update_exists
+from theorems.tm.tm.tape_update_function import tape_update_function
+from theorems.tm.tm.tape_update_at import tape_update_at
+from theorems.tm.tm.tape_update_other import tape_update_other
+
+from theorems.tm.add.tape_read_low import tape_read_low
+from theorems.tm.add.tape_read_high import tape_read_high
+from theorems.tm.add.tape_read_beyond import tape_read_beyond
+from theorems.tm.add.unary_output_unique import unary_output_unique
+
+from theorems.functions.apply_val_transfer import apply_val_transfer
+
+# output_is_update:
+# UnaryOutput(tf,c) → UnaryTape(tin,a,b) → TU(tape2,tin,a,one) →
+# Plus(a,b,c) → S(sa,a) → Plus(sa,b,hf) → S(hf,c) →
+# Nat(a) → Nat(b) → Nat(c) → Nat(sa) →
+# Num(one,1) → Num(z,0) → Omega(w) →
+# TU(tf, tape2, c, z)
+
+$output_is_update {
+    # === Hypotheses ===
+    $uo unary_output("tf", "c", "_")
+    $ut unary_tape("tin", "a", "b", "_")
+    $tu_tape2 tape_update("tape2", "tin", "a", "one", "_")
+    $plus_abc plus("a", "b", "c", "_")
+    $succ_sa successor("sa", "a", "_")
+    $plus_sa_b_hf plus("sa", "b", "hf", "_")
+    $succ_hf successor("hf", "c", "_")
+    $nat_a nat("a", "_")
+    $nat_b nat("b", "_")
+    $nat_c nat("c", "_")
+    $nat_sa nat("sa", "_")
+    $num_one num("one", 1, "_")
+    $num_z num("z", 0, "_")
+    $omega_w omega("w", "_")
+
+    # === MP helpers ===
+    $_mp_ax \prf fact:
+        mp(prf, ax([fact],[fact],fact), fact, arg2(head(right(prf))), left(prf), [fact])
+    $_mp_with \prf arg_prf:
+        mp(prf, arg_prf, head(right(arg_prf)), arg2(head(right(prf))), left(prf), left(arg_prf))
+
+    # === Derived: Func(tape2) ===
+    $_tuf_b \t2: \t: \pos: \val: implies(tape_update(t2,t,pos,val,"_"), implies(function(t,"_"), function(t2,"_")))
+    $func_tin {
+        $and1 and_elim_left(arg1(exp(ut)), arg2(exp(ut)), [])
+        mp(and1, ax([ut],[ut],ut), ut, arg1(exp(ut)), [], [ut])
+    }
+    $func_tape2 function("tape2", "_")
+    $tuf apply_thm(tape_update_function, head(right(tape_update_function)),
+        ["tape2","tin","a","one"], ["t2","t","pos","val"], _tuf_b, left(tape_update_function))
+    $got_func_tape2 _mp_with(_mp_ax(tuf, tu_tape2), func_tin)
+
+    # === Derived: c∈w, ¬(c∈c) ===
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $cw mem("c","w")
+    $ne_c apply_thm(nat_elim, head(right(nat_elim)), ["c","w"], ["m","w"], _ne_b, [])
+    $got_cw _mp_ax(_mp_ax(ne_c, nat_c), omega_w)
+
+    $_nms_b \w: implies(omega(w,"_"), forall("n", implies(mem("n",w), neg(mem("n","n")))))
+    $nms inst(not_mem_self, head(right(not_mem_self)), _nms_b("w"), "w", left(not_mem_self))
+    $nms _mp_ax(nms, omega_w)
+    $_nms2 \n: implies(mem(n,"w"), neg(mem(n,n)))
+    $neg_cc neg(mem("c","c"))
+    $got_neg_cc mp(inst(nms, head(right(nms)), _nms2("c"), "c", left(nms)),
+        got_cw, cw, neg_cc, left(nms), left(got_cw))
+
+    $_ tap("setup ok")
+
+    # === Step 1: tape_update_exists(tape2, c, z) → ∃t2. TU(t2, tape2, c, z) ===
+    $_tue_b \tape: \h: \w: exists("t", tape_update("t", tape, h, w, "_"))
+    $tue apply_thm(tape_update_exists, head(right(tape_update_exists)),
+        ["tape2","c","z"], ["tape","h","w"], _tue_b, left(tape_update_exists))
+
+    $tu_t2 tape_update("t2", "tape2", "c", "z", "_")
+    $got_tu_t2 ax([tu_t2],[tu_t2],tu_t2)
+
+    # === Step 2: Func(t2) from tape_update_function ===
+    $func_t2 function("t2", "_")
+    $tuf2 apply_thm(tape_update_function, head(right(tape_update_function)),
+        ["t2","tape2","c","z"], ["t2","t","pos","val"], _tuf_b, left(tape_update_function))
+    $got_func_t2 _mp_with(_mp_ax(tuf2, tu_t2), got_func_tape2)
+
+    $_ tap("func_t2 ok")
+
+    # === Step 3: Prove ones part ===
+    # ∀i∈c. ∀v. Num(v,1) → Apply(t2, i, v)
+    # Strategy: i∈c → i≠c → tape_update_other → Apply(tape2,i,v) → Apply(t2,i,v)
+    # For Apply(tape2,i,v): case i∈a or ¬(i∈a)
+
+    $mem_ic mem("i","c")
+    $num_v1 num("v", 1, "_")
+    $app_t2_iv apply("t2", "i", "v", "_")
+    $app_tape2_iv apply("tape2", "i", "v", "_")
+    $app_tin_iv apply("tin", "i", "v", "_")
+    $neg_eqv_ic neg(eqv("i","c","_"))
+    $eqv_ic eqv("i","c","_")
+    $mem_ia mem("i","a")
+    $eqv_ia eqv("i","a","_")
+
+    # i∈c → ¬Eqv(i,c): Eqv(i,c) → eqv_mem_right → c∈c, contradicts ¬(c∈c)
+    $got_neg_ic {
+        # eqv_mem_right: Eqv(i,c) → i∈c → c∈c
+        $_emr0_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
+        $emr0 apply_thm(eqv_mem_right, head(right(eqv_mem_right)),
+            ["i","c","c"], ["x","y","a"], _emr0_b, left(eqv_mem_right))
+        $emr0 _mp_ax(emr0, eqv_ic)
+        $got_cc _mp_ax(emr0, mem_ic)
+        # got_cc: [eqv_ic, mem_ic, Ext] |- [c∈c]
+        $mem_cc_f head(right(got_cc))
+        # nl to absorb c∈c → contradiction (empty right)
+        $contra nl(got_cc, add([neg_cc], left(got_cc)), [], neg_cc)
+        # contra: [neg_cc, eqv_ic, mem_ic, Ext] |- []
+        # nr to discharge eqv_ic → neg_eqv_ic
+        $got_neg_ic_raw nr(contra, remove(same, eqv_ic, left(contra)),
+            [neg_eqv_ic], neg_eqv_ic)
+        # [neg_cc, mem_ic, Ext] |- [neg_eqv_ic]
+        # cut neg_cc with got_neg_cc
+        cut_c(got_neg_cc, got_neg_ic_raw, neg_cc,
+            left(got_neg_cc), left(got_neg_ic_raw), neg_eqv_ic)
+        # result: [mem_ic, omega_w, nat_c, Ext] |- [neg_eqv_ic]
+    }
+
+    $_ tap("neg_ic ok")
+
+    # tape_update_other template: TU(t,tape,h,w) → Apply(tape,x,y) → ¬Eqv(x,h) → Apply(t,x,y)
+    $_tuo_b \tapen: \tape: \h: \w: \x: \y:
+        implies(tape_update(tapen,tape,h,w,"_"), implies(apply(tape,x,y,"_"),
+        implies(neg(eqv(x,h,"_")), apply(tapen,x,y,"_"))))
+
+    # --- Case i∈a: tape_read_low → Apply(tin,i,v) → tape_update_other → Apply(tape2,i,v) ---
+    $ones_case_a {
+        # tape_read_low: UnaryTape(tin,a,b) → i∈a → Num(v,1) → Apply(tin,i,v)
+        $_trl_b \tape: \a: \b: \i: \one: implies(unary_tape(tape,a,b,"_"), implies(mem(i,a), implies(num(one,1,"_"), apply(tape,i,one,"_"))))
+        $trl apply_thm(tape_read_low, head(right(tape_read_low)),
+            ["tin","a","b","i","v"], ["tape","a","b","i","one"], _trl_b, left(tape_read_low))
+        $trl _mp_ax(trl, ut)
+        $trl _mp_ax(trl, mem_ia)
+        $got_tin _mp_ax(trl, num_v1)
+
+        # ¬Eqv(i,a): Eqv(i,a) → i∈a → a∈a, but ¬(a∈a). Same pattern as neg_ic.
+        $neg_eqv_ia neg(eqv_ia)
+        $aw mem("a","w")
+        $ne_a apply_thm(nat_elim, head(right(nat_elim)), ["a","w"], ["m","w"], _ne_b, [])
+        $got_aw _mp_ax(_mp_ax(ne_a, nat_a), omega_w)
+        $neg_aa neg(mem("a","a"))
+        $got_neg_aa mp(inst(nms, head(right(nms)), _nms2("a"), "a", left(nms)),
+            got_aw, aw, neg_aa, left(nms), left(got_aw))
+        # eqv_mem_right: Eqv(i,a) → i∈a → a∈a
+        # alpha-rename: ∀x.∀y.∀a → ∀x.∀y.∀s (avoid clash with term "a")
+        $_emr_a_b \x: \y: \s: implies(eqv(x,y,"_"), implies(mem(x,s), mem(y,s)))
+        $emr_a_f forall("x", forall("y", forall("s", _emr_a_b("x")("y")("s"))))
+        $emr_a_r wr(eqv_mem_right, left(eqv_mem_right), [emr_a_f], emr_a_f)
+        $emr_a apply_thm(emr_a_r, head(right(emr_a_r)),
+            ["i","a","a"], ["x","y","s"], _emr_a_b, left(emr_a_r))
+        $emr_a _mp_ax(emr_a, eqv_ia)
+        $got_aa _mp_ax(emr_a, mem_ia)
+        $mem_aa_f head(right(got_aa))
+        # got_aa: [eqv_ia, mem_ia, axioms] |- [a∈a]
+        # nl to absorb a∈a, add neg_aa to left → contradiction (empty right)
+        $contra_a nl(got_aa, add([neg_aa], left(got_aa)), [], neg_aa)
+        # contra_a: [neg_aa, eqv_ia, mem_ia, axioms] |- []
+        # nr to discharge eqv_ia → neg_eqv_ia on right
+        $got_neg_ia_raw nr(contra_a, remove(same, eqv_ia, left(contra_a)),
+            [neg_eqv_ia], neg_eqv_ia)
+        # got_neg_ia_raw: [neg_aa, mem_ia, axioms] |- [neg_eqv_ia]
+        # cut neg_aa with got_neg_aa
+        $got_neg_ia cut_c(got_neg_aa, got_neg_ia_raw, neg_aa,
+            left(got_neg_aa), left(got_neg_ia_raw), neg_eqv_ia)
+
+        # tape_update_other(tape2, tin, a, one): Apply(tin,i,v) → ¬Eqv(i,a) → Apply(tape2,i,v)
+        $tuo1 apply_thm(tape_update_other, head(right(tape_update_other)),
+            ["tape2","tin","a","one","i","v"], ["tapen","tape","h","w","x","y"],
+            _tuo_b, left(tape_update_other))
+        $tuo1 _mp_ax(tuo1, tu_tape2)
+        $tuo1 _mp_with(tuo1, got_tin)
+        _mp_with(tuo1, got_neg_ia)
+    }
+
+    $_ tap("ones_case_a ok")
+
+    # --- Case ¬(i∈a): subcase i=a (tape_update_at) or i≠a (plus_sub + tape_read_high) ---
+
+    # Subcase i=a: tape_update_at → Apply(tape2,a,one) → transfer to Apply(tape2,i,v)
+    $ones_case_eq {
+        # tape_update_at: TU(tape2,tin,a,one) → Eqv(i,a) → Eqv(v,one) → Apply(tape2,i,v)
+        $_tua_b \tapen: \tape: \h: \w: \x: \y:
+            implies(tape_update(tapen,tape,h,w,"_"), implies(eqv(x,h,"_"),
+            implies(eqv(y,w,"_"), apply(tapen,x,y,"_"))))
+        $tua apply_thm(tape_update_at, head(right(tape_update_at)),
+            ["tape2","tin","a","one","i","v"], ["tapen","tape","h","w","x","y"],
+            _tua_b, left(tape_update_at))
+        $tua _mp_ax(tua, tu_tape2)
+        $tua _mp_ax(tua, eqv_ia)
+
+        # Eqv(v,one) from num_unique(1): Num(v,1) ∧ Num(one,1) → Eqv(v,one)
+        $eqv_v_one eqv("v","one","_")
+        $_nu_b \n1: \n2: implies(num(n1,1,"_"), implies(num(n2,1,"_"), eqv(n1,n2,"_")))
+        $nu apply_thm(num_unique(1), head(right(num_unique(1))),
+            ["v","one"], ["n1","n2"], _nu_b, left(num_unique(1)))
+        $got_eqv_vo _mp_ax(_mp_ax(nu, num_v1), num_one)
+
+        _mp_with(tua, got_eqv_vo)
+    }
+
+    $_ tap("ones_case_eq ok")
+
+    # Subcase i≠a and ¬(i∈a): plus_sub → ∃j. j∈b ∧ Plus(a,j,i)
+    # Then S(j,k) → k∈b via nat_transitive → convert Plus(a,j,i) to Plus(sa,k,i)
+    # Then tape_read_high → Apply(tin,i,v) → tape_update_other → Apply(tape2,i,v)
+    $neg_eqv_ia neg(eqv_ia)
+    $neg_mem_ia neg(mem_ia)
+    $ones_case_neq {
+
+        # plus_sub: Nat(a) → Nat(b) → Plus(a,b,c) → i∈c → ¬(i∈a) → ∃j. j∈b ∧ Plus(a,j,i)
+        $_ps_b \m: \n: implies(nat(m,"_"), implies(nat(n,"_"),
+            forall("pv", implies(plus(m,n,"pv","_"),
+                forall("iv", implies(mem("iv","pv"),
+                    implies(neg(mem("iv",m)),
+                        exists("jv", and(mem("jv",n), plus(m,"jv","iv","_"))))))))))
+        $ps apply_thm(plus_sub, head(right(plus_sub)),
+            ["a","b"], ["m","n"], _ps_b, left(plus_sub))
+        $ps _mp_ax(ps, nat_a)
+        $ps _mp_ax(ps, nat_b)
+        $_ps2 \pv: implies(plus("a","b",pv,"_"), forall("iv", implies(mem("iv",pv), implies(neg(mem("iv","a")), exists("jv", and(mem("jv","b"), plus("a","jv","iv","_")))))))
+        $ps inst(ps, head(right(ps)), _ps2("c"), "c", left(ps))
+        $ps _mp_ax(ps, plus_abc)
+        $_ps3 \iv: implies(mem(iv,"c"), implies(neg(mem(iv,"a")), exists("jv", and(mem("jv","b"), plus("a","jv",iv,"_")))))
+        $ps inst(ps, head(right(ps)), _ps3("i"), "i", left(ps))
+        $ps _mp_ax(ps, mem_ic)
+        $ex_j exists("jv", and(mem("jv","b"), plus("a","jv","i","_")))
+        $got_ex_j _mp_ax(ps, neg_mem_ia)
+
+        # eel j: assume And(j∈b, Plus(a,j,i))
+        $mem_jb mem("jv","b")
+        $plus_aji plus("a","jv","i","_")
+        $and_j and(mem_jb, plus_aji)
+        $got_and_j ax([and_j],[and_j],and_j)
+        $got_jb mp(and_elim_left(mem_jb, plus_aji, []),
+            got_and_j, and_j, mem_jb, [], [and_j])
+        $got_aji mp(and_elim_right(mem_jb, plus_aji, []),
+            got_and_j, and_j, plus_aji, [], [and_j])
+
+        # Nat(j): j∈b → j∈w (omega_transitive) → Nat(j) (nat_intro)
+        $jw mem("jv","w")
+        $_ot_b \w: \b: \k: implies(omega(w,"_"), implies(mem(b,w), implies(mem(k,b), mem(k,w))))
+        $bw mem("b","w")
+        $ne_b apply_thm(nat_elim, head(right(nat_elim)), ["b","w"], ["m","w"], _ne_b, [])
+        $got_bw _mp_ax(_mp_ax(ne_b, nat_b), omega_w)
+        $ot1 apply_thm(omega_transitive, head(right(omega_transitive)),
+            ["w","b","jv"], ["w","b","k"], _ot_b, left(omega_transitive))
+        $ot1 _mp_ax(ot1, omega_w)
+        $ot1 _mp_with(ot1, got_bw)
+        $got_jw _mp_with(ot1, got_jb)
+        $nat_j nat("jv","_")
+        $_ni_b \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
+        $ni apply_thm(nat_intro, head(right(nat_intro)), ["w","jv"], ["w","m"], _ni_b, left(nat_intro))
+        $ni _mp_ax(ni, omega_w)
+        $got_nat_j _mp_with(ni, got_jw)
+
+        # zero_or_succ on j
+        $num_j0 num("jv",0,"_")
+        $ex_succ_j exists("kv", successor("jv","kv","_"))
+        $or_j or(num_j0, ex_succ_j)
+        $_zos_b \w: implies(omega(w,"_"), forall("n", implies(mem("n",w), or(num("n",0,"_"), exists("q", successor("n","q","_"))))))
+        $zos inst(zero_or_succ, head(right(zero_or_succ)), _zos_b("w"), "w", left(zero_or_succ))
+        $zos _mp_ax(zos, omega_w)
+        $_zos2 \n: implies(mem(n,"w"), or(num(n,0,"_"), exists("q", successor(n,"q","_"))))
+        $zos inst(zos, head(right(zos)), _zos2("jv"), "jv", left(zos))
+        $got_or_j _mp_with(zos, got_jw)
+
+        # Case j=0: Plus(a,0,i) → i=a → contradiction with ¬Eqv(i,a)
+        $case_j0 {
+            $_pb_b \m: implies(nat(m,"_"), forall("z", implies(num("z",0,"_"), plus(m,"z",m,"_"))))
+            $pb inst(plus_base, head(right(plus_base)), _pb_b("a"), "a", left(plus_base))
+            $pb _mp_ax(pb, nat_a)
+            $_pb2 \z: implies(num(z,0,"_"), plus("a",z,"a","_"))
+            $pb inst(pb, head(right(pb)), _pb2("jv"), "jv", left(pb))
+            $got_aja _mp_ax(pb, num_j0)
+            $_pvu_b \a: \b: \p1: \p2: implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eqv(p1,p2,"_")))
+            $pvu apply_thm(plus_val_unique, head(right(plus_val_unique)),
+                ["a","jv","a","i"], ["a","b","c","c2"], _pvu_b, left(plus_val_unique))
+            $pvu _mp_with(pvu, got_aja)
+            $got_eqv_ai _mp_with(pvu, got_aji)
+            $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+            $es apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+                ["a","i"], ["a","b"], _es_b, [])
+            $got_eqv_ia _mp_with(es, got_eqv_ai)
+            $eqv_ia_f head(right(got_eqv_ia))
+            $contra_j nl(ax([eqv_ia_f],[eqv_ia_f],eqv_ia_f), [neg_eqv_ia, eqv_ia_f], [], neg_eqv_ia)
+            $contra_jw wr(contra_j, left(contra_j), [app_tape2_iv], app_tape2_iv)
+            cut_c(got_eqv_ia, contra_jw, eqv_ia_f, left(got_eqv_ia), left(contra_jw), app_tape2_iv)
+        }
+        # case_j0: [neg_eqv_ia, num_j0, and_j, ...] |- [app_tape2_iv]
+        $case_j0_w case_j0
+
+        # Case ∃k. S(j,k): k∈b from nat_transitive, convert Plus to tape_read_high
+        $case_jsucc_inner {
+            $succ_jk successor("jv","kv","_")
+            $got_succ_jk ax([succ_jk],[succ_jk],succ_jk)
+
+            # k∈j from mem_succ_self
+            $kj mem("kv","jv")
+            $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
+            $mss apply_thm(mem_succ_self, head(right(mem_succ_self)),
+                ["jv","kv"], ["s","n"], _mss_b, [])
+            $got_kj _mp_with(mss, got_succ_jk)
+
+            # k∈b from nat_transitive: Nat(b) → Trans(b), inst j, inst k
+            $kb mem("kv","b")
+            $_nt_b \b: implies(nat(b,"_"), transitive_set(b,"_"))
+            $nt apply_thm(nat_transitive, head(right(nat_transitive)),
+                ["b"], ["b"], _nt_b, left(nat_transitive))
+            $got_trans_b _mp_ax(nt, nat_b)
+            # Trans(b) = ∀x. x∈b → ∀y. y∈x → y∈b (alpha-eq with clean names)
+            $_inner_j implies(mem_jb, forall("y", implies(mem("y","jv"), mem("y","b"))))
+            $got_inst inst(got_trans_b, head(right(got_trans_b)), _inner_j, "jv", left(got_trans_b))
+            $fa_y forall("y", implies(mem("y","jv"), mem("y","b")))
+            $got_fa_y _mp_with(got_inst, got_jb)
+            $_inner_k implies(kj, kb)
+            $got_imp_kb inst(got_fa_y, fa_y, _inner_k, "kv", left(got_fa_y))
+            $got_kb _mp_with(got_imp_kb, got_kj)
+
+            $_ tap("got kb ok")
+
+            # Nat(k): k∈b → k∈w → Nat(k)
+            $kw mem("kv","w")
+            $ot2 apply_thm(omega_transitive, head(right(omega_transitive)),
+                ["w","b","kv"], ["w","b","k"], _ot_b, left(omega_transitive))
+            $ot2 _mp_ax(ot2, omega_w)
+            $ot2 _mp_with(ot2, got_bw)
+            $got_kw _mp_with(ot2, got_kb)
+            $nat_k nat("kv","_")
+            $ni2 apply_thm(nat_intro, head(right(nat_intro)), ["w","kv"], ["w","m"], _ni_b, left(nat_intro))
+            $ni2 _mp_ax(ni2, omega_w)
+            $got_nat_k _mp_with(ni2, got_kw)
+
+            # === Convert Plus(a,j,i) to Plus(sa,k,i) ===
+            # Step 1: plus_val_exists(a,k) → ∃q. Plus(a,k,q)
+            # Manual inst+mp (interspersed forall/implies)
+            $_pve1 \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"), exists("p", plus(m,"n","p","_")))))
+            $pve inst(plus_val_exists, head(right(plus_val_exists)), _pve1("a"), "a", left(plus_val_exists))
+            $pve _mp_ax(pve, nat_a)
+            $_pve2 \n: implies(nat(n,"_"), exists("p", plus("a",n,"p","_")))
+            $pve inst(pve, head(right(pve)), _pve2("kv"), "kv", left(pve))
+            $got_ex_q _mp_with(pve, got_nat_k)
+            # eel q
+            $plus_akq plus("a","kv","q","_")
+            $got_akq ax([plus_akq],[plus_akq],plus_akq)
+
+            # Step 2: successor_exists(q) → ∃sp. S(sp,q)
+            $_se_b \a: exists("s", successor("s",a,"_"))
+            $se apply_thm(successor_exists, head(right(successor_exists)),
+                ["q"], ["a"], _se_b, left(successor_exists))
+            # eel sp
+            $succ_spq successor("sp","q","_")
+            $got_spq ax([succ_spq],[succ_spq],succ_spq)
+
+            # Step 3: plus_step(a,kv,q,jv,sp) via manual inst+mp
+            # ∀m. Nat(m) → ∀n. Nat(n) → ∀p. Plus(m,n,p) → ∀sn. S(sn,n) → ∀sp. S(sp,p) → Plus(m,sn,sp)
+            $_ps1 \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"), forall("p", implies(plus(m,"n","p","_"), forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"), plus(m,"sn","sp","_"))))))))))
+            $pstep inst(plus_step, head(right(plus_step)), _ps1("a"), "a", left(plus_step))
+            $pstep _mp_ax(pstep, nat_a)
+            $_ps2 \n: implies(nat(n,"_"), forall("p", implies(plus("a",n,"p","_"), forall("sn", implies(successor("sn",n,"_"), forall("sp", implies(successor("sp","p","_"), plus("a","sn","sp","_"))))))))
+            $pstep inst(pstep, head(right(pstep)), _ps2("kv"), "kv", left(pstep))
+            $pstep _mp_with(pstep, got_nat_k)
+            $_ps3 \p: implies(plus("a","kv",p,"_"), forall("sn", implies(successor("sn","kv","_"), forall("sp", implies(successor("sp",p,"_"), plus("a","sn","sp","_"))))))
+            $pstep inst(pstep, head(right(pstep)), _ps3("q"), "q", left(pstep))
+            $pstep _mp_with(pstep, got_akq)
+            $_ps4 \sn: implies(successor(sn,"kv","_"), forall("sp", implies(successor("sp","q","_"), plus("a",sn,"sp","_"))))
+            $pstep inst(pstep, head(right(pstep)), _ps4("jv"), "jv", left(pstep))
+            $pstep _mp_with(pstep, got_succ_jk)
+            $_ps5 \sp: implies(successor(sp,"q","_"), plus("a","jv",sp,"_"))
+            $pstep inst(pstep, head(right(pstep)), _ps5("sp"), "sp", left(pstep))
+            $plus_ajsp plus("a","jv","sp","_")
+            $got_ajsp _mp_with(pstep, got_spq)
+
+            # Step 4: plus_val_unique → Eqv(sp,i) (top-level foralls, apply_thm OK)
+            $_pvu_b2 \a: \b: \p1: \p2: implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eqv(p1,p2,"_")))
+            $pvu2 apply_thm(plus_val_unique, head(right(plus_val_unique)),
+                ["a","jv","sp","i"], ["a","b","c","c2"], _pvu_b2, left(plus_val_unique))
+            $eqv_spi eqv("sp","i","_")
+            $pvu2 _mp_with(pvu2, got_ajsp)
+            $got_eqv_spi _mp_with(pvu2, got_aji)
+
+            # Step 5: plus_comm(a,kv,q) → Plus(kv,a,q) via manual inst+mp
+            $_pc1 \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"), forall("p", implies(plus(m,"n","p","_"), plus("n",m,"p","_"))))))
+            $pc1 inst(plus_comm, head(right(plus_comm)), _pc1("a"), "a", left(plus_comm))
+            $pc1 _mp_ax(pc1, nat_a)
+            $_pc2 \n: implies(nat(n,"_"), forall("p", implies(plus("a",n,"p","_"), plus(n,"a","p","_"))))
+            $pc1 inst(pc1, head(right(pc1)), _pc2("kv"), "kv", left(pc1))
+            $pc1 _mp_with(pc1, got_nat_k)
+            $_pc3 \p: implies(plus("a","kv",p,"_"), plus("kv","a",p,"_"))
+            $pc1 inst(pc1, head(right(pc1)), _pc3("q"), "q", left(pc1))
+            $plus_kaq plus("kv","a","q","_")
+            $got_kaq _mp_with(pc1, got_akq)
+
+            # Step 6: plus_step(kv,a,q,sa,sp) via manual inst+mp
+            $pstep2 inst(plus_step, head(right(plus_step)), _ps1("kv"), "kv", left(plus_step))
+            $pstep2 _mp_with(pstep2, got_nat_k)
+            $_ps2a \n: implies(nat(n,"_"), forall("p", implies(plus("kv",n,"p","_"), forall("sn", implies(successor("sn",n,"_"), forall("sp", implies(successor("sp","p","_"), plus("kv","sn","sp","_"))))))))
+            $pstep2 inst(pstep2, head(right(pstep2)), _ps2a("a"), "a", left(pstep2))
+            $pstep2 _mp_ax(pstep2, nat_a)
+            $_ps3a \p: implies(plus("kv","a",p,"_"), forall("sn", implies(successor("sn","a","_"), forall("sp", implies(successor("sp",p,"_"), plus("kv","sn","sp","_"))))))
+            $pstep2 inst(pstep2, head(right(pstep2)), _ps3a("q"), "q", left(pstep2))
+            $pstep2 _mp_with(pstep2, got_kaq)
+            $_ps4a \sn: implies(successor(sn,"a","_"), forall("sp", implies(successor("sp","q","_"), plus("kv",sn,"sp","_"))))
+            $pstep2 inst(pstep2, head(right(pstep2)), _ps4a("sa"), "sa", left(pstep2))
+            $pstep2 _mp_ax(pstep2, succ_sa)
+            $_ps5a \sp: implies(successor(sp,"q","_"), plus("kv","sa",sp,"_"))
+            $pstep2 inst(pstep2, head(right(pstep2)), _ps5a("sp"), "sp", left(pstep2))
+            $plus_ksa_sp plus("kv","sa","sp","_")
+            $got_ksa_sp _mp_with(pstep2, got_spq)
+
+            # Step 7: plus_comm(kv,sa,sp) → Plus(sa,kv,sp) via manual inst+mp
+            $pc2 inst(plus_comm, head(right(plus_comm)), _pc1("kv"), "kv", left(plus_comm))
+            $pc2 _mp_with(pc2, got_nat_k)
+            $_pc2a \n: implies(nat(n,"_"), forall("p", implies(plus("kv",n,"p","_"), plus(n,"kv","p","_"))))
+            $pc2 inst(pc2, head(right(pc2)), _pc2a("sa"), "sa", left(pc2))
+            $pc2 _mp_ax(pc2, nat_sa)
+            $_pc3a \p: implies(plus("kv","sa",p,"_"), plus("sa","kv",p,"_"))
+            $pc2 inst(pc2, head(right(pc2)), _pc3a("sp"), "sp", left(pc2))
+            $plus_saksp plus("sa","kv","sp","_")
+            $got_saksp _mp_with(pc2, got_ksa_sp)
+
+            # Step 8: plus_val_transfer (top-level foralls, apply_thm OK)
+            $_pvt_b \m: \n: \p: \q: implies(plus(m,n,p,"_"), implies(eqv(p,q,"_"), plus(m,n,q,"_")))
+            $pvt apply_thm(plus_val_transfer, head(right(plus_val_transfer)),
+                ["sa","kv","sp","i"], ["m","n","p","q"], _pvt_b, left(plus_val_transfer))
+            $plus_saki plus("sa","kv","i","_")
+            $pvt _mp_with(pvt, got_saksp)
+            $got_saki _mp_with(pvt, got_eqv_spi)
+
+            $_ tap("got plus_saki ok")
+
+            # tape_read_high: UnaryTape(tin,a,b) → k∈b → S(sa,a) → Plus(sa,k,i) → Num(v,1) → Apply(tin,i,v)
+            $_trh_b \tape: \a: \b: \j: \sa: \pos: \one:
+                implies(unary_tape(tape,a,b,"_"), implies(mem(j,b),
+                implies(successor(sa,a,"_"), implies(plus(sa,j,pos,"_"),
+                implies(num(one,1,"_"), apply(tape,pos,one,"_"))))))
+            $trh apply_thm(tape_read_high, head(right(tape_read_high)),
+                ["tin","a","b","kv","sa","i","v"], ["tape","a","b","j","sa","pos","one"],
+                _trh_b, left(tape_read_high))
+            $trh _mp_ax(trh, ut)
+            $trh _mp_with(trh, got_kb)
+            $trh _mp_ax(trh, succ_sa)
+            $trh _mp_with(trh, got_saki)
+            $got_tin_iv _mp_ax(trh, num_v1)
+
+            # tape_update_other(tape2): Apply(tin,i,v) → ¬Eqv(i,a) → Apply(tape2,i,v)
+            $tuo1 apply_thm(tape_update_other, head(right(tape_update_other)),
+                ["tape2","tin","a","one","i","v"], ["tapen","tape","h","w","x","y"],
+                _tuo_b, left(tape_update_other))
+            $tuo1 _mp_ax(tuo1, tu_tape2)
+            $tuo1 _mp_with(tuo1, got_tin_iv)
+            $got_neq_inner _mp_ax(tuo1, neg_eqv_ia)
+            # result: [..., neg_eqv_ia, succ_jk, plus_akq, succ_spq] |- [app_tape2_iv]
+
+            # eel chain: sp → cut ∃sp → eel q → cut ∃q → eel kv
+            # (inside block so got_nat_k, got_ex_q, se are in scope)
+            $case_js1 eel(got_neq_inner, \sp: successor(sp,"q","_"), "sp", "sp",
+                left(got_neq_inner), app_tape2_iv)
+            # cut ∃sp.S(sp,q): se (successor_exists(q)) provides it
+            $case_js1c cut_c(se, case_js1, head(right(se)), left(se), left(case_js1), app_tape2_iv)
+            # eel q, then cut ∃q.Plus(a,kv,q): got_ex_q provides it
+            $case_js2 eel(case_js1c, \q: plus("a","kv",q,"_"), "q", "q",
+                left(case_js1c), app_tape2_iv)
+            $case_js2c cut_c(got_ex_q, case_js2, head(right(got_ex_q)), left(got_ex_q), left(case_js2), app_tape2_iv)
+            # eel kv
+            eel(case_js2c, \kv: successor("jv",kv,"_"), "kv", "kv",
+                left(case_js2c), app_tape2_iv)
+        }
+        $case_jsucc case_jsucc_inner
+        # case_jsucc: [ex_succ_j, ...] |- [app_tape2_iv]
+
+        $_ tap("case_jsucc ok")
+
+        # or_elim to combine j=0 and j>0 cases
+        $imp_j0 implies(num_j0, app_tape2_iv)
+        $got_imp_j0 ir(case_j0_w, remove(same, num_j0, left(case_j0_w)), [imp_j0], imp_j0)
+        $imp_jsucc implies(ex_succ_j, app_tape2_iv)
+        $got_imp_jsucc ir(case_jsucc, remove(same, ex_succ_j, left(case_jsucc)), [imp_jsucc], imp_jsucc)
+        $oe or_elim(num_j0, ex_succ_j, app_tape2_iv, [])
+        $got_tape2 mp(oe, ax([or_j],[or_j],or_j), or_j,
+            implies(imp_j0, implies(imp_jsucc, app_tape2_iv)), [], [or_j])
+        $got_tape2 mp(got_tape2, got_imp_j0, imp_j0,
+            implies(imp_jsucc, app_tape2_iv), [or_j], left(got_imp_j0))
+        $got_tape2 mp(got_tape2, got_imp_jsucc, imp_jsucc,
+            app_tape2_iv, left(got_tape2), left(got_imp_jsucc))
+
+        # cut or_j (has jv free) before eel jv
+        $got_tape2 cut_c(got_or_j, got_tape2, or_j, left(got_or_j), left(got_tape2), app_tape2_iv)
+        # eel j
+        $got_neq eel(got_tape2, \jv: and(mem(jv,"b"), plus("a",jv,"i","_")), "jv", "jv",
+            left(got_tape2), app_tape2_iv)
+        # cut_c with got_ex_j
+        cut_c(got_ex_j, got_neq, ex_j, left(got_ex_j), left(got_neq), app_tape2_iv)
+    }
+
+    $_ tap("ones_case_neq ok")
+
+    # === Combine ones cases ===
+    # ones_case_eq: [eqv_ia, ...] |- [app_tape2_iv]
+    # ones_case_neq: [neg_eqv_ia, neg_mem_ia, ...] |- [app_tape2_iv]
+    # nr on ones_case_eq: move eqv_ia from left to neg_eqv_ia on right
+    # then cut with ones_case_neq on neg_eqv_ia
+    # Combine cases via or_elim on or(eqv_ia, neg_eqv_ia) = implies(neg_eqv_ia, neg_eqv_ia)
+    $imp_eq_d implies(eqv_ia, app_tape2_iv)
+    $imp_neq_d implies(neg_eqv_ia, app_tape2_iv)
+    $or_eq or(eqv_ia, neg_eqv_ia)
+    # or_eq = implies(neg_eqv_ia, neg_eqv_ia) — trivially true
+    $got_or_eq ir(ax([neg_eqv_ia],[neg_eqv_ia],neg_eqv_ia), [], [or_eq], or_eq)
+    $oe1 or_elim(eqv_ia, neg_eqv_ia, app_tape2_iv, [])
+    # oe1: [] |- [or_eq → (imp_eq_d → (imp_neq_d → D))]
+    $oe1 mp(oe1, got_or_eq, or_eq,
+        implies(imp_eq_d, implies(imp_neq_d, app_tape2_iv)), [], [])
+    # ir on ones_case_eq: remove eqv_ia from left, get eqv_ia → D
+    $got_imp_eq ir(ones_case_eq,
+        remove(same, eqv_ia, left(ones_case_eq)), [imp_eq_d], imp_eq_d)
+    $oe1 mp(oe1, got_imp_eq, imp_eq_d,
+        implies(imp_neq_d, app_tape2_iv), [], left(got_imp_eq))
+    # ir on ones_case_neq: remove neg_eqv_ia from left, get neg_eqv_ia → D
+    $got_imp_neq ir(ones_case_neq,
+        remove(same, neg_eqv_ia, left(ones_case_neq)), [imp_neq_d], imp_neq_d)
+    $ones_not_a mp(oe1, got_imp_neq, imp_neq_d,
+        app_tape2_iv, left(oe1), left(got_imp_neq))
+    # ones_not_a: [neg_mem_ia, small_ctx, big_ctx] |- [app_tape2_iv]
+
+    # Same pattern for mem_ia / neg_mem_ia
+    $imp_mem_d implies(mem_ia, app_tape2_iv)
+    $imp_nmem_d implies(neg_mem_ia, app_tape2_iv)
+    $or_mem or(mem_ia, neg_mem_ia)
+    $got_or_mem ir(ax([neg_mem_ia],[neg_mem_ia],neg_mem_ia), [], [or_mem], or_mem)
+    $oe2 or_elim(mem_ia, neg_mem_ia, app_tape2_iv, [])
+    $oe2 mp(oe2, got_or_mem, or_mem,
+        implies(imp_mem_d, implies(imp_nmem_d, app_tape2_iv)), [], [])
+    $got_imp_mem ir(ones_case_a,
+        remove(same, mem_ia, left(ones_case_a)), [imp_mem_d], imp_mem_d)
+    $oe2 mp(oe2, got_imp_mem, imp_mem_d,
+        implies(imp_nmem_d, app_tape2_iv), [], left(got_imp_mem))
+    $got_imp_nmem ir(ones_not_a,
+        remove(same, neg_mem_ia, left(ones_not_a)), [imp_nmem_d], imp_nmem_d)
+    $ones_combined mp(oe2, got_imp_nmem, imp_nmem_d,
+        app_tape2_iv, left(oe2), left(got_imp_nmem))
+    # ones_combined: [mem_ic, num_v1, ...] |- [app_tape2_iv]
+
+    $_ tap("ones_combined ok")
+
+    # tape_update_other for t2: Apply(tape2,i,v) → ¬Eqv(i,c) → Apply(t2,i,v)
+    $tuo_t2 apply_thm(tape_update_other, head(right(tape_update_other)),
+        ["t2","tape2","c","z","i","v"], ["tapen","tape","h","w","x","y"],
+        _tuo_b, left(tape_update_other))
+    $tuo_t2 _mp_ax(tuo_t2, tu_t2)
+    $tuo_t2 _mp_with(tuo_t2, ones_combined)
+    $got_ones_t2 _mp_with(tuo_t2, got_neg_ic)
+    # got_ones_t2: [mem_ic, num_v1, tu_t2, ...] |- [app_t2_iv]
+
+    # ir num_v1, fr v, ir mem_ic, fr i → ones forall
+    $ones_r1 ir(got_ones_t2, remove(same, num_v1, left(got_ones_t2)),
+        [implies(num_v1, app_t2_iv)], implies(num_v1, app_t2_iv))
+    $ones_r2 fr(ones_r1, left(ones_r1),
+        [forall("v", head(right(ones_r1)))], forall("v", head(right(ones_r1))), "v")
+    $ones_r3 ir(ones_r2, remove(same, mem_ic, left(ones_r2)),
+        [implies(mem_ic, head(right(ones_r2)))], implies(mem_ic, head(right(ones_r2))))
+    $ones_goal forall("i", head(right(ones_r3)))
+    $got_ones fr(ones_r3, left(ones_r3), [ones_goal], ones_goal, "i")
+
+    $_ tap("ones ok")
+
+    # === Step 4: Prove zeros part ===
+    # ∀i. ¬(i∈c) → ∀v. Num(v,0) → Apply(t2, i, v)
+
+    $neg_mic neg(mem("i","c"))
+    $num_v0 num("v", 0, "_")
+    $eqv_vz eqv("v","z","_")
+
+    # Case Eqv(i,c): tape_update_at(t2) → Apply(t2,i,v)
+    $zeros_case_eq {
+        $_tua_b \tapen: \tape: \h: \w: \x: \y:
+            implies(tape_update(tapen,tape,h,w,"_"), implies(eqv(x,h,"_"),
+            implies(eqv(y,w,"_"), apply(tapen,x,y,"_"))))
+        $tua apply_thm(tape_update_at, head(right(tape_update_at)),
+            ["t2","tape2","c","z","i","v"], ["tapen","tape","h","w","x","y"],
+            _tua_b, left(tape_update_at))
+        $tua _mp_ax(tua, tu_t2)
+        $tua _mp_ax(tua, eqv_ic)
+        # Eqv(v,z) from num_unique(0)
+        $_nu0_b \n1: \n2: implies(num(n1,0,"_"), implies(num(n2,0,"_"), eqv(n1,n2,"_")))
+        $nu0 apply_thm(num_unique(0), head(right(num_unique(0))),
+            ["v","z"], ["n1","n2"], _nu0_b, left(num_unique(0)))
+        $got_eqv_vz _mp_ax(_mp_ax(nu0, num_v0), num_z)
+        _mp_with(tua, got_eqv_vz)
+    }
+    # zeros_case_eq: [eqv_ic, tu_t2, num_v0, ...] |- [app_t2_iv]
+
+    $_ tap("zeros_case_eq ok")
+
+    # Case ¬Eqv(i,c): tape_update_other(t2) + tape_read_beyond + tape_update_other(tape2)
+    $zeros_case_neq {
+        # ¬(i∈hf): S(hf,c) → i∈hf → mem_succ_elim → i∈c ∨ Eqv(i,c) → contradiction
+        $mem_ihf mem("i","hf")
+        $neg_ihf neg(mem_ihf)
+        $got_neg_ihf {
+            # mem_succ_elim: i∈hf → S(hf,c) → or(i∈c, Eqv(i,c))
+            $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+            $mse apply_thm(mem_succ_elim, head(right(mem_succ_elim)),
+                ["i","hf","c"], ["x","s","n"], _mse_b, left(mem_succ_elim))
+            $mse _mp_ax(mse, mem_ihf)
+            $or_ic or(mem_ic, eqv_ic)
+            $got_or_ic _mp_ax(mse, succ_hf)
+
+            # Case mem_ic → neg_ihf: contradiction with neg_mic, then wr
+            $imp_mic implies(mem_ic, neg_ihf)
+            $got_imp_mic {
+                $c1 nl(ax([mem_ic],[mem_ic],mem_ic), [neg_mic, mem_ic], [], neg_mic)
+                $c1w wr(c1, left(c1), [neg_ihf], neg_ihf)
+                ir(c1w, remove(same, mem_ic, left(c1w)), [imp_mic], imp_mic)
+            }
+            # Case eqv_ic → neg_ihf: contradiction with neg_eqv_ic, then wr
+            $imp_eqic implies(eqv_ic, neg_ihf)
+            $got_imp_eqic {
+                $c2 nl(ax([eqv_ic],[eqv_ic],eqv_ic), [neg_eqv_ic, eqv_ic], [], neg_eqv_ic)
+                $c2w wr(c2, left(c2), [neg_ihf], neg_ihf)
+                ir(c2w, remove(same, eqv_ic, left(c2w)), [imp_eqic], imp_eqic)
+            }
+            # or_elim: or(mem_ic, eqv_ic) → imp_mic → imp_eqic → neg_ihf
+            $oe or_elim(mem_ic, eqv_ic, neg_ihf, [])
+            $got_nih mp(oe, ax([or_ic],[or_ic],or_ic), or_ic,
+                implies(imp_mic, implies(imp_eqic, neg_ihf)), [], [or_ic])
+            $got_nih mp(got_nih, got_imp_mic, imp_mic,
+                implies(imp_eqic, neg_ihf), [or_ic], left(got_imp_mic))
+            $got_nih mp(got_nih, got_imp_eqic, imp_eqic,
+                neg_ihf, left(got_nih), left(got_imp_eqic))
+            # got_nih: [or_ic, neg_mic, neg_eqv_ic] |- [neg_ihf]
+            # cut or_ic with got_or_ic
+            $got_nih_raw cut_c(got_or_ic, got_nih, or_ic, left(got_or_ic), left(got_nih), neg_ihf)
+            # got_nih_raw: [mem_ihf, succ_hf, neg_mic, neg_eqv_ic, ...] |- [neg_ihf]
+            # Discharge mem_ihf: ir to implication, tautology (A→¬A)→¬A via il, then cut
+            $imp_ihf implies(mem_ihf, neg_ihf)
+            $got_nih_ir ir(got_nih_raw, remove(same, mem_ihf, left(got_nih_raw)), [imp_ihf], imp_ihf)
+            $taut_p1 nr(ax([mem_ihf],[mem_ihf],mem_ihf), [], [neg_ihf, mem_ihf], neg_ihf)
+            $taut_p2 ax([neg_ihf],[neg_ihf],neg_ihf)
+            $taut il(taut_p1, taut_p2, [imp_ihf], [neg_ihf], imp_ihf)
+            cut_c(got_nih_ir, taut, imp_ihf, left(got_nih_ir), [imp_ihf], neg_ihf)
+        }
+        # got_neg_ihf: [succ_hf, neg_eqv_ic, neg_mic, ...] |- [neg_ihf]
+
+        $_ tap("got neg_ihf ok")
+
+        # tape_read_beyond: UnaryTape(tin,a,b) → S(sa,a) → Plus(sa,b,hf) → ¬(i∈hf) → Num(v,0) → Apply(tin,i,v)
+        $_trb_b \tape: \a: \b: \sa: \ep: \i: \zero:
+            implies(unary_tape(tape,a,b,"_"), implies(successor(sa,a,"_"),
+            implies(plus(sa,b,ep,"_"), implies(neg(mem(i,ep)),
+            implies(num(zero,0,"_"), apply(tape,i,zero,"_"))))))
+        $trb apply_thm(tape_read_beyond, head(right(tape_read_beyond)),
+            ["tin","a","b","sa","hf","i","v"], ["tape","a","b","sa","ep","i","zero"],
+            _trb_b, left(tape_read_beyond))
+        $trb _mp_ax(trb, ut)
+        $trb _mp_ax(trb, succ_sa)
+        $trb _mp_ax(trb, plus_sa_b_hf)
+        $trb _mp_with(trb, got_neg_ihf)
+        $got_tin_z _mp_ax(trb, num_v0)
+        # got_tin_z: [...] |- [Apply(tin,i,v)]
+
+        # ¬Eqv(i,a): from ¬(i∈c) ∧ ¬Eqv(i,c) using plus_geq
+        $neg_eqvia neg(eqv("i","a","_"))
+        $got_neg_eqvia {
+            # plus_geq: Nat(a)→Nat(b)→∃cp.And(Plus(a,b,cp),le(a,cp))
+            $_pg_b \a: \b: implies(nat(a,"_"), implies(nat(b,"_"),
+                exists("cp", and(plus(a,b,"cp","_"), or(mem(a,"cp"), eqv(a,"cp","_"))))))
+            $pg apply_thm(plus_geq, head(right(plus_geq)),
+                ["a","b"], ["a","b"], _pg_b, left(plus_geq))
+            $pg _mp_ax(pg, nat_a)
+            $got_ex_cp _mp_ax(pg, nat_b)
+            # eel cp: And(Plus(a,b,cp), le(a,cp))
+            $plus_abcp plus("a","b","cp","_")
+            $le_acp or(mem("a","cp"), eqv("a","cp","_"))
+            $and_cp and(plus_abcp, le_acp)
+            $got_and_cp ax([and_cp],[and_cp],and_cp)
+            $got_plus_cp mp(and_elim_left(plus_abcp, le_acp, []),
+                got_and_cp, and_cp, plus_abcp, [], [and_cp])
+            $got_le_cp mp(and_elim_right(plus_abcp, le_acp, []),
+                got_and_cp, and_cp, le_acp, [], [and_cp])
+            # plus_val_unique: Plus(a,b,cp) → Plus(a,b,c) → Eqv(cp,c)
+            $_pvu_b3 \a: \b: \p1: \p2: implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eqv(p1,p2,"_")))
+            $pvu3 apply_thm(plus_val_unique, head(right(plus_val_unique)),
+                ["a","b","cp","c"], ["a","b","c","c2"], _pvu_b3, left(plus_val_unique))
+            $eqv_cpc eqv("cp","c","_")
+            $pvu3 _mp_with(pvu3, got_plus_cp)
+            $got_eqv_cpc _mp_ax(pvu3, plus_abc)
+
+            # Assume Eqv(i,a). Derive contradiction from or(mem(a,cp), eqv(a,cp)).
+            $eqvia eqv("i","a","_")
+            $mem_acp mem("a","cp")
+            $eqv_acp eqv("a","cp","_")
+
+            # Case mem(a,cp): eqv_mem_left(cp,c) → a∈c. eqv_symmetric(i,a)→Eqv(a,i). eqv_mem_right(a,i,c)→i∈c. Contradiction.
+            $case_mem {
+                # eq_transfer: Eqv(cp,c) → iff(a∈cp, a∈c)
+                $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+                $et apply_thm(eq_transfer, head(right(eq_transfer)),
+                    ["cp","c","a"], ["a","b","z"], _et_b, [])
+                $iff_acp_ac iff(mem("a","cp"), mem("a","c"))
+                $got_iff _mp_with(et, got_eqv_cpc)
+                # and_elim_left to extract forward: iff → (a∈cp → a∈c)
+                $imp_fwd implies(mem_acp, mem("a","c"))
+                $ael and_elim_left(imp_fwd, implies(mem("a","c"), mem_acp), [])
+                $got_imp_fwd mp(ael, got_iff, iff_acp_ac, imp_fwd, [], left(got_iff))
+                $mem_ac mem("a","c")
+                $got_ac _mp_ax(got_imp_fwd, mem_acp)
+                # eqv_symmetric(i,a) → Eqv(a,i)
+                $_es2_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+                $es2 apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+                    ["i","a"], ["a","b"], _es2_b, [])
+                $eqv_ai eqv("a","i","_")
+                $got_ai _mp_ax(es2, eqvia)
+                # eqv_mem_right: Eqv(a,i) → a∈c → i∈c
+                # alpha-rename ∀x.∀y.∀a to ∀x.∀y.∀s to avoid clash with term "a"
+                $_emr_b2 \x: \y: \s: implies(eqv(x,y,"_"), implies(mem(x,s), mem(y,s)))
+                $emr_f2 forall("x", forall("y", forall("s", _emr_b2("x")("y")("s"))))
+                $emr_r2 wr(eqv_mem_right, left(eqv_mem_right), [emr_f2], emr_f2)
+                $emr apply_thm(emr_r2, head(right(emr_r2)),
+                    ["a","i","c"], ["x","y","s"], _emr_b2, left(emr_r2))
+                $emr _mp_with(emr, got_ai)
+                $got_ic _mp_with(emr, got_ac)
+                # i∈c contradicts ¬(i∈c)
+                nl(got_ic, add([neg_mic], left(got_ic)), [], neg_mic)
+            }
+            # case_mem: [mem_acp, eqvia, neg_mic, ...] |- []
+
+            # Case eqv(a,cp): eqv_transitive(i,a,cp)→Eqv(i,cp). eqv_transitive(i,cp,c)→Eqv(i,c). Contradiction.
+            $case_eqv {
+                $_et_b2 \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
+                $et1 apply_thm(eqv_transitive, head(right(eqv_transitive)),
+                    ["i","a","cp"], ["a","b","c"], _et_b2, [])
+                $eqv_icp eqv("i","cp","_")
+                $et1 _mp_ax(et1, eqvia)
+                $got_icp _mp_ax(et1, eqv_acp)
+                $et2 apply_thm(eqv_transitive, head(right(eqv_transitive)),
+                    ["i","cp","c"], ["a","b","c"], _et_b2, [])
+                $et2 _mp_with(et2, got_icp)
+                $got_ic2 _mp_with(et2, got_eqv_cpc)
+                # Eqv(i,c) contradicts ¬Eqv(i,c)
+                nl(got_ic2, add([neg_eqv_ic], left(got_ic2)), [], neg_eqv_ic)
+            }
+            # case_eqv: [eqv_acp, eqvia, neg_eqv_ic, ...] |- []
+
+            # Combine via or_elim + ir + mp
+            # case_mem: [mem_acp, eqvia, neg_mic, ...] |- []
+            # case_eqv: [eqv_acp, eqvia, neg_eqv_ic, ...] |- []
+            # Both are contradictions. nr to discharge eqvia, then ir for case assumptions.
+            $case_mem_nr nr(case_mem, remove(same, eqvia, left(case_mem)), [neg_eqvia], neg_eqvia)
+            $imp_mem_cp implies(mem_acp, neg_eqvia)
+            $got_imp_mem_cp ir(case_mem_nr, remove(same, mem_acp, left(case_mem_nr)),
+                [imp_mem_cp], imp_mem_cp)
+            $case_eqv_nr nr(case_eqv, remove(same, eqvia, left(case_eqv)), [neg_eqvia], neg_eqvia)
+            $imp_eqv_cp implies(eqv_acp, neg_eqvia)
+            $got_imp_eqv_cp ir(case_eqv_nr, remove(same, eqv_acp, left(case_eqv_nr)),
+                [imp_eqv_cp], imp_eqv_cp)
+            # or_elim on or(mem_acp, eqv_acp)
+            $oe_cp or_elim(mem_acp, eqv_acp, neg_eqvia, [])
+            $oe_cp mp(oe_cp, ax([le_acp],[le_acp],le_acp), le_acp,
+                implies(imp_mem_cp, implies(imp_eqv_cp, neg_eqvia)), [], [le_acp])
+            $oe_cp mp(oe_cp, got_imp_mem_cp, imp_mem_cp,
+                implies(imp_eqv_cp, neg_eqvia), [le_acp], left(got_imp_mem_cp))
+            $got_e mp(oe_cp, got_imp_eqv_cp, imp_eqv_cp,
+                neg_eqvia, left(oe_cp), left(got_imp_eqv_cp))
+            # got_e: [le_acp, neg_mic, neg_eqv_ic, ...] |- [neg_eqvia]
+            # cut_c le_acp with got_le_cp
+            $got_e cut_c(got_le_cp, got_e, le_acp,
+                left(got_le_cp), left(got_e), neg_eqvia)
+            # eel cp
+            $got_e eel(got_e, \cp: and(plus("a","b",cp,"_"), or(mem("a",cp), eqv("a",cp,"_"))), "cp", "cp",
+                left(got_e), neg_eqvia)
+            # cut_c with got_ex_cp
+            cut_c(got_ex_cp, got_e, head(right(got_ex_cp)),
+                left(got_ex_cp), left(got_e), neg_eqvia)
+        }
+        # got_neg_eqvia: [neg_mic, neg_eqv_ic, ...] |- [neg_eqvia]
+
+        $_ tap("got neg_eqvia ok")
+
+        # tape_update_other(tape2): Apply(tin,i,v) → ¬Eqv(i,a) → Apply(tape2,i,v)
+        $tuo2 apply_thm(tape_update_other, head(right(tape_update_other)),
+            ["tape2","tin","a","one","i","v"], ["tapen","tape","h","w","x","y"],
+            _tuo_b, left(tape_update_other))
+        $tuo2 _mp_ax(tuo2, tu_tape2)
+        $tuo2 _mp_with(tuo2, got_tin_z)
+        $got_tape2_z _mp_with(tuo2, got_neg_eqvia)
+
+        # tape_update_other(t2): Apply(tape2,i,v) → ¬Eqv(i,c) → Apply(t2,i,v)
+        $tuo3 apply_thm(tape_update_other, head(right(tape_update_other)),
+            ["t2","tape2","c","z","i","v"], ["tapen","tape","h","w","x","y"],
+            _tuo_b, left(tape_update_other))
+        $tuo3 _mp_ax(tuo3, tu_t2)
+        $tuo3 _mp_with(tuo3, got_tape2_z)
+        _mp_ax(tuo3, neg_eqv_ic)
+    }
+    # zeros_case_neq: [neg_eqv_ic, neg_mic, num_v0, tu_t2, ...] |- [app_t2_iv]
+
+    $_ tap("zeros_case_neq ok")
+
+    # Combine zeros cases via or_elim on or(eqv_ic, neg_eqv_ic)
+    $imp_zeq_d implies(eqv_ic, app_t2_iv)
+    $imp_zneq_d implies(neg_eqv_ic, app_t2_iv)
+    $or_zic or(eqv_ic, neg_eqv_ic)
+    $got_or_zic ir(ax([neg_eqv_ic],[neg_eqv_ic],neg_eqv_ic), [], [or_zic], or_zic)
+    $oe_z or_elim(eqv_ic, neg_eqv_ic, app_t2_iv, [])
+    $oe_z mp(oe_z, got_or_zic, or_zic,
+        implies(imp_zeq_d, implies(imp_zneq_d, app_t2_iv)), [], [])
+    $got_imp_zeq ir(zeros_case_eq,
+        remove(same, eqv_ic, left(zeros_case_eq)), [imp_zeq_d], imp_zeq_d)
+    $oe_z mp(oe_z, got_imp_zeq, imp_zeq_d,
+        implies(imp_zneq_d, app_t2_iv), [], left(got_imp_zeq))
+    $got_imp_zneq ir(zeros_case_neq,
+        remove(same, neg_eqv_ic, left(zeros_case_neq)), [imp_zneq_d], imp_zneq_d)
+    $zeros_combined mp(oe_z, got_imp_zneq, imp_zneq_d,
+        app_t2_iv, left(oe_z), left(got_imp_zneq))
+    # zeros_combined: [neg_mic, num_v0, tu_t2, ...] |- [app_t2_iv]
+
+    # ir num_v0, fr v, ir neg_mic, fr i → zeros forall
+    $zeros_r1 ir(zeros_combined, remove(same, num_v0, left(zeros_combined)),
+        [implies(num_v0, app_t2_iv)], implies(num_v0, app_t2_iv))
+    $zeros_r2 fr(zeros_r1, left(zeros_r1),
+        [forall("v", head(right(zeros_r1)))], forall("v", head(right(zeros_r1))), "v")
+    $zeros_r3 ir(zeros_r2, remove(same, neg_mic, left(zeros_r2)),
+        [implies(neg_mic, head(right(zeros_r2)))], implies(neg_mic, head(right(zeros_r2))))
+    $zeros_goal forall("i", head(right(zeros_r3)))
+    $got_zeros fr(zeros_r3, left(zeros_r3), [zeros_goal], zeros_goal, "i")
+
+    $_ tap("zeros ok")
+
+    # === Step 5: Assemble UO(t2, c) ===
+    # UO(t2,c) = And(Func(t2), And(ones, zeros))
+    $uo_t2 unary_output("t2", "c", "_")
+    $ones_and_zeros and(ones_goal, zeros_goal)
+    $got_oz mp(and_intro(ones_goal, zeros_goal, []),
+        got_ones, ones_goal, implies(zeros_goal, ones_and_zeros),
+        [], left(got_ones))
+    $got_oz mp(got_oz, got_zeros, zeros_goal, ones_and_zeros,
+        left(got_oz), left(got_zeros))
+    $uo_expansion and(func_t2, ones_and_zeros)
+    $got_uo_t2 mp(and_intro(func_t2, ones_and_zeros, []),
+        got_func_t2, func_t2, implies(ones_and_zeros, uo_expansion),
+        [], left(got_func_t2))
+    $got_uo_t2 mp(got_uo_t2, got_oz, ones_and_zeros, uo_expansion,
+        left(got_uo_t2), left(got_oz))
+
+    $_ tap("uo_t2 ok")
+
+    # === Step 6: unary_output_unique → Eqv(tf, t2) ===
+    $_uou_b \c: \f1: \f2: implies(unary_output(f1,c,"_"), implies(unary_output(f2,c,"_"), eqv(f1,f2,"_")))
+    $uou apply_thm(unary_output_unique, head(right(unary_output_unique)),
+        ["c","tf","t2"], ["c","f1","f2"], _uou_b, left(unary_output_unique))
+    $uou _mp_ax(uou, uo)
+    $eqv_tf_t2 eqv("tf","t2","_")
+    $got_eqv _mp_with(uou, got_uo_t2)
+
+    $_ tap("eqv tf t2 ok")
+
+    # === Step 7: Transfer TU(t2,tape2,c,z) → TU(tf,tape2,c,z) via iff_chain ===
+    # TU expands to ∀_p. iff(_p∈tapen, rhs). Construct body with clean prefix "".
+
+    # eq_transfer(tf, t2, p): Eqv(tf,t2) → iff(p∈tf, p∈t2)
+    $_et3_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $et4 apply_thm(eq_transfer, head(right(eq_transfer)),
+        ["tf","t2","p"], ["a","b","z"], _et3_b, [])
+    $iff_mem_rev iff(mem("p","tf"), mem("p","t2"))
+    $got_iff_rev _mp_with(et4, got_eqv)
+
+    # Construct body with clean names via tape_update prefix ""
+    $tu_t2_clean tape_update("t2", "tape2", "c", "z", "")
+    $tu_body_t2 arg2(exp(tu_t2_clean))
+    $rhs arg2(tu_body_t2)
+    $iff_t2 tu_body_t2
+    $got_tu_body inst(got_tu_t2, tu_t2, iff_t2, "p", left(got_tu_t2))
+
+    # iff_chain(mem(p,tf), mem(p,t2), rhs) → iff(mem(p,tf), rhs)
+    $iff_tf iff(mem("p","tf"), rhs)
+    $ic iff_chain(mem("p","tf"), mem("p","t2"), rhs, [])
+    $got_iff_tf mp(ic, ax([iff_mem_rev],[iff_mem_rev],iff_mem_rev), iff_mem_rev,
+        implies(iff_t2, iff_tf), [], [iff_mem_rev])
+    $got_iff_tf mp(got_iff_tf, got_tu_body, iff_t2, iff_tf,
+        [iff_mem_rev], left(got_tu_body))
+    # cut iff_mem_rev with got_iff_rev
+    $got_iff_tf cut_c(got_iff_rev, got_iff_tf, iff_mem_rev,
+        left(got_iff_rev), left(got_iff_tf), iff_tf)
+
+    # fr p to close forall
+    $tu_tf_formula forall("p", iff_tf)
+    $got_tu_tf fr(got_iff_tf, left(got_iff_tf), [tu_tf_formula], tu_tf_formula, "p")
+
+    $_ tap("tu_tf ok")
+
+    # === Step 8: eel t2, then ir/fr to close ===
+    $tu_tf tape_update("tf", "tape2", "c", "z", "_")
+
+    # eel t2 from tape_update_exists
+    $got_result eel(got_tu_tf, \t: tape_update(t, "tape2", "c", "z", "_"), "t2", "t2",
+        left(got_tu_tf), tu_tf_formula)
+    $got_result cut_c(tue, got_result, head(right(tue)),
+        left(tue), left(got_result), tu_tf_formula)
+
+    $_ tap("eel t2 ok")
+
+    # ir each hypothesis, fr each variable
+    $cur got_result
+    $cur ir(cur, remove(same, omega_w, left(cur)), [implies(omega_w, head(right(cur)))], implies(omega_w, head(right(cur))))
+    $cur ir(cur, remove(same, num_z, left(cur)), [implies(num_z, head(right(cur)))], implies(num_z, head(right(cur))))
+    $cur ir(cur, remove(same, num_one, left(cur)), [implies(num_one, head(right(cur)))], implies(num_one, head(right(cur))))
+    $cur ir(cur, remove(same, nat_sa, left(cur)), [implies(nat_sa, head(right(cur)))], implies(nat_sa, head(right(cur))))
+    $cur ir(cur, remove(same, nat_c, left(cur)), [implies(nat_c, head(right(cur)))], implies(nat_c, head(right(cur))))
+    $cur ir(cur, remove(same, nat_b, left(cur)), [implies(nat_b, head(right(cur)))], implies(nat_b, head(right(cur))))
+    $cur ir(cur, remove(same, nat_a, left(cur)), [implies(nat_a, head(right(cur)))], implies(nat_a, head(right(cur))))
+    $cur ir(cur, remove(same, succ_hf, left(cur)), [implies(succ_hf, head(right(cur)))], implies(succ_hf, head(right(cur))))
+    $cur ir(cur, remove(same, plus_sa_b_hf, left(cur)), [implies(plus_sa_b_hf, head(right(cur)))], implies(plus_sa_b_hf, head(right(cur))))
+    $cur ir(cur, remove(same, succ_sa, left(cur)), [implies(succ_sa, head(right(cur)))], implies(succ_sa, head(right(cur))))
+    $cur ir(cur, remove(same, plus_abc, left(cur)), [implies(plus_abc, head(right(cur)))], implies(plus_abc, head(right(cur))))
+    $cur ir(cur, remove(same, tu_tape2, left(cur)), [implies(tu_tape2, head(right(cur)))], implies(tu_tape2, head(right(cur))))
+    $cur ir(cur, remove(same, ut, left(cur)), [implies(ut, head(right(cur)))], implies(ut, head(right(cur))))
+    $cur ir(cur, remove(same, uo, left(cur)), [implies(uo, head(right(cur)))], implies(uo, head(right(cur))))
+
+    # fr for each variable
+    close(cur, left(cur), right(cur),
+        ["w", "z", "one", "sa", "c", "b", "a", "hf", "tape2", "tin", "tf"])
+}
