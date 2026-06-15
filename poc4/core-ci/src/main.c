@@ -4,6 +4,7 @@
 #include "kernel.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -89,7 +90,17 @@ static void cache_unlock(int fd) {
   close(fd);
 }
 
+/* -e mode: the entry module is named "" (empty path) and its source is this
+   string rather than a file on disk. Imports still resolve to real files. */
+static const char *g_eval_src = NULL;
+
 static char *read_file(const char *path, int64_t *mtime) {
+  if (g_eval_src && path[0] == '\0') {
+    *mtime = 0;
+    char *buf = malloc(strlen(g_eval_src) + 1);
+    strcpy(buf, g_eval_src);
+    return buf;
+  }
   struct stat st;
   if (stat(path, &st) != 0) { perror(path); return NULL; }
   *mtime = (int64_t)st.st_mtime;
@@ -106,7 +117,20 @@ static char *read_file(const char *path, int64_t *mtime) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 2) { fprintf(stderr, "usage: min <file>\n"); return 1; }
+  /* min <file>            : eval a file, save cache
+     min -e <source>       : eval <source> as module "", do NOT save cache */
+  int eval_mode = 0;
+  const char *entry;
+  if (argc >= 3 && strcmp(argv[1], "-e") == 0) {
+    eval_mode = 1;
+    g_eval_src = argv[2];
+    entry = "";
+  } else if (argc >= 2) {
+    entry = argv[1];
+  } else {
+    fprintf(stderr, "usage: min <file> | min -e <source>\n");
+    return 1;
+  }
 
   GC *gc;
   Root *root = gc_init(sizeof(Root), root_trace, 1024UL * 1024 * 1024, 8UL * 1024 * 1024 * 1024, &gc);
@@ -123,7 +147,7 @@ int main(int argc, char **argv) {
   gc_stack_new(gc, (void **)&root->stack);
 
   Intern *intern_t = intern_init(gc);
-  root->filepath = (char *)intern(intern_t, argv[1]);
+  root->filepath = (char *)intern(intern_t, entry);
   const char **tags = gc_alloc(gc, sizeof(const char *) * K_COUNT, tags_trace, NULL, NULL);
   for (int i = 0; i < K_COUNT; i++) tags[i] = NULL;
   root->tags = tags;
@@ -140,8 +164,13 @@ int main(int argc, char **argv) {
   Env *result;
   err = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t, &result);
 
-  if (!err)
+  if (!err) {
+    /* -e still saves the cache so dependency modules that got built persist,
+       but the anonymous "" entry module (the inline source) is dropped first
+       so it never lands in the cache. */
+    if (eval_mode) gc_map_delete(root->modules, root->filepath);
     cache_save("min.cache", gc, root->modules, root->global, &real_cache_ops);
+  }
 
   cache_unlock(lock_fd);
 
