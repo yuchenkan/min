@@ -23,6 +23,23 @@ static int builtin_is_none(GC *gc, GCStack *stack, const char **tags, Intern *it
   return 0;
 }
 
+/* value-type predicates: \x -> bool */
+#define DEF_IS(name, cond) \
+  static int builtin_##name(GC *gc, GCStack *stack, const char **tags, Intern *it) { \
+    (void)tags; \
+    int tag = ((Node *)*gc_stack_top(stack))->tag; \
+    gc_stack_pop(stack, 2); \
+    *gc_stack_push(gc, stack) = (cond) ? intern_true(it) : intern_false(it); \
+    return 0; \
+  }
+DEF_IS(is_bool, tag == N_TRUE || tag == N_FALSE)
+DEF_IS(is_int, tag == N_INT)
+DEF_IS(is_str, tag == N_STR)
+DEF_IS(is_arr, tag == N_ARR)
+DEF_IS(is_fn, tag == N_CLOSURE || tag == N_BUILTIN)
+DEF_IS(is_proof, tag == N_PROOF)
+#undef DEF_IS
+
 static int builtin_add(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   (void)tags;
   int top = gc_stack_len(stack);
@@ -396,6 +413,12 @@ void init_global(GC *gc, GCStack *stack, const char **tags, Intern *it, Env *glo
   *s = (void *)intern(it, "false"); *env_get(gc, global, *s) = intern_false(it);
   *s = (void *)intern(it, "none");  *env_get(gc, global, *s) = intern_none(it);
   *s = (void *)intern(it, "is_none"); set_builtin(gc, global, *s, builtin_is_none, 1);
+  *s = (void *)intern(it, "is_bool"); set_builtin(gc, global, *s, builtin_is_bool, 1);
+  *s = (void *)intern(it, "is_int");  set_builtin(gc, global, *s, builtin_is_int, 1);
+  *s = (void *)intern(it, "is_str");  set_builtin(gc, global, *s, builtin_is_str, 1);
+  *s = (void *)intern(it, "is_arr");  set_builtin(gc, global, *s, builtin_is_arr, 1);
+  *s = (void *)intern(it, "is_fn");   set_builtin(gc, global, *s, builtin_is_fn, 1);
+  *s = (void *)intern(it, "is_proof"); set_builtin(gc, global, *s, builtin_is_proof, 1);
   *s = (void *)intern(it, "add");    set_builtin(gc, global, *s, builtin_add, 2);
   *s = (void *)intern(it, "sub");    set_builtin(gc, global, *s, builtin_sub, 2);
   *s = (void *)intern(it, "mul");    set_builtin(gc, global, *s, builtin_mul, 2);
