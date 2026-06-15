@@ -42,6 +42,7 @@ from theorems.arithmetic.plus.prove_addition import prove_addition
 from theorems.arithmetic.plus.plus_val_nat import plus_val_nat
 from theorems.arithmetic.plus.plus_geq import plus_geq
 from theorems.arithmetic.plus.succ_plus_neq import succ_plus_neq
+from theorems.arithmetic.plus.plus_val_exists import plus_val_exists
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")), "z")
 $_ tap("succ_func_exists ok")
@@ -279,5 +280,11 @@ $_ qed(succ_plus_neq, forall("sa", forall("a", forall("j", forall("pp",
     implies(successor("sa","a","_"), implies(plus("sa","j","pp","_"),
     neg(eqv("pp","a","_"))))))))))), "zfc")
 $_ tap("succ_plus_neq ok")
+
+$_ qed(plus_val_exists, forall("m",
+    implies(nat("m","_"), forall("n",
+        implies(nat("n","_"),
+            exists("p", plus("m","n","p","_")))))), "zfc")
+$_ tap("plus_val_exists ok")
 
 $ok true

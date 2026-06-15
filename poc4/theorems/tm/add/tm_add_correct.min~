@@ -37,6 +37,8 @@ from theorems.nat.nat.num_nat import num_nat
 from theorems.nat.nat.successor_exists import successor_exists
 from theorems.nat.nat.successor_injection import successor_injection
 from theorems.nat.nat.zero_or_succ import zero_or_succ
+from theorems.nat.nat.mem_succ_self import mem_succ_self
+from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
 
 from theorems.sets.eq_transfer import eq_transfer
 from theorems.sets.empty_unique import empty_unique
@@ -48,6 +50,7 @@ from theorems.arithmetic.plus.plus_val_unique import plus_val_unique
 from theorems.arithmetic.plus.plus_val_nat import plus_val_nat
 from theorems.arithmetic.plus.plus_geq import plus_geq
 from theorems.arithmetic.plus.succ_plus_neq import succ_plus_neq
+from theorems.arithmetic.plus.plus_val_exists import plus_val_exists
 
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.apply_val_transfer import apply_val_transfer
@@ -933,6 +936,311 @@ $tm_add_correct {
         left(got_nat_c), left(proof), head(right(proof)))
     $_ tap("derived nat_c ok")
 
+    # --- app_tape2_c_one: Apply(tape2,c,one) via case split on b ---
+    # zero_or_succ(b): Or(Num(b,0), ∃q.Succ(b,q))
+    # Case b=0: Plus(a,b,a) from plus_base, Eqv(c,a), tape_update_at
+    # Case b>0: tape_read at j=q, pp=r from Plus(sa,q,r), transfer r→c
+    $got_app_tape2_c_one {
+        # b∈w from Nat(b) + Omega(w) via nat_elim
+        $bw mem("b","w")
+        $_ne_b2 \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+        $ne_b apply_thm(nat_elim, head(right(nat_elim)),
+            ["b","w"], ["m","w"], _ne_b2, [])
+        $ne_b mp(ne_b, ax([nat_b],[nat_b],nat_b), nat_b, implies(omega_w, bw),
+            [], [nat_b])
+        $got_bw mp(ne_b, ax([omega_w],[omega_w],omega_w), omega_w, bw,
+            [nat_b], [omega_w])
+
+        # zero_or_succ: Omega(w) → b∈w → Or(Num(b,0), ∃q.Succ(b,q))
+        $num_b_0 num("b",0,"_")
+        $ex_succ_b exists("q", successor("b","q","_"))
+        $or_zs or(num_b_0, ex_succ_b)
+
+        $_zos_inner \n: implies(mem(n,"w"), or(num(n,0,"_"), exists("q", successor(n,"q","_"))))
+        $_zos_b \w: implies(omega(w,"_"), forall("n", _zos_inner("n")))
+        $zos_inst apply_thm(zero_or_succ, head(right(zero_or_succ)),
+            ["w"], ["w"], _zos_b, left(zero_or_succ))
+        $zos1 mp(zos_inst, ax([omega_w],[omega_w],omega_w), omega_w,
+            forall("n", _zos_inner("n")), left(zos_inst), [omega_w])
+        $zos2 inst(zos1, head(right(zos1)), _zos_inner("b"), "b", left(zos1))
+        $got_or mp(zos2, got_bw, bw, or_zs, left(zos2), left(got_bw))
+
+        # or_elim: Or(A,B) → (A→C) → (B→C) → C
+        $oe or_elim(num_b_0, ex_succ_b, app_tape2_c_one, [])
+
+        # === Case 1: Num(b,0) → Apply(tape2,c,one) ===
+        $case1 {
+            # plus_base at m=a, z=b: Nat(a) → Num(b,0) → Plus(a,b,a)
+            $_pb_b1 \m: implies(nat(m,"_"), forall("z", implies(num("z",0,"_"), plus(m,"z",m,"_"))))
+            $pb1 inst(plus_base, head(right(plus_base)), _pb_b1("a"), "a", left(plus_base))
+            $pb2 mp(pb1, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(pb1))),
+                left(pb1), [nat_a])
+            $_pb3 \z: implies(num(z,0,"_"), plus("a",z,"a","_"))
+            $pb3 inst(pb2, head(right(pb2)), _pb3("b"), "b", left(pb2))
+            $plus_aba plus("a","b","a","_")
+            $got_plus_aba mp(pb3, ax([num_b_0],[num_b_0],num_b_0), num_b_0, plus_aba,
+                left(pb3), [num_b_0])
+
+            # plus_val_unique: Plus(a,b,c) + Plus(a,b,a) → Eqv(c,a)
+            $eqv_ca eqv("c","a","_")
+            $_pvu_b \a: \b: \p1: \p2:
+                implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eqv(p1,p2,"_")))
+            $pvu1 apply_thm(plus_val_unique, head(right(plus_val_unique)),
+                ["a","b","c","a"], ["a","b","c","c2"], _pvu_b, left(plus_val_unique))
+            $pvu1 _mp_ax(pvu1, plus_abc)
+            $got_eqv_ca mp(pvu1, got_plus_aba, plus_aba, eqv_ca,
+                left(pvu1), left(got_plus_aba))
+
+            # tape_update_at: TU(tape2,tin,a,one) → Eqv(c,a) → Eqv(one,one) → Apply(tape2,c,one)
+            $_tua_b \tapen: \tape: \h: \w: \x: \y:
+                implies(tape_update(tapen,tape,h,w,"_"), implies(eqv(x,h,"_"),
+                implies(eqv(y,w,"_"), apply(tapen,x,y,"_"))))
+            $tua apply_thm(tape_update_at, head(right(tape_update_at)),
+                ["tape2","tin","a","one","c","one"],
+                ["tapen","tape","h","w","x","y"],
+                _tua_b, left(tape_update_at))
+            $tua _mp_ax(tua, tu_tape2)
+            $tua _mp_with(tua, got_eqv_ca)
+
+            # eqv_reflexive for Eqv(one,one)
+            $_er_b \a: eqv(a,a,"_")
+            $er apply_thm(eqv_reflexive, head(right(eqv_reflexive)), ["one"], ["a"], _er_b, [])
+            _mp_with(tua, er)
+        }
+
+        # === Case 2: ∃q.Succ(b,q) → Apply(tape2,c,one) ===
+        $case2 {
+            $succ_bq successor("b","q","_")
+            $got_succ_bq ax([succ_bq],[succ_bq],succ_bq)
+
+            # mem_succ_self: Succ(b,q) → q∈b
+            $qb mem("q","b")
+            $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
+            $mss apply_thm(mem_succ_self, head(right(mem_succ_self)),
+                ["b","q"], ["s","n"], _mss_b, [])
+            $got_qb mp(mss, got_succ_bq, succ_bq, qb, [], [succ_bq])
+
+            # Nat(q) via omega_transitive + nat_intro
+            $qw mem("q","w")
+            $_ot_b \w: \b: \q: implies(omega(w,"_"), implies(mem(b,w), implies(mem(q,b), mem(q,w))))
+            $ot apply_thm(omega_transitive, head(right(omega_transitive)),
+                ["w","b","q"], ["w","b","q"], _ot_b, left(omega_transitive))
+            $ot mp(ot, ax([omega_w],[omega_w],omega_w), omega_w,
+                implies(bw, implies(qb, qw)), left(ot), [omega_w])
+            $ot mp(ot, got_bw, bw, implies(qb, qw), left(ot), left(got_bw))
+            $got_qw mp(ot, got_qb, qb, qw, left(ot), left(got_qb))
+
+            $nat_q nat("q","_")
+            $_ni_b2 \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
+            $ni2 apply_thm(nat_intro, head(right(nat_intro)),
+                ["w","q"], ["w","m"], _ni_b2, left(nat_intro))
+            $ni2 mp(ni2, ax([omega_w],[omega_w],omega_w), omega_w,
+                implies(qw, nat_q), left(ni2), [omega_w])
+            $got_nat_q mp(ni2, got_qw, qw, nat_q, left(ni2), left(got_qw))
+
+            # plus_val_exists(sa,q): Nat(sa) → Nat(q) → ∃r. Plus(sa,q,r)
+            $_pve_b \m: implies(nat(m,"_"), forall("n",
+                implies(nat("n","_"), exists("r", plus(m,"n","r","_")))))
+            $pve1 apply_thm(plus_val_exists, head(right(plus_val_exists)),
+                ["sa"], ["m"], _pve_b, left(plus_val_exists))
+            $pve1 _mp_ax(pve1, nat_sa)
+            $_pve_inner \n: implies(nat(n,"_"), exists("r", plus("sa",n,"r","_")))
+            $pve1 inst(pve1, head(right(pve1)), _pve_inner("q"), "q", left(pve1))
+            $ex_plus_saqr exists("r", plus("sa","q","r","_"))
+            $got_ex_plus mp(pve1, got_nat_q, nat_q, ex_plus_saqr,
+                left(pve1), left(got_nat_q))
+
+            # eel r: assume Plus(sa,q,r)
+            $plus_saqr plus("sa","q","r","_")
+            $got_plus_saqr ax([plus_saqr],[plus_saqr],plus_saqr)
+
+            # tape_read at j=q, pp=r: q∈b → Plus(sa,q,r) → Apply(tape2,r,one)
+            $app_tape2_r_one apply("tape2","r","one","_")
+            $_tr_b \j: implies(mem(j,"b"), forall("pp",
+                implies(plus("sa",j,"pp","_"), apply("tape2","pp","one","_"))))
+            $tr1 apply_thm(ax([tape_read],[tape_read],tape_read), tape_read,
+                ["q"], ["j"], _tr_b, [tape_read])
+            $tr1 _mp_with(tr1, got_qb)
+            $_tr2 \pp: implies(plus("sa","q",pp,"_"), apply("tape2",pp,"one","_"))
+            $tr2 inst(tr1, head(right(tr1)), _tr2("r"), "r", left(tr1))
+            $got_app_r mp(tr2, got_plus_saqr, plus_saqr, app_tape2_r_one,
+                left(tr2), [plus_saqr])
+
+            # Now need Eqv(r,c) to transfer Apply(tape2,r,one) → Apply(tape2,c,one)
+
+            # successor_exists(r): ∃sr. Succ(sr,r)
+            $_se2_b \a: exists("sr", successor("sr",a,"_"))
+            $se2 apply_thm(successor_exists, head(right(successor_exists)),
+                ["r"], ["a"], _se2_b, left(successor_exists))
+
+            $succ_sr_r successor("sr","r","_")
+            $got_succ_sr ax([succ_sr_r],[succ_sr_r],succ_sr_r)
+
+            # plus_step(sa,q,r,b,sr): Plus(sa,q,r) → Succ(b,q) → Succ(sr,r) → Plus(sa,b,sr)
+            $plus_sa_b_sr plus("sa","b","sr","_")
+            $_ps1_b2 \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+                forall("p", implies(plus(m,"n","p","_"), forall("sn",
+                implies(successor("sn","n","_"), forall("sp",
+                implies(successor("sp","p","_"), plus(m,"sn","sp","_"))))))))))
+            $ps1 inst(plus_step, head(right(plus_step)), _ps1_b2("sa"), "sa", left(plus_step))
+            $ps1 _mp_ax(ps1, nat_sa)
+            $_ps2_b2 \n: implies(nat(n,"_"), forall("p", implies(plus("sa",n,"p","_"),
+                forall("sn", implies(successor("sn",n,"_"), forall("sp",
+                implies(successor("sp","p","_"), plus("sa","sn","sp","_"))))))))
+            $ps1 inst(ps1, head(right(ps1)), _ps2_b2("q"), "q", left(ps1))
+            $ps1 _mp_with(ps1, got_nat_q)
+            $_ps3_b2 \p: implies(plus("sa","q",p,"_"), forall("sn",
+                implies(successor("sn","q","_"), forall("sp",
+                implies(successor("sp",p,"_"), plus("sa","sn","sp","_"))))))
+            $ps1 inst(ps1, head(right(ps1)), _ps3_b2("r"), "r", left(ps1))
+            $ps1 mp(ps1, got_plus_saqr, plus_saqr, arg2(head(right(ps1))),
+                left(ps1), [plus_saqr])
+            $_ps4_b2 \sn: implies(successor(sn,"q","_"), forall("sp",
+                implies(successor("sp","r","_"), plus("sa",sn,"sp","_"))))
+            $ps1 inst(ps1, head(right(ps1)), _ps4_b2("b"), "b", left(ps1))
+            $ps1 mp(ps1, got_succ_bq, succ_bq, arg2(head(right(ps1))),
+                left(ps1), [succ_bq])
+            $_ps5_b2 \sp: implies(successor(sp,"r","_"), plus("sa","b",sp,"_"))
+            $ps1 inst(ps1, head(right(ps1)), _ps5_b2("sr"), "sr", left(ps1))
+            $got_plus_sa_b_sr mp(ps1, got_succ_sr, succ_sr_r, plus_sa_b_sr,
+                left(ps1), [succ_sr_r])
+
+            # plus_val_unique: Plus(sa,b,sr) + Plus(sa,b,hf) → Eqv(sr,hf)
+            $eqv_sr_hf eqv("sr","hf","_")
+            $_pvu2_b \a: \b: \p1: \p2:
+                implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eqv(p1,p2,"_")))
+            $pvu2 apply_thm(plus_val_unique, head(right(plus_val_unique)),
+                ["sa","b","sr","hf"], ["a","b","c","c2"], _pvu2_b, left(plus_val_unique))
+            $pvu2 mp(pvu2, got_plus_sa_b_sr, plus_sa_b_sr,
+                implies(plus_sa_b_hf, eqv_sr_hf), left(pvu2), left(got_plus_sa_b_sr))
+            $got_eqv_sr_hf _mp_ax(pvu2, plus_sa_b_hf)
+
+            # eq_succ_transfer: Eqv(hf,sr) → Eqv(r,r) → Succ(sr,r) → Succ(hf,r)
+            $succ_hf_r successor("hf","r","_")
+            $eqv_hf_sr eqv("hf","sr","_")
+            $_es_b2 \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+            $es2 apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+                ["sr","hf"], ["a","b"], _es_b2, [])
+            $got_eqv_hf_sr mp(es2, got_eqv_sr_hf, eqv_sr_hf, eqv_hf_sr, [], left(got_eqv_sr_hf))
+
+            $eqv_rr eqv("r","r","_")
+            $_er_b2 \a: eqv(a,a,"_")
+            $got_eqv_rr apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
+                ["r"], ["a"], _er_b2, [])
+
+            $_est_b \a: \b: \c: \d:
+                implies(eqv(a,c,"_"), implies(eqv(b,d,"_"),
+                implies(successor(c,d,"_"), successor(a,b,"_"))))
+            $est apply_thm(eq_succ_transfer, head(right(eq_succ_transfer)),
+                ["hf","r","sr","r"], ["a","b","c","d"], _est_b, [])
+            $est _mp_with(est, got_eqv_hf_sr)
+            $est _mp_with(est, got_eqv_rr)
+            $got_succ_hf_r mp(est, got_succ_sr, succ_sr_r, succ_hf_r,
+                left(est), [succ_sr_r])
+
+            # successor_injection: Omega(w) → r∈w → c∈w → Succ(hf,r) → Succ(hf,c) → Eqv(r,c)
+            # Need r∈w: plus_val_nat → Nat(r) → nat_elim → r∈w
+            $nat_r nat("r","_")
+            $_pvn2_b \m: \n: \p:
+                implies(nat(m,"_"), implies(nat(n,"_"), implies(plus(m,n,p,"_"), nat(p,"_"))))
+            $pvn2 apply_thm(plus_val_nat, head(right(plus_val_nat)),
+                ["sa","q","r"], ["m","n","p"], _pvn2_b, left(plus_val_nat))
+            $pvn2 _mp_ax(pvn2, nat_sa)
+            $pvn2 _mp_with(pvn2, got_nat_q)
+            $got_nat_r mp(pvn2, got_plus_saqr, plus_saqr, nat_r,
+                left(pvn2), [plus_saqr])
+
+            $rw mem("r","w")
+            $_ne_r \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+            $ne_r apply_thm(nat_elim, head(right(nat_elim)),
+                ["r","w"], ["m","w"], _ne_r, [])
+            $ne_r _mp_with(ne_r, got_nat_r)
+            $got_rw mp(ne_r, ax([omega_w],[omega_w],omega_w), omega_w, rw,
+                left(ne_r), [omega_w])
+
+            # c∈w from Nat(c) via nat_elim
+            $cw mem("c","w")
+            $_ne_c \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+            $ne_c apply_thm(nat_elim, head(right(nat_elim)),
+                ["c","w"], ["m","w"], _ne_c, [])
+            $ne_c _mp_ax(ne_c, nat_c)
+            $got_cw mp(ne_c, ax([omega_w],[omega_w],omega_w), omega_w, cw,
+                left(ne_c), [omega_w])
+
+            $eqv_rc eqv("r","c","_")
+            $_si_b \w: \m: \n: \sn:
+                implies(omega(w,"_"), implies(mem(m,w), implies(mem(n,w),
+                implies(successor(sn,m,"_"), implies(successor(sn,n,"_"), eqv(m,n,"_"))))))
+            $si apply_thm(successor_injection, head(right(successor_injection)),
+                ["w","r","c","hf"], ["w","m","n","sn"], _si_b, left(successor_injection))
+            $si _mp_ax(si, omega_w)
+            $si _mp_with(si, got_rw)
+            $si _mp_with(si, got_cw)
+            $si _mp_with(si, got_succ_hf_r)
+            $got_eqv_rc mp(si, ax([succ_hf],[succ_hf],succ_hf), succ_hf, eqv_rc,
+                left(si), [succ_hf])
+
+            # apply_key_transfer: Eqv(r,c) → Apply(tape2,r,one) → Apply(tape2,c,one)
+            $_akt_b \f: \x: \x2: \y:
+                implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+            $akt apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
+                ["tape2","r","c","one"], ["f","x","x2","y"], _akt_b, [])
+            $akt _mp_with(akt, got_eqv_rc)
+            $got_app_c mp(akt, got_app_r, app_tape2_r_one, app_tape2_c_one,
+                left(akt), left(got_app_r))
+
+            # eel sr from successor_exists
+            $cur got_app_c
+            $cur eel(cur, \v: successor(v,"r","_"), "sr", "sr",
+                remove(same, succ_sr_r, left(cur)), app_tape2_c_one)
+            $cur cut_c(se2, cur, head(right(se2)),
+                left(se2), left(cur), app_tape2_c_one)
+
+            # eel r from plus_val_exists
+            $cur eel(cur, \v: plus("sa","q",v,"_"), "r", "r",
+                remove(same, plus_saqr, left(cur)), app_tape2_c_one)
+            $cur cut_c(got_ex_plus, cur, ex_plus_saqr,
+                left(got_ex_plus), left(cur), app_tape2_c_one)
+
+            # eel q from ∃q.Succ(b,q)
+            $cur eel(cur, \v: successor("b",v,"_"), "q", "q",
+                remove(same, succ_bq, left(cur)), app_tape2_c_one)
+            # Now left has ex_succ_b. ir it to get ex_succ_b → app_tape2_c_one.
+            ir(cur, remove(same, ex_succ_b, left(cur)),
+                [implies(ex_succ_b, app_tape2_c_one)], implies(ex_succ_b, app_tape2_c_one))
+        }
+
+        # Assemble or_elim
+        $imp_ac implies(num_b_0, app_tape2_c_one)
+        $imp_bc implies(ex_succ_b, app_tape2_c_one)
+
+        # case1: [..., num_b_0] |- app_tape2_c_one → need to ir num_b_0
+        $case1_ir ir(case1, remove(same, num_b_0, left(case1)),
+            [imp_ac], imp_ac)
+
+        $oe1 mp(oe, got_or, or_zs,
+            implies(imp_ac, implies(imp_bc, app_tape2_c_one)),
+            [], left(got_or))
+        $oe2 mp(oe1, case1_ir, imp_ac,
+            implies(imp_bc, app_tape2_c_one),
+            left(oe1), left(case1_ir))
+        mp(oe2, case2, imp_bc, app_tape2_c_one,
+            left(oe2), left(case2))
+    }
+    $proof cut_c(got_app_tape2_c_one, proof, app_tape2_c_one,
+        left(got_app_tape2_c_one), left(proof), head(right(proof)))
+    $_ tap("derived app_tape2_c_one ok")
+    # Re-cut formulas reintroduced by app_tape2_c_one derivation's ax() calls
+    $proof cut_c(got_tape_read, proof, tape_read,
+        left(got_tape_read), left(proof), head(right(proof)))
+    $proof cut_c(got_plus_sa_b_hf, proof, plus_sa_b_hf,
+        left(got_plus_sa_b_hf), left(proof), head(right(proof)))
+    $proof cut_c(got_nat_sa, proof, nat_sa,
+        left(got_nat_sa), left(proof), head(right(proof)))
+    $proof cut_c(got_nat_c, proof, nat_c,
+        left(got_nat_c), left(proof), head(right(proof)))
+    $_ tap("re-cuts after app_tape2_c_one ok")
+
     # === Section 15: ir goal hypotheses (reverse order = innermost first) ===
     # ir order: cfg_cf, cfg_c0, unary_out, succ_n, succ_ssc, succ_hf, plus_abc,
     #           utape, nat_b, nat_a, num_z, num_qH, num_q0, dc, func_tin, func_delta
@@ -1002,8 +1310,7 @@ $tm_add_correct {
     # ir each intermediate (innermost first)
     $proof ir(proof, remove(same, tu_tf, left(proof)), [implies(tu_tf, body)], implies(tu_tf, body))
     $body implies(tu_tf, body)
-    $proof ir(proof, remove(same, app_tape2_c_one, left(proof)), [implies(app_tape2_c_one, body)], implies(app_tape2_c_one, body))
-    $body implies(app_tape2_c_one, body)
+    # app_tape2_c_one: derived in Section 14
     # app_tape2_hf_z: derived in Section 14
     # func_tape2: derived in Section 14
     $proof ir(proof, remove(same, tu_tape2, left(proof)), [implies(tu_tape2, body)], implies(tu_tape2, body))
