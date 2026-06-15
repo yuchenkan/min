@@ -36,11 +36,13 @@ $_aeq \self a b env:
 # flat: expand vocab to core for comparison
 $_flat \self f: {
     $t tag(f)
-    ?(eq(t, "mem"), f,
-    ?(eq(t, "neg"), neg(self(self, arg1(f))),
-    ?(eq(t, "implies"), implies(self(self, arg1(f)), self(self, arg2(f))),
-    ?(eq(t, "forall"), forall(arg1(f), self(self, arg2(f))),
-    self(self, exp(f))))))
+    ?(is_str(t),
+        ?(eq(t, "mem"), f,
+        ?(eq(t, "neg"), neg(self(self, arg1(f))),
+        ?(eq(t, "implies"), implies(self(self, arg1(f)), self(self, arg2(f))),
+        ?(eq(t, "forall"), forall(arg1(f), self(self, arg2(f))),
+        self(self, exp(f)))))),
+        self(self, exp(f)))
 }
 $same \a b: _aeq(_aeq, _flat(_flat, a), _flat(_flat, b), [])
 

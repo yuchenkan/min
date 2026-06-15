@@ -1,12 +1,12 @@
 from derived import mem, or, eqv
 
 # nat_lt(m, n, p): m < n. In von Neumann ordinals: m ∈ n.
-$_d_nat_lt \f: add(nth(f, 3), add(" < ", nth(f, 4)))
-$nat_lt \m n p: ["nat_lt", _d_nat_lt, mem(m, n), m, n]
+$_d_nat_lt \f: add(nth(f, 2), add(" < ", nth(f, 3)))
+$nat_lt \m n p: [_d_nat_lt, mem(m, n), m, n]
 
 # nat_le(m, n, p): m ≤ n. m ∈ n ∨ m = n.
-$_d_nat_le \f: add(nth(f, 3), add(" <= ", nth(f, 4)))
+$_d_nat_le \f: add(nth(f, 2), add(" <= ", nth(f, 3)))
 $nat_le \m n p: {
     $np add(p, "_")
-    ["nat_le", _d_nat_le, or(mem(m, n), eqv(m, n, np)), m, n]
+    [_d_nat_le, or(mem(m, n), eqv(m, n, np)), m, n]
 }

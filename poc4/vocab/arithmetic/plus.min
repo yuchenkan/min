@@ -4,7 +4,7 @@ from vocab.functions import apply, function, domain
 from vocab.nat.nat import nat, num, omega, successor
 
 # plus_func(h, p): ∀w. Omega(w) → Function(h) ∧ dom(h)=w×w ∧ base ∧ step
-$_d_plus_func \f: add("PlusFunc(", add(nth(f, 3), ")"))
+$_d_plus_func \f: add("PlusFunc(", add(nth(f, 2), ")"))
 $plus_func \h p: {
     $np add(p, "_")
     $w add(p, "w")
@@ -35,43 +35,43 @@ $plus_func \h p: {
                             forall(pair2, implies(ordered_pair(pair2, m, sn, np),
                                 apply(h, pair2, sp, np)))))))))))))))
 
-    ["plus_func", _d_plus_func,
+    [_d_plus_func,
         forall(w, implies(omega(w, np),
             and(func_h, and(dom_eq, and(base, step))))), h]
 }
 
 # succ_char(sf, p): sf is the successor function on naturals.
 # ∀xc. Nat(xc) → ∀yc. iff(Apply(sf,xc,yc), Succ(yc,xc))
-$_d_succ_char \f: add("SuccChar(", add(nth(f, 3), ")"))
+$_d_succ_char \f: add("SuccChar(", add(nth(f, 2), ")"))
 $succ_char \sf p: {
     $np add(p, "_")
     $xc add(p, "xc")
     $yc add(p, "yc")
-    ["succ_char", _d_succ_char,
+    [_d_succ_char,
         forall(xc, implies(nat(xc, np),
             forall(yc, iff(apply(sf, xc, yc, np), successor(yc, xc, np))))), sf]
 }
 
 # succ_func(sf, p): sf is the successor function.
 # And(SuccChar(sf), And(Function(sf), ∀xd.(∃yd.Apply(sf,xd,yd))→Nat(xd)))
-$_d_succ_func \f: add("SuccFunc(", add(nth(f, 3), ")"))
+$_d_succ_func \f: add("SuccFunc(", add(nth(f, 2), ")"))
 $succ_func \sf p: {
     $np add(p, "_")
     $xd add(p, "xd")
     $yd add(p, "yd")
     $dom_sub forall(xd, implies(exists(yd, apply(sf, xd, yd, np)), nat(xd, np)))
-    ["succ_func", _d_succ_func,
+    [_d_succ_func,
         and(succ_char(sf, np), and(function(sf, np), dom_sub)), sf]
 }
 
 # plus(m, n, p, prefix): m + n = p.
 # ∀h. PlusFunc(h) → ∀pair. OrdPair(pair,m,n) → Apply(h,pair,p)
-$_d_plus \f: add(nth(f, 3), add(" + ", add(nth(f, 4), add(" = ", nth(f, 5)))))
+$_d_plus \f: add(nth(f, 2), add(" + ", add(nth(f, 3), add(" = ", nth(f, 4)))))
 $plus \m n p prefix: {
     $np add(prefix, "_")
     $h add(prefix, "h")
     $pair add(prefix, "pair")
-    ["plus", _d_plus,
+    [_d_plus,
         forall(h, implies(plus_func(h, np),
             forall(pair, implies(ordered_pair(pair, m, n, np),
                 apply(h, pair, p, np))))), m, n, p]

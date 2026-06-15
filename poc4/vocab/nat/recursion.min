@@ -4,7 +4,7 @@ from vocab.functions import apply, domain, function
 
 # total_from(f, a, p): f is defined at a and range-closed.
 # And(∃z.Apply(f,a,z), ∀x.∀y.(Apply(f,x,y) → ∃z.Apply(f,y,z)))
-$_d_total_from \f: add("TotalFrom(", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))
+$_d_total_from \f: add("TotalFrom(", add(nth(f, 2), add(",", add(nth(f, 3), ")"))))
 $total_from \f a p: {
     $np add(p, "_")
     $x add(p, "x")
@@ -12,12 +12,12 @@ $total_from \f a p: {
     $z add(p, "z")
     $at_a exists(z, apply(f, a, z, np))
     $ran_closed forall(x, forall(y, implies(apply(f, x, y, np), exists(z, apply(f, y, z, np)))))
-    ["total_from", _d_total_from,
+    [_d_total_from,
         and(at_a, ran_closed), f, a]
 }
 
 # recursive(h, a, f, p): ∀w. Omega(w) → Function(h) ∧ dom(h)=w ∧ h(0)=a ∧ ∀n∈w. h(S(n))=f(h(n))
-$_d_recursive \f: add("Rec(", add(nth(f, 3), add(",", add(nth(f, 4), add(",", add(nth(f, 5), ")"))))))
+$_d_recursive \f: add("Rec(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
 $recursive \h a f p: {
     $np add(p, "_")
     $w add(p, "w")
@@ -37,13 +37,13 @@ $recursive \h a f p: {
                 forall(fv, implies(apply(f, v, fv, np),
                     apply(h, sn, fv, np)))))))))
 
-    ["recursive", _d_recursive,
+    [_d_recursive,
         forall(w, implies(omega(w, np),
             and(func_h, and(dom_eq, and(base, step))))), h, a, f]
 }
 
 # rec_approx(v, a, f, p): ∀w. Omega(w) → Function(v) ∧ dom(v)⊆w ∧ ran(v)⊆dom(f) ∧ base ∧ step
-$_d_rec_approx \f: add("RA(", add(nth(f, 3), add(",", add(nth(f, 4), add(",", add(nth(f, 5), ")"))))))
+$_d_rec_approx \f: add("RA(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
 $rec_approx \v a f p: {
     $np add(p, "_")
     $w add(p, "w")
@@ -69,7 +69,7 @@ $rec_approx \v a f p: {
                         forall(fval, implies(apply(f, val, fval, np),
                             apply(v, sn, fval, np)))))))))))
 
-    ["rec_approx", _d_rec_approx,
+    [_d_rec_approx,
         forall(w, implies(omega(w, np),
             and(func_v, and(dom_sub, and(ran_sub, and(base, step)))))), v, a, f]
 }

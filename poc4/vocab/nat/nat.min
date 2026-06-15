@@ -2,26 +2,26 @@ from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
 from vocab.sets import empty, set_spec, subset
 
 # successor(s, a, p): s = a ∪ {a}
-$_d_successor \f: add(nth(f, 3), add(" = S(", add(nth(f, 4), ")")))
-$successor \s a p: ["successor", _d_successor,
+$_d_successor \f: add(nth(f, 2), add(" = S(", add(nth(f, 3), ")")))
+$successor \s a p: [_d_successor,
     set_spec(s, \x np: or(mem(x, a), eqv(x, a, np)), p), s, a]
 
 # num(n, k, p): n equals the concrete natural number k.
 # num(n, 0, p) = Empty(n)
 # num(n, k+1, p) = ∀m. num(m, k) → Successor(n, m)
-$_d_num \f: add(nth(f, 3), add(" = ", str(nth(f, 4))))
+$_d_num \f: add(nth(f, 2), add(" = ", str(nth(f, 3))))
 $_num \self n k p: {
     $np add(p, "_")
     $m add(p, "m")
     ?(eq(k, 0),
-        ["num", _d_num, empty(n, np), n, k],
-        ["num", _d_num,
+        [_d_num, empty(n, np), n, k],
+        [_d_num,
             forall(m, implies(self(self, m, sub(k, 1), np), successor(n, m, np))), n, k])
 }
 $num \n k p: _num(_num, n, k, p)
 
 # inductive(a, p): Num(0)∈a ∧ ∀x∈a. S(x)∈a
-$_d_inductive \f: add("Ind(", add(nth(f, 3), ")"))
+$_d_inductive \f: add("Ind(", add(nth(f, 2), ")"))
 $inductive \a p: {
     $e add(p, "e")
     $x add(p, "x")
@@ -29,25 +29,25 @@ $inductive \a p: {
     $part1 forall(e, implies(num(e, 0, p), mem(e, a)))
     $np add(p, "_")
     $part2 forall(x, implies(mem(x, a), forall(s, implies(successor(s, x, np), mem(s, a)))))
-    ["inductive", _d_inductive, and(part1, part2), a]
+    [_d_inductive, and(part1, part2), a]
 }
 
 # omega(w, p): smallest inductive set
-$_d_omega \f: add("Omega(", add(nth(f, 3), ")"))
+$_d_omega \f: add("Omega(", add(nth(f, 2), ")"))
 $omega \w p: {
     $x add(p, "x")
     $np add(p, "_")
     $part1 inductive(w, np)
     $part2 forall(x, implies(inductive(x, np), subset(w, x, np)))
-    ["omega", _d_omega, and(part1, part2), w]
+    [_d_omega, and(part1, part2), w]
 }
 
 # nat(n, p): n is a natural number (n ∈ ω).
 # ∀w. Omega(w) → n ∈ w
-$_d_nat \f: add(nth(f, 3), " in N")
+$_d_nat \f: add(nth(f, 2), " in N")
 $nat \n p: {
     $w add(p, "w")
     $np add(p, "_")
-    ["nat", _d_nat,
+    [_d_nat,
         forall(w, implies(omega(w, np), mem(n, w))), n]
 }

@@ -7,7 +7,7 @@ from vocab.nat.nat import num, nat, successor
 from vocab.arithmetic.plus import plus
 
 # unary_tape(tape, a, b, p): tape = 1^a 0 1^b then all 0
-$_d_unary_tape \f: add("Tape(1^", add(nth(f, 3), add(" 0 1^", add(nth(f, 4), ")"))))
+$_d_unary_tape \f: add("Tape(1^", add(nth(f, 2), add(" 0 1^", add(nth(f, 3), ")"))))
 $unary_tape \tape a b p: {
     $np add(p, "_")
     $i add(p, "i")
@@ -32,11 +32,11 @@ $unary_tape \tape a b p: {
                 forall(zero, implies(num(zero, 0, np),
                     apply(tape, i, zero, np)))))))))
     $expansion and(func, and(low, and(sep, and(high, beyond))))
-    ["unary_tape", _d_unary_tape, expansion, a, b]
+    [_d_unary_tape, expansion, a, b]
 }
 
 # unary_output(tape, c, p): tape = 1^c then all 0
-$_d_unary_output \f: add("Output(1^", add(nth(f, 3), ")"))
+$_d_unary_output \f: add("Output(1^", add(nth(f, 2), ")"))
 $unary_output \tape c p: {
     $np add(p, "_")
     $i add(p, "i")
@@ -47,7 +47,7 @@ $unary_output \tape c p: {
     $zeros forall(i, implies(neg(mem(i, c)),
         forall(zero, implies(num(zero, 0, np), apply(tape, i, zero, np)))))
     $expansion and(function(tape, np), and(ones, zeros))
-    ["unary_output", _d_unary_output, expansion, c]
+    [_d_unary_output, expansion, c]
 }
 
 # phase1p(p): scan right past a ones. a steps.
@@ -74,7 +74,7 @@ $phase1p \p: {
     $formula forall(dd, forall(q0, forall(z, forall(a, forall(tape,
         forall(one, forall(b,
         forall(c0, forall(c1, body)))))))))
-    ["phase1p", _d_phase1p, formula]
+    [_d_phase1p, formula]
 }
 
 # phase2p(p): write 1 over separator, move R. 1 step.
@@ -104,7 +104,7 @@ $phase2p \p: {
     $formula forall(dd, forall(q0, forall(q1, forall(a, forall(sa,
         forall(one, forall(tape, forall(tape2,
         forall(zero, forall(c1, forall(c2, body)))))))))))
-    ["phase2p", _d_phase2p, formula]
+    [_d_phase2p, formula]
 }
 
 # phase3p(p): scan right past b ones. b steps.
@@ -135,7 +135,7 @@ $phase3p \p: {
     $formula forall(dd, forall(q1, forall(sa, forall(b, forall(pos,
         forall(tape2, forall(one,
         forall(c1, forall(c2, body)))))))))
-    ["phase3p", _d_phase3p, formula]
+    [_d_phase3p, formula]
 }
 
 # phase4p(p): read 0 past ones, write 0, move L. 1 step.
@@ -163,7 +163,7 @@ $phase4p \p: {
     $formula forall(dd, forall(q1, forall(q2, forall(hf, forall(c,
         forall(one, forall(zero, forall(tape2,
         forall(c1, forall(c2, body))))))))))
-    ["phase4p", _d_phase4p, formula]
+    [_d_phase4p, formula]
 }
 
 # phase5p(p): erase last 1, move R, halt. 1 step.
@@ -192,7 +192,7 @@ $phase5p \p: {
     $formula forall(dd, forall(q2, forall(qH, forall(c, forall(hf,
         forall(one, forall(zero, forall(tape2,
         forall(tf, forall(c1, forall(c2, body)))))))))))
-    ["phase5p", _d_phase5p, formula]
+    [_d_phase5p, formula]
 }
 
 # _rule: one transition characterization
@@ -249,7 +249,7 @@ $add_goal \p: tm_correct(_add_src, 0, 1, _add_spec, p)
 # phase1_ind(n, d, q0, tape, c0, p): strong induction predicate for Phase1
 # ∃tra,cn. Function(tra) ∧ dom_bound(tra,n) ∧ base_cond(tra,c0) ∧
 #           TMConfig(cn,q0,n,tape) ∧ Apply(tra,n,cn) ∧ step_valid(tra,n,d)
-$_d_phase1_ind \f: add("P1Ind(", add(nth(f, 3), ")"))
+$_d_phase1_ind \f: add("P1Ind(", add(nth(f, 2), ")"))
 $phase1_ind \n d q0 tape c0 p: {
     $np add(p, "_")
     $tra add(np, "tra")
@@ -275,13 +275,13 @@ $phase1_ind \n d q0 tape c0 p: {
         and(tm_config(cn, q0, n, tape, np),
         and(apply(tra, n, cn, np),
             step_valid)))))))
-    ["phase1_ind", _d_phase1_ind, expansion, n]
+    [_d_phase1_ind, expansion, n]
 }
 
 # phase3_ind(n, d, q1, sa, tape2, c1, p): strong induction predicate for Phase3
 # ∃pos_n. Plus(sa,n,pos_n) ∧ ∃tra,cn. Function(tra) ∧ dom_bound(tra,n) ∧ base_cond(tra,c1) ∧
 #           TMConfig(cn,q1,pos_n,tape2) ∧ Apply(tra,n,cn) ∧ step_valid(tra,n,d)
-$_d_phase3_ind \f: add("P3Ind(", add(nth(f, 3), ")"))
+$_d_phase3_ind \f: add("P3Ind(", add(nth(f, 2), ")"))
 $phase3_ind \n d q1 sa tape2 c1 p: {
     $np add(p, "_")
     $pos_n add(np, "pn")
@@ -309,5 +309,5 @@ $phase3_ind \n d q1 sa tape2 c1 p: {
         and(apply(tra, n, cn, np),
             step_valid)))))))
     $expansion exists(pos_n, and(plus(sa, n, pos_n, np), inner))
-    ["phase3_ind", _d_phase3_ind, expansion, n]
+    [_d_phase3_ind, expansion, n]
 }

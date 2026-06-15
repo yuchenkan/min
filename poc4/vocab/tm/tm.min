@@ -5,22 +5,22 @@ from vocab.nat.nat import num, nat, successor, empty
 from vocab.arithmetic.plus import plus
 
 # tm_config(c, q, h, tape, p): c = (q, (h, tape))
-$_d_tm_config \f: add("Config(", add(nth(f, 3), add(",", add(nth(f, 4), add(",", add(nth(f, 5), ")"))))))
+$_d_tm_config \f: add("Config(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
 $tm_config \c q h tape p: {
     $np add(p, "_")
     $inner add(p, "i")
-    ["tm_config", _d_tm_config,
+    [_d_tm_config,
         forall(inner, implies(ordered_pair(inner, h, tape, np), ordered_pair(c, q, inner, np))), q, h, tape]
 }
 
 # tm_transition(delta, q, r, w, d, qn, p): delta maps (q,r) to (w,(d,qn))
-$_d_tm_transition \f: add("T(", add(nth(f, 3), add(",", add(nth(f, 4), add("->", add(nth(f, 5), add(",", add(nth(f, 6), add(",", add(nth(f, 7), ")"))))))))))
+$_d_tm_transition \f: add("T(", add(nth(f, 2), add(",", add(nth(f, 3), add("->", add(nth(f, 4), add(",", add(nth(f, 5), add(",", add(nth(f, 6), ")"))))))))))
 $tm_transition \delta q r w d qn p: {
     $np add(p, "_")
     $inp add(p, "inp")
     $out add(p, "out")
     $dp add(p, "dp")
-    ["tm_transition", _d_tm_transition,
+    [_d_tm_transition,
         forall(inp, implies(ordered_pair(inp, q, r, np),
             forall(dp, implies(ordered_pair(dp, d, qn, np),
                 forall(out, implies(ordered_pair(out, w, dp, np),
@@ -28,28 +28,28 @@ $tm_transition \delta q r w d qn p: {
 }
 
 # tape_update(tapen, tape, h, w, p): tapen = tape[h:=w]
-$_d_tape_update \f: add(nth(f, 3), add("=", add(nth(f, 4), add("[", add(nth(f, 5), add(":=", add(nth(f, 6), "]")))))))
+$_d_tape_update \f: add(nth(f, 2), add("=", add(nth(f, 3), add("[", add(nth(f, 4), add(":=", add(nth(f, 5), "]")))))))
 $tape_update \tapen tape h w p: {
     $np add(p, "_")
     $pv add(p, "p")
     $y add(p, "y")
-    ["tape_update", _d_tape_update,
+    [_d_tape_update,
         forall(pv, iff(mem(pv, tapen),
             or(ordered_pair(pv, h, w, np),
                and(mem(pv, tape), neg(exists(y, ordered_pair(pv, h, y, np))))))), tapen, tape, h, w]
 }
 
 # head_move(h, hn, d, p): hn is h moved by d (1=right, 0=left)
-$_d_head_move \f: add("Move(", add(nth(f, 3), add(",", add(nth(f, 4), add(",", add(nth(f, 5), ")"))))))
+$_d_head_move \f: add("Move(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
 $head_move \h hn d p: {
     $np add(p, "_")
-    ["head_move", _d_head_move,
+    [_d_head_move,
         or(and(num(d, 1, np), successor(hn, h, np)),
            and(num(d, 0, np), successor(h, hn, np))), h, hn, d]
 }
 
 # tm_step(delta, c1, c2, p): c2 is one step from c1 under delta
-$_d_tm_step \f: add("Step(", add(nth(f, 3), add("->", add(nth(f, 4), ")"))))
+$_d_tm_step \f: add("Step(", add(nth(f, 2), add("->", add(nth(f, 3), ")"))))
 $tm_step \delta c1 c2 p: {
     $np add(p, "_")
     $q add(p, "q")
@@ -69,11 +69,11 @@ $tm_step \delta c1 c2 p: {
             implies(tape_update(tn, tape, h, w, np),
             implies(head_move(h, hn, dv, np),
                 tm_config(c2, qn, hn, tn, np)))))))))))))))
-    ["tm_step", _d_tm_step, body, c1, c2]
+    [_d_tm_step, body, c1, c2]
 }
 
 # tm_reaches(delta, c0, n, cf, p): TM reaches cf from c0 in n steps
-$_d_tm_reaches \f: add("Reaches(", add(nth(f, 3), add(",", add(nth(f, 4), add(",", add(nth(f, 5), add(",", add(nth(f, 6), ")"))))))))
+$_d_tm_reaches \f: add("Reaches(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), add(",", add(nth(f, 5), ")"))))))))
 $tm_reaches \delta c0 n cf p: {
     $np add(p, "_")
     $trace add(p, "tr")
@@ -94,7 +94,7 @@ $tm_reaches \delta c0 n cf p: {
     $func function(trace, np)
     $dom_bound forall(xd, forall(yd, implies(apply(trace, xd, yd, np),
         or(mem(xd, n), eqv(xd, n, np)))))
-    ["tm_reaches", _d_tm_reaches,
+    [_d_tm_reaches,
         exists(trace, and(func, and(dom_bound, and(base, and(step, reached))))), delta, c0, n, cf]
 }
 
@@ -116,5 +116,5 @@ $tmreaches_compose \p: {
         tm_reaches(dd, x, n, z, np))))))
     $formula forall(dd, forall(x, forall(y, forall(z, forall(a,
         forall(b, forall(n, body)))))))
-    ["tmreaches_compose", _d_tmreaches_compose, formula]
+    [_d_tmreaches_compose, formula]
 }

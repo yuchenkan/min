@@ -4,12 +4,12 @@ from derived import and, exists, forall, implies, eqv, d
 # body_fn: \v p: formula using v, p is deeper prefix for nested vocab
 # p is REQUIRED
 
-$_d_exists_unique \f: add("E!", add(nth(f, 3), add(".", d(nth(f, 4)))))
+$_d_exists_unique \f: add("E!", add(nth(f, 2), add(".", d(nth(f, 3)))))
 $exists_unique \body_fn p: {
     $x add(p, "x")
     $y add(p, "y")
     $np add(p, "_")
     $body body_fn(x, np)
     $expansion exists(x, and(body, forall(y, implies(body_fn(y, np), eqv(x, y, p)))))
-    ["exists_unique", _d_exists_unique, expansion, x, body]
+    [_d_exists_unique, expansion, x, body]
 }
