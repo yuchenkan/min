@@ -121,6 +121,8 @@ All `from ... import ...` lines must appear before any `$` bindings in a `.min` 
 
 `tap` with the same string only prints once per cache cycle. To avoid suppression, build a unique string per call site (e.g. `tap(add("test_name", " ok"))`). To invalidate module cache, `touch` the source file.
 
+When a run produces no output (everything cached), just check the exit code — exit 0 means all proofs passed.
+
 ### Displaying formulas and contexts (`show` / `shows`)
 
 A formula is `[tag, display, arg1, arg2]`; `show(f)` returns its precomputed display string (`d(f)`). A proof's `left(p)` / `right(p)` are *lists* of formulas, so `tap(show(left(p)))` prints `[ <arr>, <arr>, ... ]` — the printer renders nested formula-arrays as `<arr>`. Use `shows(lst)` (also from `derived`) to map `show` over a list and get an array of display strings the printer renders directly:
