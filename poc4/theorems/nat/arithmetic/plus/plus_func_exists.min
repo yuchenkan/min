@@ -1,0 +1,390 @@
+from derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right, arg2
+from vocab.sets import ordered_pair, product, relation
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.functions import apply, function, domain
+from vocab.nat.recursion import recursive
+from vocab.nat.arithmetic.plus import succ_char, succ_func, plus_func
+from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.sets.product_exists import product_exists
+from theorems.sets.product_in_intro import product_in_intro
+from theorems.nat.arithmetic.plus.succ_func_exists import succ_func_exists
+from theorems.nat.arithmetic.plus.pf_base import pf_base
+from theorems.nat.arithmetic.plus.pf_relation import pf_relation
+from theorems.nat.arithmetic.plus.pf_single_valued import pf_single_valued
+from theorems.nat.arithmetic.plus.pf_step import pf_step
+from theorems.nat.arithmetic.plus.pf_dom_eq import pf_dom_eq
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.recursion.rec_apply_dom import rec_apply_dom
+from theorems.nat.arithmetic.plus.rec_val_nat import rec_val_nat
+
+# plus_func_exists: ∃h. PlusFunc(h)
+# PlusFunc(h) = ∀w.Omega(w)→And(Function(h), dom_eq(h,w), base(h,w), step(h,w))
+
+$plus_func_exists {
+    $phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
+        exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+            and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+            and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+                exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf",add(np,"_")),
+                    apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
+
+    $om0 omega("w0","_")
+    $sf_all succ_func("sf","_")
+    $prod_ww product("pww","w0","w0","_")
+    $prod_pwww product("pwww","pww","w0","_")
+    $dirty_char forall("xv", iff(mem("xv","h"), and(mem("xv","pwww"), phi("xv","_"))))
+    $clean_char forall("xv", iff(mem("xv","h"), phi("xv","_")))
+    $nat_m nat("m","_")
+    $nat_n nat("n","_")
+    $nat_y nat("y","_")
+    $op_pv ordered_pair("pv","m","n","_")
+    $op_xv ordered_pair("xv","pv","y","_")
+    $rec_hm recursive("hm","m","sf","_")
+    $app_hm apply("hm","n","y","_")
+    $mw0 mem("m","w0")
+    $nw0 mem("n","w0")
+    $yw0 mem("y","w0")
+    $xv_pwww mem("xv","pwww")
+    $pv_pww mem("pv","pww")
+    $phi_xv phi("xv","_")
+    $xv_h mem("xv","h")
+    $and_xv and(mem("xv","pwww"), phi_xv)
+
+    # === Phase 1: Setup ===
+    $pe_ctx left(product_exists)
+    $_pe head(right(product_exists))
+    $_pe_b \a: \b: exists("p", product("p",a,b,"_"))
+    $got_ex_pww apply_thm(product_exists, _pe, ["w0","w0"], ["a","b"], _pe_b, pe_ctx)
+    $got_ex_pwww apply_thm(product_exists, _pe, ["pww","w0"], ["a","b"], _pe_b, pe_ctx)
+
+    # Separation: ∃h. dirty_char
+    $sep_f sep_ax(["w0","sf"], \x a np: phi(x, np), "_")
+    $sep_b \sf: \w0: forall("a", exists("b", forall("x",
+        iff(mem("x","b"), and(mem("x","a"), phi("x","_"))))))
+    $sep_inst apply_thm(ax([sep_f], [sep_f], sep_f), sep_f, ["sf","w0"], ["sf","w0"], sep_b, [sep_f])
+    $sep_at_a apply_thm(sep_inst, head(right(sep_inst)), ["pwww"], ["pwww"],
+        \a: exists("b", forall("x", iff(mem("x","b"), and(mem("x",a), phi("x","_"))))),
+        [sep_f])
+
+    # === Phase 2: char_fwd from dirty_char (forward direction) ===
+    $char_fwd forall("xv", implies(xv_h, phi_xv))
+    $iff_xv iff(xv_h, and_xv)
+    $got_iff_xv fl(ax([iff_xv], [iff_xv], iff_xv), [dirty_char], [iff_xv], dirty_char, "xv")
+    $got_fwd_xv mp(iff_elim_left(xv_h, and_xv, []),
+        got_iff_xv, iff_xv, implies(xv_h, and_xv), [], [dirty_char])
+    $got_and_xv mp(got_fwd_xv, ax([xv_h], [xv_h], xv_h), xv_h, and_xv, [dirty_char], [xv_h])
+    $got_phi_xv mp(and_elim_right(mem("xv","pwww"), phi_xv, []),
+        got_and_xv, and_xv, phi_xv, [], [dirty_char, xv_h])
+    $fwd_ir ir(got_phi_xv, [dirty_char], [implies(xv_h, phi_xv)], implies(xv_h, phi_xv))
+    $got_char_fwd fr(fwd_ir, [dirty_char], [char_fwd], char_fwd, "xv")
+
+    # === Phase 3: Bounding — phi(xv) → xv∈pwww ===
+    # Templates
+    $_ne head(right(nat_elim))
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $_rad head(right(rec_apply_dom))
+    $_rad_b \h: \a: \f: \x: \y: implies(recursive(h,a,f,"_"), implies(apply(h,x,y,"_"), nat(x,"_")))
+    $rad_inst apply_thm(rec_apply_dom, _rad, ["hm","m","sf","n","y"], ["h","a","f","x","y"], _rad_b, left(rec_apply_dom))
+    $sc_sf succ_char("sf","_")
+    $got_sc mp(and_elim_left(sc_sf, and(function("sf","_"),
+        forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), nat("xd","_")))), []),
+        ax([sf_all],[sf_all],sf_all), sf_all, sc_sf, [], [sf_all])
+    $_rvo head(right(rec_val_nat))
+    $_rvo_b \sf2: \a: \h: \x: \y: implies(succ_char(sf2,"_"), implies(recursive(h,a,sf2,"_"),
+        implies(nat(a,"_"), implies(nat(x,"_"), implies(apply(h,x,y,"_"), nat(y,"_"))))))
+    $_pi head(right(product_in_intro))
+    $_pi_b \s: \a: \b: \x: \y: \z: implies(product(s,a,b,"_"), implies(mem(x,a), implies(mem(y,b),
+        implies(ordered_pair(z,x,y,"_"), mem(z,s)))))
+
+    # Build from b_and = And(Rec(hm,m,sf), Apply(hm,n,y))
+    $b_and and(rec_hm, app_hm)
+    $got_rec_from mp(and_elim_left(rec_hm, app_hm, []),
+        ax([b_and],[b_and],b_and), b_and, rec_hm, [], [b_and])
+    $got_app_from mp(and_elim_right(rec_hm, app_hm, []),
+        ax([b_and],[b_and],b_and), b_and, app_hm, [], [b_and])
+
+    # Nat(n) from rec_apply_dom
+    $rad1 mp(rad_inst, got_rec_from, rec_hm, implies(app_hm, nat_n), left(rec_apply_dom), [b_and])
+    $got_nat_n2 mp(rad1, got_app_from, app_hm, nat_n, left(rad1), [b_and])
+
+    # n∈w0
+    $ne_n apply_thm(nat_elim, _ne, ["n","w0"], ["m","w"], _ne_b, left(nat_elim))
+    $ne_n1 mp(ne_n, got_nat_n2, nat_n, implies(om0, nw0), left(nat_elim), left(got_nat_n2))
+    $got_nw0 mp(ne_n1, ax([om0],[om0],om0), om0, nw0, left(ne_n1), [om0])
+
+    # Nat(y) from rec_val_nat
+    $rvo_inst apply_thm(rec_val_nat, _rvo, ["sf","m","hm","n","y"], ["sf","a","h","x","y"], _rvo_b, left(rec_val_nat))
+    $rvo1 mp(rvo_inst, got_sc, sc_sf, arg2(head(right(rvo_inst))), left(rec_val_nat), [sf_all])
+    $rvo2 mp(rvo1, got_rec_from, rec_hm, arg2(head(right(rvo1))), left(rvo1), [b_and])
+    $rvo3 mp(rvo2, ax([nat_m],[nat_m],nat_m), nat_m, arg2(head(right(rvo2))), left(rvo2), [nat_m])
+    $rvo4 mp(rvo3, got_nat_n2, nat_n, arg2(head(right(rvo3))), left(rvo3), left(got_nat_n2))
+    $got_nat_y mp(rvo4, got_app_from, app_hm, nat_y, left(rvo4), [b_and])
+
+    # y∈w0
+    $ne_y apply_thm(nat_elim, _ne, ["y","w0"], ["m","w"], _ne_b, left(nat_elim))
+    $ne_y1 mp(ne_y, got_nat_y, nat_y, implies(om0, yw0), left(nat_elim), left(got_nat_y))
+    $got_yw0 mp(ne_y1, ax([om0],[om0],om0), om0, yw0, left(ne_y1), [om0])
+
+    # m∈w0
+    $ne_m apply_thm(nat_elim, _ne, ["m","w0"], ["m","w"], _ne_b, left(nat_elim))
+    $ne_m1 mp(ne_m, ax([nat_m],[nat_m],nat_m), nat_m, implies(om0, mw0), left(nat_elim), [nat_m])
+    $got_mw0 mp(ne_m1, ax([om0],[om0],om0), om0, mw0, left(ne_m1), [om0])
+
+    # pv∈pww from product_in_intro
+    $pi1 apply_thm(product_in_intro, _pi, ["pww","w0","w0","m","n","pv"], ["s","a","b","x","y","z"], _pi_b, left(product_in_intro))
+    $pi1a mp(pi1, ax([prod_ww],[prod_ww],prod_ww), prod_ww, arg2(head(right(pi1))), left(product_in_intro), [prod_ww])
+    $pi1b mp(pi1a, got_mw0, mw0, arg2(head(right(pi1a))), left(pi1a), left(got_mw0))
+    $pi1c mp(pi1b, got_nw0, nw0, arg2(head(right(pi1b))), left(pi1b), left(got_nw0))
+    $got_pv mp(pi1c, ax([op_pv],[op_pv],op_pv), op_pv, pv_pww, left(pi1c), [op_pv])
+
+    # xv∈pwww from product_in_intro
+    $pi2 apply_thm(product_in_intro, _pi, ["pwww","pww","w0","pv","y","xv"], ["s","a","b","x","y","z"], _pi_b, left(product_in_intro))
+    $pi2a mp(pi2, ax([prod_pwww],[prod_pwww],prod_pwww), prod_pwww, arg2(head(right(pi2))), left(product_in_intro), [prod_pwww])
+    $pi2b mp(pi2a, got_pv, pv_pww, arg2(head(right(pi2a))), left(pi2a), left(got_pv))
+    $pi2c mp(pi2b, got_yw0, yw0, arg2(head(right(pi2b))), left(pi2b), left(got_yw0))
+    $got_bnd mp(pi2c, ax([op_xv],[op_xv],op_xv), op_xv, xv_pwww, left(pi2c), [op_xv])
+    # got_bnd: [b_and, nat_m, op_pv, op_xv, om0, sf_all, prod_ww, prod_pwww] ⊢ xv∈pwww
+
+    # Wrap into phi structure: ir hyps, eel existentials
+    # eel hm from b_and:
+    $ex_hm exists("hm", b_and)
+    $bnd2 eel(got_bnd, \hm: and(recursive(hm,"m","sf","_"), apply(hm,"n","y","_")),
+        "hm", "hm", remove(same, b_and, left(got_bnd)), xv_pwww)
+    # bnd2: [..., ex_hm, nat_m, op_pv, op_xv] ⊢ xv_pwww
+
+    # ir ex_hm, op_xv, op_pv → build implication, then mp from inner_and
+    $w1 ir(bnd2, remove(same, ex_hm, left(bnd2)), [implies(ex_hm, xv_pwww)], implies(ex_hm, xv_pwww))
+    $w2 ir(w1, remove(same, op_xv, left(w1)),
+        [implies(op_xv, implies(ex_hm, xv_pwww))], implies(op_xv, implies(ex_hm, xv_pwww)))
+    $w3 ir(w2, remove(same, op_pv, left(w2)),
+        [implies(op_pv, implies(op_xv, implies(ex_hm, xv_pwww)))],
+        implies(op_pv, implies(op_xv, implies(ex_hm, xv_pwww))))
+    # w3: [..., nat_m] ⊢ op_pv → op_xv → ∃hm.b_and → xv_pwww
+
+    # Reconstruct from inner_and = and(op_pv, and(op_xv, ex_hm)):
+    $inner_and and(op_pv, and(op_xv, ex_hm))
+    $got_op_pv2 mp(and_elim_left(op_pv, and(op_xv, ex_hm), []),
+        ax([inner_and],[inner_and],inner_and), inner_and, op_pv, [], [inner_and])
+    $got_inner2 mp(and_elim_right(op_pv, and(op_xv, ex_hm), []),
+        ax([inner_and],[inner_and],inner_and), inner_and, and(op_xv, ex_hm), [], [inner_and])
+    $got_op_xv2 mp(and_elim_left(op_xv, ex_hm, []),
+        got_inner2, and(op_xv, ex_hm), op_xv, [], [inner_and])
+    $got_ex_hm2 mp(and_elim_right(op_xv, ex_hm, []),
+        got_inner2, and(op_xv, ex_hm), ex_hm, [], [inner_and])
+    # mp chain: [inner_and, nat_m, ...] → xv_pwww
+    $bnd_m1 mp(w3, got_op_pv2, op_pv, implies(op_xv, implies(ex_hm, xv_pwww)), left(w3), [inner_and])
+    $bnd_m2 mp(bnd_m1, got_op_xv2, op_xv, implies(ex_hm, xv_pwww), left(bnd_m1), [inner_and])
+    $bnd3 mp(bnd_m2, got_ex_hm2, ex_hm, xv_pwww, left(bnd_m2), [inner_and])
+    # bnd3: [inner_and, nat_m, om0, sf_all, prods] ⊢ xv_pwww
+
+    # eel pv, y, n from existentials:
+    $bnd4 eel(bnd3, \pv: and(ordered_pair(pv,"m","n","_"), and(ordered_pair("xv",pv,"y","_"),
+        exists("hm", and(recursive("hm","m","sf","_"), apply("hm","n","y","_"))))),
+        "pv", "pv", remove(same, inner_and, left(bnd3)), xv_pwww)
+    $ex_pv exists("pv", inner_and)
+    $bnd5 eel(bnd4, \y: exists("pv", and(ordered_pair("pv","m","n","_"), and(ordered_pair("xv","pv",y,"_"),
+        exists("hm", and(recursive("hm","m","sf","_"), apply("hm","n",y,"_")))))),
+        "y", "y", remove(same, ex_pv, left(bnd4)), xv_pwww)
+    $ex_y exists("y", ex_pv)
+    $bnd6 eel(bnd5, \n: exists("y", exists("pv", and(ordered_pair("pv","m",n,"_"), and(ordered_pair("xv","pv","y","_"),
+        exists("hm", and(recursive("hm","m","sf","_"), apply("hm",n,"y","_"))))))),
+        "n", "n", remove(same, ex_y, left(bnd5)), xv_pwww)
+    $ex_n exists("n", ex_y)
+
+    # Combine nat_m + ex_n → phi_body via ir/mp
+    $phi_body and(nat_m, ex_n)
+    $w4 ir(bnd6, remove(same, ex_n, left(bnd6)), [implies(ex_n, xv_pwww)], implies(ex_n, xv_pwww))
+    $w5 ir(w4, remove(same, nat_m, left(w4)), [implies(nat_m, implies(ex_n, xv_pwww))],
+        implies(nat_m, implies(ex_n, xv_pwww)))
+    $got_nat_from2 mp(and_elim_left(nat_m, ex_n, []), ax([phi_body],[phi_body],phi_body), phi_body, nat_m, [], [phi_body])
+    $got_exn_from mp(and_elim_right(nat_m, ex_n, []), ax([phi_body],[phi_body],phi_body), phi_body, ex_n, [], [phi_body])
+    $bnd7a mp(w5, got_nat_from2, nat_m, implies(ex_n, xv_pwww), left(w5), [phi_body])
+    $bnd7 mp(bnd7a, got_exn_from, ex_n, xv_pwww, left(bnd7a), [phi_body])
+
+    # eel m from phi(xv):
+    $bnd8 eel(bnd7, \m: and(nat(m,"_"), exists("n", exists("y", exists("pv",
+        and(ordered_pair("pv",m,"n","_"), and(ordered_pair("xv","pv","y","_"),
+            exists("hm", and(recursive("hm",m,"sf","_"), apply("hm","n","y","_"))))))))),
+        "m", "m", remove(same, phi_body, left(bnd7)), xv_pwww)
+    # bnd8: [om0, sf_all, prods, phi_xv] ⊢ xv_pwww
+
+    # === Phase 4: Clean char from dirty + bounding ===
+    # Backward: phi(xv) → and(xv∈pwww, phi(xv)) → xv∈h
+    $got_bnd_and_1 mp(and_intro(xv_pwww, phi_xv, []),
+        bnd8, xv_pwww, implies(phi_xv, and_xv), [], left(bnd8))
+    $got_bnd_and mp(got_bnd_and_1,
+        ax([phi_xv],[phi_xv],phi_xv), phi_xv, and_xv, left(bnd8), [phi_xv])
+    $got_bwd_1 mp(iff_elim_right(xv_h, and_xv, []),
+        got_iff_xv, iff_xv, implies(and_xv, xv_h), [], [dirty_char])
+    $got_bwd mp(got_bwd_1, got_bnd_and, and_xv, xv_h, [dirty_char], left(got_bnd_and))
+    $bwd_ir ir(got_bwd, remove(same, phi_xv, left(got_bwd)), [implies(phi_xv, xv_h)], implies(phi_xv, xv_h))
+
+    # iff_intro → clean_char
+    $iff_clean iff(xv_h, phi_xv)
+    $got_iff_clean_1 mp(iff_intro(xv_h, phi_xv, []),
+        fwd_ir, implies(xv_h, phi_xv), implies(implies(phi_xv, xv_h), iff_clean), [], left(fwd_ir))
+    $got_iff_clean mp(got_iff_clean_1,
+        bwd_ir, implies(phi_xv, xv_h), iff_clean, left(fwd_ir), left(bwd_ir))
+    $got_clean_char fr(got_iff_clean, left(got_iff_clean), [clean_char], clean_char, "xv")
+
+    # === Phase 5: Sub-lemma applications ===
+    # pf_relation: ∀h.∀sf. char_h → Relation(h)
+    $rel_h relation("h","_")
+    $_rel head(right(pf_relation))
+    $_rel_b \h: \sf: implies(clean_char, rel_h)
+    $rel_inst apply_thm(pf_relation, _rel, ["h","sf"], ["h","sf"], _rel_b, left(pf_relation))
+    $got_rel mp(rel_inst, got_clean_char, clean_char, rel_h, left(pf_relation), left(got_clean_char))
+
+    # pf_single_valued: ∀h.∀sf. char_fwd → SuccFunc(sf) → sv
+    $sv_h forall("key", forall("y1", forall("y2",
+        implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")), eqv("y1","y2","_")))))
+    $_sv head(right(pf_single_valued))
+    $_sv_b \h: \sf: implies(char_fwd, implies(sf_all, sv_h))
+    $sv_inst apply_thm(pf_single_valued, _sv, ["h","sf"], ["h","sf"], _sv_b, left(pf_single_valued))
+    $sv1 mp(sv_inst, got_char_fwd, char_fwd, implies(sf_all, sv_h), left(pf_single_valued), left(got_char_fwd))
+    $got_sv mp(sv1, ax([sf_all],[sf_all],sf_all), sf_all, sv_h, left(sv1), [sf_all])
+
+    # Function(h)
+    $func_h function("h","_")
+    $got_func_1 mp(and_intro(rel_h, sv_h, []),
+        got_rel, rel_h, implies(sv_h, func_h), [], left(got_rel))
+    $got_func mp(got_func_1, got_sv, sv_h, func_h, left(got_rel), left(got_sv))
+
+    # pf_dom_eq: ∀h.∀sf.∀w. char_h → SuccFunc(sf) → Omega(w) → dom_eq(h,w)
+    $om_w omega("w","_")
+    $dom_eq forall("dd", forall("prod", implies(domain("dd","h","_"),
+        implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
+    $_deq head(right(pf_dom_eq))
+    $_deq_b \h: \sf: \w: implies(clean_char, implies(sf_all, implies(omega(w,"_"), dom_eq)))
+    $deq_inst apply_thm(pf_dom_eq, _deq, ["h","sf","w"], ["h","sf","w"], _deq_b, left(pf_dom_eq))
+    $d1 mp(deq_inst, got_clean_char, clean_char, implies(sf_all, implies(om_w, dom_eq)), left(pf_dom_eq), left(got_clean_char))
+    $d2 mp(d1, ax([sf_all],[sf_all],sf_all), sf_all, implies(om_w, dom_eq), left(d1), [sf_all])
+    $got_deq mp(d2, ax([om_w],[om_w],om_w), om_w, dom_eq, left(d2), [om_w])
+
+    # pf_base: ∀h.∀sf. char_h → SuccFunc(sf) → ∀m.Nat(m)→base_nat
+    $base_nat forall("z", implies(num("z",0,"_"),
+        forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_")))))
+    $_base head(right(pf_base))
+    $_base_b \h: \sf: implies(clean_char, implies(sf_all, forall("m", implies(nat("m","_"), base_nat))))
+    $base_inst apply_thm(pf_base, _base, ["h","sf"], ["h","sf"], _base_b, left(pf_base))
+    $ba1 mp(base_inst, got_clean_char, clean_char, implies(sf_all, forall("m", implies(nat("m","_"), base_nat))),
+        left(pf_base), left(got_clean_char))
+    $ba2 mp(ba1, ax([sf_all],[sf_all],sf_all), sf_all, forall("m", implies(nat("m","_"), base_nat)), left(ba1), [sf_all])
+    $ba3 apply_thm(ba2, head(right(ba2)), ["m"], ["m"], \m: implies(nat(m,"_"), base_nat), left(ba2))
+
+    # Bridge base: m∈w → nat_intro → Nat(m) → base_nat
+    $_ni head(right(nat_intro))
+    $_ni_b \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
+    $ni_m apply_thm(nat_intro, _ni, ["w","m"], ["w","m"], _ni_b, left(nat_intro))
+    $ni_m1 mp(ni_m, ax([om_w],[om_w],om_w), om_w, implies(mem("m","w"), nat("m","_")), left(nat_intro), [om_w])
+    $got_nat_mw mp(ni_m1, ax([mem("m","w")],[mem("m","w")],mem("m","w")),
+        mem("m","w"), nat("m","_"), left(ni_m1), [mem("m","w")])
+    $got_base_mw mp(ba3, got_nat_mw, nat("m","_"), base_nat, left(ba3), left(got_nat_mw))
+    $base_w forall("m", implies(mem("m","w"), base_nat))
+    $got_base_ir ir(got_base_mw, remove(same, mem("m","w"), left(got_base_mw)),
+        [implies(mem("m","w"), base_nat)], implies(mem("m","w"), base_nat))
+    $got_base fr(got_base_ir, left(got_base_ir), [base_w], base_w, "m")
+
+    # pf_step: ∀h.∀sf. char_h → SuccFunc(sf) → step_nat
+    $step_nat forall("m", implies(nat("m","_"),
+        forall("n", implies(nat("n","_"),
+            forall("pair", implies(ordered_pair("pair","m","n","_"),
+                forall("p", implies(apply("h","pair","p","_"),
+                    forall("sn", implies(successor("sn","n","_"),
+                        forall("sp", implies(successor("sp","p","_"),
+                            forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                                apply("h","pair2","sp","_")))))))))))))))
+    $_step head(right(pf_step))
+    $_step_b \h: \sf: implies(clean_char, implies(sf_all, step_nat))
+    $step_inst apply_thm(pf_step, _step, ["h","sf"], ["h","sf"], _step_b, left(pf_step))
+    $st1 mp(step_inst, got_clean_char, clean_char, implies(sf_all, step_nat),
+        left(pf_step), left(got_clean_char))
+    $got_step_nat mp(st1, ax([sf_all],[sf_all],sf_all), sf_all, step_nat, left(st1), [sf_all])
+
+    # Bridge step: Nat(m)→Nat(n)→rest to m∈w→n∈w→rest
+    $step_rest forall("pair", implies(ordered_pair("pair","m","n","_"),
+        forall("p", implies(apply("h","pair","p","_"),
+            forall("sn", implies(successor("sn","n","_"),
+                forall("sp", implies(successor("sp","p","_"),
+                    forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                        apply("h","pair2","sp","_")))))))))))
+    $st_m apply_thm(got_step_nat, head(right(got_step_nat)), ["m"], ["m"],
+        \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"), step_rest))), left(got_step_nat))
+    $got_nat_m_from mp(apply_thm(nat_intro, _ni, ["w","m"], ["w","m"], _ni_b, left(nat_intro)),
+        ax([om_w],[om_w],om_w), om_w, implies(mem("m","w"), nat("m","_")), left(nat_intro), [om_w])
+    $got_nat_m2 mp(got_nat_m_from, ax([mem("m","w")],[mem("m","w")],mem("m","w")),
+        mem("m","w"), nat("m","_"), left(got_nat_m_from), [mem("m","w")])
+    $st_m2 mp(st_m, got_nat_m2, nat("m","_"), forall("n", implies(nat("n","_"), step_rest)),
+        left(st_m), left(got_nat_m2))
+    $st_n apply_thm(st_m2, head(right(st_m2)), ["n"], ["n"],
+        \n: implies(nat(n,"_"), step_rest), left(st_m2))
+    $got_nat_n_from mp(apply_thm(nat_intro, _ni, ["w","n"], ["w","m"], _ni_b, left(nat_intro)),
+        ax([om_w],[om_w],om_w), om_w, implies(mem("n","w"), nat("n","_")), left(nat_intro), [om_w])
+    $got_nat_n3 mp(got_nat_n_from, ax([mem("n","w")],[mem("n","w")],mem("n","w")),
+        mem("n","w"), nat("n","_"), left(got_nat_n_from), [mem("n","w")])
+    $got_step_rest mp(st_n, got_nat_n3, nat("n","_"), step_rest, left(st_n), left(got_nat_n3))
+    $step_w forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"), step_rest))))
+    $st_ir1 ir(got_step_rest, remove(same, mem("n","w"), left(got_step_rest)),
+        [implies(mem("n","w"), step_rest)], implies(mem("n","w"), step_rest))
+    $st_fr1 fr(st_ir1, left(st_ir1), [forall("n", implies(mem("n","w"), step_rest))],
+        forall("n", implies(mem("n","w"), step_rest)), "n")
+    $st_ir2 ir(st_fr1, remove(same, mem("m","w"), left(st_fr1)),
+        [implies(mem("m","w"), forall("n", implies(mem("n","w"), step_rest)))],
+        implies(mem("m","w"), forall("n", implies(mem("n","w"), step_rest))))
+    $got_step fr(st_ir2, left(st_ir2), [step_w], step_w, "m")
+
+    # === Phase 6: Package And(func, dom_eq, base, step) ===
+    $and_bs_1 mp(and_intro(base_w, step_w, []),
+        got_base, base_w, implies(step_w, and(base_w, step_w)), [], left(got_base))
+    $and_bs mp(and_bs_1, got_step, step_w, and(base_w, step_w), left(got_base), left(got_step))
+    $and_dbs_1 mp(and_intro(dom_eq, and(base_w, step_w), []),
+        got_deq, dom_eq, implies(and(base_w, step_w), and(dom_eq, and(base_w, step_w))), [], left(got_deq))
+    $and_dbs mp(and_dbs_1, and_bs, and(base_w, step_w), and(dom_eq, and(base_w, step_w)), left(got_deq), left(and_bs))
+    $pf_inner and(func_h, and(dom_eq, and(base_w, step_w)))
+    $got_inner_1 mp(and_intro(func_h, and(dom_eq, and(base_w, step_w)), []),
+        got_func, func_h, implies(and(dom_eq, and(base_w, step_w)), pf_inner), [], left(got_func))
+    $got_inner mp(got_inner_1, and_dbs, and(dom_eq, and(base_w, step_w)), pf_inner, left(got_func), left(and_dbs))
+
+    # ir Omega(w), fr w → PlusFunc(h)
+    $pf_h plus_func("h","_")
+    $got_pf_ir ir(got_inner, remove(same, om_w, left(got_inner)),
+        [implies(om_w, pf_inner)], implies(om_w, pf_inner))
+    $got_pf fr(got_pf_ir, left(got_pf_ir), [pf_h], pf_h, "w")
+
+    # === Phase 7: eir h, eel chain ===
+    $ex_pf exists("h", pf_h)
+    $got_ex_pf eir(got_pf, \h: plus_func(h,"_"), "h", "h", left(got_pf))
+
+    # eel h from sep:
+    $cur eel(got_ex_pf, \h: forall("x", iff(mem("x",h), and(mem("x","pwww"), phi("x","_")))),
+        "b", "h", left(got_ex_pf), ex_pf)
+    $cur cut_c(sep_at_a, cur, head(right(sep_at_a)), [sep_f], left(cur), ex_pf)
+
+    # eel pwww:
+    $cur eel(cur, \pwww: product(pwww,"pww","w0","_"), "p", "pwww", left(cur), ex_pf)
+    $cur cut_c(got_ex_pwww, cur, head(right(got_ex_pwww)), pe_ctx, left(cur), ex_pf)
+
+    # eel pww:
+    $cur eel(cur, \pww: product(pww,"w0","w0","_"), "p", "pww", left(cur), ex_pf)
+    $cur cut_c(got_ex_pww, cur, head(right(got_ex_pww)), pe_ctx, left(cur), ex_pf)
+
+    # eel sf from succ_func_exists:
+    $cur eel(cur, \sf: succ_func(sf,"_"), "sf", "sf", left(cur), ex_pf)
+    $cur cut_c(succ_func_exists, cur, exists("sf", sf_all), left(succ_func_exists), left(cur), ex_pf)
+
+    # eel w0 from omega_exists:
+    $cur eel(cur, \w0: omega(w0,"_"), "w", "w0", left(cur), ex_pf)
+    $cur cut_c(omega_exists, cur, exists("w", omega("w","_")), left(omega_exists), left(cur), ex_pf)
+
+    # Close:
+    close(cur, left(cur), [ex_pf], [])
+}

@@ -1,2 +1,0 @@
-from theorems.arithmetic.plus.test import ok
-$ok true

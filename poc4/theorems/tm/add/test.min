@@ -20,7 +20,7 @@ from theorems.tm.add.tape_read_beyond import tape_read_beyond
 from theorems.tm.add.unary_output_unique import unary_output_unique
 from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p, phase4p, phase5p, unary_output
 from vocab.nat.nat import nat, omega
-from vocab.arithmetic.plus import plus
+from vocab.nat.arithmetic.plus import plus
 
 $pst_expected forall("delta", forall("q0", forall("ka", forall("ska",
     forall("tape_in", forall("ca", forall("one", forall("d1",

@@ -2,7 +2,7 @@ from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right
 from vocab.functions import apply, function
 from vocab.tm.add import unary_tape
 from vocab.nat.nat import num, successor
-from vocab.arithmetic.plus import plus
+from vocab.nat.arithmetic.plus import plus
 from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, inst, apply_thm, close, same
 from util.list import remove
 

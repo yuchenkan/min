@@ -1,0 +1,50 @@
+from derived import implies, forall, eqv, left, right, head, arg2
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.nat.arithmetic.plus import plus_func, plus
+from tactics import ax, ir, fr, mp, apply_thm, close, same
+from util.list import remove
+from theorems.functions.apply_val_transfer import apply_val_transfer
+
+# plus_val_transfer: ∀m,n,p,q. Plus(m,n,p) → Eqv(p,q) → Plus(m,n,q)
+
+$plus_val_transfer {
+    $plus_mnp plus("m","n","p","_")
+    $eqv_pq eqv("p","q","_")
+    $plus_mnq plus("m","n","q","_")
+
+    $pf plus_func("h","_")
+    $op ordered_pair("pair","m","n","_")
+    $app_p apply("h","pair","p","_")
+    $app_q apply("h","pair","q","_")
+
+    # Open Plus(m,n,p): inst h, mp PlusFunc, inst pair, mp OP
+    $pi1 apply_thm(ax([plus_mnp],[plus_mnp],plus_mnp), plus_mnp, ["h"], ["h"],
+        \h: implies(plus_func(h,"_"), forall("pair", implies(ordered_pair("pair","m","n","_"), apply(h,"pair","p","_")))),
+        [plus_mnp])
+    $pi2 mp(pi1, ax([pf],[pf],pf), pf,
+        forall("pair", implies(op, app_p)),
+        [plus_mnp], [pf])
+    $pi3 apply_thm(pi2, head(right(pi2)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"m","n","_"), apply("h",pair,"p","_")), left(pi2))
+    $got_app_p mp(pi3, ax([op],[op],op), op, app_p, left(pi2), [op])
+
+    # apply_val_transfer: Eqv(p,q) → Apply(h,pair,p) → Apply(h,pair,q)
+    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $avt apply_thm(apply_val_transfer, head(right(apply_val_transfer)),
+        ["h","pair","p","q"], ["f","x","y","y2"], _avt_b, [])
+    $got_app_q mp(mp(avt,
+        ax([eqv_pq],[eqv_pq],eqv_pq), eqv_pq, implies(app_p, app_q), [], [eqv_pq]),
+        got_app_p, app_p, app_q, [eqv_pq], left(got_app_p))
+
+    # Close Plus(m,n,q): ir op, fr pair, ir pf, fr h
+    $cur ir(got_app_q, remove(same, op, left(got_app_q)), [implies(op, app_q)], implies(op, app_q))
+    $cur fr(cur, left(cur), [forall("pair", head(right(cur)))], forall("pair", head(right(cur))), "pair")
+    $cur ir(cur, remove(same, pf, left(cur)), [implies(pf, head(right(cur)))], implies(pf, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
+
+    # ir hypotheses and close
+    $cur ir(cur, remove(same, eqv_pq, left(cur)), [implies(eqv_pq, head(right(cur)))], implies(eqv_pq, head(right(cur))))
+    $cur ir(cur, remove(same, plus_mnp, left(cur)), [implies(plus_mnp, head(right(cur)))], implies(plus_mnp, head(right(cur))))
+    close(cur, left(cur), right(cur), ["q","p","n","m"])
+}

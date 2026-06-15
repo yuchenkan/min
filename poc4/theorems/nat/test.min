@@ -1,3 +1,4 @@
 from theorems.nat.nat.test import ok
 from theorems.nat.recursion.test import ok
+from theorems.nat.arithmetic.test import ok
 $ok true

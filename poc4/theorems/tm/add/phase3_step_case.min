@@ -4,7 +4,7 @@ from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_step, tm_transition
 from vocab.tm.add import phase3_ind
 from vocab.nat.nat import num, successor, omega, nat
-from vocab.arithmetic.plus import plus
+from vocab.nat.arithmetic.plus import plus
 from tactics import ax, wl, wr, fl, fr, nl, nr, ir, mp, cut, apply_thm, eir, eel, cut_c, inst, close, same
 from util.list import remove, diff
 
@@ -15,7 +15,7 @@ from theorems.nat.nat.nat_intro import nat_intro
 from theorems.nat.nat.successor_exists import successor_exists
 from theorems.tm.add.phase1_step_tmstep import phase1_step_tmstep
 from theorems.tm.tm.extend_trace import extend_trace
-from theorems.arithmetic.plus.plus_step import plus_step
+from theorems.nat.arithmetic.plus.plus_step import plus_step
 
 # ∀d,q1,sa,tape2,c1,n,sn,b,w,one.
 #   TMTransition(d,q1,one,one,one,q1) → Omega(w) → In(b,w) → In(sa,w) → In(n,w) →

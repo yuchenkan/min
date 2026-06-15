@@ -4,7 +4,7 @@ from vocab.tm.tm import tm_config, tm_transition, tape_update, tm_step, tm_reach
 from vocab.tm.source import tm_correct
 from vocab.functions import apply, function
 from vocab.nat.nat import num, nat, successor
-from vocab.arithmetic.plus import plus
+from vocab.nat.arithmetic.plus import plus
 
 # unary_tape(tape, a, b, p): tape = 1^a 0 1^b then all 0
 $_d_unary_tape \f: add("Tape(1^", add(nth(f, 2), add(" 0 1^", add(nth(f, 3), ")"))))

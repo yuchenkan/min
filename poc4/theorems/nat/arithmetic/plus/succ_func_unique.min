@@ -1,0 +1,229 @@
+from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import relation
+from vocab.nat.nat import nat, successor
+from vocab.functions import apply, function
+from vocab.nat.arithmetic.plus import succ_char, succ_func
+from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.functions.func_ext_from_agree import func_ext_from_agree
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.nat.nat.successor_unique import successor_unique
+
+# succ_func_unique: SuccFunc(sf1) → SuccFunc(sf2) → Eqv(sf1,sf2)
+# Via func_ext_from_agree: both are functions mapping same naturals to same successors.
+
+$succ_func_unique {
+    $sf1 succ_func("sf1","_")
+    $sf2 succ_func("sf2","_")
+    $eqv_sf eqv("sf1","sf2","_")
+
+    # Extract components from sf1:
+    $sc1 succ_char("sf1","_")
+    $func1 function("sf1","_")
+    $rel1 relation("sf1","_")
+    $ds1 forall("xd", implies(exists("yd", apply("sf1","xd","yd","_")), nat("xd","_")))
+    $got_sc1 mp(and_elim_left(sc1, and(func1, ds1), []), ax([sf1],[sf1],sf1), sf1, sc1, [], [sf1])
+    $got_func1 mp(and_elim_left(func1, ds1, []),
+        mp(and_elim_right(sc1, and(func1, ds1), []), ax([sf1],[sf1],sf1), sf1, and(func1, ds1), [], [sf1]),
+        and(func1, ds1), func1, [], [sf1])
+    $got_rel1 mp(and_elim_left(rel1, forall("q1", forall("q2", forall("q3",
+        implies(and(apply("sf1","q1","q2","_"), apply("sf1","q1","q3","_")), eqv("q2","q3","_"))))), []),
+        got_func1, func1, rel1, [], [sf1])
+    $got_ds1 mp(and_elim_right(func1, ds1, []),
+        mp(and_elim_right(sc1, and(func1, ds1), []), ax([sf1],[sf1],sf1), sf1, and(func1, ds1), [], [sf1]),
+        and(func1, ds1), ds1, [], [sf1])
+
+    # Same for sf2:
+    $sc2 succ_char("sf2","_")
+    $func2 function("sf2","_")
+    $rel2 relation("sf2","_")
+    $ds2 forall("xd", implies(exists("yd", apply("sf2","xd","yd","_")), nat("xd","_")))
+    $got_sc2 mp(and_elim_left(sc2, and(func2, ds2), []), ax([sf2],[sf2],sf2), sf2, sc2, [], [sf2])
+    $got_func2 mp(and_elim_left(func2, ds2, []),
+        mp(and_elim_right(sc2, and(func2, ds2), []), ax([sf2],[sf2],sf2), sf2, and(func2, ds2), [], [sf2]),
+        and(func2, ds2), func2, [], [sf2])
+    $got_rel2 mp(and_elim_left(rel2, forall("q1", forall("q2", forall("q3",
+        implies(and(apply("sf2","q1","q2","_"), apply("sf2","q1","q3","_")), eqv("q2","q3","_"))))), []),
+        got_func2, func2, rel2, [], [sf2])
+
+    # === agree: Apply(sf1,x,v1) → Apply(sf2,x,v2) → Eqv(v1,v2) ===
+    # From Apply(sf1,x,v1): ds1 → Nat(x). sc1 → Succ(v1,x).
+    # From Apply(sf2,x,v2): sc2 → Succ(v2,x).
+    # successor_unique (via func_unique on successor set): Succ(v1,x) ∧ Succ(v2,x) → Eqv(v1,v2).
+    # Actually we have successor_unique in nat/nat. But simpler: just use
+    # sc1: Apply(sf1,x,v1) ↔ Succ(v1,x). sc2: Apply(sf2,x,v2) ↔ Succ(v2,x).
+    # Succ(v1,x) ∧ Succ(v2,x) → successor_unique → Eqv(v1,v2). But that's set equality not value equality.
+    # Actually successor_unique gives: Succ(s1,a) → Succ(s2,a) → Eqv(s1,s2). That IS what we need.
+
+    # For func_ext_from_agree, we need agree, dom_fwd, dom_bwd.
+    # These all follow from SuccChar: both functions agree on all naturals,
+    # and both have the same domain (naturals).
+    # But proving this step by step is involved. Let me use a shortcut:
+    # Both sf1 and sf2 have the SAME iff characterization via separation.
+    # From SuccFunc(sf1): for any p, p∈sf1 iff some natural-successor property.
+    # From SuccFunc(sf2): for any p, p∈sf2 iff the same property.
+    # So p∈sf1 ↔ p∈sf2 → Eqv(sf1,sf2).
+    # But SuccFunc doesn't directly give the membership iff...
+
+    # Simpler approach: use the old iff_chain proof structure.
+    # We can show: p∈sf1 → phi(p) and phi(p) → p∈sf2 for a suitable phi.
+    # phi(p) = the natural-successor property.
+    # From SuccFunc: Relation(sf) → p∈sf → ∃x.∃y.OrdPair(p,x,y) → Apply(sf,x,y)
+    #   → ds → Nat(x) → sc → Succ(y,x). And OrdPair(p,x,y).
+    # Reverse: Succ(y,x) + Nat(x) → sc(sf2) → Apply(sf2,x,y) → ∃q.OrdPair(q,x,y)∧q∈sf2
+    #   → ordpair_unique(p,q) → Eqv(p,q) → p∈sf2.
+
+    # This is essentially the func_ext_from_agree proof. Let me just use it directly.
+    # For agree: both map x to Succ(x) = same value, so agree holds via successor_unique.
+    # For dom_fwd/bwd: Apply(sf1,x,v) → Nat(x) → sc2 → Apply(sf2,x,v') exists.
+
+    # Let me build the 5 hypotheses for func_ext_from_agree:
+    $_fe head(right(func_ext_from_agree))
+    $_fe_b \h1: \h2: implies(relation(h1,"_"), implies(relation(h2,"_"),
+        implies(forall("x", forall("v1", forall("v2", implies(apply(h1,"x","v1","_"), implies(apply(h2,"x","v2","_"), eqv("v1","v2","_")))))),
+        implies(forall("x", forall("v", implies(apply(h1,"x","v","_"), exists("v2", apply(h2,"x","v2","_"))))),
+        implies(forall("x", forall("v", implies(apply(h2,"x","v","_"), exists("v1", apply(h1,"x","v1","_"))))),
+            eqv(h1,h2,"_"))))))
+    $fe_ctx left(func_ext_from_agree)
+    $fe_inst apply_thm(func_ext_from_agree, _fe, ["sf1","sf2"], ["h1","h2"], _fe_b, fe_ctx)
+    $fe1 mp(fe_inst, got_rel1, rel1, arg2(head(right(fe_inst))), fe_ctx, [sf1])
+    $fe2 mp(fe1, got_rel2, rel2, arg2(head(right(fe1))), left(fe1), [sf2])
+
+    # === Build agree ===
+    # Apply(sf1,x,v1): ds1 → Nat(x). sc1 at x: Nat(x) → iff(Apply(sf1,x,v1), Succ(v1,x)).
+    # So Apply(sf1,x,v1) → Succ(v1,x).
+    # Apply(sf2,x,v2) → Succ(v2,x). (same reasoning)
+    # successor_unique: Succ(v1,x) → Succ(v2,x) → Eqv(v1,v2).
+    # But we need successor_unique from nat/nat.
+    $app1 apply("sf1","x","v1","_")
+    $app2 apply("sf2","x","v2","_")
+
+    # ds1 at x: (∃yd.Apply(sf1,x,yd)) → Nat(x)
+    $nat_x nat("x","_")
+    $got_nat_x mp(apply_thm(got_ds1, ds1, ["x"], ["xd"],
+        \xd: implies(exists("yd", apply("sf1",xd,"yd","_")), nat(xd,"_")), [sf1]),
+        eir(ax([app1],[app1],app1), \yd: apply("sf1","x",yd,"_"), "yd", "v1", [app1]),
+        exists("yd", apply("sf1","x","yd","_")), nat_x, [sf1], [app1])
+
+    # sc1 at x,v1: Nat(x) → iff(Apply(sf1,x,v1), Succ(v1,x))
+    $_sc_b \xc: implies(nat(xc,"_"), forall("yc", iff(apply("sf1",xc,"yc","_"), successor("yc",xc,"_"))))
+    $sc1_inst apply_thm(got_sc1, sc1, ["x"], ["xc"], _sc_b, [sf1])
+    $sc1_x mp(sc1_inst, got_nat_x, nat_x, forall("yc", iff(apply("sf1","x","yc","_"), successor("yc","x","_"))), [sf1], left(got_nat_x))
+    $iff_v1 iff(app1, successor("v1","x","_"))
+    $sc1_v1 apply_thm(sc1_x, head(right(sc1_x)), ["v1"], ["yc"],
+        \yc: iff(apply("sf1","x",yc,"_"), successor(yc,"x","_")), left(sc1_x))
+    $got_succ_v1 mp(mp(iff_elim_left(app1, successor("v1","x","_"), []),
+        sc1_v1, iff_v1, implies(app1, successor("v1","x","_")), [], left(sc1_v1)),
+        ax([app1],[app1],app1), app1, successor("v1","x","_"), left(sc1_v1), [app1])
+
+    # sc2 at x,v2: same pattern → Apply(sf2,x,v2) → Succ(v2,x)
+    $_sc2_b \xc: implies(nat(xc,"_"), forall("yc", iff(apply("sf2",xc,"yc","_"), successor("yc",xc,"_"))))
+    $sc2_inst apply_thm(got_sc2, sc2, ["x"], ["xc"], _sc2_b, [sf2])
+    $sc2_x mp(sc2_inst, got_nat_x, nat_x, forall("yc", iff(apply("sf2","x","yc","_"), successor("yc","x","_"))), [sf2], left(got_nat_x))
+    $iff_v2 iff(app2, successor("v2","x","_"))
+    $sc2_v2 apply_thm(sc2_x, head(right(sc2_x)), ["v2"], ["yc"],
+        \yc: iff(apply("sf2","x",yc,"_"), successor(yc,"x","_")), left(sc2_x))
+    $got_succ_v2 mp(mp(iff_elim_left(app2, successor("v2","x","_"), []),
+        sc2_v2, iff_v2, implies(app2, successor("v2","x","_")), [], left(sc2_v2)),
+        ax([app2],[app2],app2), app2, successor("v2","x","_"), left(sc2_v2), [app2])
+
+    # successor_unique: Succ(v1,x) → Succ(v2,x) → Eqv(v1,v2)
+    $_su head(right(successor_unique))
+    $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_")))
+    $su_inst apply_thm(successor_unique, _su, ["x","v1","v2"], ["x","s1","s2"], _su_b, left(successor_unique))
+    $su_step1 mp(su_inst, got_succ_v1, successor("v1","x","_"), implies(successor("v2","x","_"), eqv("v1","v2","_")),
+        left(su_inst), left(got_succ_v1))
+    $got_eqv_v mp(su_step1, got_succ_v2, successor("v2","x","_"), eqv("v1","v2","_"), left(su_step1), left(got_succ_v2))
+
+    # ir app2, app1, fr v2, v1, x → agree
+    $agree_body implies(app1, implies(app2, eqv("v1","v2","_")))
+    $g1 ir(got_eqv_v, remove(same, app2, left(got_eqv_v)), [implies(app2, eqv("v1","v2","_"))], implies(app2, eqv("v1","v2","_")))
+    $g2 ir(g1, remove(same, app1, left(g1)), [agree_body], agree_body)
+    $g3 fr(g2, left(g2), [forall("v2", agree_body)], forall("v2", agree_body), "v2")
+    $g4 fr(g3, left(g3), [forall("v1", forall("v2", agree_body))], forall("v1", forall("v2", agree_body)), "v1")
+    $agree forall("x", forall("v1", forall("v2", agree_body)))
+    $got_agree fr(g4, left(g4), [agree], agree, "x")
+
+    # === Build dom_fwd: Apply(sf1,x,v) → ∃v2. Apply(sf2,x,v2) ===
+    # Apply(sf1,x,v) → Succ(v,x) → sc2 backward → Apply(sf2,x,v)
+    $app1v apply("sf1","x","v","_")
+    $app2v apply("sf2","x","v","_")
+
+    # Reuse: ds1 → Nat(x), sc1 → Succ(v,x), sc2 backward → Apply(sf2,x,v), eir
+    $got_nat_x2 mp(apply_thm(got_ds1, ds1, ["x"], ["xd"],
+        \xd: implies(exists("yd", apply("sf1",xd,"yd","_")), nat(xd,"_")), [sf1]),
+        eir(ax([app1v],[app1v],app1v), \yd: apply("sf1","x",yd,"_"), "yd", "v", [app1v]),
+        exists("yd", apply("sf1","x","yd","_")), nat_x, [sf1], [app1v])
+    $sc1_fwd apply_thm(got_sc1, sc1, ["x"], ["xc"], _sc_b, [sf1])
+    $sc1_fwd2 mp(sc1_fwd, got_nat_x2, nat_x, forall("yc", iff(apply("sf1","x","yc","_"), successor("yc","x","_"))), [sf1], left(got_nat_x2))
+    $sc1_fwd3 apply_thm(sc1_fwd2, head(right(sc1_fwd2)), ["v"], ["yc"],
+        \yc: iff(apply("sf1","x",yc,"_"), successor(yc,"x","_")), left(sc1_fwd2))
+    $got_succ_v mp(mp(iff_elim_left(app1v, successor("v","x","_"), []),
+        sc1_fwd3, iff(app1v, successor("v","x","_")), implies(app1v, successor("v","x","_")), [], left(sc1_fwd3)),
+        ax([app1v],[app1v],app1v), app1v, successor("v","x","_"), left(sc1_fwd3), [app1v])
+
+    # sc2 backward at x,v: Nat(x) → Succ(v,x) → Apply(sf2,x,v)
+    $sc2_fwd apply_thm(got_sc2, sc2, ["x"], ["xc"], _sc2_b, [sf2])
+    $sc2_fwd2 mp(sc2_fwd, got_nat_x2, nat_x, forall("yc", iff(apply("sf2","x","yc","_"), successor("yc","x","_"))), [sf2], left(got_nat_x2))
+    $sc2_fwd3 apply_thm(sc2_fwd2, head(right(sc2_fwd2)), ["v"], ["yc"],
+        \yc: iff(apply("sf2","x",yc,"_"), successor(yc,"x","_")), left(sc2_fwd2))
+    $got_app2v mp(mp(iff_elim_right(app2v, successor("v","x","_"), []),
+        sc2_fwd3, iff(app2v, successor("v","x","_")), implies(successor("v","x","_"), app2v), [], left(sc2_fwd3)),
+        got_succ_v, successor("v","x","_"), app2v, left(sc2_fwd3), left(got_succ_v))
+    $got_ex_app2 eir(got_app2v, \v2: apply("sf2","x",v2,"_"), "v2", "v", left(got_app2v))
+    $dom_fwd_body implies(app1v, exists("v2", apply("sf2","x","v2","_")))
+    $df1 ir(got_ex_app2, remove(same, app1v, left(got_ex_app2)), [dom_fwd_body], dom_fwd_body)
+    $df2 fr(df1, left(df1), [forall("v", dom_fwd_body)], forall("v", dom_fwd_body), "v")
+    $dom_fwd forall("x", forall("v", dom_fwd_body))
+    $got_dom_fwd fr(df2, left(df2), [dom_fwd], dom_fwd, "x")
+
+    # === Build dom_bwd: Apply(sf2,x,v) → ∃v1. Apply(sf1,x,v1) (symmetric) ===
+    $app2w apply("sf2","x","v","_")
+    $app1w apply("sf1","x","v","_")
+    $got_nat_x3 mp(apply_thm(
+        mp(and_elim_right(func2, ds2, []),
+            mp(and_elim_right(sc2, and(func2, ds2), []), ax([sf2],[sf2],sf2), sf2, and(func2, ds2), [], [sf2]),
+            and(func2, ds2), ds2, [], [sf2]),
+        ds2, ["x"], ["xd"],
+        \xd: implies(exists("yd", apply("sf2",xd,"yd","_")), nat(xd,"_")), [sf2]),
+        eir(ax([app2w],[app2w],app2w), \yd: apply("sf2","x",yd,"_"), "yd", "v", [app2w]),
+        exists("yd", apply("sf2","x","yd","_")), nat_x, [sf2], [app2w])
+    # sc2 forward → Succ(v,x), sc1 backward → Apply(sf1,x,v)
+    $sc2_bwd apply_thm(got_sc2, sc2, ["x"], ["xc"], _sc2_b, [sf2])
+    $sc2_bwd2 mp(sc2_bwd, got_nat_x3, nat_x, forall("yc", iff(apply("sf2","x","yc","_"), successor("yc","x","_"))), [sf2], left(got_nat_x3))
+    $sc2_bwd3 apply_thm(sc2_bwd2, head(right(sc2_bwd2)), ["v"], ["yc"],
+        \yc: iff(apply("sf2","x",yc,"_"), successor(yc,"x","_")), left(sc2_bwd2))
+    $got_succ_v3 mp(mp(iff_elim_left(app2w, successor("v","x","_"), []),
+        sc2_bwd3, iff(app2w, successor("v","x","_")), implies(app2w, successor("v","x","_")), [], left(sc2_bwd3)),
+        ax([app2w],[app2w],app2w), app2w, successor("v","x","_"), left(sc2_bwd3), [app2w])
+    $sc1_bwd apply_thm(got_sc1, sc1, ["x"], ["xc"], _sc_b, [sf1])
+    $sc1_bwd2 mp(sc1_bwd, got_nat_x3, nat_x, forall("yc", iff(apply("sf1","x","yc","_"), successor("yc","x","_"))), [sf1], left(got_nat_x3))
+    $sc1_bwd3 apply_thm(sc1_bwd2, head(right(sc1_bwd2)), ["v"], ["yc"],
+        \yc: iff(apply("sf1","x",yc,"_"), successor(yc,"x","_")), left(sc1_bwd2))
+    $got_app1w mp(mp(iff_elim_right(app1w, successor("v","x","_"), []),
+        sc1_bwd3, iff(app1w, successor("v","x","_")), implies(successor("v","x","_"), app1w), [], left(sc1_bwd3)),
+        got_succ_v3, successor("v","x","_"), app1w, left(sc1_bwd3), left(got_succ_v3))
+    $got_ex_app1 eir(got_app1w, \v1: apply("sf1","x",v1,"_"), "v1", "v", left(got_app1w))
+    $dom_bwd_body implies(app2w, exists("v1", apply("sf1","x","v1","_")))
+    $db1 ir(got_ex_app1, remove(same, app2w, left(got_ex_app1)), [dom_bwd_body], dom_bwd_body)
+    $db2 fr(db1, left(db1), [forall("v", dom_bwd_body)], forall("v", dom_bwd_body), "v")
+    $dom_bwd forall("x", forall("v", dom_bwd_body))
+    $got_dom_bwd fr(db2, left(db2), [dom_bwd], dom_bwd, "x")
+
+    # === func_ext_from_agree → Eqv(sf1,sf2) ===
+    $fe3 mp(fe2, got_agree, agree, arg2(head(right(fe2))), left(fe2), left(got_agree))
+    $fe4 mp(fe3, got_dom_fwd, dom_fwd, arg2(head(right(fe3))), left(fe3), left(got_dom_fwd))
+    $got_eqv mp(fe4, got_dom_bwd, dom_bwd, eqv_sf, left(fe4), left(got_dom_bwd))
+
+    # Close:
+    $top implies(sf1, implies(sf2, eqv_sf))
+    $t1 ir(got_eqv, remove(same, sf2, left(got_eqv)), [implies(sf2, eqv_sf)], implies(sf2, eqv_sf))
+    $t2 ir(t1, remove(same, sf1, left(t1)), [top], top)
+    close(t2, left(t2), [top], ["sf2","sf1"])
+}

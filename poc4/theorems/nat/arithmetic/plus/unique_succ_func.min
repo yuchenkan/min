@@ -1,0 +1,43 @@
+from derived import implies, forall, eqv, exists, left, right, arg2
+from vocab.nat.arithmetic.plus import succ_func
+from vocab.logic import exists_unique
+from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.nat.arithmetic.plus.succ_func_exists import succ_func_exists
+from theorems.nat.arithmetic.plus.succ_func_unique import succ_func_unique
+
+# unique_succ_func: ∃!sf. SuccFunc(sf)
+
+$unique_succ_func {
+    $sf_fn \sf p: succ_func(sf, p)
+    $body_sf sf_fn("sf","_")
+    $eu exists_unique(sf_fn, "_")
+
+    # exists_unique_intro: body_sf → uniq → eu
+    $eui exists_unique_intro(sf_fn, "sf", [], "_")
+
+    # succ_func_unique: SuccFunc(sf1) → SuccFunc(sf2) → Eqv(sf1,sf2)
+    $_sfu head(right(succ_func_unique))
+    $_sfu_b \sf1: \sf2: implies(succ_func(sf1,"_"), implies(succ_func(sf2,"_"), eqv(sf1,sf2,"_")))
+    $sfu_inst apply_thm(succ_func_unique, _sfu, ["sf","y"], ["sf1","sf2"], _sfu_b, left(succ_func_unique))
+    # [body_sf] ⊢ SuccFunc(y) → Eqv(sf,y)
+    $sfu1 mp(sfu_inst, ax([body_sf],[body_sf],body_sf), body_sf,
+        implies(succ_func("y","_"), eqv("sf","y","_")), left(sfu_inst), [body_sf])
+
+    # ir SuccFunc(y), fr y → ∀y. SuccFunc(y) → Eqv(sf,y)
+    $uniq_inner implies(succ_func("y","_"), eqv("sf","y","_"))
+    $uniq forall("y", uniq_inner)
+    $got_uniq fr(sfu1, left(sfu1), [uniq], uniq, "y")
+
+    # eui: body_sf → uniq → eu
+    $eui1 mp(eui, ax([body_sf],[body_sf],body_sf), body_sf, implies(uniq, eu), left(eui), [body_sf])
+    $got_eu mp(eui1, got_uniq, uniq, eu, left(eui1), left(got_uniq))
+
+    # eel sf from succ_func_exists:
+    $ex_sf exists("sf", body_sf)
+    $got_eu2 eel(got_eu, \sf: sf_fn(sf, "_"), "sf", "sf", left(got_eu), eu)
+    $got_final cut_c(succ_func_exists, got_eu2, ex_sf, left(succ_func_exists), left(got_eu2), eu)
+
+    close(got_final, left(got_final), [eu], [])
+}

@@ -1,0 +1,167 @@
+from derived import mem, implies, forall, exists, left, right, head, arg2
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.nat.arithmetic.plus import plus
+from tactics import ax, fl, fr, ir, mp, inst, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+
+from theorems.nat.nat.omega_induction import omega_induction
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.nat.successor_exists import successor_exists
+from theorems.nat.arithmetic.plus.plus_base import plus_base
+from theorems.nat.arithmetic.plus.plus_step import plus_step
+
+# plus_val_exists: ∀m,n. Nat(m) → Nat(n) → ∃p. Plus(m,n,p)
+# Omega induction on n.
+# Base: Plus(m,e,m) from plus_base, eir.
+# Step: ∃r.Plus(m,n,r), eel r, successor_exists(r), plus_step → Plus(m,s,sp), eir.
+
+$plus_val_exists {
+    $nat_m nat("m","_")
+    $om omega("w","_")
+
+    $pred \w n p: exists(add(p,"r"), plus("m", n, add(p,"r"), p))
+    $oi omega_induction(pred, ["m"], "_")
+
+    $phi_e pred("w","e","_")
+    $phi_n pred("w","n","_")
+    $phi_s pred("w","s","_")
+
+    # === BASE CASE: ∀e. Num(e,0) → ∃r. Plus(m,e,r) ===
+    $num_e num("e",0,"_")
+
+    # plus_base at z=e: Nat(m) → Num(e,0) → Plus(m,e,m)
+    $_pb_b \m: implies(nat(m,"_"), forall("z", implies(num("z",0,"_"), plus(m,"z",m,"_"))))
+    $pb1 inst(plus_base, head(right(plus_base)), _pb_b("m"), "m", left(plus_base))
+    $pb2 mp(pb1, ax([nat_m],[nat_m],nat_m), nat_m, arg2(head(right(pb1))),
+        left(pb1), [nat_m])
+    $_pb3 \z: implies(num(z,0,"_"), plus("m",z,"m","_"))
+    $pb3 inst(pb2, head(right(pb2)), _pb3("e"), "e", left(pb2))
+    $plus_mem plus("m","e","m","_")
+    $got_plus mp(pb3, ax([num_e],[num_e],num_e), num_e, plus_mem,
+        left(pb3), [num_e])
+
+    $got_base_ex eir(got_plus, \r: plus("m","e",r,"_"), "r", "m", left(got_plus))
+
+    $cur got_base_ex
+    $cur ir(cur, remove(same, num_e, left(cur)), [implies(num_e, phi_e)], implies(num_e, phi_e))
+    $base_case forall("e", implies(num_e, phi_e))
+    $got_bc fr(cur, left(cur), [base_case], base_case, "e")
+
+    # === STEP CASE: ∀n. n∈w → φ(n) → ∀s. Succ(s,n) → φ(s) ===
+    $nw mem("n","w")
+    $succ_sn successor("s","n","_")
+    $plus_mnr plus("m","n","r","_")
+
+    $got_plus_mnr ax([plus_mnr],[plus_mnr],plus_mnr)
+
+    # Nat(n) from nat_intro: Omega(w) → n∈w → Nat(n)
+    $nat_n nat("n","_")
+    $_ni_b \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
+    $ni1 apply_thm(nat_intro, head(right(nat_intro)),
+        ["w","n"], ["w","m"], _ni_b, left(nat_intro))
+    $ni2 mp(ni1, ax([om],[om],om), om, implies(nw, nat_n),
+        left(ni1), [om])
+    $got_nat_n mp(ni2, ax([nw],[nw],nw), nw, nat_n,
+        left(ni2), [nw])
+
+    # successor_exists at r: ∃sp. Succ(sp,r)
+    $_se_b \a: exists("sp", successor("sp",a,"_"))
+    $se_inst apply_thm(successor_exists, head(right(successor_exists)),
+        ["r"], ["a"], _se_b, left(successor_exists))
+
+    $succ_sp successor("sp","r","_")
+    $got_succ_sp ax([succ_sp],[succ_sp],succ_sp)
+
+    # plus_step: Nat(m) → Nat(n) → Plus(m,n,r) → Succ(s,n) → Succ(sp,r) → Plus(m,s,sp)
+    $plus_msp plus("m","s","sp","_")
+    $_ps_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+        forall("p", implies(plus(m,"n","p","_"), forall("sn", implies(successor("sn","n","_"),
+            forall("sp", implies(successor("sp","p","_"), plus(m,"sn","sp","_"))))))))))
+    $ps1 inst(plus_step, head(right(plus_step)), _ps_b("m"), "m", left(plus_step))
+    $ps2 mp(ps1, ax([nat_m],[nat_m],nat_m), nat_m, arg2(head(right(ps1))),
+        left(ps1), [nat_m])
+    $_ps3 \n: implies(nat(n,"_"), forall("p", implies(plus("m",n,"p","_"),
+        forall("sn", implies(successor("sn",n,"_"),
+            forall("sp", implies(successor("sp","p","_"), plus("m","sn","sp","_"))))))))
+    $ps3 inst(ps2, head(right(ps2)), _ps3("n"), "n", left(ps2))
+    $ps4 mp(ps3, got_nat_n, nat_n, arg2(head(right(ps3))),
+        left(ps3), left(got_nat_n))
+    $_ps5 \p: implies(plus("m","n",p,"_"), forall("sn", implies(successor("sn","n","_"),
+        forall("sp", implies(successor("sp",p,"_"), plus("m","sn","sp","_"))))))
+    $ps5 inst(ps4, head(right(ps4)), _ps5("r"), "r", left(ps4))
+    $ps6 mp(ps5, got_plus_mnr, plus_mnr, arg2(head(right(ps5))),
+        left(ps5), [plus_mnr])
+    $_ps7 \sn: implies(successor(sn,"n","_"), forall("sp", implies(successor("sp","r","_"),
+        plus("m",sn,"sp","_"))))
+    $ps7 inst(ps6, head(right(ps6)), _ps7("s"), "s", left(ps6))
+    $ps8 mp(ps7, ax([succ_sn],[succ_sn],succ_sn), succ_sn, arg2(head(right(ps7))),
+        left(ps7), [succ_sn])
+    $_ps9 \sp: implies(successor(sp,"r","_"), plus("m","s",sp,"_"))
+    $ps9 inst(ps8, head(right(ps8)), _ps9("sp"), "sp", left(ps8))
+    $got_plus_msp mp(ps9, got_succ_sp, succ_sp, plus_msp,
+        left(ps9), [succ_sp])
+
+    $got_step_ex eir(got_plus_msp, \r: plus("m","s",r,"_"), "r", "sp", left(got_plus_msp))
+
+    # eel sp from successor_exists
+    $got_step_ex eel(got_step_ex, \v: successor(v,"r","_"), "sp", "sp",
+        remove(same, succ_sp, left(got_step_ex)), phi_s)
+    $got_step_ex cut_c(se_inst, got_step_ex, head(right(se_inst)),
+        left(se_inst), left(got_step_ex), phi_s)
+
+    # eel r from φ(n) = ∃r. Plus(m,n,r)
+    $got_step_ex eel(got_step_ex, \v: plus("m","n",v,"_"), "r", "r",
+        remove(same, plus_mnr, left(got_step_ex)), phi_s)
+
+    # ir succ_sn, fr "s", ir phi_n, ir nw, fr "n"
+    $scur got_step_ex
+    $scur ir(scur, remove(same, succ_sn, left(scur)),
+        [implies(succ_sn, phi_s)], implies(succ_sn, phi_s))
+    $scur fr(scur, left(scur),
+        [forall("s", head(right(scur)))], forall("s", head(right(scur))), "s")
+    $scur ir(scur, remove(same, phi_n, left(scur)),
+        [implies(phi_n, head(right(scur)))], implies(phi_n, head(right(scur))))
+    $scur ir(scur, remove(same, nw, left(scur)),
+        [implies(nw, head(right(scur)))], implies(nw, head(right(scur))))
+    $step_case forall("n", head(right(scur)))
+    $got_sc fr(scur, left(scur), [step_case], step_case, "n")
+
+    # === OMEGA INDUCTION ASSEMBLY ===
+    $oi_body \w: \m: implies(omega(w,"_"), implies(base_case, implies(step_case,
+        forall("n", implies(mem("n",w), pred(w,"n","_"))))))
+    $oi_inst apply_thm(oi, head(right(oi)), ["w","m"], ["w","m"], oi_body, left(oi))
+    $oi_1 mp(oi_inst, ax([om],[om],om), om, arg2(head(right(oi_inst))), left(oi), [om])
+    $oi_2 mp(oi_1, got_bc, head(right(got_bc)), arg2(head(right(oi_1))), left(oi_1), left(got_bc))
+    $oi_3 mp(oi_2, got_sc, step_case, arg2(head(right(oi_2))), left(oi_2), left(got_sc))
+
+    # nat_elim: Nat(n) → Omega(w) → n∈w
+    $nat_nn nat("n","_")
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $ne1 mp(apply_thm(nat_elim, head(right(nat_elim)), ["n","w"], ["m","w"], _ne_b, []),
+        ax([nat_nn],[nat_nn],nat_nn), nat_nn, implies(om, mem("n","w")), [], [nat_nn])
+    $got_nw mp(ne1, ax([om],[om],om), om, mem("n","w"), [nat_nn], [om])
+
+    $concl_f forall("n", implies(mem("n","w"), pred("w","n","_")))
+    $oi_4 apply_thm(oi_3, concl_f, ["n"], ["n"],
+        \n: implies(mem(n,"w"), pred("w",n,"_")), left(oi_3))
+    $got_pn mp(oi_4, got_nw, mem("n","w"), pred("w","n","_"), left(oi_4), left(got_nw))
+
+    # ir nat_nn, fr "n", ir nat_m, fr "m"
+    $cur got_pn
+    $cur ir(cur, remove(same, nat_nn, left(cur)),
+        [implies(nat_nn, head(right(cur)))], implies(nat_nn, head(right(cur))))
+    $cur fr(cur, left(cur),
+        [forall("n", head(right(cur)))], forall("n", head(right(cur))), "n")
+    $cur ir(cur, remove(same, nat_m, left(cur)),
+        [implies(nat_m, head(right(cur)))], implies(nat_m, head(right(cur))))
+    $cur fr(cur, left(cur),
+        [forall("m", head(right(cur)))], forall("m", head(right(cur))), "m")
+
+    # eel w from omega_exists
+    $cur eel(cur, \w: omega(w,"_"), "w", "w", remove(same, om, left(cur)), head(right(cur)))
+    $cur cut_c(omega_exists, cur, exists("w", omega("w","_")), left(omega_exists), left(cur), head(right(cur)))
+    $top head(right(cur))
+    close(cur, left(cur), [top], [])
+}

@@ -2,7 +2,7 @@ from derived import mem, neg, implies, forall, and, or, iff, exists, eqv
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
 from vocab.nat.nat import num, nat, successor, empty
-from vocab.arithmetic.plus import plus
+from vocab.nat.arithmetic.plus import plus
 
 # tm_config(c, q, h, tape, p): c = (q, (h, tape))
 $_d_tm_config \f: add("Config(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))

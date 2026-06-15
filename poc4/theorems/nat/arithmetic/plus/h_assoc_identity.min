@@ -1,0 +1,695 @@
+from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from vocab.sets import ordered_pair
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.functions import apply, function, single_valued, domain
+from vocab.sets import product
+from vocab.nat.arithmetic.plus import plus_func
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.nat.nat.omega_induction import omega_induction
+from theorems.nat.nat.omega_contains_zero import omega_contains_zero
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.nat.omega_succ_closed import omega_succ_closed
+from theorems.nat.nat.successor_unique import successor_unique
+from theorems.nat.nat.successor_exists import successor_exists
+from theorems.functions.apply_val_transfer import apply_val_transfer
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.sets.ordpair_unique import ordpair_unique
+from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
+from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
+from theorems.nat.arithmetic.plus.h_val_nat import h_val_nat
+
+# h_assoc_identity: PlusFunc(h) → Nat(a) → Nat(b) → OrdPair(pab,a,b) → Apply(h,pab,d) →
+#   Nat(c) → OrdPair(pdc,d,c) → Apply(h,pdc,s) →
+#   OrdPair(pbc,b,c) → Apply(h,pbc,t) → OrdPair(pat,a,t) → Apply(h,pat,s)
+#
+# i.e. (a+b)+c = a+(b+c): h(⟨d,c⟩)=s ∧ h(⟨b,c⟩)=t → h(⟨a,t⟩)=s where d=h(⟨a,b⟩).
+#
+# Omega induction on c with:
+# R(c) = ∃pdc.∃sv.∃pbc.∃tv. And(OP(pdc,d,c), And(App(h,pdc,sv),
+#   And(OP(pbc,b,c), And(App(h,pbc,tv), ∀pat.OP(pat,a,tv)→App(h,pat,sv)))))
+
+$h_assoc_identity {
+    $pf_abs plus_func("h","_")
+    $nat_a nat("a","_")
+    $nat_b nat("b","_")
+    $op_ab ordered_pair("pab","a","b","_")
+    $app_abd apply("h","pab","d","_")
+    $nat_c nat("c","_")
+    $om omega("w","_")
+
+    # === Unwrap PlusFunc ===
+    $func_h function("h","_")
+    $sv_h single_valued("h","_")
+    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eqv("d","prod","_")))))
+    $base_f forall("m", implies(mem("m","w"), forall("zz", implies(num("zz",0,"_"),
+        forall("pair", implies(ordered_pair("pair","m","zz","_"), apply("h","pair","m","_")))))))
+    $step_f forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"), forall("p", implies(apply("h","pair","p","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","sp","_")))))))))))))))
+    $pf_inner and(func_h, and(dom_eq, and(base_f, step_f)))
+    $pf_unwrap apply_thm(ax([pf_abs],[pf_abs],pf_abs), pf_abs, ["w"], ["w"],
+        \w: implies(omega(w,"_"), pf_inner), [pf_abs])
+    $pf mp(pf_unwrap, ax([om],[om],om), om, pf_inner, [pf_abs], [om])
+    $rest and(dom_eq, and(base_f, step_f))
+    $got_func mp(and_elim_left(func_h, rest, []), pf, pf_inner, func_h, [], left(pf))
+    $rel_h forall("z", implies(mem("z","h"), exists("x", exists("y", ordered_pair("z","x","y","_")))))
+    $got_sv mp(and_elim_right(rel_h, sv_h, []), got_func, func_h, sv_h, [], left(pf))
+    $got_base mp(and_elim_left(base_f, step_f, []),
+        mp(and_elim_right(dom_eq, and(base_f, step_f), []),
+            mp(and_elim_right(func_h, rest, []), pf, pf_inner, rest, [], left(pf)),
+            rest, and(base_f, step_f), [], left(pf)),
+        and(base_f, step_f), base_f, [], left(pf))
+    $got_step mp(and_elim_right(base_f, step_f, []),
+        mp(and_elim_right(dom_eq, and(base_f, step_f), []),
+            mp(and_elim_right(func_h, rest, []), pf, pf_inner, rest, [], left(pf)),
+            rest, and(base_f, step_f), [], left(pf)),
+        and(base_f, step_f), step_f, [], left(pf))
+
+    # === a∈w, b∈w ===
+    $_ne head(right(nat_elim))
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $got_aw mp(mp(apply_thm(nat_elim, _ne, ["a","w"], ["m","w"], _ne_b, []),
+        ax([nat_a],[nat_a],nat_a), nat_a, implies(om, mem("a","w")), [], [nat_a]),
+        ax([om],[om],om), om, mem("a","w"), [nat_a], [om])
+    $got_bw mp(mp(apply_thm(nat_elim, _ne, ["b","w"], ["m","w"], _ne_b, []),
+        ax([nat_b],[nat_b],nat_b), nat_b, implies(om, mem("b","w")), [], [nat_b]),
+        ax([om],[om],om), om, mem("b","w"), [nat_b], [om])
+
+    # === Nat(d) from h_val_nat, then d∈w ===
+    # h_val_nat: ∀h.PlusFunc(h)→∀m.Nat→∀n.Nat→∀pair.OP→∀p.Apply→Nat(p)
+    $_hvi head(right(h_val_nat))
+    $_hvi_b \h: implies(plus_func(h,"_"), forall("m", implies(nat("m","_"),
+        forall("n", implies(nat("n","_"), forall("pair", implies(ordered_pair("pair","m","n","_"),
+            forall("p", implies(apply(h,"pair","p","_"), nat("p","_"))))))))))
+    $hvi1 mp(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat)),
+        ax([pf_abs],[pf_abs],pf_abs), pf_abs, arg2(head(right(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat))))),
+        left(h_val_nat), [pf_abs])
+    $hvi2 apply_thm(hvi1, head(right(hvi1)), ["a"], ["m"],
+        \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+            forall("pair", implies(ordered_pair("pair",m,"n","_"),
+                forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))))), left(hvi1))
+    $hvi3 mp(hvi2, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(hvi2))), left(hvi2), [nat_a])
+    $hvi4 apply_thm(hvi3, head(right(hvi3)), ["b"], ["n"],
+        \n: implies(nat(n,"_"), forall("pair", implies(ordered_pair("pair","a",n,"_"),
+            forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))), left(hvi3))
+    $hvi5 mp(hvi4, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(hvi4))), left(hvi4), [nat_b])
+    $hvi6 apply_thm(hvi5, head(right(hvi5)), ["pab"], ["pair"],
+        \pair: implies(ordered_pair(pair,"a","b","_"), forall("p", implies(apply("h",pair,"p","_"), nat("p","_")))), left(hvi5))
+    $hvi7 mp(hvi6, ax([op_ab],[op_ab],op_ab), op_ab, arg2(head(right(hvi6))), left(hvi6), [op_ab])
+    $hvi8 apply_thm(hvi7, head(right(hvi7)), ["d"], ["p"],
+        \p: implies(apply("h","pab",p,"_"), nat(p,"_")), left(hvi7))
+    $nat_d_proof mp(hvi8, ax([app_abd],[app_abd],app_abd), app_abd, nat("d","_"), left(hvi8), [app_abd])
+    # d∈w from Nat(d)
+    $nat_d nat("d","_")
+    $got_dw mp(mp(apply_thm(nat_elim, _ne, ["d","w"], ["m","w"], _ne_b, []),
+        nat_d_proof, nat_d, implies(om, mem("d","w")), [], left(nat_d_proof)),
+        ax([om],[om],om), om, mem("d","w"), left(nat_d_proof), [om])
+
+    # === Omega induction predicate ===
+    # R(c) = ∃pdc.∃sv.∃pbc.∃tv. And(OP(pdc,d,c), And(App(h,pdc,sv),
+    #   And(OP(pbc,b,c), And(App(h,pbc,tv), ∀pat.OP(pat,a,tv)→App(h,pat,sv)))))
+    # Use "d" for the d=h(a,b) variable to avoid clash with omega_induction's internal "d"
+    $pred \w c p: exists(add(p,"pdc"), exists(add(p,"sv"), exists(add(p,"pbc"), exists(add(p,"tv"), and(
+        ordered_pair(add(p,"pdc"), "d", c, add(p,"_")),
+        and(apply("h", add(p,"pdc"), add(p,"sv"), add(p,"_")),
+        and(ordered_pair(add(p,"pbc"), "b", c, add(p,"_")),
+        and(apply("h", add(p,"pbc"), add(p,"tv"), add(p,"_")),
+            forall(add(p,"pat"), implies(ordered_pair(add(p,"pat"), "a", add(p,"tv"), add(p,"_")),
+                apply("h", add(p,"pat"), add(p,"sv"), add(p,"_"))))))))))))
+    $oi omega_induction(pred, ["pab","d","b","a","m","h"], "_")
+
+    # === BASE: Num(e,0) → R(e) ===
+    $emp num("e",0,"_")
+
+    $_oce head(right(omega_contains_zero))
+    $_oce_b \e: \w: implies(omega(w,"_"), implies(num(e,0,"_"), mem(e,w)))
+    $got_ew mp(mp(apply_thm(omega_contains_zero, _oce, ["e","w"], ["e","w"], _oce_b, left(omega_contains_zero)),
+        ax([om],[om],om), om, implies(emp, mem("e","w")), left(omega_contains_zero), [om]),
+        ax([emp],[emp],emp), emp, mem("e","w"), [om], [emp])
+
+    # base_f at d,e: Apply(h,pdc0,d)
+    $_bf_b \m: implies(mem(m,"w"), forall("zz", implies(num("zz",0,"_"),
+        forall("pair", implies(ordered_pair("pair",m,"zz","_"), apply("h","pair",m,"_"))))))
+    $bd1 mp(apply_thm(got_base, base_f, ["d"], ["m"], _bf_b, left(pf)),
+        got_dw, mem("d","w"), arg2(head(right(apply_thm(got_base, base_f, ["d"], ["m"], _bf_b, left(pf))))),
+        left(pf), left(got_dw))
+    $bd2 apply_thm(bd1, head(right(bd1)), ["e"], ["zz"],
+        \zz: implies(num(zz,0,"_"), forall("pair", implies(ordered_pair("pair","d",zz,"_"), apply("h","pair","d","_")))), left(bd1))
+    $bd3 mp(bd2, ax([emp],[emp],emp), emp, arg2(head(right(bd2))), left(bd2), [emp])
+    $bd4 apply_thm(bd3, head(right(bd3)), ["pdc0"], ["pair"],
+        \pair: implies(ordered_pair(pair,"d","e","_"), apply("h",pair,"d","_")), left(bd3))
+    $op_de ordered_pair("pdc0","d","e","_")
+    $got_bd mp(bd4, ax([op_de],[op_de],op_de), op_de, apply("h","pdc0","d","_"), left(bd4), [op_de])
+
+    # base_f at b,e: Apply(h,pbc0,b)
+    $bb1 mp(apply_thm(got_base, base_f, ["b"], ["m"], _bf_b, left(pf)),
+        got_bw, mem("b","w"), arg2(head(right(apply_thm(got_base, base_f, ["b"], ["m"], _bf_b, left(pf))))),
+        left(pf), left(got_bw))
+    $bb2 apply_thm(bb1, head(right(bb1)), ["e"], ["zz"],
+        \zz: implies(num(zz,0,"_"), forall("pair", implies(ordered_pair("pair","b",zz,"_"), apply("h","pair","b","_")))), left(bb1))
+    $bb3 mp(bb2, ax([emp],[emp],emp), emp, arg2(head(right(bb2))), left(bb2), [emp])
+    $bb4 apply_thm(bb3, head(right(bb3)), ["pbc0"], ["pair"],
+        \pair: implies(ordered_pair(pair,"b","e","_"), apply("h",pair,"b","_")), left(bb3))
+    $op_be ordered_pair("pbc0","b","e","_")
+    $got_bb mp(bb4, ax([op_be],[op_be],op_be), op_be, apply("h","pbc0","b","_"), left(bb4), [op_be])
+
+    # Q(d,b): ∀pat.OP(pat,a,b)→Apply(h,pat,d). From Apply(h,pab,d) + ordpair_unique.
+    $op_ab_pat ordered_pair("pat0","a","b","_")
+    $_ou head(right(ordpair_unique))
+    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
+    $ou1 mp(apply_thm(ordpair_unique, _ou, ["a","b","pat0","pab"], ["a","b","s1","s2"], _ou_b, []),
+        ax([op_ab_pat],[op_ab_pat],op_ab_pat), op_ab_pat, implies(op_ab, eqv("pat0","pab","_")), [], [op_ab_pat])
+    $got_eq_pat mp(ou1, ax([op_ab],[op_ab],op_ab), op_ab, eqv("pat0","pab","_"), [op_ab_pat], [op_ab])
+    $_es head(right(eqv_symmetric))
+    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $got_eq_pab_pat mp(apply_thm(eqv_symmetric, _es, ["pat0","pab"], ["a","b"], _es_b, []),
+        got_eq_pat, eqv("pat0","pab","_"), eqv("pab","pat0","_"), [], left(got_eq_pat))
+    # apply_key_transfer: Eqv(pab,pat0) → Apply(h,pab,d) → Apply(h,pat0,d)
+    $_akt head(right(apply_key_transfer))
+    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $got_app_pat mp(mp(apply_thm(apply_key_transfer, _akt, ["h","pab","pat0","d"], ["f","x","x2","y"], _akt_b, []),
+        got_eq_pab_pat, eqv("pab","pat0","_"), implies(app_abd, apply("h","pat0","d","_")), [], left(got_eq_pab_pat)),
+        ax([app_abd],[app_abd],app_abd), app_abd, apply("h","pat0","d","_"), left(got_eq_pab_pat), [app_abd])
+    # ir op_ab_pat, fr pat0
+    $cur got_app_pat
+    $cur ir(cur, remove(same, op_ab_pat, left(cur)), [implies(op_ab_pat, apply("h","pat0","d","_"))], implies(op_ab_pat, apply("h","pat0","d","_")))
+    $got_q_base fr(cur, left(cur), [forall("pat0", head(right(cur)))], forall("pat0", head(right(cur))), "pat0")
+
+    # Build And: And(OP(pdc0,d,e), And(App(h,pdc0,d), And(OP(pbc0,b,e), And(App(h,pbc0,b), Q))))
+    $actual_q_base head(right(got_q_base))
+    $app_bd head(right(got_bd))
+    $app_bb head(right(got_bb))
+    $a5 mp(mp(and_intro(app_bb, actual_q_base, []),
+        got_bb, app_bb, implies(actual_q_base, and(app_bb, actual_q_base)), [], left(got_bb)),
+        got_q_base, actual_q_base, and(app_bb, actual_q_base), left(got_bb), left(got_q_base))
+    $a4 mp(mp(and_intro(op_be, head(right(a5)), []),
+        ax([op_be],[op_be],op_be), op_be, implies(head(right(a5)), and(op_be, head(right(a5)))), [], [op_be]),
+        a5, head(right(a5)), and(op_be, head(right(a5))), [op_be], left(a5))
+    $a3 mp(mp(and_intro(app_bd, head(right(a4)), []),
+        got_bd, app_bd, implies(head(right(a4)), and(app_bd, head(right(a4)))), [], left(got_bd)),
+        a4, head(right(a4)), and(app_bd, head(right(a4))), left(got_bd), left(a4))
+    $a2 mp(mp(and_intro(op_de, head(right(a3)), []),
+        ax([op_de],[op_de],op_de), op_de, implies(head(right(a3)), and(op_de, head(right(a3)))), [], [op_de]),
+        a3, head(right(a3)), and(op_de, head(right(a3))), [op_de], left(a3))
+
+    # eir tv:=b, pbc:=pbc0, sv:=d, pdc:=pdc0
+    $and_body head(right(a2))
+    $eir_tv \tv: and(op_de, and(apply("h","pdc0","d","_"), and(op_be, and(apply("h","pbc0",tv,"_"),
+        forall("pat0", implies(ordered_pair("pat0","a",tv,"_"), apply("h","pat0","d","_")))))))
+    $r1 eir(a2, eir_tv, "tv", "b", left(a2))
+    $eir_pbc \pbc: exists("tv", and(op_de, and(apply("h","pdc0","d","_"), and(ordered_pair(pbc,"b","e","_"),
+        and(apply("h",pbc,"tv","_"), forall("pat0", implies(ordered_pair("pat0","a","tv","_"), apply("h","pat0","d","_"))))))))
+    $r2 eir(r1, eir_pbc, "pbc", "pbc0", left(r1))
+    $eir_sv \sv: exists("pbc", exists("tv", and(op_de, and(apply("h","pdc0",sv,"_"),
+        and(ordered_pair("pbc","b","e","_"), and(apply("h","pbc","tv","_"),
+            forall("pat0", implies(ordered_pair("pat0","a","tv","_"), apply("h","pat0",sv,"_")))))))))
+    $r3 eir(r2, eir_sv, "sv", "d", left(r2))
+    $eir_pdc \pdc: exists("sv", exists("pbc", exists("tv", and(ordered_pair(pdc,"d","e","_"),
+        and(apply("h",pdc,"sv","_"), and(ordered_pair("pbc","b","e","_"),
+            and(apply("h","pbc","tv","_"), forall("pat0", implies(ordered_pair("pat0","a","tv","_"),
+                apply("h","pat0","sv","_"))))))))))
+    $got_r_e eir(r3, eir_pdc, "pdc", "pdc0", left(r3))
+
+    # eel pdc0,pbc0 from ordpair_exists
+    $oe_ctx left(ordpair_exists)
+    $oe_renamed forall("oa", forall("ob", exists("op", ordered_pair("op","oa","ob","_"))))
+    $oe_wr wr(ordpair_exists, oe_ctx, [oe_renamed], oe_renamed)
+    $_oe_b \oa: \ob: exists("op", ordered_pair("op",oa,ob,"_"))
+    $r_e head(right(got_r_e))
+    $got_oe_de apply_thm(oe_wr, oe_renamed, ["d","e"], ["oa","ob"], _oe_b, oe_ctx)
+    $cur eel(got_r_e, \pdc0: ordered_pair(pdc0,"d","e","_"), "op", "pdc0", left(got_r_e), r_e)
+    $cur cut_c(got_oe_de, cur, head(right(got_oe_de)), oe_ctx, left(cur), r_e)
+    $got_oe_be apply_thm(oe_wr, oe_renamed, ["b","e"], ["oa","ob"], _oe_b, oe_ctx)
+    $cur eel(cur, \pbc0: ordered_pair(pbc0,"b","e","_"), "op", "pbc0", left(cur), r_e)
+    $cur cut_c(got_oe_be, cur, head(right(got_oe_be)), oe_ctx, left(cur), r_e)
+
+    # Close base: ir emp, fr e
+    $cur ir(cur, remove(same, emp, left(cur)), [implies(emp, r_e)], implies(emp, r_e))
+    $base_case forall("e", head(right(cur)))
+    $got_bc fr(cur, left(cur), [base_case], base_case, "e")
+
+    # === STEP: c∈w → R(c) → Succ(sc,c) → R(sc) ===
+    $cw mem("c","w")
+    $rn pred("w","c","_")
+    $succ_sc successor("sc","c","_")
+    $rs pred("w","sc","_")
+
+    # Open R(c): 5-conjunct body
+    $op_dc ordered_pair("pdc","d","c","_")
+    $app_dc apply("h","pdc","sv","_")
+    $op_bc ordered_pair("pbc","b","c","_")
+    $app_bc apply("h","pbc","tv","_")
+    $q_inner forall("pat", implies(ordered_pair("pat","a","tv","_"), apply("h","pat","sv","_")))
+    $r_body and(op_dc, and(app_dc, and(op_bc, and(app_bc, q_inner))))
+
+    $got_1 mp(and_elim_left(op_dc, and(app_dc, and(op_bc, and(app_bc, q_inner))), []),
+        ax([r_body],[r_body],r_body), r_body, op_dc, [], [r_body])
+    $rest1 and(app_dc, and(op_bc, and(app_bc, q_inner)))
+    $got_r1 mp(and_elim_right(op_dc, rest1, []),
+        ax([r_body],[r_body],r_body), r_body, rest1, [], [r_body])
+    $got_app_dc mp(and_elim_left(app_dc, and(op_bc, and(app_bc, q_inner)), []),
+        got_r1, rest1, app_dc, [], [r_body])
+    $rest2 and(op_bc, and(app_bc, q_inner))
+    $got_r2 mp(and_elim_right(app_dc, rest2, []),
+        got_r1, rest1, rest2, [], [r_body])
+    $got_op_bc mp(and_elim_left(op_bc, and(app_bc, q_inner), []),
+        got_r2, rest2, op_bc, [], [r_body])
+    $rest3 and(app_bc, q_inner)
+    $got_r3 mp(and_elim_right(op_bc, rest3, []),
+        got_r2, rest2, rest3, [], [r_body])
+    $got_app_bc mp(and_elim_left(app_bc, q_inner, []),
+        got_r3, rest3, app_bc, [], [r_body])
+    $got_q mp(and_elim_right(app_bc, q_inner, []),
+        got_r3, rest3, q_inner, [], [r_body])
+
+    # sc∈w
+    $_osc head(right(omega_succ_closed))
+    $_osc_b \s: \n: \w: implies(omega(w,"_"), implies(mem(n,w), implies(successor(s,n,"_"), mem(s,w))))
+    $got_scw mp(mp(mp(apply_thm(omega_succ_closed, _osc, ["sc","c","w"], ["s","n","w"], _osc_b, []),
+        ax([om],[om],om), om, implies(cw, implies(succ_sc, mem("sc","w"))), [], [om]),
+        ax([cw],[cw],cw), cw, implies(succ_sc, mem("sc","w")), [om], [cw]),
+        ax([succ_sc],[succ_sc],succ_sc), succ_sc, mem("sc","w"), [om, cw], [succ_sc])
+
+    # step_f at d,c → Apply(h,pdc_new,ssv) fully instantiated
+    $_sf_b \m: implies(mem(m,"w"), forall("n", implies(mem("n","w"),
+        forall("pair", implies(ordered_pair("pair",m,"n","_"), forall("p", implies(apply("h","pair","p","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2",m,"sn","_"), apply("h","pair2","sp","_"))))))))))))))
+    $op_dsc ordered_pair("pdc_new","d","sc","_")
+    $succ_ssv successor("ssv","sv","_")
+    $app_dsc apply("h","pdc_new","ssv","_")
+
+    $sd1 mp(apply_thm(got_step, step_f, ["d"], ["m"], _sf_b, left(pf)),
+        got_dw, mem("d","w"), arg2(head(right(apply_thm(got_step, step_f, ["d"], ["m"], _sf_b, left(pf))))),
+        left(pf), left(got_dw))
+    $sd2 apply_thm(sd1, head(right(sd1)), ["c"], ["n"],
+        \n: implies(mem(n,"w"), forall("pair", implies(ordered_pair("pair","d",n,"_"), forall("p", implies(apply("h","pair","p","_"),
+            forall("sn", implies(successor("sn",n,"_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","d","sn","_"), apply("h","pair2","sp","_")))))))))))), left(sd1))
+    $sd3 mp(sd2, ax([cw],[cw],cw), cw, arg2(head(right(sd2))), left(sd2), [cw])
+    $sd4 apply_thm(sd3, head(right(sd3)), ["pdc"], ["pair"],
+        \pair: implies(ordered_pair(pair,"d","c","_"), forall("p", implies(apply("h",pair,"p","_"),
+            forall("sn", implies(successor("sn","c","_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","d","sn","_"), apply("h","pair2","sp","_")))))))))), left(sd3))
+    $sd5 mp(sd4, got_1, op_dc, arg2(head(right(sd4))), left(sd4), [r_body])
+    $sd6 apply_thm(sd5, head(right(sd5)), ["sv"], ["p"],
+        \p: implies(apply("h","pdc",p,"_"), forall("sn", implies(successor("sn","c","_"),
+            forall("sp", implies(successor("sp",p,"_"), forall("pair2", implies(ordered_pair("pair2","d","sn","_"),
+                apply("h","pair2","sp","_")))))))), left(sd5))
+    $sd7 mp(sd6, got_app_dc, app_dc, arg2(head(right(sd6))), left(sd6), [r_body])
+    $sd8 apply_thm(sd7, head(right(sd7)), ["sc"], ["sn"],
+        \sn: implies(successor(sn,"c","_"), forall("sp", implies(successor("sp","sv","_"),
+            forall("pair2", implies(ordered_pair("pair2","d",sn,"_"), apply("h","pair2","sp","_")))))), left(sd7))
+    $sd9 mp(sd8, ax([succ_sc],[succ_sc],succ_sc), succ_sc, arg2(head(right(sd8))), left(sd7), [succ_sc])
+    $sd10 apply_thm(sd9, head(right(sd9)), ["ssv"], ["sp"],
+        \sp: implies(successor(sp,"sv","_"), forall("pair2", implies(ordered_pair("pair2","d","sc","_"),
+            apply("h","pair2",sp,"_")))), left(sd9))
+    $sd11 mp(sd10, ax([succ_ssv],[succ_ssv],succ_ssv), succ_ssv, arg2(head(right(sd10))), left(sd10), [succ_ssv])
+    $sd12 apply_thm(sd11, head(right(sd11)), ["pdc_new"], ["pair2"],
+        \pair2: implies(ordered_pair(pair2,"d","sc","_"), apply("h",pair2,"ssv","_")), left(sd11))
+    $got_sd mp(sd12, ax([op_dsc],[op_dsc],op_dsc), op_dsc, app_dsc, left(sd12), [op_dsc])
+
+    # step_f at b,c → Apply(h,pbc_new,stv) fully instantiated
+    $op_bsc ordered_pair("pbc_new","b","sc","_")
+    $succ_stv successor("stv","tv","_")
+    $app_bsc apply("h","pbc_new","stv","_")
+
+    $sb1 mp(apply_thm(got_step, step_f, ["b"], ["m"], _sf_b, left(pf)),
+        got_bw, mem("b","w"), arg2(head(right(apply_thm(got_step, step_f, ["b"], ["m"], _sf_b, left(pf))))),
+        left(pf), left(got_bw))
+    $sb2 apply_thm(sb1, head(right(sb1)), ["c"], ["n"],
+        \n: implies(mem(n,"w"), forall("pair", implies(ordered_pair("pair","b",n,"_"), forall("p", implies(apply("h","pair","p","_"),
+            forall("sn", implies(successor("sn",n,"_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","b","sn","_"), apply("h","pair2","sp","_")))))))))))), left(sb1))
+    $sb3 mp(sb2, ax([cw],[cw],cw), cw, arg2(head(right(sb2))), left(sb2), [cw])
+    $sb4 apply_thm(sb3, head(right(sb3)), ["pbc"], ["pair"],
+        \pair: implies(ordered_pair(pair,"b","c","_"), forall("p", implies(apply("h",pair,"p","_"),
+            forall("sn", implies(successor("sn","c","_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","b","sn","_"), apply("h","pair2","sp","_")))))))))), left(sb3))
+    $sb5 mp(sb4, got_op_bc, op_bc, arg2(head(right(sb4))), left(sb4), [r_body])
+    $sb6 apply_thm(sb5, head(right(sb5)), ["tv"], ["p"],
+        \p: implies(apply("h","pbc",p,"_"), forall("sn", implies(successor("sn","c","_"),
+            forall("sp", implies(successor("sp",p,"_"), forall("pair2", implies(ordered_pair("pair2","b","sn","_"),
+                apply("h","pair2","sp","_")))))))), left(sb5))
+    $sb7 mp(sb6, got_app_bc, app_bc, arg2(head(right(sb6))), left(sb6), [r_body])
+    $sb8 apply_thm(sb7, head(right(sb7)), ["sc"], ["sn"],
+        \sn: implies(successor(sn,"c","_"), forall("sp", implies(successor("sp","tv","_"),
+            forall("pair2", implies(ordered_pair("pair2","b",sn,"_"), apply("h","pair2","sp","_")))))), left(sb7))
+    $sb9 mp(sb8, ax([succ_sc],[succ_sc],succ_sc), succ_sc, arg2(head(right(sb8))), left(sb7), [succ_sc])
+    $sb10 apply_thm(sb9, head(right(sb9)), ["stv"], ["sp"],
+        \sp: implies(successor(sp,"tv","_"), forall("pair2", implies(ordered_pair("pair2","b","sc","_"),
+            apply("h","pair2",sp,"_")))), left(sb9))
+    $sb11 mp(sb10, ax([succ_stv],[succ_stv],succ_stv), succ_stv, arg2(head(right(sb10))), left(sb10), [succ_stv])
+    $sb12 apply_thm(sb11, head(right(sb11)), ["pbc_new"], ["pair2"],
+        \pair2: implies(ordered_pair(pair2,"b","sc","_"), apply("h",pair2,"stv","_")), left(sb11))
+    $got_sb mp(sb12, ax([op_bsc],[op_bsc],op_bsc), op_bsc, app_bsc, left(sb12), [op_bsc])
+
+    # Q(ssv,stv): ∀pat.OP(pat,a,stv)→Apply(h,pat,ssv)
+    # From Q(sv,tv): OP(pat0,a,tv) → Apply(h,pat0,sv)
+    # step_f at a,tv: Apply(h,pat0,sv) → Apply(h,pat_new,ssv2) with Succ(ssv2,sv)
+    # successor_unique: ssv2=ssv → apply_val_transfer → Apply(h,pat_new,ssv)
+
+    # Q at pat0: Apply(h,pat0,sv) with OP(pat0,a,tv)
+    $op_atv ordered_pair("pat0","a","tv","_")
+    $q1 apply_thm(got_q, q_inner, ["pat0"], ["pat"],
+        \pat: implies(ordered_pair(pat,"a","tv","_"), apply("h",pat,"sv","_")), [r_body])
+    $got_app_atv mp(q1, ax([op_atv],[op_atv],op_atv), op_atv, apply("h","pat0","sv","_"), [r_body], [op_atv])
+
+    # Nat(tv) from h_val_nat at b,c, then tv∈w via nat_elim
+    $hvi_tv1 mp(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat)),
+        ax([pf_abs],[pf_abs],pf_abs), pf_abs, arg2(head(right(apply_thm(h_val_nat, _hvi, ["h"], ["h"], _hvi_b, left(h_val_nat))))),
+        left(h_val_nat), [pf_abs])
+    $hvi_tv2 apply_thm(hvi_tv1, head(right(hvi_tv1)), ["b"], ["m"],
+        \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+            forall("pair", implies(ordered_pair("pair",m,"n","_"),
+                forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))))), left(hvi_tv1))
+    $hvi_tv3 mp(hvi_tv2, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(hvi_tv2))), left(hvi_tv2), [nat_b])
+    # Nat(c) from c∈w + Omega(w) via nat_intro
+    $_ni head(right(nat_intro))
+    $_ni_b \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
+    $got_nat_c mp(mp(apply_thm(nat_intro, _ni, ["w","c"], ["w","m"], _ni_b, left(nat_intro)),
+        ax([om],[om],om), om, implies(cw, nat_c), left(nat_intro), [om]),
+        ax([cw],[cw],cw), cw, nat_c, [om], [cw])
+    $hvi_tv4 apply_thm(hvi_tv3, head(right(hvi_tv3)), ["c"], ["n"],
+        \n: implies(nat(n,"_"), forall("pair", implies(ordered_pair("pair","b",n,"_"),
+            forall("p", implies(apply("h","pair","p","_"), nat("p","_")))))), left(hvi_tv3))
+    $hvi_tv5 mp(hvi_tv4, got_nat_c, nat_c, arg2(head(right(hvi_tv4))), left(hvi_tv4), left(got_nat_c))
+    $hvi_tv6 apply_thm(hvi_tv5, head(right(hvi_tv5)), ["pbc"], ["pair"],
+        \pair: implies(ordered_pair(pair,"b","c","_"), forall("p", implies(apply("h",pair,"p","_"), nat("p","_")))), left(hvi_tv5))
+    $hvi_tv7 mp(hvi_tv6, got_op_bc, op_bc, arg2(head(right(hvi_tv6))), left(hvi_tv6), left(got_op_bc))
+    $hvi_tv8 apply_thm(hvi_tv7, head(right(hvi_tv7)), ["tv"], ["p"],
+        \p: implies(apply("h","pbc",p,"_"), nat(p,"_")), left(hvi_tv7))
+    $nat_tv mp(hvi_tv8, got_app_bc, app_bc, nat("tv","_"), left(hvi_tv8), left(got_app_bc))
+    # tv∈w from Nat(tv)
+    $got_tvw mp(mp(apply_thm(nat_elim, _ne, ["tv","w"], ["m","w"], _ne_b, []),
+        nat_tv, nat("tv","_"), implies(om, mem("tv","w")), [], left(nat_tv)),
+        ax([om],[om],om), om, mem("tv","w"), left(nat_tv), [om])
+
+    # step_f at a,tv → fully instantiate to Apply(h,pat_new,ssv2)
+    $op_astv ordered_pair("pat_new","a","stv","_")
+    $succ_ssv2 successor("ssv2","sv","_")
+    $app_pat_new apply("h","pat_new","ssv2","_")
+
+    $sa1 mp(apply_thm(got_step, step_f, ["a"], ["m"], _sf_b, left(pf)),
+        got_aw, mem("a","w"), arg2(head(right(apply_thm(got_step, step_f, ["a"], ["m"], _sf_b, left(pf))))),
+        left(pf), left(got_aw))
+    $sa2 apply_thm(sa1, head(right(sa1)), ["tv"], ["n"],
+        \n: implies(mem(n,"w"), forall("pair", implies(ordered_pair("pair","a",n,"_"), forall("p", implies(apply("h","pair","p","_"),
+            forall("sn", implies(successor("sn",n,"_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","a","sn","_"), apply("h","pair2","sp","_")))))))))))), left(sa1))
+    $sa3 mp(sa2, got_tvw, mem("tv","w"), arg2(head(right(sa2))), left(sa2), left(got_tvw))
+    $sa4 apply_thm(sa3, head(right(sa3)), ["pat0"], ["pair"],
+        \pair: implies(ordered_pair(pair,"a","tv","_"), forall("p", implies(apply("h",pair,"p","_"),
+            forall("sn", implies(successor("sn","tv","_"), forall("sp", implies(successor("sp","p","_"),
+                forall("pair2", implies(ordered_pair("pair2","a","sn","_"), apply("h","pair2","sp","_")))))))))), left(sa3))
+    $sa5 mp(sa4, ax([op_atv],[op_atv],op_atv), op_atv, arg2(head(right(sa4))), left(sa4), [op_atv])
+    $sa6 apply_thm(sa5, head(right(sa5)), ["sv"], ["p"],
+        \p: implies(apply("h","pat0",p,"_"), forall("sn", implies(successor("sn","tv","_"),
+            forall("sp", implies(successor("sp",p,"_"), forall("pair2", implies(ordered_pair("pair2","a","sn","_"),
+                apply("h","pair2","sp","_")))))))), left(sa5))
+    $sa7 mp(sa6, got_app_atv, apply("h","pat0","sv","_"), arg2(head(right(sa6))), left(sa6), left(got_app_atv))
+    $sa8 apply_thm(sa7, head(right(sa7)), ["stv"], ["sn"],
+        \sn: implies(successor(sn,"tv","_"), forall("sp", implies(successor("sp","sv","_"),
+            forall("pair2", implies(ordered_pair("pair2","a",sn,"_"), apply("h","pair2","sp","_")))))), left(sa7))
+    $sa9 mp(sa8, ax([succ_stv],[succ_stv],succ_stv), succ_stv, arg2(head(right(sa8))), left(sa7), [succ_stv])
+    $sa10 apply_thm(sa9, head(right(sa9)), ["ssv2"], ["sp"],
+        \sp: implies(successor(sp,"sv","_"), forall("pair2", implies(ordered_pair("pair2","a","stv","_"),
+            apply("h","pair2",sp,"_")))), left(sa9))
+    $sa11 mp(sa10, ax([succ_ssv2],[succ_ssv2],succ_ssv2), succ_ssv2, arg2(head(right(sa10))), left(sa10), [succ_ssv2])
+    $sa12 apply_thm(sa11, head(right(sa11)), ["pat_new"], ["pair2"],
+        \pair2: implies(ordered_pair(pair2,"a","stv","_"), apply("h",pair2,"ssv2","_")), left(sa11))
+    $got_sa mp(sa12, ax([op_astv],[op_astv],op_astv), op_astv, app_pat_new, left(sa12), [op_astv])
+
+    # successor_unique: Succ(ssv2,sv) ∧ Succ(ssv,sv) → Eqv(ssv2,ssv)
+    $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_")))
+    $got_eq_ssv mp(mp(apply_thm(successor_unique, head(right(successor_unique)), ["sv","ssv2","ssv"], ["a","s1","s2"], _su_b, []),
+        ax([succ_ssv2],[succ_ssv2],succ_ssv2), succ_ssv2, implies(succ_ssv, eqv("ssv2","ssv","_")), [], [succ_ssv2]),
+        ax([succ_ssv],[succ_ssv],succ_ssv), succ_ssv, eqv("ssv2","ssv","_"), [succ_ssv2], [succ_ssv])
+    # apply_val_transfer: Eqv(ssv2,ssv) → Apply(h,pat_new,ssv2) → Apply(h,pat_new,ssv)
+    $_avt head(right(apply_val_transfer))
+    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $got_app_ssv mp(mp(apply_thm(apply_val_transfer, _avt, ["h","pat_new","ssv2","ssv"], ["f","x","y","y2"], _avt_b, []),
+        got_eq_ssv, eqv("ssv2","ssv","_"), implies(app_pat_new, apply("h","pat_new","ssv","_")), [], left(got_eq_ssv)),
+        got_sa, app_pat_new, apply("h","pat_new","ssv","_"), left(got_eq_ssv), left(got_sa))
+
+    # Close Q(ssv,stv): ir op_astv, fr pat_new
+    $cur got_app_ssv
+    $cur ir(cur, remove(same, op_astv, left(cur)), [implies(op_astv, apply("h","pat_new","ssv","_"))], implies(op_astv, apply("h","pat_new","ssv","_")))
+    $got_q_step fr(cur, left(cur), [forall("pat_new", head(right(cur)))], forall("pat_new", head(right(cur))), "pat_new")
+
+    # Build R(sc) And: use head(right(...)) for all actual formulas
+    $actual_q_step head(right(got_q_step))
+    $a5s mp(mp(and_intro(app_bsc, actual_q_step, []),
+        got_sb, app_bsc, implies(actual_q_step, and(app_bsc, actual_q_step)), [], left(got_sb)),
+        got_q_step, actual_q_step, and(app_bsc, actual_q_step), left(got_sb), left(got_q_step))
+    $a4s mp(mp(and_intro(op_bsc, head(right(a5s)), []),
+        ax([op_bsc],[op_bsc],op_bsc), op_bsc, implies(head(right(a5s)), and(op_bsc, head(right(a5s)))), [], [op_bsc]),
+        a5s, head(right(a5s)), and(op_bsc, head(right(a5s))), [op_bsc], left(a5s))
+    $a3s mp(mp(and_intro(app_dsc, head(right(a4s)), []),
+        got_sd, app_dsc, implies(head(right(a4s)), and(app_dsc, head(right(a4s)))), [], left(got_sd)),
+        a4s, head(right(a4s)), and(app_dsc, head(right(a4s))), left(got_sd), left(a4s))
+    $a2s mp(mp(and_intro(op_dsc, head(right(a3s)), []),
+        ax([op_dsc],[op_dsc],op_dsc), op_dsc, implies(head(right(a3s)), and(op_dsc, head(right(a3s)))), [], [op_dsc]),
+        a3s, head(right(a3s)), and(op_dsc, head(right(a3s))), [op_dsc], left(a3s))
+
+    # eir tv:=stv, pbc:=pbc_new, sv:=ssv, pdc:=pdc_new
+    $eir_tv_s \tv: and(op_dsc, and(apply("h","pdc_new","ssv","_"), and(op_bsc, and(apply("h","pbc_new",tv,"_"),
+        forall("pat_new", implies(ordered_pair("pat_new","a",tv,"_"), apply("h","pat_new","ssv","_")))))))
+    $r1s eir(a2s, eir_tv_s, "tv", "stv", left(a2s))
+    $eir_pbc_s \pbc: exists("tv", and(op_dsc, and(apply("h","pdc_new","ssv","_"),
+        and(ordered_pair(pbc,"b","sc","_"), and(apply("h",pbc,"tv","_"),
+            forall("pat_new", implies(ordered_pair("pat_new","a","tv","_"), apply("h","pat_new","ssv","_"))))))))
+    $r2s eir(r1s, eir_pbc_s, "pbc", "pbc_new", left(r1s))
+    $eir_sv_s \sv: exists("pbc", exists("tv", and(op_dsc, and(apply("h","pdc_new",sv,"_"),
+        and(ordered_pair("pbc","b","sc","_"), and(apply("h","pbc","tv","_"),
+            forall("pat_new", implies(ordered_pair("pat_new","a","tv","_"), apply("h","pat_new",sv,"_")))))))))
+    $r3s eir(r2s, eir_sv_s, "sv", "ssv", left(r2s))
+    $eir_pdc_s \pdc: exists("sv", exists("pbc", exists("tv", and(ordered_pair(pdc,"d","sc","_"),
+        and(apply("h",pdc,"sv","_"), and(ordered_pair("pbc","b","sc","_"), and(apply("h","pbc","tv","_"),
+            forall("pat_new", implies(ordered_pair("pat_new","a","tv","_"), apply("h","pat_new","sv","_"))))))))))
+    $got_r_sc eir(r3s, eir_pdc_s, "pdc", "pdc_new", left(r3s))
+    $rs_actual head(right(got_r_sc))
+
+    # eel temporaries: ssv2, pat0, pdc_new, pbc_new, ssv, stv
+    $_se head(right(successor_exists))
+    $_se_b \a: exists("s", successor("s",a,"_"))
+
+    $cur eel(got_r_sc, \ssv2: successor(ssv2,"sv","_"), "s", "ssv2", left(got_r_sc), rs_actual)
+    $got_se_sv apply_thm(successor_exists, _se, ["sv"], ["a"], _se_b, left(successor_exists))
+    $cur cut_c(got_se_sv, cur, head(right(got_se_sv)), left(successor_exists), left(cur), rs_actual)
+
+    $cur eel(cur, \pat0: ordered_pair(pat0,"a","tv","_"), "op", "pat0", left(cur), rs_actual)
+    $got_oe_atv apply_thm(oe_wr, oe_renamed, ["a","tv"], ["oa","ob"], _oe_b, oe_ctx)
+    $cur cut_c(got_oe_atv, cur, head(right(got_oe_atv)), oe_ctx, left(cur), rs_actual)
+
+    $cur eel(cur, \pdc_new: ordered_pair(pdc_new,"d","sc","_"), "op", "pdc_new", left(cur), rs_actual)
+    $got_oe_dsc apply_thm(oe_wr, oe_renamed, ["d","sc"], ["oa","ob"], _oe_b, oe_ctx)
+    $cur cut_c(got_oe_dsc, cur, head(right(got_oe_dsc)), oe_ctx, left(cur), rs_actual)
+
+    $cur eel(cur, \pbc_new: ordered_pair(pbc_new,"b","sc","_"), "op", "pbc_new", left(cur), rs_actual)
+    $got_oe_bsc apply_thm(oe_wr, oe_renamed, ["b","sc"], ["oa","ob"], _oe_b, oe_ctx)
+    $cur cut_c(got_oe_bsc, cur, head(right(got_oe_bsc)), oe_ctx, left(cur), rs_actual)
+
+    $cur eel(cur, \ssv: successor(ssv,"sv","_"), "s", "ssv", left(cur), rs_actual)
+    $got_se_sv2 apply_thm(successor_exists, _se, ["sv"], ["a"], _se_b, left(successor_exists))
+    $cur cut_c(got_se_sv2, cur, head(right(got_se_sv2)), left(successor_exists), left(cur), rs_actual)
+
+    $cur eel(cur, \stv: successor(stv,"tv","_"), "s", "stv", left(cur), rs_actual)
+    $got_se_tv apply_thm(successor_exists, _se, ["tv"], ["a"], _se_b, left(successor_exists))
+    $cur cut_c(got_se_tv, cur, head(right(got_se_tv)), left(successor_exists), left(cur), rs_actual)
+
+    # eel R(c) existentials: tv, pbc, sv, pdc (matching ∃ nesting)
+    $cur eel(cur, \tv: and(ordered_pair("pdc","d","c","_"), and(apply("h","pdc","sv","_"),
+        and(ordered_pair("pbc","b","c","_"), and(apply("h","pbc",tv,"_"),
+            forall("pat", implies(ordered_pair("pat","a",tv,"_"), apply("h","pat","sv","_"))))))),
+        "tv", "tv", left(cur), rs_actual)
+    $cur eel(cur, \pbc: exists("tv", and(ordered_pair("pdc","d","c","_"), and(apply("h","pdc","sv","_"),
+        and(ordered_pair(pbc,"b","c","_"), and(apply("h",pbc,"tv","_"),
+            forall("pat", implies(ordered_pair("pat","a","tv","_"), apply("h","pat","sv","_")))))))),
+        "pbc", "pbc", left(cur), rs_actual)
+    $cur eel(cur, \sv: exists("pbc", exists("tv", and(ordered_pair("pdc","d","c","_"), and(apply("h","pdc",sv,"_"),
+        and(ordered_pair("pbc","b","c","_"), and(apply("h","pbc","tv","_"),
+            forall("pat", implies(ordered_pair("pat","a","tv","_"), apply("h","pat",sv,"_"))))))))),
+        "sv", "sv", left(cur), rs_actual)
+    $cur eel(cur, \pdc: exists("sv", exists("pbc", exists("tv", and(ordered_pair(pdc,"d","c","_"), and(apply("h",pdc,"sv","_"),
+        and(ordered_pair("pbc","b","c","_"), and(apply("h","pbc","tv","_"),
+            forall("pat", implies(ordered_pair("pat","a","tv","_"), apply("h","pat","sv","_")))))))))),
+        "pdc", "pdc", left(cur), rs_actual)
+
+    # Close step: ir succ_sc, fr sc, ir rn, ir cw, fr c
+    $cur ir(cur, remove(same, succ_sc, left(cur)), [implies(succ_sc, rs_actual)], implies(succ_sc, rs_actual))
+    $cur fr(cur, left(cur), [forall("sc", head(right(cur)))], forall("sc", head(right(cur))), "sc")
+    $cur ir(cur, remove(same, rn, left(cur)), [implies(rn, head(right(cur)))], implies(rn, head(right(cur))))
+    $cur ir(cur, remove(same, cw, left(cur)), [implies(cw, head(right(cur)))], implies(cw, head(right(cur))))
+    $step_case forall("c", head(right(cur)))
+    $got_sc fr(cur, left(cur), [step_case], step_case, "c")
+
+    # === Omega induction assembly ===
+    $oi_body \w: \h: \m: \a: \b: \d: \pab: implies(omega(w,"_"), implies(base_case, implies(step_case,
+        forall("c", implies(mem("c",w), pred(w,"c","_"))))))
+    $oi_inst apply_thm(oi, head(right(oi)), ["w","h","m","a","b","d","pab"], ["w","h","m","a","b","d","pab"], oi_body, left(oi))
+    $oi_1 mp(oi_inst, ax([om],[om],om), om, arg2(head(right(oi_inst))), left(oi), [om])
+    $oi_2 mp(oi_1, got_bc, head(right(got_bc)), arg2(head(right(oi_1))), left(oi_1), left(got_bc))
+    $oi_3 mp(oi_2, got_sc, step_case, arg2(head(right(oi_2))), left(oi_2), left(got_sc))
+
+    # c∈w from Nat(c)
+    $got_cw mp(mp(apply_thm(nat_elim, _ne, ["c","w"], ["m","w"], _ne_b, []),
+        ax([nat_c],[nat_c],nat_c), nat_c, implies(om, mem("c","w")), [], [nat_c]),
+        ax([om],[om],om), om, mem("c","w"), [nat_c], [om])
+    $oi_4 apply_thm(oi_3, head(right(oi_3)), ["c"], ["c"],
+        \c: implies(mem(c,"w"), pred("w",c,"_")), left(oi_3))
+    $got_rn mp(oi_4, got_cw, mem("c","w"), rn, left(oi_4), left(got_cw))
+
+    # === Extraction ===
+    # R(c) = ∃pdc.∃sv.∃pbc.∃tv. And(OP,App,OP,App,Q)
+    # Caller has: OP(pdc_c,d,c), App(h,pdc_c,s), OP(pbc_c,b,c), App(h,pbc_c,t), OP(pat_c,a,t)
+    # From R(c): ordpair_unique → pdc_c=pdc → func_unique → s=sv
+    #            ordpair_unique → pbc_c=pbc → func_unique → t=tv
+    # Q(sv,tv) at pat_c: OP(pat_c,a,tv) → Apply(h,pat_c,sv)
+    # ordpair_val_transfer: Eqv(t,tv) → OP(pat_c,a,t) → OP(pat_c,a,tv)
+    # apply_val_transfer: Eqv(sv,s) → Apply(h,pat_c,sv) → Apply(h,pat_c,s)
+
+    $op_dc_c ordered_pair("pdc_c","d","c","_")
+    $app_dc_c apply("h","pdc_c","s","_")
+    $op_bc_c ordered_pair("pbc_c","b","c","_")
+    $app_bc_c apply("h","pbc_c","t","_")
+    $op_at_c ordered_pair("pat_c","a","t","_")
+    $goal apply("h","pat_c","s","_")
+
+    # Open R(c) body (reuse r_body pattern)
+    $got_1e mp(and_elim_left(op_dc, and(app_dc, and(op_bc, and(app_bc, q_inner))), []),
+        ax([r_body],[r_body],r_body), r_body, op_dc, [], [r_body])
+    $got_r1e mp(and_elim_right(op_dc, rest1, []),
+        ax([r_body],[r_body],r_body), r_body, rest1, [], [r_body])
+    $got_app_dc_e mp(and_elim_left(app_dc, and(op_bc, and(app_bc, q_inner)), []),
+        got_r1e, rest1, app_dc, [], [r_body])
+    $got_r2e mp(and_elim_right(app_dc, rest2, []),
+        got_r1e, rest1, rest2, [], [r_body])
+    $got_op_bc_e mp(and_elim_left(op_bc, and(app_bc, q_inner), []),
+        got_r2e, rest2, op_bc, [], [r_body])
+    $got_r3e mp(and_elim_right(op_bc, rest3, []),
+        got_r2e, rest2, rest3, [], [r_body])
+    $got_app_bc_e mp(and_elim_left(app_bc, q_inner, []),
+        got_r3e, rest3, app_bc, [], [r_body])
+    $got_q_e mp(and_elim_right(app_bc, q_inner, []),
+        got_r3e, rest3, q_inner, [], [r_body])
+
+    # ordpair_unique: pdc_c=pdc
+    $ou_dc mp(apply_thm(ordpair_unique, _ou, ["d","c","pdc_c","pdc"], ["a","b","s1","s2"], _ou_b, []),
+        ax([op_dc_c],[op_dc_c],op_dc_c), op_dc_c, implies(op_dc, eqv("pdc_c","pdc","_")), [], [op_dc_c])
+    $got_eq_pdc mp(ou_dc, got_1e, op_dc, eqv("pdc_c","pdc","_"), [op_dc_c], [r_body])
+    $got_eq_pdc_r mp(apply_thm(eqv_symmetric, _es, ["pdc_c","pdc"], ["a","b"], _es_b, []),
+        got_eq_pdc, eqv("pdc_c","pdc","_"), eqv("pdc","pdc_c","_"), [], left(got_eq_pdc))
+    # apply_key_transfer: Apply(h,pdc,sv) → Apply(h,pdc_c,sv)
+    $got_app_pdc_c mp(mp(apply_thm(apply_key_transfer, _akt, ["h","pdc","pdc_c","sv"], ["f","x","x2","y"], _akt_b, []),
+        got_eq_pdc_r, eqv("pdc","pdc_c","_"), implies(app_dc, apply("h","pdc_c","sv","_")), [], left(got_eq_pdc_r)),
+        got_app_dc_e, app_dc, apply("h","pdc_c","sv","_"), left(got_eq_pdc_r), [r_body])
+    # func_unique: s=sv
+    $_fu head(right(func_unique_thm))
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"),
+        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $fu_s1 mp(apply_thm(func_unique_thm, _fu, ["h","pdc_c","s","sv"], ["f","x","y1","y2"], _fu_b, []),
+        got_sv, sv_h, arg2(head(right(apply_thm(func_unique_thm, _fu, ["h","pdc_c","s","sv"], ["f","x","y1","y2"], _fu_b, [])))), [], left(pf))
+    $fu_s2 mp(fu_s1, ax([app_dc_c],[app_dc_c],app_dc_c), app_dc_c, implies(apply("h","pdc_c","sv","_"), eqv("s","sv","_")), left(fu_s1), [app_dc_c])
+    $fu_s mp(fu_s2, got_app_pdc_c, apply("h","pdc_c","sv","_"), eqv("s","sv","_"), left(fu_s2), left(got_app_pdc_c))
+
+    # ordpair_unique: pbc_c=pbc — alpha-rename to avoid "b" clash with bound "b"
+    $_ou_renamed forall("va", forall("vb", forall("s1", forall("s2",
+        implies(ordered_pair("s1","va","vb","_"), implies(ordered_pair("s2","va","vb","_"), eqv("s1","s2","_")))))))
+    $ou_r wr(ordpair_unique, [], [_ou_renamed], _ou_renamed)
+    $_ou_b2 \va: \vb: \s1: \s2: implies(ordered_pair(s1,va,vb,"_"), implies(ordered_pair(s2,va,vb,"_"), eqv(s1,s2,"_")))
+    $ou_bc mp(apply_thm(ou_r, _ou_renamed, ["b","c","pbc_c","pbc"], ["va","vb","s1","s2"], _ou_b2, []),
+        ax([op_bc_c],[op_bc_c],op_bc_c), op_bc_c, implies(op_bc, eqv("pbc_c","pbc","_")), [], [op_bc_c])
+    $got_eq_pbc mp(ou_bc, got_op_bc_e, op_bc, eqv("pbc_c","pbc","_"), [op_bc_c], [r_body])
+    $got_eq_pbc_r mp(apply_thm(eqv_symmetric, _es, ["pbc_c","pbc"], ["a","b"], _es_b, []),
+        got_eq_pbc, eqv("pbc_c","pbc","_"), eqv("pbc","pbc_c","_"), [], left(got_eq_pbc))
+    $got_app_pbc_c mp(mp(apply_thm(apply_key_transfer, _akt, ["h","pbc","pbc_c","tv"], ["f","x","x2","y"], _akt_b, []),
+        got_eq_pbc_r, eqv("pbc","pbc_c","_"), implies(app_bc, apply("h","pbc_c","tv","_")), [], left(got_eq_pbc_r)),
+        got_app_bc_e, app_bc, apply("h","pbc_c","tv","_"), left(got_eq_pbc_r), [r_body])
+    $fu_t1 mp(apply_thm(func_unique_thm, _fu, ["h","pbc_c","t","tv"], ["f","x","y1","y2"], _fu_b, []),
+        got_sv, sv_h, arg2(head(right(apply_thm(func_unique_thm, _fu, ["h","pbc_c","t","tv"], ["f","x","y1","y2"], _fu_b, [])))), [], left(pf))
+    $fu_t2 mp(fu_t1, ax([app_bc_c],[app_bc_c],app_bc_c), app_bc_c, implies(apply("h","pbc_c","tv","_"), eqv("t","tv","_")), left(fu_t1), [app_bc_c])
+    $fu_t mp(fu_t2, got_app_pbc_c, apply("h","pbc_c","tv","_"), eqv("t","tv","_"), left(fu_t2), left(got_app_pbc_c))
+
+    # ordpair_val_transfer: Eqv(t,tv) → OP(pat_c,a,t) → OP(pat_c,a,tv)
+    $_ovt head(right(ordpair_val_transfer))
+    $_ovt_b \t: \a: \b: \c: implies(eqv(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $got_op_atv_e mp(mp(apply_thm(ordpair_val_transfer, _ovt, ["pat_c","a","t","tv"], ["t","a","b","c"], _ovt_b, []),
+        fu_t, eqv("t","tv","_"), implies(op_at_c, ordered_pair("pat_c","a","tv","_")), [], left(fu_t)),
+        ax([op_at_c],[op_at_c],op_at_c), op_at_c, ordered_pair("pat_c","a","tv","_"), left(fu_t), [op_at_c])
+
+    # Q at pat_c: OP(pat_c,a,tv) → Apply(h,pat_c,sv)
+    $q_ext apply_thm(got_q_e, q_inner, ["pat_c"], ["pat"],
+        \pat: implies(ordered_pair(pat,"a","tv","_"), apply("h",pat,"sv","_")), [r_body])
+    $got_app_sv mp(q_ext, got_op_atv_e, ordered_pair("pat_c","a","tv","_"), apply("h","pat_c","sv","_"),
+        [r_body], left(got_op_atv_e))
+
+    # apply_val_transfer: Eqv(sv,s) → Apply(h,pat_c,sv) → Apply(h,pat_c,s)
+    $got_eq_sv_s mp(apply_thm(eqv_symmetric, _es, ["s","sv"], ["a","b"], _es_b, []),
+        fu_s, eqv("s","sv","_"), eqv("sv","s","_"), [], left(fu_s))
+    $got_goal mp(mp(apply_thm(apply_val_transfer, _avt, ["h","pat_c","sv","s"], ["f","x","y","y2"], _avt_b, []),
+        got_eq_sv_s, eqv("sv","s","_"), implies(apply("h","pat_c","sv","_"), goal), [], left(got_eq_sv_s)),
+        got_app_sv, apply("h","pat_c","sv","_"), goal, left(got_eq_sv_s), left(got_app_sv))
+
+    # eel R(c) existentials: tv, pbc, sv, pdc
+    $cur got_goal
+    $cur eel(cur, \tv: and(op_dc, and(app_dc, and(op_bc, and(apply("h","pbc",tv,"_"),
+        forall("pat", implies(ordered_pair("pat","a",tv,"_"), apply("h","pat","sv","_"))))))),
+        "tv", "tv", left(cur), goal)
+    $cur eel(cur, \pbc: exists("tv", and(op_dc, and(app_dc, and(ordered_pair(pbc,"b","c","_"),
+        and(apply("h",pbc,"tv","_"), forall("pat", implies(ordered_pair("pat","a","tv","_"), apply("h","pat","sv","_")))))))),
+        "pbc", "pbc", left(cur), goal)
+    $cur eel(cur, \sv: exists("pbc", exists("tv", and(op_dc, and(apply("h","pdc",sv,"_"),
+        and(ordered_pair("pbc","b","c","_"), and(apply("h","pbc","tv","_"),
+            forall("pat", implies(ordered_pair("pat","a","tv","_"), apply("h","pat",sv,"_"))))))))),
+        "sv", "sv", left(cur), goal)
+    $cur eel(cur, \pdc: exists("sv", exists("pbc", exists("tv", and(ordered_pair(pdc,"d","c","_"),
+        and(apply("h",pdc,"sv","_"), and(ordered_pair("pbc","b","c","_"), and(apply("h","pbc","tv","_"),
+            forall("pat", implies(ordered_pair("pat","a","tv","_"), apply("h","pat","sv","_")))))))))),
+        "pdc", "pdc", left(cur), goal)
+    $cur cut_c(got_rn, cur, rn, left(got_rn), left(cur), goal)
+
+    # Close: ir op_at_c, ir app_bc_c, ir op_bc_c, ir app_dc_c, ir op_dc_c
+    # fr pat_c, t, pbc_c, s, pdc_c
+    # ir nat_c, fr c, ir app_abd, ir op_ab, ir nat_b, fr b, ir nat_a, fr a
+    # ir pf_abs, fr h, eel w from omega_exists
+    $cur ir(cur, remove(same, op_at_c, left(cur)), [implies(op_at_c, goal)], implies(op_at_c, goal))
+    $cur fr(cur, left(cur), [forall("pat_c", head(right(cur)))], forall("pat_c", head(right(cur))), "pat_c")
+    $cur ir(cur, remove(same, app_bc_c, left(cur)), [implies(app_bc_c, head(right(cur)))], implies(app_bc_c, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("t", head(right(cur)))], forall("t", head(right(cur))), "t")
+    $cur ir(cur, remove(same, op_bc_c, left(cur)), [implies(op_bc_c, head(right(cur)))], implies(op_bc_c, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("pbc_c", head(right(cur)))], forall("pbc_c", head(right(cur))), "pbc_c")
+    $cur ir(cur, remove(same, app_dc_c, left(cur)), [implies(app_dc_c, head(right(cur)))], implies(app_dc_c, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("s", head(right(cur)))], forall("s", head(right(cur))), "s")
+    $cur ir(cur, remove(same, op_dc_c, left(cur)), [implies(op_dc_c, head(right(cur)))], implies(op_dc_c, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("pdc_c", head(right(cur)))], forall("pdc_c", head(right(cur))), "pdc_c")
+
+    $cur ir(cur, remove(same, nat_c, left(cur)), [implies(nat_c, head(right(cur)))], implies(nat_c, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("c", head(right(cur)))], forall("c", head(right(cur))), "c")
+    $cur ir(cur, remove(same, app_abd, left(cur)), [implies(app_abd, head(right(cur)))], implies(app_abd, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("d", head(right(cur)))], forall("d", head(right(cur))), "d")
+    $cur ir(cur, remove(same, op_ab, left(cur)), [implies(op_ab, head(right(cur)))], implies(op_ab, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("pab", head(right(cur)))], forall("pab", head(right(cur))), "pab")
+    $cur ir(cur, remove(same, nat_b, left(cur)), [implies(nat_b, head(right(cur)))], implies(nat_b, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("b", head(right(cur)))], forall("b", head(right(cur))), "b")
+    $cur ir(cur, remove(same, nat_a, left(cur)), [implies(nat_a, head(right(cur)))], implies(nat_a, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("a", head(right(cur)))], forall("a", head(right(cur))), "a")
+    $cur ir(cur, remove(same, pf_abs, left(cur)), [implies(pf_abs, head(right(cur)))], implies(pf_abs, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
+
+    # eel w from omega_exists
+    $cur eel(cur, \w: omega(w,"_"), "w", "w", remove(same, om, left(cur)), head(right(cur)))
+    $cur cut_c(omega_exists, cur, exists("w", omega("w","_")), left(omega_exists), left(cur), head(right(cur)))
+    $top head(right(cur))
+    close(cur, left(cur), [top], [])
+}

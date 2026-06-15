@@ -1,0 +1,59 @@
+from derived import mem, implies, forall, and, exists, eqv, iff, left, right, arg2
+from vocab.nat.nat import nat, successor
+from vocab.functions import apply, function
+from vocab.nat.recursion import recursive, total_from
+from vocab.nat.arithmetic.plus import succ_char, succ_func
+from vocab.logic import exists_unique
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.nat.recursion.recursion_theorem import recursion_theorem
+from theorems.nat.arithmetic.plus.succ_func_total_from import succ_func_total_from
+
+# rec_for_each_m:
+# sf_all → Nat(m) → ∃!hm. Recursive(hm, m, sf)
+# sf_all = And(SuccChar(sf), And(Function(sf), dom_sub_nat))
+
+$rec_for_each_m {
+    $sf_all succ_func("sf","_")
+    $sc succ_char("sf","_")
+    $func_sf function("sf","_")
+    $dom_sub forall("xd", implies(exists("yd", apply("sf","xd","yd","_")), nat("xd","_")))
+    $nat_m nat("m","_")
+    $eu_body \h p: recursive(h,"m","sf",p)
+    $eu exists_unique(eu_body, "_")
+
+    # Extract Function(sf) from sf_all:
+    $got_fd mp(and_elim_right(sc, and(func_sf, dom_sub), []),
+        ax([sf_all], [sf_all], sf_all), sf_all, and(func_sf, dom_sub), [], [sf_all])
+    $got_func_sf mp(and_elim_left(func_sf, dom_sub, []),
+        got_fd, and(func_sf, dom_sub), func_sf, [], [sf_all])
+
+    # succ_func_total_from: sf_all → Nat(m) → TotalFrom(sf,m)
+    $_stf head(right(succ_func_total_from))
+    $stf_ctx left(succ_func_total_from)
+    $_stf_b \sf: \m: implies(
+        and(succ_char(sf,"_"), and(function(sf,"_"),
+            forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), nat("xd","_"))))),
+        implies(nat(m,"_"), total_from(sf,m,"_")))
+    $stf_inst apply_thm(succ_func_total_from, _stf, ["sf","m"], ["sf","m"], _stf_b, stf_ctx)
+    $tf total_from("sf","m","_")
+    $stf1 mp(stf_inst, ax([sf_all], [sf_all], sf_all), sf_all, implies(nat_m, tf), stf_ctx, [sf_all])
+    $got_tf mp(stf1, ax([nat_m], [nat_m], nat_m), nat_m, tf, left(stf1), [nat_m])
+
+    # recursion_theorem: Function(f) → TotalFrom(f,a) → ∃!h.Recursive(h,a,f)
+    $_rt head(right(recursion_theorem))
+    $rt_ctx left(recursion_theorem)
+    $_rt_b \a: \f: implies(function(f,"_"), implies(total_from(f,a,"_"),
+        exists_unique(\h p: recursive(h,a,f,p), "_")))
+    $rt_inst apply_thm(recursion_theorem, _rt, ["m","sf"], ["a","f"], _rt_b, rt_ctx)
+    $rt1 mp(rt_inst, got_func_sf, func_sf, implies(tf, eu), rt_ctx, [sf_all])
+    $got_eu mp(rt1, got_tf, tf, eu, left(rt1), left(got_tf))
+
+    # Close: sf_all → Nat(m) → ∃!hm.Recursive(hm,m,sf)
+    $top implies(sf_all, implies(nat_m, eu))
+    $r1 ir(got_eu, remove(same, nat_m, left(got_eu)), [implies(nat_m, eu)], implies(nat_m, eu))
+    $r2 ir(r1, remove(same, sf_all, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["m","sf"])
+}

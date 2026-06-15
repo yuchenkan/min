@@ -1,0 +1,304 @@
+from derived import mem, neg, implies, forall, and, iff, exists, eqv, or, qed
+from vocab.sets import ordered_pair, relation, product
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.nat.order import le, lt
+from vocab.functions import apply, function, domain
+from vocab.nat.recursion import recursive, total_from
+from vocab.nat.arithmetic.plus import succ_char, succ_func, plus_func, plus
+from vocab.logic import exists_unique
+from theorems.nat.arithmetic.plus.succ_func_exists import succ_func_exists
+from theorems.nat.arithmetic.plus.succ_func_unique import succ_func_unique
+from theorems.nat.arithmetic.plus.unique_succ_func import unique_succ_func
+from theorems.nat.arithmetic.plus.sf_apply_to_succ import sf_apply_to_succ
+from theorems.nat.arithmetic.plus.sf_succ_to_apply import sf_succ_to_apply
+from theorems.nat.arithmetic.plus.sf_relation import sf_relation
+from theorems.nat.arithmetic.plus.sf_dom_sub import sf_dom_sub
+from theorems.nat.arithmetic.plus.sf_total_from import sf_total_from
+from theorems.nat.arithmetic.plus.succ_func_total_from import succ_func_total_from
+from theorems.nat.arithmetic.plus.rec_for_each_m import rec_for_each_m
+from theorems.nat.arithmetic.plus.pf_base import pf_base
+from theorems.nat.arithmetic.plus.pf_relation import pf_relation
+from theorems.nat.arithmetic.plus.pf_forward import pf_forward
+from theorems.nat.arithmetic.plus.pf_single_valued import pf_single_valued
+from theorems.nat.arithmetic.plus.pf_dom_eq import pf_dom_eq
+from theorems.nat.arithmetic.plus.pf_backward import pf_backward
+from theorems.nat.arithmetic.plus.pf_step import pf_step
+from theorems.nat.arithmetic.plus.rec_val_nat import rec_val_nat
+from theorems.nat.arithmetic.plus.plus_func_exists import plus_func_exists
+from theorems.nat.arithmetic.plus.plus_func_unique import plus_func_unique
+from theorems.nat.arithmetic.plus.unique_plus_func import unique_plus_func
+from theorems.nat.arithmetic.plus.plus_base import plus_base
+from theorems.nat.arithmetic.plus.plus_step import plus_step
+from theorems.nat.arithmetic.plus.h_zero_identity import h_zero_identity
+from theorems.nat.arithmetic.plus.plus_zero_left import plus_zero_left
+from theorems.nat.arithmetic.plus.h_succ_left import h_succ_left
+from theorems.nat.arithmetic.plus.h_comm_identity import h_comm_identity
+from theorems.nat.arithmetic.plus.plus_comm import plus_comm
+from theorems.nat.arithmetic.plus.h_val_nat import h_val_nat
+from theorems.nat.arithmetic.plus.h_assoc_identity import h_assoc_identity
+from theorems.nat.arithmetic.plus.plus_assoc import plus_assoc
+from theorems.nat.arithmetic.plus.plus_val_unique import plus_val_unique
+from theorems.nat.arithmetic.plus.prove_addition import prove_addition
+from theorems.nat.arithmetic.plus.plus_val_nat import plus_val_nat
+from theorems.nat.arithmetic.plus.plus_geq import plus_geq
+from theorems.nat.arithmetic.plus.succ_plus_neq import succ_plus_neq
+from theorems.nat.arithmetic.plus.plus_val_exists import plus_val_exists
+from theorems.nat.arithmetic.plus.plus_val_transfer import plus_val_transfer
+from theorems.nat.arithmetic.plus.plus_sub import plus_sub
+
+$_ qed(succ_func_exists, exists("sf", succ_func("sf","_")), "z")
+$_ tap("succ_func_exists ok")
+
+$_ qed(succ_func_unique, forall("sf1", forall("sf2",
+    implies(succ_func("sf1","_"), implies(succ_func("sf2","_"), eqv("sf1","sf2","_"))))), "z")
+$_ tap("succ_func_unique ok")
+
+$_ qed(unique_succ_func, exists_unique(\sf p: succ_func(sf, p), "_"), "z")
+$_ tap("unique_succ_func ok")
+
+$sfe_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+    exists(add(np,"s"), and(successor(add(np,"s"),add(np,"x"),add(np,"_")),
+        ordered_pair(p,add(np,"x"),add(np,"s"),add(np,"_"))))))
+$sf_char_fn \sf w: forall("p", iff(mem("p",sf), sfe_phi("p","_")))
+
+$_ qed(sf_apply_to_succ,
+    forall("sf", forall("w", forall("x", forall("y",
+        implies(sf_char_fn("sf","w"), implies(apply("sf","x","y","_"), successor("y","x","_"))))))), "z")
+$_ tap("sf_apply_to_succ ok")
+
+$_ qed(sf_succ_to_apply,
+    forall("sf", forall("w", forall("x", forall("y",
+        implies(sf_char_fn("sf","w"), implies(mem("x","w"), implies(successor("y","x","_"), apply("sf","x","y","_")))))))), "z")
+$_ tap("sf_succ_to_apply ok")
+
+$_ qed(sf_relation,
+    forall("sf", forall("w",
+        implies(sf_char_fn("sf","w"), relation("sf","_")))), "z")
+$_ tap("sf_relation ok")
+
+$_ qed(sf_dom_sub,
+    forall("sf", forall("w", forall("xd",
+        implies(sf_char_fn("sf","w"), implies(exists("yd", apply("sf","xd","yd","_")), mem("xd","w")))))), "z")
+$_ tap("sf_dom_sub ok")
+
+$_ qed(sf_total_from, forall("sf", forall("m",
+    implies(succ_func("sf","_"), implies(nat("m","_"), total_from("sf","m","_"))))), "z")
+$_ tap("sf_total_from ok")
+
+$_ qed(succ_func_total_from, forall("sf", forall("m",
+    implies(succ_func("sf","_"), implies(nat("m","_"), total_from("sf","m","_"))))), "z")
+$_ tap("succ_func_total_from ok")
+
+$_ qed(rec_for_each_m, forall("sf", forall("m",
+    implies(succ_func("sf","_"), implies(nat("m","_"),
+        exists_unique(\h p: recursive(h,"m","sf",p), "_"))))), "z")
+$_ tap("rec_for_each_m ok")
+
+$pf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
+    exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+        and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+        and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+            exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"m"),"sf",add(np,"_")),
+                apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))
+$pf_char_h forall("xv", iff(mem("xv","h"), pf_phi("xv","_")))
+$pf_base_body implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
+    forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","m","_"))))))
+$pf_base_top implies(pf_char_h, implies(succ_func("sf","_"), forall("m", pf_base_body)))
+$_ qed(pf_base, forall("h", forall("sf", pf_base_top)), "z")
+$_ tap("pf_base ok")
+
+$pf_rel_top implies(pf_char_h, relation("h","_"))
+$_ qed(pf_relation, forall("h", forall("sf", pf_rel_top)), "z")
+$_ tap("pf_relation ok")
+
+$pf_char_fwd forall("xv", implies(mem("xv","h"), pf_phi("xv","_")))
+$pf_fwd_result \key val: exists("mv", and(nat("mv","_"), exists("nv",
+    and(ordered_pair(key,"mv","nv","_"), exists("hm", and(recursive("hm","mv","sf","_"), apply("hm","nv",val,"_")))))))
+$pf_fwd_top implies(pf_char_fwd, implies(apply("h","key","val","_"), pf_fwd_result("key","val")))
+$_ qed(pf_forward, forall("h", forall("sf", forall("key", forall("val", pf_fwd_top)))), "z")
+$_ tap("pf_forward ok")
+
+$pf_sv_body forall("key", forall("y1", forall("y2",
+    implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")), eqv("y1","y2","_")))))
+$pf_sv_top implies(pf_char_fwd, implies(succ_func("sf","_"), pf_sv_body))
+$_ qed(pf_single_valued, forall("h", forall("sf", pf_sv_top)), "z")
+$_ tap("pf_single_valued ok")
+
+$pf_deq_body forall("dd", forall("prod", implies(domain("dd","h","_"),
+    implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
+$pf_deq_top implies(pf_char_h, implies(succ_func("sf","_"), implies(omega("w","_"), pf_deq_body)))
+$_ qed(pf_dom_eq, forall("h", forall("sf", forall("w", pf_deq_top))), "z")
+$_ tap("pf_dom_eq ok")
+
+$pf_bwd_body implies(succ_func("sf","_"), forall("m", implies(nat("m","_"),
+    forall("n", implies(nat("n","_"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"),
+            forall("hm", implies(recursive("hm","m","sf","_"),
+                forall("yv", implies(apply("hm","n","yv","_"),
+                    apply("h","pair","yv","_"))))))))))))
+$pf_bwd_top implies(pf_char_h, pf_bwd_body)
+$_ qed(pf_backward, forall("h", forall("sf", pf_bwd_top)), "z")
+$_ tap("pf_backward ok")
+
+$pf_step_body forall("m", implies(nat("m","_"),
+    forall("n", implies(nat("n","_"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"),
+            forall("p", implies(apply("h","pair","p","_"),
+                forall("sn", implies(successor("sn","n","_"),
+                    forall("sp", implies(successor("sp","p","_"),
+                        forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                            apply("h","pair2","sp","_")))))))))))))))
+$pf_step_top implies(pf_char_h, implies(succ_func("sf","_"), pf_step_body))
+$_ qed(pf_step, forall("h", forall("sf", pf_step_top)), "z")
+$_ tap("pf_step ok")
+
+$rvo_body implies(succ_char("sf","_"), implies(recursive("h","a","sf","_"),
+    implies(nat("a","_"), implies(nat("x","_"), implies(apply("h","x","y","_"), nat("y","_"))))))
+$_ qed(rec_val_nat, forall("sf", forall("a", forall("h", forall("x", forall("y", rvo_body))))), "z")
+$_ tap("rec_val_nat ok")
+
+$_ qed(plus_func_exists, exists("h", plus_func("h","_")), "z")
+$_ tap("plus_func_exists ok")
+
+$_ qed(plus_func_unique, forall("h1", forall("h2",
+    implies(plus_func("h1","_"), implies(plus_func("h2","_"), eqv("h1","h2","_"))))), "z")
+$_ tap("plus_func_unique ok")
+
+$_ qed(unique_plus_func, exists_unique(\h p: plus_func(h, p), "_"), "z")
+$_ tap("unique_plus_func ok")
+
+$_ qed(plus_base, forall("m", implies(nat("m","_"), forall("z", implies(num("z",0,"_"),
+    plus("m","z","m","_"))))), "z")
+$_ tap("plus_base ok")
+
+$ps_body forall("m", implies(nat("m","_"), forall("n", implies(nat("n","_"),
+    forall("p", implies(plus("m","n","p","_"), forall("sn", implies(successor("sn","n","_"),
+        forall("sp", implies(successor("sp","p","_"), plus("m","sn","sp","_")))))))))))
+$_ qed(plus_step, ps_body, "z")
+$_ tap("plus_step ok")
+
+$_ qed(h_zero_identity, forall("h", implies(plus_func("h","_"),
+    forall("a", implies(nat("a","_"),
+        forall("z", implies(num("z",0,"_"),
+            forall("pair", implies(ordered_pair("pair","z","a","_"),
+                apply("h","pair","a","_"))))))))), "z")
+$_ tap("h_zero_identity ok")
+
+$_ qed(plus_zero_left, forall("a", implies(nat("a","_"),
+    forall("b", implies(num("b",0,"_"),
+        forall("c", implies(plus("b","a","c","_"), eqv("c","a","_"))))))), "z")
+$_ tap("plus_zero_left ok")
+
+$_ qed(h_succ_left, forall("h", implies(plus_func("h","_"),
+    forall("m", implies(nat("m","_"),
+        forall("sm", implies(successor("sm","m","_"),
+            forall("n", implies(nat("n","_"),
+                forall("pair", implies(ordered_pair("pair","m","n","_"),
+                    forall("p", implies(apply("h","pair","p","_"),
+                        forall("pair_sm", implies(ordered_pair("pair_sm","sm","n","_"),
+                            forall("sp", implies(successor("sp","p","_"),
+                                apply("h","pair_sm","sp","_"))))))))))))))))), "z")
+$_ tap("h_succ_left ok")
+
+$_ qed(h_comm_identity, forall("h", implies(plus_func("h","_"),
+    forall("m", implies(nat("m","_"),
+        forall("n", implies(nat("n","_"),
+            forall("pair_mn", implies(ordered_pair("pair_mn","m","n","_"),
+                forall("pair_nm", implies(ordered_pair("pair_nm","n","m","_"),
+                    forall("p", implies(apply("h","pair_mn","p","_"),
+                        apply("h","pair_nm","p","_"))))))))))))), "z")
+$_ tap("h_comm_identity ok")
+
+$_ qed(plus_comm, forall("m", implies(nat("m","_"),
+    forall("n", implies(nat("n","_"),
+        forall("p", implies(plus("m","n","p","_"), plus("n","m","p","_"))))))), "z")
+$_ tap("plus_comm ok")
+
+$_ qed(h_val_nat, forall("h", implies(plus_func("h","_"),
+    forall("m", implies(nat("m","_"),
+        forall("n", implies(nat("n","_"),
+            forall("pair", implies(ordered_pair("pair","m","n","_"),
+                forall("p", implies(apply("h","pair","p","_"),
+                    nat("p","_"))))))))))), "z")
+$_ tap("h_val_nat ok")
+
+$_ qed(h_assoc_identity, forall("h", implies(plus_func("h","_"),
+    forall("a", implies(nat("a","_"),
+        forall("b", implies(nat("b","_"),
+            forall("pab", implies(ordered_pair("pab","a","b","_"),
+                forall("d", implies(apply("h","pab","d","_"),
+                    forall("c", implies(nat("c","_"),
+                        forall("pdc", implies(ordered_pair("pdc","d","c","_"),
+                            forall("s", implies(apply("h","pdc","s","_"),
+                                forall("pbc", implies(ordered_pair("pbc","b","c","_"),
+                                    forall("t", implies(apply("h","pbc","t","_"),
+                                        forall("pat", implies(ordered_pair("pat","a","t","_"),
+                                            apply("h","pat","s","_"))))))))))))))))))))))), "z")
+$_ tap("h_assoc_identity ok")
+
+$_ qed(plus_assoc, forall("a", implies(nat("a","_"),
+    forall("b", implies(nat("b","_"),
+        forall("c", implies(nat("c","_"),
+            forall("d", implies(plus("a","b","d","_"),
+                forall("s", implies(plus("d","c","s","_"),
+                    forall("t", implies(plus("b","c","t","_"),
+                        plus("a","t","s","_"))))))))))))), "z")
+$_ tap("plus_assoc ok")
+
+$_ qed(plus_val_unique, forall("a", forall("b", forall("c", forall("c2",
+    implies(plus("a","b","c","_"), implies(plus("a","b","c2","_"), eqv("c","c2","_"))))))), "z")
+$_ tap("plus_val_unique ok")
+
+$_pa_qed \m n: {
+    $p add(m, n)
+    $pa prove_addition(m, n)
+    qed(pa, forall("a", implies(num("a",m,"_"), forall("b", implies(num("b",n,"_"),
+        forall("c", implies(num("c",p,"_"), plus("a","b","c","_"))))))), "z")
+}
+
+$_ _pa_qed(0, 0)
+$_ tap("0+0=0 ok")
+$_ _pa_qed(1, 0)
+$_ tap("1+0=1 ok")
+$_ _pa_qed(0, 1)
+$_ tap("0+1=1 ok")
+$_ _pa_qed(1, 1)
+$_ tap("1+1=2 ok")
+$_ _pa_qed(2, 3)
+$_ tap("2+3=5 ok")
+
+$_ qed(plus_val_nat, forall("m", forall("n", forall("p",
+    implies(nat("m","_"), implies(nat("n","_"),
+        implies(plus("m","n","p","_"), nat("p","_"))))))), "z")
+$_ tap("plus_val_nat ok")
+
+$_ qed(plus_geq, forall("a", forall("b",
+    implies(nat("a","_"), implies(nat("b","_"),
+        exists("c", and(plus("a","b","c","_"), le("a","c","_"))))))), "z")
+$_ tap("plus_geq ok")
+
+$_ qed(succ_plus_neq, forall("sa", forall("a", forall("j", forall("pp",
+    implies(nat("sa","_"), implies(nat("a","_"), implies(nat("j","_"),
+    implies(successor("sa","a","_"), implies(plus("sa","j","pp","_"),
+    neg(eqv("pp","a","_"))))))))))), "zfc")
+$_ tap("succ_plus_neq ok")
+
+$_ qed(plus_val_exists, forall("m",
+    implies(nat("m","_"), forall("n",
+        implies(nat("n","_"),
+            exists("p", plus("m","n","p","_")))))), "zfc")
+$_ tap("plus_val_exists ok")
+
+$_ qed(plus_val_transfer, forall("m", forall("n", forall("p", forall("q",
+    implies(plus("m","n","p","_"), implies(eqv("p","q","_"), plus("m","n","q","_"))))))), "z")
+$_ tap("plus_val_transfer ok")
+
+$_ qed(plus_sub, forall("m", forall("n",
+    implies(nat("m","_"), implies(nat("n","_"),
+        forall("pv", implies(plus("m","n","pv","_"),
+            forall("iv", implies(lt("iv","pv","_"),
+                implies(neg(lt("iv","m","_")),
+                    exists("jv", and(lt("jv","n","_"), plus("m","jv","iv","_")))))))))))), "zfc")
+$_ tap("plus_sub ok")
+
+$ok true

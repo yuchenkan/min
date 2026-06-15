@@ -4,7 +4,7 @@ from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_step
 from vocab.tm.add import phase3_ind
 from vocab.nat.nat import num, nat, successor
-from vocab.arithmetic.plus import plus
+from vocab.nat.arithmetic.plus import plus
 from tactics import ax, wl, wr, fl, fr, nl, nr, ir, mp, cut, cut_c, apply_thm, eir, eel, close, same, inst
 from util.list import remove, diff
 
@@ -20,7 +20,7 @@ from theorems.sets.singleton_apply_eq import singleton_apply_eq
 from theorems.sets.singleton_function import singleton_function
 from theorems.sets.empty_unique import empty_unique
 from theorems.functions.apply_key_transfer import apply_key_transfer
-from theorems.arithmetic.plus.plus_base import plus_base
+from theorems.nat.arithmetic.plus.plus_base import plus_base
 
 # |- ∀d,q1,sa,tape2,c1,z. Num(z,0) → Nat(sa) → TMConfig(c1,q1,sa,tape2) → Phase3Ind(z,d,q1,sa,tape2,c1)
 $phase3_base {

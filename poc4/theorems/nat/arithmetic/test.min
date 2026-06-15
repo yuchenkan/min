@@ -1,0 +1,2 @@
+from theorems.nat.arithmetic.plus.test import ok
+$ok true

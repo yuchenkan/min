@@ -28,7 +28,7 @@ from theorems.tm.tm.tape_update_exists import tape_update_exists
 from theorems.tm.tm.tape_update_function import tape_update_function
 from vocab.tm.tm import tm_reaches
 from vocab.nat.nat import nat
-from vocab.arithmetic.plus import plus
+from vocab.nat.arithmetic.plus import plus
 from theorems.tm.tm.tmreaches_compose import tmreaches_compose
 
 $ce config_elim("c", "q", "h", "tape", "inner", ["inner", "tape", "h", "q", "c"])
