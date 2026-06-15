@@ -5,7 +5,7 @@
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT/poc4" || exit 1
 
-if ! bash lint.sh; then
+if ! bash lint.sh --git; then
     echo ""
     echo "pre-commit: lint.sh failed — commit aborted."
     echo "Fix the names above, or run 'git commit --no-verify' to bypass."
