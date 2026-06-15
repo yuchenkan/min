@@ -1317,8 +1317,7 @@ $tm_add_correct {
     $body implies(tu_tape2, body)
     # tape_read: derived in Section 14
     # nat_sa: derived in Section 14
-    $proof ir(proof, remove(same, succ_sa, left(proof)), [implies(succ_sa, body)], implies(succ_sa, body))
-    $body implies(succ_sa, body)
+    # succ_sa: eel+cut below
     # plus_sa_b_hf: derived in Section 14
     # cfg_c1-c4: eel+cut below
     # Plus/Nat intermediates
@@ -1406,19 +1405,23 @@ $tm_add_correct {
         left(ne_q2), left(proof), head(right(proof)))
     $_ tap("eel+cut q2 ok")
 
+    # sa: eel from succ_sa, cut with successor_exists(a)
+    $proof eel(proof, \v: successor(v, "a", "_"), "sa", "sa",
+        remove(same, succ_sa, left(proof)), head(right(proof)))
+    $_se_a_b \a: exists("s", successor("s", a, "_"))
+    $se_a apply_thm(successor_exists, head(right(successor_exists)),
+        ["a"], ["a"], _se_a_b, left(successor_exists))
+    $proof cut_c(se_a, proof, head(right(se_a)),
+        left(se_a), left(proof), head(right(proof)))
+    $_ tap("eel+cut sa ok")
+
     # === Section 16: close foralls over all variables ===
-    # Remaining intermediate variables: one, sa, tape2
+    # Remaining intermediate variables: one, tape2
     # Goal variables: delta, q0, qH, tin, z, c0, cf, n, hf, tf, a, b, c, ssc
-    # close order: innermost first (intermediates, then goal vars)
     $proof close(proof, left(proof), right(proof),
-        ["one", "sa", "tape2",
+        ["one", "tape2",
          "ssc", "c", "b", "a", "tf", "hf", "n", "cf", "c0", "z", "tin", "qH", "q0", "delta"])
     $_ tap("close ok")
-
-    # The proof is now closed with all 24 foralls.
-    # The right side has extra intermediate hypotheses that need to be
-    # derived from the goal hypotheses in a future step.
-    # For now, export as-is — the composition structure is verified.
 
     proof
 }
