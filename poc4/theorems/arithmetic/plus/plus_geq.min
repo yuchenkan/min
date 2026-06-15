@@ -32,12 +32,12 @@ from theorems.sets.subset_antisymmetric import subset_antisymmetric
 from theorems.arithmetic.plus.plus_base import plus_base
 from theorems.arithmetic.plus.plus_step import plus_step
 
-# plus_ge: ∀a,b. Nat(a) → Nat(b) → ∃c. And(Plus(a,b,c), a ≤ c)
+# plus_geq: ∀a,b. Nat(a) → Nat(b) → ∃c. And(Plus(a,b,c), a ≤ c)
 # Omega induction on b.
 # Base b=0: Plus(a,0,a), a ≤ a (via Eq(a,a)).
 # Step: IH a ≤ cv + Succ(sp,cv) → a∈sp → a ≤ sp.
 
-$plus_ge {
+$plus_geq {
     $nat_a nat("a", "_")
     $nat_b nat("b", "_")
     $omega_w omega("w", "_")
