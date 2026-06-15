@@ -1,0 +1,124 @@
+from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right
+from vocab.functions import apply, function
+from vocab.tm.add import unary_tape
+from vocab.nat.nat import num, successor
+from vocab.arithmetic.plus import plus
+from tactics import ax, wl, wl_all, wr, fl, fr, ir, mp, inst, apply_thm, close, same
+from util.list import remove
+
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+
+# [] |- ∀tape,a,b,sa,ep,i,zero.
+#   UnaryTape(tape,a,b) → Succ(sa,a) → Plus(sa,b,ep) → ¬(i∈ep) →
+#   Num(zero,0) → Apply(tape,i,zero)
+$tape_read_beyond {
+    $ut unary_tape("tape", "a", "b", "_")
+    $succ_sa successor("sa", "a", "_")
+    $plus_ep plus("sa", "b", "ep", "_")
+    $not_in neg(mem("i", "ep"))
+    $num_zero num("zero", 0, "_")
+    $app_tape apply("tape", "i", "zero", "_")
+
+    # UnaryTape expands to And(func, And(low, And(sep, And(high, beyond))))
+    $func_f function("tape", "_")
+    $low forall("i", implies(mem("i", "a"),
+        forall("one", implies(num("one", 1, "_"), apply("tape", "i", "one", "_")))))
+    $sep forall("zero", implies(num("zero", 0, "_"), apply("tape", "a", "zero", "_")))
+    $high forall("j", implies(mem("j", "b"),
+        forall("sa", implies(successor("sa", "a", "_"),
+            forall("pos", implies(plus("sa", "j", "pos", "_"),
+                forall("one", implies(num("one", 1, "_"),
+                    apply("tape", "pos", "one", "_")))))))))
+    $beyond forall("sa", implies(successor("sa", "a", "_"),
+        forall("ep", implies(plus("sa", "b", "ep", "_"),
+            forall("i", implies(neg(mem("i", "ep")),
+                forall("zero", implies(num("zero", 0, "_"),
+                    apply("tape", "i", "zero", "_")))))))))
+    $rest0 and(low, and(sep, and(high, beyond)))
+
+    # ut |- rest0
+    $got mp(and_elim_right(func_f, rest0, []),
+        ax([ut],[ut],ut), ut, rest0, [], [ut])
+
+    # ut |- And(sep, And(high, beyond))
+    $rest1 and(sep, and(high, beyond))
+    $got mp(and_elim_right(low, rest1, []),
+        got, rest0, rest1, [], left(got))
+
+    # ut |- And(high, beyond)
+    $high_beyond and(high, beyond)
+    $got mp(and_elim_right(sep, high_beyond, []),
+        got, rest1, high_beyond, [], left(got))
+
+    # ut |- beyond
+    $got mp(and_elim_right(high, beyond, []),
+        got, high_beyond, beyond, [], left(got))
+
+    # beyond = ∀sa. Succ(sa,a) → ∀ep. Plus(sa,b,ep) → ∀i. ¬(i∈ep) → ∀zero. Num(zero,0) → Apply(tape,i,zero)
+    # Instantiate sa
+    $inner1 forall("ep", implies(plus_ep,
+        forall("i", implies(not_in,
+            forall("zero", implies(num_zero, app_tape))))))
+    $got_inst inst(got, beyond, implies(succ_sa, inner1), "sa", left(got))
+    $got mp(got_inst,
+        ax([succ_sa],[succ_sa],succ_sa), succ_sa, inner1,
+        left(got_inst), [succ_sa])
+
+    # Instantiate ep
+    $inner2 forall("i", implies(not_in,
+        forall("zero", implies(num_zero, app_tape))))
+    $got_inst inst(got, inner1, implies(plus_ep, inner2), "ep", left(got))
+    $got mp(got_inst,
+        ax([plus_ep],[plus_ep],plus_ep), plus_ep, inner2,
+        left(got_inst), [plus_ep])
+
+    # Instantiate i
+    $inner3 forall("zero", implies(num_zero, app_tape))
+    $got_inst inst(got, inner2, implies(not_in, inner3), "i", left(got))
+    $got mp(got_inst,
+        ax([not_in],[not_in],not_in), not_in, inner3,
+        left(got_inst), [not_in])
+
+    # Instantiate zero
+    $got_inst inst(got, inner3, implies(num_zero, app_tape), "zero", left(got))
+    $got mp(got_inst,
+        ax([num_zero],[num_zero],num_zero), num_zero, app_tape,
+        left(got_inst), [num_zero])
+
+    # Discharge: num_zero, not_in, plus_ep, succ_sa, ut
+    $proof got
+    $goal_f app_tape
+    $proof ir(proof, remove(same, num_zero, left(proof)),
+        [implies(num_zero, goal_f)], implies(num_zero, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, not_in, left(proof)),
+        [implies(not_in, goal_f)], implies(not_in, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, plus_ep, left(proof)),
+        [implies(plus_ep, goal_f)], implies(plus_ep, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, succ_sa, left(proof)),
+        [implies(succ_sa, goal_f)], implies(succ_sa, goal_f))
+    $goal_f head(right(proof))
+    $proof ir(proof, remove(same, ut, left(proof)),
+        [implies(ut, goal_f)], implies(ut, goal_f))
+    $goal_f head(right(proof))
+
+    # Close foralls: zero, i, ep, sa, b, a, tape
+    $proof fr(proof, left(proof), [forall("zero", goal_f)], forall("zero", goal_f), "zero")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("i", goal_f)], forall("i", goal_f), "i")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("ep", goal_f)], forall("ep", goal_f), "ep")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("sa", goal_f)], forall("sa", goal_f), "sa")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("b", goal_f)], forall("b", goal_f), "b")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("a", goal_f)], forall("a", goal_f), "a")
+    $goal_f head(right(proof))
+    $proof fr(proof, left(proof), [forall("tape", goal_f)], forall("tape", goal_f), "tape")
+
+    proof
+}

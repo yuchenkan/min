@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, and, eqv, qed, mem, or
+from derived import implies, forall, exists, and, eqv, qed, mem, or, neg
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_transition, tm_step
@@ -16,6 +16,7 @@ from theorems.tm.add.phase4 import phase4
 from theorems.tm.add.phase5 import phase5
 from theorems.tm.add.tape_read_sep import tape_read_sep
 from theorems.tm.add.tape_read_high import tape_read_high
+from theorems.tm.add.tape_read_beyond import tape_read_beyond
 from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p, phase4p, phase5p
 from vocab.nat.nat import nat, omega
 from vocab.arithmetic.plus import plus
@@ -128,5 +129,16 @@ $trh_expected forall("tape", forall("a", forall("b", forall("j", forall("sa",
         apply("tape", "pos", "one", "_")))))))))))))
 $_ qed(tape_read_high, trh_expected, "z")
 $_ tap("tape_read_high ok")
+
+$trb_expected forall("tape", forall("a", forall("b", forall("sa", forall("ep",
+    forall("i", forall("zero",
+    implies(unary_tape("tape", "a", "b", "_"),
+    implies(successor("sa", "a", "_"),
+    implies(plus("sa", "b", "ep", "_"),
+    implies(neg(mem("i", "ep")),
+    implies(num("zero", 0, "_"),
+        apply("tape", "i", "zero", "_")))))))))))))
+$_ qed(tape_read_beyond, trb_expected, "z")
+$_ tap("tape_read_beyond ok")
 
 $ok true

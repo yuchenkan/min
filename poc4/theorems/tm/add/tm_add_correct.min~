@@ -46,7 +46,8 @@ from theorems.arithmetic.plus.plus_step import plus_step
 from theorems.arithmetic.plus.plus_comm import plus_comm
 from theorems.arithmetic.plus.plus_val_unique import plus_val_unique
 from theorems.arithmetic.plus.plus_val_nat import plus_val_nat
-from theorems.arithmetic.plus.plus_ge import plus_ge
+from theorems.arithmetic.plus.plus_geq import plus_geq
+from theorems.arithmetic.plus.succ_plus_neq import succ_plus_neq
 
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.apply_val_transfer import apply_val_transfer
@@ -67,6 +68,7 @@ from theorems.tm.add.phase4 import phase4
 from theorems.tm.add.phase5 import phase5
 from theorems.tm.add.tape_read_high import tape_read_high
 from theorems.tm.add.tape_read_sep import tape_read_sep
+from theorems.tm.add.tape_read_beyond import tape_read_beyond
 
 # =============================================
 # tm_add_correct: TM addition is correct
@@ -625,6 +627,45 @@ $tm_add_correct {
         mp(got_bwd, got_ex2, ex_ow_y, nat_y, left(got_bwd), left(got_ex2))
     }
 
+    # --- nat_mem_step: Nat(x) + y∈x → Nat(y) via omega_transitive ---
+    # Returns [ZFC, nat_x, mem(y,x)] |- [nat_y]
+    $nat_mem_step \xvar yvar nat_x mem_yx: {
+        $ow_s omega("w","_")
+        $xw_s mem(xvar,"w")
+        $yw_s mem(yvar,"w")
+        $got_ex_x nat_fwd(xvar, nat_x)
+        $and_ow_x and(ow_s, xw_s)
+        $got_ow_s mp(and_elim_left(ow_s, xw_s, []),
+            ax([and_ow_x],[and_ow_x],and_ow_x), and_ow_x, ow_s, [], [and_ow_x])
+        $got_xw mp(and_elim_right(ow_s, xw_s, []),
+            ax([and_ow_x],[and_ow_x],and_ow_x), and_ow_x, xw_s, [], [and_ow_x])
+        $_ot_b \w: \b: \k: implies(omega(w,"_"), implies(mem(b,w), implies(mem(k,b), mem(k,w))))
+        $ot_ctx left(omega_transitive)
+        $ot_i apply_thm(omega_transitive, head(right(omega_transitive)),
+            ["w",xvar,yvar], ["w","b","k"], _ot_b, ot_ctx)
+        $ot1 mp(ot_i, got_ow_s, ow_s, implies(xw_s, implies(mem_yx, yw_s)),
+            left(ot_i), [and_ow_x])
+        $ot2 mp(ot1, got_xw, xw_s, implies(mem_yx, yw_s),
+            left(ot1), [and_ow_x])
+        $got_yw mp(ot2,
+            ax([mem_yx],[mem_yx],mem_yx), mem_yx, yw_s,
+            left(ot2), [mem_yx])
+        $and_ow_y and(ow_s, yw_s)
+        $got_and_y mp(mp(and_intro(ow_s, yw_s, []),
+            got_ow_s, ow_s, implies(yw_s, and_ow_y), [], [and_ow_x]),
+            got_yw, yw_s, and_ow_y, [and_ow_x], left(got_yw))
+        $ex_ow_y exists("w", and(ow_s, yw_s))
+        $ex_ow_x exists("w", and(ow_s, xw_s))
+        $got_ex_raw eir(got_and_y, \w: and(omega(w,"_"), mem(yvar,w)), "w", "w", left(got_and_y))
+        $got_ex eel(got_ex_raw, \w: and(omega(w,"_"), mem(xvar,w)), "w", "w",
+            remove(same, and_ow_x, left(got_ex_raw)), ex_ow_y)
+        $got_ex2 cut_c(got_ex_x, got_ex, ex_ow_x,
+            left(got_ex_x), left(got_ex), ex_ow_y)
+        $nat_y nat(yvar,"_")
+        $got_bwd nat_bwd(yvar, nat_y)
+        mp(got_bwd, got_ex2, ex_ow_y, nat_y, left(got_bwd), left(got_ex2))
+    }
+
     # Cut order: dependents first. Each cut's ax() deps must still be on left.
 
     # --- plus_ssc_one_n: Plus(ssc,one,n) via plus_base+plus_step ---
@@ -644,12 +685,6 @@ $tm_add_correct {
     $proof cut_c(got_plus_hf_one_ssc, proof, plus_hf_one_ssc,
         left(got_plus_hf_one_ssc), left(proof), head(right(proof)))
     $_ tap("derived plus_hf_one_ssc ok")
-
-    # --- nat_hf: Nat(c) + Succ(hf,c) → Nat(hf) ---
-    $got_nat_hf nat_succ_step("c", "hf", nat_c, nat_hf, succ_hf)
-    $proof cut_c(got_nat_hf, proof, nat_hf,
-        left(got_nat_hf), left(proof), head(right(proof)))
-    $_ tap("derived nat_hf ok")
 
     # --- plus_sa_b_hf: Plus(sa,b,hf) from Plus(a,b,c) via comm+step+comm ---
     # Step 1: plus_comm(a,b,c) → Plus(b,a,c)
@@ -700,6 +735,154 @@ $tm_add_correct {
     $proof cut_c(got_plus_a_one_sa, proof, plus_a_one_sa,
         left(got_plus_a_one_sa), left(proof), head(right(proof)))
     $_ tap("derived plus_a_one_sa ok")
+
+    # --- tape_read: ∀j∈b. ∀pp. Plus(sa,j,pp) → Apply(tape2,pp,one) ---
+    # From tape_read_high (Apply on original tape), succ_plus_neq (pp≠a),
+    # tape_update_other (transfer through update).
+    # Deps on left: utape, succ_sa, num_one, nat_sa, nat_a, nat_b, tu_tape2
+    $got_tape_read {
+        $mem_j_b mem("j","b")
+        $plus_sa_j_pp plus("sa","j","pp","_")
+        $app_tin_pp apply("tin","pp","one","_")
+        $app_tape2_pp apply("tape2","pp","one","_")
+        $neg_eqv_pp_a neg(eqv("pp","a","_"))
+
+        # Step 1: tape_read_high → Apply(tin,pp,one)
+        $_trh_b \tape: \a: \b: \j: \sa: \pos: \one:
+            implies(unary_tape(tape,a,b,"_"), implies(mem(j,b),
+            implies(successor(sa,a,"_"), implies(plus(sa,j,pos,"_"),
+            implies(num(one,1,"_"), apply(tape,pos,one,"_"))))))
+        $trh apply_thm(tape_read_high, head(right(tape_read_high)),
+            ["tin","a","b","j","sa","pp","one"],
+            ["tape","a","b","j","sa","pos","one"],
+            _trh_b, left(tape_read_high))
+        $trh _mp_ax(trh, utape)
+        $trh _mp_ax(trh, mem_j_b)
+        $trh _mp_ax(trh, succ_sa)
+        $trh _mp_ax(trh, plus_sa_j_pp)
+        $got_app_tin_pp _mp_ax(trh, num_one)
+
+        # Step 2: succ_plus_neq → ¬Eqv(pp,a)
+        $_spn_b \sa: \a: \j: \pp:
+            implies(nat(sa,"_"), implies(nat(a,"_"), implies(nat(j,"_"),
+            implies(successor(sa,a,"_"), implies(plus(sa,j,pp,"_"),
+            neg(eqv(pp,a,"_")))))))
+        $spn apply_thm(succ_plus_neq, head(right(succ_plus_neq)),
+            ["sa","a","j","pp"], ["sa","a","j","pp"],
+            _spn_b, left(succ_plus_neq))
+        $spn _mp_ax(spn, nat_sa)
+        $spn _mp_ax(spn, nat_a)
+        $got_nat_j nat_mem_step("b", "j", nat_b, mem_j_b)
+        $spn _mp_with(spn, got_nat_j)
+        $spn _mp_ax(spn, succ_sa)
+        $got_neg _mp_ax(spn, plus_sa_j_pp)
+
+        # Step 3: tape_update_other → Apply(tape2,pp,one)
+        $_tuo_b \tapen: \tape: \h: \w: \x: \y:
+            implies(tape_update(tapen,tape,h,w,"_"), implies(apply(tape,x,y,"_"),
+            implies(neg(eqv(x,h,"_")), apply(tapen,x,y,"_"))))
+        $tuo apply_thm(tape_update_other, head(right(tape_update_other)),
+            ["tape2","tin","a","one","pp","one"],
+            ["tapen","tape","h","w","x","y"],
+            _tuo_b, left(tape_update_other))
+        $tuo _mp_ax(tuo, tu_tape2)
+        $tuo _mp_with(tuo, got_app_tin_pp)
+        $got_tape2_app _mp_with(tuo, got_neg)
+
+        # Step 4: ir + fr to build tape_read formula
+        $tr_proof got_tape2_app
+        $tr_f app_tape2_pp
+        $tr_proof ir(tr_proof, remove(same, plus_sa_j_pp, left(tr_proof)),
+            [implies(plus_sa_j_pp, tr_f)], implies(plus_sa_j_pp, tr_f))
+        $tr_f head(right(tr_proof))
+        $tr_proof fr(tr_proof, left(tr_proof), [forall("pp", tr_f)], forall("pp", tr_f), "pp")
+        $tr_f head(right(tr_proof))
+        $tr_proof ir(tr_proof, remove(same, mem_j_b, left(tr_proof)),
+            [implies(mem_j_b, tr_f)], implies(mem_j_b, tr_f))
+        $tr_f head(right(tr_proof))
+        fr(tr_proof, left(tr_proof), [forall("j", tr_f)], forall("j", tr_f), "j")
+    }
+    $proof cut_c(got_tape_read, proof, tape_read,
+        left(got_tape_read), left(proof), head(right(proof)))
+    $_ tap("derived tape_read ok")
+
+    # --- app_tape2_hf_z: Apply(tape2,hf,z) ---
+    # From tape_read_beyond (Apply on original tape tin at position hf),
+    # succ_plus_neq (hf≠a), tape_update_other (transfer through update).
+    # Needs ¬(hf∈hf) from nat_elim + not_mem_self.
+    # Deps on left: utape, succ_sa, plus_sa_b_hf, nat_hf, omega_w, nat_sa, nat_a, nat_b, tu_tape2, num_z
+    $got_app_tape2_hf_z {
+        # Step 1: nat_elim → hf∈w from Nat(hf) + Omega(w)
+        $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+        $ne_inst apply_thm(nat_elim, head(right(nat_elim)),
+            ["hf","w"], ["m","w"], _ne_b, [])
+        $ne1 _mp_ax(ne_inst, nat_hf)
+        $mem_hf_w mem("hf","w")
+        $got_mem _mp_ax(ne1, omega_w)
+
+        # Step 2: not_mem_self → ¬(hf∈hf) from Omega(w) + hf∈w
+        $_nms_b \w: implies(omega(w,"_"), forall("n", implies(mem("n",w), neg(mem("n","n")))))
+        $nms_inst inst(not_mem_self, head(right(not_mem_self)), _nms_b("w"), "w", left(not_mem_self))
+        $nms1 _mp_ax(nms_inst, omega_w)
+        $_nms2_b \n: implies(mem(n,"w"), neg(mem(n,n)))
+        $nms2 inst(nms1, head(right(nms1)), _nms2_b("hf"), "hf", left(nms1))
+        $neg_hf_hf neg(mem("hf","hf"))
+        $got_neg_hf _mp_with(nms2, got_mem)
+
+        # Step 3: tape_read_beyond → Apply(tin,hf,z)
+        $_trb_b \tape: \a: \b: \sa: \ep: \i: \zero:
+            implies(unary_tape(tape,a,b,"_"), implies(successor(sa,a,"_"),
+            implies(plus(sa,b,ep,"_"), implies(neg(mem(i,ep)),
+            implies(num(zero,0,"_"), apply(tape,i,zero,"_"))))))
+        $trb apply_thm(tape_read_beyond, head(right(tape_read_beyond)),
+            ["tin","a","b","sa","hf","hf","z"],
+            ["tape","a","b","sa","ep","i","zero"],
+            _trb_b, [])
+        $trb _mp_ax(trb, utape)
+        $trb _mp_ax(trb, succ_sa)
+        $trb _mp_ax(trb, plus_sa_b_hf)
+        $trb _mp_with(trb, got_neg_hf)
+        $got_app_tin _mp_ax(trb, num_z)
+
+        # Step 4: succ_plus_neq → ¬Eqv(hf,a)
+        $_spn_b \sa: \a: \j: \pp:
+            implies(nat(sa,"_"), implies(nat(a,"_"), implies(nat(j,"_"),
+            implies(successor(sa,a,"_"), implies(plus(sa,j,pp,"_"),
+            neg(eqv(pp,a,"_")))))))
+        $spn apply_thm(succ_plus_neq, head(right(succ_plus_neq)),
+            ["sa","a","b","hf"], ["sa","a","j","pp"],
+            _spn_b, left(succ_plus_neq))
+        $spn _mp_ax(spn, nat_sa)
+        $spn _mp_ax(spn, nat_a)
+        $spn _mp_ax(spn, nat_b)
+        $spn _mp_ax(spn, succ_sa)
+        $got_neg_eqv _mp_ax(spn, plus_sa_b_hf)
+
+        # Step 5: tape_update_other → Apply(tape2,hf,z)
+        $_tuo_b \tapen: \tape: \h: \w: \x: \y:
+            implies(tape_update(tapen,tape,h,w,"_"), implies(apply(tape,x,y,"_"),
+            implies(neg(eqv(x,h,"_")), apply(tapen,x,y,"_"))))
+        $tuo apply_thm(tape_update_other, head(right(tape_update_other)),
+            ["tape2","tin","a","one","hf","z"],
+            ["tapen","tape","h","w","x","y"],
+            _tuo_b, left(tape_update_other))
+        $tuo _mp_ax(tuo, tu_tape2)
+        $tuo _mp_with(tuo, got_app_tin)
+        _mp_with(tuo, got_neg_eqv)
+    }
+    $proof cut_c(got_app_tape2_hf_z, proof, app_tape2_hf_z,
+        left(got_app_tape2_hf_z), left(proof), head(right(proof)))
+    $_ tap("derived app_tape2_hf_z ok")
+
+    # Re-cut plus_sa_b_hf (reintroduced by app_tape2_hf_z derivation's ax() calls)
+    $proof cut_c(got_plus_sa_b_hf, proof, plus_sa_b_hf,
+        left(got_plus_sa_b_hf), left(proof), head(right(proof)))
+
+    # --- nat_hf: Nat(c) + Succ(hf,c) → Nat(hf) ---
+    $got_nat_hf nat_succ_step("c", "hf", nat_c, nat_hf, succ_hf)
+    $proof cut_c(got_nat_hf, proof, nat_hf,
+        left(got_nat_hf), left(proof), head(right(proof)))
+    $_ tap("derived nat_hf ok")
 
     # --- nat_sa: Nat(a) + Succ(sa,a) → Nat(sa) ---
     $got_nat_sa nat_succ_step("a", "sa", nat_a, nat_sa, succ_sa)
@@ -811,7 +994,7 @@ $tm_add_correct {
 
     # Intermediate formulas already defined: cfg_c1..c4, succ_sa, tu_tape2, tu_tf,
     # plus_sa_b_hf, app_tin_a_z, app_tape2_hf_z, app_tape2_c_one,
-    # func_tape2, nat_sa, nat_c, tape_read,
+    # func_tape2, nat_sa, nat_c,
     # omega_w, num_one, num_q1, num_q2,
     # plus_a_one_sa, nat_one, nat_hf, nat_ssc,
     # plus_hf_one_ssc, plus_ssc_one_n
@@ -821,13 +1004,11 @@ $tm_add_correct {
     $body implies(tu_tf, body)
     $proof ir(proof, remove(same, app_tape2_c_one, left(proof)), [implies(app_tape2_c_one, body)], implies(app_tape2_c_one, body))
     $body implies(app_tape2_c_one, body)
-    $proof ir(proof, remove(same, app_tape2_hf_z, left(proof)), [implies(app_tape2_hf_z, body)], implies(app_tape2_hf_z, body))
-    $body implies(app_tape2_hf_z, body)
+    # app_tape2_hf_z: derived in Section 14
     # func_tape2: derived in Section 14
     $proof ir(proof, remove(same, tu_tape2, left(proof)), [implies(tu_tape2, body)], implies(tu_tape2, body))
     $body implies(tu_tape2, body)
-    $proof ir(proof, remove(same, tape_read, left(proof)), [implies(tape_read, body)], implies(tape_read, body))
-    $body implies(tape_read, body)
+    # tape_read: derived in Section 14
     # nat_sa: derived in Section 14
     $proof ir(proof, remove(same, succ_sa, left(proof)), [implies(succ_sa, body)], implies(succ_sa, body))
     $body implies(succ_sa, body)
