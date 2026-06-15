@@ -32,6 +32,7 @@ from theorems.nat.nat.omega_transitive_set import omega_transitive_set
 from theorems.nat.nat.successor_injection import successor_injection
 from theorems.nat.nat.omega_transitive import omega_transitive
 from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.nat.nat_transitive import nat_transitive
 
 $_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))), "z")
 $_ tap("nat_elim ok")
@@ -167,5 +168,8 @@ $_ qed(successor_injection, forall("w", forall("m", forall("n", forall("sn",
     implies(omega("w","_"), implies(mem("m","w"), implies(mem("n","w"),
         implies(successor("sn","m","_"), implies(successor("sn","n","_"), eqv("m","n","_")))))))))), "z")
 $_ tap("successor_injection ok")
+
+$_ qed(nat_transitive, forall("b", implies(nat("b","_"), transitive_set("b","_"))), "z")
+$_ tap("nat_transitive ok")
 
 $ok true

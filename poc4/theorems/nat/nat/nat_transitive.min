@@ -1,0 +1,70 @@
+from derived import mem, implies, forall, exists, left, right
+from vocab.nat.nat import nat, omega
+from vocab.sets import transitive_set
+from tactics import ax, fl, fr, ir, mp, cut_c, apply_thm, eel, close, same, wl_all
+from util.list import remove, diff
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.nat.nat.omega_transitive_set import omega_transitive_set
+
+# ∀b. Nat(b) → Trans(b)
+# Proof: omega_exists gives a concrete omega w. nat_elim gives b∈w.
+#        omega_transitive_set gives Trans(b). eel discharges w.
+
+$nat_transitive {
+    $nat_b nat("b", "_")
+    $ts_b transitive_set("b", "_")
+
+    # Introduce w via omega_exists + eel
+    $ex_om exists("w", omega("w", "_"))
+    $om omega("w", "_")
+    $bw mem("b", "w")
+
+    # nat_elim: nat(b) → omega(w) → b∈w
+    $_ne head(right(nat_elim))
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $got_bw mp(mp(apply_thm(nat_elim, _ne, ["b","w"], ["m","w"], _ne_b, []),
+        ax([nat_b], [nat_b], nat_b), nat_b, implies(om, bw), [], [nat_b]),
+        ax([om], [om], om), om, bw, [nat_b], [om])
+    # [nat_b, om] |- bw
+
+    # omega_transitive_set: ots_ctx |- ∀w. omega(w) → ∀n∈w. transitive_set(n,"_")
+    $_ots head(right(omega_transitive_set))
+    $ots_ctx left(omega_transitive_set)
+    $_ots_b \w: implies(omega(w,"_"), forall("n", implies(mem("n",w), transitive_set("n","_"))))
+    $fa_nb forall("n", implies(mem("n","w"), transitive_set("n","_")))
+    $got_ots mp(apply_thm(omega_transitive_set, _ots, ["w"], ["w"], _ots_b, ots_ctx),
+        ax([om], [om], om), om, fa_nb, ots_ctx, [om])
+
+    # fl at b: b∈w → transitive_set(b,"_")
+    $imp_bw_ts implies(bw, ts_b)
+    $got_imp_bw_ts fl(ax([imp_bw_ts], [imp_bw_ts], imp_bw_ts),
+        [fa_nb], [imp_bw_ts], fa_nb, "b")
+
+    # mp bw: transitive_set(b,"_")
+    $common add(ots_ctx, [nat_b, om])
+    $got_ts_b mp(cut_c(got_ots, got_imp_bw_ts, fa_nb,
+            add(ots_ctx, [om]), [fa_nb], imp_bw_ts),
+        wl_all(got_bw, left(got_bw), [bw], diff(same, add(ots_ctx, [om]), left(got_bw))),
+        bw, ts_b, add(ots_ctx, [om]), common)
+    # common |- ts_b
+
+    $_ tap("nat_transitive: got ts_b ok")
+
+    # eel: discharge om from context → [ots_ctx, nat_b, ex_om] |- ts_b
+    $oe_ctx left(omega_exists)
+    $got_ts_b_ex eel(got_ts_b, \w: omega(w,"_"), "w", "w", common, ts_b)
+
+    # cut_c omega_exists to discharge ex_om → [ots_ctx ∪ oe_ctx, nat_b] |- ts_b
+    $got_ts_b2 cut_c(omega_exists, got_ts_b_ex, ex_om,
+        oe_ctx, left(got_ts_b_ex), ts_b)
+
+    $_ tap("nat_transitive: discharged w ok")
+
+    # ir nat_b, fr b, close
+    $r1 ir(got_ts_b2, remove(same, nat_b, left(got_ts_b2)),
+        [implies(nat_b, ts_b)], implies(nat_b, ts_b))
+    $top forall("b", implies(nat("b","_"), transitive_set("b","_")))
+    $r2 fr(r1, left(r1), [top], top, "b")
+    close(r2, left(r2), [top], [])
+}
