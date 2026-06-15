@@ -99,32 +99,40 @@ $qed \p expected system: {
 
 # === ZFC Axioms ===
 
-$ext_ax ["extensionality", "Ext", forall("x", forall("y", implies(
+$_d_ext_ax \f: "Ext"
+$ext_ax ["extensionality", _d_ext_ax, forall("x", forall("y", implies(
     forall("z", iff(mem("z", "x"), mem("z", "y"))),
     forall("z", iff(mem("x", "z"), mem("y", "z"))))))]
 
-$empty_ax ["empty_set", "Empty", exists("b", forall("x", neg(mem("x", "b"))))]
+$_d_empty_ax \f: "Empty"
+$empty_ax ["empty_set", _d_empty_ax, exists("b", forall("x", neg(mem("x", "b"))))]
 
-$pairing_ax ["pairing", "Pair", forall("x", forall("y", exists("b", forall("z",
+$_d_pairing_ax \f: "Pair"
+$pairing_ax ["pairing", _d_pairing_ax, forall("x", forall("y", exists("b", forall("z",
     iff(mem("z", "b"), or(eqv("z", "x", "_"), eqv("z", "y", "_")))))))]
 
-$union_ax ["union", "Union", forall("a", exists("b", forall("x",
+$_d_union_ax \f: "Union"
+$union_ax ["union", _d_union_ax, forall("a", exists("b", forall("x",
     iff(mem("x", "b"), exists("y", and(mem("y", "a"), mem("x", "y")))))))]
 
-$power_ax ["power_set", "Power", forall("a", exists("b", forall("x",
+$_d_power_ax \f: "Power"
+$power_ax ["power_set", _d_power_ax, forall("a", exists("b", forall("x",
     iff(mem("x", "b"), forall("y", implies(mem("y", "x"), mem("y", "a")))))))]
 
-$inf_ax ["infinity", "Inf", exists("b", and(
+$_d_inf_ax \f: "Inf"
+$inf_ax ["infinity", _d_inf_ax, exists("b", and(
     exists("e", and(mem("e", "b"), forall("z", neg(mem("z", "e"))))),
     forall("y", implies(mem("y", "b"),
         exists("s", and(mem("s", "b"),
             forall("w", iff(mem("w", "s"), or(mem("w", "y"), eqv("w", "y", "_"))))))))))]
 
-$reg_ax ["regularity", "Reg", forall("a", implies(
+$_d_reg_ax \f: "Reg"
+$reg_ax ["regularity", _d_reg_ax, forall("a", implies(
     exists("y", mem("y", "a")),
     exists("y", and(mem("y", "a"), neg(exists("z", and(mem("z", "a"), mem("z", "y"))))))))]
 
-$choice_ax ["choice", "Choice", forall("x", implies(
+$_d_choice_ax \f: "Choice"
+$choice_ax ["choice", _d_choice_ax, forall("x", implies(
     forall("y", implies(mem("y", "x"), exists("z", mem("z", "y")))),
     exists("c", forall("y", implies(mem("y", "x"),
         exists("z", and(and(mem("z", "y"), mem("z", "c")),
@@ -135,6 +143,7 @@ $_close \self vars f: ?(eq(len(vars), 0), f,
     self(self, tail(vars), forall(head(vars), f)))
 
 # Separation: phi_fn(x, a, np) — x is element, a is domain, np is deeper prefix
+$_d_sep_ax \f: add("Sep(", add(show(nth(f, 3)), ")"))
 $sep_ax \vars phi_fn p: {
     $a add(p, "a")
     $b add(p, "b")
@@ -145,10 +154,11 @@ $sep_ax \vars phi_fn p: {
     $body forall(a, exists(b, forall(x,
         iff(mem(x, b), and(mem(x, a), phi)))))
     $closed _close(_close, vars, body)
-    ["separation", add("Sep(", add(show(phi), ")")), closed]
+    ["separation", _d_sep_ax, closed, phi]
 }
 
 # Replacement: phi_fn(x, y, a, np) — x,y are related, a is domain, np is deeper prefix
+$_d_rep_ax \f: add("Rep(", add(show(nth(f, 3)), ")"))
 $rep_ax \vars phi_fn p: {
     $a add(p, "a")
     $b add(p, "b")
@@ -163,5 +173,5 @@ $rep_ax \vars phi_fn p: {
         exists(b, forall(y,
             iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))
     $closed _close(_close, vars, body)
-    ["replacement", add("Rep(", add(show(phi), ")")), closed]
+    ["replacement", _d_rep_ax, closed, phi]
 }
