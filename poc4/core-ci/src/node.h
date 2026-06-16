@@ -17,9 +17,17 @@ typedef struct Intern Intern;
 typedef struct Env Env;
 typedef struct Node Node;
 
+/* Env: a small environment frame. Most frames (call args, captures) hold only
+   a few bindings, so the first ENV_INLINE are stored inline — no GCMap alloc.
+   Bindings beyond that spill into `overflow` (e.g. large proof blocks). Keys
+   are interned strings, compared by pointer. */
+#define ENV_INLINE 4
 struct Env {
-  GCMap *map;
   Env *parent;
+  GCMap *overflow;            /* NULL until > ENV_INLINE bindings */
+  int n;                      /* # inline bindings used (0..ENV_INLINE) */
+  const char *keys[ENV_INLINE];
+  Node *vals[ENV_INLINE];
 };
 
 struct Node {
@@ -69,5 +77,6 @@ void node_new(GC *gc, void **slot, int tag);
 void env_new(GC *gc, void **slot);
 Node **env_get(GC *gc, Env *e, const char *name);
 Node **env_find(Env *e, const char *name);
+int env_each(Env *e, GCMapFn fn, void *ctx);
 
 #endif

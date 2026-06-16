@@ -159,9 +159,9 @@ static int mapbag_cb(const char *key, void *val, void *ctx) {
   return 0;
 }
 
-static MapBag bag_map(GCMap *map) {
+static MapBag bag_env(Env *e) {
   MapBag m = { malloc(8 * sizeof(const char *)), malloc(8 * sizeof(void *)), 0, 8 };
-  if (map) gc_map_each(map, mapbag_cb, &m);
+  env_each(e, mapbag_cb, &m);
   return m;
 }
 
@@ -180,7 +180,7 @@ static void gsave_env(GCtx *g, Env *e) {
   if (!e || e == g->global) return;
   if (!gnew(g, e)) return;
 
-  MapBag m = bag_map(e->map);
+  MapBag m = bag_env(e);
 
   /* recurse children first (post-order) */
   gsave_env(g, e->parent);
@@ -377,7 +377,7 @@ int cache_save(const char *path, GC *gc, GCMap *modules, Env *global, CacheOps *
 
   /* section 3: global address table — global_addr, (val_addr, name)* 0 */
   wr_u64(ops, f, (Addr)(uintptr_t)global);
-  gc_map_each(global->map, save_global_cb, &g);
+  env_each(global, save_global_cb, &g);
   wr_u64(ops, f, 0);
 
   /* section 4: module env mapping — (filepath_addr, env_addr)* 0 */

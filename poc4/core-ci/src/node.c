@@ -67,29 +67,53 @@ void node_new(GC *gc, void **slot, int tag) {
 
 static void env_trace(void *data) {
   Env *e = data;
-  gc_mark(e->map);
   gc_mark(e->parent);
+  gc_mark(e->overflow);
+  for (int i = 0; i < e->n; i++) {
+    gc_mark((void *)e->keys[i]);
+    gc_mark(e->vals[i]);
+  }
 }
 
 void env_new(GC *gc, void **slot) {
   Env *e = gc_alloc(gc, sizeof(Env), env_trace, NULL, NULL);
   e->parent = NULL;
-  e->map = NULL;
+  e->overflow = NULL;
+  e->n = 0;
   *slot = e;
-  e->map = gc_map_new(gc);
 }
 
 Node **env_get(GC *gc, Env *e, const char *name) {
-  return (Node **)gc_map_get(gc, e->map, name);
+  for (int i = 0; i < e->n; i++)
+    if (e->keys[i] == name) return &e->vals[i];   /* interned: pointer eq */
+  if (e->n < ENV_INLINE) {
+    e->keys[e->n] = name;
+    e->vals[e->n] = NULL;
+    return &e->vals[e->n++];
+  }
+  if (!e->overflow) e->overflow = gc_map_new(gc);
+  return (Node **)gc_map_get(gc, e->overflow, name);
 }
 
 Node **env_find(Env *e, const char *name) {
   while (e) {
-    void **slot = gc_map_find(e->map, name);
-    if (slot) return (Node **)slot;
+    for (int i = 0; i < e->n; i++)
+      if (e->keys[i] == name) return &e->vals[i];
+    if (e->overflow) {
+      void **slot = gc_map_find(e->overflow, name);
+      if (slot) return (Node **)slot;
+    }
     e = e->parent;
   }
   return NULL;
+}
+
+/* iterate this frame's own bindings (inline then overflow), not parents. */
+int env_each(Env *e, GCMapFn fn, void *ctx) {
+  for (int i = 0; i < e->n; i++)
+    if (fn(e->keys[i], e->vals[i], ctx)) return 1;
+  if (e->overflow) return gc_map_each(e->overflow, fn, ctx);
+  return 0;
 }
 
 void module_trace(void *data) {
