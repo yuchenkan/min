@@ -2,15 +2,14 @@ set -ex
 cd "$(dirname "$0")/.."
 
 # Collect proof line counts per day from git history.
-# Handles both pre-split (src/theorems.py) and post-split (src/theorems/*.py).
-git log --all --reverse --oneline --format="%H" | while read hash; do
-  old=$(git show "$hash:src/theorems.py" 2>/dev/null | wc -l)
-  new=0
-  for f in logic.py sets.py omega.py recursion.py arithmetic.py tm.py axioms.py; do
-    n=$(git show "$hash:src/theorems/$f" 2>/dev/null | wc -l)
-    new=$((new + n))
+# Counts poc4/theorems/*.min (excluding test.min).
+git log --all --reverse --oneline --format="%H" -- poc4/theorems/ | while read hash; do
+  total=0
+  for f in $(git ls-tree -r --name-only "$hash" -- poc4/theorems/ 2>/dev/null \
+             | grep '\.min$' | grep -v 'test\.min$'); do
+    n=$(git show "$hash:$f" 2>/dev/null | wc -l)
+    total=$((total + n))
   done
-  total=$((old + new))
   if [ "$total" -gt 0 ]; then
     date=$(git show -s --format="%ai" "$hash" | cut -d' ' -f1)
     echo "$date $total"

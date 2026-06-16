@@ -28,4 +28,6 @@ const char *kernel_qed(GC *gc, GCStack *stack, const char **tags, Intern *it,
                        KernelData *kd,
                        Node *proof, Node *expected, const char *system);
 
+extern long long kernel_step_count;
+
 #endif

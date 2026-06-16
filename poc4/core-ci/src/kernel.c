@@ -560,13 +560,17 @@ static int isAxiom(KernelData *kd, Node *f, const char **tags, const char *syste
  * Public API
  * ============================================================ */
 
+long long kernel_step_count = 0;
+
 const char *kernel_check(GC *gc, GCStack *stack, const char **tags, Intern *it,
                          Node *left, Node *right, const char *rule,
                          Node *premises, Node *principal, Node *term) {
   const char *err;
   err = checkSet(left, tags);  if (err) return err;
   err = checkSet(right, tags); if (err) return err;
-  return checkRule(gc, stack, tags, it, left, right, rule, premises, principal, term);
+  err = checkRule(gc, stack, tags, it, left, right, rule, premises, principal, term);
+  if (!err) kernel_step_count++;
+  return err;
 }
 
 const char *kernel_qed(GC *gc, GCStack *stack, const char **tags, Intern *it,

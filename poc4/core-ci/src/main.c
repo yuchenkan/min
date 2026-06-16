@@ -118,17 +118,24 @@ static char *read_file(const char *path, int64_t *mtime) {
 
 int main(int argc, char **argv) {
   /* min <file>            : eval a file, save cache
-     min -e <source>       : eval <source> as module "", do NOT save cache */
+     min -e <source>       : eval <source> as module "", do NOT save cache
+     min --steps <file>    : eval, then print kernel step count to stderr */
   int eval_mode = 0;
-  const char *entry;
-  if (argc >= 3 && strcmp(argv[1], "-e") == 0) {
-    eval_mode = 1;
-    g_eval_src = argv[2];
-    entry = "";
-  } else if (argc >= 2) {
-    entry = argv[1];
-  } else {
-    fprintf(stderr, "usage: min <file> | min -e <source>\n");
+  int show_steps = 0;
+  const char *entry = NULL;
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
+      eval_mode = 1;
+      g_eval_src = argv[++i];
+      entry = "";
+    } else if (strcmp(argv[i], "--steps") == 0) {
+      show_steps = 1;
+    } else {
+      entry = argv[i];
+    }
+  }
+  if (!entry && !eval_mode) {
+    fprintf(stderr, "usage: min [--steps] <file> | min -e <source>\n");
     return 1;
   }
 
@@ -173,6 +180,9 @@ int main(int argc, char **argv) {
   }
 
   cache_unlock(lock_fd);
+
+  if (show_steps)
+    fprintf(stderr, "kernel steps: %lld\n", kernel_step_count);
 
   gc_fini(gc);
   intern_fini(intern_t);

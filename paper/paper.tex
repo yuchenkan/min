@@ -45,14 +45,16 @@ correctness (\emph{kernel-verified}).
 
 We demonstrate this pipeline by constructing a verified proof chain from
 Zermelo set theory axioms to the correctness of a Turing machine that computes
-addition --- spanning 10 abstraction levels, 199 theorems, and 38,247 lines
-of proof, all verified by a 334-line sequent calculus kernel.
+addition --- spanning 10 abstraction levels, 246 theorems, and 38,159 lines
+of proof, all verified by a 585-line sequent calculus kernel.
 Three aspects of this result are notable: the proof uses only Zermelo set
 theory (Z), achieving tighter axiom bounds than typical formalizations;
 the proof chain connects arithmetic directly to computation within a single
 verified environment, demonstrating cross-abstraction reasoning; and the
 choice of ZFC over dependent type theory aligns the system with the native
-language of scientific textbooks. During formalization, the kernel caught a
+language of scientific textbooks. The proofs are written in a custom DSL
+and verified by a C kernel; the system was rewritten from an earlier Python
+prototype mid-development. During formalization, the kernel caught a
 definition error in the guiding textbook that three years of human review
 had missed.
 \end{abstract}
@@ -89,7 +91,7 @@ We propose a pipeline that combines three components:
   \item \textbf{Kernel-verified.} A minimal proof kernel checks every proof
     step at construction time. If the kernel accepts a proof, it is correct
     regardless of whether the LLM made errors along the way. The kernel is
-    small enough (334 lines) to be audited by a human.
+    small enough (585 lines of C) to be audited by a human.
 \end{enumerate}
 
 The key insight is that these three components address different aspects of a
@@ -132,10 +134,10 @@ in ZFC set theory.
 
 \paragraph{Formal proof.} The proof that this function exists, is unique,
 commutes, associates, and computes concrete results such as $4+3=7$ occupies
-10,720 lines of formal proof code. This covers a single arithmetic operation
+10,216 lines of formal proof code. This covers a single arithmetic operation
 --- addition --- and does not include the prerequisite infrastructure (ordered
 pairs, functions, natural numbers, the recursion theorem) which adds
-approximately 27,500 more lines.
+approximately 28,000 more lines.
 
 The ratio is roughly 1000:1. A page of textbook mathematics becomes a
 thousand lines of formal proof. This ratio is not specific to our system; it
@@ -148,7 +150,7 @@ At this scale, three human limitations become absolute:
 
 \begin{itemize}
   \item \textbf{Humans cannot write these proofs.} The sheer volume of
-    mechanical proof steps exceeds what a person can sustain. Writing 38,247
+    mechanical proof steps exceeds what a person can sustain. Writing 38,159
     lines of correct proof code by hand, where each line must satisfy a proof
     kernel's rule checking, is not difficult --- it is infeasible.
   \item \textbf{Humans cannot read these proofs.} The proof of a single
@@ -156,7 +158,7 @@ At this scale, three human limitations become absolute:
     variable instantiations, and cut compositions. No human can hold this in
     working memory or extract meaning from it by inspection.
   \item \textbf{Humans cannot verify these proofs.} Without a mechanical
-    checker, there is no way to confirm that 38,247 lines of proof are
+    checker, there is no way to confirm that 38,159 lines of proof are
     correct. The proof exists beyond human verification capacity.
 \end{itemize}
 
@@ -164,13 +166,11 @@ These are not limitations of proof engineering or tooling. They are structural
 consequences of what formal proof \emph{is}. Any system that aspires to
 large-scale formal verification must reckon with this gap.
 
-To make this concrete: the complete proof of TM addition correctness requires
-134,089 individual kernel rule applications (counting each shared lemma once).
-These span 150 unique theorems across 10 abstraction levels. Each rule
-application is a sequent calculus step --- an axiom introduction, a
-quantifier instantiation, a cut, a weakening --- mechanically validated by
-the kernel at construction time. No human could perform or check 134,089
-sequential logical steps by hand.
+To make this concrete: the complete proof of TM addition correctness spans
+246 unique theorems across 10 abstraction levels. Each theorem is a
+chain of sequent calculus steps --- axiom introductions,
+quantifier instantiations, cuts, weakenings --- mechanically validated by
+the kernel at construction time.
 
 % ============================================================
 \section{Architecture}
@@ -198,10 +198,10 @@ straightforward.
 
 \subsection{The Proof Kernel}
 
-The proof kernel is a 334-line Python module. The complete trusted core
---- formula language (88 lines), ZFC axiom definitions (144 lines),
-derived connectives (119 lines), and the proof checker itself ---
-totals 685 lines. The kernel implements:
+The proof kernel is a 585-line C module (\texttt{kernel.c} + \texttt{kernel.h}).
+The complete trusted core --- the kernel, node representation (123 lines),
+string interning (236 lines), and the parser (459 lines) ---
+totals approximately 1,400 lines of C. The kernel implements:
 
 \begin{itemize}
   \item \textbf{Sequent representation.} A sequent $\Gamma \vdash \Delta$
@@ -246,12 +246,62 @@ This layer is \emph{outside} the trusted kernel. Vocabulary definitions can
 be wrong --- but if they are, the proof will fail to go through. The kernel
 treats expanded formulas the same as any other formula.
 
+\subsection{The Proof Language}
+\label{sec:lang}
+
+The proofs are written in a custom language (\texttt{.min}): a pure
+functional language with lambdas, let-bindings, and a module system,
+biased toward proof construction. It is not a tactic language or a
+domain-specific fragment --- it is a general-purpose functional language
+in which the proof kernel happens to be a built-in function.
+
+The initial prototype embedded proofs directly in Python, the same
+language as the kernel. This blurred the boundary between trusted and
+untrusted code: the kernel, the tactics, the vocabulary layer, and the
+proofs themselves all shared one runtime, and a bug anywhere could
+compromise the entire system. The separate proof language creates a clean
+\emph{kernel/userspace boundary}. The kernel is a C program that
+exposes a fixed interface (proof rules, axiom checking, \texttt{qed}).
+Everything else --- tactics, vocabulary definitions, the proofs
+themselves --- lives in userspace \texttt{.min} code that cannot
+circumvent the kernel's checks. A bug in a tactic or vocabulary
+definition causes a proof failure, not a soundness violation.
+
+This separation also enabled \emph{persistent caching}. The module system
+serializes evaluated proof objects to disk; subsequent runs only re-evaluate
+modules whose source files have changed. In a library of 246 theorems,
+incremental development --- editing one theorem and re-checking --- completes
+in under a second rather than re-verifying the full dependency chain.
+
+Each theorem occupies its own source file and exports exactly one public
+binding (enforced by a linter). Theorems import their dependencies via
+\texttt{from ... import ...} statements, making the dependency graph
+explicit and static. This structure allows both the cache and the LLM to
+reason about theorem boundaries: the cache invalidates at module
+granularity, and the LLM navigates the library by file names that
+correspond one-to-one with theorem names.
+
+Because the proof language is general-purpose, it can also serve as a
+front-end for problem specification. The addition Turing machine is
+defined as a semicolon-separated transition table string:
+
+\begin{quote}
+\ttfamily
+0 1 1 R 0;\ \ 0 0 1 R 2;\ \ 2 1 1 R 2;\\
+2 0 0 L 3;\ \ 3 1 0 R 1;\ \ 3 0 0 R 1;
+\end{quote}
+
+\noindent A parser written in the proof language itself converts this
+into formal transition characterizations, which feed directly into the
+correctness statement. The program under verification is specified in
+readable form; the formalization machinery is userspace code.
+
 \subsection{LLM Integration}
 
-The LLM operates as an agent that edits proof source files. It reads theorem
-statements and existing proofs, proposes proof steps in Python, and runs the
-goal-checking harness. When the kernel rejects a step, the LLM reads the
-error message and adjusts.
+The LLM operates as an agent that edits proof source files written in a
+custom DSL (\texttt{.min} files). It reads theorem statements and existing
+proofs, proposes proof steps, and runs the kernel. When the kernel rejects
+a step, the LLM reads the error message and adjusts.
 
 The LLM's role is \emph{search}: selecting which theorems to apply, in what
 order, with what instantiations. The kernel's role is \emph{verification}:
@@ -265,7 +315,7 @@ use it, and correcting the instantiation when the kernel rejects the first
 attempt. This pattern of semantic guessing followed by mechanical error
 correction proved effective as the theorem library grew. The vocabulary
 layer (Section~\ref{sec:vocab}) serves the same role: the LLM writes
-\texttt{Plus(m,n,p)} rather than its first-order expansion, using
+\texttt{plus(m,n,p)} rather than its first-order expansion, using
 vocabulary names as semantic handles for reasoning.
 
 % ============================================================
@@ -293,10 +343,10 @@ The proof chain crosses the following levels, each building on the previous:
 \begin{enumerate}
   \item \textbf{Logic.} Sequent calculus rules: modus ponens, double negation,
     quantifier instantiation, if-and-only-if introduction and elimination.
-    (24 theorems)
+    (36 theorems)
   \item \textbf{Set theory.} Empty set uniqueness, singleton and pair
     existence, union, power set, subset relations.
-    (40 theorems)
+    (53 theorems)
   \item \textbf{Ordered pairs.} Kuratowski encoding $\langle a,b \rangle =
     \{\{a\},\{a,b\}\}$, injection (if $\langle a,b \rangle = \langle c,d
     \rangle$ then $a=c$ and $b=d$), existence. (included in sets)
@@ -304,14 +354,14 @@ The proof chain crosses the following levels, each building on the previous:
     application, function extensionality. (included in sets)
   \item \textbf{Natural numbers.} Omega as the smallest inductive set,
     successor properties, transitive sets, omega induction.
-    (9 theorems)
+    (31 theorems)
   \item \textbf{Recursion.} The recursion theorem: for any function $f$ and
     initial value $a$, there exists a unique function $h$ with $\text{dom}(h)
     = \omega$, $h(0) = a$, and $h(n^+) = f(h(n))$.
-    (36 theorems)
+    (24 theorems)
   \item \textbf{Arithmetic.} Addition as a recursive function on $\omega$.
     Existence, uniqueness, commutativity, associativity, concrete computations.
-    (44 theorems)
+    (39 theorems)
   \item \textbf{TM definitions.} States, transitions, configurations, tapes
     as functions from positions to symbols.
   \item \textbf{Tape operations.} Tape update existence, reading, function
@@ -331,16 +381,17 @@ Table~\ref{tab:summary} summarizes the proof chain.
 \textbf{Metric} & \textbf{Value} \\
 \midrule
 ZFC axioms & 10 defined, 7 used (Z only) \\
-Proof kernel / trusted core & 334 / 685 lines \\
-Total theorems & 199 \\
-Total proof code & 38,247 lines \\
+Proof kernel (C) & 585 lines \\
+Total theorems & 246 \\
+Total proof code & 38,159 lines \\
+Proof language & custom DSL (.min files) \\
 Abstraction levels crossed & 10 \\
-Development time & $\sim$25 days \\
+Development time & $\sim$51 days \\
 \midrule
 \multicolumn{2}{l}{\emph{Per-theorem proof statistics (DAG)}} \\
 \midrule
-plus\_comm & 30 theorems, 11,593 steps \\
-tm\_add\_correct & 150 theorems, 134,089 steps \\
+plus\_comm & 136 theorems, 50,234 steps \\
+tm\_add\_correct & 199 theorems, 113,833 steps \\
 \bottomrule
 \end{tabular}
 \caption{Summary statistics of the ZFC-to-TM-correctness proof chain.}
@@ -421,7 +472,7 @@ function $h$. The kernel does not permit implicit restrictions. The
 definition must be self-contained.
 
 The textbook was written by the author and reviewed over three years.
-The error was caught mechanically, in minutes, by a 334-line kernel during an
+The error was caught mechanically, in minutes, by a 585-line kernel during an
 LLM-driven formalization attempt.
 
 % ============================================================
@@ -454,19 +505,22 @@ proof construction --- for example, that addition values are unique, or
 that addition produces values no smaller than its inputs --- it dropped to
 the arithmetic layer, proved the needed theorems, and resumed the TM proof.
 
-Figure~\ref{fig:growth} shows the development trajectory. The first two
-weeks were spent on foundational infrastructure (logic, sets, ordered pairs,
-the recursion theorem) with slow growth. Once the recursion theorem was
-proved, arithmetic development accelerated sharply, and the TM correctness
-proof followed within days. The flat-then-steep curve illustrates how foundational work
-establishes patterns that accelerate higher-layer development.
+Figure~\ref{fig:growth} shows the development trajectory. The system was
+initially prototyped in Python (black curve), reaching TM correctness in
+$\sim$25 days. Mid-project, the kernel was rewritten in C with a custom
+DSL, and the entire proof library was ported (blue curve). The DSL rewrite
+reached parity in 19 days, demonstrating that the proof \emph{content} ---
+the theorem statements, proof strategies, and library structure --- transfers
+across implementations. In both eras, the recursion theorem marks an
+inflection point: foundational infrastructure builds slowly, then higher-level
+development accelerates sharply.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.8\columnwidth]{growth.pdf}
-\caption{Total lines of proof code over the development period. The
-  inflection point at the recursion theorem (May~10) shows how
-  foundational depth enables rapid higher-level development.}
+\caption{Total lines of proof code over the development period. Black:
+  Python prototype; blue: rewrite to C kernel with custom DSL. Both
+  curves show the same inflection pattern at the recursion theorem.}
 \label{fig:growth}
 \end{figure}
 
@@ -524,7 +578,8 @@ The current demonstration uses one textbook and one proof chain.
 Applying the pipeline to other textbooks and domains is the natural next
 step. Beyond the textbook's content (e.g., TM phase decomposition), a
 human architect provided proof strategy; extending textbook coverage
-would reduce this need.
+would reduce this need. The mid-project rewrite from Python to C added
+development time but validated that proof content is implementation-independent.
 
 \paragraph{The role of the textbook.}
 Any scientific textbook that models its content mathematically is a potential
@@ -543,7 +598,7 @@ from a foundation where sets, functions, and real numbers are first-class
 objects rather than encodings.
 
 \paragraph{Axiom minimality as a strength.}
-All 199 theorems use only Zermelo set theory (Z) --- Replacement, Regularity,
+All 246 theorems use only Zermelo set theory (Z) --- Replacement, Regularity,
 and Choice are not used. This is a deliberately stronger result than proving
 from full ZFC. The LLM's initial attempts used these stronger axioms freely;
 the human architect required proofs in Z alone, and the LLM found alternative
