@@ -19,7 +19,8 @@ from theorems.tm.add.tape_read_high import tape_read_high
 from theorems.tm.add.tape_read_beyond import tape_read_beyond
 from theorems.tm.add.unary_output_unique import unary_output_unique
 from theorems.tm.add.output_is_update import output_is_update
-from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p, phase4p, phase5p, unary_output
+from theorems.tm.add.tm_add_correct import tm_add_correct
+from vocab.tm.add import phase1_ind, unary_tape, phase1p, phase2p, phase3_ind, phase3p, phase4p, phase5p, unary_output, add_goal
 from vocab.tm.tm import tape_update
 from vocab.nat.nat import nat, omega
 from vocab.nat.arithmetic.plus import plus
@@ -171,5 +172,8 @@ $oiu_expected forall("tf", forall("tin", forall("tape2", forall("hf",
     tape_update("tf", "tape2", "c", "z", "_"))))))))))))))))))))))))))
 $_ qed(output_is_update, oiu_expected, "z")
 $_ tap("output_is_update ok")
+
+$_ qed(tm_add_correct, add_goal("_"), "z")
+$_ tap("tm_add_correct ok")
 
 $ok true

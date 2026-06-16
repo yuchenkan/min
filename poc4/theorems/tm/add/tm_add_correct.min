@@ -72,6 +72,7 @@ from theorems.tm.add.phase5 import phase5
 from theorems.tm.add.tape_read_high import tape_read_high
 from theorems.tm.add.tape_read_sep import tape_read_sep
 from theorems.tm.add.tape_read_beyond import tape_read_beyond
+from theorems.tm.add.output_is_update import output_is_update
 
 # =============================================
 # tm_add_correct: TM addition is correct
@@ -110,8 +111,8 @@ $tm_add_correct {
     # delta_char = And(And(And(And(And(t1,t2),t3),t4),t5),t6)
     # and(a,b) = ["and", d, neg(implies(a, neg(b)))]
     # Extract: and_left = arg1(exp(exp(f))), and_right = exp(arg2(exp(exp(f))))
-    $_al \f: arg1(exp(exp(f)))
-    $_ar \f: exp(arg2(exp(exp(f))))
+    $_al \f: arg1(f)
+    $_ar \f: arg2(f)
 
     $t6 _ar(dc)
     $left5 _al(dc)
@@ -1241,6 +1242,48 @@ $tm_add_correct {
         left(got_nat_c), left(proof), head(right(proof)))
     $_ tap("re-cuts after app_tape2_c_one ok")
 
+    # --- tu_tf: TU(tf,tape2,c,z) from output_is_update ---
+    $_oiu_b \tf: \tin: \tape2: \hf: \a: \b: \c: \sa: \one: \z: \w:
+        implies(unary_output(tf, c, "_"),
+        implies(unary_tape(tin, a, b, "_"),
+        implies(tape_update(tape2, tin, a, one, "_"),
+        implies(plus(a, b, c, "_"),
+        implies(successor(sa, a, "_"),
+        implies(plus(sa, b, hf, "_"),
+        implies(successor(hf, c, "_"),
+        implies(nat(a, "_"),
+        implies(nat(b, "_"),
+        implies(nat(c, "_"),
+        implies(nat(sa, "_"),
+        implies(num(one, 1, "_"),
+        implies(num(z, 0, "_"),
+        implies(omega(w, "_"),
+        tape_update(tf, tape2, c, z, "_")))))))))))))))
+    $oiu_inst apply_thm(output_is_update, head(right(output_is_update)),
+        ["tf", "tin", "tape2", "hf", "a", "b", "c", "sa", "one", "z", "w"],
+        ["tf", "tin", "tape2", "hf", "a", "b", "c", "sa", "one", "z", "w"],
+        _oiu_b, left(output_is_update))
+    $oiu_inst _mp_ax(oiu_inst, unary_out)
+    $oiu_inst _mp_ax(oiu_inst, utape)
+    $oiu_inst _mp_ax(oiu_inst, tu_tape2)
+    $oiu_inst _mp_ax(oiu_inst, plus_abc)
+    $oiu_inst _mp_ax(oiu_inst, succ_sa)
+    $oiu_inst _mp_with(oiu_inst, got_plus_sa_b_hf)
+    $oiu_inst _mp_ax(oiu_inst, succ_hf)
+    $oiu_inst _mp_ax(oiu_inst, nat_a)
+    $oiu_inst _mp_ax(oiu_inst, nat_b)
+    $oiu_inst _mp_with(oiu_inst, got_nat_c)
+    $oiu_inst _mp_with(oiu_inst, got_nat_sa)
+    $oiu_inst _mp_ax(oiu_inst, num_one)
+    $oiu_inst _mp_ax(oiu_inst, num_z)
+    $got_tu_tf _mp_ax(oiu_inst, omega_w)
+    $proof cut_c(got_tu_tf, proof, tu_tf,
+        left(got_tu_tf), left(proof), head(right(proof)))
+    # Re-cut nat_sa reintroduced through got_nat_sa's dependency chain
+    $proof cut_c(got_nat_sa, proof, nat_sa,
+        left(got_nat_sa), left(proof), head(right(proof)))
+    $_ tap("derived tu_tf ok")
+
     # === Section 15: ir goal hypotheses (reverse order = innermost first) ===
     # ir order: cfg_cf, cfg_c0, unary_out, succ_n, succ_ssc, succ_hf, plus_abc,
     #           utape, nat_b, nat_a, num_z, num_qH, num_q0, dc, func_tin, func_delta
@@ -1307,31 +1350,14 @@ $tm_add_correct {
     # plus_a_one_sa, nat_one, nat_hf, nat_ssc,
     # plus_hf_one_ssc, plus_ssc_one_n
 
-    # ir each intermediate (innermost first)
-    $proof ir(proof, remove(same, tu_tf, left(proof)), [implies(tu_tf, body)], implies(tu_tf, body))
-    $body implies(tu_tf, body)
-    # app_tape2_c_one: derived in Section 14
-    # app_tape2_hf_z: derived in Section 14
-    # func_tape2: derived in Section 14
-    $proof ir(proof, remove(same, tu_tape2, left(proof)), [implies(tu_tape2, body)], implies(tu_tape2, body))
-    $body implies(tu_tape2, body)
-    # tape_read: derived in Section 14
-    # nat_sa: derived in Section 14
+    # tu_tf: derived in Section 14 via output_is_update
+    # tu_tape2: eel+cut below
+    # num_one: eel+cut below
     # succ_sa: eel+cut below
-    # plus_sa_b_hf: derived in Section 14
     # cfg_c1-c4: eel+cut below
-    # Plus/Nat intermediates
-    # plus_ssc_one_n: derived in Section 14
-    # plus_hf_one_ssc: derived in Section 14
-    # plus_a_one_sa: derived in Section 14
-    # nat_ssc: derived in Section 14
-    # nat_hf: derived in Section 14
-    # nat_one: derived in Section 14
     # omega_w, num_q1, num_q2: eel+cut below
-    $proof ir(proof, remove(same, num_one, left(proof)), [implies(num_one, body)], implies(num_one, body))
-    $body implies(num_one, body)
 
-    $_ tap("intermediates ir'd ok")
+    $_ tap("intermediates section ok")
 
     # === Section 15b: eel+cut existential intermediates ===
     # Variables appearing in only one formula on the left can be
@@ -1415,13 +1441,33 @@ $tm_add_correct {
         left(se_a), left(proof), head(right(proof)))
     $_ tap("eel+cut sa ok")
 
+    # tape2: eel from tu_tape2, cut with tape_update_exists(tin,a,one)
+    $proof eel(proof, \v: tape_update(v, "tin", "a", "one", "_"), "tape2", "tape2",
+        remove(same, tu_tape2, left(proof)), head(right(proof)))
+    $_tue_b \tape: \h: \w: exists("tapen", tape_update("tapen", tape, h, w, "_"))
+    $tue_inst apply_thm(tape_update_exists, head(right(tape_update_exists)),
+        ["tin", "a", "one"], ["tape", "h", "w"], _tue_b, left(tape_update_exists))
+    $proof cut_c(tue_inst, proof, head(right(tue_inst)),
+        left(tue_inst), left(proof), head(right(proof)))
+    $_ tap("eel+cut tape2 ok")
+
+    # one: eel from num_one, cut with num_exists(1)
+    $proof eel(proof, \v: num(v, 1, "_"), "one", "one",
+        remove(same, num_one, left(proof)), head(right(proof)))
+    $ne_one num_exists(1)
+    $proof cut_c(ne_one, proof, head(right(ne_one)),
+        left(ne_one), left(proof), head(right(proof)))
+    $_ tap("eel+cut one ok")
+
     # === Section 16: close foralls over all variables ===
-    # Remaining intermediate variables: one, tape2
     # Goal variables: delta, q0, qH, tin, z, c0, cf, n, hf, tf, a, b, c, ssc
     $proof close(proof, left(proof), right(proof),
-        ["one", "tape2",
-         "ssc", "c", "b", "a", "tf", "hf", "n", "cf", "c0", "z", "tin", "qH", "q0", "delta"])
+        ["ssc", "c", "b", "a", "tf", "hf", "n", "cf", "c0", "z", "tin", "qH", "q0", "delta"])
     $_ tap("close ok")
+
+    # Replace structural form with add_goal vocab via wr (alpha-eq)
+    $ag add_goal("_")
+    $proof wr(proof, left(proof), [ag], ag)
 
     proof
 }
