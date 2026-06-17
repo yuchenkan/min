@@ -53,7 +53,7 @@ theory (Z), achieving tighter axiom bounds than typical formalizations;
 the proof chain connects arithmetic directly to computation within a single
 verified environment, demonstrating cross-abstraction reasoning; and the
 choice of ZFC over dependent type theory aligns the system with the native
-language of scientific textbooks. The proofs are written in a custom DSL
+language of scientific textbooks. The proofs are written in a custom proof language
 and verified by a C kernel; the system was rewritten from an earlier Python
 prototype mid-development. During formalization, the kernel caught a
 definition error in the guiding textbook that three years of human review
@@ -208,13 +208,10 @@ totals approximately 1,400 lines of C. The kernel implements:
   \item \textbf{Sequent representation.} A sequent $\Gamma \vdash \Delta$
     consists of left (assumptions) and right (conclusions) formula lists with
     set semantics (no duplicates, checked via alpha-equivalence).
-  \item \textbf{Eleven proof rules.} Logical rules (axiom, not-left,
+  \item \textbf{Ten proof rules.} Logical rules (axiom, not-left,
     not-right, implies-left, implies-right, forall-left, forall-right, cut)
     and structural rules (weakening-left, weakening-right). Each rule is
     validated at proof construction time.
-  \item \textbf{Lazy definition expansion.} Derived connectives (exists, and,
-    or, iff, equality) and vocabulary predicates expand to primitive formulas
-    on demand.
   \item \textbf{Alpha-equivalence.} Formula comparison respects bound variable
     renaming.
 \end{itemize}
@@ -300,7 +297,7 @@ readable form; the formalization machinery is userspace code.
 \subsection{LLM Integration}
 
 The LLM operates as an agent that edits proof source files written in a
-custom DSL (\texttt{.min} files). It reads theorem statements and existing
+custom proof language (\texttt{.min} files). It reads theorem statements and existing
 proofs, proposes proof steps, and runs the kernel. When the kernel rejects
 a step, the LLM reads the error message and adjusts.
 
@@ -385,7 +382,7 @@ ZFC axioms & 10 defined, 7 used (Z only) \\
 Proof kernel (C) & 585 lines \\
 Total theorems & 246 \\
 Total proof code & 38,159 lines \\
-Proof language & custom DSL (.min files) \\
+Proof language & custom (.min files) \\
 Abstraction levels crossed & 10 \\
 Development time & $\sim$51 days \\
 \midrule
@@ -509,7 +506,7 @@ the arithmetic layer, proved the needed theorems, and resumed the TM proof.
 Figure~\ref{fig:growth} shows the development trajectory. The system was
 initially prototyped in Python (black curve), reaching TM correctness in
 $\sim$25 days. Mid-project, the kernel was rewritten in C with a custom
-DSL, and the entire proof library was ported (blue curve). The DSL rewrite
+proof language, and the entire proof library was ported (dashed curve). The DSL rewrite
 reached parity in 19 days, demonstrating that the proof \emph{content} ---
 the theorem statements, proof strategies, and library structure --- transfers
 across implementations. In both eras, the recursion theorem marks an
@@ -520,7 +517,7 @@ development accelerates sharply.
 \centering
 \includegraphics[width=0.8\columnwidth]{growth.pdf}
 \caption{Total lines of proof code over the development period. Black:
-  Python prototype; blue: rewrite to C kernel with custom DSL. Both
+  Python prototype (solid); dashed: rewrite to C kernel with custom proof language. Both
   curves show the same inflection pattern at the recursion theorem.}
 \label{fig:growth}
 \end{figure}
