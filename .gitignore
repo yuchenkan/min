@@ -5,3 +5,4 @@ resume.sh
 vendor/
 min.cache
 min.cache.lock
+paper/output/
