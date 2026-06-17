@@ -1,0 +1,146 @@
+from derived import mem, neg, implies, forall, and, iff, exists, eq, sep_ax, left, right
+from vocab.functions import apply, single_valued
+from tactics import ax, wl, wl_all, wr, nl, nr, fl, fr, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.contrapositive import contrapositive
+from theorems.logic.eq_mem_left import eq_mem_left
+from theorems.functions.func_unique_thm import func_unique_thm
+
+# Cantor's theorem: Sep |- ∀f. SV(f) → ∀a. ∃b. ∀x. x∈a → ¬Apply(f,x,b)
+
+$cantor {
+    $phi \z p: forall(add(p,"y"), implies(apply("f", z, add(p,"y"), p), neg(mem(z, add(p,"y")))))
+
+    $sep sep_ax(["f"], \sv a np: forall(add(np,"y"), implies(apply("f", sv, add(np,"y"), np), neg(mem(sv, add(np,"y"))))), "_")
+
+    $_sep_b \f: forall("d", exists("s", forall("z",
+        iff(mem("z","s"), and(mem("z","d"), phi("z","_"))))))
+    $got_sep apply_thm(ax([sep], [sep], sep), sep, ["f"], ["f"], _sep_b, [sep])
+
+    $sep_inner \d: exists("s", forall("z",
+        iff(mem("z","s"), and(mem("z",d), phi("z","_")))))
+    $got_sep_a apply_thm(got_sep, head(right(got_sep)), ["a"], ["a"], sep_inner, [sep])
+
+    $sv single_valued("f", "_")
+    $xb mem("x", "b")
+    $xa mem("x", "a")
+    $neg_xb neg(xb)
+    $app_xb apply("f", "x", "b", "_")
+    $app_xy apply("f", "x", "y", "_")
+    $phi_x phi("x", "_")
+    $and_xa_phi and(xa, phi_x)
+    $iff_xb iff(xb, and_xa_phi)
+    $char forall("z", iff(mem("z","b"), and(mem("z","a"), phi("z","_"))))
+
+    # ===== STEP A: [char, app_xb, xb] |- [] =====
+    # x∈B → φ(x), inst y=b: Apply(f,x,b)→¬(x∈b), contradiction
+
+    # sep→: char, xb |- and(xa, φ(x))
+    $a1 fl(ax([iff_xb], [iff_xb], iff_xb), [char], [iff_xb], char, "x")
+    $a2 mp(iff_elim_left(xb, and_xa_phi, []),
+        a1, iff_xb, implies(xb, and_xa_phi), [], [char])
+    $a3 mp(a2, ax([xb], [xb], xb), xb, and_xa_phi, [char], [xb])
+
+    # extract φ(x) from and
+    $a4 mp(and_elim_right(xa, phi_x, []),
+        a3, and_xa_phi, phi_x, [], [char, xb])
+
+    # inst φ(x) at y=b via fl on the left + cut_c
+    $imp_app_neg implies(app_xb, neg_xb)
+    $a5_fl fl(ax([imp_app_neg],[imp_app_neg],imp_app_neg), [phi_x], [imp_app_neg], phi_x, "b")
+    $a5 cut_c(a4, a5_fl, phi_x, [char, xb], [phi_x], imp_app_neg)
+
+    # mp: app_xb → neg_xb
+    $a6 mp(a5, ax([app_xb], [app_xb], app_xb), app_xb, neg_xb, [char, xb], [app_xb])
+
+    # contradiction: xb on left, neg_xb on right
+    $a7 nl(ax([xb], [xb], xb), [xb, neg_xb], [], neg_xb)
+    $a8 wl_all(a7, [xb, neg_xb], [], [char, app_xb])
+    $step_a cut(a6, a8, [char, app_xb, xb], [], neg_xb)
+
+    # derive ¬(x∈b) for step B
+    $got_neg_xb nr(step_a, [char, app_xb], [neg_xb], neg_xb)
+
+    # ===== STEP B: [char, sv, app_xb, neg_xb, xa] |- [xb] =====
+    # SV + Apply(f,x,b) + ¬(x∈b) → φ(x) → x∈a∧φ(x) → x∈b
+
+    # func_unique_thm: SV(f) → Apply(f,x,y) → Apply(f,x,b) → eq(y,b)
+    $eq_yb eq("y", "b", "_")
+    $_fu head(right(func_unique_thm))
+    $fu_b \f: \x: \r1: \r2: implies(single_valued(f,"_"), implies(apply(f,x,r1,"_"), implies(apply(f,x,r2,"_"), eq(r1,r2,"_"))))
+    $got_fu apply_thm(func_unique_thm, _fu, ["f","x","y","b"], ["f","x","r1","r2"], fu_b, [])
+    $got_eq mp(mp(mp(got_fu,
+        ax([sv],[sv],sv), sv, implies(app_xy, implies(app_xb, eq_yb)), [], [sv]),
+        ax([app_xy],[app_xy],app_xy), app_xy, implies(app_xb, eq_yb), [sv], [app_xy]),
+        ax([app_xb],[app_xb],app_xb), app_xb, eq_yb, [sv,app_xy], [app_xb])
+
+    # eq_mem_left: eq(y,b) → mem(x,y) → mem(x,b)
+    $xy mem("x","y")
+    $_em head(right(eq_mem_left))
+    $em_b \a: \b: \z: implies(eq(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_em apply_thm(eq_mem_left, _em, ["y","b","x"], ["a","b","z"], em_b, [])
+    $imp_xy_xb implies(xy, xb)
+    $got_imp mp(got_em, got_eq, eq_yb, imp_xy_xb, [], [sv, app_xy, app_xb])
+
+    # contrapositive: (xy→xb) → (¬xb→¬xy)
+    $neg_xy neg(xy)
+    $contra_imp implies(neg_xb, neg_xy)
+    $got_contra mp(contrapositive(xy, xb, []),
+        got_imp, imp_xy_xb, contra_imp, [], [sv, app_xy, app_xb])
+    $got_neg_xy mp(got_contra,
+        ax([neg_xb],[neg_xb],neg_xb), neg_xb, neg_xy, [sv, app_xy, app_xb], [neg_xb])
+
+    # ir: Apply(f,x,y) → ¬mem(x,y)
+    $imp_app_neg_y implies(app_xy, neg_xy)
+    $got_imp_y ir(got_neg_xy, [sv, app_xb, neg_xb], [imp_app_neg_y], imp_app_neg_y)
+
+    # fr over y: φ(x) = ∀y. Apply(f,x,y) → ¬mem(x,y)
+    $got_phi fr(got_imp_y, [sv, app_xb, neg_xb], [phi_x], phi_x, "y")
+
+    # and(xa, φ(x))
+    $got_and mp(mp(and_intro(xa, phi_x, []),
+        ax([xa],[xa],xa), xa, implies(phi_x, and_xa_phi), [], [xa]),
+        got_phi, phi_x, and_xa_phi, [xa], [sv, app_xb, neg_xb])
+
+    # sep←: and(xa, φ(x)) → xb
+    $b1 fl(ax([iff_xb],[iff_xb],iff_xb), [char], [iff_xb], char, "x")
+    $b2 mp(iff_elim_right(xb, and_xa_phi, []),
+        b1, iff_xb, implies(and_xa_phi, xb), [], [char])
+    $step_b mp(b2, got_and, and_xa_phi, xb, [char], [xa, sv, app_xb, neg_xb])
+
+    # ===== COMBINE =====
+
+    # cut neg_xb: [char, app_xb] |- [neg_xb] + [char, xa, sv, app_xb, neg_xb] |- [xb]
+    $combined cut_c(got_neg_xb, step_b, neg_xb, [char, app_xb], [char, xa, sv, app_xb, neg_xb], xb)
+
+    # cut xb: combined |- [xb] + [char, app_xb, xb] |- []
+    $step_a_w wl_all(step_a, [char, app_xb, xb], [], left(combined))
+    $contradiction cut(combined, step_a_w, left(combined), [], xb)
+
+    # ===== CLOSE =====
+
+    $got_neg_app nr(contradiction, remove(same, app_xb, left(contradiction)), [neg(app_xb)], neg(app_xb))
+    $imp_xa_neg implies(xa, neg(app_xb))
+    $got_imp_xa ir(got_neg_app, remove(same, xa, left(got_neg_app)), [imp_xa_neg], imp_xa_neg)
+
+    $inner_goal forall("x", implies(mem("x","a"), neg(apply("f","x","b","_"))))
+    $got_fa fr(got_imp_xa, left(got_imp_xa), [inner_goal], inner_goal, "x")
+
+    $goal exists("b", inner_goal)
+    $got_ex eir(got_fa, \b: forall("x", implies(mem("x","a"), neg(apply("f","x",b,"_")))), "b", "b", left(got_fa))
+
+    $got_eel eel(got_ex, \b: forall("z", iff(mem("z",b), and(mem("z","a"), phi("z","_")))),
+        "b", "b", left(got_ex), goal)
+
+    $ex_char exists("b", forall("z", iff(mem("z","b"), and(mem("z","a"), phi("z","_")))))
+    $got_cut cut_c(got_sep_a, got_eel, ex_char, [sep], left(got_eel), goal)
+
+    $imp_sv implies(sv, goal)
+    $got_ir ir(got_cut, remove(same, sv, left(got_cut)), [imp_sv], imp_sv)
+
+    close(got_ir, left(got_ir), [imp_sv], ["a", "f"])
+}

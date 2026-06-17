@@ -1,6 +1,7 @@
 from derived import mem, neg, implies, forall, and, or, iff, eq, exists, qed, sep_ax
 from vocab.sets import empty, singleton, pair_set, big_union, power_set, ordered_pair, intersect, subset, union, relation, product
-from vocab.functions import apply, domain, function
+from vocab.functions import apply, domain, function, single_valued
+from theorems.sets.cantor import cantor
 from vocab.logic import exists_unique
 
 from theorems.sets.empty_exists import empty_exists
@@ -286,5 +287,10 @@ $_ qed(singleton_apply_eq, forall("e", forall("b", forall("op", forall("f", fora
     implies(ordered_pair("op","e","b","_"), implies(singleton("f","op","_"), implies(apply("f","xe","ye","_"),
         and(eq("e","xe","_"), eq("b","ye","_"))))))))))), "z")
 $_ tap("singleton_apply_eq ok")
+
+$_ qed(cantor, forall("f", forall("a",
+    implies(single_valued("f","_"),
+        exists("b", forall("x", implies(mem("x","a"), neg(apply("f","x","b","_")))))))), "z")
+$_ tap("cantor ok")
 
 $ok true
