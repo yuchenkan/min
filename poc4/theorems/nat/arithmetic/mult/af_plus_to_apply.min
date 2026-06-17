@@ -1,0 +1,89 @@
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, pairing_ax
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.nat.arithmetic.plus import plus
+from tactics import ax, fl, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.functions.apply_intro import apply_intro
+
+# af_plus_to_apply:
+# af_char ∧ x∈w ∧ Plus(x,m,y) → Apply(af,x,y)
+
+$af_plus_to_apply {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"y"),add(np,"_"))))))
+
+    $af_char forall("p", iff(mem("p","af"), phi("p","_")))
+    $xw mem("x","w")
+    $plus_xmy plus("x","m","y","_")
+    $app apply("af","x","y","_")
+
+    # ordpair_exists: ∃qb.OrdPair(qb,x,y)
+    $_oe head(right(ordpair_exists))
+    $_oe_b \a: \b: exists("p", ordered_pair("p",a,b,"_"))
+    $got_qb apply_thm(ordpair_exists, _oe, ["x","y"], ["a","b"], _oe_b, left(ordpair_exists))
+
+    # Assume OrdPair(qb,x,y):
+    $op_qb ordered_pair("qb","x","y","_")
+    $qb_af mem("qb","af")
+
+    # Build phi(qb): package and(Plus(x,m,y), OrdPair(qb,x,y))
+    $and_po and(plus_xmy, op_qb)
+    $got_and_po mp(mp(and_intro(plus_xmy, op_qb, []),
+        ax([plus_xmy],[plus_xmy],plus_xmy), plus_xmy, implies(op_qb, and_po), [], [plus_xmy]),
+        ax([op_qb],[op_qb],op_qb), op_qb, and_po, [plus_xmy], [op_qb])
+
+    # eir yv=y: ∃yv.and(Plus(x,m,yv), OrdPair(qb,x,yv))
+    $ex_yv exists("yv", and(plus("x","m","yv","_"), ordered_pair("qb","x","yv","_")))
+    $got_ex_yv eir(got_and_po, \yv: and(plus("x","m",yv,"_"), ordered_pair("qb","x",yv,"_")),
+        "yv", "y", [plus_xmy, op_qb])
+
+    # and(x∈w, ∃yv.(...))
+    $and_xw_ex and(xw, ex_yv)
+    $got_and_xw mp(mp(and_intro(xw, ex_yv, []),
+        ax([xw],[xw],xw), xw, implies(ex_yv, and_xw_ex), [], [xw]),
+        got_ex_yv, ex_yv, and_xw_ex, [xw], [plus_xmy, op_qb])
+
+    # eir xv=x: phi(qb)
+    $phi_qb phi("qb","_")
+    $got_phi_qb eir(got_and_xw, \xv: and(mem(xv,"w"), exists("yv", and(plus(xv,"m","yv","_"), ordered_pair("qb",xv,"yv","_")))),
+        "xv", "x", [xw, plus_xmy, op_qb])
+    # [xw, plus_xmy, op_qb] |- phi(qb)
+
+    # fl af_char at qb: iff(qb∈af, phi(qb))
+    $iff_qb iff(qb_af, phi_qb)
+    $got_iff fl(ax([iff_qb],[iff_qb],iff_qb), [af_char], [iff_qb], af_char, "qb")
+
+    # iff backward: phi(qb) → qb∈af
+    $got_qb_af mp(mp(iff_elim_right(qb_af, phi_qb, []),
+        got_iff, iff_qb, implies(phi_qb, qb_af), [], [af_char]),
+        got_phi_qb, phi_qb, qb_af, [af_char], [xw, plus_xmy, op_qb])
+    # [af_char, xw, plus_xmy, op_qb] |- qb∈af
+
+    # apply_intro: OrdPair(qb,x,y) → qb∈af → Apply(af,x,y)
+    $_ai head(right(apply_intro))
+    $_ai_b \p: \f: \x: \y: implies(ordered_pair(p,x,y,"_"), implies(mem(p,f), apply(f,x,y,"_")))
+    $ai_inst apply_thm(apply_intro, _ai, ["qb","af","x","y"], ["p","f","x","y"], _ai_b, [])
+    $ai1 mp(ai_inst, ax([op_qb],[op_qb],op_qb), op_qb, implies(qb_af, app), [], [op_qb])
+    $got_app mp(ai1, got_qb_af, qb_af, app, [op_qb], [af_char, xw, plus_xmy, op_qb])
+    # [op_qb, af_char, xw, plus_xmy] |- Apply(af,x,y)
+
+    # eel qb from ordpair_exists:
+    $got_app2 eel(got_app, \qb: ordered_pair(qb,"x","y","_"), "qb", "qb", left(got_app), app)
+    $ex_qb exists("qb", op_qb)
+    $got_app3 cut_c(got_qb, got_app2, ex_qb, left(got_qb), left(got_app2), app)
+    # [pairing_ax, af_char, xw, plus_xmy] |- Apply(af,x,y)
+
+    # Close: af_char → x∈w → Plus(x,m,y) → Apply(af,x,y)
+    $imp3 implies(plus_xmy, app)
+    $imp2 implies(xw, imp3)
+    $top implies(af_char, imp2)
+    $r1 ir(got_app3, remove(same, plus_xmy, left(got_app3)), [imp3], imp3)
+    $r2 ir(r1, remove(same, xw, left(r1)), [imp2], imp2)
+    $r3 ir(r2, remove(same, af_char, left(r2)), [top], top)
+    close(r3, left(r3), [top], ["y","x","m","w","af"])
+}

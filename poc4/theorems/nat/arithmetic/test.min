@@ -1,2 +1,3 @@
 from theorems.nat.arithmetic.plus.test import ok
+from theorems.nat.arithmetic.mult.test import ok
 $ok true

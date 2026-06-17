@@ -1,0 +1,122 @@
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2, pairing_ax
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.nat.arithmetic.plus import plus
+from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.ext_substitution import ext_substitution
+from theorems.sets.kuratowski import kuratowski
+
+# af_dom_sub: af_char → ∀xd.(∃yd.Apply(af,xd,yd)) → xd∈w
+
+$af_dom_sub {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"y"),add(np,"_"))))))
+
+    $af_char forall("p", iff(mem("p","af"), phi("p","_")))
+    $app apply("af","xd","yd","_")
+    $xdw mem("xd","w")
+
+    # === Open Apply's existential ===
+    $op_qv ordered_pair("qv","xd","yd","_")
+    $qv_af mem("qv","af")
+    $and_op_qv and(op_qv, qv_af)
+
+    $got_op mp(and_elim_left(op_qv, qv_af, []),
+        ax([and_op_qv],[and_op_qv],and_op_qv), and_op_qv, op_qv, [], [and_op_qv])
+    $got_qv_af mp(and_elim_right(op_qv, qv_af, []),
+        ax([and_op_qv],[and_op_qv],and_op_qv), and_op_qv, qv_af, [], [and_op_qv])
+
+    # fl af_char at qv → phi(qv)
+    $phi_qv phi("qv","_")
+    $iff_qv iff(qv_af, phi_qv)
+    $got_iff fl(ax([iff_qv],[iff_qv],iff_qv), [af_char], [iff_qv], af_char, "qv")
+    $got_phi mp(mp(iff_elim_left(qv_af, phi_qv, []),
+        got_iff, iff_qv, implies(qv_af, phi_qv), [], [af_char]),
+        got_qv_af, qv_af, phi_qv, [af_char], [and_op_qv])
+    # [af_char, and_op_qv] |- phi_qv
+
+    # phi(qv) = ∃xv.and(xv∈w, ∃yv.and(Plus(xv,m,yv), OrdPair(qv,xv,yv)))
+    $plus_raw plus("xv","m","yv","_")
+    $op_qv_xy ordered_pair("qv","xv","yv","_")
+    $and_plus_op and(plus_raw, op_qv_xy)
+    $xvw mem("xv","w")
+    $ex_yv exists("yv", and_plus_op)
+    $and_xw_inner and(xvw, ex_yv)
+
+    # Extract OrdPair from and(Plus, OrdPair):
+    $got_op_xy mp(and_elim_right(plus_raw, op_qv_xy, []),
+        ax([and_plus_op],[and_plus_op],and_plus_op), and_plus_op, op_qv_xy, [], [and_plus_op])
+
+    # Extract xv∈w from and(xvw, ∃yv.(...)):
+    $got_xvw mp(and_elim_left(xvw, ex_yv, []),
+        ax([and_xw_inner],[and_xw_inner],and_xw_inner), and_xw_inner, xvw, [], [and_xw_inner])
+
+    # Kuratowski: OrdPair(qv,xd,yd) ∧ OrdPair(qv,xv,yv) → eq(xd,xv) ∧ eq(yd,yv)
+    $_er head(right(eq_reflexive))
+    $got_eq_qq apply_thm(eq_reflexive, _er, ["qv"], ["qv"], \a: eq(a,a,"_"), [])
+
+    $_ku head(right(kuratowski))
+    $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
+        implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"), eq(b,d,"_")))))
+    $ku_ctx left(kuratowski)
+    $ku_inst apply_thm(kuratowski, _ku, ["qv","qv","xd","yd","xv","yv"], ["t1","t2","a","b","c","d"], _ku_b, ku_ctx)
+
+    $eq_goal and(eq("xd","xv","_"), eq("yd","yv","_"))
+    $ku1 mp(ku_inst, got_op, op_qv, arg2(head(right(ku_inst))), ku_ctx, [and_op_qv])
+    $ku2 mp(ku1, got_op_xy, op_qv_xy, arg2(head(right(ku1))), left(ku1), [and_plus_op])
+    $got_eq mp(ku2, got_eq_qq, eq("qv","qv","_"), eq_goal, left(ku2), [])
+
+    # Extract eq(xd,xv):
+    $eq_xd_xv eq("xd","xv","_")
+    $got_eq_x mp(and_elim_left(eq_xd_xv, eq("yd","yv","_"), []), got_eq, eq_goal, eq_xd_xv, [], left(got_eq))
+    # [pairing_ax, and_op_qv, and_plus_op] |- eq(xd,xv)
+
+    # ext_substitution: eq(xd,xv) → iff(xd∈w, xv∈w) → backward: xv∈w → xd∈w
+    $_es head(right(ext_substitution))
+    $_es_b \a: \b: \s: implies(eq(a,b,"_"), iff(mem(a,s), mem(b,s)))
+    $es_ctx left(ext_substitution)
+    $got_iff_xw mp(apply_thm(ext_substitution, _es, ["xd","xv","w"], ["a","b","s"], _es_b, es_ctx),
+        got_eq_x, eq_xd_xv, iff(xdw, xvw), es_ctx, left(got_eq_x))
+    $got_xdw mp(mp(iff_elim_right(xdw, xvw, []),
+        got_iff_xw, iff(xdw, xvw), implies(xvw, xdw), [], left(got_iff_xw)),
+        got_xvw, xvw, xdw, left(got_iff_xw), [and_xw_inner])
+    # [Ext, pairing_ax, and_op_qv, and_plus_op, and_xw_inner] |- xd∈w
+
+    # === Close existentials ===
+    # eel yv from and_plus_op:
+    $got1 eel(got_xdw, \yv: and(plus("xv","m",yv,"_"), ordered_pair("qv","xv",yv,"_")),
+        "yv", "yv", left(got_xdw), xdw)
+    # cut ∃yv from and_xw_inner:
+    $got2 cut_c(
+        mp(and_elim_right(xvw, ex_yv, []),
+            ax([and_xw_inner],[and_xw_inner],and_xw_inner), and_xw_inner, ex_yv, [], [and_xw_inner]),
+        got1, ex_yv, [and_xw_inner], left(got1), xdw)
+    # eel xv from and_xw_inner:
+    $got3 eel(got2, \xv: and(mem(xv,"w"), exists("yv", and(plus(xv,"m","yv","_"), ordered_pair("qv",xv,"yv","_")))),
+        "xv", "xv", left(got2), xdw)
+    # cut with phi_qv:
+    $got4 cut_c(got_phi, got3, phi_qv, left(got_phi), left(got3), xdw)
+    # [af_char, and_op_qv, Ext, pairing_ax] |- xd∈w
+
+    # eel qv → replace and_op_qv with Apply:
+    $got5 eel(got4, \qv: and(ordered_pair(qv,"xd","yd","_"), mem(qv,"af")),
+        "qv", "qv", left(got4), xdw)
+
+    # eel yd → replace Apply(af,xd,yd) with ∃yd.Apply:
+    $ex_y_app exists("yd", app)
+    $got6 eel(got5, \yd: apply("af","xd",yd,"_"), "yd", "yd", left(got5), xdw)
+
+    # Close: af_char → (∃yd.Apply) → xd∈w
+    $imp2 implies(ex_y_app, xdw)
+    $top implies(af_char, imp2)
+    $r1 ir(got6, remove(same, ex_y_app, left(got6)), [imp2], imp2)
+    $r2 ir(r1, remove(same, af_char, left(r1)), [top], top)
+    close(r2, left(r2), [top], ["xd","w","m","af"])
+}

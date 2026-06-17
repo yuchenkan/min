@@ -1,0 +1,42 @@
+from derived import mem, implies, forall, and, iff, exists, eq, qed
+from vocab.sets import ordered_pair, relation
+from vocab.functions import apply
+from vocab.nat.nat import nat
+from vocab.nat.arithmetic.plus import plus
+from vocab.nat.arithmetic.mult import add_func
+from theorems.nat.arithmetic.mult.af_apply_to_plus import af_apply_to_plus
+from theorems.nat.arithmetic.mult.af_plus_to_apply import af_plus_to_apply
+from theorems.nat.arithmetic.mult.af_relation import af_relation
+from theorems.nat.arithmetic.mult.af_dom_sub import af_dom_sub
+from theorems.nat.arithmetic.mult.add_func_exists import add_func_exists
+
+$af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+    exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
+        ordered_pair(p,add(np,"x"),add(np,"y"),add(np,"_"))))))
+$af_char_fn \af: forall("p", iff(mem("p",af), af_phi("p","_")))
+
+$_ qed(af_apply_to_plus,
+    forall("af", forall("w", forall("m", forall("x", forall("y",
+        implies(af_char_fn("af"), implies(apply("af","x","y","_"), plus("x","m","y","_")))))))), "z")
+$_ tap("af_apply_to_plus ok")
+
+$_ qed(af_plus_to_apply,
+    forall("af", forall("w", forall("m", forall("x", forall("y",
+        implies(af_char_fn("af"), implies(mem("x","w"), implies(plus("x","m","y","_"), apply("af","x","y","_"))))))))), "z")
+$_ tap("af_plus_to_apply ok")
+
+$_ qed(af_relation,
+    forall("af", forall("m", forall("w",
+        implies(af_char_fn("af"), relation("af","_"))))), "z")
+$_ tap("af_relation ok")
+
+$_ qed(af_dom_sub,
+    forall("af", forall("m", forall("w", forall("xd",
+        implies(af_char_fn("af"), implies(exists("yd", apply("af","xd","yd","_")), mem("xd","w"))))))), "z")
+$_ tap("af_dom_sub ok")
+
+$_ qed(add_func_exists,
+    forall("m", implies(nat("m","_"), exists("af", add_func("af","m","_")))), "z")
+$_ tap("add_func_exists ok")
+
+$ok true

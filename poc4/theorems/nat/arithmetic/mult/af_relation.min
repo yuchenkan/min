@@ -1,0 +1,72 @@
+from derived import mem, implies, forall, and, iff, exists, left, right
+from vocab.sets import ordered_pair, relation
+from vocab.nat.arithmetic.plus import plus
+from tactics import ax, fl, fr, ir, mp, eir, eel, cut_c, close
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# af_relation: af_char → Relation(af)
+
+$af_relation {
+    $phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
+        exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
+            ordered_pair(p,add(np,"x"),add(np,"y"),add(np,"_"))))))
+
+    $af_char forall("p", iff(mem("p","af"), phi("p","_")))
+    $rel_af relation("af","_")
+
+    # fl af_char at zv: iff(zv∈af, phi(zv))
+    $zv_af mem("zv","af")
+    $phi_zv phi("zv","_")
+    $iff_zv iff(zv_af, phi_zv)
+    $got_iff fl(ax([iff_zv],[iff_zv],iff_zv), [af_char], [iff_zv], af_char, "zv")
+
+    # iff forward: zv∈af → phi(zv)
+    $got_phi mp(mp(iff_elim_left(zv_af, phi_zv, []),
+        got_iff, iff_zv, implies(zv_af, phi_zv), [], [af_char]),
+        ax([zv_af],[zv_af],zv_af), zv_af, phi_zv, [af_char], [zv_af])
+
+    # phi(zv) = ∃xv.and(xv∈w, ∃yv.and(Plus(xv,m,yv), OrdPair(zv,xv,yv)))
+    # Need ∃xv.∃yv.OrdPair(zv,xv,yv)
+    $plus_raw plus("xv","m","yv","_")
+    $op_zv ordered_pair("zv","xv","yv","_")
+    $and_plus_op and(plus_raw, op_zv)
+
+    $got_op mp(and_elim_right(plus_raw, op_zv, []),
+        ax([and_plus_op],[and_plus_op],and_plus_op), and_plus_op, op_zv, [], [and_plus_op])
+
+    # eir yv=yv: ∃yv.OrdPair(zv,xv,yv)
+    $ex_y exists("yv", ordered_pair("zv","xv","yv","_"))
+    $got_ey eir(got_op, \yv: ordered_pair("zv","xv",yv,"_"), "yv", "yv", [and_plus_op])
+
+    # eir xv=xv: ∃xv.∃yv.OrdPair(zv,xv,yv)
+    $ex_xy exists("xv", exists("yv", ordered_pair("zv","xv","yv","_")))
+    $got_exy eir(got_ey, \xv: exists("yv", ordered_pair("zv",xv,"yv","_")), "xv", "xv", [and_plus_op])
+
+    # eel yv from and_plus_op:
+    $got_exy2 eel(got_exy, \yv: and(plus("xv","m",yv,"_"), ordered_pair("zv","xv",yv,"_")),
+        "yv", "yv", [and_plus_op], ex_xy)
+    # Cut ∃yv from and(xvw, ∃yv.(...)):
+    $xvw mem("xv","w")
+    $ex_yv exists("yv", and_plus_op)
+    $and_xw_inner and(xvw, ex_yv)
+    $got_exy3 cut_c(
+        mp(and_elim_right(xvw, ex_yv, []),
+            ax([and_xw_inner],[and_xw_inner],and_xw_inner), and_xw_inner, ex_yv, [], [and_xw_inner]),
+        got_exy2, ex_yv, [and_xw_inner], left(got_exy2), ex_xy)
+    # eel xv from and_xw_inner:
+    $got_exy4 eel(got_exy3, \xv: and(mem(xv,"w"), exists("yv", and(plus(xv,"m","yv","_"), ordered_pair("zv",xv,"yv","_")))),
+        "xv", "xv", left(got_exy3), ex_xy)
+    # cut with phi(zv):
+    $got_exy5 cut_c(got_phi, got_exy4, phi_zv, left(got_phi), left(got_exy4), ex_xy)
+
+    # ir zv_af, fr zv → Relation(af)
+    $imp_rel implies(zv_af, ex_xy)
+    $got_imp ir(got_exy5, [af_char], [imp_rel], imp_rel)
+    $got_rel fr(got_imp, [af_char], [rel_af], rel_af, "zv")
+
+    $top implies(af_char, rel_af)
+    $r1 ir(got_rel, [], [top], top)
+    close(r1, [], [top], ["w","m","af"])
+}
