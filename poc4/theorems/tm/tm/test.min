@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, eqv, and, qed, mem, or, neg
+from derived import implies, forall, exists, eq, and, qed, mem, or, neg
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
@@ -81,7 +81,7 @@ $_ tap("step_elim ok")
 $cet_expected forall("c", forall("q1", forall("h1", forall("t1",
     forall("q2", forall("h2", forall("t2",
     implies(tm_config("c", "q1", "h1", "t1", "_"),
-    implies(eqv("q1", "q2", "_"), implies(eqv("h1", "h2", "_"), implies(eqv("t1", "t2", "_"),
+    implies(eq("q1", "q2", "_"), implies(eq("h1", "h2", "_"), implies(eq("t1", "t2", "_"),
         tm_config("c", "q2", "h2", "t2", "_"))))))))))))
 $_ qed(config_eq_transfer, cet_expected, "z")
 $_ tap("config_eq_transfer ok")
@@ -89,7 +89,7 @@ $_ tap("config_eq_transfer ok")
 $tuu_expected forall("t1", forall("t2", forall("tape", forall("h", forall("w",
     implies(tape_update("t1", "tape", "h", "w", "_"),
     implies(tape_update("t2", "tape", "h", "w", "_"),
-        eqv("t1", "t2", "_"))))))))
+        eq("t1", "t2", "_"))))))))
 $_ qed(tape_update_unique, tuu_expected, "z")
 $_ tap("tape_update_unique ok")
 
@@ -97,7 +97,7 @@ $cd_expected forall("c", forall("q", forall("h", forall("tape",
     forall("q2", forall("h2", forall("tape2",
     implies(tm_config("c", "q", "h", "tape", "_"),
     implies(tm_config("c", "q2", "h2", "tape2", "_"),
-        and(eqv("q", "q2", "_"), and(eqv("h", "h2", "_"), eqv("tape", "tape2", "_"))))))))))))
+        and(eq("q", "q2", "_"), and(eq("h", "h2", "_"), eq("tape", "tape2", "_"))))))))))))
 $_ qed(config_decompose, cd_expected, "z")
 $_ tap("config_decompose ok")
 
@@ -106,29 +106,29 @@ $tu_expected forall("delta", forall("q", forall("sym", forall("w", forall("d", f
     implies(function("delta", "_"),
     implies(tm_transition("delta", "q", "sym", "w", "d", "qn", "_"),
     implies(tm_transition("delta", "q", "sym", "w2", "d2", "qn2", "_"),
-        and(eqv("w", "w2", "_"), and(eqv("d", "d2", "_"), eqv("qn", "qn2", "_")))))))))))))))
+        and(eq("w", "w2", "_"), and(eq("d", "d2", "_"), eq("qn", "qn2", "_")))))))))))))))
 $_ qed(transition_unique, tu_expected, "z")
 $_ tap("transition_unique ok")
 
 $hre_expected forall("h", forall("hn", forall("d", forall("ka", forall("ska", forall("d1",
     implies(head_move("h", "hn", "d", "_"),
-    implies(eqv("h", "ka", "_"),
-    implies(eqv("d", "d1", "_"),
+    implies(eq("h", "ka", "_"),
+    implies(eq("d", "d1", "_"),
     implies(num("d1", 1, "_"),
     implies(successor("ska", "ka", "_"),
-        eqv("hn", "ska", "_"))))))))))))
+        eq("hn", "ska", "_"))))))))))))
 $_ qed(headmove_right_elim, hre_expected, "z")
 $_ tap("headmove_right_elim ok")
 
 $hle_expected forall("h", forall("hn", forall("d", forall("hf", forall("c", forall("d0", forall("w",
     implies(head_move("h", "hn", "d", "_"),
-    implies(eqv("h", "hf", "_"),
-    implies(eqv("d", "d0", "_"),
+    implies(eq("h", "hf", "_"),
+    implies(eq("d", "d0", "_"),
     implies(num("d0", 0, "_"),
     implies(successor("hf", "c", "_"),
     implies(omega("w", "_"),
     implies(mem("c", "w"),
-        eqv("hn", "c", "_")))))))))))))))
+        eq("hn", "c", "_")))))))))))))))
 $_ qed(headmove_left_elim, hle_expected, "z")
 $_ tap("headmove_left_elim ok")
 
@@ -136,10 +136,10 @@ $tuea_expected forall("t1", forall("t2", forall("tape1", forall("h1", forall("w1
     forall("tape2", forall("h2", forall("w2",
     implies(tape_update("t1", "tape1", "h1", "w1", "_"),
     implies(tape_update("t2", "tape2", "h2", "w2", "_"),
-    implies(eqv("tape1", "tape2", "_"),
-    implies(eqv("h1", "h2", "_"),
-    implies(eqv("w1", "w2", "_"),
-        eqv("t1", "t2", "_"))))))))))))))
+    implies(eq("tape1", "tape2", "_"),
+    implies(eq("h1", "h2", "_"),
+    implies(eq("w1", "w2", "_"),
+        eq("t1", "t2", "_"))))))))))))))
 $_ qed(tape_update_eq_args, tuea_expected, "z")
 $_ tap("tape_update_eq_args ok")
 
@@ -147,7 +147,7 @@ $tue_expected forall("tapen", forall("tape", forall("h", forall("w",
     implies(function("tape", "_"),
     implies(apply("tape", "h", "w", "_"),
     implies(tape_update("tapen", "tape", "h", "w", "_"),
-        eqv("tapen", "tape", "_"))))))))
+        eq("tapen", "tape", "_"))))))))
 $_ qed(tape_update_eq, tue_expected, "z")
 $_ tap("tape_update_eq ok")
 
@@ -159,7 +159,7 @@ $_ qed(config_intro, ci_expected, "z")
 $_ tap("config_intro ok")
 
 $tct_expected forall("d", forall("c1", forall("c2", forall("c3",
-    implies(eqv("c1", "c3", "_"),
+    implies(eq("c1", "c3", "_"),
     implies(tm_step("d", "c3", "c2", "_"),
         tm_step("d", "c1", "c2", "_")))))))
 $_ qed(tmstep_c1_transfer, tct_expected, "z")
@@ -171,7 +171,7 @@ $_sv_body \v: \n: forall("ja", implies(mem("ja", n),
             exists("cja1", and(apply(v, "sja", "cja1", "_"),
                 tm_step("delta", "cja", "cja1", "_")))))))))
 $_db_body \v: \n: forall("xdn", forall("ydn",
-    implies(apply(v, "xdn", "ydn", "_"), or(mem("xdn", n), eqv("xdn", n, "_")))))
+    implies(apply(v, "xdn", "ydn", "_"), or(mem("xdn", n), eq("xdn", n, "_")))))
 $_base_body \v: forall("zp2", implies(num("zp2", 0, "_"), apply(v, "zp2", "c0", "_")))
 
 $et_expected forall("tra", forall("ska", forall("ca_new", forall("c0",
@@ -209,15 +209,15 @@ $_ tap("config_exists ok")
 $tuo_expected forall("tapen", forall("tape", forall("h", forall("w", forall("x", forall("y",
     implies(tape_update("tapen","tape","h","w","_"),
     implies(apply("tape","x","y","_"),
-    implies(neg(eqv("x","h","_")),
+    implies(neg(eq("x","h","_")),
         apply("tapen","x","y","_"))))))))))
 $_ qed(tape_update_other, tuo_expected, "z")
 $_ tap("tape_update_other ok")
 
 $tua_expected forall("tapen", forall("tape", forall("h", forall("w", forall("x", forall("y",
     implies(tape_update("tapen","tape","h","w","_"),
-    implies(eqv("x","h","_"),
-    implies(eqv("y","w","_"),
+    implies(eq("x","h","_"),
+    implies(eq("y","w","_"),
         apply("tapen","x","y","_"))))))))))
 $_ qed(tape_update_at, tua_expected, "z")
 $_ tap("tape_update_at ok")
@@ -225,7 +225,7 @@ $_ tap("tape_update_at ok")
 $tuor_expected forall("tapen", forall("tape", forall("h", forall("w", forall("x", forall("y",
     implies(tape_update("tapen","tape","h","w","_"),
     implies(apply("tapen","x","y","_"),
-    implies(neg(eqv("x","h","_")),
+    implies(neg(eq("x","h","_")),
         apply("tape","x","y","_"))))))))))
 $_ qed(tape_update_other_rev, tuor_expected, "z")
 $_ tap("tape_update_other_rev ok")

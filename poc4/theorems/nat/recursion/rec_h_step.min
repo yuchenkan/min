@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, exists, iff, eqv, left, right, arg1, arg2
+from derived import mem, neg, implies, forall, and, or, exists, iff, eq, left, right, arg1, arg2
 from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.nat.nat import nat, num, omega, successor
@@ -8,7 +8,7 @@ from util.list import remove, diff
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.nat.recursion.rec_h_apply import rec_h_apply
 from theorems.nat.recursion.rec_h_apply_fwd import rec_h_apply_fwd
 from theorems.nat.recursion.rec_exists_step import rec_exists_step
@@ -67,14 +67,14 @@ $rec_h_step {
     $om2 omega("w2","_")
     $snw2 mem("sn","w2")
     $_ou head(right(omega_unique))
-    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_")))
     $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w","w2"], _ou_b, left(omega_unique))
-    $ou_mp1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eqv("w","w2","_")), left(ou_inst), [om])
-    $ou_mp2 mp(ou_mp1, ax([om2],[om2],om2), om2, eqv("w","w2","_"), left(ou_mp1), [om2])
+    $ou_mp1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eq("w","w2","_")), left(ou_inst), [om])
+    $ou_mp2 mp(ou_mp1, ax([om2],[om2],om2), om2, eq("w","w2","_"), left(ou_mp1), [om2])
     $_et head(right(eq_transfer))
-    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $_et_b \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a), mem(z,b)))
     $et_inst apply_thm(eq_transfer, _et, ["w","w2","sn"], ["w","b","z"], _et_b, left(eq_transfer))
-    $et_mp mp(et_inst, ou_mp2, eqv("w","w2","_"), iff(snw, snw2), left(et_inst), left(ou_mp2))
+    $et_mp mp(et_inst, ou_mp2, eq("w","w2","_"), iff(snw, snw2), left(et_inst), left(ou_mp2))
     $got_snw2 mp(mp(iff_elim_left(snw, snw2, []), et_mp, iff(snw, snw2), implies(snw, snw2), [], left(et_mp)),
         got_snw, snw, snw2, left(et_mp), left(got_snw))
     $got_nat_sn_ir ir(got_snw2, remove(same, om2, left(got_snw2)), [implies(om2, snw2)], implies(om2, snw2))

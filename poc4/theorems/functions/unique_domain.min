@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, exists, eqv, left, right
+from derived import mem, implies, forall, exists, eq, left, right
 from vocab.functions import apply, domain
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, apply_thm, eel, cut_c, close
@@ -11,10 +11,10 @@ $unique_domain {
     $body_fn \v p: domain(v, "f", p)
     $eu exists_unique(body_fn, "_")
     $dom_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
     $_du_f head(right(domain_unique))
     $du_inst apply_thm(domain_unique, _du_f, ["f", "u", "y"], ["f", "s1", "s2"],
-        \f: \s1: \s2: implies(domain(s1,f,"_"), implies(domain(s2,f,"_"), eqv(s1,s2,"_"))), [])
+        \f: \s1: \s2: implies(domain(s1,f,"_"), implies(domain(s2,f,"_"), eq(s1,s2,"_"))), [])
     $got_inner mp(du_inst, ax([dom_u], [dom_u], dom_u), dom_u, imp_inner, [], [dom_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [dom_u], [fa_uniq], fa_uniq, "y")

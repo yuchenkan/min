@@ -1,10 +1,10 @@
-from derived import mem, implies, iff, eqv
+from derived import mem, implies, iff, eq
 from vocab.sets import set_spec
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_sym import iff_sym
 
-# |- close(vars, set_spec(s1, cond) -> set_spec(s2, cond) -> eqv(s1, s2))
+# |- close(vars, set_spec(s1, cond) -> set_spec(s2, cond) -> eq(s1, s2))
 $set_spec_unique \cond_fn vars p: {
     $np add(p, "_")
     $s1v add(p, "s1")
@@ -12,7 +12,7 @@ $set_spec_unique \cond_fn vars p: {
     $vv add(p, "v")
     $sp1 set_spec(s1v, cond_fn, np)
     $sp2 set_spec(s2v, cond_fn, np)
-    $eqv_12 eqv(s1v, s2v, np)
+    $eq_12 eq(s1v, s2v, np)
     $cv cond_fn(vv, np)
     $iff1 iff(mem(vv, s1v), cv)
     $iff2 iff(mem(vv, s2v), cv)
@@ -24,9 +24,9 @@ $set_spec_unique \cond_fn vars p: {
     $got mp(mp(iff_chain(mem(vv, s1v), cv, mem(vv, s2v), []),
                g1, iff1, implies(iff2r, iff_goal), [], [sp1]),
             g2r, iff2r, iff_goal, [sp1], [sp2])
-    $got_eqv fr(got, [sp1, sp2], [eqv_12], eqv_12, vv)
-    $inner implies(sp2, eqv_12)
-    $s1r ir(got_eqv, [sp1], [inner], inner)
+    $got_eq fr(got, [sp1, sp2], [eq_12], eq_12, vv)
+    $inner implies(sp2, eq_12)
+    $s1r ir(got_eq, [sp1], [inner], inner)
     $top implies(sp1, inner)
     $result ir(s1r, [], [top], top)
     close(result, [], [top], add([s2v, s1v], vars))

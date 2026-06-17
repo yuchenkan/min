@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right
+from derived import mem, implies, forall, and, iff, exists, eq, sep_ax, left, right
 from vocab.sets import subset
 from vocab.nat.nat import num, inductive, omega, successor
 from util.list import rev
@@ -215,18 +215,18 @@ $omega_induction \pred vars p: {
     $sx add(p, "x")
     $_sep_inner \a: exists(sb, forall(sx, iff(mem(sx,sb), and(mem(sx,a), pred(w,sx,np)))))
     # _last: get last element of list
-    $_last \self lst: ?(eq(len(lst), 1), head(lst), self(self, tail(lst)))
+    $_last \self lst: ?(eqv(len(lst), 1), head(lst), self(self, tail(lst)))
     # _wrap_foralls_around: wrap forall for each remaining term
     # Last term is the domain value. Before that are outer forall vars.
     # Domain forall uses a prefixed var to avoid capture with user variables.
     $dv add(p, "d")
-    $_wrap_fa \self rest: ?(eq(len(rest), 1),
+    $_wrap_fa \self rest: ?(eqv(len(rest), 1),
         forall(dv, _sep_inner(dv)),
         forall(head(rest), self(self, tail(rest))))
-    $_peel_sep \self thm formula terms: ?(eq(len(terms), 0), thm, {
+    $_peel_sep \self thm formula terms: ?(eqv(len(terms), 0), thm, {
         $t head(terms)
         $rest tail(terms)
-        $body ?(eq(len(rest), 0), _sep_inner(t), _wrap_fa(_wrap_fa, rest))
+        $body ?(eqv(len(rest), 0), _sep_inner(t), _wrap_fa(_wrap_fa, rest))
         $r inst(thm, formula, body, t, [sep_f])
         self(self, r, head(right(r)), rest)
     })

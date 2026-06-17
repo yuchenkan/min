@@ -1,27 +1,27 @@
-from derived import mem, implies, forall, iff, eqv, right
+from derived import mem, implies, forall, iff, eq, right
 from vocab.sets import singleton
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.iff_elim_left import iff_elim_left
 
-# |- singleton(f, a) -> mem(x, f) -> eqv(x, a)
-# singleton(f, a) = forall z. z∈f ↔ eqv(z, a)
-# instantiate z=x: x∈f ↔ eqv(x, a). Forward: x∈f → eqv(x, a).
+# |- singleton(f, a) -> mem(x, f) -> eq(x, a)
+# singleton(f, a) = forall z. z∈f ↔ eq(z, a)
+# instantiate z=x: x∈f ↔ eq(x, a). Forward: x∈f → eq(x, a).
 $singleton_mem_eq {
     $sing singleton("f", "a", "_")
     $xf mem("x", "f")
-    $eqv_xa eqv("x", "a", "_")
+    $eq_xa eq("x", "a", "_")
 
-    $iff_xf iff(xf, eqv_xa)
+    $iff_xf iff(xf, eq_xa)
     $got_iff fl(ax([iff_xf], [iff_xf], iff_xf), [sing], [iff_xf], sing, "x")
 
-    $imp_fwd implies(xf, eqv_xa)
-    $got_fwd mp(iff_elim_left(xf, eqv_xa, []),
+    $imp_fwd implies(xf, eq_xa)
+    $got_fwd mp(iff_elim_left(xf, eq_xa, []),
         got_iff, iff_xf, imp_fwd, [], [sing])
 
-    $got_eqv mp(got_fwd, ax([xf], [xf], xf), xf, eqv_xa, [sing], [xf])
+    $got_eq mp(got_fwd, ax([xf], [xf], xf), xf, eq_xa, [sing], [xf])
 
-    $imp2 implies(xf, eqv_xa)
-    $s1 ir(got_eqv, [sing], [imp2], imp2)
+    $imp2 implies(xf, eq_xa)
+    $s1 ir(got_eq, [sing], [imp2], imp2)
     $top implies(sing, imp2)
     $s2 ir(s1, [], [top], top)
     close(s2, [], [top], ["a","f","x"])

@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, iff, or, eqv, right
+from derived import mem, implies, forall, iff, or, eq, right
 from vocab.sets import ordered_pair, singleton, pair_set
 from tactics import ax, fl, fr, ir, mp, apply_thm, close, wl_all, same
 from theorems.logic.iff_intro import iff_intro
@@ -10,29 +10,29 @@ from theorems.logic.forall_iff_compat import forall_iff_compat
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.sets.eq_in_eq import eq_in_eq
 
-# |- eqv(a,c) -> ordered_pair(t,a,b) -> ordered_pair(t,c,b)
+# |- eq(a,c) -> ordered_pair(t,a,b) -> ordered_pair(t,c,b)
 $ordpair_key_transfer {
-    $eqv_ac eqv("a", "c", "_")
+    $eq_ac eq("a", "c", "_")
     $op_a ordered_pair("t", "a", "b", "_")
     $op_c ordered_pair("t", "c", "b", "_")
 
     $_eie head(right(eq_in_eq))
-    $eqv_wa eqv("w", "a", "_")
-    $eqv_wc eqv("w", "c", "_")
-    $eqv_wb eqv("w", "b", "_")
-    $iff_eqv_ac iff(eqv_wa, eqv_wc)
+    $eq_wa eq("w", "a", "_")
+    $eq_wc eq("w", "c", "_")
+    $eq_wb eq("w", "b", "_")
+    $iff_eq_ac iff(eq_wa, eq_wc)
     $got_iff_ac mp(apply_thm(eq_in_eq, _eie, ["w", "a", "c"], ["w", "x1", "x2"],
-        \z: \x1: \x2: implies(eqv(x1,x2,"_"), iff(eqv(z,x1,"_"), eqv(z,x2,"_"))), []),
-        ax([eqv_ac], [eqv_ac], eqv_ac), eqv_ac, iff_eqv_ac, [], [eqv_ac])
+        \z: \x1: \x2: implies(eq(x1,x2,"_"), iff(eq(z,x1,"_"), eq(z,x2,"_"))), []),
+        ax([eq_ac], [eq_ac], eq_ac), eq_ac, iff_eq_ac, [], [eq_ac])
 
     # === Pair_set level: iff(pair_set(r,a,b), pair_set(r,c,b)) ===
-    $or_a or(eqv_wa, eqv_wb)
-    $or_c or(eqv_wc, eqv_wb)
-    $got_iff_wb iff_refl(eqv_wb, [])
+    $or_a or(eq_wa, eq_wb)
+    $or_c or(eq_wc, eq_wb)
+    $got_iff_wb iff_refl(eq_wb, [])
     $iff_or iff(or_a, or_c)
-    $got_iff_or mp(mp(or_iff_compat(eqv_wa, eqv_wb, eqv_wc, eqv_wb, []),
-        got_iff_ac, iff_eqv_ac, implies(iff(eqv_wb, eqv_wb), iff_or), [], [eqv_ac]),
-        got_iff_wb, iff(eqv_wb, eqv_wb), iff_or, [eqv_ac], [])
+    $got_iff_or mp(mp(or_iff_compat(eq_wa, eq_wb, eq_wc, eq_wb, []),
+        got_iff_ac, iff_eq_ac, implies(iff(eq_wb, eq_wb), iff_or), [], [eq_ac]),
+        got_iff_wb, iff(eq_wb, eq_wb), iff_or, [eq_ac], [])
 
     $wr mem("w", "r")
     $ps_a pair_set("r", "a", "b", "_")
@@ -43,65 +43,65 @@ $ordpair_key_transfer {
     $got_chain mp(mp(iff_chain(wr, or_a, or_c, []),
         ax([iff_wr_a], [iff_wr_a], iff_wr_a), iff_wr_a,
         implies(iff_or, iff_wr_c), [], [iff_wr_a]),
-        got_iff_or, iff_or, iff_wr_c, [iff_wr_a], [eqv_ac])
-    $got_iff_or_rev mp(iff_sym(or_a, or_c, []), got_iff_or, iff_or, iff(or_c, or_a), [], [eqv_ac])
+        got_iff_or, iff_or, iff_wr_c, [iff_wr_a], [eq_ac])
+    $got_iff_or_rev mp(iff_sym(or_a, or_c, []), got_iff_or, iff_or, iff(or_c, or_a), [], [eq_ac])
     $got_chain_rev mp(mp(iff_chain(wr, or_c, or_a, []),
         ax([iff_wr_c], [iff_wr_c], iff_wr_c), iff_wr_c,
         implies(iff(or_c, or_a), iff_wr_a), [], [iff_wr_c]),
-        got_iff_or_rev, iff(or_c, or_a), iff_wr_a, [iff_wr_c], [eqv_ac])
+        got_iff_or_rev, iff(or_c, or_a), iff_wr_a, [iff_wr_c], [eq_ac])
 
     $iff_bodies iff(iff_wr_a, iff_wr_c)
-    $got_fwd_ir ir(got_chain, [eqv_ac], [implies(iff_wr_a, iff_wr_c)], implies(iff_wr_a, iff_wr_c))
-    $got_bwd_ir ir(got_chain_rev, [eqv_ac], [implies(iff_wr_c, iff_wr_a)], implies(iff_wr_c, iff_wr_a))
+    $got_fwd_ir ir(got_chain, [eq_ac], [implies(iff_wr_a, iff_wr_c)], implies(iff_wr_a, iff_wr_c))
+    $got_bwd_ir ir(got_chain_rev, [eq_ac], [implies(iff_wr_c, iff_wr_a)], implies(iff_wr_c, iff_wr_a))
     $got_iff_bodies mp(mp(iff_intro(iff_wr_a, iff_wr_c, []),
-        got_fwd_ir, implies(iff_wr_a, iff_wr_c), implies(implies(iff_wr_c, iff_wr_a), iff_bodies), [], [eqv_ac]),
-        got_bwd_ir, implies(iff_wr_c, iff_wr_a), iff_bodies, [eqv_ac], [eqv_ac])
+        got_fwd_ir, implies(iff_wr_a, iff_wr_c), implies(implies(iff_wr_c, iff_wr_a), iff_bodies), [], [eq_ac]),
+        got_bwd_ir, implies(iff_wr_c, iff_wr_a), iff_bodies, [eq_ac], [eq_ac])
 
     $fa_iff_bodies forall("w", iff_bodies)
-    $got_fa_iff fr(got_iff_bodies, [eqv_ac], [fa_iff_bodies], fa_iff_bodies, "w")
+    $got_fa_iff fr(got_iff_bodies, [eq_ac], [fa_iff_bodies], fa_iff_bodies, "w")
     $iff_ps iff(ps_a, ps_c2)
-    $bp_ps \w: iff(mem(w,"r"), or(eqv(w,"a","_"), eqv(w,"b","_")))
-    $bq_ps \w: iff(mem(w,"r"), or(eqv(w,"c","_"), eqv(w,"b","_")))
+    $bp_ps \w: iff(mem(w,"r"), or(eq(w,"a","_"), eq(w,"b","_")))
+    $bq_ps \w: iff(mem(w,"r"), or(eq(w,"c","_"), eq(w,"b","_")))
     $got_iff_ps mp(forall_iff_compat("w", bp_ps, bq_ps, []),
-        got_fa_iff, fa_iff_bodies, iff_ps, [], [eqv_ac])
+        got_fa_iff, fa_iff_bodies, iff_ps, [], [eq_ac])
 
     # === Singleton level: iff(singleton(r,a), singleton(r,c)) ===
     $sn_a singleton("r", "a", "_")
     $sn_c singleton("r", "c", "_")
-    $iff_sn_a iff(mem("w","r"), eqv_wa)
-    $iff_sn_c iff(mem("w","r"), eqv_wc)
-    $got_sn_chain mp(mp(iff_chain(mem("w","r"), eqv_wa, eqv_wc, []),
+    $iff_sn_a iff(mem("w","r"), eq_wa)
+    $iff_sn_c iff(mem("w","r"), eq_wc)
+    $got_sn_chain mp(mp(iff_chain(mem("w","r"), eq_wa, eq_wc, []),
         ax([iff_sn_a], [iff_sn_a], iff_sn_a), iff_sn_a,
-        implies(iff_eqv_ac, iff_sn_c), [], [iff_sn_a]),
-        got_iff_ac, iff_eqv_ac, iff_sn_c, [iff_sn_a], [eqv_ac])
-    $got_iff_ac_rev mp(iff_sym(eqv_wa, eqv_wc, []), got_iff_ac, iff_eqv_ac, iff(eqv_wc, eqv_wa), [], [eqv_ac])
-    $got_sn_chain_rev mp(mp(iff_chain(mem("w","r"), eqv_wc, eqv_wa, []),
+        implies(iff_eq_ac, iff_sn_c), [], [iff_sn_a]),
+        got_iff_ac, iff_eq_ac, iff_sn_c, [iff_sn_a], [eq_ac])
+    $got_iff_ac_rev mp(iff_sym(eq_wa, eq_wc, []), got_iff_ac, iff_eq_ac, iff(eq_wc, eq_wa), [], [eq_ac])
+    $got_sn_chain_rev mp(mp(iff_chain(mem("w","r"), eq_wc, eq_wa, []),
         ax([iff_sn_c], [iff_sn_c], iff_sn_c), iff_sn_c,
-        implies(iff(eqv_wc, eqv_wa), iff_sn_a), [], [iff_sn_c]),
-        got_iff_ac_rev, iff(eqv_wc, eqv_wa), iff_sn_a, [iff_sn_c], [eqv_ac])
+        implies(iff(eq_wc, eq_wa), iff_sn_a), [], [iff_sn_c]),
+        got_iff_ac_rev, iff(eq_wc, eq_wa), iff_sn_a, [iff_sn_c], [eq_ac])
 
     $iff_sn_bodies iff(iff_sn_a, iff_sn_c)
-    $got_sn_fwd ir(got_sn_chain, [eqv_ac], [implies(iff_sn_a, iff_sn_c)], implies(iff_sn_a, iff_sn_c))
-    $got_sn_bwd ir(got_sn_chain_rev, [eqv_ac], [implies(iff_sn_c, iff_sn_a)], implies(iff_sn_c, iff_sn_a))
+    $got_sn_fwd ir(got_sn_chain, [eq_ac], [implies(iff_sn_a, iff_sn_c)], implies(iff_sn_a, iff_sn_c))
+    $got_sn_bwd ir(got_sn_chain_rev, [eq_ac], [implies(iff_sn_c, iff_sn_a)], implies(iff_sn_c, iff_sn_a))
     $got_iff_sn_bodies mp(mp(iff_intro(iff_sn_a, iff_sn_c, []),
-        got_sn_fwd, implies(iff_sn_a, iff_sn_c), implies(implies(iff_sn_c, iff_sn_a), iff_sn_bodies), [], [eqv_ac]),
-        got_sn_bwd, implies(iff_sn_c, iff_sn_a), iff_sn_bodies, [eqv_ac], [eqv_ac])
+        got_sn_fwd, implies(iff_sn_a, iff_sn_c), implies(implies(iff_sn_c, iff_sn_a), iff_sn_bodies), [], [eq_ac]),
+        got_sn_bwd, implies(iff_sn_c, iff_sn_a), iff_sn_bodies, [eq_ac], [eq_ac])
 
     $fa_sn_bodies forall("w", iff_sn_bodies)
-    $got_fa_sn fr(got_iff_sn_bodies, [eqv_ac], [fa_sn_bodies], fa_sn_bodies, "w")
+    $got_fa_sn fr(got_iff_sn_bodies, [eq_ac], [fa_sn_bodies], fa_sn_bodies, "w")
     $iff_sn iff(sn_a, sn_c)
-    $bp_sn \w: iff(mem(w,"r"), eqv(w,"a","_"))
-    $bq_sn \w: iff(mem(w,"r"), eqv(w,"c","_"))
+    $bp_sn \w: iff(mem(w,"r"), eq(w,"a","_"))
+    $bq_sn \w: iff(mem(w,"r"), eq(w,"c","_"))
     $got_iff_sn mp(forall_iff_compat("w", bp_sn, bq_sn, []),
-        got_fa_sn, fa_sn_bodies, iff_sn, [], [eqv_ac])
+        got_fa_sn, fa_sn_bodies, iff_sn, [], [eq_ac])
 
     # === Ordered_pair level ===
     $or_op_a or(sn_a, ps_a)
     $or_op_c or(sn_c, ps_c2)
     $iff_or_op iff(or_op_a, or_op_c)
     $got_iff_or_op mp(mp(or_iff_compat(sn_a, ps_a, sn_c, ps_c2, []),
-        got_iff_sn, iff_sn, implies(iff_ps, iff_or_op), [], [eqv_ac]),
-        got_iff_ps, iff_ps, iff_or_op, [eqv_ac], [eqv_ac])
+        got_iff_sn, iff_sn, implies(iff_ps, iff_or_op), [], [eq_ac]),
+        got_iff_ps, iff_ps, iff_or_op, [eq_ac], [eq_ac])
 
     $rt mem("r", "t")
     $op_body_a iff(rt, or_op_a)
@@ -109,36 +109,36 @@ $ordpair_key_transfer {
     $got_ch2 mp(mp(iff_chain(rt, or_op_a, or_op_c, []),
         ax([op_body_a], [op_body_a], op_body_a), op_body_a,
         implies(iff_or_op, op_body_c), [], [op_body_a]),
-        got_iff_or_op, iff_or_op, op_body_c, [op_body_a], [eqv_ac])
+        got_iff_or_op, iff_or_op, op_body_c, [op_body_a], [eq_ac])
     $got_iff_or_op_rev mp(iff_sym(or_op_a, or_op_c, []),
-        got_iff_or_op, iff_or_op, iff(or_op_c, or_op_a), [], [eqv_ac])
+        got_iff_or_op, iff_or_op, iff(or_op_c, or_op_a), [], [eq_ac])
     $got_ch2_rev mp(mp(iff_chain(rt, or_op_c, or_op_a, []),
         ax([op_body_c], [op_body_c], op_body_c), op_body_c,
         implies(iff(or_op_c, or_op_a), op_body_a), [], [op_body_c]),
-        got_iff_or_op_rev, iff(or_op_c, or_op_a), op_body_a, [op_body_c], [eqv_ac])
+        got_iff_or_op_rev, iff(or_op_c, or_op_a), op_body_a, [op_body_c], [eq_ac])
 
     $iff_op iff(op_body_a, op_body_c)
     $got_iff_op mp(mp(iff_intro(op_body_a, op_body_c, []),
-        ir(got_ch2, [eqv_ac], [implies(op_body_a, op_body_c)], implies(op_body_a, op_body_c)),
-        implies(op_body_a, op_body_c), implies(implies(op_body_c, op_body_a), iff_op), [], [eqv_ac]),
-        ir(got_ch2_rev, [eqv_ac], [implies(op_body_c, op_body_a)], implies(op_body_c, op_body_a)),
-        implies(op_body_c, op_body_a), iff_op, [eqv_ac], [eqv_ac])
+        ir(got_ch2, [eq_ac], [implies(op_body_a, op_body_c)], implies(op_body_a, op_body_c)),
+        implies(op_body_a, op_body_c), implies(implies(op_body_c, op_body_a), iff_op), [], [eq_ac]),
+        ir(got_ch2_rev, [eq_ac], [implies(op_body_c, op_body_a)], implies(op_body_c, op_body_a)),
+        implies(op_body_c, op_body_a), iff_op, [eq_ac], [eq_ac])
 
     $fa_iff_op forall("r", iff_op)
-    $got_fa_iff_op fr(got_iff_op, [eqv_ac], [fa_iff_op], fa_iff_op, "r")
+    $got_fa_iff_op fr(got_iff_op, [eq_ac], [fa_iff_op], fa_iff_op, "r")
     $bp_op \v: iff(mem(v,"t"), or(singleton(v,"a","_"), pair_set(v,"a","b","_")))
     $bq_op \v: iff(mem(v,"t"), or(singleton(v,"c","_"), pair_set(v,"c","b","_")))
     $iff_ops iff(op_a, op_c)
     $got_iff_ops mp(forall_iff_compat("r", bp_op, bq_op, []),
-        got_fa_iff_op, fa_iff_op, iff_ops, [], [eqv_ac])
+        got_fa_iff_op, fa_iff_op, iff_ops, [], [eq_ac])
 
     $got_op_c mp(mp(iff_elim_left(op_a, op_c, []),
-        got_iff_ops, iff_ops, implies(op_a, op_c), [], [eqv_ac]),
-        ax([op_a], [op_a], op_a), op_a, op_c, [eqv_ac], [op_a])
+        got_iff_ops, iff_ops, implies(op_a, op_c), [], [eq_ac]),
+        ax([op_a], [op_a], op_a), op_a, op_c, [eq_ac], [op_a])
 
     $imp2 implies(op_a, op_c)
-    $s1 ir(got_op_c, [eqv_ac], [imp2], imp2)
-    $top implies(eqv_ac, imp2)
+    $s1 ir(got_op_c, [eq_ac], [imp2], imp2)
+    $top implies(eq_ac, imp2)
     $s2 ir(s1, [], [top], top)
     close(s2, [], [top], ["c","b","a","t"])
 }

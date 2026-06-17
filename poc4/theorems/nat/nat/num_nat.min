@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, exists, eqv, left, right
+from derived import mem, implies, forall, exists, eq, left, right
 from vocab.nat.nat import nat, num, omega, successor
 from tactics import ax, wr, fr, ir, mp, apply_thm, eel, cut_c, close, same
 from util.list import remove
@@ -9,7 +9,7 @@ from theorems.nat.nat.num_exists import num_exists
 
 # num_nat(k): ∀n. Num(n,k) → Nat(n)
 
-$_num_nat \self k: ?(eq(k, 0), {
+$_num_nat \self k: ?(eqv(k, 0), {
     $num_n num("n",0,"_")
     $ow omega("w","_")
     $nw mem("n","w")

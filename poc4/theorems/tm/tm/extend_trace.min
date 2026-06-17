@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, iff, eqv, left, right
+from derived import mem, neg, implies, forall, exists, and, or, iff, eq, left, right
 from vocab.sets import empty, singleton, ordered_pair, union, transitive_set
 from vocab.functions import apply, function, single_valued
 from vocab.tm.tm import tm_config, tm_step
@@ -14,9 +14,9 @@ from theorems.logic.or_intro_left import or_intro_left
 from theorems.logic.or_intro_right import or_intro_right
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_sym import iff_sym
@@ -28,13 +28,13 @@ from theorems.sets.union_exists import union_exists
 from theorems.sets.singleton_apply import singleton_apply
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.eq_in_eq import eq_in_eq
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 from theorems.sets.singleton_apply_eq import singleton_apply_eq
-from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
+from theorems.sets.eq_mem_transfer import eq_mem_transfer
 
 from theorems.tm.tm.tmstep_c1_transfer import tmstep_c1_transfer
 from theorems.sets.singleton_apply_eq import singleton_apply_eq
-from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
+from theorems.sets.eq_mem_transfer import eq_mem_transfer
 
 from theorems.functions.union_apply_left import union_apply_left
 from theorems.functions.union_apply_right import union_apply_right
@@ -66,7 +66,7 @@ $extend_trace {
 
     $base_old forall("zp", implies(empty("zp", "_"), apply("tra", "zp", "c0", "_")))
     $dom_bound forall("xd", forall("yd", implies(apply("tra", "xd", "yd", "_"),
-        or(mem("xd", "ka"), eqv("xd", "ka", "_")))))
+        or(mem("xd", "ka"), eq("xd", "ka", "_")))))
     $step_valid_old forall("ja", implies(mem("ja", "ka"),
         forall("sja", implies(successor("sja", "ja", "_"),
             forall("cja", implies(apply("tra", "ja", "cja", "_"),
@@ -161,9 +161,9 @@ $extend_trace {
     # === 2. Consistency for extend_function ===
     # dom_bound inst ska,zv: Apply(tra,ska,zv) → Or(In(ska,ka), Eq(ska,ka))
     $app_tra_ska_zv apply("tra", "ska", "zv", "_")
-    $or_ska or(mem("ska", "ka"), eqv("ska", "ka", "_"))
-    $eq_cn_zv eqv("ca_new", "zv", "_")
-    $_db_b \xd: \yd: implies(apply("tra", xd, yd, "_"), or(mem(xd, "ka"), eqv(xd, "ka", "_")))
+    $or_ska or(mem("ska", "ka"), eq("ska", "ka", "_"))
+    $eq_cn_zv eq("ca_new", "zv", "_")
+    $_db_b \xd: \yd: implies(apply("tra", xd, yd, "_"), or(mem(xd, "ka"), eq(xd, "ka", "_")))
     $dom_s1 apply_thm(ax([dom_bound],[dom_bound],dom_bound),
         head(right(ax([dom_bound],[dom_bound],dom_bound))),
         ["ska", "zv"], ["xd", "yd"], _db_b, [dom_bound])
@@ -178,7 +178,7 @@ $extend_trace {
 
     # Eq(ska,ka) case: Eq(ska,ka)=∀z.z∈ska↔z∈ka. Inst z=ka: ka∈ska↔ka∈ka.
     # Forward: ka∈ska→ka∈ka. We have ka∈ska. So ka∈ka. Then ⊥.
-    $eq_ska_ka eqv("ska", "ka", "_")
+    $eq_ska_ka eq("ska", "ka", "_")
     $iff_kska iff(mem("ka","ska"), mem("ka","ka"))
     $_eq_inst \z: iff(mem(z,"ska"), mem(z,"ka"))
     $eq_ska_ax ax([eq_ska_ka],[eq_ska_ka],eq_ska_ka)
@@ -242,7 +242,7 @@ $extend_trace {
     # Apply extend_function
     $_ef_b \v: \k: \y0: \op: \h: \u:
         implies(function(v,"_"), implies(singleton(h,op,"_"), implies(ordered_pair(op,k,y0,"_"),
-        implies(forall("z", implies(apply(v,k,"z","_"), eqv(y0,"z","_"))),
+        implies(forall("z", implies(apply(v,k,"z","_"), eq(y0,"z","_"))),
             implies(union(u,v,h,"_"), function(u,"_"))))))
     $func_trn function("trn", "_")
     $ef_inst apply_thm(extend_function, head(right(extend_function)),
@@ -342,7 +342,7 @@ $extend_trace {
     # --- Section 5 formulas ---
     $in_ja_ska mem("ja", "ska")
     $in_ja_ka mem("ja", "ka")
-    $eq_ja_ka eqv("ja", "ka", "_")
+    $eq_ja_ka eq("ja", "ka", "_")
     $or_ja or(in_ja_ka, eq_ja_ka)
     $succ_sja successor("sja", "ja", "_")
     $app_trn_ja apply("trn", "ja", "cja", "_")
@@ -355,7 +355,7 @@ $extend_trace {
     $step_body exists("cja1", and_step)
 
     # 5a. mem_succ_elim: ja∈ska → Or(ja∈ka, Eq(ja,ka))
-    $_mse_b \x: \s: \n: implies(mem(x, s), implies(successor(s, n, "_"), or(mem(x, n), eqv(x, n, "_"))))
+    $_mse_b \x: \s: \n: implies(mem(x, s), implies(successor(s, n, "_"), or(mem(x, n), eq(x, n, "_"))))
     $mse_inst apply_thm(mem_succ_elim, head(right(mem_succ_elim)),
         ["ja", "ska", "ka"], ["x", "s", "n"], _mse_b, [])
     $mse_s1 mp(mse_inst,
@@ -465,12 +465,12 @@ $extend_trace {
 
     # === 5d. Case In(ja,ka) + Apply(sing,ja,cja): ⊥ ===
     # singleton_apply_eq: OP(pska,ska,ca_new) → Sing(sing,pska) → Apply(sing,ja,cja) → And(Eq(ska,ja), Eq(ca_new,cja))
-    $eq_ska_ja eqv("ska", "ja", "_")
-    $eq_cn_cja eqv("ca_new", "cja", "_")
+    $eq_ska_ja eq("ska", "ja", "_")
+    $eq_cn_cja eq("ca_new", "cja", "_")
     $and_sae and(eq_ska_ja, eq_cn_cja)
     $_sae_b \e: \b: \op: \f: \xe: \ye:
         implies(ordered_pair(op,e,b,"_"), implies(singleton(f,op,"_"), implies(apply(f,xe,ye,"_"),
-            and(eqv(e,xe,"_"), eqv(b,ye,"_")))))
+            and(eq(e,xe,"_"), eq(b,ye,"_")))))
     $sae_inst apply_thm(singleton_apply_eq, head(right(singleton_apply_eq)),
         ["ska", "ca_new", "pska", "sing", "ja", "cja"],
         ["e", "b", "op", "f", "xe", "ye"], _sae_b, left(singleton_apply_eq))
@@ -490,21 +490,21 @@ $extend_trace {
     $got_eq_ska_ja mp(and_elim_left(eq_ska_ja, eq_cn_cja, []),
         got_and_sae, and_sae, eq_ska_ja, [], left(got_and_sae))
 
-    # eqv_symmetric: Eq(ska,ja) → Eq(ja,ska)
-    $eq_ja_ska eqv("ja", "ska", "_")
-    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
+    # eq_symmetric: Eq(ska,ja) → Eq(ja,ska)
+    $eq_ja_ska eq("ja", "ska", "_")
+    $_es_b \a: \b: implies(eq(a, b, "_"), eq(b, a, "_"))
     $got_eq_ja_ska mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["ska", "ja"], ["a", "b"], _es_b, []),
         got_eq_ska_ja, eq_ska_ja, eq_ja_ska, [], left(got_eq_ska_ja))
 
-    # eqv_mem_transfer: Eq(ja,ska) → ja∈ka → ska∈ka
-    $_emt_b \a: \b: \c: implies(eqv(a, b, "_"), implies(mem(a, c), mem(b, c)))
-    $emt_inst apply_thm(eqv_mem_transfer, head(right(eqv_mem_transfer)),
-        ["ja", "ska", "ka"], ["a", "b", "c"], _emt_b, left(eqv_mem_transfer))
+    # eq_mem_transfer: Eq(ja,ska) → ja∈ka → ska∈ka
+    $_emt_b \a: \b: \c: implies(eq(a, b, "_"), implies(mem(a, c), mem(b, c)))
+    $emt_inst apply_thm(eq_mem_transfer, head(right(eq_mem_transfer)),
+        ["ja", "ska", "ka"], ["a", "b", "c"], _emt_b, left(eq_mem_transfer))
     $emt_s1 mp(emt_inst,
         got_eq_ja_ska, eq_ja_ska, implies(in_ja_ka, in_ska_ka),
-        left(eqv_mem_transfer), left(got_eq_ja_ska))
+        left(eq_mem_transfer), left(got_eq_ja_ska))
     $got_in_ska_ka_d mp(emt_s1,
         ax([in_ja_ka],[in_ja_ka],in_ja_ka), in_ja_ka, in_ska_ka,
         left(emt_s1), [in_ja_ka])
@@ -548,19 +548,19 @@ $extend_trace {
     # === 5f. Case Eq(ja,ka) + Apply(sing,ja,cja): ⊥ ===
     # Reuse got_eq_ska_ja from 5d (but context has app_sing_ja)
     # Actually got_eq_ska_ja has app_sing_ja in its context already. Good.
-    # From Eq(ska,ja) + Eq(ja,ka) → Eq(ska,ka) via eqv_transitive
-    $_et_b \a: \b: \c: implies(eqv(a, b, "_"), implies(eqv(b, c, "_"), eqv(a, c, "_")))
-    $et_inst apply_thm(eqv_transitive, head(right(eqv_transitive)),
+    # From Eq(ska,ja) + Eq(ja,ka) → Eq(ska,ka) via eq_transitive
+    $_et_b \a: \b: \c: implies(eq(a, b, "_"), implies(eq(b, c, "_"), eq(a, c, "_")))
+    $et_inst apply_thm(eq_transitive, head(right(eq_transitive)),
         ["ska", "ja", "ka"], ["a", "b", "c"], _et_b, [])
     $et_s1 mp(et_inst,
-        got_eq_ska_ja, eq_ska_ja, implies(eq_ja_ka, eqv("ska", "ka", "_")),
+        got_eq_ska_ja, eq_ska_ja, implies(eq_ja_ka, eq("ska", "ka", "_")),
         [], left(got_eq_ska_ja))
     $got_eq_ska_ka_f mp(et_s1,
-        ax([eq_ja_ka],[eq_ja_ka],eq_ja_ka), eq_ja_ka, eqv("ska", "ka", "_"),
+        ax([eq_ja_ka],[eq_ja_ka],eq_ja_ka), eq_ja_ka, eq("ska", "ka", "_"),
         left(et_s1), [eq_ja_ka])
     # Eq(ska,ka) → ⊥: same as consistency section (got_bot_eq2 pattern)
     # Eq(ska,ka) inst z=ka: Iff(ka∈ska, ka∈ka)
-    $eq_ska_ka_5f eqv("ska", "ka", "_")
+    $eq_ska_ka_5f eq("ska", "ka", "_")
     $iff_kska_5f iff(mem("ka","ska"), mem("ka","ka"))
     $_eq_inst_5f \z: iff(mem(z,"ska"), mem(z,"ka"))
     $eq_ska_inst_5f apply_thm(got_eq_ska_ka_f, head(right(got_eq_ska_ka_f)),
@@ -596,7 +596,7 @@ $extend_trace {
     # === 5g. Case Eq(ja,ka) + Apply(tra,ja,cja): func_unique + transfers ===
     # apply_key_transfer: Eq(ja,ka) → Apply(tra,ja,cja) → Apply(tra,ka,cja)
     $app_tra_ka_cja apply("tra", "ka", "cja", "_")
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x, x2, "_"), implies(apply(f, x, y, "_"), apply(f, x2, y, "_")))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x, x2, "_"), implies(apply(f, x, y, "_"), apply(f, x2, y, "_")))
     $akt_inst apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
         ["tra", "ja", "ka", "cja"], ["f", "x", "x2", "y"], _akt_b, [])
     $akt_s1 mp(akt_inst,
@@ -614,8 +614,8 @@ $extend_trace {
         ax([func_tra],[func_tra],func_tra), func_tra, sv_tra, [], [func_tra])
 
     # func_unique: SV(tra) → Apply(tra,ka,cja) → Apply(tra,ka,ca) → Eq(cja,ca)
-    $eq_cja_ca eqv("cja", "ca", "_")
-    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $eq_cja_ca eq("cja", "ca", "_")
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
     $fu_inst apply_thm(func_unique_thm, head(right(func_unique_thm)),
         ["tra", "ka", "cja", "ca"], ["f", "x", "y1", "y2"], _fu_b, [])
     $fu_s1 mp(fu_inst, got_sv_tra, sv_tra,
@@ -649,26 +649,26 @@ $extend_trace {
     #
     # eq_succ_transfer with a=sja, b=ka, c=sja, d=ja:
     #   Eq(sja,sja) → Eq(ka,ja) → Succ(sja,ja) → Succ(sja,ka)
-    # We can get Eq(sja,sja) from eqv_reflexive and Eq(ka,ja) from eqv_symmetric(Eq(ja,ka)).
+    # We can get Eq(sja,sja) from eq_reflexive and Eq(ka,ja) from eq_symmetric(Eq(ja,ka)).
     # Then Succ(sja,ka). Combined with Succ(ska,ka) → unique_successor → Eq(sja,ska). ✓
-    $eq_sja_ska eqv("sja", "ska", "_")
+    $eq_sja_ska eq("sja", "ska", "_")
 
-    # Eq(sja,sja) from eqv_reflexive
-    $eq_sja_sja eqv("sja", "sja", "_")
-    $_er_b \a: eqv(a, a, "_")
-    $got_eq_sjasja apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
-        ["sja"], ["a"], _er_b, left(eqv_reflexive))
+    # Eq(sja,sja) from eq_reflexive
+    $eq_sja_sja eq("sja", "sja", "_")
+    $_er_b \a: eq(a, a, "_")
+    $got_eq_sjasja apply_thm(eq_reflexive, head(right(eq_reflexive)),
+        ["sja"], ["a"], _er_b, left(eq_reflexive))
 
-    # Eq(ka,ja) from eqv_symmetric(Eq(ja,ka))
-    $eq_ka_ja eqv("ka", "ja", "_")
+    # Eq(ka,ja) from eq_symmetric(Eq(ja,ka))
+    $eq_ka_ja eq("ka", "ja", "_")
     $got_eq_ka_ja mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["ja", "ka"], ["a", "b"], _es_b, []),
         ax([eq_ja_ka],[eq_ja_ka],eq_ja_ka), eq_ja_ka, eq_ka_ja, [], [eq_ja_ka])
 
     # eq_succ_transfer(sja, ka, sja, ja): Eq(sja,sja) → Eq(ka,ja) → Succ(sja,ja) → Succ(sja,ka)
     $succ_sja_ka successor("sja", "ka", "_")
-    $_est_b \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"), implies(successor(c,d,"_"), successor(a,b,"_"))))
+    $_est_b \a: \b: \c: \d: implies(eq(a,c,"_"), implies(eq(b,d,"_"), implies(successor(c,d,"_"), successor(a,b,"_"))))
     $est_inst apply_thm(eq_succ_transfer, head(right(eq_succ_transfer)),
         ["sja", "ka", "sja", "ja"], ["a", "b", "c", "d"], _est_b, [])
     $est_s1 mp(est_inst, got_eq_sjasja, eq_sja_sja,
@@ -682,7 +682,7 @@ $extend_trace {
         left(est_s2), [succ_sja])
 
     # successor_unique: [] |- ∀a,s1,s2. S(s1,a) → S(s2,a) → Eq(s1,s2)
-    $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_")))
+    $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eq(s1,s2,"_")))
     $su_inst apply_thm(successor_unique, head(right(successor_unique)),
         ["ka", "sja", "ska"], ["a", "s1", "s2"], _su_b, [])
     $su_s1 mp(su_inst, got_succ_sja_ka, succ_sja_ka,
@@ -695,10 +695,10 @@ $extend_trace {
     # Apply(trn,sja,ca_new) from Apply(trn,ska,ca_new) + Eq(ska,sja)
     # apply_key_transfer: Eq(x,x2) → Apply(f,x,y) → Apply(f,x2,y)
     # With Eq(ska,sja) → Apply(trn,ska,ca_new) → Apply(trn,sja,ca_new)
-    $eq_ska_sja eqv("ska", "sja", "_")
+    $eq_ska_sja eq("ska", "sja", "_")
     $app_trn_sja_cn apply("trn", "sja", "ca_new", "_")
     $got_eq_ska_sja mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["sja", "ska"], ["a", "b"], _es_b, []),
         got_eq_sja_ska, eq_sja_ska, eq_ska_sja, [], left(got_eq_sja_ska))
     $akt2_inst apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
@@ -712,7 +712,7 @@ $extend_trace {
 
     # TMStep(d,cja,ca_new) from TMStep(d,ca,ca_new) + Eq(cja,ca) via tmstep_c1_transfer
     $tmstep_cja_cn tm_step("delta", "cja", "ca_new", "_")
-    $_tct_b \d: \c1: \c2: \c3: implies(eqv(c1,c3,"_"), implies(tm_step(d,c3,c2,"_"), tm_step(d,c1,c2,"_")))
+    $_tct_b \d: \c1: \c2: \c3: implies(eq(c1,c3,"_"), implies(tm_step(d,c3,c2,"_"), tm_step(d,c1,c2,"_")))
     $tct_inst apply_thm(tmstep_c1_transfer, head(right(tmstep_c1_transfer)),
         ["delta", "cja", "ca_new", "ca"], ["d", "c1", "c2", "c3"], _tct_b, [])
     $tct_s1 mp(tct_inst,
@@ -809,9 +809,9 @@ $extend_trace {
     $app_trn_xdn apply("trn", "xdn", "ydn", "_")
     $app_tra_xdn apply("tra", "xdn", "ydn", "_")
     $app_sing_xdn apply("sing", "xdn", "ydn", "_")
-    $or_dom_new or(mem("xdn", "ska"), eqv("xdn", "ska", "_"))
+    $or_dom_new or(mem("xdn", "ska"), eq("xdn", "ska", "_"))
     $in_xdn_ska mem("xdn", "ska")
-    $eq_xdn_ska eqv("xdn", "ska", "_")
+    $eq_xdn_ska eq("xdn", "ska", "_")
     $or_apps_dom or(app_tra_xdn, app_sing_xdn)
 
     # union_apply_elim: Apply(trn,xdn,ydn) → Or(Apply(tra), Apply(sing))
@@ -826,7 +826,7 @@ $extend_trace {
         [app_trn_xdn], [union_def])
 
     # --- Case Apply(tra,xdn,ydn): old dom_bound → Or(In(xdn,ka),Eq(xdn,ka)) ---
-    $or_dom_old or(mem("xdn", "ka"), eqv("xdn", "ka", "_"))
+    $or_dom_old or(mem("xdn", "ka"), eq("xdn", "ka", "_"))
     $dom_d_s1 apply_thm(ax([dom_bound],[dom_bound],dom_bound),
         head(right(ax([dom_bound],[dom_bound],dom_bound))),
         ["xdn", "ydn"], ["xd", "yd"], _db_b, [dom_bound])
@@ -853,18 +853,18 @@ $extend_trace {
         got_in_xdn_ska_from_in, in_xdn_ska, or_dom_new,
         [], left(got_in_xdn_ska_from_in))
 
-    # Subcase Eq(xdn,ka) → In(xdn,ska) via eqv_symmetric + eqv_mem_transfer + ka∈ska
-    $eq_xdn_ka eqv("xdn", "ka", "_")
-    $eq_ka_xdn eqv("ka", "xdn", "_")
+    # Subcase Eq(xdn,ka) → In(xdn,ska) via eq_symmetric + eq_mem_transfer + ka∈ska
+    $eq_xdn_ka eq("xdn", "ka", "_")
+    $eq_ka_xdn eq("ka", "xdn", "_")
     $got_eq_ka_xdn mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["xdn","ka"], ["a","b"], _es_b, []),
         ax([eq_xdn_ka],[eq_xdn_ka],eq_xdn_ka), eq_xdn_ka, eq_ka_xdn, [], [eq_xdn_ka])
-    $emt2_inst apply_thm(eqv_mem_transfer, head(right(eqv_mem_transfer)),
-        ["ka","xdn","ska"], ["a","b","c"], _emt_b, left(eqv_mem_transfer))
+    $emt2_inst apply_thm(eq_mem_transfer, head(right(eq_mem_transfer)),
+        ["ka","xdn","ska"], ["a","b","c"], _emt_b, left(eq_mem_transfer))
     $emt2_s1 mp(emt2_inst,
         got_eq_ka_xdn, eq_ka_xdn, implies(mem("ka","ska"), in_xdn_ska),
-        left(eqv_mem_transfer), left(got_eq_ka_xdn))
+        left(eq_mem_transfer), left(got_eq_ka_xdn))
     $got_in_xdn_ska_from_eq mp(emt2_s1,
         got_ka_in_ska, mem("ka","ska"), in_xdn_ska,
         left(emt2_s1), left(got_ka_in_ska))
@@ -896,11 +896,11 @@ $extend_trace {
         left(oe_dom_s2), left(got_ir_eq_dom))
 
     # --- Case Apply(sing,xdn,ydn): singleton_apply_eq → Eq(xdn,ska) ---
-    $eq_ska_xdn eqv("ska", "xdn", "_")
-    $and_sae_d and(eq_ska_xdn, eqv("ca_new", "ydn", "_"))
+    $eq_ska_xdn eq("ska", "xdn", "_")
+    $and_sae_d and(eq_ska_xdn, eq("ca_new", "ydn", "_"))
     $_sae_d_b \e: \b: \op: \f: \xe: \ye:
         implies(ordered_pair(op,e,b,"_"), implies(singleton(f,op,"_"), implies(apply(f,xe,ye,"_"),
-            and(eqv(e,xe,"_"), eqv(b,ye,"_")))))
+            and(eq(e,xe,"_"), eq(b,ye,"_")))))
     $sae_d_inst apply_thm(singleton_apply_eq, head(right(singleton_apply_eq)),
         ["ska", "ca_new", "pska", "sing", "xdn", "ydn"],
         ["e", "b", "op", "f", "xe", "ye"], _sae_d_b, left(singleton_apply_eq))
@@ -915,10 +915,10 @@ $extend_trace {
     $got_and_sae_d mp(sae_d_s2,
         ax([app_sing_xdn],[app_sing_xdn],app_sing_xdn), app_sing_xdn, and_sae_d,
         left(sae_d_s2), [app_sing_xdn])
-    $got_eq_ska_xdn mp(and_elim_left(eq_ska_xdn, eqv("ca_new","ydn","_"), []),
+    $got_eq_ska_xdn mp(and_elim_left(eq_ska_xdn, eq("ca_new","ydn","_"), []),
         got_and_sae_d, and_sae_d, eq_ska_xdn, [], left(got_and_sae_d))
     $got_eq_xdn_ska mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["ska","xdn"], ["a","b"], _es_b, []),
         got_eq_ska_xdn, eq_ska_xdn, eq_xdn_ska, [], left(got_eq_ska_xdn))
     # or_intro_right: Eq(xdn,ska) → Or(In(xdn,ska), Eq(xdn,ska))
@@ -985,7 +985,7 @@ $extend_trace {
 
     # eir trn → ∃trn. big_and
     $ex_body \v: and(function(v,"_"), and(
-        forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"), or(mem("xdn","ska"), eqv("xdn","ska","_"))))),
+        forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"), or(mem("xdn","ska"), eq("xdn","ska","_"))))),
         and(forall("zp2", implies(empty("zp2","_"), apply(v,"zp2","c0","_"))),
             and(apply(v,"ska","ca_new","_"),
                 forall("ja", implies(mem("ja","ska"),

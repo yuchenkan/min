@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2, pairing_ax
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, omega, successor
 from vocab.functions import apply, function
@@ -9,11 +9,11 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_val_transfer import apply_val_transfer
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 
 # pf_forward: From Apply(h,key,val), extract the phi components.
 # char_fwd(h) → Apply(h,key,val) →
@@ -79,12 +79,12 @@ $pf_forward {
     $got_op mp(and_elim_left(op_qv, qv_h, []),
         ax([and_op_qv], [and_op_qv], and_op_qv), and_op_qv, op_qv, [], [and_op_qv])
 
-    # === Kuratowski: OrdPair(qv,key,val) ∧ OrdPair(qv,pv,yv) → eqv(key,pv) ∧ eqv(val,yv) ===
-    $_er head(right(eqv_reflexive))
-    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["qv"], ["qv"], \a: eqv(a,a,"_"), [])
+    # === Kuratowski: OrdPair(qv,key,val) ∧ OrdPair(qv,pv,yv) → eq(key,pv) ∧ eq(val,yv) ===
+    $_er head(right(eq_reflexive))
+    $got_eq_qq apply_thm(eq_reflexive, _er, ["qv"], ["qv"], \a: eq(a,a,"_"), [])
 
     $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
-        implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"), eqv(b,d,"_")))))
+        implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"), eq(b,d,"_")))))
     $ku_r forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
         _ku_b("t1")("t2")("a")("b")("c")("d")))))))
     $ku_thm wr(kuratowski, left(kuratowski), [ku_r], ku_r)
@@ -92,37 +92,37 @@ $pf_forward {
         ["t1","t2","a","b","c","d"], _ku_b, left(kuratowski))
     $ku1 mp(ku_inst, got_op, op_qv, arg2(head(right(ku_inst))), left(ku_inst), [and_op_qv])
     $ku2 mp(ku1, got_op_qv_py, op_qv_py, arg2(head(right(ku1))), left(ku1), [body_pv])
-    $eq_goal and(eqv("key","pv","_"), eqv("val","yv","_"))
-    $got_eq mp(ku2, got_eqv_qq, eqv("qv","qv","_"), eq_goal, left(ku2), [])
-    $eqv_key_pv eqv("key","pv","_")
-    $eqv_val_yv eqv("val","yv","_")
-    $got_eqv_key mp(and_elim_left(eqv_key_pv, eqv_val_yv, []), got_eq, eq_goal, eqv_key_pv, [], left(got_eq))
-    $got_eqv_val mp(and_elim_right(eqv_key_pv, eqv_val_yv, []), got_eq, eq_goal, eqv_val_yv, [], left(got_eq))
+    $eq_goal and(eq("key","pv","_"), eq("val","yv","_"))
+    $got_eq mp(ku2, got_eq_qq, eq("qv","qv","_"), eq_goal, left(ku2), [])
+    $eq_key_pv eq("key","pv","_")
+    $eq_val_yv eq("val","yv","_")
+    $got_eq_key mp(and_elim_left(eq_key_pv, eq_val_yv, []), got_eq, eq_goal, eq_key_pv, [], left(got_eq))
+    $got_eq_val mp(and_elim_right(eq_key_pv, eq_val_yv, []), got_eq, eq_goal, eq_val_yv, [], left(got_eq))
 
-    # === Transfer: eqv(key,pv) → OrdPair(pv,mv,nv) → OrdPair(key,mv,nv) ===
-    $_eot head(right(eqv_ordpair_transfer))
-    $_eot_b \z: \t: \x: \y: implies(eqv(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
-    $got_op_key mp(mp(apply_thm(eqv_ordpair_transfer, _eot, ["key","pv","mv","nv"],
+    # === Transfer: eq(key,pv) → OrdPair(pv,mv,nv) → OrdPair(key,mv,nv) ===
+    $_eot head(right(eq_ordpair_transfer))
+    $_eot_b \z: \t: \x: \y: implies(eq(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
+    $got_op_key mp(mp(apply_thm(eq_ordpair_transfer, _eot, ["key","pv","mv","nv"],
         ["z","t","x","y"], _eot_b, []),
-        got_eqv_key, eqv_key_pv, implies(op_pv, ordered_pair("key","mv","nv","_")),
-        [], left(got_eqv_key)),
+        got_eq_key, eq_key_pv, implies(op_pv, ordered_pair("key","mv","nv","_")),
+        [], left(got_eq_key)),
         got_op_pv, op_pv, ordered_pair("key","mv","nv","_"),
-        left(got_eqv_key), [body_pv])
+        left(got_eq_key), [body_pv])
 
-    # === Transfer: eqv(yv,val) → Apply(hm,nv,yv) → Apply(hm,nv,val) ===
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_eqv_yv_val mp(apply_thm(eqv_symmetric, _es, ["val","yv"], ["a","b"], _es_b, []),
-        got_eqv_val, eqv_val_yv, eqv("yv","val","_"), [], left(got_eqv_val))
+    # === Transfer: eq(yv,val) → Apply(hm,nv,yv) → Apply(hm,nv,val) ===
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq_yv_val mp(apply_thm(eq_symmetric, _es, ["val","yv"], ["a","b"], _es_b, []),
+        got_eq_val, eq_val_yv, eq("yv","val","_"), [], left(got_eq_val))
 
-    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $_avt_b \f: \x: \y: \y2: implies(eq(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
     $avt_r forall("pf", forall("px", forall("py", forall("py2", _avt_b("pf")("px")("py")("py2")))))
     $avt_thm wr(apply_val_transfer, [], [avt_r], avt_r)
     $app_hm_val apply("hm","nv","val","_")
     $got_app_val mp(mp(apply_thm(avt_thm, avt_r, ["hm","nv","yv","val"],
         ["pf","px","py","py2"], _avt_b, []),
-        got_eqv_yv_val, eqv("yv","val","_"), implies(app_hm, app_hm_val), [], left(got_eqv_yv_val)),
-        got_app_hm, app_hm, app_hm_val, left(got_eqv_yv_val), [and_rec_app])
+        got_eq_yv_val, eq("yv","val","_"), implies(app_hm, app_hm_val), [], left(got_eq_yv_val)),
+        got_app_hm, app_hm, app_hm_val, left(got_eq_yv_val), [and_rec_app])
 
     # === Package result ===
     $op_key ordered_pair("key","mv","nv","_")

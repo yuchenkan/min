@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right
+from derived import mem, neg, implies, iff, and, or, exists, forall, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from vocab.tm.tm import tape_update
@@ -14,8 +14,8 @@ from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
 #   TapeUpdate(tapen,tape,h,w) → Eq(x,h) → Eq(y,w) → Apply(tapen,x,y)
 $tape_update_at {
     $tu tape_update("tapen", "tape", "h", "w", "_")
-    $eq_xh eqv("x", "h", "_")
-    $eq_yw eqv("y", "w", "_")
+    $eq_xh eq("x", "h", "_")
+    $eq_yw eq("y", "w", "_")
 
     # TapeUpdate expansion components
     $in_p_tn mem("p", "tapen")
@@ -37,8 +37,8 @@ $tape_update_at {
 
     # === Step 2: Transfer OP(p,x,y) to OP(p,h,w) via Eq(x,h), Eq(y,w) ===
     $_oet head(right(ordpair_eq_transfer))
-    $_oet_b \t: \a: \b: \c: \d: implies(eqv(a,c,"_"),
-        implies(eqv(b,d,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,d,"_"))))
+    $_oet_b \t: \a: \b: \c: \d: implies(eq(a,c,"_"),
+        implies(eq(b,d,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,d,"_"))))
     $got_ophw apply_thm(ordpair_eq_transfer, _oet,
         ["p","x","y","h","w"], ["t","a","b","c","d"], _oet_b, [])
     # [] |- Eq(x,h) → Eq(y,w) → OP(p,x,y) → OP(p,h,w)

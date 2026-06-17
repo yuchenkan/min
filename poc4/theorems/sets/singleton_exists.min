@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, or, iff, eqv, exists, pairing_ax
+from derived import mem, implies, forall, or, iff, eq, exists, pairing_ax
 from vocab.sets import singleton, pair_set
 from tactics import ax, fl, fr, mp, apply_thm, eir, eel, cut_c, close
 from theorems.logic.iff_chain import iff_chain
@@ -11,14 +11,14 @@ $singleton_exists {
 
     # Instantiate pairing_ax with x="a", y="a"
     $inst apply_thm(pa_p, pa_f, ["a", "a"], ["a", "y"],
-        \x: \y: exists("b", forall("z", iff(mem("z","b"), or(eqv("z",x,"_"), eqv("z",y,"_"))))), [pa_f])
+        \x: \y: exists("b", forall("z", iff(mem("z","b"), or(eq("z",x,"_"), eq("z",y,"_"))))), [pa_f])
 
     # Inside exists: assume pair_set(u, "a", "a")
     $ps pair_set("u", "a", "a", "_")
     $goal exists("s", singleton("s", "a", "_"))
 
-    # fl on ps with v: [ps] |- [iff(mem(v,u), or(eqv(v,"a"), eqv(v,"a")))]
-    $ev eqv("v", "a", "_")
+    # fl on ps with v: [ps] |- [iff(mem(v,u), or(eq(v,"a"), eq(v,"a")))]
+    $ev eq("v", "a", "_")
     $iff_or iff(mem("v", "u"), or(ev, ev))
     $s1 fl(ax([iff_or], [iff_or], iff_or), [ps], [iff_or], ps, "v")
 

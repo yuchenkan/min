@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, show, qed
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, show, qed
 from theorems.logic.modus_ponens import modus_ponens
 from theorems.logic.double_negation import double_negation
 from theorems.logic.and_intro import and_intro
@@ -27,14 +27,14 @@ from theorems.logic.forall_iff_compat import forall_iff_compat
 from theorems.logic.exists_iff_compat import exists_iff_compat
 from theorems.logic.neg_neg_iff import neg_neg_iff
 from theorems.logic.or_idempotent import or_idempotent
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_transitive import eqv_transitive
-from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
+from theorems.logic.eq_mem_left import eq_mem_left
 from vocab.logic import exists_unique
 from theorems.logic.exists_unique_intro import exists_unique_intro
 from theorems.logic.ext_substitution import ext_substitution
-from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.eq_mem_right import eq_mem_right
 from theorems.logic.exists_unique_bridge import exists_unique_bridge
 
 $A mem("a", "b")
@@ -132,34 +132,34 @@ $_ tap("neg_neg_iff ok")
 $_ qed(or_idempotent(A, v), forall("a", forall("b", iff(or(A, A), A))), "z")
 $_ tap("or_idempotent ok")
 
-$_ qed(eqv_reflexive, forall("a", eqv("a", "a", "_")), "z")
-$_ tap("eqv_reflexive ok")
+$_ qed(eq_reflexive, forall("a", eq("a", "a", "_")), "z")
+$_ tap("eq_reflexive ok")
 
-$_ qed(eqv_symmetric, forall("a", forall("b", implies(eqv("a", "b", "_"), eqv("b", "a", "_")))), "z")
-$_ tap("eqv_symmetric ok")
+$_ qed(eq_symmetric, forall("a", forall("b", implies(eq("a", "b", "_"), eq("b", "a", "_")))), "z")
+$_ tap("eq_symmetric ok")
 
-$_ qed(eqv_transitive, forall("a", forall("b", forall("c", implies(eqv("a", "b", "_"), implies(eqv("b", "c", "_"), eqv("a", "c", "_")))))), "z")
-$_ tap("eqv_transitive ok")
+$_ qed(eq_transitive, forall("a", forall("b", forall("c", implies(eq("a", "b", "_"), implies(eq("b", "c", "_"), eq("a", "c", "_")))))), "z")
+$_ tap("eq_transitive ok")
 
-$_ qed(eqv_mem_left, forall("a", forall("b", forall("z", implies(eqv("a", "b", "_"), implies(mem("z", "a"), mem("z", "b")))))), "z")
-$_ tap("eqv_mem_left ok")
+$_ qed(eq_mem_left, forall("a", forall("b", forall("z", implies(eq("a", "b", "_"), implies(mem("z", "a"), mem("z", "b")))))), "z")
+$_ tap("eq_mem_left ok")
 
 $_ qed(exists_unique_intro(\v p: mem(v, "a"), "b", ["b", "a"], "_"),
-    forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eqv("b", "y", "_"))), exists_unique(\v p: mem(v, "a"), "_"))))), "z")
+    forall("a", forall("b", implies(mem("b", "a"), implies(forall("y", implies(mem("y", "a"), eq("b", "y", "_"))), exists_unique(\v p: mem(v, "a"), "_"))))), "z")
 $_ tap("exists_unique_intro ok")
 
 $_ qed(ext_substitution,
-    forall("a", forall("b", forall("s", implies(eqv("a", "b", "_"), iff(mem("a", "s"), mem("b", "s")))))), "z")
+    forall("a", forall("b", forall("s", implies(eq("a", "b", "_"), iff(mem("a", "s"), mem("b", "s")))))), "z")
 $_ tap("ext_substitution ok")
 
-$_ qed(eqv_mem_right,
+$_ qed(eq_mem_right,
     forall("x", forall("y", forall("a",
-        implies(eqv("x", "y", "_"), implies(mem("x", "a"), mem("y", "a")))))), "z")
-$_ tap("eqv_mem_right ok")
+        implies(eq("x", "y", "_"), implies(mem("x", "a"), mem("y", "a")))))), "z")
+$_ tap("eq_mem_right ok")
 
 $phi_fn \v p: mem(v, "a")
 $pred_fn \v: mem(v, "s")
-$tr forall("t1", forall("t2", implies(eqv("t1","t2","_"), implies(mem("t1","s"), mem("t2","s")))))
+$tr forall("t1", forall("t2", implies(eq("t1","t2","_"), implies(mem("t1","s"), mem("t2","s")))))
 $bridge_f implies(tr, implies(exists_unique(phi_fn, "_"), iff(forall("x", implies(mem("x", "a"), mem("x", "s"))), exists("x", and(mem("x", "a"), mem("x", "s"))))))
 $_ qed(exists_unique_bridge(phi_fn, pred_fn, ["s", "a"], "_"), forall("a", forall("s", bridge_f)), "z")
 $_ tap("exists_unique_bridge ok")

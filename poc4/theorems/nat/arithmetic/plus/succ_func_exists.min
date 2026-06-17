@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2, sep_ax, power_ax
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg2, sep_ax, power_ax
 from vocab.sets import ordered_pair, power_set, relation
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function
@@ -217,7 +217,7 @@ $succ_func_exists {
     # [axioms, sf_char] |- succ_char
 
     # === Single-valued: sf_apply_to_succ + unique_successor ===
-    # Apply(sf,x,y1) ∧ Apply(sf,x,y2) → Succ(y1,x) ∧ Succ(y2,x) → eqv(y1,y2)
+    # Apply(sf,x,y1) ∧ Apply(sf,x,y2) → Succ(y1,x) ∧ Succ(y2,x) → eq(y1,y2)
     $app1 apply("sf","xsv","y1","_")
     $app2 apply("sf","xsv","y2","_")
     $and_apps and(app1, app2)
@@ -240,24 +240,24 @@ $succ_func_exists {
         implies(app2, succ_y2), fwd_ctx, [sf_char]),
         got_app2, app2, succ_y2, add(fwd_ctx, [sf_char]), [and_apps])
 
-    # unique_successor: ∃!successor, so Succ(y1,xsv) → Succ(y2,xsv) → eqv(y1,y2)
+    # unique_successor: ∃!successor, so Succ(y1,xsv) → Succ(y2,xsv) → eq(y1,y2)
     # unique_successor close order: ["a"] → ∀a.∃!s.Succ(s,a)
     # Actually unique_successor gives ∃!, not the implication form directly.
-    # I need successor_unique: Succ(s1,a) → Succ(s2,a) → eqv(s1,s2)
+    # I need successor_unique: Succ(s1,a) → Succ(s2,a) → eq(s1,s2)
     # successor_unique close order: from set_spec_unique with ["a"], so
-    # ∀a.∀s1.∀s2. Succ(s1,a) → Succ(s2,a) → eqv(s1,s2)
+    # ∀a.∀s1.∀s2. Succ(s1,a) → Succ(s2,a) → eq(s1,s2)
     $_su head(right(successor_unique))
-    $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eqv(s1,s2,"_")))
+    $_su_b \a: \s1: \s2: implies(successor(s1,a,"_"), implies(successor(s2,a,"_"), eq(s1,s2,"_")))
 
-    $eqv_y12 eqv("y1","y2","_")
+    $eq_y12 eq("y1","y2","_")
     $su_inst apply_thm(successor_unique, _su, ["xsv","y1","y2"], ["a","s1","s2"], _su_b, [])
-    $got_eqv mp(mp(su_inst, got_s1, succ_y1, implies(succ_y2, eqv_y12), [], left(got_s1)),
-        got_s2, succ_y2, eqv_y12, left(got_s1), left(got_s2))
-    # [fwd_ctx, sf_char, and_apps] |- eqv(y1,y2)
+    $got_eq mp(mp(su_inst, got_s1, succ_y1, implies(succ_y2, eq_y12), [], left(got_s1)),
+        got_s2, succ_y2, eq_y12, left(got_s1), left(got_s2))
+    # [fwd_ctx, sf_char, and_apps] |- eq(y1,y2)
 
     # Close single-valued: ir and_apps, fr y2, y1, xsv
-    $imp_sv implies(and_apps, eqv_y12)
-    $got_sv_ir ir(got_eqv, remove(same, and_apps, left(got_eqv)), [imp_sv], imp_sv)
+    $imp_sv implies(and_apps, eq_y12)
+    $got_sv_ir ir(got_eq, remove(same, and_apps, left(got_eq)), [imp_sv], imp_sv)
     $got_sv_y2 fr(got_sv_ir, left(got_sv_ir), [forall("y2", imp_sv)], forall("y2", imp_sv), "y2")
     $got_sv_y1 fr(got_sv_y2, left(got_sv_y2), [forall("y1", forall("y2", imp_sv))], forall("y1", forall("y2", imp_sv)), "y1")
     $sv_formula forall("xsv", forall("y1", forall("y2", imp_sv)))
@@ -316,17 +316,17 @@ $succ_func_exists {
     # === Wrap dom_sub → ∀xd.(∃yd.App)→Nat(xd) ===
     # got_dom_sub: [...,om] |- ∀xd.(∃yd.App)→xd∈w. From xd∈w + omega: Nat(xd).
     $_ou head(right(omega_unique))
-    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_")))
     $_et head(right(eq_transfer))
-    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $_et_b \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a), mem(z,b)))
     $om2 omega("w2","_")
     $xdw mem("xd","w")
     $xdw2 mem("xd","w2")
     $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w1","w2"], _ou_b, [])
-    $ou1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eqv("w","w2","_")), [], [om])
-    $ou2 mp(ou1, ax([om2],[om2],om2), om2, eqv("w","w2","_"), [om], [om2])
+    $ou1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eq("w","w2","_")), [], [om])
+    $ou2 mp(ou1, ax([om2],[om2],om2), om2, eq("w","w2","_"), [om], [om2])
     $et_inst apply_thm(eq_transfer, _et, ["w","w2","xd"], ["a","b","z"], _et_b, [])
-    $et_mp mp(et_inst, ou2, eqv("w","w2","_"), iff(xdw, xdw2), [], left(ou2))
+    $et_mp mp(et_inst, ou2, eq("w","w2","_"), iff(xdw, xdw2), [], left(ou2))
     $got_xdw2 mp(mp(iff_elim_left(xdw, xdw2, []), et_mp, iff(xdw, xdw2), implies(xdw, xdw2), [], left(et_mp)),
         ax([xdw],[xdw],xdw), xdw, xdw2, left(et_mp), [xdw])
     $got_nat_xd_ir ir(got_xdw2, remove(same, om2, left(got_xdw2)), [implies(om2, xdw2)], implies(om2, xdw2))

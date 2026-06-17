@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right
+from derived import mem, neg, implies, iff, and, or, exists, forall, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from vocab.tm.tm import tape_update
@@ -16,7 +16,7 @@ from theorems.sets.tuple_injection import tuple_injection
 $tape_update_other {
     $tu tape_update("tapen", "tape", "h", "w", "_")
     $app_old apply("tape", "x", "y", "_")
-    $not_eq_xh neg(eqv("x", "h", "_"))
+    $not_eq_xh neg(eq("x", "h", "_"))
     $app_new apply("tapen", "x", "y", "_")
 
     # TapeUpdate expansion components
@@ -36,12 +36,12 @@ $tape_update_other {
     # tuple_injection: ∀t,a,b,c,d. OP(t,a,b) → OP(t,c,d) → And(Eq(a,c),Eq(b,d))
     $_ti head(right(tuple_injection))
     $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t,a,b,"_"),
-        implies(ordered_pair(t,c,d,"_"), and(eqv(a,c,"_"), eqv(b,d,"_"))))
+        implies(ordered_pair(t,c,d,"_"), and(eq(a,c,"_"), eq(b,d,"_"))))
     $got_ti apply_thm(tuple_injection, _ti, ["p","x","y","h","yv"],
         ["t","a","b","c","d"], _ti_b, left(tuple_injection))
     # [Pairing] |- OP(p,x,y) → OP(p,h,yv) → And(Eq(x,h),Eq(y,yv))
 
-    $eq_and and(eqv("x","h","_"), eqv("y","yv","_"))
+    $eq_and and(eq("x","h","_"), eq("y","yv","_"))
     $got_ti mp(got_ti, ax([op_pxy],[op_pxy],op_pxy), op_pxy,
         implies(op_phy, eq_and), left(got_ti), [op_pxy])
     $got_ti mp(got_ti, ax([op_phy],[op_phy],op_phy), op_phy,
@@ -49,8 +49,8 @@ $tape_update_other {
     # [Pairing, OP(p,x,y), OP(p,h,yv)] |- And(Eq(x,h),Eq(y,yv))
 
     # Extract Eq(x,h)
-    $eq_xh eqv("x", "h", "_")
-    $eq_yyv eqv("y", "yv", "_")
+    $eq_xh eq("x", "h", "_")
+    $eq_yyv eq("y", "yv", "_")
     $got_eq mp(and_elim_left(eq_xh, eq_yyv, []),
         got_ti, eq_and, eq_xh, [], left(got_ti))
     # [Pairing, OP(p,x,y), OP(p,h,yv)] |- Eq(x,h)

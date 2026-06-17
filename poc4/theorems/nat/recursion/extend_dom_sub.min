@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right
 from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.nat.nat import nat, num, omega, successor
@@ -7,11 +7,11 @@ from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_t
 from util.list import remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
-from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.eq_mem_right import eq_mem_right
 from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 from theorems.nat.nat.nat_elim import nat_elim
 
@@ -80,7 +80,7 @@ $extend_dom_sub {
     $got_case_v mp(got_dom_inst2, got_ex_vx, ex_app_vx, xw, left(got_body), [app_vx])
     # [ra_v, om, app_vx] |- x∈w
 
-    # === Case h: kuratowski → eqv(x,sn), omega_succ_closed → sn∈w, transfer → x∈w ===
+    # === Case h: kuratowski → eq(x,sn), omega_succ_closed → sn∈w, transfer → x∈w ===
     $_sme head(right(singleton_mem_eq))
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
@@ -88,32 +88,32 @@ $extend_dom_sub {
     $op_q ordered_pair("q", "x", "y", "_")
     $qh mem("q", "h")
     $and_q and(op_q, qh)
-    $eqv_q_op eqv("q", "op", "_")
-    $eqv_x_sn eqv("x", "sn", "_")
-    $eqv_sn_x eqv("sn", "x", "_")
+    $eq_q_op eq("q", "op", "_")
+    $eq_x_sn eq("x", "sn", "_")
+    $eq_sn_x eq("sn", "x", "_")
 
-    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eq(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"),eq(b,d,"_")))))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
     $_uae_b \u: \a: \b: \x: \y: implies(apply(u,x,y,"_"), implies(union(u,a,b,"_"), or(apply(a,x,y,"_"), apply(b,x,y,"_"))))
-    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "h", "op"], ["q", "f", "a"], _sme_b, []),
-        ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eqv_q_op), [], [sing_h]),
+    $got_eq_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "h", "op"], ["q", "f", "a"], _sme_b, []),
+        ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eq_q_op), [], [sing_h]),
         mp(and_elim_right(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, qh, [], [and_q]),
-        qh, eqv_q_op, [sing_h], [and_q])
+        qh, eq_q_op, [sing_h], [and_q])
 
-    $goal_and and(eqv_x_sn, eqv("y", "fval", "_"))
+    $goal_and and(eq_x_sn, eq("y", "fval", "_"))
     $k_inst apply_thm(kuratowski, _kur, ["q", "op", "x", "y", "sn", "fval"], ["q", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
     $got_op_q mp(and_elim_left(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
-    $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eqv_q_op, goal_and)), left(k_inst), [and_q])
-    $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eqv_q_op, goal_and), left(km1), [opkv])
-    $km3 mp(km2, got_eqv_q, eqv_q_op, goal_and, left(km2), [sing_h, and_q])
-    $got_x_sn mp(and_elim_left(eqv_x_sn, eqv("y","fval","_"), []),
-        km3, goal_and, eqv_x_sn, [], left(km3))
+    $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eq_q_op, goal_and)), left(k_inst), [and_q])
+    $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eq_q_op, goal_and), left(km1), [opkv])
+    $km3 mp(km2, got_eq_q, eq_q_op, goal_and, left(km2), [sing_h, and_q])
+    $got_x_sn mp(and_elim_left(eq_x_sn, eq("y","fval","_"), []),
+        km3, goal_and, eq_x_sn, [], left(km3))
 
-    # eqv_symmetric: eqv(x,sn) → eqv(sn,x)
-    $_es head(right(eqv_symmetric))
-    $got_sn_x mp(apply_thm(eqv_symmetric, _es, ["x", "sn"], ["x", "b"], _es_b, []),
-        got_x_sn, eqv_x_sn, eqv_sn_x, [], left(got_x_sn))
+    # eq_symmetric: eq(x,sn) → eq(sn,x)
+    $_es head(right(eq_symmetric))
+    $got_sn_x mp(apply_thm(eq_symmetric, _es, ["x", "sn"], ["x", "b"], _es_b, []),
+        got_x_sn, eq_x_sn, eq_sn_x, [], left(got_x_sn))
 
     # omega_succ_closed: omega(w) → n∈w → succ(sn,n) → sn∈w
     $_osc head(right(omega_succ_closed))
@@ -124,12 +124,12 @@ $extend_dom_sub {
     $osc3 mp(osc2, got_nw, nw, implies(succ_sn, sn_w), left(osc2), left(got_nw))
     $got_sn_w mp(osc3, ax([succ_sn], [succ_sn], succ_sn), succ_sn, sn_w, left(osc3), [succ_sn])
 
-    # eqv_mem_right: eqv(sn,x) → sn∈w → x∈w
-    $emr_ctx left(eqv_mem_right)
-    $_emr head(right(eqv_mem_right))
-    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
-    $emr1 mp(apply_thm(eqv_mem_right, _emr, ["sn", "x", "w"], ["sn", "y", "a"], _emr_b, emr_ctx),
-        got_sn_x, eqv_sn_x, implies(sn_w, xw), emr_ctx, left(got_sn_x))
+    # eq_mem_right: eq(sn,x) → sn∈w → x∈w
+    $emr_ctx left(eq_mem_right)
+    $_emr head(right(eq_mem_right))
+    $_emr_b \x: \y: \a: implies(eq(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $emr1 mp(apply_thm(eq_mem_right, _emr, ["sn", "x", "w"], ["sn", "y", "a"], _emr_b, emr_ctx),
+        got_sn_x, eq_sn_x, implies(sn_w, xw), emr_ctx, left(got_sn_x))
     $got_case_h_inner mp(emr1, got_sn_w, sn_w, xw, left(emr1), left(got_sn_w))
 
     # eel on q from app_hx
@@ -142,7 +142,7 @@ $extend_dom_sub {
         ax([app_ux], [app_ux], app_ux), app_ux, implies(un, or_vh), [], [app_ux]),
         ax([un], [un], un), un, or_vh, [app_ux], [un])
 
-    $hyps [ra_v, om, nat_n, succ_sn, sing_h, opkv, un, head(left(kuratowski)), head(left(eqv_mem_right))]
+    $hyps [ra_v, om, nat_n, succ_sn, sing_h, opkv, un, head(left(kuratowski)), head(left(eq_mem_right))]
     $got_v_w wl_all(got_case_v, left(got_case_v), [xw], diff(same, add(hyps, [app_vx]), left(got_case_v)))
     $got_h_w wl_all(got_case_h, left(got_case_h), [xw], diff(same, add(hyps, [app_hx]), left(got_case_h)))
 

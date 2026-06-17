@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, sep_ax, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, sep_ax, left, right, arg2
 from vocab.sets import ordered_pair, product, relation
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
@@ -246,7 +246,7 @@ $plus_func_exists {
 
     # pf_single_valued: ∀h.∀sf. char_fwd → SuccFunc(sf) → sv
     $sv_h forall("key", forall("y1", forall("y2",
-        implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")), eqv("y1","y2","_")))))
+        implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")), eq("y1","y2","_")))))
     $_sv head(right(pf_single_valued))
     $_sv_b \h: \sf: implies(char_fwd, implies(sf_all, sv_h))
     $sv_inst apply_thm(pf_single_valued, _sv, ["h","sf"], ["h","sf"], _sv_b, left(pf_single_valued))
@@ -262,7 +262,7 @@ $plus_func_exists {
     # pf_dom_eq: ∀h.∀sf.∀w. char_h → SuccFunc(sf) → Omega(w) → dom_eq(h,w)
     $om_w omega("w","_")
     $dom_eq forall("dd", forall("prod", implies(domain("dd","h","_"),
-        implies(product("prod","w","w","_"), eqv("dd","prod","_")))))
+        implies(product("prod","w","w","_"), eq("dd","prod","_")))))
     $_deq head(right(pf_dom_eq))
     $_deq_b \h: \sf: \w: implies(clean_char, implies(sf_all, implies(omega(w,"_"), dom_eq)))
     $deq_inst apply_thm(pf_dom_eq, _deq, ["h","sf","w"], ["h","sf","w"], _deq_b, left(pf_dom_eq))

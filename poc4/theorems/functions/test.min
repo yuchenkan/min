@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, qed
 from vocab.sets import ordered_pair, singleton, big_union, union, relation, product
 from vocab.nat.nat import successor
 from vocab.functions import apply, function, single_valued, domain
@@ -21,7 +21,7 @@ from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.functions.domain_neg_no_apply import domain_neg_no_apply
 from theorems.functions.extend_apply_new import extend_apply_new
 from theorems.functions.extend_apply_old import extend_apply_old
-from theorems.functions.eqv_apply import eqv_apply
+from theorems.functions.eq_apply import eq_apply
 from theorems.functions.extend_function import extend_function
 from theorems.functions.apply_func_transfer import apply_func_transfer
 from theorems.functions.func_eq_transfer import func_eq_transfer
@@ -34,12 +34,12 @@ $_ tap("unique_domain ok")
 
 $_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
     implies(single_valued("f","_"),
-        implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))), "z")
+        implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eq("y1","y2","_")))))))), "z")
 $_ tap("func_unique_thm ok")
 
 $_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
-    implies(single_valued("f","_"), implies(eqv("x1","x2","_"), implies(apply("f","x1","y1","_"),
-        implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))), "z")
+    implies(single_valued("f","_"), implies(eq("x1","x2","_"), implies(apply("f","x1","y1","_"),
+        implies(apply("f","x2","y2","_"), eq("y1","y2","_")))))))))), "z")
 $_ tap("func_preserves_eq ok")
 
 $_ qed(apply_intro, forall("p", forall("f", forall("x", forall("y",
@@ -48,10 +48,10 @@ $_ tap("apply_intro ok")
 
 
 
-$_fea_agree forall("x", forall("v1", forall("v2", implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
+$_fea_agree forall("x", forall("v1", forall("v2", implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eq("v1","v2","_"))))))
 $_fea_df forall("x", forall("v", implies(apply("h1","x","v","_"), exists("v2", apply("h2","x","v2","_")))))
 $_fea_db forall("x", forall("v", implies(apply("h2","x","v","_"), exists("v1", apply("h1","x","v1","_")))))
-$_fea_top implies(relation("h1","_"), implies(relation("h2","_"), implies(_fea_agree, implies(_fea_df, implies(_fea_db, eqv("h1","h2","_"))))))
+$_fea_top implies(relation("h1","_"), implies(relation("h2","_"), implies(_fea_agree, implies(_fea_df, implies(_fea_db, eq("h1","h2","_"))))))
 $_ qed(func_ext_from_agree, forall("h1", forall("h2", _fea_top)), "z")
 $_ tap("func_ext_from_agree ok")
 
@@ -66,7 +66,7 @@ $_ tap("domain_exists ok")
 
 $_ qed(domain_unique,
     forall("f", forall("s1", forall("s2",
-        implies(domain("s1","f","_"), implies(domain("s2","f","_"), eqv("s1","s2","_")))))), "z")
+        implies(domain("s1","f","_"), implies(domain("s2","f","_"), eq("s1","s2","_")))))), "z")
 $_ tap("domain_unique ok")
 
 $_ qed(unique_domain, forall("f", exists_unique(\v p: domain(v, "f", p), "_")), "z")
@@ -74,12 +74,12 @@ $_ tap("unique_domain ok")
 
 $sv single_valued("f","_")
 $_ qed(func_unique_thm, forall("f", forall("x", forall("y1", forall("y2",
-    implies(sv, implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eqv("y1","y2","_")))))))), "z")
+    implies(sv, implies(apply("f","x","y1","_"), implies(apply("f","x","y2","_"), eq("y1","y2","_")))))))), "z")
 $_ tap("func_unique_thm ok")
 
 $_ qed(func_preserves_eq, forall("f", forall("x1", forall("x2", forall("y1", forall("y2",
-    implies(sv, implies(eqv("x1","x2","_"), implies(apply("f","x1","y1","_"),
-        implies(apply("f","x2","y2","_"), eqv("y1","y2","_")))))))))), "z")
+    implies(sv, implies(eq("x1","x2","_"), implies(apply("f","x1","y1","_"),
+        implies(apply("f","x2","y2","_"), eq("y1","y2","_")))))))))), "z")
 $_ tap("func_preserves_eq ok")
 
 $_ qed(apply_intro,
@@ -109,12 +109,12 @@ $_ tap("domain_mem_elim ok")
 
 $_ qed(apply_key_transfer,
     forall("f", forall("x", forall("x2", forall("y",
-        implies(eqv("x","x2","_"), implies(apply("f","x","y","_"), apply("f","x2","y","_"))))))), "z")
+        implies(eq("x","x2","_"), implies(apply("f","x","y","_"), apply("f","x2","y","_"))))))), "z")
 $_ tap("apply_key_transfer ok")
 
 $_ qed(apply_val_transfer,
     forall("f", forall("x", forall("y", forall("y2",
-        implies(eqv("y","y2","_"), implies(apply("f","x","y","_"), apply("f","x","y2","_"))))))), "z")
+        implies(eq("y","y2","_"), implies(apply("f","x","y","_"), apply("f","x","y2","_"))))))), "z")
 $_ tap("apply_val_transfer ok")
 
 $_ qed(union_apply_elim,
@@ -139,24 +139,24 @@ $_ qed(extend_apply_old,
         implies(apply("g","x","y","_"), implies(union("u","g","h","_"), apply("u","x","y","_")))))))), "z")
 $_ tap("extend_apply_old ok")
 
-$_ qed(eqv_apply,
+$_ qed(eq_apply,
     forall("f", forall("g", forall("x", forall("y",
-        implies(eqv("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))), "z")
-$_ tap("eqv_apply ok")
+        implies(eq("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))), "z")
+$_ tap("eq_apply ok")
 
 $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","k","y0","_"),
-    implies(forall("z", implies(apply("v","k","z","_"), eqv("y0","z","_"))),
+    implies(forall("z", implies(apply("v","k","z","_"), eq("y0","z","_"))),
         implies(union("u","v","h","_"), function("u","_"))))))
 $_ qed(extend_function, forall("v", forall("k", forall("y0", forall("op", forall("h", forall("u", efc_top)))))), "z")
 $_ tap("extend_function ok")
 
 $_ qed(apply_func_transfer, forall("f", forall("g", forall("x", forall("y",
-    implies(eqv("f", "g", "_"), implies(apply("f", "x", "y", "_"),
+    implies(eq("f", "g", "_"), implies(apply("f", "x", "y", "_"),
         apply("g", "x", "y", "_"))))))), "z")
 $_ tap("apply_func_transfer ok")
 
 $_ qed(func_eq_transfer, forall("f", forall("g",
-    implies(eqv("f", "g", "_"), implies(function("f", "_"), function("g", "_"))))), "z")
+    implies(eq("f", "g", "_"), implies(function("f", "_"), function("g", "_"))))), "z")
 $_ tap("func_eq_transfer ok")
 
 

@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, eqv, iff
+from derived import mem, neg, implies, forall, exists, and, or, eq, iff
 from derived import left, right, exp, arg1, arg2, head, tail, sep_ax, show
 from vocab.functions import apply, function
 from vocab.sets import ordered_pair
@@ -15,8 +15,8 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.or_intro_left import or_intro_left
 from theorems.logic.or_intro_right import or_intro_right
 from theorems.logic.or_elim import or_elim
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.ext_substitution import ext_substitution
@@ -66,18 +66,18 @@ $phase3 {
 
     $eub exists_unique_bridge(\v p: omega(v, p), \v: mem("b", v), [], "_")
 
-    $et_body \aa: \bb: \zz: implies(eqv(aa, bb, "_"), iff(mem(zz, aa), mem(zz, bb)))
+    $et_body \aa: \bb: \zz: implies(eq(aa, bb, "_"), iff(mem(zz, aa), mem(zz, bb)))
     $et_inst apply_thm(eq_transfer, head(right(eq_transfer)),
         ["v1", "v2", "b"], ["a", "b", "z"], et_body, [])
     $iff_et iff(mem("b", "v1"), mem("b", "v2"))
-    $eqv_et eqv("v1", "v2", "_")
-    $got_iff_et mp(et_inst, ax([eqv_et],[eqv_et],eqv_et), eqv_et, iff_et, [], [eqv_et])
+    $eq_et eq("v1", "v2", "_")
+    $got_iff_et mp(et_inst, ax([eq_et],[eq_et],eq_et), eq_et, iff_et, [], [eq_et])
     $fwd_et implies(mem("b", "v1"), mem("b", "v2"))
     $got_fwd_et mp(iff_elim_left(mem("b", "v1"), mem("b", "v2"), []),
-        got_iff_et, iff_et, fwd_et, [], [eqv_et])
+        got_iff_et, iff_et, fwd_et, [], [eq_et])
     $tcur got_fwd_et
-    $tcur ir(tcur, remove(same, eqv_et, left(tcur)),
-        [implies(eqv_et, fwd_et)], implies(eqv_et, fwd_et))
+    $tcur ir(tcur, remove(same, eq_et, left(tcur)),
+        [implies(eq_et, fwd_et)], implies(eq_et, fwd_et))
     $tgf head(right(tcur))
     $tcur fr(tcur, left(tcur), [forall("v2", tgf)], forall("v2", tgf), "v2")
     $tgf head(right(tcur))
@@ -109,7 +109,7 @@ $phase3 {
 
     # === 2. Separation: ∃pv. ∀x. x∈pv ↔ (x∈w ∧ Q(x)) ===
     # Q(n) = Or(In(n,b), Eq(n,b)) → Phase3Ind(n,d,q1,sa,tape2,c1)
-    $_Q \nn: implies(or(mem(nn, "b"), eqv(nn, "b", "_")),
+    $_Q \nn: implies(or(mem(nn, "b"), eq(nn, "b", "_")),
         phase3_ind(nn, "d", "q1", "sa", "tape2", "c1", "_"))
 
     $sep sep_ax(["c1","tape2","sa","q1","d","b"], \x a np: _Q(x), "_")
@@ -159,7 +159,7 @@ $phase3 {
     $_ tap("phase3_base instantiated ok")
 
     # Q(z): Or(z∈b, z=b) → Phase3Ind(z). Weaken with Or, discharge.
-    $or_zb or(mem("z","b"), eqv("z","b","_"))
+    $or_zb or(mem("z","b"), eq("z","b","_"))
     $got_Qz wl(got_pb, add(left(got_pb), [or_zb]), right(got_pb), or_zb)
     $imp_Qz implies(or_zb, pind_z)
     $got_Qz ir(got_Qz, remove(same, or_zb, left(got_Qz)), [imp_Qz], imp_Qz)
@@ -182,20 +182,20 @@ $phase3 {
     $_ tap("z in pv ok")
 
     # === 4. Inductive base: ∀zero. Empty(zero) → In(zero,pv) ===
-    $eu_body \va: \vb: implies(num(va, 0, "_"), implies(num(vb, 0, "_"), eqv(va, vb, "_")))
+    $eu_body \va: \vb: implies(num(va, 0, "_"), implies(num(vb, 0, "_"), eq(va, vb, "_")))
     $got_eu apply_thm(empty_unique, head(right(empty_unique)),
         ["zero","z"], ["a","b"], eu_body, left(empty_unique))
     $emp_zero num("zero", 0, "_")
     $got_eu mp(got_eu, ax([emp_zero],[emp_zero],emp_zero), emp_zero,
-        implies(num_z, eqv("zero","z","_")), left(got_eu), [emp_zero])
+        implies(num_z, eq("zero","z","_")), left(got_eu), [emp_zero])
     $got_eq mp(got_eu, ax([num_z],[num_z],num_z), num_z,
-        eqv("zero","z","_"), left(got_eu), [num_z])
+        eq("zero","z","_"), left(got_eu), [num_z])
 
-    $es_body \va: \vb: \vs: implies(eqv(va, vb, "_"), iff(mem(va, vs), mem(vb, vs)))
+    $es_body \va: \vb: \vs: implies(eq(va, vb, "_"), iff(mem(va, vs), mem(vb, vs)))
     $got_es apply_thm(ext_substitution, head(right(ext_substitution)),
         ["zero","z","pv"], ["a","b","s"], es_body, left(ext_substitution))
     $iff_zpv iff(mem("zero","pv"), mem("z","pv"))
-    $got_iff_zpv mp(got_es, got_eq, eqv("zero","z","_"), iff_zpv,
+    $got_iff_zpv mp(got_es, got_eq, eq("zero","z","_"), iff_zpv,
         left(got_es), left(got_eq))
 
     $got_bwd_zpv mp(iff_elim_right(mem("zero","pv"), mem("z","pv"), []),
@@ -249,23 +249,23 @@ $phase3 {
     $_ tap("sn in w ok")
 
     # === In(n,b) from Or(In(sn,b),Eq(sn,b)) via TransitiveSet ===
-    $or_snb or(mem("sn","b"), eqv("sn","b","_"))
+    $or_snb or(mem("sn","b"), eq("sn","b","_"))
     $in_nb mem("n","b")
 
     # In(n,sn) from Succ(sn,n): n=n → Or(n∈n, n=n) → n∈sn
-    $or_nn or(mem("n","n"), eqv("n","n","_"))
+    $or_nn or(mem("n","n"), eq("n","n","_"))
     $iff_nsn iff(mem("n","sn"), or_nn)
 
-    $succ_body \v: iff(mem(v, "sn"), or(mem(v, "n"), eqv(v, "n", "_")))
+    $succ_body \v: iff(mem(v, "sn"), or(mem(v, "n"), eq(v, "n", "_")))
     $got_succ_n apply_thm(ax([succ_sn],[succ_sn],succ_sn), succ_sn,
         ["n"], ["v"], succ_body, [succ_sn])
     $got_iff_nsn got_succ_n
     $got_bwd_nsn mp(iff_elim_right(mem("n","sn"), or_nn, []),
         got_iff_nsn, iff_nsn, implies(or_nn, mem("n","sn")), [], [succ_sn])
-    $eq_nn eqv("n","n","_")
-    $er_body \v: eqv(v, v, "_")
-    $got_eqnn apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
-        ["n"], ["a"], er_body, left(eqv_reflexive))
+    $eq_nn eq("n","n","_")
+    $er_body \v: eq(v, v, "_")
+    $got_eqnn apply_thm(eq_reflexive, head(right(eq_reflexive)),
+        ["n"], ["a"], er_body, left(eq_reflexive))
     $oir_body \va: \vb: implies(vb, or(va, vb))
     $got_or_nn mp(apply_thm(or_intro_right(mem("n","n"), eq_nn, []),
         head(right(or_intro_right(mem("n","n"), eq_nn, []))),
@@ -303,10 +303,10 @@ $phase3 {
     $_ tap("case1 ok")
 
     # Case 2: Eq(sn,b) → In(n,b)
-    $eqt_body \va: \vb: \vz: implies(eqv(va, vb, "_"), iff(mem(vz, va), mem(vz, vb)))
+    $eqt_body \va: \vb: \vz: implies(eq(va, vb, "_"), iff(mem(vz, va), mem(vz, vb)))
     $got_eqt apply_thm(eq_transfer, head(right(eq_transfer)),
         ["sn","b","n"], ["a","b","z"], eqt_body, left(eq_transfer))
-    $eq_snb eqv("sn","b","_")
+    $eq_snb eq("sn","b","_")
     $iff_nsnb iff(mem("n","sn"), in_nb)
     $got_iff_nsnb mp(got_eqt, ax([eq_snb],[eq_snb],eq_snb), eq_snb, iff_nsnb,
         left(got_eqt), [eq_snb])
@@ -335,10 +335,10 @@ $phase3 {
     $_ tap("In(n,b) ok")
 
     # Q(n) → Phase3Ind(n): mp Or(In(n,b),Eq(n,b)) with Q(n)
-    $or_nb or(mem("n","b"), eqv("n","b","_"))
+    $or_nb or(mem("n","b"), eq("n","b","_"))
     $oil_body \va: \vb: implies(va, or(va, vb))
-    $got_ornb mp(apply_thm(or_intro_left(in_nb, eqv("n","b","_"), []),
-        head(right(or_intro_left(in_nb, eqv("n","b","_"), []))),
+    $got_ornb mp(apply_thm(or_intro_left(in_nb, eq("n","b","_"), []),
+        head(right(or_intro_left(in_nb, eq("n","b","_"), []))),
         [], [], oil_body, []),
         got_inb, in_nb, or_nb, [], left(got_inb))
     $pind_n phase3_ind("n", "d", "q1", "sa", "tape2", "c1", "_")
@@ -474,19 +474,19 @@ $phase3 {
     $_ tap("w sub pv ok")
 
     # subset_antisymmetric(pv,w): pv⊆w → w⊆pv → pv=w
-    $sa_body \va: \vb: implies(subset(va, vb, "_"), implies(subset(vb, va, "_"), eqv(va, vb, "_")))
+    $sa_body \va: \vb: implies(subset(va, vb, "_"), implies(subset(vb, va, "_"), eq(va, vb, "_")))
     $got_sa apply_thm(subset_antisymmetric, head(right(subset_antisymmetric)),
         ["pv","w"], ["a","b"], sa_body, left(subset_antisymmetric))
     $pvw subset("pv", "w", "_")
     $wpv2 subset("w", "pv", "_")
-    $eq_pvw eqv("pv", "w", "_")
+    $eq_pvw eq("pv", "w", "_")
     $got_sa mp(got_sa, got_sub, pvw, implies(wpv2, eq_pvw), left(got_sa), left(got_sub))
     $got_eq_pvw mp(got_sa, got_osi, wpv2, eq_pvw, left(got_sa), left(got_osi))
 
     $_ tap("pv = w ok")
 
     # === 7a. Extract Phase3Ind(b) ===
-    $eqt2_body \va: \vb: \vz: implies(eqv(va, vb, "_"), iff(mem(vz, va), mem(vz, vb)))
+    $eqt2_body \va: \vb: \vz: implies(eq(va, vb, "_"), iff(mem(vz, va), mem(vz, vb)))
     $got_eqt2 apply_thm(eq_transfer, head(right(eq_transfer)),
         ["pv","w","b"], ["a","b","z"], eqt2_body, left(eq_transfer))
     $iff_bpvw iff(mem("b","pv"), in_b_w)
@@ -510,11 +510,11 @@ $phase3 {
         got_and_b, and(in_b_w, _Q("b")), _Q("b"), [], left(got_and_b))
 
     # Q(b) = Or(b∈b, b=b) → Phase3Ind(b). Build Or(b∈b, b=b) via b=b.
-    $or_bb or(mem("b","b"), eqv("b","b","_"))
-    $eq_bb eqv("b","b","_")
-    $er2_body \v: eqv(v, v, "_")
-    $got_eqbb apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
-        ["b"], ["a"], er2_body, left(eqv_reflexive))
+    $or_bb or(mem("b","b"), eq("b","b","_"))
+    $eq_bb eq("b","b","_")
+    $er2_body \v: eq(v, v, "_")
+    $got_eqbb apply_thm(eq_reflexive, head(right(eq_reflexive)),
+        ["b"], ["a"], er2_body, left(eq_reflexive))
     $oir2_body \va: \vb: implies(vb, or(va, vb))
     $got_or_bb mp(apply_thm(or_intro_right(mem("b","b"), eq_bb, []),
         head(right(or_intro_right(mem("b","b"), eq_bb, []))),
@@ -537,7 +537,7 @@ $phase3 {
     $plus_bn plus("sa","b","pos_n","_")
     $func_tra function("tra", "_")
     $dom_bnd forall("xd", forall("yd", implies(apply("tra","xd","yd","_"),
-        or(mem("xd","b"), eqv("xd","b","_")))))
+        or(mem("xd","b"), eq("xd","b","_")))))
     $base_cnd forall("zp", implies(num("zp",0,"_"), apply("tra","zp","c1","_")))
     $cfg_cn tm_config("cn", "q1", "pos_n", "tape2", "_")
     $app_tb apply("tra", "b", "cn", "_")
@@ -588,10 +588,10 @@ $phase3 {
     # --- Eqv(pos_n, pos) via plus_val_unique ---
     # plus_val_unique: ∀a,b,c,c2. Plus(a,b,c) → Plus(a,b,c2) → Eqv(c,c2)
     $_pvu_b \va: \vb: \vc: \vc2: implies(plus(va,vb,vc,"_"),
-        implies(plus(va,vb,vc2,"_"), eqv(vc,vc2,"_")))
+        implies(plus(va,vb,vc2,"_"), eq(vc,vc2,"_")))
     $pvu_inst apply_thm(plus_val_unique, head(right(plus_val_unique)),
         ["sa","b","pos_n","pos"], ["a","b","c","c2"], _pvu_b, left(plus_val_unique))
-    $eq_pnp eqv("pos_n","pos","_")
+    $eq_pnp eq("pos_n","pos","_")
     $pvu_s1 mp(pvu_inst, got_pbn, plus_bn, implies(plus_sab, eq_pnp),
         left(pvu_inst), [pa_full])
     $got_eq_pnp mp(pvu_s1, ax([plus_sab],[plus_sab],plus_sab), plus_sab, eq_pnp,
@@ -607,17 +607,17 @@ $phase3 {
         ["pos","tape2"], ["a","b"], oe_body, left(ordpair_exists))
     $ex_iv exists("iv", op_iv)
 
-    # Eqv(pos,pos_n) via eqv_symmetric
-    $eq_ppn eqv("pos","pos_n","_")
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    # Eqv(pos,pos_n) via eq_symmetric
+    $eq_ppn eq("pos","pos_n","_")
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
     $got_eq_ppn mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["pos_n","pos"], ["a","b"], _es_b, []),
         got_eq_pnp, eq_pnp, eq_ppn, [], left(got_eq_pnp))
 
     # ordpair_key_transfer: Eqv(pos,pos_n) → OrdPair(iv,pos,tape2) → OrdPair(iv,pos_n,tape2)
     $op_iv_pn ordered_pair("iv", "pos_n", "tape2", "_")
-    $_okt_b \vt: \va: \vb: \vc: implies(eqv(va,vc,"_"), implies(ordered_pair(vt,va,vb,"_"), ordered_pair(vt,vc,vb,"_")))
+    $_okt_b \vt: \va: \vb: \vc: implies(eq(va,vc,"_"), implies(ordered_pair(vt,va,vb,"_"), ordered_pair(vt,vc,vb,"_")))
     $okt_inst apply_thm(ordpair_key_transfer, head(right(ordpair_key_transfer)),
         ["iv","pos","tape2","pos_n"], ["t","a","b","c"], _okt_b, left(ordpair_key_transfer))
     $okt_s1 mp(okt_inst, got_eq_ppn, eq_ppn, implies(op_iv, op_iv_pn),
@@ -640,10 +640,10 @@ $phase3 {
         left(got_c2i), [op_iv])
 
     # ordpair_unique(q1,iv,cn,c2) → Eqv(cn,c2)
-    $eq_cnc2 eqv("cn", "c2", "_")
+    $eq_cnc2 eq("cn", "c2", "_")
     $ou_body \va: \vb: \vs1: \vs2:
         implies(ordered_pair(vs1, va, vb, "_"),
-            implies(ordered_pair(vs2, va, vb, "_"), eqv(vs1, vs2, "_")))
+            implies(ordered_pair(vs2, va, vb, "_"), eq(vs1, vs2, "_")))
     $got_ou apply_thm(ordpair_unique, head(right(ordpair_unique)),
         ["q1","iv","cn","c2"], ["a","b","s1","s2"], ou_body, left(ordpair_unique))
     $got_ou mp(got_ou, got_opcn, op_cn, implies(op_c2, eq_cnc2),
@@ -661,7 +661,7 @@ $phase3 {
     # --- Apply(tra, b, c2) via apply_val_transfer ---
     $app_tc2 apply("tra", "b", "c2", "_")
     $avt_body \vf: \vx: \vy: \vy2:
-        implies(eqv(vy, vy2, "_"), implies(apply(vf, vx, vy, "_"), apply(vf, vx, vy2, "_")))
+        implies(eq(vy, vy2, "_"), implies(apply(vf, vx, vy, "_"), apply(vf, vx, vy2, "_")))
     $got_avt apply_thm(apply_val_transfer, head(right(apply_val_transfer)),
         ["tra","b","cn","c2"], ["f","x","y","y2"], avt_body, left(apply_val_transfer))
     $got_avt mp(got_avt, got_eqcn, eq_cnc2, implies(app_tb, app_tc2),
@@ -698,7 +698,7 @@ $phase3 {
     # eir tra: bind "tra" as ∃tr in TMReaches
     $r_body_fn \v: and(function(v, "_"),
         and(forall("xd", forall("yd", implies(apply(v,"xd","yd","_"),
-            or(mem("xd","b"), eqv("xd","b","_"))))),
+            or(mem("xd","b"), eq("xd","b","_"))))),
         and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","c1","_"))),
         and(forall("k", implies(mem("k","b"), forall("sk", implies(successor("sk","k","_"),
             forall("ck", implies(apply(v,"k","ck","_"),
@@ -718,7 +718,7 @@ $phase3 {
     # eel tra: tra not free on right (it was eir'd into ∃tr)
     $pa_outer_fn \v: exists("cn", and(function(v, "_"),
         and(forall("xd", forall("yd", implies(apply(v,"xd","yd","_"),
-            or(mem("xd","b"), eqv("xd","b","_"))))),
+            or(mem("xd","b"), eq("xd","b","_"))))),
         and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","c1","_"))),
         and(tm_config("cn", "q1", "pos_n", "tape2", "_"),
             and(apply(v, "b", "cn", "_"),
@@ -739,7 +739,7 @@ $phase3 {
     $pa_posn_fn \v: and(plus("sa","b",v,"_"),
         exists("tra", exists("cn", and(function("tra","_"),
             and(forall("xd", forall("yd", implies(apply("tra","xd","yd","_"),
-                or(mem("xd","b"), eqv("xd","b","_"))))),
+                or(mem("xd","b"), eq("xd","b","_"))))),
             and(forall("zp", implies(num("zp",0,"_"), apply("tra","zp","c1","_"))),
             and(tm_config("cn","q1",v,"tape2","_"),
                 and(apply("tra","b","cn","_"),

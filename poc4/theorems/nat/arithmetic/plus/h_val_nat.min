@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, single_valued, domain
@@ -9,7 +9,7 @@ from util.list import remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.nat.nat.omega_induction import omega_induction
 from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 from theorems.nat.nat.omega_exists import omega_exists
@@ -21,7 +21,7 @@ from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.ordpair_unique import ordpair_unique
-from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
+from theorems.sets.eq_mem_transfer import eq_mem_transfer
 
 # h_val_nat: PlusFunc(h) → Nat(m) → Nat(n) →
 #   ∀pair.OrdPair(pair,m,n) → ∀p.Apply(h,pair,p) → Nat(p)
@@ -43,7 +43,7 @@ $h_val_nat {
     # Unwrap PlusFunc(h) at w
     $func_h function("h","_")
     $sv_h single_valued("h","_")
-    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eqv("d","prod","_")))))
+    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eq("d","prod","_")))))
     $base_f forall("m", implies(mem("m","w"), forall("zz", implies(num("zz",0,"_"),
         forall("pair", implies(ordered_pair("pair","m","zz","_"), apply("h","pair","m","_")))))))
     $step_f forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"),
@@ -305,43 +305,43 @@ $h_val_nat {
 
     # ordpair_unique → Eqv(pair,pair0)
     $_ou head(right(ordpair_unique))
-    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
+    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eq(s1,s2,"_")))
     $ou1 mp(apply_thm(ordpair_unique, _ou, ["m","n","pair","pair0"], ["a","b","s1","s2"], _ou_b, []),
-        ax([op_caller],[op_caller],op_caller), op_caller, implies(op_mn, eqv("pair","pair0","_")), [], [op_caller])
-    $got_eq_pp0 mp(ou1, got_op_mn2, op_mn, eqv("pair","pair0","_"), [op_caller], [r_body])
+        ax([op_caller],[op_caller],op_caller), op_caller, implies(op_mn, eq("pair","pair0","_")), [], [op_caller])
+    $got_eq_pp0 mp(ou1, got_op_mn2, op_mn, eq("pair","pair0","_"), [op_caller], [r_body])
 
-    # eqv_symmetric → Eqv(pair0,pair)
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_eq_p0p mp(apply_thm(eqv_symmetric, _es, ["pair","pair0"], ["a","b"], _es_b, []),
-        got_eq_pp0, eqv("pair","pair0","_"), eqv("pair0","pair","_"), [], left(got_eq_pp0))
+    # eq_symmetric → Eqv(pair0,pair)
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq_p0p mp(apply_thm(eq_symmetric, _es, ["pair","pair0"], ["a","b"], _es_b, []),
+        got_eq_pp0, eq("pair","pair0","_"), eq("pair0","pair","_"), [], left(got_eq_pp0))
 
     # apply_key_transfer → Apply(h,pair,p0)
     $_akt head(right(apply_key_transfer))
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
     $akt1 mp(apply_thm(apply_key_transfer, _akt, ["h","pair0","pair","p0"], ["f","x","x2","y"], _akt_b, []),
-        got_eq_p0p, eqv("pair0","pair","_"), implies(app_mn, apply("h","pair","p0","_")), [], left(got_eq_p0p))
+        got_eq_p0p, eq("pair0","pair","_"), implies(app_mn, apply("h","pair","p0","_")), [], left(got_eq_p0p))
     $got_app_pair_p0 mp(akt1, got_app_mn2, app_mn, apply("h","pair","p0","_"), left(akt1), [r_body])
 
     # func_unique → Eqv(p,p0)
     $_fu head(right(func_unique_thm))
     $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"),
-        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
     $fu1 mp(apply_thm(func_unique_thm, _fu, ["h","pair","p","p0"], ["f","x","y1","y2"], _fu_b, []),
         got_sv, sv_h, arg2(head(right(apply_thm(func_unique_thm, _fu, ["h","pair","p","p0"], ["f","x","y1","y2"], _fu_b, [])))),
         [], left(pf))
-    $fu2 mp(fu1, ax([app_caller],[app_caller],app_caller), app_caller, implies(apply("h","pair","p0","_"), eqv("p","p0","_")),
+    $fu2 mp(fu1, ax([app_caller],[app_caller],app_caller), app_caller, implies(apply("h","pair","p0","_"), eq("p","p0","_")),
         left(fu1), [app_caller])
-    $got_eq_p_p0 mp(fu2, got_app_pair_p0, apply("h","pair","p0","_"), eqv("p","p0","_"), left(fu2), left(got_app_pair_p0))
+    $got_eq_p_p0 mp(fu2, got_app_pair_p0, apply("h","pair","p0","_"), eq("p","p0","_"), left(fu2), left(got_app_pair_p0))
 
-    # eqv_mem_transfer: Eqv(p0,p) → p0∈w → p∈w
+    # eq_mem_transfer: Eqv(p0,p) → p0∈w → p∈w
     $pw mem("p","w")
-    $got_eq_p0_p mp(apply_thm(eqv_symmetric, _es, ["p","p0"], ["a","b"], _es_b, []),
-        got_eq_p_p0, eqv("p","p0","_"), eqv("p0","p","_"), [], left(got_eq_p_p0))
-    $_emt head(right(eqv_mem_transfer))
-    $_emt_b \a: \b: \c: implies(eqv(a,b,"_"), implies(mem(a,c), mem(b,c)))
-    $emt1 mp(apply_thm(eqv_mem_transfer, _emt, ["p0","p","w"], ["a","b","c"], _emt_b, left(eqv_mem_transfer)),
-        got_eq_p0_p, eqv("p0","p","_"), implies(p0w, pw), left(eqv_mem_transfer), left(got_eq_p0_p))
+    $got_eq_p0_p mp(apply_thm(eq_symmetric, _es, ["p","p0"], ["a","b"], _es_b, []),
+        got_eq_p_p0, eq("p","p0","_"), eq("p0","p","_"), [], left(got_eq_p_p0))
+    $_emt head(right(eq_mem_transfer))
+    $_emt_b \a: \b: \c: implies(eq(a,b,"_"), implies(mem(a,c), mem(b,c)))
+    $emt1 mp(apply_thm(eq_mem_transfer, _emt, ["p0","p","w"], ["a","b","c"], _emt_b, left(eq_mem_transfer)),
+        got_eq_p0_p, eq("p0","p","_"), implies(p0w, pw), left(eq_mem_transfer), left(got_eq_p0_p))
     $got_pw mp(emt1, got_p0w2, p0w, pw, left(emt1), [r_body])
 
     # eel R(n) existentials

@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right
+from derived import mem, neg, implies, iff, and, or, exists, forall, eq, left, right
 from vocab.sets import ordered_pair, relation
 from vocab.functions import apply, function, single_valued
 from vocab.tm.tm import tape_update
@@ -11,9 +11,9 @@ from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.or_elim import or_elim
 from theorems.logic.or_intro_left import or_intro_left
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_transitive import eqv_transitive
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
+from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.sets.tuple_injection import tuple_injection
 from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
 from theorems.functions.func_unique_thm import func_unique_thm
@@ -118,7 +118,7 @@ $tape_update_function {
     # ∀a,b1,b2. Apply(t2,a,b1) ∧ Apply(t2,a,b2) → Eq(b1,b2)
     $app1 apply("t2", "a", "b1", "_")
     $app2 apply("t2", "a", "b2", "_")
-    $eq_b eqv("b1", "b2", "_")
+    $eq_b eq("b1", "b2", "_")
 
     # Open Apply(t2,a,b1): ∃p1. OP(p1,a,b1) ∧ p1∈t2
     $op1 ordered_pair("p1", "a", "b1", "_")
@@ -170,51 +170,51 @@ $tape_update_function {
     # tuple_injection: OP(p,a,b) + OP(p,c,d) → And(Eq(a,c), Eq(b,d))
     $_ti head(right(tuple_injection))
     $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t,a,b,"_"),
-        implies(ordered_pair(t,c,d,"_"), and(eqv(a,c,"_"), eqv(b,d,"_"))))
+        implies(ordered_pair(t,c,d,"_"), and(eq(a,c,"_"), eq(b,d,"_"))))
 
     # Eq(b1,val) from OP(p1,a,b1) + OP(p1,pos,val) via tuple_injection
     $got_ti1 apply_thm(tuple_injection, _ti, ["p1","a","b1","pos","val"],
         ["t","a","b","c","d"], _ti_b, left(tuple_injection))
     $got_ti1 mp(got_ti1, ax([op1],[op1],op1), op1,
-        implies(op1_pv, and(eqv("a","pos","_"), eqv("b1","val","_"))),
+        implies(op1_pv, and(eq("a","pos","_"), eq("b1","val","_"))),
         left(got_ti1), [op1])
     $got_ti1 mp(got_ti1, ax([op1_pv],[op1_pv],op1_pv), op1_pv,
-        and(eqv("a","pos","_"), eqv("b1","val","_")),
+        and(eq("a","pos","_"), eq("b1","val","_")),
         left(got_ti1), [op1_pv])
     # [Pairing, op1, op1_pv] |- And(Eq(a,pos), Eq(b1,val))
-    $eq_b1v eqv("b1", "val", "_")
-    $got_eq_b1v mp(and_elim_right(eqv("a","pos","_"), eq_b1v, []),
-        got_ti1, and(eqv("a","pos","_"), eq_b1v), eq_b1v, [], left(got_ti1))
+    $eq_b1v eq("b1", "val", "_")
+    $got_eq_b1v mp(and_elim_right(eq("a","pos","_"), eq_b1v, []),
+        got_ti1, and(eq("a","pos","_"), eq_b1v), eq_b1v, [], left(got_ti1))
     # [Pairing, op1, op1_pv] |- Eq(b1,val)
 
     # Eq(b2,val) from OP(p2,a,b2) + OP(p2,pos,val) via tuple_injection
     $got_ti2 apply_thm(tuple_injection, _ti, ["p2","a","b2","pos","val"],
         ["t","a","b","c","d"], _ti_b, left(tuple_injection))
     $got_ti2 mp(got_ti2, ax([op2],[op2],op2), op2,
-        implies(op2_pv, and(eqv("a","pos","_"), eqv("b2","val","_"))),
+        implies(op2_pv, and(eq("a","pos","_"), eq("b2","val","_"))),
         left(got_ti2), [op2])
     $got_ti2 mp(got_ti2, ax([op2_pv],[op2_pv],op2_pv), op2_pv,
-        and(eqv("a","pos","_"), eqv("b2","val","_")),
+        and(eq("a","pos","_"), eq("b2","val","_")),
         left(got_ti2), [op2_pv])
-    $eq_b2v eqv("b2", "val", "_")
-    $got_eq_b2v mp(and_elim_right(eqv("a","pos","_"), eq_b2v, []),
-        got_ti2, and(eqv("a","pos","_"), eq_b2v), eq_b2v, [], left(got_ti2))
+    $eq_b2v eq("b2", "val", "_")
+    $got_eq_b2v mp(and_elim_right(eq("a","pos","_"), eq_b2v, []),
+        got_ti2, and(eq("a","pos","_"), eq_b2v), eq_b2v, [], left(got_ti2))
     # [Pairing, op2, op2_pv] |- Eq(b2,val)
 
-    # Eq(b2,val) → Eq(val,b2) via eqv_symmetric
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_eq_vb2 apply_thm(eqv_symmetric, _es, ["b2","val"], ["a","b"], _es_b, [])
-    $got_eq_vb2 mp(got_eq_vb2, got_eq_b2v, eq_b2v, eqv("val","b2","_"), [], left(got_eq_b2v))
+    # Eq(b2,val) → Eq(val,b2) via eq_symmetric
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq_vb2 apply_thm(eq_symmetric, _es, ["b2","val"], ["a","b"], _es_b, [])
+    $got_eq_vb2 mp(got_eq_vb2, got_eq_b2v, eq_b2v, eq("val","b2","_"), [], left(got_eq_b2v))
     # [Pairing, op2, op2_pv] |- Eq(val,b2)
 
-    # Eq(b1,val) + Eq(val,b2) → Eq(b1,b2) via eqv_transitive
-    $_et head(right(eqv_transitive))
-    $_et_b \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
-    $got_case11 apply_thm(eqv_transitive, _et, ["b1","val","b2"], ["a","b","c"], _et_b, [])
+    # Eq(b1,val) + Eq(val,b2) → Eq(b1,b2) via eq_transitive
+    $_et head(right(eq_transitive))
+    $_et_b \a: \b: \c: implies(eq(a,b,"_"), implies(eq(b,c,"_"), eq(a,c,"_")))
+    $got_case11 apply_thm(eq_transitive, _et, ["b1","val","b2"], ["a","b","c"], _et_b, [])
     $got_case11 mp(got_case11, got_eq_b1v, eq_b1v,
-        implies(eqv("val","b2","_"), eq_b), [], left(got_eq_b1v))
-    $got_case11 mp(got_case11, got_eq_vb2, eqv("val","b2","_"),
+        implies(eq("val","b2","_"), eq_b), [], left(got_eq_b1v))
+    $got_case11 mp(got_case11, got_eq_vb2, eq("val","b2","_"),
         eq_b, left(got_case11), left(got_eq_vb2))
     # [Pairing, op1, op1_pv, op2, op2_pv] |- Eq(b1,b2)
     $_ tap("case(1,1) done")
@@ -252,7 +252,7 @@ $tape_update_function {
 
     $_fu head(right(func_unique_thm))
     $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"),
-        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
     $got_fu apply_thm(func_unique_thm, _fu, ["t","a","b1","b2"],
         ["f","x","y1","y2"], _fu_b, left(func_unique_thm))
     $got_fu mp(got_fu, got_sv, sv_t,
@@ -270,32 +270,32 @@ $tape_update_function {
     $got_ti_12 apply_thm(tuple_injection, _ti, ["p1","a","b1","pos","val"],
         ["t","a","b","c","d"], _ti_b, left(tuple_injection))
     $got_ti_12 mp(got_ti_12, ax([op1],[op1],op1), op1,
-        implies(op1_pv, and(eqv("a","pos","_"), eqv("b1","val","_"))),
+        implies(op1_pv, and(eq("a","pos","_"), eq("b1","val","_"))),
         left(got_ti_12), [op1])
     $got_ti_12 mp(got_ti_12, ax([op1_pv],[op1_pv],op1_pv), op1_pv,
-        and(eqv("a","pos","_"), eqv("b1","val","_")),
+        and(eq("a","pos","_"), eq("b1","val","_")),
         left(got_ti_12), [op1_pv])
-    $eq_ap eqv("a", "pos", "_")
-    $got_eq_ap mp(and_elim_left(eq_ap, eqv("b1","val","_"), []),
-        got_ti_12, and(eq_ap, eqv("b1","val","_")), eq_ap, [], left(got_ti_12))
+    $eq_ap eq("a", "pos", "_")
+    $got_eq_ap mp(and_elim_left(eq_ap, eq("b1","val","_"), []),
+        got_ti_12, and(eq_ap, eq("b1","val","_")), eq_ap, [], left(got_ti_12))
     # [Pairing, op1, op1_pv] |- Eq(a,pos)
 
     # Transfer OP(p2,a,b2) to OP(p2,pos,b2) via Eq(a,pos) + Eq(b2,b2)
     $_oet head(right(ordpair_eq_transfer))
-    $_oet_b \tt: \aa: \bb: \cc: \dd: implies(eqv(aa,cc,"_"),
-        implies(eqv(bb,dd,"_"), implies(ordered_pair(tt,aa,bb,"_"), ordered_pair(tt,cc,dd,"_"))))
+    $_oet_b \tt: \aa: \bb: \cc: \dd: implies(eq(aa,cc,"_"),
+        implies(eq(bb,dd,"_"), implies(ordered_pair(tt,aa,bb,"_"), ordered_pair(tt,cc,dd,"_"))))
     $op2_pos_b2 ordered_pair("p2", "pos", "b2", "_")
     $got_op2_pb apply_thm(ordpair_eq_transfer, _oet,
         ["p2","a","b2","pos","b2"], ["t","a","b","c","d"], _oet_b, [])
     $got_op2_pb mp(got_op2_pb, got_eq_ap, eq_ap,
-        implies(eqv("b2","b2","_"), implies(op2, op2_pos_b2)),
+        implies(eq("b2","b2","_"), implies(op2, op2_pos_b2)),
         [], left(got_eq_ap))
 
-    # Eq(b2,b2) via eqv_reflexive
-    $_er head(right(eqv_reflexive))
-    $_er_b \a: eqv(a,a,"_")
-    $got_eq_b2b2 apply_thm(eqv_reflexive, _er, ["b2"], ["a"], _er_b, [])
-    $eq_b2b2 eqv("b2", "b2", "_")
+    # Eq(b2,b2) via eq_reflexive
+    $_er head(right(eq_reflexive))
+    $_er_b \a: eq(a,a,"_")
+    $got_eq_b2b2 apply_thm(eq_reflexive, _er, ["b2"], ["a"], _er_b, [])
+    $eq_b2b2 eq("b2", "b2", "_")
     $got_op2_pb mp(got_op2_pb, got_eq_b2b2, eq_b2b2,
         implies(op2, op2_pos_b2), left(got_op2_pb), [])
     $got_op2_pb mp(got_op2_pb, ax([op2],[op2],op2), op2,
@@ -332,13 +332,13 @@ $tape_update_function {
     $got_ti_21 apply_thm(tuple_injection, _ti, ["p2","a","b2","pos","val"],
         ["t","a","b","c","d"], _ti_b, left(tuple_injection))
     $got_ti_21 mp(got_ti_21, ax([op2],[op2],op2), op2,
-        implies(op2_pv, and(eqv("a","pos","_"), eqv("b2","val","_"))),
+        implies(op2_pv, and(eq("a","pos","_"), eq("b2","val","_"))),
         left(got_ti_21), [op2])
     $got_ti_21 mp(got_ti_21, ax([op2_pv],[op2_pv],op2_pv), op2_pv,
-        and(eqv("a","pos","_"), eqv("b2","val","_")),
+        and(eq("a","pos","_"), eq("b2","val","_")),
         left(got_ti_21), [op2_pv])
-    $got_eq_ap2 mp(and_elim_left(eq_ap, eqv("b2","val","_"), []),
-        got_ti_21, and(eq_ap, eqv("b2","val","_")), eq_ap, [], left(got_ti_21))
+    $got_eq_ap2 mp(and_elim_left(eq_ap, eq("b2","val","_"), []),
+        got_ti_21, and(eq_ap, eq("b2","val","_")), eq_ap, [], left(got_ti_21))
     # [Pairing, op2, op2_pv] |- Eq(a,pos)
 
     # Transfer OP(p1,a,b1) to OP(p1,pos,b1) via Eq(a,pos) + Eq(b1,b1)
@@ -346,10 +346,10 @@ $tape_update_function {
     $got_op1_pb apply_thm(ordpair_eq_transfer, _oet,
         ["p1","a","b1","pos","b1"], ["t","a","b","c","d"], _oet_b, [])
     $got_op1_pb mp(got_op1_pb, got_eq_ap2, eq_ap,
-        implies(eqv("b1","b1","_"), implies(op1, op1_pos_b1)),
+        implies(eq("b1","b1","_"), implies(op1, op1_pos_b1)),
         [], left(got_eq_ap2))
-    $got_eq_b1b1 apply_thm(eqv_reflexive, _er, ["b1"], ["a"], _er_b, [])
-    $eq_b1b1 eqv("b1", "b1", "_")
+    $got_eq_b1b1 apply_thm(eq_reflexive, _er, ["b1"], ["a"], _er_b, [])
+    $eq_b1b1 eq("b1", "b1", "_")
     $got_op1_pb mp(got_op1_pb, got_eq_b1b1, eq_b1b1,
         implies(op1, op1_pos_b1), left(got_op1_pb), [])
     $got_op1_pb mp(got_op1_pb, ax([op1],[op1],op1), op1,

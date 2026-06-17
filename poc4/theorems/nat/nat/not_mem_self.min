@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, eqv, left, right
+from derived import mem, neg, implies, forall, and, or, eq, left, right
 from vocab.sets import empty
 from vocab.nat.nat import omega, successor
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same
@@ -9,8 +9,8 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.nat.nat.mem_succ_elim import mem_succ_elim
-from theorems.logic.eqv_mem_left import eqv_mem_left
-from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.eq_mem_left import eq_mem_left
+from theorems.logic.eq_mem_right import eq_mem_right
 from theorems.nat.nat.omega_induction import omega_induction
 
 # Sep, Ext |- forall w. omega(w) → ∀n∈w. ¬(n∈n)
@@ -78,26 +78,26 @@ $not_mem_self {
 
     # --- Part 1: ¬(s∈s) ---
     $sn mem("s", "n")
-    $esn eqv("s", "n", "_")
+    $esn eq("s", "n", "_")
     $or_sn or(sn, esn)
     $_mse head(right(mem_succ_elim))
-    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eq(x,n,"_"))))
     $mse_r forall("x", forall("p", forall("q", _mse_b("x")("p")("q"))))
     $mse_r_thm wr(mem_succ_elim, [], [mse_r], mse_r)
     $got_or_s mp(mp(apply_thm(mse_r_thm, mse_r, ["s", "s", "n"], ["s", "p", "q"], _mse_b, []),
         ax([ss], [ss], ss), ss, implies(succ_sn, or_sn), [], [ss]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_sn, [ss], [succ_sn])
 
-    # Case eqv(s,n): n∈s → n∈n via eqv_mem_left. Contradiction.
+    # Case eq(s,n): n∈s → n∈n via eq_mem_left. Contradiction.
     $_mss head(right(mem_succ_self))
     $ns mem("n", "s")
     $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
     $got_ns mp(apply_thm(mem_succ_self, _mss, ["s", "n"], ["s", "n"], _mss_b, []),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, ns, [], [succ_sn])
-    $_eml head(right(eqv_mem_left))
-    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $_eml head(right(eq_mem_left))
+    $_eml_b \a: \b: \z: implies(eq(a,b,"_"), implies(mem(z,a), mem(z,b)))
     $eml_r forall("a", forall("b", forall("q", _eml_b("a")("b")("q"))))
-    $eml_r_thm wr(eqv_mem_left, [], [eml_r], eml_r)
+    $eml_r_thm wr(eq_mem_left, [], [eml_r], eml_r)
     $got_nn_esn mp(mp(apply_thm(eml_r_thm, eml_r, ["s", "n", "n"], ["s", "b", "q"], _eml_b, []),
         ax([esn], [esn], esn), esn, implies(ns, nn), [], [esn]),
         got_ns, ns, nn, [esn], [succ_sn])
@@ -133,7 +133,7 @@ $not_mem_self {
     # --- Part 2: ∀z∈s.¬(z∈z) ---
     $zs mem("z", "s")
     $zn mem("z", "n")
-    $ezn eqv("z", "n", "_")
+    $ezn eq("z", "n", "_")
     $or_zn or(zn, ezn)
     $got_or_z mp(mp(apply_thm(mse_r_thm, mse_r, ["z", "s", "n"], ["z", "p", "q"], _mse_b, []),
         ax([zs], [zs], zs), zs, implies(succ_sn, or_zn), [], [zs]),
@@ -144,12 +144,12 @@ $not_mem_self {
         [fa_z_n], [implies(zn, neg_zz)], fa_z_n, "z"),
         ax([zn], [zn], zn), zn, neg_zz, [fa_z_n], [zn])
 
-    # Case eqv(z,n): z∈z → n∈z → n∈n. Contradiction with ¬(n∈n).
-    $emr_ctx left(eqv_mem_right)
-    $_emr_f head(right(eqv_mem_right))
+    # Case eq(z,n): z∈z → n∈z → n∈n. Contradiction with ¬(n∈n).
+    $emr_ctx left(eq_mem_right)
+    $_emr_f head(right(eq_mem_right))
     $nz mem("n", "z")
-    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
-    $emr1 mp(apply_thm(eqv_mem_right, _emr_f, ["z", "n", "z"], ["z", "y", "a"], _emr_b, emr_ctx),
+    $_emr_b \x: \y: \a: implies(eq(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $emr1 mp(apply_thm(eq_mem_right, _emr_f, ["z", "n", "z"], ["z", "y", "a"], _emr_b, emr_ctx),
         ax([ezn], [ezn], ezn), ezn, implies(zz, nz), emr_ctx, [ezn])
     $got_nz mp(emr1, ax([zz], [zz], zz), zz, nz, left(emr1), [zz])
     $eml1 mp(apply_thm(eml_r_thm, eml_r, ["z", "n", "n"], ["z", "b", "q"], _eml_b, []),

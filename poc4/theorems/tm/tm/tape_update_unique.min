@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, iff, and, or, exists, eqv, left, right
+from derived import mem, neg, implies, iff, and, or, exists, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.tm.tm import tape_update
 from tactics import ax, fr, ir, inst, mp, close
@@ -58,7 +58,7 @@ $tape_update_unique {
     $got_iff_final mp(got_ii1, got_imp_back, imp_back, iff_t1t2, [tu1, tu2], [tu1, tu2])
 
     # forall_right p → Eqv(t1,t2)
-    $eq_t1t2 eqv("t1", "t2", "_")
+    $eq_t1t2 eq("t1", "t2", "_")
     $s_fr fr(got_iff_final, [tu1, tu2], [eq_t1t2], eq_t1t2, "p")
 
     # Close

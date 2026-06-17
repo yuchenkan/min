@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, exists, eqv, left, right
+from derived import mem, neg, implies, forall, and, or, exists, eq, left, right
 from vocab.functions import apply, function, single_valued, relation
 from vocab.tm.add import unary_output
 from vocab.nat.nat import num
@@ -7,9 +7,9 @@ from util.list import remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.or_elim import or_elim
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
 from theorems.functions.func_ext_from_agree import func_ext_from_agree
 from theorems.functions.func_preserves_eq import func_preserves_eq
 from theorems.nat.nat.num_exists import num_exists
@@ -85,7 +85,7 @@ $unary_output_unique {
     $nxc neg(xc)
     $app1 apply("f1", "x", "v1", "_")
     $app2 apply("f2", "x", "v2", "_")
-    $eqv_vv eqv("v1", "v2", "_")
+    $eq_vv eq("v1", "v2", "_")
 
     # --- Case x∈c ---
     # From ones1: inst vi→x, mp mem(x,c), inst vone→one, mp Num(one,1) → Apply(f1,x,one)
@@ -124,60 +124,60 @@ $unary_output_unique {
 
     # func_preserves_eq: ∀f,x1,x2,y1,y2. SV(f)→Eqv(x1,x2)→Apply(f,x1,y1)→Apply(f,x2,y2)→Eqv(y1,y2)
     $_fpe_b \f: \x1: \x2: \y1: \y2: implies(single_valued(f,"_"),
-        implies(eqv(x1,x2,"_"), implies(apply(f,x1,y1,"_"),
-        implies(apply(f,x2,y2,"_"), eqv(y1,y2,"_")))))
+        implies(eq(x1,x2,"_"), implies(apply(f,x1,y1,"_"),
+        implies(apply(f,x2,y2,"_"), eq(y1,y2,"_")))))
 
     # Instantiate for f1: SV(f1)→Eqv(x,x)→Apply(f1,x,v1)→Apply(f1,x,one)→Eqv(v1,one)
     $fpe1 apply_thm(func_preserves_eq, head(right(func_preserves_eq)),
         ["f1","x","x","v1","one"], ["f","x1","x2","y1","y2"], _fpe_b, [])
 
-    # eqv_reflexive: ∀a. Eqv(a,a)
-    $_er_b \a: eqv(a,a,"_")
-    $eqv_xx eqv("x","x","_")
-    $got_eqv_xx apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
+    # eq_reflexive: ∀a. Eqv(a,a)
+    $_er_b \a: eq(a,a,"_")
+    $eq_xx eq("x","x","_")
+    $got_eq_xx apply_thm(eq_reflexive, head(right(eq_reflexive)),
         ["x"], ["x"], _er_b, [])
 
-    $eqv_v1_one eqv("v1","one","_")
+    $eq_v1_one eq("v1","one","_")
     # mp chain: SV(f1) → Eqv(x,x) → Apply(f1,x,v1) → Apply(f1,x,one) → Eqv(v1,one)
-    $got_eqv_v1one mp(mp(mp(mp(fpe1,
-        got_sv1, sv1, implies(eqv_xx, implies(app1, implies(app1_x_one, eqv_v1_one))), [], [uo1]),
-        got_eqv_xx, eqv_xx, implies(app1, implies(app1_x_one, eqv_v1_one)), [uo1], []),
-        ax([app1], [app1], app1), app1, implies(app1_x_one, eqv_v1_one), [uo1], [app1]),
-        got_app1_one, app1_x_one, eqv_v1_one, [uo1, app1], [uo1, xc, num1])
-    # [uo1, app1, xc, num1] ⊢ [eqv_v1_one]
+    $got_eq_v1one mp(mp(mp(mp(fpe1,
+        got_sv1, sv1, implies(eq_xx, implies(app1, implies(app1_x_one, eq_v1_one))), [], [uo1]),
+        got_eq_xx, eq_xx, implies(app1, implies(app1_x_one, eq_v1_one)), [uo1], []),
+        ax([app1], [app1], app1), app1, implies(app1_x_one, eq_v1_one), [uo1], [app1]),
+        got_app1_one, app1_x_one, eq_v1_one, [uo1, app1], [uo1, xc, num1])
+    # [uo1, app1, xc, num1] ⊢ [eq_v1_one]
 
     # Same for f2: SV(f2)→Eqv(x,x)→Apply(f2,x,v2)→Apply(f2,x,one)→Eqv(v2,one)
     $fpe2 apply_thm(func_preserves_eq, head(right(func_preserves_eq)),
         ["f2","x","x","v2","one"], ["f","x1","x2","y1","y2"], _fpe_b, [])
-    $eqv_v2_one eqv("v2","one","_")
-    $got_eqv_v2one mp(mp(mp(mp(fpe2,
-        got_sv2, sv2, implies(eqv_xx, implies(app2, implies(app2_x_one, eqv_v2_one))), [], [uo2]),
-        got_eqv_xx, eqv_xx, implies(app2, implies(app2_x_one, eqv_v2_one)), [uo2], []),
-        ax([app2], [app2], app2), app2, implies(app2_x_one, eqv_v2_one), [uo2], [app2]),
-        got_app2_one, app2_x_one, eqv_v2_one, [uo2, app2], [uo2, xc, num1])
-    # [uo2, app2, xc, num1] ⊢ [eqv_v2_one]
+    $eq_v2_one eq("v2","one","_")
+    $got_eq_v2one mp(mp(mp(mp(fpe2,
+        got_sv2, sv2, implies(eq_xx, implies(app2, implies(app2_x_one, eq_v2_one))), [], [uo2]),
+        got_eq_xx, eq_xx, implies(app2, implies(app2_x_one, eq_v2_one)), [uo2], []),
+        ax([app2], [app2], app2), app2, implies(app2_x_one, eq_v2_one), [uo2], [app2]),
+        got_app2_one, app2_x_one, eq_v2_one, [uo2, app2], [uo2, xc, num1])
+    # [uo2, app2, xc, num1] ⊢ [eq_v2_one]
 
     # Chain: Eqv(v1,one) + Eqv(one,v2)[=sym(Eqv(v2,one))] → Eqv(v1,v2)
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $eqv_one_v2 eqv("one","v2","_")
-    $got_eqv_one_v2 mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $eq_one_v2 eq("one","v2","_")
+    $got_eq_one_v2 mp(apply_thm(eq_symmetric, head(right(eq_symmetric)),
         ["v2","one"], ["a","b"], _es_b, []),
-        got_eqv_v2one, eqv_v2_one, eqv_one_v2, [], left(got_eqv_v2one))
+        got_eq_v2one, eq_v2_one, eq_one_v2, [], left(got_eq_v2one))
 
-    $_et_b \a: \b: \cc: implies(eqv(a,b,"_"), implies(eqv(b,cc,"_"), eqv(a,cc,"_")))
-    $got_eqv_case1 mp(mp(apply_thm(eqv_transitive, head(right(eqv_transitive)),
+    $_et_b \a: \b: \cc: implies(eq(a,b,"_"), implies(eq(b,cc,"_"), eq(a,cc,"_")))
+    $got_eq_case1 mp(mp(apply_thm(eq_transitive, head(right(eq_transitive)),
         ["v1","one","v2"], ["a","b","c"], _et_b, []),
-        got_eqv_v1one, eqv_v1_one, implies(eqv_one_v2, eqv_vv), [], left(got_eqv_v1one)),
-        got_eqv_one_v2, eqv_one_v2, eqv_vv, left(got_eqv_v1one), left(got_eqv_one_v2))
-    # ctx ⊢ [eqv_vv] where ctx includes {uo1, uo2, xc, num1, app1, app2}
+        got_eq_v1one, eq_v1_one, implies(eq_one_v2, eq_vv), [], left(got_eq_v1one)),
+        got_eq_one_v2, eq_one_v2, eq_vv, left(got_eq_v1one), left(got_eq_one_v2))
+    # ctx ⊢ [eq_vv] where ctx includes {uo1, uo2, xc, num1, app1, app2}
 
     # eel one from num_exists(1)
-    $got_eqv_case1e eel(got_eqv_case1, \n: num(n, 1, "_"), "w", "one",
-        left(got_eqv_case1), eqv_vv)
+    $got_eq_case1e eel(got_eq_case1, \n: num(n, 1, "_"), "w", "one",
+        left(got_eq_case1), eq_vv)
     $ne1_ctx left(ne1)
-    $got_case1 cut_c(ne1, got_eqv_case1e, head(right(ne1)),
-        ne1_ctx, left(got_eqv_case1e), eqv_vv)
-    # ctx1 ⊢ [eqv_vv] where ctx1 = {uo1, uo2, xc, app1, app2, Pair, Union, Empty}
+    $got_case1 cut_c(ne1, got_eq_case1e, head(right(ne1)),
+        ne1_ctx, left(got_eq_case1e), eq_vv)
+    # ctx1 ⊢ [eq_vv] where ctx1 = {uo1, uo2, xc, app1, app2, Pair, Union, Empty}
 
     $_ tap("case1 ok")
 
@@ -210,37 +210,37 @@ $unary_output_unique {
     # func_preserves_eq for f1 with zero
     $fpe1z apply_thm(func_preserves_eq, head(right(func_preserves_eq)),
         ["f1","x","x","v1","zero"], ["f","x1","x2","y1","y2"], _fpe_b, [])
-    $eqv_v1_zero eqv("v1","zero","_")
-    $got_eqv_v1zero mp(mp(mp(mp(fpe1z,
-        got_sv1, sv1, implies(eqv_xx, implies(app1, implies(app1_x_zero, eqv_v1_zero))), [], [uo1]),
-        got_eqv_xx, eqv_xx, implies(app1, implies(app1_x_zero, eqv_v1_zero)), [uo1], []),
-        ax([app1], [app1], app1), app1, implies(app1_x_zero, eqv_v1_zero), [uo1], [app1]),
-        got_app1_zero, app1_x_zero, eqv_v1_zero, [uo1, app1], [uo1, nxc, num0])
+    $eq_v1_zero eq("v1","zero","_")
+    $got_eq_v1zero mp(mp(mp(mp(fpe1z,
+        got_sv1, sv1, implies(eq_xx, implies(app1, implies(app1_x_zero, eq_v1_zero))), [], [uo1]),
+        got_eq_xx, eq_xx, implies(app1, implies(app1_x_zero, eq_v1_zero)), [uo1], []),
+        ax([app1], [app1], app1), app1, implies(app1_x_zero, eq_v1_zero), [uo1], [app1]),
+        got_app1_zero, app1_x_zero, eq_v1_zero, [uo1, app1], [uo1, nxc, num0])
 
     $fpe2z apply_thm(func_preserves_eq, head(right(func_preserves_eq)),
         ["f2","x","x","v2","zero"], ["f","x1","x2","y1","y2"], _fpe_b, [])
-    $eqv_v2_zero eqv("v2","zero","_")
-    $got_eqv_v2zero mp(mp(mp(mp(fpe2z,
-        got_sv2, sv2, implies(eqv_xx, implies(app2, implies(app2_x_zero, eqv_v2_zero))), [], [uo2]),
-        got_eqv_xx, eqv_xx, implies(app2, implies(app2_x_zero, eqv_v2_zero)), [uo2], []),
-        ax([app2], [app2], app2), app2, implies(app2_x_zero, eqv_v2_zero), [uo2], [app2]),
-        got_app2_zero, app2_x_zero, eqv_v2_zero, [uo2, app2], [uo2, nxc, num0])
+    $eq_v2_zero eq("v2","zero","_")
+    $got_eq_v2zero mp(mp(mp(mp(fpe2z,
+        got_sv2, sv2, implies(eq_xx, implies(app2, implies(app2_x_zero, eq_v2_zero))), [], [uo2]),
+        got_eq_xx, eq_xx, implies(app2, implies(app2_x_zero, eq_v2_zero)), [uo2], []),
+        ax([app2], [app2], app2), app2, implies(app2_x_zero, eq_v2_zero), [uo2], [app2]),
+        got_app2_zero, app2_x_zero, eq_v2_zero, [uo2, app2], [uo2, nxc, num0])
 
-    $eqv_zero_v2 eqv("zero","v2","_")
-    $got_eqv_zero_v2 mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+    $eq_zero_v2 eq("zero","v2","_")
+    $got_eq_zero_v2 mp(apply_thm(eq_symmetric, head(right(eq_symmetric)),
         ["v2","zero"], ["a","b"], _es_b, []),
-        got_eqv_v2zero, eqv_v2_zero, eqv_zero_v2, [], left(got_eqv_v2zero))
+        got_eq_v2zero, eq_v2_zero, eq_zero_v2, [], left(got_eq_v2zero))
 
-    $got_eqv_case2 mp(mp(apply_thm(eqv_transitive, head(right(eqv_transitive)),
+    $got_eq_case2 mp(mp(apply_thm(eq_transitive, head(right(eq_transitive)),
         ["v1","zero","v2"], ["a","b","c"], _et_b, []),
-        got_eqv_v1zero, eqv_v1_zero, implies(eqv_zero_v2, eqv_vv), [], left(got_eqv_v1zero)),
-        got_eqv_zero_v2, eqv_zero_v2, eqv_vv, left(got_eqv_v1zero), left(got_eqv_zero_v2))
+        got_eq_v1zero, eq_v1_zero, implies(eq_zero_v2, eq_vv), [], left(got_eq_v1zero)),
+        got_eq_zero_v2, eq_zero_v2, eq_vv, left(got_eq_v1zero), left(got_eq_zero_v2))
 
-    $got_eqv_case2e eel(got_eqv_case2, \n: num(n, 0, "_"), "w", "zero",
-        left(got_eqv_case2), eqv_vv)
-    $got_case2 cut_c(ne0, got_eqv_case2e, head(right(ne0)),
-        left(ne0), left(got_eqv_case2e), eqv_vv)
-    # ctx2 ⊢ [eqv_vv] where ctx2 = {uo1, uo2, nxc, app1, app2, Pair, Union, Empty}
+    $got_eq_case2e eel(got_eq_case2, \n: num(n, 0, "_"), "w", "zero",
+        left(got_eq_case2), eq_vv)
+    $got_case2 cut_c(ne0, got_eq_case2e, head(right(ne0)),
+        left(ne0), left(got_eq_case2e), eq_vv)
+    # ctx2 ⊢ [eq_vv] where ctx2 = {uo1, uo2, nxc, app1, app2, Pair, Union, Empty}
 
     $_ tap("case2 ok")
 
@@ -250,19 +250,19 @@ $unary_output_unique {
     $got_or ir(ax([nxc], [nxc], nxc), [], [or_xc], or_xc)
     # [] ⊢ [or_xc]
 
-    $imp_xc implies(xc, eqv_vv)
-    $imp_nxc implies(nxc, eqv_vv)
+    $imp_xc implies(xc, eq_vv)
+    $imp_nxc implies(nxc, eq_vv)
     $got_imp_xc ir(got_case1, remove(same, xc, left(got_case1)), [imp_xc], imp_xc)
     $got_imp_nxc ir(got_case2, remove(same, nxc, left(got_case2)), [imp_nxc], imp_nxc)
 
-    $got_agree_body mp(mp(mp(or_elim(xc, nxc, eqv_vv, []),
-        got_or, or_xc, implies(imp_xc, implies(imp_nxc, eqv_vv)), [], []),
-        got_imp_xc, imp_xc, implies(imp_nxc, eqv_vv), [], left(got_imp_xc)),
-        got_imp_nxc, imp_nxc, eqv_vv, left(got_imp_xc), left(got_imp_nxc))
-    # ctx ⊢ [eqv_vv] where ctx includes {uo1, uo2, app1, app2, Pair, Union, Empty}
+    $got_agree_body mp(mp(mp(or_elim(xc, nxc, eq_vv, []),
+        got_or, or_xc, implies(imp_xc, implies(imp_nxc, eq_vv)), [], []),
+        got_imp_xc, imp_xc, implies(imp_nxc, eq_vv), [], left(got_imp_xc)),
+        got_imp_nxc, imp_nxc, eq_vv, left(got_imp_xc), left(got_imp_nxc))
+    # ctx ⊢ [eq_vv] where ctx includes {uo1, uo2, app1, app2, Pair, Union, Empty}
 
     # ir app2, ir app1, close v2, v1, x
-    $agree_i2 implies(app2, eqv_vv)
+    $agree_i2 implies(app2, eq_vv)
     $agree_i1 implies(app1, agree_i2)
     $agree_body agree_i1
     $agree forall("x", forall("v1", forall("v2", agree_body)))
@@ -392,23 +392,23 @@ $unary_output_unique {
     $_fea_b \h1: \h2: implies(relation(h1,"_"),
         implies(relation(h2,"_"),
         implies(forall("x", forall("v1", forall("v2",
-            implies(apply(h1,"x","v1","_"), implies(apply(h2,"x","v2","_"), eqv("v1","v2","_")))))),
+            implies(apply(h1,"x","v1","_"), implies(apply(h2,"x","v2","_"), eq("v1","v2","_")))))),
         implies(forall("x", forall("v", implies(apply(h1,"x","v","_"),
             exists("v2", apply(h2,"x","v2","_"))))),
         implies(forall("x", forall("v", implies(apply(h2,"x","v","_"),
             exists("v1", apply(h1,"x","v1","_"))))),
-        eqv(h1,h2,"_"))))))
+        eq(h1,h2,"_"))))))
 
     $fea_inst apply_thm(func_ext_from_agree, head(right(func_ext_from_agree)),
         ["f1","f2"], ["h1","h2"], _fea_b, left(func_ext_from_agree))
 
-    $goal eqv("f1","f2","_")
+    $goal eq("f1","f2","_")
 
     # mp chain: rel1 → rel2 → agree → dom_fwd → dom_bwd → Eqv(f1,f2)
     $_rel1_f relation("f1","_")
     $_rel2_f relation("f2","_")
     $_agree_f forall("x", forall("v1", forall("v2",
-        implies(apply("f1","x","v1","_"), implies(apply("f2","x","v2","_"), eqv("v1","v2","_"))))))
+        implies(apply("f1","x","v1","_"), implies(apply("f2","x","v2","_"), eq("v1","v2","_"))))))
     $_fwd_f forall("x", forall("v", implies(apply("f1","x","v","_"),
         exists("v2", apply("f2","x","v2","_")))))
     $_bwd_f forall("x", forall("v", implies(apply("f2","x","v","_"),
@@ -423,14 +423,14 @@ $unary_output_unique {
     $ms2 mp(ms1, got_rel2, _rel2_f, _q2, left(ms1), left(got_rel2))
     $ms3 mp(ms2, got_agree, _agree_f, _q3, left(ms2), left(got_agree))
     $ms4 mp(ms3, got_dom_fwd, _fwd_f, _q4, left(ms3), left(got_dom_fwd))
-    $got_eqv mp(ms4, got_dom_bwd, _bwd_f, goal, left(ms4), left(got_dom_bwd))
+    $got_eq mp(ms4, got_dom_bwd, _bwd_f, goal, left(ms4), left(got_dom_bwd))
 
-    $_ tap("eqv ok")
+    $_ tap("eq ok")
 
     # === Close ===
     $i2 implies(uo2, goal)
     $i1 implies(uo1, i2)
-    $cur got_eqv
+    $cur got_eq
     $cur ir(cur, remove(same, uo2, left(cur)), [i2], i2)
     $cur ir(cur, remove(same, uo1, left(cur)), [i1], i1)
     close(cur, left(cur), [i1], ["f2","f1","c"])

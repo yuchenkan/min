@@ -1,24 +1,24 @@
-from derived import mem, implies, iff, eqv, right
+from derived import mem, implies, iff, eq, right
 from vocab.sets import singleton
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_reflexive import eq_reflexive
 
 # |- singleton(s,a) -> mem(a,s)
 $singleton_mem {
     $sing singleton("s", "a", "_")
     $as mem("a", "s")
-    $eqv_aa eqv("a", "a", "_")
-    $iff_as iff(as, eqv_aa)
+    $eq_aa eq("a", "a", "_")
+    $iff_as iff(as, eq_aa)
 
     $got_iff fl(ax([iff_as], [iff_as], iff_as), [sing], [iff_as], sing, "a")
 
-    $_er head(right(eqv_reflexive))
-    $got_eqv apply_thm(eqv_reflexive, _er, ["a"], ["a"], \a: eqv(a,a,"_"), [])
+    $_er head(right(eq_reflexive))
+    $got_eq apply_thm(eq_reflexive, _er, ["a"], ["a"], \a: eq(a,a,"_"), [])
 
-    $imp_bwd implies(eqv_aa, as)
-    $got_as mp(mp(iff_elim_right(as, eqv_aa, []), got_iff, iff_as, imp_bwd, [], [sing]),
-        got_eqv, eqv_aa, as, [sing], [])
+    $imp_bwd implies(eq_aa, as)
+    $got_as mp(mp(iff_elim_right(as, eq_aa, []), got_iff, iff_as, imp_bwd, [], [sing]),
+        got_eq, eq_aa, as, [sing], [])
 
     $top implies(sing, as)
     $s1 ir(got_as, [], [top], top)

@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg2
 from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.nat.nat import nat, num, omega, successor
@@ -88,10 +88,10 @@ $rec_exists_step {
     $got_app mp(ea2, ax([un], [un], un), un, app_u_sn, left(ea2), [un])
 
     # === Function(u) from extend_consistency + extend_function ===
-    # extend_consistency (new): ra_v→nat_n→app_vn→app_f→succ_sn→app_vsn_z→eqv(fval,z)
+    # extend_consistency (new): ra_v→nat_n→app_vn→app_f→succ_sn→app_vsn_z→eq(fval,z)
     $_ec head(right(extend_consistency))
     $ec_ctx left(extend_consistency)
-    $_ec_b \v: \a: \f: \n: \sn: \val: \fval: \z: implies(rec_approx(v,a,f,"_"), implies(nat(n,"_"), implies(apply(v,n,val,"_"), implies(apply(f,val,fval,"_"), implies(successor(sn,n,"_"), implies(apply(v,sn,z,"_"), eqv(fval,z,"_")))))))
+    $_ec_b \v: \a: \f: \n: \sn: \val: \fval: \z: implies(rec_approx(v,a,f,"_"), implies(nat(n,"_"), implies(apply(v,n,val,"_"), implies(apply(f,val,fval,"_"), implies(successor(sn,n,"_"), implies(apply(v,sn,z,"_"), eq(fval,z,"_")))))))
     $ec1 apply_thm(extend_consistency, _ec, ["v", "a", "f", "n", "sn", "val", "fval", "z"], ["v", "a", "f", "n", "sn", "val", "fval", "z"], _ec_b, ec_ctx)
     $ec2 mp(ec1, ax([ra_v], [ra_v], ra_v), ra_v, arg2(head(right(ec1))), left(ec1), [ra_v])
     $ec3 mp(ec2, ax([nat_n], [nat_n], nat_n), nat_n, arg2(head(right(ec2))), left(ec2), [nat_n])
@@ -99,8 +99,8 @@ $rec_exists_step {
     $ec5 mp(ec4, ax([app_f_val], [app_f_val], app_f_val), app_f_val, arg2(head(right(ec4))), left(ec4), [app_f_val])
     $ec6 mp(ec5, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(ec5))), left(ec5), [succ_sn])
     $app_vsn_z apply("v", "sn", "z", "_")
-    $eqv_fval_z eqv("fval", "z", "_")
-    $cons_inner implies(app_vsn_z, eqv_fval_z)
+    $eq_fval_z eq("fval", "z", "_")
+    $cons_inner implies(app_vsn_z, eq_fval_z)
     $cons forall("z", cons_inner)
     $got_cons fr(ec6, left(ec6), [cons], cons, "z")
 
@@ -108,7 +108,7 @@ $rec_exists_step {
     $_ef head(right(extend_function))
     $ef_ctx left(extend_function)
     $_ef_b \v: \k: \y0: \op: \h: \u: implies(function(v,"_"), implies(singleton(h,op,"_"), implies(ordered_pair(op,k,y0,"_"),
-        implies(forall("z", implies(apply(v,k,"z","_"), eqv(y0,"z","_"))),
+        implies(forall("z", implies(apply(v,k,"z","_"), eq(y0,"z","_"))),
             implies(union(u,v,h,"_"), function(u,"_"))))))
     $ef1 apply_thm(extend_function, _ef, ["v", "sn", "fval", "op", "h", "u"], ["v", "k", "y0", "op", "h", "u"], _ef_b, ef_ctx)
     $ef2 mp(ef1, got_func_v, func_v, arg2(head(right(ef1))), left(ef1), left(got_body_v))

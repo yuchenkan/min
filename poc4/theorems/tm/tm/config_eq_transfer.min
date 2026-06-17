@@ -1,10 +1,10 @@
-from derived import implies, forall, eqv, left, right
+from derived import implies, forall, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.tm.tm import tm_config
 from tactics import ax, wr, fr, ir, inst, mp, apply_thm, close, same
 from util.list import remove
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
 
 # |- forall c,q1,h1,t1,q2,h2,t2.
@@ -12,22 +12,22 @@ from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
 #      TMConfig(c,q2,h2,t2)
 $config_eq_transfer {
     $cfg1 tm_config("c", "q1", "h1", "t1", "_")
-    $eq_q eqv("q1", "q2", "_")
-    $eq_h eqv("h1", "h2", "_")
-    $eq_t eqv("t1", "t2", "_")
+    $eq_q eq("q1", "q2", "_")
+    $eq_h eq("h1", "h2", "_")
+    $eq_t eq("t1", "t2", "_")
 
     # Eqv(h2,h1) and Eqv(t2,t1) from symmetry
-    $eq_h_sym eqv("h2", "h1", "_")
-    $eq_t_sym eqv("t2", "t1", "_")
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
-    $got_eq_h_sym mp(apply_thm(eqv_symmetric, _es, ["h1", "h2"], ["a", "b"], _es_b, []),
+    $eq_h_sym eq("h2", "h1", "_")
+    $eq_t_sym eq("t2", "t1", "_")
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a, b, "_"), eq(b, a, "_"))
+    $got_eq_h_sym mp(apply_thm(eq_symmetric, _es, ["h1", "h2"], ["a", "b"], _es_b, []),
         ax([eq_h], [eq_h], eq_h), eq_h, eq_h_sym, [], [eq_h])
-    $got_eq_t_sym mp(apply_thm(eqv_symmetric, _es, ["t1", "t2"], ["a", "b"], _es_b, []),
+    $got_eq_t_sym mp(apply_thm(eq_symmetric, _es, ["t1", "t2"], ["a", "b"], _es_b, []),
         ax([eq_t], [eq_t], eq_t), eq_t, eq_t_sym, [], [eq_t])
 
     # Alpha-rename ordpair_eq_transfer: t,a,b,c,d -> s,p,q,r,u
-    $_oet_b \s: \p: \q: \r: \u: implies(eqv(p,r,"_"), implies(eqv(q,u,"_"),
+    $_oet_b \s: \p: \q: \r: \u: implies(eq(p,r,"_"), implies(eq(q,u,"_"),
         implies(ordered_pair(s,p,q,"_"), ordered_pair(s,r,u,"_"))))
     $oet_r forall("s", forall("p", forall("q", forall("r", forall("u",
         _oet_b("s")("p")("q")("r")("u"))))))
@@ -53,10 +53,10 @@ $config_eq_transfer {
         [cfg1], [eq_h, eq_t, op_v_h2t2])
 
     # Eqv(v,v) from reflexivity
-    $eq_vv eqv("v", "v", "_")
-    $_er head(right(eqv_reflexive))
-    $_er_b \a: eqv(a, a, "_")
-    $got_eq_vv apply_thm(eqv_reflexive, _er, ["v"], ["a"], _er_b, [])
+    $eq_vv eq("v", "v", "_")
+    $_er head(right(eq_reflexive))
+    $_er_b \a: eq(a, a, "_")
+    $got_eq_vv apply_thm(eq_reflexive, _er, ["v"], ["a"], _er_b, [])
 
     # OrdPair(c,q1,v) -> OrdPair(c,q2,v) via oet
     $op_c_q2_v ordered_pair("c", "q2", "v", "_")

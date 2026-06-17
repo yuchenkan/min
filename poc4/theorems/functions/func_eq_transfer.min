@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, iff, and, or, exists, eqv, left, right
+from derived import mem, neg, implies, iff, and, or, exists, eq, left, right
 from vocab.sets import ordered_pair, relation
 from vocab.functions import function, apply, single_valued
 from tactics import ax, fl, fr, ir, wr, mp, apply_thm, inst, cut_c, close, same
@@ -7,12 +7,12 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.functions.apply_func_transfer import apply_func_transfer
 
 # |- forall f,g. Eq(f,g) -> Function(f) -> Function(g)
 $func_eq_transfer {
-    $eq_fg eqv("f", "g", "_")
+    $eq_fg eq("f", "g", "_")
     $func_f function("f", "_")
     $func_g function("g", "_")
     $rel_f relation("f", "_")
@@ -59,12 +59,12 @@ $func_eq_transfer {
 
     # === Build SingleValued(g) ===
     # sv(f) = forall(x, forall(y1, forall(y2,
-    #     implies(and(apply(f,x,y1), apply(f,x,y2)), eqv(y1,y2)))))
+    #     implies(and(apply(f,x,y1), apply(f,x,y2)), eq(y1,y2)))))
     # Need: Apply(g,x,y) -> Apply(f,x,y) via apply_func_transfer + Eq(g,f)
-    $eq_gf eqv("g", "f", "_")
-    $_sym head(right(eqv_symmetric))
-    $_sym_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_eq_gf mp(apply_thm(eqv_symmetric, _sym, ["f","g"], ["a","b"], _sym_b, []),
+    $eq_gf eq("g", "f", "_")
+    $_sym head(right(eq_symmetric))
+    $_sym_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq_gf mp(apply_thm(eq_symmetric, _sym, ["f","g"], ["a","b"], _sym_b, []),
         ax([eq_fg],[eq_fg],eq_fg), eq_fg, eq_gf, [], [eq_fg])
 
     # apply_func_transfer: forall f,g,x,y. Eq(f,g) -> Apply(f,x,y) -> Apply(g,x,y)
@@ -73,10 +73,10 @@ $func_eq_transfer {
     $app_gx2 apply("g", "x", "y2", "_")
     $app_fx1 apply("f", "x", "y1", "_")
     $app_fx2 apply("f", "x", "y2", "_")
-    $eq_y12 eqv("y1", "y2", "_")
+    $eq_y12 eq("y1", "y2", "_")
 
     # Alpha-rename apply_func_transfer to avoid f/g clash
-    $_aft_r_b \a1: \a2: \a3: \a4: implies(eqv(a1,a2,"_"), implies(apply(a1,a3,a4,"_"), apply(a2,a3,a4,"_")))
+    $_aft_r_b \a1: \a2: \a3: \a4: implies(eq(a1,a2,"_"), implies(apply(a1,a3,a4,"_"), apply(a2,a3,a4,"_")))
     $_aft_r forall("a1", forall("a2", forall("a3", forall("a4", _aft_r_b("a1")("a2")("a3")("a4")))))
     $aft_renamed wr(apply_func_transfer, left(apply_func_transfer), [_aft_r], _aft_r)
 
@@ -98,7 +98,7 @@ $func_eq_transfer {
 
     # Instantiate sv(f) with x,y1,y2: And(Apply(f,x,y1),Apply(f,x,y2)) -> Eq(y1,y2)
     $sv_body implies(and_fx, eq_y12)
-    $_sv_b \x: \y1: \y2: implies(and(apply("f",x,y1,"_"), apply("f",x,y2,"_")), eqv(y1,y2,"_"))
+    $_sv_b \x: \y1: \y2: implies(and(apply("f",x,y1,"_"), apply("f",x,y2,"_")), eq(y1,y2,"_"))
     $got_sv_inst apply_thm(got_sv_f, sv_f, ["x","y1","y2"], ["x","y1","y2"], _sv_b, [func_f])
 
     # Chain: And(Apply(f,...)) -> Eq(y1,y2) with our got_and_f

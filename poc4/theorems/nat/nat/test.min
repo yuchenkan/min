@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, qed, sep_ax
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, qed, sep_ax
 from vocab.sets import subset, transitive_set
 from vocab.nat.nat import nat, num, inductive, omega, successor
 from vocab.logic import exists_unique
@@ -37,7 +37,7 @@ from theorems.nat.nat.nat_transitive import nat_transitive
 $_ qed(nat_elim, forall("m", forall("w", implies(nat("m","_"), implies(omega("w","_"), mem("m","w"))))), "z")
 $_ tap("nat_elim ok")
 
-$neu_body \k: and(exists("n", num("n",k,"_")), forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eqv("n1","n2","_"))))))
+$neu_body \k: and(exists("n", num("n",k,"_")), forall("n1", forall("n2", implies(num("n1",k,"_"), implies(num("n2",k,"_"), eq("n1","n2","_"))))))
 $_ qed(num_exists_unique(0), neu_body(0), "z")
 $_ tap("num_exists_unique(0) ok")
 $_ qed(num_exists_unique(1), neu_body(1), "z")
@@ -48,7 +48,7 @@ $_ tap("num_exists_unique(2) ok")
 $_ qed(num_exists(0), exists("s", num("s",0,"_")), "z")
 $_ tap("num_exists(0) ok")
 
-$_ qed(num_unique(0), forall("n1", forall("n2", implies(num("n1",0,"_"), implies(num("n2",0,"_"), eqv("n1","n2","_"))))), "z")
+$_ qed(num_unique(0), forall("n1", forall("n2", implies(num("n1",0,"_"), implies(num("n2",0,"_"), eq("n1","n2","_"))))), "z")
 $_ tap("num_unique(0) ok")
 
 $_ qed(unique_num(0), exists_unique(\v p: num(v,0,p), "_"), "z")
@@ -62,9 +62,9 @@ $_ tap("num_exists(1) ok")
 $_ qed(num_exists(2), exists("n", num("n",2,"_")), "z")
 $_ tap("num_exists(2) ok")
 
-$_ qed(num_unique(1), forall("n1", forall("n2", implies(num("n1",1,"_"), implies(num("n2",1,"_"), eqv("n1","n2","_"))))), "z")
+$_ qed(num_unique(1), forall("n1", forall("n2", implies(num("n1",1,"_"), implies(num("n2",1,"_"), eq("n1","n2","_"))))), "z")
 $_ tap("num_unique(1) ok")
-$_ qed(num_unique(2), forall("n1", forall("n2", implies(num("n1",2,"_"), implies(num("n2",2,"_"), eqv("n1","n2","_"))))), "z")
+$_ qed(num_unique(2), forall("n1", forall("n2", implies(num("n1",2,"_"), implies(num("n2",2,"_"), eq("n1","n2","_"))))), "z")
 $_ tap("num_unique(2) ok")
 
 $_ qed(unique_num(1), exists_unique(\v p: num(v,1,p), "_"), "z")
@@ -81,7 +81,7 @@ $_ qed(successor_exists, forall("a", exists("s", successor("s", "a", "_"))), "z"
 $_ tap("successor_exists ok")
 
 $_ qed(successor_unique, forall("a", forall("s1", forall("s2",
-    implies(successor("s1","a","_"), implies(successor("s2","a","_"), eqv("s1","s2","_")))))), "z")
+    implies(successor("s1","a","_"), implies(successor("s2","a","_"), eq("s1","s2","_")))))), "z")
 $_ tap("successor_unique ok")
 
 $_ qed(unique_successor, forall("a", exists_unique(\v p: successor(v, "a", p), "_")), "z")
@@ -95,18 +95,18 @@ $_ qed(mem_succ_intro, forall("x", forall("s", forall("n",
 $_ tap("mem_succ_intro ok")
 
 $_ qed(mem_succ_elim, forall("x", forall("s", forall("n",
-    implies(mem("x","s"), implies(successor("s","n","_"), or(mem("x","n"), eqv("x","n","_"))))))), "z")
+    implies(mem("x","s"), implies(successor("s","n","_"), or(mem("x","n"), eq("x","n","_"))))))), "z")
 $_ tap("mem_succ_elim ok")
 
 $_ qed(succ_not_zero, forall("sn", forall("n", implies(successor("sn","n","_"), neg(num("sn",0,"_"))))), "z")
 $_ tap("succ_not_zero ok")
 
 $_ qed(succ_set_transfer, forall("s1", forall("s2", forall("n",
-    implies(eqv("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))), "z")
+    implies(eq("s1","s2","_"), implies(successor("s1","n","_"), successor("s2","n","_")))))), "z")
 $_ tap("succ_set_transfer ok")
 
 $_ qed(eq_succ_transfer, forall("a", forall("b", forall("c", forall("d",
-    implies(eqv("a","c","_"), implies(eqv("b","d","_"),
+    implies(eq("a","c","_"), implies(eq("b","d","_"),
         implies(successor("c","d","_"), successor("a","b","_")))))))), "z")
 $_ tap("eq_succ_transfer ok")
 
@@ -133,7 +133,7 @@ $_ qed(omega_exists, exists("w", omega("w", "_")), "z")
 $_ tap("omega_exists ok")
 
 $_ qed(omega_unique,
-    forall("w1", forall("w2", implies(omega("w1", "_"), implies(omega("w2", "_"), eqv("w1","w2", "_"))))), "z")
+    forall("w1", forall("w2", implies(omega("w1", "_"), implies(omega("w2", "_"), eq("w1","w2", "_"))))), "z")
 $_ tap("omega_unique ok")
 
 $_ qed(unique_omega, exists_unique(\v p: omega(v, p), "_"), "z")
@@ -166,7 +166,7 @@ $_ tap("nat_intro ok")
 
 $_ qed(successor_injection, forall("w", forall("m", forall("n", forall("sn",
     implies(omega("w","_"), implies(mem("m","w"), implies(mem("n","w"),
-        implies(successor("sn","m","_"), implies(successor("sn","n","_"), eqv("m","n","_")))))))))), "z")
+        implies(successor("sn","m","_"), implies(successor("sn","n","_"), eq("m","n","_")))))))))), "z")
 $_ tap("successor_injection ok")
 
 $_ qed(nat_transitive, forall("b", implies(nat("b","_"), transitive_set("b","_"))), "z")

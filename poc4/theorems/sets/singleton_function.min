@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, eqv, left, right
+from derived import mem, implies, forall, and, exists, eq, left, right
 from vocab.sets import singleton, ordered_pair, relation
 from vocab.functions import apply, function
 from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
@@ -6,11 +6,11 @@ from util.list import remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 
 # pa |- singleton(f, op) -> ordered_pair(op, x, y) -> function(f)
 $singleton_function {
@@ -21,13 +21,13 @@ $singleton_function {
     $app1 apply("f", "r", "r1", "_")
     $app2 apply("f", "r", "r2", "_")
     $and_apps and(app1, app2)
-    $eqv_r1r2 eqv("r1", "r2", "_")
+    $eq_r1r2 eq("r1", "r2", "_")
 
     $op_q1 ordered_pair("q1", "r", "r1", "_")
     $q1f mem("q1", "f")
     $and_q1 and(op_q1, q1f)
-    $eqv_q1_op eqv("q1", "op", "_")
-    $eqv_r1y eqv("r1", "y", "_")
+    $eq_q1_op eq("q1", "op", "_")
+    $eq_r1y eq("r1", "y", "_")
 
     $_sme head(right(singleton_mem_eq))
     $_kur head(right(kuratowski))
@@ -38,70 +38,70 @@ $singleton_function {
     $got_q1f mp(and_elim_right(op_q1, q1f, []),
         ax([and_q1], [and_q1], and_q1), and_q1, q1f, [], [and_q1])
 
-    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_et_b \a: \b: \c: implies(eqv(a,b,"_"), implies(eqv(b,c,"_"), eqv(a,c,"_")))
-    $got_eqv_q1 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q1", "f", "op"], ["q1", "f", "a"], _sme_b, []),
-        ax([sing], [sing], sing), sing, implies(q1f, eqv_q1_op), [], [sing]),
-        got_q1f, q1f, eqv_q1_op, [sing], [and_q1])
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eq(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"),eq(b,d,"_")))))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $_et_b \a: \b: \c: implies(eq(a,b,"_"), implies(eq(b,c,"_"), eq(a,c,"_")))
+    $got_eq_q1 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q1", "f", "op"], ["q1", "f", "a"], _sme_b, []),
+        ax([sing], [sing], sing), sing, implies(q1f, eq_q1_op), [], [sing]),
+        got_q1f, q1f, eq_q1_op, [sing], [and_q1])
 
-    # kuratowski: kur_ctx |- op(q1,r,r1) → op(op,x,y) → eqv(q1,op) → r=x ∧ r1=y
-    $goal_and1 and(eqv("r", "x", "_"), eqv_r1y)
+    # kuratowski: kur_ctx |- op(q1,r,r1) → op(op,x,y) → eq(q1,op) → r=x ∧ r1=y
+    $goal_and1 and(eq("r", "x", "_"), eq_r1y)
     $k1 apply_thm(kuratowski, _kur, ["q1", "op", "r", "r1", "x", "y"], ["q1", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
-    $k1a mp(k1, got_op_q1, op_q1, implies(opxy, implies(eqv_q1_op, goal_and1)), left(k1), [and_q1])
-    $k1b mp(k1a, ax([opxy], [opxy], opxy), opxy, implies(eqv_q1_op, goal_and1), left(k1a), [opxy])
-    $k1c mp(k1b, got_eqv_q1, eqv_q1_op, goal_and1, left(k1b), [sing, and_q1])
+    $k1a mp(k1, got_op_q1, op_q1, implies(opxy, implies(eq_q1_op, goal_and1)), left(k1), [and_q1])
+    $k1b mp(k1a, ax([opxy], [opxy], opxy), opxy, implies(eq_q1_op, goal_and1), left(k1a), [opxy])
+    $k1c mp(k1b, got_eq_q1, eq_q1_op, goal_and1, left(k1b), [sing, and_q1])
     # k1c: some_ctx |- goal_and1
 
-    $got_r1y mp(and_elim_right(eqv("r", "x", "_"), eqv_r1y, []),
-        k1c, goal_and1, eqv_r1y, [], left(k1c))
-    # got_r1y: left(k1c) |- eqv_r1y
+    $got_r1y mp(and_elim_right(eq("r", "x", "_"), eq_r1y, []),
+        k1c, goal_and1, eq_r1y, [], left(k1c))
+    # got_r1y: left(k1c) |- eq_r1y
 
     $got_r1y_eel eel(got_r1y, \v: and(ordered_pair(v, "r", "r1", "_"), mem(v, "f")),
-        "p", "q1", left(got_r1y), eqv_r1y)
-    # got_r1y_eel: some_ctx with app1 instead of and_q1 |- eqv_r1y
+        "p", "q1", left(got_r1y), eq_r1y)
+    # got_r1y_eel: some_ctx with app1 instead of and_q1 |- eq_r1y
 
     # Same for r2
     $op_q2 ordered_pair("q2", "r", "r2", "_")
     $q2f mem("q2", "f")
     $and_q2 and(op_q2, q2f)
-    $eqv_q2_op eqv("q2", "op", "_")
-    $eqv_r2y eqv("r2", "y", "_")
+    $eq_q2_op eq("q2", "op", "_")
+    $eq_r2y eq("r2", "y", "_")
 
     $got_op_q2 mp(and_elim_left(op_q2, q2f, []),
         ax([and_q2], [and_q2], and_q2), and_q2, op_q2, [], [and_q2])
     $got_q2f mp(and_elim_right(op_q2, q2f, []),
         ax([and_q2], [and_q2], and_q2), and_q2, q2f, [], [and_q2])
 
-    $got_eqv_q2 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q2", "f", "op"], ["q2", "f", "a"], _sme_b, []),
-        ax([sing], [sing], sing), sing, implies(q2f, eqv_q2_op), [], [sing]),
-        got_q2f, q2f, eqv_q2_op, [sing], [and_q2])
+    $got_eq_q2 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q2", "f", "op"], ["q2", "f", "a"], _sme_b, []),
+        ax([sing], [sing], sing), sing, implies(q2f, eq_q2_op), [], [sing]),
+        got_q2f, q2f, eq_q2_op, [sing], [and_q2])
 
-    $goal_and2 and(eqv("r", "x", "_"), eqv_r2y)
+    $goal_and2 and(eq("r", "x", "_"), eq_r2y)
     $k2 apply_thm(kuratowski, _kur, ["q2", "op", "r", "r2", "x", "y"], ["q2", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
-    $k2a mp(k2, got_op_q2, op_q2, implies(opxy, implies(eqv_q2_op, goal_and2)), left(k2), [and_q2])
-    $k2b mp(k2a, ax([opxy], [opxy], opxy), opxy, implies(eqv_q2_op, goal_and2), left(k2a), [opxy])
-    $k2c mp(k2b, got_eqv_q2, eqv_q2_op, goal_and2, left(k2b), [sing, and_q2])
+    $k2a mp(k2, got_op_q2, op_q2, implies(opxy, implies(eq_q2_op, goal_and2)), left(k2), [and_q2])
+    $k2b mp(k2a, ax([opxy], [opxy], opxy), opxy, implies(eq_q2_op, goal_and2), left(k2a), [opxy])
+    $k2c mp(k2b, got_eq_q2, eq_q2_op, goal_and2, left(k2b), [sing, and_q2])
 
-    $got_r2y mp(and_elim_right(eqv("r", "x", "_"), eqv_r2y, []),
-        k2c, goal_and2, eqv_r2y, [], left(k2c))
+    $got_r2y mp(and_elim_right(eq("r", "x", "_"), eq_r2y, []),
+        k2c, goal_and2, eq_r2y, [], left(k2c))
 
     $got_r2y_eel eel(got_r2y, \v: and(ordered_pair(v, "r", "r2", "_"), mem(v, "f")),
-        "p", "q2", left(got_r2y), eqv_r2y)
+        "p", "q2", left(got_r2y), eq_r2y)
 
-    # eqv(r2,y) → eqv(y,r2)
-    $_es head(right(eqv_symmetric))
-    $eqv_yr2 eqv("y", "r2", "_")
-    $got_yr2 mp(apply_thm(eqv_symmetric, _es, ["r2", "y"], ["r2", "b"], _es_b, []),
-        got_r2y_eel, eqv_r2y, eqv_yr2, [], left(got_r2y_eel))
+    # eq(r2,y) → eq(y,r2)
+    $_es head(right(eq_symmetric))
+    $eq_yr2 eq("y", "r2", "_")
+    $got_yr2 mp(apply_thm(eq_symmetric, _es, ["r2", "y"], ["r2", "b"], _es_b, []),
+        got_r2y_eel, eq_r2y, eq_yr2, [], left(got_r2y_eel))
 
-    # eqv(r1,y) + eqv(y,r2) → eqv(r1,r2)
-    $_et head(right(eqv_transitive))
-    $got_eqv mp(mp(apply_thm(eqv_transitive, _et, ["r1", "y", "r2"], ["r1", "b", "c"], _et_b, []),
-        got_r1y_eel, eqv_r1y, implies(eqv_yr2, eqv_r1r2), [], left(got_r1y_eel)),
-        got_yr2, eqv_yr2, eqv_r1r2, left(got_r1y_eel), left(got_yr2))
-    # got_eqv: merged_ctx |- eqv_r1r2
+    # eq(r1,y) + eq(y,r2) → eq(r1,r2)
+    $_et head(right(eq_transitive))
+    $got_eq mp(mp(apply_thm(eq_transitive, _et, ["r1", "y", "r2"], ["r1", "b", "c"], _et_b, []),
+        got_r1y_eel, eq_r1y, implies(eq_yr2, eq_r1r2), [], left(got_r1y_eel)),
+        got_yr2, eq_yr2, eq_r1r2, left(got_r1y_eel), left(got_yr2))
+    # got_eq: merged_ctx |- eq_r1r2
 
     # Replace app1,app2 with and(app1,app2) via cut
     $got_a1 mp(and_elim_left(app1, app2, []),
@@ -109,14 +109,14 @@ $singleton_function {
     $got_a2 mp(and_elim_right(app1, app2, []),
         ax([and_apps], [and_apps], and_apps), and_apps, app2, [], [and_apps])
 
-    $got_cut1 cut_c(got_a1, got_eqv, app1, [and_apps], left(got_eqv), eqv_r1r2)
-    $got_cut2 cut_c(got_a2, got_cut1, app2, [and_apps], left(got_cut1), eqv_r1r2)
-    # got_cut2: ctx with and_apps, sing, opxy, pa_f |- eqv_r1r2
+    $got_cut1 cut_c(got_a1, got_eq, app1, [and_apps], left(got_eq), eq_r1r2)
+    $got_cut2 cut_c(got_a2, got_cut1, app2, [and_apps], left(got_cut1), eq_r1r2)
+    # got_cut2: ctx with and_apps, sing, opxy, pa_f |- eq_r1r2
 
-    # Close: and_apps → eqv_r1r2, then forall r2, r1, r
-    # got_cut2: ctx_with_and |- eqv_r1r2. Extract and_apps from left.
+    # Close: and_apps → eq_r1r2, then forall r2, r1, r
+    # got_cut2: ctx_with_and |- eq_r1r2. Extract and_apps from left.
     $ctx_with_and left(got_cut2)
-    $imp_inner implies(and_apps, eqv_r1r2)
+    $imp_inner implies(and_apps, eq_r1r2)
 
     # Remove and_apps, sing, opxy from context step by step via ir
     $ctx_no_and remove(same, and_apps, ctx_with_and)
@@ -131,21 +131,21 @@ $singleton_function {
     # relation(f,"_") = forall(z, implies(mem(z,f), exists(x2, exists(y2, ordered_pair(z,x2,y2,"_")))))
     $rel relation("f", "_")
 
-    # From z∈f: singleton_mem_eq → eqv(z,op). eqv_ordpair_transfer: eqv(z,op)→op(op,x,y)→op(z,x,y).
+    # From z∈f: singleton_mem_eq → eq(z,op). eq_ordpair_transfer: eq(z,op)→op(op,x,y)→op(z,x,y).
     # Then eir x, eir y → ∃x2.∃y2. ordpair(z,x2,y2).
     $zf mem("z","f")
-    $eqv_zop eqv("z","op","_")
-    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $got_eqv_z mp(mp(apply_thm(singleton_mem_eq, _sme, ["z","f","op"], ["z","f","a"], _sme_b, []),
-        ax([sing], [sing], sing), sing, implies(zf, eqv_zop), [], [sing]),
-        ax([zf], [zf], zf), zf, eqv_zop, [sing], [zf])
-    # [sing, zf] |- eqv(z,op)
+    $eq_zop eq("z","op","_")
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eq(x,a,"_")))
+    $got_eq_z mp(mp(apply_thm(singleton_mem_eq, _sme, ["z","f","op"], ["z","f","a"], _sme_b, []),
+        ax([sing], [sing], sing), sing, implies(zf, eq_zop), [], [sing]),
+        ax([zf], [zf], zf), zf, eq_zop, [sing], [zf])
+    # [sing, zf] |- eq(z,op)
 
-    $_eot head(right(eqv_ordpair_transfer))
-    $_eot_b \z: \t: \x: \y: implies(eqv(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
+    $_eot head(right(eq_ordpair_transfer))
+    $_eot_b \z: \t: \x: \y: implies(eq(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
     $opz ordered_pair("z","x","y","_")
-    $got_opz mp(mp(apply_thm(eqv_ordpair_transfer, _eot, ["z","op","x","y"], ["z","t","x","y"], _eot_b, []),
-        got_eqv_z, eqv_zop, implies(opxy, opz), [], [sing, zf]),
+    $got_opz mp(mp(apply_thm(eq_ordpair_transfer, _eot, ["z","op","x","y"], ["z","t","x","y"], _eot_b, []),
+        got_eq_z, eq_zop, implies(opxy, opz), [], [sing, zf]),
         ax([opxy], [opxy], opxy), opxy, opz, [sing, zf], [opxy])
     # [sing, zf, opxy] |- ordered_pair(z,x,y)
 

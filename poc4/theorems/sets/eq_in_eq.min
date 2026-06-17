@@ -1,16 +1,16 @@
-from derived import mem, iff, implies, eqv, forall, right
+from derived import mem, iff, implies, eq, forall, right
 from tactics import ax, fl, fr, ir, mp, wl, cut, close, apply_thm
 from theorems.sets.eq_transfer import eq_transfer
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_sym import iff_sym
 from theorems.logic.iff_intro import iff_intro
 
-# |- eqv(x1,x2) -> iff(eqv(z,x1), eqv(z,x2))
-# eqv uses prefix "_" to avoid clash with quantified w
+# |- eq(x1,x2) -> iff(eq(z,x1), eq(z,x2))
+# eq uses prefix "_" to avoid clash with quantified w
 $eq_in_eq {
-    $eqv_12 eqv("x1", "x2", "_")
-    $eqv_z1 eqv("z", "x1", "_")
-    $eqv_z2 eqv("z", "x2", "_")
+    $eq_12 eq("x1", "x2", "_")
+    $eq_z1 eq("z", "x1", "_")
+    $eq_z2 eq("z", "x2", "_")
 
     $mw1 mem("w", "x1")
     $mw2 mem("w", "x2")
@@ -20,57 +20,57 @@ $eq_in_eq {
     $iff_z2 iff(mwz, mw2)
     $iff_21 iff(mw2, mw1)
 
-    # eq_transfer instantiated: eqv(x1,x2) -> iff(mem(w,x1),mem(w,x2))
+    # eq_transfer instantiated: eq(x1,x2) -> iff(mem(w,x1),mem(w,x2))
     $_et head(right(eq_transfer))
     $got_et apply_thm(eq_transfer, _et, ["x1", "x2", "w"], ["x1", "b", "z"],
-        \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a),mem(z,b))), [])
-    # [] |- [eqv(x1,x2) -> iff(mem(w,x1),mem(w,x2))]
-    $got_iff12 mp(got_et, ax([eqv_12], [eqv_12], eqv_12), eqv_12, iff_12, [], [eqv_12])
-    # [eqv_12] |- [iff_12]
+        \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a),mem(z,b))), [])
+    # [] |- [eq(x1,x2) -> iff(mem(w,x1),mem(w,x2))]
+    $got_iff12 mp(got_et, ax([eq_12], [eq_12], eq_12), eq_12, iff_12, [], [eq_12])
+    # [eq_12] |- [iff_12]
 
-    # fwd: eqv(z,x1) -> eqv(z,x2)
-    # instantiate eqv(z,x1) with w: iff(mem(w,z), mem(w,x1))
-    $got_z1 fl(ax([iff_z1], [iff_z1], iff_z1), [eqv_z1], [iff_z1], eqv_z1, "w")
-    # [eqv_z1] |- [iff_z1]
+    # fwd: eq(z,x1) -> eq(z,x2)
+    # instantiate eq(z,x1) with w: iff(mem(w,z), mem(w,x1))
+    $got_z1 fl(ax([iff_z1], [iff_z1], iff_z1), [eq_z1], [iff_z1], eq_z1, "w")
+    # [eq_z1] |- [iff_z1]
 
     # iff_chain: iff(mwz,mw1) -> iff(mw1,mw2) -> iff(mwz,mw2)
     $chain_f iff_chain(mwz, mw1, mw2, [])
-    $s1 mp(chain_f, got_z1, iff_z1, implies(iff_12, iff_z2), [], [eqv_z1])
-    $got_fwd_w mp(s1, got_iff12, iff_12, iff_z2, [eqv_z1], [eqv_12])
-    # [eqv_z1, eqv_12] |- [iff_z2]
+    $s1 mp(chain_f, got_z1, iff_z1, implies(iff_12, iff_z2), [], [eq_z1])
+    $got_fwd_w mp(s1, got_iff12, iff_12, iff_z2, [eq_z1], [eq_12])
+    # [eq_z1, eq_12] |- [iff_z2]
 
-    # forall_right w -> eqv(z,x2)
-    $got_fwd_fa fr(got_fwd_w, [eqv_z1, eqv_12], [eqv_z2], eqv_z2, "w")
-    # [eqv_z1, eqv_12] |- [eqv_z2]
+    # forall_right w -> eq(z,x2)
+    $got_fwd_fa fr(got_fwd_w, [eq_z1, eq_12], [eq_z2], eq_z2, "w")
+    # [eq_z1, eq_12] |- [eq_z2]
 
-    $imp_fwd implies(eqv_z1, eqv_z2)
-    $got_fwd ir(got_fwd_fa, [eqv_12], [imp_fwd], imp_fwd)
+    $imp_fwd implies(eq_z1, eq_z2)
+    $got_fwd ir(got_fwd_fa, [eq_12], [imp_fwd], imp_fwd)
 
-    # bwd: eqv(z,x2) -> eqv(z,x1)
-    $got_z2 fl(ax([iff_z2], [iff_z2], iff_z2), [eqv_z2], [iff_z2], eqv_z2, "w")
-    # [eqv_z2] |- [iff_z2]
+    # bwd: eq(z,x2) -> eq(z,x1)
+    $got_z2 fl(ax([iff_z2], [iff_z2], iff_z2), [eq_z2], [iff_z2], eq_z2, "w")
+    # [eq_z2] |- [iff_z2]
 
     # iff_sym: iff(mw1,mw2) -> iff(mw2,mw1)
-    $got_iff21 mp(iff_sym(mw1, mw2, []), got_iff12, iff_12, iff_21, [], [eqv_12])
-    # [eqv_12] |- [iff_21]
+    $got_iff21 mp(iff_sym(mw1, mw2, []), got_iff12, iff_12, iff_21, [], [eq_12])
+    # [eq_12] |- [iff_21]
 
     # iff_chain: iff(mwz,mw2) -> iff(mw2,mw1) -> iff(mwz,mw1)
     $chain_b iff_chain(mwz, mw2, mw1, [])
-    $b1 mp(chain_b, got_z2, iff_z2, implies(iff_21, iff_z1), [], [eqv_z2])
-    $got_bwd_w mp(b1, got_iff21, iff_21, iff_z1, [eqv_z2], [eqv_12])
-    # [eqv_z2, eqv_12] |- [iff_z1]
+    $b1 mp(chain_b, got_z2, iff_z2, implies(iff_21, iff_z1), [], [eq_z2])
+    $got_bwd_w mp(b1, got_iff21, iff_21, iff_z1, [eq_z2], [eq_12])
+    # [eq_z2, eq_12] |- [iff_z1]
 
-    $got_bwd_fa fr(got_bwd_w, [eqv_z2, eqv_12], [eqv_z1], eqv_z1, "w")
-    $imp_bwd implies(eqv_z2, eqv_z1)
-    $got_bwd ir(got_bwd_fa, [eqv_12], [imp_bwd], imp_bwd)
+    $got_bwd_fa fr(got_bwd_w, [eq_z2, eq_12], [eq_z1], eq_z1, "w")
+    $imp_bwd implies(eq_z2, eq_z1)
+    $got_bwd ir(got_bwd_fa, [eq_12], [imp_bwd], imp_bwd)
 
     # iff_intro
-    $iff_result iff(eqv_z1, eqv_z2)
-    $got_iff mp(mp(iff_intro(eqv_z1, eqv_z2, []),
-                   got_fwd, imp_fwd, implies(imp_bwd, iff_result), [], [eqv_12]),
-                got_bwd, imp_bwd, iff_result, [eqv_12], [eqv_12])
+    $iff_result iff(eq_z1, eq_z2)
+    $got_iff mp(mp(iff_intro(eq_z1, eq_z2, []),
+                   got_fwd, imp_fwd, implies(imp_bwd, iff_result), [], [eq_12]),
+                got_bwd, imp_bwd, iff_result, [eq_12], [eq_12])
 
-    $top implies(eqv_12, iff_result)
+    $top implies(eq_12, iff_result)
     $result ir(got_iff, [], [top], top)
     close(result, [], [top], ["x2","x1","z"])
 }

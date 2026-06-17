@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, iff, eqv, left, right, head, arg2, sep_ax
+from derived import mem, neg, implies, forall, exists, and, or, iff, eq, left, right, head, arg2, sep_ax
 from vocab.nat.nat import nat, num, omega, successor, inductive, subset
 from vocab.nat.order import lt
 from vocab.nat.arithmetic.plus import plus
@@ -10,7 +10,7 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.logic.ext_substitution import ext_substitution
 
 from theorems.nat.nat.omega_smallest_inductive import omega_smallest_inductive
@@ -93,24 +93,24 @@ $plus_sub {
 
     # plus_val_unique: Plus(m,z,pv) + Plus(m,z,m) -> Eqv(pv,m)
     $plus_mzpv plus("m","z","pv","_")
-    $eqv_pvm eqv("pv","m","_")
-    $_pvu_b \a: \b: \c: \c2: implies(plus(a,b,c,"_"), implies(plus(a,b,c2,"_"), eqv(c,c2,"_")))
+    $eq_pvm eq("pv","m","_")
+    $_pvu_b \a: \b: \c: \c2: implies(plus(a,b,c,"_"), implies(plus(a,b,c2,"_"), eq(c,c2,"_")))
     $got_pvu apply_thm(plus_val_unique, head(right(plus_val_unique)),
         ["m","z","pv","m"], ["a","b","c","c2"], _pvu_b, left(plus_val_unique))
     $got_pvu mp(got_pvu,
-        ax([plus_mzpv],[plus_mzpv],plus_mzpv), plus_mzpv, implies(plus_mzm, eqv_pvm),
+        ax([plus_mzpv],[plus_mzpv],plus_mzpv), plus_mzpv, implies(plus_mzm, eq_pvm),
         left(got_pvu), [plus_mzpv])
-    $got_eqv_base mp(got_pvu, got_pb, plus_mzm, eqv_pvm, left(got_pvu), left(got_pb))
+    $got_eq_base mp(got_pvu, got_pb, plus_mzm, eq_pvm, left(got_pvu), left(got_pb))
 
     # eq_transfer: Eqv(pv,m) -> iff(iv in pv, iv in m)
     $iv_in_pv lt("iv","pv","_")
     $iv_in_m lt("iv","m","_")
     $neg_ivm neg(iv_in_m)
-    $_eqt_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $_eqt_b \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a), mem(z,b)))
     $got_eqt apply_thm(eq_transfer, head(right(eq_transfer)),
         ["pv","m","iv"], ["a","b","z"], _eqt_b, left(eq_transfer))
-    $got_iff_b mp(got_eqt, got_eqv_base, eqv_pvm, iff(iv_in_pv, iv_in_m),
-        left(got_eqt), left(got_eqv_base))
+    $got_iff_b mp(got_eqt, got_eq_base, eq_pvm, iff(iv_in_pv, iv_in_m),
+        left(got_eqt), left(got_eq_base))
     $got_fwd_b mp(iff_elim_left(iv_in_pv, iv_in_m, []),
         got_iff_b, iff(iv_in_pv, iv_in_m), implies(iv_in_pv, iv_in_m), [], left(got_iff_b))
     $got_ivm mp(got_fwd_b, ax([iv_in_pv],[iv_in_pv],iv_in_pv), iv_in_pv, iv_in_m,
@@ -162,20 +162,20 @@ $plus_sub {
     $_ tap("z in rv ok")
 
     # Transfer to "zero": Num(zero,0) -> Eqv(zero,z) -> zero in rv
-    $_eu_b \va: \vb: implies(num(va,0,"_"), implies(num(vb,0,"_"), eqv(va,vb,"_")))
+    $_eu_b \va: \vb: implies(num(va,0,"_"), implies(num(vb,0,"_"), eq(va,vb,"_")))
     $emp_zero num("zero",0,"_")
     $got_eu apply_thm(empty_unique, head(right(empty_unique)),
         ["zero","z"], ["a","b"], _eu_b, left(empty_unique))
     $got_eu mp(got_eu, ax([emp_zero],[emp_zero],emp_zero), emp_zero,
-        implies(num_z, eqv("zero","z","_")), left(got_eu), [emp_zero])
+        implies(num_z, eq("zero","z","_")), left(got_eu), [emp_zero])
     $got_eq_zz mp(got_eu, ax([num_z],[num_z],num_z), num_z,
-        eqv("zero","z","_"), left(got_eu), [num_z])
+        eq("zero","z","_"), left(got_eu), [num_z])
 
-    $_es_b \va: \vb: \vs: implies(eqv(va,vb,"_"), iff(mem(va,vs), mem(vb,vs)))
+    $_es_b \va: \vb: \vs: implies(eq(va,vb,"_"), iff(mem(va,vs), mem(vb,vs)))
     $got_es apply_thm(ext_substitution, head(right(ext_substitution)),
         ["zero","z","rv"], ["a","b","s"], _es_b, left(ext_substitution))
     $iff_zrv iff(mem("zero","rv"), mem("z","rv"))
-    $got_iff_zrv mp(got_es, got_eq_zz, eqv("zero","z","_"), iff_zrv,
+    $got_iff_zrv mp(got_es, got_eq_zz, eq("zero","z","_"), iff_zrv,
         left(got_es), left(got_eq_zz))
     $got_bwd_zrv mp(iff_elim_right(mem("zero","rv"), mem("z","rv"), []),
         got_iff_zrv, iff_zrv, implies(mem("z","rv"), mem("zero","rv")),
@@ -295,13 +295,13 @@ $plus_sub {
 
     # plus_val_unique: Plus(m,sne,pe) + Plus(m,sne,scv) -> Eqv(pe,scv)
     $plus_msne_pe plus("m","sne","pe","_")
-    $eqv_pe_scv eqv("pe","scv","_")
+    $eq_pe_scv eq("pe","scv","_")
     $got_pvu2 apply_thm(plus_val_unique, head(right(plus_val_unique)),
         ["m","sne","pe","scv"], ["a","b","c","c2"], _pvu_b, left(plus_val_unique))
     $got_pvu2 mp(got_pvu2,
         ax([plus_msne_pe],[plus_msne_pe],plus_msne_pe), plus_msne_pe,
-        implies(plus_msne_scv, eqv_pe_scv), left(got_pvu2), [plus_msne_pe])
-    $got_eqv_step mp(got_pvu2, got_plus_step, plus_msne_scv, eqv_pe_scv,
+        implies(plus_msne_scv, eq_pe_scv), left(got_pvu2), [plus_msne_pe])
+    $got_eq_step mp(got_pvu2, got_plus_step, plus_msne_scv, eq_pe_scv,
         left(got_pvu2), left(got_plus_step))
 
     # eq_transfer: Eqv(pe,scv) -> iff(ie in pe, ie in scv)
@@ -309,8 +309,8 @@ $plus_sub {
     $ie_in_scv lt("ie","scv","_")
     $got_eqt2 apply_thm(eq_transfer, head(right(eq_transfer)),
         ["pe","scv","ie"], ["a","b","z"], _eqt_b, left(eq_transfer))
-    $got_iff_step mp(got_eqt2, got_eqv_step, eqv_pe_scv, iff(ie_in_pe, ie_in_scv),
-        left(got_eqt2), left(got_eqv_step))
+    $got_iff_step mp(got_eqt2, got_eq_step, eq_pe_scv, iff(ie_in_pe, ie_in_scv),
+        left(got_eqt2), left(got_eq_step))
     $got_fwd_step mp(iff_elim_left(ie_in_pe, ie_in_scv, []),
         got_iff_step, iff(ie_in_pe, ie_in_scv), implies(ie_in_pe, ie_in_scv),
         [], left(got_iff_step))
@@ -320,9 +320,9 @@ $plus_sub {
 
     # mem_succ_elim: ie in scv -> Succ(scv,cv) -> or(ie in cv, Eqv(ie,cv))
     $ie_in_cv lt("ie","cv","_")
-    $eqv_ie_cv eqv("ie","cv","_")
-    $or_ie or(ie_in_cv, eqv_ie_cv)
-    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+    $eq_ie_cv eq("ie","cv","_")
+    $or_ie or(ie_in_cv, eq_ie_cv)
+    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eq(x,n,"_"))))
     $got_or_ie apply_thm(mem_succ_elim, head(right(mem_succ_elim)),
         ["ie","scv","cv"], ["x","s","n"], _mse_b, [])
     $got_or_ie mp(got_or_ie, got_ie_scv, ie_in_scv,
@@ -400,22 +400,22 @@ $plus_sub {
     $_ tap("case 1 ok")
 
     # === Case 2: Eqv(ie,cv) ===
-    # eqv_symmetric: Eqv(ie,cv) -> Eqv(cv,ie)
-    $eqv_cv_ie eqv("cv","ie","_")
-    $_esym_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_esym apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+    # eq_symmetric: Eqv(ie,cv) -> Eqv(cv,ie)
+    $eq_cv_ie eq("cv","ie","_")
+    $_esym_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_esym apply_thm(eq_symmetric, head(right(eq_symmetric)),
         ["ie","cv"], ["a","b"], _esym_b, [])
-    $got_esym mp(got_esym, ax([eqv_ie_cv],[eqv_ie_cv],eqv_ie_cv), eqv_ie_cv,
-        eqv_cv_ie, left(got_esym), [eqv_ie_cv])
+    $got_esym mp(got_esym, ax([eq_ie_cv],[eq_ie_cv],eq_ie_cv), eq_ie_cv,
+        eq_cv_ie, left(got_esym), [eq_ie_cv])
 
     # plus_val_transfer: Plus(m,ne,cv) + Eqv(cv,ie) -> Plus(m,ne,ie)
     $plus_mne_ie plus("m","ne","ie","_")
-    $_pvt_b \vm: \vn: \vp: \vq: implies(plus(vm,vn,vp,"_"), implies(eqv(vp,vq,"_"), plus(vm,vn,vq,"_")))
+    $_pvt_b \vm: \vn: \vp: \vq: implies(plus(vm,vn,vp,"_"), implies(eq(vp,vq,"_"), plus(vm,vn,vq,"_")))
     $got_pvt apply_thm(plus_val_transfer, head(right(plus_val_transfer)),
         ["m","ne","cv","ie"], ["m","n","p","q"], _pvt_b, [])
     $got_mne_ie mp(got_pvt, ax([plus_mnecv],[plus_mnecv],plus_mnecv), plus_mnecv,
-        implies(eqv_cv_ie, plus_mne_ie), left(got_pvt), [plus_mnecv])
-    $got_mne_ie mp(got_mne_ie, got_esym, eqv_cv_ie, plus_mne_ie,
+        implies(eq_cv_ie, plus_mne_ie), left(got_pvt), [plus_mnecv])
+    $got_mne_ie mp(got_mne_ie, got_esym, eq_cv_ie, plus_mne_ie,
         left(got_mne_ie), left(got_esym))
 
     # mem_succ_self: Succ(sne,ne) -> ne in sne
@@ -438,7 +438,7 @@ $plus_sub {
 
     # === Or-elim: combine cases ===
     # Shared context = union of both minus the two case-specific formulas
-    $shared remove(same, eqv_ie_cv, remove(same, ie_in_cv,
+    $shared remove(same, eq_ie_cv, remove(same, ie_in_cv,
         add(left(got_case1), diff(same, left(got_case2), left(got_case1)))))
     $got_c1_w wl_all(got_case1, left(got_case1), [step_goal],
         diff(same, shared, left(got_case1)))
@@ -448,7 +448,7 @@ $plus_sub {
     $prf0_or nr(got_c1_w, remove(same, ie_in_cv, left(got_c1_w)),
         [step_goal, neg(ie_in_cv)], neg(ie_in_cv))
     $prf1_or wl_all(got_c2_w, left(got_c2_w), [step_goal],
-        diff(same, add(shared, [eqv_ie_cv]), left(got_c2_w)))
+        diff(same, add(shared, [eq_ie_cv]), left(got_c2_w)))
     $got_step_or il(prf0_or, prf1_or,
         add(shared, [or_ie]), [step_goal], or_ie)
 
@@ -570,18 +570,18 @@ $plus_sub {
     $_ tap("w sub rv ok")
 
     # subset_antisymmetric -> rv = w
-    $_sa_b \va: \vb: implies(subset(va,vb,"_"), implies(subset(vb,va,"_"), eqv(va,vb,"_")))
+    $_sa_b \va: \vb: implies(subset(va,vb,"_"), implies(subset(vb,va,"_"), eq(va,vb,"_")))
     $got_sa apply_thm(subset_antisymmetric, head(right(subset_antisymmetric)),
         ["rv","w"], ["a","b"], _sa_b, left(subset_antisymmetric))
     $rvw subset("rv","w","_")
-    $eq_rvw eqv("rv","w","_")
+    $eq_rvw eq("rv","w","_")
     $got_sa mp(got_sa, got_sub, rvw, implies(wrv, eq_rvw), left(got_sa), left(got_sub))
     $got_eq_rvw mp(got_sa, got_osi, wrv, eq_rvw, left(got_sa), left(got_osi))
 
     $_ tap("rv = w ok")
 
     # === Extract P(n) ===
-    $_eqt2_b \va: \vb: \vz: implies(eqv(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
+    $_eqt2_b \va: \vb: \vz: implies(eq(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
     $got_eqt_rw apply_thm(eq_transfer, head(right(eq_transfer)),
         ["rv","w","n"], ["a","b","z"], _eqt2_b, left(eq_transfer))
     $iff_nrvw iff(mem("n","rv"), mem("n","w"))

@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, or, eqv, pairing_ax, left, right
+from derived import implies, forall, exists, or, eq, pairing_ax, left, right
 from vocab.sets import pair_set
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -7,15 +7,15 @@ from theorems.sets.set_spec_unique import set_spec_unique
 from theorems.sets.pair_set_exists import pair_set_exists
 
 $unique_pair_set {
-    $cond_fn \v p: or(eqv(v, "a", p), eqv(v, "b", p))
+    $cond_fn \v p: or(eq(v, "a", p), eq(v, "b", p))
     $body_fn \v p: pair_set(v, "a", "b", p)
     $eu exists_unique(body_fn, "_")
     $ps_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
     $ssu set_spec_unique(cond_fn, [], "_")
     $_ssu_f head(right(ssu))
     $ssu_inst apply_thm(ssu, _ssu_f, ["u", "y"], ["u", "s2"],
-        \s1: \s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eqv(s1,s2,"_"))), [])
+        \s1: \s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eq(s1,s2,"_"))), [])
     $got_inner mp(ssu_inst, ax([ps_u], [ps_u], ps_u), ps_u, imp_inner, [], [ps_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [ps_u], [fa_uniq], fa_uniq, "y")

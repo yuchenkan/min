@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg1, arg2
 from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.nat.nat import nat, num, omega, successor
@@ -203,14 +203,14 @@ $rec_exists {
     $om2 omega("w2","_")
     $nw2 mem("n","w2")
     $_ou head(right(omega_unique))
-    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_")))
     $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w","w2"], _ou_b, left(omega_unique))
-    $ou_mp1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eqv("w","w2","_")), left(ou_inst), [om])
-    $ou_mp2 mp(ou_mp1, ax([om2],[om2],om2), om2, eqv("w","w2","_"), left(ou_mp1), [om2])
+    $ou_mp1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eq("w","w2","_")), left(ou_inst), [om])
+    $ou_mp2 mp(ou_mp1, ax([om2],[om2],om2), om2, eq("w","w2","_"), left(ou_mp1), [om2])
     $_et head(right(eq_transfer))
-    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $_et_b \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a), mem(z,b)))
     $et_inst apply_thm(eq_transfer, _et, ["w","w2","n"], ["w","b","z"], _et_b, left(eq_transfer))
-    $et_mp mp(et_inst, ou_mp2, eqv("w","w2","_"), iff(nw, nw2), left(et_inst), left(ou_mp2))
+    $et_mp mp(et_inst, ou_mp2, eq("w","w2","_"), iff(nw, nw2), left(et_inst), left(ou_mp2))
     $got_nw2 mp(mp(iff_elim_left(nw, nw2, []), et_mp, iff(nw, nw2), implies(nw, nw2), [], left(et_mp)),
         ax([nw],[nw],nw), nw, nw2, left(et_mp), [nw])
     # [om, nw, om2, axiom_ctx] |- nw2

@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, omega, successor
 from vocab.functions import apply, function
@@ -45,9 +45,9 @@ $succ_func_total_from {
 
     # Nat→mem helper for omega_unique + eq_transfer
     $_ou head(right(omega_unique))
-    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_")))
     $_et head(right(eq_transfer))
-    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $_et_b \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a), mem(z,b)))
 
     # Get omega witness + derive m∈w from Nat(m)
     $mw mem("m","w")
@@ -56,7 +56,7 @@ $succ_func_total_from {
         ax([om],[om],om), om, mw, [nat_m], [om])
 
     # nat_from_mem: given [vw, om] |- [mem(v,w)], produce |- [nat(v)]
-    # Inline pattern: omega_unique → eqv(w,w2) → eq_transfer → mem(v,w2) → ir om2 → fr w2
+    # Inline pattern: omega_unique → eq(w,w2) → eq_transfer → mem(v,w2) → ir om2 → fr w2
 
     # === Part 1: ∃z.Apply(sf,m,z) ===
     $_se head(right(successor_exists))
@@ -135,10 +135,10 @@ $succ_func_total_from {
     $om2 omega("w2","_")
     $yrw2 mem("yr","w2")
     $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w1","w2"], _ou_b, [])
-    $ou_yr1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eqv("w","w2","_")), [], [om])
-    $ou_yr2 mp(ou_yr1, ax([om2],[om2],om2), om2, eqv("w","w2","_"), [om], [om2])
+    $ou_yr1 mp(ou_inst, ax([om],[om],om), om, implies(om2, eq("w","w2","_")), [], [om])
+    $ou_yr2 mp(ou_yr1, ax([om2],[om2],om2), om2, eq("w","w2","_"), [om], [om2])
     $et_yr mp(apply_thm(eq_transfer, _et, ["w","w2","yr"], ["a","b","z"], _et_b, []),
-        ou_yr2, eqv("w","w2","_"), iff(yrw, yrw2), [], left(ou_yr2))
+        ou_yr2, eq("w","w2","_"), iff(yrw, yrw2), [], left(ou_yr2))
     $got_yrw2 mp(mp(iff_elim_left(yrw, yrw2, []), et_yr, iff(yrw, yrw2), implies(yrw, yrw2), [], left(et_yr)),
         got_yrw, yrw, yrw2, left(et_yr), left(got_yrw))
     $got_nat_yr_ir ir(got_yrw2, remove(same, om2, left(got_yrw2)), [implies(om2, yrw2)], implies(om2, yrw2))

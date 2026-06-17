@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg1, arg2
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function, domain
 from vocab.nat.nat import nat, num, omega, successor
@@ -130,17 +130,17 @@ $rec_exists_full {
 
     # rec_approx_zero: RA(v,a,f) -> num(e,0) -> Apply(v,e,y) -> Eqv(y,a)
     $_raz head(right(rec_approx_zero))
-    $_raz_b \v: \a: \f: \e: \y: implies(rec_approx(v,a,f,"_"), implies(num(e,0,"_"), implies(apply(v,e,y,"_"), eqv(y,a,"_"))))
+    $_raz_b \v: \a: \f: \e: \y: implies(rec_approx(v,a,f,"_"), implies(num(e,0,"_"), implies(apply(v,e,y,"_"), eq(y,a,"_"))))
     $got_raz apply_thm(rec_approx_zero, _raz, ["v0","a","f","e","y0"], ["v0","a","f","e","y"], _raz_b, left(rec_approx_zero))
     $raz1 mp(got_raz, ax([ra_v0], [ra_v0], ra_v0), ra_v0, arg2(head(right(got_raz))), left(got_raz), [ra_v0])
     $raz2 mp(raz1, ax([emp], [emp], emp), emp, arg2(head(right(raz1))), left(raz1), [emp])
-    $raz3 mp(raz2, ax([app_v0], [app_v0], app_v0), app_v0, eqv("y0","a","_"), left(raz2), [app_v0])
+    $raz3 mp(raz2, ax([app_v0], [app_v0], app_v0), app_v0, eq("y0","a","_"), left(raz2), [app_v0])
 
     # apply_val_transfer: Eqv(y,y2) -> Apply(f,x,y) -> Apply(f,x,y2)
     $_avt head(right(apply_val_transfer))
-    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $_avt_b \f: \x: \y: \y2: implies(eq(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
     $got_avt apply_thm(apply_val_transfer, _avt, ["v0","e","y0","a"], ["v0","x","y","y2"], _avt_b, left(apply_val_transfer))
-    $avt1 mp(got_avt, raz3, eqv("y0","a","_"), implies(app_v0, apply("v0","e","a","_")), left(got_avt), left(raz3))
+    $avt1 mp(got_avt, raz3, eq("y0","a","_"), implies(app_v0, apply("v0","e","a","_")), left(got_avt), left(raz3))
     $got_v0ea mp(avt1, ax([app_v0], [app_v0], app_v0), app_v0, apply("v0","e","a","_"), left(avt1), [app_v0])
 
     # rec_h_apply: char_h -> Nat(n) -> RA(v) -> Apply(v,n,y) -> Apply(h,n,y)
@@ -172,21 +172,21 @@ $rec_exists_full {
 
     # === Step 4: Build Nat(n) from n in w + Omega(w) ===
     # Helper: given omega(w) and n in w, build Nat(n)
-    # For arbitrary w2 with Omega(w2): omega_unique -> eqv(w,w2), eq_transfer -> n in w2
+    # For arbitrary w2 with Omega(w2): omega_unique -> eq(w,w2), eq_transfer -> n in w2
     $nw mem("n","w")
     $nat_n nat("n","_")
 
     $_ou head(right(omega_unique))
-    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_")))
     $om2 omega("w2","_")
     $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w1","w2"], _ou_b, [])
-    $got_eqv_ww2 mp(mp(ou_inst, ax([om], [om], om), om, implies(om2, eqv("w","w2","_")), [], [om]),
-        ax([om2], [om2], om2), om2, eqv("w","w2","_"), [om], [om2])
+    $got_eq_ww2 mp(mp(ou_inst, ax([om], [om], om), om, implies(om2, eq("w","w2","_")), [], [om]),
+        ax([om2], [om2], om2), om2, eq("w","w2","_"), [om], [om2])
 
     $_et head(right(eq_transfer))
-    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $_et_b \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a), mem(z,b)))
     $et_inst apply_thm(eq_transfer, _et, ["w","w2","n"], ["a","b","z"], _et_b, [])
-    $got_iff_nw mp(et_inst, got_eqv_ww2, eqv("w","w2","_"), iff(nw, mem("n","w2")), [], [om, om2])
+    $got_iff_nw mp(et_inst, got_eq_ww2, eq("w","w2","_"), iff(nw, mem("n","w2")), [], [om, om2])
     $got_nw2 mp(mp(iff_elim_left(nw, mem("n","w2"), []),
         got_iff_nw, iff(nw, mem("n","w2")), implies(nw, mem("n","w2")), [], [om, om2]),
         ax([nw], [nw], nw), nw, mem("n","w2"), [om, om2], [nw])
@@ -232,7 +232,7 @@ $rec_exists_full {
 
 
 
-    # === Step 6: Dom_eq: forall d. domain(d,h) -> eqv(d,w) ===
+    # === Step 6: Dom_eq: forall d. domain(d,h) -> eq(d,w) ===
     $xw mem("x","w")
     $ex_hxy exists("y", apply("h","x","y","_"))
 
@@ -240,10 +240,10 @@ $rec_exists_full {
     # Build Nat(x) from x in w + omega(w) (same pattern as got_nat_n)
     $nat_x nat("x","_")
     $ou_inst_x apply_thm(omega_unique, _ou, ["w","w2"], ["w1","w2"], _ou_b, [])
-    $got_eqv_ww2_x mp(mp(ou_inst_x, ax([om], [om], om), om, implies(om2, eqv("w","w2","_")), [], [om]),
-        ax([om2], [om2], om2), om2, eqv("w","w2","_"), [om], [om2])
+    $got_eq_ww2_x mp(mp(ou_inst_x, ax([om], [om], om), om, implies(om2, eq("w","w2","_")), [], [om]),
+        ax([om2], [om2], om2), om2, eq("w","w2","_"), [om], [om2])
     $et_inst_x apply_thm(eq_transfer, _et, ["w","w2","x"], ["a","b","z"], _et_b, [])
-    $got_iff_xw mp(et_inst_x, got_eqv_ww2_x, eqv("w","w2","_"), iff(xw, mem("x","w2")), [], [om, om2])
+    $got_iff_xw mp(et_inst_x, got_eq_ww2_x, eq("w","w2","_"), iff(xw, mem("x","w2")), [], [om, om2])
     $got_xw2 mp(mp(iff_elim_left(xw, mem("x","w2"), []),
         got_iff_xw, iff(xw, mem("x","w2")), implies(xw, mem("x","w2")), [], [om, om2]),
         ax([xw], [xw], xw), xw, mem("x","w2"), [om, om2], [xw])
@@ -312,10 +312,10 @@ $rec_exists_full {
         got_iff_dom, iff_dom, implies(iff_ex_xw, iff_xdw), [], [dom_hd]),
         got_iff_ex, iff_ex_xw, iff_xdw, [dom_hd], left(got_iff_ex))
 
-    $eqv_dw eqv("d","w","_")
-    $got_eqv_dw fr(got_iff_xdw, left(got_iff_xdw), [eqv_dw], eqv_dw, "x")
-    $dom_formula forall("d", implies(dom_hd, eqv_dw))
-    $got_dom ir(got_eqv_dw, remove(same, dom_hd, left(got_eqv_dw)), [implies(dom_hd, eqv_dw)], implies(dom_hd, eqv_dw))
+    $eq_dw eq("d","w","_")
+    $got_eq_dw fr(got_iff_xdw, left(got_iff_xdw), [eq_dw], eq_dw, "x")
+    $dom_formula forall("d", implies(dom_hd, eq_dw))
+    $got_dom ir(got_eq_dw, remove(same, dom_hd, left(got_eq_dw)), [implies(dom_hd, eq_dw)], implies(dom_hd, eq_dw))
     $got_dom2 fr(got_dom, left(got_dom), [dom_formula], dom_formula, "d")
 
 

@@ -1,12 +1,12 @@
-from derived import mem, implies, iff, forall, eqv, left, right
+from derived import mem, implies, iff, forall, eq, left, right
 from tactics import ax, ir, mp, apply_thm, close, same
 from util.list import remove
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.ext_substitution import ext_substitution
 
-# Ext |- eqv(x, y) -> mem(x, a) -> mem(y, a)
-$eqv_mem_right {
-    $eqv_xy eqv("x", "y", "_")
+# Ext |- eq(x, y) -> mem(x, a) -> mem(y, a)
+$eq_mem_right {
+    $eq_xy eq("x", "y", "_")
     $xa mem("x", "a")
     $ya mem("y", "a")
     $iff_xy iff(xa, ya)
@@ -14,8 +14,8 @@ $eqv_mem_right {
     $_es head(right(ext_substitution))
     $es_ctx left(ext_substitution)
     $got_iff mp(apply_thm(ext_substitution, _es, ["x", "y", "a"], ["x", "b", "s"],
-        \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx),
-        ax([eqv_xy], [eqv_xy], eqv_xy), eqv_xy, iff_xy, es_ctx, [eqv_xy])
+        \a: \b: \s: implies(eq(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx),
+        ax([eq_xy], [eq_xy], eq_xy), eq_xy, iff_xy, es_ctx, [eq_xy])
 
     $imp_fwd implies(xa, ya)
     $got_iff_ctx left(got_iff)
@@ -26,7 +26,7 @@ $eqv_mem_right {
 
     $imp2 implies(xa, ya)
     $s1 ir(got_ya, remove(same, xa, left(got_ya)), [imp2], imp2)
-    $top implies(eqv_xy, imp2)
-    $s2 ir(s1, remove(same, eqv_xy, left(s1)), [top], top)
+    $top implies(eq_xy, imp2)
+    $s2 ir(s1, remove(same, eq_xy, left(s1)), [top], top)
     close(s2, left(s2), [top], ["a","y","x"])
 }

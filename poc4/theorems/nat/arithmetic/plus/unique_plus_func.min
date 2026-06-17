@@ -1,4 +1,4 @@
-from derived import implies, forall, eqv, exists, left, right, arg2
+from derived import implies, forall, eq, exists, left, right, arg2
 from vocab.nat.arithmetic.plus import plus_func
 from vocab.logic import exists_unique
 from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same
@@ -19,14 +19,14 @@ $unique_plus_func {
 
     # plus_func_unique: PlusFunc(h1) → PlusFunc(h2) → Eqv(h1,h2)
     $_pfu head(right(plus_func_unique))
-    $_pfu_b \h1: \h2: implies(plus_func(h1,"_"), implies(plus_func(h2,"_"), eqv(h1,h2,"_")))
+    $_pfu_b \h1: \h2: implies(plus_func(h1,"_"), implies(plus_func(h2,"_"), eq(h1,h2,"_")))
     $pfu_inst apply_thm(plus_func_unique, _pfu, ["h","y"], ["h1","h2"], _pfu_b, left(plus_func_unique))
     # [body_h] ⊢ PlusFunc(y) → Eqv(h,y)
     $pfu1 mp(pfu_inst, ax([body_h],[body_h],body_h), body_h,
-        implies(plus_func("y","_"), eqv("h","y","_")), left(plus_func_unique), [body_h])
+        implies(plus_func("y","_"), eq("h","y","_")), left(plus_func_unique), [body_h])
 
     # fr y → ∀y. PlusFunc(y) → Eqv(h,y)
-    $uniq_inner implies(plus_func("y","_"), eqv("h","y","_"))
+    $uniq_inner implies(plus_func("y","_"), eq("h","y","_"))
     $uniq forall("y", uniq_inner)
     $got_uniq fr(pfu1, left(pfu1), [uniq], uniq, "y")
 

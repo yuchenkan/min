@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, iff, eqv, left, right
+from derived import mem, implies, forall, iff, eq, left, right
 from vocab.nat.nat import nat, omega
 from tactics import ax, fr, ir, mp, apply_thm, close, same
 from util.list import remove
@@ -22,16 +22,16 @@ $nat_intro {
 
     # omega_unique: Omega(w) → Omega(w2) → Eqv(w,w2)
     $_ou head(right(omega_unique))
-    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_")))
     $ou_inst apply_thm(omega_unique, _ou, ["w","w2"], ["w1","w2"], _ou_b, left(omega_unique))
-    $ou1 mp(ou_inst, ax([ow],[ow],ow), ow, implies(ow2, eqv("w","w2","_")), left(omega_unique), [ow])
-    $got_eqv mp(ou1, ax([ow2],[ow2],ow2), ow2, eqv("w","w2","_"), left(ou1), [ow2])
+    $ou1 mp(ou_inst, ax([ow],[ow],ow), ow, implies(ow2, eq("w","w2","_")), left(omega_unique), [ow])
+    $got_eq mp(ou1, ax([ow2],[ow2],ow2), ow2, eq("w","w2","_"), left(ou1), [ow2])
 
     # eq_transfer: Eqv(w,w2) → iff(m∈w, m∈w2)
     $_et head(right(eq_transfer))
-    $_et_b \a: \b: \z: implies(eqv(a,b,"_"), iff(mem(z,a), mem(z,b)))
+    $_et_b \a: \b: \z: implies(eq(a,b,"_"), iff(mem(z,a), mem(z,b)))
     $et_inst apply_thm(eq_transfer, _et, ["w","w2","m"], ["a","b","z"], _et_b, left(eq_transfer))
-    $got_iff mp(et_inst, got_eqv, eqv("w","w2","_"), iff(mw, mw2), left(eq_transfer), left(got_eqv))
+    $got_iff mp(et_inst, got_eq, eq("w","w2","_"), iff(mw, mw2), left(eq_transfer), left(got_eq))
 
     # iff_elim_left: iff(m∈w, m∈w2) → m∈w → m∈w2
     $got_impl mp(iff_elim_left(mw, mw2, []), got_iff, iff(mw, mw2), implies(mw, mw2), [], left(got_iff))

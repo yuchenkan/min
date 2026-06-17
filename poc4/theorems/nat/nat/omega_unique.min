@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, eqv, right
+from derived import mem, implies, forall, eq, right
 from vocab.sets import subset
 from vocab.nat.nat import inductive, omega
 from tactics import ax, ir, mp, apply_thm, close
@@ -6,7 +6,7 @@ from theorems.nat.nat.omega_is_inductive import omega_is_inductive
 from theorems.nat.nat.omega_smallest_inductive import omega_smallest_inductive
 from theorems.sets.subset_antisymmetric import subset_antisymmetric
 
-# |- omega(w1) -> omega(w2) -> eqv(w1, w2)
+# |- omega(w1) -> omega(w2) -> eq(w1, w2)
 $omega_unique {
     $om1 omega("w1", "_")
     $om2 omega("w2", "_")
@@ -14,7 +14,7 @@ $omega_unique {
     $ind2 inductive("w2", "_")
     $sub12 subset("w1", "w2", "_")
     $sub21 subset("w2", "w1", "_")
-    $eqv12 eqv("w1", "w2", "_")
+    $eq12 eq("w1", "w2", "_")
 
     $_oi head(right(omega_is_inductive))
     $got_ind1 mp(apply_thm(omega_is_inductive, _oi, ["w1"], ["w1"], \w: implies(omega(w,"_"), inductive(w,"_")), []),
@@ -37,13 +37,13 @@ $omega_unique {
 
     $_sa head(right(subset_antisymmetric))
     $got_sa apply_thm(subset_antisymmetric, _sa, ["w1", "w2"], ["w1", "b"],
-        \a: \b: implies(subset(a,b,"_"), implies(subset(b,a,"_"), eqv(a,b,"_"))), [])
-    $got_eqv mp(mp(got_sa,
-        got_sub12, sub12, implies(sub21, eqv12), [], [om1, om2]),
-        got_sub21, sub21, eqv12, [om1, om2], [om1, om2])
+        \a: \b: implies(subset(a,b,"_"), implies(subset(b,a,"_"), eq(a,b,"_"))), [])
+    $got_eq mp(mp(got_sa,
+        got_sub12, sub12, implies(sub21, eq12), [], [om1, om2]),
+        got_sub21, sub21, eq12, [om1, om2], [om1, om2])
 
-    $imp2 implies(om2, eqv12)
-    $s1 ir(got_eqv, [om1], [imp2], imp2)
+    $imp2 implies(om2, eq12)
+    $s1 ir(got_eq, [om1], [imp2], imp2)
     $top implies(om1, imp2)
     $s2 ir(s1, [], [top], top)
     close(s2, [], [top], ["w2", "w1"])

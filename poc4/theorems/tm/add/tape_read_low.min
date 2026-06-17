@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right
+from derived import mem, neg, implies, forall, exists, and, or, eq, left, right
 from vocab.functions import apply, function
 from vocab.tm.add import unary_tape
 from vocab.nat.nat import num, successor

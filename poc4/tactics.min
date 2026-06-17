@@ -4,30 +4,30 @@ from util.list import contains, set_add, remove, diff
 
 # === alpha-equivalence for formulas ===
 
-$_veq \self va vb env: ?(eq(len(env), 0), eq(va, vb), {
+$_veq \self va vb env: ?(eqv(len(env), 0), eqv(va, vb), {
     $ba nth(head(env), 0)
     $bb nth(head(env), 1)
-    ?(eq(va, ba), eq(vb, bb),
-    ?(eq(vb, bb), false,
+    ?(eqv(va, ba), eqv(vb, bb),
+    ?(eqv(vb, bb), false,
     self(self, va, vb, tail(env))))
 })
 
 # alpha-equiv on .min core formulas [tag, display, arg1, arg2]
 $_aeq \self a b env:
-    ?(eq(tag(a), "mem"),
-        ?(eq(tag(b), "mem"),
+    ?(eqv(tag(a), "mem"),
+        ?(eqv(tag(b), "mem"),
             ?(not(_veq(_veq, arg1(a), arg1(b), env)), false,
             _veq(_veq, arg2(a), arg2(b), env)),
         false),
-    ?(eq(tag(a), "neg"),
-        ?(eq(tag(b), "neg"), self(self, arg1(a), arg1(b), env), false),
-    ?(eq(tag(a), "implies"),
-        ?(eq(tag(b), "implies"),
+    ?(eqv(tag(a), "neg"),
+        ?(eqv(tag(b), "neg"), self(self, arg1(a), arg1(b), env), false),
+    ?(eqv(tag(a), "implies"),
+        ?(eqv(tag(b), "implies"),
             ?(not(self(self, arg1(a), arg1(b), env)), false,
             self(self, arg2(a), arg2(b), env)),
         false),
-    ?(eq(tag(a), "forall"),
-        ?(eq(tag(b), "forall"),
+    ?(eqv(tag(a), "forall"),
+        ?(eqv(tag(b), "forall"),
             self(self, arg2(a), arg2(b), add([[arg1(a), arg1(b)]], env)),
         false),
     _fail("_aeq: unknown tag")))))
@@ -37,10 +37,10 @@ $_aeq \self a b env:
 $_flat \self f: {
     $t tag(f)
     ?(is_str(t),
-        ?(eq(t, "mem"), f,
-        ?(eq(t, "neg"), neg(self(self, arg1(f))),
-        ?(eq(t, "implies"), implies(self(self, arg1(f)), self(self, arg2(f))),
-        ?(eq(t, "forall"), forall(arg1(f), self(self, arg2(f))),
+        ?(eqv(t, "mem"), f,
+        ?(eqv(t, "neg"), neg(self(self, arg1(f))),
+        ?(eqv(t, "implies"), implies(self(self, arg1(f)), self(self, arg2(f))),
+        ?(eqv(t, "forall"), forall(arg1(f), self(self, arg2(f))),
         self(self, exp(f)))))),
         self(self, exp(f)))
 }
@@ -61,7 +61,7 @@ $cut \p1 p2 left right A: proof(left, right, "cut", [p1, p2], A, none)
 
 # === weakening helpers ===
 
-$_wl_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
+$_wl_all \self prf left right fs: ?(eqv(len(fs), 0), prf, {
     $f head(fs)
     ?(contains(same, f, left),
         self(self, prf, left, right, tail(fs)),
@@ -72,7 +72,7 @@ $_wl_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
 })
 $wl_all \prf left right fs: _wl_all(_wl_all, prf, left, right, fs)
 
-$_wr_all \self prf left right fs: ?(eq(len(fs), 0), prf, {
+$_wr_all \self prf left right fs: ?(eqv(len(fs), 0), prf, {
     $f head(fs)
     ?(contains(same, f, right),
         self(self, prf, left, right, tail(fs)),
@@ -86,7 +86,7 @@ $wr_all \prf left right fs: _wr_all(_wr_all, prf, left, right, fs)
 # === closing ===
 
 # close with forall_right for each var in list (right must be single formula)
-$_close_proof \self prf left right vars: ?(eq(len(vars), 0), prf, {
+$_close_proof \self prf left right vars: ?(eqv(len(vars), 0), prf, {
     $v head(vars)
     $rest tail(vars)
     $nr forall(v, head(right))
@@ -127,10 +127,10 @@ $inst \thm formula body term ctx: {
         s2, ctx, [body], formula)
 }
 # _apply_args: apply curried fn (\a: \b: ...) to list of args one at a time
-$_apply_args \self fn args: ?(eq(len(args), 0), fn, self(self, fn(head(args)), tail(args)))
+$_apply_args \self fn args: ?(eqv(len(args), 0), fn, self(self, fn(head(args)), tail(args)))
 
 # _wrap_foralls: forall(v1, forall(v2, ..., body))
-$_wrap_foralls \self vars body: ?(eq(len(vars), 0), body,
+$_wrap_foralls \self vars body: ?(eqv(len(vars), 0), body,
     forall(head(vars), self(self, tail(vars), body)))
 
 # apply_thm: multi-forall instantiation
@@ -138,7 +138,7 @@ $_wrap_foralls \self vars body: ?(eq(len(vars), 0), body,
 # vars: ["a","b","c"] — forall var names (for wrapping intermediate bodies)
 # body_fn: curried \a: \b: \c: ... returning innermost body
 $_apply_thm \self thm formula terms vars body_fn applied ctx: {
-    ?(eq(len(terms), 0), thm, {
+    ?(eqv(len(terms), 0), thm, {
         $term head(terms)
         $rest_vars tail(vars)
         $new_applied add(applied, [term])

@@ -19,7 +19,7 @@ $_rule \delta qs rs ws ds qns p: {
             tm_transition(delta, qv, rv, wv, dv, qnv, np)))))))))))
 }
 
-$_parse_dir \d: ?(eq(d, "R"), 1, ?(eq(d, "L"), 0, none))
+$_parse_dir \d: ?(eqv(d, "R"), 1, ?(eqv(d, "L"), 0, none))
 
 $_parse_transition \line delta p: {
     $parts split(line, " ")
@@ -31,8 +31,8 @@ $_parse_transition \line delta p: {
     _rule(delta, qs, rs, ws, ds, qns, p)
 }
 
-$_trim \line: ?(eq(len(line), 0), line,
-    ?(eq(nth(line, 0), " "), substr(line, 1, len(line)), line))
+$_trim \line: ?(eqv(len(line), 0), line,
+    ?(eqv(nth(line, 0), " "), substr(line, 1, len(line)), line))
 
 # delta_from_source(src, delta, p): parse transition table into delta characterization
 # src: semicolon-separated "state read write dir next_state", dir is R or L
@@ -43,18 +43,18 @@ $delta_from_source \src delta p: {
         $rule _parse_transition(_trim(nth(lines2, i)), delta2, p2)
         $combined ?(is_none(acc), rule, and(acc, rule))
         $next add(i, 1)
-        ?(eq(next, len(lines2)), combined,
+        ?(eqv(next, len(lines2)), combined,
             self(self, lines2, delta2, p2, next, combined))
     }
     _build(_build, lines, delta, np, 0, none)
 }
 
 # fold right-to-left: build implies chain from array
-$_fold_implies \self lst body i: ?(eq(i, 0), body,
+$_fold_implies \self lst body i: ?(eqv(i, 0), body,
     self(self, lst, implies(nth(lst, sub(i, 1)), body), sub(i, 1)))
 
 # wrap foralls right-to-left
-$_wrap_foralls \self vars body i: ?(eq(i, 0), body,
+$_wrap_foralls \self vars body i: ?(eqv(i, 0), body,
     self(self, vars, forall(nth(vars, sub(i, 1)), body), sub(i, 1)))
 
 # spec(tin, n, hf, tf, np) returns [vars, hyps]

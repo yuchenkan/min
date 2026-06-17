@@ -1,9 +1,9 @@
-from derived import mem, implies, iff, forall, eqv, ext_ax
+from derived import mem, implies, iff, forall, eq, ext_ax
 from tactics import ax, ir, fl, mp, apply_thm, close
 
-# Ext |- eqv(a, b) -> iff(mem(a, s), mem(b, s))
+# Ext |- eq(a, b) -> iff(mem(a, s), mem(b, s))
 $ext_substitution {
-    $eqv_ab eqv("a", "b", "_")
+    $eq_ab eq("a", "b", "_")
     $ext_f ext_ax
     $ext_p ax([ext_f], [ext_f], ext_f)
 
@@ -11,13 +11,13 @@ $ext_substitution {
         \x: \y: implies(forall("z", iff(mem("z",x),mem("z",y))), forall("z", iff(mem(x,"z"),mem(y,"z")))), [ext_f])
 
     $fa_iff forall("z", iff(mem("a", "z"), mem("b", "z")))
-    $got_fa mp(inst_ab, ax([eqv_ab], [eqv_ab], eqv_ab), eqv_ab, fa_iff, [ext_f], [eqv_ab])
+    $got_fa mp(inst_ab, ax([eq_ab], [eq_ab], eq_ab), eq_ab, fa_iff, [ext_f], [eq_ab])
 
     $got_iff apply_thm(got_fa, fa_iff, ["s"], ["s"],
-        \s: iff(mem("a",s),mem("b",s)), [ext_f, eqv_ab])
+        \s: iff(mem("a",s),mem("b",s)), [ext_f, eq_ab])
 
     $iff_s iff(mem("a", "s"), mem("b", "s"))
-    $top implies(eqv_ab, iff_s)
+    $top implies(eq_ab, iff_s)
     $result ir(got_iff, [ext_f], [top], top)
     close(result, [ext_f], [top], ["s","b","a"])
 }

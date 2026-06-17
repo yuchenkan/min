@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, or, iff, exists, eqv, left, right, arg2, sep_ax
+from derived import mem, implies, forall, and, or, iff, exists, eq, left, right, arg2, sep_ax
 from vocab.sets import empty, ordered_pair, power_set, union, product
 from vocab.nat.nat import successor
 from vocab.functions import apply

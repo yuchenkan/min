@@ -1,11 +1,11 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, power_ax
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, power_ax
 from vocab.sets import ordered_pair, singleton, pair_set
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, eir, eel, cut_c, close, same
 from util.list import remove, diff
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_mem_right import eqv_mem_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_mem_right import eq_mem_right
+from theorems.logic.eq_symmetric import eq_symmetric
 
 # Power |- x∈w → y∈w → ordered_pair(p,x,y) →
 #   ∀s.(s∈pw ↔ ∀d.d∈s→d∈w) → ∀s.(s∈ppw ↔ ∀d.d∈s→d∈pw) → p∈ppw
@@ -34,43 +34,43 @@ $ordpair_bounded {
         got_iff_sp, iff_sp, implies(sp, or_sp), [], [op]),
         ax([sp], [sp], sp), sp, or_sp, [op], [sp])
 
-    # Helper: show d∈w from eqv(d,x) or eqv(d,y) + x∈w, y∈w
-    $_es head(right(eqv_symmetric))
-    $emr_ctx left(eqv_mem_right)
-    $_emr head(right(eqv_mem_right))
+    # Helper: show d∈w from eq(d,x) or eq(d,y) + x∈w, y∈w
+    $_es head(right(eq_symmetric))
+    $emr_ctx left(eq_mem_right)
+    $_emr head(right(eq_mem_right))
     $ds mem("d","s")
     $dw mem("d","w")
-    $eqv_dx eqv("d","x","_")
-    $eqv_dy eqv("d","y","_")
+    $eq_dx eq("d","x","_")
+    $eq_dy eq("d","y","_")
 
-    # d∈w from eqv(d,x): eqv_sym → eqv(x,d). eqv_mem_right(x,d,w) + x∈w → d∈w.
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_emr_b \a: \y: \x: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
-    # Rename eqv_mem_right bound vars to avoid clash with terms "x","y"
-    # Formula is ∀x.∀y.∀a.body, _emr_b(a,y,x) = eqv(x,y)->mem(x,a)->mem(y,a)
+    # d∈w from eq(d,x): eq_sym → eq(x,d). eq_mem_right(x,d,w) + x∈w → d∈w.
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $_emr_b \a: \y: \x: implies(eq(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    # Rename eq_mem_right bound vars to avoid clash with terms "x","y"
+    # Formula is ∀x.∀y.∀a.body, _emr_b(a,y,x) = eq(x,y)->mem(x,a)->mem(y,a)
     $emr_r forall("p", forall("q", forall("r", _emr_b("r")("q")("p"))))
-    $emr_r_thm wr(eqv_mem_right, emr_ctx, [emr_r], emr_r)
-    $got_xd mp(apply_thm(eqv_symmetric, _es, ["d", "x"], ["d", "b"], _es_b, []),
-        ax([eqv_dx], [eqv_dx], eqv_dx), eqv_dx, eqv("x","d","_"), [], [eqv_dx])
+    $emr_r_thm wr(eq_mem_right, emr_ctx, [emr_r], emr_r)
+    $got_xd mp(apply_thm(eq_symmetric, _es, ["d", "x"], ["d", "b"], _es_b, []),
+        ax([eq_dx], [eq_dx], eq_dx), eq_dx, eq("x","d","_"), [], [eq_dx])
     $_emr_r_b \p: \q: \r: _emr_b(r)(q)(p)
     $emr1 mp(apply_thm(emr_r_thm, emr_r, ["x", "d", "w"], ["x", "q", "r"], _emr_r_b, emr_ctx),
-        got_xd, eqv("x","d","_"), implies(xw, dw), emr_ctx, [eqv_dx])
+        got_xd, eq("x","d","_"), implies(xw, dw), emr_ctx, [eq_dx])
     $got_dw_from_dx mp(emr1, ax([xw], [xw], xw), xw, dw, left(emr1), [xw])
 
-    # d∈w from eqv(d,y): same pattern.
-    $got_yd mp(apply_thm(eqv_symmetric, _es, ["d", "y"], ["d", "b"], _es_b, []),
-        ax([eqv_dy], [eqv_dy], eqv_dy), eqv_dy, eqv("y","d","_"), [], [eqv_dy])
+    # d∈w from eq(d,y): same pattern.
+    $got_yd mp(apply_thm(eq_symmetric, _es, ["d", "y"], ["d", "b"], _es_b, []),
+        ax([eq_dy], [eq_dy], eq_dy), eq_dy, eq("y","d","_"), [], [eq_dy])
     $emr2 mp(apply_thm(emr_r_thm, emr_r, ["y", "d", "w"], ["y", "q", "r"], _emr_r_b, emr_ctx),
-        got_yd, eqv("y","d","_"), implies(yw, dw), emr_ctx, [eqv_dy])
+        got_yd, eq("y","d","_"), implies(yw, dw), emr_ctx, [eq_dy])
     $got_dw_from_dy mp(emr2, ax([yw], [yw], yw), yw, dw, left(emr2), [yw])
 
-    # Case sing(s,x): ∀d.d∈s→eqv(d,x). So d∈s→eqv(d,x)→d∈w. Close into ∀d.d∈s→d∈w.
-    $iff_ds_sing iff(ds, eqv_dx)
+    # Case sing(s,x): ∀d.d∈s→eq(d,x). So d∈s→eq(d,x)→d∈w. Close into ∀d.d∈s→d∈w.
+    $iff_ds_sing iff(ds, eq_dx)
     $got_iff_sing fl(ax([iff_ds_sing], [iff_ds_sing], iff_ds_sing), [sing_sx], [iff_ds_sing], sing_sx, "d")
-    $got_dx mp(mp(iff_elim_left(ds, eqv_dx, []),
-        got_iff_sing, iff_ds_sing, implies(ds, eqv_dx), [], [sing_sx]),
-        ax([ds], [ds], ds), ds, eqv_dx, [sing_sx], [ds])
-    $got_dw_sing cut_c(got_dx, got_dw_from_dx, eqv_dx, [sing_sx, ds], left(got_dw_from_dx), dw)
+    $got_dx mp(mp(iff_elim_left(ds, eq_dx, []),
+        got_iff_sing, iff_ds_sing, implies(ds, eq_dx), [], [sing_sx]),
+        ax([ds], [ds], ds), ds, eq_dx, [sing_sx], [ds])
+    $got_dw_sing cut_c(got_dx, got_dw_from_dx, eq_dx, [sing_sx, ds], left(got_dw_from_dx), dw)
     # close d: ∀d.d∈s→d∈w
     $got_sub_sing fr(ir(got_dw_sing, remove(same, ds, left(got_dw_sing)), [implies(ds, dw)], implies(ds, dw)),
         remove(same, ds, left(got_dw_sing)), [sub_w], sub_w, "d")
@@ -81,21 +81,21 @@ $ordpair_bounded {
         got_iff_pw, iff_spw, implies(sub_w, s_pw), [], [pw_char]),
         got_sub_sing, sub_w, s_pw, [pw_char], left(got_sub_sing))
 
-    # Case ps(s,x,y): ∀d.d∈s→(eqv(d,x)∨eqv(d,y)). d∈s→or→d∈w via cases.
-    $or_dxy or(eqv_dx, eqv_dy)
+    # Case ps(s,x,y): ∀d.d∈s→(eq(d,x)∨eq(d,y)). d∈s→or→d∈w via cases.
+    $or_dxy or(eq_dx, eq_dy)
     $iff_ds_ps iff(ds, or_dxy)
     $got_iff_ps fl(ax([iff_ds_ps], [iff_ds_ps], iff_ds_ps), [ps_sxy], [iff_ds_ps], ps_sxy, "d")
     $got_or_dxy mp(mp(iff_elim_left(ds, or_dxy, []),
         got_iff_ps, iff_ds_ps, implies(ds, or_dxy), [], [ps_sxy]),
         ax([ds], [ds], ds), ds, or_dxy, [ps_sxy], [ds])
 
-    # or_elim on or(eqv_dx, eqv_dy) → d∈w
+    # or_elim on or(eq_dx, eq_dy) → d∈w
     # Weaken both cases to shared context
     $dw_dx_w wl_all(got_dw_from_dx, left(got_dw_from_dx), [dw], [ps_sxy, ds, yw])
     $dw_dy_w wl_all(got_dw_from_dy, left(got_dw_from_dy), [dw], [ps_sxy, ds, xw])
-    $p0 nr(dw_dx_w, remove(same, eqv_dx, left(dw_dx_w)), [dw, neg(eqv_dx)], neg(eqv_dx))
-    $p1 wl_all(dw_dy_w, left(dw_dy_w), [dw], diff(same, add(remove(same, eqv_dx, left(dw_dx_w)), [eqv_dy]), left(dw_dy_w)))
-    $got_dw_or il(p0, p1, add(remove(same, eqv_dx, left(dw_dx_w)), [or_dxy]), [dw], or_dxy)
+    $p0 nr(dw_dx_w, remove(same, eq_dx, left(dw_dx_w)), [dw, neg(eq_dx)], neg(eq_dx))
+    $p1 wl_all(dw_dy_w, left(dw_dy_w), [dw], diff(same, add(remove(same, eq_dx, left(dw_dx_w)), [eq_dy]), left(dw_dy_w)))
+    $got_dw_or il(p0, p1, add(remove(same, eq_dx, left(dw_dx_w)), [or_dxy]), [dw], or_dxy)
     # Cut or_dxy
     $or_left remove(same, or_dxy, left(got_dw_or))
     $got_or_dxy_wr wr(wl_all(got_or_dxy, [ps_sxy, ds], [or_dxy], diff(same, or_left, [ps_sxy, ds])),

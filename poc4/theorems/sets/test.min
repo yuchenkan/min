@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, eqv, exists, qed, sep_ax
+from derived import mem, neg, implies, forall, and, or, iff, eq, exists, qed, sep_ax
 from vocab.sets import empty, singleton, pair_set, big_union, power_set, ordered_pair, intersect, subset, union, relation, product
 from vocab.functions import apply, domain, function
 from vocab.logic import exists_unique
@@ -52,8 +52,8 @@ from theorems.sets.product_exists import product_exists
 from theorems.sets.product_unique import product_unique
 from theorems.sets.unique_product import unique_product
 from theorems.sets.product_in_intro import product_in_intro
-from theorems.sets.eqv_mem_transfer import eqv_mem_transfer
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_mem_transfer import eq_mem_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 from theorems.sets.tuple_injection import tuple_injection
 from theorems.sets.singleton_apply_eq import singleton_apply_eq
 
@@ -67,19 +67,19 @@ $_ qed(big_union_exists, forall("a", exists("s", big_union("s", "a", "_"))), "z"
 $_ tap("big_union_exists ok")
 
 $_ qed(empty_unique,
-    forall("a", forall("b", implies(empty("a", "_"), implies(empty("b", "_"), eqv("a", "b", "_"))))), "z")
+    forall("a", forall("b", implies(empty("a", "_"), implies(empty("b", "_"), eq("a", "b", "_"))))), "z")
 $_ tap("empty_unique ok")
 
 $_ qed(set_spec_unique(\v p: mem(v, "a"), ["a"], "_"),
     forall("a", forall("s1", forall("s2",
         implies(forall("x", iff(mem("x", "s1"), mem("x", "a"))),
                 implies(forall("x", iff(mem("x", "s2"), mem("x", "a"))),
-                        eqv("s1", "s2", "_")))))), "z")
+                        eq("s1", "s2", "_")))))), "z")
 $_ tap("set_spec_unique ok")
 
 $_ qed(singleton_unique,
     forall("a", forall("s1", forall("s2",
-        implies(singleton("s1", "a", "_"), implies(singleton("s2", "a", "_"), eqv("s1", "s2", "_")))))), "z")
+        implies(singleton("s1", "a", "_"), implies(singleton("s2", "a", "_"), eq("s1", "s2", "_")))))), "z")
 $_ tap("singleton_unique ok")
 
 $_ qed(power_set_exists, forall("a", exists("s", power_set("s", "a", "_"))), "z")
@@ -105,31 +105,31 @@ $_ tap("unique_power_set ok")
 
 
 $_ qed(singleton_injection,
-    forall("a", forall("b", implies(forall("w", iff(eqv("w","a","_"), eqv("w","b","_"))), eqv("a","b","_")))), "z")
+    forall("a", forall("b", implies(forall("w", iff(eq("w","a","_"), eq("w","b","_"))), eq("a","b","_")))), "z")
 $_ tap("singleton_injection ok")
 
 $_ qed(singleton_pair_eq,
     forall("a", forall("c", forall("d",
-        implies(forall("w", iff(eqv("w","a","_"), or(eqv("w","c","_"), eqv("w","d","_")))),
-                and(eqv("c","a","_"), eqv("d","a","_")))))), "z")
+        implies(forall("w", iff(eq("w","a","_"), or(eq("w","c","_"), eq("w","d","_")))),
+                and(eq("c","a","_"), eq("d","a","_")))))), "z")
 $_ tap("singleton_pair_eq ok")
 
 $_ qed(pair_injection,
     forall("a", forall("b", forall("c", forall("d",
-        implies(forall("w", iff(or(eqv("w","a","_"),eqv("w","b","_")), or(eqv("w","c","_"),eqv("w","d","_")))),
-                or(and(eqv("a","c","_"),eqv("b","d","_")), and(eqv("a","d","_"),eqv("b","c","_")))))))), "z")
+        implies(forall("w", iff(or(eq("w","a","_"),eq("w","b","_")), or(eq("w","c","_"),eq("w","d","_")))),
+                or(and(eq("a","c","_"),eq("b","d","_")), and(eq("a","d","_"),eq("b","c","_")))))))), "z")
 $_ tap("pair_injection ok")
 
 $op \t a b: ordered_pair(t, a, b, "_")
 $_ qed(kuratowski, forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
-    implies(op("t1","a","b"), implies(op("t2","c","d"), implies(eqv("t1","t2","_"), and(eqv("a","c","_"), eqv("b","d","_"))))))))))), "z")
+    implies(op("t1","a","b"), implies(op("t2","c","d"), implies(eq("t1","t2","_"), and(eq("a","c","_"), eq("b","d","_"))))))))))), "z")
 $_ tap("kuratowski ok")
 
 $_ qed(ordpair_exists, forall("a", forall("b", exists("p", ordered_pair("p", "a", "b", "_")))), "z")
 $_ tap("ordpair_exists ok")
 
 $_ qed(ordpair_unique, forall("a", forall("b", forall("s1", forall("s2",
-    implies(ordered_pair("s1","a","b","_"), implies(ordered_pair("s2","a","b","_"), eqv("s1","s2","_"))))))), "z")
+    implies(ordered_pair("s1","a","b","_"), implies(ordered_pair("s2","a","b","_"), eq("s1","s2","_"))))))), "z")
 $_ tap("ordpair_unique ok")
 $_ qed(unique_ordpair, forall("a", forall("b", exists_unique(\v p: ordered_pair(v, "a", "b", p), "_"))), "z")
 $_ tap("unique_ordpair ok")
@@ -140,22 +140,22 @@ $_ tap("intersect_exists ok")
 
 $_ qed(intersect_unique,
     forall("a", forall("b", forall("s1", forall("s2",
-        implies(intersect("s1","a","b","_"), implies(intersect("s2","a","b","_"), eqv("s1","s2","_"))))))), "z")
+        implies(intersect("s1","a","b","_"), implies(intersect("s2","a","b","_"), eq("s1","s2","_"))))))), "z")
 $_ tap("intersect_unique ok")
 
 $_ qed(unique_intersect, forall("a", forall("b", exists_unique(\v p: intersect(v, "a", "b", p), "_"))), "z")
 $_ tap("unique_intersect ok")
 
 $_ qed(subset_antisymmetric, forall("a", forall("b",
-    implies(subset("a","b","_"), implies(subset("b","a","_"), eqv("a","b","_"))))), "z")
+    implies(subset("a","b","_"), implies(subset("b","a","_"), eq("a","b","_"))))), "z")
 $_ tap("subset_antisymmetric ok")
 
 $_ qed(eq_transfer, forall("a", forall("b", forall("z",
-    implies(eqv("a","b","_"), iff(mem("z","a"), mem("z","b")))))), "z")
+    implies(eq("a","b","_"), iff(mem("z","a"), mem("z","b")))))), "z")
 $_ tap("eq_transfer ok")
 
 $_ qed(eq_in_eq, forall("z", forall("x1", forall("x2",
-    implies(eqv("x1","x2","_"), iff(eqv("z","x1","_"), eqv("z","x2","_")))))), "z")
+    implies(eq("x1","x2","_"), iff(eq("z","x1","_"), eq("z","x2","_")))))), "z")
 $_ tap("eq_in_eq ok")
 
 
@@ -174,17 +174,17 @@ $_ tap("big_union_mem_intro ok")
 
 $_ qed(ordpair_val_transfer,
     forall("t", forall("a", forall("b", forall("c",
-        implies(eqv("b","c","_"), implies(ordered_pair("t","a","b","_"), ordered_pair("t","a","c","_"))))))), "z")
+        implies(eq("b","c","_"), implies(ordered_pair("t","a","b","_"), ordered_pair("t","a","c","_"))))))), "z")
 $_ tap("ordpair_val_transfer ok")
 
 $_ qed(ordpair_key_transfer,
     forall("t", forall("a", forall("b", forall("c",
-        implies(eqv("a","c","_"), implies(ordered_pair("t","a","b","_"), ordered_pair("t","c","b","_"))))))), "z")
+        implies(eq("a","c","_"), implies(ordered_pair("t","a","b","_"), ordered_pair("t","c","b","_"))))))), "z")
 $_ tap("ordpair_key_transfer ok")
 
 $_ qed(ordpair_eq_transfer,
     forall("t", forall("a", forall("b", forall("c", forall("d",
-        implies(eqv("a","c","_"), implies(eqv("b","d","_"),
+        implies(eq("a","c","_"), implies(eq("b","d","_"),
             implies(ordered_pair("t","a","b","_"), ordered_pair("t","c","d","_"))))))))), "z")
 $_ tap("ordpair_eq_transfer ok")
 
@@ -193,7 +193,7 @@ $_ tap("union_exists ok")
 
 $_ qed(union_unique,
     forall("a", forall("b", forall("s1", forall("s2",
-        implies(union("s1","a","b","_"), implies(union("s2","a","b","_"), eqv("s1","s2","_"))))))), "z")
+        implies(union("s1","a","b","_"), implies(union("s2","a","b","_"), eq("s1","s2","_"))))))), "z")
 $_ tap("union_unique ok")
 
 $_ qed(unique_union, forall("a", forall("b", exists_unique(\v p: union(v, "a", "b", p), "_"))), "z")
@@ -221,7 +221,7 @@ $_ tap("singleton_apply ok")
 
 $_ qed(singleton_mem_eq,
     forall("x", forall("f", forall("a",
-        implies(singleton("f","a","_"), implies(mem("x","f"), eqv("x","a","_")))))), "z")
+        implies(singleton("f","a","_"), implies(mem("x","f"), eq("x","a","_")))))), "z")
 $_ tap("singleton_mem_eq ok")
 
 $_ qed(singleton_function,
@@ -257,7 +257,7 @@ $_ qed(product_exists, forall("a", forall("b", exists("s", product("s","a","b","
 $_ tap("product_exists ok")
 
 $_ qed(product_unique, forall("a", forall("b", forall("s1", forall("s2",
-    implies(product("s1","a","b","_"), implies(product("s2","a","b","_"), eqv("s1","s2","_"))))))), "z")
+    implies(product("s1","a","b","_"), implies(product("s2","a","b","_"), eq("s1","s2","_"))))))), "z")
 $_ tap("product_unique ok")
 
 $up_fn \s p: product(s,"a","b",p)
@@ -269,22 +269,22 @@ $_ qed(product_in_intro, forall("s", forall("a", forall("b", forall("x", forall(
         implies(ordered_pair("z","x","y","_"), mem("z","s"))))))))))), "z")
 $_ tap("product_in_intro ok")
 
-$_ qed(eqv_mem_transfer, forall("a", forall("b", forall("c",
-    implies(eqv("a","b","_"), implies(mem("a","c"), mem("b","c")))))), "z")
-$_ tap("eqv_mem_transfer ok")
+$_ qed(eq_mem_transfer, forall("a", forall("b", forall("c",
+    implies(eq("a","b","_"), implies(mem("a","c"), mem("b","c")))))), "z")
+$_ tap("eq_mem_transfer ok")
 
-$_ qed(eqv_ordpair_transfer, forall("z", forall("t", forall("x", forall("y",
-    implies(eqv("z","t","_"), implies(ordered_pair("t","x","y","_"), ordered_pair("z","x","y","_"))))))), "z")
-$_ tap("eqv_ordpair_transfer ok")
+$_ qed(eq_ordpair_transfer, forall("z", forall("t", forall("x", forall("y",
+    implies(eq("z","t","_"), implies(ordered_pair("t","x","y","_"), ordered_pair("z","x","y","_"))))))), "z")
+$_ tap("eq_ordpair_transfer ok")
 
 $_ qed(tuple_injection, forall("t", forall("a", forall("b", forall("c", forall("d",
     implies(ordered_pair("t","a","b","_"), implies(ordered_pair("t","c","d","_"),
-        and(eqv("a","c","_"), eqv("b","d","_"))))))))), "z")
+        and(eq("a","c","_"), eq("b","d","_"))))))))), "z")
 $_ tap("tuple_injection ok")
 
 $_ qed(singleton_apply_eq, forall("e", forall("b", forall("op", forall("f", forall("xe", forall("ye",
     implies(ordered_pair("op","e","b","_"), implies(singleton("f","op","_"), implies(apply("f","xe","ye","_"),
-        and(eqv("e","xe","_"), eqv("b","ye","_"))))))))))), "z")
+        and(eq("e","xe","_"), eq("b","ye","_"))))))))))), "z")
 $_ tap("singleton_apply_eq ok")
 
 $ok true

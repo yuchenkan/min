@@ -37,10 +37,10 @@ $_d_iff \f: _p(add(d(nth(f, 2)), add(" <-> ", d(nth(f, 3)))))
 $iff \a b: [_d_iff, neg(implies(implies(a, b), neg(implies(b, a)))), a, b]
 $_d_exists \f: add("E", add(nth(f, 2), add(".", d(nth(f, 3)))))
 $exists \v b: [_d_exists, neg(forall(v, neg(b))), v, b]
-$_d_eqv \f: add(nth(f, 2), add(" = ", nth(f, 3)))
-$eqv \a b p: {
+$_d_eq \f: add(nth(f, 2), add(" = ", nth(f, 3)))
+$eq \a b p: {
     $v add(p, "z")
-    [_d_eqv, forall(v, iff(mem(v, a), mem(v, b))), a, b]
+    [_d_eq, forall(v, iff(mem(v, a), mem(v, b))), a, b]
 }
 
 # show: render a formula's display string
@@ -50,20 +50,20 @@ $show \f: d(f)
 $_core \self f: {
     $t tag(f)
     ?(is_str(t),
-        ?(eq(t, "mem"), ["mem", arg1(f), arg2(f)],
-        ?(eq(t, "neg"), ["neg", self(self, arg1(f))],
-        ?(eq(t, "implies"), ["implies", self(self, arg1(f)), self(self, arg2(f))],
-        ?(eq(t, "forall"), ["forall", arg1(f), self(self, arg2(f))],
+        ?(eqv(t, "mem"), ["mem", arg1(f), arg2(f)],
+        ?(eqv(t, "neg"), ["neg", self(self, arg1(f))],
+        ?(eqv(t, "implies"), ["implies", self(self, arg1(f)), self(self, arg2(f))],
+        ?(eqv(t, "forall"), ["forall", arg1(f), self(self, arg2(f))],
         self(self, exp(f)))))),
         self(self, exp(f)))
 }
 
 # map helper
-$_map \self f lst: ?(eq(len(lst), 0), [], add([f(head(lst))], self(self, f, tail(lst))))
+$_map \self f lst: ?(eqv(len(lst), 0), [], add([f(head(lst))], self(self, f, tail(lst))))
 
 # show a list of formulas
-$_show_list \self lst: ?(eq(len(lst), 0), "",
-    ?(eq(len(lst), 1), show(head(lst)),
+$_show_list \self lst: ?(eqv(len(lst), 0), "",
+    ?(eqv(len(lst), 1), show(head(lst)),
         add(show(head(lst)), add(", ", self(self, tail(lst))))))
 
 # shows: extract each formula's display string into an array
@@ -111,7 +111,7 @@ $empty_ax [_d_empty_ax, exists("b", forall("x", neg(mem("x", "b"))))]
 
 $_d_pairing_ax \f: "Pair"
 $pairing_ax [_d_pairing_ax, forall("x", forall("y", exists("b", forall("z",
-    iff(mem("z", "b"), or(eqv("z", "x", "_"), eqv("z", "y", "_")))))))]
+    iff(mem("z", "b"), or(eq("z", "x", "_"), eq("z", "y", "_")))))))]
 
 $_d_union_ax \f: "Union"
 $union_ax [_d_union_ax, forall("a", exists("b", forall("x",
@@ -126,7 +126,7 @@ $inf_ax [_d_inf_ax, exists("b", and(
     exists("e", and(mem("e", "b"), forall("z", neg(mem("z", "e"))))),
     forall("y", implies(mem("y", "b"),
         exists("s", and(mem("s", "b"),
-            forall("w", iff(mem("w", "s"), or(mem("w", "y"), eqv("w", "y", "_"))))))))))]
+            forall("w", iff(mem("w", "s"), or(mem("w", "y"), eq("w", "y", "_"))))))))))]
 
 $_d_reg_ax \f: "Reg"
 $reg_ax [_d_reg_ax, forall("a", implies(
@@ -138,10 +138,10 @@ $choice_ax [_d_choice_ax, forall("x", implies(
     forall("y", implies(mem("y", "x"), exists("z", mem("z", "y")))),
     exists("c", forall("y", implies(mem("y", "x"),
         exists("z", and(and(mem("z", "y"), mem("z", "c")),
-            forall("w", implies(and(mem("w", "y"), mem("w", "c")), eqv("w", "z", "_"))))))))))]
+            forall("w", implies(and(mem("w", "y"), mem("w", "c")), eq("w", "z", "_"))))))))))]
 
 # close: wrap formula with foralls for each var in list
-$_close \self vars f: ?(eq(len(vars), 0), f,
+$_close \self vars f: ?(eqv(len(vars), 0), f,
     self(self, tail(vars), forall(head(vars), f)))
 
 # Separation: phi_fn(x, a, np) — x is element, a is domain, np is deeper prefix
@@ -170,7 +170,7 @@ $rep_ax \vars phi_fn p: {
     $np add(p, "_")
     $phi phi_fn(x, y, a, np)
     $uniq forall(x, implies(mem(x, a),
-        forall(y, forall(y2, implies(and(phi_fn(x, y, a, np), phi_fn(x, y2, a, np)), eqv(y, y2, np))))))
+        forall(y, forall(y2, implies(and(phi_fn(x, y, a, np), phi_fn(x, y2, a, np)), eq(y, y2, np))))))
     $body forall(a, implies(uniq,
         exists(b, forall(y,
             iff(mem(y, b), exists(x, and(mem(x, a), phi)))))))

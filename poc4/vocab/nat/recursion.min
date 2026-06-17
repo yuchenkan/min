@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, d
 from vocab.nat.nat import num, successor, omega
 from vocab.functions import apply, domain, function
 
@@ -29,7 +29,7 @@ $recursive \h a f p: {
     $dd add(p, "d")
 
     $func_h function(h, np)
-    $dom_eq forall(dd, implies(domain(dd, h, np), eqv(dd, w, np)))
+    $dom_eq forall(dd, implies(domain(dd, h, np), eq(dd, w, np)))
     $base forall(e, implies(num(e, 0, p), apply(h, e, a, np)))
     $step forall(n, implies(mem(n, w),
         forall(v, implies(apply(h, n, v, np),

@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, single_valued, domain
@@ -29,7 +29,7 @@ $h_zero_identity {
 
     # Unwrap PlusFunc(h) at w:
     $func_h function("h","_")
-    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eqv("d","prod","_")))))
+    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eq("d","prod","_")))))
     $base_f forall("m", implies(mem("m","w"), forall("zz", implies(num("zz",0,"_"),
         forall("pair", implies(ordered_pair("pair","m","zz","_"), apply("h","pair","m","_")))))))
     $step_f forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"),
@@ -92,16 +92,16 @@ $h_zero_identity {
 
     # num_unique(0): Num(z,0) → Num(e,0) → Eqv(z,e)
     $_nu head(right(num_unique(0)))
-    $_nu_b \n1: \n2: implies(num(n1,0,"_"), implies(num(n2,0,"_"), eqv(n1,n2,"_")))
+    $_nu_b \n1: \n2: implies(num(n1,0,"_"), implies(num(n2,0,"_"), eq(n1,n2,"_")))
     $nu_inst apply_thm(num_unique(0), _nu, ["z","e"], ["n1","n2"], _nu_b, left(num_unique(0)))
-    $nu1 mp(nu_inst, ax([num_z],[num_z],num_z), num_z, implies(emp, eqv("z","e","_")), left(num_unique(0)), [num_z])
-    $got_eqv_ze mp(nu1, ax([emp],[emp],emp), emp, eqv("z","e","_"), left(nu1), [emp])
+    $nu1 mp(nu_inst, ax([num_z],[num_z],num_z), num_z, implies(emp, eq("z","e","_")), left(num_unique(0)), [num_z])
+    $got_eq_ze mp(nu1, ax([emp],[emp],emp), emp, eq("z","e","_"), left(nu1), [emp])
 
     # apply_val_transfer: Eqv(z,e) → Apply(h,pair,z) → Apply(h,pair,e)
     $_avt head(right(apply_val_transfer))
-    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $_avt_b \f: \x: \y: \y2: implies(eq(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
     $avt_inst apply_thm(apply_val_transfer, _avt, ["h","pair","z","e"], ["f","x","y","y2"], _avt_b, left(apply_val_transfer))
-    $avt1 mp(avt_inst, got_eqv_ze, eqv("z","e","_"), implies(app_z, app_e), left(apply_val_transfer), left(got_eqv_ze))
+    $avt1 mp(avt_inst, got_eq_ze, eq("z","e","_"), implies(app_z, app_e), left(apply_val_transfer), left(got_eq_ze))
     $got_app_e mp(avt1, got_app_z, app_z, app_e, left(avt1), left(got_app_z))
 
     # Close base: ir op_ze, fr pair, ir num_z, fr z, ir emp, fr e

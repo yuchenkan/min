@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, d
 from vocab.sets import ordered_pair, relation
 
 # apply(f, x, y, p): f(x) = y, i.e. exists p. ordered_pair(p,x,y) & p in f
@@ -20,7 +20,7 @@ $domain \d f p: {
         forall(x, iff(mem(x, d), exists(y, apply(f, x, y, np)))), d, f]
 }
 
-# single_valued(f, p): forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eqv(y1,y2)
+# single_valued(f, p): forall x, y1, y2. apply(f,x,y1) & apply(f,x,y2) -> eq(y1,y2)
 $_d_single_valued \f: add("SV(", add(nth(f, 2), ")"))
 $single_valued \f p: {
     $x add(p, "x")
@@ -29,7 +29,7 @@ $single_valued \f p: {
     $np add(p, "_")
     [_d_single_valued,
         forall(x, forall(y1, forall(y2,
-            implies(and(apply(f, x, y1, np), apply(f, x, y2, np)), eqv(y1, y2, np))))), f]
+            implies(and(apply(f, x, y1, np), apply(f, x, y2, np)), eq(y1, y2, np))))), f]
 }
 
 # function(f, p): relation(f) and single_valued(f)

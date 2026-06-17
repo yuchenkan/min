@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right
+from derived import mem, implies, forall, and, iff, exists, eq, left, right
 from vocab.sets import ordered_pair, relation
 from vocab.functions import apply
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
@@ -7,7 +7,7 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_intro import iff_intro
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.sets.ordpair_unique import ordpair_unique
 from theorems.functions.apply_intro import apply_intro
@@ -24,7 +24,7 @@ $func_ext_from_agree {
     $rel1 relation("h1","_")
     $rel2 relation("h2","_")
     $agree forall("x", forall("v1", forall("v2",
-        implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eqv("v1","v2","_"))))))
+        implies(apply("h1","x","v1","_"), implies(apply("h2","x","v2","_"), eq("v1","v2","_"))))))
     $dom_fwd forall("x", forall("v", implies(apply("h1","x","v","_"),
         exists("v2", apply("h2","x","v2","_")))))
     $dom_bwd forall("x", forall("v", implies(apply("h2","x","v","_"),
@@ -41,15 +41,15 @@ $func_ext_from_agree {
     # apply_intro body_fn
     $_ai_b \p: \f: \x: \y: implies(ordered_pair(p,x,y,"_"), implies(mem(p,f), apply(f,x,y,"_")))
     # ordpair_unique: ∀a.∀b.∀s1.∀s2. OrdPair(s1,a,b)→OrdPair(s2,a,b)→Eqv(s1,s2)
-    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
-    # apply_val_transfer: eqv(y,y2)→Apply(f,x,y)→Apply(f,x,y2)
-    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eq(s1,s2,"_")))
+    # apply_val_transfer: eq(y,y2)→Apply(f,x,y)→Apply(f,x,y2)
+    $_avt_b \f: \x: \y: \y2: implies(eq(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
     $avt_r forall("pf", forall("px", forall("py", forall("py2", _avt_b("pf")("px")("py")("py2")))))
     $avt_thm wr(apply_val_transfer, [], [avt_r], avt_r)
-    # eqv_symmetric
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    # ext_substitution: eqv(a,b)→iff(a∈s,b∈s)
-    $_ext_b \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s), mem(b,s)))
+    # eq_symmetric
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    # ext_substitution: eq(a,b)→iff(a∈s,b∈s)
+    $_ext_b \a: \b: \s: implies(eq(a,b,"_"), iff(mem(a,s), mem(b,s)))
     $ext_ctx left(ext_substitution)
 
     # --- Forward: zz∈h1 → zz∈h2 ---
@@ -79,23 +79,23 @@ $func_ext_from_agree {
     # 4. Assume Apply(h2,key,v2). agree → Eqv(val,v2)
     $app2_kv2 apply("h2","key","v2","_")
     $ag1 apply_thm(ax([agree], [agree], agree), agree, ["key"], ["key"],
-        \x: forall("v1", forall("v2", implies(apply("h1",x,"v1","_"), implies(apply("h2",x,"v2","_"), eqv("v1","v2","_"))))), [agree])
+        \x: forall("v1", forall("v2", implies(apply("h1",x,"v1","_"), implies(apply("h2",x,"v2","_"), eq("v1","v2","_"))))), [agree])
     $ag2 apply_thm(ag1, head(right(ag1)), ["val"], ["val"],
-        \v1: forall("v2", implies(apply("h1","key",v1,"_"), implies(apply("h2","key","v2","_"), eqv(v1,"v2","_")))), [agree])
+        \v1: forall("v2", implies(apply("h1","key",v1,"_"), implies(apply("h2","key","v2","_"), eq(v1,"v2","_")))), [agree])
     $ag3 apply_thm(ag2, head(right(ag2)), ["v2"], ["v2"],
-        \v2: implies(app1_kv, implies(apply("h2","key",v2,"_"), eqv("val",v2,"_"))), [agree])
-    $ag4 mp(ag3, got_app1, app1_kv, implies(app2_kv2, eqv("val","v2","_")), [agree], [op_zz, zz_h1])
-    $got_eqv_vv2 mp(ag4, ax([app2_kv2], [app2_kv2], app2_kv2), app2_kv2, eqv("val","v2","_"),
+        \v2: implies(app1_kv, implies(apply("h2","key",v2,"_"), eq("val",v2,"_"))), [agree])
+    $ag4 mp(ag3, got_app1, app1_kv, implies(app2_kv2, eq("val","v2","_")), [agree], [op_zz, zz_h1])
+    $got_eq_vv2 mp(ag4, ax([app2_kv2], [app2_kv2], app2_kv2), app2_kv2, eq("val","v2","_"),
         left(ag4), [app2_kv2])
 
-    # 5. eqv(v2,val) → Apply(h2,key,v2) → Apply(h2,key,val)
-    $got_eqv_v2v mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["val","v2"], ["a","b"], _es_b, []),
-        got_eqv_vv2, eqv("val","v2","_"), eqv("v2","val","_"), [], left(got_eqv_vv2))
+    # 5. eq(v2,val) → Apply(h2,key,v2) → Apply(h2,key,val)
+    $got_eq_v2v mp(apply_thm(eq_symmetric, head(right(eq_symmetric)), ["val","v2"], ["a","b"], _es_b, []),
+        got_eq_vv2, eq("val","v2","_"), eq("v2","val","_"), [], left(got_eq_vv2))
     $app2_kv apply("h2","key","val","_")
     $got_app2_kv mp(mp(apply_thm(avt_thm, avt_r, ["h2","key","v2","val"],
         ["pf","px","py","py2"], _avt_b, []),
-        got_eqv_v2v, eqv("v2","val","_"), implies(app2_kv2, app2_kv), [], left(got_eqv_v2v)),
-        ax([app2_kv2], [app2_kv2], app2_kv2), app2_kv2, app2_kv, left(got_eqv_v2v), [app2_kv2])
+        got_eq_v2v, eq("v2","val","_"), implies(app2_kv2, app2_kv), [], left(got_eq_v2v)),
+        ax([app2_kv2], [app2_kv2], app2_kv2), app2_kv2, app2_kv, left(got_eq_v2v), [app2_kv2])
 
     # 6. Apply(h2,key,val) open → ∃p2.OrdPair(p2,key,val)∧p2∈h2
     # Assume OrdPair(p2,key,val)∧p2∈h2
@@ -110,14 +110,14 @@ $func_ext_from_agree {
     # 7. ordpair_unique: Eqv(zz,p2)
     $ou_inst apply_thm(ordpair_unique, head(right(ordpair_unique)), ["key","val","zz","p2"],
         ["a","b","s1","s2"], _ou_b, [])
-    $got_eqv_zp mp(mp(ou_inst,
-        ax([op_zz], [op_zz], op_zz), op_zz, implies(op_p2, eqv("zz","p2","_")), [], [op_zz]),
-        got_op_p2, op_p2, eqv("zz","p2","_"), [op_zz], [and_p2])
+    $got_eq_zp mp(mp(ou_inst,
+        ax([op_zz], [op_zz], op_zz), op_zz, implies(op_p2, eq("zz","p2","_")), [], [op_zz]),
+        got_op_p2, op_p2, eq("zz","p2","_"), [op_zz], [and_p2])
 
     # 8. ext_substitution: Eqv(zz,p2)→iff(zz∈h2,p2∈h2)→p2∈h2→zz∈h2
     $got_iff_zh mp(apply_thm(ext_substitution, head(right(ext_substitution)), ["zz","p2","h2"],
         ["a","b","s"], _ext_b, ext_ctx),
-        got_eqv_zp, eqv("zz","p2","_"), iff(zz_h2, p2_h2), ext_ctx, left(got_eqv_zp))
+        got_eq_zp, eq("zz","p2","_"), iff(zz_h2, p2_h2), ext_ctx, left(got_eq_zp))
     $got_zz_h2 mp(mp(iff_elim_right(zz_h2, p2_h2, []),
         got_iff_zh, iff(zz_h2, p2_h2), implies(p2_h2, zz_h2), [], left(got_iff_zh)),
         got_p2_h2, p2_h2, zz_h2, left(got_iff_zh), [and_p2])
@@ -160,20 +160,20 @@ $func_ext_from_agree {
     # Assume Apply(h1,kb,v1b). agree → Eqv(v1b,vb). val_transfer → Apply(h1,kb,vb)
     $app1b apply("h1","kb","v1b","_")
     $agb1 apply_thm(ax([agree], [agree], agree), agree, ["kb"], ["kb"],
-        \x: forall("v1", forall("v2", implies(apply("h1",x,"v1","_"), implies(apply("h2",x,"v2","_"), eqv("v1","v2","_"))))), [agree])
+        \x: forall("v1", forall("v2", implies(apply("h1",x,"v1","_"), implies(apply("h2",x,"v2","_"), eq("v1","v2","_"))))), [agree])
     $agb2 apply_thm(agb1, head(right(agb1)), ["v1b"], ["v1b"],
-        \v1: forall("v2", implies(apply("h1","kb",v1,"_"), implies(apply("h2","kb","v2","_"), eqv(v1,"v2","_")))), [agree])
+        \v1: forall("v2", implies(apply("h1","kb",v1,"_"), implies(apply("h2","kb","v2","_"), eq(v1,"v2","_")))), [agree])
     $agb3 apply_thm(agb2, head(right(agb2)), ["vb"], ["vb"],
-        \v2: implies(app1b, implies(apply("h2","kb",v2,"_"), eqv("v1b",v2,"_"))), [agree])
-    $agb4 mp(agb3, ax([app1b], [app1b], app1b), app1b, implies(app2b, eqv("v1b","vb","_")),
+        \v2: implies(app1b, implies(apply("h2","kb",v2,"_"), eq("v1b",v2,"_"))), [agree])
+    $agb4 mp(agb3, ax([app1b], [app1b], app1b), app1b, implies(app2b, eq("v1b","vb","_")),
         [agree], [app1b])
-    $got_eqv_vb mp(agb4, got_app2b, app2b, eqv("v1b","vb","_"), left(agb4), [op_zz_b, zz_h2])
+    $got_eq_vb mp(agb4, got_app2b, app2b, eq("v1b","vb","_"), left(agb4), [op_zz_b, zz_h2])
     # val_transfer: Apply(h1,kb,v1b) → Apply(h1,kb,vb)
     $app1_kb_vb apply("h1","kb","vb","_")
     $got_app1_vb mp(mp(apply_thm(avt_thm, avt_r, ["h1","kb","v1b","vb"],
         ["pf","px","py","py2"], _avt_b, []),
-        got_eqv_vb, eqv("v1b","vb","_"), implies(app1b, app1_kb_vb), [], left(got_eqv_vb)),
-        ax([app1b], [app1b], app1b), app1b, app1_kb_vb, left(got_eqv_vb), [app1b])
+        got_eq_vb, eq("v1b","vb","_"), implies(app1b, app1_kb_vb), [], left(got_eq_vb)),
+        ax([app1b], [app1b], app1b), app1b, app1_kb_vb, left(got_eq_vb), [app1b])
     # ordpair_unique + ext_substitution → zz∈h1
     $op_pb ordered_pair("pb","kb","vb","_")
     $pb_h1 mem("pb","h1")
@@ -182,13 +182,13 @@ $func_ext_from_agree {
         ax([and_pb], [and_pb], and_pb), and_pb, op_pb, [], [and_pb])
     $got_pb_h1 mp(and_elim_right(op_pb, pb_h1, []),
         ax([and_pb], [and_pb], and_pb), and_pb, pb_h1, [], [and_pb])
-    $got_eqv_zpb mp(mp(apply_thm(ordpair_unique, head(right(ordpair_unique)), ["kb","vb","zz","pb"],
+    $got_eq_zpb mp(mp(apply_thm(ordpair_unique, head(right(ordpair_unique)), ["kb","vb","zz","pb"],
         ["a","b","s1","s2"], _ou_b, []),
-        ax([op_zz_b], [op_zz_b], op_zz_b), op_zz_b, implies(op_pb, eqv("zz","pb","_")), [], [op_zz_b]),
-        got_op_pb, op_pb, eqv("zz","pb","_"), [op_zz_b], [and_pb])
+        ax([op_zz_b], [op_zz_b], op_zz_b), op_zz_b, implies(op_pb, eq("zz","pb","_")), [], [op_zz_b]),
+        got_op_pb, op_pb, eq("zz","pb","_"), [op_zz_b], [and_pb])
     $got_iff_zh1 mp(apply_thm(ext_substitution, head(right(ext_substitution)), ["zz","pb","h1"],
         ["a","b","s"], _ext_b, ext_ctx),
-        got_eqv_zpb, eqv("zz","pb","_"), iff(zz_h1, pb_h1), ext_ctx, left(got_eqv_zpb))
+        got_eq_zpb, eq("zz","pb","_"), iff(zz_h1, pb_h1), ext_ctx, left(got_eq_zpb))
     $got_zz_h1 mp(mp(iff_elim_right(zz_h1, pb_h1, []),
         got_iff_zh1, iff(zz_h1, pb_h1), implies(pb_h1, zz_h1), [], left(got_iff_zh1)),
         got_pb_h1, pb_h1, zz_h1, left(got_iff_zh1), [and_pb])
@@ -206,13 +206,13 @@ $func_ext_from_agree {
     $bwd implies(zz_h2, zz_h1)
     $bcur ir(bcur, remove(same, zz_h2, left(bcur)), [bwd], bwd)
 
-    # === Combine: iff → eqv ===
+    # === Combine: iff → eq ===
     $iff_zz iff(zz_h1, zz_h2)
     $got_iff mp(mp(iff_intro(zz_h1, zz_h2, []),
         fcur, fwd, implies(bwd, iff_zz), [], left(fcur)),
         bcur, bwd, iff_zz, left(fcur), left(bcur))
-    $goal eqv("h1","h2","_")
-    $got_eqv fr(got_iff, left(got_iff), [goal], goal, "zz")
+    $goal eq("h1","h2","_")
+    $got_eq fr(got_iff, left(got_iff), [goal], goal, "zz")
 
     # Close: ir dom_bwd, ir dom_fwd, ir agree, ir rel2, ir rel1
     $i5 implies(dom_bwd, goal)
@@ -220,7 +220,7 @@ $func_ext_from_agree {
     $i3 implies(agree, i4)
     $i2 implies(rel2, i3)
     $top implies(rel1, i2)
-    $cur got_eqv
+    $cur got_eq
     $cur ir(cur, remove(same, dom_bwd, left(cur)), [i5], i5)
     $cur ir(cur, remove(same, dom_fwd, left(cur)), [i4], i4)
     $cur ir(cur, remove(same, agree, left(cur)), [i3], i3)

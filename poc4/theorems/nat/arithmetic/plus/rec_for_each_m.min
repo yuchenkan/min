@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, eqv, iff, left, right, arg2
+from derived import mem, implies, forall, and, exists, eq, iff, left, right, arg2
 from vocab.nat.nat import nat, successor
 from vocab.functions import apply, function
 from vocab.nat.recursion import recursive, total_from

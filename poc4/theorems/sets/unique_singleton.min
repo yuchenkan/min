@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, eqv, pairing_ax, left, right
+from derived import implies, forall, exists, eq, pairing_ax, left, right
 from vocab.sets import singleton
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -11,10 +11,10 @@ $unique_singleton {
     $body_fn \v p: singleton(v, "a", p)
     $eu exists_unique(body_fn, "_")
     $sing_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
     $_su_f head(right(singleton_unique))
     $su_inst apply_thm(singleton_unique, _su_f, ["a", "u", "y"], ["a", "s1", "s2"],
-        \a: \s1: \s2: implies(singleton(s1,a,"_"), implies(singleton(s2,a,"_"), eqv(s1,s2,"_"))), [])
+        \a: \s1: \s2: implies(singleton(s1,a,"_"), implies(singleton(s2,a,"_"), eq(s1,s2,"_"))), [])
     $got_inner mp(su_inst, ax([sing_u], [sing_u], sing_u), sing_u, imp_inner, [], [sing_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [sing_u], [fa_uniq], fa_uniq, "y")

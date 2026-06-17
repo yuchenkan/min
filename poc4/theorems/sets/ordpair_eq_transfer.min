@@ -1,39 +1,39 @@
-from derived import mem, implies, forall, eqv, right
+from derived import mem, implies, forall, eq, right
 from vocab.sets import ordered_pair
 from tactics import ax, wr, ir, mp, apply_thm, close
 
 from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
 from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
 
-# |- eqv(a,c) -> eqv(b,d) -> ordered_pair(t,a,b) -> ordered_pair(t,c,d)
+# |- eq(a,c) -> eq(b,d) -> ordered_pair(t,a,b) -> ordered_pair(t,c,d)
 $ordpair_eq_transfer {
-    $eqv_ac eqv("a", "c", "_")
-    $eqv_bd eqv("b", "d", "_")
+    $eq_ac eq("a", "c", "_")
+    $eq_bd eq("b", "d", "_")
     $op_ab ordered_pair("t", "a", "b", "_")
     $op_cb ordered_pair("t", "c", "b", "_")
     $op_cd ordered_pair("t", "c", "d", "_")
 
     $_kt head(right(ordpair_key_transfer))
-    $_kt_b \t: \a: \b: \c: implies(eqv(a,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,b,"_")))
+    $_kt_b \t: \a: \b: \c: implies(eq(a,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,b,"_")))
     $got_kt apply_thm(ordpair_key_transfer, _kt, ["t", "a", "b", "c"], ["t", "a", "b", "c"], _kt_b, [])
     $got_cb mp(mp(got_kt,
-        ax([eqv_ac], [eqv_ac], eqv_ac), eqv_ac, implies(op_ab, op_cb), [], [eqv_ac]),
-        ax([op_ab], [op_ab], op_ab), op_ab, op_cb, [eqv_ac], [op_ab])
+        ax([eq_ac], [eq_ac], eq_ac), eq_ac, implies(op_ab, op_cb), [], [eq_ac]),
+        ax([op_ab], [op_ab], op_ab), op_ab, op_cb, [eq_ac], [op_ab])
 
     $_vt head(right(ordpair_val_transfer))
-    $_vt_b \t: \a: \b: \c: implies(eqv(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $_vt_b \t: \a: \b: \c: implies(eq(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
     $vt_r forall("t", forall("p", forall("q", forall("r", _vt_b("t")("p")("q")("r")))))
     $vt_r_thm wr(ordpair_val_transfer, [], [vt_r], vt_r)
     $got_vt apply_thm(vt_r_thm, vt_r, ["t", "c", "b", "d"], ["t", "p", "q", "r"], _vt_b, [])
     $got_cd mp(mp(got_vt,
-        ax([eqv_bd], [eqv_bd], eqv_bd), eqv_bd, implies(op_cb, op_cd), [], [eqv_bd]),
-        got_cb, op_cb, op_cd, [eqv_bd], [eqv_ac, op_ab])
+        ax([eq_bd], [eq_bd], eq_bd), eq_bd, implies(op_cb, op_cd), [], [eq_bd]),
+        got_cb, op_cb, op_cd, [eq_bd], [eq_ac, op_ab])
 
     $imp3 implies(op_ab, op_cd)
-    $s1 ir(got_cd, [eqv_ac, eqv_bd], [imp3], imp3)
-    $imp2 implies(eqv_bd, imp3)
-    $s2 ir(s1, [eqv_ac], [imp2], imp2)
-    $top implies(eqv_ac, imp2)
+    $s1 ir(got_cd, [eq_ac, eq_bd], [imp3], imp3)
+    $imp2 implies(eq_bd, imp3)
+    $s2 ir(s1, [eq_ac], [imp2], imp2)
+    $top implies(eq_ac, imp2)
     $s3 ir(s2, [], [top], top)
     close(s3, [], [top], ["d","c","b","a","t"])
 }

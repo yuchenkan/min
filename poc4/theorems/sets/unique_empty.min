@@ -1,4 +1,4 @@
-from derived import implies, forall, eqv, empty_ax, right
+from derived import implies, forall, eq, empty_ax, right
 from vocab.sets import empty
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c
@@ -10,10 +10,10 @@ $unique_empty {
     $body_fn \v p: empty(v, p)
     $eu exists_unique(body_fn, "_")
     $empty_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
     $_eu_f head(right(empty_unique))
     $eu_inst apply_thm(empty_unique, _eu_f, ["u", "y"], ["u", "b"],
-        \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_"))), [])
+        \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eq(a,b,"_"))), [])
     $got_inner mp(eu_inst, ax([empty_u], [empty_u], empty_u), empty_u, imp_inner, [], [empty_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [empty_u], [fa_uniq], fa_uniq, "y")

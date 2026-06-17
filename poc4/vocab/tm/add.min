@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, eqv
+from derived import mem, neg, implies, forall, exists, and, or, eq
 from vocab.sets import empty
 from vocab.tm.tm import tm_config, tm_transition, tape_update, tm_step, tm_reaches
 from vocab.tm.source import tm_correct
@@ -263,7 +263,7 @@ $phase1_ind \n d q0 tape c0 p: {
     $yd add(np, "yd")
     $base_cond forall(zp, implies(empty(zp, np), apply(tra, zp, c0, np)))
     $dom_bound forall(xd, forall(yd, implies(apply(tra, xd, yd, np),
-        or(mem(xd, n), eqv(xd, n, np)))))
+        or(mem(xd, n), eq(xd, n, np)))))
     $step_valid forall(k, implies(mem(k, n),
         forall(sk, implies(successor(sk, k, np),
             forall(ck, implies(apply(tra, k, ck, np),
@@ -296,7 +296,7 @@ $phase3_ind \n d q1 sa tape2 c1 p: {
     $yd add(np, "yd")
     $base_cond forall(zp, implies(empty(zp, np), apply(tra, zp, c1, np)))
     $dom_bound forall(xd, forall(yd, implies(apply(tra, xd, yd, np),
-        or(mem(xd, n), eqv(xd, n, np)))))
+        or(mem(xd, n), eq(xd, n, np)))))
     $step_valid forall(k, implies(mem(k, n),
         forall(sk, implies(successor(sk, k, np),
             forall(ck, implies(apply(tra, k, ck, np),

@@ -1,4 +1,4 @@
-from derived import implies, forall, eqv, exists, left, right, arg2
+from derived import implies, forall, eq, exists, left, right, arg2
 from vocab.nat.arithmetic.plus import succ_func
 from vocab.logic import exists_unique
 from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same
@@ -19,14 +19,14 @@ $unique_succ_func {
 
     # succ_func_unique: SuccFunc(sf1) → SuccFunc(sf2) → Eqv(sf1,sf2)
     $_sfu head(right(succ_func_unique))
-    $_sfu_b \sf1: \sf2: implies(succ_func(sf1,"_"), implies(succ_func(sf2,"_"), eqv(sf1,sf2,"_")))
+    $_sfu_b \sf1: \sf2: implies(succ_func(sf1,"_"), implies(succ_func(sf2,"_"), eq(sf1,sf2,"_")))
     $sfu_inst apply_thm(succ_func_unique, _sfu, ["sf","y"], ["sf1","sf2"], _sfu_b, left(succ_func_unique))
     # [body_sf] ⊢ SuccFunc(y) → Eqv(sf,y)
     $sfu1 mp(sfu_inst, ax([body_sf],[body_sf],body_sf), body_sf,
-        implies(succ_func("y","_"), eqv("sf","y","_")), left(sfu_inst), [body_sf])
+        implies(succ_func("y","_"), eq("sf","y","_")), left(sfu_inst), [body_sf])
 
     # ir SuccFunc(y), fr y → ∀y. SuccFunc(y) → Eqv(sf,y)
-    $uniq_inner implies(succ_func("y","_"), eqv("sf","y","_"))
+    $uniq_inner implies(succ_func("y","_"), eq("sf","y","_"))
     $uniq forall("y", uniq_inner)
     $got_uniq fr(sfu1, left(sfu1), [uniq], uniq, "y")
 

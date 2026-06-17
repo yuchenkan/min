@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
@@ -51,20 +51,20 @@ $pf_base {
             forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), nat("xd","_"))))),
         implies(nat(m,"_"),
             exists("hm", and(recursive("hm",m,sf,"_"),
-                forall("y", implies(recursive("y",m,sf,"_"), eqv("hm","y","_")))))))
+                forall("y", implies(recursive("y",m,sf,"_"), eq("hm","y","_")))))))
     $rfem_ctx left(rec_for_each_m)
     $rfem_inst apply_thm(rec_for_each_m, _rfem, ["sf","m"], ["sf","m"], _rfem_b, rfem_ctx)
     $eu exists("hm", and(recursive("hm","m","sf","_"),
-        forall("y", implies(recursive("y","m","sf","_"), eqv("hm","y","_")))))
+        forall("y", implies(recursive("y","m","sf","_"), eq("hm","y","_")))))
     $rfem1 mp(rfem_inst, ax([sf_all], [sf_all], sf_all), sf_all, implies(nat_m, eu), rfem_ctx, [sf_all])
     $got_eu mp(rfem1, ax([nat_m], [nat_m], nat_m), nat_m, eu, left(rfem1), [nat_m])
     # [rfem_ctx, sf_all, nat_m] |- ∃hm.(...∧uniq)
 
     # Extract ∃hm.Recursive(hm,m,sf) from ∃!:
     $rec_hm recursive("hm","m","sf","_")
-    $eu_body and(rec_hm, forall("y", implies(recursive("y","m","sf","_"), eqv("hm","y","_"))))
+    $eu_body and(rec_hm, forall("y", implies(recursive("y","m","sf","_"), eq("hm","y","_"))))
     $got_rec_from_eu mp(and_elim_left(rec_hm,
-        forall("y", implies(recursive("y","m","sf","_"), eqv("hm","y","_"))), []),
+        forall("y", implies(recursive("y","m","sf","_"), eq("hm","y","_"))), []),
         ax([eu_body], [eu_body], eu_body), eu_body, rec_hm, [], [eu_body])
     # [eu_body] |- Recursive(hm,m,sf)
 
@@ -72,7 +72,7 @@ $pf_base {
     # Recursive(hm,m,sf) = ∀w. Omega(w) → And(func, And(dom_eq, And(base, step)))
     $om omega("w","_")
     $func_hm function("hm","_")
-    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eqv("d","w","_")))
+    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eq("d","w","_")))
     $base_hm forall("e", implies(num("e",0,"_"), apply("hm","e","m","_")))
     $step_hm forall("n", implies(mem("n","w"),
         forall("val", implies(apply("hm","n","val","_"),
@@ -182,7 +182,7 @@ $pf_base {
 
     # === C7: Eliminate hm (eel from eu_body, cut with got_eu) ===
     $got_app2 eel(got_app, \hm: and(recursive(hm,"m","sf","_"),
-        forall("y", implies(recursive("y","m","sf","_"), eqv(hm,"y","_")))),
+        forall("y", implies(recursive("y","m","sf","_"), eq(hm,"y","_")))),
         "hm", "hm", left(got_app), app_goal)
     $got_app3 cut_c(got_eu, got_app2, eu, left(got_eu), left(got_app2), app_goal)
 

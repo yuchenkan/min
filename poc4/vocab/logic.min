@@ -1,4 +1,4 @@
-from derived import and, exists, forall, implies, eqv, d
+from derived import and, exists, forall, implies, eq, d
 
 # exists_unique(body_fn, p): E!x.(body(x) & Ay.(body(y) -> x = y))
 # body_fn: \v p: formula using v, p is deeper prefix for nested vocab
@@ -10,6 +10,6 @@ $exists_unique \body_fn p: {
     $y add(p, "y")
     $np add(p, "_")
     $body body_fn(x, np)
-    $expansion exists(x, and(body, forall(y, implies(body_fn(y, np), eqv(x, y, p)))))
+    $expansion exists(x, and(body, forall(y, implies(body_fn(y, np), eq(x, y, p)))))
     [_d_exists_unique, expansion, x, body]
 }

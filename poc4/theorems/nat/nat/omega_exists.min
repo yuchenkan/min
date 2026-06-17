@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, sep_ax, left, right
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, sep_ax, left, right
 from vocab.sets import subset
 from vocab.nat.nat import num, inductive, omega, successor
 from tactics import ax, wl, fl, fr, ir, mp, cut, close, apply_thm, eel, eir, cut_c

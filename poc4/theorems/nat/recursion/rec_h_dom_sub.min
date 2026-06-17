@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, iff, eqv, left, right
+from derived import mem, implies, forall, and, exists, iff, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from vocab.nat.nat import nat, omega
@@ -10,7 +10,7 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.sets.kuratowski import kuratowski
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.nat.nat.nat_elim import nat_elim
@@ -47,27 +47,27 @@ $rec_h_dom_sub {
     $and_ra_app and(ra_v, app_vm)
     $and_inner and(and_ra_app, opq_my)
 
-    # kuratowski: opq_xy ∧ opq_my → eqv(x,m)
+    # kuratowski: opq_xy ∧ opq_my → eq(x,m)
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
-    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_er head(right(eqv_reflexive))
-    $eqv_qq eqv("q","q","_")
-    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["q"], ["q"], \a: eqv(a,a,"_"), [])
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"),eq(b,d,"_")))))
+    $_er head(right(eq_reflexive))
+    $eq_qq eq("q","q","_")
+    $got_eq_qq apply_thm(eq_reflexive, _er, ["q"], ["q"], \a: eq(a,a,"_"), [])
 
-    $eqv_xm eqv("x","m","_")
-    $goal_and and(eqv_xm, eqv("y","y2","_"))
+    $eq_xm eq("x","m","_")
+    $goal_and and(eq_xm, eq("y","y2","_"))
     $k_inst apply_thm(kuratowski, _kur, ["q","q","x","y","m","y2"], ["q","t2","a","b","c","d"], _kur_b, kur_ctx)
     $k1 mp(k_inst, ax([opq_xy], [opq_xy], opq_xy), opq_xy,
-        implies(opq_my, implies(eqv_qq, goal_and)), left(k_inst), [opq_xy])
+        implies(opq_my, implies(eq_qq, goal_and)), left(k_inst), [opq_xy])
     $k2 mp(k1, ax([opq_my], [opq_my], opq_my), opq_my,
-        implies(eqv_qq, goal_and), left(k1), [opq_my])
-    $k3 mp(k2, got_eqv_qq, eqv_qq, goal_and, left(k2), [])
-    $got_eqv_xm mp(and_elim_left(eqv_xm, eqv("y","y2","_"), []),
-        k3, goal_and, eqv_xm, [], left(k3))
-    # [opq_xy, opq_my, kur_ctx] |- eqv(x,m)
+        implies(eq_qq, goal_and), left(k1), [opq_my])
+    $k3 mp(k2, got_eq_qq, eq_qq, goal_and, left(k2), [])
+    $got_eq_xm mp(and_elim_left(eq_xm, eq("y","y2","_"), []),
+        k3, goal_and, eq_xm, [], left(k3))
+    # [opq_xy, opq_my, kur_ctx] |- eq(x,m)
 
-    # === Derive Nat(x) from eqv(x,m) + Nat(m) ===
+    # === Derive Nat(x) from eq(x,m) + Nat(m) ===
     # For arbitrary w with Omega(w): nat_elim → m∈w, ext_substitution → x∈w, then wrap to Nat(x).
     $nat_m nat("m","_")
     $om omega("w","_")
@@ -81,13 +81,13 @@ $rec_h_dom_sub {
     $got_mw mp(ne_mp1, ax([om],[om],om), om, mw, left(ne_mp1), [om])
     # [nat_m, om] |- m∈w
 
-    # ext_substitution: eqv(x,m) → iff(x∈w, m∈w)
+    # ext_substitution: eq(x,m) → iff(x∈w, m∈w)
     $_es head(right(ext_substitution))
     $es_ctx left(ext_substitution)
     $iff_xw iff(xw, mw)
     $got_es apply_thm(ext_substitution, _es, ["x","m","w"], ["x","b","s"],
-        \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx)
-    $got_iff_xw mp(got_es, got_eqv_xm, eqv_xm, iff_xw, es_ctx, left(got_eqv_xm))
+        \a: \b: \s: implies(eq(a,b,"_"), iff(mem(a,s),mem(b,s))), es_ctx)
+    $got_iff_xw mp(got_es, got_eq_xm, eq_xm, iff_xw, es_ctx, left(got_eq_xm))
 
     # iff backward: m∈w → x∈w
     $got_xw mp(mp(iff_elim_right(xw, mw, []),

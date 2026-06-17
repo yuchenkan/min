@@ -1,13 +1,13 @@
-from derived import mem, iff, implies, eqv
+from derived import mem, iff, implies, eq
 from tactics import ax, fl, ir, close
 
-# |- eqv(a,b) -> iff(mem(z,a), mem(z,b))
-# eqv(a,b,"_") = forall(_z, iff(mem(_z,a), mem(_z,b))), instantiate with z
+# |- eq(a,b) -> iff(mem(z,a), mem(z,b))
+# eq(a,b,"_") = forall(_z, iff(mem(_z,a), mem(_z,b))), instantiate with z
 $eq_transfer {
-    $eqv_ab eqv("a", "b", "_")
+    $eq_ab eq("a", "b", "_")
     $body iff(mem("z","a"), mem("z","b"))
-    $s1 fl(ax([body], [body], body), [eqv_ab], [body], eqv_ab, "z")
-    $top implies(eqv_ab, body)
+    $s1 fl(ax([body], [body], body), [eq_ab], [body], eq_ab, "z")
+    $top implies(eq_ab, body)
     $s2 ir(s1, [], [top], top)
     close(s2, [], [top], ["z","b","a"])
 }

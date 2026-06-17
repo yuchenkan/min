@@ -1,23 +1,23 @@
-from derived import mem, implies, forall, eqv, left, right
+from derived import mem, implies, forall, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from vocab.tm.tm import tm_step, tm_config, tm_transition, tape_update, head_move
 from tactics import ax, fl, fr, ir, mp, apply_thm, close, same
 from util.list import remove
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 
 # |- ∀d,c1,c2,c3. Eq(c1,c3) → TMStep(d,c3,c2) → TMStep(d,c1,c2)
 $tmstep_c1_transfer {
-    $eq_13 eqv("c1", "c3", "_")
+    $eq_13 eq("c1", "c3", "_")
     $step_c3 tm_step("d", "c3", "c2", "_")
     $step_c1 tm_step("d", "c1", "c2", "_")
 
-    # eqv_symmetric: Eq(c1,c3) → Eq(c3,c1)
-    $eq_31 eqv("c3", "c1", "_")
-    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
+    # eq_symmetric: Eq(c1,c3) → Eq(c3,c1)
+    $eq_31 eq("c3", "c1", "_")
+    $_es_b \a: \b: implies(eq(a, b, "_"), eq(b, a, "_"))
     $got_eq_31 mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["c1", "c3"], ["a", "b"], _es_b, []),
         ax([eq_13], [eq_13], eq_13), eq_13, eq_31, [], [eq_13])
 
@@ -59,9 +59,9 @@ $tmstep_c1_transfer {
     $got_op_c1 mp(cfg_c1_inst,
         ax([op_rv], [op_rv], op_rv), op_rv, op_c1, [cfg_c1], [op_rv])
 
-    # eqv_ordpair_transfer: Eq(c3,c1) → OP(c1,rq,rv) → OP(c3,rq,rv)
-    $_eot_b \z: \t: \x: \y: implies(eqv(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
-    $eot_inst apply_thm(eqv_ordpair_transfer, head(right(eqv_ordpair_transfer)),
+    # eq_ordpair_transfer: Eq(c3,c1) → OP(c1,rq,rv) → OP(c3,rq,rv)
+    $_eot_b \z: \t: \x: \y: implies(eq(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
+    $eot_inst apply_thm(eq_ordpair_transfer, head(right(eq_ordpair_transfer)),
         ["c3", "c1", "rq", "rv"], ["z", "t", "x", "y"], _eot_b, [])
     $eot_s1 mp(eot_inst,
         got_eq_31, eq_31, implies(op_c1, op_c3), [], left(got_eq_31))

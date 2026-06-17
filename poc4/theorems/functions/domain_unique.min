@@ -1,6 +1,6 @@
-from derived import mem, exists, eqv
+from derived import mem, exists, eq
 from vocab.functions import apply, domain
 from theorems.sets.set_spec_unique import set_spec_unique
 
-# |- domain(d1,f) -> domain(d2,f) -> eqv(d1,d2)
+# |- domain(d1,f) -> domain(d2,f) -> eq(d1,d2)
 $domain_unique set_spec_unique(\v p: exists("r", apply("f", v, "r", p)), ["f"], "_")

@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, eqv, left, right
+from derived import mem, neg, implies, forall, exists, and, or, eq, left, right
 from vocab.sets import empty, ordered_pair, singleton
 from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_step
@@ -12,7 +12,7 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.or_intro_right import or_intro_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.singleton_exists import singleton_exists
 from theorems.sets.singleton_apply import singleton_apply
@@ -82,10 +82,10 @@ $phase3_base {
     # --- 3. base_cond: ∀zp. Empty(zp) → Apply(ts, zp, c1) ---
     $empty_zp empty("zp", "_")
     $app_ts_zp apply("ts", "zp", "c1", "_")
-    $eq_zp_z eqv("zp", "z", "_")
-    $eq_z_zp eqv("z", "zp", "_")
+    $eq_zp_z eq("zp", "z", "_")
+    $eq_z_zp eq("z", "zp", "_")
 
-    $_eu_b \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eqv(a,b,"_")))
+    $_eu_b \a: \b: implies(empty(a,"_"), implies(empty(b,"_"), eq(a,b,"_")))
     $eu_inst apply_thm(empty_unique, head(right(empty_unique)),
         ["zp","z"], ["a","b"], _eu_b, [])
     $eu_s1 mp(eu_inst,
@@ -95,13 +95,13 @@ $phase3_base {
         ax([num_z],[num_z],num_z), num_z, eq_zp_z,
         [empty_zp], [num_z])
 
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
     $got_eq_z_zp mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["zp","z"], ["a","b"], _es_b, []),
         got_eq_zp_z, eq_zp_z, eq_z_zp, [], left(got_eq_zp_z))
 
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
     $akt_inst apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
         ["ts","z","zp","c1"], ["f","x","x2","y"], _akt_b, [])
     $akt_s1 mp(akt_inst,
@@ -119,14 +119,14 @@ $phase3_base {
 
     # --- 4. dom_bound: ∀xd,yd. Apply(ts,xd,yd) → Or(In(xd,z), Eq(xd,z)) ---
     $app_ts_xd apply("ts", "xd", "yd", "_")
-    $or_xd_z or(mem("xd", "z"), eqv("xd", "z", "_"))
-    $eq_z_xd eqv("z", "xd", "_")
-    $eq_xd_z eqv("xd", "z", "_")
-    $and_sae and(eq_z_xd, eqv("c1", "yd", "_"))
+    $or_xd_z or(mem("xd", "z"), eq("xd", "z", "_"))
+    $eq_z_xd eq("z", "xd", "_")
+    $eq_xd_z eq("xd", "z", "_")
+    $and_sae and(eq_z_xd, eq("c1", "yd", "_"))
 
     $_sae_b \e: \b: \op: \f: \xe: \ye:
         implies(ordered_pair(op,e,b,"_"), implies(singleton(f,op,"_"), implies(apply(f,xe,ye,"_"),
-            and(eqv(e,xe,"_"), eqv(b,ye,"_")))))
+            and(eq(e,xe,"_"), eq(b,ye,"_")))))
     $sae_inst apply_thm(singleton_apply_eq, head(right(singleton_apply_eq)),
         ["z","c1","pzc","ts","xd","yd"],
         ["e","b","op","f","xe","ye"], _sae_b, left(singleton_apply_eq))
@@ -141,10 +141,10 @@ $phase3_base {
     $got_and_sae mp(sae_s2,
         ax([app_ts_xd],[app_ts_xd],app_ts_xd), app_ts_xd, and_sae,
         left(sae_s2), [app_ts_xd])
-    $got_eq_z_xd mp(and_elim_left(eq_z_xd, eqv("c1","yd","_"), []),
+    $got_eq_z_xd mp(and_elim_left(eq_z_xd, eq("c1","yd","_"), []),
         got_and_sae, and_sae, eq_z_xd, [], left(got_and_sae))
     $got_eq_xd_z mp(
-        apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+        apply_thm(eq_symmetric, head(right(eq_symmetric)),
             ["z","xd"], ["a","b"], _es_b, []),
         got_eq_z_xd, eq_z_xd, eq_xd_z, [], left(got_eq_z_xd))
 
@@ -205,7 +205,7 @@ $phase3_base {
 
     # --- 7. eir cn=c1, tra=ts ---
     $inner_body \pos_n: \tra: \cn: and(function(tra,"_"), and(
-        forall("xd", forall("yd", implies(apply(tra,"xd","yd","_"), or(mem("xd","z"), eqv("xd","z","_"))))),
+        forall("xd", forall("yd", implies(apply(tra,"xd","yd","_"), or(mem("xd","z"), eq("xd","z","_"))))),
         and(forall("zp", implies(empty("zp","_"), apply(tra,"zp","c1","_"))),
             and(tm_config(cn,"q1",pos_n,"tape2","_"),
                 and(apply(tra,"z",cn,"_"),

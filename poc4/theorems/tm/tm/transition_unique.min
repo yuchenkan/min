@@ -1,4 +1,4 @@
-from derived import implies, forall, eqv, and, exists, left, right
+from derived import implies, forall, eq, and, exists, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function, relation, single_valued
 from vocab.tm.tm import tm_transition
@@ -8,7 +8,7 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.ordpair_exists import ordpair_exists
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 from theorems.sets.tuple_injection import tuple_injection
 from theorems.functions.func_unique_thm import func_unique_thm
 
@@ -75,10 +75,10 @@ $transition_unique {
     $got_t2 mp(s_t2_4, ax([op_out2], [op_out2], op_out2), op_out2, app_d2, left(s_t2_4), [op_out2])
 
     # func_unique_thm: sv(delta) -> Apply(delta,inp,out1) -> Apply(delta,inp,out2) -> Eqv(out1,out2)
-    $eq_out eqv("out1", "out2", "_")
+    $eq_out eq("out1", "out2", "_")
     $_fu head(right(func_unique_thm))
     $_fu_b \f: \x: \y1: \y2: implies(single_valued(f, "_"),
-        implies(apply(f, x, y1, "_"), implies(apply(f, x, y2, "_"), eqv(y1, y2, "_"))))
+        implies(apply(f, x, y1, "_"), implies(apply(f, x, y2, "_"), eq(y1, y2, "_"))))
     $got_fu apply_thm(func_unique_thm, _fu, ["delta", "inp", "out1", "out2"],
         ["f", "x", "y1", "y2"], _fu_b, [])
 
@@ -92,12 +92,12 @@ $transition_unique {
     $got_fu_b mp(got_fu_a, got_t1, app_d1, fu_q2, left(got_fu_a), left(got_t1))
     $got_eq_out mp(got_fu_b, got_t2, app_d2, eq_out, left(got_fu_b), left(got_t2))
 
-    # eqv_ordpair_transfer: Eqv(out1,out2) -> OrdPair(out2,w2,dp2) -> OrdPair(out1,w2,dp2)
+    # eq_ordpair_transfer: Eqv(out1,out2) -> OrdPair(out2,w2,dp2) -> OrdPair(out1,w2,dp2)
     $op_out1_w2dp2 ordered_pair("out1", "w2", "dp2", "_")
-    $_eot head(right(eqv_ordpair_transfer))
+    $_eot head(right(eq_ordpair_transfer))
     $_eot_b \z: \t: \x: \y:
-        implies(eqv(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
-    $got_eot1 apply_thm(eqv_ordpair_transfer, _eot, ["out1", "out2", "w2", "dp2"],
+        implies(eq(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
+    $got_eot1 apply_thm(eq_ordpair_transfer, _eot, ["out1", "out2", "w2", "dp2"],
         ["z", "t", "x", "y"], _eot_b, [])
     $got_eot1a mp(got_eot1, got_eq_out, eq_out, implies(op_out2, op_out1_w2dp2),
         [], left(got_eq_out))
@@ -106,14 +106,14 @@ $transition_unique {
 
     # Alpha-rename tuple_injection to avoid bound var clashes with terms
     $_ti_b \a1: \a2: \a3: \a4: \a5:
-        implies(ordered_pair(a1, a2, a3, "_"), implies(ordered_pair(a1, a4, a5, "_"), and(eqv(a2, a4, "_"), eqv(a3, a5, "_"))))
+        implies(ordered_pair(a1, a2, a3, "_"), implies(ordered_pair(a1, a4, a5, "_"), and(eq(a2, a4, "_"), eq(a3, a5, "_"))))
     $ti_r forall("a1", forall("a2", forall("a3", forall("a4", forall("a5",
         _ti_b("a1")("a2")("a3")("a4")("a5"))))))
     $ti_thm wr(tuple_injection, left(tuple_injection), [ti_r], ti_r)
 
     # tuple_injection on OrdPair(out1,w,dp1) and OrdPair(out1,w2,dp2)
-    $eq_w eqv("w", "w2", "_")
-    $eq_dp eqv("dp1", "dp2", "_")
+    $eq_w eq("w", "w2", "_")
+    $eq_dp eq("dp1", "dp2", "_")
     $and_wdp and(eq_w, eq_dp)
     $got_ti1 apply_thm(ti_thm, ti_r, ["out1", "w", "dp1", "w2", "dp2"],
         ["a1", "a2", "a3", "a4", "a5"], _ti_b, left(ti_thm))
@@ -127,9 +127,9 @@ $transition_unique {
     $got_eq_dp mp(and_elim_right(eq_w, eq_dp, []),
         got_ti1b, and_wdp, eq_dp, [], left(got_ti1b))
 
-    # eqv_ordpair_transfer: Eqv(dp1,dp2) -> OrdPair(dp2,d2,qn2) -> OrdPair(dp1,d2,qn2)
+    # eq_ordpair_transfer: Eqv(dp1,dp2) -> OrdPair(dp2,d2,qn2) -> OrdPair(dp1,d2,qn2)
     $op_dp1_d2qn2 ordered_pair("dp1", "d2", "qn2", "_")
-    $got_eot2 apply_thm(eqv_ordpair_transfer, _eot, ["dp1", "dp2", "d2", "qn2"],
+    $got_eot2 apply_thm(eq_ordpair_transfer, _eot, ["dp1", "dp2", "d2", "qn2"],
         ["z", "t", "x", "y"], _eot_b, [])
     $got_eot2a mp(got_eot2, got_eq_dp, eq_dp, implies(op_dp2, op_dp1_d2qn2),
         [], left(got_eq_dp))
@@ -137,8 +137,8 @@ $transition_unique {
         left(got_eot2a), [op_dp2])
 
     # tuple_injection on OrdPair(dp1,d,qn) and OrdPair(dp1,d2,qn2)
-    $eq_d eqv("d", "d2", "_")
-    $eq_qn eqv("qn", "qn2", "_")
+    $eq_d eq("d", "d2", "_")
+    $eq_qn eq("qn", "qn2", "_")
     $and_dqn and(eq_d, eq_qn)
     $got_ti2 apply_thm(ti_thm, ti_r, ["dp1", "d", "qn", "d2", "qn2"],
         ["a1", "a2", "a3", "a4", "a5"], _ti_b, left(ti_thm))

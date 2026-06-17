@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv
+from derived import mem, implies, forall, and, iff, exists, eq
 from vocab.sets import ordered_pair, product
 from vocab.functions import apply, function, domain
 from vocab.nat.nat import nat, num, omega, successor
@@ -21,7 +21,7 @@ $plus_func \h p: {
 
     $func_h function(h, np)
     $dom_eq forall(dd, forall(prod, implies(domain(dd, h, np),
-        implies(product(prod, w, w, np), eqv(dd, prod, np)))))
+        implies(product(prod, w, w, np), eq(dd, prod, np)))))
     $base forall(m, implies(mem(m, w),
         forall(z, implies(num(z, 0, p),
             forall(pair, implies(ordered_pair(pair, m, z, np),

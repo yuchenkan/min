@@ -1,9 +1,9 @@
-from derived import mem, implies, iff, forall, eqv
+from derived import mem, implies, iff, forall, eq
 from vocab.sets import subset
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.iff_intro import iff_intro
 
-# |- subset(a,b) -> subset(b,a) -> eqv(a,b)
+# |- subset(a,b) -> subset(b,a) -> eq(a,b)
 $subset_antisymmetric {
     $sub_ab subset("a", "b", "_")
     $sub_ba subset("b", "a", "_")
@@ -20,10 +20,10 @@ $subset_antisymmetric {
                    got_fwd, imp_ab, implies(imp_ba, iff_ab), [], [sub_ab]),
                 got_bwd, imp_ba, iff_ab, [sub_ab], [sub_ba])
 
-    $eqv_ab eqv("a", "b", "_")
-    $got_fa fr(got_iff, [sub_ab, sub_ba], [eqv_ab], eqv_ab, "z")
+    $eq_ab eq("a", "b", "_")
+    $got_fa fr(got_iff, [sub_ab, sub_ba], [eq_ab], eq_ab, "z")
 
-    $imp2 implies(sub_ba, eqv_ab)
+    $imp2 implies(sub_ba, eq_ab)
     $s1 ir(got_fa, [sub_ab], [imp2], imp2)
     $top implies(sub_ab, imp2)
     $s2 ir(s1, [], [top], top)

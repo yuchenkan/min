@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, single_valued, domain
@@ -18,7 +18,7 @@ from theorems.nat.nat.omega_exists import omega_exists
 $plus_val_unique {
     $plus_abc plus("a","b","c","_")
     $plus_abc2 plus("a","b","c2","_")
-    $goal eqv("c","c2","_")
+    $goal eq("c","c2","_")
 
     # PlusFunc(h)
     $pf_abs plus_func("h","_")
@@ -26,7 +26,7 @@ $plus_val_unique {
     # === Extract SingleValued(h) from PlusFunc(h) ===
     $func_h function("h","_")
     $sv_h single_valued("h","_")
-    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eqv("d","prod","_")))))
+    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eq("d","prod","_")))))
     $base_f forall("m", implies(mem("m","w"), forall("zz", implies(num("zz",0,"_"),
         forall("pair", implies(ordered_pair("pair","m","zz","_"), apply("h","pair","m","_")))))))
     $step_f forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"),
@@ -75,7 +75,7 @@ $plus_val_unique {
 
     # === func_unique: sv → Apply(h,pair,c) → Apply(h,pair,c2) → Eqv(c,c2) ===
     $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"),
-        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
     $fu_inst apply_thm(func_unique_thm, head(right(func_unique_thm)), ["h","pair","c","c2"],
         ["f","x","y1","y2"], _fu_b, [])
     $fu1 mp(fu_inst, got_sv, sv_h, arg2(head(right(fu_inst))), [], left(pf_at_w))

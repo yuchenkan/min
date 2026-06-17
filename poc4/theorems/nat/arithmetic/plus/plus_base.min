@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair, product
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
@@ -31,7 +31,7 @@ $plus_base {
     $pf plus_func("h2","_")
     $func_h function("h2","_")
     $dom_eq forall("d2", forall("prod2", implies(domain("d2","h2","_"),
-        implies(product("prod2","w","w","_"), eqv("d2","prod2","_")))))
+        implies(product("prod2","w","w","_"), eq("d2","prod2","_")))))
     $base forall("m2", implies(mem("m2","w"),
         forall("z2", implies(num("z2",0,"_"),
             forall("pair2", implies(ordered_pair("pair2","m2","z2","_"),

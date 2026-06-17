@@ -1,10 +1,10 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, d
 from vocab.sets import empty, set_spec, subset
 
 # successor(s, a, p): s = a ∪ {a}
 $_d_successor \f: add(nth(f, 2), add(" = S(", add(nth(f, 3), ")")))
 $successor \s a p: [_d_successor,
-    set_spec(s, \x np: or(mem(x, a), eqv(x, a, np)), p), s, a]
+    set_spec(s, \x np: or(mem(x, a), eq(x, a, np)), p), s, a]
 
 # num(n, k, p): n equals the concrete natural number k.
 # num(n, 0, p) = Empty(n)
@@ -13,7 +13,7 @@ $_d_num \f: add(nth(f, 2), add(" = ", str(nth(f, 3))))
 $_num \self n k p: {
     $np add(p, "_")
     $m add(p, "m")
-    ?(eq(k, 0),
+    ?(eqv(k, 0),
         [_d_num, empty(n, np), n, k],
         [_d_num,
             forall(m, implies(self(self, m, sub(k, 1), np), successor(n, m, np))), n, k])

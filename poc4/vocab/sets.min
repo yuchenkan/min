@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, d
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, d
 
 # All vocab nodes: [disp_fn, expansion, dargs...] — no tag, no eager display.
 # p (prefix) is REQUIRED
@@ -29,15 +29,15 @@ $subset \a b p: {
     [_d_subset, body, a, b]
 }
 
-# singleton(s, a, p): set_spec(s, \x np: eqv(x, a, np))
+# singleton(s, a, p): set_spec(s, \x np: eq(x, a, np))
 $_d_singleton \f: add(nth(f, 2), add(" = {", add(nth(f, 3), "}")))
 $singleton \s a p: [_d_singleton,
-    set_spec(s, \x np: eqv(x, a, np), p), s, a]
+    set_spec(s, \x np: eq(x, a, np), p), s, a]
 
-# pair_set(s, a, b, p): set_spec(s, \x np: or(eqv(x, a, np), eqv(x, b, np)))
+# pair_set(s, a, b, p): set_spec(s, \x np: or(eq(x, a, np), eq(x, b, np)))
 $_d_pair_set \f: add(nth(f, 2), add(" = {", add(nth(f, 3), add(", ", add(nth(f, 4), "}")))))
 $pair_set \s a b p: [_d_pair_set,
-    set_spec(s, \x np: or(eqv(x, a, np), eqv(x, b, np)), p), s, a, b]
+    set_spec(s, \x np: or(eq(x, a, np), eq(x, b, np)), p), s, a, b]
 
 # big_union(s, a, p): set_spec(s, \x np: exists(y, and(mem(y, a), mem(x, y))))
 $_d_big_union \f: add(nth(f, 2), add(" = U(", add(nth(f, 3), ")")))

@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, exists, eq, left, right, arg2
 from vocab.sets import relation
 from vocab.functions import apply, function, domain
 from vocab.nat.nat import num, omega, successor
@@ -33,7 +33,7 @@ $rec_values_agree {
 
     # === Unwrap and extract from Recursive(h) ===
     $func_h function("h","_")
-    $dom_eq_h forall("d2", implies(domain("d2","h","_"), eqv("d2","w","_")))
+    $dom_eq_h forall("d2", implies(domain("d2","h","_"), eq("d2","w","_")))
     $base_h forall("e2", implies(num("e2",0,"_"), apply("h","e2","a","_")))
     $step_h forall("n2", implies(mem("n2","w"), forall("val2", implies(apply("h","n2","val2","_"),
         forall("sn2", implies(successor("sn2","n2","_"), forall("fval2", implies(apply("f","val2","fval2","_"), apply("h","sn2","fval2","_")))))))))
@@ -51,7 +51,7 @@ $rec_values_agree {
 
     # === Unwrap and extract from Recursive(h2) ===
     $func_h2 function("h2","_")
-    $dom_eq_h2 forall("d2", implies(domain("d2","h2","_"), eqv("d2","w","_")))
+    $dom_eq_h2 forall("d2", implies(domain("d2","h2","_"), eq("d2","w","_")))
     $base_h2 forall("e2", implies(num("e2",0,"_"), apply("h2","e2","a","_")))
     $step_h2 forall("n2", implies(mem("n2","w"), forall("val2", implies(apply("h2","n2","val2","_"),
         forall("sn2", implies(successor("sn2","n2","_"), forall("fval2", implies(apply("f","val2","fval2","_"), apply("h2","sn2","fval2","_")))))))))

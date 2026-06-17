@@ -1,15 +1,15 @@
-from derived import mem, implies, forall, or, iff, eqv
+from derived import mem, implies, forall, or, iff, eq
 from vocab.nat.nat import successor
 from tactics import ax, fl, ir, mp, close
 from theorems.logic.iff_elim_left import iff_elim_left
 
-# |- mem(x,s) -> successor(s,n) -> or(mem(x,n), eqv(x,n))
-# succ(s,n): x∈s ↔ (x∈n ∨ eqv(x,n)). Forward direction.
+# |- mem(x,s) -> successor(s,n) -> or(mem(x,n), eq(x,n))
+# succ(s,n): x∈s ↔ (x∈n ∨ eq(x,n)). Forward direction.
 $mem_succ_elim {
     $xs mem("x", "s")
     $succ successor("s", "n", "_")
     $xn mem("x", "n")
-    $exn eqv("x", "n", "_")
+    $exn eq("x", "n", "_")
     $or_x or(xn, exn)
     $iff_xs iff(xs, or_x)
 

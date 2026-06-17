@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, eqv, left, right
+from derived import mem, implies, forall, and, exists, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from tactics import ax, ir, mp, apply_thm, eel, eir, cut_c, close
@@ -7,9 +7,9 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
 
-# |- eqv(y,y2) -> apply(f,x,y) -> apply(f,x,y2)
+# |- eq(y,y2) -> apply(f,x,y) -> apply(f,x,y2)
 $apply_val_transfer {
-    $eqv_yy2 eqv("y", "y2", "_")
+    $eq_yy2 eq("y", "y2", "_")
     $app apply("f", "x", "y", "_")
     $app2 apply("f", "x", "y2", "_")
 
@@ -24,26 +24,26 @@ $apply_val_transfer {
         ax([and_q], [and_q], and_q), and_q, qf, [], [and_q])
 
     $_ovt head(right(ordpair_val_transfer))
-    $_ovt_b \t: \a: \b: \c: implies(eqv(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $_ovt_b \t: \a: \b: \c: implies(eq(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
     $got_ovt apply_thm(ordpair_val_transfer, _ovt, ["q", "x", "y", "y2"], ["q", "a", "b", "c"], _ovt_b, [])
     $got_op2 mp(mp(got_ovt,
-        ax([eqv_yy2], [eqv_yy2], eqv_yy2), eqv_yy2, implies(op_q, op_q2), [], [eqv_yy2]),
-        got_op, op_q, op_q2, [eqv_yy2], [and_q])
+        ax([eq_yy2], [eq_yy2], eq_yy2), eq_yy2, implies(op_q, op_q2), [], [eq_yy2]),
+        got_op, op_q, op_q2, [eq_yy2], [and_q])
 
     $and_q2 and(op_q2, qf)
     $got_and2 mp(mp(and_intro(op_q2, qf, []),
-        got_op2, op_q2, implies(qf, and_q2), [], [eqv_yy2, and_q]),
-        got_qf, qf, and_q2, [eqv_yy2, and_q], [and_q])
+        got_op2, op_q2, implies(qf, and_q2), [], [eq_yy2, and_q]),
+        got_qf, qf, and_q2, [eq_yy2, and_q], [and_q])
 
     $got_app2 eir(got_and2, \v: and(ordered_pair(v, "x", "y2", "_"), mem(v, "f")),
-        "p", "q", [eqv_yy2, and_q])
+        "p", "q", [eq_yy2, and_q])
 
     $got_eel eel(got_app2, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "f")),
-        "p", "q", [eqv_yy2, and_q], app2)
+        "p", "q", [eq_yy2, and_q], app2)
 
     $imp2 implies(app, app2)
-    $s1 ir(got_eel, [eqv_yy2], [imp2], imp2)
-    $top implies(eqv_yy2, imp2)
+    $s1 ir(got_eel, [eq_yy2], [imp2], imp2)
+    $top implies(eq_yy2, imp2)
     $s2 ir(s1, [], [top], top)
     close(s2, [], [top], ["y2","y","x","f"])
 }

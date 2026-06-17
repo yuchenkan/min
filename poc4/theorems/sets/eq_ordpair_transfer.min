@@ -1,15 +1,15 @@
-from derived import mem, implies, forall, or, iff, eqv
+from derived import mem, implies, forall, or, iff, eq
 from vocab.sets import singleton, pair_set, ordered_pair
 from tactics import ax, fl, fr, ir, mp, close
 from theorems.logic.iff_chain import iff_chain
 from theorems.logic.iff_sym import iff_sym
 
-# |- eqv(z,t) -> ordered_pair(t,x,y) -> ordered_pair(z,x,y)
-# From eqv(z,t): forall w. w∈z ↔ w∈t.
+# |- eq(z,t) -> ordered_pair(t,x,y) -> ordered_pair(z,x,y)
+# From eq(z,t): forall w. w∈z ↔ w∈t.
 # From ordered_pair(t,x,y): forall w. w∈t ↔ or(sing(w,x), pair(w,x,y)).
 # iff_chain: w∈z ↔ or(...). forall w → ordered_pair(z,x,y).
-$eqv_ordpair_transfer {
-    $ez eqv("z","t","_")
+$eq_ordpair_transfer {
+    $ez eq("z","t","_")
     $opt ordered_pair("t","x","y","_")
     $opz ordered_pair("z","x","y","_")
 
@@ -19,7 +19,7 @@ $eqv_ordpair_transfer {
     $pw pair_set("w","x","y","_")
     $or_sp or(sw, pw)
 
-    # From eqv(z,t): iff(w∈z, w∈t)
+    # From eq(z,t): iff(w∈z, w∈t)
     $iff_zt iff(wz, wt)
     $got_iff_zt fl(ax([iff_zt], [iff_zt], iff_zt), [ez], [iff_zt], ez, "w")
 

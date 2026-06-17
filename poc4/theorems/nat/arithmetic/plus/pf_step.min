@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
@@ -11,14 +11,14 @@ from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.ordpair_key_transfer import ordpair_key_transfer
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 from theorems.functions.apply_intro import apply_intro
 from theorems.nat.nat.omega_succ_closed import omega_succ_closed
 from theorems.nat.nat.omega_exists import omega_exists
@@ -112,10 +112,10 @@ $pf_step {
         ax([and_rec_app], [and_rec_app], and_rec_app), and_rec_app, app_hm_nv, [], [and_rec_app])
 
     # === Phase D: Kuratowski on OrdPair(pair,m,n) and OrdPair(pair,mv,nv) ===
-    $_er head(right(eqv_reflexive))
-    $got_eqv_pp apply_thm(eqv_reflexive, _er, ["pair"], ["pair"], \a: eqv(a,a,"_"), [])
+    $_er head(right(eq_reflexive))
+    $got_eq_pp apply_thm(eq_reflexive, _er, ["pair"], ["pair"], \a: eq(a,a,"_"), [])
     $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
-        implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"), eqv(b,d,"_")))))
+        implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"), eq(b,d,"_")))))
     $ku_r forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
         _ku_b("t1")("t2")("a")("b")("c")("d")))))))
     $ku_thm wr(kuratowski, left(kuratowski), [ku_r], ku_r)
@@ -124,26 +124,26 @@ $pf_step {
     $ku1 mp(ku_inst, ax([op_mn], [op_mn], op_mn), op_mn, arg2(head(right(ku_inst))),
         left(ku_inst), [op_mn])
     $ku2 mp(ku1, got_op_mv, op_pair_mv, arg2(head(right(ku1))), left(ku1), [and_op_ex])
-    $eq_mn and(eqv("m","mv","_"), eqv("n","nv","_"))
-    $got_eq mp(ku2, got_eqv_pp, eqv("pair","pair","_"), eq_mn, left(ku2), [])
-    $got_eqv_m_mv mp(and_elim_left(eqv("m","mv","_"), eqv("n","nv","_"), []),
-        got_eq, eq_mn, eqv("m","mv","_"), [], left(got_eq))
-    $got_eqv_n_nv mp(and_elim_right(eqv("m","mv","_"), eqv("n","nv","_"), []),
-        got_eq, eq_mn, eqv("n","nv","_"), [], left(got_eq))
+    $eq_mn and(eq("m","mv","_"), eq("n","nv","_"))
+    $got_eq mp(ku2, got_eq_pp, eq("pair","pair","_"), eq_mn, left(ku2), [])
+    $got_eq_m_mv mp(and_elim_left(eq("m","mv","_"), eq("n","nv","_"), []),
+        got_eq, eq_mn, eq("m","mv","_"), [], left(got_eq))
+    $got_eq_n_nv mp(and_elim_right(eq("m","mv","_"), eq("n","nv","_"), []),
+        got_eq, eq_mn, eq("n","nv","_"), [], left(got_eq))
     # left(got_eq) = [ku_ctx, op_mn, and_op_ex]
 
     # === Phase E: apply_key_transfer → Apply(hm,n,p) ===
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_eqv_nv_n mp(apply_thm(eqv_symmetric, _es, ["n","nv"], ["a","b"], _es_b, []),
-        got_eqv_n_nv, eqv("n","nv","_"), eqv("nv","n","_"), [], left(got_eqv_n_nv))
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq_nv_n mp(apply_thm(eq_symmetric, _es, ["n","nv"], ["a","b"], _es_b, []),
+        got_eq_n_nv, eq("n","nv","_"), eq("nv","n","_"), [], left(got_eq_n_nv))
     $_akt head(right(apply_key_transfer))
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
     $app_hm_n apply("hm","n","p","_")
     $got_app_n mp(mp(apply_thm(apply_key_transfer, _akt, ["hm","nv","n","p"],
         ["f","x","x2","y"], _akt_b, []),
-        got_eqv_nv_n, eqv("nv","n","_"), implies(app_hm_nv, app_hm_n), [], left(got_eqv_nv_n)),
-        got_app_hm, app_hm_nv, app_hm_n, left(got_eqv_nv_n), [and_rec_app])
+        got_eq_nv_n, eq("nv","n","_"), implies(app_hm_nv, app_hm_n), [], left(got_eq_nv_n)),
+        got_app_hm, app_hm_nv, app_hm_n, left(got_eq_nv_n), [and_rec_app])
     # [ku_ctx, op_mn, and_op_ex, and_rec_app] |- Apply(hm,n,p)
 
     # === Phase F: rec_val_nat → Nat(p) ===
@@ -227,7 +227,7 @@ $pf_step {
     # === Phase I: Recursive step → Apply(hm,sn,sp) ===
     # Unwrap Recursive(hm,mv,sf) at w to get step
     $func_hm function("hm","_")
-    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eqv("d","w","_")))
+    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eq("d","w","_")))
     $base_hm forall("e", implies(num("e",0,"_"), apply("hm","e","mv","_")))
     $step_hm forall("ns", implies(mem("ns","w"),
         forall("val", implies(apply("hm","ns","val","_"),
@@ -280,11 +280,11 @@ $pf_step {
     # === Phase J: ordpair_key_transfer → OrdPair(pair2,mv,sn) ===
     $op_pair2_mv ordered_pair("pair2","mv","sn","_")
     $_okt head(right(ordpair_key_transfer))
-    $_okt_b \t: \a: \b: \c: implies(eqv(a,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,b,"_")))
+    $_okt_b \t: \a: \b: \c: implies(eq(a,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,b,"_")))
     $got_op2_mv mp(mp(apply_thm(ordpair_key_transfer, _okt, ["pair2","m","sn","mv"],
         ["t","a","b","c"], _okt_b, []),
-        got_eqv_m_mv, eqv("m","mv","_"), implies(op_pair2, op_pair2_mv), [], left(got_eqv_m_mv)),
-        ax([op_pair2], [op_pair2], op_pair2), op_pair2, op_pair2_mv, left(got_eqv_m_mv), [op_pair2])
+        got_eq_m_mv, eq("m","mv","_"), implies(op_pair2, op_pair2_mv), [], left(got_eq_m_mv)),
+        ax([op_pair2], [op_pair2], op_pair2), op_pair2, op_pair2_mv, left(got_eq_m_mv), [op_pair2])
 
     # === Phase K: ordpair_exists → ∃tr.OrdPair(tr,pair2,sp) ===
     $_oe head(right(ordpair_exists))

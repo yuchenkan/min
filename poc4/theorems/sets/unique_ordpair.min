@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, or, eqv, pairing_ax, left, right
+from derived import implies, forall, exists, or, eq, pairing_ax, left, right
 from vocab.sets import singleton, pair_set, ordered_pair
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -11,10 +11,10 @@ $unique_ordpair {
     $body_fn \v p: ordered_pair(v, "a", "b", p)
     $eu exists_unique(body_fn, "_")
     $op_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
     $_ou_f head(right(ordpair_unique))
     $ou_inst apply_thm(ordpair_unique, _ou_f, ["a", "b", "u", "y"], ["a", "b", "s1", "s2"],
-        \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_"))), [])
+        \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eq(s1,s2,"_"))), [])
     $got_inner mp(ou_inst, ax([op_u], [op_u], op_u), op_u, imp_inner, [], [op_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [op_u], [fa_uniq], fa_uniq, "y")

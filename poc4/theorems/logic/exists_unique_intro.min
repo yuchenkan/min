@@ -1,13 +1,13 @@
-from derived import neg, implies, forall, and, eqv
+from derived import neg, implies, forall, and, eq
 from vocab.logic import exists_unique
 from tactics import ax, wl, nl, fl, nr, ir, cut, mp, close
 from theorems.logic.and_intro import and_intro
 
-# |- body(t) -> (forall y. body(y) -> eqv(t, y)) -> exists_unique(body_fn)
+# |- body(t) -> (forall y. body(y) -> eq(t, y)) -> exists_unique(body_fn)
 $exists_unique_intro \body_fn t vars p: {
     $np add(p, "_")
     $body_t body_fn(t, np)
-    $uniq forall(add(p, "y"), implies(body_fn(add(p, "y"), np), eqv(t, add(p, "y"), p)))
+    $uniq forall(add(p, "y"), implies(body_fn(add(p, "y"), np), eq(t, add(p, "y"), p)))
     $conj and(body_t, uniq)
     $eu exists_unique(body_fn, p)
 
@@ -17,7 +17,7 @@ $exists_unique_intro \body_fn t vars p: {
     # Use prefixed var to avoid capture in body_fn
     $qv add(p, "q")
     $yv add(p, "y")
-    $inner_body \v: and(body_fn(v, np), forall(yv, implies(body_fn(yv, np), eqv(v, yv, p))))
+    $inner_body \v: and(body_fn(v, np), forall(yv, implies(body_fn(yv, np), eq(v, yv, p))))
     $inner_t inner_body(t)
     $fa_neg forall(qv, neg(inner_body(qv)))
     $s1 fl(ax([neg(inner_t)], [neg(inner_t)], neg(inner_t)), [fa_neg], [neg(inner_t)], fa_neg, t)

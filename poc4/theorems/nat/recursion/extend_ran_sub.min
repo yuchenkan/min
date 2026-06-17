@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg2
 from vocab.sets import singleton, ordered_pair, union
 from vocab.functions import apply, function
 from vocab.nat.nat import num, omega, successor
@@ -11,7 +11,7 @@ from theorems.functions.union_apply_elim import union_apply_elim
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
 from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_val_transfer import apply_val_transfer
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.nat.nat.omega_exists import omega_exists
 
@@ -76,27 +76,27 @@ $extend_ran_sub {
     $op_q ordered_pair("q", "x", "y", "_")
     $qh mem("q", "h")
     $and_q and(op_q, qh)
-    $eqv_q_op eqv("q", "op", "_")
-    $eqv_y_fval eqv("y", "fval", "_")
+    $eq_q_op eq("q", "op", "_")
+    $eq_y_fval eq("y", "fval", "_")
 
-    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eq(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"),eq(b,d,"_")))))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
     $_uae_b \u: \a: \b: \x: \y: implies(apply(u,x,y,"_"), implies(union(u,a,b,"_"), or(apply(a,x,y,"_"), apply(b,x,y,"_"))))
-    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "h", "op"], ["q", "f", "a"], _sme_b, []),
-        ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eqv_q_op), [], [sing_h]),
+    $got_eq_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "h", "op"], ["q", "f", "a"], _sme_b, []),
+        ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eq_q_op), [], [sing_h]),
         mp(and_elim_right(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, qh, [], [and_q]),
-        qh, eqv_q_op, [sing_h], [and_q])
+        qh, eq_q_op, [sing_h], [and_q])
 
-    $goal_and and(eqv("x","sn","_"), eqv_y_fval)
+    $goal_and and(eq("x","sn","_"), eq_y_fval)
     $k_inst apply_thm(kuratowski, _kur, ["q", "op", "x", "y", "sn", "fval"], ["q", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
     $got_op_q mp(and_elim_left(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
-    $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eqv_q_op, goal_and)), left(k_inst), [and_q])
-    $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eqv_q_op, goal_and), left(km1), [opkv])
-    $km3 mp(km2, got_eqv_q, eqv_q_op, goal_and, left(km2), [sing_h, and_q])
-    $got_y_fval mp(and_elim_right(eqv("x","sn","_"), eqv_y_fval, []),
-        km3, goal_and, eqv_y_fval, [], left(km3))
+    $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eq_q_op, goal_and)), left(k_inst), [and_q])
+    $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eq_q_op, goal_and), left(km1), [opkv])
+    $km3 mp(km2, got_eq_q, eq_q_op, goal_and, left(km2), [sing_h, and_q])
+    $got_y_fval mp(and_elim_right(eq("x","sn","_"), eq_y_fval, []),
+        km3, goal_and, eq_y_fval, [], left(km3))
 
     # ran_f_closed: apply(f,val,fval) → ∃w2.apply(f,fval,w2)
     $ex_f_fval exists("w2", apply("f","fval","w2","_"))
@@ -105,11 +105,11 @@ $extend_ran_sub {
     $got_rfc2 mp(got_rfc, ax([app_f_val], [app_f_val], app_f_val), app_f_val, ex_f_fval,
         [ran_f_closed], [app_f_val])
 
-    # Transfer: eqv(fval,y) → apply(f,fval,z) → apply(f,y,z)
-    $_es head(right(eqv_symmetric))
-    $eqv_fval_y eqv("fval", "y", "_")
-    $got_fval_y mp(apply_thm(eqv_symmetric, _es, ["y", "fval"], ["y", "b"], _es_b, []),
-        got_y_fval, eqv_y_fval, eqv_fval_y, [], left(got_y_fval))
+    # Transfer: eq(fval,y) → apply(f,fval,z) → apply(f,y,z)
+    $_es head(right(eq_symmetric))
+    $eq_fval_y eq("fval", "y", "_")
+    $got_fval_y mp(apply_thm(eq_symmetric, _es, ["y", "fval"], ["y", "b"], _es_b, []),
+        got_y_fval, eq_y_fval, eq_fval_y, [], left(got_y_fval))
 
     $_akt head(right(apply_key_transfer))
     $app_f_fval_z3 apply("f", "fval", "z3", "_")
@@ -117,7 +117,7 @@ $extend_ran_sub {
     $akt_r forall("f", forall("x", forall("x2", forall("q", _akt_b("f")("x")("x2")("q")))))
     $akt_r_thm wr(apply_key_transfer, [], [akt_r], akt_r)
     $akt1 mp(apply_thm(akt_r_thm, akt_r, ["f", "fval", "y", "z3"], ["f", "x", "x2", "q"], _akt_b, []),
-        got_fval_y, eqv_fval_y, implies(app_f_fval_z3, app_f_y_z3), [], left(got_fval_y))
+        got_fval_y, eq_fval_y, implies(app_f_fval_z3, app_f_y_z3), [], left(got_fval_y))
     $got_f_y_z3 mp(akt1, ax([app_f_fval_z3], [app_f_fval_z3], app_f_fval_z3),
         app_f_fval_z3, app_f_y_z3, left(akt1), [app_f_fval_z3])
     $got_ex_fy eir(got_f_y_z3, \z: apply("f","y",z,"_"), "z", "z3", left(got_f_y_z3))

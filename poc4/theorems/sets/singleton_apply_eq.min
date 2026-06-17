@@ -1,13 +1,13 @@
-from derived import mem, implies, forall, and, exists, eqv, left, right
+from derived import mem, implies, forall, and, exists, eq, left, right
 from vocab.sets import ordered_pair, singleton
 from vocab.functions import apply
 from tactics import ax, wl_all, ir, mp, apply_thm, eel, close, same
 from util.list import remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.sets.singleton_mem_eq import singleton_mem_eq
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 from theorems.sets.tuple_injection import tuple_injection
 
 # Pair |- ∀e,b,op,f,xe,ye. OP(op,e,b) → Sing(f,op) → Apply(f,xe,ye) → And(Eq(e,xe), Eq(b,ye))
@@ -15,7 +15,7 @@ $singleton_apply_eq {
     $op_eb ordered_pair("op", "e", "b", "_")
     $sing_f singleton("f", "op", "_")
     $app_fxy apply("f", "xe", "ye", "_")
-    $goal and(eqv("e", "xe", "_"), eqv("b", "ye", "_"))
+    $goal and(eq("e", "xe", "_"), eq("b", "ye", "_"))
 
     # eigenvariable q from opening Apply
     $op_q ordered_pair("q", "xe", "ye", "_")
@@ -29,8 +29,8 @@ $singleton_apply_eq {
         ax([and_q], [and_q], and_q), and_q, qf, [], [and_q])
 
     # singleton_mem_eq: Sing(f,op) → q∈f → Eq(q,op)
-    $eq_q_op eqv("q", "op", "_")
-    $_sme_b \x: \f: \a: implies(singleton(f, a, "_"), implies(mem(x, f), eqv(x, a, "_")))
+    $eq_q_op eq("q", "op", "_")
+    $_sme_b \x: \f: \a: implies(singleton(f, a, "_"), implies(mem(x, f), eq(x, a, "_")))
     $sme_inst apply_thm(singleton_mem_eq, head(right(singleton_mem_eq)),
         ["q", "f", "op"], ["x", "f", "a"], _sme_b, [])
     $sme_s1 mp(sme_inst,
@@ -40,19 +40,19 @@ $singleton_apply_eq {
         got_qf, qf, eq_q_op,
         [sing_f], [and_q])
 
-    # eqv_symmetric: Eq(q,op) → Eq(op,q)
-    $eq_op_q eqv("op", "q", "_")
-    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
-    $es_inst apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+    # eq_symmetric: Eq(q,op) → Eq(op,q)
+    $eq_op_q eq("op", "q", "_")
+    $_es_b \a: \b: implies(eq(a, b, "_"), eq(b, a, "_"))
+    $es_inst apply_thm(eq_symmetric, head(right(eq_symmetric)),
         ["q", "op"], ["a", "b"], _es_b, [])
     $got_eq_opq mp(es_inst,
         got_eq_q, eq_q_op, eq_op_q,
         [], left(got_eq_q))
 
-    # eqv_ordpair_transfer: Eq(op,q) → OP(q,xe,ye) → OP(op,xe,ye)
+    # eq_ordpair_transfer: Eq(op,q) → OP(q,xe,ye) → OP(op,xe,ye)
     $op_opxy ordered_pair("op", "xe", "ye", "_")
-    $_eot_b \z: \t: \x: \y: implies(eqv(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
-    $eot_inst apply_thm(eqv_ordpair_transfer, head(right(eqv_ordpair_transfer)),
+    $_eot_b \z: \t: \x: \y: implies(eq(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
+    $eot_inst apply_thm(eq_ordpair_transfer, head(right(eq_ordpair_transfer)),
         ["op", "q", "xe", "ye"], ["z", "t", "x", "y"], _eot_b, [])
     $eot_s1 mp(eot_inst,
         got_eq_opq, eq_op_q, implies(op_q, op_opxy),
@@ -62,7 +62,7 @@ $singleton_apply_eq {
         left(eot_s1), [and_q])
 
     # tuple_injection: OP(op,e,b) → OP(op,xe,ye) → And(Eq(e,xe), Eq(b,ye))
-    $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t, a, b, "_"), implies(ordered_pair(t, c, d, "_"), and(eqv(a, c, "_"), eqv(b, d, "_"))))
+    $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t, a, b, "_"), implies(ordered_pair(t, c, d, "_"), and(eq(a, c, "_"), eq(b, d, "_"))))
     $ti_inst apply_thm(tuple_injection, head(right(tuple_injection)),
         ["op", "e", "b", "xe", "ye"], ["t", "a", "b", "c", "d"], _ti_b, left(tuple_injection))
     $ti_s1 mp(ti_inst,

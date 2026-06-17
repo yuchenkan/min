@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, iff, eqv, left, right
+from derived import mem, implies, forall, and, exists, iff, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from vocab.nat.nat import nat
@@ -9,11 +9,11 @@ from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.sets.kuratowski import kuratowski
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.functions.apply_val_transfer import apply_val_transfer
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 
 # |- char_h -> Apply(h,n,y) -> ∃v. And(RA(v,a,f), Apply(v,n,y))
 # char_h uses Nat(m) and RA(v,a,f) — fully w-free.
@@ -47,49 +47,49 @@ $rec_h_apply_fwd {
     $and_ra_app and(ra_v, app_vm)
     $and_inner and(and_ra_app, opq_my)
 
-    # kuratowski: opq_ny ∧ opq_my ∧ eqv(q,q) → eqv(n,m) ∧ eqv(y,yr)
+    # kuratowski: opq_ny ∧ opq_my ∧ eq(q,q) → eq(n,m) ∧ eq(y,yr)
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
-    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_er head(right(eqv_reflexive))
-    $eqv_qq eqv("q","q","_")
-    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["q"], ["q"], \a: eqv(a,a,"_"), [])
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"),eq(b,d,"_")))))
+    $_er head(right(eq_reflexive))
+    $eq_qq eq("q","q","_")
+    $got_eq_qq apply_thm(eq_reflexive, _er, ["q"], ["q"], \a: eq(a,a,"_"), [])
 
-    $eqv_nm eqv("n","m","_")
-    $eqv_yy2 eqv("y","yr","_")
-    $goal_and and(eqv_nm, eqv_yy2)
+    $eq_nm eq("n","m","_")
+    $eq_yy2 eq("y","yr","_")
+    $goal_and and(eq_nm, eq_yy2)
     $k_inst apply_thm(kuratowski, _kur, ["q","q","n","y","m","yr"], ["q","t2","a","b","c","d"], _kur_b, kur_ctx)
     $k1 mp(k_inst, ax([opq_ny], [opq_ny], opq_ny), opq_ny,
-        implies(opq_my, implies(eqv_qq, goal_and)), left(k_inst), [opq_ny])
+        implies(opq_my, implies(eq_qq, goal_and)), left(k_inst), [opq_ny])
     $k2 mp(k1, ax([opq_my], [opq_my], opq_my), opq_my,
-        implies(eqv_qq, goal_and), left(k1), [opq_my])
-    $k3 mp(k2, got_eqv_qq, eqv_qq, goal_and, left(k2), [])
-    $got_eqv_nm mp(and_elim_left(eqv_nm, eqv_yy2, []), k3, goal_and, eqv_nm, [], left(k3))
-    $got_eqv_yy2 mp(and_elim_right(eqv_nm, eqv_yy2, []), k3, goal_and, eqv_yy2, [], left(k3))
+        implies(eq_qq, goal_and), left(k1), [opq_my])
+    $k3 mp(k2, got_eq_qq, eq_qq, goal_and, left(k2), [])
+    $got_eq_nm mp(and_elim_left(eq_nm, eq_yy2, []), k3, goal_and, eq_nm, [], left(k3))
+    $got_eq_yy2 mp(and_elim_right(eq_nm, eq_yy2, []), k3, goal_and, eq_yy2, [], left(k3))
 
     # Transfer: App(v',m,y') → App(v',n,y) via apply_key_transfer + apply_val_transfer
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $eqv_mn eqv("m","n","_")
-    $got_eqv_mn mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["n","m"], ["n","b"], _es_b, []),
-        got_eqv_nm, eqv_nm, eqv_mn, [], left(got_eqv_nm))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $eq_mn eq("m","n","_")
+    $got_eq_mn mp(apply_thm(eq_symmetric, head(right(eq_symmetric)), ["n","m"], ["n","b"], _es_b, []),
+        got_eq_nm, eq_nm, eq_mn, [], left(got_eq_nm))
 
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
     $app_vny2 apply("v2","n","yr","_")
     $got_app_vny2 mp(mp(apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
         ["v2","m","n","yr"], ["v2","x","x2","y"], _akt_b, []),
-        got_eqv_mn, eqv_mn, implies(app_vm, app_vny2), [], left(got_eqv_mn)),
-        ax([app_vm], [app_vm], app_vm), app_vm, app_vny2, left(got_eqv_mn), [app_vm])
+        got_eq_mn, eq_mn, implies(app_vm, app_vny2), [], left(got_eq_mn)),
+        ax([app_vm], [app_vm], app_vm), app_vm, app_vny2, left(got_eq_mn), [app_vm])
 
-    $eqv_y2y eqv("yr","y","_")
-    $got_eqv_y2y mp(apply_thm(eqv_symmetric, head(right(eqv_symmetric)), ["y","yr"], ["y","b"], _es_b, []),
-        got_eqv_yy2, eqv_yy2, eqv_y2y, [], left(got_eqv_yy2))
+    $eq_y2y eq("yr","y","_")
+    $got_eq_y2y mp(apply_thm(eq_symmetric, head(right(eq_symmetric)), ["y","yr"], ["y","b"], _es_b, []),
+        got_eq_yy2, eq_yy2, eq_y2y, [], left(got_eq_yy2))
 
-    $_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+    $_avt_b \f: \x: \y: \y2: implies(eq(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
     $app_vny apply("v2","n","y","_")
     $got_app_vny mp(mp(apply_thm(apply_val_transfer, head(right(apply_val_transfer)),
         ["v2","n","yr","y"], ["v2","x","p","q"], _avt_b, []),
-        got_eqv_y2y, eqv_y2y, implies(app_vny2, app_vny), [], left(got_eqv_y2y)),
-        got_app_vny2, app_vny2, app_vny, left(got_eqv_y2y), left(got_app_vny2))
+        got_eq_y2y, eq_y2y, implies(app_vny2, app_vny), [], left(got_eq_y2y)),
+        got_app_vny2, app_vny2, app_vny, left(got_eq_y2y), left(got_app_vny2))
 
     # And(RA(v'), App(v',n,y)) → eir → goal
     $and_goal and(ra_v, app_vny)

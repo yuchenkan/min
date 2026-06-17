@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2, pairing_ax
 from vocab.sets import ordered_pair
 from vocab.nat.nat import successor
 from vocab.functions import apply
@@ -8,7 +8,7 @@ from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.sets.kuratowski import kuratowski
 from theorems.nat.nat.eq_succ_transfer import eq_succ_transfer
 
@@ -63,38 +63,38 @@ $sf_apply_to_succ {
     $got_op_xs mp(and_elim_right(succ_sx, op_qv_xs, []),
         ax([and_succ_op], [and_succ_op], and_succ_op), and_succ_op, op_qv_xs, [], [and_succ_op])
 
-    # === Kuratowski: OrdPair(qv,x,y) ∧ OrdPair(qv,xv,sv) ∧ eqv(qv,qv) → and(eqv(x,xv), eqv(y,sv)) ===
-    $_er head(right(eqv_reflexive))
-    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["qv"], ["qv"], \a: eqv(a,a,"_"), [])
+    # === Kuratowski: OrdPair(qv,x,y) ∧ OrdPair(qv,xv,sv) ∧ eq(qv,qv) → and(eq(x,xv), eq(y,sv)) ===
+    $_er head(right(eq_reflexive))
+    $got_eq_qq apply_thm(eq_reflexive, _er, ["qv"], ["qv"], \a: eq(a,a,"_"), [])
 
     # kuratowski close order: ["d","c","b","a","t2","t1"], left=[pairing_ax]
     $_ku head(right(kuratowski))
     $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
-        implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"), eqv(b,d,"_")))))
+        implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"), eq(b,d,"_")))))
     $ku_ctx left(kuratowski)
     $ku_inst apply_thm(kuratowski, _ku, ["qv","qv","x","y","xv","sv"], ["t1","t2","a","b","c","d"], _ku_b, ku_ctx)
 
-    # mp chain: OrdPair(qv,x,y) → OrdPair(qv,xv,sv) → eqv(qv,qv) → and(eqv(x,xv), eqv(y,sv))
-    $eq_goal and(eqv("x","xv","_"), eqv("y","sv","_"))
+    # mp chain: OrdPair(qv,x,y) → OrdPair(qv,xv,sv) → eq(qv,qv) → and(eq(x,xv), eq(y,sv))
+    $eq_goal and(eq("x","xv","_"), eq("y","sv","_"))
     $ku1 mp(ku_inst, got_op, op_qv, arg2(head(right(ku_inst))), ku_ctx, [and_op_qv])
     $ku2 mp(ku1, got_op_xs, op_qv_xs, arg2(head(right(ku1))), left(ku1), [and_succ_op])
-    $got_eq mp(ku2, got_eqv_qq, eqv("qv","qv","_"), eq_goal, left(ku2), [])
-    # [pairing_ax, and_op_qv, and_succ_op] |- and(eqv(x,xv), eqv(y,sv))
+    $got_eq mp(ku2, got_eq_qq, eq("qv","qv","_"), eq_goal, left(ku2), [])
+    # [pairing_ax, and_op_qv, and_succ_op] |- and(eq(x,xv), eq(y,sv))
 
-    # Extract eqv(x,xv) and eqv(y,sv):
-    $eqv_x eqv("x","xv","_")
-    $eqv_y eqv("y","sv","_")
-    $got_eqv_x mp(and_elim_left(eqv_x, eqv_y, []), got_eq, eq_goal, eqv_x, [], left(got_eq))
-    $got_eqv_y mp(and_elim_right(eqv_x, eqv_y, []), got_eq, eq_goal, eqv_y, [], left(got_eq))
+    # Extract eq(x,xv) and eq(y,sv):
+    $eq_x eq("x","xv","_")
+    $eq_y eq("y","sv","_")
+    $got_eq_x mp(and_elim_left(eq_x, eq_y, []), got_eq, eq_goal, eq_x, [], left(got_eq))
+    $got_eq_y mp(and_elim_right(eq_x, eq_y, []), got_eq, eq_goal, eq_y, [], left(got_eq))
 
-    # === eq_succ_transfer: eqv(y,sv) → eqv(x,xv) → Succ(sv,xv) → Succ(y,x) ===
-    # eq_succ_transfer close order ["d","c","b","a"] → ∀a.∀b.∀c.∀d. eqv(a,c)→eqv(b,d)→Succ(c,d)→Succ(a,b)
+    # === eq_succ_transfer: eq(y,sv) → eq(x,xv) → Succ(sv,xv) → Succ(y,x) ===
+    # eq_succ_transfer close order ["d","c","b","a"] → ∀a.∀b.∀c.∀d. eq(a,c)→eq(b,d)→Succ(c,d)→Succ(a,b)
     $_est head(right(eq_succ_transfer))
-    $_est_b \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"),
+    $_est_b \a: \b: \c: \d: implies(eq(a,c,"_"), implies(eq(b,d,"_"),
         implies(successor(c,d,"_"), successor(a,b,"_"))))
     $est_inst apply_thm(eq_succ_transfer, _est, ["y","x","sv","xv"], ["a","b","c","d"], _est_b, [])
-    $est1 mp(est_inst, got_eqv_y, eqv_y, arg2(head(right(est_inst))), [], left(got_eqv_y))
-    $est2 mp(est1, got_eqv_x, eqv_x, arg2(head(right(est1))), left(est1), left(got_eqv_x))
+    $est1 mp(est_inst, got_eq_y, eq_y, arg2(head(right(est_inst))), [], left(got_eq_y))
+    $est2 mp(est1, got_eq_x, eq_x, arg2(head(right(est1))), left(est1), left(got_eq_x))
     $got_succ mp(est2, got_succ_raw, succ_sx, succ_yx, left(est2), [and_succ_op])
     # [pairing_ax, and_op_qv, and_succ_op] |- Succ(y,x)
 

@@ -1,6 +1,6 @@
-from derived import or, eqv
+from derived import or, eq
 from vocab.sets import singleton, pair_set, ordered_pair
 from theorems.sets.set_spec_unique import set_spec_unique
 
-# |- ordered_pair(t,a,b) -> ordered_pair(s,a,b) -> eqv(t,s)
+# |- ordered_pair(t,a,b) -> ordered_pair(s,a,b) -> eq(t,s)
 $ordpair_unique set_spec_unique(\v p: or(singleton(v, "a", p), pair_set(v, "a", "b", p)), ["b", "a"], "_")

@@ -1,4 +1,4 @@
-from derived import implies, forall, eqv, and, exists, left, right
+from derived import implies, forall, eq, and, exists, left, right
 from vocab.sets import ordered_pair
 from vocab.tm.tm import tm_config
 from tactics import ax, wr, ir, inst, mp, apply_thm, eel, cut_c, close, same
@@ -6,9 +6,9 @@ from util.list import remove
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.sets.ordpair_exists import ordpair_exists
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 from theorems.sets.tuple_injection import tuple_injection
 
 # pairing |- forall c,q,h,tape,q2,h2,tape2.
@@ -40,14 +40,14 @@ $config_decompose {
 
     # Alpha-rename tuple_injection: t,a,b,c,d -> s,p,u,r,w
     $_ti_b \s: \p: \u: \r: \w:
-        implies(ordered_pair(s, p, u, "_"), implies(ordered_pair(s, r, w, "_"), and(eqv(p, r, "_"), eqv(u, w, "_"))))
+        implies(ordered_pair(s, p, u, "_"), implies(ordered_pair(s, r, w, "_"), and(eq(p, r, "_"), eq(u, w, "_"))))
     $ti_r forall("s", forall("p", forall("u", forall("r", forall("w",
         _ti_b("s")("p")("u")("r")("w"))))))
     $ti_thm wr(tuple_injection, left(tuple_injection), [ti_r], ti_r)
 
     # tuple_injection: OrdPair(c,q,v1) -> OrdPair(c,q2,v2) -> And(Eqv(q,q2), Eqv(v1,v2))
-    $eq_q eqv("q", "q2", "_")
-    $eq_v eqv("v1", "v2", "_")
+    $eq_q eq("q", "q2", "_")
+    $eq_v eq("v1", "v2", "_")
     $and_qv and(eq_q, eq_v)
     $got_ti1 apply_thm(ti_thm, ti_r, ["c", "q", "v1", "q2", "v2"],
         ["s", "p", "u", "r", "w"], _ti_b, left(ti_thm))
@@ -63,18 +63,18 @@ $config_decompose {
         got_ti1b, and_qv, eq_v, [], left(got_ti1b))
 
     # Eqv(v2,v1) from symmetric
-    $eq_v_sym eqv("v2", "v1", "_")
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a, b, "_"), eqv(b, a, "_"))
-    $got_eq_v_sym mp(apply_thm(eqv_symmetric, _es, ["v1", "v2"], ["a", "b"], _es_b, []),
+    $eq_v_sym eq("v2", "v1", "_")
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a, b, "_"), eq(b, a, "_"))
+    $got_eq_v_sym mp(apply_thm(eq_symmetric, _es, ["v1", "v2"], ["a", "b"], _es_b, []),
         got_eq_v, eq_v, eq_v_sym, [], left(got_eq_v))
 
-    # eqv_ordpair_transfer: eqv(v2,v1) -> OrdPair(v1,h,tape) -> OrdPair(v2,h,tape)
+    # eq_ordpair_transfer: eq(v2,v1) -> OrdPair(v1,h,tape) -> OrdPair(v2,h,tape)
     $op_v2_ht ordered_pair("v2", "h", "tape", "_")
-    $_eot head(right(eqv_ordpair_transfer))
+    $_eot head(right(eq_ordpair_transfer))
     $_eot_b \z: \t: \x: \y:
-        implies(eqv(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
-    $got_eot apply_thm(eqv_ordpair_transfer, _eot, ["v2", "v1", "h", "tape"],
+        implies(eq(z, t, "_"), implies(ordered_pair(t, x, y, "_"), ordered_pair(z, x, y, "_")))
+    $got_eot apply_thm(eq_ordpair_transfer, _eot, ["v2", "v1", "h", "tape"],
         ["z", "t", "x", "y"], _eot_b, [])
     $got_eot_a mp(got_eot, got_eq_v_sym, eq_v_sym,
         implies(op_v1, op_v2_ht), [], left(got_eq_v_sym))
@@ -82,8 +82,8 @@ $config_decompose {
         left(got_eot_a), [op_v1])
 
     # tuple_injection: OrdPair(v2,h,tape) -> OrdPair(v2,h2,tape2) -> And(Eqv(h,h2), Eqv(tape,tape2))
-    $eq_h eqv("h", "h2", "_")
-    $eq_t eqv("tape", "tape2", "_")
+    $eq_h eq("h", "h2", "_")
+    $eq_t eq("tape", "tape2", "_")
     $and_ht and(eq_h, eq_t)
     $got_ti2 apply_thm(ti_thm, ti_r, ["v2", "h", "tape", "h2", "tape2"],
         ["s", "p", "u", "r", "w"], _ti_b, left(ti_thm))

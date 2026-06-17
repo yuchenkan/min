@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, exists, eqv, left, right
+from derived import mem, neg, implies, forall, and, exists, eq, left, right
 from vocab.sets import empty, relation
 from vocab.functions import apply, single_valued, function
 from vocab.nat.nat import num, omega, successor
@@ -7,19 +7,19 @@ from tactics import ax, fl, ir, mp, eir, apply_thm, eel, cut_c, close, same
 from util.list import remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.nat.nat.omega_exists import omega_exists
 
-# |- rec_approx(v,a,f) -> num(e,0) -> apply(v,e,y) -> eqv(y,a)
+# |- rec_approx(v,a,f) -> num(e,0) -> apply(v,e,y) -> eq(y,a)
 # Any RecApprox maps 0 to a (where defined).
 $rec_approx_zero {
     $ra rec_approx("v", "a", "f", "_")
     $emp num("e", 0, "_")
     $app_vey apply("v", "e", "y", "_")
     $app_vea apply("v", "e", "a", "_")
-    $eqv_ya eqv("y", "a", "_")
-    $eqv_ay eqv("a", "y", "_")
+    $eq_ya eq("y", "a", "_")
+    $eq_ay eq("a", "y", "_")
 
     # RecApprox body components (alpha-equiv to vocab expansion)
     $func_v function("v", "_")
@@ -72,22 +72,22 @@ $rec_approx_zero {
     # MP: get apply(v,e,a)
     $got_app_a mp(got_imp_ex, got_ex, ex_app, app_vea, [body, emp], [app_vey])
 
-    # func_unique: function(v) → apply(v,e,a) → apply(v,e,y) → eqv(a,y)
+    # func_unique: function(v) → apply(v,e,a) → apply(v,e,y) → eq(a,y)
     $_fut head(right(func_unique_thm))
-    $_fut_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
-    $sv_v forall("q1", forall("q2", forall("q3", implies(and(apply("v","q1","q2","_"), apply("v","q1","q3","_")), eqv("q2","q3","_")))))
+    $_fut_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
+    $sv_v forall("q1", forall("q2", forall("q3", implies(and(apply("v","q1","q2","_"), apply("v","q1","q3","_")), eq("q2","q3","_")))))
     $got_sv mp(and_elim_right(relation("v","_"), sv_v, []), got_func, func_v, sv_v, [], [body])
     $fut1 mp(apply_thm(func_unique_thm, _fut, ["v", "e", "a", "y"], ["v", "x", "y1", "y2"], _fut_b, []),
-        got_sv, sv_v, implies(app_vea, implies(app_vey, eqv_ay)), [], [body])
-    $fut2 mp(fut1, got_app_a, app_vea, implies(app_vey, eqv_ay), [body], [body, emp, app_vey])
-    $got_eqv_ay mp(fut2, ax([app_vey], [app_vey], app_vey), app_vey, eqv_ay, left(fut2), [app_vey])
+        got_sv, sv_v, implies(app_vea, implies(app_vey, eq_ay)), [], [body])
+    $fut2 mp(fut1, got_app_a, app_vea, implies(app_vey, eq_ay), [body], [body, emp, app_vey])
+    $got_eq_ay mp(fut2, ax([app_vey], [app_vey], app_vey), app_vey, eq_ay, left(fut2), [app_vey])
 
-    # eqv_symmetric: eqv(a,y) → eqv(y,a)
-    $_es head(right(eqv_symmetric))
-    $got_eqv_ya mp(apply_thm(eqv_symmetric, _es, ["a", "y"], ["a", "b"],
-        \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_")), []),
-        got_eqv_ay, eqv_ay, eqv_ya, [], left(got_eqv_ay))
-    # [body, emp, app_vey] |- [eqv_ya]
+    # eq_symmetric: eq(a,y) → eq(y,a)
+    $_es head(right(eq_symmetric))
+    $got_eq_ya mp(apply_thm(eq_symmetric, _es, ["a", "y"], ["a", "b"],
+        \a: \b: implies(eq(a,b,"_"), eq(b,a,"_")), []),
+        got_eq_ay, eq_ay, eq_ya, [], left(got_eq_ay))
+    # [body, emp, app_vey] |- [eq_ya]
 
     # === Unwrap: replace body with ra via omega_exists ===
 
@@ -99,23 +99,23 @@ $rec_approx_zero {
     # [ra, om] |- [body]
 
     # cut_c: replace body on left with [ra, om]
-    $main_proof got_eqv_ya
-    $main_with_ra cut_c(got_body, main_proof, body, [ra, om], left(main_proof), eqv_ya)
-    # [ra, om, emp, app_vey] |- [eqv_ya]
+    $main_proof got_eq_ya
+    $main_with_ra cut_c(got_body, main_proof, body, [ra, om], left(main_proof), eq_ya)
+    # [ra, om, emp, app_vey] |- [eq_ya]
 
-    # eel to eliminate omega witness (eqv_ya doesn't mention "w")
-    $main_eel eel(main_with_ra, \w: omega(w, "_"), "w", "w", remove(same, om, left(main_with_ra)), eqv_ya)
-    # [ra, ∃w.omega(w), emp, app_vey] |- [eqv_ya]
+    # eel to eliminate omega witness (eq_ya doesn't mention "w")
+    $main_eel eel(main_with_ra, \w: omega(w, "_"), "w", "w", remove(same, om, left(main_with_ra)), eq_ya)
+    # [ra, ∃w.omega(w), emp, app_vey] |- [eq_ya]
 
     # cut_c with omega_exists to discharge ∃w.omega(w)
     $ex_om exists("w", omega("w", "_"))
-    $main_final cut_c(omega_exists, main_eel, ex_om, left(omega_exists), left(main_eel), eqv_ya)
+    $main_final cut_c(omega_exists, main_eel, ex_om, left(omega_exists), left(main_eel), eq_ya)
 
     # Close: no w in theorem
     $ctx left(main_final)
-    $s1 ir(main_final, remove(same, app_vey, ctx), [implies(app_vey, eqv_ya)], implies(app_vey, eqv_ya))
-    $s2 ir(s1, remove(same, emp, left(s1)), [implies(emp, implies(app_vey, eqv_ya))], implies(emp, implies(app_vey, eqv_ya)))
-    $top implies(ra, implies(emp, implies(app_vey, eqv_ya)))
+    $s1 ir(main_final, remove(same, app_vey, ctx), [implies(app_vey, eq_ya)], implies(app_vey, eq_ya))
+    $s2 ir(s1, remove(same, emp, left(s1)), [implies(emp, implies(app_vey, eq_ya))], implies(emp, implies(app_vey, eq_ya)))
+    $top implies(ra, implies(emp, implies(app_vey, eq_ya)))
     $s3 ir(s2, remove(same, ra, left(s2)), [top], top)
     close(s3, left(s3), [top], ["y","e","f","a","v"])
 }

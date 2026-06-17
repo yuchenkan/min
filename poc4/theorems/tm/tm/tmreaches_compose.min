@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, exists, and, or, eqv, iff
+from derived import mem, implies, forall, exists, and, or, eq, iff
 from derived import left, right, arg2, head, sep_ax, show
 from vocab.nat.nat import num, successor, omega, nat, inductive, subset
 from vocab.sets import ordered_pair, transitive_set
@@ -14,8 +14,8 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.or_intro_left import or_intro_left
 from theorems.logic.or_intro_right import or_intro_right
 from theorems.logic.or_elim import or_elim
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_transitive import eq_transitive
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.ext_substitution import ext_substitution
@@ -85,7 +85,7 @@ $tmreaches_compose {
     # Expansion: ∃tr2. And(Func(tr2), And(db(tr2,b), And(base(tr2,y), And(step(tr2,b), Apply(tr2,b,z)))))
     $r2_func function("tr2", "_")
     $r2_db forall("xd", forall("yd", implies(apply("tr2","xd","yd","_"),
-        or(mem("xd","b"), eqv("xd","b","_")))))
+        or(mem("xd","b"), eq("xd","b","_")))))
     $r2_base forall("zr", implies(num("zr",0,"_"), apply("tr2","zr","y","_")))
     $r2_step forall("k", implies(mem("k","b"),
         forall("sk", implies(successor("sk","k","_"),
@@ -123,7 +123,7 @@ $tmreaches_compose {
         and(apply("tr2",j,add(p,"rc"),"_"),
             tm_reaches("d","x",add(p,"rp"),add(p,"rc"),"_")))))
     # Q(j,p) = Or(In(j,b),Eq(j,b)) → Q_inner(j,p)
-    $_Q \j p: implies(or(mem(j,"b"), eqv(j,"b","_")), _Q_inner(j,p))
+    $_Q \j p: implies(or(mem(j,"b"), eq(j,"b","_")), _Q_inner(j,p))
 
     # === 1. Separation ===
     $sep sep_ax(["a","b","d","x","tr2"], \sv a np: _Q(sv,np), "_")
@@ -200,7 +200,7 @@ $tmreaches_compose {
     $_ tap("Q_inner(zb) ok")
 
     # Q(zb) = Or(In(zb,b),Eq(zb,b)) → Q_inner(zb). Weaken with guard, then ir.
-    $or_zbb or(mem("zb","b"), eqv("zb","b","_"))
+    $or_zbb or(mem("zb","b"), eq("zb","b","_"))
     $qi_zb _Q_inner("zb","_")
     $got_Qzb wl(got_qi_zb, add(left(got_qi_zb), [or_zbb]), [qi_zb], or_zbb)
     $imp_qzb implies(or_zbb, qi_zb)
@@ -223,20 +223,20 @@ $tmreaches_compose {
     $_ tap("zb in pv ok")
 
     # === Inductive base: ∀zero. Empty(zero) → In(zero,pv) ===
-    $eu_body \va: \vb: implies(num(va,0,"_"), implies(num(vb,0,"_"), eqv(va,vb,"_")))
+    $eu_body \va: \vb: implies(num(va,0,"_"), implies(num(vb,0,"_"), eq(va,vb,"_")))
     $got_eu apply_thm(empty_unique, head(right(empty_unique)),
         ["zero","zb"], ["a","b"], eu_body, left(empty_unique))
     $emp_zero num("zero",0,"_")
     $got_eu mp(got_eu, ax([emp_zero],[emp_zero],emp_zero), emp_zero,
-        implies(num_zb, eqv("zero","zb","_")), left(got_eu), [emp_zero])
+        implies(num_zb, eq("zero","zb","_")), left(got_eu), [emp_zero])
     $got_eq mp(got_eu, ax([num_zb],[num_zb],num_zb), num_zb,
-        eqv("zero","zb","_"), left(got_eu), [num_zb])
+        eq("zero","zb","_"), left(got_eu), [num_zb])
 
-    $es_body \va: \vb: \vs: implies(eqv(va,vb,"_"), iff(mem(va,vs), mem(vb,vs)))
+    $es_body \va: \vb: \vs: implies(eq(va,vb,"_"), iff(mem(va,vs), mem(vb,vs)))
     $got_es apply_thm(ext_substitution, head(right(ext_substitution)),
         ["zero","zb","pv"], ["a","b","s"], es_body, left(ext_substitution))
     $iff_zpv iff(mem("zero","pv"), mem("zb","pv"))
-    $got_iff_zpv mp(got_es, got_eq, eqv("zero","zb","_"), iff_zpv,
+    $got_iff_zpv mp(got_es, got_eq, eq("zero","zb","_"), iff_zpv,
         left(got_es), left(got_eq))
 
     $got_bwd_zpv mp(iff_elim_right(mem("zero","pv"), mem("zb","pv"), []),
@@ -290,17 +290,17 @@ $tmreaches_compose {
 
     # === Derive In(nn,b) from Or(In(sn,b),Eq(sn,b)) ===
     # Need: nn ∈ sn (from Successor) + TransitiveSet(b) or Eq(sn,b)
-    $or_snb or(mem("sn","b"), eqv("sn","b","_"))
+    $or_snb or(mem("sn","b"), eq("sn","b","_"))
 
     # nn ∈ sn from Successor(sn,nn): inst x=nn gives Iff(nn∈sn, Or(nn∈nn, nn=nn))
-    $succ_body_nn \v: iff(mem(v,"sn"), or(mem(v,"nn"), eqv(v,"nn","_")))
+    $succ_body_nn \v: iff(mem(v,"sn"), or(mem(v,"nn"), eq(v,"nn","_")))
     $got_succ_nn apply_thm(ax([succ_sn],[succ_sn],succ_sn), succ_sn,
         ["nn"], ["v"], succ_body_nn, [succ_sn])
-    $or_nn or(mem("nn","nn"), eqv("nn","nn","_"))
-    $eq_nnnn eqv("nn","nn","_")
-    $er_body \v: eqv(v,v,"_")
-    $got_eqnn apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
-        ["nn"], ["a"], er_body, left(eqv_reflexive))
+    $or_nn or(mem("nn","nn"), eq("nn","nn","_"))
+    $eq_nnnn eq("nn","nn","_")
+    $er_body \v: eq(v,v,"_")
+    $got_eqnn apply_thm(eq_reflexive, head(right(eq_reflexive)),
+        ["nn"], ["a"], er_body, left(eq_reflexive))
     $oir_body \va: \vb: implies(vb, or(va, vb))
     $got_or_nn mp(apply_thm(or_intro_right(mem("nn","nn"), eq_nnnn, []),
         head(right(or_intro_right(mem("nn","nn"), eq_nnnn, []))),
@@ -349,12 +349,12 @@ $tmreaches_compose {
     $_ tap("case1 ok")
 
     # Case 2: Eq(sn,b) → In(nn,b) via eq_transfer
-    $et_body \va: \vb: \vz: implies(eqv(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
+    $et_body \va: \vb: \vz: implies(eq(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
     $got_et apply_thm(eq_transfer, head(right(eq_transfer)),
         ["sn","b","nn"], ["a","b","z"], et_body, left(eq_transfer))
     $iff_nn_snb iff(mem("nn","sn"), mem("nn","b"))
-    $got_iff_nn mp(got_et, ax([eqv("sn","b","_")],[eqv("sn","b","_")],eqv("sn","b","_")),
-        eqv("sn","b","_"), iff_nn_snb, left(got_et), [eqv("sn","b","_")])
+    $got_iff_nn mp(got_et, ax([eq("sn","b","_")],[eq("sn","b","_")],eq("sn","b","_")),
+        eq("sn","b","_"), iff_nn_snb, left(got_et), [eq("sn","b","_")])
     $got_case2 mp(apply_thm(iff_elim_left(mem("nn","sn"), mem("nn","b"), []),
         head(right(iff_elim_left(mem("nn","sn"), mem("nn","b"), []))),
         [], [], \va: \vb: implies(iff(va,vb), implies(va, vb)), []),
@@ -363,8 +363,8 @@ $tmreaches_compose {
     $got_case2 mp(got_case2, got_nn_in_sn, mem("nn","sn"), mem("nn","b"),
         left(got_iff_nn), left(got_nn_in_sn))
     # Discharge Eq(sn,b)
-    $imp_case2 implies(eqv("sn","b","_"), mem("nn","b"))
-    $got_case2 ir(got_case2, remove(same, eqv("sn","b","_"), left(got_case2)),
+    $imp_case2 implies(eq("sn","b","_"), mem("nn","b"))
+    $got_case2 ir(got_case2, remove(same, eq("sn","b","_"), left(got_case2)),
         [imp_case2], imp_case2)
 
     $_ tap("case2 ok")
@@ -372,8 +372,8 @@ $tmreaches_compose {
     # or_elim: Or(In(sn,b),Eq(sn,b)) → In(nn,b)
     $oe_body \va: \vb: \vc: implies(or(va,vb),
         implies(implies(va,vc), implies(implies(vb,vc), vc)))
-    $got_oe apply_thm(or_elim(mem("sn","b"), eqv("sn","b","_"), mem("nn","b"), []),
-        head(right(or_elim(mem("sn","b"), eqv("sn","b","_"), mem("nn","b"), []))),
+    $got_oe apply_thm(or_elim(mem("sn","b"), eq("sn","b","_"), mem("nn","b"), []),
+        head(right(or_elim(mem("sn","b"), eq("sn","b","_"), mem("nn","b"), []))),
         [], [], oe_body, [])
     $got_inb mp(got_oe, ax([or_snb],[or_snb],or_snb), or_snb,
         implies(imp_case1, implies(imp_case2, mem("nn","b"))),
@@ -385,10 +385,10 @@ $tmreaches_compose {
         left(got_inb), left(got_case2))
 
     # Or(In(nn,b),Eq(nn,b)) via or_intro_left
-    $or_nnb or(mem("nn","b"), eqv("nn","b","_"))
+    $or_nnb or(mem("nn","b"), eq("nn","b","_"))
     $oil_body \va: \vb: implies(va, or(va,vb))
-    $got_ornb mp(apply_thm(or_intro_left(mem("nn","b"), eqv("nn","b","_"), []),
-        head(right(or_intro_left(mem("nn","b"), eqv("nn","b","_"), []))),
+    $got_ornb mp(apply_thm(or_intro_left(mem("nn","b"), eq("nn","b","_"), []),
+        head(right(or_intro_left(mem("nn","b"), eq("nn","b","_"), []))),
         [], [], oil_body, []),
         got_inb, mem("nn","b"), or_nnb, [], left(got_inb))
 
@@ -416,7 +416,7 @@ $tmreaches_compose {
     # === Open TMReaches(d,x,pos,cj) to get trace components ===
     $rn_func function("tra", "_")
     $rn_db forall("xdn", forall("ydn", implies(apply("tra","xdn","ydn","_"),
-        or(mem("xdn","pos"), eqv("xdn","pos","_")))))
+        or(mem("xdn","pos"), eq("xdn","pos","_")))))
     $rn_base forall("zp", implies(num("zp",0,"_"), apply("tra","zp","x","_")))
     $rn_step forall("ka", implies(mem("ka","pos"),
         forall("ska", implies(successor("ska","ka","_"),
@@ -533,7 +533,7 @@ $tmreaches_compose {
     $_et_body \vtra: \vska: \vca_new: \vc0: \vka: \vdelta: \vca: \vw:
         implies(function(vtra,"_"),
         implies(forall("xdn", forall("ydn", implies(apply(vtra,"xdn","ydn","_"),
-            or(mem("xdn",vka), eqv("xdn",vka,"_"))))),
+            or(mem("xdn",vka), eq("xdn",vka,"_"))))),
         implies(omega(vw,"_"),
         implies(mem(vka,vw),
         implies(successor(vska,vka,"_"),
@@ -547,7 +547,7 @@ $tmreaches_compose {
         implies(apply(vtra,vka,vca,"_"),
             exists("trn", and(function("trn","_"), and(
                 forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
-                    or(mem("xdn",vska), eqv("xdn",vska,"_"))))),
+                    or(mem("xdn",vska), eq("xdn",vska,"_"))))),
                 and(forall("zp2", implies(num("zp2",0,"_"), apply("trn","zp2",vc0,"_"))),
                     and(apply("trn",vska,vca_new,"_"),
                         forall("ja", implies(mem("ja",vska),
@@ -600,7 +600,7 @@ $tmreaches_compose {
     # Need to rearrange into TMReaches expansion: ∃trn. And(Func, And(db, And(base, And(step, Apply))))
     $et_func function("trn","_")
     $et_db forall("xdn", forall("ydn", implies(apply("trn","xdn","ydn","_"),
-        or(mem("xdn","spos"), eqv("xdn","spos","_")))))
+        or(mem("xdn","spos"), eq("xdn","spos","_")))))
     $et_base forall("zp2", implies(num("zp2",0,"_"), apply("trn","zp2","x","_")))
     $et_app apply("trn","spos","ck1","_")
     $et_step forall("ja", implies(mem("ja","spos"),
@@ -654,7 +654,7 @@ $tmreaches_compose {
     $got_reaches_new eir(got_rn_new,
         \v: and(function(v,"_"), and(
             forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
-                or(mem("xdn","spos"), eqv("xdn","spos","_"))))),
+                or(mem("xdn","spos"), eq("xdn","spos","_"))))),
             and(forall("zp2", implies(num("zp2",0,"_"), apply(v,"zp2","x","_"))),
                 and(forall("ja", implies(mem("ja","spos"),
                     forall("sja", implies(successor("sja","ja","_"),
@@ -735,7 +735,7 @@ $tmreaches_compose {
     # eel trn from et_body_and (inside got_et)
     $got_qi_sn eel(got_qi_sn, \v: and(function(v,"_"), and(
         forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
-            or(mem("xdn","spos"), eqv("xdn","spos","_"))))),
+            or(mem("xdn","spos"), eq("xdn","spos","_"))))),
         and(forall("zp2", implies(num("zp2",0,"_"), apply(v,"zp2","x","_"))),
             and(apply(v,"spos","ck1","_"),
                 forall("ja", implies(mem("ja","spos"),
@@ -765,7 +765,7 @@ $tmreaches_compose {
     # eel tra from rn_body (TMReaches(d,x,pos,cj) expansion)
     $got_qi_sn eel(got_qi_sn, \v: and(function(v,"_"), and(
         forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
-            or(mem("xdn","pos"), eqv("xdn","pos","_"))))),
+            or(mem("xdn","pos"), eq("xdn","pos","_"))))),
         and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","x","_"))),
             and(forall("ka", implies(mem("ka","pos"),
                 forall("ska", implies(successor("ska","ka","_"),
@@ -869,18 +869,18 @@ $tmreaches_compose {
     $got_osi mp(got_osi, got_ind, ind_pv, wpv, left(got_osi), left(got_ind))
 
     # subset_antisymmetric → pv = w
-    $sa_body \va: \vb: implies(subset(va,vb,"_"), implies(subset(vb,va,"_"), eqv(va,vb,"_")))
+    $sa_body \va: \vb: implies(subset(va,vb,"_"), implies(subset(vb,va,"_"), eq(va,vb,"_")))
     $got_sa apply_thm(subset_antisymmetric, head(right(subset_antisymmetric)),
         ["pv","w"], ["a","b"], sa_body, left(subset_antisymmetric))
     $pvw subset("pv","w","_")
-    $eq_pvw eqv("pv","w","_")
+    $eq_pvw eq("pv","w","_")
     $got_sa mp(got_sa, got_sub, pvw, implies(wpv, eq_pvw), left(got_sa), left(got_sub))
     $got_eq_pvw mp(got_sa, got_osi, wpv, eq_pvw, left(got_sa), left(got_osi))
 
     $_ tap("pv = w ok")
 
     # === 6. Extract Q(b) ===
-    $eqt_body \va: \vb: \vz: implies(eqv(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
+    $eqt_body \va: \vb: \vz: implies(eq(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
     $got_eqt apply_thm(eq_transfer, head(right(eq_transfer)),
         ["pv","w","b"], ["a","b","z"], eqt_body, left(eq_transfer))
     $iff_bpvw iff(mem("b","pv"), mem("b","w"))
@@ -903,9 +903,9 @@ $tmreaches_compose {
         got_and_b, and(in_b_w, _Q("b","_")), _Q("b","_"), [], left(got_and_b))
 
     # Or(In(b,b),Eq(b,b)) via Eq reflexive
-    $eq_bb eqv("b","b","_")
-    $got_eqbb apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
-        ["b"], ["a"], er_body, left(eqv_reflexive))
+    $eq_bb eq("b","b","_")
+    $got_eqbb apply_thm(eq_reflexive, head(right(eq_reflexive)),
+        ["b"], ["a"], er_body, left(eq_reflexive))
     $or_bb or(mem("b","b"), eq_bb)
     $got_orbb mp(apply_thm(or_intro_right(mem("b","b"), eq_bb, []),
         head(right(or_intro_right(mem("b","b"), eq_bb, []))),
@@ -945,14 +945,14 @@ $tmreaches_compose {
         tm_reaches("d","x","pb","cb","_"), [], left(got_qb_rest))
 
     # Eq(pb,n) from plus_val_unique: Plus(a,b,pb) + Plus(a,b,n) → Eq(pb,n)
-    $pvu_body \va: \vb: \vc: \vc2: implies(plus(va,vb,vc,"_"), implies(plus(va,vb,vc2,"_"), eqv(vc,vc2,"_")))
+    $pvu_body \va: \vb: \vc: \vc2: implies(plus(va,vb,vc,"_"), implies(plus(va,vb,vc2,"_"), eq(vc,vc2,"_")))
     $got_pvu apply_thm(plus_val_unique, head(right(plus_val_unique)),
         ["a","b","pb","n"], ["a","b","c","c2"], pvu_body, left(plus_val_unique))
     $got_eq_pb mp(got_pvu, got_qb_plus, plus("a","b","pb","_"),
-        implies(plus_abn, eqv("pb","n","_")),
+        implies(plus_abn, eq("pb","n","_")),
         left(got_pvu), left(got_qb_plus))
     $got_eq_pb mp(got_eq_pb, ax([plus_abn],[plus_abn],plus_abn), plus_abn,
-        eqv("pb","n","_"), left(got_eq_pb), [plus_abn])
+        eq("pb","n","_"), left(got_eq_pb), [plus_abn])
 
     # Eq(cb,z) from func_unique: Func(tr2) + Apply(tr2,b,cb) + Apply(tr2,b,z) → Eq(cb,z)
     # func_unique_thm: single_valued(f) → Apply(f,x,y1) → Apply(f,x,y2) → Eq(y1,y2)
@@ -972,7 +972,7 @@ $tmreaches_compose {
     # Open TMReaches(d,x,pb,cb): get trace rq_tra with components
     $rq_func function("rtra", "_")
     $rq_db forall("xdn", forall("ydn", implies(apply("rtra","xdn","ydn","_"),
-        or(mem("xdn","pb"), eqv("xdn","pb","_")))))
+        or(mem("xdn","pb"), eq("xdn","pb","_")))))
     $rq_base forall("zp", implies(num("zp",0,"_"), apply("rtra","zp","x","_")))
     $rq_step forall("kq", implies(mem("kq","pb"),
         forall("skq", implies(successor("skq","kq","_"),
@@ -1007,10 +1007,10 @@ $tmreaches_compose {
     # === Transfer reached: Apply(rtra,pb,cb) → Apply(rtra,n,cb) → Apply(rtra,n,z) ===
     # apply_key_transfer: Eq(pb,n) → Apply(rtra,pb,cb) → Apply(rtra,n,cb)
     $akt_body \vf: \vx: \vx2: \vy:
-        implies(eqv(vx,vx2,"_"), implies(apply(vf,vx,vy,"_"), apply(vf,vx2,vy,"_")))
+        implies(eq(vx,vx2,"_"), implies(apply(vf,vx,vy,"_"), apply(vf,vx2,vy,"_")))
     $got_app_n mp(mp(apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
         ["rtra","pb","n","cb"], ["f","x","x2","y"], akt_body, left(apply_key_transfer)),
-        got_eq_pb, eqv("pb","n","_"), implies(rq_reached, apply("rtra","n","cb","_")),
+        got_eq_pb, eq("pb","n","_"), implies(rq_reached, apply("rtra","n","cb","_")),
         left(apply_key_transfer), left(got_eq_pb)),
         g_rq_reached, rq_reached, apply("rtra","n","cb","_"),
         left(got_eq_pb), left(g_rq_reached))
@@ -1021,25 +1021,25 @@ $tmreaches_compose {
     $got_sv_tr2 mp(and_elim_right(relation("tr2","_"), sv_tr2, []),
         got_r2_func, r2_func, sv_tr2, [], left(got_r2_func))
     $fut_body \vf: \vx: \vy: \vy2:
-        implies(single_valued(vf,"_"), implies(apply(vf,vx,vy,"_"), implies(apply(vf,vx,vy2,"_"), eqv(vy,vy2,"_"))))
+        implies(single_valued(vf,"_"), implies(apply(vf,vx,vy,"_"), implies(apply(vf,vx,vy2,"_"), eq(vy,vy2,"_"))))
     $got_eq_cb apply_thm(func_unique_thm, head(right(func_unique_thm)),
         ["tr2","b","cb","z"], ["f","x","y","y2"], fut_body, left(func_unique_thm))
     $got_eq_cb mp(got_eq_cb, got_sv_tr2, sv_tr2,
         arg2(head(right(got_eq_cb))), left(got_eq_cb), left(got_sv_tr2))
     $got_eq_cb mp(got_eq_cb, got_qb_app, apply("tr2","b","cb","_"),
-        implies(r2_reached, eqv("cb","z","_")),
+        implies(r2_reached, eq("cb","z","_")),
         left(got_eq_cb), left(got_qb_app))
     $got_eq_cb mp(got_eq_cb, got_r2_reached, r2_reached,
-        eqv("cb","z","_"), left(got_eq_cb), left(got_r2_reached))
+        eq("cb","z","_"), left(got_eq_cb), left(got_r2_reached))
 
     $_ tap("got Eq(cb,z) ok")
 
     # apply_val_transfer: Eq(cb,z) → Apply(rtra,n,cb) → Apply(rtra,n,z)
     $avt_body \vf: \vx: \vy: \vy2:
-        implies(eqv(vy,vy2,"_"), implies(apply(vf,vx,vy,"_"), apply(vf,vx,vy2,"_")))
+        implies(eq(vy,vy2,"_"), implies(apply(vf,vx,vy,"_"), apply(vf,vx,vy2,"_")))
     $got_app_nz mp(mp(apply_thm(apply_val_transfer, head(right(apply_val_transfer)),
         ["rtra","n","cb","z"], ["f","x","y","y2"], avt_body, left(apply_val_transfer)),
-        got_eq_cb, eqv("cb","z","_"), implies(apply("rtra","n","cb","_"), apply("rtra","n","z","_")),
+        got_eq_cb, eq("cb","z","_"), implies(apply("rtra","n","cb","_"), apply("rtra","n","z","_")),
         left(apply_val_transfer), left(got_eq_cb)),
         got_app_n, apply("rtra","n","cb","_"), apply("rtra","n","z","_"),
         left(got_eq_cb), left(got_app_n))
@@ -1049,23 +1049,23 @@ $tmreaches_compose {
     # === Transfer dom_bound: Or(In(xdn,pb),Eq(xdn,pb)) → Or(In(xdn,n),Eq(xdn,n)) ===
     # Open ∀xdn,ydn in rq_db
     $db_outer_body \vx: forall("ydn", implies(apply("rtra",vx,"ydn","_"),
-        or(mem(vx,"pb"), eqv(vx,"pb","_"))))
+        or(mem(vx,"pb"), eq(vx,"pb","_"))))
     $db_inner_body \vy: implies(apply("rtra","xdn",vy,"_"),
-        or(mem("xdn","pb"), eqv("xdn","pb","_")))
+        or(mem("xdn","pb"), eq("xdn","pb","_")))
     $got_db_inst apply_thm(g_rq_db, rq_db,
         ["xdn"], ["xdn"], db_outer_body, left(g_rq_db))
     $got_db_inst apply_thm(got_db_inst, head(right(got_db_inst)),
         ["ydn"], ["ydn"], db_inner_body, left(got_db_inst))
     $got_db_inst mp(got_db_inst,
         ax([apply("rtra","xdn","ydn","_")],[apply("rtra","xdn","ydn","_")],apply("rtra","xdn","ydn","_")),
-        apply("rtra","xdn","ydn","_"), or(mem("xdn","pb"), eqv("xdn","pb","_")),
+        apply("rtra","xdn","ydn","_"), or(mem("xdn","pb"), eq("xdn","pb","_")),
         left(got_db_inst), [apply("rtra","xdn","ydn","_")])
 
     # Case In(xdn,pb) → In(xdn,n) via eq_transfer
-    $et2_body \va: \vb: \vz: implies(eqv(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
+    $et2_body \va: \vb: \vz: implies(eq(va,vb,"_"), iff(mem(vz,va), mem(vz,vb)))
     $got_iff_xdn apply_thm(eq_transfer, head(right(eq_transfer)),
         ["pb","n","xdn"], ["a","b","z"], et2_body, left(eq_transfer))
-    $got_iff_xdn mp(got_iff_xdn, got_eq_pb, eqv("pb","n","_"),
+    $got_iff_xdn mp(got_iff_xdn, got_eq_pb, eq("pb","n","_"),
         iff(mem("xdn","pb"), mem("xdn","n")),
         left(got_iff_xdn), left(got_eq_pb))
     $got_in_xdn_n mp(apply_thm(iff_elim_left(mem("xdn","pb"), mem("xdn","n"), []),
@@ -1078,38 +1078,38 @@ $tmreaches_compose {
         ax([mem("xdn","pb")],[mem("xdn","pb")],mem("xdn","pb")),
         mem("xdn","pb"), mem("xdn","n"),
         left(got_iff_xdn), [mem("xdn","pb")])
-    $or_xdn_n or(mem("xdn","n"), eqv("xdn","n","_"))
-    $got_or_in mp(apply_thm(or_intro_left(mem("xdn","n"), eqv("xdn","n","_"), []),
-        head(right(or_intro_left(mem("xdn","n"), eqv("xdn","n","_"), []))),
+    $or_xdn_n or(mem("xdn","n"), eq("xdn","n","_"))
+    $got_or_in mp(apply_thm(or_intro_left(mem("xdn","n"), eq("xdn","n","_"), []),
+        head(right(or_intro_left(mem("xdn","n"), eq("xdn","n","_"), []))),
         [], [], oil_body, []),
         got_in_xdn_n, mem("xdn","n"), or_xdn_n, [], left(got_in_xdn_n))
     $imp_db_case1 implies(mem("xdn","pb"), or_xdn_n)
     $got_or_in ir(got_or_in, remove(same, mem("xdn","pb"), left(got_or_in)),
         [imp_db_case1], imp_db_case1)
 
-    # Case Eq(xdn,pb) → Eq(xdn,n) via eqv_transitive
-    $etr_body \va: \vb: \vc: implies(eqv(va,vb,"_"), implies(eqv(vb,vc,"_"), eqv(va,vc,"_")))
-    $got_eq_xdn_n apply_thm(eqv_transitive, head(right(eqv_transitive)),
-        ["xdn","pb","n"], ["a","b","c"], etr_body, left(eqv_transitive))
+    # Case Eq(xdn,pb) → Eq(xdn,n) via eq_transitive
+    $etr_body \va: \vb: \vc: implies(eq(va,vb,"_"), implies(eq(vb,vc,"_"), eq(va,vc,"_")))
+    $got_eq_xdn_n apply_thm(eq_transitive, head(right(eq_transitive)),
+        ["xdn","pb","n"], ["a","b","c"], etr_body, left(eq_transitive))
     $got_eq_xdn_n mp(got_eq_xdn_n,
-        ax([eqv("xdn","pb","_")],[eqv("xdn","pb","_")],eqv("xdn","pb","_")),
-        eqv("xdn","pb","_"), implies(eqv("pb","n","_"), eqv("xdn","n","_")),
-        left(got_eq_xdn_n), [eqv("xdn","pb","_")])
-    $got_eq_xdn_n mp(got_eq_xdn_n, got_eq_pb, eqv("pb","n","_"),
-        eqv("xdn","n","_"), left(got_eq_xdn_n), left(got_eq_pb))
-    $got_or_eq mp(apply_thm(or_intro_right(mem("xdn","n"), eqv("xdn","n","_"), []),
-        head(right(or_intro_right(mem("xdn","n"), eqv("xdn","n","_"), []))),
+        ax([eq("xdn","pb","_")],[eq("xdn","pb","_")],eq("xdn","pb","_")),
+        eq("xdn","pb","_"), implies(eq("pb","n","_"), eq("xdn","n","_")),
+        left(got_eq_xdn_n), [eq("xdn","pb","_")])
+    $got_eq_xdn_n mp(got_eq_xdn_n, got_eq_pb, eq("pb","n","_"),
+        eq("xdn","n","_"), left(got_eq_xdn_n), left(got_eq_pb))
+    $got_or_eq mp(apply_thm(or_intro_right(mem("xdn","n"), eq("xdn","n","_"), []),
+        head(right(or_intro_right(mem("xdn","n"), eq("xdn","n","_"), []))),
         [], [], oir_body, []),
-        got_eq_xdn_n, eqv("xdn","n","_"), or_xdn_n, [], left(got_eq_xdn_n))
-    $imp_db_case2 implies(eqv("xdn","pb","_"), or_xdn_n)
-    $got_or_eq ir(got_or_eq, remove(same, eqv("xdn","pb","_"), left(got_or_eq)),
+        got_eq_xdn_n, eq("xdn","n","_"), or_xdn_n, [], left(got_eq_xdn_n))
+    $imp_db_case2 implies(eq("xdn","pb","_"), or_xdn_n)
+    $got_or_eq ir(got_or_eq, remove(same, eq("xdn","pb","_"), left(got_or_eq)),
         [imp_db_case2], imp_db_case2)
 
     # or_elim
-    $got_oe2 apply_thm(or_elim(mem("xdn","pb"), eqv("xdn","pb","_"), or_xdn_n, []),
-        head(right(or_elim(mem("xdn","pb"), eqv("xdn","pb","_"), or_xdn_n, []))),
+    $got_oe2 apply_thm(or_elim(mem("xdn","pb"), eq("xdn","pb","_"), or_xdn_n, []),
+        head(right(or_elim(mem("xdn","pb"), eq("xdn","pb","_"), or_xdn_n, []))),
         [], [], oe_body, [])
-    $or_old or(mem("xdn","pb"), eqv("xdn","pb","_"))
+    $or_old or(mem("xdn","pb"), eq("xdn","pb","_"))
     $got_or_new mp(got_oe2, got_db_inst, or_old,
         implies(imp_db_case1, implies(imp_db_case2, or_xdn_n)),
         [], left(got_db_inst))
@@ -1143,7 +1143,7 @@ $tmreaches_compose {
     # Need: In(kq,n) → In(kq,pb) via eq_transfer reverse
     $got_iff_kq apply_thm(eq_transfer, head(right(eq_transfer)),
         ["pb","n","kq"], ["a","b","z"], et2_body, left(eq_transfer))
-    $got_iff_kq mp(got_iff_kq, got_eq_pb, eqv("pb","n","_"),
+    $got_iff_kq mp(got_iff_kq, got_eq_pb, eq("pb","n","_"),
         iff(mem("kq","pb"), mem("kq","n")),
         left(got_iff_kq), left(got_eq_pb))
     $got_in_kq_pb mp(apply_thm(iff_elim_right(mem("kq","pb"), mem("kq","n"), []),
@@ -1198,7 +1198,7 @@ $tmreaches_compose {
     $got_final eir(got_rf,
         \v: and(function(v,"_"), and(
             forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
-                or(mem("xdn","n"), eqv("xdn","n","_"))))),
+                or(mem("xdn","n"), eq("xdn","n","_"))))),
             and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","x","_"))),
                 and(forall("kq", implies(mem("kq","n"),
                     forall("skq", implies(successor("skq","kq","_"),
@@ -1215,7 +1215,7 @@ $tmreaches_compose {
     $got_final eel(got_final,
         \v: and(function(v,"_"), and(
             forall("xdn", forall("ydn", implies(apply(v,"xdn","ydn","_"),
-                or(mem("xdn","pb"), eqv("xdn","pb","_"))))),
+                or(mem("xdn","pb"), eq("xdn","pb","_"))))),
             and(forall("zp", implies(num("zp",0,"_"), apply(v,"zp","x","_"))),
                 and(forall("kq", implies(mem("kq","pb"),
                     forall("skq", implies(successor("skq","kq","_"),
@@ -1250,7 +1250,7 @@ $tmreaches_compose {
     $got_final eel(got_final,
         \v: and(function(v,"_"), and(
             forall("xd", forall("yd", implies(apply(v,"xd","yd","_"),
-                or(mem("xd","b"), eqv("xd","b","_"))))),
+                or(mem("xd","b"), eq("xd","b","_"))))),
             and(forall("zr", implies(num("zr",0,"_"), apply(v,"zr","y","_"))),
                 and(forall("k", implies(mem("k","b"),
                     forall("sk", implies(successor("sk","k","_"),

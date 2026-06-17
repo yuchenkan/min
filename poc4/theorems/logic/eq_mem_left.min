@@ -1,0 +1,15 @@
+from derived import mem, implies, iff, eq
+from tactics import ax, fl, ir, mp, close
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# |- eq(a, b) -> mem(z, a) -> mem(z, b)
+$eq_mem_left {
+    $eq_ab eq("a", "b", "_")
+    $iff_z iff(mem("z", "a"), mem("z", "b"))
+    $s1 fl(ax([iff_z], [iff_z], iff_z), [eq_ab], [iff_z], eq_ab, "z")
+    $imp implies(mem("z", "a"), mem("z", "b"))
+    $s2 mp(iff_elim_left(mem("z", "a"), mem("z", "b"), []), s1, iff_z, imp, [], [eq_ab])
+    $top implies(eq_ab, imp)
+    $result ir(s2, [], [top], top)
+    close(result, [], [top], ["z","b","a"])
+}

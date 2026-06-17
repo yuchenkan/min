@@ -1,20 +1,20 @@
-from derived import mem, implies, forall, iff, eqv, right
+from derived import mem, implies, forall, iff, eq, right
 from tactics import ax, fl, ir, mp, apply_thm, close
 from theorems.logic.iff_elim_left import iff_elim_left
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_reflexive import eq_reflexive
 
-# |- forall a b. forall(w, iff(eqv(w,a), eqv(w,b))) -> eqv(a, b)
+# |- forall a b. forall(w, iff(eq(w,a), eq(w,b))) -> eq(a, b)
 $singleton_injection {
-    $char forall("w", iff(eqv("w", "a", "_"), eqv("w", "b", "_")))
-    $iff_ab iff(eqv("a", "a", "_"), eqv("a", "b", "_"))
+    $char forall("w", iff(eq("w", "a", "_"), eq("w", "b", "_")))
+    $iff_ab iff(eq("a", "a", "_"), eq("a", "b", "_"))
     $s1 fl(ax([iff_ab], [iff_ab], iff_ab), [char], [iff_ab], char, "a")
-    $imp_fwd implies(eqv("a", "a", "_"), eqv("a", "b", "_"))
-    $s2 mp(iff_elim_left(eqv("a", "a", "_"), eqv("a", "b", "_"), []), s1, iff_ab, imp_fwd, [], [char])
-    $_er head(right(eqv_reflexive))
-    $g_aa apply_thm(eqv_reflexive, _er, ["a"], ["a"], \a: eqv(a,a,"_"), [])
-    $eqv_ab eqv("a", "b", "_")
-    $s3 mp(s2, g_aa, eqv("a", "a", "_"), eqv_ab, [char], [])
-    $top implies(char, eqv_ab)
+    $imp_fwd implies(eq("a", "a", "_"), eq("a", "b", "_"))
+    $s2 mp(iff_elim_left(eq("a", "a", "_"), eq("a", "b", "_"), []), s1, iff_ab, imp_fwd, [], [char])
+    $_er head(right(eq_reflexive))
+    $g_aa apply_thm(eq_reflexive, _er, ["a"], ["a"], \a: eq(a,a,"_"), [])
+    $eq_ab eq("a", "b", "_")
+    $s3 mp(s2, g_aa, eq("a", "a", "_"), eq_ab, [char], [])
+    $top implies(char, eq_ab)
     $s4 ir(s3, [], [top], top)
     close(s4, [], [top], ["b", "a"])
 }

@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg2
 from vocab.sets import empty, singleton, ordered_pair
 from vocab.functions import apply, function
 from vocab.nat.nat import num, omega, successor
@@ -17,9 +17,9 @@ from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.functions.apply_key_transfer import apply_key_transfer
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_mem_right import eqv_mem_right
-from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_mem_right import eq_mem_right
+from theorems.logic.eq_mem_left import eq_mem_left
 from theorems.nat.nat.omega_contains_zero import omega_contains_zero
 
 # pa, ext |- num(e,0) → (∃z.apply(f,a,z)) →
@@ -37,12 +37,12 @@ $singleton_recapprox {
     # Curried body helpers
     $_sa_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), apply(f,x,y,"_")))
     $_sf_b \f: \op: \x: \y: implies(singleton(f,op,"_"), implies(ordered_pair(op,x,y,"_"), function(f,"_")))
-    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
-    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eq(x,a,"_")))
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"),eq(b,d,"_")))))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $_emr_b \x: \y: \a: implies(eq(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_eml_b \a: \b: \z: implies(eq(a,b,"_"), implies(mem(z,a), mem(z,b)))
     $_nme_b \e: \x: implies(empty(e,"_"), neg(mem(x,e)))
     $_mss_b \s: \n: implies(successor(s,n,"_"), mem(n,s))
 
@@ -58,13 +58,13 @@ $singleton_recapprox {
     $sf2 mp(sf1, ax([sing], [sing], sing), sing, implies(opea, func_g), left(sf1), [sing])
     $got_func mp(sf2, ax([opea], [opea], opea), opea, func_g, left(sf2), [opea])
 
-    # === Helper: from apply(g,x,y) get eqv(x,e) and eqv(y,a) via singleton+kuratowski ===
+    # === Helper: from apply(g,x,y) get eq(x,e) and eq(y,a) via singleton+kuratowski ===
     $_sme head(right(singleton_mem_eq))
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
 
     # For arbitrary x,y with apply(g,x,y): eel on the exists, get op(q,x,y)∧q∈g.
-    # singleton_mem_eq: q∈g → eqv(q,op). kuratowski(q,op,x,y,e,a) → and(eqv(x,e), eqv(y,a)).
+    # singleton_mem_eq: q∈g → eq(q,op). kuratowski(q,op,x,y,e,a) → and(eq(x,e), eq(y,a)).
     # This pattern appears in conditions 2,3,4,5. Define as inline each time.
 
     # === Condition 2: dom_sub = ∀x.(∃y.apply(g,x,y)) → x∈w ===
@@ -73,19 +73,19 @@ $singleton_recapprox {
     $op_q ordered_pair("q","x","y2","_")
     $qg mem("q","g")
     $and_q and(op_q, qg)
-    $eqv_xe eqv("x","e","_")
+    $eq_xe eq("x","e","_")
 
     $got_qop mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "g", "op"], ["q", "f", "a"], _sme_b, []),
-        ax([sing], [sing], sing), sing, implies(qg, eqv("q","op","_")), [], [sing]),
+        ax([sing], [sing], sing), sing, implies(qg, eq("q","op","_")), [], [sing]),
         mp(and_elim_right(op_q, qg, []), ax([and_q], [and_q], and_q), and_q, qg, [], [and_q]),
-        qg, eqv("q","op","_"), [sing], [and_q])
+        qg, eq("q","op","_"), [sing], [and_q])
     $got_opq mp(and_elim_left(op_q, qg, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
     $k1 apply_thm(kuratowski, _kur, ["q", "op", "x", "y2", "e", "a"], ["q", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
-    $k2 mp(k1, got_opq, op_q, implies(opea, implies(eqv("q","op","_"), and(eqv_xe, eqv("y2","a","_")))), left(k1), [and_q])
-    $k3 mp(k2, ax([opea], [opea], opea), opea, implies(eqv("q","op","_"), and(eqv_xe, eqv("y2","a","_"))), left(k2), [opea])
-    $k4 mp(k3, got_qop, eqv("q","op","_"), and(eqv_xe, eqv("y2","a","_")), left(k3), [sing, and_q])
-    $got_xe mp(and_elim_left(eqv_xe, eqv("y2","a","_"), []), k4, and(eqv_xe, eqv("y2","a","_")), eqv_xe, [], left(k4))
-    # left(got_xe) |- eqv(x,e). Has kur_ctx, and_q, opea, sing.
+    $k2 mp(k1, got_opq, op_q, implies(opea, implies(eq("q","op","_"), and(eq_xe, eq("y2","a","_")))), left(k1), [and_q])
+    $k3 mp(k2, ax([opea], [opea], opea), opea, implies(eq("q","op","_"), and(eq_xe, eq("y2","a","_"))), left(k2), [opea])
+    $k4 mp(k3, got_qop, eq("q","op","_"), and(eq_xe, eq("y2","a","_")), left(k3), [sing, and_q])
+    $got_xe mp(and_elim_left(eq_xe, eq("y2","a","_"), []), k4, and(eq_xe, eq("y2","a","_")), eq_xe, [], left(k4))
+    # left(got_xe) |- eq(x,e). Has kur_ctx, and_q, opea, sing.
 
     # omega_contains_zero: om → emp → e∈w
     $_oce head(right(omega_contains_zero))
@@ -95,14 +95,14 @@ $singleton_recapprox {
     $oce2 mp(oce1, ax([om], [om], om), om, implies(emp, ew), left(oce1), [om])
     $got_ew mp(oce2, ax([emp], [emp], emp), emp, ew, left(oce2), [emp])
 
-    # eqv_symmetric(x,e) → eqv(e,x). eqv_mem_right(e,x,w): e∈w → x∈w.
-    $_es head(right(eqv_symmetric))
-    $eqv_ex eqv("e","x","_")
-    $got_ex mp(apply_thm(eqv_symmetric, _es, ["x", "e"], ["x", "b"], _es_b, []), got_xe, eqv_xe, eqv_ex, [], left(got_xe))
-    $emr_ctx left(eqv_mem_right)
-    $_emr head(right(eqv_mem_right))
-    $emr1 mp(apply_thm(eqv_mem_right, _emr, ["e", "x", "w"], ["e", "y", "a"], _emr_b, emr_ctx),
-        got_ex, eqv_ex, implies(ew, xw), emr_ctx, left(got_ex))
+    # eq_symmetric(x,e) → eq(e,x). eq_mem_right(e,x,w): e∈w → x∈w.
+    $_es head(right(eq_symmetric))
+    $eq_ex eq("e","x","_")
+    $got_ex mp(apply_thm(eq_symmetric, _es, ["x", "e"], ["x", "b"], _es_b, []), got_xe, eq_xe, eq_ex, [], left(got_xe))
+    $emr_ctx left(eq_mem_right)
+    $_emr head(right(eq_mem_right))
+    $emr1 mp(apply_thm(eq_mem_right, _emr, ["e", "x", "w"], ["e", "y", "a"], _emr_b, emr_ctx),
+        got_ex, eq_ex, implies(ew, xw), emr_ctx, left(got_ex))
     $got_xw mp(emr1, got_ew, ew, xw, left(emr1), left(got_ew))
     # left(got_xw) |- x∈w
 
@@ -117,28 +117,28 @@ $singleton_recapprox {
 
     # === Condition 3: ran_sub = ∀x.∀y.apply(g,x,y) → ∃z.apply(f,y,z) ===
     # From singleton+kuratowski: y=a. Hypothesis f_at_a = ∃z.apply(f,a,z).
-    # Transfer: eqv(a,y) → apply(f,a,z) → apply(f,y,z)? No, need apply_key_transfer on f.
-    # Actually simpler: eqv(y,a) from kuratowski. eqv_symmetric → eqv(a,y).
-    # apply_key_transfer: eqv(a,y) → apply(f,a,z) → apply(f,y,z). Then eir.
+    # Transfer: eq(a,y) → apply(f,a,z) → apply(f,y,z)? No, need apply_key_transfer on f.
+    # Actually simpler: eq(y,a) from kuratowski. eq_symmetric → eq(a,y).
+    # apply_key_transfer: eq(a,y) → apply(f,a,z) → apply(f,y,z). Then eir.
     # But f_at_a is already ∃z.apply(f,a,z). Need ∃z.apply(f,y,z).
-    # From eqv(y,a): eel z from f_at_a, apply_key_transfer with eqv(a,y), eir.
-    $got_ya mp(and_elim_right(eqv_xe, eqv("y2","a","_"), []), k4, and(eqv_xe, eqv("y2","a","_")), eqv("y2","a","_"), [], left(k4))
+    # From eq(y,a): eel z from f_at_a, apply_key_transfer with eq(a,y), eir.
+    $got_ya mp(and_elim_right(eq_xe, eq("y2","a","_"), []), k4, and(eq_xe, eq("y2","a","_")), eq("y2","a","_"), [], left(k4))
     # Use f_at_a directly — since y=a (alpha-equiv after transfer), ∃z.apply(f,y,z) ≈ ∃z.apply(f,a,z).
-    # Actually: eqv(y2,a) + apply(f,a,z) → apply_key_transfer(eqv(a,y2)) → apply(f,y2,z) → ∃z.
+    # Actually: eq(y2,a) + apply(f,a,z) → apply_key_transfer(eq(a,y2)) → apply(f,y2,z) → ∃z.
     # Simpler: just weaken f_at_a (which is ∃z.apply(f,a,z)) — but we need ∃z.apply(f,y2,z), not a.
     # We DO need the transfer. But this makes it complex. Let me just use the fact that
     # from the singleton, the only y is a. So the ran_sub condition is: apply(g,x,y) → ∃z.apply(f,y,z).
     # With y=a always: ∃z.apply(f,a,z) = f_at_a. Just weaken f_at_a onto the right after deriving y=a.
     # But f_at_a talks about "a" and we need about "y2". Alpha-equiv won't help since they're different free vars.
     # Need actual transfer. Let me just use ax for ran_sub too... NO.
-    # OK: from eqv(y2,a), apply_key_transfer: eqv(a,y2) → apply(f,a,z) → apply(f,y2,z).
-    $eqv_ay2 eqv("a","y2","_")
-    $got_ay2 mp(apply_thm(eqv_symmetric, _es, ["y2", "a"], ["y2", "b"], _es_b, []), got_ya, eqv("y2","a","_"), eqv_ay2, [], left(got_ya))
+    # OK: from eq(y2,a), apply_key_transfer: eq(a,y2) → apply(f,a,z) → apply(f,y2,z).
+    $eq_ay2 eq("a","y2","_")
+    $got_ay2 mp(apply_thm(eq_symmetric, _es, ["y2", "a"], ["y2", "b"], _es_b, []), got_ya, eq("y2","a","_"), eq_ay2, [], left(got_ya))
     $_akt head(right(apply_key_transfer))
     $app_faz apply("f","a","z3","_")
     $app_fy2z apply("f","y2","z3","_")
     $akt1 mp(apply_thm(apply_key_transfer, _akt, ["f", "a", "y2", "z3"], ["f", "x", "x2", "y"], _akt_b, []),
-        got_ay2, eqv_ay2, implies(app_faz, app_fy2z), [], left(got_ay2))
+        got_ay2, eq_ay2, implies(app_faz, app_fy2z), [], left(got_ay2))
     $got_fy2z mp(akt1, ax([app_faz], [app_faz], app_faz), app_faz, app_fy2z, left(akt1), [app_faz])
     $got_ex_fy2 eir(got_fy2z, \z: apply("f","y2",z,"_"), "z", "z3", left(got_fy2z))
     $got_ex_fy2_eel eel(got_ex_fy2, \z: apply("f","a",z,"_"), "z", "z3", left(got_ex_fy2), exists("z", apply("f","y2","z","_")))
@@ -156,32 +156,32 @@ $singleton_recapprox {
     $got_ran_sub fr(got_ran_fr, left(got_ran_fr), [ran_sub_u], ran_sub_u, "x")
 
     # === Condition 4: base = ∀e2. num(e2,0) → (∃y.apply(g,e2,y)) → apply(g,e2,a) ===
-    # From apply(g,e2,y): kuratowski → e2=e, y=a. So apply(g,e2,a): key_transfer with eqv(e,e2) on got_app.
-    # eqv(e2,e) from kuratowski. symmetric → eqv(e,e2). apply_key_transfer → apply(g,e2,a).
+    # From apply(g,e2,y): kuratowski → e2=e, y=a. So apply(g,e2,a): key_transfer with eq(e,e2) on got_app.
+    # eq(e2,e) from kuratowski. symmetric → eq(e,e2). apply_key_transfer → apply(g,e2,a).
     # (The num(e2,0) hypothesis is unused — we derive from singleton structure alone.)
     $app_ge2y apply("g","e2","y3","_")
     $app_ge2a apply("g","e2","a","_")
     $op_q2 ordered_pair("q2","e2","y3","_")
     $q2g mem("q2","g")
     $and_q2 and(op_q2, q2g)
-    $eqv_e2e eqv("e2","e","_")
+    $eq_e2e eq("e2","e","_")
 
     $got_qop2 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q2", "g", "op"], ["q2", "f", "a"], _sme_b, []),
-        ax([sing], [sing], sing), sing, implies(q2g, eqv("q2","op","_")), [], [sing]),
+        ax([sing], [sing], sing), sing, implies(q2g, eq("q2","op","_")), [], [sing]),
         mp(and_elim_right(op_q2, q2g, []), ax([and_q2], [and_q2], and_q2), and_q2, q2g, [], [and_q2]),
-        q2g, eqv("q2","op","_"), [sing], [and_q2])
+        q2g, eq("q2","op","_"), [sing], [and_q2])
     $got_opq2 mp(and_elim_left(op_q2, q2g, []), ax([and_q2], [and_q2], and_q2), and_q2, op_q2, [], [and_q2])
     $kb1 apply_thm(kuratowski, _kur, ["q2", "op", "e2", "y3", "e", "a"], ["q2", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
-    $kb2 mp(kb1, got_opq2, op_q2, implies(opea, implies(eqv("q2","op","_"), and(eqv_e2e, eqv("y3","a","_")))), left(kb1), [and_q2])
-    $kb3 mp(kb2, ax([opea], [opea], opea), opea, implies(eqv("q2","op","_"), and(eqv_e2e, eqv("y3","a","_"))), left(kb2), [opea])
-    $kb4 mp(kb3, got_qop2, eqv("q2","op","_"), and(eqv_e2e, eqv("y3","a","_")), left(kb3), [sing, and_q2])
-    $got_e2e mp(and_elim_left(eqv_e2e, eqv("y3","a","_"), []), kb4, and(eqv_e2e, eqv("y3","a","_")), eqv_e2e, [], left(kb4))
-    # eqv(e,e2) from symmetric:
-    $eqv_ee2 eqv("e","e2","_")
-    $got_ee2 mp(apply_thm(eqv_symmetric, _es, ["e2", "e"], ["e2", "b"], _es_b, []), got_e2e, eqv_e2e, eqv_ee2, [], left(got_e2e))
-    # apply_key_transfer: eqv(e,e2) → apply(g,e,a) → apply(g,e2,a)
+    $kb2 mp(kb1, got_opq2, op_q2, implies(opea, implies(eq("q2","op","_"), and(eq_e2e, eq("y3","a","_")))), left(kb1), [and_q2])
+    $kb3 mp(kb2, ax([opea], [opea], opea), opea, implies(eq("q2","op","_"), and(eq_e2e, eq("y3","a","_"))), left(kb2), [opea])
+    $kb4 mp(kb3, got_qop2, eq("q2","op","_"), and(eq_e2e, eq("y3","a","_")), left(kb3), [sing, and_q2])
+    $got_e2e mp(and_elim_left(eq_e2e, eq("y3","a","_"), []), kb4, and(eq_e2e, eq("y3","a","_")), eq_e2e, [], left(kb4))
+    # eq(e,e2) from symmetric:
+    $eq_ee2 eq("e","e2","_")
+    $got_ee2 mp(apply_thm(eq_symmetric, _es, ["e2", "e"], ["e2", "b"], _es_b, []), got_e2e, eq_e2e, eq_ee2, [], left(got_e2e))
+    # apply_key_transfer: eq(e,e2) → apply(g,e,a) → apply(g,e2,a)
     $got_ge2a mp(mp(apply_thm(apply_key_transfer, _akt, ["g", "e", "e2", "a"], ["g", "x", "x2", "y"], _akt_b, []),
-        got_ee2, eqv_ee2, implies(app_gea, app_ge2a), [], left(got_ee2)),
+        got_ee2, eq_ee2, implies(app_gea, app_ge2a), [], left(got_ee2)),
         got_app, app_gea, app_ge2a, left(got_ee2), left(got_app))
     # eel q2, eel y3, ir (∃y.apply), ir num(e2,0), fr e2
     $got_base_eel eel(got_ge2a, \v: and(ordered_pair(v,"e2","y3","_"), mem(v,"g")), "p", "q2", left(got_ge2a), app_ge2a)
@@ -198,12 +198,12 @@ $singleton_recapprox {
 
     # === Condition 5: step = vacuous via succ_not_zero ===
     # ∀n2∈w. ∀sn. succ(sn,n2) → (∃y.apply(g,sn,y)) → and(...)
-    # From ∃y.apply(g,sn,y): eel → kuratowski → eqv(sn,e).
-    # mem_succ_self: n2∈sn. eqv_mem_left(sn,e): n2∈e. neg_mem_empty: contradiction.
+    # From ∃y.apply(g,sn,y): eel → kuratowski → eq(sn,e).
+    # mem_succ_self: n2∈sn. eq_mem_left(sn,e): n2∈e. neg_mem_empty: contradiction.
     $n2w mem("n2","w")
     $succ_sn2 successor("sn2","n2","_")
     $app_gsn apply("g","sn2","y4","_")
-    $eqv_sne eqv("sn2","e","_")
+    $eq_sne eq("sn2","e","_")
     $n2sn mem("n2","sn2")
     $n2e mem("n2","e")
 
@@ -212,26 +212,26 @@ $singleton_recapprox {
     $q3g mem("q3","g")
     $and_q3 and(op_q3, q3g)
     $got_qop3 mp(mp(apply_thm(singleton_mem_eq, _sme, ["q3", "g", "op"], ["q3", "f", "a"], _sme_b, []),
-        ax([sing], [sing], sing), sing, implies(q3g, eqv("q3","op","_")), [], [sing]),
+        ax([sing], [sing], sing), sing, implies(q3g, eq("q3","op","_")), [], [sing]),
         mp(and_elim_right(op_q3, q3g, []), ax([and_q3], [and_q3], and_q3), and_q3, q3g, [], [and_q3]),
-        q3g, eqv("q3","op","_"), [sing], [and_q3])
+        q3g, eq("q3","op","_"), [sing], [and_q3])
     $got_opq3 mp(and_elim_left(op_q3, q3g, []), ax([and_q3], [and_q3], and_q3), and_q3, op_q3, [], [and_q3])
     $kc1 apply_thm(kuratowski, _kur, ["q3", "op", "sn2", "y4", "e", "a"], ["q3", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
-    $kc2 mp(kc1, got_opq3, op_q3, implies(opea, implies(eqv("q3","op","_"), and(eqv_sne, eqv("y4","a","_")))), left(kc1), [and_q3])
-    $kc3 mp(kc2, ax([opea], [opea], opea), opea, implies(eqv("q3","op","_"), and(eqv_sne, eqv("y4","a","_"))), left(kc2), [opea])
-    $kc4 mp(kc3, got_qop3, eqv("q3","op","_"), and(eqv_sne, eqv("y4","a","_")), left(kc3), [sing, and_q3])
-    $got_sne mp(and_elim_left(eqv_sne, eqv("y4","a","_"), []), kc4, and(eqv_sne, eqv("y4","a","_")), eqv_sne, [], left(kc4))
-    # left(got_sne) |- eqv(sn2,e)
+    $kc2 mp(kc1, got_opq3, op_q3, implies(opea, implies(eq("q3","op","_"), and(eq_sne, eq("y4","a","_")))), left(kc1), [and_q3])
+    $kc3 mp(kc2, ax([opea], [opea], opea), opea, implies(eq("q3","op","_"), and(eq_sne, eq("y4","a","_"))), left(kc2), [opea])
+    $kc4 mp(kc3, got_qop3, eq("q3","op","_"), and(eq_sne, eq("y4","a","_")), left(kc3), [sing, and_q3])
+    $got_sne mp(and_elim_left(eq_sne, eq("y4","a","_"), []), kc4, and(eq_sne, eq("y4","a","_")), eq_sne, [], left(kc4))
+    # left(got_sne) |- eq(sn2,e)
 
     # mem_succ_self: succ(sn2,n2) → n2∈sn2
     $_mss head(right(mem_succ_self))
     $got_n2sn mp(apply_thm(mem_succ_self, _mss, ["sn2", "n2"], ["sn2", "n"], _mss_b, []),
         ax([succ_sn2], [succ_sn2], succ_sn2), succ_sn2, n2sn, [], [succ_sn2])
 
-    # eqv_mem_left(sn2,e): n2∈sn2 → n2∈e
-    $_eml head(right(eqv_mem_left))
-    $got_n2e mp(mp(apply_thm(eqv_mem_left, _eml, ["sn2", "e", "n2"], ["sn2", "b", "z"], _eml_b, []),
-        got_sne, eqv_sne, implies(n2sn, n2e), [], left(got_sne)),
+    # eq_mem_left(sn2,e): n2∈sn2 → n2∈e
+    $_eml head(right(eq_mem_left))
+    $got_n2e mp(mp(apply_thm(eq_mem_left, _eml, ["sn2", "e", "n2"], ["sn2", "b", "z"], _eml_b, []),
+        got_sne, eq_sne, implies(n2sn, n2e), [], left(got_sne)),
         got_n2sn, n2sn, n2e, left(got_sne), [succ_sn2])
 
     # neg_mem_empty: emp → neg(n2∈e). Contradiction → weaken right with step conclusion.

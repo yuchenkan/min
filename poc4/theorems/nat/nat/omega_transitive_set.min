@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, eqv, left, right, arg2
+from derived import mem, neg, implies, forall, and, or, eq, left, right, arg2
 from vocab.sets import empty, transitive_set
 from vocab.nat.nat import omega, successor
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same
@@ -6,7 +6,7 @@ from util.list import remove, diff
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.nat.nat.mem_succ_intro import mem_succ_intro
 from theorems.nat.nat.mem_succ_elim import mem_succ_elim
-from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.eq_mem_left import eq_mem_left
 from theorems.nat.nat.omega_induction import omega_induction
 
 # Sep |- ∀w. omega(w) → ∀n∈w. transitive_set(n)
@@ -52,21 +52,21 @@ $omega_transitive_set {
 
     # === STEP: n∈w → ts(n) → ∀s. succ(s,n) → ts(s) ===
     # ts(s) = ∀x. x∈s → ∀y. y∈x → y∈s.
-    # Let x∈s. mem_succ_elim: x∈n ∨ eqv(x,n).
+    # Let x∈s. mem_succ_elim: x∈n ∨ eq(x,n).
     # Let y∈x. Need y∈s.
     # Case x∈n: ts(n): x∈n → y∈x → y∈n. mem_succ_intro: y∈n → y∈s. ✓
-    # Case eqv(x,n): eqv_mem_left: y∈x → y∈n. mem_succ_intro: y∈n → y∈s. ✓
+    # Case eq(x,n): eq_mem_left: y∈x → y∈n. mem_succ_intro: y∈n → y∈s. ✓
     $succ_sn successor("s", "n", "_")
     $xs mem("x", "s")
     $xn mem("x", "n")
-    $exn eqv("x", "n", "_")
+    $exn eq("x", "n", "_")
     $or_xn or(xn, exn)
     $yn mem("y", "n")
     $ys mem("y", "s")
 
-    # mem_succ_elim: x∈s → succ(s,n) → or(x∈n, eqv(x,n))
+    # mem_succ_elim: x∈s → succ(s,n) → or(x∈n, eq(x,n))
     $_mse head(right(mem_succ_elim))
-    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eq(x,n,"_"))))
     $got_or_x mp(mp(apply_thm(mem_succ_elim, _mse, ["x", "s", "n"], ["x", "s", "n"], _mse_b, []),
         ax([xs], [xs], xs), xs, implies(succ_sn, or_xn), [], [xs]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_xn, [xs], [succ_sn])
@@ -86,10 +86,10 @@ $omega_transitive_set {
     $got_yn_from_xn mp(got_yn_xn, ax([yx], [yx], yx), yx, yn, [ts_n, xn], [yx])
     # [ts_n, xn, yx] |- y∈n
 
-    # Case eqv(x,n): eqv_mem_left(x,n): y∈x → y∈n
-    $_eml head(right(eqv_mem_left))
-    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
-    $got_yn_from_exn mp(mp(apply_thm(eqv_mem_left, _eml, ["x", "n", "y"], ["x", "b", "z"], _eml_b, []),
+    # Case eq(x,n): eq_mem_left(x,n): y∈x → y∈n
+    $_eml head(right(eq_mem_left))
+    $_eml_b \a: \b: \z: implies(eq(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_yn_from_exn mp(mp(apply_thm(eq_mem_left, _eml, ["x", "n", "y"], ["x", "b", "z"], _eml_b, []),
         ax([exn], [exn], exn), exn, implies(yx, yn), [], [exn]),
         ax([yx], [yx], yx), yx, yn, [exn], [yx])
     # [exn, yx] |- y∈n

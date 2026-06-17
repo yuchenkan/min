@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg1, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg1, arg2
 from vocab.sets import relation
 from vocab.functions import apply, single_valued, function
 from vocab.nat.nat import nat, num, omega, successor
@@ -7,13 +7,13 @@ from tactics import ax, wl, wl_all, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, 
 from util.list import remove, diff
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.nat.nat.omega_exists import omega_exists
 from theorems.nat.nat.nat_elim import nat_elim
 
 # |- rec_approx(v,a,f) → nat(n) → apply(v,n,val) → apply(f,val,fval) →
-#    successor(sn,n) → apply(v,sn,z) → eqv(fval,z)
+#    successor(sn,n) → apply(v,sn,z) → eq(fval,z)
 $extend_consistency {
     $ra_v rec_approx("v", "a", "f", "_")
     $nat_n nat("n", "_")
@@ -21,7 +21,7 @@ $extend_consistency {
     $app_f apply("f", "val", "fval", "_")
     $succ_sn successor("sn", "n", "_")
     $app_vsn_z apply("v", "sn", "z", "_")
-    $eqv_fval_z eqv("fval", "z", "_")
+    $eq_fval_z eq("fval", "z", "_")
 
     # Body components (match vocab after inst _w→"w")
     $func_v function("v", "_")
@@ -109,23 +109,23 @@ $extend_consistency {
     $got_app_vsn_fval mp(got_inner_fval, ax([app_f], [app_f], app_f), app_f,
         arg2(inner_fval_body), left(got_inner_fval), [app_f])
 
-    # func_unique: apply(v,sn,z) + apply(v,sn,fval) → eqv(z,fval) → sym → eqv(fval,z)
+    # func_unique: apply(v,sn,z) + apply(v,sn,fval) → eq(z,fval) → sym → eq(fval,z)
     $_fut head(right(func_unique_thm))
-    $eqv_z_fval eqv("z", "fval", "_")
-    $_fut_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
-    $sv_v forall("q1", forall("q2", forall("q3", implies(and(apply("v","q1","q2","_"), apply("v","q1","q3","_")), eqv("q2","q3","_")))))
+    $eq_z_fval eq("z", "fval", "_")
+    $_fut_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
+    $sv_v forall("q1", forall("q2", forall("q3", implies(and(apply("v","q1","q2","_"), apply("v","q1","q3","_")), eq("q2","q3","_")))))
     $got_sv_v mp(and_elim_right(relation("v","_"), sv_v, []), got_func_v, func_v, sv_v, [], [body])
     $fut1 mp(apply_thm(func_unique_thm, _fut, ["v", "sn", "z", "fval"], ["v", "x", "y1", "y2"], _fut_b, []),
-        got_sv_v, sv_v, implies(app_vsn_z, implies(app_vsn_fval, eqv_z_fval)), [], [body])
+        got_sv_v, sv_v, implies(app_vsn_z, implies(app_vsn_fval, eq_z_fval)), [], [body])
     $fut2 mp(fut1, ax([app_vsn_z], [app_vsn_z], app_vsn_z), app_vsn_z,
-        implies(app_vsn_fval, eqv_z_fval), [body], [app_vsn_z])
-    $got_eqv_zf mp(fut2, got_app_vsn_fval, app_vsn_fval, eqv_z_fval,
+        implies(app_vsn_fval, eq_z_fval), [body], [app_vsn_z])
+    $got_eq_zf mp(fut2, got_app_vsn_fval, app_vsn_fval, eq_z_fval,
         [body, app_vsn_z], left(got_app_vsn_fval))
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_result mp(apply_thm(eqv_symmetric, _es, ["z", "fval"], ["z", "b"], _es_b, []),
-        got_eqv_zf, eqv_z_fval, eqv_fval_z, [], left(got_eqv_zf))
-    # [body, nw, app_vn, app_f, succ_sn, app_vsn_z, ...] |- [eqv_fval_z]
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_result mp(apply_thm(eq_symmetric, _es, ["z", "fval"], ["z", "b"], _es_b, []),
+        got_eq_zf, eq_z_fval, eq_fval_z, [], left(got_eq_zf))
+    # [body, nw, app_vn, app_f, succ_sn, app_vsn_z, ...] |- [eq_fval_z]
 
     # === Unwrap: replace body with ra, nw with nat_n, via omega_exists ===
 
@@ -144,28 +144,28 @@ $extend_consistency {
 
     # cut_c: replace body on left
     $main_proof got_result
-    $m1 cut_c(got_body, main_proof, body, [ra_v, om], left(main_proof), eqv_fval_z)
-    # [ra_v, om, nw, ...] |- [eqv_fval_z]
+    $m1 cut_c(got_body, main_proof, body, [ra_v, om], left(main_proof), eq_fval_z)
+    # [ra_v, om, nw, ...] |- [eq_fval_z]
 
     # cut_c: replace nw on left
-    $m2 cut_c(got_nw, m1, nw, left(got_nw), left(m1), eqv_fval_z)
-    # [nat_elim_ctx, nat_n, om, ra_v, ...] |- [eqv_fval_z]
+    $m2 cut_c(got_nw, m1, nw, left(got_nw), left(m1), eq_fval_z)
+    # [nat_elim_ctx, nat_n, om, ra_v, ...] |- [eq_fval_z]
 
-    # eel to eliminate omega witness (eqv_fval_z doesn't mention "w")
-    $m3 eel(m2, \w: omega(w, "_"), "w", "w", remove(same, om, left(m2)), eqv_fval_z)
+    # eel to eliminate omega witness (eq_fval_z doesn't mention "w")
+    $m3 eel(m2, \w: omega(w, "_"), "w", "w", remove(same, om, left(m2)), eq_fval_z)
 
     # cut_c with omega_exists
     $ex_om exists("w", omega("w", "_"))
-    $m4 cut_c(omega_exists, m3, ex_om, left(omega_exists), left(m3), eqv_fval_z)
+    $m4 cut_c(omega_exists, m3, ex_om, left(omega_exists), left(m3), eq_fval_z)
 
     # Close
     $ctx left(m4)
-    $r1 ir(m4, remove(same, app_vsn_z, ctx), [implies(app_vsn_z, eqv_fval_z)], implies(app_vsn_z, eqv_fval_z))
-    $r2 ir(r1, remove(same, succ_sn, left(r1)), [implies(succ_sn, implies(app_vsn_z, eqv_fval_z))], implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))
-    $r3 ir(r2, remove(same, app_f, left(r2)), [implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))], implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))
-    $r4 ir(r3, remove(same, app_vn, left(r3)), [implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))], implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))))
-    $r5 ir(r4, remove(same, nat_n, left(r4)), [implies(nat_n, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z)))))], implies(nat_n, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))))
-    $top implies(ra_v, implies(nat_n, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eqv_fval_z))))))
+    $r1 ir(m4, remove(same, app_vsn_z, ctx), [implies(app_vsn_z, eq_fval_z)], implies(app_vsn_z, eq_fval_z))
+    $r2 ir(r1, remove(same, succ_sn, left(r1)), [implies(succ_sn, implies(app_vsn_z, eq_fval_z))], implies(succ_sn, implies(app_vsn_z, eq_fval_z)))
+    $r3 ir(r2, remove(same, app_f, left(r2)), [implies(app_f, implies(succ_sn, implies(app_vsn_z, eq_fval_z)))], implies(app_f, implies(succ_sn, implies(app_vsn_z, eq_fval_z))))
+    $r4 ir(r3, remove(same, app_vn, left(r3)), [implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eq_fval_z))))], implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eq_fval_z)))))
+    $r5 ir(r4, remove(same, nat_n, left(r4)), [implies(nat_n, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eq_fval_z)))))], implies(nat_n, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eq_fval_z))))))
+    $top implies(ra_v, implies(nat_n, implies(app_vn, implies(app_f, implies(succ_sn, implies(app_vsn_z, eq_fval_z))))))
     $r6 ir(r5, remove(same, ra_v, left(r5)), [top], top)
     close(r6, left(r6), [top], ["z","fval","val","sn","n","f","a","v"])
 }

@@ -1,4 +1,4 @@
-from derived import neg, implies, forall, and, iff, exists, eqv, left, right
+from derived import neg, implies, forall, and, iff, exists, eq, left, right
 from vocab.logic import exists_unique
 from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
 from util.list import remove
@@ -8,8 +8,8 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.iff_intro import iff_intro
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
 
 # eu_bridge: ∃!x.phi(x) → iff(∀x.phi(x)→P(x), ∃x.phi(x)∧P(x))
 # Generalized exists_unique_bridge for arbitrary predicates.
@@ -25,11 +25,11 @@ $exists_unique_bridge \phi_fn pred_fn vars p: {
     $ex_form exists(xv, and(phi_fn(xv, np), pred_fn(xv)))
     $goal iff(fa_form, ex_form)
 
-    # eu internals: ∃x. phi(x) ∧ ∀y. phi(y) → eqv(x,y)
-    $eu_body_fn \v: and(phi_fn(v, np), forall(yv, implies(phi_fn(yv, np), eqv(v, yv, np))))
+    # eu internals: ∃x. phi(x) ∧ ∀y. phi(y) → eq(x,y)
+    $eu_body_fn \v: and(phi_fn(v, np), forall(yv, implies(phi_fn(yv, np), eq(v, yv, np))))
     $eu_body_u eu_body_fn(uv)
     $phi_u phi_fn(uv, np)
-    $uniq_u forall(yv, implies(phi_fn(yv, np), eqv(uv, yv, np)))
+    $uniq_u forall(yv, implies(phi_fn(yv, np), eq(uv, yv, np)))
 
     # === FORWARD: eu, fa_form |- ex_form ===
     # From eu: ∃u. phi(u) ∧ uniq(u). Assume phi(u) ∧ uniq(u).
@@ -52,10 +52,10 @@ $exists_unique_bridge \phi_fn pred_fn vars p: {
     $got_fwd ir(got_ex2, remove(same, fa_form, left(got_ex2)), [fwd], fwd)
 
     # === BACKWARD: eu, transfer, ex_form |- fa_form ===
-    # transfer: ∀a,b. eqv(a,b) → P(a) → P(b)
+    # transfer: ∀a,b. eq(a,b) → P(a) → P(b)
     $av add(p, "a")
     $bv add(p, "b")
-    $transfer forall(av, forall(bv, implies(eqv(av, bv, np), implies(pred_fn(av), pred_fn(bv)))))
+    $transfer forall(av, forall(bv, implies(eq(av, bv, np), implies(pred_fn(av), pred_fn(bv)))))
 
     # Assume phi(y). Need P(y).
     $phi_y phi_fn(yv, np)
@@ -66,46 +66,46 @@ $exists_unique_bridge \phi_fn pred_fn vars p: {
         ax([and_phi_pred], [and_phi_pred], and_phi_pred), and_phi_pred, phi_u, [], [and_phi_pred])
     $got_pred_u2 mp(and_elim_right(phi_u, pred_u, []),
         ax([and_phi_pred], [and_phi_pred], and_phi_pred), and_phi_pred, pred_u, [], [and_phi_pred])
-    # From eu: ∃x.phi(x)∧uniq(x). Assume phi(v)∧uniq(v). uniq(v) at y: phi(y)→eqv(v,y).
+    # From eu: ∃x.phi(x)∧uniq(x). Assume phi(v)∧uniq(v). uniq(v) at y: phi(y)→eq(v,y).
     $vv add(p, "v")
     $phi_v phi_fn(vv, np)
-    $uniq_v forall(yv, implies(phi_fn(yv, np), eqv(vv, yv, np)))
+    $uniq_v forall(yv, implies(phi_fn(yv, np), eq(vv, yv, np)))
     $eu_body_v and(phi_v, uniq_v)
     $got_uniq_v mp(and_elim_right(phi_v, uniq_v, []),
         ax([eu_body_v], [eu_body_v], eu_body_v), eu_body_v, uniq_v, [], [eu_body_v])
-    # uniq(v) at u: phi(u)→eqv(v,u). mp phi(u) → eqv(v,u).
-    $got_eqv_vu mp(apply_thm(got_uniq_v, uniq_v, [uv], [uv],
-        \y: implies(phi_fn(y, np), eqv(vv, y, np)), [eu_body_v]),
-        got_phi_u2, phi_u, eqv(vv, uv, np), [eu_body_v], [and_phi_pred])
-    # uniq(v) at y: phi(y)→eqv(v,y). mp phi(y) → eqv(v,y).
-    $got_eqv_vy mp(apply_thm(got_uniq_v, uniq_v, [yv], [yv],
-        \y: implies(phi_fn(y, np), eqv(vv, y, np)), [eu_body_v]),
-        ax([phi_y], [phi_y], phi_y), phi_y, eqv(vv, yv, np), [eu_body_v], [phi_y])
-    # eqv(v,u) → eqv(u,v) via symmetric
-    # eqv_symmetric, eqv_transitive imported at top
-    $_es_b \a: \b: implies(eqv(a,b,np), eqv(b,a,np))
+    # uniq(v) at u: phi(u)→eq(v,u). mp phi(u) → eq(v,u).
+    $got_eq_vu mp(apply_thm(got_uniq_v, uniq_v, [uv], [uv],
+        \y: implies(phi_fn(y, np), eq(vv, y, np)), [eu_body_v]),
+        got_phi_u2, phi_u, eq(vv, uv, np), [eu_body_v], [and_phi_pred])
+    # uniq(v) at y: phi(y)→eq(v,y). mp phi(y) → eq(v,y).
+    $got_eq_vy mp(apply_thm(got_uniq_v, uniq_v, [yv], [yv],
+        \y: implies(phi_fn(y, np), eq(vv, y, np)), [eu_body_v]),
+        ax([phi_y], [phi_y], phi_y), phi_y, eq(vv, yv, np), [eu_body_v], [phi_y])
+    # eq(v,u) → eq(u,v) via symmetric
+    # eq_symmetric, eq_transitive imported at top
+    $_es_b \a: \b: implies(eq(a,b,np), eq(b,a,np))
     $_es_r forall("ra", forall("rb", _es_b("ra")("rb")))
-    $es_thm wr(eqv_symmetric, [], [_es_r], _es_r)
-    $got_eqv_uv mp(apply_thm(es_thm, _es_r, [vv, uv], ["ra","rb"], _es_b, []),
-        got_eqv_vu, eqv(vv, uv, np), eqv(uv, vv, np), [], left(got_eqv_vu))
-    # eqv(u,v) + eqv(v,y) → eqv(u,y) via transitive
+    $es_thm wr(eq_symmetric, [], [_es_r], _es_r)
+    $got_eq_uv mp(apply_thm(es_thm, _es_r, [vv, uv], ["ra","rb"], _es_b, []),
+        got_eq_vu, eq(vv, uv, np), eq(uv, vv, np), [], left(got_eq_vu))
+    # eq(u,v) + eq(v,y) → eq(u,y) via transitive
 
-    $_et_b \a: \b: \c: implies(eqv(a,b,np), implies(eqv(b,c,np), eqv(a,c,np)))
+    $_et_b \a: \b: \c: implies(eq(a,b,np), implies(eq(b,c,np), eq(a,c,np)))
     $_et_r forall("ra", forall("rb", forall("rc", _et_b("ra")("rb")("rc"))))
-    $et_thm wr(eqv_transitive, [], [_et_r], _et_r)
-    $got_eqv_uy mp(mp(apply_thm(et_thm, _et_r, [uv, vv, yv], ["ra","rb","rc"], _et_b, []),
-        got_eqv_uv, eqv(uv, vv, np), implies(eqv(vv, yv, np), eqv(uv, yv, np)), [], left(got_eqv_uv)),
-        got_eqv_vy, eqv(vv, yv, np), eqv(uv, yv, np), left(got_eqv_uv), left(got_eqv_vy))
-    # transfer at u,y: eqv(u,y) → P(u) → P(y)
+    $et_thm wr(eq_transitive, [], [_et_r], _et_r)
+    $got_eq_uy mp(mp(apply_thm(et_thm, _et_r, [uv, vv, yv], ["ra","rb","rc"], _et_b, []),
+        got_eq_uv, eq(uv, vv, np), implies(eq(vv, yv, np), eq(uv, yv, np)), [], left(got_eq_uv)),
+        got_eq_vy, eq(vv, yv, np), eq(uv, yv, np), left(got_eq_uv), left(got_eq_vy))
+    # transfer at u,y: eq(u,y) → P(u) → P(y)
     $tr1 apply_thm(ax([transfer], [transfer], transfer), transfer, [uv], [uv],
-        \a: forall(bv, implies(eqv(a, bv, np), implies(pred_fn(a), pred_fn(bv)))), [transfer])
+        \a: forall(bv, implies(eq(a, bv, np), implies(pred_fn(a), pred_fn(bv)))), [transfer])
     $tr2 apply_thm(tr1, head(right(tr1)), [yv], [yv],
-        \b: implies(eqv(uv, b, np), implies(pred_u, pred_fn(b))), [transfer])
-    $tr3 mp(tr2, got_eqv_uy, eqv(uv, yv, np), implies(pred_u, pred_y), [transfer], left(got_eqv_uy))
+        \b: implies(eq(uv, b, np), implies(pred_u, pred_fn(b))), [transfer])
+    $tr3 mp(tr2, got_eq_uy, eq(uv, yv, np), implies(pred_u, pred_y), [transfer], left(got_eq_uy))
     $got_pred_y mp(tr3, got_pred_u2, pred_u, pred_y, left(tr3), [and_phi_pred])
     # eel v from eu, eel u from ex_form
     $bcur got_pred_y
-    $bcur eel(bcur, \v: and(phi_fn(v, np), forall(yv, implies(phi_fn(yv, np), eqv(v, yv, np)))),
+    $bcur eel(bcur, \v: and(phi_fn(v, np), forall(yv, implies(phi_fn(yv, np), eq(v, yv, np)))),
         xv, vv, left(bcur), pred_y)
     $bcur eel(bcur, \u: and(phi_fn(u, np), pred_fn(u)),
         xv, uv, left(bcur), pred_y)

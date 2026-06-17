@@ -105,16 +105,16 @@ static int builtin_mul(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   return 0;
 }
 
-static int builtin_eq(GC *gc, GCStack *stack, const char **tags, Intern *it) {
+static int builtin_eqv(GC *gc, GCStack *stack, const char **tags, Intern *it) {
   (void)tags; (void)it;
   int top = gc_stack_len(stack);
   Node *a = *gc_stack_nth(stack, top - 2);
   Node *b = *gc_stack_nth(stack, top - 1);
   if (a->tag != N_INT && a->tag != N_STR && a->tag != N_TRUE && a->tag != N_FALSE) {
-    fprintf(stderr, "eq: unsupported type %s\n", type_name(a->tag)); return 1;
+    fprintf(stderr, "eqv: unsupported type %s\n", type_name(a->tag)); return 1;
   }
   if (a->tag != b->tag) {
-    fprintf(stderr, "eq: type mismatch %s vs %s\n", type_name(a->tag), type_name(b->tag)); return 1;
+    fprintf(stderr, "eqv: type mismatch %s vs %s\n", type_name(a->tag), type_name(b->tag)); return 1;
   }
   int equal = 0;
   if (a->tag == N_INT) equal = a->integer == b->integer;
@@ -422,7 +422,7 @@ void init_global(GC *gc, GCStack *stack, const char **tags, Intern *it, Env *glo
   *s = (void *)intern(it, "add");    set_builtin(gc, global, *s, builtin_add, 2);
   *s = (void *)intern(it, "sub");    set_builtin(gc, global, *s, builtin_sub, 2);
   *s = (void *)intern(it, "mul");    set_builtin(gc, global, *s, builtin_mul, 2);
-  *s = (void *)intern(it, "eq");     set_builtin(gc, global, *s, builtin_eq, 2);
+  *s = (void *)intern(it, "eqv");    set_builtin(gc, global, *s, builtin_eqv, 2);
   *s = (void *)intern(it, "str");    set_builtin(gc, global, *s, builtin_str, 1);
   *s = (void *)intern(it, "not");    set_builtin(gc, global, *s, builtin_not, 1);
   *s = (void *)intern(it, "head");   set_builtin(gc, global, *s, builtin_head, 1);

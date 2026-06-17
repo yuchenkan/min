@@ -1,24 +1,24 @@
-from derived import implies, eqv, and, left, right
+from derived import implies, eq, and, left, right
 from vocab.sets import ordered_pair
 from tactics import ax, ir, mp, apply_thm, close, same
 from util.list import remove
-from theorems.logic.eqv_reflexive import eqv_reflexive
+from theorems.logic.eq_reflexive import eq_reflexive
 from theorems.sets.kuratowski import kuratowski
 
 # pairing |- forall t,a,b,c,d. OrdPair(t,a,b) -> OrdPair(t,c,d) -> And(Eqv(a,c), Eqv(b,d))
 $tuple_injection {
     $op1 ordered_pair("t", "a", "b", "_")
     $op2 ordered_pair("t", "c", "d", "_")
-    $eq_ac eqv("a", "c", "_")
-    $eq_bd eqv("b", "d", "_")
+    $eq_ac eq("a", "c", "_")
+    $eq_bd eq("b", "d", "_")
     $goal and(eq_ac, eq_bd)
-    $eq_tt eqv("t", "t", "_")
+    $eq_tt eq("t", "t", "_")
 
     $_k head(right(kuratowski))
     $_k_b \t1: \t2: \a: \b: \c: \d:
         implies(ordered_pair(t1, a, b, "_"),
         implies(ordered_pair(t2, c, d, "_"),
-        implies(eqv(t1, t2, "_"), and(eqv(a, c, "_"), eqv(b, d, "_")))))
+        implies(eq(t1, t2, "_"), and(eq(a, c, "_"), eq(b, d, "_")))))
 
     $s0 apply_thm(kuratowski, _k, ["t", "t", "a", "b", "c", "d"],
         ["t1", "t2", "a", "b", "c", "d"], _k_b, left(kuratowski))
@@ -28,9 +28,9 @@ $tuple_injection {
     $s2 mp(s1, ax([op2], [op2], op2), op2,
         implies(eq_tt, goal), left(s1), [op2])
 
-    $_er head(right(eqv_reflexive))
-    $_er_b \a: eqv(a, a, "_")
-    $got_eq_tt apply_thm(eqv_reflexive, _er, ["t"], ["a"], _er_b, [])
+    $_er head(right(eq_reflexive))
+    $_er_b \a: eq(a, a, "_")
+    $got_eq_tt apply_thm(eq_reflexive, _er, ["t"], ["a"], _er_b, [])
 
     $s3 mp(s2, got_eq_tt, eq_tt, goal, left(s2), [])
 

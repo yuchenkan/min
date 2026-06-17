@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply
@@ -6,7 +6,7 @@ from vocab.nat.arithmetic.plus import plus_func, plus
 from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
 from util.list import remove
 from theorems.logic.and_intro import and_intro
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.functions.apply_val_transfer import apply_val_transfer
 from theorems.nat.nat.num_unique import num_unique
 from theorems.nat.nat.num_exists import num_exists
@@ -25,26 +25,26 @@ from theorems.nat.arithmetic.plus.plus_step import plus_step
 #   Succ(c,c') from Num(c,m+n+1) + Num(c',m+n).
 #   eel b',c' from num_exists.
 
-$_es head(right(eqv_symmetric))
-$_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+$_es head(right(eq_symmetric))
+$_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
 $_avt head(right(apply_val_transfer))
-$_avt_b \f: \x: \y: \y2: implies(eqv(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
+$_avt_b \f: \x: \y: \y2: implies(eq(y,y2,"_"), implies(apply(f,x,y,"_"), apply(f,x,y2,"_")))
 
 # Helper: from Num(a,k) and Num(c,k), derive Eqv(a,c)
-$_num_eqv \k a c: {
+$_num_eq \k a c: {
     $_nu head(right(num_unique(k)))
-    $_nu_b \n1: \n2: implies(num(n1,k,"_"), implies(num(n2,k,"_"), eqv(n1,n2,"_")))
+    $_nu_b \n1: \n2: implies(num(n1,k,"_"), implies(num(n2,k,"_"), eq(n1,n2,"_")))
     $nu1 mp(apply_thm(num_unique(k), _nu, [a,c], ["n1","n2"], _nu_b, left(num_unique(k))),
         ax([num(a,k,"_")],[num(a,k,"_")],num(a,k,"_")), num(a,k,"_"),
-        implies(num(c,k,"_"), eqv(a,c,"_")), left(num_unique(k)), [num(a,k,"_")])
+        implies(num(c,k,"_"), eq(a,c,"_")), left(num_unique(k)), [num(a,k,"_")])
     mp(nu1, ax([num(c,k,"_")],[num(c,k,"_")],num(c,k,"_")), num(c,k,"_"),
-        eqv(a,c,"_"), left(nu1), [num(c,k,"_")])
+        eq(a,c,"_"), left(nu1), [num(c,k,"_")])
 }
 
 # Helper: from Plus(a,b,a) + Eqv(a,c), build Plus(a,b,c)
 # Plus(a,b,x) = ∀h.PF(h)→∀pair.OP(pair,a,b)→Apply(h,pair,x)
 # Transfer: Apply(h,pair,a) + Eqv(a,c) → Apply(h,pair,c) → Plus(a,b,c)
-$_plus_transfer \a b c got_plus_aba got_eqv_ac: {
+$_plus_transfer \a b c got_plus_aba got_eq_ac: {
     $pf_h plus_func("h","_")
     $op ordered_pair("pair",a,b,"_")
     $app_a apply("h","pair",a,"_")
@@ -63,8 +63,8 @@ $_plus_transfer \a b c got_plus_aba got_eqv_ac: {
 
     # Eqv(a,c) → Apply(h,pair,c)
     $got_app_c mp(mp(apply_thm(apply_val_transfer, _avt, ["h","pair",a,c], ["f","x","y","y2"], _avt_b, []),
-        got_eqv_ac, eqv(a,c,"_"), implies(app_a, app_c), [], left(got_eqv_ac)),
-        got_app_a, app_a, app_c, left(got_eqv_ac), left(got_app_a))
+        got_eq_ac, eq(a,c,"_"), implies(app_a, app_c), [], left(got_eq_ac)),
+        got_app_a, app_a, app_c, left(got_eq_ac), left(got_app_a))
 
     # Close as Plus(a,b,c): ir op, fr pair, ir pf_h, fr h
     $cur got_app_c
@@ -86,7 +86,7 @@ $_prove_add \self m n: {
     $num_c num("c",p,"_")
     $plus_abc plus("a","b","c","_")
 
-    ?(eq(n, 0), {
+    ?(eqv(n, 0), {
         # Base: n=0. plus_base: Nat(a)→Num(b,0)→Plus(a,b,a).
         # num_nat: Num(a,m)→Nat(a).
         $_nn head(right(num_nat(m)))
@@ -106,10 +106,10 @@ $_prove_add \self m n: {
             left(pb2), [num_b])
 
         # p = m+0 = m. num_unique(m): Num(a,m) → Num(c,m) → Eqv(a,c)
-        $got_eqv_ac _num_eqv(m, "a", "c")
+        $got_eq_ac _num_eq(m, "a", "c")
 
         # Transfer Plus(a,b,a) → Plus(a,b,c)
-        $got_plus_abc _plus_transfer("a", "b", "c", got_plus_aba, got_eqv_ac)
+        $got_plus_abc _plus_transfer("a", "b", "c", got_plus_aba, got_eq_ac)
 
         # Close: ir num_c, fr c, ir num_b, fr b, ir num_a, fr a
         $cur got_plus_abc

@@ -1,4 +1,4 @@
-from derived import mem, implies, iff, and, eqv, left, right
+from derived import mem, implies, iff, and, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from tactics import ax, ir, inst, mp, apply_thm, eir, eel, cut_c, close, same
@@ -10,7 +10,7 @@ from theorems.logic.iff_elim_left import iff_elim_left
 
 # |- forall f,g,x,y. Eqv(f,g) -> Apply(f,x,y) -> Apply(g,x,y)
 $apply_func_transfer {
-    $eq_fg eqv("f", "g", "_")
+    $eq_fg eq("f", "g", "_")
     $app_f apply("f", "x", "y", "_")
     $app_g apply("g", "x", "y", "_")
     $op_p ordered_pair("p", "x", "y", "_")

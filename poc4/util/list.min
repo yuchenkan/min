@@ -1,20 +1,20 @@
 # List utilities
 
-$_rev \self lst acc: ?(eq(len(lst), 0), acc, self(self, tail(lst), add([head(lst)], acc)))
+$_rev \self lst acc: ?(eqv(len(lst), 0), acc, self(self, tail(lst), add([head(lst)], acc)))
 $rev \lst: _rev(_rev, lst, [])
 
 # === list operations (take compare fn) ===
 
-$_contains \self cmp f lst: ?(eq(len(lst), 0), false,
+$_contains \self cmp f lst: ?(eqv(len(lst), 0), false,
     ?(cmp(head(lst), f), true, self(self, cmp, f, tail(lst))))
 $contains \cmp f lst: _contains(_contains, cmp, f, lst)
 $set_add \cmp f lst: ?(contains(cmp, f, lst), lst, add(lst, [f]))
 
-$_remove \self cmp f lst: ?(eq(len(lst), 0), [],
+$_remove \self cmp f lst: ?(eqv(len(lst), 0), [],
     ?(cmp(head(lst), f), tail(lst), add([head(lst)], self(self, cmp, f, tail(lst)))))
 $remove \cmp f lst: _remove(_remove, cmp, f, lst)
 
-$_diff \self cmp lst1 lst2: ?(eq(len(lst1), 0), [],
+$_diff \self cmp lst1 lst2: ?(eqv(len(lst1), 0), [],
     ?(contains(cmp, head(lst1), lst2),
         self(self, cmp, tail(lst1), lst2),
         add([head(lst1)], self(self, cmp, tail(lst1), lst2))))

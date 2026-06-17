@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv, left, right, arg2
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, left, right, arg2
 from vocab.sets import empty, singleton, ordered_pair, union
 from vocab.nat.nat import num, successor
 from vocab.functions import apply
@@ -14,7 +14,7 @@ from theorems.sets.kuratowski import kuratowski
 from theorems.nat.nat.succ_not_zero import succ_not_zero
 from theorems.nat.nat.mem_succ_self import mem_succ_self
 from theorems.sets.neg_mem_empty import neg_mem_empty
-from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.eq_mem_left import eq_mem_left
 
 # pa |- base_v → successor(sn,n) → singleton(h,op) → ordered_pair(op,sn,fval) →
 #       union(u,v,h) → forall e. num(e,0) → (∃y.apply(u,e,y)) → apply(u,e,a)
@@ -63,8 +63,8 @@ $extend_base {
 
     # === Case h: singleton+kuratowski → e=sn, succ_not_zero → contradiction ===
     # From apply(h,e,y2): eel eigenvariable q. op(q,e,y2) ∧ q∈h.
-    # singleton_mem_eq → eqv(q,op). kuratowski → eqv(e,sn).
-    # succ_not_zero: succ(sn,n) → neg(num(sn,0)). eqv(e,sn) + num(e,0) → num(sn,0). Contradiction.
+    # singleton_mem_eq → eq(q,op). kuratowski → eq(e,sn).
+    # succ_not_zero: succ(sn,n) → neg(num(sn,0)). eq(e,sn) + num(e,0) → num(sn,0). Contradiction.
     $_sme head(right(singleton_mem_eq))
     $_kur head(right(kuratowski))
     $kur_ctx left(kuratowski)
@@ -73,28 +73,28 @@ $extend_base {
     $op_q ordered_pair("q", "e", "y2", "_")
     $qh mem("q", "h")
     $and_q and(op_q, qh)
-    $eqv_q_op eqv("q", "op", "_")
-    $eqv_e_sn eqv("e", "sn", "_")
+    $eq_q_op eq("q", "op", "_")
+    $eq_e_sn eq("e", "sn", "_")
 
-    # singleton_mem_eq → eqv(q,op)
-    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eqv(x,a,"_")))
-    $got_eqv_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "h", "op"], ["q", "f", "a"], _sme_b, []),
-        ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eqv_q_op), [], [sing_h]),
+    # singleton_mem_eq → eq(q,op)
+    $_sme_b \x: \f: \a: implies(singleton(f,a,"_"), implies(mem(x,f), eq(x,a,"_")))
+    $got_eq_q mp(mp(apply_thm(singleton_mem_eq, _sme, ["q", "h", "op"], ["q", "f", "a"], _sme_b, []),
+        ax([sing_h], [sing_h], sing_h), sing_h, implies(qh, eq_q_op), [], [sing_h]),
         mp(and_elim_right(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, qh, [], [and_q]),
-        qh, eqv_q_op, [sing_h], [and_q])
+        qh, eq_q_op, [sing_h], [and_q])
 
-    # kuratowski → and(eqv(e,sn), eqv(y2,fval))
-    $eqv_y2_fval eqv("y2", "fval", "_")
-    $goal_and and(eqv_e_sn, eqv_y2_fval)
-    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"),eqv(b,d,"_")))))
+    # kuratowski → and(eq(e,sn), eq(y2,fval))
+    $eq_y2_fval eq("y2", "fval", "_")
+    $goal_and and(eq_e_sn, eq_y2_fval)
+    $_kur_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"), implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"),eq(b,d,"_")))))
     $k_inst apply_thm(kuratowski, _kur, ["q", "op", "e", "y2", "sn", "fval"], ["q", "t2", "a", "b", "c", "d"], _kur_b, kur_ctx)
     $got_op_q mp(and_elim_left(op_q, qh, []), ax([and_q], [and_q], and_q), and_q, op_q, [], [and_q])
-    $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eqv_q_op, goal_and)), left(k_inst), [and_q])
-    $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eqv_q_op, goal_and), left(km1), [opkv])
-    $km3 mp(km2, got_eqv_q, eqv_q_op, goal_and, left(km2), [sing_h, and_q])
-    $got_e_sn mp(and_elim_left(eqv_e_sn, eqv_y2_fval, []),
-        km3, goal_and, eqv_e_sn, [], left(km3))
-    # left(got_e_sn) |- eqv(e, sn). Has pa_f, and_q, opkv, sing_h.
+    $km1 mp(k_inst, got_op_q, op_q, implies(opkv, implies(eq_q_op, goal_and)), left(k_inst), [and_q])
+    $km2 mp(km1, ax([opkv], [opkv], opkv), opkv, implies(eq_q_op, goal_and), left(km1), [opkv])
+    $km3 mp(km2, got_eq_q, eq_q_op, goal_and, left(km2), [sing_h, and_q])
+    $got_e_sn mp(and_elim_left(eq_e_sn, eq_y2_fval, []),
+        km3, goal_and, eq_e_sn, [], left(km3))
+    # left(got_e_sn) |- eq(e, sn). Has pa_f, and_q, opkv, sing_h.
 
     # succ_not_zero: succ(sn,n) → neg(num(sn,0))
     $neg_emp_sn neg(num("sn", 0, "_"))
@@ -103,8 +103,8 @@ $extend_base {
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, neg_emp_sn, [], [succ_sn])
     # [succ_sn] |- neg(num(sn,0))
 
-    # eqv(e,sn) + num(e,0) → contradiction via mem_succ_self + eqv_mem_left + neg_mem_empty
-    # From eqv(e,sn): mem_succ_self gives n∈sn. eqv_mem_left(e,sn): n∈e. neg_mem_empty contradicts.
+    # eq(e,sn) + num(e,0) → contradiction via mem_succ_self + eq_mem_left + neg_mem_empty
+    # From eq(e,sn): mem_succ_self gives n∈sn. eq_mem_left(e,sn): n∈e. neg_mem_empty contradicts.
     # n∈sn from succ_sn:
     $_mss head(right(mem_succ_self))
     $n_sn mem("n", "sn")
@@ -112,20 +112,20 @@ $extend_base {
         \s: \n: implies(successor(s,n,"_"), mem(n,s)), []),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, n_sn, [], [succ_sn])
 
-    # eqv_mem_left(sn, e): n∈sn → n∈e  (eqv is symmetric in set comparison)
-    # Wait — eqv(e,sn) means e and sn have same elements. eqv_mem_left(e,sn) gives z∈e → z∈sn.
-    # I need the reverse: z∈sn → z∈e. That's eqv_mem_left(sn, e) but I have eqv(e,sn) not eqv(sn,e).
-    # Use eqv_symmetric first, or use iff_elim_right on eqv(e,sn).
-    # eqv(e,sn) = forall(z, iff(z∈e, z∈sn)). Forward: z∈e → z∈sn. Backward: z∈sn → z∈e.
+    # eq_mem_left(sn, e): n∈sn → n∈e  (eq is symmetric in set comparison)
+    # Wait — eq(e,sn) means e and sn have same elements. eq_mem_left(e,sn) gives z∈e → z∈sn.
+    # I need the reverse: z∈sn → z∈e. That's eq_mem_left(sn, e) but I have eq(e,sn) not eq(sn,e).
+    # Use eq_symmetric first, or use iff_elim_right on eq(e,sn).
+    # eq(e,sn) = forall(z, iff(z∈e, z∈sn)). Forward: z∈e → z∈sn. Backward: z∈sn → z∈e.
     # Use iff_elim_right on the instantiated iff to get z∈sn → z∈e.
     $n_e mem("n", "e")
     $iff_ne iff(mem("n","e"), mem("n","sn"))
-    $got_iff_ne fl(ax([iff_ne], [iff_ne], iff_ne), [eqv_e_sn], [iff_ne], eqv_e_sn, "n")
-    # [eqv_e_sn] |- iff(n∈e, n∈sn). Backward: n∈sn → n∈e.
+    $got_iff_ne fl(ax([iff_ne], [iff_ne], iff_ne), [eq_e_sn], [iff_ne], eq_e_sn, "n")
+    # [eq_e_sn] |- iff(n∈e, n∈sn). Backward: n∈sn → n∈e.
     $got_n_e mp(mp(iff_elim_right(n_e, n_sn, []),
-        got_iff_ne, iff_ne, implies(n_sn, n_e), [], [eqv_e_sn]),
-        got_n_sn, n_sn, n_e, [eqv_e_sn], [succ_sn])
-    # [eqv_e_sn, succ_sn] |- n∈e
+        got_iff_ne, iff_ne, implies(n_sn, n_e), [], [eq_e_sn]),
+        got_n_sn, n_sn, n_e, [eq_e_sn], [succ_sn])
+    # [eq_e_sn, succ_sn] |- n∈e
 
     # neg_mem_empty: empty(e) → neg(n∈e). Contradiction with n∈e.
     $_nme head(right(neg_mem_empty))
@@ -135,19 +135,19 @@ $extend_base {
     # [emp_e] |- neg(n∈e)
 
     # Contradiction → apply(u,e,a) (weakening right on empty sequent)
-    # got_n_e: [eqv_e_sn, succ_sn] |- n∈e. got_neg_ne: [emp_e] |- neg(n∈e).
-    # Combine for contradiction: [eqv_e_sn, succ_sn, emp_e] |- []
-    $got_n_e_w wl(got_n_e, [eqv_e_sn, succ_sn, emp_e], [n_e], emp_e)
-    $got_neg_ne_w wl_all(got_neg_ne, [emp_e], [neg(n_e)], [eqv_e_sn, succ_sn])
-    # nl: premise [eqv_e_sn, succ_sn, emp_e] |- [n_e]
-    $got_false nl(got_n_e_w, [eqv_e_sn, succ_sn, emp_e, neg(n_e)], [], neg(n_e))
-    $got_false2 cut(got_neg_ne_w, got_false, [eqv_e_sn, succ_sn, emp_e], [], neg(n_e))
+    # got_n_e: [eq_e_sn, succ_sn] |- n∈e. got_neg_ne: [emp_e] |- neg(n∈e).
+    # Combine for contradiction: [eq_e_sn, succ_sn, emp_e] |- []
+    $got_n_e_w wl(got_n_e, [eq_e_sn, succ_sn, emp_e], [n_e], emp_e)
+    $got_neg_ne_w wl_all(got_neg_ne, [emp_e], [neg(n_e)], [eq_e_sn, succ_sn])
+    # nl: premise [eq_e_sn, succ_sn, emp_e] |- [n_e]
+    $got_false nl(got_n_e_w, [eq_e_sn, succ_sn, emp_e, neg(n_e)], [], neg(n_e))
+    $got_false2 cut(got_neg_ne_w, got_false, [eq_e_sn, succ_sn, emp_e], [], neg(n_e))
     # left(got_false2) |- []. Weaken right with app_uea:
     $got_case_h_inner wr(got_false2, left(got_false2), [app_uea], app_uea)
-    # Has eqv_e_sn, succ_sn, emp_e, and_q stuff
+    # Has eq_e_sn, succ_sn, emp_e, and_q stuff
 
-    # Cut eqv_e_sn from got_e_sn, eel q from app_he
-    $got_case_h_cut cut_c(got_e_sn, got_case_h_inner, eqv_e_sn, left(got_e_sn), left(got_case_h_inner), app_uea)
+    # Cut eq_e_sn from got_e_sn, eel q from app_he
+    $got_case_h_cut cut_c(got_e_sn, got_case_h_inner, eq_e_sn, left(got_e_sn), left(got_case_h_inner), app_uea)
     $got_case_h eel(got_case_h_cut, \v: and(ordered_pair(v,"e","y2","_"), mem(v,"h")),
         "p", "q", left(got_case_h_cut), app_uea)
     # left(got_case_h) |- app_uea. Has app_he, sing_h, opkv, succ_sn, emp_e, pa_f.

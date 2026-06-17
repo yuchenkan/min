@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, and, or, iff, exists, eqv
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
 from vocab.nat.nat import num, nat, successor, empty
@@ -93,7 +93,7 @@ $tm_reaches \delta c0 n cf p: {
     $reached apply(trace, n, cf, np)
     $func function(trace, np)
     $dom_bound forall(xd, forall(yd, implies(apply(trace, xd, yd, np),
-        or(mem(xd, n), eqv(xd, n, np)))))
+        or(mem(xd, n), eq(xd, n, np)))))
     [_d_tm_reaches,
         exists(trace, and(func, and(dom_bound, and(base, and(step, reached))))), delta, c0, n, cf]
 }

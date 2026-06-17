@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
 from vocab.sets import ordered_pair, product
 from vocab.nat.nat import nat, num, omega, successor
 from vocab.functions import apply, function, domain
@@ -12,8 +12,8 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_intro import iff_intro
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_mem_left import eq_mem_left
 from theorems.functions.domain_exists import domain_exists
 from theorems.functions.domain_mem_elim import domain_mem_elim
 from theorems.nat.arithmetic.plus.pf_forward import pf_forward
@@ -44,7 +44,7 @@ $pf_dom_eq {
 
     $dom_dd domain("dd","h","_")
     $prod_prod product("prod","w","w","_")
-    $eqv_goal eqv("dd","prod","_")
+    $eq_goal eq("dd","prod","_")
 
     # elt∈dd and elt∈prod
     $elt_dd mem("elt","dd")
@@ -212,20 +212,20 @@ $pf_dom_eq {
     # Build Nat(aa) from aa∈w + Omega(w):
     # Nat(aa) = ∀w2.Omega(w2)→aa∈w2. We have aa∈w and Omega(w).
     # omega_unique: Omega(w)→Omega(w2)→Eqv(w,w2)
-    # eqv_mem_left: Eqv(w,w2)→aa∈w→aa∈w2
+    # eq_mem_left: Eqv(w,w2)→aa∈w→aa∈w2
     $nat_aa nat("aa","_")
     $nat_bb nat("bb","_")
     $om2 omega("w2","_")
     $aaw2 mem("aa","w2")
-    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_")))
+    $_ou_b \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_")))
     $ou_inst apply_thm(omega_unique, head(right(omega_unique)), ["w","w2"], ["w1","w2"], _ou_b, [])
-    $got_eqv_ww2 mp(mp(ou_inst, ax([om],[om],om), om, implies(om2, eqv("w","w2","_")), [], [om]),
-        ax([om2],[om2],om2), om2, eqv("w","w2","_"), [om], [om2])
-    $_eml2 head(right(eqv_mem_left))
-    $_eml2_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
-    $got_aaw2 mp(mp(apply_thm(eqv_mem_left, _eml2, ["w","w2","aa"], ["a","b","z"], _eml2_b, []),
-        got_eqv_ww2, eqv("w","w2","_"), implies(aaw, aaw2), [], left(got_eqv_ww2)),
-        got_aaw, aaw, aaw2, left(got_eqv_ww2), [and_full_b])
+    $got_eq_ww2 mp(mp(ou_inst, ax([om],[om],om), om, implies(om2, eq("w","w2","_")), [], [om]),
+        ax([om2],[om2],om2), om2, eq("w","w2","_"), [om], [om2])
+    $_eml2 head(right(eq_mem_left))
+    $_eml2_b \a: \b: \z: implies(eq(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_aaw2 mp(mp(apply_thm(eq_mem_left, _eml2, ["w","w2","aa"], ["a","b","z"], _eml2_b, []),
+        got_eq_ww2, eq("w","w2","_"), implies(aaw, aaw2), [], left(got_eq_ww2)),
+        got_aaw, aaw, aaw2, left(got_eq_ww2), [and_full_b])
     # [om, om2, and_full_b] |- aa∈w2. ir om2, fr w2 → Nat(aa)
     $got_nat_aa_ir ir(got_aaw2, remove(same, om2, left(got_aaw2)), [implies(om2, aaw2)], implies(om2, aaw2))
     $got_nat_aa fr(got_nat_aa_ir, left(got_nat_aa_ir), [nat_aa], nat_aa, "w2")
@@ -238,17 +238,17 @@ $pf_dom_eq {
             forall("xd", implies(exists("yd", apply(sf,"xd","yd","_")), nat("xd","_"))))),
         implies(nat(m,"_"),
             exists("hm", and(recursive("hm",m,sf,"_"),
-                forall("y", implies(recursive("y",m,sf,"_"), eqv("hm","y","_")))))))
+                forall("y", implies(recursive("y",m,sf,"_"), eq("hm","y","_")))))))
     $rfem_inst apply_thm(rec_for_each_m, _rfem, ["sf","aa"], ["sf","m"], _rfem_b, rfem_ctx)
     $eu exists("hm", and(recursive("hm","aa","sf","_"),
-        forall("y", implies(recursive("y","aa","sf","_"), eqv("hm","y","_")))))
+        forall("y", implies(recursive("y","aa","sf","_"), eq("hm","y","_")))))
     $rfem1 mp(rfem_inst, ax([sf_all], [sf_all], sf_all), sf_all, implies(nat_aa, eu), rfem_ctx, [sf_all])
     $got_eu mp(rfem1, got_nat_aa, nat_aa, eu, left(rfem1), left(got_nat_aa))
 
     # Extract ∃hm.Rec from eu:
     $rec_hm_b recursive("hm","aa","sf","_")
-    $eu_body and(rec_hm_b, forall("y", implies(recursive("y","aa","sf","_"), eqv("hm","y","_"))))
-    $got_rec_b mp(and_elim_left(rec_hm_b, forall("y", implies(recursive("y","aa","sf","_"), eqv("hm","y","_"))), []),
+    $eu_body and(rec_hm_b, forall("y", implies(recursive("y","aa","sf","_"), eq("hm","y","_"))))
+    $got_rec_b mp(and_elim_left(rec_hm_b, forall("y", implies(recursive("y","aa","sf","_"), eq("hm","y","_"))), []),
         ax([eu_body], [eu_body], eu_body), eu_body, rec_hm_b, [], [eu_body])
 
     # Domain chain: bb∈w → ∃val.Apply(hm,bb,val)
@@ -259,7 +259,7 @@ $pf_dom_eq {
     $_de_b \f: exists("d", domain("d",f,"_"))
     $got_de apply_thm(domain_exists, _de_f, ["hm"], ["hm"], _de_b, de_ctx)
 
-    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eqv("d","w","_")))
+    $dom_eq_hm forall("d", implies(domain("d","hm","_"), eq("d","w","_")))
     $base_hm forall("e", implies(num("e",0,"_"), apply("hm","e","aa","_")))
     $step_hm_f forall("ns", implies(mem("ns","w"), forall("val", implies(apply("hm","ns","val","_"),
         forall("sns", implies(successor("sns","ns","_"), forall("fval", implies(apply("sf","val","fval","_"), apply("hm","sns","fval","_")))))))))
@@ -278,21 +278,21 @@ $pf_dom_eq {
         rest1_b, dom_eq_hm, [], [eu_body, om])
 
     # dom_eq at dh: Domain(dh,hm) → Eqv(dh,w)
-    $eqv_dw eqv("dh","w","_")
-    $got_eqv_dw mp(apply_thm(got_dom_eq_b, dom_eq_hm, ["dh"], ["dh"],
-        \d: implies(domain(d,"hm","_"), eqv(d,"w","_")), [eu_body, om]),
-        ax([dom_hm], [dom_hm], dom_hm), dom_hm, eqv_dw, [eu_body, om], [dom_hm])
-    # eqv_symmetric
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_eqv_wd mp(apply_thm(eqv_symmetric, _es, ["dh","w"], ["a","b"], _es_b, []),
-        got_eqv_dw, eqv_dw, eqv("w","dh","_"), [], [eu_body, om, dom_hm])
-    # eqv_mem_left: bb∈w → bb∈dh
+    $eq_dw eq("dh","w","_")
+    $got_eq_dw mp(apply_thm(got_dom_eq_b, dom_eq_hm, ["dh"], ["dh"],
+        \d: implies(domain(d,"hm","_"), eq(d,"w","_")), [eu_body, om]),
+        ax([dom_hm], [dom_hm], dom_hm), dom_hm, eq_dw, [eu_body, om], [dom_hm])
+    # eq_symmetric
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq_wd mp(apply_thm(eq_symmetric, _es, ["dh","w"], ["a","b"], _es_b, []),
+        got_eq_dw, eq_dw, eq("w","dh","_"), [], [eu_body, om, dom_hm])
+    # eq_mem_left: bb∈w → bb∈dh
     $bb_dh mem("bb","dh")
-    $_eml head(right(eqv_mem_left))
-    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
-    $got_bb_dh mp(mp(apply_thm(eqv_mem_left, _eml, ["w","dh","bb"], ["a","b","z"], _eml_b, []),
-        got_eqv_wd, eqv("w","dh","_"), implies(bbw, bb_dh), [], [eu_body, om, dom_hm]),
+    $_eml head(right(eq_mem_left))
+    $_eml_b \a: \b: \z: implies(eq(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_bb_dh mp(mp(apply_thm(eq_mem_left, _eml, ["w","dh","bb"], ["a","b","z"], _eml_b, []),
+        got_eq_wd, eq("w","dh","_"), implies(bbw, bb_dh), [], [eu_body, om, dom_hm]),
         got_bbw, bbw, bb_dh, [eu_body, om, dom_hm], [and_full_b])
     # domain_mem_elim: Domain(dh,hm) → bb∈dh → ∃val.Apply(hm,bb,val)
     $ex_val_b exists("vb", apply("hm","bb","vb","_"))
@@ -341,9 +341,9 @@ $pf_dom_eq {
     # Build Nat(bb) from bb∈w:
     # Build Nat(bb) from bb∈w + Omega(w) (same pattern as Nat(aa)):
     $bbw2 mem("bb","w2")
-    $got_bbw2 mp(mp(apply_thm(eqv_mem_left, _eml2, ["w","w2","bb"], ["a","b","z"], _eml2_b, []),
-        got_eqv_ww2, eqv("w","w2","_"), implies(bbw, bbw2), [], left(got_eqv_ww2)),
-        got_bbw, bbw, bbw2, left(got_eqv_ww2), [and_full_b])
+    $got_bbw2 mp(mp(apply_thm(eq_mem_left, _eml2, ["w","w2","bb"], ["a","b","z"], _eml2_b, []),
+        got_eq_ww2, eq("w","w2","_"), implies(bbw, bbw2), [], left(got_eq_ww2)),
+        got_bbw, bbw, bbw2, left(got_eq_ww2), [and_full_b])
     $got_nat_bb_ir ir(got_bbw2, remove(same, om2, left(got_bbw2)), [implies(om2, bbw2)], implies(om2, bbw2))
     $got_nat_bb fr(got_nat_bb_ir, left(got_nat_bb_ir), [nat_bb], nat_bb, "w2")
 
@@ -391,7 +391,7 @@ $pf_dom_eq {
     $cur_b cut_c(got_ex_val, cur_b, ex_val_b, left(got_ex_val), left(cur_b), elt_dd)
     # eel hm from eu:
     $cur_b eel(cur_b, \hm: and(recursive(hm,"aa","sf","_"),
-        forall("y", implies(recursive("y","aa","sf","_"), eqv(hm,"y","_")))),
+        forall("y", implies(recursive("y","aa","sf","_"), eq(hm,"y","_")))),
         "hm", "hm", left(cur_b), elt_dd)
     $cur_b cut_c(got_eu, cur_b, eu, left(got_eu), left(cur_b), elt_dd)
     # eel bb from and_full_b:
@@ -408,18 +408,18 @@ $pf_dom_eq {
     $cur_b ir(cur_b, remove(same, elt_prod, left(cur_b)), [bwd_imp], bwd_imp)
 
     # ==============================
-    # === Combine: iff → eqv ===
+    # === Combine: iff → eq ===
     # ==============================
     $iff_elt iff(elt_dd, elt_prod)
     $got_iff mp(mp(iff_intro(elt_dd, elt_prod, []),
         cur_f, fwd, implies(bwd_imp, iff_elt), [], left(cur_f)),
         cur_b, bwd_imp, iff_elt, left(cur_f), left(cur_b))
-    # fr elt → eqv(dd,prod) (alpha-equiv):
-    $got_eqv fr(got_iff, left(got_iff), [eqv_goal], eqv_goal, "elt")
+    # fr elt → eq(dd,prod) (alpha-equiv):
+    $got_eq fr(got_iff, left(got_iff), [eq_goal], eq_goal, "elt")
 
     # ir prod_prod, ir dom_dd, fr prod, fr dd — matches plus_func vocab: ∀dd.∀prod.Dom→Prod→Eqv
-    $imp_prod implies(prod_prod, eqv_goal)
-    $got_ip ir(got_eqv, remove(same, prod_prod, left(got_eqv)), [imp_prod], imp_prod)
+    $imp_prod implies(prod_prod, eq_goal)
+    $got_ip ir(got_eq, remove(same, prod_prod, left(got_eq)), [imp_prod], imp_prod)
     $imp_dd implies(dom_dd, imp_prod)
     $got_id ir(got_ip, remove(same, dom_dd, left(got_ip)), [imp_dd], imp_dd)
     $fa_prod forall("prod", imp_dd)

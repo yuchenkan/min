@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, iff, exists, eqv, left, right, arg2, pairing_ax, ext_ax
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2, pairing_ax, ext_ax
 from vocab.sets import ordered_pair
 from vocab.nat.nat import successor
 from vocab.functions import apply
@@ -7,8 +7,8 @@ from util.list import remove
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.iff_elim_left import iff_elim_left
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_mem_right import eqv_mem_right
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_mem_right import eq_mem_right
 from theorems.logic.ext_substitution import ext_substitution
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.sets.kuratowski import kuratowski
@@ -59,44 +59,44 @@ $sf_dom_sub {
     $got_xvw mp(and_elim_left(xvw, ex_s, []),
         ax([and_xw_inner], [and_xw_inner], and_xw_inner), and_xw_inner, xvw, [], [and_xw_inner])
 
-    # Kuratowski: OrdPair(qv,xd,yd) ∧ OrdPair(qv,xv,sv) ∧ eqv(qv,qv) → and(eqv(xd,xv), eqv(yd,sv))
-    $_er head(right(eqv_reflexive))
-    $got_eqv_qq apply_thm(eqv_reflexive, _er, ["qv"], ["qv"], \a: eqv(a,a,"_"), [])
+    # Kuratowski: OrdPair(qv,xd,yd) ∧ OrdPair(qv,xv,sv) ∧ eq(qv,qv) → and(eq(xd,xv), eq(yd,sv))
+    $_er head(right(eq_reflexive))
+    $got_eq_qq apply_thm(eq_reflexive, _er, ["qv"], ["qv"], \a: eq(a,a,"_"), [])
 
     $_ku head(right(kuratowski))
     $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
-        implies(ordered_pair(t2,c,d,"_"), implies(eqv(t1,t2,"_"), and(eqv(a,c,"_"), eqv(b,d,"_")))))
+        implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"), eq(b,d,"_")))))
     $ku_ctx left(kuratowski)
     $ku_inst apply_thm(kuratowski, _ku, ["qv","qv","xd","yd","xv","sv"], ["t1","t2","a","b","c","d"], _ku_b, ku_ctx)
 
-    $eq_goal and(eqv("xd","xv","_"), eqv("yd","sv","_"))
+    $eq_goal and(eq("xd","xv","_"), eq("yd","sv","_"))
     $ku1 mp(ku_inst, got_op, op_qv, arg2(head(right(ku_inst))), ku_ctx, [and_op_qv])
     $ku2 mp(ku1, got_op_xs, op_qv_xs, arg2(head(right(ku1))), left(ku1), [and_succ_op])
-    $got_eq mp(ku2, got_eqv_qq, eqv("qv","qv","_"), eq_goal, left(ku2), [])
+    $got_eq mp(ku2, got_eq_qq, eq("qv","qv","_"), eq_goal, left(ku2), [])
 
-    # Extract eqv(xd,xv):
-    $eqv_xd_xv eqv("xd","xv","_")
-    $got_eqv_x mp(and_elim_left(eqv_xd_xv, eqv("yd","sv","_"), []), got_eq, eq_goal, eqv_xd_xv, [], left(got_eq))
+    # Extract eq(xd,xv):
+    $eq_xd_xv eq("xd","xv","_")
+    $got_eq_x mp(and_elim_left(eq_xd_xv, eq("yd","sv","_"), []), got_eq, eq_goal, eq_xd_xv, [], left(got_eq))
 
-    # eqv_mem_right: eqv(xd,xv) → xv∈w → xd∈w (Ext needed)
-    # Actually eqv_mem_right is: eqv(x,y) → x∈a → y∈a. We need eqv(xd,xv) → xv∈w → xd∈w.
-    # That's eqv_mem_right with x=xv, y=xd? No: eqv_mem_right is eqv(x,y) → x∈a → y∈a.
-    # We have eqv(xd,xv) and xv∈w. Want xd∈w.
-    # Need: eqv(xv,xd) → xv∈w → xd∈w. So use eqv_symmetric first, or use ext_substitution directly.
-    # Actually, ext_substitution: eqv(a,b) → iff(a∈s, b∈s). With a=xd, b=xv, s=w:
-    # eqv(xd,xv) → iff(xd∈w, xv∈w) → iff_elim_right → xv∈w → xd∈w.
+    # eq_mem_right: eq(xd,xv) → xv∈w → xd∈w (Ext needed)
+    # Actually eq_mem_right is: eq(x,y) → x∈a → y∈a. We need eq(xd,xv) → xv∈w → xd∈w.
+    # That's eq_mem_right with x=xv, y=xd? No: eq_mem_right is eq(x,y) → x∈a → y∈a.
+    # We have eq(xd,xv) and xv∈w. Want xd∈w.
+    # Need: eq(xv,xd) → xv∈w → xd∈w. So use eq_symmetric first, or use ext_substitution directly.
+    # Actually, ext_substitution: eq(a,b) → iff(a∈s, b∈s). With a=xd, b=xv, s=w:
+    # eq(xd,xv) → iff(xd∈w, xv∈w) → iff_elim_right → xv∈w → xd∈w.
 
-    # Simpler: use eqv_mem_right(xd, xv, w): eqv(xd,xv) → xd∈w → xv∈w. Wrong direction.
-    # Use eqv_mem_right(xv, xd, w): eqv(xv,xd) → xv∈w → xd∈w. But I have eqv(xd,xv), not eqv(xv,xd).
-    # Need eqv_symmetric. Let me use ext_substitution + iff_elim_right instead.
+    # Simpler: use eq_mem_right(xd, xv, w): eq(xd,xv) → xd∈w → xv∈w. Wrong direction.
+    # Use eq_mem_right(xv, xd, w): eq(xv,xd) → xv∈w → xd∈w. But I have eq(xd,xv), not eq(xv,xd).
+    # Need eq_symmetric. Let me use ext_substitution + iff_elim_right instead.
 
-    # ext_substitution: Ext |- eqv(a,b) → iff(mem(a,s), mem(b,s))
-    # With a=xd, b=xv, s=w: eqv(xd,xv) → iff(xd∈w, xv∈w) → backward: xv∈w → xd∈w
+    # ext_substitution: Ext |- eq(a,b) → iff(mem(a,s), mem(b,s))
+    # With a=xd, b=xv, s=w: eq(xd,xv) → iff(xd∈w, xv∈w) → backward: xv∈w → xd∈w
     $_es head(right(ext_substitution))
-    $_es_b \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s), mem(b,s)))
+    $_es_b \a: \b: \s: implies(eq(a,b,"_"), iff(mem(a,s), mem(b,s)))
     $es_ctx left(ext_substitution)
     $got_iff_xw mp(apply_thm(ext_substitution, _es, ["xd","xv","w"], ["a","b","s"], _es_b, es_ctx),
-        got_eqv_x, eqv_xd_xv, iff(xdw, xvw), es_ctx, left(got_eqv_x))
+        got_eq_x, eq_xd_xv, iff(xdw, xvw), es_ctx, left(got_eq_x))
     $got_xdw mp(mp(iff_elim_right(xdw, xvw, []),
         got_iff_xw, iff(xdw, xvw), implies(xvw, xdw), [], left(got_iff_xw)),
         got_xvw, xvw, xdw, left(got_iff_xw), [and_xw_inner])

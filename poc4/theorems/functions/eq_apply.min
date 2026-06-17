@@ -1,16 +1,16 @@
-from derived import mem, implies, forall, and, exists, eqv, left, right
+from derived import mem, implies, forall, and, exists, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from tactics import ax, ir, mp, apply_thm, eel, eir, cut_c, close
 from theorems.logic.and_intro import and_intro
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_mem_left import eqv_mem_left
+from theorems.logic.eq_mem_left import eq_mem_left
 
-# |- eqv(f,g) -> apply(f,x,y) -> apply(g,x,y)
-# apply(f,x,y) = ∃p. op(p,x,y) ∧ p∈f. From eqv(f,g): p∈f → p∈g. So ∃p. op(p,x,y) ∧ p∈g = apply(g,x,y).
-$eqv_apply {
-    $eqv_fg eqv("f", "g", "_")
+# |- eq(f,g) -> apply(f,x,y) -> apply(g,x,y)
+# apply(f,x,y) = ∃p. op(p,x,y) ∧ p∈f. From eq(f,g): p∈f → p∈g. So ∃p. op(p,x,y) ∧ p∈g = apply(g,x,y).
+$eq_apply {
+    $eq_fg eq("f", "g", "_")
     $app_f apply("f", "x", "y", "_")
     $app_g apply("g", "x", "y", "_")
 
@@ -25,26 +25,26 @@ $eqv_apply {
     $got_qf mp(and_elim_right(op_q, qf, []),
         ax([and_qf], [and_qf], and_qf), and_qf, qf, [], [and_qf])
 
-    # eqv_mem_left: eqv(f,g) → q∈f → q∈g
-    $_eml head(right(eqv_mem_left))
-    $_eml_b \a: \b: \z: implies(eqv(a,b,"_"), implies(mem(z,a), mem(z,b)))
-    $got_qg mp(mp(apply_thm(eqv_mem_left, _eml, ["f", "g", "q"], ["f", "b", "z"], _eml_b, []),
-        ax([eqv_fg], [eqv_fg], eqv_fg), eqv_fg, implies(qf, qg), [], [eqv_fg]),
-        got_qf, qf, qg, [eqv_fg], [and_qf])
+    # eq_mem_left: eq(f,g) → q∈f → q∈g
+    $_eml head(right(eq_mem_left))
+    $_eml_b \a: \b: \z: implies(eq(a,b,"_"), implies(mem(z,a), mem(z,b)))
+    $got_qg mp(mp(apply_thm(eq_mem_left, _eml, ["f", "g", "q"], ["f", "b", "z"], _eml_b, []),
+        ax([eq_fg], [eq_fg], eq_fg), eq_fg, implies(qf, qg), [], [eq_fg]),
+        got_qf, qf, qg, [eq_fg], [and_qf])
 
     $got_and_qg mp(mp(and_intro(op_q, qg, []),
         got_op, op_q, implies(qg, and_qg), [], [and_qf]),
-        got_qg, qg, and_qg, [and_qf], [eqv_fg, and_qf])
+        got_qg, qg, and_qg, [and_qf], [eq_fg, and_qf])
 
     $got_app_g eir(got_and_qg, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "g")),
-        "p", "q", [eqv_fg, and_qf])
+        "p", "q", [eq_fg, and_qf])
 
     $got_eel eel(got_app_g, \v: and(ordered_pair(v, "x", "y", "_"), mem(v, "f")),
-        "p", "q", [eqv_fg, and_qf], app_g)
+        "p", "q", [eq_fg, and_qf], app_g)
 
     $imp2 implies(app_f, app_g)
-    $s1 ir(got_eel, [eqv_fg], [imp2], imp2)
-    $top implies(eqv_fg, imp2)
+    $s1 ir(got_eel, [eq_fg], [imp2], imp2)
+    $top implies(eq_fg, imp2)
     $s2 ir(s1, [], [top], top)
     close(s2, [], [top], ["y","x","g","f"])
 }

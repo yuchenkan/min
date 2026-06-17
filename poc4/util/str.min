@@ -1,12 +1,12 @@
 # String utilities
 
 # char_to_digit: single char "0"-"9" to int
-$char_to_digit \c: ?(eq(c, "0"), 0, ?(eq(c, "1"), 1, ?(eq(c, "2"), 2, ?(eq(c, "3"), 3, ?(eq(c, "4"), 4, ?(eq(c, "5"), 5, ?(eq(c, "6"), 6, ?(eq(c, "7"), 7, ?(eq(c, "8"), 8, ?(eq(c, "9"), 9, none))))))))))
+$char_to_digit \c: ?(eqv(c, "0"), 0, ?(eqv(c, "1"), 1, ?(eqv(c, "2"), 2, ?(eqv(c, "3"), 3, ?(eqv(c, "4"), 4, ?(eqv(c, "5"), 5, ?(eqv(c, "6"), 6, ?(eqv(c, "7"), 7, ?(eqv(c, "8"), 8, ?(eqv(c, "9"), 9, none))))))))))
 
 # parse_nat: parse decimal number from string, starting at pos, up to len or non-digit
 # returns [value, next_pos]
 $_parse_nat \self s pos slen acc: {
-    ?(eq(pos, slen), [acc, pos], {
+    ?(eqv(pos, slen), [acc, pos], {
         $c nth(s, pos)
         $d char_to_digit(c)
         ?(is_none(d), [acc, pos],
@@ -17,26 +17,26 @@ $parse_nat \s pos: _parse_nat(_parse_nat, s, pos, len(s), 0)
 
 # skip_while: advance pos past chars equal to c
 $_skip_while \self s pos slen c: {
-    ?(eq(pos, slen), pos,
-        ?(eq(nth(s, pos), c), self(self, s, add(pos, 1), slen, c), pos))
+    ?(eqv(pos, slen), pos,
+        ?(eqv(nth(s, pos), c), self(self, s, add(pos, 1), slen, c), pos))
 }
 $skip_while \s pos c: _skip_while(_skip_while, s, pos, len(s), c)
 
 # split: split string by single-char delimiter, returns array of substrings
 $_substr \self s from to acc: {
-    ?(eq(from, to), acc,
+    ?(eqv(from, to), acc,
         self(self, s, add(from, 1), to, add(acc, nth(s, from))))
 }
 $substr \s from to: _substr(_substr, s, from, to, "")
 
 $_split \self s pos slen delim acc: {
     $_find_end \self2 s2 p2 slen2 d2: {
-        ?(eq(p2, slen2), p2,
-            ?(eq(nth(s2, p2), d2), p2, self2(self2, s2, add(p2, 1), slen2, d2)))
+        ?(eqv(p2, slen2), p2,
+            ?(eqv(nth(s2, p2), d2), p2, self2(self2, s2, add(p2, 1), slen2, d2)))
     }
     $end _find_end(_find_end, s, pos, slen, delim)
     $token substr(s, pos, end)
     $result add(acc, [token])
-    ?(eq(end, slen), result, self(self, s, add(end, 1), slen, delim, result))
+    ?(eqv(end, slen), result, self(self, s, add(end, 1), slen, delim, result))
 }
 $split \s delim: _split(_split, s, 0, len(s), delim, [])

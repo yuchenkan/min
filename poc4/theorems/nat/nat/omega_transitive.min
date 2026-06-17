@@ -1,11 +1,11 @@
-from derived import mem, neg, implies, forall, and, or, eqv, left, right
+from derived import mem, neg, implies, forall, and, or, eq, left, right
 from vocab.nat.nat import omega, num, successor
 from tactics import ax, wl, wl_all, wr, fl, fr, nl, nr, il, ir, mp, cut, apply_thm, cut_c, close, same
 from util.list import remove, diff
 from theorems.sets.neg_mem_empty import neg_mem_empty
 from theorems.nat.nat.mem_succ_elim import mem_succ_elim
-from theorems.logic.eqv_mem_right import eqv_mem_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_mem_right import eq_mem_right
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.nat.nat.omega_induction import omega_induction
 
 # Omega is a transitive set: ∀w,b,k. Omega(w) → In(b,w) → In(k,b) → In(k,w)
@@ -52,18 +52,18 @@ $omega_transitive {
 
     # === STEP: n∈w → P(n) → ∀s. succ(s,n) → P(s) ===
     # P(s) = ∀k. k∈s → k∈w.
-    # k∈s: mem_succ_elim → k∈n ∨ eqv(k,n).
+    # k∈s: mem_succ_elim → k∈n ∨ eq(k,n).
     # Case k∈n: P(n) gives k∈w.
-    # Case eqv(k,n): eqv_symmetric → eqv(n,k). eqv_mem_right: n∈w → k∈w.
+    # Case eq(k,n): eq_symmetric → eq(n,k). eq_mem_right: n∈w → k∈w.
     $succ_sn successor("s", "n", "_")
     $ks mem("k", "s")
     $kn mem("k", "n")
-    $ekn eqv("k", "n", "_")
+    $ekn eq("k", "n", "_")
     $or_kn or(kn, ekn)
 
-    # mem_succ_elim: k∈s → succ(s,n) → or(k∈n, eqv(k,n))
+    # mem_succ_elim: k∈s → succ(s,n) → or(k∈n, eq(k,n))
     $_mse head(right(mem_succ_elim))
-    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eqv(x,n,"_"))))
+    $_mse_b \x: \s: \n: implies(mem(x,s), implies(successor(s,n,"_"), or(mem(x,n), eq(x,n,"_"))))
     $got_or_k mp(mp(apply_thm(mem_succ_elim, _mse, ["k", "s", "n"], ["x", "s", "n"], _mse_b, []),
         ax([ks], [ks], ks), ks, implies(succ_sn, or_kn), [], [ks]),
         ax([succ_sn], [succ_sn], succ_sn), succ_sn, or_kn, [ks], [succ_sn])
@@ -77,18 +77,18 @@ $omega_transitive {
         ax([kn], [kn], kn), kn, kw, [pn_body], [kn])
     # [pn_body, kn] |- kw
 
-    # Case eqv(k,n): eqv_symmetric → eqv(n,k). eqv_mem_right(n,k,w): n∈w → k∈w.
-    $enk eqv("n", "k", "_")
-    $_es head(right(eqv_symmetric))
-    $_es_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-    $got_enk mp(apply_thm(eqv_symmetric, _es, ["k", "n"], ["a", "b"], _es_b, []),
+    # Case eq(k,n): eq_symmetric → eq(n,k). eq_mem_right(n,k,w): n∈w → k∈w.
+    $enk eq("n", "k", "_")
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_enk mp(apply_thm(eq_symmetric, _es, ["k", "n"], ["a", "b"], _es_b, []),
         ax([ekn], [ekn], ekn), ekn, enk, [], [ekn])
-    # [ekn] |- eqv(n,k)
+    # [ekn] |- eq(n,k)
 
-    $_emr head(right(eqv_mem_right))
-    $emr_ctx left(eqv_mem_right)
-    $_emr_b \x: \y: \a: implies(eqv(x,y,"_"), implies(mem(x,a), mem(y,a)))
-    $got_emr mp(apply_thm(eqv_mem_right, _emr, ["n", "k", "w"], ["x", "y", "a"], _emr_b, emr_ctx),
+    $_emr head(right(eq_mem_right))
+    $emr_ctx left(eq_mem_right)
+    $_emr_b \x: \y: \a: implies(eq(x,y,"_"), implies(mem(x,a), mem(y,a)))
+    $got_emr mp(apply_thm(eq_mem_right, _emr, ["n", "k", "w"], ["x", "y", "a"], _emr_b, emr_ctx),
         got_enk, enk, implies(nw, kw), emr_ctx, [ekn])
     $got_kw_case2 mp(got_emr, ax([nw], [nw], nw), nw, kw, left(got_emr), [nw])
     # [emr_ctx, ekn, nw] |- kw

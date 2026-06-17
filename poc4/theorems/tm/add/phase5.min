@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, and, eqv, left, right, head, pairing_ax
+from derived import implies, forall, exists, and, eq, left, right, head, pairing_ax
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function, single_valued, relation
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step, tm_reaches
@@ -9,10 +9,10 @@ from util.list import remove, diff
 
 from theorems.logic.and_elim_left import and_elim_left
 from theorems.logic.and_elim_right import and_elim_right
-from theorems.logic.eqv_symmetric import eqv_symmetric
+from theorems.logic.eq_symmetric import eq_symmetric
 from theorems.sets.ordpair_exists import ordpair_exists
 from theorems.sets.ordpair_eq_transfer import ordpair_eq_transfer
-from theorems.sets.eqv_ordpair_transfer import eqv_ordpair_transfer
+from theorems.sets.eq_ordpair_transfer import eq_ordpair_transfer
 from theorems.sets.tuple_injection import tuple_injection
 from theorems.functions.func_unique_thm import func_unique_thm
 from theorems.functions.apply_func_transfer import apply_func_transfer
@@ -50,16 +50,16 @@ $phase5 {
     $p_goal tm_config("c2", "qn", "hn", "tn", "_")
 
     # ===== 2. Config decompose -> Eq(q,q2), Eq(h,c), Eq(tape,tape2) =====
-    $eq_q eqv("q", "q2", "_")
-    $eq_h eqv("h", "c", "_")
-    $eq_t eqv("tape", "tape2", "_")
+    $eq_q eq("q", "q2", "_")
+    $eq_h eq("h", "c", "_")
+    $eq_t eq("tape", "tape2", "_")
     $and_ht and(eq_h, eq_t)
     $and_3eq and(eq_q, and_ht)
 
     $_cd head(right(config_decompose))
     $_cd_b \c: \q: \h: \tape: \q2: \h2: \tape2:
         implies(tm_config(c,q,h,tape,"_"), implies(tm_config(c,q2,h2,tape2,"_"),
-            and(eqv(q,q2,"_"), and(eqv(h,h2,"_"), eqv(tape,tape2,"_")))))
+            and(eq(q,q2,"_"), and(eq(h,h2,"_"), eq(tape,tape2,"_")))))
     $got_3eq mp(mp(apply_thm(config_decompose, _cd,
             ["c1","q","h","tape","q2","c","tape2"],
             ["c","q","h","tape","q2","h2","tape2"], _cd_b, left(config_decompose)),
@@ -80,7 +80,7 @@ $phase5 {
     # ===== 3. Eq(sym,one) via func_unique on tape2 =====
     $app_t2_h_sym apply("tape2", "h", "sym", "_")
     $_aft head(right(apply_func_transfer))
-    $_aft_b \f: \g: \x: \y: implies(eqv(f,g,"_"), implies(apply(f,x,y,"_"), apply(g,x,y,"_")))
+    $_aft_b \f: \g: \x: \y: implies(eq(f,g,"_"), implies(apply(f,x,y,"_"), apply(g,x,y,"_")))
     $got_app_t2_h mp(mp(apply_thm(apply_func_transfer, _aft,
             ["tape","tape2","h","sym"], ["f","g","x","y"], _aft_b, []),
         got_eq_t, eq_t, implies(p_read, app_t2_h_sym), [], left(got_eq_t)),
@@ -88,7 +88,7 @@ $phase5 {
 
     $app_t2_c_sym apply("tape2", "c", "sym", "_")
     $_akt head(right(apply_key_transfer))
-    $_akt_b \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
     $got_app_t2_c mp(mp(apply_thm(apply_key_transfer, _akt,
             ["tape2","h","c","sym"], ["f","x","x2","y"], _akt_b, []),
         got_eq_h, eq_h, implies(app_t2_h_sym, app_t2_c_sym), [], left(got_eq_h)),
@@ -99,9 +99,9 @@ $phase5 {
     $got_sv_tape2 mp(and_elim_right(rel_tape2, sv_tape2, []),
         ax([func_tape2],[func_tape2],func_tape2), func_tape2, sv_tape2, [], [func_tape2])
 
-    $eq_sym eqv("sym", "one", "_")
+    $eq_sym eq("sym", "one", "_")
     $_fu head(right(func_unique_thm))
-    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
     $fu_inst apply_thm(func_unique_thm, _fu,
             ["tape2","c","sym","one"], ["f","x","y1","y2"], _fu_b, [])
     $fu_s1 mp(fu_inst, got_sv_tape2, sv_tape2,
@@ -147,7 +147,7 @@ $phase5 {
     # Transfer inp: OP(inp,q,sym) -> OP(inp,q2,one) via Eq(q,q2) + Eq(sym,one)
     $op_inp_q2one ordered_pair("inp", "q2", "one", "_")
     $_oet head(right(ordpair_eq_transfer))
-    $_oet_b \t: \a: \b: \c: \d: implies(eqv(a,c,"_"), implies(eqv(b,d,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,d,"_"))))
+    $_oet_b \t: \a: \b: \c: \d: implies(eq(a,c,"_"), implies(eq(b,d,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,c,d,"_"))))
     $oet_inst apply_thm(ordpair_eq_transfer, _oet,
             ["inp","q","sym","q2","one"], ["t","a","b","c","d"], _oet_b, [])
     $oet_s1 mp(oet_inst, got_eq_q, eq_q,
@@ -179,7 +179,7 @@ $phase5 {
         ax([func_d],[func_d],func_d), func_d, sv_d, [], [func_d])
 
     # func_unique on d: Eq(out1,out2)
-    $eq_out eqv("out1", "out2", "_")
+    $eq_out eq("out1", "out2", "_")
     $fu_d_inst apply_thm(func_unique_thm, _fu,
             ["d","inp","out1","out2"], ["f","x","y1","y2"], _fu_b, [])
     $fu_d_s1 mp(fu_d_inst, got_sv_d, sv_d,
@@ -188,21 +188,21 @@ $phase5 {
             implies(app_d_out2, eq_out), left(fu_d_s1), left(got_t1))
     $got_eq_out mp(fu_d_s2, got_t2, app_d_out2, eq_out, left(fu_d_s2), left(got_t2))
 
-    # eqv_ordpair_transfer: Eq(out1,out2) -> OP(out2,zero,dp2) -> OP(out1,zero,dp2)
+    # eq_ordpair_transfer: Eq(out1,out2) -> OP(out2,zero,dp2) -> OP(out1,zero,dp2)
     $op_out1_from2 ordered_pair("out1", "zero", "dp2", "_")
-    $_eot head(right(eqv_ordpair_transfer))
-    $_eot_b \z: \t: \x: \y: implies(eqv(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
-    $got_out1_from2 mp(mp(apply_thm(eqv_ordpair_transfer, _eot,
+    $_eot head(right(eq_ordpair_transfer))
+    $_eot_b \z: \t: \x: \y: implies(eq(z,t,"_"), implies(ordered_pair(t,x,y,"_"), ordered_pair(z,x,y,"_")))
+    $got_out1_from2 mp(mp(apply_thm(eq_ordpair_transfer, _eot,
             ["out1","out2","zero","dp2"], ["z","t","x","y"], _eot_b, []),
         got_eq_out, eq_out, implies(op_out2, op_out1_from2), [], left(got_eq_out)),
         ax([op_out2],[op_out2],op_out2), op_out2, op_out1_from2, left(got_eq_out), [op_out2])
 
     # tuple_injection: OP(out1,wv,dp1) + OP(out1,zero,dp2) -> And(Eq(wv,zero), Eq(dp1,dp2))
-    $eq_wv eqv("wv", "zero", "_")
-    $eq_dp12 eqv("dp1", "dp2", "_")
+    $eq_wv eq("wv", "zero", "_")
+    $eq_dp12 eq("dp1", "dp2", "_")
     $and_wv_dp and(eq_wv, eq_dp12)
     $_ti head(right(tuple_injection))
-    $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t,a,b,"_"), implies(ordered_pair(t,c,d,"_"), and(eqv(a,c,"_"), eqv(b,d,"_"))))
+    $_ti_b \t: \a: \b: \c: \d: implies(ordered_pair(t,a,b,"_"), implies(ordered_pair(t,c,d,"_"), and(eq(a,c,"_"), eq(b,d,"_"))))
     $ti_out_inst apply_thm(tuple_injection, _ti,
             ["out1","wv","dp1","zero","dp2"], ["t","a","b","c","d"], _ti_b, left(tuple_injection))
     $ti_out_s1 mp(ti_out_inst,
@@ -215,16 +215,16 @@ $phase5 {
     $got_eq_dp mp(and_elim_right(eq_wv, eq_dp12, []),
         got_ti_out, and_wv_dp, eq_dp12, [], left(got_ti_out))
 
-    # eqv_ordpair_transfer: Eq(dp1,dp2) -> OP(dp2,one,qH) -> OP(dp1,one,qH)
+    # eq_ordpair_transfer: Eq(dp1,dp2) -> OP(dp2,one,qH) -> OP(dp1,one,qH)
     $op_dp1_from2 ordered_pair("dp1", "one", "qH", "_")
-    $got_dp1_from2 mp(mp(apply_thm(eqv_ordpair_transfer, _eot,
+    $got_dp1_from2 mp(mp(apply_thm(eq_ordpair_transfer, _eot,
             ["dp1","dp2","one","qH"], ["z","t","x","y"], _eot_b, []),
         got_eq_dp, eq_dp12, implies(op_dp2, op_dp1_from2), [], left(got_eq_dp)),
         ax([op_dp2],[op_dp2],op_dp2), op_dp2, op_dp1_from2, left(got_eq_dp), [op_dp2])
 
     # tuple_injection: OP(dp1,dv,qn) + OP(dp1,one,qH) -> And(Eq(dv,one), Eq(qn,qH))
-    $eq_dv eqv("dv", "one", "_")
-    $eq_qn eqv("qn", "qH", "_")
+    $eq_dv eq("dv", "one", "_")
+    $eq_qn eq("qn", "qH", "_")
     $and_dv_qn and(eq_dv, eq_qn)
     $ti_dp_inst apply_thm(tuple_injection, _ti,
             ["dp1","dv","qn","one","qH"], ["t","a","b","c","d"], _ti_b, left(tuple_injection))
@@ -290,12 +290,12 @@ $phase5 {
     $_ tap("phase5 ordpair eel ok")
 
     # ===== 6. headmove_right_elim -> Eq(hn,hf) =====
-    $eq_hn eqv("hn", "hf", "_")
+    $eq_hn eq("hn", "hf", "_")
     $_hre head(right(headmove_right_elim))
     $_hre_b \h: \hn: \d: \ka: \ska: \d1:
-        implies(head_move(h,hn,d,"_"), implies(eqv(h,ka,"_"), implies(eqv(d,d1,"_"),
+        implies(head_move(h,hn,d,"_"), implies(eq(h,ka,"_"), implies(eq(d,d1,"_"),
         implies(num(d1,1,"_"), implies(successor(ska,ka,"_"),
-        eqv(hn,ska,"_"))))))
+        eq(hn,ska,"_"))))))
     $hre_inst apply_thm(headmove_right_elim, _hre,
             ["h","hn","dv","c","hf","one"],
             ["h","hn","d","ka","ska","d1"], _hre_b, left(headmove_right_elim))
@@ -317,12 +317,12 @@ $phase5 {
     $_ tap("phase5 Eq(hn,hf) ok")
 
     # ===== 7. tape_update_eq_args -> Eq(tn,tf) =====
-    $eq_tn eqv("tn", "tf", "_")
+    $eq_tn eq("tn", "tf", "_")
     $_tuea head(right(tape_update_eq_args))
     $_tuea_b \t1: \t2: \tape1: \h1: \w1: \tape2: \h2: \w2:
         implies(tape_update(t1,tape1,h1,w1,"_"), implies(tape_update(t2,tape2,h2,w2,"_"),
-        implies(eqv(tape1,tape2,"_"), implies(eqv(h1,h2,"_"),
-        implies(eqv(w1,w2,"_"), eqv(t1,t2,"_"))))))
+        implies(eq(tape1,tape2,"_"), implies(eq(h1,h2,"_"),
+        implies(eq(w1,w2,"_"), eq(t1,t2,"_"))))))
     $tuea_inst apply_thm(tape_update_eq_args, _tuea,
             ["tn","tf","tape","h","wv","tape2","c","zero"],
             ["t1","t2","tape1","h1","w1","tape2","h2","w2"], _tuea_b, left(tape_update_eq_args))
@@ -344,24 +344,24 @@ $phase5 {
     $_ tap("phase5 Eq(tn,tf) ok")
 
     # ===== 8. config_eq_transfer -> TMConfig(c2,qn,hn,tn) =====
-    $_sym head(right(eqv_symmetric))
-    $_sym_b \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
+    $_sym head(right(eq_symmetric))
+    $_sym_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
 
-    $eq_qH_qn eqv("qH", "qn", "_")
-    $got_eq_qH_qn mp(apply_thm(eqv_symmetric, _sym, ["qn","qH"], ["a","b"], _sym_b, []),
+    $eq_qH_qn eq("qH", "qn", "_")
+    $got_eq_qH_qn mp(apply_thm(eq_symmetric, _sym, ["qn","qH"], ["a","b"], _sym_b, []),
         got_eq_qn, eq_qn, eq_qH_qn, [], left(got_eq_qn))
 
-    $eq_hf_hn eqv("hf", "hn", "_")
-    $got_eq_hf_hn mp(apply_thm(eqv_symmetric, _sym, ["hn","hf"], ["a","b"], _sym_b, []),
+    $eq_hf_hn eq("hf", "hn", "_")
+    $got_eq_hf_hn mp(apply_thm(eq_symmetric, _sym, ["hn","hf"], ["a","b"], _sym_b, []),
         got_eq_hn, eq_hn, eq_hf_hn, [], left(got_eq_hn))
 
-    $eq_tf_tn eqv("tf", "tn", "_")
-    $got_eq_tf_tn mp(apply_thm(eqv_symmetric, _sym, ["tn","tf"], ["a","b"], _sym_b, []),
+    $eq_tf_tn eq("tf", "tn", "_")
+    $got_eq_tf_tn mp(apply_thm(eq_symmetric, _sym, ["tn","tf"], ["a","b"], _sym_b, []),
         got_eq_tn, eq_tn, eq_tf_tn, [], left(got_eq_tn))
 
     $_cet head(right(config_eq_transfer))
     $_cet_b \c: \q1: \h1: \t1: \q2: \h2: \t2:
-        implies(tm_config(c,q1,h1,t1,"_"), implies(eqv(q1,q2,"_"), implies(eqv(h1,h2,"_"), implies(eqv(t1,t2,"_"),
+        implies(tm_config(c,q1,h1,t1,"_"), implies(eq(q1,q2,"_"), implies(eq(h1,h2,"_"), implies(eq(t1,t2,"_"),
             tm_config(c,q2,h2,t2,"_")))))
     $cet_inst apply_thm(config_eq_transfer, _cet,
             ["c2","qH","hf","tf","qn","hn","tn"],

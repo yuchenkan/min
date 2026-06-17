@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, eqv, left, right
+from derived import mem, implies, forall, and, exists, eq, left, right
 from vocab.sets import singleton, ordered_pair
 from vocab.functions import apply, function
 from vocab.nat.nat import num
@@ -37,19 +37,19 @@ $rec_base {
     # forall e. empty(e) → apply(g, e, a)
     $emp_e num("e", 0, "_")
     $app_g_e apply("g", "e", "a", "_")
-    $eqv_e0e eqv("e0", "e", "_")
+    $eq_e0e eq("e0", "e", "_")
 
     $nu0 num_unique(0)
     $_nu head(right(nu0))
     $nu_inst apply_thm(nu0, _nu, ["e0", "e"], ["n1", "n2"],
-        \a: \b: implies(num(a,0,"_"), implies(num(b,0,"_"), eqv(a,b,"_"))), left(nu0))
-    $nu_mp1 mp(nu_inst, ax([emp0], [emp0], emp0), emp0, implies(emp_e, eqv_e0e), left(nu_inst), [emp0])
-    $got_eqv mp(nu_mp1, ax([emp_e], [emp_e], emp_e), emp_e, eqv_e0e, left(nu_mp1), [emp_e])
+        \a: \b: implies(num(a,0,"_"), implies(num(b,0,"_"), eq(a,b,"_"))), left(nu0))
+    $nu_mp1 mp(nu_inst, ax([emp0], [emp0], emp0), emp0, implies(emp_e, eq_e0e), left(nu_inst), [emp0])
+    $got_eq mp(nu_mp1, ax([emp_e], [emp_e], emp_e), emp_e, eq_e0e, left(nu_mp1), [emp_e])
 
     $_akt head(right(apply_key_transfer))
     $akt_inst apply_thm(apply_key_transfer, _akt, ["g", "e0", "e", "a"], ["g", "x", "x2", "y"],
-        \f: \x: \x2: \y: implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_"))), [])
-    $akt_mp1 mp(akt_inst, got_eqv, eqv_e0e, implies(app_g_e0, app_g_e), left(akt_inst), left(got_eqv))
+        \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_"))), [])
+    $akt_mp1 mp(akt_inst, got_eq, eq_e0e, implies(app_g_e0, app_g_e), left(akt_inst), left(got_eq))
     $got_app_e mp(akt_mp1, got_app, app_g_e0, app_g_e, left(akt_mp1), left(got_app))
 
     $imp_ea implies(emp_e, app_g_e)

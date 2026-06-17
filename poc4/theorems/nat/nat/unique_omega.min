@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, exists, eqv, left, right
+from derived import mem, implies, forall, exists, eq, left, right
 from vocab.nat.nat import omega
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, apply_thm, eel, cut_c, close
@@ -11,11 +11,11 @@ $unique_omega {
     $body_fn \v p: omega(v, p)
     $eu exists_unique(body_fn, "_")
     $om_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
 
     $_ou head(right(omega_unique))
     $ou_inst apply_thm(omega_unique, _ou, ["u", "y"], ["u", "w2"],
-        \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eqv(w1,w2,"_"))), [])
+        \w1: \w2: implies(omega(w1,"_"), implies(omega(w2,"_"), eq(w1,w2,"_"))), [])
     $got_inner mp(ou_inst, ax([om_u], [om_u], om_u), om_u, imp_inner, [], [om_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [om_u], [fa_uniq], fa_uniq, "y")

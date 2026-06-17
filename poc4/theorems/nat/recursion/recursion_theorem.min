@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, eqv, left, right, arg2
+from derived import mem, implies, forall, and, exists, eq, left, right, arg2
 from vocab.functions import apply, function
 from vocab.nat.nat import num, successor
 from vocab.nat.recursion import recursive, total_from
@@ -30,24 +30,24 @@ $recursion_theorem {
     $rt1 mp(rt_inst, ax([func_f], [func_f], func_f), func_f, arg2(head(right(rt_inst))), left(rt_inst), [func_f])
     $got_ex mp(rt1, ax([tf], [tf], tf), tf, exists("h", rec_h), left(rt1), [tf])
 
-    # rec_unique: ∀h.∀h2.∀a.∀f. Rec(h)→Rec(h2)→func(f)→tf→eqv(h,h2)
+    # rec_unique: ∀h.∀h2.∀a.∀f. Rec(h)→Rec(h2)→func(f)→tf→eq(h,h2)
     $_ru head(right(rec_unique))
     $_ru_b \h: \h2: \a: \f: implies(recursive(h,a,f,"_"), implies(recursive(h2,a,f,"_"),
-        implies(function(f,"_"), implies(total_from(f,a,"_"), eqv(h,h2,"_")))))
+        implies(function(f,"_"), implies(total_from(f,a,"_"), eq(h,h2,"_")))))
     $ru_inst apply_thm(rec_unique, _ru, ["h","h2","a","f"], ["h","h2","a","f"], _ru_b, left(rec_unique))
     $ru1 mp(ru_inst, ax([rec_h], [rec_h], rec_h), rec_h, arg2(head(right(ru_inst))), left(ru_inst), [rec_h])
     $rec_h2 recursive("h2","a","f","_")
     $ru2 mp(ru1, ax([rec_h2], [rec_h2], rec_h2), rec_h2, arg2(head(right(ru1))), left(ru1), [rec_h2])
     $ru3 mp(ru2, ax([func_f], [func_f], func_f), func_f, arg2(head(right(ru2))), left(ru2), [func_f])
-    $got_eqv mp(ru3, ax([tf], [tf], tf), tf, eqv("h","h2","_"), left(ru3), [tf])
+    $got_eq mp(ru3, ax([tf], [tf], tf), tf, eq("h","h2","_"), left(ru3), [tf])
 
     # Package uniqueness: ir rec_h2, fr h2
-    $uniq_inner implies(rec_h2, eqv("h","h2","_"))
-    $got_uniq_1 ir(got_eqv, remove(same, rec_h2, left(got_eqv)), [uniq_inner], uniq_inner)
+    $uniq_inner implies(rec_h2, eq("h","h2","_"))
+    $got_uniq_1 ir(got_eq, remove(same, rec_h2, left(got_eq)), [uniq_inner], uniq_inner)
     $uniq_fa forall("h2", uniq_inner)
     $got_uniq_2 fr(got_uniq_1, left(got_uniq_1), [uniq_fa], uniq_fa, "h2")
 
-    $eui_uniq forall("y", implies(eu_body("y","_"), eqv("h","y","_")))
+    $eui_uniq forall("y", implies(eu_body("y","_"), eq("h","y","_")))
     $got_uniq_w wr(got_uniq_2, left(got_uniq_2), [eui_uniq], eui_uniq)
     $eui_1 mp(eui, ax([rec_h], [rec_h], rec_h), rec_h, arg2(head(right(eui))), left(eui), [rec_h])
     $got_eu mp(eui_1, got_uniq_w, eui_uniq, eu, left(eui_1), left(got_uniq_w))

@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, forall, exists, and, or, eqv, iff
+from derived import mem, neg, implies, forall, exists, and, or, eq, iff
 from derived import left, right, exp, arg1, arg2, head, tail, show, shows
 from vocab.functions import apply, function
 from vocab.sets import ordered_pair
@@ -15,9 +15,9 @@ from theorems.logic.and_elim_right import and_elim_right
 from theorems.logic.or_intro_left import or_intro_left
 from theorems.logic.or_intro_right import or_intro_right
 from theorems.logic.or_elim import or_elim
-from theorems.logic.eqv_reflexive import eqv_reflexive
-from theorems.logic.eqv_symmetric import eqv_symmetric
-from theorems.logic.eqv_transitive import eqv_transitive
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.logic.eq_transitive import eq_transitive
 from theorems.logic.iff_elim_left import iff_elim_left
 from theorems.logic.iff_elim_right import iff_elim_right
 from theorems.logic.exists_unique_bridge import exists_unique_bridge
@@ -478,18 +478,18 @@ $tm_add_correct {
 
     # === Helpers for eu_bridge nat derivations ===
     # mk_transfer(var): [] |- [∀v1,v2. v1=v2 → var∈v1 → var∈v2]
-    $et_body \aa: \bb: \zz: implies(eqv(aa, bb, "_"), iff(mem(zz, aa), mem(zz, bb)))
-    $eqv_et eqv("v1", "v2", "_")
+    $et_body \aa: \bb: \zz: implies(eq(aa, bb, "_"), iff(mem(zz, aa), mem(zz, bb)))
+    $eq_et eq("v1", "v2", "_")
     $mk_transfer \var: {
         $et_i apply_thm(eq_transfer, head(right(eq_transfer)),
             ["v1", "v2", var], ["a", "b", "z"], et_body, [])
         $iff_e iff(mem(var, "v1"), mem(var, "v2"))
         $fwd_e implies(mem(var, "v1"), mem(var, "v2"))
         $got_fwd mp(iff_elim_left(mem(var, "v1"), mem(var, "v2"), []),
-            mp(et_i, ax([eqv_et],[eqv_et],eqv_et), eqv_et, iff_e, [], [eqv_et]),
-            iff_e, fwd_e, [], [eqv_et])
-        $tc ir(got_fwd, remove(same, eqv_et, left(got_fwd)),
-            [implies(eqv_et, fwd_e)], implies(eqv_et, fwd_e))
+            mp(et_i, ax([eq_et],[eq_et],eq_et), eq_et, iff_e, [], [eq_et]),
+            iff_e, fwd_e, [], [eq_et])
+        $tc ir(got_fwd, remove(same, eq_et, left(got_fwd)),
+            [implies(eq_et, fwd_e)], implies(eq_et, fwd_e))
         $tg head(right(tc))
         $tc fr(tc, left(tc), [forall("v2", tg)], forall("v2", tg), "v2")
         $tg head(right(tc))
@@ -749,7 +749,7 @@ $tm_add_correct {
         $plus_sa_j_pp plus("sa","j","pp","_")
         $app_tin_pp apply("tin","pp","one","_")
         $app_tape2_pp apply("tape2","pp","one","_")
-        $neg_eqv_pp_a neg(eqv("pp","a","_"))
+        $neg_eq_pp_a neg(eq("pp","a","_"))
 
         # Step 1: tape_read_high → Apply(tin,pp,one)
         $_trh_b \tape: \a: \b: \j: \sa: \pos: \one:
@@ -770,7 +770,7 @@ $tm_add_correct {
         $_spn_b \sa: \a: \j: \pp:
             implies(nat(sa,"_"), implies(nat(a,"_"), implies(nat(j,"_"),
             implies(successor(sa,a,"_"), implies(plus(sa,j,pp,"_"),
-            neg(eqv(pp,a,"_")))))))
+            neg(eq(pp,a,"_")))))))
         $spn apply_thm(succ_plus_neq, head(right(succ_plus_neq)),
             ["sa","a","j","pp"], ["sa","a","j","pp"],
             _spn_b, left(succ_plus_neq))
@@ -784,7 +784,7 @@ $tm_add_correct {
         # Step 3: tape_update_other → Apply(tape2,pp,one)
         $_tuo_b \tapen: \tape: \h: \w: \x: \y:
             implies(tape_update(tapen,tape,h,w,"_"), implies(apply(tape,x,y,"_"),
-            implies(neg(eqv(x,h,"_")), apply(tapen,x,y,"_"))))
+            implies(neg(eq(x,h,"_")), apply(tapen,x,y,"_"))))
         $tuo apply_thm(tape_update_other, head(right(tape_update_other)),
             ["tape2","tin","a","one","pp","one"],
             ["tapen","tape","h","w","x","y"],
@@ -852,7 +852,7 @@ $tm_add_correct {
         $_spn_b \sa: \a: \j: \pp:
             implies(nat(sa,"_"), implies(nat(a,"_"), implies(nat(j,"_"),
             implies(successor(sa,a,"_"), implies(plus(sa,j,pp,"_"),
-            neg(eqv(pp,a,"_")))))))
+            neg(eq(pp,a,"_")))))))
         $spn apply_thm(succ_plus_neq, head(right(succ_plus_neq)),
             ["sa","a","b","hf"], ["sa","a","j","pp"],
             _spn_b, left(succ_plus_neq))
@@ -860,19 +860,19 @@ $tm_add_correct {
         $spn _mp_ax(spn, nat_a)
         $spn _mp_ax(spn, nat_b)
         $spn _mp_ax(spn, succ_sa)
-        $got_neg_eqv _mp_ax(spn, plus_sa_b_hf)
+        $got_neg_eq _mp_ax(spn, plus_sa_b_hf)
 
         # Step 5: tape_update_other → Apply(tape2,hf,z)
         $_tuo_b \tapen: \tape: \h: \w: \x: \y:
             implies(tape_update(tapen,tape,h,w,"_"), implies(apply(tape,x,y,"_"),
-            implies(neg(eqv(x,h,"_")), apply(tapen,x,y,"_"))))
+            implies(neg(eq(x,h,"_")), apply(tapen,x,y,"_"))))
         $tuo apply_thm(tape_update_other, head(right(tape_update_other)),
             ["tape2","tin","a","one","hf","z"],
             ["tapen","tape","h","w","x","y"],
             _tuo_b, left(tape_update_other))
         $tuo _mp_ax(tuo, tu_tape2)
         $tuo _mp_with(tuo, got_app_tin)
-        _mp_with(tuo, got_neg_eqv)
+        _mp_with(tuo, got_neg_eq)
     }
     $proof cut_c(got_app_tape2_hf_z, proof, app_tape2_hf_z,
         left(got_app_tape2_hf_z), left(proof), head(right(proof)))
@@ -983,29 +983,29 @@ $tm_add_correct {
                 left(pb3), [num_b_0])
 
             # plus_val_unique: Plus(a,b,c) + Plus(a,b,a) → Eqv(c,a)
-            $eqv_ca eqv("c","a","_")
+            $eq_ca eq("c","a","_")
             $_pvu_b \a: \b: \p1: \p2:
-                implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eqv(p1,p2,"_")))
+                implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eq(p1,p2,"_")))
             $pvu1 apply_thm(plus_val_unique, head(right(plus_val_unique)),
                 ["a","b","c","a"], ["a","b","c","c2"], _pvu_b, left(plus_val_unique))
             $pvu1 _mp_ax(pvu1, plus_abc)
-            $got_eqv_ca mp(pvu1, got_plus_aba, plus_aba, eqv_ca,
+            $got_eq_ca mp(pvu1, got_plus_aba, plus_aba, eq_ca,
                 left(pvu1), left(got_plus_aba))
 
             # tape_update_at: TU(tape2,tin,a,one) → Eqv(c,a) → Eqv(one,one) → Apply(tape2,c,one)
             $_tua_b \tapen: \tape: \h: \w: \x: \y:
-                implies(tape_update(tapen,tape,h,w,"_"), implies(eqv(x,h,"_"),
-                implies(eqv(y,w,"_"), apply(tapen,x,y,"_"))))
+                implies(tape_update(tapen,tape,h,w,"_"), implies(eq(x,h,"_"),
+                implies(eq(y,w,"_"), apply(tapen,x,y,"_"))))
             $tua apply_thm(tape_update_at, head(right(tape_update_at)),
                 ["tape2","tin","a","one","c","one"],
                 ["tapen","tape","h","w","x","y"],
                 _tua_b, left(tape_update_at))
             $tua _mp_ax(tua, tu_tape2)
-            $tua _mp_with(tua, got_eqv_ca)
+            $tua _mp_with(tua, got_eq_ca)
 
-            # eqv_reflexive for Eqv(one,one)
-            $_er_b \a: eqv(a,a,"_")
-            $er apply_thm(eqv_reflexive, head(right(eqv_reflexive)), ["one"], ["a"], _er_b, [])
+            # eq_reflexive for Eqv(one,one)
+            $_er_b \a: eq(a,a,"_")
+            $er apply_thm(eq_reflexive, head(right(eq_reflexive)), ["one"], ["a"], _er_b, [])
             _mp_with(tua, er)
         }
 
@@ -1107,35 +1107,35 @@ $tm_add_correct {
                 left(ps1), [succ_sr_r])
 
             # plus_val_unique: Plus(sa,b,sr) + Plus(sa,b,hf) → Eqv(sr,hf)
-            $eqv_sr_hf eqv("sr","hf","_")
+            $eq_sr_hf eq("sr","hf","_")
             $_pvu2_b \a: \b: \p1: \p2:
-                implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eqv(p1,p2,"_")))
+                implies(plus(a,b,p1,"_"), implies(plus(a,b,p2,"_"), eq(p1,p2,"_")))
             $pvu2 apply_thm(plus_val_unique, head(right(plus_val_unique)),
                 ["sa","b","sr","hf"], ["a","b","c","c2"], _pvu2_b, left(plus_val_unique))
             $pvu2 mp(pvu2, got_plus_sa_b_sr, plus_sa_b_sr,
-                implies(plus_sa_b_hf, eqv_sr_hf), left(pvu2), left(got_plus_sa_b_sr))
-            $got_eqv_sr_hf _mp_ax(pvu2, plus_sa_b_hf)
+                implies(plus_sa_b_hf, eq_sr_hf), left(pvu2), left(got_plus_sa_b_sr))
+            $got_eq_sr_hf _mp_ax(pvu2, plus_sa_b_hf)
 
             # eq_succ_transfer: Eqv(hf,sr) → Eqv(r,r) → Succ(sr,r) → Succ(hf,r)
             $succ_hf_r successor("hf","r","_")
-            $eqv_hf_sr eqv("hf","sr","_")
-            $_es_b2 \a: \b: implies(eqv(a,b,"_"), eqv(b,a,"_"))
-            $es2 apply_thm(eqv_symmetric, head(right(eqv_symmetric)),
+            $eq_hf_sr eq("hf","sr","_")
+            $_es_b2 \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+            $es2 apply_thm(eq_symmetric, head(right(eq_symmetric)),
                 ["sr","hf"], ["a","b"], _es_b2, [])
-            $got_eqv_hf_sr mp(es2, got_eqv_sr_hf, eqv_sr_hf, eqv_hf_sr, [], left(got_eqv_sr_hf))
+            $got_eq_hf_sr mp(es2, got_eq_sr_hf, eq_sr_hf, eq_hf_sr, [], left(got_eq_sr_hf))
 
-            $eqv_rr eqv("r","r","_")
-            $_er_b2 \a: eqv(a,a,"_")
-            $got_eqv_rr apply_thm(eqv_reflexive, head(right(eqv_reflexive)),
+            $eq_rr eq("r","r","_")
+            $_er_b2 \a: eq(a,a,"_")
+            $got_eq_rr apply_thm(eq_reflexive, head(right(eq_reflexive)),
                 ["r"], ["a"], _er_b2, [])
 
             $_est_b \a: \b: \c: \d:
-                implies(eqv(a,c,"_"), implies(eqv(b,d,"_"),
+                implies(eq(a,c,"_"), implies(eq(b,d,"_"),
                 implies(successor(c,d,"_"), successor(a,b,"_"))))
             $est apply_thm(eq_succ_transfer, head(right(eq_succ_transfer)),
                 ["hf","r","sr","r"], ["a","b","c","d"], _est_b, [])
-            $est _mp_with(est, got_eqv_hf_sr)
-            $est _mp_with(est, got_eqv_rr)
+            $est _mp_with(est, got_eq_hf_sr)
+            $est _mp_with(est, got_eq_rr)
             $got_succ_hf_r mp(est, got_succ_sr, succ_sr_r, succ_hf_r,
                 left(est), [succ_sr_r])
 
@@ -1168,25 +1168,25 @@ $tm_add_correct {
             $got_cw mp(ne_c, ax([omega_w],[omega_w],omega_w), omega_w, cw,
                 left(ne_c), [omega_w])
 
-            $eqv_rc eqv("r","c","_")
+            $eq_rc eq("r","c","_")
             $_si_b \w: \m: \n: \sn:
                 implies(omega(w,"_"), implies(mem(m,w), implies(mem(n,w),
-                implies(successor(sn,m,"_"), implies(successor(sn,n,"_"), eqv(m,n,"_"))))))
+                implies(successor(sn,m,"_"), implies(successor(sn,n,"_"), eq(m,n,"_"))))))
             $si apply_thm(successor_injection, head(right(successor_injection)),
                 ["w","r","c","hf"], ["w","m","n","sn"], _si_b, left(successor_injection))
             $si _mp_ax(si, omega_w)
             $si _mp_with(si, got_rw)
             $si _mp_with(si, got_cw)
             $si _mp_with(si, got_succ_hf_r)
-            $got_eqv_rc mp(si, ax([succ_hf],[succ_hf],succ_hf), succ_hf, eqv_rc,
+            $got_eq_rc mp(si, ax([succ_hf],[succ_hf],succ_hf), succ_hf, eq_rc,
                 left(si), [succ_hf])
 
             # apply_key_transfer: Eqv(r,c) → Apply(tape2,r,one) → Apply(tape2,c,one)
             $_akt_b \f: \x: \x2: \y:
-                implies(eqv(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+                implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
             $akt apply_thm(apply_key_transfer, head(right(apply_key_transfer)),
                 ["tape2","r","c","one"], ["f","x","x2","y"], _akt_b, [])
-            $akt _mp_with(akt, got_eqv_rc)
+            $akt _mp_with(akt, got_eq_rc)
             $got_app_c mp(akt, got_app_r, app_tape2_r_one, app_tape2_c_one,
                 left(akt), left(got_app_r))
 

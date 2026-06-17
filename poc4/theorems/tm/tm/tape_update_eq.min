@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right
+from derived import mem, neg, implies, iff, and, or, exists, forall, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.sets import relation
 from vocab.functions import apply, single_valued, function
@@ -23,7 +23,7 @@ $tape_update_eq {
     $tu tape_update("tapen", "tape", "h", "w", "_")
     $func_tape function("tape", "_")
     $app_hw apply("tape", "h", "w", "_")
-    $eq_tn_tp eqv("tapen", "tape", "_")
+    $eq_tn_tp eq("tapen", "tape", "_")
 
     # TapeUpdate expansion components
     $in_p_tn mem("p", "tapen")
@@ -56,18 +56,18 @@ $tape_update_eq {
     $op_qhw ordered_pair("q", "h", "w", "_")
     $in_q_tp mem("q", "tape")
     $and_q and(op_qhw, in_q_tp)
-    $eq_pq eqv("p", "q", "_")
+    $eq_pq eq("p", "q", "_")
 
     # ordpair_unique inst h,w,p,q: OrdPair(p,h,w) -> OrdPair(q,h,w) -> Eq(p,q)
     $_ou head(right(ordpair_unique))
-    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eqv(s1,s2,"_")))
+    $_ou_b \a: \b: \s1: \s2: implies(ordered_pair(s1,a,b,"_"), implies(ordered_pair(s2,a,b,"_"), eq(s1,s2,"_")))
     $got_eq_pq mp(mp(apply_thm(ordpair_unique, _ou, ["h","w","p","q"], ["a","b","s1","s2"], _ou_b, []),
         ax([op_phw],[op_phw],op_phw), op_phw, implies(op_qhw, eq_pq), [], [op_phw]),
         ax([op_qhw],[op_qhw],op_qhw), op_qhw, eq_pq, [op_phw], [op_qhw])
 
     # ext_substitution inst p,q,tape: Eq(p,q) -> Iff(In(p,tape), In(q,tape))
     $_es head(right(ext_substitution))
-    $_es_b \a: \b: \s: implies(eqv(a,b,"_"), iff(mem(a,s), mem(b,s)))
+    $_es_b \a: \b: \s: implies(eq(a,b,"_"), iff(mem(a,s), mem(b,s)))
     $iff_in iff(in_p_tp, in_q_tp)
     $got_iff_in mp(apply_thm(ext_substitution, _es, ["p","q","tape"], ["a","b","s"], _es_b, left(ext_substitution)),
         got_eq_pq, eq_pq, iff_in, left(ext_substitution), left(got_eq_pq))
@@ -136,9 +136,9 @@ $tape_update_eq {
 
     # func_unique_thm: SV(tape) -> Apply(tape,h,y) -> Apply(tape,h,w) -> Eq(y,w)
     $sv_tape single_valued("tape", "_")
-    $eq_yw eqv("y", "w", "_")
+    $eq_yw eq("y", "w", "_")
     $_fu head(right(func_unique_thm))
-    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eqv(y1,y2,"_"))))
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"), implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
     $got_fu apply_thm(func_unique_thm, _fu, ["tape","h","y","w"], ["f","x","y1","y2"], _fu_b, [])
 
     # Extract SV(tape) from Function(tape) = And(Relation(tape), SV(tape))
@@ -156,7 +156,7 @@ $tape_update_eq {
 
     # ordpair_val_transfer: Eq(y,w) -> OrdPair(p,h,y) -> OrdPair(p,h,w)
     $_ovt head(right(ordpair_val_transfer))
-    $_ovt_b \t: \a: \b: \c: implies(eqv(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $_ovt_b \t: \a: \b: \c: implies(eq(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
     $got_ophw mp(mp(apply_thm(ordpair_val_transfer, _ovt, ["p","h","y","w"], ["t","a","b","c"], _ovt_b, []),
         got_eq_yw, eq_yw, implies(op_phy, op_phw), [], left(got_eq_yw)),
         ax([op_phy],[op_phy],op_phy), op_phy, op_phw, left(got_eq_yw), [op_phy])

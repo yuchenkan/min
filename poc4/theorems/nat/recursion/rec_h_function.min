@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, or, iff, exists, eqv, left, right
+from derived import mem, implies, forall, and, or, iff, exists, eq, left, right
 from vocab.sets import ordered_pair, relation
 from vocab.functions import apply, function
 from vocab.nat.nat import nat, omega
@@ -90,7 +90,7 @@ $rec_h_function {
     $app1 apply("h","x","y1","_")
     $app2 apply("h","x","y2","_")
     $and_apps and(app1, app2)
-    $eqv_y eqv("y1","y2","_")
+    $eq_y eq("y1","y2","_")
     $nat_x nat("x","_")
     $om omega("w","_")
     $xw mem("x","w")
@@ -125,32 +125,32 @@ $rec_h_function {
     $fwd2b mp(fwd2, ax([char_h], [char_h], char_h), char_h, implies(app2, ex2), left(fwd2), [char_h])
     $got_ex2 mp(fwd2b, ax([app2], [app2], app2), app2, ex2, left(fwd2b), [app2])
 
-    # rec_value: func(f) → omega(w) → x∈w → ex1 → ex2 → eqv(y1,y2)
+    # rec_value: func(f) → omega(w) → x∈w → ex1 → ex2 → eq(y1,y2)
     $_rv head(right(rec_value))
     $_rv_b \a: \f: \w: \x: \y1: \y2: implies(function(f,"_"), implies(omega(w,"_"), implies(mem(x,w),
         implies(exists("v1", and(rec_approx("v1",a,f,"_"), apply("v1",x,y1,"_"))),
         implies(exists("v2", and(rec_approx("v2",a,f,"_"), apply("v2",x,y2,"_"))),
-            eqv(y1,y2,"_"))))))
+            eq(y1,y2,"_"))))))
     $got_rv apply_thm(rec_value, _rv, ["a","f","w","x","y1","y2"], ["a","f","w","x","y1","y2"], _rv_b, left(rec_value))
-    $rv1 mp(got_rv, ax([func_f], [func_f], func_f), func_f, implies(om, implies(xw, implies(ex1, implies(ex2, eqv_y)))), left(got_rv), [func_f])
-    $rv2 mp(rv1, ax([om], [om], om), om, implies(xw, implies(ex1, implies(ex2, eqv_y))), left(rv1), [om])
-    $rv3 mp(rv2, got_xw, xw, implies(ex1, implies(ex2, eqv_y)), left(rv2), left(got_xw))
-    $rv4 mp(rv3, got_ex1, ex1, implies(ex2, eqv_y), left(rv3), left(got_ex1))
-    $got_eqv mp(rv4, got_ex2, ex2, eqv_y, left(rv4), left(got_ex2))
+    $rv1 mp(got_rv, ax([func_f], [func_f], func_f), func_f, implies(om, implies(xw, implies(ex1, implies(ex2, eq_y)))), left(got_rv), [func_f])
+    $rv2 mp(rv1, ax([om], [om], om), om, implies(xw, implies(ex1, implies(ex2, eq_y))), left(rv1), [om])
+    $rv3 mp(rv2, got_xw, xw, implies(ex1, implies(ex2, eq_y)), left(rv2), left(got_xw))
+    $rv4 mp(rv3, got_ex1, ex1, implies(ex2, eq_y), left(rv3), left(got_ex1))
+    $got_eq mp(rv4, got_ex2, ex2, eq_y, left(rv4), left(got_ex2))
 
     # Replace app1, app2 with and_apps:
     $got_a1 mp(and_elim_left(app1, app2, []), ax([and_apps], [and_apps], and_apps), and_apps, app1, [], [and_apps])
     $got_a2 mp(and_elim_right(app1, app2, []), ax([and_apps], [and_apps], and_apps), and_apps, app2, [], [and_apps])
-    $c1 cut_c(got_a1, got_eqv, app1, [and_apps], left(got_eqv), eqv_y)
-    $c2 cut_c(got_a2, c1, app2, [and_apps], left(c1), eqv_y)
+    $c1 cut_c(got_a1, got_eq, app1, [and_apps], left(got_eq), eq_y)
+    $c2 cut_c(got_a2, c1, app2, [and_apps], left(c1), eq_y)
 
-    # eel w from omega, since eqv_y doesn't mention w
-    $c3 eel(c2, \w: omega(w,"_"), "w", "w", remove(same, om, left(c2)), eqv_y)
+    # eel w from omega, since eq_y doesn't mention w
+    $c3 eel(c2, \w: omega(w,"_"), "w", "w", remove(same, om, left(c2)), eq_y)
     $ex_om exists("w", omega("w","_"))
-    $c4 cut_c(omega_exists, c3, ex_om, left(omega_exists), left(c3), eqv_y)
+    $c4 cut_c(omega_exists, c3, ex_om, left(omega_exists), left(c3), eq_y)
 
     # Close sv:
-    $imp_sv implies(and_apps, eqv_y)
+    $imp_sv implies(and_apps, eq_y)
     $s1 ir(c4, remove(same, and_apps, left(c4)), [imp_sv], imp_sv)
     $sv_h forall("x", forall("y1", forall("y2", imp_sv)))
     $s2 close(s1, left(s1), [imp_sv], ["y2","y1","x"])

@@ -1,6 +1,6 @@
-from derived import mem, or, eqv
+from derived import mem, or, eq
 from vocab.sets import union
 from theorems.sets.set_spec_unique import set_spec_unique
 
-# |- union(s1,a,b) -> union(s2,a,b) -> eqv(s1,s2)
+# |- union(s1,a,b) -> union(s2,a,b) -> eq(s1,s2)
 $union_unique set_spec_unique(\v p: or(mem(v, "a"), mem(v, "b")), ["b", "a"], "_")

@@ -1,4 +1,4 @@
-from derived import implies, forall, exists, and, eqv, qed, mem, or, neg
+from derived import implies, forall, exists, and, eq, qed, mem, or, neg
 from vocab.sets import ordered_pair
 from vocab.functions import apply, function
 from vocab.tm.tm import tm_config, tm_transition, tm_step
@@ -148,7 +148,7 @@ $_ tap("tape_read_beyond ok")
 $uou_expected forall("c", forall("f1", forall("f2",
     implies(unary_output("f1", "c", "_"),
     implies(unary_output("f2", "c", "_"),
-    eqv("f1", "f2", "_"))))))
+    eq("f1", "f2", "_"))))))
 $_ qed(unary_output_unique, uou_expected, "z")
 $_ tap("unary_output_unique ok")
 

@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, exists, and, eqv, left, right
+from derived import mem, implies, forall, exists, and, eq, left, right
 from vocab.sets import intersect
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -11,10 +11,10 @@ $unique_intersect {
     $body_fn \v p: intersect(v, "a", "b", p)
     $eu exists_unique(body_fn, "_")
     $int_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
     $_iu_f head(right(intersect_unique))
     $iu_inst apply_thm(intersect_unique, _iu_f, ["a", "b", "u", "y"], ["a", "b", "s1", "s2"],
-        \a: \b: \s1: \s2: implies(intersect(s1,a,b,"_"), implies(intersect(s2,a,b,"_"), eqv(s1,s2,"_"))), [])
+        \a: \b: \s1: \s2: implies(intersect(s1,a,b,"_"), implies(intersect(s2,a,b,"_"), eq(s1,s2,"_"))), [])
     $got_inner mp(iu_inst, ax([int_u], [int_u], int_u), int_u, imp_inner, [], [int_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [int_u], [fa_uniq], fa_uniq, "y")

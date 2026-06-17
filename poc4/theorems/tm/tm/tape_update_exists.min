@@ -1,4 +1,4 @@
-from derived import mem, neg, implies, iff, and, or, exists, forall, eqv, left, right, sep_ax
+from derived import mem, neg, implies, iff, and, or, exists, forall, eq, left, right, sep_ax
 from vocab.sets import ordered_pair, singleton, union
 from vocab.tm.tm import tape_update
 from tactics import ax, fl, fr, ir, wl, wl_all, wr, mp, cut_c, inst, apply_thm, eir, eel, close, same
@@ -70,24 +70,24 @@ $tape_update_exists {
     # ordpair_unique: OP(z,h,w) ∧ OP(pair,h,w) → Eq(z,pair)
     $_ou head(right(ordpair_unique))
     $_ou_b \a: \b: \c: \d: implies(ordered_pair(c,a,b,"_"),
-        implies(ordered_pair(d,a,b,"_"), eqv(c,d,"_")))
+        implies(ordered_pair(d,a,b,"_"), eq(c,d,"_")))
     $got_ou apply_thm(ordpair_unique, _ou, ["h","w","z","pair"],
         ["a","b","c","d"], _ou_b, left(ordpair_unique))
     $got_ou mp(got_ou, ax([op_zhw],[op_zhw],op_zhw), op_zhw,
-        implies(op_pair, eqv("z","pair","_")), left(got_ou), [op_zhw])
+        implies(op_pair, eq("z","pair","_")), left(got_ou), [op_zhw])
     $got_ou mp(got_ou, ax([op_pair],[op_pair],op_pair), op_pair,
-        eqv("z","pair","_"), left(got_ou), [op_pair])
+        eq("z","pair","_"), left(got_ou), [op_pair])
     # [Pairing, OP(z,h,w), OP(pair,h,w)] |- Eq(z,pair)
 
     # Singleton(sing,pair): ∀x. x∈sing ↔ x=pair
     # fl with "z" → Iff(z∈sing, z=pair), iff_elim_right → z=pair → z∈sing
-    $iff_z_sing iff(mem("z","sing"), eqv("z","pair","_"))
+    $iff_z_sing iff(mem("z","sing"), eq("z","pair","_"))
     $got_iff_z fl(ax([iff_z_sing],[iff_z_sing],iff_z_sing),
         [sing_pair], [iff_z_sing], sing_pair, "z")
-    $got_rev mp(iff_elim_right(mem("z","sing"), eqv("z","pair","_"), []),
-        got_iff_z, iff_z_sing, implies(eqv("z","pair","_"), mem("z","sing")),
+    $got_rev mp(iff_elim_right(mem("z","sing"), eq("z","pair","_"), []),
+        got_iff_z, iff_z_sing, implies(eq("z","pair","_"), mem("z","sing")),
         [], [sing_pair])
-    $got_in_z_sing mp(got_rev, got_ou, eqv("z","pair","_"),
+    $got_in_z_sing mp(got_rev, got_ou, eq("z","pair","_"),
         mem("z","sing"), [sing_pair], left(got_ou))
     # [..., OP(z,h,w), OP(pair,h,w), Singleton(sing,pair)] |- In(z,sing)
 

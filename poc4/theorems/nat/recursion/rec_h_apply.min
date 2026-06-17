@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, and, exists, iff, eqv, left, right
+from derived import mem, implies, forall, and, exists, iff, eq, left, right
 from vocab.sets import ordered_pair
 from vocab.functions import apply
 from vocab.nat.nat import nat

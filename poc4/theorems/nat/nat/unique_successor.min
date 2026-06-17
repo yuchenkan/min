@@ -1,4 +1,4 @@
-from derived import mem, implies, forall, exists, or, eqv, pairing_ax, union_ax, left, right
+from derived import mem, implies, forall, exists, or, eq, pairing_ax, union_ax, left, right
 from vocab.nat.nat import successor
 from vocab.logic import exists_unique
 from tactics import ax, fr, mp, wl, apply_thm, eel, cut_c, close
@@ -7,15 +7,15 @@ from theorems.sets.set_spec_unique import set_spec_unique
 from theorems.nat.nat.successor_exists import successor_exists
 
 $unique_successor {
-    $cond_fn \v p: or(mem(v, "a"), eqv(v, "a", p))
+    $cond_fn \v p: or(mem(v, "a"), eq(v, "a", p))
     $body_fn \v p: successor(v, "a", p)
     $eu exists_unique(body_fn, "_")
     $su_u body_fn("u", "_")
-    $imp_inner implies(body_fn("y", "_"), eqv("u", "y", "_"))
+    $imp_inner implies(body_fn("y", "_"), eq("u", "y", "_"))
     $ssu set_spec_unique(cond_fn, [], "_")
     $_ssu_f head(right(ssu))
     $ssu_inst apply_thm(ssu, _ssu_f, ["u", "y"], ["u", "s2"],
-        \s1: \s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eqv(s1,s2,"_"))), [])
+        \s1: \s2: implies(body_fn(s1,"_"), implies(body_fn(s2,"_"), eq(s1,s2,"_"))), [])
     $got_inner mp(ssu_inst, ax([su_u], [su_u], su_u), su_u, imp_inner, [], [su_u])
     $fa_uniq forall("y", imp_inner)
     $got_fa fr(got_inner, [su_u], [fa_uniq], fa_uniq, "y")
