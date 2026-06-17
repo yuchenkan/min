@@ -1,0 +1,160 @@
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
+from vocab.nat.nat import nat
+from vocab.functions import apply, function
+from vocab.nat.recursion import total_from
+from vocab.nat.arithmetic.plus import plus
+from vocab.nat.arithmetic.mult import add_func
+from tactics import ax, wr, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.nat.arithmetic.plus.plus_val_exists import plus_val_exists
+from theorems.nat.arithmetic.plus.plus_val_nat import plus_val_nat
+
+# add_func_total_from: AddFunc(af,m) → Nat(m) → Nat(n) → TotalFrom(af,n)
+
+$add_func_total_from {
+    $af_all add_func("af","m","_")
+    $nat_m nat("m","_")
+    $nat_n nat("n","_")
+
+    # Extract components from af_all = And(Function(af), And(fwd, And(bwd, dom_sub)))
+    $func_af function("af","_")
+    $fwd forall("x", forall("y", implies(apply("af","x","y","_"), plus("x","m","y","_"))))
+    $bwd forall("x", implies(nat("x","_"), forall("y", implies(plus("x","m","y","_"), apply("af","x","y","_")))))
+    $dom_sub forall("x", implies(exists("y", apply("af","x","y","_")), nat("x","_")))
+
+    $got_func mp(and_elim_left(func_af, and(fwd, and(bwd, dom_sub)), []),
+        ax([af_all],[af_all],af_all), af_all, func_af, [], [af_all])
+    $got_fwd_rest mp(and_elim_right(func_af, and(fwd, and(bwd, dom_sub)), []),
+        ax([af_all],[af_all],af_all), af_all, and(fwd, and(bwd, dom_sub)), [], [af_all])
+    $got_fwd mp(and_elim_left(fwd, and(bwd, dom_sub), []),
+        got_fwd_rest, and(fwd, and(bwd, dom_sub)), fwd, [], [af_all])
+    $got_bwd_ds mp(and_elim_right(fwd, and(bwd, dom_sub), []),
+        got_fwd_rest, and(fwd, and(bwd, dom_sub)), and(bwd, dom_sub), [], [af_all])
+    $got_bwd mp(and_elim_left(bwd, dom_sub, []),
+        got_bwd_ds, and(bwd, dom_sub), bwd, [], [af_all])
+    $got_ds mp(and_elim_right(bwd, dom_sub, []),
+        got_bwd_ds, and(bwd, dom_sub), dom_sub, [], [af_all])
+
+    # plus_val_exists: alpha-rename to avoid inner bound var "n" clashing with terms
+    # Structure: ∀m.(Nat(m)→∀n.(Nat(n)→∃p.Plus(m,n,p))) → ∀a.(Nat(a)→∀b.(Nat(b)→∃p.Plus(a,b,p)))
+    $_pve_r \a: implies(nat(a,"_"), forall("b", implies(nat("b","_"), exists("p", plus(a,"b","p","_")))))
+    $pve_renamed forall("a", _pve_r("a"))
+    $pve_ctx left(plus_val_exists)
+    $pve_thm wr(plus_val_exists, pve_ctx, [pve_renamed], pve_renamed)
+
+    # plus_val_nat: alpha-rename (all foralls at top, safe)
+    $_pvn_b \a: \b: \c: implies(nat(a,"_"), implies(nat(b,"_"), implies(plus(a,b,c,"_"), nat(c,"_"))))
+    $pvn_renamed forall("a", forall("b", forall("c", _pvn_b("a")("b")("c"))))
+    $pvn_ctx left(plus_val_nat)
+    $pvn_thm wr(plus_val_nat, pvn_ctx, [pvn_renamed], pvn_renamed)
+
+    # === Part 1: ∃z.Apply(af,n,z) ===
+    # plus_val_exists at n: Nat(n) → ∀b.(Nat(b) → ∃p.Plus(n,b,p))
+    $pve_n apply_thm(pve_thm, pve_renamed, ["n"], ["a"], _pve_r, pve_ctx)
+    $_pve_inner \b: implies(nat(b,"_"), exists("p", plus("n",b,"p","_")))
+    $pve_n_inner forall("b", _pve_inner("b"))
+    $pve_n1 mp(pve_n, ax([nat_n],[nat_n],nat_n), nat_n, pve_n_inner, pve_ctx, [nat_n])
+    # then at m: Nat(m) → ∃p.Plus(n,m,p)
+    $pve_nm apply_thm(pve_n1, pve_n_inner, ["m"], ["b"], _pve_inner, left(pve_n1))
+    $ex_plus_nm exists("p", plus("n","m","p","_"))
+    $got_ex_plus mp(pve_nm, ax([nat_m],[nat_m],nat_m), nat_m, ex_plus_nm, left(pve_nm), [nat_m])
+    # [pve_ctx, nat_n, nat_m] |- ∃p.Plus(n,m,p)
+
+    # Assume Plus(n,m,pv): bwd → Apply(af,n,pv)
+    $plus_nmpv plus("n","m","pv","_")
+    $app_npv apply("af","n","pv","_")
+
+    # bwd at n: Nat(n) → ∀y.Plus(n,m,y) → Apply(af,n,y)
+    $bwd_n apply_thm(got_bwd, bwd, ["n"], ["x"],
+        \x: implies(nat(x,"_"), forall("y", implies(plus(x,"m","y","_"), apply("af",x,"y","_")))), [af_all])
+    $bwd_n_inner forall("y", implies(plus("n","m","y","_"), apply("af","n","y","_")))
+    $bwd_n1 mp(bwd_n, ax([nat_n],[nat_n],nat_n), nat_n, bwd_n_inner, [af_all], [nat_n])
+    $bwd_n2 apply_thm(bwd_n1, bwd_n_inner, ["pv"], ["y"],
+        \y: implies(plus("n","m",y,"_"), apply("af","n",y,"_")), left(bwd_n1))
+    $got_app_npv mp(bwd_n2, ax([plus_nmpv],[plus_nmpv],plus_nmpv), plus_nmpv, app_npv, left(bwd_n2), [plus_nmpv])
+    # [af_all, nat_n, plus_nmpv] |- Apply(af,n,pv)
+
+    # eir pv → ∃z.Apply(af,n,z), eel pv from ∃p.Plus(n,m,p):
+    $ex_app_n exists("z", apply("af","n","z","_"))
+    $got_ex_app eir(got_app_npv, \z: apply("af","n",z,"_"), "z", "pv", left(got_app_npv))
+    $got_ex_app2 eel(got_ex_app, \pv: plus("n","m",pv,"_"), "pv", "pv", left(got_ex_app), ex_app_n)
+    $got_part1 cut_c(got_ex_plus, got_ex_app2, ex_plus_nm, left(got_ex_plus), left(got_ex_app2), ex_app_n)
+    # [pve_ctx, nat_n, nat_m, af_all] |- ∃z.Apply(af,n,z)
+
+    # === Part 2: ∀x.∀y. Apply(af,x,y) → ∃z.Apply(af,y,z) ===
+    $app_xy apply("af","xr","yr","_")
+
+    # dom_sub at xr: (∃yd.Apply(af,xr,yd)) → Nat(xr)
+    $nat_xr nat("xr","_")
+    $ds_inst apply_thm(got_ds, dom_sub, ["xr"], ["x"],
+        \x: implies(exists("y", apply("af",x,"y","_")), nat(x,"_")), [af_all])
+    $got_ex_app_xr eir(ax([app_xy],[app_xy],app_xy), \yd: apply("af","xr",yd,"_"), "yd", "yr", [app_xy])
+    $got_nat_xr mp(ds_inst, got_ex_app_xr, exists("y", apply("af","xr","y","_")), nat_xr, [af_all], [app_xy])
+    # [af_all, app_xy] |- Nat(xr)
+
+    # fwd at xr,yr: Apply(af,xr,yr) → Plus(xr,m,yr)
+    $plus_xrm plus("xr","m","yr","_")
+    $fwd_inst apply_thm(got_fwd, fwd, ["xr","yr"], ["x","y"],
+        \x: \y: implies(apply("af",x,y,"_"), plus(x,"m",y,"_")), [af_all])
+    $got_plus_xr mp(fwd_inst, ax([app_xy],[app_xy],app_xy), app_xy, plus_xrm, [af_all], [app_xy])
+    # [af_all, app_xy] |- Plus(xr,m,yr)
+
+    # plus_val_nat(xr, m, yr) → Nat(yr)
+    $nat_yr nat("yr","_")
+    $pvn_inst apply_thm(pvn_thm, pvn_renamed, ["xr","m","yr"], ["a","b","c"], _pvn_b, pvn_ctx)
+    $pvn_mp1 mp(pvn_inst, got_nat_xr, nat_xr, implies(nat_m, implies(plus_xrm, nat_yr)), pvn_ctx, left(got_nat_xr))
+    $pvn_mp2 mp(pvn_mp1, ax([nat_m],[nat_m],nat_m), nat_m, implies(plus_xrm, nat_yr), left(pvn_mp1), [nat_m])
+    $got_nat_yr mp(pvn_mp2, got_plus_xr, plus_xrm, nat_yr, left(pvn_mp2), left(got_plus_xr))
+    # [pvn_ctx, af_all, app_xy, nat_m] |- Nat(yr)
+
+    # plus_val_exists(yr, m) → ∃p.Plus(yr,m,p)
+    $pve_yr apply_thm(pve_thm, pve_renamed, ["yr"], ["a"], _pve_r, pve_ctx)
+    $_pve_inner_yr \b: implies(nat(b,"_"), exists("p", plus("yr",b,"p","_")))
+    $pve_yr_inner forall("b", _pve_inner_yr("b"))
+    $pve_yr1 mp(pve_yr, got_nat_yr, nat_yr, pve_yr_inner, pve_ctx, left(got_nat_yr))
+    $pve_yr2 apply_thm(pve_yr1, pve_yr_inner, ["m"], ["b"], _pve_inner_yr, left(pve_yr1))
+    $ex_plus_yr exists("p", plus("yr","m","p","_"))
+    $got_ex_plus_yr mp(pve_yr2, ax([nat_m],[nat_m],nat_m), nat_m, ex_plus_yr, left(pve_yr2), [nat_m])
+    # [pve_ctx, pvn_ctx, af_all, app_xy, nat_m] |- ∃p.Plus(yr,m,p)
+
+    # Assume Plus(yr,m,qv): bwd → Apply(af,yr,qv)
+    $plus_yrmqv plus("yr","m","qv","_")
+    $app_yqv apply("af","yr","qv","_")
+
+    $bwd_yr apply_thm(got_bwd, bwd, ["yr"], ["x"],
+        \x: implies(nat(x,"_"), forall("y", implies(plus(x,"m","y","_"), apply("af",x,"y","_")))), [af_all])
+    $bwd_yr_inner forall("y", implies(plus("yr","m","y","_"), apply("af","yr","y","_")))
+    $bwd_yr1 mp(bwd_yr, got_nat_yr, nat_yr, bwd_yr_inner, [af_all], left(got_nat_yr))
+    $bwd_yr2 apply_thm(bwd_yr1, bwd_yr_inner, ["qv"], ["y"],
+        \y: implies(plus("yr","m",y,"_"), apply("af","yr",y,"_")), left(bwd_yr1))
+    $got_app_yqv mp(bwd_yr2, ax([plus_yrmqv],[plus_yrmqv],plus_yrmqv), plus_yrmqv, app_yqv, left(bwd_yr2), [plus_yrmqv])
+
+    # eir qv, eel qv from ∃p.Plus(yr,m,p):
+    $ex_app_yr exists("z", apply("af","yr","z","_"))
+    $got_ex_yr eir(got_app_yqv, \z: apply("af","yr",z,"_"), "z", "qv", left(got_app_yqv))
+    $got_ex_yr2 eel(got_ex_yr, \qv: plus("yr","m",qv,"_"), "qv", "qv", left(got_ex_yr), ex_app_yr)
+    $got_part2_raw cut_c(got_ex_plus_yr, got_ex_yr2, ex_plus_yr, left(got_ex_plus_yr), left(got_ex_yr2), ex_app_yr)
+
+    # ir app_xy, fr yr, xr:
+    $imp_app implies(app_xy, ex_app_yr)
+    $got_imp ir(got_part2_raw, remove(same, app_xy, left(got_part2_raw)), [imp_app], imp_app)
+    $got_fa_yr fr(got_imp, left(got_imp), [forall("yr", imp_app)], forall("yr", imp_app), "yr")
+    $ran_closed forall("xr", forall("yr", imp_app))
+    $got_part2 fr(got_fa_yr, left(got_fa_yr), [ran_closed], ran_closed, "xr")
+
+    # === Package: And(part1, part2) = TotalFrom(af,n) ===
+    $tf total_from("af","n","_")
+    $got_and mp(mp(and_intro(ex_app_n, ran_closed, []),
+        got_part1, ex_app_n, implies(ran_closed, and(ex_app_n, ran_closed)), [], left(got_part1)),
+        got_part2, ran_closed, and(ex_app_n, ran_closed), left(got_part1), left(got_part2))
+
+    # Close: af_all → Nat(m) → Nat(n) → TotalFrom(af,n)
+    $top implies(af_all, implies(nat_m, implies(nat_n, tf)))
+    $r1 ir(got_and, remove(same, nat_n, left(got_and)), [implies(nat_n, tf)], implies(nat_n, tf))
+    $r2 ir(r1, remove(same, nat_m, left(r1)), [implies(nat_m, implies(nat_n, tf))], implies(nat_m, implies(nat_n, tf)))
+    $r3 ir(r2, remove(same, af_all, left(r2)), [top], top)
+    close(r3, left(r3), [top], ["n","m","af"])
+}

@@ -9,6 +9,11 @@ from theorems.nat.arithmetic.mult.af_plus_to_apply import af_plus_to_apply
 from theorems.nat.arithmetic.mult.af_relation import af_relation
 from theorems.nat.arithmetic.mult.af_dom_sub import af_dom_sub
 from theorems.nat.arithmetic.mult.add_func_exists import add_func_exists
+from theorems.nat.arithmetic.mult.add_func_total_from import add_func_total_from
+from theorems.nat.arithmetic.mult.rec_for_mult import rec_for_mult
+from vocab.nat.recursion import recursive, total_from
+from vocab.nat.nat import num
+from vocab.logic import exists_unique
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
@@ -38,5 +43,17 @@ $_ tap("af_dom_sub ok")
 $_ qed(add_func_exists,
     forall("m", implies(nat("m","_"), exists("af", add_func("af","m","_")))), "z")
 $_ tap("add_func_exists ok")
+
+$_ qed(add_func_total_from,
+    forall("af", forall("m", forall("n",
+        implies(add_func("af","m","_"), implies(nat("m","_"), implies(nat("n","_"),
+            total_from("af","n","_"))))))), "z")
+$_ tap("add_func_total_from ok")
+
+$_ qed(rec_for_mult,
+    forall("af", forall("m", forall("z",
+        implies(add_func("af","m","_"), implies(nat("m","_"), implies(num("z",0,"_"),
+            exists_unique(\h p: recursive(h,"z","af",p), "_"))))))), "z")
+$_ tap("rec_for_mult ok")
 
 $ok true
