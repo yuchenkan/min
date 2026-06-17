@@ -1,0 +1,129 @@
+from derived import mem, implies, forall, or, iff, eq, left, right
+from vocab.sets import singleton, pair_set, ordered_pair
+from tactics import ax, fl, fr, ir, mp, apply_thm, close
+from theorems.logic.iff_chain import iff_chain
+from theorems.logic.iff_sym import iff_sym
+from theorems.logic.iff_intro import iff_intro
+from theorems.logic.iff_refl import iff_refl
+from theorems.logic.or_iff_compat import or_iff_compat
+from theorems.sets.eq_in_eq import eq_in_eq
+
+# |- eq(a,b) -> ordered_pair(p,a,y) -> ordered_pair(p,b,y)
+# Transfers the left element of an ordered pair through equality.
+$eq_ordpair_left {
+    $eq_ab eq("a","b","_")
+    $op_ay ordered_pair("p","a","y","_")
+    $op_by ordered_pair("p","b","y","_")
+
+    $zp mem("z","p")
+    $sing_za singleton("z","a","_")
+    $sing_zb singleton("z","b","_")
+    $ps_zay pair_set("z","a","y","_")
+    $ps_zby pair_set("z","b","y","_")
+    $or_a or(sing_za, ps_zay)
+    $or_b or(sing_zb, ps_zby)
+
+    $wz mem("w","z")
+    $eq_wa eq("w","a","_")
+    $eq_wb eq("w","b","_")
+    $eq_wy eq("w","y","_")
+
+    # eq_in_eq: eq(a,b) -> iff(w=a, w=b)
+    $_eie head(right(eq_in_eq))
+    $_eie_b \z: \x1: \x2: implies(eq(x1,x2,"_"), iff(eq(z,x1,"_"), eq(z,x2,"_")))
+    $got_iff_eq mp(apply_thm(eq_in_eq, _eie, ["w","a","b"], ["z","x1","x2"], _eie_b, []),
+        ax([eq_ab], [eq_ab], eq_ab), eq_ab, iff(eq_wa, eq_wb), [], [eq_ab])
+
+    # === iff(Sing(z,a), Sing(z,b)) ===
+    # fwd: Sing(z,a) -> fl w -> iff(w∈z, w=a) -> chain with iff(w=a,w=b) -> iff(w∈z, w=b) -> fr -> Sing(z,b)
+    $iff_wz_wa iff(wz, eq_wa)
+    $iff_wz_wb iff(wz, eq_wb)
+    $got_body_a fl(ax([iff_wz_wa],[iff_wz_wa],iff_wz_wa), [sing_za], [iff_wz_wa], sing_za, "w")
+    $got_fwd mp(mp(iff_chain(wz, eq_wa, eq_wb, []),
+        got_body_a, iff_wz_wa, implies(iff(eq_wa,eq_wb), iff_wz_wb), [], [sing_za]),
+        got_iff_eq, iff(eq_wa,eq_wb), iff_wz_wb, [sing_za], [eq_ab])
+    $got_sing_fwd fr(got_fwd, [sing_za, eq_ab], [sing_zb], sing_zb, "w")
+
+    # bwd: Sing(z,b) -> fl w -> iff(w∈z, w=b) -> chain with iff(w=b,w=a) -> iff(w∈z, w=a) -> fr -> Sing(z,a)
+    $got_iff_eq_rev mp(iff_sym(eq_wa, eq_wb, []), got_iff_eq, iff(eq_wa,eq_wb), iff(eq_wb,eq_wa), [], [eq_ab])
+    $got_body_b fl(ax([iff_wz_wb],[iff_wz_wb],iff_wz_wb), [sing_zb], [iff_wz_wb], sing_zb, "w")
+    $got_bwd mp(mp(iff_chain(wz, eq_wb, eq_wa, []),
+        got_body_b, iff_wz_wb, implies(iff(eq_wb,eq_wa), iff(wz, eq_wa)), [], [sing_zb]),
+        got_iff_eq_rev, iff(eq_wb,eq_wa), iff(wz, eq_wa), [sing_zb], [eq_ab])
+    $got_sing_bwd fr(got_bwd, [sing_zb, eq_ab], [sing_za], sing_za, "w")
+
+    # iff_intro
+    $imp_sf implies(sing_za, sing_zb)
+    $imp_sb implies(sing_zb, sing_za)
+    $sf ir(got_sing_fwd, [eq_ab], [imp_sf], imp_sf)
+    $sb ir(got_sing_bwd, [eq_ab], [imp_sb], imp_sb)
+    $got_iff_sing mp(mp(iff_intro(sing_za, sing_zb, []),
+        sf, imp_sf, implies(imp_sb, iff(sing_za, sing_zb)), [], [eq_ab]),
+        sb, imp_sb, iff(sing_za, sing_zb), [eq_ab], [eq_ab])
+    # [eq_ab] |- iff(sing_za, sing_zb)
+
+    # === iff(PairSet(z,a,y), PairSet(z,b,y)) ===
+    # PairSet(z,a,y) = ∀w. w∈z ↔ (w=a ∨ w=y)
+    # PairSet(z,b,y) = ∀w. w∈z ↔ (w=b ∨ w=y)
+    $or_way or(eq_wa, eq_wy)
+    $or_wby or(eq_wb, eq_wy)
+    $iff_wz_or_a iff(wz, or_way)
+    $iff_wz_or_b iff(wz, or_wby)
+
+    # or_iff_compat: iff(w=a,w=b) -> iff(w=y,w=y) -> iff(or(w=a,w=y), or(w=b,w=y))
+    $got_iff_wy iff_refl(eq_wy, [])
+    $got_iff_or mp(mp(or_iff_compat(eq_wa, eq_wy, eq_wb, eq_wy, []),
+        got_iff_eq, iff(eq_wa, eq_wb), implies(iff(eq_wy,eq_wy), iff(or_way, or_wby)), [], [eq_ab]),
+        got_iff_wy, iff(eq_wy,eq_wy), iff(or_way, or_wby), [eq_ab], [])
+
+    # fwd: PairSet(z,a,y) -> fl w -> iff(w∈z, or(w=a,w=y)) -> chain with iff(or_a, or_b) -> iff(w∈z, or(w=b,w=y)) -> fr -> PairSet(z,b,y)
+    $got_ps_body_a fl(ax([iff_wz_or_a],[iff_wz_or_a],iff_wz_or_a), [ps_zay], [iff_wz_or_a], ps_zay, "w")
+    $got_ps_fwd mp(mp(iff_chain(wz, or_way, or_wby, []),
+        got_ps_body_a, iff_wz_or_a, implies(iff(or_way,or_wby), iff_wz_or_b), [], [ps_zay]),
+        got_iff_or, iff(or_way,or_wby), iff_wz_or_b, [ps_zay], [eq_ab])
+    $got_ps_f fr(got_ps_fwd, [ps_zay, eq_ab], [ps_zby], ps_zby, "w")
+
+    # bwd: PairSet(z,b,y) -> chain with iff_sym -> PairSet(z,a,y)
+    $got_iff_or_rev mp(iff_sym(or_way, or_wby, []), got_iff_or, iff(or_way,or_wby), iff(or_wby,or_way), [], [eq_ab])
+    $got_ps_body_b fl(ax([iff_wz_or_b],[iff_wz_or_b],iff_wz_or_b), [ps_zby], [iff_wz_or_b], ps_zby, "w")
+    $got_ps_bwd mp(mp(iff_chain(wz, or_wby, or_way, []),
+        got_ps_body_b, iff_wz_or_b, implies(iff(or_wby,or_way), iff(wz, or_way)), [], [ps_zby]),
+        got_iff_or_rev, iff(or_wby,or_way), iff(wz, or_way), [ps_zby], [eq_ab])
+    $got_ps_b fr(got_ps_bwd, [ps_zby, eq_ab], [ps_zay], ps_zay, "w")
+
+    # iff_intro
+    $imp_pf implies(ps_zay, ps_zby)
+    $imp_pb implies(ps_zby, ps_zay)
+    $pf ir(got_ps_f, [eq_ab], [imp_pf], imp_pf)
+    $pb ir(got_ps_b, [eq_ab], [imp_pb], imp_pb)
+    $got_iff_ps mp(mp(iff_intro(ps_zay, ps_zby, []),
+        pf, imp_pf, implies(imp_pb, iff(ps_zay, ps_zby)), [], [eq_ab]),
+        pb, imp_pb, iff(ps_zay, ps_zby), [eq_ab], [eq_ab])
+    # [eq_ab] |- iff(ps_zay, ps_zby)
+
+    # === or_iff_compat: iff(or(sing_za,ps_zay), or(sing_zb,ps_zby)) ===
+    $got_iff_or_main mp(mp(or_iff_compat(sing_za, ps_zay, sing_zb, ps_zby, []),
+        got_iff_sing, iff(sing_za,sing_zb), implies(iff(ps_zay,ps_zby), iff(or_a, or_b)), [], [eq_ab]),
+        got_iff_ps, iff(ps_zay,ps_zby), iff(or_a, or_b), [eq_ab], [eq_ab])
+
+    # === Chain with OrdPair expansion ===
+    # From OrdPair(p,a,y): fl at z -> iff(z∈p, or(Sing(z,a), PairSet(z,a,y)))
+    $iff_zp_a iff(zp, or_a)
+    $got_iff_op fl(ax([iff_zp_a],[iff_zp_a],iff_zp_a), [op_ay], [iff_zp_a], op_ay, "z")
+
+    # iff_chain: iff(z∈p, or_a) + iff(or_a, or_b) -> iff(z∈p, or_b)
+    $iff_zp_b iff(zp, or_b)
+    $got_iff_final mp(mp(iff_chain(zp, or_a, or_b, []),
+        got_iff_op, iff_zp_a, implies(iff(or_a,or_b), iff_zp_b), [], [op_ay]),
+        got_iff_or_main, iff(or_a,or_b), iff_zp_b, [op_ay], [eq_ab])
+
+    # fr over z -> OrdPair(p,b,y)
+    $got_op_by fr(got_iff_final, [op_ay, eq_ab], [op_by], op_by, "z")
+
+    # Close: eq(a,b) -> OrdPair(p,a,y) -> OrdPair(p,b,y)
+    $imp2 implies(op_ay, op_by)
+    $top implies(eq_ab, imp2)
+    $r1 ir(got_op_by, [eq_ab], [imp2], imp2)
+    $r2 ir(r1, [], [top], top)
+    close(r2, [], [top], ["y","b","a","p"])
+}

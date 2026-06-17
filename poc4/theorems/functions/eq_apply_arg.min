@@ -1,0 +1,53 @@
+from derived import mem, implies, forall, and, exists, eq, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from tactics import ax, wr, ir, mp, apply_thm, eel, eir, cut_c, close
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.eq_ordpair_left import eq_ordpair_left
+
+# |- eq(a,b) -> apply(f,a,y) -> apply(f,b,y)
+$eq_apply_arg {
+    $eq_ab eq("a", "b", "_")
+    $app_a apply("f", "a", "y", "_")
+    $app_b apply("f", "b", "y", "_")
+
+    $op_qa ordered_pair("q", "a", "y", "_")
+    $op_qb ordered_pair("q", "b", "y", "_")
+    $qf mem("q", "f")
+    $and_qa and(op_qa, qf)
+
+    $got_op mp(and_elim_left(op_qa, qf, []),
+        ax([and_qa], [and_qa], and_qa), and_qa, op_qa, [], [and_qa])
+    $got_qf mp(and_elim_right(op_qa, qf, []),
+        ax([and_qa], [and_qa], and_qa), and_qa, qf, [], [and_qa])
+
+    # eq_ordpair_left: ∀p.∀a.∀b.∀y (close order ["y","b","a","p"])
+    # = ∀p.∀a.∀b.∀y. eq(a,b) → OP(p,a,y) → OP(p,b,y)
+    # Rename to ∀t.∀c.∀d.∀u to avoid clashing with terms a,b,y
+    $_eol_r \t: \c: \d: \u: implies(eq(c,d,"_"), implies(ordered_pair(t,c,u,"_"), ordered_pair(t,d,u,"_")))
+    $eol_renamed forall("t", forall("c", forall("d", forall("u", _eol_r("t")("c")("d")("u")))))
+    $eol_thm wr(eq_ordpair_left, [], [eol_renamed], eol_renamed)
+    $got_eol apply_thm(eol_thm, eol_renamed, ["q","a","b","y"], ["t","c","d","u"], _eol_r, [])
+
+    $got_op_b mp(mp(got_eol,
+        ax([eq_ab], [eq_ab], eq_ab), eq_ab, implies(op_qa, op_qb), [], [eq_ab]),
+        got_op, op_qa, op_qb, [eq_ab], [and_qa])
+
+    $got_and mp(mp(and_intro(op_qb, qf, []),
+        got_op_b, op_qb, implies(qf, and(op_qb, qf)), [], [eq_ab, and_qa]),
+        got_qf, qf, and(op_qb, qf), [eq_ab, and_qa], [and_qa])
+
+    $got_app eir(got_and, \v: and(ordered_pair(v, "b", "y", "_"), mem(v, "f")),
+        "p", "q", [eq_ab, and_qa])
+
+    $got_eel eel(got_app, \v: and(ordered_pair(v, "a", "y", "_"), mem(v, "f")),
+        "p", "q", [eq_ab, and_qa], app_b)
+
+    $imp2 implies(app_a, app_b)
+    $top implies(eq_ab, imp2)
+    $r1 ir(got_eel, [eq_ab], [imp2], imp2)
+    $r2 ir(r1, [], [top], top)
+    close(r2, [], [top], ["y","b","a","f"])
+}

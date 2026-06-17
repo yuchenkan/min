@@ -22,6 +22,8 @@ from theorems.functions.domain_neg_no_apply import domain_neg_no_apply
 from theorems.functions.extend_apply_new import extend_apply_new
 from theorems.functions.extend_apply_old import extend_apply_old
 from theorems.functions.eq_apply import eq_apply
+from theorems.functions.eq_apply_arg import eq_apply_arg
+from theorems.functions.eq_apply_result import eq_apply_result
 from theorems.functions.extend_function import extend_function
 from theorems.functions.apply_func_transfer import apply_func_transfer
 from theorems.functions.func_eq_transfer import func_eq_transfer
@@ -143,6 +145,16 @@ $_ qed(eq_apply,
     forall("f", forall("g", forall("x", forall("y",
         implies(eq("f","g","_"), implies(apply("f","x","y","_"), apply("g","x","y","_"))))))), "z")
 $_ tap("eq_apply ok")
+
+$_ qed(eq_apply_arg,
+    forall("f", forall("a", forall("b", forall("y",
+        implies(eq("a","b","_"), implies(apply("f","a","y","_"), apply("f","b","y","_"))))))), "z")
+$_ tap("eq_apply_arg ok")
+
+$_ qed(eq_apply_result,
+    forall("f", forall("x", forall("a", forall("b",
+        implies(eq("a","b","_"), implies(apply("f","x","a","_"), apply("f","x","b","_"))))))), "z")
+$_ tap("eq_apply_result ok")
 
 $efc_top implies(function("v","_"), implies(singleton("h","op","_"), implies(ordered_pair("op","k","y0","_"),
     implies(forall("z", implies(apply("v","k","z","_"), eq("y0","z","_"))),

@@ -1,0 +1,58 @@
+from derived import mem, implies, forall, and, exists, eq, left, right
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from tactics import ax, wr, ir, mp, apply_thm, eel, eir, cut_c, close
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.eq_ordpair_right import eq_ordpair_right
+
+# |- eq(a,b) -> apply(f,x,a) -> apply(f,x,b)
+$eq_apply_result {
+    $eq_ab eq("a", "b", "_")
+    $app_a apply("f", "x", "a", "_")
+    $app_b apply("f", "x", "b", "_")
+
+    $op_qa ordered_pair("q", "x", "a", "_")
+    $op_qb ordered_pair("q", "x", "b", "_")
+    $qf mem("q", "f")
+    $and_qa and(op_qa, qf)
+
+    # Extract from and(OrdPair(q,x,a), q∈f)
+    $got_op mp(and_elim_left(op_qa, qf, []),
+        ax([and_qa], [and_qa], and_qa), and_qa, op_qa, [], [and_qa])
+    $got_qf mp(and_elim_right(op_qa, qf, []),
+        ax([and_qa], [and_qa], and_qa), and_qa, qf, [], [and_qa])
+
+    # eq_ordpair_right: ∀p.∀x.∀a.∀b. eq(a,b) → OP(p,x,a) → OP(p,x,b)
+    # Alpha-rename: ∀t.∀u.∀c.∀d. eq(c,d) → OP(t,u,c) → OP(t,u,d)
+    $_eor_r \t: \u: \c: \d: implies(eq(c,d,"_"), implies(ordered_pair(t,u,c,"_"), ordered_pair(t,u,d,"_")))
+    $eor_renamed forall("t", forall("u", forall("c", forall("d", _eor_r("t")("u")("c")("d")))))
+    $eor_thm wr(eq_ordpair_right, [], [eor_renamed], eor_renamed)
+    $got_eor apply_thm(eor_thm, eor_renamed, ["q","x","a","b"], ["t","u","c","d"], _eor_r, [])
+
+    # mp: eq(a,b) → OP(q,x,a) → OP(q,x,b)
+    $got_op_b mp(mp(got_eor,
+        ax([eq_ab], [eq_ab], eq_ab), eq_ab, implies(op_qa, op_qb), [], [eq_ab]),
+        got_op, op_qa, op_qb, [eq_ab], [and_qa])
+
+    # and(OrdPair(q,x,b), q∈f)
+    $got_and mp(mp(and_intro(op_qb, qf, []),
+        got_op_b, op_qb, implies(qf, and(op_qb, qf)), [], [eq_ab, and_qa]),
+        got_qf, qf, and(op_qb, qf), [eq_ab, and_qa], [and_qa])
+
+    # eir: ∃q. and(OrdPair(q,x,b), q∈f) = Apply(f,x,b)
+    $got_app eir(got_and, \v: and(ordered_pair(v, "x", "b", "_"), mem(v, "f")),
+        "p", "q", [eq_ab, and_qa])
+
+    # eel: eliminate ∃q from Apply(f,x,a)
+    $got_eel eel(got_app, \v: and(ordered_pair(v, "x", "a", "_"), mem(v, "f")),
+        "p", "q", [eq_ab, and_qa], app_b)
+
+    # Close
+    $imp2 implies(app_a, app_b)
+    $top implies(eq_ab, imp2)
+    $r1 ir(got_eel, [eq_ab], [imp2], imp2)
+    $r2 ir(r1, [], [top], top)
+    close(r2, [], [top], ["b","a","x","f"])
+}
