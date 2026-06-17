@@ -60,7 +60,7 @@ The kernel uses alpha-equivalence — formulas that differ only in bound variabl
 $_ti_b \a1: \a2: \a3: \a4: \a5:
     implies(ordered_pair(a1, a2, a3, "_"),
     implies(ordered_pair(a1, a4, a5, "_"),
-    and(eqv(a2, a4, "_"), eqv(a3, a5, "_"))))
+    and(eq(a2, a4, "_"), eq(a3, a5, "_"))))
 $ti_r forall("a1", forall("a2", forall("a3", forall("a4", forall("a5",
     _ti_b("a1")("a2")("a3")("a4")("a5"))))))
 $ti_thm wr(tuple_injection, left(tuple_injection), [ti_r], ti_r)
@@ -116,6 +116,10 @@ cd poc4
 ### Imports must be at top
 
 All `from ... import ...` lines must appear before any `$` bindings in a `.min` file. The parser does not support `from` after `$` lines.
+
+### Do not remove min.cache
+
+The cache (`min.cache`) is invalidated automatically based on source file mtime. Never `rm -f min.cache` — it forces a full cold rebuild (~8 min). Just run the binary; changed modules rebuild, unchanged ones load from cache.
 
 ### Cache suppresses tap output
 

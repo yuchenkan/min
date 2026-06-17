@@ -2,7 +2,7 @@ from derived import implies, forall, and
 from vocab.tm.tm import tm_config, tm_transition, tm_reaches
 from vocab.nat.nat import num
 from vocab.functions import function
-from util.str import parse_nat, split, substr
+from util.str import parse_nat
 
 # _rule: one transition characterization formula
 $_rule \delta qs rs ws ds qns p: {
@@ -19,34 +19,63 @@ $_rule \delta qs rs ws ds qns p: {
             tm_transition(delta, qv, rv, wv, dv, qnv, np)))))))))))
 }
 
-$_parse_dir \d: ?(eqv(d, "R"), 1, ?(eqv(d, "L"), 0, none))
+# scanner: skip spaces, parse tokens from "qs rs ws dir qns" fragments
+$_skip_sp \self s pos slen:
+    ?(eqv(pos, slen), pos,
+        ?(eqv(nth(s, pos), " "), self(self, s, add(pos, 1), slen), pos))
 
-$_parse_transition \line delta p: {
-    $parts split(line, " ")
-    $qs head(parse_nat(nth(parts, 0), 0))
-    $rs head(parse_nat(nth(parts, 1), 0))
-    $ws head(parse_nat(nth(parts, 2), 0))
-    $ds _parse_dir(nth(parts, 3))
-    $qns head(parse_nat(nth(parts, 4), 0))
-    _rule(delta, qs, rs, ws, ds, qns, p)
+$_parse_dir_at \s pos:
+    ?(eqv(nth(s, pos), "R"), [1, add(pos, 1)],
+    ?(eqv(nth(s, pos), "L"), [0, add(pos, 1)], none))
+
+# parse one transition: "qs rs ws dir qns" starting at pos in src
+# returns [rule_formula, next_pos]
+$_scan_transition \src pos slen delta p: {
+    $p1 _skip_sp(_skip_sp, src, pos, slen)
+    $r1 parse_nat(src, p1)
+    $qs head(r1)
+
+    $p2 _skip_sp(_skip_sp, src, nth(r1, 1), slen)
+    $r2 parse_nat(src, p2)
+    $rs head(r2)
+
+    $p3 _skip_sp(_skip_sp, src, nth(r2, 1), slen)
+    $r3 parse_nat(src, p3)
+    $ws head(r3)
+
+    $p4 _skip_sp(_skip_sp, src, nth(r3, 1), slen)
+    $r4 _parse_dir_at(src, p4)
+    $ds head(r4)
+
+    $p5 _skip_sp(_skip_sp, src, nth(r4, 1), slen)
+    $r5 parse_nat(src, p5)
+    $qns head(r5)
+
+    $p6 _skip_sp(_skip_sp, src, nth(r5, 1), slen)
+    [_rule(delta, qs, rs, ws, ds, qns, p), p6]
 }
 
-$_trim \line: ?(eqv(len(line), 0), line,
-    ?(eqv(nth(line, 0), " "), substr(line, 1, len(line)), line))
+# expect semicolon after each rule, fail if missing
+$_expect_semi \s pos slen:
+    ?(eqv(pos, slen), _fail("tm source: expected ';' at end"),
+    ?(eqv(nth(s, pos), ";"), add(pos, 1),
+        _fail(add("tm source: expected ';' at position ", str(pos)))))
 
-# delta_from_source(src, delta, p): parse transition table into delta characterization
-# src: semicolon-separated "state read write dir next_state", dir is R or L
+# delta_from_source: parse transition table, each rule terminated by ;
 $delta_from_source \src delta p: {
     $np add(p, "_")
-    $lines split(src, ";")
-    $_build \self lines2 delta2 p2 i acc: {
-        $rule _parse_transition(_trim(nth(lines2, i)), delta2, p2)
-        $combined ?(is_none(acc), rule, and(acc, rule))
-        $next add(i, 1)
-        ?(eqv(next, len(lines2)), combined,
-            self(self, lines2, delta2, p2, next, combined))
+    $slen len(src)
+    $_build \self s pos acc: {
+        $pos2 _skip_sp(_skip_sp, s, pos, slen)
+        ?(eqv(pos2, slen), acc, {
+            $r _scan_transition(s, pos2, slen, delta, np)
+            $rule head(r)
+            $after_semi _expect_semi(s, nth(r, 1), slen)
+            $combined ?(is_none(acc), rule, and(acc, rule))
+            self(self, s, after_semi, combined)
+        })
     }
-    _build(_build, lines, delta, np, 0, none)
+    _build(_build, src, 0, none)
 }
 
 # fold right-to-left: build implies chain from array
