@@ -51,7 +51,7 @@ ax.plot(py_dates, [l/1000 for l in py_lines], 'k-o', markersize=3, linewidth=1, 
 
 dsl_dates = [datetime.strptime(d, '%Y-%m-%d') for d, _ in dsl_data]
 dsl_lines = [l for _, l in dsl_data]
-ax.plot(dsl_dates, [l/1000 for l in dsl_lines], 'b-s', markersize=3, linewidth=1, label='.min DSL (C kernel)')
+ax.plot(dsl_dates, [l/1000 for l in dsl_lines], 'k--s', markersize=3, linewidth=1, label='.min DSL (C kernel)')
 
 # Annotations
 ax.annotate('recursion theorem', xy=(datetime(2026, 5, 10), 22.3),
