@@ -36,3 +36,41 @@ $single_valued \f p: {
 $_d_function \f: add("Func(", add(nth(f, 2), ")"))
 $function \f p: [_d_function,
     and(relation(f, p), single_valued(f, p)), f]
+
+# range(r, f, p): r = ran(f). ∀y. y∈r ↔ ∃x. Apply(f,x,y)
+$_d_range \f: add(nth(f, 2), add(" = ran(", add(nth(f, 3), ")")))
+$range \r f p: {
+    $x add(p, "x")
+    $y add(p, "y")
+    $np add(p, "_")
+    [_d_range,
+        forall(y, iff(mem(y, r), exists(x, apply(f, x, y, np)))), r, f]
+}
+
+# injection(f, p): ∀x1,x2,y. Apply(f,x1,y) ∧ Apply(f,x2,y) → Eq(x1,x2)
+$_d_injection \f: add("Inj(", add(nth(f, 2), ")"))
+$injection \f p: {
+    $x1 add(p, "x1")
+    $x2 add(p, "x2")
+    $y add(p, "y")
+    $np add(p, "_")
+    [_d_injection,
+        forall(x1, forall(x2, forall(y,
+            implies(and(apply(f, x1, y, np), apply(f, x2, y, np)), eq(x1, x2, np))))), f]
+}
+
+# surjection(f, a, b, p): Dom(f)=a ∧ ∀y. y∈b → ∃x. Apply(f,x,y)
+$_d_surjection \f: add("Surj(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
+$surjection \f a b p: {
+    $x add(p, "x")
+    $y add(p, "y")
+    $np add(p, "_")
+    [_d_surjection,
+        and(domain(a, f, p),
+            forall(y, implies(mem(y, b), exists(x, apply(f, x, y, np))))), f, a, b]
+}
+
+# bijection(f, a, b, p): Function(f) ∧ Inj(f) ∧ Surj(f,a,b)
+$_d_bijection \f: add("Bij(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
+$bijection \f a b p: [_d_bijection,
+    and(and(function(f, p), injection(f, p)), surjection(f, a, b, p)), f, a, b]

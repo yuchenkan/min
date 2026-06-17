@@ -30,7 +30,7 @@ Formal Proof Construction from ZFC Axioms to Program Correctness}
 
 \begin{document}
 \maketitle
-\let\thefootnote\relax\footnotetext{DOI: \url{https://doi.org/10.5281/zenodo.20734919}}
+\let\thefootnote\relax\footnotetext{DOI: \url{https://doi.org/10.5281/zenodo.20735677}}
 
 \begin{abstract}
 Formal proofs are too large for humans to write, read, or verify by inspection.
@@ -46,8 +46,8 @@ correctness (\emph{kernel-verified}).
 
 We demonstrate this pipeline by constructing a verified proof chain from
 Zermelo set theory axioms to the correctness of a Turing machine that computes
-addition --- spanning 10 abstraction levels, 246 theorems, and 38,159 lines
-of proof, all verified by a 585-line sequent calculus kernel.
+addition --- spanning 10 abstraction levels, 246 theorems, and 41,347 lines
+of proof, all verified by a 622-line sequent calculus kernel.
 Three aspects of this result are notable: the proof uses only Zermelo set
 theory (Z), achieving tighter axiom bounds than typical formalizations;
 the proof chain connects arithmetic directly to computation within a single
@@ -92,7 +92,7 @@ We propose a pipeline that combines three components:
   \item \textbf{Kernel-verified.} A minimal proof kernel checks every proof
     step at construction time. If the kernel accepts a proof, it is correct
     regardless of whether the LLM made errors along the way. The kernel is
-    small enough (585 lines of C) to be audited by a human.
+    small enough (622 lines of C) to be audited by a human.
 \end{enumerate}
 
 The key insight is that these three components address different aspects of a
@@ -151,7 +151,7 @@ At this scale, three human limitations become absolute:
 
 \begin{itemize}
   \item \textbf{Humans cannot write these proofs.} The sheer volume of
-    mechanical proof steps exceeds what a person can sustain. Writing 38,159
+    mechanical proof steps exceeds what a person can sustain. Writing 41,347
     lines of correct proof code by hand, where each line must satisfy a proof
     kernel's rule checking, is not difficult --- it is infeasible.
   \item \textbf{Humans cannot read these proofs.} The proof of a single
@@ -159,7 +159,7 @@ At this scale, three human limitations become absolute:
     variable instantiations, and cut compositions. No human can hold this in
     working memory or extract meaning from it by inspection.
   \item \textbf{Humans cannot verify these proofs.} Without a mechanical
-    checker, there is no way to confirm that 38,159 lines of proof are
+    checker, there is no way to confirm that 41,347 lines of proof are
     correct. The proof exists beyond human verification capacity.
 \end{itemize}
 
@@ -199,7 +199,7 @@ straightforward.
 
 \subsection{The Proof Kernel}
 
-The proof kernel is a 585-line C module (\texttt{kernel.c} + \texttt{kernel.h}).
+The proof kernel is a 622-line C module (\texttt{kernel.c} + \texttt{kernel.h}).
 The complete trusted core --- the kernel, node representation (123 lines),
 string interning (236 lines), and the parser (459 lines) ---
 totals approximately 1,400 lines of C. The kernel implements:
@@ -379,9 +379,9 @@ Table~\ref{tab:summary} summarizes the proof chain.
 \textbf{Metric} & \textbf{Value} \\
 \midrule
 ZFC axioms & 10 defined, 7 used (Z only) \\
-Proof kernel (C) & 585 lines \\
+Proof kernel (C) & 622 lines \\
 Total theorems & 246 \\
-Total proof code & 38,159 lines \\
+Total proof code & 41,347 lines \\
 Proof language & custom (.min files) \\
 Abstraction levels crossed & 10 \\
 Development time & $\sim$51 days \\
@@ -470,7 +470,7 @@ function $h$. The kernel does not permit implicit restrictions. The
 definition must be self-contained.
 
 The textbook was written by the author and reviewed over three years.
-The error was caught mechanically, in minutes, by a 585-line kernel during an
+The error was caught mechanically, in minutes, by a 622-line kernel during an
 LLM-driven formalization attempt.
 
 % ============================================================
