@@ -98,6 +98,23 @@ $sep sep_ax(["v1","v2","v3"], \sv a np: exists("rp", apply("f",sv,"rp","_")), "_
 $sep sep_ax(["f"], \sv a np: exists(add(np,"rp"), apply("f",sv,add(np,"rp"),"_")), "_")
 ```
 
+### `cut` requires exact sequent match — use `cut_c`
+
+The kernel's `cut(p1, p2, sl, sr, A)` validates that premise 0 has **exactly** `(sl |- sr ∪ {A})` and premise 1 has **exactly** `(sl ∪ {A} |- sr)`. It does NOT just check that `A` appears somewhere in the premises — the full left/right must match. This means you must `wr` to add `sr` formulas to p1's right, and `wl` to add `sl` formulas to p2's left, before calling `cut`.
+
+Use `cut_c(got_pred, prf, pred, ctx1, ctx2, D)` instead — it handles all weakening automatically:
+- `got_pred`: `ctx1 |- [pred]`
+- `prf`: `ctx2 |- [D]` (with `pred` in `ctx2`)
+- Result: `merged |- [D]`
+
+```
+# WRONG: a4 has [char, xb] |- [phi_x] but cut expects [char, xb] |- [phi_x, imp_app_neg]
+$bad cut(a4, a5_fl, [char, xb], [imp_app_neg], phi_x)
+
+# RIGHT: cut_c handles weakening internally
+$good cut_c(a4, a5_fl, phi_x, [char, xb], [phi_x], imp_app_neg)
+```
+
 ### No vocab-internal names in proofs
 
 Never use `"__"` as prefix or `"_x"` style variable names in proof files. Use clean names (`"y"` not `"_y"`, `"_"` not `"__"`). The kernel's alpha-equivalence handles matching with vocab expansions. Run `./lint.sh` from the `poc4/` directory to check.
