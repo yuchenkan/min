@@ -14,7 +14,6 @@ make -C core-ci
 ./core-ci/dst/min theorems/test.min
 ```
 
-Exit code 0 means all proofs verified.
 
 ## Structure
 
@@ -37,7 +36,8 @@ from derived import implies, forall, eq
 from tactics import ax, ir, fr, mp, apply_thm
 
 $my_theorem {
-    $hyp implies(eq("a","b","_"), eq("b","a","_"))
+    $_body \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $hyp _body("a")("b")
     $got ax([hyp], [hyp], hyp)
     $cur ir(got, [], [hyp], hyp)
     close(cur, [], [cur_formula], ["b","a"])
