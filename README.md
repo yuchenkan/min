@@ -29,7 +29,7 @@ paper/             Accompanying paper (LaTeX)
 
 ## The .min language
 
-Proofs are written in a custom DSL. Each `$name expr` binds a proof term. The kernel checks every step — if it type-checks, it's correct.
+Proofs are written in a custom DSL. `$name expr` binds a name to a value. The kernel checks every proof step.
 
 ```
 from derived import implies, forall, eq
