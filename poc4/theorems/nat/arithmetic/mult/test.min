@@ -20,10 +20,11 @@ from theorems.nat.arithmetic.mult.add_func_eq_transfer import add_func_eq_transf
 from theorems.nat.arithmetic.mult.mf_single_valued import mf_single_valued
 from theorems.nat.arithmetic.mult.mf_backward import mf_backward
 from theorems.nat.arithmetic.mult.mf_step import mf_step
+from theorems.nat.arithmetic.mult.mf_dom_eq import mf_dom_eq
 from vocab.nat.recursion import recursive, total_from
-from vocab.functions import function, single_valued
-from vocab.sets import relation
-from vocab.nat.nat import num
+from vocab.functions import function, single_valued, domain
+from vocab.sets import relation, product
+from vocab.nat.nat import num, omega
 from vocab.logic import exists_unique
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
@@ -158,5 +159,14 @@ $_ qed(mf_step,
                                 forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
                                     apply("h","pair2","result","_"))))))))))))))))), "z")
 $_ tap("mf_step ok")
+
+$_ qed(mf_dom_eq,
+    forall("h", forall("w", implies(mf_char_fn("h"),
+        implies(omega("w","_"),
+            forall("dd", forall("prod",
+                implies(domain("dd","h","_"),
+                    implies(product("prod","w","w","_"),
+                        eq("dd","prod","_"))))))))), "z")
+$_ tap("mf_dom_eq ok")
 
 $ok true
