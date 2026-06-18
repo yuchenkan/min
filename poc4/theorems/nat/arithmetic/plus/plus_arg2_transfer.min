@@ -1,0 +1,60 @@
+from derived import implies, forall, eq, left, right, head, arg2
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.nat.arithmetic.plus import plus_func, plus
+from tactics import ax, ir, fr, mp, apply_thm, close, same
+from util.list import remove
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
+
+# plus_arg2_transfer: Plus(x,m1,y) → eq(m1,m2) → Plus(x,m2,y)
+# Transfers the second argument of Plus using ordpair_val_transfer on the OP inside.
+
+$plus_arg2_transfer {
+    $plus_1 plus("x","m1","y","_")
+    $plus_2 plus("x","m2","y","_")
+    $eq12 eq("m1","m2","_")
+    $eq21 eq("m2","m1","_")
+
+    $pf plus_func("h","_")
+    $op1 ordered_pair("pair","x","m1","_")
+    $op2 ordered_pair("pair","x","m2","_")
+    $app_y apply("h","pair","y","_")
+
+    # eq_symmetric: eq(m1,m2) → eq(m2,m1)
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq21 mp(apply_thm(eq_symmetric, _es, ["m1","m2"], ["a","b"], _es_b, []),
+        ax([eq12], [eq12], eq12), eq12, eq21, [], [eq12])
+
+    # ordpair_val_transfer: eq(m2,m1) → OP(pair,x,m2) → OP(pair,x,m1)
+    $_ovt head(right(ordpair_val_transfer))
+    $_ovt_b \t: \a: \b: \c: implies(eq(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $ovt_inst apply_thm(ordpair_val_transfer, _ovt, ["pair","x","m2","m1"], ["t","a","b","c"], _ovt_b, [])
+    $got_op_xfer mp(ovt_inst, got_eq21, eq21, implies(op2, op1), [], [eq12])
+
+    # Open Plus(x,m1,y): inst h, mp PlusFunc, inst pair, mp OP(pair,x,m1)
+    $pi1 apply_thm(ax([plus_1],[plus_1],plus_1), plus_1, ["h"], ["h"],
+        \h: implies(plus_func(h,"_"), forall("pair", implies(ordered_pair("pair","x","m1","_"), apply(h,"pair","y","_")))),
+        [plus_1])
+    $pi2 mp(pi1, ax([pf],[pf],pf), pf,
+        forall("pair", implies(op1, app_y)),
+        [plus_1], [pf])
+    $pi3 apply_thm(pi2, head(right(pi2)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"x","m1","_"), apply("h",pair,"y","_")), left(pi2))
+
+    # Assume OP(pair,x,m2), transfer to OP(pair,x,m1), then mp
+    $got_op1 mp(got_op_xfer, ax([op2],[op2],op2), op2, op1, [eq12], [op2])
+    $got_app mp(pi3, got_op1, op1, app_y, left(pi3), [eq12, op2])
+
+    # Close Plus(x,m2,y): ir op2, fr pair, ir pf, fr h
+    $cur ir(got_app, remove(same, op2, left(got_app)), [implies(op2, app_y)], implies(op2, app_y))
+    $cur fr(cur, left(cur), [forall("pair", head(right(cur)))], forall("pair", head(right(cur))), "pair")
+    $cur ir(cur, remove(same, pf, left(cur)), [implies(pf, head(right(cur)))], implies(pf, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
+
+    # ir hypotheses and close
+    $cur ir(cur, remove(same, eq12, left(cur)), [implies(eq12, head(right(cur)))], implies(eq12, head(right(cur))))
+    $cur ir(cur, remove(same, plus_1, left(cur)), [implies(plus_1, head(right(cur)))], implies(plus_1, head(right(cur))))
+    close(cur, left(cur), right(cur), ["m2","m1","y","x"])
+}

@@ -1,0 +1,367 @@
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2, pairing_ax
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.nat.nat import nat, num
+from vocab.nat.recursion import recursive
+from vocab.nat.arithmetic.mult import add_func
+from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eq_reflexive import eq_reflexive
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.sets.kuratowski import kuratowski
+from theorems.functions.apply_key_transfer import apply_key_transfer
+from theorems.nat.recursion.rec_apply_dom import rec_apply_dom
+from theorems.nat.arithmetic.mult.add_func_eq_transfer import add_func_eq_transfer
+from theorems.nat.arithmetic.mult.rec_mult_agree import rec_mult_agree
+from theorems.nat.arithmetic.mult.mf_forward import mf_forward
+
+# mf_single_valued:
+# char_fwd(h) → ∀key,y1,y2. And(Apply(h,key,y1), Apply(h,key,y2)) → eq(y1,y2)
+#
+# From mf_forward x2: get m,n,z,af,hm for each Apply.
+# kuratowski: same key → eq(m1,m2), eq(n1,n2).
+# add_func_eq_transfer: AddFunc(af2,m2) + eq(m2,m1) → AddFunc(af2,m1).
+# apply_key_transfer: Apply(hm2,n2,y2) + eq(n2,n1) → Apply(hm2,n1,y2).
+# rec_apply_dom: Rec(hm1,...) + Apply(hm1,n1,y1) → Nat(n1).
+# rec_mult_agree: both AddFunc's for m1, both Rec's, Apply's at n1 → eq(y1,y2).
+
+$mf_single_valued {
+    $phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
+        exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+            and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+            and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+                exists(add(np,"z"), and(num(add(np,"z"),0,np),
+                    exists(add(np,"af"), and(add_func(add(np,"af"),add(np,"m"),add(np,"_")),
+                        exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"z"),add(np,"af"),add(np,"_")),
+                            apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))))))
+
+    $char_fwd forall("xv", implies(mem("xv","h"), phi("xv","_")))
+
+    $app1 apply("h","key","y1","_")
+    $app2 apply("h","key","y2","_")
+    $and_apps and(app1, app2)
+    $eq_y12 eq("y1","y2","_")
+
+    # === Step 1: mf_forward on Apply(h,key,y1) ===
+    $_fwd head(right(mf_forward))
+    $_fwd_b \h: \key: \val: implies(
+        forall("xv", implies(mem("xv",h), phi("xv","_"))),
+        implies(apply(h,key,val,"_"),
+            exists("mv", and(nat("mv","_"), exists("nv", and(ordered_pair(key,"mv","nv","_"),
+                exists("zv", and(num("zv",0,"_"),
+                    exists("afv", and(add_func("afv","mv","_"),
+                        exists("hm", and(recursive("hm","zv","afv","_"), apply("hm","nv",val,"_")))))))))))))
+    $fwd_ctx left(mf_forward)
+    $fwd1_inst apply_thm(mf_forward, _fwd, ["h","key","y1"], ["h","key","val"], _fwd_b, fwd_ctx)
+    $fwd1_result exists("mv", and(nat("mv","_"), exists("nv", and(ordered_pair("key","mv","nv","_"),
+        exists("zv", and(num("zv",0,"_"),
+            exists("afv", and(add_func("afv","mv","_"),
+                exists("hm", and(recursive("hm","zv","afv","_"), apply("hm","nv","y1","_")))))))))))
+    $got_fwd1 mp(mp(fwd1_inst, ax([char_fwd], [char_fwd], char_fwd), char_fwd,
+        implies(app1, fwd1_result), fwd_ctx, [char_fwd]),
+        ax([app1], [app1], app1), app1, fwd1_result, add(fwd_ctx, [char_fwd]), [app1])
+
+    # === Step 2: mf_forward on Apply(h,key,y2) with renamed bound vars ===
+    $fwd2_result exists("mv2", and(nat("mv2","_"), exists("nv2", and(ordered_pair("key","mv2","nv2","_"),
+        exists("zv2", and(num("zv2",0,"_"),
+            exists("afv2", and(add_func("afv2","mv2","_"),
+                exists("hm2", and(recursive("hm2","zv2","afv2","_"), apply("hm2","nv2","y2","_")))))))))))
+    $_fwd_b2 \h: \key: \val: implies(
+        forall("xv", implies(mem("xv",h), phi("xv","_"))),
+        implies(apply(h,key,val,"_"),
+            exists("mv2", and(nat("mv2","_"), exists("nv2", and(ordered_pair(key,"mv2","nv2","_"),
+                exists("zv2", and(num("zv2",0,"_"),
+                    exists("afv2", and(add_func("afv2","mv2","_"),
+                        exists("hm2", and(recursive("hm2","zv2","afv2","_"), apply("hm2","nv2",val,"_")))))))))))))
+    $fwd2_r forall("h", forall("key", forall("val", _fwd_b2("h")("key")("val"))))
+    $fwd2_thm wr(mf_forward, fwd_ctx, [fwd2_r], fwd2_r)
+    $fwd2_inst apply_thm(fwd2_thm, fwd2_r, ["h","key","y2"], ["h","key","val"], _fwd_b2, fwd_ctx)
+    $got_fwd2 mp(mp(fwd2_inst, ax([char_fwd], [char_fwd], char_fwd), char_fwd,
+        implies(app2, fwd2_result), fwd_ctx, [char_fwd]),
+        ax([app2], [app2], app2), app2, fwd2_result, add(fwd_ctx, [char_fwd]), [app2])
+
+    # === Pieces from both forwards ===
+    $nat_mv nat("mv","_")
+    $op1 ordered_pair("key","mv","nv","_")
+    $num_zv num("zv",0,"_")
+    $af1 add_func("afv","mv","_")
+    $rec1 recursive("hm","zv","afv","_")
+    $app_hm1 apply("hm","nv","y1","_")
+    $and_ra1 and(rec1, app_hm1)
+
+    $nat_mv2 nat("mv2","_")
+    $op2 ordered_pair("key","mv2","nv2","_")
+    $num_zv2 num("zv2",0,"_")
+    $af2 add_func("afv2","mv2","_")
+    $rec2 recursive("hm2","zv2","afv2","_")
+    $app_hm2 apply("hm2","nv2","y2","_")
+    $and_ra2 and(rec2, app_hm2)
+
+    # === Step 3: kuratowski → eq(mv,mv2) ∧ eq(nv,nv2) ===
+    $_er head(right(eq_reflexive))
+    $got_eq_kk apply_thm(eq_reflexive, _er, ["key"], ["key"], \a: eq(a,a,"_"), [])
+
+    $_ku_b \t1: \t2: \a: \b: \c: \d: implies(ordered_pair(t1,a,b,"_"),
+        implies(ordered_pair(t2,c,d,"_"), implies(eq(t1,t2,"_"), and(eq(a,c,"_"), eq(b,d,"_")))))
+    $ku_r forall("t1", forall("t2", forall("a", forall("b", forall("c", forall("d",
+        _ku_b("t1")("t2")("a")("b")("c")("d")))))))
+    $ku_thm wr(kuratowski, left(kuratowski), [ku_r], ku_r)
+    $ku_inst apply_thm(ku_thm, ku_r, ["key","key","mv","nv","mv2","nv2"],
+        ["t1","t2","a","b","c","d"], _ku_b, left(kuratowski))
+    $ku1 mp(ku_inst, ax([op1], [op1], op1), op1, arg2(head(right(ku_inst))), left(ku_inst), [op1])
+    $ku2 mp(ku1, ax([op2], [op2], op2), op2, arg2(head(right(ku1))), left(ku1), [op2])
+    $eq_goal and(eq("mv","mv2","_"), eq("nv","nv2","_"))
+    $got_eq mp(ku2, got_eq_kk, eq("key","key","_"), eq_goal, left(ku2), [])
+    $eq_mm eq("mv","mv2","_")
+    $eq_nn eq("nv","nv2","_")
+    $got_eq_mm mp(and_elim_left(eq_mm, eq_nn, []), got_eq, eq_goal, eq_mm, [], left(got_eq))
+    $got_eq_nn mp(and_elim_right(eq_mm, eq_nn, []), got_eq, eq_goal, eq_nn, [], left(got_eq))
+
+    # === Step 4: add_func_eq_transfer: AddFunc(afv2,mv2) + eq(mv2,mv) → AddFunc(afv2,mv) ===
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq_m2m1 mp(apply_thm(eq_symmetric, _es, ["mv","mv2"], ["a","b"], _es_b, []),
+        got_eq_mm, eq_mm, eq("mv2","mv","_"), [], left(got_eq_mm))
+
+    $af2_at_mv add_func("afv2","mv","_")
+    $_afet head(right(add_func_eq_transfer))
+    $_afet_b \af: \m1: \m2: implies(add_func(af,m1,"_"), implies(eq(m1,m2,"_"), add_func(af,m2,"_")))
+    $afet_inst apply_thm(add_func_eq_transfer, _afet, ["afv2","mv2","mv"], ["af","m1","m2"], _afet_b, [])
+    $afet_s1 mp(afet_inst, ax([af2],[af2],af2), af2,
+        implies(eq("mv2","mv","_"), af2_at_mv), [], [af2])
+    $got_af2_mv mp(afet_s1, got_eq_m2m1, eq("mv2","mv","_"), af2_at_mv,
+        [af2], left(got_eq_m2m1))
+
+    # === Step 5: apply_key_transfer: Apply(hm2,nv2,y2) + eq(nv2,nv) → Apply(hm2,nv,y2) ===
+    $got_eq_n2n1 mp(apply_thm(eq_symmetric, _es, ["nv","nv2"], ["a","b"], _es_b, []),
+        got_eq_nn, eq_nn, eq("nv2","nv","_"), [], left(got_eq_nn))
+
+    $_akt_b \f: \x: \x2: \y: implies(eq(x,x2,"_"), implies(apply(f,x,y,"_"), apply(f,x2,y,"_")))
+    $akt_r forall("f", forall("x", forall("x2", forall("y", _akt_b("f")("x")("x2")("y")))))
+    $akt_thm wr(apply_key_transfer, [], [akt_r], akt_r)
+    $app_hm2_nv apply("hm2","nv","y2","_")
+    $akt_inst apply_thm(akt_thm, akt_r, ["hm2","nv2","nv","y2"], ["f","x","x2","y"], _akt_b, [])
+    $akt_s1 mp(akt_inst, got_eq_n2n1, eq("nv2","nv","_"),
+        implies(app_hm2, app_hm2_nv), [], left(got_eq_n2n1))
+    $got_app_hm2_nv mp(akt_s1,
+        ax([app_hm2],[app_hm2],app_hm2), app_hm2, app_hm2_nv,
+        left(got_eq_n2n1), [app_hm2])
+
+    # === Step 6: rec_apply_dom: Rec(hm,zv,afv) + Apply(hm,nv,y1) → Nat(nv) ===
+    $_rad head(right(rec_apply_dom))
+    $_rad_b \h: \a: \f: \x: \y: implies(recursive(h,a,f,"_"), implies(apply(h,x,y,"_"), nat(x,"_")))
+    $nat_nv nat("nv","_")
+    $rad_ctx left(rec_apply_dom)
+    $rad_inst apply_thm(rec_apply_dom, _rad, ["hm","zv","afv","nv","y1"],
+        ["h","a","f","x","y"], _rad_b, rad_ctx)
+    $rad_s1 mp(rad_inst, ax([rec1],[rec1],rec1), rec1,
+        implies(app_hm1, nat_nv), rad_ctx, [rec1])
+    $got_nat_nv mp(rad_s1, ax([app_hm1],[app_hm1],app_hm1), app_hm1,
+        nat_nv, add(rad_ctx, [rec1]), [app_hm1])
+
+    # === Step 7: rec_mult_agree → eq(y1,y2) ===
+    $_rma head(right(rec_mult_agree))
+    $_rma_b \af1: \m: \z1: \hm1: \af2: \z2: \hm2: \n: \v1: \v2:
+        implies(add_func(af1,m,"_"),
+            implies(add_func(af2,m,"_"),
+                implies(recursive(hm1,z1,af1,"_"),
+                    implies(recursive(hm2,z2,af2,"_"),
+                        implies(num(z1,0,"_"),
+                            implies(num(z2,0,"_"),
+                                implies(nat(m,"_"),
+                                    implies(nat(n,"_"),
+                                        implies(apply(hm1,n,v1,"_"),
+                                            implies(apply(hm2,n,v2,"_"),
+                                                eq(v1,v2,"_")))))))))))
+    $rma_ctx left(rec_mult_agree)
+    $rma_inst apply_thm(rec_mult_agree, _rma,
+        ["afv","mv","zv","hm","afv2","zv2","hm2","nv","y1","y2"],
+        ["af1","m","z1","hm1","af2","z2","hm2","n","v1","v2"], _rma_b, rma_ctx)
+    # 1. AddFunc(afv,mv)
+    $rma1 mp(rma_inst, ax([af1],[af1],af1), af1, arg2(head(right(rma_inst))), rma_ctx, [af1])
+    # 2. AddFunc(afv2,mv) — transferred
+    $rma2 mp(rma1, got_af2_mv, af2_at_mv, arg2(head(right(rma1))), left(rma1), left(got_af2_mv))
+    # 3. Rec(hm,zv,afv)
+    $rma3 mp(rma2, ax([rec1],[rec1],rec1), rec1, arg2(head(right(rma2))), left(rma2), [rec1])
+    # 4. Rec(hm2,zv2,afv2)
+    $rma4 mp(rma3, ax([rec2],[rec2],rec2), rec2, arg2(head(right(rma3))), left(rma3), [rec2])
+    # 5. Num(zv,0)
+    $rma5 mp(rma4, ax([num_zv],[num_zv],num_zv), num_zv, arg2(head(right(rma4))), left(rma4), [num_zv])
+    # 6. Num(zv2,0)
+    $rma6 mp(rma5, ax([num_zv2],[num_zv2],num_zv2), num_zv2, arg2(head(right(rma5))), left(rma5), [num_zv2])
+    # 7. Nat(mv)
+    $rma7 mp(rma6, ax([nat_mv],[nat_mv],nat_mv), nat_mv, arg2(head(right(rma6))), left(rma6), [nat_mv])
+    # 8. Nat(nv) — derived from rec_apply_dom
+    $rma8 mp(rma7, got_nat_nv, nat_nv, arg2(head(right(rma7))), left(rma7), left(got_nat_nv))
+    # 9. Apply(hm,nv,y1)
+    $rma9 mp(rma8, ax([app_hm1],[app_hm1],app_hm1), app_hm1, arg2(head(right(rma8))), left(rma8), [app_hm1])
+    # 10. Apply(hm2,nv,y2) — key-transferred
+    $got_eq_y mp(rma9, got_app_hm2_nv, app_hm2_nv, eq_y12, left(rma9), left(got_app_hm2_nv))
+
+    # === Step 8: Close fwd1 existentials (inside-out: hm, afv, zv, nv, mv) ===
+
+    # --- eel hm ---
+    $got_rec1_from mp(and_elim_left(rec1, app_hm1, []),
+        ax([and_ra1], [and_ra1], and_ra1), and_ra1, rec1, [], [and_ra1])
+    $got_app1_from mp(and_elim_right(rec1, app_hm1, []),
+        ax([and_ra1], [and_ra1], and_ra1), and_ra1, app_hm1, [], [and_ra1])
+    $cur got_eq_y
+    $cur cut_c(got_rec1_from, cur, rec1, [and_ra1], left(cur), eq_y12)
+    $cur cut_c(got_app1_from, cur, app_hm1, [and_ra1], left(cur), eq_y12)
+    $cur eel(cur, \hm: and(recursive(hm,"zv","afv","_"), apply(hm,"nv","y1","_")),
+        "hm", "hm", left(cur), eq_y12)
+
+    # --- eel afv ---
+    $ex_hm1 exists("hm", and_ra1)
+    $and_afv1 and(af1, ex_hm1)
+    $got_af1_from mp(and_elim_left(af1, ex_hm1, []),
+        ax([and_afv1], [and_afv1], and_afv1), and_afv1, af1, [], [and_afv1])
+    $got_exhm1_from mp(and_elim_right(af1, ex_hm1, []),
+        ax([and_afv1], [and_afv1], and_afv1), and_afv1, ex_hm1, [], [and_afv1])
+    $cur cut_c(got_af1_from, cur, af1, [and_afv1], left(cur), eq_y12)
+    $cur cut_c(got_exhm1_from, cur, ex_hm1, [and_afv1], left(cur), eq_y12)
+    $cur eel(cur, \afv: and(add_func(afv,"mv","_"),
+        exists("hm", and(recursive("hm","zv",afv,"_"), apply("hm","nv","y1","_")))),
+        "afv", "afv", left(cur), eq_y12)
+
+    # --- eel zv ---
+    $ex_afv1 exists("afv", and(af1, ex_hm1))
+    $and_zv1 and(num_zv, ex_afv1)
+    $got_numzv_from mp(and_elim_left(num_zv, ex_afv1, []),
+        ax([and_zv1], [and_zv1], and_zv1), and_zv1, num_zv, [], [and_zv1])
+    $got_exafv1_from mp(and_elim_right(num_zv, ex_afv1, []),
+        ax([and_zv1], [and_zv1], and_zv1), and_zv1, ex_afv1, [], [and_zv1])
+    $cur cut_c(got_numzv_from, cur, num_zv, [and_zv1], left(cur), eq_y12)
+    $cur cut_c(got_exafv1_from, cur, ex_afv1, [and_zv1], left(cur), eq_y12)
+    $cur eel(cur, \zv: and(num(zv,0,"_"),
+        exists("afv", and(add_func("afv","mv","_"),
+            exists("hm", and(recursive("hm",zv,"afv","_"), apply("hm","nv","y1","_")))))),
+        "zv", "zv", left(cur), eq_y12)
+
+    # --- eel nv ---
+    $ex_zv1 exists("zv", and(num_zv, ex_afv1))
+    $and_nv1 and(op1, ex_zv1)
+    $got_op1_from mp(and_elim_left(op1, ex_zv1, []),
+        ax([and_nv1], [and_nv1], and_nv1), and_nv1, op1, [], [and_nv1])
+    $got_exzv1_from mp(and_elim_right(op1, ex_zv1, []),
+        ax([and_nv1], [and_nv1], and_nv1), and_nv1, ex_zv1, [], [and_nv1])
+    $cur cut_c(got_op1_from, cur, op1, [and_nv1], left(cur), eq_y12)
+    $cur cut_c(got_exzv1_from, cur, ex_zv1, [and_nv1], left(cur), eq_y12)
+    $cur eel(cur, \nv: and(ordered_pair("key","mv",nv,"_"),
+        exists("zv", and(num("zv",0,"_"),
+            exists("afv", and(add_func("afv","mv","_"),
+                exists("hm", and(recursive("hm","zv","afv","_"), apply("hm",nv,"y1","_")))))))),
+        "nv", "nv", left(cur), eq_y12)
+
+    # --- eel mv ---
+    $ex_nv1 exists("nv", and(op1, ex_zv1))
+    $and_mv1 and(nat_mv, ex_nv1)
+    $got_natmv_from mp(and_elim_left(nat_mv, ex_nv1, []),
+        ax([and_mv1], [and_mv1], and_mv1), and_mv1, nat_mv, [], [and_mv1])
+    $got_exnv1_from mp(and_elim_right(nat_mv, ex_nv1, []),
+        ax([and_mv1], [and_mv1], and_mv1), and_mv1, ex_nv1, [], [and_mv1])
+    $cur cut_c(got_natmv_from, cur, nat_mv, [and_mv1], left(cur), eq_y12)
+    $cur cut_c(got_exnv1_from, cur, ex_nv1, [and_mv1], left(cur), eq_y12)
+    $cur eel(cur, \mv: and(nat(mv,"_"),
+        exists("nv", and(ordered_pair("key",mv,"nv","_"),
+            exists("zv", and(num("zv",0,"_"),
+                exists("afv", and(add_func("afv",mv,"_"),
+                    exists("hm", and(recursive("hm","zv","afv","_"), apply("hm","nv","y1","_")))))))))),
+        "mv", "mv", left(cur), eq_y12)
+    $cur cut_c(got_fwd1, cur, fwd1_result, left(got_fwd1), left(cur), eq_y12)
+
+    # === Step 9: Close fwd2 existentials (inside-out: hm2, afv2, zv2, nv2, mv2) ===
+
+    # --- eel hm2 ---
+    $got_rec2_from mp(and_elim_left(rec2, app_hm2, []),
+        ax([and_ra2], [and_ra2], and_ra2), and_ra2, rec2, [], [and_ra2])
+    $got_app2_from mp(and_elim_right(rec2, app_hm2, []),
+        ax([and_ra2], [and_ra2], and_ra2), and_ra2, app_hm2, [], [and_ra2])
+    $cur cut_c(got_rec2_from, cur, rec2, [and_ra2], left(cur), eq_y12)
+    $cur cut_c(got_app2_from, cur, app_hm2, [and_ra2], left(cur), eq_y12)
+    $cur eel(cur, \hm2: and(recursive(hm2,"zv2","afv2","_"), apply(hm2,"nv2","y2","_")),
+        "hm2", "hm2", left(cur), eq_y12)
+
+    # --- eel afv2 ---
+    $ex_hm2 exists("hm2", and_ra2)
+    $and_afv2 and(af2, ex_hm2)
+    $got_af2_from mp(and_elim_left(af2, ex_hm2, []),
+        ax([and_afv2], [and_afv2], and_afv2), and_afv2, af2, [], [and_afv2])
+    $got_exhm2_from mp(and_elim_right(af2, ex_hm2, []),
+        ax([and_afv2], [and_afv2], and_afv2), and_afv2, ex_hm2, [], [and_afv2])
+    $cur cut_c(got_af2_from, cur, af2, [and_afv2], left(cur), eq_y12)
+    $cur cut_c(got_exhm2_from, cur, ex_hm2, [and_afv2], left(cur), eq_y12)
+    $cur eel(cur, \afv2: and(add_func(afv2,"mv2","_"),
+        exists("hm2", and(recursive("hm2","zv2",afv2,"_"), apply("hm2","nv2","y2","_")))),
+        "afv2", "afv2", left(cur), eq_y12)
+
+    # --- eel zv2 ---
+    $ex_afv2 exists("afv2", and(af2, ex_hm2))
+    $and_zv2 and(num_zv2, ex_afv2)
+    $got_numzv2_from mp(and_elim_left(num_zv2, ex_afv2, []),
+        ax([and_zv2], [and_zv2], and_zv2), and_zv2, num_zv2, [], [and_zv2])
+    $got_exafv2_from mp(and_elim_right(num_zv2, ex_afv2, []),
+        ax([and_zv2], [and_zv2], and_zv2), and_zv2, ex_afv2, [], [and_zv2])
+    $cur cut_c(got_numzv2_from, cur, num_zv2, [and_zv2], left(cur), eq_y12)
+    $cur cut_c(got_exafv2_from, cur, ex_afv2, [and_zv2], left(cur), eq_y12)
+    $cur eel(cur, \zv2: and(num(zv2,0,"_"),
+        exists("afv2", and(add_func("afv2","mv2","_"),
+            exists("hm2", and(recursive("hm2",zv2,"afv2","_"), apply("hm2","nv2","y2","_")))))),
+        "zv2", "zv2", left(cur), eq_y12)
+
+    # --- eel nv2 ---
+    $ex_zv2 exists("zv2", and(num_zv2, ex_afv2))
+    $and_nv2 and(op2, ex_zv2)
+    $got_op2_from mp(and_elim_left(op2, ex_zv2, []),
+        ax([and_nv2], [and_nv2], and_nv2), and_nv2, op2, [], [and_nv2])
+    $got_exzv2_from mp(and_elim_right(op2, ex_zv2, []),
+        ax([and_nv2], [and_nv2], and_nv2), and_nv2, ex_zv2, [], [and_nv2])
+    $cur cut_c(got_op2_from, cur, op2, [and_nv2], left(cur), eq_y12)
+    $cur cut_c(got_exzv2_from, cur, ex_zv2, [and_nv2], left(cur), eq_y12)
+    $cur eel(cur, \nv2: and(ordered_pair("key","mv2",nv2,"_"),
+        exists("zv2", and(num("zv2",0,"_"),
+            exists("afv2", and(add_func("afv2","mv2","_"),
+                exists("hm2", and(recursive("hm2","zv2","afv2","_"), apply("hm2",nv2,"y2","_")))))))),
+        "nv2", "nv2", left(cur), eq_y12)
+
+    # --- eel mv2: nat_mv2 may not be on left, add via wl ---
+    $ex_nv2 exists("nv2", and(op2, ex_zv2))
+    $and_mv2 and(nat_mv2, ex_nv2)
+    $cur wl(cur, add(left(cur), [nat_mv2]), [eq_y12], nat_mv2)
+    $got_natmv2_from mp(and_elim_left(nat_mv2, ex_nv2, []),
+        ax([and_mv2], [and_mv2], and_mv2), and_mv2, nat_mv2, [], [and_mv2])
+    $got_exnv2_from mp(and_elim_right(nat_mv2, ex_nv2, []),
+        ax([and_mv2], [and_mv2], and_mv2), and_mv2, ex_nv2, [], [and_mv2])
+    $cur cut_c(got_natmv2_from, cur, nat_mv2, [and_mv2], left(cur), eq_y12)
+    $cur cut_c(got_exnv2_from, cur, ex_nv2, [and_mv2], left(cur), eq_y12)
+    $cur eel(cur, \mv2: and(nat(mv2,"_"),
+        exists("nv2", and(ordered_pair("key",mv2,"nv2","_"),
+            exists("zv2", and(num("zv2",0,"_"),
+                exists("afv2", and(add_func("afv2",mv2,"_"),
+                    exists("hm2", and(recursive("hm2","zv2","afv2","_"), apply("hm2","nv2","y2","_")))))))))),
+        "mv2", "mv2", left(cur), eq_y12)
+    $cur cut_c(got_fwd2, cur, fwd2_result, left(got_fwd2), left(cur), eq_y12)
+
+    # === Step 10: Discharge apps, quantify, discharge char_fwd ===
+    $got_app1_f mp(and_elim_left(app1, app2, []),
+        ax([and_apps], [and_apps], and_apps), and_apps, app1, [], [and_apps])
+    $got_app2_f mp(and_elim_right(app1, app2, []),
+        ax([and_apps], [and_apps], and_apps), and_apps, app2, [], [and_apps])
+    $cur cut_c(got_app1_f, cur, app1, [and_apps], left(cur), eq_y12)
+    $cur cut_c(got_app2_f, cur, app2, [and_apps], left(cur), eq_y12)
+
+    $imp_and implies(and_apps, eq_y12)
+    $cur ir(cur, remove(same, and_apps, left(cur)), [imp_and], imp_and)
+    $cur fr(cur, left(cur), [forall("y2", imp_and)], forall("y2", imp_and), "y2")
+    $cur fr(cur, left(cur), [forall("y1", forall("y2", imp_and))], forall("y1", forall("y2", imp_and)), "y1")
+    $sv_result forall("key", forall("y1", forall("y2", imp_and)))
+    $cur fr(cur, left(cur), [sv_result], sv_result, "key")
+
+    # Discharge char_fwd:
+    $top implies(char_fwd, sv_result)
+    $cur ir(cur, remove(same, char_fwd, left(cur)), [top], top)
+    close(cur, left(cur), [top], ["h"])
+}

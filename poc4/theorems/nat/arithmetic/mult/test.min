@@ -15,7 +15,12 @@ from theorems.nat.arithmetic.mult.mf_relation import mf_relation
 from theorems.nat.arithmetic.mult.mf_forward import mf_forward
 from theorems.nat.arithmetic.mult.mf_base import mf_base
 from theorems.nat.arithmetic.mult.rec_val_mult import rec_val_mult
+from theorems.nat.arithmetic.mult.rec_mult_agree import rec_mult_agree
+from theorems.nat.arithmetic.mult.add_func_eq_transfer import add_func_eq_transfer
+from theorems.nat.arithmetic.mult.mf_single_valued import mf_single_valued
+from theorems.nat.arithmetic.mult.mf_backward import mf_backward
 from vocab.nat.recursion import recursive, total_from
+from vocab.functions import function, single_valued
 from vocab.sets import relation
 from vocab.nat.nat import num
 from vocab.logic import exists_unique
@@ -102,5 +107,43 @@ $_ qed(rec_val_mult,
                         implies(nat("x","_"),
                             implies(apply("hm","x","y","_"), nat("y","_"))))))))))))), "z")
 $_ tap("rec_val_mult ok")
+
+$_ qed(rec_mult_agree,
+    forall("af1", forall("m", forall("z1", forall("hm1", forall("af2", forall("z2", forall("hm2", forall("n", forall("v1", forall("v2",
+        implies(add_func("af1","m","_"),
+            implies(add_func("af2","m","_"),
+                implies(recursive("hm1","z1","af1","_"),
+                    implies(recursive("hm2","z2","af2","_"),
+                        implies(num("z1",0,"_"),
+                            implies(num("z2",0,"_"),
+                                implies(nat("m","_"),
+                                    implies(nat("n","_"),
+                                        implies(apply("hm1","n","v1","_"),
+                                            implies(apply("hm2","n","v2","_"),
+                                                eq("v1","v2","_"))))))))))))))))))))), "z")
+$_ tap("rec_mult_agree ok")
+
+$_ qed(add_func_eq_transfer,
+    forall("af", forall("m1", forall("m2",
+        implies(add_func("af","m1","_"),
+            implies(eq("m1","m2","_"), add_func("af","m2","_")))))), "z")
+$_ tap("add_func_eq_transfer ok")
+
+$_ qed(mf_single_valued,
+    forall("h", implies(mf_char_fwd("h"),
+        forall("key", forall("y1", forall("y2",
+            implies(and(apply("h","key","y1","_"), apply("h","key","y2","_")),
+                eq("y1","y2","_"))))))), "z")
+$_ tap("mf_single_valued ok")
+
+$_ qed(mf_backward,
+    forall("h", implies(mf_char_fn("h"),
+        forall("hm", forall("af", forall("z", forall("m", forall("n", forall("yv",
+            implies(nat("m","_"), implies(nat("n","_"), implies(num("z",0,"_"),
+                implies(add_func("af","m","_"), implies(recursive("hm","z","af","_"),
+                    implies(apply("hm","n","yv","_"),
+                        forall("pair", implies(ordered_pair("pair","m","n","_"),
+                            apply("h","pair","yv","_"))))))))))))))))), "z")
+$_ tap("mf_backward ok")
 
 $ok true

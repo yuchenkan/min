@@ -1,0 +1,129 @@
+from derived import mem, implies, forall, and, exists, eq, left, right, head, arg2
+from vocab.functions import apply, function
+from vocab.nat.nat import nat
+from vocab.nat.arithmetic.plus import plus
+from vocab.nat.arithmetic.mult import add_func
+from tactics import ax, wr, ir, fr, mp, apply_thm, close, same
+from util.list import remove
+from theorems.logic.and_intro import and_intro
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.nat.arithmetic.plus.plus_arg2_transfer import plus_arg2_transfer
+
+# add_func_eq_transfer: AddFunc(af,m1) → eq(m1,m2) → AddFunc(af,m2)
+
+$add_func_eq_transfer {
+    $af1 add_func("af","m1","_")
+    $af2 add_func("af","m2","_")
+    $eq12 eq("m1","m2","_")
+    $eq21 eq("m2","m1","_")
+
+    # Component formulas (must alpha-match AddFunc internals)
+    $func_af function("af","_")
+    $fwd1 forall("x", forall("y", implies(apply("af","x","y","_"), plus("x","m1","y","_"))))
+    $bwd1 forall("x", implies(nat("x","_"), forall("y", implies(plus("x","m1","y","_"), apply("af","x","y","_")))))
+    $dom_sub forall("x", implies(exists("y", apply("af","x","y","_")), nat("x","_")))
+    $fwd2 forall("x", forall("y", implies(apply("af","x","y","_"), plus("x","m2","y","_"))))
+    $bwd2 forall("x", implies(nat("x","_"), forall("y", implies(plus("x","m2","y","_"), apply("af","x","y","_")))))
+    $rest1 and(fwd1, and(bwd1, dom_sub))
+
+    # === Decompose AddFunc(af,m1) ===
+    $got_func mp(and_elim_left(func_af, rest1, []),
+        ax([af1], [af1], af1), af1, func_af, [], [af1])
+    $got_rest mp(and_elim_right(func_af, rest1, []),
+        ax([af1], [af1], af1), af1, rest1, [], [af1])
+    $got_fwd1 mp(and_elim_left(fwd1, and(bwd1, dom_sub), []),
+        got_rest, rest1, fwd1, [], [af1])
+    $got_bwd1_ds mp(and_elim_right(fwd1, and(bwd1, dom_sub), []),
+        got_rest, rest1, and(bwd1, dom_sub), [], [af1])
+    $got_bwd1 mp(and_elim_left(bwd1, dom_sub, []),
+        got_bwd1_ds, and(bwd1, dom_sub), bwd1, [], [af1])
+    $got_ds mp(and_elim_right(bwd1, dom_sub, []),
+        got_bwd1_ds, and(bwd1, dom_sub), dom_sub, [], [af1])
+
+    # === eq_symmetric: eq(m1,m2) → eq(m2,m1) ===
+    $_es head(right(eq_symmetric))
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $got_eq21 mp(apply_thm(eq_symmetric, _es, ["m1","m2"], ["a","b"], _es_b, []),
+        ax([eq12], [eq12], eq12), eq12, eq21, [], [eq12])
+
+    # === Transfer fwd: Apply(af,x,y)→Plus(x,m1,y) to Apply(af,x,y)→Plus(x,m2,y) ===
+    $app_xy apply("af","x","y","_")
+    $plus_1 plus("x","m1","y","_")
+    $plus_2 plus("x","m2","y","_")
+
+    # Instantiate fwd1 at x,y
+    $fi1 apply_thm(got_fwd1, fwd1, ["x"], ["x"],
+        \x: forall("y", implies(apply("af",x,"y","_"), plus(x,"m1","y","_"))), [af1])
+    $fi2 apply_thm(fi1, head(right(fi1)), ["y"], ["y"],
+        \y: implies(apply("af","x",y,"_"), plus("x","m1",y,"_")), left(fi1))
+    $got_p1 mp(fi2, ax([app_xy],[app_xy],app_xy), app_xy, plus_1, [af1], [app_xy])
+
+    # plus_arg2_transfer: ∀x.∀y.∀m1.∀m2. Plus(x,m1,y) → eq(m1,m2) → Plus(x,m2,y)
+    $_pat head(right(plus_arg2_transfer))
+    $_pat_b \x: \y: \m1: \m2: implies(plus(x,m1,y,"_"), implies(eq(m1,m2,"_"), plus(x,m2,y,"_")))
+    $pat_fwd apply_thm(plus_arg2_transfer, _pat, ["x","y","m1","m2"], ["x","y","m1","m2"], _pat_b, [])
+    $pat_s1 mp(pat_fwd, got_p1, plus_1, implies(eq12, plus_2), [], left(got_p1))
+    $got_p2 mp(pat_s1, ax([eq12],[eq12],eq12), eq12, plus_2, left(pat_s1), [eq12])
+
+    # Close fwd2: ir app_xy, fr y, fr x
+    $cur ir(got_p2, remove(same, app_xy, left(got_p2)), [implies(app_xy, plus_2)], implies(app_xy, plus_2))
+    $cur fr(cur, left(cur), [forall("y", head(right(cur)))], forall("y", head(right(cur))), "y")
+    $got_fwd2 fr(cur, left(cur), [fwd2], fwd2, "x")
+
+    # === Transfer bwd: Plus(x,m1,y)→Apply to Plus(x,m2,y)→Apply ===
+    # Need reverse: Plus(x,m2,y) → eq(m2,m1) → Plus(x,m1,y)
+    $nat_x nat("x","_")
+
+    # Instantiate bwd1 at x (with Nat(x)), y
+    $bi1 apply_thm(got_bwd1, bwd1, ["x"], ["x"],
+        \x: implies(nat(x,"_"), forall("y", implies(plus(x,"m1","y","_"), apply("af",x,"y","_")))), [af1])
+    $bi2 mp(bi1, ax([nat_x],[nat_x],nat_x), nat_x,
+        forall("y", implies(plus_1, app_xy)), [af1], [nat_x])
+    $bi3 apply_thm(bi2, head(right(bi2)), ["y"], ["y"],
+        \y: implies(plus("x","m1",y,"_"), apply("af","x",y,"_")), left(bi2))
+    # bi3: [af1, nat_x] |- Plus(x,m1,y) → Apply(af,x,y)
+
+    # plus_arg2_transfer reverse: Plus(x,m2,y) → eq(m2,m1) → Plus(x,m1,y)
+    # Alpha-rename to avoid bound var clash when instantiating m1→"m2"
+    $_pat_r_b \x: \y: \a: \b: implies(plus(x,a,y,"_"), implies(eq(a,b,"_"), plus(x,b,y,"_")))
+    $pat_r forall("x", forall("y", forall("a", forall("b", _pat_r_b("x")("y")("a")("b")))))
+    $pat_renamed wr(plus_arg2_transfer, left(plus_arg2_transfer), [pat_r], pat_r)
+    $pat_bwd apply_thm(pat_renamed, pat_r, ["x","y","m2","m1"], ["x","y","a","b"], _pat_r_b, [])
+    $bwd_s1 mp(pat_bwd, ax([plus_2],[plus_2],plus_2), plus_2, implies(eq21, plus_1), [], [plus_2])
+    $got_p1_from_p2 mp(bwd_s1, got_eq21, eq21, plus_1, [plus_2], [eq12])
+    # [plus_2, eq12] |- plus_1
+
+    # Chain: Plus(x,m2,y) → Plus(x,m1,y) → Apply(af,x,y)
+    $got_app mp(bi3, got_p1_from_p2, plus_1, app_xy, left(bi3), [plus_2, eq12])
+
+    # Close bwd2: ir plus_2, fr y, ir nat_x, fr x
+    $cur ir(got_app, remove(same, plus_2, left(got_app)), [implies(plus_2, app_xy)], implies(plus_2, app_xy))
+    $cur fr(cur, left(cur), [forall("y", head(right(cur)))], forall("y", head(right(cur))), "y")
+    $cur ir(cur, remove(same, nat_x, left(cur)), [implies(nat_x, head(right(cur)))], implies(nat_x, head(right(cur))))
+    $got_bwd2 fr(cur, left(cur), [bwd2], bwd2, "x")
+
+    # === Reassemble AddFunc(af,m2) ===
+    $rest2 and(fwd2, and(bwd2, dom_sub))
+
+    # And(bwd2, dom_sub)
+    $got_bd mp(mp(and_intro(bwd2, dom_sub, []),
+        got_bwd2, bwd2, implies(dom_sub, and(bwd2, dom_sub)), [], left(got_bwd2)),
+        got_ds, dom_sub, and(bwd2, dom_sub), left(got_bwd2), left(got_ds))
+
+    # And(fwd2, And(bwd2, dom_sub))
+    $got_fbd mp(mp(and_intro(fwd2, and(bwd2, dom_sub), []),
+        got_fwd2, fwd2, implies(and(bwd2, dom_sub), rest2), [], left(got_fwd2)),
+        got_bd, and(bwd2, dom_sub), rest2, left(got_fwd2), left(got_bd))
+
+    # And(func_af, rest2) = af2
+    $got_af2 mp(mp(and_intro(func_af, rest2, []),
+        got_func, func_af, implies(rest2, af2), [], left(got_func)),
+        got_fbd, rest2, af2, left(got_func), left(got_fbd))
+
+    # ir hypotheses, close
+    $cur ir(got_af2, remove(same, eq12, left(got_af2)), [implies(eq12, af2)], implies(eq12, af2))
+    $cur ir(cur, remove(same, af1, left(cur)), [implies(af1, head(right(cur)))], implies(af1, head(right(cur))))
+    close(cur, left(cur), right(cur), ["m2","m1","af"])
+}
