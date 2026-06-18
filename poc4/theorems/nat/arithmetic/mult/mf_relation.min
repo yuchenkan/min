@@ -1,0 +1,112 @@
+from derived import mem, implies, forall, and, iff, exists, eq, left, right
+from vocab.sets import ordered_pair, relation
+from vocab.nat.nat import nat, num
+from vocab.functions import apply
+from vocab.nat.recursion import recursive
+from vocab.nat.arithmetic.mult import add_func
+from tactics import ax, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.iff_elim_left import iff_elim_left
+
+# mf_relation: char_h → Relation(h)
+# phi(xv) = ∃m.Nat(m) ∧ ∃n.∃y.∃pv. OP(pv,m,n) ∧ OP(xv,pv,y) ∧
+#   ∃z.Num(z,0) ∧ ∃af.AddFunc(af,m) ∧ ∃hm.Rec(hm,z,af) ∧ Apply(hm,n,y)
+
+$mf_relation {
+    $phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
+        exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+            and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+            and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+                exists(add(np,"z"), and(num(add(np,"z"),0,np),
+                    exists(add(np,"af"), and(add_func(add(np,"af"),add(np,"m"),add(np,"_")),
+                        exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"z"),add(np,"af"),add(np,"_")),
+                            apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))))))
+
+    $char_h forall("xv", iff(mem("xv","h"), phi("xv","_")))
+    $rel_h relation("h","_")
+    $zh mem("zr","h")
+    $phi_zr phi("zr","_")
+    $concl exists("xr", exists("yr", ordered_pair("zr","xr","yr","_")))
+
+    # char_h forward: zr∈h → phi(zr)
+    $iff_zr iff(zh, phi_zr)
+    $got_iff fl(ax([iff_zr], [iff_zr], iff_zr), [char_h], [iff_zr], char_h, "zr")
+    $got_phi mp(mp(iff_elim_left(zh, phi_zr, []),
+        got_iff, iff_zr, implies(zh, phi_zr), [], [char_h]),
+        ax([zh], [zh], zh), zh, phi_zr, [char_h], [zh])
+
+    # Inner body with clean names:
+    $op_pv ordered_pair("pv","m","n","_")
+    $op_zr ordered_pair("zr","pv","y","_")
+    $and_rec and(recursive("hm","z","af","_"), apply("hm","n","y","_"))
+    $and_af and(add_func("af","m","_"), exists("hm", and_rec))
+    $and_num and(num("z",0,"_"), exists("af", and_af))
+    $and_op2 and(op_zr, exists("z", and_num))
+    $and_ops and(op_pv, and_op2)
+
+    # [and_ops] |- [op_zr]
+    $got_op_zr mp(and_elim_left(op_zr, exists("z", and_num), []),
+        mp(and_elim_right(op_pv, and_op2, []),
+            ax([and_ops], [and_ops], and_ops), and_ops, and_op2, [], [and_ops]),
+        and_op2, op_zr, [], [and_ops])
+
+    # [and_ops] |- [concl]
+    $got_ey eir(got_op_zr, \yr: ordered_pair("zr","pv",yr,"_"), "yr", "y", [and_ops])
+    $got_concl eir(got_ey, \xr: exists("yr", ordered_pair("zr",xr,"yr","_")), "xr", "pv", [and_ops])
+
+    # eel pv:
+    $g1 eel(got_concl, \pv: and(ordered_pair(pv,"m","n","_"),
+        and(ordered_pair("zr",pv,"y","_"),
+            exists("z", and(num("z",0,"_"),
+                exists("af", and(add_func("af","m","_"),
+                    exists("hm", and(recursive("hm","z","af","_"), apply("hm","n","y","_"))))))))),
+        "pv", "pv", [and_ops], concl)
+    # eel y:
+    $g2 eel(g1, \y: exists("pv", and(ordered_pair("pv","m","n","_"),
+        and(ordered_pair("zr","pv",y,"_"),
+            exists("z", and(num("z",0,"_"),
+                exists("af", and(add_func("af","m","_"),
+                    exists("hm", and(recursive("hm","z","af","_"), apply("hm","n",y,"_")))))))))),
+        "y", "y", left(g1), concl)
+    # eel n:
+    $g3 eel(g2, \n: exists("y", exists("pv", and(ordered_pair("pv","m",n,"_"),
+        and(ordered_pair("zr","pv","y","_"),
+            exists("z", and(num("z",0,"_"),
+                exists("af", and(add_func("af","m","_"),
+                    exists("hm", and(recursive("hm","z","af","_"), apply("hm",n,"y","_"))))))))))),
+        "n", "n", left(g2), concl)
+
+    # Handle and(Nat(m), ∃n...):
+    $inner_ex exists("n", exists("y", exists("pv", and(ordered_pair("pv","m","n","_"),
+        and(ordered_pair("zr","pv","y","_"),
+            exists("z", and(num("z",0,"_"),
+                exists("af", and(add_func("af","m","_"),
+                    exists("hm", and(recursive("hm","z","af","_"), apply("hm","n","y","_"))))))))))))
+    $nat_m nat("m","_")
+    $and_nat and(nat_m, inner_ex)
+    $got_nat_from mp(and_elim_right(nat_m, inner_ex, []),
+        ax([and_nat], [and_nat], and_nat), and_nat, inner_ex, [], [and_nat])
+    $g4 cut_c(got_nat_from, g3, inner_ex, [and_nat], left(g3), concl)
+
+    # eel m:
+    $g5 eel(g4, \m: and(nat(m,"_"), exists("n", exists("y", exists("pv",
+        and(ordered_pair("pv",m,"n","_"),
+        and(ordered_pair("zr","pv","y","_"),
+            exists("z", and(num("z",0,"_"),
+                exists("af", and(add_func("af",m,"_"),
+                    exists("hm", and(recursive("hm","z","af","_"), apply("hm","n","y","_"))))))))))))),
+        "m", "m", left(g4), concl)
+
+    # cut with got_phi:
+    $g6 cut_c(got_phi, g5, phi_zr, left(got_phi), left(g5), concl)
+
+    # ir zh, fr zr → Relation(h)
+    $got_ir ir(g6, remove(same, zh, left(g6)), [implies(zh, concl)], implies(zh, concl))
+    $got_fr fr(got_ir, left(got_ir), [rel_h], rel_h, "zr")
+
+    $top implies(char_h, rel_h)
+    $r1 ir(got_fr, remove(same, char_h, left(got_fr)), [top], top)
+    close(r1, left(r1), [top], ["h"])
+}

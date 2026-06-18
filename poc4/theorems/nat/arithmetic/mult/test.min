@@ -11,7 +11,12 @@ from theorems.nat.arithmetic.mult.af_dom_sub import af_dom_sub
 from theorems.nat.arithmetic.mult.add_func_exists import add_func_exists
 from theorems.nat.arithmetic.mult.add_func_total_from import add_func_total_from
 from theorems.nat.arithmetic.mult.rec_for_mult import rec_for_mult
+from theorems.nat.arithmetic.mult.mf_relation import mf_relation
+from theorems.nat.arithmetic.mult.mf_forward import mf_forward
+from theorems.nat.arithmetic.mult.mf_base import mf_base
+from theorems.nat.arithmetic.mult.rec_val_mult import rec_val_mult
 from vocab.nat.recursion import recursive, total_from
+from vocab.sets import relation
 from vocab.nat.nat import num
 from vocab.logic import exists_unique
 
@@ -19,6 +24,16 @@ $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
         ordered_pair(p,add(np,"x"),add(np,"y"),add(np,"_"))))))
 $af_char_fn \af: forall("p", iff(mem("p",af), af_phi("p","_")))
+
+$mf_phi \xv np: exists(add(np,"m"), and(nat(add(np,"m"),np),
+    exists(add(np,"n"), exists(add(np,"y"), exists(add(np,"pv"),
+        and(ordered_pair(add(np,"pv"),add(np,"m"),add(np,"n"),add(np,"_")),
+        and(ordered_pair(xv,add(np,"pv"),add(np,"y"),add(np,"_")),
+            exists(add(np,"z"), and(num(add(np,"z"),0,np),
+                exists(add(np,"af"), and(add_func(add(np,"af"),add(np,"m"),add(np,"_")),
+                    exists(add(np,"hm"), and(recursive(add(np,"hm"),add(np,"z"),add(np,"af"),add(np,"_")),
+                        apply(add(np,"hm"),add(np,"n"),add(np,"y"),add(np,"_")))))))))))))))
+$mf_char_fn \h: forall("xv", iff(mem("xv",h), mf_phi("xv","_")))
 
 $_ qed(af_apply_to_plus,
     forall("af", forall("w", forall("m", forall("x", forall("y",
@@ -55,5 +70,37 @@ $_ qed(rec_for_mult,
         implies(add_func("af","m","_"), implies(nat("m","_"), implies(num("z",0,"_"),
             exists_unique(\h p: recursive(h,"z","af",p), "_"))))))), "z")
 $_ tap("rec_for_mult ok")
+
+$_ qed(mf_relation,
+    forall("h", implies(mf_char_fn("h"), relation("h","_"))), "z")
+$_ tap("mf_relation ok")
+
+$mf_char_fwd \h: forall("xv", implies(mem("xv",h), mf_phi("xv","_")))
+$mf_fwd_result \h: forall("key", forall("val",
+    implies(mf_char_fwd(h), implies(apply(h,"key","val","_"),
+        exists("mv", and(nat("mv","_"), exists("nv", and(ordered_pair("key","mv","nv","_"),
+            exists("zv", and(num("zv",0,"_"),
+                exists("afv", and(add_func("afv","mv","_"),
+                    exists("hm", and(recursive("hm","zv","afv","_"), apply("hm","nv","val","_")))))))))))))))
+$_ qed(mf_forward, forall("h", mf_fwd_result("h")), "z")
+$_ tap("mf_forward ok")
+
+$_ qed(mf_base,
+    forall("h", implies(mf_char_fn("h"),
+        forall("m", implies(nat("m","_"),
+            forall("z", implies(num("z",0,"_"),
+                forall("pair", implies(ordered_pair("pair","m","z","_"),
+                    apply("h","pair","z","_"))))))))), "z")
+$_ tap("mf_base ok")
+
+$_ qed(rec_val_mult,
+    forall("af", forall("m", forall("z", forall("hm", forall("x", forall("y",
+        implies(add_func("af","m","_"),
+            implies(recursive("hm","z","af","_"),
+                implies(num("z",0,"_"),
+                    implies(nat("m","_"),
+                        implies(nat("x","_"),
+                            implies(apply("hm","x","y","_"), nat("y","_"))))))))))))), "z")
+$_ tap("rec_val_mult ok")
 
 $ok true
