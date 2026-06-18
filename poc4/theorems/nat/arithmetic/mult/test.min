@@ -21,11 +21,13 @@ from theorems.nat.arithmetic.mult.mf_single_valued import mf_single_valued
 from theorems.nat.arithmetic.mult.mf_backward import mf_backward
 from theorems.nat.arithmetic.mult.mf_step import mf_step
 from theorems.nat.arithmetic.mult.mf_dom_eq import mf_dom_eq
+from theorems.nat.arithmetic.mult.mult_func_exists import mult_func_exists
 from vocab.nat.recursion import recursive, total_from
 from vocab.functions import function, single_valued, domain
 from vocab.sets import relation, product
 from vocab.nat.nat import num, omega
 from vocab.logic import exists_unique
+from vocab.nat.arithmetic.mult import mult_func
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
@@ -168,5 +170,8 @@ $_ qed(mf_dom_eq,
                     implies(product("prod","w","w","_"),
                         eq("dd","prod","_"))))))))), "z")
 $_ tap("mf_dom_eq ok")
+
+$_ qed(mult_func_exists, exists("h", mult_func("h","_")), "z")
+$_ tap("mult_func_exists ok")
 
 $ok true
