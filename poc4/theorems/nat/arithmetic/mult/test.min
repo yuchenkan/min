@@ -1,7 +1,7 @@
 from derived import mem, implies, forall, and, iff, exists, eq, qed
 from vocab.sets import ordered_pair, relation
 from vocab.functions import apply
-from vocab.nat.nat import nat
+from vocab.nat.nat import nat, successor
 from vocab.nat.arithmetic.plus import plus
 from vocab.nat.arithmetic.mult import add_func
 from theorems.nat.arithmetic.mult.af_apply_to_plus import af_apply_to_plus
@@ -19,6 +19,7 @@ from theorems.nat.arithmetic.mult.rec_mult_agree import rec_mult_agree
 from theorems.nat.arithmetic.mult.add_func_eq_transfer import add_func_eq_transfer
 from theorems.nat.arithmetic.mult.mf_single_valued import mf_single_valued
 from theorems.nat.arithmetic.mult.mf_backward import mf_backward
+from theorems.nat.arithmetic.mult.mf_step import mf_step
 from vocab.nat.recursion import recursive, total_from
 from vocab.functions import function, single_valued
 from vocab.sets import relation
@@ -145,5 +146,17 @@ $_ qed(mf_backward,
                         forall("pair", implies(ordered_pair("pair","m","n","_"),
                             apply("h","pair","yv","_"))))))))))))))))), "z")
 $_ tap("mf_backward ok")
+
+$_ qed(mf_step,
+    forall("h", implies(mf_char_fn("h"),
+        forall("m", implies(nat("m","_"),
+            forall("n", implies(nat("n","_"),
+                forall("pair", implies(ordered_pair("pair","m","n","_"),
+                    forall("pv", implies(apply("h","pair","pv","_"),
+                        forall("sn", implies(successor("sn","n","_"),
+                            forall("result", implies(plus("pv","m","result","_"),
+                                forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                                    apply("h","pair2","result","_"))))))))))))))))), "z")
+$_ tap("mf_step ok")
 
 $ok true
