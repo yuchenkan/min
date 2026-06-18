@@ -27,7 +27,9 @@ from vocab.functions import function, single_valued, domain
 from vocab.sets import relation, product
 from vocab.nat.nat import num, omega
 from vocab.logic import exists_unique
-from vocab.nat.arithmetic.mult import mult_func
+from vocab.nat.arithmetic.mult import mult_func, mult
+from theorems.nat.arithmetic.mult.mult_base_eq import mult_base_eq
+from theorems.nat.arithmetic.mult.mult_step import mult_step
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
@@ -173,5 +175,19 @@ $_ tap("mf_dom_eq ok")
 
 $_ qed(mult_func_exists, exists("h", mult_func("h","_")), "z")
 $_ tap("mult_func_exists ok")
+
+$_ qed(mult_base_eq,
+    forall("m", implies(nat("m","_"),
+        forall("z", implies(num("z",0,"_"), mult("m","z","z","_"))))), "zz")
+$_ tap("mult_base_eq ok")
+
+$_ qed(mult_step,
+    forall("m", implies(nat("m","_"),
+        forall("n", implies(nat("n","_"),
+            forall("pv", implies(mult("m","n","pv","_"),
+                forall("sn", implies(successor("sn","n","_"),
+                    forall("result", implies(plus("pv","m","result","_"),
+                        mult("m","sn","result","_"))))))))))), "zz")
+$_ tap("mult_step ok")
 
 $ok true

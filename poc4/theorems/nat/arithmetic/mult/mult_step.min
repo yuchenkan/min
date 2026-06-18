@@ -1,0 +1,142 @@
+from derived import mem, implies, forall, and, iff, exists, eq, left, right, arg2
+from vocab.sets import ordered_pair, product
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.functions import apply, function, domain
+from vocab.nat.arithmetic.plus import plus
+from vocab.nat.arithmetic.mult import mult_func, mult
+from tactics import ax, wr, wl, fl, fr, ir, mp, apply_thm, eir, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.omega_exists import omega_exists
+
+# mult_step: ∀m,n,pv,sn,result. Nat(m) → Nat(n) → Mult(m,n,pv) → Succ(sn,n) → Plus(pv,m,result) → Mult(m,sn,result)
+# i.e. m*S(n) = m*n + m
+
+$mult_step {
+    $nat_m nat("m","_")
+    $nat_n nat("n","_")
+    $mult_mnpv mult("m","n","pv","_")
+    $succ_sn successor("sn","n","_")
+    $plus_pvm plus("pv","m","result","_")
+    $mult_goal mult("m","sn","result","_")
+
+    $ow omega("w","_")
+    $mf_abs mult_func("h","_")
+    $mw mem("m","w")
+    $nw mem("n","w")
+
+    # Unwrap MultFunc(h) at w
+    $func_h function("h","_")
+    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eq("d","prod","_")))))
+    $base_f forall("m", implies(mem("m","w"), forall("z", implies(num("z",0,"_"),
+        forall("pair", implies(ordered_pair("pair","m","z","_"), apply("h","pair","z","_")))))))
+    $step_f forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"), forall("pv", implies(apply("h","pair","pv","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("result", implies(plus("pv","m","result","_"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","result","_")))))))))))))))
+    $mf_inner and(func_h, and(dom_eq, and(base_f, step_f)))
+    $mf_unwrap apply_thm(ax([mf_abs],[mf_abs],mf_abs), mf_abs, ["w"], ["w"],
+        \w: implies(omega(w,"_"), mf_inner), [mf_abs])
+    $mf mp(mf_unwrap, ax([ow],[ow],ow), ow, mf_inner, [mf_abs], [ow])
+
+    # nat_elim
+    $_ne head(right(nat_elim))
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $ne_m1 mp(apply_thm(nat_elim, _ne, ["m","w"], ["m","w"], _ne_b, []),
+        ax([nat_m], [nat_m], nat_m), nat_m, implies(ow, mw), [], [nat_m])
+    $got_mw mp(ne_m1, ax([ow], [ow], ow), ow, mw, [nat_m], [ow])
+    $ne_n1 mp(apply_thm(nat_elim, _ne, ["n","w"], ["m","w"], _ne_b, []),
+        ax([nat_n], [nat_n], nat_n), nat_n, implies(ow, nw), [], [nat_n])
+    $got_nw mp(ne_n1, ax([ow], [ow], ow), ow, nw, [nat_n], [ow])
+
+    # Open Mult(m,n,pv): inst h→h, mp mf_abs → ∀pair. OP → Apply
+    $pi1 apply_thm(ax([mult_mnpv], [mult_mnpv], mult_mnpv), mult_mnpv, ["h"], ["h"],
+        \h: implies(mult_func(h,"_"), forall("pair", implies(ordered_pair("pair","m","n","_"), apply(h,"pair","pv","_")))),
+        [mult_mnpv])
+    $pi2 mp(pi1, ax([mf_abs],[mf_abs],mf_abs), mf_abs,
+        forall("pair", implies(ordered_pair("pair","m","n","_"), apply("h","pair","pv","_"))),
+        [mult_mnpv], [mf_abs])
+
+    $op_mn ordered_pair("pair","m","n","_")
+    $app_pv apply("h","pair","pv","_")
+    $pi3 apply_thm(pi2, head(right(pi2)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"m","n","_"), apply("h",pair,"pv","_")), left(pi2))
+    $got_app_pv mp(pi3, ax([op_mn], [op_mn], op_mn), op_mn, app_pv, left(pi2), [op_mn])
+
+    # Extract step from mf_inner
+    $rest and(dom_eq, and(base_f, step_f))
+    $got_step mp(and_elim_right(base_f, step_f, []),
+        mp(and_elim_right(dom_eq, and(base_f, step_f), []),
+            mp(and_elim_right(func_h, rest, []), mf, mf_inner, rest, [], left(mf)),
+            rest, and(base_f, step_f), [], left(mf)),
+        and(base_f, step_f), step_f, [], left(mf))
+
+    # Inst step at m, n, pair, pv, sn, result
+    $_sb \m: implies(mem(m,"w"), forall("n", implies(mem("n","w"),
+        forall("pair", implies(ordered_pair("pair",m,"n","_"), forall("pv", implies(apply("h","pair","pv","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("result", implies(plus("pv",m,"result","_"),
+                forall("pair2", implies(ordered_pair("pair2",m,"sn","_"), apply("h","pair2","result","_"))))))))))))))
+    $t1_inst apply_thm(got_step, step_f, ["m"], ["m"], _sb, left(mf))
+    $t1 mp(t1_inst, got_mw, mw, arg2(head(right(t1_inst))), left(mf), left(got_mw))
+    $t2 apply_thm(t1, head(right(t1)), ["n"], ["n"],
+        \n: implies(mem(n,"w"), forall("pair", implies(ordered_pair("pair","m",n,"_"), forall("pv", implies(apply("h","pair","pv","_"),
+            forall("sn", implies(successor("sn",n,"_"), forall("result", implies(plus("pv","m","result","_"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","result","_")))))))))))),
+        left(t1))
+    $t3 mp(t2, got_nw, nw, arg2(head(right(t2))), left(t1), left(got_nw))
+    $t4 apply_thm(t3, head(right(t3)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"m","n","_"), forall("pv", implies(apply("h",pair,"pv","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("result", implies(plus("pv","m","result","_"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","result","_")))))))))),
+        left(t3))
+    $t5 mp(t4, ax([op_mn], [op_mn], op_mn), op_mn, arg2(head(right(t4))), left(t3), [op_mn])
+    $t6 apply_thm(t5, head(right(t5)), ["pv"], ["pv"],
+        \pv: implies(apply("h","pair",pv,"_"), forall("sn", implies(successor("sn","n","_"),
+            forall("result", implies(plus(pv,"m","result","_"), forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+                apply("h","pair2","result","_")))))))),
+        left(t5))
+    $t7 mp(t6, got_app_pv, app_pv, arg2(head(right(t6))), left(t5), left(got_app_pv))
+    $t8 apply_thm(t7, head(right(t7)), ["sn"], ["sn"],
+        \sn: implies(successor(sn,"n","_"), forall("result", implies(plus("pv","m","result","_"),
+            forall("pair2", implies(ordered_pair("pair2","m",sn,"_"), apply("h","pair2","result","_")))))),
+        left(t7))
+    $t9 mp(t8, ax([succ_sn], [succ_sn], succ_sn), succ_sn, arg2(head(right(t8))), left(t7), [succ_sn])
+    $t10 apply_thm(t9, head(right(t9)), ["result"], ["result"],
+        \result: implies(plus("pv","m",result,"_"), forall("pair2", implies(ordered_pair("pair2","m","sn","_"),
+            apply("h","pair2",result,"_")))),
+        left(t9))
+    $t11 mp(t10, ax([plus_pvm], [plus_pvm], plus_pvm), plus_pvm, arg2(head(right(t10))), left(t9), [plus_pvm])
+
+    # eel pair from Mult opening: ordpair_exists + eel
+    $oe_ctx left(ordpair_exists)
+    $_oe_b \a: \b: exists("p", ordered_pair("p",a,b,"_"))
+    $got_oe apply_thm(ordpair_exists, head(right(ordpair_exists)), ["m","n"], ["a","b"], _oe_b, oe_ctx)
+    $inner_body head(right(t11))
+    $cur eel(t11, \pair: ordered_pair(pair,"m","n","_"), "pair", "pair", left(t11), inner_body)
+    $cur cut_c(got_oe, cur, head(right(got_oe)), oe_ctx, left(cur), inner_body)
+
+    # Close Mult(m,sn,result): ir mf_abs, fr h
+    $cur ir(cur, remove(same, mf_abs, left(cur)), [implies(mf_abs, inner_body)], implies(mf_abs, inner_body))
+    $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
+
+    # eel omega
+    $cur eel(cur, \w: omega(w,"_"), "w", "w", remove(same, ow, left(cur)), head(right(cur)))
+    $cur cut_c(omega_exists, cur, exists("w", omega("w","_")), left(omega_exists), left(cur), head(right(cur)))
+
+    # Close outer: ir plus_pvm, fr result, ir succ_sn, fr sn, ir mult_mnpv, fr pv, ir nat_n, fr n, ir nat_m, fr m
+    $cur ir(cur, remove(same, plus_pvm, left(cur)), [implies(plus_pvm, head(right(cur)))], implies(plus_pvm, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("result", head(right(cur)))], forall("result", head(right(cur))), "result")
+    $cur ir(cur, remove(same, succ_sn, left(cur)), [implies(succ_sn, head(right(cur)))], implies(succ_sn, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("sn", head(right(cur)))], forall("sn", head(right(cur))), "sn")
+    $cur ir(cur, remove(same, mult_mnpv, left(cur)), [implies(mult_mnpv, head(right(cur)))], implies(mult_mnpv, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("pv", head(right(cur)))], forall("pv", head(right(cur))), "pv")
+    $cur ir(cur, remove(same, nat_n, left(cur)), [implies(nat_n, head(right(cur)))], implies(nat_n, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("n", head(right(cur)))], forall("n", head(right(cur))), "n")
+    $cur ir(cur, remove(same, nat_m, left(cur)), [implies(nat_m, head(right(cur)))], implies(nat_m, head(right(cur))))
+    $top forall("m", head(right(cur)))
+    $cur fr(cur, left(cur), [top], top, "m")
+    close(cur, left(cur), [top], [])
+}
