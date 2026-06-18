@@ -54,7 +54,7 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
 
   else if (strcmp(path, "complex.min") == 0)
     src =
-      "from math import sub, mul, eq\n"
+      "from math import sub, mul, eqv\n"
       "\n"
       "$double \\n: add(n, n)\n"
       "$triple \\n: add(n, double(n))\n"
@@ -65,7 +65,7 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
       "$quad compose(double, double)\n"
       "\n"
       "# recursion via self-application\n"
-      "$fact \\self n: ?(eq(n, 0), 1, mul(n, self(self, sub(n, 1))))\n"
+      "$fact \\self n: ?(eqv(n, 0), 1, mul(n, self(self, sub(n, 1))))\n"
       "$f5 fact(fact, 5)\n"
       "\n"
       "# nested blocks\n"
@@ -87,7 +87,7 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
       "$r_chain compose(double, triple)(2)\n"
       "\n"
       "# if with complex exprs\n"
-      "$r_if ?(eq(add(1, 2), 3), triple(7), 0)\n"
+      "$r_if ?(eqv(add(1, 2), 3), triple(7), 0)\n"
       "\n"
       "# apply\n"
       "$r_apply apply(double, 8)\n";
@@ -169,7 +169,7 @@ static char *fake_read_file(const char *path, int64_t *mtime) {
     src =
       "$sub \\a b: sub(a, b)\n"
       "$mul \\a b: mul(a, b)\n"
-      "$eq \\a b: eq(a, b)\n";
+      "$eqv \\a b: eqv(a, b)\n";
 
   else if (strcmp(path, "err_undef.min") == 0)
     src = "$x foo\n";

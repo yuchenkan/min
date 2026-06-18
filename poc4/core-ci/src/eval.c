@@ -170,8 +170,8 @@ static void node_str(Sbuf *s, Node *n) {
       case N_FALSE: sb_puts(s, "false"); break;
       case N_NONE:  sb_puts(s, "none"); break;
       case N_STR:   case N_INT: node_str(s, item); break;
-      case N_CLOSURE: sb_puts(s, "<closure>"); break;
-      case N_BUILTIN: sb_puts(s, "<builtin>"); break;
+      case N_CLOSURE: sb_puts(s, "<fn>"); break;
+      case N_BUILTIN: sb_puts(s, "<fn>"); break;
       case N_PROOF:   sb_puts(s, "<proof>"); break;
       case N_ARR:     sb_puts(s, "<arr>"); break;
       default: assert(0 && "unreachable");
@@ -179,8 +179,8 @@ static void node_str(Sbuf *s, Node *n) {
     }
     sb_putc(s, ']');
     break;
-  case N_CLOSURE: sb_puts(s, "<closure>"); break;
-  case N_BUILTIN: sb_puts(s, "<builtin>"); break;
+  case N_CLOSURE: sb_puts(s, "<fn>"); break;
+  case N_BUILTIN: sb_puts(s, "<fn>"); break;
   case N_PROOF:   sb_puts(s, "<proof>"); break;
   default: assert(0 && "unreachable");
   }
@@ -301,8 +301,8 @@ static void print_node(Node *n) {
         putchar('"');
         break;
       case N_INT:   print_node(item); break;
-      case N_CLOSURE: printf("<closure>"); break;
-      case N_BUILTIN: printf("<builtin>"); break;
+      case N_CLOSURE: printf("<fn>"); break;
+      case N_BUILTIN: printf("<fn>"); break;
       case N_PROOF:   printf("<proof>"); break;
       case N_ARR:     printf("<arr>"); break;
       default: assert(0 && "unreachable");
@@ -310,8 +310,8 @@ static void print_node(Node *n) {
     }
     printf("]");
     break;
-  case N_CLOSURE: printf("<closure>"); break;
-  case N_BUILTIN: printf("<builtin>"); break;
+  case N_CLOSURE: printf("<fn>"); break;
+  case N_BUILTIN: printf("<fn>"); break;
   case N_PROOF:   printf("<proof>"); break;
   default: assert(0 && "unreachable");
   }
