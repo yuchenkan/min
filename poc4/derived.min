@@ -72,19 +72,23 @@ $shows \lst: _map(_map, show, lst)
 
 # proof: flat formulas, then call kernel bridge
 # returns [kernel_proof, left, right]
-$proof \left right rule premises principal term: {
+$proof \lefts rights rule premises principal term: {
     $fl \f: _core(_core, f)
     $kps _map(_map, \p: kp(p), premises)
     $result _do_proof(
-        _map(_map, fl, left),
-        _map(_map, fl, right),
+        _map(_map, fl, lefts),
+        _map(_map, fl, rights),
         rule, kps, fl(principal), term)
-    ?(nth(result, 0), [nth(result, 1), left, right], {
+    ?(nth(result, 0), [nth(result, 1), lefts, rights], {
+        $_seq \p: add(_show_list(_show_list, left(p)), add(" |- ", _show_list(_show_list, right(p))))
         $_ tap(add("proof failed: ", rule))
-        $_ tap(add("  left:  ", _show_list(_show_list, left)))
-        $_ tap(add("  right: ", _show_list(_show_list, right)))
+        $_ tap(add("  error: ", nth(result, 1)))
+        $_ tap(add("  left:  ", _show_list(_show_list, lefts)))
+        $_ tap(add("  right: ", _show_list(_show_list, rights)))
         $_ tap(add("  principal: ", show(principal)))
         $_ ?(is_none(term), none, tap(add("  term: ", term)))
+        $_ tap(add("  premises (", add(str(len(premises)), "):")))
+        $_ _map(_map, \p: tap(add("    ", _seq(p))), premises)
         _fail(nth(result, 1))
     })
 }
@@ -94,7 +98,10 @@ $qed \p expected system: {
     $result _do_qed(kp(p), _core(_core, expected), system)
     ?(nth(result, 0), expected, {
         $_ tap("qed failed:")
+        $_ tap(add("  error: ", nth(result, 1)))
         $_ tap(add("  expected: ", show(expected)))
+        $_ tap(add("  proof left:  ", _show_list(_show_list, left(p))))
+        $_ tap(add("  proof right: ", _show_list(_show_list, right(p))))
         _fail(nth(result, 1))
     })
 }
