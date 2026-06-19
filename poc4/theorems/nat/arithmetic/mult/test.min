@@ -32,6 +32,7 @@ from theorems.nat.arithmetic.mult.mult_base_eq import mult_base_eq
 from theorems.nat.arithmetic.mult.mult_step import mult_step
 from theorems.nat.arithmetic.mult.mult_func_unique import mult_func_unique
 from theorems.nat.arithmetic.mult.unique_mult_func import unique_mult_func
+from theorems.nat.arithmetic.mult.mult_zero_left import mult_zero_left
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
@@ -198,5 +199,10 @@ $_ tap("mult_func_unique ok")
 
 $_ qed(unique_mult_func, exists_unique(\h p: mult_func(h, p), "_"), "z")
 $_ tap("unique_mult_func ok")
+
+$_ qed(mult_zero_left,
+    forall("n", implies(nat("n","_"),
+        forall("z", implies(num("z",0,"_"), mult("z","n","z","_"))))), "zz")
+$_ tap("mult_zero_left ok")
 
 $ok true
