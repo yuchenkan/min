@@ -1,0 +1,106 @@
+from derived import mem, implies, forall, and, exists, eq, left, right, arg2
+from vocab.sets import ordered_pair
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.functions import apply, function, single_valued, domain
+from vocab.sets import product
+from vocab.nat.arithmetic.plus import plus
+from vocab.nat.arithmetic.mult import mult_func, mult
+from tactics import ax, wr, fr, ir, mp, apply_thm, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.functions.func_unique_thm import func_unique_thm
+from theorems.sets.ordpair_exists import ordpair_exists
+from theorems.nat.arithmetic.mult.mult_func_exists import mult_func_exists
+from theorems.nat.nat.omega_exists import omega_exists
+
+# mult_val_unique: ∀a,b,c,c2. Mult(a,b,c) → Mult(a,b,c2) → eq(c,c2)
+
+$mult_val_unique {
+    $mult_abc mult("a","b","c","_")
+    $mult_abc2 mult("a","b","c2","_")
+    $goal eq("c","c2","_")
+
+    $mf_abs mult_func("h","_")
+
+    # Extract SingleValued(h) from MultFunc(h)
+    $func_h function("h","_")
+    $sv_h single_valued("h","_")
+    $dom_eq forall("d", forall("prod", implies(domain("d","h","_"), implies(product("prod","w","w","_"), eq("d","prod","_")))))
+    $base_f forall("m", implies(mem("m","w"), forall("zz", implies(num("zz",0,"_"),
+        forall("pair", implies(ordered_pair("pair","m","zz","_"), apply("h","pair","zz","_")))))))
+    $step_f forall("m", implies(mem("m","w"), forall("n", implies(mem("n","w"),
+        forall("pair", implies(ordered_pair("pair","m","n","_"), forall("pv", implies(apply("h","pair","pv","_"),
+            forall("sn", implies(successor("sn","n","_"), forall("result", implies(plus("pv","m","result","_"),
+                forall("pair2", implies(ordered_pair("pair2","m","sn","_"), apply("h","pair2","result","_")))))))))))))))
+    $om omega("w","_")
+    $mf_inner and(func_h, and(dom_eq, and(base_f, step_f)))
+    $mf_unwrap apply_thm(ax([mf_abs],[mf_abs],mf_abs), mf_abs, ["w"], ["w"],
+        \w: implies(omega(w,"_"), mf_inner), [mf_abs])
+    $mf_at_w mp(mf_unwrap, ax([om],[om],om), om, mf_inner, [mf_abs], [om])
+    $got_func mp(and_elim_left(func_h, and(dom_eq, and(base_f, step_f)), []),
+        mf_at_w, mf_inner, func_h, [], left(mf_at_w))
+    $got_sv mp(and_elim_right(
+        forall("z", implies(mem("z","h"), exists("x", exists("y", ordered_pair("z","x","y","_"))))),
+        sv_h, []), got_func, func_h, sv_h, [], left(mf_at_w))
+
+    # Open Mult(a,b,c) at h → Apply(h,pair,c)
+    $op_ab ordered_pair("pair","a","b","_")
+    $app_c apply("h","pair","c","_")
+    $pi1 apply_thm(ax([mult_abc],[mult_abc],mult_abc), mult_abc, ["h"], ["h"],
+        \h: implies(mult_func(h,"_"), forall("pair", implies(ordered_pair("pair","a","b","_"), apply(h,"pair","c","_")))),
+        [mult_abc])
+    $pi2 mp(pi1, ax([mf_abs],[mf_abs],mf_abs), mf_abs,
+        forall("pair", implies(op_ab, app_c)), [mult_abc], [mf_abs])
+    $pi3 apply_thm(pi2, head(right(pi2)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"a","b","_"), apply("h",pair,"c","_")), left(pi2))
+    $got_app_c mp(pi3, ax([op_ab],[op_ab],op_ab), op_ab, app_c, left(pi3), [op_ab])
+
+    # Open Mult(a,b,c2) at h → Apply(h,pair,c2)
+    $app_c2 apply("h","pair","c2","_")
+    $qi1 apply_thm(ax([mult_abc2],[mult_abc2],mult_abc2), mult_abc2, ["h"], ["h"],
+        \h: implies(mult_func(h,"_"), forall("pair", implies(ordered_pair("pair","a","b","_"), apply(h,"pair","c2","_")))),
+        [mult_abc2])
+    $qi2 mp(qi1, ax([mf_abs],[mf_abs],mf_abs), mf_abs,
+        forall("pair", implies(op_ab, app_c2)), [mult_abc2], [mf_abs])
+    $qi3 apply_thm(qi2, head(right(qi2)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"a","b","_"), apply("h",pair,"c2","_")), left(qi2))
+    $got_app_c2 mp(qi3, ax([op_ab],[op_ab],op_ab), op_ab, app_c2, left(qi3), [op_ab])
+
+    # func_unique: sv → Apply(h,pair,c) → Apply(h,pair,c2) → eq(c,c2)
+    $_fu_b \f: \x: \y1: \y2: implies(single_valued(f,"_"),
+        implies(apply(f,x,y1,"_"), implies(apply(f,x,y2,"_"), eq(y1,y2,"_"))))
+    $fu_inst apply_thm(func_unique_thm, head(right(func_unique_thm)), ["h","pair","c","c2"],
+        ["f","x","y1","y2"], _fu_b, [])
+    $fu1 mp(fu_inst, got_sv, sv_h, arg2(head(right(fu_inst))), [], left(mf_at_w))
+    $fu2 mp(fu1, got_app_c, app_c, implies(app_c2, goal), left(fu1), left(got_app_c))
+    $got_goal mp(fu2, got_app_c2, app_c2, goal, left(fu2), left(got_app_c2))
+
+    # eel pair from ordpair_exists
+    $oe_ctx left(ordpair_exists)
+    $oe_renamed forall("oa", forall("ob", exists("p", ordered_pair("p","oa","ob","_"))))
+    $oe_wr wr(ordpair_exists, oe_ctx, [oe_renamed], oe_renamed)
+    $_oe_b \oa: \ob: exists("p", ordered_pair("p",oa,ob,"_"))
+    $got_oe apply_thm(oe_wr, oe_renamed, ["a","b"], ["oa","ob"], _oe_b, oe_ctx)
+    $cur eel(got_goal, \pair: ordered_pair(pair,"a","b","_"), "p", "pair", left(got_goal), goal)
+    $cur cut_c(got_oe, cur, head(right(got_oe)), oe_ctx, left(cur), goal)
+
+    # eel h from mult_func_exists
+    $cur eel(cur, \h: mult_func(h,"_"), "h", "h", left(cur), goal)
+    $ex_h exists("h", mult_func("h","_"))
+    $cur cut_c(mult_func_exists, cur, ex_h, left(mult_func_exists), left(cur), goal)
+
+    # eel w from omega_exists
+    $cur eel(cur, \w: omega(w,"_"), "w", "w", remove(same, om, left(cur)), goal)
+    $cur cut_c(omega_exists, cur, exists("w", omega("w","_")), left(omega_exists), left(cur), goal)
+
+    # Discharge and close
+    $cur ir(cur, remove(same, mult_abc2, left(cur)), [implies(mult_abc2, goal)], implies(mult_abc2, goal))
+    $cur ir(cur, remove(same, mult_abc, left(cur)), [implies(mult_abc, head(right(cur)))], implies(mult_abc, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("c2", head(right(cur)))], forall("c2", head(right(cur))), "c2")
+    $cur fr(cur, left(cur), [forall("c", head(right(cur)))], forall("c", head(right(cur))), "c")
+    $cur fr(cur, left(cur), [forall("b", head(right(cur)))], forall("b", head(right(cur))), "b")
+    $top forall("a", head(right(cur)))
+    $cur fr(cur, left(cur), [top], top, "a")
+    close(cur, left(cur), [top], [])
+}

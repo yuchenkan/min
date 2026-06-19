@@ -33,6 +33,10 @@ from theorems.nat.arithmetic.mult.mult_step import mult_step
 from theorems.nat.arithmetic.mult.mult_func_unique import mult_func_unique
 from theorems.nat.arithmetic.mult.unique_mult_func import unique_mult_func
 from theorems.nat.arithmetic.mult.mult_zero_left import mult_zero_left
+from theorems.nat.arithmetic.mult.mult_val_unique import mult_val_unique
+from theorems.nat.arithmetic.mult.mult_val_transfer import mult_val_transfer
+from theorems.nat.arithmetic.mult.mult_val_exists import mult_val_exists
+from theorems.nat.arithmetic.mult.mult_succ_left import mult_succ_left
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
@@ -204,5 +208,30 @@ $_ qed(mult_zero_left,
     forall("n", implies(nat("n","_"),
         forall("z", implies(num("z",0,"_"), mult("z","n","z","_"))))), "zz")
 $_ tap("mult_zero_left ok")
+
+$_ qed(mult_val_unique,
+    forall("a", forall("b", forall("c", forall("c2",
+        implies(mult("a","b","c","_"), implies(mult("a","b","c2","_"), eq("c","c2","_"))))))), "z")
+$_ tap("mult_val_unique ok")
+
+$_ qed(mult_val_transfer,
+    forall("m", forall("n", forall("p", forall("q",
+        implies(mult("m","n","p","_"), implies(eq("p","q","_"), mult("m","n","q","_"))))))), "z")
+$_ tap("mult_val_transfer ok")
+
+$_ qed(mult_val_exists,
+    forall("m", implies(nat("m","_"),
+        forall("n", implies(nat("n","_"),
+            exists("p", and(mult("m","n","p","_"), nat("p","_"))))))), "z")
+$_ tap("mult_val_exists ok")
+
+$_ qed(mult_succ_left,
+    forall("m", implies(nat("m","_"),
+        forall("sm", implies(successor("sm","m","_"),
+            forall("n", implies(nat("n","_"),
+                forall("pv", implies(mult("m","n","pv","_"),
+                    forall("result", implies(plus("pv","n","result","_"),
+                        mult("sm","n","result","_"))))))))))), "z")
+$_ tap("mult_succ_left ok")
 
 $ok true
