@@ -1,0 +1,35 @@
+from derived import implies, forall, eq, exists, left, right, arg2
+from vocab.nat.arithmetic.mult import mult_func
+from vocab.logic import exists_unique
+from tactics import ax, fr, ir, mp, apply_thm, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.exists_unique_intro import exists_unique_intro
+from theorems.nat.arithmetic.mult.mult_func_exists import mult_func_exists
+from theorems.nat.arithmetic.mult.mult_func_unique import mult_func_unique
+
+$unique_mult_func {
+    $mf_fn \h p: mult_func(h, p)
+    $body_h mf_fn("h","_")
+    $eu exists_unique(mf_fn, "_")
+
+    $eui exists_unique_intro(mf_fn, "h", [], "_")
+
+    $_mfu head(right(mult_func_unique))
+    $_mfu_b \h1: \h2: implies(mult_func(h1,"_"), implies(mult_func(h2,"_"), eq(h1,h2,"_")))
+    $mfu_inst apply_thm(mult_func_unique, _mfu, ["h","y"], ["h1","h2"], _mfu_b, left(mult_func_unique))
+    $mfu1 mp(mfu_inst, ax([body_h],[body_h],body_h), body_h,
+        implies(mult_func("y","_"), eq("h","y","_")), left(mult_func_unique), [body_h])
+
+    $uniq_inner implies(mult_func("y","_"), eq("h","y","_"))
+    $uniq forall("y", uniq_inner)
+    $got_uniq fr(mfu1, left(mfu1), [uniq], uniq, "y")
+
+    $eui1 mp(eui, ax([body_h],[body_h],body_h), body_h, implies(uniq, eu), left(eui), [body_h])
+    $got_eu mp(eui1, got_uniq, uniq, eu, left(eui1), left(got_uniq))
+
+    $ex_h exists("h", body_h)
+    $got_eu2 eel(got_eu, \h: mf_fn(h, "_"), "h", "h", left(got_eu), eu)
+    $got_final cut_c(mult_func_exists, got_eu2, ex_h, left(mult_func_exists), left(got_eu2), eu)
+
+    close(got_final, left(got_final), [eu], [])
+}

@@ -46,6 +46,7 @@ from theorems.nat.arithmetic.plus.plus_val_exists import plus_val_exists
 from theorems.nat.arithmetic.plus.plus_val_transfer import plus_val_transfer
 from theorems.nat.arithmetic.plus.plus_arg2_transfer import plus_arg2_transfer
 from theorems.nat.arithmetic.plus.plus_sub import plus_sub
+from theorems.nat.arithmetic.plus.eq_plus_transfer import eq_plus_transfer
 
 $_ qed(succ_func_exists, exists("sf", succ_func("sf","_")), "z")
 $_ tap("succ_func_exists ok")
@@ -305,5 +306,9 @@ $_ qed(plus_sub, forall("m", forall("n",
                 implies(neg(lt("iv","m","_")),
                     exists("jv", and(lt("jv","n","_"), plus("m","jv","iv","_")))))))))))), "zfc")
 $_ tap("plus_sub ok")
+
+$_ qed(eq_plus_transfer, forall("a", forall("c", forall("b", forall("r",
+    implies(eq("a","c","_"), implies(plus("a","b","r","_"), plus("c","b","r","_"))))))), "z")
+$_ tap("eq_plus_transfer ok")
 
 $ok true
