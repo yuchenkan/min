@@ -37,6 +37,7 @@ from theorems.nat.arithmetic.mult.mult_val_unique import mult_val_unique
 from theorems.nat.arithmetic.mult.mult_val_transfer import mult_val_transfer
 from theorems.nat.arithmetic.mult.mult_val_exists import mult_val_exists
 from theorems.nat.arithmetic.mult.mult_succ_left import mult_succ_left
+from theorems.nat.arithmetic.mult.mult_comm import mult_comm
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
@@ -233,5 +234,12 @@ $_ qed(mult_succ_left,
                     forall("result", implies(plus("pv","n","result","_"),
                         mult("sm","n","result","_"))))))))))), "z")
 $_ tap("mult_succ_left ok")
+
+$_ qed(mult_comm,
+    forall("m", implies(nat("m","_"),
+        forall("n", implies(nat("n","_"),
+            forall("p", implies(mult("m","n","p","_"),
+                mult("n","m","p","_"))))))), "z")
+$_ tap("mult_comm ok")
 
 $ok true
