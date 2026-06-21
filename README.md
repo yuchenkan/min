@@ -11,8 +11,10 @@ Verified theorems spanning logic, sets, functions, natural numbers, recursion, a
 ```
 cd poc4
 make -C core-ci
-./core-ci/dst/min theorems/test.min
+./core-ci/dst/min test.min
 ```
+
+The kernel caches compiled modules in `min.cache`, invalidated by source file mtime. Cached modules suppress output, and duplicate `tap` calls with the same content are also suppressed. A silent run normally means successful — check the exit code (0) to confirm.
 
 
 ## Structure
