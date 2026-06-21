@@ -1,4 +1,4 @@
-# min (名)
+# min
 
 A proof engine for ZFC set theory. Sequent calculus kernel in C, no dependencies. LLM (Claude) assists with proof search; the kernel verifies everything.
 
