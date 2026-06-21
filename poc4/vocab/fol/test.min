@@ -1,0 +1,28 @@
+from derived import show
+from vocab.fol.fol import fol_pred, fol_var_seq, fol_atomic, fol_neg, fol_imp, fol_fa
+
+$pred fol_pred("P", "n", "L", "_")
+$_ tap(show(pred))
+$_ tap("fol_pred ok")
+
+$vs fol_var_seq("args", "n", "_")
+$_ tap(show(vs))
+$_ tap("fol_var_seq ok")
+
+$at fol_atomic("f", "P", "args", "_")
+$_ tap(show(at))
+$_ tap("fol_atomic ok")
+
+$fn fol_neg("f", "phi", "_")
+$_ tap(show(fn))
+$_ tap("fol_neg ok")
+
+$fi fol_imp("f", "phi", "psi", "_")
+$_ tap(show(fi))
+$_ tap("fol_imp ok")
+
+$ff fol_fa("f", "x", "phi", "_")
+$_ tap(show(ff))
+$_ tap("fol_fa ok")
+
+$ok true
