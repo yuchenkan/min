@@ -3,6 +3,7 @@ from vocab.sets import subset, transitive_set
 from vocab.nat.nat import nat, num, inductive, omega, successor
 from vocab.logic import exists_unique
 from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.nat_eq_transfer import nat_eq_transfer
 from theorems.nat.nat.num_exists_unique import num_exists_unique
 from theorems.nat.nat.num_exists import num_exists
 from theorems.nat.nat.num_unique import num_unique
@@ -171,5 +172,9 @@ $_ tap("successor_injection ok")
 
 $_ qed(nat_transitive, forall("b", implies(nat("b","_"), transitive_set("b","_"))), "z")
 $_ tap("nat_transitive ok")
+
+$_ qed(nat_eq_transfer, forall("a", forall("b",
+    implies(nat("a","_"), implies(eq("a","b","_"), nat("b","_"))))), "z")
+$_ tap("nat_eq_transfer ok")
 
 $ok true

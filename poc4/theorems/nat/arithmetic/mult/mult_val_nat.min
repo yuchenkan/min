@@ -1,0 +1,80 @@
+from derived import implies, forall, and, exists, eq, left, right, head, arg2
+from vocab.nat.nat import nat
+from vocab.nat.arithmetic.mult import mult
+from tactics import ax, ir, fr, mp, apply_thm, inst, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.nat.nat.nat_eq_transfer import nat_eq_transfer
+from theorems.nat.arithmetic.mult.mult_val_exists import mult_val_exists
+from theorems.nat.arithmetic.mult.mult_val_unique import mult_val_unique
+
+# mult_val_nat: ∀m,n,p. Nat(m) → Nat(n) → Mult(m,n,p) → Nat(p)
+
+$mult_val_nat {
+    $nat_m nat("m","_")
+    $nat_n nat("n","_")
+    $mult_mnp mult("m","n","p","_")
+    $nat_p nat("p","_")
+
+    # mult_val_exists(m,n) → ∃q. And(Mult(m,n,q), Nat(q))
+    $_mve_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+        exists("p", and(mult(m,"n","p","_"), nat("p","_"))))))
+    $mve1 inst(mult_val_exists, head(right(mult_val_exists)), _mve_b("m"), "m", left(mult_val_exists))
+    $mve2 mp(mve1, ax([nat_m],[nat_m],nat_m), nat_m, arg2(head(right(mve1))),
+        left(mve1), [nat_m])
+    $_mve3 \n: implies(nat(n,"_"), exists("p", and(mult("m",n,"p","_"), nat("p","_"))))
+    $mve3 inst(mve2, head(right(mve2)), _mve3("n"), "n", left(mve2))
+    $got_ex mp(mve3, ax([nat_n],[nat_n],nat_n), nat_n,
+        exists("p", and(mult("m","n","p","_"), nat("p","_"))), left(mve3), [nat_n])
+
+    # Assume And(Mult(m,n,q), Nat(q))
+    $mult_mnq mult("m","n","q","_")
+    $nat_q nat("q","_")
+    $and_q and(mult_mnq, nat_q)
+    $got_mult_q mp(and_elim_left(mult_mnq, nat_q, []),
+        ax([and_q],[and_q],and_q), and_q, mult_mnq, [], [and_q])
+    $got_nat_q mp(and_elim_right(mult_mnq, nat_q, []),
+        ax([and_q],[and_q],and_q), and_q, nat_q, [], [and_q])
+
+    # mult_val_unique: Mult(m,n,p) → Mult(m,n,q) → eq(p,q)
+    $_mvu_b \a: \b: \c: \c2: implies(mult(a,b,c,"_"), implies(mult(a,b,c2,"_"), eq(c,c2,"_")))
+    $mvu1 apply_thm(mult_val_unique, head(right(mult_val_unique)),
+        ["m","n","p","q"], ["a","b","c","c2"], _mvu_b, left(mult_val_unique))
+    $mvu2 mp(mvu1, ax([mult_mnp],[mult_mnp],mult_mnp), mult_mnp,
+        implies(mult_mnq, eq("p","q","_")), left(mvu1), [mult_mnp])
+    $got_eq_pq mp(mvu2, got_mult_q, mult_mnq, eq("p","q","_"),
+        left(mvu2), left(got_mult_q))
+
+    # eq_symmetric: eq(p,q) → eq(q,p)
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $es1 apply_thm(eq_symmetric, head(right(eq_symmetric)),
+        ["p","q"], ["a","b"], _es_b, left(eq_symmetric))
+    $got_eq_qp mp(es1, got_eq_pq, eq("p","q","_"), eq("q","p","_"),
+        left(es1), left(got_eq_pq))
+
+    # nat_eq_transfer: Nat(q) → eq(q,p) → Nat(p)
+    $_net_b \a: \b: implies(nat(a,"_"), implies(eq(a,b,"_"), nat(b,"_")))
+    $net1 apply_thm(nat_eq_transfer, head(right(nat_eq_transfer)),
+        ["q","p"], ["a","b"], _net_b, left(nat_eq_transfer))
+    $net2 mp(net1, got_nat_q, nat_q, implies(eq("q","p","_"), nat_p),
+        left(net1), left(got_nat_q))
+    $got_nat_p mp(net2, got_eq_qp, eq("q","p","_"), nat_p,
+        left(net2), left(got_eq_qp))
+
+    # eel q from mult_val_exists
+    $cur got_nat_p
+    $cur eel(cur, \q: and(mult("m","n",q,"_"), nat(q,"_")), "p", "q",
+        remove(same, and_q, left(cur)), nat_p)
+    $cur cut_c(got_ex, cur, head(right(got_ex)), left(got_ex), left(cur), nat_p)
+
+    # Close
+    $cur ir(cur, remove(same, mult_mnp, left(cur)),
+        [implies(mult_mnp, nat_p)], implies(mult_mnp, nat_p))
+    $cur ir(cur, remove(same, nat_n, left(cur)),
+        [implies(nat_n, head(right(cur)))], implies(nat_n, head(right(cur))))
+    $cur ir(cur, remove(same, nat_m, left(cur)),
+        [implies(nat_m, head(right(cur)))], implies(nat_m, head(right(cur))))
+    close(cur, left(cur), right(cur), ["p","n","m"])
+}

@@ -1,0 +1,642 @@
+from derived import mem, implies, forall, and, exists, eq, left, right, head, arg2
+from vocab.nat.nat import nat, num, omega, successor
+from vocab.nat.arithmetic.plus import plus
+from vocab.nat.arithmetic.mult import mult
+from tactics import ax, wr, fr, ir, mp, inst, apply_thm, eel, cut_c, close, same
+from util.list import remove
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.eq_symmetric import eq_symmetric
+from theorems.nat.nat.omega_induction import omega_induction
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.arithmetic.plus.plus_val_exists import plus_val_exists
+from theorems.nat.arithmetic.plus.eq_plus_transfer import eq_plus_transfer
+from theorems.nat.arithmetic.mult.mult_base_eq import mult_base_eq
+from theorems.nat.arithmetic.mult.mult_step import mult_step
+from theorems.nat.arithmetic.mult.mult_val_exists import mult_val_exists
+from theorems.nat.arithmetic.mult.mult_val_unique import mult_val_unique
+from theorems.nat.arithmetic.mult.mult_val_transfer import mult_val_transfer
+from theorems.nat.arithmetic.mult.mult_val_nat import mult_val_nat
+from theorems.nat.arithmetic.mult.mult_arg2_transfer import mult_arg2_transfer
+from theorems.nat.arithmetic.mult.left_distrib import left_distrib
+
+# mult_assoc: (a*b)*c = a*(b*c)
+# P(c) = ∀a.Nat→∀b.Nat→∀ab.Mult(a,b,ab)→∀abc.Mult(ab,c,abc)→
+#         ∀bc.Mult(b,c,bc)→∀r.Mult(a,bc,r)→eq(abc,r)
+
+$mult_assoc {
+    $om omega("w","_")
+
+    $pred \w c p: forall(add(p,"a"), implies(nat(add(p,"a"),p),
+        forall(add(p,"b"), implies(nat(add(p,"b"),p),
+            forall(add(p,"ab"), implies(mult(add(p,"a"),add(p,"b"),add(p,"ab"),p),
+                forall(add(p,"abc"), implies(mult(add(p,"ab"),c,add(p,"abc"),p),
+                    forall(add(p,"bc"), implies(mult(add(p,"b"),c,add(p,"bc"),p),
+                        forall(add(p,"r"), implies(mult(add(p,"a"),add(p,"bc"),add(p,"r"),p),
+                            eq(add(p,"abc"),add(p,"r"),p)))))))))))))
+    $oi omega_induction(pred, [], "_")
+
+    # Alpha-renamed mult_val_unique (a1,b1,c1,d1)
+    $_mvu_r_b \a1: \b1: \c1: \d1: implies(mult(a1,b1,c1,"_"), implies(mult(a1,b1,d1,"_"), eq(c1,d1,"_")))
+    $mvu_r forall("a1", forall("b1", forall("c1", forall("d1",
+        _mvu_r_b("a1")("b1")("c1")("d1")))))
+    $mvu_thm wr(mult_val_unique, left(mult_val_unique), [mvu_r], mvu_r)
+
+    # Alpha-renamed mult_val_transfer (a1,a2,a3,a4)
+    $_mvt_r_b \a1: \a2: \a3: \a4: implies(mult(a1,a2,a3,"_"), implies(eq(a3,a4,"_"), mult(a1,a2,a4,"_")))
+    $mvt_r forall("a1", forall("a2", forall("a3", forall("a4",
+        _mvt_r_b("a1")("a2")("a3")("a4")))))
+    $mvt_thm wr(mult_val_transfer, left(mult_val_transfer), [mvt_r], mvt_r)
+
+    # Shared templates
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $_mvn_b \m: \n: \p: implies(nat(m,"_"), implies(nat(n,"_"), implies(mult(m,n,p,"_"), nat(p,"_"))))
+    $_mat_b \a: \b1: \b2: \c: implies(mult(a,b1,c,"_"), implies(eq(b1,b2,"_"), mult(a,b2,c,"_")))
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $_ni_b \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
+    $_mb_b \m: implies(nat(m,"_"), forall("z", implies(num("z",0,"_"), mult(m,"z","z","_"))))
+    $_mve_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+        exists("p", and(mult(m,"n","p","_"), nat("p","_"))))))
+    $_pve_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+        exists("r", plus(m,"n","r","_")))))
+    $_ms_b \m: implies(nat(m,"_"), forall("n", implies(nat("n","_"),
+        forall("pv", implies(mult(m,"n","pv","_"),
+            forall("sn", implies(successor("sn","n","_"),
+                forall("result", implies(plus("pv",m,"result","_"),
+                    mult(m,"sn","result","_"))))))))))
+
+    # ============================================================
+    # BASE CASE: Num(e,0) → P(e)
+    # ============================================================
+    $emp num("e",0,"_")
+    $nat_a nat("a","_")
+    $nat_b nat("b","_")
+    $mult_ab mult("a","b","ab","_")
+    $mult_abe mult("ab","e","abc","_")
+    $mult_be mult("b","e","bc","_")
+    $mult_abcr mult("a","bc","r","_")
+    $nat_ab nat("ab","_")
+    $eq_abc_r eq("abc","r","_")
+
+    # Nat(ab) from mult_val_nat
+    $mvn1 apply_thm(mult_val_nat, head(right(mult_val_nat)),
+        ["a","b","ab"], ["m","n","p"], _mvn_b, left(mult_val_nat))
+    $mvn2 mp(mvn1, ax([nat_a],[nat_a],nat_a), nat_a,
+        implies(nat_b, implies(mult_ab, nat_ab)), left(mvn1), [nat_a])
+    $mvn3 mp(mvn2, ax([nat_b],[nat_b],nat_b), nat_b,
+        implies(mult_ab, nat_ab), left(mvn2), [nat_b])
+    $got_nat_ab mp(mvn3, ax([mult_ab],[mult_ab],mult_ab), mult_ab, nat_ab,
+        left(mvn3), [mult_ab])
+
+    # mult_base_eq(ab,e): Mult(ab,e,e)
+    $mb1 inst(mult_base_eq, head(right(mult_base_eq)), _mb_b("ab"), "ab", left(mult_base_eq))
+    $mb2 mp(mb1, got_nat_ab, nat_ab, arg2(head(right(mb1))), left(mb1), left(got_nat_ab))
+    $_mb_z \z: implies(num(z,0,"_"), mult("ab",z,z,"_"))
+    $mb3 inst(mb2, head(right(mb2)), _mb_z("e"), "e", left(mb2))
+    $got_mult_abee mp(mb3, ax([emp],[emp],emp), emp, mult("ab","e","e","_"),
+        left(mb3), [emp])
+
+    # mvu: Mult(ab,e,abc) + Mult(ab,e,e) → eq(abc,e)
+    $mvu1 apply_thm(mvu_thm, mvu_r,
+        ["ab","e","abc","e"], ["a1","b1","c1","d1"], _mvu_r_b, left(mvu_thm))
+    $mvu2 mp(mvu1, ax([mult_abe],[mult_abe],mult_abe), mult_abe,
+        implies(mult("ab","e","e","_"), eq("abc","e","_")), left(mvu1), [mult_abe])
+    $got_eq_abc_e mp(mvu2, got_mult_abee, mult("ab","e","e","_"), eq("abc","e","_"),
+        left(mvu2), left(got_mult_abee))
+
+    # mult_base_eq(b,e): Mult(b,e,e)
+    $mb_b1 inst(mult_base_eq, head(right(mult_base_eq)), _mb_b("b"), "b", left(mult_base_eq))
+    $mb_b2 mp(mb_b1, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(mb_b1))),
+        left(mb_b1), [nat_b])
+    $_mb_bz \z: implies(num(z,0,"_"), mult("b",z,z,"_"))
+    $mb_b3 inst(mb_b2, head(right(mb_b2)), _mb_bz("e"), "e", left(mb_b2))
+    $got_mult_bee mp(mb_b3, ax([emp],[emp],emp), emp, mult("b","e","e","_"),
+        left(mb_b3), [emp])
+
+    # mvu: Mult(b,e,bc) + Mult(b,e,e) → eq(bc,e)
+    $mvu_b1 apply_thm(mvu_thm, mvu_r,
+        ["b","e","bc","e"], ["a1","b1","c1","d1"], _mvu_r_b, left(mvu_thm))
+    $mvu_b2 mp(mvu_b1, ax([mult_be],[mult_be],mult_be), mult_be,
+        implies(mult("b","e","e","_"), eq("bc","e","_")), left(mvu_b1), [mult_be])
+    $got_eq_bc_e mp(mvu_b2, got_mult_bee, mult("b","e","e","_"), eq("bc","e","_"),
+        left(mvu_b2), left(got_mult_bee))
+
+    # mat: Mult(a,bc,r) + eq(bc,e) → Mult(a,e,r)
+    $mat1 apply_thm(mult_arg2_transfer, head(right(mult_arg2_transfer)),
+        ["a","bc","e","r"], ["a","b1","b2","c"], _mat_b, left(mult_arg2_transfer))
+    $mat2 mp(mat1, ax([mult_abcr],[mult_abcr],mult_abcr), mult_abcr,
+        implies(eq("bc","e","_"), mult("a","e","r","_")), left(mat1), [mult_abcr])
+    $got_mult_aer mp(mat2, got_eq_bc_e, eq("bc","e","_"), mult("a","e","r","_"),
+        left(mat2), left(got_eq_bc_e))
+
+    # mult_base_eq(a,e): Mult(a,e,e)
+    $mb_a1 inst(mult_base_eq, head(right(mult_base_eq)), _mb_b("a"), "a", left(mult_base_eq))
+    $mb_a2 mp(mb_a1, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(mb_a1))),
+        left(mb_a1), [nat_a])
+    $_mb_az \z: implies(num(z,0,"_"), mult("a",z,z,"_"))
+    $mb_a3 inst(mb_a2, head(right(mb_a2)), _mb_az("e"), "e", left(mb_a2))
+    $got_mult_aee mp(mb_a3, ax([emp],[emp],emp), emp, mult("a","e","e","_"),
+        left(mb_a3), [emp])
+
+    # mvu: Mult(a,e,r) + Mult(a,e,e) → eq(r,e)
+    $mvu_a1 apply_thm(mvu_thm, mvu_r,
+        ["a","e","r","e"], ["a1","b1","c1","d1"], _mvu_r_b, left(mvu_thm))
+    $mvu_a2 mp(mvu_a1, got_mult_aer, mult("a","e","r","_"),
+        implies(mult("a","e","e","_"), eq("r","e","_")), left(mvu_a1), left(got_mult_aer))
+    $got_eq_re mp(mvu_a2, got_mult_aee, mult("a","e","e","_"), eq("r","e","_"),
+        left(mvu_a2), left(got_mult_aee))
+
+    # eq_symmetric: eq(r,e) → eq(e,r)
+    $es1 apply_thm(eq_symmetric, head(right(eq_symmetric)),
+        ["r","e"], ["a","b"], _es_b, left(eq_symmetric))
+    $got_eq_er mp(es1, got_eq_re, eq("r","e","_"), eq("e","r","_"),
+        left(es1), left(got_eq_re))
+
+    # mvt: Mult(ab,e,e) + eq(e,r) → Mult(ab,e,r)
+    $mvt1 apply_thm(mvt_thm, mvt_r,
+        ["ab","e","e","r"], ["a1","a2","a3","a4"], _mvt_r_b, left(mvt_thm))
+    $mvt2 mp(mvt1, got_mult_abee, mult("ab","e","e","_"),
+        implies(eq("e","r","_"), mult("ab","e","r","_")), left(mvt1), left(got_mult_abee))
+    $got_mult_aber mp(mvt2, got_eq_er, eq("e","r","_"), mult("ab","e","r","_"),
+        left(mvt2), left(got_eq_er))
+
+    # mvu: Mult(ab,e,abc) + Mult(ab,e,r) → eq(abc,r)
+    $mvu_f1 apply_thm(mvu_thm, mvu_r,
+        ["ab","e","abc","r"], ["a1","b1","c1","d1"], _mvu_r_b, left(mvu_thm))
+    $mvu_f2 mp(mvu_f1, ax([mult_abe],[mult_abe],mult_abe), mult_abe,
+        implies(mult("ab","e","r","_"), eq_abc_r), left(mvu_f1), [mult_abe])
+    $got_base mp(mvu_f2, got_mult_aber, mult("ab","e","r","_"), eq_abc_r,
+        left(mvu_f2), left(got_mult_aber))
+
+    # Close base
+    $bcur got_base
+    $bcur ir(bcur, remove(same, mult_abcr, left(bcur)),
+        [implies(mult_abcr, eq_abc_r)], implies(mult_abcr, eq_abc_r))
+    $bcur fr(bcur, left(bcur), [forall("r", head(right(bcur)))],
+        forall("r", head(right(bcur))), "r")
+    $bcur ir(bcur, remove(same, mult_be, left(bcur)),
+        [implies(mult_be, head(right(bcur)))], implies(mult_be, head(right(bcur))))
+    $bcur fr(bcur, left(bcur), [forall("bc", head(right(bcur)))],
+        forall("bc", head(right(bcur))), "bc")
+    $bcur ir(bcur, remove(same, mult_abe, left(bcur)),
+        [implies(mult_abe, head(right(bcur)))], implies(mult_abe, head(right(bcur))))
+    $bcur fr(bcur, left(bcur), [forall("abc", head(right(bcur)))],
+        forall("abc", head(right(bcur))), "abc")
+    $bcur ir(bcur, remove(same, mult_ab, left(bcur)),
+        [implies(mult_ab, head(right(bcur)))], implies(mult_ab, head(right(bcur))))
+    $bcur fr(bcur, left(bcur), [forall("ab", head(right(bcur)))],
+        forall("ab", head(right(bcur))), "ab")
+    $bcur ir(bcur, remove(same, nat_b, left(bcur)),
+        [implies(nat_b, head(right(bcur)))], implies(nat_b, head(right(bcur))))
+    $bcur fr(bcur, left(bcur), [forall("b", head(right(bcur)))],
+        forall("b", head(right(bcur))), "b")
+    $bcur ir(bcur, remove(same, nat_a, left(bcur)),
+        [implies(nat_a, head(right(bcur)))], implies(nat_a, head(right(bcur))))
+    $bcur fr(bcur, left(bcur), [forall("a", head(right(bcur)))],
+        forall("a", head(right(bcur))), "a")
+    $bcur ir(bcur, remove(same, emp, left(bcur)),
+        [implies(emp, head(right(bcur)))], implies(emp, head(right(bcur))))
+    $base_case forall("e", head(right(bcur)))
+    $got_bc fr(bcur, left(bcur), [base_case], base_case, "e")
+    $_ tap("base ok")
+
+    # ============================================================
+    # STEP CASE: c∈w → P(c) → Succ(sc,c) → P(sc)
+    # ============================================================
+    $cw mem("c","w")
+    $pc pred("w","c","_")
+    $succ_sc successor("sc","c","_")
+    $mult_ab_sc mult("ab","sc","abc","_")
+    $mult_b_sc mult("b","sc","bc","_")
+    $mult_a_bc mult("a","bc","r","_")
+
+    # Nat(c) from nat_intro
+    $ni_c1 apply_thm(nat_intro, head(right(nat_intro)),
+        ["w","c"], ["w","m"], _ni_b, left(nat_intro))
+    $ni_c2 mp(ni_c1, ax([om],[om],om), om, implies(cw, nat("c","_")),
+        left(ni_c1), [om])
+    $nat_c nat("c","_")
+    $got_nat_c mp(ni_c2, ax([cw],[cw],cw), cw, nat_c, left(ni_c2), [cw])
+
+    # Nat(ab) from mult_val_nat
+    $got_nat_ab2 {
+        $v1 apply_thm(mult_val_nat, head(right(mult_val_nat)),
+            ["a","b","ab"], ["m","n","p"], _mvn_b, left(mult_val_nat))
+        $v2 mp(v1, ax([nat_a],[nat_a],nat_a), nat_a,
+            implies(nat_b, implies(mult_ab, nat_ab)), left(v1), [nat_a])
+        $v3 mp(v2, ax([nat_b],[nat_b],nat_b), nat_b,
+            implies(mult_ab, nat_ab), left(v2), [nat_b])
+        mp(v3, ax([mult_ab],[mult_ab],mult_ab), mult_ab, nat_ab,
+            left(v3), [mult_ab])
+    }
+
+    # --- mult_val_exists(ab,c) → ∃abc0. And(Mult(ab,c,abc0), Nat(abc0)) ---
+    $mve1 inst(mult_val_exists, head(right(mult_val_exists)), _mve_b("ab"), "ab", left(mult_val_exists))
+    $mve2 mp(mve1, got_nat_ab2, nat_ab, arg2(head(right(mve1))),
+        left(mve1), left(got_nat_ab2))
+    $_mve3 \n: implies(nat(n,"_"), exists("p", and(mult("ab",n,"p","_"), nat("p","_"))))
+    $mve3 inst(mve2, head(right(mve2)), _mve3("c"), "c", left(mve2))
+    $got_ex_abc0 mp(mve3, got_nat_c, nat_c,
+        exists("p", and(mult("ab","c","p","_"), nat("p","_"))), left(mve3), left(got_nat_c))
+
+    $mult_abc0 mult("ab","c","abc0","_")
+    $nat_abc0 nat("abc0","_")
+    $and_abc0 and(mult_abc0, nat_abc0)
+    $got_mult_abc0 mp(and_elim_left(mult_abc0, nat_abc0, []),
+        ax([and_abc0],[and_abc0],and_abc0), and_abc0, mult_abc0, [], [and_abc0])
+    $got_nat_abc0 mp(and_elim_right(mult_abc0, nat_abc0, []),
+        ax([and_abc0],[and_abc0],and_abc0), and_abc0, nat_abc0, [], [and_abc0])
+
+    # --- mult_val_exists(b,c) → ∃bc0. And(Mult(b,c,bc0), Nat(bc0)) ---
+    $mve_b1 inst(mult_val_exists, head(right(mult_val_exists)), _mve_b("b"), "b", left(mult_val_exists))
+    $mve_b2 mp(mve_b1, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(mve_b1))),
+        left(mve_b1), [nat_b])
+    $_mve_b3 \n: implies(nat(n,"_"), exists("p", and(mult("b",n,"p","_"), nat("p","_"))))
+    $mve_b3 inst(mve_b2, head(right(mve_b2)), _mve_b3("c"), "c", left(mve_b2))
+    $got_ex_bc0 mp(mve_b3, got_nat_c, nat_c,
+        exists("p", and(mult("b","c","p","_"), nat("p","_"))), left(mve_b3), left(got_nat_c))
+
+    $mult_bc0 mult("b","c","bc0","_")
+    $nat_bc0 nat("bc0","_")
+    $and_bc0 and(mult_bc0, nat_bc0)
+    $got_mult_bc0 mp(and_elim_left(mult_bc0, nat_bc0, []),
+        ax([and_bc0],[and_bc0],and_bc0), and_bc0, mult_bc0, [], [and_bc0])
+    $got_nat_bc0 mp(and_elim_right(mult_bc0, nat_bc0, []),
+        ax([and_bc0],[and_bc0],and_bc0), and_bc0, nat_bc0, [], [and_bc0])
+
+    # --- mult_val_exists(a,bc0) → ∃q. And(Mult(a,bc0,q), Nat(q)) ---
+    $mve_q1 inst(mult_val_exists, head(right(mult_val_exists)), _mve_b("a"), "a", left(mult_val_exists))
+    $mve_q2 mp(mve_q1, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(mve_q1))),
+        left(mve_q1), [nat_a])
+    $_mve_q3 \n: implies(nat(n,"_"), exists("p", and(mult("a",n,"p","_"), nat("p","_"))))
+    $mve_q3 inst(mve_q2, head(right(mve_q2)), _mve_q3("bc0"), "bc0", left(mve_q2))
+    $got_ex_q mp(mve_q3, got_nat_bc0, nat_bc0,
+        exists("p", and(mult("a","bc0","p","_"), nat("p","_"))), left(mve_q3), left(got_nat_bc0))
+
+    $mult_abcq mult("a","bc0","q","_")
+    $nat_q nat("q","_")
+    $and_q and(mult_abcq, nat_q)
+    $got_mult_abcq mp(and_elim_left(mult_abcq, nat_q, []),
+        ax([and_q],[and_q],and_q), and_q, mult_abcq, [], [and_q])
+    $got_nat_q mp(and_elim_right(mult_abcq, nat_q, []),
+        ax([and_q],[and_q],and_q), and_q, nat_q, [], [and_q])
+
+    # --- IH P(c) → eq(abc0, q) ---
+    $_ih1 \a: implies(nat(a,"_"), forall("b", implies(nat("b","_"),
+        forall("ab", implies(mult(a,"b","ab","_"),
+            forall("abc", implies(mult("ab","c","abc","_"),
+                forall("bc", implies(mult("b","c","bc","_"),
+                    forall("r", implies(mult(a,"bc","r","_"),
+                        eq("abc","r","_"))))))))))))
+    $ih1 inst(ax([pc],[pc],pc), pc, _ih1("a"), "a", [pc])
+    $ih2 mp(ih1, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(ih1))),
+        [pc], [nat_a])
+    $_ih3 \b: implies(nat(b,"_"), forall("ab", implies(mult("a",b,"ab","_"),
+        forall("abc", implies(mult("ab","c","abc","_"),
+            forall("bc", implies(mult(b,"c","bc","_"),
+                forall("r", implies(mult("a","bc","r","_"),
+                    eq("abc","r","_"))))))))))
+    $ih3 inst(ih2, head(right(ih2)), _ih3("b"), "b", left(ih2))
+    $ih4 mp(ih3, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(ih3))),
+        left(ih3), [nat_b])
+    $_ih5 \ab: implies(mult("a","b",ab,"_"), forall("abc", implies(mult(ab,"c","abc","_"),
+        forall("bc", implies(mult("b","c","bc","_"),
+            forall("r", implies(mult("a","bc","r","_"),
+                eq("abc","r","_"))))))))
+    $ih5 inst(ih4, head(right(ih4)), _ih5("ab"), "ab", left(ih4))
+    $ih6 mp(ih5, ax([mult_ab],[mult_ab],mult_ab), mult_ab, arg2(head(right(ih5))),
+        left(ih5), [mult_ab])
+    $_ih7 \abc: implies(mult("ab","c",abc,"_"), forall("bc", implies(mult("b","c","bc","_"),
+        forall("r", implies(mult("a","bc","r","_"),
+            eq(abc,"r","_"))))))
+    $ih7 inst(ih6, head(right(ih6)), _ih7("abc0"), "abc0", left(ih6))
+    $ih8 mp(ih7, got_mult_abc0, mult_abc0, arg2(head(right(ih7))),
+        left(ih7), left(got_mult_abc0))
+    $_ih9 \bc: implies(mult("b","c",bc,"_"), forall("r", implies(mult("a",bc,"r","_"),
+        eq("abc0","r","_"))))
+    $ih9 inst(ih8, head(right(ih8)), _ih9("bc0"), "bc0", left(ih8))
+    $ih10 mp(ih9, got_mult_bc0, mult_bc0, arg2(head(right(ih9))),
+        left(ih9), left(got_mult_bc0))
+    $_ih11 \r: implies(mult("a","bc0",r,"_"), eq("abc0",r,"_"))
+    $ih11 inst(ih10, head(right(ih10)), _ih11("q"), "q", left(ih10))
+    $got_eq_abc0_q mp(ih11, got_mult_abcq, mult_abcq, eq("abc0","q","_"),
+        left(ih11), left(got_mult_abcq))
+
+    # --- eq_symmetric(abc0,q) → eq(q,abc0) ---
+    $es_iq apply_thm(eq_symmetric, head(right(eq_symmetric)),
+        ["abc0","q"], ["a","b"], _es_b, left(eq_symmetric))
+    $got_eq_q_abc0 mp(es_iq, got_eq_abc0_q, eq("abc0","q","_"), eq("q","abc0","_"),
+        left(es_iq), left(got_eq_abc0_q))
+
+    # --- plus_val_exists(q,ab) → ∃t. Plus(q,ab,t) ---
+    $pve1 inst(plus_val_exists, head(right(plus_val_exists)), _pve_b("q"), "q", left(plus_val_exists))
+    $pve2 mp(pve1, got_nat_q, nat_q, arg2(head(right(pve1))),
+        left(pve1), left(got_nat_q))
+    $_pve3 \n: implies(nat(n,"_"), exists("r", plus("q",n,"r","_")))
+    $pve3 inst(pve2, head(right(pve2)), _pve3("ab"), "ab", left(pve2))
+    $got_ex_t mp(pve3, got_nat_ab2, nat_ab,
+        exists("r", plus("q","ab","r","_")), left(pve3), left(got_nat_ab2))
+    $plus_qt plus("q","ab","t","_")
+
+    # --- eq_plus_transfer → Plus(abc0,ab,t) ---
+    $_ept_b \a: \c: \b: \r: implies(eq(a,c,"_"), implies(plus(a,b,r,"_"), plus(c,b,r,"_")))
+    $ept1 apply_thm(eq_plus_transfer, head(right(eq_plus_transfer)),
+        ["q","abc0","ab","t"], ["a","c","b","r"], _ept_b, left(eq_plus_transfer))
+    $ept2 mp(ept1, got_eq_q_abc0, eq("q","abc0","_"),
+        implies(plus_qt, plus("abc0","ab","t","_")), left(ept1), left(got_eq_q_abc0))
+    $got_plus_abc0t mp(ept2, ax([plus_qt],[plus_qt],plus_qt), plus_qt,
+        plus("abc0","ab","t","_"), left(ept2), [plus_qt])
+
+    # --- mult_step(ab,c,abc0,sc,t) → Mult(ab,sc,t) ---
+    $ms1 inst(mult_step, head(right(mult_step)), _ms_b("ab"), "ab", left(mult_step))
+    $ms2 mp(ms1, got_nat_ab2, nat_ab, arg2(head(right(ms1))),
+        left(ms1), left(got_nat_ab2))
+    $_ms3 \n: implies(nat(n,"_"), forall("pv", implies(mult("ab",n,"pv","_"),
+        forall("sn", implies(successor("sn",n,"_"),
+            forall("result", implies(plus("pv","ab","result","_"),
+                mult("ab","sn","result","_"))))))))
+    $ms3 inst(ms2, head(right(ms2)), _ms3("c"), "c", left(ms2))
+    $ms4 mp(ms3, got_nat_c, nat_c, arg2(head(right(ms3))), left(ms3), left(got_nat_c))
+    $_ms5 \pv: implies(mult("ab","c",pv,"_"), forall("sn", implies(successor("sn","c","_"),
+        forall("result", implies(plus(pv,"ab","result","_"), mult("ab","sn","result","_"))))))
+    $ms5 inst(ms4, head(right(ms4)), _ms5("abc0"), "abc0", left(ms4))
+    $ms6 mp(ms5, got_mult_abc0, mult_abc0, arg2(head(right(ms5))), left(ms5), left(got_mult_abc0))
+    $_ms7 \sn: implies(successor(sn,"c","_"), forall("result", implies(plus("abc0","ab","result","_"),
+        mult("ab",sn,"result","_"))))
+    $ms7 inst(ms6, head(right(ms6)), _ms7("sc"), "sc", left(ms6))
+    $ms8 mp(ms7, ax([succ_sc],[succ_sc],succ_sc), succ_sc, arg2(head(right(ms7))),
+        left(ms7), [succ_sc])
+    $_ms9 \result: implies(plus("abc0","ab",result,"_"), mult("ab","sc",result,"_"))
+    $ms9 inst(ms8, head(right(ms8)), _ms9("t"), "t", left(ms8))
+    $got_mult_absct mp(ms9, got_plus_abc0t, plus("abc0","ab","t","_"),
+        mult("ab","sc","t","_"), left(ms9), left(got_plus_abc0t))
+
+    # --- plus_val_exists(bc0,b) → ∃u. Plus(bc0,b,u) ---
+    $pve_u1 inst(plus_val_exists, head(right(plus_val_exists)), _pve_b("bc0"), "bc0", left(plus_val_exists))
+    $pve_u2 mp(pve_u1, got_nat_bc0, nat_bc0, arg2(head(right(pve_u1))),
+        left(pve_u1), left(got_nat_bc0))
+    $_pve_u3 \n: implies(nat(n,"_"), exists("r", plus("bc0",n,"r","_")))
+    $pve_u3 inst(pve_u2, head(right(pve_u2)), _pve_u3("b"), "b", left(pve_u2))
+    $got_ex_u mp(pve_u3, ax([nat_b],[nat_b],nat_b), nat_b,
+        exists("r", plus("bc0","b","r","_")), left(pve_u3), [nat_b])
+    $plus_bu plus("bc0","b","u","_")
+
+    # --- mult_step(b,c,bc0,sc,u) → Mult(b,sc,u) ---
+    $msb1 inst(mult_step, head(right(mult_step)), _ms_b("b"), "b", left(mult_step))
+    $msb2 mp(msb1, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(msb1))),
+        left(msb1), [nat_b])
+    $_msb3 \n: implies(nat(n,"_"), forall("pv", implies(mult("b",n,"pv","_"),
+        forall("sn", implies(successor("sn",n,"_"),
+            forall("result", implies(plus("pv","b","result","_"),
+                mult("b","sn","result","_"))))))))
+    $msb3 inst(msb2, head(right(msb2)), _msb3("c"), "c", left(msb2))
+    $msb4 mp(msb3, got_nat_c, nat_c, arg2(head(right(msb3))), left(msb3), left(got_nat_c))
+    $_msb5 \pv: implies(mult("b","c",pv,"_"), forall("sn", implies(successor("sn","c","_"),
+        forall("result", implies(plus(pv,"b","result","_"), mult("b","sn","result","_"))))))
+    $msb5 inst(msb4, head(right(msb4)), _msb5("bc0"), "bc0", left(msb4))
+    $msb6 mp(msb5, got_mult_bc0, mult_bc0, arg2(head(right(msb5))), left(msb5), left(got_mult_bc0))
+    $_msb7 \sn: implies(successor(sn,"c","_"), forall("result", implies(plus("bc0","b","result","_"),
+        mult("b",sn,"result","_"))))
+    $msb7 inst(msb6, head(right(msb6)), _msb7("sc"), "sc", left(msb6))
+    $msb8 mp(msb7, ax([succ_sc],[succ_sc],succ_sc), succ_sc, arg2(head(right(msb7))),
+        left(msb7), [succ_sc])
+    $_msb9 \result: implies(plus("bc0","b",result,"_"), mult("b","sc",result,"_"))
+    $msb9 inst(msb8, head(right(msb8)), _msb9("u"), "u", left(msb8))
+    $got_mult_bscu mp(msb9, ax([plus_bu],[plus_bu],plus_bu), plus_bu,
+        mult("b","sc","u","_"), left(msb9), [plus_bu])
+
+    # --- left_distrib → Mult(a,u,t) ---
+    # Alpha-rename: c,a,b,ab,ac,s,bc → c1,a1,b1,ab1,ac1,s1,bc1
+    $ld_r forall("c1", implies(nat("c1","_"),
+        forall("a1", implies(nat("a1","_"),
+            forall("b1", implies(nat("b1","_"),
+                forall("ab1", implies(mult("a1","b1","ab1","_"),
+                    forall("ac1", implies(mult("a1","c1","ac1","_"),
+                        forall("s1", implies(plus("ab1","ac1","s1","_"),
+                            forall("bc1", implies(plus("b1","c1","bc1","_"),
+                                mult("a1","bc1","s1","_")))))))))))))))
+    $ld_thm wr(left_distrib, left(left_distrib), [ld_r], ld_r)
+
+    # inst c1→b
+    $_ld1 \c1: implies(nat(c1,"_"),
+        forall("a1", implies(nat("a1","_"),
+            forall("b1", implies(nat("b1","_"),
+                forall("ab1", implies(mult("a1","b1","ab1","_"),
+                    forall("ac1", implies(mult("a1",c1,"ac1","_"),
+                        forall("s1", implies(plus("ab1","ac1","s1","_"),
+                            forall("bc1", implies(plus("b1",c1,"bc1","_"),
+                                mult("a1","bc1","s1","_"))))))))))))))
+    $ld1 inst(ld_thm, ld_r, _ld1("b"), "b", left(ld_thm))
+    $ld2 mp(ld1, ax([nat_b],[nat_b],nat_b), nat_b, arg2(head(right(ld1))),
+        left(ld1), [nat_b])
+
+    # inst a1→a
+    $_ld3 \a1: implies(nat(a1,"_"),
+        forall("b1", implies(nat("b1","_"),
+            forall("ab1", implies(mult(a1,"b1","ab1","_"),
+                forall("ac1", implies(mult(a1,"b","ac1","_"),
+                    forall("s1", implies(plus("ab1","ac1","s1","_"),
+                        forall("bc1", implies(plus("b1","b","bc1","_"),
+                            mult(a1,"bc1","s1","_"))))))))))))
+    $ld3 inst(ld2, head(right(ld2)), _ld3("a"), "a", left(ld2))
+    $ld4 mp(ld3, ax([nat_a],[nat_a],nat_a), nat_a, arg2(head(right(ld3))),
+        left(ld3), [nat_a])
+
+    # inst b1→bc0
+    $_ld5 \b1: implies(nat(b1,"_"),
+        forall("ab1", implies(mult("a",b1,"ab1","_"),
+            forall("ac1", implies(mult("a","b","ac1","_"),
+                forall("s1", implies(plus("ab1","ac1","s1","_"),
+                    forall("bc1", implies(plus(b1,"b","bc1","_"),
+                        mult("a","bc1","s1","_"))))))))))
+    $ld5 inst(ld4, head(right(ld4)), _ld5("bc0"), "bc0", left(ld4))
+    $ld6 mp(ld5, got_nat_bc0, nat_bc0, arg2(head(right(ld5))),
+        left(ld5), left(got_nat_bc0))
+
+    # inst ab1→q
+    $_ld7 \ab1: implies(mult("a","bc0",ab1,"_"),
+        forall("ac1", implies(mult("a","b","ac1","_"),
+            forall("s1", implies(plus(ab1,"ac1","s1","_"),
+                forall("bc1", implies(plus("bc0","b","bc1","_"),
+                    mult("a","bc1","s1","_"))))))))
+    $ld7 inst(ld6, head(right(ld6)), _ld7("q"), "q", left(ld6))
+    $ld8 mp(ld7, got_mult_abcq, mult_abcq, arg2(head(right(ld7))),
+        left(ld7), left(got_mult_abcq))
+
+    # inst ac1→ab
+    $_ld9 \ac1: implies(mult("a","b",ac1,"_"),
+        forall("s1", implies(plus("q",ac1,"s1","_"),
+            forall("bc1", implies(plus("bc0","b","bc1","_"),
+                mult("a","bc1","s1","_"))))))
+    $ld9 inst(ld8, head(right(ld8)), _ld9("ab"), "ab", left(ld8))
+    $ld10 mp(ld9, ax([mult_ab],[mult_ab],mult_ab), mult_ab, arg2(head(right(ld9))),
+        left(ld9), [mult_ab])
+
+    # inst s1→t
+    $_ld11 \s1: implies(plus("q","ab",s1,"_"),
+        forall("bc1", implies(plus("bc0","b","bc1","_"),
+            mult("a","bc1",s1,"_"))))
+    $ld11 inst(ld10, head(right(ld10)), _ld11("t"), "t", left(ld10))
+    $ld12 mp(ld11, ax([plus_qt],[plus_qt],plus_qt), plus_qt, arg2(head(right(ld11))),
+        left(ld11), [plus_qt])
+
+    # inst bc1→u
+    $_ld13 \bc1: implies(plus("bc0","b",bc1,"_"), mult("a",bc1,"t","_"))
+    $ld13 inst(ld12, head(right(ld12)), _ld13("u"), "u", left(ld12))
+    $got_mult_aut mp(ld13, ax([plus_bu],[plus_bu],plus_bu), plus_bu,
+        mult("a","u","t","_"), left(ld13), [plus_bu])
+
+    # --- mvu: Mult(b,sc,bc) + Mult(b,sc,u) → eq(bc,u) ---
+    $mvu_s1 apply_thm(mvu_thm, mvu_r,
+        ["b","sc","bc","u"], ["a1","b1","c1","d1"], _mvu_r_b, left(mvu_thm))
+    $mvu_s2 mp(mvu_s1, ax([mult_b_sc],[mult_b_sc],mult_b_sc), mult_b_sc,
+        implies(mult("b","sc","u","_"), eq("bc","u","_")), left(mvu_s1), [mult_b_sc])
+    $got_eq_bc_u mp(mvu_s2, got_mult_bscu, mult("b","sc","u","_"), eq("bc","u","_"),
+        left(mvu_s2), left(got_mult_bscu))
+
+    # eq_symmetric: eq(bc,u) → eq(u,bc)
+    $es_bu apply_thm(eq_symmetric, head(right(eq_symmetric)),
+        ["bc","u"], ["a","b"], _es_b, left(eq_symmetric))
+    $got_eq_u_bc mp(es_bu, got_eq_bc_u, eq("bc","u","_"), eq("u","bc","_"),
+        left(es_bu), left(got_eq_bc_u))
+
+    # mat: Mult(a,u,t) + eq(u,bc) → Mult(a,bc,t)
+    $mat_s1 apply_thm(mult_arg2_transfer, head(right(mult_arg2_transfer)),
+        ["a","u","bc","t"], ["a","b1","b2","c"], _mat_b, left(mult_arg2_transfer))
+    $mat_s2 mp(mat_s1, got_mult_aut, mult("a","u","t","_"),
+        implies(eq("u","bc","_"), mult("a","bc","t","_")), left(mat_s1), left(got_mult_aut))
+    $got_mult_abct mp(mat_s2, got_eq_u_bc, eq("u","bc","_"), mult("a","bc","t","_"),
+        left(mat_s2), left(got_eq_u_bc))
+
+    # mvu: Mult(a,bc,t) + Mult(a,bc,r) → eq(t,r)
+    $mvu_s3 apply_thm(mvu_thm, mvu_r,
+        ["a","bc","t","r"], ["a1","b1","c1","d1"], _mvu_r_b, left(mvu_thm))
+    $mvu_s4 mp(mvu_s3, got_mult_abct, mult("a","bc","t","_"),
+        implies(mult_a_bc, eq("t","r","_")), left(mvu_s3), left(got_mult_abct))
+    $got_eq_tr mp(mvu_s4, ax([mult_a_bc],[mult_a_bc],mult_a_bc), mult_a_bc, eq("t","r","_"),
+        left(mvu_s4), [mult_a_bc])
+
+    # mvt: Mult(ab,sc,t) + eq(t,r) → Mult(ab,sc,r)
+    $mvt_s1 apply_thm(mvt_thm, mvt_r,
+        ["ab","sc","t","r"], ["a1","a2","a3","a4"], _mvt_r_b, left(mvt_thm))
+    $mvt_s2 mp(mvt_s1, got_mult_absct, mult("ab","sc","t","_"),
+        implies(eq("t","r","_"), mult("ab","sc","r","_")), left(mvt_s1), left(got_mult_absct))
+    $got_mult_abscr mp(mvt_s2, got_eq_tr, eq("t","r","_"), mult("ab","sc","r","_"),
+        left(mvt_s2), left(got_eq_tr))
+
+    # mvu: Mult(ab,sc,abc) + Mult(ab,sc,r) → eq(abc,r)
+    $mvu_s5 apply_thm(mvu_thm, mvu_r,
+        ["ab","sc","abc","r"], ["a1","b1","c1","d1"], _mvu_r_b, left(mvu_thm))
+    $mvu_s6 mp(mvu_s5, ax([mult_ab_sc],[mult_ab_sc],mult_ab_sc), mult_ab_sc,
+        implies(mult("ab","sc","r","_"), eq("abc","r","_")), left(mvu_s5), [mult_ab_sc])
+    $got_step mp(mvu_s6, got_mult_abscr, mult("ab","sc","r","_"), eq("abc","r","_"),
+        left(mvu_s6), left(got_mult_abscr))
+
+    # ============================================================
+    # STEP CLOSING: eel chains
+    # ============================================================
+    $scur got_step
+
+    # eel t from plus_val_exists(q,ab)
+    $scur eel(scur, \r: plus("q","ab",r,"_"), "r", "t",
+        remove(same, plus_qt, left(scur)), eq("abc","r","_"))
+    $scur cut_c(got_ex_t, scur, head(right(got_ex_t)),
+        left(got_ex_t), left(scur), eq("abc","r","_"))
+
+    # eel u from plus_val_exists(bc0,b)
+    $scur eel(scur, \r: plus("bc0","b",r,"_"), "r", "u",
+        remove(same, plus_bu, left(scur)), eq("abc","r","_"))
+    $scur cut_c(got_ex_u, scur, head(right(got_ex_u)),
+        left(got_ex_u), left(scur), eq("abc","r","_"))
+
+    # eel q from mult_val_exists(a,bc0)
+    $scur eel(scur, \p: and(mult("a","bc0",p,"_"), nat(p,"_")), "p", "q",
+        remove(same, and_q, left(scur)), eq("abc","r","_"))
+    $scur cut_c(got_ex_q, scur, head(right(got_ex_q)),
+        left(got_ex_q), left(scur), eq("abc","r","_"))
+
+    # eel abc0 from mult_val_exists(ab,c)
+    $scur eel(scur, \p: and(mult("ab","c",p,"_"), nat(p,"_")), "p", "abc0",
+        remove(same, and_abc0, left(scur)), eq("abc","r","_"))
+    $scur cut_c(got_ex_abc0, scur, head(right(got_ex_abc0)),
+        left(got_ex_abc0), left(scur), eq("abc","r","_"))
+
+    # eel bc0 from mult_val_exists(b,c)
+    $scur eel(scur, \p: and(mult("b","c",p,"_"), nat(p,"_")), "p", "bc0",
+        remove(same, and_bc0, left(scur)), eq("abc","r","_"))
+    $scur cut_c(got_ex_bc0, scur, head(right(got_ex_bc0)),
+        left(got_ex_bc0), left(scur), eq("abc","r","_"))
+
+    # ir/fr to close step
+    $scur ir(scur, remove(same, mult_a_bc, left(scur)),
+        [implies(mult_a_bc, head(right(scur)))], implies(mult_a_bc, head(right(scur))))
+    $scur fr(scur, left(scur), [forall("r", head(right(scur)))],
+        forall("r", head(right(scur))), "r")
+    $scur ir(scur, remove(same, mult_b_sc, left(scur)),
+        [implies(mult_b_sc, head(right(scur)))], implies(mult_b_sc, head(right(scur))))
+    $scur fr(scur, left(scur), [forall("bc", head(right(scur)))],
+        forall("bc", head(right(scur))), "bc")
+    $scur ir(scur, remove(same, mult_ab_sc, left(scur)),
+        [implies(mult_ab_sc, head(right(scur)))], implies(mult_ab_sc, head(right(scur))))
+    $scur fr(scur, left(scur), [forall("abc", head(right(scur)))],
+        forall("abc", head(right(scur))), "abc")
+    $scur ir(scur, remove(same, mult_ab, left(scur)),
+        [implies(mult_ab, head(right(scur)))], implies(mult_ab, head(right(scur))))
+    $scur fr(scur, left(scur), [forall("ab", head(right(scur)))],
+        forall("ab", head(right(scur))), "ab")
+    $scur ir(scur, remove(same, nat_b, left(scur)),
+        [implies(nat_b, head(right(scur)))], implies(nat_b, head(right(scur))))
+    $scur fr(scur, left(scur), [forall("b", head(right(scur)))],
+        forall("b", head(right(scur))), "b")
+    $scur ir(scur, remove(same, nat_a, left(scur)),
+        [implies(nat_a, head(right(scur)))], implies(nat_a, head(right(scur))))
+    $scur fr(scur, left(scur), [forall("a", head(right(scur)))],
+        forall("a", head(right(scur))), "a")
+    $scur ir(scur, remove(same, succ_sc, left(scur)),
+        [implies(succ_sc, head(right(scur)))], implies(succ_sc, head(right(scur))))
+    $scur fr(scur, left(scur), [forall("sc", head(right(scur)))],
+        forall("sc", head(right(scur))), "sc")
+    $scur ir(scur, remove(same, pc, left(scur)),
+        [implies(pc, head(right(scur)))], implies(pc, head(right(scur))))
+    $scur ir(scur, remove(same, cw, left(scur)),
+        [implies(cw, head(right(scur)))], implies(cw, head(right(scur))))
+    $step_case forall("c", head(right(scur)))
+    $got_sc fr(scur, left(scur), [step_case], step_case, "c")
+    $_ tap("step ok")
+
+    # ============================================================
+    # OMEGA INDUCTION ASSEMBLY
+    # ============================================================
+    $oi_body \w: implies(omega(w,"_"), implies(base_case, implies(step_case,
+        forall("m", implies(mem("m",w), pred(w,"m","_"))))))
+    $oi_inst apply_thm(oi, head(right(oi)), ["w"], ["w"], oi_body, left(oi))
+    $oi_1 mp(oi_inst, ax([om],[om],om), om, arg2(head(right(oi_inst))), left(oi), [om])
+    $oi_2 mp(oi_1, got_bc, head(right(got_bc)), arg2(head(right(oi_1))), left(oi_1), left(got_bc))
+    $oi_3 mp(oi_2, got_sc, step_case, arg2(head(right(oi_2))), left(oi_2), left(got_sc))
+
+    # nat_elim → c∈w from Nat(c)
+    $nat_c2 nat("c","_")
+    $ne_c1 apply_thm(nat_elim, head(right(nat_elim)), ["c","w"], ["m","w"], _ne_b, [])
+    $ne_c2 mp(ne_c1, ax([nat_c2],[nat_c2],nat_c2), nat_c2, implies(om, mem("c","w")),
+        left(ne_c1), [nat_c2])
+    $got_cw mp(ne_c2, ax([om],[om],om), om, mem("c","w"),
+        left(ne_c2), [om])
+
+    $oi_4 apply_thm(oi_3, head(right(oi_3)), ["c"], ["m"],
+        \m: implies(mem(m,"w"), pred("w",m,"_")), left(oi_3))
+    $got_pc mp(oi_4, got_cw, mem("c","w"), pred("w","c","_"), left(oi_4), left(got_cw))
+
+    # Close outer: ir nat_c, fr c
+    $cur got_pc
+    $cur ir(cur, remove(same, nat_c2, left(cur)),
+        [implies(nat_c2, head(right(cur)))], implies(nat_c2, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("c", head(right(cur)))], forall("c", head(right(cur))), "c")
+
+    # eel w from omega_exists
+    $cur eel(cur, \w: omega(w,"_"), "w", "w", remove(same, om, left(cur)), head(right(cur)))
+    $cur cut_c(omega_exists, cur, exists("w", om), left(omega_exists), left(cur), head(right(cur)))
+    $top head(right(cur))
+    close(cur, left(cur), [top], [])
+}

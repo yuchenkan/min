@@ -1,0 +1,55 @@
+from derived import mem, implies, forall, eq, left, right, head, exists
+from vocab.nat.nat import nat, omega
+from tactics import ax, ir, fr, mp, inst, apply_thm, eel, cut_c, close, same
+from util.list import remove
+from theorems.nat.nat.nat_elim import nat_elim
+from theorems.nat.nat.nat_intro import nat_intro
+from theorems.nat.nat.omega_exists import omega_exists
+from theorems.sets.eq_mem_transfer import eq_mem_transfer
+
+# nat_eq_transfer: ∀a,b. Nat(a) → eq(a,b) → Nat(b)
+
+$nat_eq_transfer {
+    $nat_a nat("a","_")
+    $eq_ab eq("a","b","_")
+    $nat_b nat("b","_")
+    $om omega("w","_")
+    $aw mem("a","w")
+    $bw mem("b","w")
+
+    # nat_elim: Nat(a) → Omega(w) → a∈w
+    $_ne_b \m: \w: implies(nat(m,"_"), implies(omega(w,"_"), mem(m,w)))
+    $ne1 apply_thm(nat_elim, head(right(nat_elim)),
+        ["a","w"], ["m","w"], _ne_b, left(nat_elim))
+    $ne2 mp(ne1, ax([nat_a],[nat_a],nat_a), nat_a, implies(om, aw),
+        left(ne1), [nat_a])
+    $got_aw mp(ne2, ax([om],[om],om), om, aw, left(ne2), [om])
+
+    # eq_mem_transfer: eq(a,b) → a∈w → b∈w
+    $_emt_b \a: \b: \c: implies(eq(a,b,"_"), implies(mem(a,c), mem(b,c)))
+    $emt1 apply_thm(eq_mem_transfer, head(right(eq_mem_transfer)),
+        ["a","b","w"], ["a","b","c"], _emt_b, left(eq_mem_transfer))
+    $emt2 mp(emt1, ax([eq_ab],[eq_ab],eq_ab), eq_ab, implies(aw, bw),
+        left(emt1), [eq_ab])
+    $got_bw mp(emt2, got_aw, aw, bw, left(emt2), left(got_aw))
+
+    # nat_intro: Omega(w) → b∈w → Nat(b)
+    $_ni_b \w: \m: implies(omega(w,"_"), implies(mem(m,w), nat(m,"_")))
+    $ni1 apply_thm(nat_intro, head(right(nat_intro)),
+        ["w","b"], ["w","m"], _ni_b, left(nat_intro))
+    $ni2 mp(ni1, ax([om],[om],om), om, implies(bw, nat_b),
+        left(ni1), [om])
+    $got_nat_b mp(ni2, got_bw, bw, nat_b, left(ni2), left(got_bw))
+
+    # eel w from omega_exists
+    $cur got_nat_b
+    $cur eel(cur, \w: omega(w,"_"), "w", "w", remove(same, om, left(cur)), nat_b)
+    $cur cut_c(omega_exists, cur, exists("w", om), left(omega_exists), left(cur), nat_b)
+
+    # Close: ir eq_ab, ir nat_a, fr b, fr a
+    $cur ir(cur, remove(same, eq_ab, left(cur)),
+        [implies(eq_ab, nat_b)], implies(eq_ab, nat_b))
+    $cur ir(cur, remove(same, nat_a, left(cur)),
+        [implies(nat_a, head(right(cur)))], implies(nat_a, head(right(cur))))
+    close(cur, left(cur), right(cur), ["b","a"])
+}

@@ -1,0 +1,59 @@
+from derived import implies, forall, eq, left, right, head, arg2
+from vocab.sets import ordered_pair
+from vocab.functions import apply
+from vocab.nat.arithmetic.mult import mult_func, mult
+from tactics import ax, ir, fr, mp, apply_thm, cut_c, close, same
+from util.list import remove
+from theorems.sets.ordpair_val_transfer import ordpair_val_transfer
+from theorems.logic.eq_symmetric import eq_symmetric
+
+# mult_arg2_transfer: ∀a,b1,b2,c. Mult(a,b1,c) → eq(b1,b2) → Mult(a,b2,c)
+
+$mult_arg2_transfer {
+    $mult_ab1c mult("a","b1","c","_")
+    $eq_b1b2 eq("b1","b2","_")
+    $mult_ab2c mult("a","b2","c","_")
+
+    $mf mult_func("h","_")
+    $op1 ordered_pair("pair","a","b1","_")
+    $op2 ordered_pair("pair","a","b2","_")
+    $app apply("h","pair","c","_")
+
+    # Open Mult(a,b1,c): inst h, mp MultFunc, inst pair, mp OP
+    $pi1 apply_thm(ax([mult_ab1c],[mult_ab1c],mult_ab1c), mult_ab1c, ["h"], ["h"],
+        \h: implies(mult_func(h,"_"), forall("pair", implies(ordered_pair("pair","a","b1","_"), apply(h,"pair","c","_")))),
+        [mult_ab1c])
+    $pi2 mp(pi1, ax([mf],[mf],mf), mf,
+        forall("pair", implies(op1, app)),
+        [mult_ab1c], [mf])
+    $pi3 apply_thm(pi2, head(right(pi2)), ["pair"], ["pair"],
+        \pair: implies(ordered_pair(pair,"a","b1","_"), apply("h",pair,"c","_")), left(pi2))
+    $got_app mp(pi3, ax([op1],[op1],op1), op1, app, left(pi2), [op1])
+
+    # Derive op1 from op2 + eq(b2,b1) via ordpair_val_transfer
+    $_es_b \a: \b: implies(eq(a,b,"_"), eq(b,a,"_"))
+    $es1 apply_thm(eq_symmetric, head(right(eq_symmetric)),
+        ["b1","b2"], ["a","b"], _es_b, left(eq_symmetric))
+    $eq_b2b1 eq("b2","b1","_")
+    $got_eq_rev mp(es1, ax([eq_b1b2],[eq_b1b2],eq_b1b2), eq_b1b2, eq_b2b1,
+        left(es1), [eq_b1b2])
+
+    $_ovt_b \t: \a: \b: \c: implies(eq(b,c,"_"), implies(ordered_pair(t,a,b,"_"), ordered_pair(t,a,c,"_")))
+    $ovt apply_thm(ordpair_val_transfer, head(right(ordpair_val_transfer)),
+        ["pair","a","b2","b1"], ["t","a","b","c"], _ovt_b, [])
+    $ovt2 mp(ovt, got_eq_rev, eq_b2b1, implies(op2, op1), left(ovt), left(got_eq_rev))
+    $got_op1 mp(ovt2, ax([op2],[op2],op2), op2, op1, left(ovt2), [op2])
+
+    # cut_c: replace op1 assumption in got_app with derivation from op2+eq
+    $cur cut_c(got_op1, got_app, op1, left(got_op1), left(got_app), app)
+
+    # Close Mult(a,b2,c): ir op2, fr pair, ir mf, fr h
+    $cur ir(cur, remove(same, op2, left(cur)), [implies(op2, app)], implies(op2, app))
+    $cur fr(cur, left(cur), [forall("pair", head(right(cur)))], forall("pair", head(right(cur))), "pair")
+    $cur ir(cur, remove(same, mf, left(cur)), [implies(mf, head(right(cur)))], implies(mf, head(right(cur))))
+    $cur fr(cur, left(cur), [forall("h", head(right(cur)))], forall("h", head(right(cur))), "h")
+
+    $cur ir(cur, remove(same, eq_b1b2, left(cur)), [implies(eq_b1b2, head(right(cur)))], implies(eq_b1b2, head(right(cur))))
+    $cur ir(cur, remove(same, mult_ab1c, left(cur)), [implies(mult_ab1c, head(right(cur)))], implies(mult_ab1c, head(right(cur))))
+    close(cur, left(cur), right(cur), ["c","b2","b1","a"])
+}

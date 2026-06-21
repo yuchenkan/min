@@ -38,6 +38,10 @@ from theorems.nat.arithmetic.mult.mult_val_transfer import mult_val_transfer
 from theorems.nat.arithmetic.mult.mult_val_exists import mult_val_exists
 from theorems.nat.arithmetic.mult.mult_succ_left import mult_succ_left
 from theorems.nat.arithmetic.mult.mult_comm import mult_comm
+from theorems.nat.arithmetic.mult.mult_arg2_transfer import mult_arg2_transfer
+from theorems.nat.arithmetic.mult.mult_val_nat import mult_val_nat
+from theorems.nat.arithmetic.mult.left_distrib import left_distrib
+from theorems.nat.arithmetic.mult.mult_assoc import mult_assoc
 
 $af_phi \p np: exists(add(np,"x"), and(mem(add(np,"x"),"w"),
     exists(add(np,"y"), and(plus(add(np,"x"),"m",add(np,"y"),add(np,"_")),
@@ -241,5 +245,37 @@ $_ qed(mult_comm,
             forall("p", implies(mult("m","n","p","_"),
                 mult("n","m","p","_"))))))), "z")
 $_ tap("mult_comm ok")
+
+$_ qed(mult_arg2_transfer,
+    forall("a", forall("b1", forall("b2", forall("c",
+        implies(mult("a","b1","c","_"), implies(eq("b1","b2","_"), mult("a","b2","c","_"))))))), "z")
+$_ tap("mult_arg2_transfer ok")
+
+$_ qed(mult_val_nat,
+    forall("m", forall("n", forall("p",
+        implies(nat("m","_"), implies(nat("n","_"), implies(mult("m","n","p","_"), nat("p","_"))))))), "z")
+$_ tap("mult_val_nat ok")
+
+$_ qed(left_distrib,
+    forall("c", implies(nat("c","_"),
+        forall("a", implies(nat("a","_"),
+            forall("b", implies(nat("b","_"),
+                forall("ab", implies(mult("a","b","ab","_"),
+                    forall("ac", implies(mult("a","c","ac","_"),
+                        forall("s", implies(plus("ab","ac","s","_"),
+                            forall("bc", implies(plus("b","c","bc","_"),
+                                mult("a","bc","s","_"))))))))))))))),"z")
+$_ tap("left_distrib ok")
+
+$_ qed(mult_assoc,
+    forall("c", implies(nat("c","_"),
+        forall("a", implies(nat("a","_"),
+            forall("b", implies(nat("b","_"),
+                forall("ab", implies(mult("a","b","ab","_"),
+                    forall("abc", implies(mult("ab","c","abc","_"),
+                        forall("bc", implies(mult("b","c","bc","_"),
+                            forall("r", implies(mult("a","bc","r","_"),
+                                eq("abc","r","_"))))))))))))))), "z")
+$_ tap("mult_assoc ok")
 
 $ok true
