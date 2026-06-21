@@ -1,0 +1,83 @@
+from derived import mem, neg, implies, forall, and, or, iff, exists, eq, d
+from vocab.sets import ordered_pair
+from vocab.nat.nat import nat, num
+from vocab.functions import apply, function, domain
+
+# First-order logic: formulas as sets (no function symbols, terms = variables)
+#
+# Variables are natural numbers (members of omega).
+# A language L is a set of (predicate_symbol, arity) pairs.
+# Formulas are tagged ordered pairs:
+#   Atomic: (0, (P, args))  where P is a predicate symbol, args is a var sequence
+#   Neg:    (1, phi)
+#   Imp:    (2, (phi, psi))
+#   Forall: (3, (x, phi))   where x is a variable (natural number)
+
+# fol_pred(L, P, n, p): P is an n-ary predicate symbol in language L
+# i.e., (P, n) ∈ L
+$_d_fol_pred \f: add(nth(f, 3), add("-ary pred ", add(nth(f, 2), add(" in ", nth(f, 4)))))
+$fol_pred \P n L p: {
+    $pv add(p, "p")
+    $np add(p, "_")
+    [_d_fol_pred,
+        exists(pv, and(ordered_pair(pv, P, n, np), mem(pv, L))), P, n, L]
+}
+
+# fol_var_seq(args, n, p): args is a function from n to omega (sequence of n variables)
+$_d_fol_var_seq \f: add("VarSeq(", add(nth(f, 2), add(",", add(nth(f, 3), ")"))))
+$fol_var_seq \args n p: {
+    $np add(p, "_")
+    $d add(p, "d")
+    $x add(p, "x")
+    $y add(p, "y")
+    $w add(p, "w")
+    [_d_fol_var_seq,
+        and(function(args, np),
+        and(domain(n, args, np),
+            forall(x, forall(y, implies(apply(args, x, y, np), nat(y, np)))))), args, n]
+}
+
+# fol_atomic(f, P, args, p): f = (0, (P, args)) — atomic formula
+$_d_fol_atomic \f: add("Atomic(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
+$fol_atomic \f P args p: {
+    $np add(p, "_")
+    $t add(p, "t")
+    $inner add(p, "in")
+    [_d_fol_atomic,
+        exists(t, and(num(t, 0, np),
+            exists(inner, and(ordered_pair(inner, P, args, np),
+                ordered_pair(f, t, inner, np))))), f, P, args]
+}
+
+# fol_neg(f, phi, p): f = (1, phi) — negation
+$_d_fol_neg \f: add("FNeg(", add(nth(f, 2), add(",", add(nth(f, 3), ")"))))
+$fol_neg \f phi p: {
+    $np add(p, "_")
+    $t add(p, "t")
+    [_d_fol_neg,
+        exists(t, and(num(t, 1, np), ordered_pair(f, t, phi, np))), f, phi]
+}
+
+# fol_imp(f, phi, psi, p): f = (2, (phi, psi)) — implication
+$_d_fol_imp \f: add("FImp(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
+$fol_imp \f phi psi p: {
+    $np add(p, "_")
+    $t add(p, "t")
+    $inner add(p, "in")
+    [_d_fol_imp,
+        exists(t, and(num(t, 2, np),
+            exists(inner, and(ordered_pair(inner, phi, psi, np),
+                ordered_pair(f, t, inner, np))))), f, phi, psi]
+}
+
+# fol_fa(f, x, phi, p): f = (3, (x, phi)) — universal quantification
+$_d_fol_fa \f: add("FFa(", add(nth(f, 2), add(",", add(nth(f, 3), add(",", add(nth(f, 4), ")"))))))
+$fol_fa \f x phi p: {
+    $np add(p, "_")
+    $t add(p, "t")
+    $inner add(p, "in")
+    [_d_fol_fa,
+        exists(t, and(num(t, 3, np),
+            exists(inner, and(ordered_pair(inner, x, phi, np),
+                ordered_pair(f, t, inner, np))))), f, x, phi]
+}
