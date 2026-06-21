@@ -2,8 +2,7 @@ from derived import show
 from vocab.nat.nat import successor, num, inductive, omega, nat
 from vocab.nat.order import lt, le
 from vocab.nat.recursion import total_from, recursive, rec_approx
-from vocab.nat.arithmetic.plus import plus
-from vocab.nat.arithmetic.mult import mult, add_func
+from vocab.nat.arithmetic.test import ok
 
 $_ tap(show(successor("s", "a", "_")))
 $_ tap("successor ok")
@@ -40,14 +39,5 @@ $_ tap("recursive ok")
 
 $_ tap(show(rec_approx("v", "a", "f", "_")))
 $_ tap("rec_approx ok")
-
-$_ tap(show(plus("m", "n", "p", "_")))
-$_ tap("plus ok")
-
-$_ tap(show(mult("m", "n", "r", "_")))
-$_ tap("mult ok")
-
-$_ tap(show(add_func("af", "m", "_")))
-$_ tap("add_func ok")
 
 $ok true

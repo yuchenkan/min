@@ -153,10 +153,47 @@ if [ "$(basename "$DIR")" = "theorems" ] && [ -d "$DIR" ]; then
     fi
 fi
 
+# ---- 3. vocab test structure ----
+# Every vocab folder with .min source files must have a test.min,
+# and every subfolder must be imported in its parent's test.min.
+
+VOCAB_ERRORS=0
+VOCABDIR="vocab"
+
+if [ -d "$VOCABDIR" ]; then
+    # a. every vocab folder with source .min files must have a test.min
+    while IFS= read -r d; do
+        src="$(find "$d" -maxdepth 1 -name '*.min' ! -name 'test.min' | head -1)"
+        if [ -n "$src" ] && [ ! -f "$d/test.min" ]; then
+            echo "  $d: vocab folder has source but no test.min"
+            VOCAB_ERRORS=$((VOCAB_ERRORS + 1))
+        fi
+    done < <(find "$VOCABDIR" -type d | sort)
+
+    # b. every subfolder must be imported in its parent's test.min
+    while IFS= read -r d; do
+        parent="$(dirname "$d")"
+        sub="$(basename "$d")"
+        pt="$parent/test.min"
+        if [ ! -f "$pt" ]; then continue; fi
+        if ! grep -qE "\.$sub\.test import" "$pt"; then
+            echo "  $d: not listed in parent test.min ($pt)"
+            VOCAB_ERRORS=$((VOCAB_ERRORS + 1))
+        fi
+    done < <(find "$VOCABDIR" -mindepth 1 -type d | sort)
+
+    if [ "$VOCAB_ERRORS" -gt 0 ]; then
+        echo ""
+        echo "Found $VOCAB_ERRORS vocab-structure violation(s)."
+        echo "Every vocab folder with source must have a test.min,"
+        echo "and every subfolder must be listed in its parent's test.min."
+    fi
+fi
+
 # ---- summary ----
 
-if [ "$((NAME_ERRORS + STRUCT_ERRORS))" -gt 0 ]; then
+if [ "$((NAME_ERRORS + STRUCT_ERRORS + VOCAB_ERRORS))" -gt 0 ]; then
     exit 1
 fi
-echo "lint: clean (names + theorems structure)."
+echo "lint: clean (names + theorems structure + vocab tests)."
 exit 0
