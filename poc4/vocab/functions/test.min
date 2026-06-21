@@ -1,0 +1,28 @@
+from derived import show
+from vocab.functions import apply, domain, single_valued, function, range, injection, surjection, bijection
+
+$_ tap(show(apply("f", "x", "y", "_")))
+$_ tap("apply ok")
+
+$_ tap(show(domain("d", "f", "_")))
+$_ tap("domain ok")
+
+$_ tap(show(single_valued("f", "_")))
+$_ tap("single_valued ok")
+
+$_ tap(show(function("f", "_")))
+$_ tap("function ok")
+
+$_ tap(show(range("r", "f", "_")))
+$_ tap("range ok")
+
+$_ tap(show(injection("f", "_")))
+$_ tap("injection ok")
+
+$_ tap(show(surjection("f", "a", "b", "_")))
+$_ tap("surjection ok")
+
+$_ tap(show(bijection("f", "a", "b", "_")))
+$_ tap("bijection ok")
+
+$ok true

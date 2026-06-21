@@ -1,0 +1,41 @@
+from derived import show
+from vocab.sets import set_spec, empty, subset, singleton, pair_set, big_union
+from vocab.sets import power_set, ordered_pair, union, intersect, relation, product, transitive_set
+
+$_ tap(show(empty("s", "_")))
+$_ tap("empty ok")
+
+$_ tap(show(subset("a", "b", "_")))
+$_ tap("subset ok")
+
+$_ tap(show(singleton("s", "a", "_")))
+$_ tap("singleton ok")
+
+$_ tap(show(pair_set("s", "a", "b", "_")))
+$_ tap("pair_set ok")
+
+$_ tap(show(big_union("s", "a", "_")))
+$_ tap("big_union ok")
+
+$_ tap(show(power_set("s", "a", "_")))
+$_ tap("power_set ok")
+
+$_ tap(show(ordered_pair("p", "a", "b", "_")))
+$_ tap("ordered_pair ok")
+
+$_ tap(show(union("s", "a", "b", "_")))
+$_ tap("union ok")
+
+$_ tap(show(intersect("s", "a", "b", "_")))
+$_ tap("intersect ok")
+
+$_ tap(show(relation("f", "_")))
+$_ tap("relation ok")
+
+$_ tap(show(product("s", "a", "b", "_")))
+$_ tap("product ok")
+
+$_ tap(show(transitive_set("a", "_")))
+$_ tap("transitive_set ok")
+
+$ok true

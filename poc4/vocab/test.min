@@ -1,0 +1,6 @@
+from vocab.sets.test import ok
+from vocab.functions.test import ok
+from vocab.logic.test import ok
+from vocab.nat.test import ok
+from vocab.tm.test import ok
+from vocab.fol.test import ok

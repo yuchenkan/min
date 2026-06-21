@@ -1,0 +1,22 @@
+from derived import show
+from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step, tm_reaches
+
+$_ tap(show(tm_config("c", "q", "h", "tape", "_")))
+$_ tap("tm_config ok")
+
+$_ tap(show(tm_transition("delta", "q", "r", "w", "d", "qn", "_")))
+$_ tap("tm_transition ok")
+
+$_ tap(show(tape_update("tn", "tape", "h", "w", "_")))
+$_ tap("tape_update ok")
+
+$_ tap(show(head_move("h", "hn", "d", "_")))
+$_ tap("head_move ok")
+
+$_ tap(show(tm_step("delta", "c1", "c2", "_")))
+$_ tap("tm_step ok")
+
+$_ tap(show(tm_reaches("delta", "c0", "n", "cf", "_")))
+$_ tap("tm_reaches ok")
+
+$ok true

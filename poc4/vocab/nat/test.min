@@ -1,0 +1,53 @@
+from derived import show
+from vocab.nat.nat import successor, num, inductive, omega, nat
+from vocab.nat.order import lt, le
+from vocab.nat.recursion import total_from, recursive, rec_approx
+from vocab.nat.arithmetic.plus import plus
+from vocab.nat.arithmetic.mult import mult, add_func
+
+$_ tap(show(successor("s", "a", "_")))
+$_ tap("successor ok")
+
+$_ tap(show(num("n", 0, "_")))
+$_ tap("num(0) ok")
+
+$_ tap(show(num("n", 1, "_")))
+$_ tap("num(1) ok")
+
+$_ tap(show(num("n", 2, "_")))
+$_ tap("num(2) ok")
+
+$_ tap(show(inductive("a", "_")))
+$_ tap("inductive ok")
+
+$_ tap(show(omega("w", "_")))
+$_ tap("omega ok")
+
+$_ tap(show(nat("n", "_")))
+$_ tap("nat ok")
+
+$_ tap(show(lt("m", "n", "_")))
+$_ tap("lt ok")
+
+$_ tap(show(le("m", "n", "_")))
+$_ tap("le ok")
+
+$_ tap(show(total_from("f", "a", "_")))
+$_ tap("total_from ok")
+
+$_ tap(show(recursive("h", "a", "f", "_")))
+$_ tap("recursive ok")
+
+$_ tap(show(rec_approx("v", "a", "f", "_")))
+$_ tap("rec_approx ok")
+
+$_ tap(show(plus("m", "n", "p", "_")))
+$_ tap("plus ok")
+
+$_ tap(show(mult("m", "n", "r", "_")))
+$_ tap("mult ok")
+
+$_ tap(show(add_func("af", "m", "_")))
+$_ tap("add_func ok")
+
+$ok true
