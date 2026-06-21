@@ -1,0 +1,185 @@
+from derived import mem, neg, implies, forall, and, exists, eq, d
+from vocab.sets import singleton, union
+from vocab.fol.fol import fol_neg, fol_imp, fol_fa
+from vocab.fol.free_var import fol_free_var
+from vocab.fol.subst import fol_subst
+
+# LK sequent calculus rule applications.
+# Each predicate relates premise sequent(s) (pl,pr) to conclusion (cl,cr)
+# via the principal formula. Parameters encode the actual set relationships.
+#
+# Notation: cl=conclusion left, cr=conclusion right,
+#           pl=premise left, pr=premise right (p1/p2 for two-premise rules)
+
+# lk_axiom(cl, cr, A, p): A in cl and cr, no premise
+$_d_lk_axiom \f: add("Ax(", add(nth(f, 4), ")"))
+$lk_axiom \cl cr A p:
+    [_d_lk_axiom, and(mem(A, cl), mem(A, cr)), cl, cr, A]
+
+# lk_neg_left(cl, cr, pl, pr, A, p):
+#   cl = pl + {neg(A)}, pr = cr + {A}
+$_d_lk_neg_left \f: add("NL(", add(nth(f, 6), ")"))
+$lk_neg_left \cl cr pl pr A p: {
+    $np add(p, "_")
+    $nA add(np, "nA")
+    $snA add(np, "snA")
+    $sA add(np, "sA")
+    [_d_lk_neg_left,
+        exists(nA, and(fol_neg(nA, A, np),
+            exists(snA, and(singleton(snA, nA, np),
+                exists(sA, and(singleton(sA, A, np),
+                    and(union(cl, pl, snA, np),
+                        union(pr, cr, sA, np)))))))),
+        cl, cr, pl, pr, A]
+}
+
+# lk_neg_right(cl, cr, pl, pr, A, p):
+#   pl = cl + {A}, cr = pr + {neg(A)}
+$_d_lk_neg_right \f: add("NR(", add(nth(f, 6), ")"))
+$lk_neg_right \cl cr pl pr A p: {
+    $np add(p, "_")
+    $nA add(np, "nA")
+    $snA add(np, "snA")
+    $sA add(np, "sA")
+    [_d_lk_neg_right,
+        exists(nA, and(fol_neg(nA, A, np),
+            exists(sA, and(singleton(sA, A, np),
+                exists(snA, and(singleton(snA, nA, np),
+                    and(union(pl, cl, sA, np),
+                        union(cr, pr, snA, np)))))))),
+        cl, cr, pl, pr, A]
+}
+
+# lk_implies_left(cl, cr, p1l, p1r, p2l, p2r, A, B, p):
+#   cl = p1l + {imp(A,B)}, p1r = cr + {A}, p2l = p1l + {B}, p2r = cr
+$_d_lk_implies_left \f: add("IL(", add(nth(f, 8), add(",", add(nth(f, 9), ")"))))
+$lk_implies_left \cl cr p1l p1r p2l p2r A B p: {
+    $np add(p, "_")
+    $imp add(np, "imp")
+    $simp add(np, "simp")
+    $sA add(np, "sA")
+    $sB add(np, "sB")
+    [_d_lk_implies_left,
+        exists(imp, and(fol_imp(imp, A, B, np),
+            exists(simp, and(singleton(simp, imp, np),
+                exists(sA, and(singleton(sA, A, np),
+                    exists(sB, and(singleton(sB, B, np),
+                        and(union(cl, p1l, simp, np),
+                            and(union(p1r, cr, sA, np),
+                                and(union(p2l, p1l, sB, np),
+                                    eq(p2r, cr, np)))))))))))),
+        cl, cr, p1l, p1r, p2l, p2r, A, B]
+}
+
+# lk_implies_right(cl, cr, pl, pr, A, B, p):
+#   pl = cl + {A}, cr = sigma + {imp(A,B)}, pr = sigma + {B}
+#   i.e. exists sigma: pr = sigma + {B}, cr = sigma + {imp(A,B)}, pl = cl + {A}
+$_d_lk_implies_right \f: add("IR(", add(nth(f, 6), add(",", add(nth(f, 7), ")"))))
+$lk_implies_right \cl cr pl pr A B p: {
+    $np add(p, "_")
+    $imp add(np, "imp")
+    $simp add(np, "simp")
+    $sA add(np, "sA")
+    $sB add(np, "sB")
+    $sigma add(np, "sigma")
+    [_d_lk_implies_right,
+        exists(imp, and(fol_imp(imp, A, B, np),
+            exists(sA, and(singleton(sA, A, np),
+                exists(sB, and(singleton(sB, B, np),
+                    exists(simp, and(singleton(simp, imp, np),
+                        exists(sigma, and(union(pr, sigma, sB, np),
+                            and(union(cr, sigma, simp, np),
+                                union(pl, cl, sA, np)))))))))))),
+        cl, cr, pl, pr, A, B]
+}
+
+# lk_forall_left(cl, cr, pl, pr, x, phi, t, p):
+#   cl = gamma + {fa(x,phi)}, pl = gamma + {subst(phi,x,t)}
+#   cr = pr, shared right context
+$_d_lk_forall_left \f: add("FL(", add(nth(f, 6), add(",", add(nth(f, 7), add(",", add(nth(f, 8), ")"))))))
+$lk_forall_left \cl cr pl pr x phi t p: {
+    $np add(p, "_")
+    $fa add(np, "fa")
+    $sub add(np, "sub")
+    $sfa add(np, "sfa")
+    $ssub add(np, "ssub")
+    $gamma add(np, "gamma")
+    [_d_lk_forall_left,
+        exists(fa, and(fol_fa(fa, x, phi, np),
+            exists(sub, and(fol_subst(sub, phi, x, t, np),
+                exists(sfa, and(singleton(sfa, fa, np),
+                    exists(ssub, and(singleton(ssub, sub, np),
+                        exists(gamma, and(union(cl, gamma, sfa, np),
+                            and(union(pl, gamma, ssub, np),
+                                eq(cr, pr, np)))))))))))),
+        cl, cr, pl, pr, x, phi, t]
+}
+
+# lk_forall_right(cl, cr, pl, pr, x, phi, y, p):
+#   cr = sigma + {fa(x,phi)}, pr = sigma + {subst(phi,x,y)}
+#   cl = pl, shared left context
+#   eigenvariable: y not free in any formula in cl or cr
+$_d_lk_forall_right \f: add("FR(", add(nth(f, 6), add(",", add(nth(f, 7), add(",", add(nth(f, 8), ")"))))))
+$lk_forall_right \cl cr pl pr x phi y p: {
+    $np add(p, "_")
+    $fa add(np, "fa")
+    $sub add(np, "sub")
+    $sfa add(np, "sfa")
+    $ssub add(np, "ssub")
+    $sigma add(np, "sigma")
+    $g add(np, "g")
+    $_eigen and(
+        forall(g, implies(mem(g, cl), neg(fol_free_var(y, g, np)))),
+        forall(g, implies(mem(g, cr), neg(fol_free_var(y, g, np)))))
+    [_d_lk_forall_right,
+        exists(fa, and(fol_fa(fa, x, phi, np),
+            exists(sub, and(fol_subst(sub, phi, x, y, np),
+                exists(sfa, and(singleton(sfa, fa, np),
+                    exists(ssub, and(singleton(ssub, sub, np),
+                        exists(sigma, and(union(cr, sigma, sfa, np),
+                            and(union(pr, sigma, ssub, np),
+                                and(eq(cl, pl, np),
+                                    _eigen)))))))))))),
+        cl, cr, pl, pr, x, phi, y]
+}
+
+# lk_cut(cl, cr, p1l, p1r, p2l, p2r, A, p):
+#   p1r = cr + {A}, p2l = cl + {A}, p1l = cl, p2r = cr
+$_d_lk_cut \f: add("Cut(", add(nth(f, 8), ")"))
+$lk_cut \cl cr p1l p1r p2l p2r A p: {
+    $np add(p, "_")
+    $sA add(np, "sA")
+    [_d_lk_cut,
+        exists(sA, and(singleton(sA, A, np),
+            and(union(p1r, cr, sA, np),
+                and(union(p2l, cl, sA, np),
+                    and(eq(p1l, cl, np),
+                        eq(p2r, cr, np)))))),
+        cl, cr, p1l, p1r, p2l, p2r, A]
+}
+
+# lk_wl(cl, cr, pl, pr, A, p):
+#   cl = pl + {A}, cr = pr
+$_d_lk_wl \f: add("WL(", add(nth(f, 6), ")"))
+$lk_wl \cl cr pl pr A p: {
+    $np add(p, "_")
+    $sA add(np, "sA")
+    [_d_lk_wl,
+        exists(sA, and(singleton(sA, A, np),
+            and(union(cl, pl, sA, np),
+                eq(cr, pr, np)))),
+        cl, cr, pl, pr, A]
+}
+
+# lk_wr(cl, cr, pl, pr, A, p):
+#   cr = pr + {A}, cl = pl
+$_d_lk_wr \f: add("WR(", add(nth(f, 6), ")"))
+$lk_wr \cl cr pl pr A p: {
+    $np add(p, "_")
+    $sA add(np, "sA")
+    [_d_lk_wr,
+        exists(sA, and(singleton(sA, A, np),
+            and(union(cr, pr, sA, np),
+                eq(cl, pl, np)))),
+        cl, cr, pl, pr, A]
+}

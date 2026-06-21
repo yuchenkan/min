@@ -1,0 +1,73 @@
+from derived import mem, neg, implies, forall, and, exists, eq, d
+from vocab.fol.fol import fol_atomic, fol_neg, fol_imp, fol_fa, fol_var_seq
+from vocab.functions import apply
+
+# fol_subst(result, phi, x, t, p): result = phi[x/t]
+# Substitute variable t for free occurrences of variable x in formula phi.
+# Terms are just variables, so this is variable-for-variable substitution.
+#
+# Least fixed point: (phi, result) is in every relation S closed under:
+#   atomic: args' = args[x->t], then (Atomic(P,args), Atomic(P,args')) in S
+#   neg:    (psi,psi') in S  =>  (Neg(psi), Neg(psi')) in S
+#   imp:    (psi1,psi1'), (psi2,psi2') in S  =>  (Imp(psi1,psi2), Imp(psi1',psi2')) in S
+#   fa_bound: bound var = x  =>  (Fa(x,psi), Fa(x,psi)) in S  (no subst)
+#   fa_free:  y != x, t != y, (psi,psi') in S  =>  (Fa(y,psi), Fa(y,psi')) in S
+#
+# S is a binary relation; apply(S, orig, result, np) checks (orig, result) in S.
+
+$_d_fol_subst \f: add(nth(f, 3), add("[", add(nth(f, 4), add("/", add(nth(f, 5), add("] = ", nth(f, 2)))))))
+$fol_subst \result phi x t p: {
+    $np add(p, "_")
+    $S add(np, "S")
+    $f add(np, "f")
+    $fp add(np, "fp")
+    $P add(np, "P")
+    $n add(np, "n")
+    $args add(np, "args")
+    $argsp add(np, "argsp")
+    $i add(np, "i")
+    $v add(np, "v")
+    $psi add(np, "psi")
+    $psip add(np, "psip")
+    $psi1 add(np, "psi1")
+    $psi1p add(np, "psi1p")
+    $psi2 add(np, "psi2")
+    $psi2p add(np, "psi2p")
+    $y add(np, "y")
+    # args[x->t]: for each position i in domain n,
+    #   if args(i) = x then argsp(i) = t
+    #   if args(i) = v and v != x then argsp(i) = v
+    $_args_subst forall(i, implies(mem(i, n),
+        and(implies(apply(args, i, x, np), apply(argsp, i, t, np)),
+            forall(v, implies(and(apply(args, i, v, np), neg(eq(v, x, np))),
+                apply(argsp, i, v, np))))))
+    $_cl_atomic forall(f, forall(fp, forall(P, forall(n, forall(args, forall(argsp, implies(
+        and(fol_atomic(f, P, args, np),
+            and(fol_var_seq(args, n, np),
+                and(fol_atomic(fp, P, argsp, np),
+                    and(fol_var_seq(argsp, n, np), _args_subst)))),
+        apply(S, f, fp, np))))))))
+    $_cl_neg forall(f, forall(fp, forall(psi, forall(psip, implies(
+        and(fol_neg(f, psi, np), and(fol_neg(fp, psip, np), apply(S, psi, psip, np))),
+        apply(S, f, fp, np))))))
+    $_cl_imp forall(f, forall(fp, forall(psi1, forall(psi1p, forall(psi2, forall(psi2p, implies(
+        and(fol_imp(f, psi1, psi2, np),
+            and(fol_imp(fp, psi1p, psi2p, np),
+                and(apply(S, psi1, psi1p, np), apply(S, psi2, psi2p, np)))),
+        apply(S, f, fp, np))))))))
+    $_cl_fa_bound forall(f, forall(psi, implies(
+        fol_fa(f, x, psi, np),
+        apply(S, f, f, np))))
+    $_cl_fa_free forall(f, forall(fp, forall(y, forall(psi, forall(psip, implies(
+        and(fol_fa(f, y, psi, np),
+            and(fol_fa(fp, y, psip, np),
+                and(neg(eq(y, x, np)),
+                    and(neg(eq(t, y, np)),
+                        apply(S, psi, psip, np))))),
+        apply(S, f, fp, np)))))))
+    [_d_fol_subst,
+        forall(S, implies(
+            and(_cl_atomic, and(_cl_neg, and(_cl_imp, and(_cl_fa_bound, _cl_fa_free)))),
+            apply(S, phi, result, np))),
+        result, phi, x, t]
+}

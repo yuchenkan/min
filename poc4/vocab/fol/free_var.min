@@ -1,0 +1,41 @@
+from derived import mem, neg, implies, forall, and, or, exists, eq, d
+from vocab.fol.fol import fol_atomic, fol_neg, fol_imp, fol_fa
+from vocab.functions import apply
+
+# fol_free_var(x, phi, p): variable x occurs free in formula phi.
+# Least fixed point: phi is in every set S closed under the FV rules.
+#   atomic: if x appears in args, then Atomic(P,args) in S
+#   neg:    if psi in S, then Neg(psi) in S
+#   imp:    if psi1 in S or psi2 in S, then Imp(psi1,psi2) in S
+#   fa:     if y != x and psi in S, then Fa(y,psi) in S
+
+$_d_fol_free_var \f: add("FV(", add(nth(f, 2), add(",", add(nth(f, 3), ")"))))
+$fol_free_var \x phi p: {
+    $np add(p, "_")
+    $S add(np, "S")
+    $f add(np, "f")
+    $P add(np, "P")
+    $args add(np, "args")
+    $i add(np, "i")
+    $psi add(np, "psi")
+    $psi1 add(np, "psi1")
+    $psi2 add(np, "psi2")
+    $y add(np, "y")
+    $_cl_atomic forall(f, forall(P, forall(args, implies(
+        and(fol_atomic(f, P, args, np), exists(i, apply(args, i, x, np))),
+        mem(f, S)))))
+    $_cl_neg forall(f, forall(psi, implies(
+        and(fol_neg(f, psi, np), mem(psi, S)),
+        mem(f, S))))
+    $_cl_imp forall(f, forall(psi1, forall(psi2, implies(
+        and(fol_imp(f, psi1, psi2, np), or(mem(psi1, S), mem(psi2, S))),
+        mem(f, S)))))
+    $_cl_fa forall(f, forall(y, forall(psi, implies(
+        and(fol_fa(f, y, psi, np), and(neg(eq(y, x, np)), mem(psi, S))),
+        mem(f, S)))))
+    [_d_fol_free_var,
+        forall(S, implies(
+            and(_cl_atomic, and(_cl_neg, and(_cl_imp, _cl_fa))),
+            mem(phi, S))),
+        x, phi]
+}
