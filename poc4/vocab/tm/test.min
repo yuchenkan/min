@@ -1,22 +1,12 @@
 from derived import show
+from util.assert import assert
 from vocab.tm.tm import tm_config, tm_transition, tape_update, head_move, tm_step, tm_reaches
 
-$_ tap(show(tm_config("c", "q", "h", "tape", "_")))
-$_ tap("tm_config ok")
-
-$_ tap(show(tm_transition("delta", "q", "r", "w", "d", "qn", "_")))
-$_ tap("tm_transition ok")
-
-$_ tap(show(tape_update("tn", "tape", "h", "w", "_")))
-$_ tap("tape_update ok")
-
-$_ tap(show(head_move("h", "hn", "d", "_")))
-$_ tap("head_move ok")
-
-$_ tap(show(tm_step("delta", "c1", "c2", "_")))
-$_ tap("tm_step ok")
-
-$_ tap(show(tm_reaches("delta", "c0", "n", "cf", "_")))
-$_ tap("tm_reaches ok")
+$_ assert(eqv(show(tm_config("c", "q", "h", "tape", "_")), "Config(q,h,tape)"), "tm_config")
+$_ assert(eqv(show(tm_transition("delta", "q", "r", "w", "d", "qn", "_")), "T(q,r->w,d,qn)"), "tm_transition")
+$_ assert(eqv(show(tape_update("tn", "tape", "h", "w", "_")), "tn=tape[h:=w]"), "tape_update")
+$_ assert(eqv(show(head_move("h", "hn", "d", "_")), "Move(h,hn,d)"), "head_move")
+$_ assert(eqv(show(tm_step("delta", "c1", "c2", "_")), "Step(c1->c2)"), "tm_step")
+$_ assert(eqv(show(tm_reaches("delta", "c0", "n", "cf", "_")), "Reaches(delta,c0,n,cf)"), "tm_reaches")
 
 $ok true

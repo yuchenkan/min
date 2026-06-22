@@ -1,7 +1,0 @@
-from derived import show, mem
-from vocab.logic import exists_unique
-
-$_ tap(show(exists_unique(\v p: mem(v, "a"), "_")))
-$_ tap("exists_unique ok")
-
-$ok true

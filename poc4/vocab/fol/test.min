@@ -1,67 +1,30 @@
 from derived import show
+from util.assert import assert
 from vocab.fol.fol import fol_pred, fol_var_seq, fol_atomic, fol_neg, fol_imp, fol_fa
 from vocab.fol.free_var import fol_free_var
 from vocab.fol.subst import fol_subst
+from vocab.fol.truth import fol_assign_update, fol_sat
 from vocab.fol.lk import lk_axiom, lk_neg_left, lk_neg_right, lk_implies_left, lk_implies_right, lk_forall_left, lk_forall_right, lk_cut, lk_wl, lk_wr
 
-$pred fol_pred("P", "n", "L", "_")
-$_ tap(show(pred))
-$_ tap("fol_pred ok")
-
-$vs fol_var_seq("args", "n", "_")
-$_ tap(show(vs))
-$_ tap("fol_var_seq ok")
-
-$at fol_atomic("f", "P", "args", "_")
-$_ tap(show(at))
-$_ tap("fol_atomic ok")
-
-$fn fol_neg("f", "phi", "_")
-$_ tap(show(fn))
-$_ tap("fol_neg ok")
-
-$fi fol_imp("f", "phi", "psi", "_")
-$_ tap(show(fi))
-$_ tap("fol_imp ok")
-
-$ff fol_fa("f", "x", "phi", "_")
-$_ tap(show(ff))
-$_ tap("fol_fa ok")
-
-$_ tap(show(fol_free_var("x", "phi", "_")))
-$_ tap("fol_free_var ok")
-
-$_ tap(show(fol_subst("result", "phi", "x", "t", "_")))
-$_ tap("fol_subst ok")
-
-$_ tap(show(lk_axiom("cl", "cr", "A", "_")))
-$_ tap("lk_axiom ok")
-
-$_ tap(show(lk_neg_left("cl", "cr", "pl", "pr", "A", "_")))
-$_ tap("lk_neg_left ok")
-
-$_ tap(show(lk_neg_right("cl", "cr", "pl", "pr", "A", "_")))
-$_ tap("lk_neg_right ok")
-
-$_ tap(show(lk_implies_left("cl", "cr", "p1l", "p1r", "p2l", "p2r", "A", "B", "_")))
-$_ tap("lk_implies_left ok")
-
-$_ tap(show(lk_implies_right("cl", "cr", "pl", "pr", "A", "B", "_")))
-$_ tap("lk_implies_right ok")
-
-$_ tap(show(lk_forall_left("cl", "cr", "pl", "pr", "x", "phi", "t", "_")))
-$_ tap("lk_forall_left ok")
-
-$_ tap(show(lk_forall_right("cl", "cr", "pl", "pr", "x", "phi", "y", "_")))
-$_ tap("lk_forall_right ok")
-
-$_ tap(show(lk_cut("cl", "cr", "p1l", "p1r", "p2l", "p2r", "A", "_")))
-$_ tap("lk_cut ok")
-
-$_ tap(show(lk_wl("cl", "cr", "pl", "pr", "A", "_")))
-$_ tap("lk_wl ok")
-
-$_ tap(show(lk_wr("cl", "cr", "pl", "pr", "A", "_")))
-$_ tap("lk_wr ok")
+$_ assert(eqv(show(fol_pred("P", "n", "L", "_")), "n-ary pred P in L"), "fol_pred")
+$_ assert(eqv(show(fol_var_seq("args", "n", "_")), "VarSeq(args,n)"), "fol_var_seq")
+$_ assert(eqv(show(fol_atomic("f", "P", "args", "_")), "Atomic(f,P,args)"), "fol_atomic")
+$_ assert(eqv(show(fol_neg("f", "phi", "_")), "FNeg(f,phi)"), "fol_neg")
+$_ assert(eqv(show(fol_imp("f", "phi", "psi", "_")), "FImp(f,phi,psi)"), "fol_imp")
+$_ assert(eqv(show(fol_fa("f", "x", "phi", "_")), "FFa(f,x,phi)"), "fol_fa")
+$_ assert(eqv(show(fol_free_var("x", "phi", "_")), "FV(x,phi)"), "fol_free_var")
+$_ assert(eqv(show(fol_subst("result", "phi", "x", "t", "_")), "phi[x/t] = result"), "fol_subst")
+$_ assert(eqv(show(fol_assign_update("sn", "sigma", "x", "a", "_")), "sigma[x->a]"), "fol_assign_update")
+$_ assert(eqv(show(fol_sat("d", "f", "phi", "_")), "Sat(phi)"), "fol_sat")
+$_ assert(eqv(show(lk_axiom("cl", "cr", "A", "_")), "Ax(A)"), "lk_axiom")
+$_ assert(eqv(show(lk_neg_left("cl", "cr", "pl", "pr", "A", "_")), "NL(A)"), "lk_neg_left")
+$_ assert(eqv(show(lk_neg_right("cl", "cr", "pl", "pr", "A", "_")), "NR(A)"), "lk_neg_right")
+$_ assert(eqv(show(lk_implies_left("cl", "cr", "p1l", "p1r", "p2l", "p2r", "A", "B", "_")), "IL(A,B)"), "lk_implies_left")
+$_ assert(eqv(show(lk_implies_right("cl", "cr", "pl", "pr", "A", "B", "_")), "IR(A,B)"), "lk_implies_right")
+$_ assert(eqv(show(lk_forall_left("cl", "cr", "pl", "pr", "x", "phi", "t", "_")), "FL(x,phi,t)"), "lk_forall_left")
+$_ assert(eqv(show(lk_forall_right("cl", "cr", "pl", "pr", "x", "phi", "y", "_")), "FR(x,phi,y)"), "lk_forall_right")
+$_ assert(eqv(show(lk_cut("cl", "cr", "p1l", "p1r", "p2l", "p2r", "A", "_")), "Cut(A)"), "lk_cut")
+$_ assert(eqv(show(lk_wl("cl", "cr", "pl", "pr", "A", "_")), "WL(A)"), "lk_wl")
+$_ assert(eqv(show(lk_wr("cl", "cr", "pl", "pr", "A", "_")), "WR(A)"), "lk_wr")
 
 $ok true

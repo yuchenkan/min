@@ -1,17 +1,11 @@
 from derived import show
+from util.assert import assert
 from vocab.nat.arithmetic.plus import plus
 from vocab.nat.arithmetic.mult import mult, add_func, mult_func
 
-$_ tap(show(plus("m", "n", "p", "_")))
-$_ tap("plus ok")
-
-$_ tap(show(mult("m", "n", "r", "_")))
-$_ tap("mult ok")
-
-$_ tap(show(add_func("af", "m", "_")))
-$_ tap("add_func ok")
-
-$_ tap(show(mult_func("h", "_")))
-$_ tap("mult_func ok")
+$_ assert(eqv(show(plus("m", "n", "p", "_")), "m + n = p"), "plus")
+$_ assert(eqv(show(mult("m", "n", "r", "_")), "m * n = r"), "mult")
+$_ assert(eqv(show(add_func("af", "m", "_")), "AddFunc(af,m)"), "add_func")
+$_ assert(eqv(show(mult_func("h", "_")), "MultFunc(h)"), "mult_func")
 
 $ok true

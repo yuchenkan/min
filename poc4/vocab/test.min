@@ -1,6 +1,31 @@
-from vocab.sets.test import ok
-from vocab.functions.test import ok
-from vocab.logic.test import ok
+from derived import show, mem
+from util.assert import assert
+from vocab.sets import set_spec, empty, subset, singleton, pair_set, big_union
+from vocab.sets import power_set, ordered_pair, union, intersect, relation, product, transitive_set
+from vocab.functions import apply, domain, single_valued, function, range, injection, surjection, bijection
+from vocab.logic import exists_unique
 from vocab.nat.test import ok
 from vocab.tm.test import ok
 from vocab.fol.test import ok
+
+$_ assert(eqv(show(empty("s", "_")), "empty(s)"), "empty")
+$_ assert(eqv(show(subset("a", "b", "_")), "a sub b"), "subset")
+$_ assert(eqv(show(singleton("s", "a", "_")), "s = {a}"), "singleton")
+$_ assert(eqv(show(pair_set("s", "a", "b", "_")), "s = {a, b}"), "pair_set")
+$_ assert(eqv(show(big_union("s", "a", "_")), "s = U(a)"), "big_union")
+$_ assert(eqv(show(power_set("s", "a", "_")), "s = P(a)"), "power_set")
+$_ assert(eqv(show(ordered_pair("p", "a", "b", "_")), "(a, b)"), "ordered_pair")
+$_ assert(eqv(show(union("s", "a", "b", "_")), "s = a | b"), "union")
+$_ assert(eqv(show(intersect("s", "a", "b", "_")), "s = a & b"), "intersect")
+$_ assert(eqv(show(relation("f", "_")), "Rel(f)"), "relation")
+$_ assert(eqv(show(product("s", "a", "b", "_")), "s = a x b"), "product")
+$_ assert(eqv(show(transitive_set("a", "_")), "Trans(a)"), "transitive_set")
+$_ assert(eqv(show(apply("f", "x", "y", "_")), "f(x) = y"), "apply")
+$_ assert(eqv(show(domain("d", "f", "_")), "d = dom(f)"), "domain")
+$_ assert(eqv(show(single_valued("f", "_")), "SV(f)"), "single_valued")
+$_ assert(eqv(show(function("f", "_")), "Func(f)"), "function")
+$_ assert(eqv(show(range("r", "f", "_")), "r = ran(f)"), "range")
+$_ assert(eqv(show(injection("f", "_")), "Inj(f)"), "injection")
+$_ assert(eqv(show(surjection("f", "a", "b", "_")), "Surj(f,a,b)"), "surjection")
+$_ assert(eqv(show(bijection("f", "a", "b", "_")), "Bij(f,a,b)"), "bijection")
+$_ assert(eqv(show(exists_unique(\v p: mem(v, "a"), "_")), "E!_x._x in a"), "exists_unique")

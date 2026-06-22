@@ -122,6 +122,7 @@ int main(int argc, char **argv) {
      min --steps <file>    : eval, then print kernel step count to stderr */
   int eval_mode = 0;
   int show_steps = 0;
+  int no_cache = 0;
   const char *entry = NULL;
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
@@ -130,6 +131,8 @@ int main(int argc, char **argv) {
       entry = "";
     } else if (strcmp(argv[i], "--steps") == 0) {
       show_steps = 1;
+    } else if (strcmp(argv[i], "--no-cache") == 0) {
+      no_cache = 1;
     } else {
       entry = argv[i];
     }
@@ -162,24 +165,22 @@ int main(int argc, char **argv) {
 
   init_global(gc, root->stack, (const char **)root->tags, intern_t, root->global, &root->scratch);
 
-  int lock_fd = cache_lock();
+  int lock_fd = no_cache ? -1 : cache_lock();
 
-  cache_load("min.cache", gc, intern_t, root->modules, root->global, &root->scratch, &real_cache_ops);
+  if (!no_cache)
+    cache_load("min.cache", gc, intern_t, root->modules, root->global, &root->scratch, &real_cache_ops);
 
   int err = parse(gc, intern_t, root->sources, root->modules, root->filepath, read_file);
   if (err) { cache_unlock(lock_fd); gc_fini(gc); intern_fini(intern_t); return 1; }
   Env *result;
   err = eval(gc, root->modules, root->sources, root->filepath, root->global, root->stack, (const char **)root->tags, intern_t, &result);
 
-  if (!err) {
-    /* -e still saves the cache so dependency modules that got built persist,
-       but the anonymous "" entry module (the inline source) is dropped first
-       so it never lands in the cache. */
+  if (!err && !no_cache) {
     if (eval_mode) gc_map_delete(root->modules, root->filepath);
     cache_save("min.cache", gc, root->modules, root->global, &real_cache_ops);
   }
 
-  cache_unlock(lock_fd);
+  if (!no_cache) cache_unlock(lock_fd);
 
   if (show_steps)
     fprintf(stderr, "kernel steps: %lld\n", kernel_step_count);
