@@ -225,11 +225,12 @@ $delta_char \delta p: {
 
 $_add_src "0 1 1 R 0; 0 0 1 R 2; 2 1 1 R 2; 2 0 0 L 3; 3 1 0 R 1; 3 0 0 R 1;"
 
-$_add_spec \tin n hf tf np: {
-    $a add(np, "a")
-    $b add(np, "b")
-    $c add(np, "c")
-    $ssc add(np, "ssc")
+$_add_spec \tin n hf tf p: {
+    $np add(p, "_")
+    $a add(p, "a")
+    $b add(p, "b")
+    $c add(p, "c")
+    $ssc add(p, "ssc")
     [
         [a, b, c, ssc],
         [
@@ -252,15 +253,15 @@ $add_goal \p: tm_correct(_add_src, 0, 1, _add_spec, p)
 $_d_phase1_ind \f: add("P1Ind(", add(nth(f, 2), ")"))
 $phase1_ind \n d q0 tape c0 p: {
     $np add(p, "_")
-    $tra add(np, "tra")
-    $cn add(np, "cn")
-    $k add(np, "k")
-    $sk add(np, "sk")
-    $ck add(np, "ck")
-    $ck1 add(np, "ck1")
-    $zp add(np, "zp")
-    $xd add(np, "xd")
-    $yd add(np, "yd")
+    $tra add(p, "tra")
+    $cn add(p, "cn")
+    $k add(p, "k")
+    $sk add(p, "sk")
+    $ck add(p, "ck")
+    $ck1 add(p, "ck1")
+    $zp add(p, "zp")
+    $xd add(p, "xd")
+    $yd add(p, "yd")
     $base_cond forall(zp, implies(empty(zp, np), apply(tra, zp, c0, np)))
     $dom_bound forall(xd, forall(yd, implies(apply(tra, xd, yd, np),
         or(mem(xd, n), eq(xd, n, np)))))
@@ -284,16 +285,16 @@ $phase1_ind \n d q0 tape c0 p: {
 $_d_phase3_ind \f: add("P3Ind(", add(nth(f, 2), ")"))
 $phase3_ind \n d q1 sa tape2 c1 p: {
     $np add(p, "_")
-    $pos_n add(np, "pn")
-    $tra add(np, "tra")
-    $cn add(np, "cn")
-    $k add(np, "k")
-    $sk add(np, "sk")
-    $ck add(np, "ck")
-    $ck1 add(np, "ck1")
-    $zp add(np, "zp")
-    $xd add(np, "xd")
-    $yd add(np, "yd")
+    $pos_n add(p, "pn")
+    $tra add(p, "tra")
+    $cn add(p, "cn")
+    $k add(p, "k")
+    $sk add(p, "sk")
+    $ck add(p, "ck")
+    $ck1 add(p, "ck1")
+    $zp add(p, "zp")
+    $xd add(p, "xd")
+    $yd add(p, "yd")
     $base_cond forall(zp, implies(empty(zp, np), apply(tra, zp, c1, np)))
     $dom_bound forall(xd, forall(yd, implies(apply(tra, xd, yd, np),
         or(mem(xd, n), eq(xd, n, np)))))

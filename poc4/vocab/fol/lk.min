@@ -21,9 +21,9 @@ $lk_axiom \cl cr A p:
 $_d_lk_neg_left \f: add("NL(", add(nth(f, 6), ")"))
 $lk_neg_left \cl cr pl pr A p: {
     $np add(p, "_")
-    $nA add(np, "nA")
-    $snA add(np, "snA")
-    $sA add(np, "sA")
+    $nA add(p, "nA")
+    $snA add(p, "snA")
+    $sA add(p, "sA")
     [_d_lk_neg_left,
         exists(nA, and(fol_neg(nA, A, np),
             exists(snA, and(singleton(snA, nA, np),
@@ -38,9 +38,9 @@ $lk_neg_left \cl cr pl pr A p: {
 $_d_lk_neg_right \f: add("NR(", add(nth(f, 6), ")"))
 $lk_neg_right \cl cr pl pr A p: {
     $np add(p, "_")
-    $nA add(np, "nA")
-    $snA add(np, "snA")
-    $sA add(np, "sA")
+    $nA add(p, "nA")
+    $snA add(p, "snA")
+    $sA add(p, "sA")
     [_d_lk_neg_right,
         exists(nA, and(fol_neg(nA, A, np),
             exists(sA, and(singleton(sA, A, np),
@@ -55,10 +55,10 @@ $lk_neg_right \cl cr pl pr A p: {
 $_d_lk_implies_left \f: add("IL(", add(nth(f, 8), add(",", add(nth(f, 9), ")"))))
 $lk_implies_left \cl cr p1l p1r p2l p2r A B p: {
     $np add(p, "_")
-    $imp add(np, "imp")
-    $simp add(np, "simp")
-    $sA add(np, "sA")
-    $sB add(np, "sB")
+    $imp add(p, "imp")
+    $simp add(p, "simp")
+    $sA add(p, "sA")
+    $sB add(p, "sB")
     [_d_lk_implies_left,
         exists(imp, and(fol_imp(imp, A, B, np),
             exists(simp, and(singleton(simp, imp, np),
@@ -77,11 +77,11 @@ $lk_implies_left \cl cr p1l p1r p2l p2r A B p: {
 $_d_lk_implies_right \f: add("IR(", add(nth(f, 6), add(",", add(nth(f, 7), ")"))))
 $lk_implies_right \cl cr pl pr A B p: {
     $np add(p, "_")
-    $imp add(np, "imp")
-    $simp add(np, "simp")
-    $sA add(np, "sA")
-    $sB add(np, "sB")
-    $sigma add(np, "sigma")
+    $imp add(p, "imp")
+    $simp add(p, "simp")
+    $sA add(p, "sA")
+    $sB add(p, "sB")
+    $sigma add(p, "sigma")
     [_d_lk_implies_right,
         exists(imp, and(fol_imp(imp, A, B, np),
             exists(sA, and(singleton(sA, A, np),
@@ -99,11 +99,11 @@ $lk_implies_right \cl cr pl pr A B p: {
 $_d_lk_forall_left \f: add("FL(", add(nth(f, 6), add(",", add(nth(f, 7), add(",", add(nth(f, 8), ")"))))))
 $lk_forall_left \cl cr pl pr x phi t p: {
     $np add(p, "_")
-    $fa add(np, "fa")
-    $sub add(np, "sub")
-    $sfa add(np, "sfa")
-    $ssub add(np, "ssub")
-    $gamma add(np, "gamma")
+    $fa add(p, "fa")
+    $sub add(p, "sub")
+    $sfa add(p, "sfa")
+    $ssub add(p, "ssub")
+    $gamma add(p, "gamma")
     [_d_lk_forall_left,
         exists(fa, and(fol_fa(fa, x, phi, np),
             exists(sub, and(fol_subst(sub, phi, x, t, np),
@@ -122,12 +122,12 @@ $lk_forall_left \cl cr pl pr x phi t p: {
 $_d_lk_forall_right \f: add("FR(", add(nth(f, 6), add(",", add(nth(f, 7), add(",", add(nth(f, 8), ")"))))))
 $lk_forall_right \cl cr pl pr x phi y p: {
     $np add(p, "_")
-    $fa add(np, "fa")
-    $sub add(np, "sub")
-    $sfa add(np, "sfa")
-    $ssub add(np, "ssub")
-    $sigma add(np, "sigma")
-    $g add(np, "g")
+    $fa add(p, "fa")
+    $sub add(p, "sub")
+    $sfa add(p, "sfa")
+    $ssub add(p, "ssub")
+    $sigma add(p, "sigma")
+    $g add(p, "g")
     $_eigen and(
         forall(g, implies(mem(g, cl), neg(fol_free_var(y, g, np)))),
         forall(g, implies(mem(g, cr), neg(fol_free_var(y, g, np)))))
@@ -148,7 +148,7 @@ $lk_forall_right \cl cr pl pr x phi y p: {
 $_d_lk_cut \f: add("Cut(", add(nth(f, 8), ")"))
 $lk_cut \cl cr p1l p1r p2l p2r A p: {
     $np add(p, "_")
-    $sA add(np, "sA")
+    $sA add(p, "sA")
     [_d_lk_cut,
         exists(sA, and(singleton(sA, A, np),
             and(union(p1r, cr, sA, np),
@@ -163,7 +163,7 @@ $lk_cut \cl cr p1l p1r p2l p2r A p: {
 $_d_lk_wl \f: add("WL(", add(nth(f, 6), ")"))
 $lk_wl \cl cr pl pr A p: {
     $np add(p, "_")
-    $sA add(np, "sA")
+    $sA add(p, "sA")
     [_d_lk_wl,
         exists(sA, and(singleton(sA, A, np),
             and(union(cl, pl, sA, np),
@@ -176,7 +176,7 @@ $lk_wl \cl cr pl pr A p: {
 $_d_lk_wr \f: add("WR(", add(nth(f, 6), ")"))
 $lk_wr \cl cr pl pr A p: {
     $np add(p, "_")
-    $sA add(np, "sA")
+    $sA add(p, "sA")
     [_d_lk_wr,
         exists(sA, and(singleton(sA, A, np),
             and(union(cr, pr, sA, np),

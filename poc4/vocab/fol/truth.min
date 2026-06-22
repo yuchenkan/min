@@ -1,14 +1,15 @@
 from derived import mem, neg, implies, forall, and, or, iff, exists, eq, d
 from vocab.fol.fol import fol_atomic, fol_neg, fol_imp, fol_fa, fol_var_seq
 from vocab.functions import apply
+from vocab.nat.order import lt
 
 # fol_assign_update(sigma_new, sigma, x, a, p):
 #   sigma_new = sigma[x -> a]
 $_d_au \f: add(nth(f, 3), add("[", add(nth(f, 4), add("->", add(nth(f, 5), "]")))))
 $fol_assign_update \sigma_new sigma x a p: {
     $np add(p, "_")
-    $y add(np, "y")
-    $v add(np, "v")
+    $y add(p, "y")
+    $v add(p, "v")
     [_d_au,
         forall(y, forall(v, iff(
             apply(sigma_new, y, v, np),
@@ -17,57 +18,45 @@ $fol_assign_update \sigma_new sigma x a p: {
         sigma_new, sigma, x, a]
 }
 
-# fol_sat(d, f, phi, p): (d,f) |= phi
-#
-# Tarski satisfaction for sentences (closed formulas).
-# Internally uses truth set T over (formula, assignment) pairs.
-# Biconditionals define T; top-level asserts phi holds under all assignments.
-$_d_sat \f: add("Sat(", add(nth(f, 4), ")"))
-$fol_sat \d f phi p: {
+# fol_truth(T, d, f, p): T is the Tarski truth predicate for structure (d, f).
+# T is a binary relation on (formula, assignment) pairs satisfying biconditionals.
+$_d_truth \f: add("Truth(", add(nth(f, 2), ")"))
+$fol_truth \T d f p: {
     $np add(p, "_")
-    $T add(np, "T")
-    $psi add(np, "psi")
-    $sp add(np, "sp")
-    $P add(np, "P")
-    $n add(np, "n")
-    $args add(np, "args")
-    $fP add(np, "fP")
-    $g add(np, "g")
-    $i add(np, "i")
-    $v add(np, "v")
-    $w add(np, "w")
-    $inner add(np, "inner")
-    $phi1 add(np, "phi1")
-    $phi2 add(np, "phi2")
-    $xv add(np, "xv")
-    $bd add(np, "bd")
-    $ae add(np, "ae")
-    $sn add(np, "sn")
-    # atomic: psi = Atomic(P, args), args is var_seq of arity n
-    #   (psi, sp) in T  <->  exists g in f(P) with g(i) = sp(args(i)) for all i
+    $psi add(p, "psi")
+    $sp add(p, "sp")
+    $P add(p, "P")
+    $n add(p, "n")
+    $args add(p, "args")
+    $fP add(p, "fP")
+    $g add(p, "g")
+    $i add(p, "i")
+    $v add(p, "v")
+    $w add(p, "w")
+    $inner add(p, "inner")
+    $phi1 add(p, "phi1")
+    $phi2 add(p, "phi2")
+    $xv add(p, "xv")
+    $bd add(p, "bd")
+    $ae add(p, "ae")
+    $sn add(p, "sn")
     $_bc_atomic forall(psi, forall(sp, forall(P, forall(n, forall(args, implies(
         and(fol_atomic(psi, P, args, np), fol_var_seq(args, n, np)),
         iff(apply(T, psi, sp, np),
             exists(fP, and(apply(f, P, fP, np),
                 exists(g, and(mem(g, fP),
-                    forall(i, implies(mem(i, n),
+                    forall(i, implies(lt(i, n, np),
                         exists(v, and(apply(args, i, v, np),
                             exists(w, and(apply(sp, v, w, np),
                                 apply(g, i, w, np))))))))))))))))))
-    # neg: psi = Neg(inner)
-    #   (psi, sp) in T  <->  (inner, sp) not in T
     $_bc_neg forall(psi, forall(sp, forall(inner, implies(
         fol_neg(psi, inner, np),
         iff(apply(T, psi, sp, np),
             neg(apply(T, inner, sp, np)))))))
-    # imp: psi = Imp(phi1, phi2)
-    #   (psi, sp) in T  <->  ((phi1, sp) in T -> (phi2, sp) in T)
     $_bc_imp forall(psi, forall(sp, forall(phi1, forall(phi2, implies(
         fol_imp(psi, phi1, phi2, np),
         iff(apply(T, psi, sp, np),
             implies(apply(T, phi1, sp, np), apply(T, phi2, sp, np))))))))
-    # fa: psi = Fa(xv, bd)
-    #   (psi, sp) in T  <->  for all a in d, (bd, sp[xv->a]) in T
     $_bc_fa forall(psi, forall(sp, forall(xv, forall(bd, implies(
         fol_fa(psi, xv, bd, np),
         iff(apply(T, psi, sp, np),
@@ -75,9 +64,20 @@ $fol_sat \d f phi p: {
                 exists(sn, and(
                     fol_assign_update(sn, sp, xv, ae, np),
                     apply(T, bd, sn, np)))))))))))
-    $sg add(np, "sg")
+    [_d_truth,
+        and(_bc_atomic, and(_bc_neg, and(_bc_imp, _bc_fa))),
+        T, d, f]
+}
+
+# fol_sat(d, f, phi, p): (d,f) |= phi
+# There exists a truth predicate T for (d,f) under which phi is true.
+$_d_sat \f: add("Sat(", add(nth(f, 4), ")"))
+$fol_sat \d f phi p: {
+    $np add(p, "_")
+    $T add(p, "T")
+    $sg add(p, "sg")
     [_d_sat,
-        exists(T, and(_bc_atomic, and(_bc_neg, and(_bc_imp, and(_bc_fa,
-            forall(sg, apply(T, phi, sg, np))))))),
+        forall(T, implies(fol_truth(T, d, f, np),
+            forall(sg, apply(T, phi, sg, np)))),
         d, f, phi]
 }

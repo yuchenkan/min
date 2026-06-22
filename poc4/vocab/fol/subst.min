@@ -1,6 +1,7 @@
 from derived import mem, neg, implies, forall, and, exists, eq, d
 from vocab.fol.fol import fol_atomic, fol_neg, fol_imp, fol_fa, fol_var_seq
 from vocab.functions import apply
+from vocab.nat.order import lt
 
 # fol_subst(result, phi, x, t, p): result = phi[x/t]
 # Substitute variable t for free occurrences of variable x in formula phi.
@@ -18,26 +19,26 @@ from vocab.functions import apply
 $_d_fol_subst \f: add(nth(f, 3), add("[", add(nth(f, 4), add("/", add(nth(f, 5), add("] = ", nth(f, 2)))))))
 $fol_subst \result phi x t p: {
     $np add(p, "_")
-    $S add(np, "S")
-    $f add(np, "f")
-    $fp add(np, "fp")
-    $P add(np, "P")
-    $n add(np, "n")
-    $args add(np, "args")
-    $argsp add(np, "argsp")
-    $i add(np, "i")
-    $v add(np, "v")
-    $psi add(np, "psi")
-    $psip add(np, "psip")
-    $psi1 add(np, "psi1")
-    $psi1p add(np, "psi1p")
-    $psi2 add(np, "psi2")
-    $psi2p add(np, "psi2p")
-    $y add(np, "y")
+    $S add(p, "S")
+    $f add(p, "f")
+    $fp add(p, "fp")
+    $P add(p, "P")
+    $n add(p, "n")
+    $args add(p, "args")
+    $argsp add(p, "argsp")
+    $i add(p, "i")
+    $v add(p, "v")
+    $psi add(p, "psi")
+    $psip add(p, "psip")
+    $psi1 add(p, "psi1")
+    $psi1p add(p, "psi1p")
+    $psi2 add(p, "psi2")
+    $psi2p add(p, "psi2p")
+    $y add(p, "y")
     # args[x->t]: for each position i in domain n,
     #   if args(i) = x then argsp(i) = t
     #   if args(i) = v and v != x then argsp(i) = v
-    $_args_subst forall(i, implies(mem(i, n),
+    $_args_subst forall(i, implies(lt(i, n, np),
         and(implies(apply(args, i, x, np), apply(argsp, i, t, np)),
             forall(v, implies(and(apply(args, i, v, np), neg(eq(v, x, np))),
                 apply(argsp, i, v, np))))))
