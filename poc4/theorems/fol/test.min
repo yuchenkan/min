@@ -1,0 +1,11 @@
+from derived import mem, implies, forall, qed
+from vocab.fol.truth import fol_sat, fol_seq_valid
+from theorems.fol.soundness_axiom import soundness_axiom
+
+$sa soundness_axiom("A", "G", "D", ["D", "G", "A"])
+$expected forall("A", forall("G", forall("D",
+    implies(mem("A", "G"), implies(mem("A", "D"), fol_seq_valid("G", "D", "_"))))))
+$_ qed(sa, expected, "z")
+$_ tap("soundness_axiom ok")
+
+$ok true

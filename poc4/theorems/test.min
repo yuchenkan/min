@@ -3,3 +3,4 @@ from theorems.sets.test import ok
 from theorems.functions.test import ok
 from theorems.nat.test import ok
 from theorems.tm.test import ok
+from theorems.fol.test import ok

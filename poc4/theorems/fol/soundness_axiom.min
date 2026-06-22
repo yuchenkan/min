@@ -1,0 +1,75 @@
+from derived import mem, neg, implies, forall, exists, and, left, right
+from vocab.fol.truth import fol_sat, fol_seq_valid
+from tactics import ax, wl, nl, il, nr, fl, ir, fr, mp, eir, close, same
+from util.list import remove
+
+# Soundness of axiom rule:
+# |- A in G -> A in D -> seq_valid(G, D)
+
+$soundness_axiom \A G D vars: {
+    $p "_"
+    $d "d"
+    $f "f"
+    $g "g"
+
+    $sat_g fol_sat(d, f, g, p)
+    $sat_A fol_sat(d, f, A, p)
+    $mem_A_G mem(A, G)
+    $mem_A_D mem(A, D)
+
+    $hyp_all forall(g, implies(mem(g, G), sat_g))
+    $concl exists(g, and(mem(g, D), sat_g))
+    $inner implies(hyp_all, concl)
+    $body forall(d, forall(f, inner))
+    $sv fol_seq_valid(G, D, p)
+
+    # [A∈G] |- [A∈G]
+    $a1 ax([mem_A_G], [mem_A_G], mem_A_G)
+
+    # fl: [hyp_all] |- [A∈G → Sat(A)]
+    $inst_body implies(mem_A_G, sat_A)
+    $s2 fl(ax([inst_body], [inst_body], inst_body), [hyp_all], [inst_body], hyp_all, A)
+
+    # mp: [A∈G, hyp_all] |- [Sat(A)]
+    $s3 mp(s2, a1, mem_A_G, sat_A, [hyp_all], [mem_A_G])
+
+    # wl: [A∈G, A∈D, hyp_all] |- [Sat(A)]
+    $s4 wl(s3, add(left(s3), [mem_A_D]), right(s3), mem_A_D)
+
+    $ctx [mem_A_G, mem_A_D, hyp_all]
+    $conj and(mem_A_D, sat_A)
+    $neg_sat neg(sat_A)
+    $imp_d_neg implies(mem_A_D, neg_sat)
+    $ctx_imp add(ctx, [imp_d_neg])
+
+    # [ctx] |- [A∈D]
+    $p1 wl(wl(ax([mem_A_D], [mem_A_D], mem_A_D),
+        [mem_A_D, mem_A_G], [mem_A_D], mem_A_G),
+        ctx, [mem_A_D], hyp_all)
+
+    # [ctx, neg_sat] |- []
+    $p2 nl(s4, add(ctx, [neg_sat]), [], neg_sat)
+
+    # il on imp_d_neg: [ctx, imp_d_neg] |- []
+    $s6 il(p1, p2, ctx_imp, [], imp_d_neg)
+
+    # nr: [ctx] |- [and(A∈D, Sat(A))]
+    $s7 nr(s6, ctx, [conj], conj)
+
+    # eir: [ctx] |- [∃g.(g∈D ∧ Sat(g))]
+    $s8 eir(s7, \gv: and(mem(gv, D), fol_sat(d, f, gv, p)), g, A, ctx)
+
+    # ir: discharge hyp_all
+    $s9 ir(s8, remove(same, hyp_all, ctx), [inner], inner)
+
+    # fr f, fr d
+    $s10 fr(s9, left(s9), [forall(f, inner)], forall(f, inner), f)
+    $s11 fr(s10, left(s10), [body], body, d)
+
+    # ir: discharge A∈D, then A∈G
+    $s12 ir(s11, remove(same, mem_A_D, left(s11)), [implies(mem_A_D, body)], implies(mem_A_D, body))
+    $s13 ir(s12, [], [implies(mem_A_G, implies(mem_A_D, body))], implies(mem_A_G, implies(mem_A_D, body)))
+
+    $top implies(mem_A_G, implies(mem_A_D, sv))
+    close(s13, [], [top], vars)
+}
