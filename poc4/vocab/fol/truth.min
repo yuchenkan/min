@@ -70,7 +70,8 @@ $fol_truth \T d f p: {
 }
 
 # fol_sat(d, f, phi, p): (d,f) |= phi
-# There exists a truth predicate T for (d,f) under which phi is true.
+# fol_sat(d, f, phi, p): (d,f) |= phi
+# For every truth predicate T of (d,f), phi is true in T.
 $_d_sat \f: add("Sat(", add(nth(f, 4), ")"))
 $fol_sat \d f phi p: {
     $np add(p, "_")
@@ -80,4 +81,31 @@ $fol_sat \d f phi p: {
         forall(T, implies(fol_truth(T, d, f, np),
             forall(sg, apply(T, phi, sg, np)))),
         d, f, phi]
+}
+
+# fol_seq_valid(gamma, delta, p): Gamma |= Delta
+# For every structure (d,f), if all of Gamma are true then some of Delta is true.
+$_d_seq_valid \f: add(nth(f, 2), add(" |= ", nth(f, 3)))
+$fol_seq_valid \gamma delta p: {
+    $np add(p, "_")
+    $d add(p, "d")
+    $f add(p, "f")
+    $g add(p, "g")
+    [_d_seq_valid,
+        forall(d, forall(f,
+            implies(forall(g, implies(mem(g, gamma), fol_sat(d, f, g, np))),
+                exists(g, and(mem(g, delta), fol_sat(d, f, g, np)))))),
+        gamma, delta]
+}
+
+# fol_valid(phi, p): |= phi
+# phi is true in every structure.
+$_d_valid \f: add("|= ", nth(f, 2))
+$fol_valid \phi p: {
+    $np add(p, "_")
+    $d add(p, "d")
+    $f add(p, "f")
+    [_d_valid,
+        forall(d, forall(f, fol_sat(d, f, phi, np))),
+        phi]
 }

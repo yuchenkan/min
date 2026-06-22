@@ -3,8 +3,8 @@ from util.assert import assert
 from vocab.fol.fol import fol_pred, fol_var_seq, fol_atomic, fol_neg, fol_imp, fol_fa
 from vocab.fol.free_var import fol_free_var
 from vocab.fol.subst import fol_subst
-from vocab.fol.truth import fol_assign_update, fol_truth, fol_sat
-from vocab.fol.lk import lk_axiom, lk_neg_left, lk_neg_right, lk_implies_left, lk_implies_right, lk_forall_left, lk_forall_right, lk_cut, lk_wl, lk_wr
+from vocab.fol.truth import fol_assign_update, fol_truth, fol_sat, fol_seq_valid, fol_valid
+from vocab.fol.lk import lk_axiom, lk_neg_left, lk_neg_right, lk_implies_left, lk_implies_right, lk_forall_left, lk_forall_right, lk_cut, lk_wl, lk_wr, fol_provable
 
 $_ assert(eqv(show(fol_pred("P", "n", "L", "_")), "n-ary pred P in L"), "fol_pred")
 $_ assert(eqv(show(fol_var_seq("args", "n", "_")), "VarSeq(args,n)"), "fol_var_seq")
@@ -17,6 +17,8 @@ $_ assert(eqv(show(fol_subst("result", "phi", "x", "t", "_")), "phi[x/t] = resul
 $_ assert(eqv(show(fol_assign_update("sn", "sigma", "x", "a", "_")), "sigma[x->a]"), "fol_assign_update")
 $_ assert(eqv(show(fol_truth("T", "d", "f", "_")), "Truth(T)"), "fol_truth")
 $_ assert(eqv(show(fol_sat("d", "f", "phi", "_")), "Sat(phi)"), "fol_sat")
+$_ assert(eqv(show(fol_seq_valid("G", "D", "_")), "G |= D"), "fol_seq_valid")
+$_ assert(eqv(show(fol_valid("phi", "_")), "|= phi"), "fol_valid")
 $_ assert(eqv(show(lk_axiom("cl", "cr", "A", "_")), "Ax(A)"), "lk_axiom")
 $_ assert(eqv(show(lk_neg_left("cl", "cr", "pl", "pr", "A", "_")), "NL(A)"), "lk_neg_left")
 $_ assert(eqv(show(lk_neg_right("cl", "cr", "pl", "pr", "A", "_")), "NR(A)"), "lk_neg_right")
@@ -27,5 +29,6 @@ $_ assert(eqv(show(lk_forall_right("cl", "cr", "pl", "pr", "x", "phi", "y", "_")
 $_ assert(eqv(show(lk_cut("cl", "cr", "p1l", "p1r", "p2l", "p2r", "A", "_")), "Cut(A)"), "lk_cut")
 $_ assert(eqv(show(lk_wl("cl", "cr", "pl", "pr", "A", "_")), "WL(A)"), "lk_wl")
 $_ assert(eqv(show(lk_wr("cl", "cr", "pl", "pr", "A", "_")), "WR(A)"), "lk_wr")
+$_ assert(eqv(show(fol_provable("G", "D", "_")), "G |- D"), "fol_provable")
 
 $ok true

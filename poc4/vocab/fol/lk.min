@@ -3,6 +3,7 @@ from vocab.sets import singleton, union
 from vocab.fol.fol import fol_neg, fol_imp, fol_fa
 from vocab.fol.free_var import fol_free_var
 from vocab.fol.subst import fol_subst
+from vocab.functions import apply
 
 # LK sequent calculus rule applications.
 # Each predicate relates premise sequent(s) (pl,pr) to conclusion (cl,cr)
@@ -182,4 +183,78 @@ $lk_wr \cl cr pl pr A p: {
             and(union(cr, pr, sA, np),
                 eq(cl, pl, np)))),
         cl, cr, pl, pr, A]
+}
+
+# fol_provable(gamma, delta, p): Gamma |- Delta
+# Least fixed point of LK rules. For every relation D closed under
+# all LK rules, D(gamma, delta) holds.
+$_d_provable \f: add(nth(f, 2), add(" |- ", nth(f, 3)))
+$fol_provable \gamma delta p: {
+    $np add(p, "_")
+    $D add(p, "D")
+    $cl add(p, "cl")
+    $cr add(p, "cr")
+    $pl add(p, "pl")
+    $pr add(p, "pr")
+    $p1l add(p, "p1l")
+    $p1r add(p, "p1r")
+    $p2l add(p, "p2l")
+    $p2r add(p, "p2r")
+    $A add(p, "A")
+    $B add(p, "B")
+    $x add(p, "x")
+    $y add(p, "y")
+    $phi add(p, "phi")
+    $t add(p, "t")
+
+    $_cl_ax forall(cl, forall(cr, forall(A, implies(
+        lk_axiom(cl, cr, A, np),
+        apply(D, cl, cr, np)))))
+
+    $_cl_nl forall(cl, forall(cr, forall(pl, forall(pr, forall(A, implies(
+        and(apply(D, pl, pr, np), lk_neg_left(cl, cr, pl, pr, A, np)),
+        apply(D, cl, cr, np)))))))
+
+    $_cl_nr forall(cl, forall(cr, forall(pl, forall(pr, forall(A, implies(
+        and(apply(D, pl, pr, np), lk_neg_right(cl, cr, pl, pr, A, np)),
+        apply(D, cl, cr, np)))))))
+
+    $_cl_il forall(cl, forall(cr, forall(p1l, forall(p1r, forall(p2l, forall(p2r, forall(A, forall(B, implies(
+        and(apply(D, p1l, p1r, np),
+            and(apply(D, p2l, p2r, np),
+                lk_implies_left(cl, cr, p1l, p1r, p2l, p2r, A, B, np))),
+        apply(D, cl, cr, np))))))))))
+
+    $_cl_ir forall(cl, forall(cr, forall(pl, forall(pr, forall(A, forall(B, implies(
+        and(apply(D, pl, pr, np), lk_implies_right(cl, cr, pl, pr, A, B, np)),
+        apply(D, cl, cr, np))))))))
+
+    $_cl_fl forall(cl, forall(cr, forall(pl, forall(pr, forall(x, forall(phi, forall(t, implies(
+        and(apply(D, pl, pr, np), lk_forall_left(cl, cr, pl, pr, x, phi, t, np)),
+        apply(D, cl, cr, np)))))))))
+
+    $_cl_fr forall(cl, forall(cr, forall(pl, forall(pr, forall(x, forall(phi, forall(y, implies(
+        and(apply(D, pl, pr, np), lk_forall_right(cl, cr, pl, pr, x, phi, y, np)),
+        apply(D, cl, cr, np)))))))))
+
+    $_cl_cut forall(cl, forall(cr, forall(p1l, forall(p1r, forall(p2l, forall(p2r, forall(A, implies(
+        and(apply(D, p1l, p1r, np),
+            and(apply(D, p2l, p2r, np),
+                lk_cut(cl, cr, p1l, p1r, p2l, p2r, A, np))),
+        apply(D, cl, cr, np)))))))))
+
+    $_cl_wl forall(cl, forall(cr, forall(pl, forall(pr, forall(A, implies(
+        and(apply(D, pl, pr, np), lk_wl(cl, cr, pl, pr, A, np)),
+        apply(D, cl, cr, np)))))))
+
+    $_cl_wr forall(cl, forall(cr, forall(pl, forall(pr, forall(A, implies(
+        and(apply(D, pl, pr, np), lk_wr(cl, cr, pl, pr, A, np)),
+        apply(D, cl, cr, np)))))))
+
+    [_d_provable,
+        forall(D, implies(
+            and(_cl_ax, and(_cl_nl, and(_cl_nr, and(_cl_il, and(_cl_ir,
+                and(_cl_fl, and(_cl_fr, and(_cl_cut, and(_cl_wl, _cl_wr))))))))),
+            apply(D, gamma, delta, np))),
+        gamma, delta]
 }
