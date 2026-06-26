@@ -1,0 +1,138 @@
+from derived import mem, implies, forall, exists, and, iff, eq, left, right
+from vocab.fol.lk import lk_wl
+from vocab.fol.truth import fol_sat, fol_seq_valid
+from vocab.sets import singleton, union
+from tactics import ax, fl, ir, fr, mp, eir, eel, cut_c, apply_thm, close, same
+from theorems.logic.and_elim_left import and_elim_left
+from theorems.logic.and_elim_right import and_elim_right
+from theorems.logic.and_intro import and_intro
+from theorems.logic.iff_elim_right import iff_elim_right
+from theorems.sets.union_mem_left import union_mem_left
+
+# Soundness of weakening left:
+# fol_seq_valid(pl,pr) -> lk_wl(cl,cr,pl,pr,A) -> fol_seq_valid(cl,cr)
+
+$soundness_wl \cl cr pl pr A vars: {
+    $p "_"
+    $np add(p, "_")
+    $d "d"
+    $f "f"
+    $g "g"
+    $s "s"
+    $w "w"
+
+    $sv_pl fol_seq_valid(pl, pr, p)
+    $sv_cl fol_seq_valid(cl, cr, p)
+    $lk lk_wl(cl, cr, pl, pr, A, p)
+
+    $sat_g fol_sat(d, f, g, p)
+    $sat_w fol_sat(d, f, w, p)
+    $mem_g_cl mem(g, cl)
+    $mem_g_pl mem(g, pl)
+    $mem_w_cr mem(w, cr)
+    $mem_w_pr mem(w, pr)
+
+    $hyp_all_cl forall(g, implies(mem_g_cl, sat_g))
+    $hyp_all_pl forall(g, implies(mem_g_pl, sat_g))
+    $concl_cr exists(g, and(mem(g, cr), sat_g))
+    $concl_pr exists(g, and(mem(g, pr), sat_g))
+    $inner_cl implies(hyp_all_cl, concl_cr)
+    $inner_pl implies(hyp_all_pl, concl_pr)
+    $body_f_cl forall(f, inner_cl)
+    $body_cl forall(d, body_f_cl)
+
+    # lk body with eigenvariable s
+    $sing singleton(s, A, np)
+    $uni union(cl, pl, s, np)
+    $eqn eq(cr, pr, np)
+    $inner_conj and(uni, eqn)
+    $body_s and(sing, inner_conj)
+
+    # ==== extract uni and eqn from body_s ====
+    $_ael_o and_elim_right(sing, inner_conj, [])
+    $_ax_bs ax([body_s], [body_s], body_s)
+    $got_ic mp(_ael_o, _ax_bs, body_s, inner_conj, [], [body_s])
+
+    $_ael_u and_elim_left(uni, eqn, [])
+    $_aer_e and_elim_right(uni, eqn, [])
+    $_ax_ic ax([inner_conj], [inner_conj], inner_conj)
+    $_got_u mp(_ael_u, _ax_ic, inner_conj, uni, [], [inner_conj])
+    $got_uni cut_c(got_ic, _got_u, inner_conj, [body_s], [inner_conj], uni)
+
+    $_got_e mp(_aer_e, _ax_ic, inner_conj, eqn, [], [inner_conj])
+    $got_eqn cut_c(got_ic, _got_e, inner_conj, [body_s], [inner_conj], eqn)
+
+    # ==== union -> subset (g in pl -> g in cl) ====
+    $_uml head(right(union_mem_left))
+    $_uml_b \x: \u: \a: \b: implies(mem(x,a), implies(union(u,a,b,"_"), mem(x,u)))
+    $got_uml apply_thm(union_mem_left, _uml, [g, cl, pl, s],
+        ["x","u","a","b"], _uml_b, left(union_mem_left))
+
+    $sub_imp implies(uni, mem_g_cl)
+    $_a_gpl ax([mem_g_pl], [mem_g_pl], mem_g_pl)
+    $_got_s1 mp(got_uml, _a_gpl, mem_g_pl, sub_imp, [], [mem_g_pl])
+    $_a_uni ax([uni], [uni], uni)
+    $got_sub mp(_got_s1, _a_uni, uni, mem_g_cl, [mem_g_pl], [uni])
+
+    # ==== hyp_all_cl + subset -> hyp_all_pl ====
+    $hyp_g_cl implies(mem_g_cl, sat_g)
+    $_s_hcl fl(ax([hyp_g_cl], [hyp_g_cl], hyp_g_cl), [hyp_all_cl], [hyp_g_cl], hyp_all_cl, g)
+    $_s_chain mp(_s_hcl, got_sub, mem_g_cl, sat_g, [hyp_all_cl], [mem_g_pl, uni])
+    $hyp_g_pl implies(mem_g_pl, sat_g)
+    $_s_ir ir(_s_chain, [uni, hyp_all_cl], [hyp_g_pl], hyp_g_pl)
+    $got_hpl fr(_s_ir, [uni, hyp_all_cl], [hyp_all_pl], hyp_all_pl, g)
+
+    # ==== IH -> concl_pr ====
+    $body_f_pl forall(f, inner_pl)
+    $_s_f fl(ax([inner_pl], [inner_pl], inner_pl), [body_f_pl], [inner_pl], body_f_pl, f)
+    $_s_df fl(_s_f, [sv_pl], [inner_pl], sv_pl, d)
+    $got_cpr mp(_s_df, got_hpl, hyp_all_pl, concl_pr, [sv_pl], [uni, hyp_all_cl])
+
+    # ==== exists transfer: concl_pr -> concl_cr via eq ====
+    $conj_pr_w and(mem_w_pr, sat_w)
+    $conj_cr_w and(mem_w_cr, sat_w)
+
+    $_ael_w and_elim_left(mem_w_pr, sat_w, [])
+    $_ax_cpw ax([conj_pr_w], [conj_pr_w], conj_pr_w)
+    $got_wpr mp(_ael_w, _ax_cpw, conj_pr_w, mem_w_pr, [], [conj_pr_w])
+
+    $_aer_w and_elim_right(mem_w_pr, sat_w, [])
+    $got_sw mp(_aer_w, _ax_cpw, conj_pr_w, sat_w, [], [conj_pr_w])
+
+    $iff_w iff(mem_w_cr, mem_w_pr)
+    $_got_iff fl(ax([iff_w], [iff_w], iff_w), [eqn], [iff_w], eqn, w)
+    $imp_pr_cr implies(mem_w_pr, mem_w_cr)
+    $_ier iff_elim_right(mem_w_cr, mem_w_pr, [])
+    $_got_imp mp(_ier, _got_iff, iff_w, imp_pr_cr, [], [eqn])
+    $got_wcr mp(_got_imp, got_wpr, mem_w_pr, mem_w_cr, [eqn], [conj_pr_w])
+
+    $imp_sw implies(sat_w, conj_cr_w)
+    $_ai and_intro(mem_w_cr, sat_w, [])
+    $_got_ai mp(_ai, got_wcr, mem_w_cr, imp_sw, [], [eqn, conj_pr_w])
+    $got_crw mp(_got_ai, got_sw, sat_w, conj_cr_w, [eqn, conj_pr_w], [conj_pr_w])
+
+    $got_ccr eir(got_crw, \gv: and(mem(gv, cr), fol_sat(d, f, gv, p)), g, w, [eqn, conj_pr_w])
+    $got_transfer eel(got_ccr, \gv: and(mem(gv, pr), fol_sat(d, f, gv, p)), g, w, [eqn, conj_pr_w], concl_cr)
+
+    # ==== combine IH result with transfer ====
+    $got_final cut_c(got_cpr, got_transfer, concl_pr, [sv_pl, uni, hyp_all_cl], [eqn, concl_pr], concl_cr)
+
+    # ==== wrap: ir(hyp_all_cl), fr(f), fr(d) ====
+    $_w_ir ir(got_final, [sv_pl, uni, eqn], [inner_cl], inner_cl)
+    $_w_frf fr(_w_ir, [sv_pl, uni, eqn], [body_f_cl], body_f_cl, f)
+    $_w_frd fr(_w_frf, [sv_pl, uni, eqn], [body_cl], body_cl, d)
+
+    # ==== replace uni, eqn with body_s via cut ====
+    $_w_cu cut_c(got_uni, _w_frd, uni, [body_s], [sv_pl, uni, eqn], sv_cl)
+    $_w_ce cut_c(got_eqn, _w_cu, eqn, [body_s], [sv_pl, body_s, eqn], sv_cl)
+
+    # ==== eel: wrap lk existential ====
+    $_pred_fn \sA: and(singleton(sA, A, np), and(union(cl, pl, sA, np), eq(cr, pr, np)))
+    $_w_eel eel(_w_ce, _pred_fn, s, s, [sv_pl, body_s], sv_cl)
+
+    # ==== close ====
+    $_c1 ir(_w_eel, [sv_pl], [implies(lk, sv_cl)], implies(lk, sv_cl))
+    $_c2 ir(_c1, [], [implies(sv_pl, implies(lk, sv_cl))], implies(sv_pl, implies(lk, sv_cl)))
+    $top implies(sv_pl, implies(lk, sv_cl))
+    close(_c2, [], [top], vars)
+}

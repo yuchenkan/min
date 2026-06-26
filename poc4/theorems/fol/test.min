@@ -1,11 +1,21 @@
 from derived import mem, implies, forall, qed
+from vocab.fol.lk import lk_axiom, lk_wl
 from vocab.fol.truth import fol_sat, fol_seq_valid
 from theorems.fol.soundness_axiom import soundness_axiom
+from theorems.fol.soundness_wl import soundness_wl
 
-$sa soundness_axiom("A", "G", "D", ["D", "G", "A"])
-$expected forall("A", forall("G", forall("D",
-    implies(mem("A", "G"), implies(mem("A", "D"), fol_seq_valid("G", "D", "_"))))))
-$_ qed(sa, expected, "z")
+$sa soundness_axiom("cl", "cr", "A", ["A", "cr", "cl"])
+$_sa_exp forall("cl", forall("cr", forall("A",
+    implies(lk_axiom("cl", "cr", "A", "_"), fol_seq_valid("cl", "cr", "_")))))
+$_ qed(sa, _sa_exp, "z")
 $_ tap("soundness_axiom ok")
+
+$swl soundness_wl("cl", "cr", "pl", "pr", "A", ["A", "pr", "pl", "cr", "cl"])
+$_swl_exp forall("cl", forall("cr", forall("pl", forall("pr", forall("A",
+    implies(fol_seq_valid("pl", "pr", "_"),
+        implies(lk_wl("cl", "cr", "pl", "pr", "A", "_"),
+            fol_seq_valid("cl", "cr", "_"))))))))
+$_ qed(swl, _swl_exp, "z")
+$_ tap("soundness_wl ok")
 
 $ok true
